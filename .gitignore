@@ -1,0 +1,27 @@
+# Dependências
+node_modules/
+
+# Build
+dist/
+
+# Ambiente
+.env
+!.env.example
+
+# Prisma
+prisma/migrations/
+
+# Testes
+coverage/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

@@ -1,0 +1,40 @@
+{
+    "compilerOptions": {
+        /* --- Linguagem e ambiente --- */
+        "target": "ES2022",
+        "lib": ["ES2022"],
+        "module": "NodeNext",          // ES Modules para Node.js moderno
+        "moduleResolution": "NodeNext",
+
+        /* --- Path aliases --- */
+        "baseUrl": ".",                // âncora dos paths (raiz do tsconfig)
+        "paths": {
+        "@/*": ["src/*"]            // @/modules/user → src/modules/user
+        },
+
+        /* --- Output --- */
+        "outDir": "dist",
+        "rootDir": "src",
+
+        /* --- Qualidade e segurança --- */
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "noImplicitOverride": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "exactOptionalPropertyTypes": true,
+
+        /* --- Interoperabilidade --- */
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+
+        /* --- Decorators (futuro uso com Prisma/IoT) --- */
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+
+        "skipLibCheck": true
+    },
+    "include": ["src/**/*"],
+    "exclude": ["node_modules", "dist"]
+}

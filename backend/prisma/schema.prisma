@@ -1,0 +1,264 @@
+// LumiTrack — Schema Prisma
+// Banco de dados: PostgreSQL
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Pessoa física (residencial) vs. pessoa jurídica (comercial/industrial)
+enum UserType {
+  INDIVIDUAL   // Pessoa física
+  COMPANY      // Pessoa jurídica
+}
+
+// Tipo de instalação elétrica — impacta cálculos de consumo e custo
+enum ElectricalSystemType {
+  MONOPHASIC   // Monofásico (1 fase)
+  BIPHASIC     // Bifásico (2 fases)
+  TRIPHASIC    // Trifásico (3 fases)
+}
+
+// Canal pelo qual o token foi emitido — mobile não expira, web expira
+enum TokenChannel {
+  WEB
+  MOBILE
+}
+
+// Granularidade das entradas de histórico de consumo
+enum ConsumptionPeriod {
+  DAILY
+  MONTHLY
+  ANNUAL
+}
+
+// A qual nível da hierarquia o alerta pertence
+enum AlertTargetType {
+  PROPERTY
+  AREA
+  DEVICE
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USUÁRIO
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // hash bcrypt
+  userType  UserType
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Campos exclusivos de pessoa física
+  firstName String?
+  lastName  String?
+  cpf       String? @unique
+
+  // Campos exclusivos de pessoa jurídica
+  companyName String?
+  cnpj        String? @unique
+  tradeName   String?
+
+  // Relacionamentos
+  properties    Property[]
+  distributors  EnergyDistributor[]
+  tokens        AuthToken[]
+  passwordResets PasswordReset[]
+  alerts        Alert[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTENTICAÇÃO E SEGURANÇA
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Armazena tokens emitidos para permitir revogação (logout e expiração).
+model AuthToken {
+  id        String       @id @default(uuid())
+  userId    String
+  token     String       @unique
+  channel   TokenChannel
+  expiresAt DateTime?    // null = mobile (não expira por tempo)
+  revokedAt DateTime?    // null = ainda válido
+  createdAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("auth_tokens")
+}
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("password_resets")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DISTRIBUIDORA DE ENERGIA
+// ─────────────────────────────────────────────────────────────────────────────
+
+model EnergyDistributor {
+  id                  String              @id @default(uuid())
+  userId              String
+  name                String
+  cnpj                String
+  electricalSystem    ElectricalSystemType
+  workingVoltage      Float               // em Volts (ex.: 127, 220, 380)
+  kwhPrice            Float               // preço por kWh em BRL
+  taxRate             Float?              // alíquota de impostos (ICMS, etc.)
+  publicLightingFee   Float?              // Contribuição de Iluminação Pública (CIP)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  properties Property[]
+
+  @@map("energy_distributors")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HIERARQUIA: PROPRIEDADE → ÁREA → APARELHO
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Property {
+  id             String   @id @default(uuid())
+  userId         String
+  distributorId  String
+  name           String
+  address        String?
+  city           String?
+  state          String?
+  zipCode        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  distributor EnergyDistributor @relation(fields: [distributorId], references: [id])
+  areas       Area[]
+  consumption ConsumptionRecord[]
+  alerts      Alert[]
+
+  @@map("properties")
+}
+
+model Area {
+  id          String   @id @default(uuid())
+  propertyId  String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  devices     Device[]
+  consumption ConsumptionRecord[]
+  alerts      Alert[]
+
+  @@map("areas")
+}
+
+model Device {
+  id          String   @id @default(uuid())
+  areaId      String
+  name        String
+  brand       String?
+  model       String?
+  powerWatts  Float?   // potência nominal em Watts
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  area        Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  consumption ConsumptionRecord[]
+  alerts      Alert[]
+  iotConfig   IoTDeviceConfig?
+
+  @@map("devices")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HISTÓRICO DE CONSUMO
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Registro polimórfico: pode pertencer a Property, Area ou Device.
+// Apenas um dos FKs estará preenchido por registro.
+model ConsumptionRecord {
+  id           String            @id @default(uuid())
+  propertyId   String?
+  areaId       String?
+  deviceId     String?
+  period       ConsumptionPeriod
+  referenceDate DateTime          // data de início do período medido
+  kwhConsumed  Float             // consumo em kWh
+  costBrl      Float?            // custo calculado em BRL
+  notes        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  area     Area?     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  device   Device?   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, period, referenceDate])
+  @@index([areaId, period, referenceDate])
+  @@index([deviceId, period, referenceDate])
+  @@map("consumption_records")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ALERTAS E NOTIFICAÇÕES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Alert {
+  id          String          @id @default(uuid())
+  userId      String
+  targetType  AlertTargetType
+  propertyId  String?
+  areaId      String?
+  deviceId    String?
+  thresholdKwh Float          // gatilho: consumo acima deste valor dispara o alerta
+  message     String?
+  triggeredAt DateTime?       // quando foi disparado (null = ainda não disparado)
+  readAt      DateTime?       // quando o usuário visualizou
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property? @relation(fields: [propertyId], references: [id])
+  area     Area?     @relation(fields: [areaId], references: [id])
+  device   Device?   @relation(fields: [deviceId], references: [id])
+
+  @@map("alerts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IoT / PROTOCOLOS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model IoTDeviceConfig {
+  id        String   @id @default(uuid())
+  deviceId  String   @unique
+  protocol  String   // MQTT, Modbus, EtherNet/IP, Profibus, RS485, etc.
+  host      String?
+  port      Int?
+  topic     String?  // para MQTT
+  address   String?  // para Modbus/RS485
+  extra     Json?    // configurações extras específicas do protocolo
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("iot_device_configs")
+}

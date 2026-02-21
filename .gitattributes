@@ -1,0 +1,28 @@
+# ==========================================
+# GitHub Linguist - Configuração de Linguagem
+# ==========================================
+
+# 1. Ignorar arquivos de configuração em JavaScript e JSON
+*.js linguist-vendored
+*.mjs linguist-vendored
+*.cjs linguist-vendored
+*.jsx linguist-vendored
+*.json linguist-vendored
+
+# 2. Ignorar marcação e estilos do Frontend
+*.html linguist-vendored
+*.css linguist-vendored
+*.scss linguist-vendored
+
+# 3. Ignorar TODO o código nativo do React Native (MUITO IMPORTANTE)
+# Isso impede que Java, Kotlin, Swift, Ruby e Objective-C dominem as estatísticas
+**/android/** linguist-vendored
+**/ios/** linguist-vendored
+**/.expo/** linguist-vendored
+
+# 4. Ignorar assets (SVG geralmente é lido como XML/HTML)
+*.svg linguist-vendored
+
+# 5. Forçar a detecção explícita do TypeScript (Garantia extra)
+*.ts linguist-language=TypeScript
+*.tsx linguist-language=TypeScript
