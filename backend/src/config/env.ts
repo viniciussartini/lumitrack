@@ -19,6 +19,8 @@ const envSchema = z.object({
     SMTP_FROM: z.string(),
 
     CORS_ORIGIN: z.string().default("http://localhost:3000"),
+
+    FRONTEND_URL: z.string().default("http://localhost:3000"),
 })
 
 const parsed = envSchema.safeParse(process.env)

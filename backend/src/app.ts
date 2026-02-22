@@ -3,36 +3,43 @@ import cors from "cors"
 import helmet from "helmet"
 import { env } from "@/config/env.js"
 import { errorHandler } from "@/shared/middlewares/errorHandler.js"
-import { userRoutes } from "./modules/user/user.routes.js"
+import { userRoutes } from "@/modules/user/user.routes.js"
+import { authRoutes } from "@/modules/auth/auth.routes.js"
+import { createAuthenticateMiddleware } from "@/shared/middlewares/authenticate.js"
+import { PrismaClient } from "@/generated/prisma/client.js"
+import { prisma } from "@/shared/database/prisma.js"
+import type { SendPasswordResetEmailFn } from "@/modules/auth/auth.service.js"
+import { sendPasswordResetEmail as realSendPasswordResetEmail } from "@/modules/auth/email.service.js"
 
-export function createApp() {
+export interface AppDependencies {
+    prismaClient?: PrismaClient
+    sendPasswordResetEmail?: SendPasswordResetEmailFn
+}
+
+export function createApp(deps: AppDependencies = {}) {
+    const prismaClient = deps.prismaClient ?? prisma
+    const sendPasswordResetEmail = deps.sendPasswordResetEmail ?? realSendPasswordResetEmail
+
     const app = express()
 
-    // Segurança
-    // helmet define cabeçalhos HTTP que protegem contra ataques comuns
-    // (clickjacking, XSS, sniffing de tipo MIME, etc.)
     app.use(helmet())
-
-    // cors define quais origens podem fazer requisições para a API
     app.use(cors({
         origin: env.CORS_ORIGIN,
         credentials: true,
     }))
 
-    // Parsing
     app.use(express.json())
     app.use(express.urlencoded({ extended: true }))
 
-    // Health check
-    // Endpoint simples para verificar se a API está no ar.
     app.get("/health", (_req, res) => {
         res.json({ status: "ok", timestamp: new Date().toISOString() })
     })
 
-    // Rotas dos módulos
-    app.use("/api/users", userRoutes)
+    const authenticate = createAuthenticateMiddleware(prismaClient)
 
-    // Middleware de erros
+    app.use("/api/users", userRoutes(authenticate))
+    app.use("/api/auth", authRoutes(authenticate, prismaClient, sendPasswordResetEmail))
+
     app.use(errorHandler)
 
     return app
