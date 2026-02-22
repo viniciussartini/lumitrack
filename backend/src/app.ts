@@ -3,6 +3,7 @@ import cors from "cors"
 import helmet from "helmet"
 import { env } from "@/config/env.js"
 import { errorHandler } from "@/shared/middlewares/errorHandler.js"
+import { userRoutes } from "./modules/user/user.routes.js"
 
 export function createApp() {
     const app = express()
@@ -29,6 +30,7 @@ export function createApp() {
     })
 
     // Rotas dos módulos
+    app.use("/api/users", userRoutes)
 
     // Middleware de erros
     app.use(errorHandler)
