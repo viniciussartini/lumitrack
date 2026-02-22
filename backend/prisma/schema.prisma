@@ -1,6 +1,15 @@
 // LumiTrack — Schema Prisma
 // Banco de dados: PostgreSQL
 
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ENUMS
 // ─────────────────────────────────────────────────────────────────────────────
