@@ -6,6 +6,8 @@ import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { PropertyService } from "../property/property.service.js"
+import { PropertyRepository } from "../property/property.repository.js"
 
 // ─── Instâncias ───────────────────────────────────────────────────────────────
 
@@ -14,6 +16,9 @@ const distributorService = new DistributorService(distributorRepository)
 
 const userRepository = new UserRepository(prismaTest)
 const userService = new UserService(userRepository)
+
+const propertyRepository = new PropertyRepository(prismaTest)
+const propertyService = new PropertyService(propertyRepository, distributorRepository)
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
 
@@ -43,6 +48,17 @@ const validDistributorInput = {
     kwhPrice: 0.75,
     taxRate: 0.12,
     publicLightingFee: 45.90,
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// Cria usuário + distribuidora e retorna ambos prontos para uso nos testes.
+// Evita repetição de setup inline nos testes que não estão testando a criação
+// em si — o foco fica no comportamento que o teste realmente quer verificar.
+async function setupUserAndDistributor(userInput = validUserInput) {
+    const user = await userService.createUser(userInput)
+    const distributor = await distributorService.create(user.id, validDistributorInput)
+    return { user, distributor }
 }
 
 // ─── Setup e Teardown ─────────────────────────────────────────────────────────
@@ -87,7 +103,6 @@ describe("DistributorService", () => {
 
         it("deve criar uma distribuidora sem campos opcionais (taxRate e publicLightingFee)", async () => {
             const user = await userService.createUser(validUserInput)
-
             const { taxRate: _tr, publicLightingFee: _plf, ...inputWithoutOptionals } = validDistributorInput
 
             const distributor = await distributorService.create(user.id, inputWithoutOptionals)
@@ -159,12 +174,11 @@ describe("DistributorService", () => {
 
     describe("findById", () => {
         it("deve retornar a distribuidora quando o usuário é o dono", async () => {
-            const user = await userService.createUser(validUserInput)
-            const created = await distributorService.create(user.id, validDistributorInput)
+            const { user, distributor } = await setupUserAndDistributor()
 
-            const found = await distributorService.findById(created.id, user.id)
+            const found = await distributorService.findById(distributor.id, user.id)
 
-            expect(found.id).toBe(created.id)
+            expect(found.id).toBe(distributor.id)
             expect(found.name).toBe("CEMIG Distribuição S.A.")
         })
 
@@ -181,13 +195,11 @@ describe("DistributorService", () => {
             // existe — apenas pertence a outro dono.
             // Analogia: você chega na portaria e o porteiro diz "esse apartamento existe,
             // mas você não tem autorização para entrar" — não "esse apartamento não existe".
-            const userA = await userService.createUser(validUserInput)
+            const { distributor } = await setupUserAndDistributor(validUserInput)
             const userB = await userService.createUser(anotherUserInput)
 
-            const dist = await distributorService.create(userA.id, validDistributorInput)
-
             await expect(
-                distributorService.findById(dist.id, userB.id),
+                distributorService.findById(distributor.id, userB.id),
             ).rejects.toThrow(ForbiddenError)
         })
     })
@@ -204,10 +216,9 @@ describe("DistributorService", () => {
         })
 
         it("deve retornar apenas as distribuidoras do usuário autenticado", async () => {
-            const userA = await userService.createUser(validUserInput)
+            const { user: userA } = await setupUserAndDistributor(validUserInput)
             const userB = await userService.createUser(anotherUserInput)
 
-            await distributorService.create(userA.id, validDistributorInput)
             await distributorService.create(userB.id, {
                 ...validDistributorInput,
                 name: "Distribuidora do usuário B",
@@ -247,17 +258,16 @@ describe("DistributorService", () => {
 
     describe("update", () => {
         it("deve atualizar campos permitidos", async () => {
-            const user = await userService.createUser(validUserInput)
-            const dist = await distributorService.create(user.id, validDistributorInput)
+            const { user, distributor } = await setupUserAndDistributor()
 
-            const updated = await distributorService.update(dist.id, user.id, {
+            const updated = await distributorService.update(distributor.id, user.id, {
                 name: "CEMIG Atualizada",
                 kwhPrice: 0.85,
             })
 
             expect(updated.name).toBe("CEMIG Atualizada")
             expect(updated.kwhPrice).toBe(0.85)
-            expect(updated.cnpj).toBe(dist.cnpj) // CNPJ não muda
+            expect(updated.cnpj).toBe(distributor.cnpj) // CNPJ não muda
         })
 
         it("deve lançar NotFoundError ao tentar atualizar distribuidora inexistente", async () => {
@@ -269,22 +279,19 @@ describe("DistributorService", () => {
         })
 
         it("deve lançar ForbiddenError ao tentar atualizar distribuidora de outro usuário", async () => {
-            const userA = await userService.createUser(validUserInput)
+            const { distributor } = await setupUserAndDistributor(validUserInput)
             const userB = await userService.createUser(anotherUserInput)
 
-            const dist = await distributorService.create(userA.id, validDistributorInput)
-
             await expect(
-                distributorService.update(dist.id, userB.id, { name: "Tentativa" }),
+                distributorService.update(distributor.id, userB.id, { name: "Tentativa" }),
             ).rejects.toThrow(ForbiddenError)
         })
 
         it("deve lançar ValidationError para kwhPrice inválido na atualização", async () => {
-            const user = await userService.createUser(validUserInput)
-            const dist = await distributorService.create(user.id, validDistributorInput)
+            const { user, distributor } = await setupUserAndDistributor()
 
             await expect(
-                distributorService.update(dist.id, user.id, { kwhPrice: -5 }),
+                distributorService.update(distributor.id, user.id, { kwhPrice: -5 }),
             ).rejects.toThrow(ValidationError)
         })
     })
@@ -293,13 +300,12 @@ describe("DistributorService", () => {
 
     describe("delete", () => {
         it("deve deletar uma distribuidora existente do dono", async () => {
-            const user = await userService.createUser(validUserInput)
-            const dist = await distributorService.create(user.id, validDistributorInput)
+            const { user, distributor } = await setupUserAndDistributor()
 
-            await distributorService.delete(dist.id, user.id)
+            await distributorService.delete(distributor.id, user.id)
 
             await expect(
-                distributorService.findById(dist.id, user.id),
+                distributorService.findById(distributor.id, user.id),
             ).rejects.toThrow(NotFoundError)
         })
 
@@ -312,14 +318,37 @@ describe("DistributorService", () => {
         })
 
         it("deve lançar ForbiddenError ao tentar deletar distribuidora de outro usuário", async () => {
-            const userA = await userService.createUser(validUserInput)
+            const { distributor } = await setupUserAndDistributor(validUserInput)
             const userB = await userService.createUser(anotherUserInput)
 
-            const dist = await distributorService.create(userA.id, validDistributorInput)
+            await expect(
+                distributorService.delete(distributor.id, userB.id),
+            ).rejects.toThrow(ForbiddenError)
+        })
+
+        it("deve lançar ConflictError ao tentar deletar distribuidora com propriedades vinculadas", async () => {
+            // Analogia: você não pode cancelar um contrato de energia enquanto
+            // houver imóveis registrados nesse contrato — desvincule primeiro.
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await propertyService.create(user.id, {
+                name: "Casa Principal",
+                distributorId: distributor.id,
+            })
 
             await expect(
-                distributorService.delete(dist.id, userB.id),
-            ).rejects.toThrow(ForbiddenError)
+                distributorService.delete(distributor.id, user.id),
+            ).rejects.toThrow(ConflictError)
+        })
+
+        it("deve permitir deletar distribuidora sem propriedades vinculadas", async () => {
+            // Garante que o caminho feliz continua funcionando após a adição
+            // da checagem de propriedades vinculadas.
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await expect(
+                distributorService.delete(distributor.id, user.id),
+            ).resolves.not.toThrow()
         })
     })
 })

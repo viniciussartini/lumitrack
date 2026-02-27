@@ -11,6 +11,7 @@ import { sendPasswordResetEmail as realSendPasswordResetEmail } from "@/modules/
 import { userRoutes } from "@/modules/user/user.routes.js"
 import { authRoutes } from "@/modules/auth/auth.routes.js"
 import { distributorRoutes } from "./modules/distributor/distributor.routes.js"
+import { propertyRoutes } from "./modules/property/property.routes.js"
 
 export interface AppDependencies {
     prismaClient?: PrismaClient
@@ -41,6 +42,7 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/users", userRoutes(authenticate))
     app.use("/api/auth", authRoutes(authenticate, prismaClient, sendPasswordResetEmail))
     app.use("/api/distributors", distributorRoutes(authenticate, prismaClient))
+    app.use("/api/properties", propertyRoutes(authenticate, prismaClient))
 
     app.use(errorHandler)
 

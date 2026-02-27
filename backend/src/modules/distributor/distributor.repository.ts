@@ -19,26 +19,31 @@ export type DistributorResponse = {
     updatedAt: Date
 }
 
+// Infere o tipo bruto do Prisma diretamente via ReturnType — sem descrever
+// manualmente { toNumber(): number }. Quando o schema mudar e `prisma generate`
+// for rodado, esse tipo se atualiza automaticamente junto com o client.
+// NonNullable remove o `| null` porque sempre chamamos essa função após checar
+// que o resultado não é nulo (early return acima nos callers).
+type PrismaDistributor = NonNullable<
+    Awaited<ReturnType<PrismaClient["energyDistributor"]["findUnique"]>>
+>
+
 // Converte os campos Decimal do Prisma para number JavaScript.
-// Necessário porque Prisma 7 retorna Decimal como objeto opaco com .toNumber().
-function toDistributorResponse(raw: {
-    id: string
-    userId: string
-    name: string
-    cnpj: string
-    electricalSystem: "MONOPHASIC" | "BIPHASIC" | "TRIPHASIC"
-    workingVoltage: number
-    kwhPrice: { toNumber(): number }
-    taxRate: { toNumber(): number } | null
-    publicLightingFee: { toNumber(): number } | null
-    createdAt: Date
-    updatedAt: Date
-}): DistributorResponse {
+// Necessário porque Prisma 7 com @db.Decimal retorna objetos Prisma.Decimal,
+// que têm o método .toNumber() — não são number nativos do JavaScript.
+function toDistributorResponse(raw: PrismaDistributor): DistributorResponse {
     return {
-        ...raw,
+        id: raw.id,
+        userId: raw.userId,
+        name: raw.name,
+        cnpj: raw.cnpj,
+        electricalSystem: raw.electricalSystem,
+        workingVoltage: raw.workingVoltage,
         kwhPrice: raw.kwhPrice.toNumber(),
         taxRate: raw.taxRate?.toNumber() ?? null,
         publicLightingFee: raw.publicLightingFee?.toNumber() ?? null,
+        createdAt: raw.createdAt,
+        updatedAt: raw.updatedAt,
     }
 }
 
@@ -93,6 +98,16 @@ export class DistributorRepository {
             data: cleanData,
         })
         return toDistributorResponse(raw)
+    }
+
+    // Verifica se a distribuidora tem pelo menos uma propriedade vinculada.
+    // Usado pelo service antes de tentar o delete, para dar uma mensagem de erro
+    // clara ao invés de deixar o banco lançar uma violação de FK genérica.
+    async hasProperties(id: string): Promise<boolean> {
+        const count = await this.prisma.property.count({
+            where: { distributorId: id },
+        })
+        return count > 0
     }
 
     async delete(id: string): Promise<void> {

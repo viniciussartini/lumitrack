@@ -66,6 +66,14 @@ export class DistributorService {
 
     async delete(id: string, requestingUserId: string): Promise<void> {
         await this.findById(id, requestingUserId)
+        const hasLinkedProperties = await this.distributorRepository.hasProperties(id)
+        
+        if (hasLinkedProperties) {
+            throw new ConflictError(
+                "Não é possível excluir uma distribuidora com propriedades vinculadas. Desvincule as propriedades primeiro.",
+            )
+        }
+
         await this.distributorRepository.delete(id)
     }
 }
