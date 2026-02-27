@@ -28,16 +28,16 @@ export type AggregateEnergyDistributor = {
 
 export type EnergyDistributorAvgAggregateOutputType = {
   workingVoltage: number | null
-  kwhPrice: number | null
-  taxRate: number | null
-  publicLightingFee: number | null
+  kwhPrice: runtime.Decimal | null
+  taxRate: runtime.Decimal | null
+  publicLightingFee: runtime.Decimal | null
 }
 
 export type EnergyDistributorSumAggregateOutputType = {
   workingVoltage: number | null
-  kwhPrice: number | null
-  taxRate: number | null
-  publicLightingFee: number | null
+  kwhPrice: runtime.Decimal | null
+  taxRate: runtime.Decimal | null
+  publicLightingFee: runtime.Decimal | null
 }
 
 export type EnergyDistributorMinAggregateOutputType = {
@@ -47,9 +47,9 @@ export type EnergyDistributorMinAggregateOutputType = {
   cnpj: string | null
   electricalSystem: $Enums.ElectricalSystemType | null
   workingVoltage: number | null
-  kwhPrice: number | null
-  taxRate: number | null
-  publicLightingFee: number | null
+  kwhPrice: runtime.Decimal | null
+  taxRate: runtime.Decimal | null
+  publicLightingFee: runtime.Decimal | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -61,9 +61,9 @@ export type EnergyDistributorMaxAggregateOutputType = {
   cnpj: string | null
   electricalSystem: $Enums.ElectricalSystemType | null
   workingVoltage: number | null
-  kwhPrice: number | null
-  taxRate: number | null
-  publicLightingFee: number | null
+  kwhPrice: runtime.Decimal | null
+  taxRate: runtime.Decimal | null
+  publicLightingFee: runtime.Decimal | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -234,9 +234,9 @@ export type EnergyDistributorGroupByOutputType = {
   cnpj: string
   electricalSystem: $Enums.ElectricalSystemType
   workingVoltage: number
-  kwhPrice: number
-  taxRate: number | null
-  publicLightingFee: number | null
+  kwhPrice: runtime.Decimal
+  taxRate: runtime.Decimal | null
+  publicLightingFee: runtime.Decimal | null
   createdAt: Date
   updatedAt: Date
   _count: EnergyDistributorCountAggregateOutputType | null
@@ -271,9 +271,9 @@ export type EnergyDistributorWhereInput = {
   cnpj?: Prisma.StringFilter<"EnergyDistributor"> | string
   electricalSystem?: Prisma.EnumElectricalSystemTypeFilter<"EnergyDistributor"> | $Enums.ElectricalSystemType
   workingVoltage?: Prisma.FloatFilter<"EnergyDistributor"> | number
-  kwhPrice?: Prisma.FloatFilter<"EnergyDistributor"> | number
-  taxRate?: Prisma.FloatNullableFilter<"EnergyDistributor"> | number | null
-  publicLightingFee?: Prisma.FloatNullableFilter<"EnergyDistributor"> | number | null
+  kwhPrice?: Prisma.DecimalFilter<"EnergyDistributor"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: Prisma.DecimalNullableFilter<"EnergyDistributor"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: Prisma.DecimalNullableFilter<"EnergyDistributor"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFilter<"EnergyDistributor"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"EnergyDistributor"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -298,6 +298,7 @@ export type EnergyDistributorOrderByWithRelationInput = {
 
 export type EnergyDistributorWhereUniqueInput = Prisma.AtLeast<{
   id?: string
+  userId_cnpj?: Prisma.EnergyDistributorUserIdCnpjCompoundUniqueInput
   AND?: Prisma.EnergyDistributorWhereInput | Prisma.EnergyDistributorWhereInput[]
   OR?: Prisma.EnergyDistributorWhereInput[]
   NOT?: Prisma.EnergyDistributorWhereInput | Prisma.EnergyDistributorWhereInput[]
@@ -306,14 +307,14 @@ export type EnergyDistributorWhereUniqueInput = Prisma.AtLeast<{
   cnpj?: Prisma.StringFilter<"EnergyDistributor"> | string
   electricalSystem?: Prisma.EnumElectricalSystemTypeFilter<"EnergyDistributor"> | $Enums.ElectricalSystemType
   workingVoltage?: Prisma.FloatFilter<"EnergyDistributor"> | number
-  kwhPrice?: Prisma.FloatFilter<"EnergyDistributor"> | number
-  taxRate?: Prisma.FloatNullableFilter<"EnergyDistributor"> | number | null
-  publicLightingFee?: Prisma.FloatNullableFilter<"EnergyDistributor"> | number | null
+  kwhPrice?: Prisma.DecimalFilter<"EnergyDistributor"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: Prisma.DecimalNullableFilter<"EnergyDistributor"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: Prisma.DecimalNullableFilter<"EnergyDistributor"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFilter<"EnergyDistributor"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"EnergyDistributor"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   properties?: Prisma.PropertyListRelationFilter
-}, "id">
+}, "id" | "userId_cnpj">
 
 export type EnergyDistributorOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -344,9 +345,9 @@ export type EnergyDistributorScalarWhereWithAggregatesInput = {
   cnpj?: Prisma.StringWithAggregatesFilter<"EnergyDistributor"> | string
   electricalSystem?: Prisma.EnumElectricalSystemTypeWithAggregatesFilter<"EnergyDistributor"> | $Enums.ElectricalSystemType
   workingVoltage?: Prisma.FloatWithAggregatesFilter<"EnergyDistributor"> | number
-  kwhPrice?: Prisma.FloatWithAggregatesFilter<"EnergyDistributor"> | number
-  taxRate?: Prisma.FloatNullableWithAggregatesFilter<"EnergyDistributor"> | number | null
-  publicLightingFee?: Prisma.FloatNullableWithAggregatesFilter<"EnergyDistributor"> | number | null
+  kwhPrice?: Prisma.DecimalWithAggregatesFilter<"EnergyDistributor"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: Prisma.DecimalNullableWithAggregatesFilter<"EnergyDistributor"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: Prisma.DecimalNullableWithAggregatesFilter<"EnergyDistributor"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"EnergyDistributor"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"EnergyDistributor"> | Date | string
 }
@@ -357,9 +358,9 @@ export type EnergyDistributorCreateInput = {
   cnpj: string
   electricalSystem: $Enums.ElectricalSystemType
   workingVoltage: number
-  kwhPrice: number
-  taxRate?: number | null
-  publicLightingFee?: number | null
+  kwhPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutDistributorsInput
@@ -373,9 +374,9 @@ export type EnergyDistributorUncheckedCreateInput = {
   cnpj: string
   electricalSystem: $Enums.ElectricalSystemType
   workingVoltage: number
-  kwhPrice: number
-  taxRate?: number | null
-  publicLightingFee?: number | null
+  kwhPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   properties?: Prisma.PropertyUncheckedCreateNestedManyWithoutDistributorInput
@@ -387,9 +388,9 @@ export type EnergyDistributorUpdateInput = {
   cnpj?: Prisma.StringFieldUpdateOperationsInput | string
   electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
   workingVoltage?: Prisma.FloatFieldUpdateOperationsInput | number
-  kwhPrice?: Prisma.FloatFieldUpdateOperationsInput | number
-  taxRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  publicLightingFee?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  kwhPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutDistributorsNestedInput
@@ -403,9 +404,9 @@ export type EnergyDistributorUncheckedUpdateInput = {
   cnpj?: Prisma.StringFieldUpdateOperationsInput | string
   electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
   workingVoltage?: Prisma.FloatFieldUpdateOperationsInput | number
-  kwhPrice?: Prisma.FloatFieldUpdateOperationsInput | number
-  taxRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  publicLightingFee?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  kwhPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   properties?: Prisma.PropertyUncheckedUpdateManyWithoutDistributorNestedInput
@@ -418,9 +419,9 @@ export type EnergyDistributorCreateManyInput = {
   cnpj: string
   electricalSystem: $Enums.ElectricalSystemType
   workingVoltage: number
-  kwhPrice: number
-  taxRate?: number | null
-  publicLightingFee?: number | null
+  kwhPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -431,9 +432,9 @@ export type EnergyDistributorUpdateManyMutationInput = {
   cnpj?: Prisma.StringFieldUpdateOperationsInput | string
   electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
   workingVoltage?: Prisma.FloatFieldUpdateOperationsInput | number
-  kwhPrice?: Prisma.FloatFieldUpdateOperationsInput | number
-  taxRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  publicLightingFee?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  kwhPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -445,9 +446,9 @@ export type EnergyDistributorUncheckedUpdateManyInput = {
   cnpj?: Prisma.StringFieldUpdateOperationsInput | string
   electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
   workingVoltage?: Prisma.FloatFieldUpdateOperationsInput | number
-  kwhPrice?: Prisma.FloatFieldUpdateOperationsInput | number
-  taxRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  publicLightingFee?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  kwhPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -460,6 +461,11 @@ export type EnergyDistributorListRelationFilter = {
 
 export type EnergyDistributorOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
+}
+
+export type EnergyDistributorUserIdCnpjCompoundUniqueInput = {
+  userId: string
+  cnpj: string
 }
 
 export type EnergyDistributorCountOrderByAggregateInput = {
@@ -577,12 +583,20 @@ export type FloatFieldUpdateOperationsInput = {
   divide?: number
 }
 
-export type NullableFloatFieldUpdateOperationsInput = {
-  set?: number | null
-  increment?: number
-  decrement?: number
-  multiply?: number
-  divide?: number
+export type DecimalFieldUpdateOperationsInput = {
+  set?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  increment?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  decrement?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  multiply?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  divide?: runtime.Decimal | runtime.DecimalJsLike | number | string
+}
+
+export type NullableDecimalFieldUpdateOperationsInput = {
+  set?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  increment?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  decrement?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  multiply?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  divide?: runtime.Decimal | runtime.DecimalJsLike | number | string
 }
 
 export type EnergyDistributorCreateNestedOneWithoutPropertiesInput = {
@@ -605,9 +619,9 @@ export type EnergyDistributorCreateWithoutUserInput = {
   cnpj: string
   electricalSystem: $Enums.ElectricalSystemType
   workingVoltage: number
-  kwhPrice: number
-  taxRate?: number | null
-  publicLightingFee?: number | null
+  kwhPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   properties?: Prisma.PropertyCreateNestedManyWithoutDistributorInput
@@ -619,9 +633,9 @@ export type EnergyDistributorUncheckedCreateWithoutUserInput = {
   cnpj: string
   electricalSystem: $Enums.ElectricalSystemType
   workingVoltage: number
-  kwhPrice: number
-  taxRate?: number | null
-  publicLightingFee?: number | null
+  kwhPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   properties?: Prisma.PropertyUncheckedCreateNestedManyWithoutDistributorInput
@@ -663,9 +677,9 @@ export type EnergyDistributorScalarWhereInput = {
   cnpj?: Prisma.StringFilter<"EnergyDistributor"> | string
   electricalSystem?: Prisma.EnumElectricalSystemTypeFilter<"EnergyDistributor"> | $Enums.ElectricalSystemType
   workingVoltage?: Prisma.FloatFilter<"EnergyDistributor"> | number
-  kwhPrice?: Prisma.FloatFilter<"EnergyDistributor"> | number
-  taxRate?: Prisma.FloatNullableFilter<"EnergyDistributor"> | number | null
-  publicLightingFee?: Prisma.FloatNullableFilter<"EnergyDistributor"> | number | null
+  kwhPrice?: Prisma.DecimalFilter<"EnergyDistributor"> | runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: Prisma.DecimalNullableFilter<"EnergyDistributor"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: Prisma.DecimalNullableFilter<"EnergyDistributor"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFilter<"EnergyDistributor"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"EnergyDistributor"> | Date | string
 }
@@ -676,9 +690,9 @@ export type EnergyDistributorCreateWithoutPropertiesInput = {
   cnpj: string
   electricalSystem: $Enums.ElectricalSystemType
   workingVoltage: number
-  kwhPrice: number
-  taxRate?: number | null
-  publicLightingFee?: number | null
+  kwhPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutDistributorsInput
@@ -691,9 +705,9 @@ export type EnergyDistributorUncheckedCreateWithoutPropertiesInput = {
   cnpj: string
   electricalSystem: $Enums.ElectricalSystemType
   workingVoltage: number
-  kwhPrice: number
-  taxRate?: number | null
-  publicLightingFee?: number | null
+  kwhPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -720,9 +734,9 @@ export type EnergyDistributorUpdateWithoutPropertiesInput = {
   cnpj?: Prisma.StringFieldUpdateOperationsInput | string
   electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
   workingVoltage?: Prisma.FloatFieldUpdateOperationsInput | number
-  kwhPrice?: Prisma.FloatFieldUpdateOperationsInput | number
-  taxRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  publicLightingFee?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  kwhPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutDistributorsNestedInput
@@ -735,9 +749,9 @@ export type EnergyDistributorUncheckedUpdateWithoutPropertiesInput = {
   cnpj?: Prisma.StringFieldUpdateOperationsInput | string
   electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
   workingVoltage?: Prisma.FloatFieldUpdateOperationsInput | number
-  kwhPrice?: Prisma.FloatFieldUpdateOperationsInput | number
-  taxRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  publicLightingFee?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  kwhPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -748,9 +762,9 @@ export type EnergyDistributorCreateManyUserInput = {
   cnpj: string
   electricalSystem: $Enums.ElectricalSystemType
   workingVoltage: number
-  kwhPrice: number
-  taxRate?: number | null
-  publicLightingFee?: number | null
+  kwhPrice: runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -761,9 +775,9 @@ export type EnergyDistributorUpdateWithoutUserInput = {
   cnpj?: Prisma.StringFieldUpdateOperationsInput | string
   electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
   workingVoltage?: Prisma.FloatFieldUpdateOperationsInput | number
-  kwhPrice?: Prisma.FloatFieldUpdateOperationsInput | number
-  taxRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  publicLightingFee?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  kwhPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   properties?: Prisma.PropertyUpdateManyWithoutDistributorNestedInput
@@ -775,9 +789,9 @@ export type EnergyDistributorUncheckedUpdateWithoutUserInput = {
   cnpj?: Prisma.StringFieldUpdateOperationsInput | string
   electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
   workingVoltage?: Prisma.FloatFieldUpdateOperationsInput | number
-  kwhPrice?: Prisma.FloatFieldUpdateOperationsInput | number
-  taxRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  publicLightingFee?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  kwhPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   properties?: Prisma.PropertyUncheckedUpdateManyWithoutDistributorNestedInput
@@ -789,9 +803,9 @@ export type EnergyDistributorUncheckedUpdateManyWithoutUserInput = {
   cnpj?: Prisma.StringFieldUpdateOperationsInput | string
   electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
   workingVoltage?: Prisma.FloatFieldUpdateOperationsInput | number
-  kwhPrice?: Prisma.FloatFieldUpdateOperationsInput | number
-  taxRate?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  publicLightingFee?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  kwhPrice?: Prisma.DecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string
+  taxRate?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  publicLightingFee?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -914,9 +928,9 @@ export type $EnergyDistributorPayload<ExtArgs extends runtime.Types.Extensions.I
     cnpj: string
     electricalSystem: $Enums.ElectricalSystemType
     workingVoltage: number
-    kwhPrice: number
-    taxRate: number | null
-    publicLightingFee: number | null
+    kwhPrice: runtime.Decimal
+    taxRate: runtime.Decimal | null
+    publicLightingFee: runtime.Decimal | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["energyDistributor"]>
@@ -1350,9 +1364,9 @@ export interface EnergyDistributorFieldRefs {
   readonly cnpj: Prisma.FieldRef<"EnergyDistributor", 'String'>
   readonly electricalSystem: Prisma.FieldRef<"EnergyDistributor", 'ElectricalSystemType'>
   readonly workingVoltage: Prisma.FieldRef<"EnergyDistributor", 'Float'>
-  readonly kwhPrice: Prisma.FieldRef<"EnergyDistributor", 'Float'>
-  readonly taxRate: Prisma.FieldRef<"EnergyDistributor", 'Float'>
-  readonly publicLightingFee: Prisma.FieldRef<"EnergyDistributor", 'Float'>
+  readonly kwhPrice: Prisma.FieldRef<"EnergyDistributor", 'Decimal'>
+  readonly taxRate: Prisma.FieldRef<"EnergyDistributor", 'Decimal'>
+  readonly publicLightingFee: Prisma.FieldRef<"EnergyDistributor", 'Decimal'>
   readonly createdAt: Prisma.FieldRef<"EnergyDistributor", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"EnergyDistributor", 'DateTime'>
 }

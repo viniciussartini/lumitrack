@@ -500,6 +500,14 @@ export type DeviceUncheckedUpdateManyWithoutAreaNestedInput = {
   deleteMany?: Prisma.DeviceScalarWhereInput | Prisma.DeviceScalarWhereInput[]
 }
 
+export type NullableFloatFieldUpdateOperationsInput = {
+  set?: number | null
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
+}
+
 export type DeviceCreateNestedOneWithoutConsumptionInput = {
   create?: Prisma.XOR<Prisma.DeviceCreateWithoutConsumptionInput, Prisma.DeviceUncheckedCreateWithoutConsumptionInput>
   connectOrCreate?: Prisma.DeviceCreateOrConnectWithoutConsumptionInput

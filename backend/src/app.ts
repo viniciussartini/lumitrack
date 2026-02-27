@@ -3,13 +3,14 @@ import cors from "cors"
 import helmet from "helmet"
 import { env } from "@/config/env.js"
 import { errorHandler } from "@/shared/middlewares/errorHandler.js"
-import { userRoutes } from "@/modules/user/user.routes.js"
-import { authRoutes } from "@/modules/auth/auth.routes.js"
 import { createAuthenticateMiddleware } from "@/shared/middlewares/authenticate.js"
 import { PrismaClient } from "@/generated/prisma/client.js"
 import { prisma } from "@/shared/database/prisma.js"
 import type { SendPasswordResetEmailFn } from "@/modules/auth/auth.service.js"
 import { sendPasswordResetEmail as realSendPasswordResetEmail } from "@/modules/auth/email.service.js"
+import { userRoutes } from "@/modules/user/user.routes.js"
+import { authRoutes } from "@/modules/auth/auth.routes.js"
+import { distributorRoutes } from "./modules/distributor/distributor.routes.js"
 
 export interface AppDependencies {
     prismaClient?: PrismaClient
@@ -39,6 +40,7 @@ export function createApp(deps: AppDependencies = {}) {
 
     app.use("/api/users", userRoutes(authenticate))
     app.use("/api/auth", authRoutes(authenticate, prismaClient, sendPasswordResetEmail))
+    app.use("/api/distributors", distributorRoutes(authenticate, prismaClient))
 
     app.use(errorHandler)
 
