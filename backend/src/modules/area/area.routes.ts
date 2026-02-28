@@ -4,6 +4,7 @@ import { AreaController } from "@/modules/area/area.controller.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { AreaService } from "@/modules/area/area.service.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
+import { deviceRoutes } from "../device/device.routes.js"
 
 // As rotas de área são aninhadas dentro de /api/properties/:propertyId/areas.
 // O Express passa os parâmetros da rota pai (propertyId) quando usamos
@@ -23,6 +24,12 @@ export function areaRoutes(authenticate: RequestHandler, prismaClient: PrismaCli
     // Rotas protegidas
     router.post("/", authenticate, (req, res, next) => areaController.create(req, res, next))
     router.get("/", authenticate, (req, res, next) => areaController.findAll(req, res, next))
+
+    // Rotas aninhadas de device ANTES dos handlers /:areaId — mesma regra do
+    // property.routes: o Express casaria "/:areaId/devices" como areaId="<uuid>"
+    // sem nunca chegar ao router filho se /:areaId estivesse registrado primeiro.
+    router.use("/:areaId/devices", deviceRoutes(authenticate, prismaClient))
+
     router.get("/:areaId", authenticate, (req, res, next) => areaController.findById(req, res, next))
     router.put("/:areaId", authenticate, (req, res, next) => areaController.update(req, res, next))
     router.delete("/:areaId", authenticate, (req, res, next) => areaController.delete(req, res, next))
