@@ -4,7 +4,8 @@ import { PropertyController } from "@/modules/property/property.controller.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
-import { areaRoutes } from "../area/area.routes.js"
+import { areaRoutes } from "@/modules/area/area.routes.js"
+import { propertyConsumptionRoutes } from "@/modules/consumption/consumption.routes.js"
 
 export function propertyRoutes(authenticate: RequestHandler, prismaClient: PrismaClient
 
@@ -26,6 +27,7 @@ export function propertyRoutes(authenticate: RequestHandler, prismaClient: Prism
     // Rotas aninhadas de área montadas aqui para que :propertyId fique
     // disponível via mergeParams no router filho (area).
     router.use("/:propertyId/areas", areaRoutes(authenticate, prismaClient))
+    router.use("/:propertyId/consumption", propertyConsumptionRoutes(authenticate, prismaClient))
 
     router.get("/:id", authenticate, (req, res, next) => propertyController.findById(req, res, next))
     router.put("/:id", authenticate, (req, res, next) => propertyController.update(req, res, next))
