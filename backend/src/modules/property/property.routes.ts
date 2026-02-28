@@ -4,6 +4,7 @@ import { PropertyController } from "@/modules/property/property.controller.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
+import { areaRoutes } from "../area/area.routes.js"
 
 export function propertyRoutes(authenticate: RequestHandler, prismaClient: PrismaClient
 
@@ -20,9 +21,16 @@ export function propertyRoutes(authenticate: RequestHandler, prismaClient: Prism
     // Rotas protegidas
     router.post("/", authenticate, (req, res, next) => propertyController.create(req, res, next))
     router.get("/", authenticate, (req, res, next) => propertyController.findAll(req, res, next))
+
+    // Rotas aninhadas ANTES das rotas /:id — ordem crítica no Express.
+    // Rotas aninhadas de área montadas aqui para que :propertyId fique
+    // disponível via mergeParams no router filho (area).
+    router.use("/:propertyId/areas", areaRoutes(authenticate, prismaClient))
+
     router.get("/:id", authenticate, (req, res, next) => propertyController.findById(req, res, next))
     router.put("/:id", authenticate, (req, res, next) => propertyController.update(req, res, next))
     router.delete("/:id", authenticate, (req, res, next) => propertyController.delete(req, res, next))
+
 
     return router
 }
