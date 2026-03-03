@@ -6,6 +6,7 @@ import { AreaService } from "@/modules/area/area.service.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { deviceRoutes } from "@/modules/device/device.routes.js"
 import { areaConsumptionRoutes } from "@/modules/consumption/consumption.routes.js"
+import { areaAlertRoutes } from "../alert/alert.routes.js"
 
 // As rotas de área são aninhadas dentro de /api/properties/:propertyId/areas.
 // O Express passa os parâmetros da rota pai (propertyId) quando usamos
@@ -31,6 +32,7 @@ export function areaRoutes(authenticate: RequestHandler, prismaClient: PrismaCli
     // sem nunca chegar ao router filho se /:areaId estivesse registrado primeiro.
     router.use("/:areaId/devices", deviceRoutes(authenticate, prismaClient))
     router.use("/:areaId/consumption", areaConsumptionRoutes(authenticate, prismaClient))
+    router.use("/:areaId/alerts", areaAlertRoutes(authenticate, prismaClient))
 
     router.get("/:areaId", authenticate, (req, res, next) => areaController.findById(req, res, next))
     router.put("/:areaId", authenticate, (req, res, next) => areaController.update(req, res, next))

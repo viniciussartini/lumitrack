@@ -7,6 +7,8 @@ import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
+import { AlertRepository } from "../alert/alert.repository.js"
+import { AlertService } from "../alert/alert.service.js"
 
 // Fábrica compartilhada — instancia o service uma única vez,
 // independente do target (property, area ou device).
@@ -16,6 +18,9 @@ function buildController(prismaClient: PrismaClient): ConsumptionController {
     const areaRepository = new AreaRepository(prismaClient)
     const deviceRepository = new DeviceRepository(prismaClient)
     const distributorRepository = new DistributorRepository(prismaClient)
+    const alertRepository = new AlertRepository(prismaClient)
+    const alertService = new AlertService(alertRepository, propertyRepository, areaRepository, deviceRepository)
+
 
     const consumptionService = new ConsumptionService(
         consumptionRepository,
@@ -23,6 +28,7 @@ function buildController(prismaClient: PrismaClient): ConsumptionController {
         areaRepository,
         deviceRepository,
         distributorRepository,
+        alertService,
     )
 
     return new ConsumptionController(consumptionService)

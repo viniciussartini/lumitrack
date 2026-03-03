@@ -6,6 +6,7 @@ import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
 import type { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { AlertService } from "../alert/alert.service.js"
 
 export class ConsumptionService {
     constructor(
@@ -16,10 +17,14 @@ export class ConsumptionService {
 
         // DistributorRepository é necessário para buscar kwhPrice e calcular costBrl.
         private readonly distributorRepository: DistributorRepository,
+
+        // Injetado para disparar alertas automaticamente.
+        // AlertService não depende de ConsumptionService,
+        // mas ConsumptionService pode notificar AlertService.
+        private readonly alertService?: AlertService,
     ) {}
 
-    // Helpers privados
-
+    // Helpers
     private parseAndValidateCreate(input: unknown) {
         const parsed = createConsumptionSchema.safeParse(input)
         if (!parsed.success) {
@@ -82,7 +87,18 @@ export class ConsumptionService {
         }
     }
 
-    // Criação por target
+    // Dispara alertas ativos cujo threshold é violado pelo kwhConsumed informado.
+    // Fire-and-forget: erros no sistema de alertas não devem interromper o fluxo
+    // principal de registro de consumo — análogo a um alarme que não pode travar
+    // o funcionamento do equipamento que ele monitora.
+    private async triggerAlerts(
+        target: Parameters<AlertService["checkAndTrigger"]>[0],
+        kwhConsumed: number,
+    ): Promise<void> {
+        if (this.alertService) {
+            await this.alertService.checkAndTrigger(target, kwhConsumed)
+        }
+    }
 
     async createForProperty(
         propertyId: string,
@@ -91,13 +107,12 @@ export class ConsumptionService {
     ): Promise<ConsumptionResponse> {
         const data = this.parseAndValidateCreate(input)
         const kwhPrice = await this.validatePropertyAndGetKwhPrice(propertyId, userId)
-
-        // Verifica unicidade: period + propertyId + referenceDate
         const existing = await this.consumptionRepository.findByTargetAndPeriod(
             { propertyId },
             data.period,
             data.referenceDate,
         )
+
         if (existing) {
             throw new ConflictError(
                 `Já existe um registro ${data.period} para esta propriedade nesta data`,
@@ -105,8 +120,11 @@ export class ConsumptionService {
         }
 
         const costBrl = data.kwhConsumed * kwhPrice
+        const record = await this.consumptionRepository.create({ propertyId }, data, costBrl)
 
-        return this.consumptionRepository.create({ propertyId }, data, costBrl)
+        await this.triggerAlerts({ propertyId }, data.kwhConsumed)
+
+        return record
     }
 
     async createForArea(
@@ -132,8 +150,11 @@ export class ConsumptionService {
         }
 
         const costBrl = data.kwhConsumed * kwhPrice
+        const record = await this.consumptionRepository.create({ areaId }, data, costBrl)
 
-        return this.consumptionRepository.create({ areaId }, data, costBrl)
+        await this.triggerAlerts({ areaId }, data.kwhConsumed)
+
+        return record
     }
 
     async createForDevice(
@@ -153,6 +174,7 @@ export class ConsumptionService {
             data.period,
             data.referenceDate,
         )
+
         if (existing) {
             throw new ConflictError(
                 `Já existe um registro ${data.period} para este dispositivo nesta data`,
@@ -160,8 +182,11 @@ export class ConsumptionService {
         }
 
         const costBrl = data.kwhConsumed * kwhPrice
+        const record = await this.consumptionRepository.create({ deviceId }, data, costBrl)
 
-        return this.consumptionRepository.create({ deviceId }, data, costBrl)
+        await this.triggerAlerts({ deviceId }, data.kwhConsumed)
+
+        return record
     }
 
     async findAllForProperty(
@@ -205,8 +230,6 @@ export class ConsumptionService {
         propertyId: string,
         userId: string,
     ): Promise<ConsumptionResponse> {
-        // Verifica posse via property — o registro pode ser de área ou device
-        // dentro desta propriedade; a verificação é feita pela cadeia da URL.
         await this.validatePropertyAndGetKwhPrice(propertyId, userId)
         const record = await this.consumptionRepository.findById(id)
 
@@ -235,15 +258,24 @@ export class ConsumptionService {
 
         // Recalcula costBrl se kwhConsumed foi alterado
         let newCostBrl: number | undefined = undefined
+
         if (parsed.data.kwhConsumed !== undefined) {
             const kwhPrice = await this.validatePropertyAndGetKwhPrice(propertyId, userId)
             newCostBrl = parsed.data.kwhConsumed * kwhPrice
         }
 
-        // Garante que o record ainda pertence à property
-        void record
+        const updated = await this.consumptionRepository.update(id, parsed.data, newCostBrl)
 
-        return this.consumptionRepository.update(id, parsed.data, newCostBrl)
+        // Verifica alertas após update se kwhConsumed foi alterado.
+        // O target é inferido a partir do registro original.
+        if (parsed.data.kwhConsumed !== undefined) {
+            const kwhConsumed = parsed.data.kwhConsumed
+            if (record.propertyId) await this.triggerAlerts({ propertyId: record.propertyId }, kwhConsumed)
+            else if (record.areaId) await this.triggerAlerts({ areaId: record.areaId }, kwhConsumed)
+            else if (record.deviceId) await this.triggerAlerts({ deviceId: record.deviceId }, kwhConsumed)
+        }
+
+        return updated
     }
 
     async delete(
