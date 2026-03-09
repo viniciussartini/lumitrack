@@ -47,6 +47,19 @@ enum AlertTargetType {
   DEVICE
 }
 
+enum IoTProtocol {
+  MQTT
+  MODBUS_TCP
+  MODBUS_RTU
+  ETHERNET_IP
+  PROFIBUS
+  PROFINET
+  RS232
+  RS485
+
+  @@map("iot_protocol")
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // USUÁRIO
 // ─────────────────────────────────────────────────────────────────────────────
@@ -263,7 +276,7 @@ model Alert {
 model IoTDeviceConfig {
   id        String   @id @default(uuid())
   deviceId  String   @unique
-  protocol  String // MQTT, Modbus, EtherNet/IP, Profibus, RS485, etc.
+  protocol  IoTProtocol // MQTT, Modbus, EtherNet/IP, Profibus, RS485, etc.
   host      String?
   port      Int?
   topic     String? // para MQTT

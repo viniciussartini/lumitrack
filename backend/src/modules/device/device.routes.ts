@@ -6,7 +6,8 @@ import { DeviceService } from "@/modules/device/device.service.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { deviceConsumptionRoutes } from "@/modules/consumption/consumption.routes.js"
-import { deviceAlertRoutes } from "../alert/alert.routes.js"
+import { deviceAlertRoutes } from "@/modules/alert/alert.routes.js"
+import { iotRoutes } from "@/modules/iot/iot.routes.js"
 
 
 export function deviceRoutes(authenticate: RequestHandler, prismaClient: PrismaClient,
@@ -33,6 +34,7 @@ export function deviceRoutes(authenticate: RequestHandler, prismaClient: PrismaC
 
     router.use("/:deviceId/consumption", deviceConsumptionRoutes(authenticate, prismaClient))
     router.use("/:deviceId/alerts", deviceAlertRoutes(authenticate, prismaClient))
+    router.use("/:deviceId/iot-config", iotRoutes(authenticate, prismaClient))
 
     router.post("/", authenticate, (req, res, next) => deviceController.create(req, res, next))
     router.get("/", authenticate, (req, res, next) => deviceController.findAll(req, res, next))

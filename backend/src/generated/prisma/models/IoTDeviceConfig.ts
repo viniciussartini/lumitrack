@@ -37,7 +37,7 @@ export type IoTDeviceConfigSumAggregateOutputType = {
 export type IoTDeviceConfigMinAggregateOutputType = {
   id: string | null
   deviceId: string | null
-  protocol: string | null
+  protocol: $Enums.IoTProtocol | null
   host: string | null
   port: number | null
   topic: string | null
@@ -49,7 +49,7 @@ export type IoTDeviceConfigMinAggregateOutputType = {
 export type IoTDeviceConfigMaxAggregateOutputType = {
   id: string | null
   deviceId: string | null
-  protocol: string | null
+  protocol: $Enums.IoTProtocol | null
   host: string | null
   port: number | null
   topic: string | null
@@ -208,7 +208,7 @@ export type IoTDeviceConfigGroupByArgs<ExtArgs extends runtime.Types.Extensions.
 export type IoTDeviceConfigGroupByOutputType = {
   id: string
   deviceId: string
-  protocol: string
+  protocol: $Enums.IoTProtocol
   host: string | null
   port: number | null
   topic: string | null
@@ -244,7 +244,7 @@ export type IoTDeviceConfigWhereInput = {
   NOT?: Prisma.IoTDeviceConfigWhereInput | Prisma.IoTDeviceConfigWhereInput[]
   id?: Prisma.StringFilter<"IoTDeviceConfig"> | string
   deviceId?: Prisma.StringFilter<"IoTDeviceConfig"> | string
-  protocol?: Prisma.StringFilter<"IoTDeviceConfig"> | string
+  protocol?: Prisma.EnumIoTProtocolFilter<"IoTDeviceConfig"> | $Enums.IoTProtocol
   host?: Prisma.StringNullableFilter<"IoTDeviceConfig"> | string | null
   port?: Prisma.IntNullableFilter<"IoTDeviceConfig"> | number | null
   topic?: Prisma.StringNullableFilter<"IoTDeviceConfig"> | string | null
@@ -275,7 +275,7 @@ export type IoTDeviceConfigWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.IoTDeviceConfigWhereInput | Prisma.IoTDeviceConfigWhereInput[]
   OR?: Prisma.IoTDeviceConfigWhereInput[]
   NOT?: Prisma.IoTDeviceConfigWhereInput | Prisma.IoTDeviceConfigWhereInput[]
-  protocol?: Prisma.StringFilter<"IoTDeviceConfig"> | string
+  protocol?: Prisma.EnumIoTProtocolFilter<"IoTDeviceConfig"> | $Enums.IoTProtocol
   host?: Prisma.StringNullableFilter<"IoTDeviceConfig"> | string | null
   port?: Prisma.IntNullableFilter<"IoTDeviceConfig"> | number | null
   topic?: Prisma.StringNullableFilter<"IoTDeviceConfig"> | string | null
@@ -310,7 +310,7 @@ export type IoTDeviceConfigScalarWhereWithAggregatesInput = {
   NOT?: Prisma.IoTDeviceConfigScalarWhereWithAggregatesInput | Prisma.IoTDeviceConfigScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"IoTDeviceConfig"> | string
   deviceId?: Prisma.StringWithAggregatesFilter<"IoTDeviceConfig"> | string
-  protocol?: Prisma.StringWithAggregatesFilter<"IoTDeviceConfig"> | string
+  protocol?: Prisma.EnumIoTProtocolWithAggregatesFilter<"IoTDeviceConfig"> | $Enums.IoTProtocol
   host?: Prisma.StringNullableWithAggregatesFilter<"IoTDeviceConfig"> | string | null
   port?: Prisma.IntNullableWithAggregatesFilter<"IoTDeviceConfig"> | number | null
   topic?: Prisma.StringNullableWithAggregatesFilter<"IoTDeviceConfig"> | string | null
@@ -322,7 +322,7 @@ export type IoTDeviceConfigScalarWhereWithAggregatesInput = {
 
 export type IoTDeviceConfigCreateInput = {
   id?: string
-  protocol: string
+  protocol: $Enums.IoTProtocol
   host?: string | null
   port?: number | null
   topic?: string | null
@@ -336,7 +336,7 @@ export type IoTDeviceConfigCreateInput = {
 export type IoTDeviceConfigUncheckedCreateInput = {
   id?: string
   deviceId: string
-  protocol: string
+  protocol: $Enums.IoTProtocol
   host?: string | null
   port?: number | null
   topic?: string | null
@@ -348,7 +348,7 @@ export type IoTDeviceConfigUncheckedCreateInput = {
 
 export type IoTDeviceConfigUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  protocol?: Prisma.StringFieldUpdateOperationsInput | string
+  protocol?: Prisma.EnumIoTProtocolFieldUpdateOperationsInput | $Enums.IoTProtocol
   host?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   port?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   topic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -362,7 +362,7 @@ export type IoTDeviceConfigUpdateInput = {
 export type IoTDeviceConfigUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   deviceId?: Prisma.StringFieldUpdateOperationsInput | string
-  protocol?: Prisma.StringFieldUpdateOperationsInput | string
+  protocol?: Prisma.EnumIoTProtocolFieldUpdateOperationsInput | $Enums.IoTProtocol
   host?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   port?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   topic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -375,7 +375,7 @@ export type IoTDeviceConfigUncheckedUpdateInput = {
 export type IoTDeviceConfigCreateManyInput = {
   id?: string
   deviceId: string
-  protocol: string
+  protocol: $Enums.IoTProtocol
   host?: string | null
   port?: number | null
   topic?: string | null
@@ -387,7 +387,7 @@ export type IoTDeviceConfigCreateManyInput = {
 
 export type IoTDeviceConfigUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  protocol?: Prisma.StringFieldUpdateOperationsInput | string
+  protocol?: Prisma.EnumIoTProtocolFieldUpdateOperationsInput | $Enums.IoTProtocol
   host?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   port?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   topic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -400,7 +400,7 @@ export type IoTDeviceConfigUpdateManyMutationInput = {
 export type IoTDeviceConfigUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   deviceId?: Prisma.StringFieldUpdateOperationsInput | string
-  protocol?: Prisma.StringFieldUpdateOperationsInput | string
+  protocol?: Prisma.EnumIoTProtocolFieldUpdateOperationsInput | $Enums.IoTProtocol
   host?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   port?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   topic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -492,6 +492,10 @@ export type IoTDeviceConfigUncheckedUpdateOneWithoutDeviceNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.IoTDeviceConfigUpdateToOneWithWhereWithoutDeviceInput, Prisma.IoTDeviceConfigUpdateWithoutDeviceInput>, Prisma.IoTDeviceConfigUncheckedUpdateWithoutDeviceInput>
 }
 
+export type EnumIoTProtocolFieldUpdateOperationsInput = {
+  set?: $Enums.IoTProtocol
+}
+
 export type NullableIntFieldUpdateOperationsInput = {
   set?: number | null
   increment?: number
@@ -502,7 +506,7 @@ export type NullableIntFieldUpdateOperationsInput = {
 
 export type IoTDeviceConfigCreateWithoutDeviceInput = {
   id?: string
-  protocol: string
+  protocol: $Enums.IoTProtocol
   host?: string | null
   port?: number | null
   topic?: string | null
@@ -514,7 +518,7 @@ export type IoTDeviceConfigCreateWithoutDeviceInput = {
 
 export type IoTDeviceConfigUncheckedCreateWithoutDeviceInput = {
   id?: string
-  protocol: string
+  protocol: $Enums.IoTProtocol
   host?: string | null
   port?: number | null
   topic?: string | null
@@ -542,7 +546,7 @@ export type IoTDeviceConfigUpdateToOneWithWhereWithoutDeviceInput = {
 
 export type IoTDeviceConfigUpdateWithoutDeviceInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  protocol?: Prisma.StringFieldUpdateOperationsInput | string
+  protocol?: Prisma.EnumIoTProtocolFieldUpdateOperationsInput | $Enums.IoTProtocol
   host?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   port?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   topic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -554,7 +558,7 @@ export type IoTDeviceConfigUpdateWithoutDeviceInput = {
 
 export type IoTDeviceConfigUncheckedUpdateWithoutDeviceInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  protocol?: Prisma.StringFieldUpdateOperationsInput | string
+  protocol?: Prisma.EnumIoTProtocolFieldUpdateOperationsInput | $Enums.IoTProtocol
   host?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   port?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   topic?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -640,7 +644,7 @@ export type $IoTDeviceConfigPayload<ExtArgs extends runtime.Types.Extensions.Int
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     deviceId: string
-    protocol: string
+    protocol: $Enums.IoTProtocol
     host: string | null
     port: number | null
     topic: string | null
@@ -1074,7 +1078,7 @@ export interface Prisma__IoTDeviceConfigClient<T, Null = never, ExtArgs extends 
 export interface IoTDeviceConfigFieldRefs {
   readonly id: Prisma.FieldRef<"IoTDeviceConfig", 'String'>
   readonly deviceId: Prisma.FieldRef<"IoTDeviceConfig", 'String'>
-  readonly protocol: Prisma.FieldRef<"IoTDeviceConfig", 'String'>
+  readonly protocol: Prisma.FieldRef<"IoTDeviceConfig", 'IoTProtocol'>
   readonly host: Prisma.FieldRef<"IoTDeviceConfig", 'String'>
   readonly port: Prisma.FieldRef<"IoTDeviceConfig", 'Int'>
   readonly topic: Prisma.FieldRef<"IoTDeviceConfig", 'String'>

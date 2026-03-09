@@ -50,3 +50,17 @@ export const AlertTargetType = {
 } as const
 
 export type AlertTargetType = (typeof AlertTargetType)[keyof typeof AlertTargetType]
+
+
+export const IoTProtocol = {
+  MQTT: 'MQTT',
+  MODBUS_TCP: 'MODBUS_TCP',
+  MODBUS_RTU: 'MODBUS_RTU',
+  ETHERNET_IP: 'ETHERNET_IP',
+  PROFIBUS: 'PROFIBUS',
+  PROFINET: 'PROFINET',
+  RS232: 'RS232',
+  RS485: 'RS485'
+} as const
+
+export type IoTProtocol = (typeof IoTProtocol)[keyof typeof IoTProtocol]

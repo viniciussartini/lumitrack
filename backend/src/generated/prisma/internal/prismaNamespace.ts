@@ -1519,6 +1519,20 @@ export type ListEnumAlertTargetTypeFieldRefInput<$PrismaModel> = FieldRefInputTy
 
 
 /**
+ * Reference to a field of type 'IoTProtocol'
+ */
+export type EnumIoTProtocolFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'IoTProtocol'>
+    
+
+
+/**
+ * Reference to a field of type 'IoTProtocol[]'
+ */
+export type ListEnumIoTProtocolFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'IoTProtocol[]'>
+    
+
+
+/**
  * Reference to a field of type 'Int'
  */
 export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>

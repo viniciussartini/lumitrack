@@ -328,6 +328,13 @@ export type EnumAlertTargetTypeWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedEnumAlertTargetTypeFilter<$PrismaModel>
 }
 
+export type EnumIoTProtocolFilter<$PrismaModel = never> = {
+  equals?: $Enums.IoTProtocol | Prisma.EnumIoTProtocolFieldRefInput<$PrismaModel>
+  in?: $Enums.IoTProtocol[] | Prisma.ListEnumIoTProtocolFieldRefInput<$PrismaModel>
+  notIn?: $Enums.IoTProtocol[] | Prisma.ListEnumIoTProtocolFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumIoTProtocolFilter<$PrismaModel> | $Enums.IoTProtocol
+}
+
 export type IntNullableFilter<$PrismaModel = never> = {
   equals?: number | Prisma.IntFieldRefInput<$PrismaModel> | null
   in?: number[] | Prisma.ListIntFieldRefInput<$PrismaModel> | null
@@ -361,6 +368,16 @@ export type JsonNullableFilterBase<$PrismaModel = never> = {
   gt?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel>
   gte?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel>
   not?: runtime.InputJsonValue | Prisma.JsonFieldRefInput<$PrismaModel> | Prisma.JsonNullValueFilter
+}
+
+export type EnumIoTProtocolWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.IoTProtocol | Prisma.EnumIoTProtocolFieldRefInput<$PrismaModel>
+  in?: $Enums.IoTProtocol[] | Prisma.ListEnumIoTProtocolFieldRefInput<$PrismaModel>
+  notIn?: $Enums.IoTProtocol[] | Prisma.ListEnumIoTProtocolFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumIoTProtocolWithAggregatesFilter<$PrismaModel> | $Enums.IoTProtocol
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumIoTProtocolFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumIoTProtocolFilter<$PrismaModel>
 }
 
 export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -731,6 +748,23 @@ export type NestedEnumAlertTargetTypeWithAggregatesFilter<$PrismaModel = never> 
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumAlertTargetTypeFilter<$PrismaModel>
   _max?: Prisma.NestedEnumAlertTargetTypeFilter<$PrismaModel>
+}
+
+export type NestedEnumIoTProtocolFilter<$PrismaModel = never> = {
+  equals?: $Enums.IoTProtocol | Prisma.EnumIoTProtocolFieldRefInput<$PrismaModel>
+  in?: $Enums.IoTProtocol[] | Prisma.ListEnumIoTProtocolFieldRefInput<$PrismaModel>
+  notIn?: $Enums.IoTProtocol[] | Prisma.ListEnumIoTProtocolFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumIoTProtocolFilter<$PrismaModel> | $Enums.IoTProtocol
+}
+
+export type NestedEnumIoTProtocolWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.IoTProtocol | Prisma.EnumIoTProtocolFieldRefInput<$PrismaModel>
+  in?: $Enums.IoTProtocol[] | Prisma.ListEnumIoTProtocolFieldRefInput<$PrismaModel>
+  notIn?: $Enums.IoTProtocol[] | Prisma.ListEnumIoTProtocolFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumIoTProtocolWithAggregatesFilter<$PrismaModel> | $Enums.IoTProtocol
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumIoTProtocolFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumIoTProtocolFilter<$PrismaModel>
 }
 
 export type NestedIntNullableWithAggregatesFilter<$PrismaModel = never> = {

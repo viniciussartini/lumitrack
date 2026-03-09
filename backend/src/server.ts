@@ -1,5 +1,6 @@
 import { createApp } from "@/app.js"
 import { env } from "@/config/env.js"
+import { IoTConnectionManager } from "./modules/iot/iot-worker/IoTConnectionManager.js"
 
 const app = createApp()
 
@@ -13,6 +14,7 @@ const server = app.listen(env.PORT, () => {
 // antes de encerrar o processo (importante em produção com PM2/Docker).
 function shutdown(signal: string) {
     console.log(`\n⚡ Sinal ${signal} recebido. Encerrando servidor...`)
+    void IoTConnectionManager.getInstance().stopAll()
     server.close(() => {
         console.log("Servidor encerrado com sucesso.")
         process.exit(0)
