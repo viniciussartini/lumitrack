@@ -6,7 +6,8 @@ import { PropertyService } from "@/modules/property/property.service.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { areaRoutes } from "@/modules/area/area.routes.js"
 import { propertyConsumptionRoutes } from "@/modules/consumption/consumption.routes.js"
-import { propertyAlertRoutes } from "../alert/alert.routes.js"
+import { propertyAlertRoutes } from "@/modules/alert/alert.routes.js"
+import { simulationRoutes } from "@/modules/simulation/simulation.routes.js"
 
 export function propertyRoutes(authenticate: RequestHandler, prismaClient: PrismaClient
 
@@ -30,6 +31,7 @@ export function propertyRoutes(authenticate: RequestHandler, prismaClient: Prism
     router.use("/:propertyId/areas", areaRoutes(authenticate, prismaClient))
     router.use("/:propertyId/consumption", propertyConsumptionRoutes(authenticate, prismaClient))
     router.use("/:propertyId/alerts", propertyAlertRoutes(authenticate, prismaClient))
+    router.use("/:propertyId/simulation", simulationRoutes(authenticate, prismaClient))
 
     router.get("/:id", authenticate, (req, res, next) => propertyController.findById(req, res, next))
     router.put("/:id", authenticate, (req, res, next) => propertyController.update(req, res, next))
