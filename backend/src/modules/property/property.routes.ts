@@ -8,6 +8,7 @@ import { areaRoutes } from "@/modules/area/area.routes.js"
 import { propertyConsumptionRoutes } from "@/modules/consumption/consumption.routes.js"
 import { propertyAlertRoutes } from "@/modules/alert/alert.routes.js"
 import { simulationRoutes } from "@/modules/simulation/simulation.routes.js"
+import { reportRoutes } from "@/modules/report/report.routes.js"
 
 export function propertyRoutes(authenticate: RequestHandler, prismaClient: PrismaClient
 
@@ -32,6 +33,7 @@ export function propertyRoutes(authenticate: RequestHandler, prismaClient: Prism
     router.use("/:propertyId/consumption", propertyConsumptionRoutes(authenticate, prismaClient))
     router.use("/:propertyId/alerts", propertyAlertRoutes(authenticate, prismaClient))
     router.use("/:propertyId/simulation", simulationRoutes(authenticate, prismaClient))
+    router.use("/:propertyId/report", reportRoutes(authenticate, prismaClient))
 
     router.get("/:id", authenticate, (req, res, next) => propertyController.findById(req, res, next))
     router.put("/:id", authenticate, (req, res, next) => propertyController.update(req, res, next))
