@@ -35,6 +35,7 @@ export type TokenChannel = (typeof TokenChannel)[keyof typeof TokenChannel]
 
 
 export const ConsumptionPeriod = {
+  HOURLY: 'HOURLY',
   DAILY: 'DAILY',
   MONTHLY: 'MONTHLY',
   ANNUAL: 'ANNUAL'

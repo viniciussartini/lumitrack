@@ -1,5 +1,6 @@
 {
     "compilerOptions": {
+        "ignoreDeprecations": "6.0",   // silencia avisos de APIs obsoletas (ex: crypto.randomUUID)
         /* --- Linguagem e ambiente --- */
         "target": "ES2022",
         "lib": ["ES2022"],

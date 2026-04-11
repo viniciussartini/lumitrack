@@ -13,15 +13,19 @@ import { authRoutes } from "@/modules/auth/auth.routes.js"
 import { distributorRoutes } from "./modules/distributor/distributor.routes.js"
 import { propertyRoutes } from "./modules/property/property.routes.js"
 import { alertRoutes } from "./modules/alert/alert.routes.js"
+import { IoTDataProcessor } from "./modules/iot/iot-worker/IoTDataProcessor.js"
+import { iotStreamRoutes } from "./modules/iot/iot-stream.routes.js"
 
 export interface AppDependencies {
     prismaClient?: PrismaClient
     sendPasswordResetEmail?: SendPasswordResetEmailFn
+    processor?: IoTDataProcessor
 }
 
 export function createApp(deps: AppDependencies = {}) {
     const prismaClient = deps.prismaClient ?? prisma
     const sendPasswordResetEmail = deps.sendPasswordResetEmail ?? realSendPasswordResetEmail
+    const processor = deps.processor
 
     const app = express()
 
@@ -45,6 +49,10 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/distributors", distributorRoutes(authenticate, prismaClient))
     app.use("/api/properties", propertyRoutes(authenticate, prismaClient))
     app.use("/api/alerts", alertRoutes(authenticate, prismaClient))
+
+    if (processor) {
+        app.use("/api/iot", iotStreamRoutes(authenticate, prismaClient, processor))
+    }
 
     app.use(errorHandler)
 

@@ -2,7 +2,7 @@ import { z } from "zod"
 
 // Enum de períodos
 
-export const consumptionPeriodSchema = z.enum(["DAILY", "MONTHLY", "ANNUAL"])
+export const consumptionPeriodSchema = z.enum(["HOURLY", "DAILY", "MONTHLY", "ANNUAL"])
 
 // Schema de criação
 
