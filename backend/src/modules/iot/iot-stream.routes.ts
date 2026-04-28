@@ -21,6 +21,7 @@ import { Router, type RequestHandler } from "express"
 import { PrismaClient } from "@/generated/prisma/client.js"
 import type { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
+import { AlertNotifier } from "@/modules/alert/alert-notifier.js"
 
 /**
  * Resolve o conjunto de deviceIds que pertencem a um usuário.
@@ -50,6 +51,7 @@ export function iotStreamRoutes(
     authenticate: RequestHandler,
     prismaClient: PrismaClient,
     processor: IoTDataProcessor,
+    alertNotifier: AlertNotifier,
 ): Router {
     const router = Router()
 
@@ -86,17 +88,21 @@ export function iotStreamRoutes(
         // Evento inicial de confirmação de conexão.
         res.write(`event: connected\ndata: ${JSON.stringify({ deviceCount: userDeviceIds.size })}\n\n`)
 
-        // Listener que recebe todas as leituras de todos os devices do sistema
-        // e filtra apenas as que pertencem a este usuário.
-        const listener = (deviceId: string, kwhConsumed: number, receivedAt: Date) => {
+        // ─── Listener de leituras IoT ─────────────────────────────────────────
+        // Filtra por userId: só transmite leituras dos devices do usuário.
+        const readingUnsub = processor.addSseListener((deviceId, kwhConsumed, receivedAt) => {
             if (!userDeviceIds.has(deviceId)) return
-
             const payload = JSON.stringify({ deviceId, kwhConsumed, receivedAt })
             res.write(`event: reading\ndata: ${payload}\n\n`)
-        }
-
-        // Registra o listener e obtém a função de cleanup.
-        const unsubscribe = processor.addSseListener(listener)
+        })
+ 
+        // ─── Listener de alertas ──────────────────────────────────────────────
+        // O AlertNotifier já filtra por userId — só chama este listener quando
+        // um alerta do próprio usuário é disparado. Sem necessidade de filtro aqui.
+        const alertUnsub = alertNotifier.addListener(userId, (alert) => {
+            const payload = JSON.stringify(alert)
+            res.write(`event: alert\ndata: ${payload}\n\n`)
+        })
 
         // Keep-alive: envia um comentário SSE a cada 30 segundos.
         // Comentários SSE começam com ":" e são ignorados pelo EventSource do browser,
@@ -109,7 +115,8 @@ export function iotStreamRoutes(
         // O evento "close" é emitido quando o cliente fecha a conexão
         // (fecha o browser, navega para outra página, ou chama EventSource.close()).
         req.on("close", () => {
-            unsubscribe()
+            readingUnsub()
+            alertUnsub()
             clearInterval(keepAlive)
         })
     })

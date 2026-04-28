@@ -25,6 +25,17 @@ import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import type { PropertyRepository } from "@/modules/property/property.repository.js"
 
+
+/**
+ * Tipo do callback de verificação de alertas.
+ * Injetado como função em vez do AlertService inteiro para evitar acoplamento
+ * à cadeia completa de dependências do service — o scheduler só precisa
+ * desta operação específica, não de toda a API do AlertService.
+ */
+type CheckAndTriggerFn = (
+    target: { deviceId: string },
+    kwhConsumed: number,
+) => Promise<void>
 export class HourlyRollupScheduler {
     private flushTimer: ReturnType<typeof setInterval> | null = null
     private alignTimer: ReturnType<typeof setTimeout>  | null = null
@@ -36,6 +47,7 @@ export class HourlyRollupScheduler {
         private readonly areaRepository: AreaRepository,
         private readonly propertyRepository: PropertyRepository,
         private readonly distributorRepository: DistributorRepository,
+        private readonly checkAndTrigger?: CheckAndTriggerFn,
     ) {}
 
     /**
@@ -183,7 +195,7 @@ export class HourlyRollupScheduler {
             // Já existe — atualiza somando o novo acumulado ao existente.
             // Isso garante que uma reinicialização do servidor não perde dados
             // que já estavam parcialmente persistidos.
-            const updatedKwh: number     = +existing.kwhConsumed + kwhAccumulated
+            const updatedKwh: number = +existing.kwhConsumed + kwhAccumulated
             const updatedCostBrl: number = updatedKwh * kwhPrice
             await this.consumptionRepository.update(existing.id, { kwhConsumed: updatedKwh }, updatedCostBrl)
 
@@ -191,6 +203,10 @@ export class HourlyRollupScheduler {
                 `[RollupScheduler] Atualizado (merge): deviceId=${deviceId} ` +
                 `hora=${hourStart.toISOString()} kWh=${updatedKwh.toFixed(6)}`,
             )
+
+            // Verifica alertas com o kWh total acumulado após o merge.
+            await this.checkAndTrigger?.({ deviceId }, updatedKwh)
+
             return
         }
 
@@ -209,6 +225,10 @@ export class HourlyRollupScheduler {
             `[RollupScheduler] Persistido: deviceId=${deviceId} ` +
             `hora=${hourStart.toISOString()} kWh=${kwhAccumulated.toFixed(6)} costBrl=${costBrl.toFixed(4)}`,
         )
+
+        // Verifica alertas com o kWh acumulado desta hora.
+        // Fire-and-forget: uma falha aqui não deve impedir o flush do próximo device.
+        await this.checkAndTrigger?.({ deviceId }, kwhAccumulated)
     }
 
     /**

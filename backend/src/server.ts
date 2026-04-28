@@ -10,7 +10,31 @@ import { AreaRepository } from "@/modules/area/area.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import type { IoTConfigResponse } from "@/modules/iot/iot.repository.js"
+import { AlertRepository } from "./modules/alert/alert.repository.js"
+import { AlertNotifier } from "./modules/alert/alert-notifier.js"
+import { AlertService } from "./modules/alert/alert.service.js"
 
+// Extraídos para variáveis porque são reutilizados no AlertService e no scheduler.
+const deviceRepository = new DeviceRepository(prisma)
+const areaRepository = new AreaRepository(prisma)
+const propertyRepository = new PropertyRepository(prisma)
+const distributorRepository = new DistributorRepository(prisma)
+const alertRepository = new AlertRepository(prisma)
+
+const alertNotifier = new AlertNotifier() // Singleton do processo — distribui notificações SSE de alertas para clientes.
+
+// ─── AlertService com notifier ───────────────────────────────────────────────
+// Instância dedicada ao uso interno (scheduler + consumo IoT).
+// O AlertService dos routes HTTP é instanciado separadamente em alert.routes.ts
+// sem o notifier, mas isso será corrigido quando o alert.routes.ts receber
+// o alertNotifier como dependência na próxima iteração.
+const alertService = new AlertService(
+    alertRepository,
+    propertyRepository,
+    areaRepository,
+    deviceRepository,
+    alertNotifier,
+)
 
 /**
  * Inicialização do pipeline IoT
@@ -25,10 +49,14 @@ const processor = new IoTDataProcessor(manager)
 const scheduler = new HourlyRollupScheduler(
     processor.buffer,
     new ConsumptionRepository(prisma),
-    new DeviceRepository(prisma),
-    new AreaRepository(prisma),
-    new PropertyRepository(prisma),
-    new DistributorRepository(prisma),
+    deviceRepository,
+    areaRepository,
+    propertyRepository,
+    distributorRepository,
+
+    // Passa apenas o método necessário — evita acoplar o scheduler à API
+    // completa do AlertService.
+    (target, kwh) => alertService.checkAndTrigger(target, kwh),
 )
 
 // Registra o processor no manager ANTES de restaurar as conexões,

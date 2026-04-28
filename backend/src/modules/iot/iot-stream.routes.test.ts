@@ -18,16 +18,19 @@ import type { AddressInfo } from "net"
 import { createApp } from "@/app.js"
 import { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
+import { AlertNotifier } from "@/modules/alert/alert-notifier.js"
+import type { AlertResponse } from "@/modules/alert/alert.repository.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
 
-// ─── Processor ────────────────────────────────────────────────────────────────
+// ─── Processor e AlertNotifier ────────────────────────────────────────────────
 
-const manager   = IoTConnectionManager.getInstance()
-const processor = new IoTDataProcessor(manager)
+const manager       = IoTConnectionManager.getInstance()
+const processor     = new IoTDataProcessor(manager)
+const alertNotifier = new AlertNotifier()
 processor.start()
 
-const app = createApp({ prismaClient: prismaHttpTest, processor })
+const app = createApp({ prismaClient: prismaHttpTest, processor, alertNotifier })
 
 // ─── Servidor TCP ─────────────────────────────────────────────────────────────
 // Iniciado com porta 0 (o SO escolhe uma porta livre automaticamente).
@@ -80,18 +83,13 @@ const validDistributorBody = {
 }
 
 // ─── Helpers de setup ─────────────────────────────────────────────────────────
-// Usamos request(app) do Supertest para o setup de dados — não precisa de
-// servidor TCP, e é mais rápido. Os dados são gravados em prismaHttpTest,
-// o mesmo banco usado pelo httpServer.
 
-async function registerAndLogin(user = validUser) {
+async function registerAndLogin(user = validUser): Promise<string> {
     await request(app).post("/api/users").send(user)
-    const loginRes = await request(app).post("/api/auth/login").send({
-        email:    user.email,
-        password: user.password,
-        channel:  "WEB",
+    const res = await request(app).post("/api/auth/login").send({
+        email: user.email, password: user.password, channel: "WEB",
     })
-    return loginRes.body.data.token as string
+    return res.body.data.token as string
 }
 
 async function setupFull(user = validUser) {
@@ -105,30 +103,34 @@ async function setupFull(user = validUser) {
     const propRes = await request(app)
         .post("/api/properties")
         .set("Authorization", `Bearer ${token}`)
-        .send({ name: "Casa", distributorId: distRes.body.data.id })
+        .send({ name: "Casa", distributorId: distRes.body.data.id as string })
 
     const areaRes = await request(app)
-        .post(`/api/properties/${propRes.body.data.id}/areas`)
+        .post(`/api/properties/${propRes.body.data.id as string}/areas`)
         .set("Authorization", `Bearer ${token}`)
         .send({ name: "Sala" })
 
     const deviceRes = await request(app)
-        .post(`/api/properties/${propRes.body.data.id}/areas/${areaRes.body.data.id}/devices`)
+        .post(`/api/properties/${propRes.body.data.id as string}/areas/${areaRes.body.data.id as string}/devices`)
         .set("Authorization", `Bearer ${token}`)
         .send({ name: "Medidor", powerWatts: 1000 })
 
     return {
         token,
-        propertyId: propRes.body.data.id  as string,
-        areaId:     areaRes.body.data.id  as string,
-        deviceId:   deviceRes.body.data.id as string,
+        propertyId: propRes.body.data.id    as string,
+        areaId:     areaRes.body.data.id    as string,
+        deviceId:   deviceRes.body.data.id  as string,
     }
 }
 
-// ─── Helpers SSE ──────────────────────────────────────────────────────────────
+// Retorna o userId a partir de um token — decodifica o payload JWT sem verificar a assinatura.
+function extractUserId(token: string): string {
+    const payload = JSON.parse(Buffer.from(token.split(".")[1]!, "base64url").toString()) as { id: string }
+    return payload.id
+}
 
-// Abre uma conexão SSE real via tcp. Retorna a IncomingMessage (stream legível)
-// com headers já disponíveis — dados chegam em eventos subsequentes.
+// ─── Helpers de SSE ───────────────────────────────────────────────────────────
+
 function openSseStream(token: string): Promise<http.IncomingMessage> {
     return new Promise((resolve, reject) => {
         const req = http.get({
@@ -144,15 +146,6 @@ function openSseStream(token: string): Promise<http.IncomingMessage> {
     })
 }
 
-// Coleta eventos SSE do stream até:
-//   a) o evento em `stopAfterEvent` ser recebido, ou
-//   b) `maxWaitMs` ser atingido.
-//
-// `onEvent` é chamado a cada evento recebido — útil para disparar ações
-// em resposta a um evento específico (ex: simular leitura após "connected").
-//
-// O flag `done` evita que a Promise seja resolvida múltiplas vezes quando
-// o stream é destruído e dispara tanto "error" quanto "close".
 function collectSseEvents(
     stream:  http.IncomingMessage,
     options: {
@@ -181,8 +174,6 @@ function collectSseEvents(
             if (done) return
             buffer += chunk
 
-            // Divide em linhas, mantendo a incompleta para o próximo chunk.
-            // SSE delimita eventos com \n\n — o split em \n processa linha a linha.
             const lines = buffer.split("\n")
             buffer = lines.pop() ?? ""
 
@@ -205,7 +196,6 @@ function collectSseEvents(
             }
         })
 
-        // ECONNRESET é esperado ao chamar stream.destroy() — não é um erro real.
         stream.on("error", finish)
         stream.on("close", finish)
 
@@ -213,13 +203,29 @@ function collectSseEvents(
     })
 }
 
-// Simula a chegada de dados de um sensor diretamente no IoTDataProcessor,
-// sem passar pelo IoTConnectionManager (sem conexão real).
-// Acessa o método privado `process` via cast para não expor API interna.
 function simulateReading(deviceId: string, value: number): void {
     ;(processor as unknown as {
         process: (id: string, data: Record<string, unknown>) => void
     }).process(deviceId, { value })
+}
+
+// Constrói um AlertResponse mínimo para simular o disparo de um alerta.
+function makeAlert(userId: string, overrides: Partial<AlertResponse> = {}): AlertResponse {
+    return {
+        id:           "alert-test-id",
+        userId,
+        targetType:   "PROPERTY",
+        propertyId:   "property-id",
+        areaId:       null,
+        deviceId:     null,
+        thresholdKwh: 100,
+        message:      "Consumo alto detectado",
+        triggeredAt:  new Date(),
+        readAt:       null,
+        createdAt:    new Date(),
+        updatedAt:    new Date(),
+        ...overrides,
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -229,8 +235,6 @@ function simulateReading(deviceId: string, value: number): void {
 describe("GET /api/iot/stream", () => {
 
     it("deve retornar 401 sem token", async () => {
-        // Usa Supertest aqui — o middleware de auth rejeita antes do stream abrir,
-        // então o ciclo normal request/response funciona perfeitamente.
         const response = await request(app).get("/api/iot/stream")
         expect(response.status).toBe(401)
     })
@@ -238,9 +242,6 @@ describe("GET /api/iot/stream", () => {
     it("deve retornar headers SSE corretos ao conectar com token válido", async () => {
         const { token } = await setupFull()
 
-        // openSseStream resolve assim que os headers chegam (sem aguardar body).
-        // Isso é possível porque o Express chama res.flushHeaders() antes de
-        // qualquer operação assíncrona — os headers chegam imediatamente.
         const stream = await openSseStream(token)
 
         expect(stream.statusCode).toBe(200)
@@ -252,7 +253,6 @@ describe("GET /api/iot/stream", () => {
 
     it("deve receber evento 'connected' com deviceCount ao abrir o stream", async () => {
         const { token } = await setupFull()
-        // setupFull cria exatamente 1 device — o evento connected deve refletir isso.
 
         const stream = await openSseStream(token)
         const events = await collectSseEvents(stream, {
@@ -272,10 +272,6 @@ describe("GET /api/iot/stream", () => {
 
         const stream = await openSseStream(token)
 
-        // Simula a leitura SOMENTE após receber "connected" — garante que
-        // o listener SSE do servidor já está registrado quando a leitura chega.
-        // Sem essa sincronização, a leitura poderia ser emitida antes do listener
-        // existir e o evento "reading" nunca chegaria ao cliente.
         let connectedReceived = false
         const events = await collectSseEvents(stream, {
             maxWaitMs:      3000,
@@ -297,15 +293,11 @@ describe("GET /api/iot/stream", () => {
     })
 
     it("não deve receber leituras de devices de outro usuário", async () => {
-        // Usuário A tem 1 device. Usuário B conecta ao stream.
-        // Quando o device do A gera leitura, o B NÃO deve recebê-la.
         const { deviceId: deviceIdA } = await setupFull(validUser)
         const tokenB = await registerAndLogin(anotherUser)
 
         const stream = await openSseStream(tokenB)
 
-        // Simula leitura do device A após o connected do usuário B.
-        // Aguarda 1000ms — se nenhum "reading" chegar, o isolamento está correto.
         let connectedReceived = false
         const events = await collectSseEvents(stream, {
             maxWaitMs: 1000,
@@ -319,5 +311,63 @@ describe("GET /api/iot/stream", () => {
 
         const readings = events.filter((e) => e.event === "reading")
         expect(readings).toHaveLength(0)
+    })
+
+    // ─── Testes de alertas em tempo real ───────────────────────────────────────
+
+    it("deve receber evento 'alert' quando um alerta do usuário é disparado", async () => {
+        const { token } = await setupFull()
+        const userId    = extractUserId(token)
+
+        const stream = await openSseStream(token)
+
+        // Simula o disparo de um alerta do usuário após a conexão ser estabelecida.
+        // Na produção, esse notify seria chamado pelo AlertService.checkAndTrigger.
+        // Aqui chamamos diretamente o AlertNotifier para testar o canal SSE
+        // de forma isolada, sem depender de um consumo real no banco.
+        let connectedReceived = false
+        const events = await collectSseEvents(stream, {
+            maxWaitMs:      3000,
+            stopAfterEvent: "alert",
+            onEvent:        (event) => {
+                if (event === "connected" && !connectedReceived) {
+                    connectedReceived = true
+                    alertNotifier.notify(makeAlert(userId))
+                }
+            },
+        })
+
+        const alertEvent = events.find((e) => e.event === "alert")
+        expect(alertEvent).toBeDefined()
+
+        const data = alertEvent!.data as { id: string; userId: string; thresholdKwh: number }
+        expect(data.userId).toBe(userId)
+        expect(data.thresholdKwh).toBe(100)
+        expect(data.id).toBe("alert-test-id")
+    })
+
+    it("não deve receber alertas de outro usuário", async () => {
+        const { token: tokenA } = await setupFull(validUser)
+        const tokenB            = await registerAndLogin(anotherUser)
+        const userIdA           = extractUserId(tokenA)
+
+        // Usuário B conecta ao stream.
+        const stream = await openSseStream(tokenB)
+
+        // Dispara alerta do usuário A após o connected do usuário B.
+        let connectedReceived = false
+        const events = await collectSseEvents(stream, {
+            maxWaitMs: 1000,
+            onEvent:   (event) => {
+                if (event === "connected" && !connectedReceived) {
+                    connectedReceived = true
+                    // Alerta do usuário A — não deve chegar ao usuário B.
+                    alertNotifier.notify(makeAlert(userIdA))
+                }
+            },
+        })
+
+        const alertEvents = events.filter((e) => e.event === "alert")
+        expect(alertEvents).toHaveLength(0)
     })
 })

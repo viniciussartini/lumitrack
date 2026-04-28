@@ -5,6 +5,7 @@ import type { PropertyRepository } from "@/modules/property/property.repository.
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { AlertNotifier } from "./alert-notifier.js"
 
 export class AlertService {
     constructor(
@@ -12,6 +13,7 @@ export class AlertService {
         private readonly propertyRepository: PropertyRepository,
         private readonly areaRepository: AreaRepository,
         private readonly deviceRepository: DeviceRepository,
+        private readonly alertNotifier?: AlertNotifier,
     ) {}
 
     //  Helpers
@@ -31,8 +33,14 @@ export class AlertService {
         userId: string,
     ): Promise<void> {
         const property = await this.propertyRepository.findById(propertyId)
-        if (!property) throw new NotFoundError("Propriedade não encontrada")
-        if (property.userId !== userId) throw new ForbiddenError("Acesso negado")
+
+        if (!property) {
+            throw new NotFoundError("Propriedade não encontrada")
+        }
+
+        if (property.userId !== userId) {
+            throw new ForbiddenError("Acesso negado")
+        }
     }
 
     private async validateAreaBelongsToProperty(
@@ -40,9 +48,13 @@ export class AlertService {
         propertyId: string,
     ): Promise<void> {
         const area = await this.areaRepository.findById(areaId)
-        if (!area) throw new NotFoundError("Área não encontrada")
-        if (area.propertyId !== propertyId)
+        if (!area) {
+            throw new NotFoundError("Área não encontrada")
+        }
+
+        if (area.propertyId !== propertyId) {
             throw new ForbiddenError("Área não pertence a esta propriedade")
+        }
     }
 
     private async validateDeviceBelongsToArea(
@@ -50,16 +62,24 @@ export class AlertService {
         areaId: string,
     ): Promise<void> {
         const device = await this.deviceRepository.findById(deviceId)
-        if (!device) throw new NotFoundError("Dispositivo não encontrado")
-        if (device.areaId !== areaId)
+        if (!device) {
+            throw new NotFoundError("Dispositivo não encontrado")
+        }
+
+        if (device.areaId !== areaId) {
             throw new ForbiddenError("Dispositivo não pertence a esta área")
+        }
     }
 
-    // Verifica posse do alerta e retorna-o — reutilizado em update/delete/read.
     private async getOwnedAlert(id: string, userId: string): Promise<AlertResponse> {
         const alert = await this.alertRepository.findById(id)
-        if (!alert) throw new NotFoundError("Alerta não encontrado")
-        if (alert.userId !== userId) throw new ForbiddenError("Acesso negado")
+        if (!alert) {
+            throw new NotFoundError("Alerta não encontrado")
+        }
+
+        if (alert.userId !== userId) {
+            throw new ForbiddenError("Acesso negado")
+        }
         return alert
     }
 
@@ -167,10 +187,16 @@ export class AlertService {
         await this.alertRepository.delete(id)
     }
 
-    // Disparo automático
-    // Chamado pelo ConsumptionService após cada create/update.
-    // Verifica se kwhConsumed supera o thresholdKwh de algum alerta ativo
-    // do target em questão. Se sim, preenche triggeredAt.
+
+    /**
+     *  Disparo automático
+     *  Chamado pelo ConsumptionService após cada create/update.
+     *  Verifica se kwhConsumed supera o thresholdKwh de algum alerta ativo
+     *  do target em questão. Se sim, preenche triggeredAt.
+     * 
+     * @param target 
+     * @param kwhConsumed 
+     */
     async checkAndTrigger(
         target: AlertTarget,
         kwhConsumed: number,
@@ -179,7 +205,9 @@ export class AlertService {
 
         for (const alert of activeAlerts) {
             if (kwhConsumed > alert.thresholdKwh) {
-                await this.alertRepository.trigger(alert.id)
+                const triggered =await this.alertRepository.trigger(alert.id)
+
+                this.alertNotifier?.notify(triggered) // Notifica listeners SSE, se houver conexão ativa. Fire-and-forget.
             }
         }
     }
