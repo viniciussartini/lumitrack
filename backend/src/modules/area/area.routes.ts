@@ -7,12 +7,15 @@ import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { deviceRoutes } from "@/modules/device/device.routes.js"
 import { areaConsumptionRoutes } from "@/modules/consumption/consumption.routes.js"
 import { areaAlertRoutes } from "../alert/alert.routes.js"
+import { AlertNotifier } from "../alert/alert-notifier.js"
 
 // As rotas de área são aninhadas dentro de /api/properties/:propertyId/areas.
 // O Express passa os parâmetros da rota pai (propertyId) quando usamos
 // mergeParams: true no router filho.
-export function areaRoutes(authenticate: RequestHandler, prismaClient: PrismaClient,
-
+export function areaRoutes(
+    authenticate: RequestHandler,
+    prismaClient: PrismaClient,
+    alertNotifier: AlertNotifier,
 ): Router {
     // mergeParams: true é obrigatório para que :propertyId da rota pai
     // fique disponível em req.params dentro deste router.
@@ -30,9 +33,9 @@ export function areaRoutes(authenticate: RequestHandler, prismaClient: PrismaCli
     // Rotas aninhadas de device ANTES dos handlers /:areaId — mesma regra do
     // property.routes: o Express casaria "/:areaId/devices" como areaId="<uuid>"
     // sem nunca chegar ao router filho se /:areaId estivesse registrado primeiro.
-    router.use("/:areaId/devices", deviceRoutes(authenticate, prismaClient))
-    router.use("/:areaId/consumption", areaConsumptionRoutes(authenticate, prismaClient))
-    router.use("/:areaId/alerts", areaAlertRoutes(authenticate, prismaClient))
+    router.use("/:areaId/devices", deviceRoutes(authenticate, prismaClient, alertNotifier))
+    router.use("/:areaId/consumption", areaConsumptionRoutes(authenticate, prismaClient, alertNotifier))
+    router.use("/:areaId/alerts", areaAlertRoutes(authenticate, prismaClient, alertNotifier))
 
     router.get("/:areaId", authenticate, (req, res, next) => areaController.findById(req, res, next))
     router.put("/:areaId", authenticate, (req, res, next) => areaController.update(req, res, next))

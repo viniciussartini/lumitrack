@@ -6,13 +6,20 @@ import { AlertService } from "@/modules/alert/alert.service.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
+import { AlertNotifier } from "./alert-notifier.js"
 
-function buildController(prismaClient: PrismaClient): AlertController {
+function buildController(prismaClient: PrismaClient, alertNotifier: AlertNotifier): AlertController {
     const alertRepository = new AlertRepository(prismaClient)
     const propertyRepository = new PropertyRepository(prismaClient)
     const areaRepository = new AreaRepository(prismaClient)
     const deviceRepository = new DeviceRepository(prismaClient)
-    const alertService = new AlertService(alertRepository, propertyRepository, areaRepository, deviceRepository)
+    const alertService = new AlertService(
+        alertRepository,
+        propertyRepository,
+        areaRepository,
+        deviceRepository,
+        alertNotifier,
+    )
     return new AlertController(alertService)
 }
 
@@ -22,9 +29,10 @@ function buildController(prismaClient: PrismaClient): AlertController {
 export function alertRoutes(
     authenticate: RequestHandler,
     prismaClient: PrismaClient,
+    alertNotifier: AlertNotifier,
 ): Router {
     const router = Router()
-    const controller = buildController(prismaClient)
+    const controller = buildController(prismaClient, alertNotifier)
 
     router.get("/", authenticate, (req, res, next) => controller.findAll(req, res, next))
     router.get("/:id", authenticate, (req, res, next) => controller.findById(req, res, next))
@@ -41,9 +49,10 @@ export function alertRoutes(
 export function propertyAlertRoutes(
     authenticate: RequestHandler,
     prismaClient: PrismaClient,
+    alertNotifier: AlertNotifier,
 ): Router {
     const router = Router({ mergeParams: true })
-    const controller = buildController(prismaClient)
+    const controller = buildController(prismaClient, alertNotifier)
 
     router.post("/", authenticate, (req, res, next) => controller.createForProperty(req, res, next))
     router.get("/", authenticate, (req, res, next) => controller.findAllForProperty(req, res, next))
@@ -57,9 +66,10 @@ export function propertyAlertRoutes(
 export function areaAlertRoutes(
     authenticate: RequestHandler,
     prismaClient: PrismaClient,
+    alertNotifier: AlertNotifier,
 ): Router {
     const router = Router({ mergeParams: true })
-    const controller = buildController(prismaClient)
+    const controller = buildController(prismaClient, alertNotifier)
 
     router.post("/", authenticate, (req, res, next) => controller.createForArea(req, res, next))
     router.get("/", authenticate, (req, res, next) => controller.findAllForArea(req, res, next))
@@ -73,9 +83,10 @@ export function areaAlertRoutes(
 export function deviceAlertRoutes(
     authenticate: RequestHandler,
     prismaClient: PrismaClient,
+    alertNotifier: AlertNotifier,
 ): Router {
     const router = Router({ mergeParams: true })
-    const controller = buildController(prismaClient)
+    const controller = buildController(prismaClient, alertNotifier)
 
     router.post("/", authenticate, (req, res, next) => controller.createForDevice(req, res, next))
     router.get("/", authenticate, (req, res, next) => controller.findAllForDevice(req, res, next))

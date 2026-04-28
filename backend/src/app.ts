@@ -50,8 +50,8 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/users", userRoutes(authenticate))
     app.use("/api/auth", authRoutes(authenticate, prismaClient, sendPasswordResetEmail))
     app.use("/api/distributors", distributorRoutes(authenticate, prismaClient))
-    app.use("/api/properties", propertyRoutes(authenticate, prismaClient))
-    app.use("/api/alerts", alertRoutes(authenticate, prismaClient))
+    app.use("/api/properties", propertyRoutes(authenticate, prismaClient, alertNotifier ?? new AlertNotifier()))
+    app.use("/api/alerts", alertRoutes(authenticate, prismaClient, alertNotifier ?? new AlertNotifier()))
 
     if (processor && alertNotifier) {
         app.use("/api/iot", iotStreamRoutes(authenticate, prismaClient, processor, alertNotifier))

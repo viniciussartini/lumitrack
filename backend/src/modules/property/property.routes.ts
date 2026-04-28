@@ -9,8 +9,12 @@ import { propertyConsumptionRoutes } from "@/modules/consumption/consumption.rou
 import { propertyAlertRoutes } from "@/modules/alert/alert.routes.js"
 import { simulationRoutes } from "@/modules/simulation/simulation.routes.js"
 import { reportRoutes } from "@/modules/report/report.routes.js"
+import { AlertNotifier } from "../alert/alert-notifier.js"
 
-export function propertyRoutes(authenticate: RequestHandler, prismaClient: PrismaClient
+export function propertyRoutes(
+    authenticate: RequestHandler,
+    prismaClient: PrismaClient,
+    alertNotifier: AlertNotifier,
 
 ): Router {
     const router = Router()
@@ -29,9 +33,9 @@ export function propertyRoutes(authenticate: RequestHandler, prismaClient: Prism
     // Rotas aninhadas ANTES das rotas /:id — ordem crítica no Express.
     // Rotas aninhadas de área montadas aqui para que :propertyId fique
     // disponível via mergeParams no router filho (area).
-    router.use("/:propertyId/areas", areaRoutes(authenticate, prismaClient))
-    router.use("/:propertyId/consumption", propertyConsumptionRoutes(authenticate, prismaClient))
-    router.use("/:propertyId/alerts", propertyAlertRoutes(authenticate, prismaClient))
+    router.use("/:propertyId/areas", areaRoutes(authenticate, prismaClient, alertNotifier))
+    router.use("/:propertyId/consumption", propertyConsumptionRoutes(authenticate, prismaClient, alertNotifier))
+    router.use("/:propertyId/alerts", propertyAlertRoutes(authenticate, prismaClient, alertNotifier))
     router.use("/:propertyId/simulation", simulationRoutes(authenticate, prismaClient))
     router.use("/:propertyId/report", reportRoutes(authenticate, prismaClient))
 

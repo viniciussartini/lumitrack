@@ -9,18 +9,24 @@ import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { AlertRepository } from "../alert/alert.repository.js"
 import { AlertService } from "../alert/alert.service.js"
+import { AlertNotifier } from "../alert/alert-notifier.js"
 
 // Fábrica compartilhada — instancia o service uma única vez,
 // independente do target (property, area ou device).
-function buildController(prismaClient: PrismaClient): ConsumptionController {
+function buildController(prismaClient: PrismaClient, alertNotifier: AlertNotifier): ConsumptionController {
     const consumptionRepository = new ConsumptionRepository(prismaClient)
     const propertyRepository = new PropertyRepository(prismaClient)
     const areaRepository = new AreaRepository(prismaClient)
     const deviceRepository = new DeviceRepository(prismaClient)
     const distributorRepository = new DistributorRepository(prismaClient)
     const alertRepository = new AlertRepository(prismaClient)
-    const alertService = new AlertService(alertRepository, propertyRepository, areaRepository, deviceRepository)
 
+    const alertService = new AlertService(alertRepository,
+        propertyRepository,
+        areaRepository,
+        deviceRepository,
+        alertNotifier
+    )
 
     const consumptionService = new ConsumptionService(
         consumptionRepository,
@@ -40,9 +46,10 @@ function buildController(prismaClient: PrismaClient): ConsumptionController {
 export function propertyConsumptionRoutes(
     authenticate: RequestHandler,
     prismaClient: PrismaClient,
+    alertNotifier: AlertNotifier,
 ): Router {
     const router = Router({ mergeParams: true })
-    const controller = buildController(prismaClient)
+    const controller = buildController(prismaClient, alertNotifier)
 
     router.post("/", authenticate, (req, res, next) => controller.createForProperty(req, res, next))
     router.get("/", authenticate, (req, res, next) => controller.findAllForProperty(req, res, next))
@@ -59,9 +66,10 @@ export function propertyConsumptionRoutes(
 export function areaConsumptionRoutes(
     authenticate: RequestHandler,
     prismaClient: PrismaClient,
+    alertNotifier: AlertNotifier,
 ): Router {
     const router = Router({ mergeParams: true })
-    const controller = buildController(prismaClient)
+    const controller = buildController(prismaClient, alertNotifier)
 
     router.post("/", authenticate, (req, res, next) => controller.createForArea(req, res, next))
     router.get("/", authenticate, (req, res, next) => controller.findAllForArea(req, res, next))
@@ -75,9 +83,10 @@ export function areaConsumptionRoutes(
 export function deviceConsumptionRoutes(
     authenticate: RequestHandler,
     prismaClient: PrismaClient,
+    alertNotifier: AlertNotifier,
 ): Router {
     const router = Router({ mergeParams: true })
-    const controller = buildController(prismaClient)
+    const controller = buildController(prismaClient, alertNotifier)
 
     router.post("/", authenticate, (req, res, next) => controller.createForDevice(req, res, next))
     router.get("/", authenticate, (req, res, next) => controller.findAllForDevice(req, res, next))
