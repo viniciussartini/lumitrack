@@ -1,0 +1,41 @@
+export type UserType = "INDIVIDUAL" | "COMPANY"
+export type TokenChannel = "WEB" | "MOBILE"
+
+// Payload do JWT (vem do backend, decodificado pelo jwt-decode)
+export interface JwtPayload {
+    id: string
+    email: string
+    userType: UserType
+    iat: number
+    exp?: number  // opcional — tokens MOBILE não têm exp
+}
+
+// Usuário completo (vem de GET /api/users/:id)
+export interface User {
+    id: string
+    email: string
+    userType: UserType
+    createdAt: string
+    updatedAt: string
+
+    // Campos PF
+    firstName?: string | null
+    lastName?: string | null
+    cpf?: string | null
+
+    // Campos PJ
+    companyName?: string | null
+    cnpj?: string | null
+    tradeName?: string | null
+}
+
+// Input do form de login
+export interface LoginInput {
+    email: string
+    password: string
+}
+
+// Resposta crua do backend
+export interface LoginResponse {
+    token: string
+}
