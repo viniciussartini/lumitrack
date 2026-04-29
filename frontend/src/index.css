@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+/* Habilita dark mode via classe .dark no <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Tokens do design system — ajuste as cores do LumiTrack aqui */
+@theme {
+    --color-brand-50:  oklch(0.97 0.02 230);
+    --color-brand-500: oklch(0.65 0.18 230);
+    --color-brand-700: oklch(0.45 0.20 230);
+
+    --color-energy:    oklch(0.78 0.18 85);   /* amarelo "energia" */
+    --color-alert:     oklch(0.65 0.22 25);   /* vermelho alerta */
+    --color-success:   oklch(0.68 0.18 145);  /* verde econômico */
+}
+
+/* Reset suave + base do app */
+html, body, #root { height: 100%; }
+body {
+    @apply bg-white text-slate-900 antialiased;
+}
+.dark body {
+    @apply bg-slate-950 text-slate-100;
+}
