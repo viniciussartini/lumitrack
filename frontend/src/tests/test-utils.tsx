@@ -5,6 +5,7 @@ import { type ReactElement, type ReactNode } from "react"
 import { render, type RenderOptions } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import { AuthProvider } from "@/contexts/AuthContext"
+import { ThemeProvider } from "@/contexts/ThemeContext"
 
 interface AllProvidersProps {
     children: ReactNode
@@ -16,7 +17,9 @@ export const AllProviders = ({
     initialEntries = ["/"],
 }: AllProvidersProps) => (
     <MemoryRouter initialEntries={initialEntries}>
-        <AuthProvider>{children}</AuthProvider>
+        <ThemeProvider>
+            <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
     </MemoryRouter>
 )
 
