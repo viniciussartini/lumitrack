@@ -4,7 +4,7 @@ import { ChevronDown, LogOut, User as UserIcon } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useClickOutside } from "@/lib/hooks/useClickOutside"
 import { cn } from "@/lib/cn"
-import type { User } from "@/types/auth"
+import type { User } from "@/types/auth.types"
 
 /**
  * Deriva um nome amigável e iniciais a partir do User.

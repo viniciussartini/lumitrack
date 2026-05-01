@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { renderWithProviders, screen } from "@/tests/test-utils"
 import { Header } from "@/components/layout/Header"
 import { authService } from "@/services/auth.service"
-import type { JwtPayload, User } from "@/types/auth"
+import type { JwtPayload, User } from "@/types/auth.types"
 
 vi.mock("@/services/auth.service", () => ({
     authService: {

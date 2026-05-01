@@ -5,8 +5,9 @@ import type {
     JwtPayload,
     LoginInput,
     LoginResponse,
+    RegisterInput,
     User,
-} from "@/types/auth"
+} from "@/types/auth.types"
 
 interface ApiEnvelope<T> {
     status: "success"
@@ -75,5 +76,18 @@ export const authService = {
             storage.remove(STORAGE_KEYS.TOKEN)
             return null
         }
+    },
+
+    /**
+     * Cria uma nova conta. Retorna o User criado.
+     * O backend valida exaustivamente — em caso de erro propaga 422
+     * (validação) ou 409 (email duplicado).
+     *
+     * NOTA: este método NÃO faz login. O auto-login é responsabilidade
+     * do AuthContext.register, que orquestra register + login + fetch.
+     */
+    register: async (input: RegisterInput): Promise<User> => {
+        const { data } = await api.post<ApiEnvelope<User>>("/users", input)
+        return data.data
     },
 }

@@ -7,7 +7,7 @@ import {
 } from "react"
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
-import type { LoginInput, User } from "@/types/auth"
+import type { LoginInput, User, RegisterInput } from "@/types/auth.types"
 import { useNavigate } from "react-router-dom"
 
 interface AuthContextValue {
@@ -16,6 +16,7 @@ interface AuthContextValue {
     isAuthenticated: boolean
     login: (input: LoginInput) => Promise<void>
     logout: () => Promise<void>
+    register: (input: RegisterInput) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -77,12 +78,34 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(null)
     }
 
+    const register = async (input: RegisterInput): Promise<void> => {
+        try {
+            await authService.register(input)
+        } catch (error) {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error
+            throw new Error(extractErrorMessage(error), { cause: error })
+        }
+ 
+        try {
+            const payload = await authService.login({
+                email: input.email,
+                password: input.password,
+            })
+            const fullUser = await authService.fetchCurrentUser(payload.id)
+            setUser(fullUser)
+        } catch {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error
+            throw new Error("POST_REGISTER_LOGIN_FAILED")
+        }
+    }
+
     const value: AuthContextValue = {
         user,
         isLoading,
         isAuthenticated: user !== null,
         login,
         logout,
+        register,
     }
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

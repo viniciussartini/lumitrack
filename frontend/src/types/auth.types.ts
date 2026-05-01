@@ -39,3 +39,25 @@ export interface LoginInput {
 export interface LoginResponse {
     token: string
 }
+
+// Registro
+interface BaseRegisterInput {
+    email: string
+    password: string
+}
+
+export interface IndividualRegisterInput extends BaseRegisterInput {
+    userType: "INDIVIDUAL"
+    firstName: string
+    lastName: string
+    cpf: string
+}
+
+export interface CompanyRegisterInput extends BaseRegisterInput {
+    userType: "COMPANY"
+    companyName: string
+    cnpj: string
+    tradeName?: string
+}
+
+export type RegisterInput = IndividualRegisterInput | CompanyRegisterInput

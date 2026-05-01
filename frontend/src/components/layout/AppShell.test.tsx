@@ -6,7 +6,7 @@ import { AppShell } from "@/components/layout/AppShell"
 import { authService } from "@/services/auth.service"
 import { AuthProvider } from "@/contexts/AuthContext"
 import { ThemeProvider } from "@/contexts/ThemeContext"
-import type { JwtPayload, User } from "@/types/auth"
+import type { JwtPayload, User } from "@/types/auth.types"
 
 vi.mock("@/services/auth.service", () => ({
     authService: {

@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import { AuthProvider, useAuth } from "@/contexts/AuthContext"
 import { authService } from "@/services/auth.service"
-import type { User, JwtPayload } from "@/types/auth"
+import type { User, JwtPayload } from "@/types/auth.types"
 
 // useNavigate precisa de um Router no contexto — MemoryRouter resolve isso.
 // O mock abaixo evita erros de "navigate is not a function" nos testes

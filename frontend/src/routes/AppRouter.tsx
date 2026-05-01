@@ -4,6 +4,7 @@ import { PublicRoute } from "@/routes/PublicRoute"
 import { LoginPage } from "@/pages/auth/LoginPage"
 import { DashboardPage } from "@/pages/dashboard/DashboardPage"
 import { AppShell } from "@/components/layout/AppShell"
+import { RegisterPage } from "@/pages/auth/RegisterPage"
 
 /**
  * Mapa de rotas
@@ -19,6 +20,7 @@ export const AppRouter = () => (
         {/* Rotas públicas — bloqueia acesso de quem já está logado */}
         <Route element={<PublicRoute />}>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/registro" element={<RegisterPage />} />
         </Route>
 
         {/* Rotas privadas — exige autenticação */}

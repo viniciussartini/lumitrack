@@ -9,9 +9,6 @@ import { useEffect, type RefObject } from "react"
  * causando o bug de "abre e fecha imediatamente".
  *
  * Escuta tanto mousedown quanto touchstart para cobrir mouse e touch.
- *
- * Analogia: imagine uma roleta de banco — você só pode interagir com o
- * caixa enquanto está dentro da roleta. Sair = encerra a sessão.
  */
 export const useClickOutside = <T extends HTMLElement>(
     ref: RefObject<T | null>,

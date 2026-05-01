@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import { authService } from "@/services/auth.service"
 import { storage, STORAGE_KEYS } from "@/lib/storage"
+import type { IndividualRegisterInput, User } from "@/types/auth.types"
 
 // Mock do módulo api — substitui a instância real por um espião
 vi.mock("@/services/api", () => ({
@@ -13,9 +14,6 @@ vi.mock("@/services/api", () => ({
 
 import { api } from "@/services/api"
 
-// JWT de teste — payload decodificável: { id, email, userType, iat, exp }
-// Gerado em jwt.io com header HS256, secret "test", payload abaixo.
-// O importante é que jwt-decode consegue parsear — assinatura não é validada no front.
 const VALID_TOKEN_WEB =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
     "eyJpZCI6InVzZXItMTIzIiwiZW1haWwiOiJ0ZXN0QGV4YW1wbGUuY29tIiwidXNlclR5cGUiOiJJTkRJVklEVUFMIiwiaWF0IjoxNzAwMDAwMDAwLCJleHAiOjk5OTk5OTk5OTl9." +
@@ -132,5 +130,73 @@ describe("authService.getStoredSession", () => {
 
         expect(session).toBeNull()
         expect(storage.get(STORAGE_KEYS.TOKEN)).toBeNull()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Register (novo)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const validIndividualInput: IndividualRegisterInput = {
+    userType: "INDIVIDUAL",
+    email: "joao@example.com",
+    password: "Senha@123",
+    firstName: "João",
+    lastName: "Silva",
+    cpf: "529.982.247-25",
+}
+
+const mockCreatedUser: User = {
+    id: "user-new",
+    email: "joao@example.com",
+    userType: "INDIVIDUAL",
+    firstName: "João",
+    lastName: "Silva",
+    cpf: "529.982.247-25",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+}
+
+describe("authService.register", () => {
+    it("envia o input para POST /users e retorna o User criado", async () => {
+        vi.mocked(api.post).mockResolvedValueOnce({
+            data: { status: "success", data: mockCreatedUser },
+        })
+
+        const user = await authService.register(validIndividualInput)
+
+        expect(api.post).toHaveBeenCalledWith("/users", validIndividualInput)
+        expect(user.id).toBe("user-new")
+        expect(user.email).toBe("joao@example.com")
+    })
+
+    it("NÃO persiste token (não faz login)", async () => {
+        vi.mocked(api.post).mockResolvedValueOnce({
+            data: { status: "success", data: mockCreatedUser },
+        })
+
+        await authService.register(validIndividualInput)
+
+        expect(storage.get(STORAGE_KEYS.TOKEN)).toBeNull()
+    })
+
+    it("propaga erro 409 (email duplicado)", async () => {
+        vi.mocked(api.post).mockRejectedValueOnce(
+            new Error("E-mail já cadastrado"),
+        )
+
+        await expect(authService.register(validIndividualInput)).rejects.toThrow(
+            "E-mail já cadastrado",
+        )
+    })
+
+    it("propaga erro 422 (validação)", async () => {
+        vi.mocked(api.post).mockRejectedValueOnce(
+            new Error("Dados inválidos"),
+        )
+
+        await expect(authService.register(validIndividualInput)).rejects.toThrow(
+            "Dados inválidos",
+        )
     })
 })

@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useLocation, useNavigate } from "react-router-dom"
+import { useLocation, useNavigate, Link } from "react-router-dom"
 import { Zap } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { loginSchema, type LoginFormData } from "@/schemas/auth.schema"
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/Input"
 
 interface LocationState {
     from?: { pathname: string }
+    notice?: string
 }
 
 export const LoginPage = () => {
@@ -18,20 +19,22 @@ export const LoginPage = () => {
     const { login } = useAuth()
     const [serverError, setServerError] = useState<string | null>(null)
 
+    const state = (location.state ?? null) as LocationState | null
+    const [notice] = useState<string | null>(state?.notice ?? null)
+
     const {
         register,
         handleSubmit,
         formState: { errors, isSubmitting },
     } = useForm<LoginFormData>({
         resolver: zodResolver(loginSchema),
-        defaultValues: { email: "", password: "" },
+        mode: "onBlur",
     })
 
-    const onSubmit = async (data: LoginFormData) => {
+    const onSubmit = async (data: LoginFormData): Promise<void> => {
         setServerError(null)
         try {
             await login(data)
-            const state = location.state as LocationState | null
             const redirectTo = state?.from?.pathname ?? "/dashboard"
             navigate(redirectTo, { replace: true })
         } catch (error) {
@@ -44,10 +47,9 @@ export const LoginPage = () => {
     return (
         <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 dark:bg-slate-950">
             <div className="w-full max-w-md">
-                {/* Logo + título */}
                 <div className="mb-8 flex flex-col items-center gap-2">
                     <div className="rounded-full bg-brand-500 p-3">
-                        <Zap className="h-6 w-6 text-white" />
+                        <Zap className="h-6 w-6 text-white" aria-hidden="true" />
                     </div>
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                         LumiTrack
@@ -57,11 +59,20 @@ export const LoginPage = () => {
                     </p>
                 </div>
 
-                {/* Card do form */}
                 <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                     <h2 className="mb-6 text-lg font-semibold text-slate-900 dark:text-slate-100">
                         Entrar na conta
                     </h2>
+
+                    {/* Notice (vinda de redirects, ex: pós-registro com auto-login falho) */}
+                    {notice && (
+                        <div
+                            role="status"
+                            className="mb-4 rounded-md bg-success/10 px-3 py-2 text-sm text-success"
+                        >
+                            {notice}
+                        </div>
+                    )}
 
                     <form
                         onSubmit={handleSubmit(onSubmit)}
@@ -104,6 +115,16 @@ export const LoginPage = () => {
                             Entrar
                         </Button>
                     </form>
+
+                    <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
+                        Não tem conta?{" "}
+                        <Link
+                            to="/registro"
+                            className="font-medium text-brand-500 hover:text-brand-700"
+                        >
+                            Criar conta
+                        </Link>
+                    </p>
                 </div>
             </div>
         </div>

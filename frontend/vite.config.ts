@@ -15,9 +15,8 @@ export default defineConfig({
         proxy: {
             // Encaminha chamadas para o backend em dev sem CORS
             "/api": {
-                target: "http://localhost:3000",
+                target: "http://localhost:3333",
                 changeOrigin: true,
-                rewrite: (p) => p.replace(/^\/api/, ""),
             },
         },
     },
