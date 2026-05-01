@@ -3,6 +3,7 @@ import { ProtectedRoute } from "@/routes/ProtectedRoute"
 import { PublicRoute } from "@/routes/PublicRoute"
 import { LoginPage } from "@/pages/auth/LoginPage"
 import { DashboardPage } from "@/pages/dashboard/DashboardPage"
+import { AppShell } from "@/components/layout/AppShell"
 
 /**
  * Mapa de rotas
@@ -22,7 +23,9 @@ export const AppRouter = () => (
 
         {/* Rotas privadas — exige autenticação */}
         <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route element={<AppShell />}>
+                <Route path="/dashboard" element={<DashboardPage />} />
+            </Route>
         </Route>
 
         {/* Fallback — qualquer URL desconhecida vai para login.
