@@ -5,6 +5,9 @@ import { LoginPage } from "@/pages/auth/LoginPage"
 import { DashboardPage } from "@/pages/dashboard/DashboardPage"
 import { AppShell } from "@/components/layout/AppShell"
 import { RegisterPage } from "@/pages/auth/RegisterPage"
+import { DistribuidorsPage } from "@/pages/distributor/DistributorsPage"
+import { NewDistributorPage } from "@/pages/distributor/NewDistributorPage"
+import { EditDistributorPage } from "@/pages/distributor/EditDistributorPage"
 
 /**
  * Mapa de rotas
@@ -27,6 +30,10 @@ export const AppRouter = () => (
         <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
+                
+                <Route path="/distribuidoras" element={<DistribuidorsPage />} />
+                <Route path="/distribuidoras/nova" element={<NewDistributorPage />} />
+                <Route path="/distribuidoras/:id/editar" element={<EditDistributorPage />} />
             </Route>
         </Route>
 

@@ -1,5 +1,6 @@
 import { type ButtonHTMLAttributes, type ReactNode } from "react"
 import { cn } from "@/lib/cn"
+import { Slot } from "@radix-ui/react-slot"
 
 type Variant = "primary" | "secondary" | "ghost" | "danger"
 type Size = "sm" | "md" | "lg"
@@ -10,11 +11,16 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     isLoading?: boolean
     leftIcon?: ReactNode
     rightIcon?: ReactNode
+    asChild?: boolean
 }
 
-// Tabela de estilos por variante. Mantida como objeto puro (não como
-// função) para que o `prettier-plugin-tailwindcss` ordene as classes
-// na build.
+
+/**
+ * Tabela de estilos por variante. Mantida como objeto puro
+ * para que o `prettier-plugin-tailwindcss` ordene as classes
+ * na build.
+ */
+
 const variantStyles: Record<Variant, string> = {
     primary:
         "bg-brand-500 text-white hover:bg-brand-700 focus-visible:ring-brand-500 disabled:bg-slate-300 dark:disabled:bg-slate-700",
@@ -41,15 +47,18 @@ export const Button = ({
     disabled,
     className,
     children,
+    asChild = false,
     ...rest
 }: ButtonProps) => {
     const isDisabled = disabled || isLoading
+    const BtnComp = asChild ? Slot : "button"
 
     return (
-        <button
-            disabled={isDisabled}
+        <BtnComp
+            // "button" aceita disabled nativamente; Slot/Link não.
+            // Passamos apenas quando não é asChild para evitar warning.
+            {...(!asChild && { disabled: isDisabled })}
             className={cn(
-                // Base — sempre aplicada
                 "inline-flex items-center justify-center gap-2 rounded-md font-medium",
                 "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
                 "disabled:cursor-not-allowed disabled:opacity-60",
@@ -69,7 +78,7 @@ export const Button = ({
                     {rightIcon}
                 </>
             )}
-        </button>
+        </BtnComp>
     )
 }
 
