@@ -6,8 +6,20 @@ import { render, screen, waitFor } from "@testing-library/react"
 import { PropertyDetailsPage } from "@/pages/property/PropertyDetailsPage"
 import { propertyService } from "@/services/property.service"
 import { distributorService } from "@/services/distributor.service"
+import { areaService } from "@/services/area.service"
 import type { Property } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
+import type { Area } from "@/types/area.types"
+
+vi.mock("@/services/area.service", () => ({
+    areaService: {
+        list: vi.fn(),
+        getById: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+    },
+}))
 
 vi.mock("@/services/property.service", () => ({
     propertyService: {
@@ -65,6 +77,15 @@ const mockProperty: Property = {
     city: "Belo Horizonte",
     state: "MG",
     zipCode: "30000-000",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+}
+
+const mockArea: Area = {
+    id: "area-1",
+    propertyId: "prop-1",
+    name: "Sala",
+    description: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -181,6 +202,7 @@ describe("PropertyDetailsPage — header", () => {
         vi.mocked(distributorService.getById).mockResolvedValue(
             mockDistributor,
         )
+        vi.mocked(areaService.list).mockResolvedValue([])
     })
 
     it("renderiza nome da propriedade como heading principal", async () => {
@@ -312,15 +334,14 @@ describe("PropertyDetailsPage — chips de distribuidora", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Seção de Áreas — placeholder
+// Seção de Áreas — comportamento dinâmico
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("PropertyDetailsPage — seção de áreas", () => {
+describe("PropertyDetailsPage — seção de áreas (vazia)", () => {
     beforeEach(() => {
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-        vi.mocked(distributorService.getById).mockResolvedValue(
-            mockDistributor,
-        )
+        vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
+        vi.mocked(areaService.list).mockResolvedValue([])
     })
 
     it("renderiza seção 'Áreas' como heading", async () => {
@@ -331,7 +352,7 @@ describe("PropertyDetailsPage — seção de áreas", () => {
         ).toBeInTheDocument()
     })
 
-    it("renderiza EmptyState informando que não há áreas cadastradas", async () => {
+    it("renderiza EmptyState quando não há áreas", async () => {
         renderPage()
 
         expect(
@@ -339,21 +360,91 @@ describe("PropertyDetailsPage — seção de áreas", () => {
         ).toBeInTheDocument()
     })
 
-    it("botão 'Adicionar área' está desabilitado (em breve)", async () => {
-        renderPage()
+    it("link 'Adicionar área' aponta para a página de criação", async () => {
+            renderPage()
 
-        const addButton = await screen.findByRole("button", {
-            name: /adicionar área/i,
+            const addLink = await screen.findByRole("link", {
+                name: /adicionar área/i,
+            })
+
+            expect(addLink).toHaveAttribute(
+                "href",
+                "/propriedades/prop-1/areas/nova",
+            )
         })
-
-        expect(addButton).toBeDisabled()
-    })
 
     it("renderiza a marca 'Em breve' explicitamente", async () => {
         renderPage()
 
         expect(
             await screen.findByTestId("areas-coming-soon"),
+        ).toBeInTheDocument()
+    })
+})
+
+describe("PropertyDetailsPage — seção de áreas (com dados)", () => {
+    beforeEach(() => {
+        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+        vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
+    })
+
+    it("renderiza grid de cards quando há áreas", async () => {
+        vi.mocked(areaService.list).mockResolvedValue([
+            mockArea,
+            { ...mockArea, id: "area-2", name: "Cozinha" },
+        ])
+
+        renderPage()
+
+        // Testid do grid
+        expect(await screen.findByTestId("areas-grid")).toBeInTheDocument()
+        // Cards individuais por testid
+        expect(screen.getByTestId("area-card-area-1")).toBeInTheDocument()
+        expect(screen.getByTestId("area-card-area-2")).toBeInTheDocument()
+        // Names visíveis
+        expect(screen.getByText(/sala/i)).toBeInTheDocument()
+        expect(screen.getByText(/cozinha/i)).toBeInTheDocument()
+        // EmptyState não aparece
+        expect(
+            screen.queryByText(/nenhuma área cadastrada/i),
+        ).not.toBeInTheDocument()
+    })
+
+    it("card aponta para a página de detalhes da área", async () => {
+        vi.mocked(areaService.list).mockResolvedValue([mockArea])
+
+        renderPage()
+
+        const card = await screen.findByTestId("area-card-area-1")
+
+        expect(card).toHaveAttribute(
+            "href",
+            "/propriedades/prop-1/areas/area-1",
+        )
+    })
+})
+
+describe("PropertyDetailsPage — seção de áreas (erro)", () => {
+    it("renderiza alerta inline quando o fetch das áreas falha", async () => {
+        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+        vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
+        vi.mocked(areaService.list).mockRejectedValue(
+            new Error("Falha ao listar áreas"),
+        )
+
+        renderPage()
+
+        // Header da propriedade ainda aparece (erro nas áreas não é fatal)
+        await screen.findByRole("heading", {
+            level: 1,
+            name: /casa principal/i,
+        })
+
+        // Alerta inline com a mensagem de erro.
+        // Pode haver mais de um role="alert" na página, então buscamos
+        // diretamente pelo texto da mensagem específica:
+        expect(
+            await screen.findByText(/falha ao listar áreas/i),
         ).toBeInTheDocument()
     })
 })

@@ -19,6 +19,8 @@ import { PropertyMenu } from "@/components/property/PropertyMenu"
 import { cn } from "@/lib/cn"
 import type { Property } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
+import { useAreas } from "@/hooks/queries/useAreas"
+import { AreaCard } from "@/components/area/AreaCard"
 
 /**
  * Página de detalhes de uma propriedade.
@@ -27,7 +29,7 @@ import type { Distributor } from "@/types/distributor.types"
  *   1. Breadcrumb / voltar
  *   2. Header em card destacado: nome + endereço + chips com dados da
  *      distribuidora vinculada + ações (Editar / ⋯)
- *   3. Seção de Áreas — EmptyState com botão desabilitado "Adicionar área (Em breve)"
+ *   3. Seção de Áreas — EmptyState com botão desabilitado "Adicionar área"
  *      ou grid de card de áreas.
  *
  * Carrega DUAS queries em sequência:
@@ -96,7 +98,7 @@ export const PropertyDetailsPage = () => {
                 }
             />
 
-            <AreasSection />
+            <AreasSection  propertyId={property.id} />
         </div>
     )
 }
@@ -260,37 +262,102 @@ const Chip = ({ icon: Icon, label, variant = "default" }: ChipProps) => {
     )
 }
 
-const AreasSection = () => (
-    <section className="flex flex-col gap-3">
-        <header className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                Áreas
-            </h2>
-            <Button
-                variant="secondary"
-                size="sm"
-                disabled
-                title="Em breve"
-                aria-label="Adicionar área (em breve)"
-            >
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                Adicionar área
-            </Button>
-        </header>
+interface AreasSectionProps {
+    propertyId: string
+}
 
-        <EmptyState
-            icon={LayoutGrid}
-            title="Nenhuma área cadastrada"
-            description="O cadastro de áreas estará disponível em breve. Por aqui você poderá organizar dispositivos por cômodo, setor ou unidade."
-        />
+/**
+ * Lista as áreas da propriedade.
+ *
+ * Estados:
+ *   - Loading: skeleton
+ *   - Erro: mensagem inline (não fatal — header e demais seções continuam)
+ *   - Vazio: EmptyState com botão desabilitado "Adicionar área"
+ *   - Com áreas: grid de AreaCards
+ */
+const AreasSection = ({ propertyId }: AreasSectionProps) => {
+    const areasQuery = useAreas(propertyId)
 
-        <p
-            className="text-center text-xs italic text-slate-500 dark:text-slate-400"
-            data-testid="areas-coming-soon"
-        >
-            Em breve
-        </p>
-    </section>
+    return (
+        <section className="flex flex-col gap-3">
+            <header className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                    Áreas
+                </h2>
+                <Button asChild variant="secondary" size="sm">
+                    <Link to={`/propriedades/${propertyId}/areas/nova`}>
+                        <Plus className="h-4 w-4" aria-hidden="true" />
+                        Adicionar área
+                    </Link>
+                </Button>
+            </header>
+
+            {areasQuery.isLoading && <AreasSkeleton />}
+
+            {areasQuery.isError && (
+                <div
+                    role="alert"
+                    className={cn(
+                        "flex items-start gap-3 rounded-lg border p-4",
+                        "border-red-200 bg-red-50 text-red-900",
+                        "dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200",
+                    )}
+                >
+                    <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
+                    <p className="text-sm">
+                        {areasQuery.error instanceof Error
+                            ? areasQuery.error.message
+                            : "Não foi possível carregar as áreas."}
+                    </p>
+                </div>
+            )}
+
+            {areasQuery.isSuccess && areasQuery.data.length === 0 && (
+                <>
+                    <EmptyState
+                        icon={LayoutGrid}
+                        title="Nenhuma área cadastrada"
+                        description="O cadastro de áreas estará disponível em breve. Por aqui você poderá organizar dispositivos por cômodo, setor ou unidade."
+                    />
+                    <p
+                        className="text-center text-xs italic text-slate-500 dark:text-slate-400"
+                        data-testid="areas-coming-soon"
+                    >
+                        Em breve
+                    </p>
+                </>
+            )}
+
+            {areasQuery.isSuccess && areasQuery.data.length > 0 && (
+                <div
+                    className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                    data-testid="areas-grid"
+                >
+                    {areasQuery.data.map((area) => (
+                        <AreaCard key={area.id} area={area} />
+                    ))}
+                </div>
+            )}
+        </section>
+    )
+}
+
+const AreasSkeleton = () => (
+    <div
+        className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+        aria-busy="true"
+        aria-label="Carregando áreas"
+    >
+        {[0, 1, 2].map((i) => (
+            <div
+                key={i}
+                className={cn(
+                    "h-28 animate-pulse rounded-lg border bg-white",
+                    "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
+                )}
+            />
+        ))}
+    </div>
 )
 
 // Estados auxiliares

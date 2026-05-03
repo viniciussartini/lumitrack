@@ -12,6 +12,9 @@ import { PropertiesPage } from "@/pages/property/PropertiesPage"
 import { NewPropertyPage } from "@/pages/property/NewPropertyPage"
 import { PropertyDetailsPage } from "@/pages/property/PropertyDetailsPage"
 import { EditPropertyPage } from "@/pages/property/EditPropertyPage"
+import { NewAreaPage } from "@/pages/area/NewAreaPage"
+import { AreaDetailsPage } from "@/pages/area/AreaDetailsPage"
+import { EditAreaPage } from "@/pages/area/EditAreaPage"
 
 /**
  * Mapa de rotas
@@ -43,6 +46,11 @@ export const AppRouter = () => (
                 <Route path="/propriedades/nova" element={<NewPropertyPage />} />
                 <Route path="/propriedades/:id" element={<PropertyDetailsPage />} />
                 <Route path="/propriedades/:id/editar" element={<EditPropertyPage />} />
+
+                {/* Áreas — rota aninhada espelha o padrão da API (/api/properties/:propertyId/areas/:areaId). */}
+                <Route path="/propriedades/:propertyId/areas/nova" element={<NewAreaPage />} />
+                <Route path="/propriedades/:propertyId/areas/:areaId" element={<AreaDetailsPage />} />
+                <Route path="/propriedades/:propertyId/areas/:areaId/editar" element={<EditAreaPage />} />
 
             </Route>
         </Route>

@@ -62,4 +62,11 @@ export const queryKeys = {
         detail: (id: string) =>
             [...queryKeys.properties.all, "detail", id] as const,
     },
+    areas: {
+        all: ["areas"] as const,
+        list: (propertyId: string) =>
+            [...queryKeys.areas.all, "list", propertyId] as const,
+        detail: (propertyId: string, areaId: string) =>
+            [...queryKeys.areas.all, "detail", propertyId, areaId] as const,
+    },
 } as const

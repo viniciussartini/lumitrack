@@ -94,6 +94,16 @@ const setupAuthAndDistributors = async (page: Page) => {
     await page.route("**/api/distributors/dist-enel", (route) =>
         fulfillJson(route, DIST_ENEL),
     )
+
+    // Áreas: lista vazia por default (testes de Property não mexem em áreas).
+    // Sem isso, a PropertyDetailsPage falha ao buscar /properties/:id/areas.
+    await page.route("**/api/properties/*/areas", (route) => {
+        if (route.request().method() === "GET") {
+            return fulfillJson(route, [])
+        }
+        return route.continue()
+    })
+
     // pre-loga o usuário pra pular tela de login
     await page.addInitScript((token) => {
         localStorage.setItem("lumitrack:auth:token", token)
