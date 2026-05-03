@@ -127,7 +127,8 @@ test.describe("Fluxo de autenticação", () => {
         await page.goto("/dashboard")
         await expect(page.getByText(/olá, joão/i)).toBeVisible()
 
-        await page.getByRole("button", { name: /sair/i }).click()
+        await page.getByRole("button", { name: /menu do usuário/i }).click()
+        await page.getByRole("menuitem", { name: /sair/i }).click()
         await expect(page).toHaveURL(/\/login/)
     })
 })
