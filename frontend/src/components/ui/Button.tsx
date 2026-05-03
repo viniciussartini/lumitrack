@@ -14,7 +14,6 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     asChild?: boolean
 }
 
-
 /**
  * Tabela de estilos por variante. Mantida como objeto puro
  * para que o `prettier-plugin-tailwindcss` ordene as classes
@@ -53,6 +52,29 @@ export const Button = ({
     const isDisabled = disabled || isLoading
     const BtnComp = asChild ? Slot : "button"
 
+    /**
+     * Renderização do conteúdo:
+     *
+     * Quando asChild=true, o BtnComp é o Slot do Radix, que precisa de
+     * UM ÚNICO elemento filho pra clonar (Slot propaga className/onClick/etc
+     * pro filho). Se passarmos um Fragment como filho, o Slot tenta
+     * propagar `className` pro Fragment — e Fragments só aceitam `key`
+     * e `children`. Isso gera o warning:
+     *
+     *   "Invalid prop `className` supplied to React.Fragment"
+     */
+    const content = asChild ? (
+        children
+    ) : isLoading ? (
+        <Spinner />
+    ) : (
+        <>
+            {leftIcon}
+            {children}
+            {rightIcon}
+        </>
+    )
+
     return (
         <BtnComp
             // "button" aceita disabled nativamente; Slot/Link não.
@@ -69,15 +91,7 @@ export const Button = ({
             )}
             {...rest}
         >
-            {isLoading ? (
-                <Spinner />
-            ) : (
-                <>
-                    {leftIcon}
-                    {children}
-                    {rightIcon}
-                </>
-            )}
+            {content}
         </BtnComp>
     )
 }

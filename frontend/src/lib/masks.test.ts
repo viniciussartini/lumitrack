@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { formatCpf, formatCnpj } from "@/lib/masks"
+import { formatCpf, formatCnpj, formatCep } from "@/lib/masks"
 
 describe("formatCpf", () => {
     it("formata progressivamente conforme digita", () => {
@@ -54,5 +54,33 @@ describe("formatCnpj", () => {
 
     it("trunca em 14 dígitos", () => {
         expect(formatCnpj("11222333000181999")).toBe("11.222.333/0001-81")
+    })
+})
+
+describe("formatCep", () => {
+    it("formata progressivamente conforme digita", () => {
+        expect(formatCep("3")).toBe("3")
+        expect(formatCep("30")).toBe("30")
+        expect(formatCep("30000")).toBe("30000")
+        expect(formatCep("300000")).toBe("30000-0")
+        expect(formatCep("3000000")).toBe("30000-00")
+        expect(formatCep("30000000")).toBe("30000-000")
+    })
+
+    it("é idempotente — input já formatado retorna inalterado", () => {
+        expect(formatCep("30000-000")).toBe("30000-000")
+    })
+
+    it("ignora caracteres não-numéricos", () => {
+        expect(formatCep("30abc000")).toBe("30000")
+        expect(formatCep("***30000***000")).toBe("30000-000")
+    })
+
+    it("trunca em 8 dígitos", () => {
+        expect(formatCep("30000000999")).toBe("30000-000")
+    })
+
+    it("retorna string vazia quando input é vazio", () => {
+        expect(formatCep("")).toBe("")
     })
 })

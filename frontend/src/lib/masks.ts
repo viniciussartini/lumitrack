@@ -52,3 +52,22 @@ export const formatCnpj = (value: string): string => {
     
     return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`
 }
+
+/**
+ * Formata um CEP no padrão 00000-000.
+ * Idempotente: input já formatado retorna inalterado.
+ *
+ * Exemplos:
+ *   formatCep("30000000")  → "30000-000"
+ *   formatCep("30000-000") → "30000-000"
+ *   formatCep("30abc000")  → "30000"
+ */
+export const formatCep = (value: string): string => {
+    const digits = onlyDigits(value).slice(0, 8)
+
+    if (digits.length <= 5) {
+        return digits
+    }
+
+    return `${digits.slice(0, 5)}-${digits.slice(5)}`
+}

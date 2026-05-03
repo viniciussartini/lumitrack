@@ -8,6 +8,10 @@ import { RegisterPage } from "@/pages/auth/RegisterPage"
 import { DistribuidorsPage } from "@/pages/distributor/DistributorsPage"
 import { NewDistributorPage } from "@/pages/distributor/NewDistributorPage"
 import { EditDistributorPage } from "@/pages/distributor/EditDistributorPage"
+import { PropertiesPage } from "@/pages/property/PropertiesPage"
+import { NewPropertyPage } from "@/pages/property/NewPropertyPage"
+import { PropertyDetailsPage } from "@/pages/property/PropertyDetailsPage"
+import { EditPropertyPage } from "@/pages/property/EditPropertyPage"
 
 /**
  * Mapa de rotas
@@ -34,6 +38,12 @@ export const AppRouter = () => (
                 <Route path="/distribuidoras" element={<DistribuidorsPage />} />
                 <Route path="/distribuidoras/nova" element={<NewDistributorPage />} />
                 <Route path="/distribuidoras/:id/editar" element={<EditDistributorPage />} />
+
+                <Route path="/propriedades" element={<PropertiesPage />} />
+                <Route path="/propriedades/nova" element={<NewPropertyPage />} />
+                <Route path="/propriedades/:id" element={<PropertyDetailsPage />} />
+                <Route path="/propriedades/:id/editar" element={<EditPropertyPage />} />
+
             </Route>
         </Route>
 
