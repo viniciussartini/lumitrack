@@ -5,9 +5,9 @@
 
 /* Tokens do design system — ajuste as cores do LumiTrack aqui */
 @theme {
-    --color-brand-50:  oklch(0.97 0.02 230);
-    --color-brand-500: oklch(0.65 0.18 230);
-    --color-brand-700: oklch(0.45 0.20 230);
+    --color-brand-50:  oklch(0.97 0.02 78);
+    --color-brand-500: oklch(0.80 0.18 78);
+    --color-brand-700: oklch(0.70 0.20 78);
 
     --color-energy:    oklch(0.78 0.18 85);   /* amarelo "energia" */
     --color-alert:     oklch(0.65 0.22 25);   /* vermelho alerta */
