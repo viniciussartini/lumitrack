@@ -219,6 +219,16 @@ const setupAreasRoutes = async (
             return route.continue()
         },
     )
+
+    await page.route(
+        "**/api/properties/*/areas/*/devices",
+        (route) => {
+            if (route.request().method() === "GET") {
+                return fulfillJson(route, [])
+            }
+            return route.continue()
+        },
+    )
 }
 
 // ─── Testes ──────────────────────────────────────────────────────────────────

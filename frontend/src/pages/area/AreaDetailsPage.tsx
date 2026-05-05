@@ -16,6 +16,8 @@ import { AreaMenu } from "@/components/area/AreaMenu"
 import { cn } from "@/lib/cn"
 import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
+import { DeviceCard } from "@/components/device/DeviceCard"
+import { useDevices } from "@/hooks/queries/useDevices"
 
 /**
  * Página de detalhes de uma área.
@@ -96,7 +98,7 @@ export const AreaDetailsPage = () => {
                 onAfterDelete={handleAfterDelete}
             />
 
-            <DevicesSection />
+            <DevicesSection propertyId={propertyId!} areaId={areaId!} />
         </div>
     )
 }
@@ -219,40 +221,108 @@ const PropertyChip = ({ property, isLoading }: PropertyChipProps) => {
     )
 }
 
+interface DevicesSectionProps {
+    propertyId: string
+    areaId: string
+}
+
 /**
- * Seção de dispositivos
+ * Seção de Dispositivos
+ *
+ * Estados:
+ *   - Loading: skeleton com 3 cards animados
+ *   - Erro: alerta inline (não fatal — header e demais seções continuam)
+ *   - Vazio: EmptyState com botão desabilitado "Adicionar dispositivo"
+ *   - Com dispositivos: grid de DeviceCards
  */
-const DevicesSection = () => (
-    <section className="flex flex-col gap-3">
-        <header className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                Dispositivos
-            </h2>
-            <Button
-                variant="secondary"
-                size="sm"
-                disabled
-                title="Em breve"
-                aria-label="Adicionar dispositivo (em breve)"
-            >
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                Adicionar dispositivo
-            </Button>
-        </header>
+const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
+    const devicesQuery = useDevices(propertyId, areaId)
 
-        <EmptyState
-            icon={Cpu}
-            title="Nenhum dispositivo cadastrado"
-            description="O cadastro de dispositivos estará disponível em breve. Por aqui você poderá monitorar o consumo individual de cada equipamento."
-        />
+    return (
+        <section className="flex flex-col gap-3">
+            <header className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                    Dispositivos
+                </h2>
+                <Button asChild variant="secondary" size="sm">
+                    <Link
+                        to={`/propriedades/${propertyId}/areas/${areaId}/devices/novo`}
+                    >
+                        <Plus className="h-4 w-4" aria-hidden="true" />
+                        Adicionar dispositivo
+                    </Link>
+                </Button>
+            </header>
 
-        <p
-            className="text-center text-xs text-slate-400 dark:text-slate-500"
-            data-testid="devices-coming-soon"
-        >
-            Em breve
-        </p>
-    </section>
+            {devicesQuery.isLoading && <DevicesSkeleton />}
+
+            {devicesQuery.isError && (
+                <div
+                    role="alert"
+                    className={cn(
+                        "flex items-start gap-3 rounded-lg border p-4",
+                        "border-red-200 bg-red-50 text-red-900",
+                        "dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200",
+                    )}
+                >
+                    <AlertCircle
+                        className="h-5 w-5 shrink-0"
+                        aria-hidden="true"
+                    />
+                    <p className="text-sm">
+                        {devicesQuery.error instanceof Error
+                            ? devicesQuery.error.message
+                            : "Não foi possível carregar os dispositivos."}
+                    </p>
+                </div>
+            )}
+
+            {devicesQuery.isSuccess && devicesQuery.data.length === 0 && (
+                <>
+                    <EmptyState
+                        icon={Cpu}
+                        title="Nenhum dispositivo cadastrado"
+                        description="Cadastre os dispositivos desta área para monitorar o consumo individual de cada equipamento."
+                    />
+                    <p
+                        className="text-center text-xs italic text-slate-500 dark:text-slate-400"
+                        data-testid="devices-coming-soon"
+                    >
+                        Em breve
+                    </p>
+                </>
+            )}
+
+            {devicesQuery.isSuccess && devicesQuery.data.length > 0 && (
+                <div
+                    className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                    data-testid="devices-grid"
+                >
+                    {devicesQuery.data.map((device) => (
+                        <DeviceCard key={device.id} device={device} />
+                    ))}
+                </div>
+            )}
+        </section>
+    )
+}
+
+const DevicesSkeleton = () => (
+    <div
+        className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+        aria-busy="true"
+        aria-label="Carregando dispositivos"
+    >
+        {[0, 1, 2].map((i) => (
+            <div
+                key={i}
+                className={cn(
+                    "h-28 animate-pulse rounded-lg border bg-white",
+                    "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
+                )}
+            />
+        ))}
+    </div>
 )
 
 const DetailsSkeleton = () => (

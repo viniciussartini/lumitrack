@@ -15,6 +15,9 @@ import { EditPropertyPage } from "@/pages/property/EditPropertyPage"
 import { NewAreaPage } from "@/pages/area/NewAreaPage"
 import { AreaDetailsPage } from "@/pages/area/AreaDetailsPage"
 import { EditAreaPage } from "@/pages/area/EditAreaPage"
+import { NewDevicePage } from "@/pages/device/NewDevicePage"
+import { DeviceDetailsPage } from "@/pages/device/DeviceDetailsPage"
+import { EditDevicePage } from "@/pages/device/EditDevicePage"
 
 /**
  * Mapa de rotas
@@ -51,6 +54,11 @@ export const AppRouter = () => (
                 <Route path="/propriedades/:propertyId/areas/nova" element={<NewAreaPage />} />
                 <Route path="/propriedades/:propertyId/areas/:areaId" element={<AreaDetailsPage />} />
                 <Route path="/propriedades/:propertyId/areas/:areaId/editar" element={<EditAreaPage />} />
+
+                {/*Dispositivos — rota aninhada em DOIS níveis. */}
+                <Route path="/propriedades/:propertyId/areas/:areaId/devices/novo" element={<NewDevicePage />} />
+                <Route path="/propriedades/:propertyId/areas/:areaId/devices/:deviceId" element={<DeviceDetailsPage />} />
+                <Route path="/propriedades/:propertyId/areas/:areaId/devices/:deviceId/editar" element={<EditDevicePage />} />
 
             </Route>
         </Route>
