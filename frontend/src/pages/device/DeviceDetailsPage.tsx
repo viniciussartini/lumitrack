@@ -7,7 +7,6 @@ import {
     Gauge,
     Home,
     LayoutGrid,
-    LineChart,
     Pencil,
     Plus,
     Radio,
@@ -24,6 +23,7 @@ import { cn } from "@/lib/cn"
 import type { Device } from "@/types/device.types"
 import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
+import { DeviceConsumptionSection } from "@/components/consumption/ConsumptionSection"
 
 /**
  * Página de detalhes de um dispositivo.
@@ -32,7 +32,8 @@ import type { Property } from "@/types/property.types"
  *   1. Breadcrumb (voltar pra área pai)
  *   2. Header em card destacado: nome + chips (área pai, propriedade avó,
  *      marca/modelo, potência) + ações (Editar / ⋯)
- *   3. 3 seções placeholder: Consumo, Alertas, IoT
+ *   3. Seção de Consumo (real, com filtro por período) + 2 seções
+ *      ainda placeholder: Alertas e IoT
  *
  * Carrega TRÊS queries em paralelo: device, area, property.
  *
@@ -105,7 +106,11 @@ export const DeviceDetailsPage = () => {
                 onAfterDelete={handleAfterDelete}
             />
 
-            <ConsumptionSection />
+            <DeviceConsumptionSection
+                propertyId={propertyId!}
+                areaId={areaId!}
+                deviceId={deviceId!}
+            />
             <AlertsSection />
             <IoTSection />
         </div>
@@ -274,39 +279,6 @@ const Chip = ({ icon: Icon, label, variant = "default", testId }: ChipProps) => 
         </span>
     )
 }
-
-const ConsumptionSection = () => (
-    <section className="flex flex-col gap-3">
-        <header className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                Consumo
-            </h2>
-            <Button
-                variant="secondary"
-                size="sm"
-                disabled
-                title="Em breve"
-                aria-label="Registrar consumo (em breve)"
-            >
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                Registrar consumo
-            </Button>
-        </header>
-
-        <EmptyState
-            icon={LineChart}
-            title="Nenhum registro de consumo"
-            description="Em breve você poderá registrar e visualizar o histórico de consumo deste dispositivo, por hora, dia, mês ou ano."
-        />
-
-        <p
-            className="text-center text-xs text-slate-400 dark:text-slate-500"
-            data-testid="consumption-coming-soon"
-        >
-            Em breve
-        </p>
-    </section>
-)
 
 const AlertsSection = () => (
     <section className="flex flex-col gap-3">

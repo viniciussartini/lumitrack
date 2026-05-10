@@ -18,6 +18,7 @@ import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
 import { DeviceCard } from "@/components/device/DeviceCard"
 import { useDevices } from "@/hooks/queries/useDevices"
+import { AreaConsumptionSection } from "@/components/consumption/ConsumptionSection"
 
 /**
  * Página de detalhes de uma área.
@@ -27,6 +28,7 @@ import { useDevices } from "@/hooks/queries/useDevices"
  *   2. Header em card destacado: nome + descrição + chip da propriedade pai
  *      + ações (Editar / ⋯)
  *   3. Seção de Dispositivos — EmptyState placeholder ou grid de cards de dispositivos
+ *   4. Seção de Consumo — registros agregados desta área (com filtro por período)
  *
  * Carrega DUAS queries em paralelo:
  *   - useArea(propertyId, areaId): a área em si
@@ -36,7 +38,7 @@ import { useDevices } from "@/hooks/queries/useDevices"
  *   - Loading inicial (área carregando) → skeleton
  *   - Erro ao carregar área → ErrorState (fatal — sem ela não tem o que mostrar)
  *   - Área carregada mas property com erro → renderiza com fallback no chip
- *   - Sucesso → renderiza header + seção devices
+ *   - Sucesso → renderiza header + seção devices + seção consumption
  *
  * NOTA: O AreaMenu aqui usa `showEdit={false}` (já temos botão Editar
  * explícito no header) e `onAfterDelete` que navega de volta pra propriedade
@@ -99,6 +101,7 @@ export const AreaDetailsPage = () => {
             />
 
             <DevicesSection propertyId={propertyId!} areaId={areaId!} />
+            <AreaConsumptionSection propertyId={propertyId!} areaId={areaId!} />
         </div>
     )
 }

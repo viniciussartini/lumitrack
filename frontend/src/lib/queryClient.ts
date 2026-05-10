@@ -40,14 +40,6 @@ export const queryClient = new QueryClient({
 
 /**
  * Chaves de query — centralizadas para evitar typos e facilitar invalidação.
- *
- * Padrão: hierarquia de arrays, do geral ao específico.
- *   queryKeys.distributors.all              → ["distributors"]
- *   queryKeys.distributors.list()           → ["distributors", "list"]
- *   queryKeys.distributors.detail(id)       → ["distributors", "detail", id]
- *
- * Invalidar `["distributors"]` invalida TODAS as queries de distribuidora.
- * Invalidar `["distributors", "list"]` invalida só listas.
  */
 export const queryKeys = {
     distributors: {
@@ -81,5 +73,48 @@ export const queryKeys = {
                 areaId,
                 deviceId,
             ] as const,
+    },
+    consumption: {
+        all: ["consumption"] as const,
+        byProperty: (propertyId: string, period?: string) =>
+            [
+                ...queryKeys.consumption.all,
+                "list",
+                "property",
+                propertyId,
+                period ?? "all",
+            ] as const,
+
+        byArea: (propertyId: string, areaId: string, period?: string) =>
+            [
+                ...queryKeys.consumption.all,
+                "list",
+                "area",
+                propertyId,
+                areaId,
+                period ?? "all",
+            ] as const,
+
+        byDevice: (
+            propertyId: string,
+            areaId: string,
+            deviceId: string,
+            period?: string,
+        ) =>
+            [
+                ...queryKeys.consumption.all,
+                "list",
+                "device",
+                propertyId,
+                areaId,
+                deviceId,
+                period ?? "all",
+            ] as const,
+
+        // Detalhe — apenas pelo id; o backend não exige propertyId pra
+        // localizar (mas exige pra autorizar). A query inclui propertyId
+        // como "scope guard" implícito via queryFn, mas a key é só pelo id.
+        detail: (id: string) =>
+            [...queryKeys.consumption.all, "detail", id] as const,
     },
 } as const

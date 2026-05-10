@@ -10,6 +10,21 @@ import { areaService } from "@/services/area.service"
 import type { Property } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
 import type { Area } from "@/types/area.types"
+import { consumptionService } from "@/services/consumption.service"
+
+vi.mock("@/services/consumption.service", () => ({
+    consumptionService: {
+        listByProperty: vi.fn(),
+        listByArea: vi.fn(),
+        listByDevice: vi.fn(),
+        getById: vi.fn(),
+        createForProperty: vi.fn(),
+        createForArea: vi.fn(),
+        createForDevice: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+    },
+}))
 
 vi.mock("@/services/area.service", () => ({
     areaService: {
@@ -121,6 +136,7 @@ const renderPage = () => {
 
 beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(consumptionService.listByProperty).mockResolvedValue([])
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -445,6 +461,57 @@ describe("PropertyDetailsPage — seção de áreas (erro)", () => {
         // diretamente pelo texto da mensagem específica:
         expect(
             await screen.findByText(/falha ao listar áreas/i),
+        ).toBeInTheDocument()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Seção de Consumo — integração
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("PropertyDetailsPage — seção de consumo (integração)", () => {
+    beforeEach(() => {
+        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+        vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
+        vi.mocked(areaService.list).mockResolvedValue([])
+    })
+
+    it("renderiza a seção 'Consumo'", async () => {
+        renderPage()
+
+        expect(
+            await screen.findByRole("heading", {
+                level: 2,
+                name: /^consumo$/i,
+            }),
+        ).toBeInTheDocument()
+    })
+
+    it("invoca listByProperty com o id da URL", async () => {
+        renderPage()
+
+        await waitFor(() => {
+            expect(consumptionService.listByProperty).toHaveBeenCalledWith(
+                "prop-1",
+                undefined,
+            )
+        })
+    })
+
+    it("renderiza o filtro de período", async () => {
+        renderPage()
+
+        expect(
+            await screen.findByTestId("consumption-period-filter"),
+        ).toBeInTheDocument()
+    })
+
+    it("EmptyState menciona 'propriedade' (entityLabel correto)", async () => {
+        renderPage()
+
+        // Mensagem default (sem filtro): "...consumo desta propriedade..."
+        expect(
+            await screen.findByText(/desta propriedade/i),
         ).toBeInTheDocument()
     })
 })

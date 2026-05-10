@@ -7,9 +7,24 @@ import { DeviceDetailsPage } from "@/pages/device/DeviceDetailsPage"
 import { deviceService } from "@/services/device.service"
 import { areaService } from "@/services/area.service"
 import { propertyService } from "@/services/property.service"
+import { consumptionService } from "@/services/consumption.service"
 import type { Device } from "@/types/device.types"
 import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
+
+vi.mock("@/services/consumption.service", () => ({
+    consumptionService: {
+        listByProperty: vi.fn(),
+        listByArea: vi.fn(),
+        listByDevice: vi.fn(),
+        getById: vi.fn(),
+        createForProperty: vi.fn(),
+        createForArea: vi.fn(),
+        createForDevice: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+    },
+}))
 
 vi.mock("@/services/device.service", () => ({
     deviceService: {
@@ -122,6 +137,7 @@ const renderPage = () => {
 
 beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(consumptionService.listByDevice).mockResolvedValue([])
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -399,26 +415,6 @@ describe("DeviceDetailsPage — seções placeholder", () => {
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
     })
 
-    it("renderiza seção 'Consumo' com EmptyState e botão desabilitado", async () => {
-        renderPage()
-
-        expect(
-            await screen.findByRole("heading", {
-                level: 2,
-                name: /^consumo$/i,
-            }),
-        ).toBeInTheDocument()
-        expect(
-            screen.getByText(/nenhum registro de consumo/i),
-        ).toBeInTheDocument()
-        expect(
-            screen.getByRole("button", { name: /registrar consumo/i }),
-        ).toBeDisabled()
-        expect(
-            screen.getByTestId("consumption-coming-soon"),
-        ).toBeInTheDocument()
-    })
-
     it("renderiza seção 'Alertas' com EmptyState e botão desabilitado", async () => {
         renderPage()
 
@@ -455,6 +451,59 @@ describe("DeviceDetailsPage — seções placeholder", () => {
             screen.getByRole("button", { name: /configurar iot/i }),
         ).toBeDisabled()
         expect(screen.getByTestId("iot-coming-soon")).toBeInTheDocument()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Seção de Consumo — integração
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("DeviceDetailsPage — seção de consumo (integração)", () => {
+    beforeEach(() => {
+        vi.mocked(deviceService.getById).mockResolvedValue(mockDevice)
+        vi.mocked(areaService.getById).mockResolvedValue(mockArea)
+        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+    })
+
+    it("renderiza a seção 'Consumo'", async () => {
+        renderPage()
+
+        expect(
+            await screen.findByRole("heading", {
+                level: 2,
+                name: /^consumo$/i,
+            }),
+        ).toBeInTheDocument()
+    })
+
+    it("invoca listByDevice com a tripla de IDs da URL", async () => {
+        renderPage()
+
+        await waitFor(() => {
+            expect(consumptionService.listByDevice).toHaveBeenCalledWith(
+                "prop-1",
+                "area-1",
+                "device-1",
+                undefined,
+            )
+        })
+    })
+
+    it("renderiza o filtro de período", async () => {
+        renderPage()
+
+        expect(
+            await screen.findByTestId("consumption-period-filter"),
+        ).toBeInTheDocument()
+    })
+
+    it("não exibe mais o testid antigo 'consumption-coming-soon'", async () => {
+        renderPage()
+
+        // Aguarda render terminar pra evitar passar via estado de loading
+        await screen.findByRole("heading", { level: 2, name: /^consumo$/i })
+
+        expect(screen.queryByTestId("consumption-coming-soon")).toBeNull()
     })
 })
 

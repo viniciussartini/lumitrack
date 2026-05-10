@@ -122,6 +122,30 @@ const setupAuthAndProperty = async (page: Page) => {
         }
         return route.continue()
     })
+
+    // Mock de consumo — sem isso, requests sem mock caem no backend real,
+    // o interceptor do axios trata network error como 401 → redirect login
+    await page.route("**/api/properties/*/consumption", (route) => {
+        if (route.request().method() === "GET") {
+            return route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({ status: "success", data: [] }),
+            })
+        }
+        return route.continue()
+    })
+    await page.route("**/api/properties/*/areas/*/consumption", (route) => {
+        if (route.request().method() === "GET") {
+            return route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({ status: "success", data: [] }),
+            })
+        }
+        return route.continue()
+    })
+
     // Pre-loga o usuário pra pular tela de login
     await page.addInitScript((token) => {
         localStorage.setItem("lumitrack:auth:token", token)

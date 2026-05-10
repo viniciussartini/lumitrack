@@ -122,6 +122,19 @@ test.describe("Fluxo CRUD de propriedades", () => {
     }) => {
         await setupAuthAndDistributors(page)
 
+        // Mock de consumo: retorna lista vazia para não travar o axios
+        // interceptor (que trata network errors sem response como 401→login)
+        await page.route("**/api/properties/*/consumption", (route) => {
+            if (route.request().method() === "GET") {
+                return route.fulfill({
+                    status: 200,
+                    contentType: "application/json",
+                    body: JSON.stringify({ status: "success", data: [] }),
+                })
+            }
+            return route.continue()
+        })
+
         // Estado da "DB" simulada — começa vazio, evolui ao longo do teste
         let properties: Array<typeof DIST_CEMIG & { distributorId: string }> = []
 

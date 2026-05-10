@@ -10,6 +10,21 @@ import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
 import { deviceService } from "@/services/device.service"
 import type { Device } from "@/types/device.types"
+import { consumptionService } from "@/services/consumption.service"
+
+vi.mock("@/services/consumption.service", () => ({
+    consumptionService: {
+        listByProperty: vi.fn(),
+        listByArea: vi.fn(),
+        listByDevice: vi.fn(),
+        getById: vi.fn(),
+        createForProperty: vi.fn(),
+        createForArea: vi.fn(),
+        createForDevice: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+    },
+}))
 
 vi.mock("@/services/area.service", () => ({
     areaService: {
@@ -120,9 +135,7 @@ const renderPage = () => {
 
 beforeEach(() => {
     vi.clearAllMocks()
-    // Default: lista de dispositivos vazia. Cada teste que precisa de um
-    // estado diferente sobrescreve no próprio bloco.
-    vi.mocked(deviceService.list).mockResolvedValue([])
+    vi.mocked(consumptionService.listByArea).mockResolvedValue([])
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -434,6 +447,56 @@ describe("AreaDetailsPage — seção de dispositivos (erro)", () => {
         expect(
             await screen.findByText(/falha ao listar dispositivos/i),
         ).toBeInTheDocument()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Seção de Consumo — integração
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("AreaDetailsPage — seção de consumo (integração)", () => {
+    beforeEach(() => {
+        vi.mocked(areaService.getById).mockResolvedValue(mockArea)
+        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+        vi.mocked(deviceService.list).mockResolvedValue([])
+    })
+
+    it("renderiza a seção 'Consumo'", async () => {
+        renderPage()
+
+        expect(
+            await screen.findByRole("heading", {
+                level: 2,
+                name: /^consumo$/i,
+            }),
+        ).toBeInTheDocument()
+    })
+
+    it("invoca listByArea com propertyId + areaId da URL", async () => {
+        renderPage()
+
+        await waitFor(() => {
+            expect(consumptionService.listByArea).toHaveBeenCalledWith(
+                "prop-1",
+                "area-1",
+                undefined,
+            )
+        })
+    })
+
+    it("renderiza o filtro de período", async () => {
+        renderPage()
+
+        expect(
+            await screen.findByTestId("consumption-period-filter"),
+        ).toBeInTheDocument()
+    })
+
+    it("EmptyState menciona 'área' (entityLabel correto)", async () => {
+        renderPage()
+
+        // Mensagem default (sem filtro): "...consumo desta área..."
+        expect(await screen.findByText(/desta área/i)).toBeInTheDocument()
     })
 })
 

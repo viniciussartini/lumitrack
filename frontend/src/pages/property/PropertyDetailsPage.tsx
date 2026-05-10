@@ -21,6 +21,7 @@ import type { Property } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
 import { useAreas } from "@/hooks/queries/useAreas"
 import { AreaCard } from "@/components/area/AreaCard"
+import { PropertyConsumptionSection } from "@/components/consumption/ConsumptionSection"
 
 /**
  * Página de detalhes de uma propriedade.
@@ -31,6 +32,7 @@ import { AreaCard } from "@/components/area/AreaCard"
  *      distribuidora vinculada + ações (Editar / ⋯)
  *   3. Seção de Áreas — EmptyState com botão desabilitado "Adicionar área"
  *      ou grid de card de áreas.
+ *   4. Seção de Consumo — registros agregados desta propriedade (com filtro por período)
  *
  * Carrega DUAS queries em sequência:
  *   - useProperty(id): a propriedade (precisa pra saber o distributorId)
@@ -99,6 +101,7 @@ export const PropertyDetailsPage = () => {
             />
 
             <AreasSection  propertyId={property.id} />
+            <PropertyConsumptionSection propertyId={property.id} />
         </div>
     )
 }
