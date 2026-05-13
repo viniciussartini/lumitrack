@@ -4,6 +4,7 @@ import { renderWithProviders, screen } from "@/tests/test-utils"
 import { Header } from "@/components/layout/Header"
 import { authService } from "@/services/auth.service"
 import type { JwtPayload, User } from "@/types/auth.types"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
 vi.mock("@/services/auth.service", () => ({
     authService: {
@@ -17,6 +18,25 @@ vi.mock("@/services/auth.service", () => ({
 vi.mock("@/services/api", () => ({
     extractErrorMessage: (error: unknown) =>
         error instanceof Error ? error.message : "Erro",
+}))
+
+// AlertBellBadge foi adicionado ao Header no PR2.
+// Ele usa useAlerts() → useQueryClient() → precisa de QueryClientProvider
+// E chama alertService.listGlobal → precisa do mock abaixo.
+vi.mock("@/services/alert.service", () => ({
+    alertService: {
+        listGlobal: vi.fn().mockResolvedValue([]),
+        listByProperty: vi.fn(),
+        listByArea: vi.fn(),
+        listByDevice: vi.fn(),
+        getById: vi.fn(),
+        createForProperty: vi.fn(),
+        createForArea: vi.fn(),
+        createForDevice: vi.fn(),
+        update: vi.fn(),
+        markAsRead: vi.fn(),
+        delete: vi.fn(),
+    },
 }))
 
 const mockUser: User = {
@@ -44,9 +64,28 @@ beforeEach(() => {
     vi.mocked(authService.fetchCurrentUser).mockResolvedValue(mockUser)
 })
 
+/**
+ * Envolve o Header com QueryClientProvider.
+ * O renderWithProviders já provê AuthProvider + MemoryRouter + ThemeProvider,
+ * então só precisamos do QCP adicional.
+ */
+const renderHeader = (onMenuClick = vi.fn()) => {
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            queries: { retry: false, gcTime: 0 },
+            mutations: { retry: false },
+        },
+    })
+    return renderWithProviders(
+        <QueryClientProvider client={queryClient}>
+            <Header onMenuClick={onMenuClick} />
+        </QueryClientProvider>,
+    )
+}
+
 describe("Header — renderização", () => {
     it("renderiza botão hamburger", () => {
-        renderWithProviders(<Header onMenuClick={vi.fn()} />)
+        renderHeader()
 
         expect(
             screen.getByRole("button", { name: /abrir menu/i }),
@@ -54,7 +93,7 @@ describe("Header — renderização", () => {
     })
 
     it("renderiza o ThemeToggle", () => {
-        renderWithProviders(<Header onMenuClick={vi.fn()} />)
+        renderHeader()
 
         expect(
             screen.getByRole("button", { name: /tema atual/i }),
@@ -62,9 +101,8 @@ describe("Header — renderização", () => {
     })
 
     it("renderiza o UserMenu com dados do usuário autenticado", async () => {
-        renderWithProviders(<Header onMenuClick={vi.fn()} />)
+        renderHeader()
 
-        // UserMenu hidrata async via AuthContext
         expect(await screen.findByText("João Silva")).toBeInTheDocument()
     })
 })
@@ -74,7 +112,7 @@ describe("Header — interação", () => {
         const onMenuClick = vi.fn()
         const user = userEvent.setup()
 
-        renderWithProviders(<Header onMenuClick={onMenuClick} />)
+        renderHeader(onMenuClick)
 
         await user.click(screen.getByRole("button", { name: /abrir menu/i }))
 

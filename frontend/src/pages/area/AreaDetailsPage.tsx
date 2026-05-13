@@ -19,6 +19,7 @@ import type { Property } from "@/types/property.types"
 import { DeviceCard } from "@/components/device/DeviceCard"
 import { useDevices } from "@/hooks/queries/useDevices"
 import { AreaConsumptionSection } from "@/components/consumption/ConsumptionSection"
+import { AreaAlertSection } from "@/components/alert/AlertSection"
 
 /**
  * Página de detalhes de uma área.
@@ -29,6 +30,7 @@ import { AreaConsumptionSection } from "@/components/consumption/ConsumptionSect
  *      + ações (Editar / ⋯)
  *   3. Seção de Dispositivos — EmptyState placeholder ou grid de cards de dispositivos
  *   4. Seção de Consumo — registros agregados desta área (com filtro por período)
+ *   5. Seção de Alertas — limites de consumo configurados
  *
  * Carrega DUAS queries em paralelo:
  *   - useArea(propertyId, areaId): a área em si
@@ -102,6 +104,7 @@ export const AreaDetailsPage = () => {
 
             <DevicesSection propertyId={propertyId!} areaId={areaId!} />
             <AreaConsumptionSection propertyId={propertyId!} areaId={areaId!} />
+            <AreaAlertSection propertyId={propertyId!} areaId={areaId!} />
         </div>
     )
 }

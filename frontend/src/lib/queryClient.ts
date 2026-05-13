@@ -117,4 +117,56 @@ export const queryKeys = {
         detail: (id: string) =>
             [...queryKeys.consumption.all, "detail", id] as const,
     },
+    alerts: {
+        all: ["alerts"] as const,
+    
+        /**
+         * Inbox global em /alertas — filtro por triggered.
+         * Convenção: undefined → "all", true → "triggered", false → "active".
+         */
+        global: (triggered?: boolean) =>
+            [
+                ...queryKeys.alerts.all,
+                "list",
+                "global",
+                triggered === undefined
+                    ? "all"
+                    : triggered
+                    ? "triggered"
+                    : "active",
+            ] as const,
+    
+        byProperty: (propertyId: string) =>
+            [
+                ...queryKeys.alerts.all,
+                "list",
+                "property",
+                propertyId,
+            ] as const,
+    
+        byArea: (propertyId: string, areaId: string) =>
+            [
+                ...queryKeys.alerts.all,
+                "list",
+                "area",
+                propertyId,
+                areaId,
+            ] as const,
+    
+        byDevice: (propertyId: string, areaId: string, deviceId: string) =>
+            [
+                ...queryKeys.alerts.all,
+                "list",
+                "device",
+                propertyId,
+                areaId,
+                deviceId,
+            ] as const,
+    
+        /**
+         * Detalhe — apenas pelo id; backend usa /alerts/:id.
+         */
+        detail: (id: string) =>
+            [...queryKeys.alerts.all, "detail", id] as const,
+    },
 } as const

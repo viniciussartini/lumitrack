@@ -18,6 +18,7 @@ import { EditAreaPage } from "@/pages/area/EditAreaPage"
 import { NewDevicePage } from "@/pages/device/NewDevicePage"
 import { DeviceDetailsPage } from "@/pages/device/DeviceDetailsPage"
 import { EditDevicePage } from "@/pages/device/EditDevicePage"
+import { AlertsPage } from "@/pages/alert/AlertsPage"
 
 /**
  * Mapa de rotas
@@ -59,6 +60,9 @@ export const AppRouter = () => (
                 <Route path="/propriedades/:propertyId/areas/:areaId/devices/novo" element={<NewDevicePage />} />
                 <Route path="/propriedades/:propertyId/areas/:areaId/devices/:deviceId" element={<DeviceDetailsPage />} />
                 <Route path="/propriedades/:propertyId/areas/:areaId/devices/:deviceId/editar" element={<EditDevicePage />} />
+
+                {/* Alertas — inbox global. Filtros via query string (?triggered=true|false). */}
+                <Route path="/alertas" element={<AlertsPage />} />
 
             </Route>
         </Route>

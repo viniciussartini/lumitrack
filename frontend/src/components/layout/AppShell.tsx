@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Outlet, useLocation } from "react-router-dom"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
+import { useAlertStream } from "@/hooks/useAlertStream"
 
 /**
  * Layout principal das rotas autenticadas.
@@ -26,6 +27,7 @@ import { Header } from "@/components/layout/Header"
 export const AppShell = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const location = useLocation()
+    useAlertStream() // Mantém SSE de alertas ativo enquanto user autenticado
 
     // Fecha o drawer ao trocar de rota — sem isso, o user clica num link
     // do menu mobile e o drawer fica aberto sobre a página de destino.

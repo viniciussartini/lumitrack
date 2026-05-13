@@ -2,7 +2,6 @@ import { Link, useNavigate, useParams } from "react-router-dom"
 import {
     AlertCircle,
     ArrowLeft,
-    Bell,
     Cpu,
     Gauge,
     Home,
@@ -24,6 +23,7 @@ import type { Device } from "@/types/device.types"
 import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
 import { DeviceConsumptionSection } from "@/components/consumption/ConsumptionSection"
+import { DeviceAlertSection } from "@/components/alert/AlertSection"
 
 /**
  * Página de detalhes de um dispositivo.
@@ -111,7 +111,7 @@ export const DeviceDetailsPage = () => {
                 areaId={areaId!}
                 deviceId={deviceId!}
             />
-            <AlertsSection />
+            <DeviceAlertSection propertyId={propertyId!} areaId={areaId!} deviceId={deviceId!} />
             <IoTSection />
         </div>
     )
@@ -279,39 +279,6 @@ const Chip = ({ icon: Icon, label, variant = "default", testId }: ChipProps) => 
         </span>
     )
 }
-
-const AlertsSection = () => (
-    <section className="flex flex-col gap-3">
-        <header className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                Alertas
-            </h2>
-            <Button
-                variant="secondary"
-                size="sm"
-                disabled
-                title="Em breve"
-                aria-label="Criar alerta (em breve)"
-            >
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                Criar alerta
-            </Button>
-        </header>
-
-        <EmptyState
-            icon={Bell}
-            title="Nenhum alerta configurado"
-            description="Em breve você poderá criar alertas baseados em limite de consumo (kWh) para ser notificado quando este dispositivo ultrapassar o gatilho."
-        />
-
-        <p
-            className="text-center text-xs text-slate-400 dark:text-slate-500"
-            data-testid="alerts-coming-soon"
-        >
-            Em breve
-        </p>
-    </section>
-)
 
 const IoTSection = () => (
     <section className="flex flex-col gap-3">

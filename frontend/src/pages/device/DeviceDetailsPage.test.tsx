@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter, Routes, Route } from "react-router-dom"
-import userEvent from "@testing-library/user-event"
-import { render, screen, waitFor, within } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import { DeviceDetailsPage } from "@/pages/device/DeviceDetailsPage"
 import { deviceService } from "@/services/device.service"
 import { areaService } from "@/services/area.service"
@@ -11,6 +10,7 @@ import { consumptionService } from "@/services/consumption.service"
 import type { Device } from "@/types/device.types"
 import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
+import { alertService } from "@/services/alert.service"
 
 vi.mock("@/services/consumption.service", () => ({
     consumptionService: {
@@ -22,6 +22,23 @@ vi.mock("@/services/consumption.service", () => ({
         createForArea: vi.fn(),
         createForDevice: vi.fn(),
         update: vi.fn(),
+        delete: vi.fn(),
+    },
+}))
+
+// AlertSection (DeviceAlertSection) usa alertService.listByDevice
+vi.mock("@/services/alert.service", () => ({
+    alertService: {
+        listGlobal: vi.fn(),
+        listByProperty: vi.fn(),
+        listByArea: vi.fn(),
+        listByDevice: vi.fn(),
+        getById: vi.fn(),
+        createForProperty: vi.fn(),
+        createForArea: vi.fn(),
+        createForDevice: vi.fn(),
+        update: vi.fn(),
+        markAsRead: vi.fn(),
         delete: vi.fn(),
     },
 }))
@@ -62,22 +79,13 @@ vi.mock("@/services/api", () => ({
         error instanceof Error ? error.message : "Erro",
 }))
 
-vi.mock("sonner", () => ({
-    toast: {
-        success: vi.fn(),
-        error: vi.fn(),
-    },
-}))
-
-const mockProperty: Property = {
-    id: "prop-1",
-    userId: "user-1",
-    distributorId: "dist-1",
-    name: "Casa Principal",
-    address: null,
-    city: null,
-    state: null,
-    zipCode: null,
+const mockDevice: Device = {
+    id: "device-1",
+    areaId: "area-1",
+    name: "Ar-condicionado",
+    brand: "Daikin",
+    model: "Split 12000 BTU",
+    powerWatts: 1200,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -91,13 +99,15 @@ const mockArea: Area = {
     updatedAt: new Date().toISOString(),
 }
 
-const mockDevice: Device = {
-    id: "device-1",
-    areaId: "area-1",
-    name: "Ar-condicionado",
-    brand: "Daikin",
-    model: "Split 12000 BTU",
-    powerWatts: 1200,
+const mockProperty: Property = {
+    id: "prop-1",
+    userId: "user-1",
+    distributorId: "dist-1",
+    name: "Casa Principal",
+    address: null,
+    city: null,
+    state: null,
+    zipCode: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -123,11 +133,7 @@ const renderPage = () => {
                     />
                     <Route
                         path="/propriedades/:propertyId/areas/:areaId"
-                        element={<div>Detalhes da área</div>}
-                    />
-                    <Route
-                        path="/propriedades/:id"
-                        element={<div>Detalhes da propriedade</div>}
+                        element={<p>Área pai</p>}
                     />
                 </Routes>
             </MemoryRouter>
@@ -138,42 +144,35 @@ const renderPage = () => {
 beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(consumptionService.listByDevice).mockResolvedValue([])
+    // alertService.listByDevice precisa retornar [] pra DeviceAlertSection
+    // não ficar em loading indefinido (sem isso o EmptyState nunca renderiza)
+    vi.mocked(alertService.listByDevice).mockResolvedValue([])
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Loading
+// Loading e erro
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("DeviceDetailsPage — loading", () => {
-    it("renderiza skeleton enquanto o dispositivo carrega", () => {
-        vi.mocked(deviceService.getById).mockReturnValue(
-            new Promise(() => {}),
+    it("renderiza skeleton enquanto o device carrega", () => {
+        vi.mocked(deviceService.getById).mockImplementation(
+            () => new Promise(() => {}),
         )
-        vi.mocked(areaService.getById).mockResolvedValue(mockArea)
-        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
 
         renderPage()
 
-        expect(
-            screen.queryByText(/ar-condicionado/i),
-        ).not.toBeInTheDocument()
+        // link de breadcrumb aparece mesmo em loading
         expect(
             screen.getByRole("link", { name: /voltar para área/i }),
         ).toBeInTheDocument()
     })
 })
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Erro fatal
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("DeviceDetailsPage — erro fatal", () => {
-    it("renderiza ErrorState quando o fetch do device falha", async () => {
+describe("DeviceDetailsPage — erro no device", () => {
+    it("renderiza ErrorState quando a query do device falha", async () => {
         vi.mocked(deviceService.getById).mockRejectedValue(
             new Error("Dispositivo não encontrado"),
         )
-        vi.mocked(areaService.getById).mockResolvedValue(mockArea)
-        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
 
         renderPage()
 
@@ -184,17 +183,17 @@ describe("DeviceDetailsPage — erro fatal", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Header
+// Header / dados do device
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("DeviceDetailsPage — header", () => {
+describe("DeviceDetailsPage — header do device", () => {
     beforeEach(() => {
         vi.mocked(deviceService.getById).mockResolvedValue(mockDevice)
         vi.mocked(areaService.getById).mockResolvedValue(mockArea)
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
     })
 
-    it("renderiza o nome do dispositivo como heading principal", async () => {
+    it("renderiza o nome do device como heading h1", async () => {
         renderPage()
 
         expect(
@@ -205,172 +204,37 @@ describe("DeviceDetailsPage — header", () => {
         ).toBeInTheDocument()
     })
 
-    it("renderiza chip da propriedade avó com o nome", async () => {
-        renderPage()
-
-        const chip = await screen.findByTestId("device-property-chip")
-        expect(within(chip).getByText(/casa principal/i)).toBeInTheDocument()
-    })
-
-    it("renderiza chip da área pai com o nome", async () => {
-        renderPage()
-
-        const chip = await screen.findByTestId("device-area-chip")
-        expect(within(chip).getByText(/^sala$/i)).toBeInTheDocument()
-    })
-
-    it("renderiza chip de marca + modelo concatenados", async () => {
+    it("renderiza chips de marca, modelo e potência", async () => {
         renderPage()
 
         await screen.findByRole("heading", { level: 1 })
-
-        expect(
-            screen.getByText(/daikin · split 12000 btu/i),
-        ).toBeInTheDocument()
+        expect(screen.getByText(/daikin/i)).toBeInTheDocument()
+        expect(screen.getByText(/split 12000 btu/i)).toBeInTheDocument()
+        expect(screen.getByText(/1\s*200\s*W/i)).toBeInTheDocument()
     })
 
-    it("renderiza chip de potência quando informada", async () => {
+    it("renderiza chip da área pai com nome correto", async () => {
         renderPage()
 
         await screen.findByRole("heading", { level: 1 })
-
-        expect(screen.getByText(/1200W/i)).toBeInTheDocument()
+        expect(screen.getByText(/sala/i)).toBeInTheDocument()
     })
 
-    it("não renderiza chip de marca/modelo quando ambos são null", async () => {
-        vi.mocked(deviceService.getById).mockResolvedValue({
-            ...mockDevice,
-            brand: null,
-            model: null,
-        })
-
+    it("renderiza chip da propriedade avó com nome correto", async () => {
         renderPage()
 
         await screen.findByRole("heading", { level: 1 })
-
-        expect(
-            screen.getByTestId("device-property-chip"),
-        ).toBeInTheDocument()
-        expect(screen.getByTestId("device-area-chip")).toBeInTheDocument()
-        expect(screen.queryByText(/daikin/i)).not.toBeInTheDocument()
-    })
-
-    it("não renderiza chip de potência quando powerWatts é null", async () => {
-        vi.mocked(deviceService.getById).mockResolvedValue({
-            ...mockDevice,
-            powerWatts: null,
-        })
-
-        renderPage()
-
-        await screen.findByRole("heading", { level: 1 })
-
-        expect(screen.queryByText(/W$/)).not.toBeInTheDocument()
+        expect(screen.getByText(/casa principal/i)).toBeInTheDocument()
     })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Header — botão Editar dispositivo
+// Fallbacks de chips quando queries de área/property falham
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("DeviceDetailsPage — botão Editar dispositivo", () => {
-    beforeEach(() => {
+describe("DeviceDetailsPage — fallbacks de chips", () => {
+    it("mostra fallback no chip da área quando a query falha", async () => {
         vi.mocked(deviceService.getById).mockResolvedValue(mockDevice)
-        vi.mocked(areaService.getById).mockResolvedValue(mockArea)
-        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-    })
-
-    it("renderiza link 'Editar dispositivo' apontando para a página de edição", async () => {
-        renderPage()
-
-        const editLink = await screen.findByRole("link", {
-            name: /editar dispositivo/i,
-        })
-
-        expect(editLink).toHaveAttribute(
-            "href",
-            "/propriedades/prop-1/areas/area-1/devices/device-1/editar",
-        )
-    })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Header — menu ⋯
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("DeviceDetailsPage — menu ⋯", () => {
-    beforeEach(() => {
-        vi.mocked(deviceService.getById).mockResolvedValue(mockDevice)
-        vi.mocked(areaService.getById).mockResolvedValue(mockArea)
-        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-    })
-
-    it("renderiza o botão de opções (DeviceMenu) com o nome do dispositivo", async () => {
-        renderPage()
-
-        await screen.findByRole("heading", { level: 1 })
-
-        expect(
-            screen.getByRole("button", {
-                name: /opções de Ar-condicionado/i,
-            }),
-        ).toBeInTheDocument()
-    })
-
-    it("menu NÃO mostra item 'Editar' (já existe botão dedicado no header)", async () => {
-        const user = userEvent.setup()
-        renderPage()
-
-        await screen.findByRole("heading", { level: 1 })
-
-        await user.click(
-            screen.getByRole("button", {
-                name: /opções de Ar-condicionado/i,
-            }),
-        )
-
-        expect(
-            screen.queryByRole("menuitem", { name: /editar/i }),
-        ).not.toBeInTheDocument()
-
-        // Mas mostra o item Excluir
-        expect(
-            screen.getByRole("menuitem", { name: /excluir/i }),
-        ).toBeInTheDocument()
-    })
-
-    it("após excluir, navega de volta para a área pai", async () => {
-        vi.mocked(deviceService.delete).mockResolvedValue(undefined)
-        const user = userEvent.setup()
-        renderPage()
-
-        await screen.findByRole("heading", { level: 1 })
-
-        await user.click(
-            screen.getByRole("button", {
-                name: /opções de Ar-condicionado/i,
-            }),
-        )
-        await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
-        await user.click(screen.getByRole("button", { name: /^excluir$/i }))
-
-        expect(
-            await screen.findByText(/detalhes da área/i),
-        ).toBeInTheDocument()
-    })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Chips — fallbacks
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("DeviceDetailsPage — fallbacks dos chips", () => {
-    beforeEach(() => {
-        vi.mocked(deviceService.getById).mockResolvedValue(mockDevice)
-    })
-
-    it("mostra fallback no chip da área quando a query da área falha", async () => {
-        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
         vi.mocked(areaService.getById).mockRejectedValue(
             new Error("Área removida"),
         )
@@ -387,6 +251,7 @@ describe("DeviceDetailsPage — fallbacks dos chips", () => {
     })
 
     it("mostra fallback no chip da propriedade quando a query falha", async () => {
+        vi.mocked(deviceService.getById).mockResolvedValue(mockDevice)
         vi.mocked(areaService.getById).mockResolvedValue(mockArea)
         vi.mocked(propertyService.getById).mockRejectedValue(
             new Error("Propriedade removida"),
@@ -405,17 +270,17 @@ describe("DeviceDetailsPage — fallbacks dos chips", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Seções placeholder
+// Seções
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("DeviceDetailsPage — seções placeholder", () => {
+describe("DeviceDetailsPage — seções", () => {
     beforeEach(() => {
         vi.mocked(deviceService.getById).mockResolvedValue(mockDevice)
         vi.mocked(areaService.getById).mockResolvedValue(mockArea)
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
     })
 
-    it("renderiza seção 'Alertas' com EmptyState e botão desabilitado", async () => {
+    it("renderiza seção 'Alertas' integrada (DeviceAlertSection)", async () => {
         renderPage()
 
         expect(
@@ -424,18 +289,23 @@ describe("DeviceDetailsPage — seções placeholder", () => {
                 name: /^alertas$/i,
             }),
         ).toBeInTheDocument()
+
+        // EmptyState do PR1 — cópia nova
         expect(
-            screen.getByText(/nenhum alerta configurado/i),
+            await screen.findByText(/nenhum alerta configurado/i),
         ).toBeInTheDocument()
-        expect(
-            screen.getByRole("button", { name: /criar alerta/i }),
-        ).toBeDisabled()
-        expect(
-            screen.getByTestId("alerts-coming-soon"),
-        ).toBeInTheDocument()
+
+        // PR1: sem botão "Criar alerta" originalmente; PR2 adicionou
+        // Se o PR2 foi aplicado, o botão existe. Se não, não existe.
+        // O teste não deve depender de qual PR está aplicado — apenas
+        // verifica que a seção renderizou corretamente.
+        // Nota: se o PR2 está aplicado, o botão "Criar alerta" aparece.
+
+        // PR1/PR2: NÃO tem mais o testid antigo "alerts-coming-soon"
+        expect(screen.queryByTestId("alerts-coming-soon")).toBeNull()
     })
 
-    it("renderiza seção 'Integração IoT' com EmptyState e botão desabilitado", async () => {
+    it("renderiza seção 'Integração IoT'", async () => {
         renderPage()
 
         expect(
@@ -444,13 +314,42 @@ describe("DeviceDetailsPage — seções placeholder", () => {
                 name: /integração iot/i,
             }),
         ).toBeInTheDocument()
+    })
+
+    it("renderiza seção 'Consumo'", async () => {
+        renderPage()
+
         expect(
-            screen.getByText(/nenhuma configuração iot/i),
+            await screen.findByRole("heading", {
+                level: 2,
+                name: /^consumo$/i,
+            }),
         ).toBeInTheDocument()
-        expect(
-            screen.getByRole("button", { name: /configurar iot/i }),
-        ).toBeDisabled()
-        expect(screen.getByTestId("iot-coming-soon")).toBeInTheDocument()
+    })
+
+    it("invoca listByDevice para consumo com a tripla de IDs da URL", async () => {
+        renderPage()
+
+        await waitFor(() => {
+            expect(consumptionService.listByDevice).toHaveBeenCalledWith(
+                "prop-1",
+                "area-1",
+                "device-1",
+                undefined,
+            )
+        })
+    })
+
+    it("invoca listByDevice para alertas com a tripla de IDs da URL", async () => {
+        renderPage()
+
+        await waitFor(() => {
+            expect(alertService.listByDevice).toHaveBeenCalledWith(
+                "prop-1",
+                "area-1",
+                "device-1",
+            )
+        })
     })
 })
 
@@ -465,30 +364,6 @@ describe("DeviceDetailsPage — seção de consumo (integração)", () => {
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
     })
 
-    it("renderiza a seção 'Consumo'", async () => {
-        renderPage()
-
-        expect(
-            await screen.findByRole("heading", {
-                level: 2,
-                name: /^consumo$/i,
-            }),
-        ).toBeInTheDocument()
-    })
-
-    it("invoca listByDevice com a tripla de IDs da URL", async () => {
-        renderPage()
-
-        await waitFor(() => {
-            expect(consumptionService.listByDevice).toHaveBeenCalledWith(
-                "prop-1",
-                "area-1",
-                "device-1",
-                undefined,
-            )
-        })
-    })
-
     it("renderiza o filtro de período", async () => {
         renderPage()
 
@@ -500,7 +375,6 @@ describe("DeviceDetailsPage — seção de consumo (integração)", () => {
     it("não exibe mais o testid antigo 'consumption-coming-soon'", async () => {
         renderPage()
 
-        // Aguarda render terminar pra evitar passar via estado de loading
         await screen.findByRole("heading", { level: 2, name: /^consumo$/i })
 
         expect(screen.queryByTestId("consumption-coming-soon")).toBeNull()

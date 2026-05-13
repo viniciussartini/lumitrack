@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, Route, Routes, Link } from "react-router-dom"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@/tests/test-utils"
 import { AppShell } from "@/components/layout/AppShell"
 import { authService } from "@/services/auth.service"
@@ -20,6 +21,28 @@ vi.mock("@/services/auth.service", () => ({
 vi.mock("@/services/api", () => ({
     extractErrorMessage: (error: unknown) =>
         error instanceof Error ? error.message : "Erro",
+}))
+
+// AlertBellBadge usa useAlerts() → precisamos do alertService mockado
+vi.mock("@/services/alert.service", () => ({
+    alertService: {
+        listGlobal: vi.fn().mockResolvedValue([]),
+        listByProperty: vi.fn(),
+        listByArea: vi.fn(),
+        listByDevice: vi.fn(),
+        getById: vi.fn(),
+        createForProperty: vi.fn(),
+        createForArea: vi.fn(),
+        createForDevice: vi.fn(),
+        update: vi.fn(),
+        markAsRead: vi.fn(),
+        delete: vi.fn(),
+    },
+}))
+
+// useAlertStream abre SSE — mockar pra evitar side effects em testes
+vi.mock("@/hooks/useAlertStream", () => ({
+    useAlertStream: vi.fn(),
 }))
 
 const mockUser: User = {
@@ -53,35 +76,47 @@ beforeEach(() => {
  *
  * NÃO usamos o renderWithProviders padrão porque ele já provê MemoryRouter,
  * e aqui precisamos das tags <Routes>/<Route> aninhadas.
+ *
+ * Envolve com QueryClientProvider porque o AlertBellBadge (adicionado no
+ * Header no PR2) faz queries via TanStack Query.
  */
-const renderShell = (initialEntry = "/dashboard") =>
-    render(
-        <ThemeProvider>
-            <MemoryRouter initialEntries={[initialEntry]}>
-                <AuthProvider>
-                    <Routes>
-                        <Route element={<AppShell />}>
-                            <Route
-                                path="/dashboard"
-                                element={
-                                    <div>
-                                        <p>Conteúdo do Dashboard</p>
-                                        <Link to="/distribuidoras">
-                                            Ir para Distribuidoras
-                                        </Link>
-                                    </div>
-                                }
-                            />
-                            <Route
-                                path="/distribuidoras"
-                                element={<p>Conteúdo de Distribuidoras</p>}
-                            />
-                        </Route>
-                    </Routes>
-                </AuthProvider>
-            </MemoryRouter>
-        </ThemeProvider>,
+const renderShell = (initialEntry = "/dashboard") => {
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            queries: { retry: false, gcTime: 0 },
+            mutations: { retry: false },
+        },
+    })
+    return render(
+        <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+                <MemoryRouter initialEntries={[initialEntry]}>
+                    <AuthProvider>
+                        <Routes>
+                            <Route element={<AppShell />}>
+                                <Route
+                                    path="/dashboard"
+                                    element={
+                                        <div>
+                                            <p>Conteúdo do Dashboard</p>
+                                            <Link to="/distribuidoras">
+                                                Ir para Distribuidoras
+                                            </Link>
+                                        </div>
+                                    }
+                                />
+                                <Route
+                                    path="/distribuidoras"
+                                    element={<p>Conteúdo de Distribuidoras</p>}
+                                />
+                            </Route>
+                        </Routes>
+                    </AuthProvider>
+                </MemoryRouter>
+            </ThemeProvider>
+        </QueryClientProvider>,
     )
+}
 
 describe("AppShell — renderização", () => {
     it("renderiza o conteúdo da rota filha (Outlet)", async () => {
@@ -95,12 +130,10 @@ describe("AppShell — renderização", () => {
     it("renderiza Sidebar e Header", async () => {
         renderShell("/dashboard")
 
-        // Sidebar tem aria-label="Navegação principal"
         expect(
             screen.getByRole("complementary", { name: /navegação principal/i }),
         ).toBeInTheDocument()
 
-        // Header tem o botão hamburger
         expect(
             screen.getByRole("button", { name: /abrir menu/i }),
         ).toBeInTheDocument()
@@ -159,20 +192,17 @@ describe("AppShell — drawer mobile", () => {
         const user = userEvent.setup()
         renderShell("/dashboard")
 
-        // Abre o drawer
         await user.click(screen.getByRole("button", { name: /abrir menu/i }))
+        await user.click(
+            screen.getByRole("link", { name: /ir para distribuidoras/i }),
+        )
 
-        // Navega para outra rota
-        await user.click(screen.getByRole("link", { name: /ir para distribuidoras/i }))
-
-        // Aguarda a navegação acontecer
         await waitFor(() => {
             expect(
                 screen.getByText("Conteúdo de Distribuidoras"),
             ).toBeInTheDocument()
         })
 
-        // Sidebar deve estar fechada
         const aside = screen.getByRole("complementary", {
             name: /navegação principal/i,
         })

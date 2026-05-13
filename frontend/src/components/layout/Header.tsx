@@ -2,6 +2,7 @@ import { Menu } from "lucide-react"
 import { ThemeToggle } from "@/components/ui/ThemeToggle"
 import { UserMenu } from "@/components/layout/UserMenu"
 import { cn } from "@/lib/cn"
+import { AlertBellBadge } from "@/components/layout/AlertBellBadge"
 
 interface HeaderProps {
     /** Callback chamado pelo botão hamburger (abre a sidebar em mobile) */
@@ -44,6 +45,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => (
 
         <div className="flex-1" />
 
+        <AlertBellBadge />
         <ThemeToggle />
         <UserMenu />
     </header>
