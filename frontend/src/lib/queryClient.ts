@@ -169,4 +169,63 @@ export const queryKeys = {
         detail: (id: string) =>
             [...queryKeys.alerts.all, "detail", id] as const,
     },
+    reports: {
+        all: ["reports"] as const,
+        /**
+         * Chave de um relatório de propriedade. Inclui filtros porque cada
+         * combinação (period + dateFrom + dateTo) é um resultado distinto
+         * que vale a pena cachear separadamente.
+         *
+         * `?? "all"` mantém a chave estável quando o filtro é undefined —
+         * mesmo padrão do queryKeys.consumption.byProperty.
+         */
+        byProperty: (
+            propertyId: string,
+            period: string,
+            dateFrom?: string,
+            dateTo?: string,
+        ) =>
+            [
+                ...queryKeys.reports.all,
+                "property",
+                propertyId,
+                period,
+                dateFrom ?? "all",
+                dateTo ?? "all",
+            ] as const,
+        byArea: (
+            propertyId: string,
+            areaId: string,
+            period: string,
+            dateFrom?: string,
+            dateTo?: string,
+        ) =>
+            [
+                ...queryKeys.reports.all,
+                "area",
+                propertyId,
+                areaId,
+                period,
+                dateFrom ?? "all",
+                dateTo ?? "all",
+            ] as const,
+        byDevice: (
+            propertyId: string,
+            areaId: string,
+            deviceId: string,
+            period: string,
+            dateFrom?: string,
+            dateTo?: string,
+        ) =>
+            [
+                ...queryKeys.reports.all,
+                "device",
+                propertyId,
+                areaId,
+                deviceId,
+                period,
+                dateFrom ?? "all",
+                dateTo ?? "all",
+            ] as const,
+    },
 } as const

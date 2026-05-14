@@ -22,3 +22,91 @@ body {
 .dark body {
     @apply bg-slate-950 text-slate-100;
 }
+
+/*
+ * REGRAS DE @media print
+ *
+ * Estratégia:
+ *   - Sem forçar orientação no @page — usuário escolhe no dialog.
+ *   - A4 retrato é o default da maioria das impressoras (boa razão pra
+ *     não forçar landscape, que confunde quem imprime em PDF).
+ *   - .print-hide é a "interface pública" para elementos esconderem.
+ *     Aplicar em: sidebar, header global, query devtools, action bar,
+ *     filtros, indicator de refetch, botão de voltar.
+ *
+ * O que continua visível no papel (apenas no contexto de Report):
+ *   - Heading da página (h1 "Relatório de consumo")
+ *   - Linha de meta (Gerado em / Intervalo)
+ *   - 4 cards de summary
+ *   - Chart SVG (Recharts imprime nítido — é SVG)
+ *   - Tabela de registros
+ *
+ * Page breaks:
+ *   - Cards e linhas de tabela não quebram NO MEIO (page-break-inside).
+ *   - Entre seções (summary → chart → tabela) PERMITIMOS quebra natural
+ *     — relatórios longos devem poder se espalhar por várias folhas.
+ */
+
+@media print {
+    /*  Forçar tema "claro" no print, independente do .dark do usuário.
+        Importante: muitas impressoras a jato gastam toner desnecessário
+        imprimindo backgrounds escuros, e o contraste fica ruim. */
+    html.dark,
+    html.dark body {
+        background-color: white !important;
+        color: black !important;
+    }
+
+    /* Sair do modo fixed/flex global que prende layout em viewport.
+       O <body> precisa "fluir" pelas páginas. */
+    html,
+    body,
+    #root {
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* Esconde TUDO que tiver .print-hide. */
+    .print-hide,
+    .print-hide * {
+        display: none !important;
+    }
+
+    /* DevTools do TanStack Query (em dev). Pelo sim, pelo não. */
+    .tsqd-parent-container {
+        display: none !important;
+    }
+
+    /* Não quebrar cards e linhas no meio. */
+    [data-testid^="report-summary-"],
+    [data-testid^="report-record-row-"],
+    [data-testid="report-chart"] {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    /* Remove sombras e bordas decorativas — economiza tinta sem perder
+       informação. Bordas finas continuam visíveis para separação. */
+    [data-testid="report-chart"],
+    [data-testid="report-records-table-wrapper"] {
+        box-shadow: none !important;
+    }
+
+    /* Tabela: garante que o conteúdo não vaze da página */
+    table {
+        width: 100% !important;
+        page-break-inside: auto;
+    }
+    tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+
+    /* Tipografia "modo serviço": tamanhos um pouco menores pra caber. */
+    body {
+        font-size: 11pt;
+    }
+    h1 {
+        font-size: 18pt;
+    }
+}

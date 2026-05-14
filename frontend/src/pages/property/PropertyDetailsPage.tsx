@@ -10,6 +10,7 @@ import {
     Plus,
     Zap,
     Activity,
+    FileBarChart,
 } from "lucide-react"
 import { useProperty } from "@/hooks/queries/useProperties"
 import { useDistributor } from "@/hooks/queries/useDistributors"
@@ -158,6 +159,12 @@ const PropertyHeaderCard = ({
 
                 {/* Ações */}
                 <div className="flex shrink-0 items-center gap-2">
+                    <Button asChild variant="secondary" size="sm">
+                        <Link to={`/propriedades/${property.id}/relatorio`}>
+                            <FileBarChart className="h-4 w-4" aria-hidden="true" />
+                            Gerar relatório
+                        </Link>
+                    </Button>
                     <Button asChild variant="secondary" size="sm">
                         <Link to={`/propriedades/${property.id}/editar`}>
                             <Pencil className="h-4 w-4" aria-hidden="true" />

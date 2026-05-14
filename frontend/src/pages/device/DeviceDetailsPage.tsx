@@ -3,6 +3,7 @@ import {
     AlertCircle,
     ArrowLeft,
     Cpu,
+    FileBarChart,
     Gauge,
     Home,
     LayoutGrid,
@@ -240,6 +241,14 @@ const DeviceHeaderCard = ({
 
             {/* Ações */}
             <div className="mt-6 flex flex-wrap gap-2">
+                <Button asChild variant="secondary" size="sm">
+                    <Link
+                        to={`/propriedades/${propertyId}/areas/${areaId}/devices/${device.id}/relatorio`}
+                    >
+                        <FileBarChart className="h-4 w-4" aria-hidden="true" />
+                        Gerar relatório
+                    </Link>
+                </Button>
                 <Button asChild variant="secondary" size="sm">
                     <Link
                         to={`/propriedades/${propertyId}/areas/${areaId}/devices/${device.id}/editar`}

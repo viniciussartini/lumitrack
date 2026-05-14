@@ -19,6 +19,9 @@ import { NewDevicePage } from "@/pages/device/NewDevicePage"
 import { DeviceDetailsPage } from "@/pages/device/DeviceDetailsPage"
 import { EditDevicePage } from "@/pages/device/EditDevicePage"
 import { AlertsPage } from "@/pages/alert/AlertsPage"
+import { PropertyReportPage } from "@/pages/report/PropertyReportPage"
+import { AreaReportPage } from "@/pages/report/AreaReportPage"
+import { DeviceReportPage } from "@/pages/report/DeviceReportPage"
 
 /**
  * Mapa de rotas
@@ -63,6 +66,12 @@ export const AppRouter = () => (
 
                 {/* Alertas — inbox global. Filtros via query string (?triggered=true|false). */}
                 <Route path="/alertas" element={<AlertsPage />} />
+
+                {/* Relatórios — uma rota dedicada por nível (Property/Area/Device).
+                    Query string sincronizada: ?period=DAILY|MONTHLY|ANNUAL&dateFrom=...&dateTo=... */}
+                <Route path="/propriedades/:id/relatorio" element={<PropertyReportPage />} />
+                <Route path="/propriedades/:propertyId/areas/:areaId/relatorio" element={<AreaReportPage />} />
+                <Route path="/propriedades/:propertyId/areas/:areaId/devices/:deviceId/relatorio" element={<DeviceReportPage />} />
 
             </Route>
         </Route>

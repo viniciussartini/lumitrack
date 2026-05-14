@@ -146,6 +146,51 @@ const setupAuthAndProperty = async (page: Page) => {
         return route.continue()
     })
 
+    // Alerts — global (bell badge no header) + por nível (DetailsPages)
+    // Sem estes mocks, AreaDetailsPage e PropertyDetailsPage ficam em retry
+    // infinito após o redirect, causando "element was detached" nos clicks.
+    await page.route(/\/api\/alerts(\?.*)?$/, (route) => {
+        if (route.request().method() === "GET") {
+            return route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({ status: "success", data: [] }),
+            })
+        }
+        return route.continue()
+    })
+
+    await page.route(/\/api\/properties\/.*\/alerts(\?.*)?$/, (route) => {
+        if (route.request().method() === "GET") {
+            return route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({ status: "success", data: [] }),
+            })
+        }
+        return route.continue()
+    })
+    
+    await page.route(/\/api\/properties\/.*\/areas\/.*\/alerts(\?.*)?$/, (route) => {
+        if (route.request().method() === "GET") {
+            return route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({ status: "success", data: [] }),
+            })
+        }
+        return route.continue()
+    })
+
+    // SSE de alertas — AppShell monta useAlertStream globalmente
+    await page.route("**/api/alerts/stream", (route) =>
+        route.fulfill({
+            status: 200,
+            contentType: "text/event-stream",
+            body: "",
+        }),
+    )
+
     // Pre-loga o usuário pra pular tela de login
     await page.addInitScript((token) => {
         localStorage.setItem("lumitrack:auth:token", token)
