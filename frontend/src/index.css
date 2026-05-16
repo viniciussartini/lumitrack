@@ -109,4 +109,26 @@ body {
     h1 {
         font-size: 18pt;
     }
+
+/* ── Dashboard cross-propriedades ───────────────────────────────────── */
+
+    /* Cards de KPI não quebram no meio (mesma regra dos report-summary-*) */
+    [data-testid^="dashboard-summary-"] {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    /* Gráficos: evitar quebra dentro do SVG — Recharts imprime nítido */
+    [data-testid="dashboard-properties-chart"],
+    [data-testid="dashboard-time-series-chart"] {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        box-shadow: none !important;
+    }
+
+    /* Tabela de propriedades: linhas não quebram no meio */
+    [data-testid^="dashboard-property-row-"] {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
 }
