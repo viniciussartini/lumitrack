@@ -22,7 +22,6 @@ interface MockFetchEventSourceConfig {
 }
 
 let lastConfig: MockFetchEventSourceConfig | null = null
-let fatalErrorOnError: Error | null = null
 
 vi.mock("@microsoft/fetch-event-source", () => ({
     EventStreamContentType: "text/event-stream",
@@ -56,7 +55,6 @@ const makeAlert = (overrides: Partial<Alert> = {}): Alert => ({
 beforeEach(() => {
     vi.clearAllMocks()
     lastConfig = null
-    fatalErrorOnError = null
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
