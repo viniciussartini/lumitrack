@@ -44,6 +44,8 @@ export interface LoginResponse {
 interface BaseRegisterInput {
     email: string
     password: string
+    // Aceite explícito da Política de Privacidade e dos Termos de Uso (LGPD Art. 7º/8º)
+    acceptedTerms: true
 }
 
 export interface IndividualRegisterInput extends BaseRegisterInput {

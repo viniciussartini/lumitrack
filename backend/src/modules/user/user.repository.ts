@@ -46,7 +46,13 @@ export class UserRepository {
         })
     }
 
-    async create(data: CreateUserInput & { password: string }): Promise<UserWithoutPassword> {
+    async create(
+        data: Omit<CreateUserInput, "acceptedTerms"> & {
+            password: string
+            consentedAt: Date
+            consentVersion: string
+        },
+    ): Promise<UserWithoutPassword> {
         const cleanData = Object.fromEntries(
             Object.entries(data).filter(([, value]) => value !== undefined),
         )

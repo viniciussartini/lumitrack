@@ -19,6 +19,7 @@ const validIndividualBody = {
     email: "joao@example.com",
     password: "Senha@123",
     userType: "INDIVIDUAL",
+    acceptedTerms: true,
     firstName: "Joao",
     lastName: "Silva",
     cpf: "529.982.247-25",
@@ -28,6 +29,7 @@ const validCompanyBody = {
     email: "contato@empresa.com",
     password: "Senha@123",
     userType: "COMPANY",
+    acceptedTerms: true,
     companyName: "Empresa Ltda",
     cnpj: "11.222.333/0001-81",
 }
@@ -75,6 +77,36 @@ describe("POST /api/users", () => {
         expect(response.body.data.email).toBe("joao@example.com")
         expect(response.body.data.userType).toBe("INDIVIDUAL")
         expect(response.body.data).not.toHaveProperty("password")
+    })
+
+    it("deve registrar consentedAt e consentVersion ao criar o usuario (LGPD Art. 7º/8º)", async () => {
+        const response = await request(app)
+            .post("/api/users")
+            .send(validIndividualBody)
+
+        expect(response.status).toBe(201)
+        expect(response.body.data.consentedAt).not.toBeNull()
+        expect(new Date(response.body.data.consentedAt).getTime()).toBeLessThanOrEqual(Date.now())
+        expect(response.body.data.consentVersion).toBe("1.0")
+    })
+
+    it("deve retornar 422 quando acceptedTerms nao for enviado", async () => {
+        const { acceptedTerms: _acceptedTerms, ...bodyWithoutConsent } = validIndividualBody
+
+        const response = await request(app)
+            .post("/api/users")
+            .send(bodyWithoutConsent)
+
+        expect(response.status).toBe(422)
+        expect(response.body.status).toBe("error")
+    })
+
+    it("deve retornar 422 quando acceptedTerms for false", async () => {
+        const response = await request(app)
+            .post("/api/users")
+            .send({ ...validIndividualBody, acceptedTerms: false })
+
+        expect(response.status).toBe(422)
     })
 
     it("deve criar um usuario pessoa juridica e retornar 201", async () => {

@@ -86,6 +86,8 @@ export const UserScalarFieldEnum = {
   userType: 'userType',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
+  consentedAt: 'consentedAt',
+  consentVersion: 'consentVersion',
   firstName: 'firstName',
   lastName: 'lastName',
   cpf: 'cpf',

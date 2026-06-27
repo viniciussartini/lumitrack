@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "ignoreDeprecations": "5.0",   // silencia avisos de APIs obsoletas (ex: crypto.randomUUID)
+        "ignoreDeprecations": "5.0",   // silencia avisos de APIs obsoletas (ex: crypto.randomUUID) — "6.0" não é aceito pelo TypeScript 5.9.3 instalado (TS5103)
         /* --- Linguagem e ambiente --- */
         "target": "ES2022",
         "lib": ["ES2022"],
@@ -8,9 +8,8 @@
         "moduleResolution": "NodeNext",
 
         /* --- Path aliases --- */
-        "baseUrl": ".",                // âncora dos paths (raiz do tsconfig)
         "paths": {
-        "@/*": ["src/*"]            // @/modules/user → src/modules/user
+        "@/*": ["./src/*"]          // @/modules/user → src/modules/user
         },
 
         /* --- Output --- */

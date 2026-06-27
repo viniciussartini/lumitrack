@@ -3,6 +3,7 @@ import { z } from "zod"
 import { createUserSchema, updateUserSchema } from "@/modules/user/user.schema.js"
 import type { UserRepository } from "@/modules/user/user.repository.js"
 import { ConflictError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { CURRENT_CONSENT_VERSION } from "@/shared/legal/consentVersion.js"
 
 // Custo do bcrypt: quanto maior, mais lento o hash (e mais seguro).
 // 12 é um bom equilíbrio entre segurança e performance.
@@ -21,7 +22,9 @@ export class UserService {
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
-        const data = parsed.data
+        // acceptedTerms é apenas um sinal de aceite — não é uma coluna do banco.
+        // O que persiste é o registro do consentimento (consentedAt/consentVersion).
+        const { acceptedTerms: _acceptedTerms, ...data } = parsed.data
 
         const existingEmail = await this.userRepository.findByEmail(data.email)
 
@@ -50,6 +53,8 @@ export class UserService {
         return this.userRepository.create({
             ...data,
             password: hashedPassword,
+            consentedAt: new Date(),
+            consentVersion: CURRENT_CONSENT_VERSION,
         })
     }
 

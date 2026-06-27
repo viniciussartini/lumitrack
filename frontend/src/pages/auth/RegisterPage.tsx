@@ -27,7 +27,7 @@ export const RegisterPage = () => {
     } = useForm<RegisterFormData>({
         resolver: zodResolver(registerSchema),
         mode: "onBlur",
-        defaultValues: { userType: "INDIVIDUAL" },
+        defaultValues: { userType: "INDIVIDUAL", acceptedTerms: false },
     })
 
     const userType = watch("userType")
@@ -49,7 +49,9 @@ export const RegisterPage = () => {
     const onSubmit = async (data: RegisterFormData): Promise<void> => {
         setServerError(null)
 
-        // Monta o payload sem confirmPassword (backend não conhece esse campo)
+        // Monta o payload sem confirmPassword (backend não conhece esse campo).
+        // acceptedTerms é fixado como `true` literal aqui: o resolver do Zod
+        // (refine acceptedTerms === true) já garantiu isso antes do onSubmit disparar.
         const payload: RegisterInput =
             data.userType === "INDIVIDUAL"
                 ? {
@@ -59,6 +61,7 @@ export const RegisterPage = () => {
                     firstName: data.firstName,
                     lastName: data.lastName,
                     cpf: data.cpf,
+                    acceptedTerms: true,
                 }
                 : {
                     userType: "COMPANY",
@@ -67,6 +70,7 @@ export const RegisterPage = () => {
                     companyName: data.companyName,
                     cnpj: data.cnpj,
                     tradeName: data.tradeName,
+                    acceptedTerms: true,
                 }
 
         try {
@@ -285,6 +289,41 @@ export const RegisterPage = () => {
                             error={errors.confirmPassword?.message}
                             {...register("confirmPassword")}
                         />
+
+                        {/* Consentimento LGPD (Art. 7º/8º) — aceite explícito obrigatório */}
+                        <div className="flex flex-col gap-1">
+                            <label className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400">
+                                <input
+                                    type="checkbox"
+                                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-brand-500 focus:ring-brand-500 dark:border-slate-700"
+                                    {...register("acceptedTerms")}
+                                />
+                                <span>
+                                    Li e concordo com a{" "}
+                                    <Link
+                                        to="/privacidade"
+                                        target="_blank"
+                                        className="font-medium text-brand-500 hover:text-brand-700"
+                                    >
+                                        Política de Privacidade
+                                    </Link>{" "}
+                                    e os{" "}
+                                    <Link
+                                        to="/termos"
+                                        target="_blank"
+                                        className="font-medium text-brand-500 hover:text-brand-700"
+                                    >
+                                        Termos de Uso
+                                    </Link>
+                                    .
+                                </span>
+                            </label>
+                            {errors.acceptedTerms && (
+                                <p className="text-sm text-red-600 dark:text-red-400">
+                                    {errors.acceptedTerms.message}
+                                </p>
+                            )}
+                        </div>
 
                         {serverError && (
                             <div

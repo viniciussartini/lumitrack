@@ -73,6 +73,12 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Consentimento LGPD (Art. 7º/8º) — registrado no cadastro.
+  // consentVersion identifica qual versão da Política de Privacidade/Termos
+  // foi aceita, permitindo solicitar reaceite quando o documento mudar.
+  consentedAt    DateTime?
+  consentVersion String?
+
   // Campos exclusivos de pessoa física
   firstName String?
   lastName  String?

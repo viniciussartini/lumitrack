@@ -92,7 +92,7 @@ Evidências são referenciadas no formato `arquivo:linha`.
 
 | Art. LGPD | Requisito | Status | Ação |
 |-----------|-----------|--------|------|
-| Art. 7º/8º | Base legal / consentimento explícito | ❌ Ausente | Campo `consentedAt`/`consentVersion` no `User` + checkbox no registro |
+| Art. 7º/8º | Base legal / consentimento explícito | ✅ Implementado (#02) | Campo `consentedAt`/`consentVersion` no `User` + checkbox obrigatório no registro (backend e frontend) |
 | Art. 9º | Transparência (Política de Privacidade e Termos) | ❌ Ausente | Criar documentos e expô-los no frontend |
 | Art. 18 | Acesso e portabilidade | ⚠️ Parcial | Endpoint `GET /api/users/me/data-export` (JSON estruturado) |
 | Art. 16/18 | Eliminação de dados | ✅ Implementado | `DELETE /api/users/:id` + cascade — manter e auditar |

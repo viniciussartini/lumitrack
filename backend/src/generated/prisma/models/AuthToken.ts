@@ -172,7 +172,7 @@ export type AuthTokenGroupByOutputType = {
   _max: AuthTokenMaxAggregateOutputType | null
 }
 
-type GetAuthTokenGroupByPayload<T extends AuthTokenGroupByArgs> = Prisma.PrismaPromise<
+export type GetAuthTokenGroupByPayload<T extends AuthTokenGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<AuthTokenGroupByOutputType, T['by']> &
       {
@@ -405,10 +405,6 @@ export type AuthTokenUncheckedUpdateManyWithoutUserNestedInput = {
 
 export type EnumTokenChannelFieldUpdateOperationsInput = {
   set?: $Enums.TokenChannel
-}
-
-export type NullableDateTimeFieldUpdateOperationsInput = {
-  set?: Date | string | null
 }
 
 export type AuthTokenCreateWithoutUserInput = {
@@ -1200,6 +1196,11 @@ export type AuthTokenFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inter
    * Skip the first `n` AuthTokens.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of AuthTokens.
+   */
   distinct?: Prisma.AuthTokenScalarFieldEnum | Prisma.AuthTokenScalarFieldEnum[]
 }
 

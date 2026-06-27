@@ -52,6 +52,11 @@ const baseUserSchema = z.object({
         .regex(/[A-Z]/, { message: "A senha deve conter ao menos uma letra maiúscula" })
         .regex(/[a-z]/, { message: "A senha deve conter ao menos uma letra minúscula" })
         .regex(/[0-9]/, { message: "A senha deve conter ao menos um número" }),
+    // Consentimento LGPD (Art. 7º/8º) — aceite explícito da Política de
+    // Privacidade e dos Termos de Uso, obrigatório no cadastro.
+    acceptedTerms: z.literal(true, {
+        message: "É necessário aceitar a Política de Privacidade e os Termos de Uso",
+    }),
 })
 
 // Schema de pessoa física

@@ -59,6 +59,12 @@ const baseSchema = z.object({
         .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "E-mail inválido"),
     password: passwordSchema,
     confirmPassword: z.string().min(1, "Confirme a senha"),
+    // Aceite explícito da Política de Privacidade e dos Termos de Uso (LGPD Art. 7º/8º).
+    // Tipado como boolean (não literal(true)) para o checkbox poder iniciar
+    // desmarcado (false) — o refine garante que só "true" passa a validação.
+    acceptedTerms: z.boolean().refine((val) => val === true, {
+        message: "É necessário aceitar a Política de Privacidade e os Termos de Uso",
+    }),
 })
 
 const individualSchema = baseSchema.extend({

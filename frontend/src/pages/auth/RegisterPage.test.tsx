@@ -51,6 +51,7 @@ const fillIndividualForm = async (user: ReturnType<typeof userEvent.setup>) => {
     await user.type(screen.getByLabelText(/cpf/i), "52998224725")
     await user.type(screen.getByLabelText(/^senha$/i), "Senha@123")
     await user.type(screen.getByLabelText(/confirmar senha/i), "Senha@123")
+    await user.click(screen.getByLabelText(/li e concordo/i))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -174,6 +175,25 @@ describe("RegisterPage — validação client-side", () => {
 
         expect(await screen.findByText(/e-mail inválido/i)).toBeInTheDocument()
     })
+
+    it("mostra erro quando o consentimento LGPD não é marcado e não envia o cadastro", async () => {
+        const user = userEvent.setup()
+        renderWithProviders(<RegisterPage />)
+
+        // Preenche tudo, exceto o checkbox de consentimento
+        await user.type(await screen.findByLabelText(/e-mail/i), "joao@example.com")
+        await user.type(screen.getByLabelText(/^nome$/i), "João")
+        await user.type(screen.getByLabelText(/sobrenome/i), "Silva")
+        await user.type(screen.getByLabelText(/cpf/i), "52998224725")
+        await user.type(screen.getByLabelText(/^senha$/i), "Senha@123")
+        await user.type(screen.getByLabelText(/confirmar senha/i), "Senha@123")
+        await user.click(screen.getByRole("button", { name: /criar conta/i }))
+
+        expect(
+            await screen.findByText(/é necessário aceitar a política de privacidade/i),
+        ).toBeInTheDocument()
+        expect(authService.register).not.toHaveBeenCalled()
+    })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -201,6 +221,7 @@ describe("RegisterPage — submit", () => {
                 firstName: "João",
                 lastName: "Silva",
                 cpf: "529.982.247-25",
+                acceptedTerms: true,
             })
         })
 

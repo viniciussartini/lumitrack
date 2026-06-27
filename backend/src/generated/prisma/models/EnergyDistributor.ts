@@ -246,7 +246,7 @@ export type EnergyDistributorGroupByOutputType = {
   _max: EnergyDistributorMaxAggregateOutputType | null
 }
 
-type GetEnergyDistributorGroupByPayload<T extends EnergyDistributorGroupByArgs> = Prisma.PrismaPromise<
+export type GetEnergyDistributorGroupByPayload<T extends EnergyDistributorGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<EnergyDistributorGroupByOutputType, T['by']> &
       {
@@ -1565,6 +1565,11 @@ export type EnergyDistributorFindManyArgs<ExtArgs extends runtime.Types.Extensio
    * Skip the first `n` EnergyDistributors.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of EnergyDistributors.
+   */
   distinct?: Prisma.EnergyDistributorScalarFieldEnum | Prisma.EnergyDistributorScalarFieldEnum[]
 }
 

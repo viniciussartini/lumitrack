@@ -29,6 +29,7 @@ const validUser = {
     email: "joao@example.com",
     password: "Senha@123",
     userType: "INDIVIDUAL" as const,
+    acceptedTerms: true,
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",
