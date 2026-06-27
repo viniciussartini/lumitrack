@@ -1,9 +1,10 @@
-import express from "express"
+import express, { type RequestHandler } from "express"
 import cors from "cors"
 import helmet from "helmet"
 import { env } from "@/config/env.js"
 import { errorHandler } from "@/shared/middlewares/errorHandler.js"
 import { createAuthenticateMiddleware } from "@/shared/middlewares/authenticate.js"
+import { createGlobalRateLimiter, createAuthRateLimiter } from "@/shared/middlewares/rateLimiter.js"
 import { PrismaClient } from "@/generated/prisma/client.js"
 import { prisma } from "@/shared/database/prisma.js"
 import type { SendPasswordResetEmailFn } from "@/modules/auth/auth.service.js"
@@ -22,6 +23,8 @@ export interface AppDependencies {
     sendPasswordResetEmail?: SendPasswordResetEmailFn
     processor?: IoTDataProcessor
     alertNotifier?: AlertNotifier
+    globalRateLimiter?: RequestHandler
+    authRateLimiter?: RequestHandler
 }
 
 export function createApp(deps: AppDependencies = {}) {
@@ -29,6 +32,8 @@ export function createApp(deps: AppDependencies = {}) {
     const sendPasswordResetEmail = deps.sendPasswordResetEmail ?? realSendPasswordResetEmail
     const processor = deps.processor
     const alertNotifier = deps.alertNotifier
+    const globalRateLimiter = deps.globalRateLimiter ?? createGlobalRateLimiter()
+    const authRateLimiter = deps.authRateLimiter ?? createAuthRateLimiter()
 
     const app = express()
 
@@ -38,16 +43,26 @@ export function createApp(deps: AppDependencies = {}) {
         credentials: true,
     }))
 
-    app.use(express.json())
-    app.use(express.urlencoded({ extended: true }))
-
+    // Health check fica fora do rate limit (monitoramento / load balancer).
     app.get("/health", (_req, res) => {
         res.json({ status: "ok", timestamp: new Date().toISOString() })
     })
 
+    // Rede de segurança global por IP para toda a API.
+    app.use(globalRateLimiter)
+
+    app.use(express.json())
+    app.use(express.urlencoded({ extended: true }))
+
     const authenticate = createAuthenticateMiddleware(prismaClient)
 
-    app.use("/api/users", userRoutes(authenticate))
+    // Rate limit estrito nos endpoints públicos de autenticação (brute force).
+    // Aplicado após o parser de JSON para que a chave possa considerar o e-mail.
+    app.use("/api/auth/login", authRateLimiter)
+    app.use("/api/auth/forgot-password", authRateLimiter)
+    app.use("/api/auth/reset-password", authRateLimiter)
+
+    app.use("/api/users", userRoutes(authenticate, prismaClient))
     app.use("/api/auth", authRoutes(authenticate, prismaClient, sendPasswordResetEmail))
     app.use("/api/distributors", distributorRoutes(authenticate, prismaClient))
     app.use("/api/properties", propertyRoutes(authenticate, prismaClient, alertNotifier ?? new AlertNotifier()))

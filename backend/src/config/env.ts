@@ -21,6 +21,14 @@ const envSchema = z.object({
     CORS_ORIGIN: z.string().default("http://localhost:3000"),
 
     FRONTEND_URL: z.string().default("http://localhost:3000"),
+
+    // Rate limiting — rede de segurança global por IP.
+    RATE_LIMIT_WINDOW_MS: z.coerce.number().default(15 * 60 * 1000),
+    RATE_LIMIT_MAX: z.coerce.number().default(1000),
+
+    // Rate limiting estrito para endpoints públicos de autenticação (brute force).
+    AUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().default(15 * 60 * 1000),
+    AUTH_RATE_LIMIT_MAX: z.coerce.number().default(10),
 })
 
 const parsed = envSchema.safeParse(process.env)
