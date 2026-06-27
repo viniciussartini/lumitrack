@@ -5,18 +5,20 @@ import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import { AuthService, type SendPasswordResetEmailFn } from "@/modules/auth/auth.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { UserService } from "@/modules/user/user.service.js"
+import type { AuditService } from "@/shared/audit/audit.service.js"
 
 export function authRoutes(
     authenticate: RequestHandler,
     prismaClient: PrismaClient,
     sendPasswordResetEmail: SendPasswordResetEmailFn,
+    auditService: AuditService,
 ): Router {
     const router = Router()
     const authRepository = new AuthRepository(prismaClient)
     const authService = new AuthService(authRepository, sendPasswordResetEmail)
     const userRepository = new UserRepository(prismaClient)
     const userService = new UserService(userRepository)
-    const authController = new AuthController(authService, userService)
+    const authController = new AuthController(authService, userService, auditService)
 
     // Rotas públicas
     router.post("/login", (req, res, next) => authController.login(req, res, next))

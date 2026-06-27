@@ -2,7 +2,7 @@
 
 > **Escopo:** OWASP Top 10:2025 + conformidade com a LGPD (Lei nº 13.709/2018)
 > **Data da auditoria:** 2026-06-27
-> **Versão do documento:** 1.3
+> **Versão do documento:** 1.4
 > **Branch de remediação:** `security/owasp-lgpd-remediation`
 > **Stack auditado:** Backend Node.js/TypeScript (Express 5, Prisma 7, PostgreSQL) · Frontend React 19/Vite
 
@@ -30,14 +30,14 @@ produção com usuários reais.
 | 🟡 Médio   | 3 | Vulns de dependência (dev); sem CI/CD com gates; política de senha fraca |
 | 🟢 Baixo   | 3 | Injection (mitigado); RBAC raso; tratamento de exceções (mitigado) |
 
-**Estado atual (pós #01/#02/#04/#05/#06/#07 — ver Seção 3 e `IMPLEMENTATION_LOG.md`):**
+**Estado atual (pós #01/#02/#04/#05/#06/#07/#08 — ver Seção 3 e `IMPLEMENTATION_LOG.md`):**
 
 | Severidade | Quantidade | Categorias |
 |------------|-----------|----------|
 | 🔴 Crítico | 0 | — |
-| 🟠 Alto    | 1 | A09 (sem audit log — pendente #08) |
+| 🟠 Alto    | 0 | — |
 | 🟡 Médio   | 4 | A03, A04 (endereço da propriedade ainda em texto claro — ver #15), A06, A08 |
-| 🟢 Baixo   | 5 | A01, A02, A05, A07, A10 |
+| 🟢 Baixo   | 6 | A01, A02, A05, A07, A09, A10 |
 
 A remediação está organizada em **4 fases** (ver Seção 6), iniciando pelos itens
 críticos antes de qualquer ida a produção.
@@ -72,7 +72,7 @@ Evidências são referenciadas no formato `arquivo:linha`.
 | A06 | Insecure Design | ~~Tokens MOBILE nunca expiram~~ **corrigido (#04)** — expiram após `MOBILE_TOKEN_EXPIRES_IN` (default 90d); sem refresh token; política de senha sem caractere especial; sem rate limit por design. | 🟡 Médio (era 🟠 Alto) |
 | A07 | Authentication Failures | ~~Sem rate limiting / proteção brute-force~~ **corrigido (#01)** — limiter global por IP + limiter estrito por IP+e-mail em `/login`, `/forgot-password`, `/reset-password`. ~~Sem proteção CSRF na sessão WEB~~ **corrigido (#06)** — double-submit cookie. Ainda sem lockout de conta e sem MFA (gaps menores, não bloqueantes). Anti-enumeração no forgot-password (✅). | 🟢 Baixo (era 🔴 Crítico) |
 | A08 | Software/Data Integrity Failures | Sem CI/CD; sem verificação de integridade de build; scripts de dependência não controlados. | 🟡 Médio |
-| A09 | Logging & Alerting Failures | Apenas `console.*` (~35 ocorrências); **sem audit log** de login/logout, acessos negados (403) e CRUD de dados pessoais; sem logger estruturado nem alerta. | 🟠 Alto |
+| A09 | Logging & Alerting Failures | ~~Apenas `console.*`~~ **corrigido (#08)** — logger estruturado (pino) em todo o backend; ~~sem audit log~~ **corrigido (#08)** — tabela `audit_logs` registra login/logout, acessos negados (403, capturado centralizadamente) e CRUD de User/Property. | 🟢 Baixo (era 🟠 Alto) |
 | A10 | Mishandling of Exceptional Conditions | Error handler global cobre Zod/AppError/500 e não vaza stack em produção (✅). Atenção: sem request-id correlacionável e sem handler central documentado de `unhandledRejection`. | 🟢 Baixo |
 
 ### 3.1 Detalhamento e evidências
@@ -120,8 +120,29 @@ Evidências são referenciadas no formato `arquivo:linha`.
   (boot falha); `trust proxy` + redirect 301 HTTP→HTTPS em produção;
   `backend/.env.example` criado. Evidência: [app.ts](../backend/src/app.ts),
   [env.ts](../backend/src/config/env.ts), [env.test.ts](../backend/src/config/env.test.ts).
-- **A09 — Logging.** Uso de `console.error` no handler global e ausência de trilha
-  de auditoria. Evidência: [errorHandler.ts:32](../backend/src/shared/middlewares/errorHandler.ts#L32).
+- **A09 — Logger estruturado + audit log — ✅ corrigido (#08).** Todas as ~37
+  ocorrências de `console.*` substituídas por `pino` (JSON em produção,
+  pretty-print em desenvolvimento, silencioso em testes), incluindo
+  `pino-http` para log automático de requisição/resposta (com isso, ganha-se
+  de bônus uma correlação básica por `req.id` — sem fechar por completo o
+  gap de A10 sobre request-id documentado, que segue pendente). Nova tabela
+  `audit_logs` (Prisma) registra: `LOGIN`/`LOGOUT` (sucesso e falha, com
+  `outcome`), `ACCESS_DENIED` (403 — capturado **centralizadamente** no
+  `errorHandler`, cobrindo os ~17 pontos do código que lançam
+  `ForbiddenError` sem precisar instrumentar cada um) e CRUD de `User`/
+  `Property` (apenas create/update/delete — leitura não é auditada, não é
+  considerada um "incidente"). `metadata` nunca guarda valores sensíveis —
+  em updates, só os **nomes** dos campos alterados (ex.: `["address"]`),
+  nunca o conteúdo. `userId` usa `onDelete: SetNull` (diferente do padrão
+  `Cascade` do restante do schema) — de propósito, para o registro
+  sobreviver à exclusão da conta. Escopo do CRUD: `User` + `Property`
+  (endereço já reconhecido como dado pessoal no gap #15) — decisão
+  registrada com o usuário; outras entidades (Distributor, Alert, etc.)
+  seguem cobertas apenas pelo `ACCESS_DENIED` automático, não por CRUD
+  dedicado. Evidência: [logger.ts](../backend/src/shared/logger/logger.ts),
+  [audit.service.ts](../backend/src/shared/audit/audit.service.ts),
+  [errorHandler.ts](../backend/src/shared/middlewares/errorHandler.ts),
+  [schema.prisma](../backend/prisma/schema.prisma).
 - **A02/A07 — Sessão WEB via httpOnly cookies + CSRF — ✅ corrigido (#06).**
   Canal WEB migrou de JWT em `localStorage` (exposto a XSS) para cookie
   `httpOnly` (`Secure` em produção, `SameSite=Lax`); cookie CSRF não-httpOnly
@@ -149,7 +170,7 @@ Evidências são referenciadas no formato `arquivo:linha`.
 | Art. 18 | Acesso e portabilidade | ⚠️ Parcial | Endpoint `GET /api/users/me/data-export` (JSON estruturado) |
 | Art. 16/18 | Eliminação de dados | ✅ Implementado | `DELETE /api/users/:id` + cascade — manter e auditar |
 | Art. 18 | Retificação | ✅ Implementado | `PUT /api/users/:id` — manter |
-| Art. 46 | Segurança dos dados | ⚠️ Parcial | ~~Cripto de CPF/CNPJ~~ ✅ (#07); hardening ✅ (#02/#05/#06); falta audit log (#08) e cripto do endereço (#15) |
+| Art. 46 | Segurança dos dados | ⚠️ Parcial | ~~Cripto de CPF/CNPJ~~ ✅ (#07); hardening ✅ (#02/#05/#06); ~~audit log~~ ✅ (#08); falta cripto do endereço (#15) |
 | Art. 15/16 | Retenção mínima | ❌ Indefinida | Política + job de expurgo |
 | Art. 37-39 | Operadores (DPA com SMTP) | ⚠️ Não confirmado | Documentar provedor e DPA |
 | Art. 48 | Resposta a incidentes | ❌ Ausente | Runbook (Seção 7) |
@@ -177,14 +198,16 @@ Registro formal da auditoria — base para governança e Art. 48.
 - **#04** ✅ Expiração de token MOBILE + hash do JWT no banco (A04/A06)
 - **#05** ✅ Hardening de CORS/Helmet/HTTPS + `backend/.env.example` (A02)
 
-### Fase 2 — Alto
+### Fase 2 — Alto — ✅ Concluída (2026-06-27)
 - **#06** ✅ Sessão via httpOnly cookies + CSRF (A02/A07) — migrado de `localStorage`
   (canal WEB) para cookie `httpOnly`/`Secure`/`SameSite=Lax` + CSRF double-submit
   cookie; canal MOBILE inalterado (Bearer)
 - **#07** ✅ Criptografia de CPF/CNPJ + blind index (A04/Art. 46) — AES-256-GCM
   (cifra) + HMAC-SHA256 (blind index, chave separada) para preservar
   unicidade/busca; escopo restrito a `users.cpf`/`users.cnpj`
-- **#08** Logger estruturado (pino) + audit log (A09/Art. 46)
+- **#08** ✅ Logger estruturado (pino) + audit log (A09/Art. 46) — tabela
+  `audit_logs` para login/logout/403/CRUD de User+Property; `console.*`
+  substituído por pino em todo o backend
 - **#09** Exportação de dados do titular / DSAR (Art. 18)
 
 ### Fase 3 — Médio
@@ -200,6 +223,11 @@ Registro formal da auditoria — base para governança e Art. 48.
   a #07 (o achado original mencionava CPF/CNPJ **e** endereço; a #07 foi
   escopada apenas a CPF/CNPJ, decisão registrada com o usuário); endereço
   geográfico é dado pessoal sob a LGPD e continua em texto claro
+- **#16** Endpoint administrativo para consulta do audit log (A09/Art. 48) —
+  hoje a tabela `audit_logs` só é consultável via acesso direto ao banco
+  (Prisma Studio/SQL); um endpoint HTTP dedicado depende de RBAC real
+  (papel admin), que não existe ainda (ver A01 — `userType` não é RBAC) —
+  bloqueado até essa base existir
 
 ### Decisões de arquitetura
 - **Sessão:** migração de `localStorage` → **httpOnly cookies** (Secure + SameSite) + CSRF.
@@ -247,3 +275,4 @@ Registro formal da auditoria — base para governança e Art. 48.
 | 1.1 | 2026-06-27 | Auditoria de Segurança | Fase 1 concluída (#01-#05): status, severidades e contadores atualizados para refletir as correções aplicadas (rate limiting, consentimento LGPD, Política de Privacidade/Termos, hash de token + expiração MOBILE, hardening CORS/Helmet/HTTPS). Corrigida inconsistência no achado A04 (CPF/CNPJ ainda pendente — não deveria ter sido marcado como Baixo). |
 | 1.2 | 2026-06-27 | Auditoria de Segurança | #06 concluída (Fase 2): sessão WEB migrada de `localStorage` para cookie `httpOnly`/`Secure`/`SameSite=Lax` + CSRF via double-submit cookie; canal MOBILE inalterado. Achados A02/A07 atualizados (A07 rebaixado para 🟢 Baixo). Adicionado **#14** ao roadmap (refresh token para sessão WEB, fora do escopo da #06). |
 | 1.3 | 2026-06-27 | Auditoria de Segurança | #07 concluída (Fase 2): CPF/CNPJ do usuário criptografados em repouso (AES-256-GCM) com blind index (HMAC-SHA256) preservando unicidade/busca; escopo restrito a `users.cpf`/`users.cnpj` (CNPJ da distribuidora e endereço da propriedade ficaram de fora, decisão registrada com o usuário). Achado A04 atualizado (CPF/CNPJ corrigido, mas permanece 🟡 Médio pelo gap residual do endereço). Adicionado **#15** ao roadmap (criptografia do endereço da propriedade). |
+| 1.4 | 2026-06-27 | Auditoria de Segurança | #08 concluída (Fase 2, encerra a Fase 2): logger estruturado (pino) substitui todo `console.*`; nova tabela `audit_logs` registra login/logout (sucesso e falha), acessos negados (403, captura centralizada no `errorHandler`) e CRUD de `User`/`Property`. Achado A09 corrigido e rebaixado para 🟢 Baixo — zero achados 🟠 Alto/🔴 Crítico remanescentes. Adicionado **#16** ao roadmap (endpoint administrativo de consulta do audit log, bloqueado por depender de RBAC ainda inexistente). |

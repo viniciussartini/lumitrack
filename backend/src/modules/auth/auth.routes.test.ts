@@ -335,6 +335,55 @@ describe("POST /api/auth/logout", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Audit log (#08 — A09): LOGIN/LOGOUT
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("Audit log — login/logout", () => {
+    it("registra LOGIN/SUCCESS ao logar com sucesso", async () => {
+        await registerAndLogin("MOBILE")
+
+        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "LOGIN" } })
+        expect(logs).toHaveLength(1)
+        expect(logs[0]).toMatchObject({ action: "LOGIN", outcome: "SUCCESS", resourceType: "User" })
+        expect(logs[0]?.userId).not.toBeNull()
+    })
+
+    it("registra LOGIN/FAILURE (com userId null) ao errar a senha", async () => {
+        await request(app).post("/api/users").send(validUser)
+
+        await request(app).post("/api/auth/login").send({
+            email: validUser.email,
+            password: "SenhaErrada@999",
+            channel: "WEB",
+        })
+
+        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "LOGIN" } })
+        expect(logs).toHaveLength(1)
+        expect(logs[0]).toMatchObject({ action: "LOGIN", outcome: "FAILURE", userId: null })
+        expect((logs[0]?.metadata as { attemptedEmail?: string } | null)?.attemptedEmail).toBe(
+            validUser.email,
+        )
+    })
+
+    it("NÃO registra LOGIN para corpo malformado (422 — não é uma tentativa de login real)", async () => {
+        await request(app).post("/api/auth/login").send({ email: validUser.email })
+
+        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "LOGIN" } })
+        expect(logs).toHaveLength(0)
+    })
+
+    it("registra LOGOUT/SUCCESS ao deslogar", async () => {
+        const token = await registerAndLogin("MOBILE")
+
+        await request(app).post("/api/auth/logout").set("Authorization", `Bearer ${token}`)
+
+        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "LOGOUT" } })
+        expect(logs).toHaveLength(1)
+        expect(logs[0]).toMatchObject({ action: "LOGOUT", outcome: "SUCCESS", resourceType: "User" })
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Expiração de token (#04 — MOBILE agora expira; token armazenado como hash)
 // ─────────────────────────────────────────────────────────────────────────────
 

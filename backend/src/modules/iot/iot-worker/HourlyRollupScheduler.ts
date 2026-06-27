@@ -24,6 +24,9 @@ import type { DeviceRepository } from "@/modules/device/device.repository.js"
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import type { PropertyRepository } from "@/modules/property/property.repository.js"
+import { logger } from "@/shared/logger/logger.js"
+
+const log = logger.child({ module: "RollupScheduler" })
 
 
 /**
@@ -58,9 +61,9 @@ export class HourlyRollupScheduler {
     start(): void {
         const msUntilNextHour = this.msUntilNextHour()
 
-        console.log(
-            `[RollupScheduler] Iniciado. Primeiro flush em ${Math.round(msUntilNextHour / 1000)}s ` +
-            `(${new Date(Date.now() + msUntilNextHour).toISOString()})`,
+        log.info(
+            { firstFlushAt: new Date(Date.now() + msUntilNextHour).toISOString() },
+            `Iniciado. Primeiro flush em ${Math.round(msUntilNextHour / 1000)}s`,
         )
 
         // Aguarda até o início da próxima hora, depois configura um intervalo
@@ -88,7 +91,7 @@ export class HourlyRollupScheduler {
             clearInterval(this.flushTimer)
             this.flushTimer = null
         }
-        console.log("[RollupScheduler] Parado.")
+        log.info("Parado.")
     }
 
     /**
@@ -105,7 +108,7 @@ export class HourlyRollupScheduler {
             return
         }
 
-        console.log(`[RollupScheduler] Flush de ${snapshots.length} device(s)...`)
+        log.info(`Flush de ${snapshots.length} device(s)...`)
 
         // Processa cada device independentemente — a falha de um não deve
         // impedir o flush dos demais. Análogo a um caixa que não para de
@@ -123,9 +126,9 @@ export class HourlyRollupScheduler {
             if (result.status === "fulfilled") {
                 this.buffer.clearHourly(snapshot.deviceId)
             } else {
-                console.error(
-                    `[RollupScheduler] Falha ao persistir deviceId=${snapshot.deviceId}:`,
-                    result.reason,
+                log.error(
+                    { deviceId: snapshot.deviceId, err: result.reason },
+                    "Falha ao persistir",
                 )
             }
         }
@@ -153,28 +156,28 @@ export class HourlyRollupScheduler {
         if (!device) {
             // Device foi deletado enquanto o buffer ainda tinha dados dele.
             // Descartamos silenciosamente — não há para onde persistir.
-            console.warn(`[RollupScheduler] Device não encontrado, descartando: deviceId=${deviceId}`)
+            log.warn({ deviceId }, "Device não encontrado, descartando")
             return
         }
 
         const area = await this.areaRepository.findById(device.areaId)
 
         if (!area) {
-            console.warn(`[RollupScheduler] Área não encontrada, descartando: deviceId=${deviceId}`)
+            log.warn({ deviceId }, "Área não encontrada, descartando")
             return
         }
 
         const property = await this.propertyRepository.findById(area.propertyId)
 
         if (!property) {
-            console.warn(`[RollupScheduler] Propriedade não encontrada, descartando: deviceId=${deviceId}`)
+            log.warn({ deviceId }, "Propriedade não encontrada, descartando")
             return
         }
 
         const distributor = await this.distributorRepository.findById(property.distributorId)
 
         if (!distributor) {
-            console.warn(`[RollupScheduler] Distribuidora não encontrada, descartando: deviceId=${deviceId}`)
+            log.warn({ deviceId }, "Distribuidora não encontrada, descartando")
             return
         }
 
@@ -199,9 +202,9 @@ export class HourlyRollupScheduler {
             const updatedCostBrl: number = updatedKwh * kwhPrice
             await this.consumptionRepository.update(existing.id, { kwhConsumed: updatedKwh }, updatedCostBrl)
 
-            console.log(
-                `[RollupScheduler] Atualizado (merge): deviceId=${deviceId} ` +
-                `hora=${hourStart.toISOString()} kWh=${updatedKwh.toFixed(6)}`,
+            log.info(
+                { deviceId, hour: hourStart.toISOString(), kwh: updatedKwh },
+                "Atualizado (merge)",
             )
 
             // Verifica alertas com o kWh total acumulado após o merge.
@@ -221,9 +224,9 @@ export class HourlyRollupScheduler {
             costBrl,
         )
 
-        console.log(
-            `[RollupScheduler] Persistido: deviceId=${deviceId} ` +
-            `hora=${hourStart.toISOString()} kWh=${kwhAccumulated.toFixed(6)} costBrl=${costBrl.toFixed(4)}`,
+        log.info(
+            { deviceId, hour: hourStart.toISOString(), kwh: kwhAccumulated, costBrl },
+            "Persistido",
         )
 
         // Verifica alertas com o kWh acumulado desta hora.

@@ -55,6 +55,11 @@ export const envSchema = z.object({
         .regex(/^[0-9a-f]{64}$/i, {
             message: "CPF_CNPJ_BLIND_INDEX_KEY deve ter 64 caracteres hexadecimais (32 bytes)",
         }),
+
+    // Logger estruturado (#08 da remediação OWASP/LGPD — A09).
+    LOG_LEVEL: z
+        .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
+        .default("info"),
 }).refine(
     (data) => !(data.NODE_ENV === "production" && data.CORS_ORIGIN === "*"),
     {

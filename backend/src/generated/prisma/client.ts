@@ -57,6 +57,11 @@ export type AuthToken = Prisma.AuthTokenModel
  */
 export type PasswordReset = Prisma.PasswordResetModel
 /**
+ * Model AuditLog
+ * 
+ */
+export type AuditLog = Prisma.AuditLogModel
+/**
  * Model EnergyDistributor
  * 
  */

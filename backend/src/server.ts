@@ -1,5 +1,6 @@
 import { createApp } from "@/app.js"
 import { env } from "@/config/env.js"
+import { logger } from "@/shared/logger/logger.js"
 import { prisma } from "@/shared/database/prisma.js"
 import { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
 import { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
@@ -73,9 +74,9 @@ scheduler.start()
 const app = createApp({ processor })
 
 const server = app.listen(env.PORT, async () => {
-    console.log(`LumiTrack API rodando em http://localhost:${env.PORT}`)
-    console.log(`Ambiente: ${env.NODE_ENV}`)
-    console.log(`Health: http://localhost:${env.PORT}/health`)
+    logger.info(`LumiTrack API rodando em http://localhost:${env.PORT}`)
+    logger.info(`Ambiente: ${env.NODE_ENV}`)
+    logger.info(`Health: http://localhost:${env.PORT}/health`)
 
     // Restaura as conexões IoT ativas do banco após o servidor estar escutando.
     // Fazemos isso aqui (e não antes do listen) para garantir que o servidor
@@ -100,11 +101,11 @@ async function restoreIoTConnections(): Promise<void> {
         const configs = await prisma.ioTDeviceConfig.findMany()
 
         if (configs.length === 0) {
-            console.log("[Boot] Nenhuma config IoT encontrada. Nada a restaurar.")
+            logger.info("[Boot] Nenhuma config IoT encontrada. Nada a restaurar.")
             return
         }
 
-        console.log(`[Boot] Restaurando ${configs.length} conexão(ões) IoT...`)
+        logger.info(`[Boot] Restaurando ${configs.length} conexão(ões) IoT...`)
 
         // O campo `extra` retornado pelo Prisma é tipado como `JsonValue`
         // (união de string | number | boolean | null | JsonObject | JsonArray),
@@ -119,11 +120,11 @@ async function restoreIoTConnections(): Promise<void> {
         const succeeded = results.filter((r) => r.status === "fulfilled").length
         const failed    = results.filter((r) => r.status === "rejected").length
 
-        console.log(`[Boot] Conexões restauradas: ${succeeded} ok, ${failed} falha(s).`)
+        logger.info(`[Boot] Conexões restauradas: ${succeeded} ok, ${failed} falha(s).`)
     } catch (err) {
         // Falha na restauração não deve impedir o servidor de responder —
         // o monitoramento IoT é importante mas não é o núcleo da API REST.
-        console.error("[Boot] Erro ao restaurar conexões IoT:", err)
+        logger.error({ err }, "[Boot] Erro ao restaurar conexões IoT")
     }
 }
 
@@ -136,14 +137,14 @@ async function restoreIoTConnections(): Promise<void> {
  * @param signal 
  */
 async function shutdown(signal: string): Promise<void> {
-    console.log(`\n⚡ Sinal ${signal} recebido. Encerrando servidor...`)
+    logger.info(`Sinal ${signal} recebido. Encerrando servidor...`)
 
     // Para o scheduler — evita que um flush parcial aconteça durante o shutdown.
     scheduler.stop()
 
     // Flush final: persiste qualquer acumulado pendente no buffer antes de sair.
     // Sem isso, até 59 minutos de leituras IoT poderiam ser perdidos em um restart.
-    console.log("[Shutdown] Executando flush final do buffer IoT...")
+    logger.info("[Shutdown] Executando flush final do buffer IoT...")
     await processor.buffer.getAllHourlySnapshots().length > 0
         ? new HourlyRollupScheduler(
             processor.buffer,
@@ -159,7 +160,7 @@ async function shutdown(signal: string): Promise<void> {
     await IoTConnectionManager.getInstance().stopAll()
 
     server.close(() => {
-        console.log("Servidor encerrado com sucesso.")
+        logger.info("Servidor encerrado com sucesso.")
         process.exit(0)
     })
 }

@@ -476,3 +476,68 @@ describe("DELETE /api/distributors/:id — bloqueio com propriedades vinculadas"
         expect(response.status).toBe(204)
     })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Audit log (#08 — A09): PROPERTY_CREATE/UPDATE/DELETE + ACCESS_DENIED
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("Audit log", () => {
+    it("registra PROPERTY_CREATE/SUCCESS ao criar", async () => {
+        const { userId, token } = await registerAndLogin()
+        const dist = await createDistributor(token)
+        const property = await createProperty(token, dist.id)
+
+        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "PROPERTY_CREATE" } })
+        expect(logs).toHaveLength(1)
+        expect(logs[0]).toMatchObject({
+            outcome: "SUCCESS",
+            resourceType: "Property",
+            resourceId: property.id,
+            userId,
+        })
+    })
+
+    it("registra PROPERTY_UPDATE/SUCCESS com os nomes dos campos alterados (não os valores)", async () => {
+        const { token } = await registerAndLogin()
+        const dist = await createDistributor(token)
+        const property = await createProperty(token, dist.id)
+
+        await request(app)
+            .put(`/api/properties/${property.id}`)
+            .set("Authorization", `Bearer ${token}`)
+            .send({ address: "Avenida Nova, 456" })
+
+        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "PROPERTY_UPDATE" } })
+        expect(logs).toHaveLength(1)
+        expect((logs[0]?.metadata as { fields?: string[] } | null)?.fields).toEqual(["address"])
+    })
+
+    it("registra PROPERTY_DELETE/SUCCESS ao deletar", async () => {
+        const { userId, token } = await registerAndLogin()
+        const dist = await createDistributor(token)
+        const property = await createProperty(token, dist.id)
+
+        await request(app)
+            .delete(`/api/properties/${property.id}`)
+            .set("Authorization", `Bearer ${token}`)
+
+        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "PROPERTY_DELETE" } })
+        expect(logs).toHaveLength(1)
+        expect(logs[0]).toMatchObject({ outcome: "SUCCESS", resourceType: "Property", resourceId: property.id, userId })
+    })
+
+    it("registra ACCESS_DENIED ao tentar deletar propriedade de outro usuário (403)", async () => {
+        const { token: tokenA } = await registerAndLogin(validUser)
+        const { userId: userIdB, token: tokenB } = await registerAndLogin(anotherUser)
+        const distA = await createDistributor(tokenA)
+        const property = await createProperty(tokenA, distA.id)
+
+        await request(app)
+            .delete(`/api/properties/${property.id}`)
+            .set("Authorization", `Bearer ${tokenB}`)
+
+        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "ACCESS_DENIED" } })
+        expect(logs).toHaveLength(1)
+        expect(logs[0]).toMatchObject({ outcome: "FAILURE", userId: userIdB, resourceType: "properties" })
+    })
+})

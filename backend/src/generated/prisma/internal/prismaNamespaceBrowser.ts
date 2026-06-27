@@ -54,6 +54,7 @@ export const ModelName = {
   User: 'User',
   AuthToken: 'AuthToken',
   PasswordReset: 'PasswordReset',
+  AuditLog: 'AuditLog',
   EnergyDistributor: 'EnergyDistributor',
   Property: 'Property',
   Area: 'Area',
@@ -124,6 +125,22 @@ export const PasswordResetScalarFieldEnum = {
 } as const
 
 export type PasswordResetScalarFieldEnum = (typeof PasswordResetScalarFieldEnum)[keyof typeof PasswordResetScalarFieldEnum]
+
+
+export const AuditLogScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  action: 'action',
+  outcome: 'outcome',
+  resourceType: 'resourceType',
+  resourceId: 'resourceId',
+  ipAddress: 'ipAddress',
+  userAgent: 'userAgent',
+  metadata: 'metadata',
+  createdAt: 'createdAt'
+} as const
+
+export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typeof AuditLogScalarFieldEnum]
 
 
 export const EnergyDistributorScalarFieldEnum = {

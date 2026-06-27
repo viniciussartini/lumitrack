@@ -35,7 +35,9 @@ export class AuthService {
         private readonly sendPasswordResetEmail: SendPasswordResetEmailFn,
     ) {}
 
-    async login(input: unknown): Promise<{ token: string; channel: "WEB" | "MOBILE" }> {
+    async login(
+        input: unknown,
+    ): Promise<{ token: string; channel: "WEB" | "MOBILE"; userId: string }> {
         const parsed = loginSchema.safeParse(input)
 
         if (!parsed.success) {
@@ -86,7 +88,7 @@ export class AuthService {
             expiresAt,
         })
 
-        return { token, channel }
+        return { token, channel, userId: user.id }
     }
 
     async logout(token: string): Promise<void> {

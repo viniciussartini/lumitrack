@@ -2,6 +2,9 @@ import type { Request, Response, NextFunction } from "express"
 import type { AuthService } from "@/modules/auth/auth.service.js"
 import type { UserService } from "@/modules/user/user.service.js"
 import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
+import type { AuditService } from "@/shared/audit/audit.service.js"
+import { getRequestContext } from "@/shared/audit/requestContext.js"
+import { UnauthorizedError } from "@/shared/errors/AppError.js"
 import { env } from "@/config/env.js"
 import { parseJwtExpiry } from "@/shared/time/parseJwtExpiry.js"
 import {
@@ -14,12 +17,23 @@ export class AuthController {
     constructor(
         private readonly authService: AuthService,
         private readonly userService: UserService,
+        private readonly auditService: AuditService,
     ) {}
 
     // POST /api/auth/login — Público
     async login(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const { token, channel } = await this.authService.login(req.body)
+            const { token, channel, userId } = await this.authService.login(req.body)
+
+            await this.auditService.record({
+                userId,
+                action: "LOGIN",
+                outcome: "SUCCESS",
+                resourceType: "User",
+                resourceId: userId,
+                metadata: { channel },
+                ...getRequestContext(req),
+            })
 
             if (channel === "WEB") {
                 const maxAge = parseJwtExpiry(env.JWT_WEB_EXPIRES_IN)
@@ -41,6 +55,21 @@ export class AuthController {
             // MOBILE — comportamento inalterado.
             res.status(200).json({ status: "success", data: { token } })
         } catch (error) {
+            // Só audita credenciais inválidas — não um corpo malformado
+            // (ValidationError), que não é uma tentativa de login real.
+            if (error instanceof UnauthorizedError) {
+                const attemptedEmail = (req.body as { email?: unknown })?.email
+                await this.auditService.record({
+                    userId: null,
+                    action: "LOGIN",
+                    outcome: "FAILURE",
+                    resourceType: "User",
+                    metadata: {
+                        attemptedEmail: typeof attemptedEmail === "string" ? attemptedEmail : null,
+                    },
+                    ...getRequestContext(req),
+                })
+            }
             next(error)
         }
     }
@@ -60,8 +89,17 @@ export class AuthController {
     // POST /api/auth/logout — Protegido
     async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const { authToken, authSource } = req as AuthenticatedRequest
+            const { authToken, authSource, user } = req as AuthenticatedRequest
             await this.authService.logout(authToken)
+
+            await this.auditService.record({
+                userId: user.id,
+                action: "LOGOUT",
+                outcome: "SUCCESS",
+                resourceType: "User",
+                resourceId: user.id,
+                ...getRequestContext(req),
+            })
 
             if (authSource === "cookie") {
                 // `clearCookie` exige os mesmos atributos usados em `res.cookie`

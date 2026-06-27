@@ -11,6 +11,7 @@
 export type * from './models/User.js'
 export type * from './models/AuthToken.js'
 export type * from './models/PasswordReset.js'
+export type * from './models/AuditLog.js'
 export type * from './models/EnergyDistributor.js'
 export type * from './models/Property.js'
 export type * from './models/Area.js'

@@ -34,6 +34,29 @@ export const TokenChannel = {
 export type TokenChannel = (typeof TokenChannel)[keyof typeof TokenChannel]
 
 
+export const AuditAction = {
+  LOGIN: 'LOGIN',
+  LOGOUT: 'LOGOUT',
+  ACCESS_DENIED: 'ACCESS_DENIED',
+  USER_CREATE: 'USER_CREATE',
+  USER_UPDATE: 'USER_UPDATE',
+  USER_DELETE: 'USER_DELETE',
+  PROPERTY_CREATE: 'PROPERTY_CREATE',
+  PROPERTY_UPDATE: 'PROPERTY_UPDATE',
+  PROPERTY_DELETE: 'PROPERTY_DELETE'
+} as const
+
+export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction]
+
+
+export const AuditOutcome = {
+  SUCCESS: 'SUCCESS',
+  FAILURE: 'FAILURE'
+} as const
+
+export type AuditOutcome = (typeof AuditOutcome)[keyof typeof AuditOutcome]
+
+
 export const ConsumptionPeriod = {
   HOURLY: 'HOURLY',
   DAILY: 'DAILY',

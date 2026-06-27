@@ -9,6 +9,8 @@
  */
 
 import type { AlertResponse } from "@/modules/alert/alert.repository.js"
+import { logger } from "@/shared/logger/logger.js"
+
 export type AlertSseListener = (alert: AlertResponse) => void
 
 export class AlertNotifier {
@@ -59,8 +61,9 @@ export class AlertNotifier {
             try {
                 listener(alert)
             } catch (err) {
-                console.error(
-                    `[AlertNotifier] Erro em listener SSE — userId=${alert.userId}:`, err,
+                logger.error(
+                    { module: "AlertNotifier", userId: alert.userId, err },
+                    "Erro em listener SSE",
                 )
             }
         }

@@ -2,10 +2,14 @@ import express, { type RequestHandler } from "express"
 import cors from "cors"
 import helmet from "helmet"
 import cookieParser from "cookie-parser"
+import { pinoHttp } from "pino-http"
 import { env } from "@/config/env.js"
-import { errorHandler } from "@/shared/middlewares/errorHandler.js"
+import { logger } from "@/shared/logger/logger.js"
+import { createErrorHandler } from "@/shared/middlewares/errorHandler.js"
 import { createAuthenticateMiddleware } from "@/shared/middlewares/authenticate.js"
 import { createGlobalRateLimiter, createAuthRateLimiter } from "@/shared/middlewares/rateLimiter.js"
+import { AuditRepository } from "@/shared/audit/audit.repository.js"
+import { AuditService } from "@/shared/audit/audit.service.js"
 import { PrismaClient } from "@/generated/prisma/client.js"
 import { prisma } from "@/shared/database/prisma.js"
 import type { SendPasswordResetEmailFn } from "@/modules/auth/auth.service.js"
@@ -86,6 +90,19 @@ export function createApp(deps: AppDependencies = {}) {
     // Necessário para o canal WEB ler o cookie de sessão/CSRF em `authenticate`.
     app.use(cookieParser())
 
+    // Log estruturado de requisição/resposta (#08 — A09). `/health` é
+    // ignorado porque é pollado com frequência por load balancer/monitoramento
+    // e só geraria ruído.
+    app.use(pinoHttp({
+        logger,
+        autoLogging: { ignore: (req) => req.url === "/health" },
+        customLogLevel(_req, res, err) {
+            if (err || res.statusCode >= 500) return "error"
+            if (res.statusCode >= 400) return "warn"
+            return "info"
+        },
+    }))
+
     // Rede de segurança global por IP para toda a API.
     app.use(globalRateLimiter)
 
@@ -93,6 +110,7 @@ export function createApp(deps: AppDependencies = {}) {
     app.use(express.urlencoded({ extended: true }))
 
     const authenticate = createAuthenticateMiddleware(prismaClient)
+    const auditService = new AuditService(new AuditRepository(prismaClient))
 
     // Rate limit estrito nos endpoints públicos de autenticação (brute force).
     // Aplicado após o parser de JSON para que a chave possa considerar o e-mail.
@@ -100,17 +118,17 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/auth/forgot-password", authRateLimiter)
     app.use("/api/auth/reset-password", authRateLimiter)
 
-    app.use("/api/users", userRoutes(authenticate, prismaClient))
-    app.use("/api/auth", authRoutes(authenticate, prismaClient, sendPasswordResetEmail))
+    app.use("/api/users", userRoutes(authenticate, prismaClient, auditService))
+    app.use("/api/auth", authRoutes(authenticate, prismaClient, sendPasswordResetEmail, auditService))
     app.use("/api/distributors", distributorRoutes(authenticate, prismaClient))
-    app.use("/api/properties", propertyRoutes(authenticate, prismaClient, alertNotifier ?? new AlertNotifier()))
+    app.use("/api/properties", propertyRoutes(authenticate, prismaClient, alertNotifier ?? new AlertNotifier(), auditService))
     app.use("/api/alerts", alertRoutes(authenticate, prismaClient, alertNotifier ?? new AlertNotifier()))
 
     if (processor && alertNotifier) {
         app.use("/api/iot", iotStreamRoutes(authenticate, prismaClient, processor, alertNotifier))
     }
 
-    app.use(errorHandler)
+    app.use(createErrorHandler(auditService))
 
     return app
 }

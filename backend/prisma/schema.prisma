@@ -33,6 +33,28 @@ enum TokenChannel {
   MOBILE
 }
 
+// Eventos de segurança registrados no audit log (#08 — A09/Art. 46).
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  ACCESS_DENIED
+  USER_CREATE
+  USER_UPDATE
+  USER_DELETE
+  PROPERTY_CREATE
+  PROPERTY_UPDATE
+  PROPERTY_DELETE
+
+  @@map("audit_action")
+}
+
+enum AuditOutcome {
+  SUCCESS
+  FAILURE
+
+  @@map("audit_outcome")
+}
+
 // Granularidade das entradas de histórico de consumo
 enum ConsumptionPeriod {
   HOURLY
@@ -102,6 +124,7 @@ model User {
   tokens         AuthToken[]
   passwordResets PasswordReset[]
   alerts         Alert[]
+  auditLogs      AuditLog[]
 
   @@map("users")
 }
@@ -139,6 +162,34 @@ model PasswordReset {
 
   @@index([token])
   @@map("password_resets")
+}
+
+// Trilha de auditoria (#08 — A09/Art. 46): login/logout, acesso negado (403)
+// e CRUD de dados pessoais (User/Property). `userId` é nullable e usa
+// `onDelete: SetNull` — diferente das outras relações com User (que usam
+// Cascade) — de propósito: o registro de auditoria deve sobreviver à
+// exclusão da conta (é exatamente o tipo de evento que o Art. 48 pede pra
+// conseguir reconstruir depois de um incidente). `metadata` guarda contexto
+// adicional sem incluir valores sensíveis (ex.: nomes de campos alterados,
+// nunca os valores em si).
+model AuditLog {
+  id           String       @id @default(uuid())
+  userId       String?
+  action       AuditAction
+  outcome      AuditOutcome
+  resourceType String?
+  resourceId   String?
+  ipAddress    String?
+  userAgent    String?
+  metadata     Json?
+  createdAt    DateTime     @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -307,3 +307,68 @@ describe("DELETE /api/users/:id", () => {
         expect(response.status).toBe(401)
     })
 })
+
+// ---
+// Audit log (#08 — A09): USER_CREATE/UPDATE/DELETE + ACCESS_DENIED
+// ---
+
+describe("Audit log", () => {
+    it("registra USER_CREATE/SUCCESS ao cadastrar", async () => {
+        const response = await request(app).post("/api/users").send(validIndividualBody)
+
+        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "USER_CREATE" } })
+        expect(logs).toHaveLength(1)
+        expect(logs[0]).toMatchObject({
+            action: "USER_CREATE",
+            outcome: "SUCCESS",
+            resourceType: "User",
+            resourceId: response.body.data.id,
+            userId: response.body.data.id,
+        })
+    })
+
+    it("registra USER_UPDATE/SUCCESS com os nomes dos campos alterados (não os valores)", async () => {
+        const { userId, token } = await registerAndLogin()
+
+        await request(app)
+            .put(`/api/users/${userId}`)
+            .set("Authorization", `Bearer ${token}`)
+            .send({ firstName: "Carlos", lastName: "Souza" })
+
+        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "USER_UPDATE" } })
+        expect(logs).toHaveLength(1)
+        expect(logs[0]).toMatchObject({ outcome: "SUCCESS", resourceType: "User", resourceId: userId })
+        expect((logs[0]?.metadata as { fields?: string[] } | null)?.fields).toEqual(
+            expect.arrayContaining(["firstName", "lastName"]),
+        )
+    })
+
+    it("registra USER_DELETE/SUCCESS com userId null (a conta já não existe)", async () => {
+        const { userId, token } = await registerAndLogin()
+
+        await request(app)
+            .delete(`/api/users/${userId}`)
+            .set("Authorization", `Bearer ${token}`)
+
+        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "USER_DELETE" } })
+        expect(logs).toHaveLength(1)
+        expect(logs[0]).toMatchObject({ outcome: "SUCCESS", resourceType: "User", resourceId: userId, userId: null })
+    })
+
+    it("registra ACCESS_DENIED ao tentar acessar perfil de outro usuário (403)", async () => {
+        const { userId, token } = await registerAndLogin()
+
+        await request(app)
+            .get("/api/users/00000000-0000-0000-0000-000000000002")
+            .set("Authorization", `Bearer ${token}`)
+
+        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "ACCESS_DENIED" } })
+        expect(logs).toHaveLength(1)
+        expect(logs[0]).toMatchObject({
+            action: "ACCESS_DENIED",
+            outcome: "FAILURE",
+            userId,
+            resourceType: "users",
+        })
+    })
+})
