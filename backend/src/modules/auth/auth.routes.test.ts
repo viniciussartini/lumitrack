@@ -3,6 +3,7 @@ import request from "supertest"
 import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
+import { hashToken } from "@/shared/crypto/hashToken.js"
 
 // O mock de e-mail é criado uma vez e injetado no app via createApp().
 // Isso garante que nenhum e-mail real seja disparado durante os testes HTTP.
@@ -164,6 +165,41 @@ describe("POST /api/auth/logout", () => {
         const response = await request(app).post("/api/auth/logout")
 
         expect(response.status).toBe(401)
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Expiração de token (#04 — MOBILE agora expira; token armazenado como hash)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("Expiração de token", () => {
+    it("deve persistir o hash do token (não o JWT puro) em auth_tokens", async () => {
+        const token = await registerAndLogin("WEB")
+
+        const byRawToken = await prismaHttpTest.authToken.findUnique({ where: { token } })
+        expect(byRawToken).toBeNull()
+
+        const byHash = await prismaHttpTest.authToken.findUnique({
+            where: { token: hashToken(token) },
+        })
+        expect(byHash).not.toBeNull()
+    })
+
+    it("deve retornar 401 para token MOBILE expirado (não dura mais para sempre)", async () => {
+        const token = await registerAndLogin("MOBILE")
+
+        // Simula a passagem do tempo: força o expiresAt para o passado.
+        await prismaHttpTest.authToken.update({
+            where: { token: hashToken(token) },
+            data: { expiresAt: new Date(Date.now() - 1000) },
+        })
+
+        const response = await request(app)
+            .get("/api/distributors")
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(401)
+        expect(response.body.message).toBe("Token expirado")
     })
 })
 

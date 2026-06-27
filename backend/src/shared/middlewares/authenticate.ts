@@ -4,6 +4,7 @@ import { env } from "@/config/env.js"
 import { UnauthorizedError } from "@/shared/errors/AppError.js"
 import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import { PrismaClient } from "@/generated/prisma/client.js"
+import { hashToken } from "@/shared/crypto/hashToken.js"
 
 // Extendemos o tipo Request do Express para incluir o usuário autenticado.
 // Isso evita usar `any` e mantém a tipagem segura em todos os controllers.
@@ -33,7 +34,7 @@ export function createAuthenticateMiddleware(prisma: PrismaClient) {
             }
 
             const payload = jwt.verify(token, env.JWT_SECRET) as AuthenticatedRequest["user"]
-            const storedToken = await authRepository.findActiveToken(token)
+            const storedToken = await authRepository.findActiveToken(hashToken(token))
 
             if (!storedToken) {
                 throw new UnauthorizedError("Token inválido")

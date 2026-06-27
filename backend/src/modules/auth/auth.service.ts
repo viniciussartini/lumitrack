@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken"
 import { randomUUID } from "crypto"
 import { z } from "zod"
 import { env } from "@/config/env.js"
+import { hashToken } from "@/shared/crypto/hashToken.js"
 import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import {
     loginSchema,
@@ -61,22 +62,25 @@ export class AuthService {
             userType: user.userType,
         }
 
-        const webOptions: jwt.SignOptions = {
-            expiresIn: env.JWT_WEB_EXPIRES_IN as StringValue,
+        // Web expira rápido (sessão curta); mobile expira mais tarde, mas
+        // SEMPRE expira — um token vazado não pode ter validade indefinida.
+        const expiresInByChannel: Record<typeof channel, StringValue> = {
+            WEB: env.JWT_WEB_EXPIRES_IN as StringValue,
+            MOBILE: env.MOBILE_TOKEN_EXPIRES_IN as StringValue,
         }
-        const token =
-            channel === "WEB"
-                ? jwt.sign(jwtPayload, env.JWT_SECRET, webOptions)
-                : jwt.sign(jwtPayload, env.JWT_SECRET)
+        const signOptions: jwt.SignOptions = {
+            expiresIn: expiresInByChannel[channel],
+        }
+        const token = jwt.sign(jwtPayload, env.JWT_SECRET, signOptions)
 
-        const expiresAt =
-            channel === "WEB"
-                ? new Date(Date.now() + parseJwtExpiry(env.JWT_WEB_EXPIRES_IN))
-                : null
+        const expiresAt = new Date(Date.now() + parseJwtExpiry(expiresInByChannel[channel]))
 
+        // O JWT em si nunca é persistido — apenas seu hash (SHA-256). Em caso
+        // de vazamento do dump do banco, o hash não permite reconstruir um
+        // token de sessão válido.
         await this.authRepository.createAuthToken({
             userId: user.id,
-            token,
+            token: hashToken(token),
             channel,
             expiresAt,
         })
@@ -85,7 +89,8 @@ export class AuthService {
     }
 
     async logout(token: string): Promise<void> {
-        const stored = await this.authRepository.findActiveToken(token)
+        const hashedToken = hashToken(token)
+        const stored = await this.authRepository.findActiveToken(hashedToken)
 
         if (!stored) {
             throw new UnauthorizedError("Token inválido")
@@ -95,7 +100,7 @@ export class AuthService {
             throw new UnauthorizedError("Token já foi revogado")
         }
 
-        await this.authRepository.revokeToken(token)
+        await this.authRepository.revokeToken(hashedToken)
     }
 
     async forgotPassword(input: unknown): Promise<void> {

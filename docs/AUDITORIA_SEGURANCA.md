@@ -58,9 +58,9 @@ Evidências são referenciadas no formato `arquivo:linha`.
 | A01 | Broken Access Control | Autorização por posse de recurso presente e consistente (✅). Atenção: `userType` (INDIVIDUAL/COMPANY) não é RBAC real — sem papel admin/escopos. | 🟢 Baixo |
 | A02 | Security Misconfiguration | Helmet com config padrão (sem CSP explícito); CORS lê `CORS_ORIGIN` do env sem guard contra `*`; sem enforce de HTTPS/HSTS na aplicação; backend sem `.env.example`. | 🟠 Alto |
 | A03 | Software Supply Chain Failures | 3 vulns moderadas no backend (`@hono/node-server` via `@prisma/dev` — **dependência de desenvolvimento**, risco real reduzido); sem CI com auditoria automática; sem Dependabot. | 🟡 Médio |
-| A04 | Cryptographic Failures | CPF/CNPJ e endereço em **texto claro**; **JWT armazenado em texto claro** em `auth_tokens.token`. Senhas com bcrypt 12 (✅). | 🟠 Alto |
+| A04 | Cryptographic Failures | CPF/CNPJ e endereço em **texto claro**; ~~JWT armazenado em texto claro~~ **corrigido (#04)** — agora SHA-256. Senhas com bcrypt 12 (✅). | 🟢 Baixo (era 🟠 Alto) |
 | A05 | Injection | Prisma parametrizado, sem `$queryRaw`; React escapa por padrão, sem `dangerouslySetInnerHTML` (✅). | 🟢 Baixo |
-| A06 | Insecure Design | Tokens MOBILE **nunca expiram**; sem refresh token; política de senha sem caractere especial; sem rate limit por design. | 🟠 Alto |
+| A06 | Insecure Design | ~~Tokens MOBILE nunca expiram~~ **corrigido (#04)** — expiram após `MOBILE_TOKEN_EXPIRES_IN` (default 90d); sem refresh token; política de senha sem caractere especial; sem rate limit por design. | 🟡 Médio (era 🟠 Alto) |
 | A07 | Authentication Failures | **Sem rate limiting / proteção brute-force** em `/login`, `/forgot-password`, `/reset-password`; sem lockout; sem MFA. Anti-enumeração no forgot-password (✅). | 🔴 Crítico |
 | A08 | Software/Data Integrity Failures | Sem CI/CD; sem verificação de integridade de build; scripts de dependência não controlados. | 🟡 Médio |
 | A09 | Logging & Alerting Failures | Apenas `console.*` (~35 ocorrências); **sem audit log** de login/logout, acessos negados (403) e CRUD de dados pessoais; sem logger estruturado nem alerta. | 🟠 Alto |
@@ -71,13 +71,18 @@ Evidências são referenciadas no formato `arquivo:linha`.
 - **A07 — Sem rate limiting (Crítico).** Os endpoints públicos de autenticação não
   possuem qualquer limitação de taxa. Evidência: [app.ts](../backend/src/app.ts)
   (cadeia de middlewares) e [auth.routes.ts](../backend/src/modules/auth/auth.routes.ts).
-- **A04 — JWT em texto claro no banco.** O token JWT completo é persistido em
-  `auth_tokens.token`. Evidência: [schema.prisma:104](../backend/prisma/schema.prisma#L104),
-  [auth.service.ts:77-82](../backend/src/modules/auth/auth.service.ts#L77-L82).
+- **A04 — JWT em texto claro no banco — ✅ corrigido (#04).** O token agora é
+  hasheado (SHA-256) antes de persistir em `auth_tokens.token`; o JWT puro nunca
+  é gravado. Evidência: [hashToken.ts](../backend/src/shared/crypto/hashToken.ts),
+  [auth.service.ts](../backend/src/modules/auth/auth.service.ts),
+  [authenticate.ts](../backend/src/shared/middlewares/authenticate.ts).
 - **A04 — CPF/CNPJ em texto claro.** Evidência:
-  [schema.prisma:79-83](../backend/prisma/schema.prisma#L79-L83).
-- **A06 — Token MOBILE sem expiração.** `expiresAt = null` para canal MOBILE.
-  Evidência: [auth.service.ts:72-75](../backend/src/modules/auth/auth.service.ts#L72-L75).
+  [schema.prisma:79-83](../backend/prisma/schema.prisma#L79-L83). Pendente — ver #07.
+- **A06 — Token MOBILE sem expiração — ✅ corrigido (#04).** Tokens MOBILE agora
+  expiram após `MOBILE_TOKEN_EXPIRES_IN` (default 90 dias), tanto no `exp` do
+  JWT quanto no `expiresAt` persistido — verificado pelo middleware
+  `authenticate.ts` a cada requisição. Evidência:
+  [env.ts](../backend/src/config/env.ts), [auth.service.ts](../backend/src/modules/auth/auth.service.ts).
 - **A02 — CORS/Helmet/HTTPS.** Evidência:
   [app.ts:35-39](../backend/src/app.ts#L35-L39), [env.ts:21](../backend/src/config/env.ts#L21).
 - **A09 — Logging.** Uso de `console.error` no handler global e ausência de trilha
@@ -122,7 +127,7 @@ Registro formal da auditoria — base para governança e Art. 48.
 - **#01** Rate limiting nos endpoints de autenticação (A07)
 - **#02** Consentimento LGPD no cadastro (Art. 7º)
 - **#03** Política de Privacidade e Termos de Uso (Art. 9º)
-- **#04** Expiração de token MOBILE + hash do JWT no banco (A04/A06)
+- **#04** ✅ Expiração de token MOBILE + hash do JWT no banco (A04/A06)
 - **#05** Hardening de CORS/Helmet/HTTPS + `backend/.env.example` (A02)
 
 ### Fase 2 — Alto

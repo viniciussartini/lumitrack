@@ -5,6 +5,7 @@ import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 import { UnauthorizedError, BadRequestError } from "@/shared/errors/AppError.js"
+import { hashToken } from "@/shared/crypto/hashToken.js"
 
 // ─── Instâncias ───────────────────────────────────────────────────────────────
 // O AuthService recebe duas dependências por injeção:
@@ -74,7 +75,7 @@ describe("AuthService", () => {
             expect(result.token.split(".")).toHaveLength(3)
         })
 
-        it("deve persistir o token na tabela auth_tokens após login WEB", async () => {
+        it("deve persistir o HASH do token (não o JWT puro) na tabela auth_tokens após login WEB", async () => {
             const { UserService } = await import("@/modules/user/user.service.js")
             const userService = new UserService(userRepository)
             await userService.createUser(validUser)
@@ -85,9 +86,15 @@ describe("AuthService", () => {
                 channel: "WEB",
             })
 
-            // O token deve existir no banco — não apenas na memória
-            const storedToken = await prismaTest.authToken.findUnique({
+            // O JWT puro NUNCA é persistido — apenas seu hash
+            const storedRaw = await prismaTest.authToken.findUnique({
                 where: { token: result.token },
+            })
+            expect(storedRaw).toBeNull()
+
+            // O token deve existir no banco pelo hash — não apenas na memória
+            const storedToken = await prismaTest.authToken.findUnique({
+                where: { token: hashToken(result.token) },
             })
 
             expect(storedToken).not.toBeNull()
@@ -98,11 +105,12 @@ describe("AuthService", () => {
             expect(storedToken?.revokedAt).toBeNull()
         })
 
-        it("deve persistir token MOBILE sem expiresAt (mobile não expira)", async () => {
+        it("deve persistir token MOBILE com expiresAt preenchido (token vazado não dura para sempre)", async () => {
             const { UserService } = await import("@/modules/user/user.service.js")
             const userService = new UserService(userRepository)
             await userService.createUser(validUser)
 
+            const beforeLogin = Date.now()
             const result = await authService.login({
                 email: "joao@example.com",
                 password: "Senha@123",
@@ -110,12 +118,14 @@ describe("AuthService", () => {
             })
 
             const storedToken = await prismaTest.authToken.findUnique({
-                where: { token: result.token },
+                where: { token: hashToken(result.token) },
             })
 
             expect(storedToken?.channel).toBe("MOBILE")
-            // Para MOBILE, expiresAt deve ser null — o token nunca expira por tempo
-            expect(storedToken?.expiresAt).toBeNull()
+            // Para MOBILE, expiresAt agora é preenchido (default 90 dias) —
+            // um token vazado não tem mais validade indefinida.
+            expect(storedToken?.expiresAt).not.toBeNull()
+            expect(storedToken!.expiresAt!.getTime()).toBeGreaterThan(beforeLogin)
         })
 
         it("deve lançar UnauthorizedError para e-mail inexistente", async () => {
@@ -197,7 +207,7 @@ describe("AuthService", () => {
             await authService.logout(token)
 
             const storedToken = await prismaTest.authToken.findUnique({
-                where: { token },
+                where: { token: hashToken(token) },
             })
 
             expect(storedToken?.revokedAt).not.toBeNull()

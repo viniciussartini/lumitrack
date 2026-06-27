@@ -10,6 +10,10 @@ const envSchema = z.object({
 
     JWT_SECRET: z.string().min(32, { message: "JWT_SECRET deve ter ao menos 32 caracteres" }),
     JWT_WEB_EXPIRES_IN: z.string().default("15m"),
+    // Tokens MOBILE não tinham expiração por tempo (apenas revogação manual
+    // via logout) — um token vazado tinha validade indefinida. Agora expiram
+    // após um período mais longo que o WEB, adequado a sessões mobile.
+    MOBILE_TOKEN_EXPIRES_IN: z.string().default("90d"),
 
     SMTP_HOST: z.string(),
     SMTP_PORT: z.coerce.number().default(587),

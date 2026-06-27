@@ -7,7 +7,7 @@ export interface JwtPayload {
     email: string
     userType: UserType
     iat: number
-    exp?: number  // opcional — tokens MOBILE não têm exp
+    exp?: number  // opcional só por segurança de tipo — todo token (WEB ou MOBILE) tem exp
 }
 
 // Usuário completo (vem de GET /api/users/:id)
