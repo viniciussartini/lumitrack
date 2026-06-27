@@ -2,7 +2,7 @@
 
 > **Escopo:** OWASP Top 10:2025 + conformidade com a LGPD (Lei nº 13.709/2018)
 > **Data da auditoria:** 2026-06-27
-> **Versão do documento:** 1.0
+> **Versão do documento:** 1.1
 > **Branch de remediação:** `security/owasp-lgpd-remediation`
 > **Stack auditado:** Backend Node.js/TypeScript (Express 5, Prisma 7, PostgreSQL) · Frontend React 19/Vite
 
@@ -21,7 +21,7 @@ ORM parametrizado (sem SQL raw). Entretanto, foram identificadas **lacunas de
 segurança e não-conformidades críticas com a LGPD** que impedem a operação em
 produção com usuários reais.
 
-**Principais riscos:**
+**Principais riscos (estado original da auditoria, 2026-06-27):**
 
 | Severidade | Quantidade | Exemplos |
 |------------|-----------|----------|
@@ -29,6 +29,15 @@ produção com usuários reais.
 | 🟠 Alto    | 5 | CPF/CNPJ e JWT em texto claro; sem consentimento LGPD; sem audit log; token mobile sem expiração; misconfig de CORS/Helmet/HTTPS |
 | 🟡 Médio   | 3 | Vulns de dependência (dev); sem CI/CD com gates; política de senha fraca |
 | 🟢 Baixo   | 3 | Injection (mitigado); RBAC raso; tratamento de exceções (mitigado) |
+
+**Estado atual (pós #01/#02/#04/#05 — ver Seção 3 e `IMPLEMENTATION_LOG.md`):**
+
+| Severidade | Quantidade | Categorias |
+|------------|-----------|----------|
+| 🔴 Crítico | 0 | — |
+| 🟠 Alto    | 1 | A09 (sem audit log — pendente #08) |
+| 🟡 Médio   | 5 | A03, A04 (CPF/CNPJ ainda em texto claro — pendente #07), A06, A07, A08 |
+| 🟢 Baixo   | 4 | A01, A02, A05, A10 |
 
 A remediação está organizada em **4 fases** (ver Seção 6), iniciando pelos itens
 críticos antes de qualquer ida a produção.
@@ -56,21 +65,23 @@ Evidências são referenciadas no formato `arquivo:linha`.
 | Cat. | Categoria | Achado | Severidade |
 |------|-----------|--------|------------|
 | A01 | Broken Access Control | Autorização por posse de recurso presente e consistente (✅). Atenção: `userType` (INDIVIDUAL/COMPANY) não é RBAC real — sem papel admin/escopos. | 🟢 Baixo |
-| A02 | Security Misconfiguration | Helmet com config padrão (sem CSP explícito); CORS lê `CORS_ORIGIN` do env sem guard contra `*`; sem enforce de HTTPS/HSTS na aplicação; backend sem `.env.example`. | 🟠 Alto |
+| A02 | Security Misconfiguration | ~~Helmet com config padrão~~ ~~CORS sem guard~~ ~~sem HTTPS/HSTS~~ ~~sem `.env.example`~~ **corrigido (#05)** — CSP explícito (deny-all, API pura), HSTS explícito, guard `CORS_ORIGIN='*'` bloqueado em produção, redirect HTTP→HTTPS + `trust proxy` em produção, `.env.example` criado. | 🟢 Baixo (era 🟠 Alto) |
 | A03 | Software Supply Chain Failures | 3 vulns moderadas no backend (`@hono/node-server` via `@prisma/dev` — **dependência de desenvolvimento**, risco real reduzido); sem CI com auditoria automática; sem Dependabot. | 🟡 Médio |
-| A04 | Cryptographic Failures | CPF/CNPJ e endereço em **texto claro**; ~~JWT armazenado em texto claro~~ **corrigido (#04)** — agora SHA-256. Senhas com bcrypt 12 (✅). | 🟢 Baixo (era 🟠 Alto) |
+| A04 | Cryptographic Failures | CPF/CNPJ e endereço **ainda em texto claro** (pendente — ver #07); ~~JWT armazenado em texto claro~~ **corrigido (#04)** — agora SHA-256. Senhas com bcrypt 12 (✅). | 🟡 Médio (era 🟠 Alto) |
 | A05 | Injection | Prisma parametrizado, sem `$queryRaw`; React escapa por padrão, sem `dangerouslySetInnerHTML` (✅). | 🟢 Baixo |
 | A06 | Insecure Design | ~~Tokens MOBILE nunca expiram~~ **corrigido (#04)** — expiram após `MOBILE_TOKEN_EXPIRES_IN` (default 90d); sem refresh token; política de senha sem caractere especial; sem rate limit por design. | 🟡 Médio (era 🟠 Alto) |
-| A07 | Authentication Failures | **Sem rate limiting / proteção brute-force** em `/login`, `/forgot-password`, `/reset-password`; sem lockout; sem MFA. Anti-enumeração no forgot-password (✅). | 🔴 Crítico |
+| A07 | Authentication Failures | ~~Sem rate limiting / proteção brute-force~~ **corrigido (#01)** — limiter global por IP + limiter estrito por IP+e-mail em `/login`, `/forgot-password`, `/reset-password`. Ainda sem lockout de conta e sem MFA (gaps menores, não bloqueantes). Anti-enumeração no forgot-password (✅). | 🟡 Médio (era 🔴 Crítico) |
 | A08 | Software/Data Integrity Failures | Sem CI/CD; sem verificação de integridade de build; scripts de dependência não controlados. | 🟡 Médio |
 | A09 | Logging & Alerting Failures | Apenas `console.*` (~35 ocorrências); **sem audit log** de login/logout, acessos negados (403) e CRUD de dados pessoais; sem logger estruturado nem alerta. | 🟠 Alto |
 | A10 | Mishandling of Exceptional Conditions | Error handler global cobre Zod/AppError/500 e não vaza stack em produção (✅). Atenção: sem request-id correlacionável e sem handler central documentado de `unhandledRejection`. | 🟢 Baixo |
 
 ### 3.1 Detalhamento e evidências
 
-- **A07 — Sem rate limiting (Crítico).** Os endpoints públicos de autenticação não
-  possuem qualquer limitação de taxa. Evidência: [app.ts](../backend/src/app.ts)
-  (cadeia de middlewares) e [auth.routes.ts](../backend/src/modules/auth/auth.routes.ts).
+- **A07 — Sem rate limiting — ✅ corrigido (#01).** Limiter global por IP em
+  toda a API + limiter estrito por IP+e-mail em `/login`, `/forgot-password`,
+  `/reset-password` (`429` via `TooManyRequestsError`). Evidência:
+  [rateLimiter.ts](../backend/src/shared/middlewares/rateLimiter.ts),
+  [app.ts](../backend/src/app.ts).
 - **A04 — JWT em texto claro no banco — ✅ corrigido (#04).** O token agora é
   hasheado (SHA-256) antes de persistir em `auth_tokens.token`; o JWT puro nunca
   é gravado. Evidência: [hashToken.ts](../backend/src/shared/crypto/hashToken.ts),
@@ -83,8 +94,13 @@ Evidências são referenciadas no formato `arquivo:linha`.
   JWT quanto no `expiresAt` persistido — verificado pelo middleware
   `authenticate.ts` a cada requisição. Evidência:
   [env.ts](../backend/src/config/env.ts), [auth.service.ts](../backend/src/modules/auth/auth.service.ts).
-- **A02 — CORS/Helmet/HTTPS.** Evidência:
-  [app.ts:35-39](../backend/src/app.ts#L35-L39), [env.ts:21](../backend/src/config/env.ts#L21).
+- **A02 — CORS/Helmet/HTTPS — ✅ corrigido (#05).** CSP explícito deny-all
+  (`default-src 'none'`, `frame-ancestors 'none'` — apropriado para API JSON
+  pura, sem HTML servido); HSTS explícito (1 ano, `includeSubDomains`,
+  `preload`); guard que rejeita `CORS_ORIGIN='*'` quando `NODE_ENV=production`
+  (boot falha); `trust proxy` + redirect 301 HTTP→HTTPS em produção;
+  `backend/.env.example` criado. Evidência: [app.ts](../backend/src/app.ts),
+  [env.ts](../backend/src/config/env.ts), [env.test.ts](../backend/src/config/env.test.ts).
 - **A09 — Logging.** Uso de `console.error` no handler global e ausência de trilha
   de auditoria. Evidência: [errorHandler.ts:32](../backend/src/shared/middlewares/errorHandler.ts#L32).
 - **Armazenamento de sessão no frontend.** JWT em `localStorage` (exposto a XSS).
@@ -123,12 +139,12 @@ podem chegar a **R$ 50 milhões ou 2% do faturamento** por infração (Art. 52).
 ### Fase 0 — Documentação (este documento) · #00
 Registro formal da auditoria — base para governança e Art. 48.
 
-### Fase 1 — Crítico (antes de produção)
-- **#01** Rate limiting nos endpoints de autenticação (A07)
-- **#02** Consentimento LGPD no cadastro (Art. 7º)
-- **#03** Política de Privacidade e Termos de Uso (Art. 9º)
+### Fase 1 — Crítico (antes de produção) — ✅ Concluída (2026-06-27)
+- **#01** ✅ Rate limiting nos endpoints de autenticação (A07)
+- **#02** ✅ Consentimento LGPD no cadastro (Art. 7º)
+- **#03** ✅ Política de Privacidade e Termos de Uso (Art. 9º)
 - **#04** ✅ Expiração de token MOBILE + hash do JWT no banco (A04/A06)
-- **#05** Hardening de CORS/Helmet/HTTPS + `backend/.env.example` (A02)
+- **#05** ✅ Hardening de CORS/Helmet/HTTPS + `backend/.env.example` (A02)
 
 ### Fase 2 — Alto
 - **#06** Sessão via httpOnly cookies + CSRF (A02/A07) — *decisão: migrar de localStorage*
@@ -185,3 +201,4 @@ Registro formal da auditoria — base para governança e Art. 48.
 | Versão | Data | Autor | Mudança |
 |--------|------|-------|---------|
 | 1.0 | 2026-06-27 | Auditoria de Segurança | Versão inicial (Fase 0) |
+| 1.1 | 2026-06-27 | Auditoria de Segurança | Fase 1 concluída (#01-#05): status, severidades e contadores atualizados para refletir as correções aplicadas (rate limiting, consentimento LGPD, Política de Privacidade/Termos, hash de token + expiração MOBILE, hardening CORS/Helmet/HTTPS). Corrigida inconsistência no achado A04 (CPF/CNPJ ainda pendente — não deveria ter sido marcado como Baixo). |

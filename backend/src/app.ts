@@ -37,7 +37,41 @@ export function createApp(deps: AppDependencies = {}) {
 
     const app = express()
 
-    app.use(helmet())
+    if (env.NODE_ENV === "production") {
+        // Confia em 1 hop de proxy reverso (nginx/ALB/etc. na frente da app).
+        // Necessário para req.secure e req.ip refletirem o cliente real
+        // (X-Forwarded-Proto/X-Forwarded-For) em vez do proxy — sem isso, o
+        // rate limiter por IP trataria todos os clientes como um único IP.
+        app.set("trust proxy", 1)
+
+        // Redireciona HTTP → HTTPS antes de qualquer outro middleware.
+        app.use((req, res, next) => {
+            if (!req.secure) {
+                res.redirect(301, `https://${req.headers.host}${req.originalUrl}`)
+                return
+            }
+            next()
+        })
+    }
+
+    app.use(helmet({
+        // CSP padrão do Helmet é pensado para apps que servem HTML/JS/CSS.
+        // Este backend é uma API JSON pura (+ SSE) — nada deve ser carregado
+        // como documento sob esta origem, então negamos tudo explicitamente.
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'none'"],
+                frameAncestors: ["'none'"],
+            },
+        },
+        // HSTS explícito (1 ano, incluindo subdomínios) — força HTTPS em
+        // navegadores que já visitaram a API ao menos uma vez por HTTPS.
+        hsts: {
+            maxAge: 31536000,
+            includeSubDomains: true,
+            preload: true,
+        },
+    }))
     app.use(cors({
         origin: env.CORS_ORIGIN,
         credentials: true,

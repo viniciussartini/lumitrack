@@ -2,7 +2,9 @@ import { z } from "zod"
 import "dotenv/config"
 
 // Schema de validação das variáveis de ambiente.
-const envSchema = z.object({
+// Exportado (além de `env`) para permitir teste unitário do schema em
+// isolamento, sem depender do `process.exit` disparado abaixo.
+export const envSchema = z.object({
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     PORT: z.coerce.number().default(3333),
 
@@ -33,7 +35,13 @@ const envSchema = z.object({
     // Rate limiting estrito para endpoints públicos de autenticação (brute force).
     AUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().default(15 * 60 * 1000),
     AUTH_RATE_LIMIT_MAX: z.coerce.number().default(10),
-})
+}).refine(
+    (data) => !(data.NODE_ENV === "production" && data.CORS_ORIGIN === "*"),
+    {
+        message: "CORS_ORIGIN não pode ser '*' em produção (combinado com credentials: true, isso expõe a API a qualquer origem)",
+        path: ["CORS_ORIGIN"],
+    },
+)
 
 const parsed = envSchema.safeParse(process.env)
 
