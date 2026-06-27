@@ -4,6 +4,7 @@ import { randomUUID } from "crypto"
 import { z } from "zod"
 import { env } from "@/config/env.js"
 import { hashToken } from "@/shared/crypto/hashToken.js"
+import { parseJwtExpiry } from "@/shared/time/parseJwtExpiry.js"
 import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import {
     loginSchema,
@@ -34,7 +35,7 @@ export class AuthService {
         private readonly sendPasswordResetEmail: SendPasswordResetEmailFn,
     ) {}
 
-    async login(input: unknown): Promise<{ token: string }> {
+    async login(input: unknown): Promise<{ token: string; channel: "WEB" | "MOBILE" }> {
         const parsed = loginSchema.safeParse(input)
 
         if (!parsed.success) {
@@ -85,7 +86,7 @@ export class AuthService {
             expiresAt,
         })
 
-        return { token }
+        return { token, channel }
     }
 
     async logout(token: string): Promise<void> {
@@ -166,28 +167,4 @@ export class AuthService {
             this.authRepository.markPasswordResetAsUsed(reset.id),
         ])
     }
-}
-
-// Converte a string de expiração do JWT (ex: "15m", "1h", "7d") para milissegundos.
-// Calcula o `expiresAt` que armazenado no banco
-// Suporta: s (segundos), m (minutos), h (horas), d (dias)
-function parseJwtExpiry(expiry: string): number {
-    const match = expiry.match(/^(\d+)([smhd])$/)
-
-    if (!match) {
-        // Fallback seguro: 15 minutos
-        return 15 * 60 * 1000
-    }
-
-    const value = parseInt(match[1]!)
-    const unit = match[2]!
-
-    const multipliers: Record<string, number> = {
-        s: 1000,
-        m: 60 * 1000,
-        h: 60 * 60 * 1000,
-        d: 24 * 60 * 60 * 1000,
-    }
-
-    return value * (multipliers[unit] ?? 60 * 1000)
 }

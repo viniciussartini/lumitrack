@@ -3,7 +3,6 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
 import { createAlertStream } from "@/lib/sse/alertStream"
-import { storage, STORAGE_KEYS } from "@/lib/storage"
 import { useAuth } from "@/contexts/AuthContext"
 import { queryKeys } from "@/lib/queryClient"
 import { formatThresholdKwh } from "@/lib/formatters/alert"
@@ -13,7 +12,7 @@ import type { Alert } from "@/types/alert.types"
  * Hook que mantém o stream SSE ativo enquanto o usuário está autenticado.
  *
  * Responsabilidades:
- *   1. Abrir SSE com o token atual quando o user autentica
+ *   1. Abrir SSE (autenticado via cookie httpOnly) quando o user autentica
  *   2. Fechar quando deslogar (ou quando o componente que usa o hook desmontar)
  *   3. Invalidar queries de alertas ao receber novo evento
  *   4. Disparar toast com botão "Ver" que leva pra /alertas?triggered=true
@@ -32,9 +31,9 @@ import type { Alert } from "@/types/alert.types"
  *   - Reconecta quando troca de usuário (cenário raro mas possível em
  *     dev/testes)
  *   - Não reconecta em outras mudanças (evita reabrir SSE sem necessidade)
- *   - Lê o token via storage.get (não como dep) porque é um valor
- *     imperativo: queremos o que está NESSE momento no localStorage,
- *     não rastrear mudanças dele
+ *   - Autenticação via cookie httpOnly (credentials:"include" em
+ *     alertStream.ts), enviado automaticamente pelo browser — não há
+ *     token a ler em JS
  *
  * Sobre o toast:
  *   - Variante "warning" (sonner) — entre success (verde) e error (vermelho).
@@ -53,11 +52,7 @@ export const useAlertStream = (): void => {
     useEffect(() => {
         if (!isAuthenticated || !user) return
 
-        const token = storage.get(STORAGE_KEYS.TOKEN)
-        if (!token) return
-
         const cleanup = createAlertStream({
-            token,
             onAlert: (alert: Alert) => {
                 // Invalida cache pra que badges e listas reflitam o novo alerta.
                 // alerts.all cobre tanto a inbox global quanto as sections nested.

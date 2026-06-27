@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import { AuthProvider, useAuth } from "@/contexts/AuthContext"
 import { authService } from "@/services/auth.service"
-import type { User, JwtPayload } from "@/types/auth.types"
+import type { User } from "@/types/auth.types"
 
 // useNavigate precisa de um Router no contexto — MemoryRouter resolve isso.
 // O mock abaixo evita erros de "navigate is not a function" nos testes
@@ -18,8 +18,8 @@ vi.mock("@/services/auth.service", () => ({
     authService: {
         login: vi.fn(),
         logout: vi.fn(),
-        fetchCurrentUser: vi.fn(),
-        getStoredSession: vi.fn(),
+        getCurrentUser: vi.fn(),
+        register: vi.fn(),
     },
 }))
 
@@ -39,14 +39,6 @@ const mockUser: User = {
     updatedAt: new Date().toISOString(),
 }
 
-const mockPayload: JwtPayload = {
-    id: "user-123",
-    email: "test@example.com",
-    userType: "INDIVIDUAL",
-    iat: Date.now() / 1000,
-    exp: Date.now() / 1000 + 3600,
-}
-
 const wrapper = ({ children }: { children: React.ReactNode }) => (
     <MemoryRouter>
         <AuthProvider>{children}</AuthProvider>
@@ -58,8 +50,8 @@ beforeEach(() => {
 })
 
 describe("AuthProvider — boot", () => {
-    it("inicia como não autenticado quando não há sessão salva", async () => {
-        vi.mocked(authService.getStoredSession).mockReturnValue(null)
+    it("inicia como não autenticado quando não há sessão ativa (/auth/me falha)", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
 
         const { result } = renderHook(() => useAuth(), { wrapper })
 
@@ -68,9 +60,8 @@ describe("AuthProvider — boot", () => {
         expect(result.current.user).toBeNull()
     })
 
-    it("hidrata o user quando há sessão válida no storage", async () => {
-        vi.mocked(authService.getStoredSession).mockReturnValue(mockPayload)
-        vi.mocked(authService.fetchCurrentUser).mockResolvedValue(mockUser)
+    it("hidrata o user quando há sessão ativa (/auth/me retorna o usuário)", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser)
 
         const { result } = renderHook(() => useAuth(), { wrapper })
 
@@ -78,26 +69,12 @@ describe("AuthProvider — boot", () => {
         expect(result.current.isAuthenticated).toBe(true)
         expect(result.current.user?.email).toBe("test@example.com")
     })
-
-    it("limpa estado quando hidratação falha (token revogado)", async () => {
-        vi.mocked(authService.getStoredSession).mockReturnValue(mockPayload)
-        vi.mocked(authService.fetchCurrentUser).mockRejectedValue(
-            new Error("Unauthorized"),
-        )
-
-        const { result } = renderHook(() => useAuth(), { wrapper })
-
-        await waitFor(() => expect(result.current.isLoading).toBe(false))
-        expect(result.current.user).toBeNull()
-        expect(result.current.isAuthenticated).toBe(false)
-    })
 })
 
 describe("AuthProvider — login", () => {
     it("autentica o user em caso de sucesso", async () => {
-        vi.mocked(authService.getStoredSession).mockReturnValue(null)
-        vi.mocked(authService.login).mockResolvedValue(mockPayload)
-        vi.mocked(authService.fetchCurrentUser).mockResolvedValue(mockUser)
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
+        vi.mocked(authService.login).mockResolvedValue(mockUser)
 
         const { result } = renderHook(() => useAuth(), { wrapper })
         await waitFor(() => expect(result.current.isLoading).toBe(false))
@@ -114,7 +91,7 @@ describe("AuthProvider — login", () => {
     })
 
     it("propaga erro com mensagem amigável quando credenciais falham", async () => {
-        vi.mocked(authService.getStoredSession).mockReturnValue(null)
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
         vi.mocked(authService.login).mockRejectedValue(
             new Error("Credenciais inválidas"),
         )
@@ -134,8 +111,7 @@ describe("AuthProvider — login", () => {
 
 describe("AuthProvider — logout", () => {
     it("limpa o user state após logout", async () => {
-        vi.mocked(authService.getStoredSession).mockReturnValue(mockPayload)
-        vi.mocked(authService.fetchCurrentUser).mockResolvedValue(mockUser)
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser)
         vi.mocked(authService.logout).mockResolvedValue()
 
         const { result } = renderHook(() => useAuth(), { wrapper })
@@ -152,8 +128,7 @@ describe("AuthProvider — logout", () => {
 
 describe("AuthProvider — evento lumitrack:unauthorized", () => {
     it("desautentica e navega para /login ao receber o evento do interceptor", async () => {
-        vi.mocked(authService.getStoredSession).mockReturnValue(mockPayload)
-        vi.mocked(authService.fetchCurrentUser).mockResolvedValue(mockUser)
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser)
 
         const { result } = renderHook(() => useAuth(), { wrapper })
         await waitFor(() => expect(result.current.isAuthenticated).toBe(true))

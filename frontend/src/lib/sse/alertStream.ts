@@ -31,9 +31,6 @@ const EVENT_ALERT = "alert"
  * Opções pra `createAlertStream`.
  */
 export interface AlertStreamOptions {
-    /** Token JWT pra Authorization header. */
-    token: string
-
     /** Callback disparado quando o backend emite um evento `alert`. */
     onAlert: (alert: Alert) => void
 
@@ -78,12 +75,12 @@ class FatalStreamError extends Error {
  * componente desmontar OU quando o usuário deslogar.
  *
  * Por que `@microsoft/fetch-event-source` e não o `EventSource` nativo:
- *   - EventSource nativo NÃO suporta headers customizados (CORS limit).
- *   - Não conseguiríamos enviar Authorization: Bearer.
- *   - Mudar o backend pra aceitar token via query param espalha JWT em
- *     logs de proxy/nginx — má prática.
- *   - fetch-event-source usa fetch() por baixo, então headers funcionam
- *     naturalmente.
+ *   - Retry mais robusto (backoff configurável) e suporte a eventos
+ *     nomeados (`event: alert`), que o `EventSource` nativo não expõe tão
+ *     diretamente.
+ *   - A autenticação em si (cookie httpOnly via `credentials:"include"`)
+ *     funcionaria com o `EventSource` nativo também — a lib é mantida pelo
+ *     ganho de robustez/DX, não por uma exigência de auth.
  *
  * Por que `openWhenHidden: true`:
  *   - O default da lib pausa o stream quando a aba fica oculta (background).
@@ -97,7 +94,6 @@ class FatalStreamError extends Error {
  *   3. Veja o toast aparecer + o badge no header incrementar
  */
 export const createAlertStream = ({
-    token,
     onAlert,
     onError,
     onOpen,
@@ -107,9 +103,11 @@ export const createAlertStream = ({
     fetchEventSource(SSE_URL, {
         signal: controller.signal,
         headers: {
-            Authorization: `Bearer ${token}`,
             Accept: "text/event-stream",
         },
+        // Envia o cookie de sessão httpOnly — sem ele, o backend rejeitaria
+        // a conexão com 401 (mesma checagem aplicada às rotas REST).
+        credentials: "include",
         openWhenHidden: true,
 
         onopen: async (response) => {

@@ -1,6 +1,7 @@
 import express, { type RequestHandler } from "express"
 import cors from "cors"
 import helmet from "helmet"
+import cookieParser from "cookie-parser"
 import { env } from "@/config/env.js"
 import { errorHandler } from "@/shared/middlewares/errorHandler.js"
 import { createAuthenticateMiddleware } from "@/shared/middlewares/authenticate.js"
@@ -81,6 +82,9 @@ export function createApp(deps: AppDependencies = {}) {
     app.get("/health", (_req, res) => {
         res.json({ status: "ok", timestamp: new Date().toISOString() })
     })
+
+    // Necessário para o canal WEB ler o cookie de sessão/CSRF em `authenticate`.
+    app.use(cookieParser())
 
     // Rede de segurança global por IP para toda a API.
     app.use(globalRateLimiter)

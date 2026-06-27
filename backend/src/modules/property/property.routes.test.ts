@@ -46,13 +46,15 @@ const validPropertyBody = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// channel: "MOBILE" porque só precisamos de um Bearer token para autenticar
+// via header — WEB não devolve token no body (#06, cookie httpOnly).
 async function registerAndLogin(user = validUser) {
     const createRes = await request(app).post("/api/users").send(user)
     const userId = createRes.body.data.id as string
     const loginRes = await request(app).post("/api/auth/login").send({
         email: user.email,
         password: user.password,
-        channel: "WEB",
+        channel: "MOBILE",
     })
     const token = loginRes.body.data.token as string
     return { userId, token }

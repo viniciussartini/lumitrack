@@ -3,14 +3,13 @@ import userEvent from "@testing-library/user-event"
 import { renderWithProviders, screen, waitFor } from "@/tests/test-utils"
 import { LoginPage } from "@/pages/auth/LoginPage"
 import { authService } from "@/services/auth.service"
-import type { JwtPayload, User } from "@/types/auth.types"
+import type { User } from "@/types/auth.types"
 
 vi.mock("@/services/auth.service", () => ({
     authService: {
         login: vi.fn(),
         logout: vi.fn(),
-        fetchCurrentUser: vi.fn(),
-        getStoredSession: vi.fn(() => null),
+        getCurrentUser: vi.fn(() => Promise.resolve(null)),
     },
 }))
 
@@ -28,14 +27,6 @@ const mockUser: User = {
     cpf: "529.982.247-25",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-}
-
-const mockPayload: JwtPayload = {
-    id: "user-123",
-    email: "test@example.com",
-    userType: "INDIVIDUAL",
-    iat: Date.now() / 1000,
-    exp: Date.now() / 1000 + 3600,
 }
 
 beforeEach(() => {
@@ -77,8 +68,7 @@ describe("LoginPage — validação client-side", () => {
 
 describe("LoginPage — submit", () => {
     it("chama authService.login com os dados quando válidos", async () => {
-        vi.mocked(authService.login).mockResolvedValue(mockPayload)
-        vi.mocked(authService.fetchCurrentUser).mockResolvedValue(mockUser)
+        vi.mocked(authService.login).mockResolvedValue(mockUser)
 
         const user = userEvent.setup()
         renderWithProviders(<LoginPage />)

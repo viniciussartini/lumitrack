@@ -7,6 +7,7 @@ import {
 } from "react"
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
+import { authState } from "@/lib/authState"
 import type { LoginInput, User, RegisterInput } from "@/types/auth.types"
 import { useNavigate } from "react-router-dom"
 
@@ -30,30 +31,25 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const [isLoading, setIsLoading] = useState(true)
     const navigate = useNavigate()
 
+    // Mantém `authState` (módulo em memória consultado pelo interceptor de
+    // 401 em api.ts) sincronizado com o estado real de autenticação.
+    const updateUser = (newUser: User | null): void => {
+        authState.setHasSession(newUser !== null)
+        setUser(newUser)
+    }
+
     useEffect(() => {
         const bootstrap = async () => {
-            const session = authService.getStoredSession()
-
-            if (!session) {
-                setIsLoading(false)
-                return
-            }
-
-            try {
-                const fullUser = await authService.fetchCurrentUser(session.id)
-                setUser(fullUser)
-            } catch {
-                setUser(null)
-            } finally {
-                setIsLoading(false)
-            }
+            const currentUser = await authService.getCurrentUser()
+            updateUser(currentUser)
+            setIsLoading(false)
         }
         bootstrap()
     }, [])
 
     useEffect(() => {
         const handleUnauthorized = () => {
-            setUser(null)
+            updateUser(null)
             navigate("/login", { replace: true })
         }
         window.addEventListener("lumitrack:unauthorized", handleUnauthorized)
@@ -64,9 +60,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const login = async (input: LoginInput): Promise<void> => {
         try {
-            const payload = await authService.login(input)
-            const fullUser = await authService.fetchCurrentUser(payload.id)
-            setUser(fullUser)
+            const fullUser = await authService.login(input)
+            updateUser(fullUser)
         } catch (error) {
             // eslint-disable-next-line @typescript-eslint/only-throw-error
             throw new Error(extractErrorMessage(error), { cause: error })
@@ -75,7 +70,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const logout = async (): Promise<void> => {
         await authService.logout()
-        setUser(null)
+        updateUser(null)
     }
 
     const register = async (input: RegisterInput): Promise<void> => {
@@ -85,14 +80,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             // eslint-disable-next-line @typescript-eslint/only-throw-error
             throw new Error(extractErrorMessage(error), { cause: error })
         }
- 
+
         try {
-            const payload = await authService.login({
+            const fullUser = await authService.login({
                 email: input.email,
                 password: input.password,
             })
-            const fullUser = await authService.fetchCurrentUser(payload.id)
-            setUser(fullUser)
+            updateUser(fullUser)
         } catch {
             // eslint-disable-next-line @typescript-eslint/only-throw-error
             throw new Error("POST_REGISTER_LOGIN_FAILED")

@@ -35,6 +35,11 @@ export const envSchema = z.object({
     // Rate limiting estrito para endpoints públicos de autenticação (brute force).
     AUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().default(15 * 60 * 1000),
     AUTH_RATE_LIMIT_MAX: z.coerce.number().default(10),
+
+    // Cookies de sessão (canal WEB) — ver #06 da remediação OWASP/LGPD.
+    AUTH_COOKIE_NAME: z.string().default("lumitrack_session"),
+    CSRF_COOKIE_NAME: z.string().default("lumitrack_csrf"),
+    CSRF_HEADER_NAME: z.string().default("x-csrf-token"),
 }).refine(
     (data) => !(data.NODE_ENV === "production" && data.CORS_ORIGIN === "*"),
     {

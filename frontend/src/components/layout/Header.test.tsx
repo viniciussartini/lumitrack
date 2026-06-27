@@ -3,15 +3,14 @@ import userEvent from "@testing-library/user-event"
 import { renderWithProviders, screen } from "@/tests/test-utils"
 import { Header } from "@/components/layout/Header"
 import { authService } from "@/services/auth.service"
-import type { JwtPayload, User } from "@/types/auth.types"
+import type { User } from "@/types/auth.types"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
 vi.mock("@/services/auth.service", () => ({
     authService: {
         login: vi.fn(),
         logout: vi.fn(),
-        fetchCurrentUser: vi.fn(),
-        getStoredSession: vi.fn(),
+        getCurrentUser: vi.fn(),
     },
 }))
 
@@ -50,18 +49,9 @@ const mockUser: User = {
     updatedAt: new Date().toISOString(),
 }
 
-const mockPayload: JwtPayload = {
-    id: "user-123",
-    email: "joao@example.com",
-    userType: "INDIVIDUAL",
-    iat: Date.now() / 1000,
-    exp: Date.now() / 1000 + 3600,
-}
-
 beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(authService.getStoredSession).mockReturnValue(mockPayload)
-    vi.mocked(authService.fetchCurrentUser).mockResolvedValue(mockUser)
+    vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser)
 })
 
 /**

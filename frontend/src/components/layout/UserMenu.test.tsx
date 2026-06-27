@@ -3,14 +3,13 @@ import userEvent from "@testing-library/user-event"
 import { renderWithProviders, screen, waitFor } from "@/tests/test-utils"
 import { UserMenu } from "@/components/layout/UserMenu"
 import { authService } from "@/services/auth.service"
-import type { JwtPayload, User } from "@/types/auth.types"
+import type { User } from "@/types/auth.types"
 
 vi.mock("@/services/auth.service", () => ({
     authService: {
         login: vi.fn(),
         logout: vi.fn(),
-        fetchCurrentUser: vi.fn(),
-        getStoredSession: vi.fn(),
+        getCurrentUser: vi.fn(),
     },
 }))
 
@@ -41,21 +40,12 @@ const mockUserPJ: User = {
     updatedAt: new Date().toISOString(),
 }
 
-const mockPayload: JwtPayload = {
-    id: "user-123",
-    email: "joao@example.com",
-    userType: "INDIVIDUAL",
-    iat: Date.now() / 1000,
-    exp: Date.now() / 1000 + 3600,
-}
-
 beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(authService.getStoredSession).mockReturnValue(mockPayload)
 })
 
 const renderWithUser = (user: User) => {
-    vi.mocked(authService.fetchCurrentUser).mockResolvedValue(user)
+    vi.mocked(authService.getCurrentUser).mockResolvedValue(user)
     return renderWithProviders(<UserMenu />)
 }
 
@@ -69,10 +59,6 @@ describe("UserMenu — renderização", () => {
     })
 
     it("exibe tradeName e inicial para pessoa jurídica", async () => {
-        vi.mocked(authService.getStoredSession).mockReturnValue({
-            ...mockPayload,
-            userType: "COMPANY",
-        })
         renderWithUser(mockUserPJ)
 
         expect(await screen.findByText("Empresa")).toBeInTheDocument()

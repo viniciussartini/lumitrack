@@ -1,16 +1,7 @@
 export type UserType = "INDIVIDUAL" | "COMPANY"
 export type TokenChannel = "WEB" | "MOBILE"
 
-// Payload do JWT (vem do backend, decodificado pelo jwt-decode)
-export interface JwtPayload {
-    id: string
-    email: string
-    userType: UserType
-    iat: number
-    exp?: number  // opcional só por segurança de tipo — todo token (WEB ou MOBILE) tem exp
-}
-
-// Usuário completo (vem de GET /api/users/:id)
+// Usuário completo (vem de GET /api/auth/me ou GET /api/users/:id)
 export interface User {
     id: string
     email: string
@@ -35,10 +26,9 @@ export interface LoginInput {
     password: string
 }
 
-// Resposta crua do backend
-export interface LoginResponse {
-    token: string
-}
+// Resposta crua do backend para o canal WEB — o JWT viaja só no cookie
+// httpOnly, nunca no body (ver backend/modules/auth/auth.controller.ts).
+export type LoginResponse = Record<string, never>
 
 // Registro
 interface BaseRegisterInput {

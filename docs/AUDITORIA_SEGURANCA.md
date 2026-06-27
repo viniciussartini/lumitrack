@@ -2,7 +2,7 @@
 
 > **Escopo:** OWASP Top 10:2025 + conformidade com a LGPD (Lei nº 13.709/2018)
 > **Data da auditoria:** 2026-06-27
-> **Versão do documento:** 1.1
+> **Versão do documento:** 1.2
 > **Branch de remediação:** `security/owasp-lgpd-remediation`
 > **Stack auditado:** Backend Node.js/TypeScript (Express 5, Prisma 7, PostgreSQL) · Frontend React 19/Vite
 
@@ -30,14 +30,14 @@ produção com usuários reais.
 | 🟡 Médio   | 3 | Vulns de dependência (dev); sem CI/CD com gates; política de senha fraca |
 | 🟢 Baixo   | 3 | Injection (mitigado); RBAC raso; tratamento de exceções (mitigado) |
 
-**Estado atual (pós #01/#02/#04/#05 — ver Seção 3 e `IMPLEMENTATION_LOG.md`):**
+**Estado atual (pós #01/#02/#04/#05/#06 — ver Seção 3 e `IMPLEMENTATION_LOG.md`):**
 
 | Severidade | Quantidade | Categorias |
 |------------|-----------|----------|
 | 🔴 Crítico | 0 | — |
 | 🟠 Alto    | 1 | A09 (sem audit log — pendente #08) |
-| 🟡 Médio   | 5 | A03, A04 (CPF/CNPJ ainda em texto claro — pendente #07), A06, A07, A08 |
-| 🟢 Baixo   | 4 | A01, A02, A05, A10 |
+| 🟡 Médio   | 4 | A03, A04 (CPF/CNPJ ainda em texto claro — pendente #07), A06, A08 |
+| 🟢 Baixo   | 5 | A01, A02, A05, A07, A10 |
 
 A remediação está organizada em **4 fases** (ver Seção 6), iniciando pelos itens
 críticos antes de qualquer ida a produção.
@@ -65,12 +65,12 @@ Evidências são referenciadas no formato `arquivo:linha`.
 | Cat. | Categoria | Achado | Severidade |
 |------|-----------|--------|------------|
 | A01 | Broken Access Control | Autorização por posse de recurso presente e consistente (✅). Atenção: `userType` (INDIVIDUAL/COMPANY) não é RBAC real — sem papel admin/escopos. | 🟢 Baixo |
-| A02 | Security Misconfiguration | ~~Helmet com config padrão~~ ~~CORS sem guard~~ ~~sem HTTPS/HSTS~~ ~~sem `.env.example`~~ **corrigido (#05)** — CSP explícito (deny-all, API pura), HSTS explícito, guard `CORS_ORIGIN='*'` bloqueado em produção, redirect HTTP→HTTPS + `trust proxy` em produção, `.env.example` criado. | 🟢 Baixo (era 🟠 Alto) |
+| A02 | Security Misconfiguration | ~~Helmet com config padrão~~ ~~CORS sem guard~~ ~~sem HTTPS/HSTS~~ ~~sem `.env.example`~~ **corrigido (#05)** — CSP explícito (deny-all, API pura), HSTS explícito, guard `CORS_ORIGIN='*'` bloqueado em produção, redirect HTTP→HTTPS + `trust proxy` em produção, `.env.example` criado. ~~Cookie de sessão WEB sem atributos de segurança~~ **corrigido (#06)** — `httpOnly`/`Secure` (produção)/`SameSite=Lax`. | 🟢 Baixo (era 🟠 Alto) |
 | A03 | Software Supply Chain Failures | 3 vulns moderadas no backend (`@hono/node-server` via `@prisma/dev` — **dependência de desenvolvimento**, risco real reduzido); sem CI com auditoria automática; sem Dependabot. | 🟡 Médio |
 | A04 | Cryptographic Failures | CPF/CNPJ e endereço **ainda em texto claro** (pendente — ver #07); ~~JWT armazenado em texto claro~~ **corrigido (#04)** — agora SHA-256. Senhas com bcrypt 12 (✅). | 🟡 Médio (era 🟠 Alto) |
 | A05 | Injection | Prisma parametrizado, sem `$queryRaw`; React escapa por padrão, sem `dangerouslySetInnerHTML` (✅). | 🟢 Baixo |
 | A06 | Insecure Design | ~~Tokens MOBILE nunca expiram~~ **corrigido (#04)** — expiram após `MOBILE_TOKEN_EXPIRES_IN` (default 90d); sem refresh token; política de senha sem caractere especial; sem rate limit por design. | 🟡 Médio (era 🟠 Alto) |
-| A07 | Authentication Failures | ~~Sem rate limiting / proteção brute-force~~ **corrigido (#01)** — limiter global por IP + limiter estrito por IP+e-mail em `/login`, `/forgot-password`, `/reset-password`. Ainda sem lockout de conta e sem MFA (gaps menores, não bloqueantes). Anti-enumeração no forgot-password (✅). | 🟡 Médio (era 🔴 Crítico) |
+| A07 | Authentication Failures | ~~Sem rate limiting / proteção brute-force~~ **corrigido (#01)** — limiter global por IP + limiter estrito por IP+e-mail em `/login`, `/forgot-password`, `/reset-password`. ~~Sem proteção CSRF na sessão WEB~~ **corrigido (#06)** — double-submit cookie. Ainda sem lockout de conta e sem MFA (gaps menores, não bloqueantes). Anti-enumeração no forgot-password (✅). | 🟢 Baixo (era 🔴 Crítico) |
 | A08 | Software/Data Integrity Failures | Sem CI/CD; sem verificação de integridade de build; scripts de dependência não controlados. | 🟡 Médio |
 | A09 | Logging & Alerting Failures | Apenas `console.*` (~35 ocorrências); **sem audit log** de login/logout, acessos negados (403) e CRUD de dados pessoais; sem logger estruturado nem alerta. | 🟠 Alto |
 | A10 | Mishandling of Exceptional Conditions | Error handler global cobre Zod/AppError/500 e não vaza stack em produção (✅). Atenção: sem request-id correlacionável e sem handler central documentado de `unhandledRejection`. | 🟢 Baixo |
@@ -103,9 +103,21 @@ Evidências são referenciadas no formato `arquivo:linha`.
   [env.ts](../backend/src/config/env.ts), [env.test.ts](../backend/src/config/env.test.ts).
 - **A09 — Logging.** Uso de `console.error` no handler global e ausência de trilha
   de auditoria. Evidência: [errorHandler.ts:32](../backend/src/shared/middlewares/errorHandler.ts#L32).
-- **Armazenamento de sessão no frontend.** JWT em `localStorage` (exposto a XSS).
-  Evidência: [storage.ts](../frontend/src/lib/storage.ts),
-  [api.ts:11-17](../frontend/src/services/api.ts#L11-L17).
+- **A02/A07 — Sessão WEB via httpOnly cookies + CSRF — ✅ corrigido (#06).**
+  Canal WEB migrou de JWT em `localStorage` (exposto a XSS) para cookie
+  `httpOnly` (`Secure` em produção, `SameSite=Lax`); cookie CSRF não-httpOnly
+  combinado com header `X-CSRF-Token` (double-submit) em toda requisição
+  mutável autenticada via cookie. Canal MOBILE permanece inalterado (Bearer no
+  header, isento de CSRF — não é vulnerável por natureza). Novo endpoint
+  `GET /api/auth/me` substitui a decodificação local do JWT no frontend
+  (impossível agora que o cookie é httpOnly). Evidência:
+  [csrf.ts](../backend/src/shared/security/csrf.ts),
+  [authenticate.ts](../backend/src/shared/middlewares/authenticate.ts),
+  [auth.controller.ts](../backend/src/modules/auth/auth.controller.ts),
+  [api.ts](../frontend/src/services/api.ts),
+  [auth.service.ts](../frontend/src/services/auth.service.ts).
+  Pendente (fora do escopo desta sub-issue, ver #14 no roadmap): refresh
+  token — o JWT WEB continua expirando em 15min sem renovação automática.
 
 ---
 
@@ -147,7 +159,9 @@ Registro formal da auditoria — base para governança e Art. 48.
 - **#05** ✅ Hardening de CORS/Helmet/HTTPS + `backend/.env.example` (A02)
 
 ### Fase 2 — Alto
-- **#06** Sessão via httpOnly cookies + CSRF (A02/A07) — *decisão: migrar de localStorage*
+- **#06** ✅ Sessão via httpOnly cookies + CSRF (A02/A07) — migrado de `localStorage`
+  (canal WEB) para cookie `httpOnly`/`Secure`/`SameSite=Lax` + CSRF double-submit
+  cookie; canal MOBILE inalterado (Bearer)
 - **#07** Criptografia de CPF/CNPJ + blind index (A04/Art. 46) — *decisão: AES-256-GCM + HMAC*
 - **#08** Logger estruturado (pino) + audit log (A09/Art. 46)
 - **#09** Exportação de dados do titular / DSAR (Art. 18)
@@ -157,6 +171,10 @@ Registro formal da auditoria — base para governança e Art. 48.
 - **#11** CI/CD com gates de segurança (A03/A08)
 - **#12** Política de senha forte + MFA opcional (A06/A07)
 - **#13** DPA com operador SMTP + runbook de incidentes (Art. 37-39/48)
+- **#14** Refresh token para sessão WEB (A06) — gap conhecido desde a #06
+  (JWT WEB expira em 15min sem renovação automática); fora do escopo da #06
+  por introduzir superfície de ataque própria (rotação/roubo de refresh
+  token) que merece análise de segurança dedicada
 
 ### Decisões de arquitetura
 - **Sessão:** migração de `localStorage` → **httpOnly cookies** (Secure + SameSite) + CSRF.
@@ -202,3 +220,4 @@ Registro formal da auditoria — base para governança e Art. 48.
 |--------|------|-------|---------|
 | 1.0 | 2026-06-27 | Auditoria de Segurança | Versão inicial (Fase 0) |
 | 1.1 | 2026-06-27 | Auditoria de Segurança | Fase 1 concluída (#01-#05): status, severidades e contadores atualizados para refletir as correções aplicadas (rate limiting, consentimento LGPD, Política de Privacidade/Termos, hash de token + expiração MOBILE, hardening CORS/Helmet/HTTPS). Corrigida inconsistência no achado A04 (CPF/CNPJ ainda pendente — não deveria ter sido marcado como Baixo). |
+| 1.2 | 2026-06-27 | Auditoria de Segurança | #06 concluída (Fase 2): sessão WEB migrada de `localStorage` para cookie `httpOnly`/`Secure`/`SameSite=Lax` + CSRF via double-submit cookie; canal MOBILE inalterado. Achados A02/A07 atualizados (A07 rebaixado para 🟢 Baixo). Adicionado **#14** ao roadmap (refresh token para sessão WEB, fora do escopo da #06). |

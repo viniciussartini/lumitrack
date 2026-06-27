@@ -38,6 +38,8 @@ const validCompanyBody = {
 
 // Cria um usuario e faz login, retornando o userId e o token JWT real.
 // Substituiu generateTestToken: o token agora existe na tabela auth_tokens.
+// channel: "MOBILE" porque este teste só precisa de um Bearer token para
+// autenticar via header — WEB não devolve token no body (#06, cookie httpOnly).
 async function registerAndLogin(body = validIndividualBody) {
     const createRes = await request(app).post("/api/users").send(body)
     const userId = createRes.body.data.id as string
@@ -45,7 +47,7 @@ async function registerAndLogin(body = validIndividualBody) {
     const loginRes = await request(app).post("/api/auth/login").send({
         email: body.email,
         password: body.password,
-        channel: "WEB",
+        channel: "MOBILE",
     })
     const token = loginRes.body.data.token as string
 

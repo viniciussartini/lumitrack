@@ -5,7 +5,6 @@ import { MemoryRouter } from "react-router-dom"
 import { toast } from "sonner"
 import type { ReactNode } from "react"
 import { useAlertStream } from "@/hooks/useAlertStream"
-import { storage, STORAGE_KEYS } from "@/lib/storage"
 import { useAuth } from "@/contexts/AuthContext"
 import { createAlertStream } from "@/lib/sse/alertStream"
 import type { Alert } from "@/types/alert.types"
@@ -64,26 +63,16 @@ const makeAlert = (overrides: Partial<Alert> = {}): Alert => ({
     ...overrides,
 })
 
-const VALID_TOKEN = "header.payload.signature"
-
 interface SetupOptions {
     isAuthenticated?: boolean
     userId?: string | null
-    hasToken?: boolean
 }
 
 const setupHook = (options: SetupOptions = {}) => {
     const {
         isAuthenticated = true,
         userId = "user-1",
-        hasToken = true,
     } = options
-
-    if (hasToken) {
-        storage.set(STORAGE_KEYS.TOKEN, VALID_TOKEN)
-    } else {
-        storage.remove(STORAGE_KEYS.TOKEN)
-    }
 
     vi.mocked(useAuth).mockReturnValue({
         user: userId
@@ -127,7 +116,6 @@ beforeEach(() => {
     vi.clearAllMocks()
     lastStreamOptions = null
     cleanupSpy = vi.fn()
-    storage.remove(STORAGE_KEYS.TOKEN)
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -135,13 +123,12 @@ beforeEach(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("useAlertStream — lifecycle", () => {
-    it("conecta quando user está autenticado com token", () => {
+    it("conecta quando user está autenticado (cookie httpOnly enviado pelo browser)", () => {
         const { wrapper } = setupHook()
 
         renderHook(() => useAlertStream(), { wrapper })
 
         expect(createAlertStream).toHaveBeenCalledTimes(1)
-        expect(lastStreamOptions?.token).toBe(VALID_TOKEN)
     })
 
     it("NÃO conecta quando user está deslogado", () => {
@@ -149,14 +136,6 @@ describe("useAlertStream — lifecycle", () => {
             isAuthenticated: false,
             userId: null,
         })
-
-        renderHook(() => useAlertStream(), { wrapper })
-
-        expect(createAlertStream).not.toHaveBeenCalled()
-    })
-
-    it("NÃO conecta quando não há token no storage (mesmo autenticado)", () => {
-        const { wrapper } = setupHook({ hasToken: false })
 
         renderHook(() => useAlertStream(), { wrapper })
 
