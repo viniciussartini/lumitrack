@@ -10,6 +10,8 @@ const baseValidEnv = {
     SMTP_USER: "user",
     SMTP_PASS: "pass",
     SMTP_FROM: "no-reply@example.com",
+    CPF_CNPJ_ENCRYPTION_KEY: "a".repeat(64),
+    CPF_CNPJ_BLIND_INDEX_KEY: "b".repeat(64),
 }
 
 describe("envSchema — guard CORS_ORIGIN em produção (A02)", () => {

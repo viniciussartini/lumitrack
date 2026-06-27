@@ -91,8 +91,10 @@ export const UserScalarFieldEnum = {
   firstName: 'firstName',
   lastName: 'lastName',
   cpf: 'cpf',
+  cpfBlindIndex: 'cpfBlindIndex',
   companyName: 'companyName',
   cnpj: 'cnpj',
+  cnpjBlindIndex: 'cnpjBlindIndex',
   tradeName: 'tradeName'
 } as const
 

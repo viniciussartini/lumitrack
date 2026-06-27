@@ -36,8 +36,10 @@ export type UserMinAggregateOutputType = {
   firstName: string | null
   lastName: string | null
   cpf: string | null
+  cpfBlindIndex: string | null
   companyName: string | null
   cnpj: string | null
+  cnpjBlindIndex: string | null
   tradeName: string | null
 }
 
@@ -53,8 +55,10 @@ export type UserMaxAggregateOutputType = {
   firstName: string | null
   lastName: string | null
   cpf: string | null
+  cpfBlindIndex: string | null
   companyName: string | null
   cnpj: string | null
+  cnpjBlindIndex: string | null
   tradeName: string | null
 }
 
@@ -70,8 +74,10 @@ export type UserCountAggregateOutputType = {
   firstName: number
   lastName: number
   cpf: number
+  cpfBlindIndex: number
   companyName: number
   cnpj: number
+  cnpjBlindIndex: number
   tradeName: number
   _all: number
 }
@@ -89,8 +95,10 @@ export type UserMinAggregateInputType = {
   firstName?: true
   lastName?: true
   cpf?: true
+  cpfBlindIndex?: true
   companyName?: true
   cnpj?: true
+  cnpjBlindIndex?: true
   tradeName?: true
 }
 
@@ -106,8 +114,10 @@ export type UserMaxAggregateInputType = {
   firstName?: true
   lastName?: true
   cpf?: true
+  cpfBlindIndex?: true
   companyName?: true
   cnpj?: true
+  cnpjBlindIndex?: true
   tradeName?: true
 }
 
@@ -123,8 +133,10 @@ export type UserCountAggregateInputType = {
   firstName?: true
   lastName?: true
   cpf?: true
+  cpfBlindIndex?: true
   companyName?: true
   cnpj?: true
+  cnpjBlindIndex?: true
   tradeName?: true
   _all?: true
 }
@@ -213,8 +225,10 @@ export type UserGroupByOutputType = {
   firstName: string | null
   lastName: string | null
   cpf: string | null
+  cpfBlindIndex: string | null
   companyName: string | null
   cnpj: string | null
+  cnpjBlindIndex: string | null
   tradeName: string | null
   _count: UserCountAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
@@ -251,8 +265,10 @@ export type UserWhereInput = {
   firstName?: Prisma.StringNullableFilter<"User"> | string | null
   lastName?: Prisma.StringNullableFilter<"User"> | string | null
   cpf?: Prisma.StringNullableFilter<"User"> | string | null
+  cpfBlindIndex?: Prisma.StringNullableFilter<"User"> | string | null
   companyName?: Prisma.StringNullableFilter<"User"> | string | null
   cnpj?: Prisma.StringNullableFilter<"User"> | string | null
+  cnpjBlindIndex?: Prisma.StringNullableFilter<"User"> | string | null
   tradeName?: Prisma.StringNullableFilter<"User"> | string | null
   properties?: Prisma.PropertyListRelationFilter
   distributors?: Prisma.EnergyDistributorListRelationFilter
@@ -273,8 +289,10 @@ export type UserOrderByWithRelationInput = {
   firstName?: Prisma.SortOrderInput | Prisma.SortOrder
   lastName?: Prisma.SortOrderInput | Prisma.SortOrder
   cpf?: Prisma.SortOrderInput | Prisma.SortOrder
+  cpfBlindIndex?: Prisma.SortOrderInput | Prisma.SortOrder
   companyName?: Prisma.SortOrderInput | Prisma.SortOrder
   cnpj?: Prisma.SortOrderInput | Prisma.SortOrder
+  cnpjBlindIndex?: Prisma.SortOrderInput | Prisma.SortOrder
   tradeName?: Prisma.SortOrderInput | Prisma.SortOrder
   properties?: Prisma.PropertyOrderByRelationAggregateInput
   distributors?: Prisma.EnergyDistributorOrderByRelationAggregateInput
@@ -286,8 +304,8 @@ export type UserOrderByWithRelationInput = {
 export type UserWhereUniqueInput = Prisma.AtLeast<{
   id?: string
   email?: string
-  cpf?: string
-  cnpj?: string
+  cpfBlindIndex?: string
+  cnpjBlindIndex?: string
   AND?: Prisma.UserWhereInput | Prisma.UserWhereInput[]
   OR?: Prisma.UserWhereInput[]
   NOT?: Prisma.UserWhereInput | Prisma.UserWhereInput[]
@@ -299,14 +317,16 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   consentVersion?: Prisma.StringNullableFilter<"User"> | string | null
   firstName?: Prisma.StringNullableFilter<"User"> | string | null
   lastName?: Prisma.StringNullableFilter<"User"> | string | null
+  cpf?: Prisma.StringNullableFilter<"User"> | string | null
   companyName?: Prisma.StringNullableFilter<"User"> | string | null
+  cnpj?: Prisma.StringNullableFilter<"User"> | string | null
   tradeName?: Prisma.StringNullableFilter<"User"> | string | null
   properties?: Prisma.PropertyListRelationFilter
   distributors?: Prisma.EnergyDistributorListRelationFilter
   tokens?: Prisma.AuthTokenListRelationFilter
   passwordResets?: Prisma.PasswordResetListRelationFilter
   alerts?: Prisma.AlertListRelationFilter
-}, "id" | "email" | "cpf" | "cnpj">
+}, "id" | "email" | "cpfBlindIndex" | "cnpjBlindIndex">
 
 export type UserOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -320,8 +340,10 @@ export type UserOrderByWithAggregationInput = {
   firstName?: Prisma.SortOrderInput | Prisma.SortOrder
   lastName?: Prisma.SortOrderInput | Prisma.SortOrder
   cpf?: Prisma.SortOrderInput | Prisma.SortOrder
+  cpfBlindIndex?: Prisma.SortOrderInput | Prisma.SortOrder
   companyName?: Prisma.SortOrderInput | Prisma.SortOrder
   cnpj?: Prisma.SortOrderInput | Prisma.SortOrder
+  cnpjBlindIndex?: Prisma.SortOrderInput | Prisma.SortOrder
   tradeName?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
   _max?: Prisma.UserMaxOrderByAggregateInput
@@ -343,8 +365,10 @@ export type UserScalarWhereWithAggregatesInput = {
   firstName?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   lastName?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   cpf?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  cpfBlindIndex?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   companyName?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   cnpj?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  cnpjBlindIndex?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   tradeName?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
 }
 
@@ -360,8 +384,10 @@ export type UserCreateInput = {
   firstName?: string | null
   lastName?: string | null
   cpf?: string | null
+  cpfBlindIndex?: string | null
   companyName?: string | null
   cnpj?: string | null
+  cnpjBlindIndex?: string | null
   tradeName?: string | null
   properties?: Prisma.PropertyCreateNestedManyWithoutUserInput
   distributors?: Prisma.EnergyDistributorCreateNestedManyWithoutUserInput
@@ -382,8 +408,10 @@ export type UserUncheckedCreateInput = {
   firstName?: string | null
   lastName?: string | null
   cpf?: string | null
+  cpfBlindIndex?: string | null
   companyName?: string | null
   cnpj?: string | null
+  cnpjBlindIndex?: string | null
   tradeName?: string | null
   properties?: Prisma.PropertyUncheckedCreateNestedManyWithoutUserInput
   distributors?: Prisma.EnergyDistributorUncheckedCreateNestedManyWithoutUserInput
@@ -404,8 +432,10 @@ export type UserUpdateInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUpdateManyWithoutUserNestedInput
   distributors?: Prisma.EnergyDistributorUpdateManyWithoutUserNestedInput
@@ -426,8 +456,10 @@ export type UserUncheckedUpdateInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUncheckedUpdateManyWithoutUserNestedInput
   distributors?: Prisma.EnergyDistributorUncheckedUpdateManyWithoutUserNestedInput
@@ -448,8 +480,10 @@ export type UserCreateManyInput = {
   firstName?: string | null
   lastName?: string | null
   cpf?: string | null
+  cpfBlindIndex?: string | null
   companyName?: string | null
   cnpj?: string | null
+  cnpjBlindIndex?: string | null
   tradeName?: string | null
 }
 
@@ -465,8 +499,10 @@ export type UserUpdateManyMutationInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
@@ -482,8 +518,10 @@ export type UserUncheckedUpdateManyInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
@@ -499,8 +537,10 @@ export type UserCountOrderByAggregateInput = {
   firstName?: Prisma.SortOrder
   lastName?: Prisma.SortOrder
   cpf?: Prisma.SortOrder
+  cpfBlindIndex?: Prisma.SortOrder
   companyName?: Prisma.SortOrder
   cnpj?: Prisma.SortOrder
+  cnpjBlindIndex?: Prisma.SortOrder
   tradeName?: Prisma.SortOrder
 }
 
@@ -516,8 +556,10 @@ export type UserMaxOrderByAggregateInput = {
   firstName?: Prisma.SortOrder
   lastName?: Prisma.SortOrder
   cpf?: Prisma.SortOrder
+  cpfBlindIndex?: Prisma.SortOrder
   companyName?: Prisma.SortOrder
   cnpj?: Prisma.SortOrder
+  cnpjBlindIndex?: Prisma.SortOrder
   tradeName?: Prisma.SortOrder
 }
 
@@ -533,8 +575,10 @@ export type UserMinOrderByAggregateInput = {
   firstName?: Prisma.SortOrder
   lastName?: Prisma.SortOrder
   cpf?: Prisma.SortOrder
+  cpfBlindIndex?: Prisma.SortOrder
   companyName?: Prisma.SortOrder
   cnpj?: Prisma.SortOrder
+  cnpjBlindIndex?: Prisma.SortOrder
   tradeName?: Prisma.SortOrder
 }
 
@@ -645,8 +689,10 @@ export type UserCreateWithoutTokensInput = {
   firstName?: string | null
   lastName?: string | null
   cpf?: string | null
+  cpfBlindIndex?: string | null
   companyName?: string | null
   cnpj?: string | null
+  cnpjBlindIndex?: string | null
   tradeName?: string | null
   properties?: Prisma.PropertyCreateNestedManyWithoutUserInput
   distributors?: Prisma.EnergyDistributorCreateNestedManyWithoutUserInput
@@ -666,8 +712,10 @@ export type UserUncheckedCreateWithoutTokensInput = {
   firstName?: string | null
   lastName?: string | null
   cpf?: string | null
+  cpfBlindIndex?: string | null
   companyName?: string | null
   cnpj?: string | null
+  cnpjBlindIndex?: string | null
   tradeName?: string | null
   properties?: Prisma.PropertyUncheckedCreateNestedManyWithoutUserInput
   distributors?: Prisma.EnergyDistributorUncheckedCreateNestedManyWithoutUserInput
@@ -703,8 +751,10 @@ export type UserUpdateWithoutTokensInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUpdateManyWithoutUserNestedInput
   distributors?: Prisma.EnergyDistributorUpdateManyWithoutUserNestedInput
@@ -724,8 +774,10 @@ export type UserUncheckedUpdateWithoutTokensInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUncheckedUpdateManyWithoutUserNestedInput
   distributors?: Prisma.EnergyDistributorUncheckedUpdateManyWithoutUserNestedInput
@@ -745,8 +797,10 @@ export type UserCreateWithoutPasswordResetsInput = {
   firstName?: string | null
   lastName?: string | null
   cpf?: string | null
+  cpfBlindIndex?: string | null
   companyName?: string | null
   cnpj?: string | null
+  cnpjBlindIndex?: string | null
   tradeName?: string | null
   properties?: Prisma.PropertyCreateNestedManyWithoutUserInput
   distributors?: Prisma.EnergyDistributorCreateNestedManyWithoutUserInput
@@ -766,8 +820,10 @@ export type UserUncheckedCreateWithoutPasswordResetsInput = {
   firstName?: string | null
   lastName?: string | null
   cpf?: string | null
+  cpfBlindIndex?: string | null
   companyName?: string | null
   cnpj?: string | null
+  cnpjBlindIndex?: string | null
   tradeName?: string | null
   properties?: Prisma.PropertyUncheckedCreateNestedManyWithoutUserInput
   distributors?: Prisma.EnergyDistributorUncheckedCreateNestedManyWithoutUserInput
@@ -803,8 +859,10 @@ export type UserUpdateWithoutPasswordResetsInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUpdateManyWithoutUserNestedInput
   distributors?: Prisma.EnergyDistributorUpdateManyWithoutUserNestedInput
@@ -824,8 +882,10 @@ export type UserUncheckedUpdateWithoutPasswordResetsInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUncheckedUpdateManyWithoutUserNestedInput
   distributors?: Prisma.EnergyDistributorUncheckedUpdateManyWithoutUserNestedInput
@@ -845,8 +905,10 @@ export type UserCreateWithoutDistributorsInput = {
   firstName?: string | null
   lastName?: string | null
   cpf?: string | null
+  cpfBlindIndex?: string | null
   companyName?: string | null
   cnpj?: string | null
+  cnpjBlindIndex?: string | null
   tradeName?: string | null
   properties?: Prisma.PropertyCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenCreateNestedManyWithoutUserInput
@@ -866,8 +928,10 @@ export type UserUncheckedCreateWithoutDistributorsInput = {
   firstName?: string | null
   lastName?: string | null
   cpf?: string | null
+  cpfBlindIndex?: string | null
   companyName?: string | null
   cnpj?: string | null
+  cnpjBlindIndex?: string | null
   tradeName?: string | null
   properties?: Prisma.PropertyUncheckedCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenUncheckedCreateNestedManyWithoutUserInput
@@ -903,8 +967,10 @@ export type UserUpdateWithoutDistributorsInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUpdateManyWithoutUserNestedInput
@@ -924,8 +990,10 @@ export type UserUncheckedUpdateWithoutDistributorsInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUncheckedUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUncheckedUpdateManyWithoutUserNestedInput
@@ -945,8 +1013,10 @@ export type UserCreateWithoutPropertiesInput = {
   firstName?: string | null
   lastName?: string | null
   cpf?: string | null
+  cpfBlindIndex?: string | null
   companyName?: string | null
   cnpj?: string | null
+  cnpjBlindIndex?: string | null
   tradeName?: string | null
   distributors?: Prisma.EnergyDistributorCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenCreateNestedManyWithoutUserInput
@@ -966,8 +1036,10 @@ export type UserUncheckedCreateWithoutPropertiesInput = {
   firstName?: string | null
   lastName?: string | null
   cpf?: string | null
+  cpfBlindIndex?: string | null
   companyName?: string | null
   cnpj?: string | null
+  cnpjBlindIndex?: string | null
   tradeName?: string | null
   distributors?: Prisma.EnergyDistributorUncheckedCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenUncheckedCreateNestedManyWithoutUserInput
@@ -1003,8 +1075,10 @@ export type UserUpdateWithoutPropertiesInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   distributors?: Prisma.EnergyDistributorUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUpdateManyWithoutUserNestedInput
@@ -1024,8 +1098,10 @@ export type UserUncheckedUpdateWithoutPropertiesInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   distributors?: Prisma.EnergyDistributorUncheckedUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUncheckedUpdateManyWithoutUserNestedInput
@@ -1045,8 +1121,10 @@ export type UserCreateWithoutAlertsInput = {
   firstName?: string | null
   lastName?: string | null
   cpf?: string | null
+  cpfBlindIndex?: string | null
   companyName?: string | null
   cnpj?: string | null
+  cnpjBlindIndex?: string | null
   tradeName?: string | null
   properties?: Prisma.PropertyCreateNestedManyWithoutUserInput
   distributors?: Prisma.EnergyDistributorCreateNestedManyWithoutUserInput
@@ -1066,8 +1144,10 @@ export type UserUncheckedCreateWithoutAlertsInput = {
   firstName?: string | null
   lastName?: string | null
   cpf?: string | null
+  cpfBlindIndex?: string | null
   companyName?: string | null
   cnpj?: string | null
+  cnpjBlindIndex?: string | null
   tradeName?: string | null
   properties?: Prisma.PropertyUncheckedCreateNestedManyWithoutUserInput
   distributors?: Prisma.EnergyDistributorUncheckedCreateNestedManyWithoutUserInput
@@ -1103,8 +1183,10 @@ export type UserUpdateWithoutAlertsInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUpdateManyWithoutUserNestedInput
   distributors?: Prisma.EnergyDistributorUpdateManyWithoutUserNestedInput
@@ -1124,8 +1206,10 @@ export type UserUncheckedUpdateWithoutAlertsInput = {
   firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUncheckedUpdateManyWithoutUserNestedInput
   distributors?: Prisma.EnergyDistributorUncheckedUpdateManyWithoutUserNestedInput
@@ -1212,8 +1296,10 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   firstName?: boolean
   lastName?: boolean
   cpf?: boolean
+  cpfBlindIndex?: boolean
   companyName?: boolean
   cnpj?: boolean
+  cnpjBlindIndex?: boolean
   tradeName?: boolean
   properties?: boolean | Prisma.User$propertiesArgs<ExtArgs>
   distributors?: boolean | Prisma.User$distributorsArgs<ExtArgs>
@@ -1235,8 +1321,10 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   firstName?: boolean
   lastName?: boolean
   cpf?: boolean
+  cpfBlindIndex?: boolean
   companyName?: boolean
   cnpj?: boolean
+  cnpjBlindIndex?: boolean
   tradeName?: boolean
 }, ExtArgs["result"]["user"]>
 
@@ -1252,8 +1340,10 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   firstName?: boolean
   lastName?: boolean
   cpf?: boolean
+  cpfBlindIndex?: boolean
   companyName?: boolean
   cnpj?: boolean
+  cnpjBlindIndex?: boolean
   tradeName?: boolean
 }, ExtArgs["result"]["user"]>
 
@@ -1269,12 +1359,14 @@ export type UserSelectScalar = {
   firstName?: boolean
   lastName?: boolean
   cpf?: boolean
+  cpfBlindIndex?: boolean
   companyName?: boolean
   cnpj?: boolean
+  cnpjBlindIndex?: boolean
   tradeName?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "password" | "userType" | "createdAt" | "updatedAt" | "consentedAt" | "consentVersion" | "firstName" | "lastName" | "cpf" | "companyName" | "cnpj" | "tradeName", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "password" | "userType" | "createdAt" | "updatedAt" | "consentedAt" | "consentVersion" | "firstName" | "lastName" | "cpf" | "cpfBlindIndex" | "companyName" | "cnpj" | "cnpjBlindIndex" | "tradeName", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   properties?: boolean | Prisma.User$propertiesArgs<ExtArgs>
   distributors?: boolean | Prisma.User$distributorsArgs<ExtArgs>
@@ -1307,8 +1399,10 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     firstName: string | null
     lastName: string | null
     cpf: string | null
+    cpfBlindIndex: string | null
     companyName: string | null
     cnpj: string | null
+    cnpjBlindIndex: string | null
     tradeName: string | null
   }, ExtArgs["result"]["user"]>
   composites: {}
@@ -1749,8 +1843,10 @@ export interface UserFieldRefs {
   readonly firstName: Prisma.FieldRef<"User", 'String'>
   readonly lastName: Prisma.FieldRef<"User", 'String'>
   readonly cpf: Prisma.FieldRef<"User", 'String'>
+  readonly cpfBlindIndex: Prisma.FieldRef<"User", 'String'>
   readonly companyName: Prisma.FieldRef<"User", 'String'>
   readonly cnpj: Prisma.FieldRef<"User", 'String'>
+  readonly cnpjBlindIndex: Prisma.FieldRef<"User", 'String'>
   readonly tradeName: Prisma.FieldRef<"User", 'String'>
 }
     

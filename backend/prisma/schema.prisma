@@ -82,12 +82,19 @@ model User {
   // Campos exclusivos de pessoa física
   firstName String?
   lastName  String?
-  cpf       String? @unique
+  // cpf armazena o valor criptografado (AES-256-GCM, ver shared/crypto/encryption.ts)
+  // — não pode ser @unique porque o IV aleatório faz o mesmo CPF gerar
+  // ciphertext diferente a cada criptografia. cpfBlindIndex (HMAC-SHA256,
+  // determinístico) é quem garante unicidade e permite busca por igualdade.
+  cpf           String?
+  cpfBlindIndex String? @unique
 
   // Campos exclusivos de pessoa jurídica
   companyName String?
-  cnpj        String? @unique
-  tradeName   String?
+  // cnpj armazena o valor criptografado — mesma lógica do cpf acima.
+  cnpj           String?
+  cnpjBlindIndex String? @unique
+  tradeName      String?
 
   // Relacionamentos
   properties     Property[]

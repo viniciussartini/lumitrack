@@ -2,7 +2,7 @@
 
 > **Escopo:** OWASP Top 10:2025 + conformidade com a LGPD (Lei nº 13.709/2018)
 > **Data da auditoria:** 2026-06-27
-> **Versão do documento:** 1.2
+> **Versão do documento:** 1.3
 > **Branch de remediação:** `security/owasp-lgpd-remediation`
 > **Stack auditado:** Backend Node.js/TypeScript (Express 5, Prisma 7, PostgreSQL) · Frontend React 19/Vite
 
@@ -30,13 +30,13 @@ produção com usuários reais.
 | 🟡 Médio   | 3 | Vulns de dependência (dev); sem CI/CD com gates; política de senha fraca |
 | 🟢 Baixo   | 3 | Injection (mitigado); RBAC raso; tratamento de exceções (mitigado) |
 
-**Estado atual (pós #01/#02/#04/#05/#06 — ver Seção 3 e `IMPLEMENTATION_LOG.md`):**
+**Estado atual (pós #01/#02/#04/#05/#06/#07 — ver Seção 3 e `IMPLEMENTATION_LOG.md`):**
 
 | Severidade | Quantidade | Categorias |
 |------------|-----------|----------|
 | 🔴 Crítico | 0 | — |
 | 🟠 Alto    | 1 | A09 (sem audit log — pendente #08) |
-| 🟡 Médio   | 4 | A03, A04 (CPF/CNPJ ainda em texto claro — pendente #07), A06, A08 |
+| 🟡 Médio   | 4 | A03, A04 (endereço da propriedade ainda em texto claro — ver #15), A06, A08 |
 | 🟢 Baixo   | 5 | A01, A02, A05, A07, A10 |
 
 A remediação está organizada em **4 fases** (ver Seção 6), iniciando pelos itens
@@ -67,7 +67,7 @@ Evidências são referenciadas no formato `arquivo:linha`.
 | A01 | Broken Access Control | Autorização por posse de recurso presente e consistente (✅). Atenção: `userType` (INDIVIDUAL/COMPANY) não é RBAC real — sem papel admin/escopos. | 🟢 Baixo |
 | A02 | Security Misconfiguration | ~~Helmet com config padrão~~ ~~CORS sem guard~~ ~~sem HTTPS/HSTS~~ ~~sem `.env.example`~~ **corrigido (#05)** — CSP explícito (deny-all, API pura), HSTS explícito, guard `CORS_ORIGIN='*'` bloqueado em produção, redirect HTTP→HTTPS + `trust proxy` em produção, `.env.example` criado. ~~Cookie de sessão WEB sem atributos de segurança~~ **corrigido (#06)** — `httpOnly`/`Secure` (produção)/`SameSite=Lax`. | 🟢 Baixo (era 🟠 Alto) |
 | A03 | Software Supply Chain Failures | 3 vulns moderadas no backend (`@hono/node-server` via `@prisma/dev` — **dependência de desenvolvimento**, risco real reduzido); sem CI com auditoria automática; sem Dependabot. | 🟡 Médio |
-| A04 | Cryptographic Failures | CPF/CNPJ e endereço **ainda em texto claro** (pendente — ver #07); ~~JWT armazenado em texto claro~~ **corrigido (#04)** — agora SHA-256. Senhas com bcrypt 12 (✅). | 🟡 Médio (era 🟠 Alto) |
+| A04 | Cryptographic Failures | ~~CPF/CNPJ em texto claro~~ **corrigido (#07)** — AES-256-GCM + blind index (HMAC-SHA256) para preservar unicidade/busca. Endereço da propriedade **ainda em texto claro** (gap residual, ver #15 no roadmap — a #07 foi escopada apenas a CPF/CNPJ, decisão registrada com o usuário). ~~JWT armazenado em texto claro~~ **corrigido (#04)** — agora SHA-256. Senhas com bcrypt 12 (✅). | 🟡 Médio (era 🟠 Alto) |
 | A05 | Injection | Prisma parametrizado, sem `$queryRaw`; React escapa por padrão, sem `dangerouslySetInnerHTML` (✅). | 🟢 Baixo |
 | A06 | Insecure Design | ~~Tokens MOBILE nunca expiram~~ **corrigido (#04)** — expiram após `MOBILE_TOKEN_EXPIRES_IN` (default 90d); sem refresh token; política de senha sem caractere especial; sem rate limit por design. | 🟡 Médio (era 🟠 Alto) |
 | A07 | Authentication Failures | ~~Sem rate limiting / proteção brute-force~~ **corrigido (#01)** — limiter global por IP + limiter estrito por IP+e-mail em `/login`, `/forgot-password`, `/reset-password`. ~~Sem proteção CSRF na sessão WEB~~ **corrigido (#06)** — double-submit cookie. Ainda sem lockout de conta e sem MFA (gaps menores, não bloqueantes). Anti-enumeração no forgot-password (✅). | 🟢 Baixo (era 🔴 Crítico) |
@@ -87,8 +87,27 @@ Evidências são referenciadas no formato `arquivo:linha`.
   é gravado. Evidência: [hashToken.ts](../backend/src/shared/crypto/hashToken.ts),
   [auth.service.ts](../backend/src/modules/auth/auth.service.ts),
   [authenticate.ts](../backend/src/shared/middlewares/authenticate.ts).
-- **A04 — CPF/CNPJ em texto claro.** Evidência:
-  [schema.prisma:79-83](../backend/prisma/schema.prisma#L79-L83). Pendente — ver #07.
+- **A04 — CPF/CNPJ em texto claro — ✅ corrigido (#07).** Os campos `cpf`/`cnpj`
+  do usuário passam a guardar o valor cifrado com AES-256-GCM (IV aleatório a
+  cada criptografia — por isso deixaram de ser `@unique`). Um blind index
+  determinístico (HMAC-SHA256, chave separada da chave de cifra) em
+  `cpfBlindIndex`/`cnpjBlindIndex` preserva a constraint de unicidade e
+  permite busca por igualdade sem nunca expor o valor cifrado para
+  comparação. Cifra/decifra acontece na borda do `UserRepository` — o resto
+  da aplicação (service, controller, frontend) continua recebendo o valor em
+  texto claro, sem nenhuma mudança de contrato de API. Script de backfill
+  (`backend/scripts/backfill-cpf-cnpj-encryption.ts`, idempotente) cobre
+  dados que já existiam em texto claro antes da #07. Escopo: apenas
+  `users.cpf`/`users.cnpj` — o CNPJ da distribuidora de energia
+  (`energy_distributors.cnpj`) foi deliberadamente excluído (decisão
+  registrada com o usuário): identifica uma pessoa jurídica terceira
+  (a concessionária), não o titular dos dados pessoais. Evidência:
+  [encryption.ts](../backend/src/shared/crypto/encryption.ts),
+  [blindIndex.ts](../backend/src/shared/crypto/blindIndex.ts),
+  [user.repository.ts](../backend/src/modules/user/user.repository.ts),
+  [schema.prisma](../backend/prisma/schema.prisma).
+  Pendente (ver #15 no roadmap): endereço da propriedade ainda em texto claro
+  — fora do escopo desta sub-issue.
 - **A06 — Token MOBILE sem expiração — ✅ corrigido (#04).** Tokens MOBILE agora
   expiram após `MOBILE_TOKEN_EXPIRES_IN` (default 90 dias), tanto no `exp` do
   JWT quanto no `expiresAt` persistido — verificado pelo middleware
@@ -130,7 +149,7 @@ Evidências são referenciadas no formato `arquivo:linha`.
 | Art. 18 | Acesso e portabilidade | ⚠️ Parcial | Endpoint `GET /api/users/me/data-export` (JSON estruturado) |
 | Art. 16/18 | Eliminação de dados | ✅ Implementado | `DELETE /api/users/:id` + cascade — manter e auditar |
 | Art. 18 | Retificação | ✅ Implementado | `PUT /api/users/:id` — manter |
-| Art. 46 | Segurança dos dados | ⚠️ Parcial | Cripto de CPF/CNPJ + audit log + hardening |
+| Art. 46 | Segurança dos dados | ⚠️ Parcial | ~~Cripto de CPF/CNPJ~~ ✅ (#07); hardening ✅ (#02/#05/#06); falta audit log (#08) e cripto do endereço (#15) |
 | Art. 15/16 | Retenção mínima | ❌ Indefinida | Política + job de expurgo |
 | Art. 37-39 | Operadores (DPA com SMTP) | ⚠️ Não confirmado | Documentar provedor e DPA |
 | Art. 48 | Resposta a incidentes | ❌ Ausente | Runbook (Seção 7) |
@@ -162,7 +181,9 @@ Registro formal da auditoria — base para governança e Art. 48.
 - **#06** ✅ Sessão via httpOnly cookies + CSRF (A02/A07) — migrado de `localStorage`
   (canal WEB) para cookie `httpOnly`/`Secure`/`SameSite=Lax` + CSRF double-submit
   cookie; canal MOBILE inalterado (Bearer)
-- **#07** Criptografia de CPF/CNPJ + blind index (A04/Art. 46) — *decisão: AES-256-GCM + HMAC*
+- **#07** ✅ Criptografia de CPF/CNPJ + blind index (A04/Art. 46) — AES-256-GCM
+  (cifra) + HMAC-SHA256 (blind index, chave separada) para preservar
+  unicidade/busca; escopo restrito a `users.cpf`/`users.cnpj`
 - **#08** Logger estruturado (pino) + audit log (A09/Art. 46)
 - **#09** Exportação de dados do titular / DSAR (Art. 18)
 
@@ -175,11 +196,15 @@ Registro formal da auditoria — base para governança e Art. 48.
   (JWT WEB expira em 15min sem renovação automática); fora do escopo da #06
   por introduzir superfície de ataque própria (rotação/roubo de refresh
   token) que merece análise de segurança dedicada
+- **#15** Criptografia do endereço da propriedade (A04) — gap conhecido desde
+  a #07 (o achado original mencionava CPF/CNPJ **e** endereço; a #07 foi
+  escopada apenas a CPF/CNPJ, decisão registrada com o usuário); endereço
+  geográfico é dado pessoal sob a LGPD e continua em texto claro
 
 ### Decisões de arquitetura
 - **Sessão:** migração de `localStorage` → **httpOnly cookies** (Secure + SameSite) + CSRF.
 - **CPF/CNPJ em repouso:** **AES-256-GCM na aplicação + blind index (HMAC-SHA256)**
-  para preservar unicidade (`@unique`) e busca.
+  para preservar unicidade (`@unique`) e busca. ✅ Implementado (#07).
 
 ---
 
@@ -221,3 +246,4 @@ Registro formal da auditoria — base para governança e Art. 48.
 | 1.0 | 2026-06-27 | Auditoria de Segurança | Versão inicial (Fase 0) |
 | 1.1 | 2026-06-27 | Auditoria de Segurança | Fase 1 concluída (#01-#05): status, severidades e contadores atualizados para refletir as correções aplicadas (rate limiting, consentimento LGPD, Política de Privacidade/Termos, hash de token + expiração MOBILE, hardening CORS/Helmet/HTTPS). Corrigida inconsistência no achado A04 (CPF/CNPJ ainda pendente — não deveria ter sido marcado como Baixo). |
 | 1.2 | 2026-06-27 | Auditoria de Segurança | #06 concluída (Fase 2): sessão WEB migrada de `localStorage` para cookie `httpOnly`/`Secure`/`SameSite=Lax` + CSRF via double-submit cookie; canal MOBILE inalterado. Achados A02/A07 atualizados (A07 rebaixado para 🟢 Baixo). Adicionado **#14** ao roadmap (refresh token para sessão WEB, fora do escopo da #06). |
+| 1.3 | 2026-06-27 | Auditoria de Segurança | #07 concluída (Fase 2): CPF/CNPJ do usuário criptografados em repouso (AES-256-GCM) com blind index (HMAC-SHA256) preservando unicidade/busca; escopo restrito a `users.cpf`/`users.cnpj` (CNPJ da distribuidora e endereço da propriedade ficaram de fora, decisão registrada com o usuário). Achado A04 atualizado (CPF/CNPJ corrigido, mas permanece 🟡 Médio pelo gap residual do endereço). Adicionado **#15** ao roadmap (criptografia do endereço da propriedade). |

@@ -40,6 +40,21 @@ export const envSchema = z.object({
     AUTH_COOKIE_NAME: z.string().default("lumitrack_session"),
     CSRF_COOKIE_NAME: z.string().default("lumitrack_csrf"),
     CSRF_HEADER_NAME: z.string().default("x-csrf-token"),
+
+    // Criptografia de CPF/CNPJ em repouso (#07 da remediação OWASP/LGPD).
+    // Duas chaves separadas — nunca reutilizar a mesma chave para cifra e MAC.
+    // Formato: 64 caracteres hex (32 bytes / 256 bits). Gerar com:
+    //   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+    CPF_CNPJ_ENCRYPTION_KEY: z
+        .string()
+        .regex(/^[0-9a-f]{64}$/i, {
+            message: "CPF_CNPJ_ENCRYPTION_KEY deve ter 64 caracteres hexadecimais (32 bytes)",
+        }),
+    CPF_CNPJ_BLIND_INDEX_KEY: z
+        .string()
+        .regex(/^[0-9a-f]{64}$/i, {
+            message: "CPF_CNPJ_BLIND_INDEX_KEY deve ter 64 caracteres hexadecimais (32 bytes)",
+        }),
 }).refine(
     (data) => !(data.NODE_ENV === "production" && data.CORS_ORIGIN === "*"),
     {

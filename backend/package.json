@@ -15,7 +15,8 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "backfill:cpf-cnpj": "tsx scripts/backfill-cpf-cnpj-encryption.ts"
   },
   "keywords": [],
   "author": "",
