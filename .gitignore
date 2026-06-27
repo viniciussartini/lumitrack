@@ -25,3 +25,6 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Log de implementação (uso interno, não versionado)
+docs/IMPLEMENTATION_LOG.md
