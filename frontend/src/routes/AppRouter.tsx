@@ -22,6 +22,8 @@ import { AlertsPage } from "@/pages/alert/AlertsPage"
 import { PropertyReportPage } from "@/pages/report/PropertyReportPage"
 import { AreaReportPage } from "@/pages/report/AreaReportPage"
 import { DeviceReportPage } from "@/pages/report/DeviceReportPage"
+import { PrivacyPolicyPage } from "@/pages/legal/PrivacyPolicyPage"
+import { TermsOfUsePage } from "@/pages/legal/TermsOfUsePage"
 
 /**
  * Mapa de rotas
@@ -34,6 +36,11 @@ import { DeviceReportPage } from "@/pages/report/DeviceReportPage"
 
 export const AppRouter = () => (
     <Routes>
+        {/* Documentos legais — acessíveis independente do estado de autenticação
+            (precisam ser lidos antes do cadastro, e por usuários já logados). */}
+        <Route path="/privacidade" element={<PrivacyPolicyPage />} />
+        <Route path="/termos" element={<TermsOfUsePage />} />
+
         {/* Rotas públicas — bloqueia acesso de quem já está logado */}
         <Route element={<PublicRoute />}>
             <Route path="/login" element={<LoginPage />} />
