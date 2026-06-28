@@ -1,0 +1,258 @@
+name: CI
+
+# #11 — CI/CD com gates de segurança (A03/A08 da auditoria OWASP/LGPD, ver
+# docs/AUDITORIA_SEGURANCA.md). Roda em toda PR para main e em push direto
+# para main. Todos os jobs usam `npm ci` (nunca `npm install`) — build
+# reprodutível a partir do lockfile, peça central do gate de integridade.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  NODE_VERSION: "24"
+
+jobs:
+  frontend-lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      # tsc -b && vite build — cobre typecheck + build num único passo.
+      - run: npm run build
+
+  frontend-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  frontend-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      # Bloqueia em high/critical. Moderate só gera aviso (não falha o
+      # job) — ver achado A03 em docs/AUDITORIA_SEGURANCA.md sobre a vuln
+      # moderada conhecida em devDependency do backend (sem fix ainda).
+      - run: npm audit --audit-level=high
+      - name: Relatório completo (não bloqueante)
+        if: always()
+        run: npm audit || true
+
+  backend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      # Garante que o client gerado nunca fica desatualizado em relação ao
+      # schema.prisma versionado, mesmo que o build não dependa de banco.
+      - run: npx prisma generate
+      - run: npm run build
+
+  backend-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - name: Relatório completo (não bloqueante)
+        if: always()
+        run: npm audit || true
+
+  backend-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Nenhum destes valores é um segredo real — são descartáveis, só
+      # para satisfazer a validação de env.ts neste ambiente de CI.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
+      DATABASE_TEST_URL: postgresql://postgres:postgres@localhost:5432/lumitrack_test?schema=public
+      DATABASE_HTTP_TEST_URL: postgresql://postgres:postgres@localhost:5432/lumitrack_test_http?schema=public
+      JWT_SECRET: ci-only-dummy-secret-nao-e-usado-em-producao-32chars
+      CPF_CNPJ_ENCRYPTION_KEY: 6fd4bad67bbdb0573f391bffdc1f0b3e710203034d07ace29e71bb1f49c835f4
+      CPF_CNPJ_BLIND_INDEX_KEY: 25e6454d84f1a7348ee8a2410b6a244814e719d0fafb1cf30e54aa40ada5657d
+      SMTP_HOST: smtp.ci.invalid
+      SMTP_USER: ci
+      SMTP_PASS: ci
+      SMTP_FROM: "LumiTrack CI <ci@lumitrack.invalid>"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Criar bancos de teste
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE lumitrack_test;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE lumitrack_test_http;"
+      - name: Aplicar migrations nos bancos de teste
+        run: |
+          DATABASE_URL="$DATABASE_TEST_URL" npx prisma migrate deploy
+          DATABASE_URL="$DATABASE_HTTP_TEST_URL" npx prisma migrate deploy
+      - run: npm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lumitrack_e2e?schema=public
+      DATABASE_TEST_URL: postgresql://postgres:postgres@localhost:5432/lumitrack_e2e?schema=public
+      DATABASE_HTTP_TEST_URL: postgresql://postgres:postgres@localhost:5432/lumitrack_e2e?schema=public
+      JWT_SECRET: ci-only-dummy-secret-nao-e-usado-em-producao-32chars
+      CPF_CNPJ_ENCRYPTION_KEY: 6fd4bad67bbdb0573f391bffdc1f0b3e710203034d07ace29e71bb1f49c835f4
+      CPF_CNPJ_BLIND_INDEX_KEY: 25e6454d84f1a7348ee8a2410b6a244814e719d0fafb1cf30e54aa40ada5657d
+      SMTP_HOST: smtp.ci.invalid
+      SMTP_USER: ci
+      SMTP_PASS: ci
+      SMTP_FROM: "LumiTrack CI <ci@lumitrack.invalid>"
+      CORS_ORIGIN: http://localhost:5173
+      FRONTEND_URL: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Instalar dependências do backend
+        working-directory: backend
+        run: npm ci
+      - name: Gerar client Prisma e aplicar migrations (banco e2e)
+        working-directory: backend
+        run: |
+          npx prisma generate
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE lumitrack_e2e;"
+          npx prisma migrate deploy
+
+      - name: Instalar dependências do frontend
+        working-directory: frontend
+        run: npm ci
+      - name: Instalar browsers do Playwright
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Iniciar backend em background
+        working-directory: backend
+        run: |
+          nohup npm run dev > /tmp/backend-e2e.log 2>&1 &
+          disown
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3333/health > /dev/null; then
+              echo "Backend pronto."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Backend não respondeu a tempo." >&2
+          exit 1
+
+      - name: Rodar testes e2e (Playwright)
+        working-directory: frontend
+        run: npx playwright test
+
+      - name: Upload do relatório do Playwright (em caso de falha)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Upload do log do backend (em caso de falha)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-e2e-log
+          path: /tmp/backend-e2e.log
+          retention-days: 7

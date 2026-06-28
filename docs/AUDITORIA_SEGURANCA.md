@@ -2,7 +2,7 @@
 
 > **Escopo:** OWASP Top 10:2025 + conformidade com a LGPD (Lei nº 13.709/2018)
 > **Data da auditoria:** 2026-06-27
-> **Versão do documento:** 1.6
+> **Versão do documento:** 1.7
 > **Branch de remediação:** `security/owasp-lgpd-remediation`
 > **Stack auditado:** Backend Node.js/TypeScript (Express 5, Prisma 7, PostgreSQL) · Frontend React 19/Vite
 
@@ -30,14 +30,14 @@ produção com usuários reais.
 | 🟡 Médio   | 3 | Vulns de dependência (dev); sem CI/CD com gates; política de senha fraca |
 | 🟢 Baixo   | 3 | Injection (mitigado); RBAC raso; tratamento de exceções (mitigado) |
 
-**Estado atual (pós #01/#02/#04/#05/#06/#07/#08 — ver Seção 3 e `IMPLEMENTATION_LOG.md`):**
+**Estado atual (pós #01/#02/#04/#05/#06/#07/#08/#11 — ver Seção 3 e `IMPLEMENTATION_LOG.md`):**
 
 | Severidade | Quantidade | Categorias |
 |------------|-----------|----------|
 | 🔴 Crítico | 0 | — |
 | 🟠 Alto    | 0 | — |
-| 🟡 Médio   | 4 | A03, A04 (endereço da propriedade ainda em texto claro — ver #15), A06, A08 |
-| 🟢 Baixo   | 6 | A01, A02, A05, A07, A09, A10 |
+| 🟡 Médio   | 2 | A04 (endereço da propriedade ainda em texto claro — ver #15), A06 |
+| 🟢 Baixo   | 8 | A01, A02, A03, A05, A07, A08, A09, A10 |
 
 A remediação está organizada em **4 fases** (ver Seção 6), iniciando pelos itens
 críticos antes de qualquer ida a produção.
@@ -66,12 +66,12 @@ Evidências são referenciadas no formato `arquivo:linha`.
 |------|-----------|--------|------------|
 | A01 | Broken Access Control | Autorização por posse de recurso presente e consistente (✅). Atenção: `userType` (INDIVIDUAL/COMPANY) não é RBAC real — sem papel admin/escopos. | 🟢 Baixo |
 | A02 | Security Misconfiguration | ~~Helmet com config padrão~~ ~~CORS sem guard~~ ~~sem HTTPS/HSTS~~ ~~sem `.env.example`~~ **corrigido (#05)** — CSP explícito (deny-all, API pura), HSTS explícito, guard `CORS_ORIGIN='*'` bloqueado em produção, redirect HTTP→HTTPS + `trust proxy` em produção, `.env.example` criado. ~~Cookie de sessão WEB sem atributos de segurança~~ **corrigido (#06)** — `httpOnly`/`Secure` (produção)/`SameSite=Lax`. | 🟢 Baixo (era 🟠 Alto) |
-| A03 | Software Supply Chain Failures | 3 vulns moderadas no backend (`@hono/node-server` via `@prisma/dev` — **dependência de desenvolvimento**, risco real reduzido); sem CI com auditoria automática; sem Dependabot. | 🟡 Médio |
+| A03 | Software Supply Chain Failures | ~~Sem CI com auditoria automática~~ ~~sem Dependabot~~ **corrigido (#11)** — GitHub Actions audita `npm audit` (bloqueia em high/critical) em todo PR/push, `.github/dependabot.yml` mantém dependências atualizadas semanalmente. 3 vulns moderadas no backend (`@hono/node-server` via `@prisma/dev` — **dependência de desenvolvimento**, risco real reduzido, sem fix não-breaking disponível) seguem como aviso não-bloqueante, monitoradas pelo gate. | 🟢 Baixo (era 🟡 Médio) |
 | A04 | Cryptographic Failures | ~~CPF/CNPJ em texto claro~~ **corrigido (#07)** — AES-256-GCM + blind index (HMAC-SHA256) para preservar unicidade/busca. Endereço da propriedade **ainda em texto claro** (gap residual, ver #15 no roadmap — a #07 foi escopada apenas a CPF/CNPJ, decisão registrada com o usuário). ~~JWT armazenado em texto claro~~ **corrigido (#04)** — agora SHA-256. Senhas com bcrypt 12 (✅). | 🟡 Médio (era 🟠 Alto) |
 | A05 | Injection | Prisma parametrizado, sem `$queryRaw`; React escapa por padrão, sem `dangerouslySetInnerHTML` (✅). | 🟢 Baixo |
 | A06 | Insecure Design | ~~Tokens MOBILE nunca expiram~~ **corrigido (#04)** — expiram após `MOBILE_TOKEN_EXPIRES_IN` (default 90d); sem refresh token; política de senha sem caractere especial; sem rate limit por design. | 🟡 Médio (era 🟠 Alto) |
 | A07 | Authentication Failures | ~~Sem rate limiting / proteção brute-force~~ **corrigido (#01)** — limiter global por IP + limiter estrito por IP+e-mail em `/login`, `/forgot-password`, `/reset-password`. ~~Sem proteção CSRF na sessão WEB~~ **corrigido (#06)** — double-submit cookie. Ainda sem lockout de conta e sem MFA (gaps menores, não bloqueantes). Anti-enumeração no forgot-password (✅). | 🟢 Baixo (era 🔴 Crítico) |
-| A08 | Software/Data Integrity Failures | Sem CI/CD; sem verificação de integridade de build; scripts de dependência não controlados. | 🟡 Médio |
+| A08 | Software/Data Integrity Failures | ~~Sem CI/CD~~ ~~sem verificação de integridade de build~~ **corrigido (#11)** — pipeline GitHub Actions (`.github/workflows/ci.yml`) builda/testa backend e frontend (typecheck, testes unitários/integração, e2e via Playwright) em todo PR/push usando `npm ci` (instalação reprodutível a partir do lockfile) em todos os jobs. Scripts de dependência (`postinstall` etc.) continuam não auditados individualmente — gap residual, fora do escopo desta sub-issue. | 🟢 Baixo (era 🟡 Médio) |
 | A09 | Logging & Alerting Failures | ~~Apenas `console.*`~~ **corrigido (#08)** — logger estruturado (pino) em todo o backend; ~~sem audit log~~ **corrigido (#08)** — tabela `audit_logs` registra login/logout, acessos negados (403, capturado centralizadamente) e CRUD de User/Property. | 🟢 Baixo (era 🟠 Alto) |
 | A10 | Mishandling of Exceptional Conditions | Error handler global cobre Zod/AppError/500 e não vaza stack em produção (✅). Atenção: sem request-id correlacionável e sem handler central documentado de `unhandledRejection`. | 🟢 Baixo |
 
@@ -221,7 +221,12 @@ Registro formal da auditoria — base para governança e Art. 48.
   dias e `AuditLog` com mais de ~2 anos (remoção completa, não anonimização)
   — períodos configuráveis via `DATA_RETENTION_AUTH_TOKEN_DAYS`/
   `DATA_RETENTION_PASSWORD_RESET_DAYS`/`DATA_RETENTION_AUDIT_LOG_DAYS`
-- **#11** CI/CD com gates de segurança (A03/A08)
+- **#11** ✅ CI/CD com gates de segurança (A03/A08) — pipeline GitHub
+  Actions (`.github/workflows/ci.yml`): typecheck/build/testes unitários e
+  e2e (Playwright) dos dois projetos, `npm audit` (bloqueia high/critical,
+  moderate só avisa) em todo PR/push; `.github/dependabot.yml` (npm
+  backend+frontend, GitHub Actions, semanal). Lint do backend ficou fora
+  do escopo — ver **#17**.
 - **#12** Política de senha forte + MFA opcional (A06/A07)
 - **#13** DPA com operador SMTP + runbook de incidentes (Art. 37-39/48)
 - **#14** Refresh token para sessão WEB (A06) — gap conhecido desde a #06
@@ -237,6 +242,11 @@ Registro formal da auditoria — base para governança e Art. 48.
   (Prisma Studio/SQL); um endpoint HTTP dedicado depende de RBAC real
   (papel admin), que não existe ainda (ver A01 — `userType` não é RBAC) —
   bloqueado até essa base existir
+- **#17** ESLint no backend (qualidade/A03) — gap conhecido desde a #11:
+  o frontend já tem ESLint configurado e lintado no CI, mas o backend não
+  tem nenhuma configuração de lint; ficou fora do escopo da #11 (que focou
+  em CI/CD + gates de segurança, não em qualidade de código geral),
+  decisão registrada com o usuário
 
 ### Decisões de arquitetura
 - **Sessão:** migração de `localStorage` → **httpOnly cookies** (Secure + SameSite) + CSRF.
@@ -287,3 +297,4 @@ Registro formal da auditoria — base para governança e Art. 48.
 | 1.4 | 2026-06-27 | Auditoria de Segurança | #08 concluída (Fase 2, encerra a Fase 2): logger estruturado (pino) substitui todo `console.*`; nova tabela `audit_logs` registra login/logout (sucesso e falha), acessos negados (403, captura centralizada no `errorHandler`) e CRUD de `User`/`Property`. Achado A09 corrigido e rebaixado para 🟢 Baixo — zero achados 🟠 Alto/🔴 Crítico remanescentes. Adicionado **#16** ao roadmap (endpoint administrativo de consulta do audit log, bloqueado por depender de RBAC ainda inexistente). |
 | 1.5 | 2026-06-28 | Auditoria de Segurança | #09 concluída (Fase 2, encerra de fato a Fase 2 — #06 a #09 todos ✅): endpoint `GET /api/users/me/data-export?format=json\|pdf` (Art. 18 LGPD) agrega perfil, properties, distribuidoras, áreas, dispositivos, alertas, histórico de consumo e audit log do titular. JSON sem corte/paginação (inclui `ConsumptionRecord` completo, decisão consciente apesar do volume); PDF gerado com PDFKit (sem Chromium) traz um resumo agregado de consumo por propriedade e a identidade visual do LumiTrack. Nova action `DATA_EXPORT` no enum `AuditAction` (migration aditiva). Achado Art. 18 corrigido de "⚠️ Parcial" para "✅ Implementado". |
 | 1.6 | 2026-06-28 | Auditoria de Segurança | #10 concluída (abre a Fase 3): `RetentionPurgeScheduler` (mesmo padrão sem dependência nova do `HourlyRollupScheduler` já existente no módulo IoT) roda no boot e a cada 24h, removendo `AuthToken`/`PasswordReset` inativos há mais de 30 dias e `AuditLog` com mais de ~2 anos — remoção completa, não anonimização (decisão registrada com o usuário). Períodos configuráveis via novas variáveis `DATA_RETENTION_AUTH_TOKEN_DAYS`/`DATA_RETENTION_PASSWORD_RESET_DAYS`/`DATA_RETENTION_AUDIT_LOG_DAYS` (todas com default, nada obrigatório novo). Achado Art. 15/16 corrigido de "❌ Indefinida" para "✅ Implementado". |
+| 1.7 | 2026-06-28 | Auditoria de Segurança | #11 concluída: pipeline GitHub Actions (`.github/workflows/ci.yml`) — typecheck/build/testes unitários e e2e (Playwright) de backend e frontend em todo PR/push para `main`, com `npm ci` (build reprodutível) em todos os jobs; `npm audit` bloqueia em high/critical (moderate só avisa, por causa da vuln moderada conhecida em devDependency do Prisma, sem fix não-breaking ainda); `.github/dependabot.yml` adicionado (npm backend+frontend, GitHub Actions, semanal). Achados A03 e A08 corrigidos e rebaixados para 🟢 Baixo. Lint do backend ficou fora do escopo, registrado como **#17** no roadmap. Tabela-resumo executiva (Seção 1) recalculada: 🟡 Médio caiu de 4 para 2 categorias, 🟢 Baixo subiu de 6 para 8. |
