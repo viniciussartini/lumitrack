@@ -48,6 +48,28 @@ export class ConsumptionRepository {
         })
     }
 
+    // Usado pela exportação de dados do titular (#09) — ConsumptionRecord é
+    // polimórfico (propertyId | areaId | deviceId, exatamente um
+    // preenchido, sem FK direta para userId). Resolve com uma única query
+    // via OR de relação aninhada, sem precisar buscar os IDs de
+    // properties/areas/devices do usuário antes — evita duas viagens ao
+    // banco e arrays grandes de IDs em memória. Sem paginação, de propósito
+    // (Art. 18 pede integralidade); o resumo agregado usado no PDF é
+    // calculado em memória a partir deste mesmo resultado (ver
+    // shared/pdf/dataExportPdf.ts), sem segunda query.
+    async findAllByUser(userId: string): Promise<ConsumptionResponse[]> {
+        return this.prisma.consumptionRecord.findMany({
+            where: {
+                OR: [
+                    { property: { userId } },
+                    { area: { property: { userId } } },
+                    { device: { area: { property: { userId } } } },
+                ],
+            },
+            orderBy: { referenceDate: "desc" },
+        })
+    }
+
     async create(
         target: ConsumptionTarget,
         data: CreateConsumptionInput,

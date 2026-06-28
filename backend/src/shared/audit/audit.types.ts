@@ -11,6 +11,7 @@ export type AuditAction =
     | "PROPERTY_CREATE"
     | "PROPERTY_UPDATE"
     | "PROPERTY_DELETE"
+    | "DATA_EXPORT"
 
 export type AuditOutcome = "SUCCESS" | "FAILURE"
 

@@ -15,6 +15,7 @@ import { prisma } from "@/shared/database/prisma.js"
 import type { SendPasswordResetEmailFn } from "@/modules/auth/auth.service.js"
 import { sendPasswordResetEmail as realSendPasswordResetEmail } from "@/modules/auth/email.service.js"
 import { userRoutes } from "@/modules/user/user.routes.js"
+import { exportRoutes } from "@/modules/export/export.routes.js"
 import { authRoutes } from "@/modules/auth/auth.routes.js"
 import { distributorRoutes } from "./modules/distributor/distributor.routes.js"
 import { propertyRoutes } from "./modules/property/property.routes.js"
@@ -118,6 +119,7 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/auth/forgot-password", authRateLimiter)
     app.use("/api/auth/reset-password", authRateLimiter)
 
+    app.use("/api/users", exportRoutes(authenticate, prismaClient, auditService))
     app.use("/api/users", userRoutes(authenticate, prismaClient, auditService))
     app.use("/api/auth", authRoutes(authenticate, prismaClient, sendPasswordResetEmail, auditService))
     app.use("/api/distributors", distributorRoutes(authenticate, prismaClient))

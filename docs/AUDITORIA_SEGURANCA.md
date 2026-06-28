@@ -2,7 +2,7 @@
 
 > **Escopo:** OWASP Top 10:2025 + conformidade com a LGPD (Lei nº 13.709/2018)
 > **Data da auditoria:** 2026-06-27
-> **Versão do documento:** 1.4
+> **Versão do documento:** 1.5
 > **Branch de remediação:** `security/owasp-lgpd-remediation`
 > **Stack auditado:** Backend Node.js/TypeScript (Express 5, Prisma 7, PostgreSQL) · Frontend React 19/Vite
 
@@ -167,7 +167,7 @@ Evidências são referenciadas no formato `arquivo:linha`.
 |-----------|-----------|--------|------|
 | Art. 7º/8º | Base legal / consentimento explícito | ✅ Implementado (#02) | Campo `consentedAt`/`consentVersion` no `User` + checkbox obrigatório no registro (backend e frontend) |
 | Art. 9º | Transparência (Política de Privacidade e Termos) | ✅ Implementado (#03) | Documentos versionados em `frontend/src/legal/*.md`, renderizados em `/privacidade` e `/termos` |
-| Art. 18 | Acesso e portabilidade | ⚠️ Parcial | Endpoint `GET /api/users/me/data-export` (JSON estruturado) |
+| Art. 18 | Acesso e portabilidade | ✅ Implementado (#09) | Endpoint `GET /api/users/me/data-export?format=json\|pdf` — JSON traz perfil, properties, distribuidoras, áreas, dispositivos, alertas, histórico de consumo completo (sem corte) e audit log do titular; PDF traz o mesmo conteúdo com resumo agregado de consumo (não a lista bruta) e identidade visual do LumiTrack |
 | Art. 16/18 | Eliminação de dados | ✅ Implementado | `DELETE /api/users/:id` + cascade — manter e auditar |
 | Art. 18 | Retificação | ✅ Implementado | `PUT /api/users/:id` — manter |
 | Art. 46 | Segurança dos dados | ⚠️ Parcial | ~~Cripto de CPF/CNPJ~~ ✅ (#07); hardening ✅ (#02/#05/#06); ~~audit log~~ ✅ (#08); falta cripto do endereço (#15) |
@@ -198,7 +198,7 @@ Registro formal da auditoria — base para governança e Art. 48.
 - **#04** ✅ Expiração de token MOBILE + hash do JWT no banco (A04/A06)
 - **#05** ✅ Hardening de CORS/Helmet/HTTPS + `backend/.env.example` (A02)
 
-### Fase 2 — Alto — ✅ Concluída (2026-06-27)
+### Fase 2 — Alto — ✅ Concluída (2026-06-28)
 - **#06** ✅ Sessão via httpOnly cookies + CSRF (A02/A07) — migrado de `localStorage`
   (canal WEB) para cookie `httpOnly`/`Secure`/`SameSite=Lax` + CSRF double-submit
   cookie; canal MOBILE inalterado (Bearer)
@@ -208,7 +208,11 @@ Registro formal da auditoria — base para governança e Art. 48.
 - **#08** ✅ Logger estruturado (pino) + audit log (A09/Art. 46) — tabela
   `audit_logs` para login/logout/403/CRUD de User+Property; `console.*`
   substituído por pino em todo o backend
-- **#09** Exportação de dados do titular / DSAR (Art. 18)
+- **#09** ✅ Exportação de dados do titular / DSAR (Art. 18) — endpoint
+  `GET /api/users/me/data-export?format=json|pdf`; JSON sem corte (inclui
+  ConsumptionRecord completo e AuditLog do titular); PDF com resumo
+  agregado de consumo e identidade visual do LumiTrack (PDFKit, sem
+  Chromium — minimiza superfície de supply chain do A03)
 
 ### Fase 3 — Médio
 - **#10** Retenção e expurgo de dados (Art. 15/16)
@@ -276,3 +280,4 @@ Registro formal da auditoria — base para governança e Art. 48.
 | 1.2 | 2026-06-27 | Auditoria de Segurança | #06 concluída (Fase 2): sessão WEB migrada de `localStorage` para cookie `httpOnly`/`Secure`/`SameSite=Lax` + CSRF via double-submit cookie; canal MOBILE inalterado. Achados A02/A07 atualizados (A07 rebaixado para 🟢 Baixo). Adicionado **#14** ao roadmap (refresh token para sessão WEB, fora do escopo da #06). |
 | 1.3 | 2026-06-27 | Auditoria de Segurança | #07 concluída (Fase 2): CPF/CNPJ do usuário criptografados em repouso (AES-256-GCM) com blind index (HMAC-SHA256) preservando unicidade/busca; escopo restrito a `users.cpf`/`users.cnpj` (CNPJ da distribuidora e endereço da propriedade ficaram de fora, decisão registrada com o usuário). Achado A04 atualizado (CPF/CNPJ corrigido, mas permanece 🟡 Médio pelo gap residual do endereço). Adicionado **#15** ao roadmap (criptografia do endereço da propriedade). |
 | 1.4 | 2026-06-27 | Auditoria de Segurança | #08 concluída (Fase 2, encerra a Fase 2): logger estruturado (pino) substitui todo `console.*`; nova tabela `audit_logs` registra login/logout (sucesso e falha), acessos negados (403, captura centralizada no `errorHandler`) e CRUD de `User`/`Property`. Achado A09 corrigido e rebaixado para 🟢 Baixo — zero achados 🟠 Alto/🔴 Crítico remanescentes. Adicionado **#16** ao roadmap (endpoint administrativo de consulta do audit log, bloqueado por depender de RBAC ainda inexistente). |
+| 1.5 | 2026-06-28 | Auditoria de Segurança | #09 concluída (Fase 2, encerra de fato a Fase 2 — #06 a #09 todos ✅): endpoint `GET /api/users/me/data-export?format=json\|pdf` (Art. 18 LGPD) agrega perfil, properties, distribuidoras, áreas, dispositivos, alertas, histórico de consumo e audit log do titular. JSON sem corte/paginação (inclui `ConsumptionRecord` completo, decisão consciente apesar do volume); PDF gerado com PDFKit (sem Chromium) traz um resumo agregado de consumo por propriedade e a identidade visual do LumiTrack. Nova action `DATA_EXPORT` no enum `AuditAction` (migration aditiva). Achado Art. 18 corrigido de "⚠️ Parcial" para "✅ Implementado". |

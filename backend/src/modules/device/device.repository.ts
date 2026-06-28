@@ -21,6 +21,15 @@ export class DeviceRepository {
         })
     }
 
+    // Usado pela exportação de dados do titular (#09) — filtro de relação
+    // aninhada de 2 níveis (Device → Area → Property → User).
+    async findAllByUser(userId: string): Promise<DeviceResponse[]> {
+        return this.prisma.device.findMany({
+            where: { area: { property: { userId } } },
+            orderBy: { name: "asc" },
+        })
+    }
+
     async create(areaId: string, data: CreateDeviceInput): Promise<DeviceResponse> {
         return this.prisma.device.create({
             data: {

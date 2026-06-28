@@ -44,6 +44,7 @@ enum AuditAction {
   PROPERTY_CREATE
   PROPERTY_UPDATE
   PROPERTY_DELETE
+  DATA_EXPORT
 
   @@map("audit_action")
 }

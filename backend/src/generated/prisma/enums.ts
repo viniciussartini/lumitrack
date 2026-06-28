@@ -43,7 +43,8 @@ export const AuditAction = {
   USER_DELETE: 'USER_DELETE',
   PROPERTY_CREATE: 'PROPERTY_CREATE',
   PROPERTY_UPDATE: 'PROPERTY_UPDATE',
-  PROPERTY_DELETE: 'PROPERTY_DELETE'
+  PROPERTY_DELETE: 'PROPERTY_DELETE',
+  DATA_EXPORT: 'DATA_EXPORT'
 } as const
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction]
