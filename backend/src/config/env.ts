@@ -60,6 +60,16 @@ export const envSchema = z.object({
     LOG_LEVEL: z
         .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
         .default("info"),
+
+    // Retenção e expurgo de dados (#10 da remediação OWASP/LGPD — Art. 15/16).
+    // Tokens/resets já inativos (expirados/revogados/usados) e audit logs
+    // antigos são removidos pelo RetentionPurgeScheduler após esses prazos.
+    // AuditLog usa um prazo mais longo de propósito — equilíbrio entre o
+    // Art. 48 (capacidade de reconstruir incidentes) e o Art. 15/16
+    // (minimização: não guardar dados além do necessário).
+    DATA_RETENTION_AUTH_TOKEN_DAYS: z.coerce.number().default(30),
+    DATA_RETENTION_PASSWORD_RESET_DAYS: z.coerce.number().default(30),
+    DATA_RETENTION_AUDIT_LOG_DAYS: z.coerce.number().default(730), // ~2 anos
 }).refine(
     (data) => !(data.NODE_ENV === "production" && data.CORS_ORIGIN === "*"),
     {

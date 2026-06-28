@@ -69,6 +69,40 @@ export class AuthRepository {
         })
     }
 
+    // #10 — Retenção e expurgo (Art. 15/16 LGPD): tokens que já não servem
+    // para nada (expirados ou revogados) ficam guardados por um período de
+    // graça (DATA_RETENTION_AUTH_TOKEN_DAYS) só para alguma investigação
+    // técnica pontual, depois são removidos. `threshold` é a data de corte
+    // (now - retentionDays) — qualquer token cuja revogação/expiração seja
+    // anterior a ela é candidato ao expurgo. Tokens nunca revogados E sem
+    // expiresAt (não deveria mais existir após a #04, mas defensivo) nunca
+    // são expurgados por este método.
+    async deleteExpiredOrRevokedTokens(threshold: Date): Promise<number> {
+        const result = await this.prisma.authToken.deleteMany({
+            where: {
+                OR: [
+                    { revokedAt: { lt: threshold } },
+                    { revokedAt: null, expiresAt: { lt: threshold } },
+                ],
+            },
+        })
+        return result.count
+    }
+
+    // Mesma lógica do método acima, para PasswordReset: usado ou expirado
+    // há mais de DATA_RETENTION_PASSWORD_RESET_DAYS dias é removido.
+    async deleteExpiredPasswordResets(threshold: Date): Promise<number> {
+        const result = await this.prisma.passwordReset.deleteMany({
+            where: {
+                OR: [
+                    { usedAt: { lt: threshold } },
+                    { usedAt: null, expiresAt: { lt: threshold } },
+                ],
+            },
+        })
+        return result.count
+    }
+
     async findUserByEmailWithPassword(email: string) {
         return this.prisma.user.findUnique({
             where: { email },

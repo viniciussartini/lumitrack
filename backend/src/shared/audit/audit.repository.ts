@@ -33,4 +33,16 @@ export class AuditRepository {
             orderBy: { createdAt: "desc" },
         })
     }
+
+    // #10 — Retenção e expurgo (Art. 15/16 LGPD): mantém os registros por
+    // DATA_RETENTION_AUDIT_LOG_DAYS (default ~2 anos) — equilíbrio entre o
+    // Art. 48 (capacidade de reconstruir incidentes) e o princípio de
+    // minimização do Art. 15/16 (não guardar dados além do necessário).
+    // Remoção completa (não anonimização) — decisão registrada com o usuário.
+    async deleteOlderThan(threshold: Date): Promise<number> {
+        const result = await this.prisma.auditLog.deleteMany({
+            where: { createdAt: { lt: threshold } },
+        })
+        return result.count
+    }
 }

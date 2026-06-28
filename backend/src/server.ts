@@ -14,6 +14,10 @@ import type { IoTConfigResponse } from "@/modules/iot/iot.repository.js"
 import { AlertRepository } from "./modules/alert/alert.repository.js"
 import { AlertNotifier } from "./modules/alert/alert-notifier.js"
 import { AlertService } from "./modules/alert/alert.service.js"
+import { AuthRepository } from "@/modules/auth/auth.repository.js"
+import { AuditRepository } from "@/shared/audit/audit.repository.js"
+import { RetentionService } from "@/shared/retention/retention.service.js"
+import { RetentionPurgeScheduler } from "@/shared/retention/RetentionPurgeScheduler.js"
 
 // Extraídos para variáveis porque são reutilizados no AlertService e no scheduler.
 const deviceRepository = new DeviceRepository(prisma)
@@ -64,6 +68,21 @@ const scheduler = new HourlyRollupScheduler(
 // garantindo que nenhuma leitura seja perdida durante o boot.
 processor.start()
 scheduler.start()
+
+// #10 — Retenção e expurgo de dados (Art. 15/16 LGPD): roda no boot e a
+// cada 24h, removendo tokens/resets já inativos e audit logs antigos
+// (períodos configuráveis via env.DATA_RETENTION_*).
+const retentionService = new RetentionService(
+    new AuthRepository(prisma),
+    new AuditRepository(prisma),
+    {
+        authToken: env.DATA_RETENTION_AUTH_TOKEN_DAYS,
+        passwordReset: env.DATA_RETENTION_PASSWORD_RESET_DAYS,
+        auditLog: env.DATA_RETENTION_AUDIT_LOG_DAYS,
+    },
+)
+const retentionScheduler = new RetentionPurgeScheduler(retentionService)
+retentionScheduler.start()
 
 /**
  * Criação do app
@@ -141,6 +160,7 @@ async function shutdown(signal: string): Promise<void> {
 
     // Para o scheduler — evita que um flush parcial aconteça durante o shutdown.
     scheduler.stop()
+    retentionScheduler.stop()
 
     // Flush final: persiste qualquer acumulado pendente no buffer antes de sair.
     // Sem isso, até 59 minutos de leituras IoT poderiam ser perdidos em um restart.

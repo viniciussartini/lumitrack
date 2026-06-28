@@ -2,7 +2,7 @@
 
 > **Escopo:** OWASP Top 10:2025 + conformidade com a LGPD (Lei nº 13.709/2018)
 > **Data da auditoria:** 2026-06-27
-> **Versão do documento:** 1.5
+> **Versão do documento:** 1.6
 > **Branch de remediação:** `security/owasp-lgpd-remediation`
 > **Stack auditado:** Backend Node.js/TypeScript (Express 5, Prisma 7, PostgreSQL) · Frontend React 19/Vite
 
@@ -171,7 +171,7 @@ Evidências são referenciadas no formato `arquivo:linha`.
 | Art. 16/18 | Eliminação de dados | ✅ Implementado | `DELETE /api/users/:id` + cascade — manter e auditar |
 | Art. 18 | Retificação | ✅ Implementado | `PUT /api/users/:id` — manter |
 | Art. 46 | Segurança dos dados | ⚠️ Parcial | ~~Cripto de CPF/CNPJ~~ ✅ (#07); hardening ✅ (#02/#05/#06); ~~audit log~~ ✅ (#08); falta cripto do endereço (#15) |
-| Art. 15/16 | Retenção mínima | ❌ Indefinida | Política + job de expurgo |
+| Art. 15/16 | Retenção mínima | ✅ Implementado (#10) | `RetentionPurgeScheduler` (roda no boot + 1x/dia) remove `AuthToken`/`PasswordReset` inativos há 30 dias e `AuditLog` com mais de ~2 anos; períodos configuráveis via `DATA_RETENTION_*` |
 | Art. 37-39 | Operadores (DPA com SMTP) | ⚠️ Não confirmado | Documentar provedor e DPA |
 | Art. 48 | Resposta a incidentes | ❌ Ausente | Runbook (Seção 7) |
 
@@ -215,7 +215,12 @@ Registro formal da auditoria — base para governança e Art. 48.
   Chromium — minimiza superfície de supply chain do A03)
 
 ### Fase 3 — Médio
-- **#10** Retenção e expurgo de dados (Art. 15/16)
+- **#10** ✅ Retenção e expurgo de dados (Art. 15/16) — `RetentionPurgeScheduler`
+  (mesmo padrão sem dependência nova do `HourlyRollupScheduler`) roda no boot
+  e a cada 24h; remove `AuthToken`/`PasswordReset` inativos há mais de 30
+  dias e `AuditLog` com mais de ~2 anos (remoção completa, não anonimização)
+  — períodos configuráveis via `DATA_RETENTION_AUTH_TOKEN_DAYS`/
+  `DATA_RETENTION_PASSWORD_RESET_DAYS`/`DATA_RETENTION_AUDIT_LOG_DAYS`
 - **#11** CI/CD com gates de segurança (A03/A08)
 - **#12** Política de senha forte + MFA opcional (A06/A07)
 - **#13** DPA com operador SMTP + runbook de incidentes (Art. 37-39/48)
@@ -281,3 +286,4 @@ Registro formal da auditoria — base para governança e Art. 48.
 | 1.3 | 2026-06-27 | Auditoria de Segurança | #07 concluída (Fase 2): CPF/CNPJ do usuário criptografados em repouso (AES-256-GCM) com blind index (HMAC-SHA256) preservando unicidade/busca; escopo restrito a `users.cpf`/`users.cnpj` (CNPJ da distribuidora e endereço da propriedade ficaram de fora, decisão registrada com o usuário). Achado A04 atualizado (CPF/CNPJ corrigido, mas permanece 🟡 Médio pelo gap residual do endereço). Adicionado **#15** ao roadmap (criptografia do endereço da propriedade). |
 | 1.4 | 2026-06-27 | Auditoria de Segurança | #08 concluída (Fase 2, encerra a Fase 2): logger estruturado (pino) substitui todo `console.*`; nova tabela `audit_logs` registra login/logout (sucesso e falha), acessos negados (403, captura centralizada no `errorHandler`) e CRUD de `User`/`Property`. Achado A09 corrigido e rebaixado para 🟢 Baixo — zero achados 🟠 Alto/🔴 Crítico remanescentes. Adicionado **#16** ao roadmap (endpoint administrativo de consulta do audit log, bloqueado por depender de RBAC ainda inexistente). |
 | 1.5 | 2026-06-28 | Auditoria de Segurança | #09 concluída (Fase 2, encerra de fato a Fase 2 — #06 a #09 todos ✅): endpoint `GET /api/users/me/data-export?format=json\|pdf` (Art. 18 LGPD) agrega perfil, properties, distribuidoras, áreas, dispositivos, alertas, histórico de consumo e audit log do titular. JSON sem corte/paginação (inclui `ConsumptionRecord` completo, decisão consciente apesar do volume); PDF gerado com PDFKit (sem Chromium) traz um resumo agregado de consumo por propriedade e a identidade visual do LumiTrack. Nova action `DATA_EXPORT` no enum `AuditAction` (migration aditiva). Achado Art. 18 corrigido de "⚠️ Parcial" para "✅ Implementado". |
+| 1.6 | 2026-06-28 | Auditoria de Segurança | #10 concluída (abre a Fase 3): `RetentionPurgeScheduler` (mesmo padrão sem dependência nova do `HourlyRollupScheduler` já existente no módulo IoT) roda no boot e a cada 24h, removendo `AuthToken`/`PasswordReset` inativos há mais de 30 dias e `AuditLog` com mais de ~2 anos — remoção completa, não anonimização (decisão registrada com o usuário). Períodos configuráveis via novas variáveis `DATA_RETENTION_AUTH_TOKEN_DAYS`/`DATA_RETENTION_PASSWORD_RESET_DAYS`/`DATA_RETENTION_AUDIT_LOG_DAYS` (todas com default, nada obrigatório novo). Achado Art. 15/16 corrigido de "❌ Indefinida" para "✅ Implementado". |
