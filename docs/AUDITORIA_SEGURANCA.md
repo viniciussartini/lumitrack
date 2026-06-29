@@ -172,8 +172,8 @@ Evidências são referenciadas no formato `arquivo:linha`.
 | Art. 18 | Retificação | ✅ Implementado | `PUT /api/users/:id` — manter |
 | Art. 46 | Segurança dos dados | ⚠️ Parcial | ~~Cripto de CPF/CNPJ~~ ✅ (#07); hardening ✅ (#02/#05/#06); ~~audit log~~ ✅ (#08); falta cripto do endereço (#15) |
 | Art. 15/16 | Retenção mínima | ✅ Implementado (#10) | `RetentionPurgeScheduler` (roda no boot + 1x/dia) remove `AuthToken`/`PasswordReset` inativos há 30 dias e `AuditLog` com mais de ~2 anos; períodos configuráveis via `DATA_RETENTION_*` |
-| Art. 37-39 | Operadores (DPA com SMTP) | ⚠️ Não confirmado | Documentar provedor e DPA |
-| Art. 48 | Resposta a incidentes | ❌ Ausente | Runbook (Seção 7) |
+| Art. 37-39 | Operadores (DPA com SMTP) | ⚠️ Parcial | Checklist de requisitos de segurança para provedor SMTP documentado (ver Seção 7.1); nenhum provedor de produção escolhido ainda; DPA pendente de assinatura quando selecionado |
+| Art. 48 | Resposta a incidentes | ✅ Implementado (#13) | Runbook operacional completo em `docs/RUNBOOK_INCIDENTES.md` (detecção → contenção → avaliação de risco → notificação ANPD/titulares → lições aprendidas) |
 
 ---
 
@@ -234,7 +234,7 @@ Registro formal da auditoria — base para governança e Art. 48.
   chave de cifra própria do secret TOTP (`MFA_SECRET_ENCRYPTION_KEY`,
   separada de CPF/CNPJ); escopo restrito ao backend — UI do frontend
   (tela de configuração + segundo passo no login) fica para **#18**
-- **#13** DPA com operador SMTP + runbook de incidentes (Art. 37-39/48)
+- **#13** ✅ DPA com operador SMTP + runbook de incidentes (Art. 37-39/48)
 - **#14** Refresh token para sessão WEB (A06) — gap conhecido desde a #06
   (JWT WEB expira em 15min sem renovação automática); fora do escopo da #06
   por introduzir superfície de ataque própria (rotação/roubo de refresh
@@ -268,12 +268,31 @@ Registro formal da auditoria — base para governança e Art. 48.
 
 ## 7. Runbook de resposta a incidentes (LGPD Art. 48)
 
-> *A ser detalhado na sub-issue #13.* Estrutura mínima prevista:
-> 1. Detecção e classificação do incidente.
-> 2. Contenção e erradicação.
-> 3. Avaliação de risco aos titulares.
-> 4. Notificação à ANPD e aos titulares quando houver risco relevante.
-> 5. Registro e lições aprendidas.
+Runbook operacional completo em [`docs/RUNBOOK_INCIDENTES.md`](RUNBOOK_INCIDENTES.md) (versionado). Cobre:
+
+1. **Detecção e classificação** — fontes (logs pino, `audit_logs`, CI/CD gates), matriz de severidade.
+2. **Contenção e erradicação** — ações imediatas por tipo de incidente (credencial comprometida, acesso não-autorizado, vulnerabilidade de dependência).
+3. **Avaliação de risco aos titulares** — como usar `audit_logs` e export DSAR (#09) para reconstruir eventos.
+4. **Notificação à ANPD e aos titulares** — critérios de "risco relevante", prazos, template de comunicação.
+5. **Registro e lições aprendidas** — documentação do incidente, atualização de procedimentos.
+
+O runbook é um **documento vivo** — deve ser atualizado a cada incidente real e a cada sub-issue de segurança nova.
+
+### 7.1 Requisitos para Data Processing Agreement (DPA) com operadores SMTP
+
+Nenhum provedor de produção foi selecionado ainda. Quando um operador SMTP for escolhido, exigir contratualmente:
+
+| Requisito | Descrição |
+|-----------|-----------|
+| **TLS obrigatório** | Transporte TLS 1.2+ (STARTTLS ou porta 465). Nenhuma transmissão de credenciais/e-mails em texto claro. |
+| **Retenção mínima de logs** | Provedor deve manter logs de envio por pelo menos 30 dias, acessíveis para investigação de incidentes. |
+| **Localização de processamento** | Dados pessoais (endereços de e-mail dos titulares) só podem ser processados no Brasil ou em país com adequação LGPD. |
+| **Notificação de incidente** | Se houver vazamento/perda de dados no provedor, notificar o controlador (LumiTrack) em prazo razoável (máx. 72h). |
+| **Cláusula de revogação** | Direito de revogar acesso a qualquer momento (ex.: mudar de provedor SMTP). Dados residuais devem ser destruídos ou anonimizados. |
+| **Subcontratadores** | Provedor deve documentar qualquer subcontratador seu (ex.: provedores de cloud onde os dados são armazenados) e obtém consentimento de LumiTrack antes de adicionar novos. |
+| **Auditoria/compliance** | Provedor deve possuir certificação de segurança relevante (SOC 2 Type II, ISO 27001) ou estar disposto a ser auditado. |
+
+Após assinatura da DPA, arquivar uma cópia em local seguro (não no repositório git) e documentar o status no roadmap/auditoria.
 
 ---
 
@@ -310,3 +329,4 @@ Registro formal da auditoria — base para governança e Art. 48.
 | 1.6 | 2026-06-28 | Auditoria de Segurança | #10 concluída (abre a Fase 3): `RetentionPurgeScheduler` (mesmo padrão sem dependência nova do `HourlyRollupScheduler` já existente no módulo IoT) roda no boot e a cada 24h, removendo `AuthToken`/`PasswordReset` inativos há mais de 30 dias e `AuditLog` com mais de ~2 anos — remoção completa, não anonimização (decisão registrada com o usuário). Períodos configuráveis via novas variáveis `DATA_RETENTION_AUTH_TOKEN_DAYS`/`DATA_RETENTION_PASSWORD_RESET_DAYS`/`DATA_RETENTION_AUDIT_LOG_DAYS` (todas com default, nada obrigatório novo). Achado Art. 15/16 corrigido de "❌ Indefinida" para "✅ Implementado". |
 | 1.7 | 2026-06-28 | Auditoria de Segurança | #11 concluída: pipeline GitHub Actions (`.github/workflows/ci.yml`) — typecheck/build/testes unitários e e2e (Playwright) de backend e frontend em todo PR/push para `main`, com `npm ci` (build reprodutível) em todos os jobs; `npm audit` bloqueia em high/critical (moderate só avisa, por causa da vuln moderada conhecida em devDependency do Prisma, sem fix não-breaking ainda); `.github/dependabot.yml` adicionado (npm backend+frontend, GitHub Actions, semanal). Achados A03 e A08 corrigidos e rebaixados para 🟢 Baixo. Lint do backend ficou fora do escopo, registrado como **#17** no roadmap. Tabela-resumo executiva (Seção 1) recalculada: 🟡 Médio caiu de 4 para 2 categorias, 🟢 Baixo subiu de 6 para 8. |
 | 1.8 | 2026-06-29 | Auditoria de Segurança | #12 concluída: política de senha agora exige caractere especial (gap citado em A06); MFA opcional via TOTP (`otplib`) com QR code (`qrcode`) e 10 backup codes de uso único (bcrypt) — login em duas etapas (`mfaToken` stateless de 5min) quando habilitado, chave de cifra própria para o secret (`MFA_SECRET_ENCRYPTION_KEY`, separada de CPF/CNPJ). Escopo restrito ao backend (API completa e testada); UI do frontend registrada como **#18** no roadmap. Achados A06 e A07 atualizados — A06 rebaixado para 🟢 Baixo. Tabela-resumo executiva (Seção 1) recalculada: 🟡 Médio caiu de 2 para 1 categoria, 🟢 Baixo subiu de 8 para 9. |
+| 1.9 | 2026-06-29 | Auditoria de Segurança | #13 concluída (Fase 3): runbook de resposta a incidentes em `docs/RUNBOOK_INCIDENTES.md` (novo arquivo versionado) — detecção/classificação (severidade, fontes de log), contenção (ações por tipo de incidente), avaliação de risco aos titulares (como usar `audit_logs` + export DSAR), notificação à ANPD/titulares (critérios, prazos, templates), registro e lições aprendidas. Seção 7.1 nova: checklist de requisitos de segurança para qualificar futuro operador SMTP (TLS obrigatório, retenção de logs, localização de processamento, notificação de incidente, revogação, subcontratadores, auditoria). Achado Art. 48 corrigido de "❌ Ausente" para "✅ Implementado"; achado Art. 37-39 rebaixado de "⚠️ Não confirmado" para "⚠️ Parcial" (checklist documentado, DPA pendente de assinatura quando provedor for selecionado). Nenhuma mudança de código — sub-issue 100% documental. |
