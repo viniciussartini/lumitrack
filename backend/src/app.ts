@@ -115,6 +115,10 @@ export function createApp(deps: AppDependencies = {}) {
 
     // Rate limit estrito nos endpoints públicos de autenticação (brute force).
     // Aplicado após o parser de JSON para que a chave possa considerar o e-mail.
+    // `app.use("/api/auth/login", ...)` é um mount point — por semântica de
+    // prefixo do Express, isso já cobre `/api/auth/login/mfa` também (#12),
+    // que é exatamente o alvo de brute force de um código TOTP de 6 dígitos
+    // (baixa entropia, precisa do mesmo limiter estrito que a senha).
     app.use("/api/auth/login", authRateLimiter)
     app.use("/api/auth/forgot-password", authRateLimiter)
     app.use("/api/auth/reset-password", authRateLimiter)

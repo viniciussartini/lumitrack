@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { passwordSchema } from "@/shared/validation/passwordSchema.js"
 
 // Regex para validar formato de CPF e CNPJ.
 // A validação matemática dos dígitos verificadores é feita no refinement abaixo.
@@ -46,12 +47,7 @@ function isValidCnpj(cnpj: string): boolean {
 // Schema base
 const baseUserSchema = z.object({
     email: z.email({ message: "E-mail inválido" }),
-    password: z
-        .string()
-        .min(8, { message: "A senha deve ter ao menos 8 caracteres" })
-        .regex(/[A-Z]/, { message: "A senha deve conter ao menos uma letra maiúscula" })
-        .regex(/[a-z]/, { message: "A senha deve conter ao menos uma letra minúscula" })
-        .regex(/[0-9]/, { message: "A senha deve conter ao menos um número" }),
+    password: passwordSchema,
     // Consentimento LGPD (Art. 7º/8º) — aceite explícito da Política de
     // Privacidade e dos Termos de Uso, obrigatório no cadastro.
     acceptedTerms: z.literal(true, {

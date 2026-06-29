@@ -70,6 +70,18 @@ export const envSchema = z.object({
     DATA_RETENTION_AUTH_TOKEN_DAYS: z.coerce.number().default(30),
     DATA_RETENTION_PASSWORD_RESET_DAYS: z.coerce.number().default(30),
     DATA_RETENTION_AUDIT_LOG_DAYS: z.coerce.number().default(730), // ~2 anos
+
+    // MFA opcional via TOTP (#12 da remediação OWASP/LGPD — A06/A07).
+    // Chave própria (separada de CPF_CNPJ_ENCRYPTION_KEY) para cifrar o
+    // segredo TOTP em repouso — compartimentaliza o risco: o
+    // comprometimento de uma chave não expõe a outra categoria de dado.
+    // Mesmo formato (64 caracteres hex / 32 bytes). Gerar com:
+    //   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+    MFA_SECRET_ENCRYPTION_KEY: z
+        .string()
+        .regex(/^[0-9a-f]{64}$/i, {
+            message: "MFA_SECRET_ENCRYPTION_KEY deve ter 64 caracteres hexadecimais (32 bytes)",
+        }),
 }).refine(
     (data) => !(data.NODE_ENV === "production" && data.CORS_ORIGIN === "*"),
     {

@@ -44,6 +44,23 @@ describe("Rate limiting — endpoints de autenticação", () => {
         expect(blocked.body.status).toBe("error")
     })
 
+    // #12 — /api/auth/login/mfa é o alvo natural de brute force de um código
+    // TOTP de 6 dígitos (baixa entropia) e precisa do mesmo limiter estrito.
+    // Confirma que o mount point "/api/auth/login" (semântica de prefixo do
+    // Express) cobre "/api/auth/login/mfa" também, sem precisar de uma
+    // segunda linha em app.ts.
+    it("deve retornar 429 em /api/auth/login/mfa após exceder o limite", async () => {
+        const body = { mfaToken: "token-invalido-qualquer", code: "000000" }
+
+        for (let i = 0; i < 3; i++) {
+            const res = await request(app).post("/api/auth/login/mfa").send(body)
+            expect(res.status).toBe(401)
+        }
+
+        const blocked = await request(app).post("/api/auth/login/mfa").send(body)
+        expect(blocked.status).toBe(429)
+    })
+
     it("deve isolar a contagem por e-mail (alvo diferente não é bloqueado)", async () => {
         const base = { password: "Senha@123", channel: "WEB" as const }
 

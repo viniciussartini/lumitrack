@@ -387,6 +387,7 @@ export const ModelName = {
   User: 'User',
   AuthToken: 'AuthToken',
   PasswordReset: 'PasswordReset',
+  MfaBackupCode: 'MfaBackupCode',
   AuditLog: 'AuditLog',
   EnergyDistributor: 'EnergyDistributor',
   Property: 'Property',
@@ -410,7 +411,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "authToken" | "passwordReset" | "auditLog" | "energyDistributor" | "property" | "area" | "device" | "consumptionRecord" | "alert" | "ioTDeviceConfig"
+    modelProps: "user" | "authToken" | "passwordReset" | "mfaBackupCode" | "auditLog" | "energyDistributor" | "property" | "area" | "device" | "consumptionRecord" | "alert" | "ioTDeviceConfig"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -633,6 +634,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.PasswordResetCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.PasswordResetCountAggregateOutputType> | number
+        }
+      }
+    }
+    MfaBackupCode: {
+      payload: Prisma.$MfaBackupCodePayload<ExtArgs>
+      fields: Prisma.MfaBackupCodeFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MfaBackupCodeFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MfaBackupCodePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MfaBackupCodeFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MfaBackupCodePayload>
+        }
+        findFirst: {
+          args: Prisma.MfaBackupCodeFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MfaBackupCodePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MfaBackupCodeFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MfaBackupCodePayload>
+        }
+        findMany: {
+          args: Prisma.MfaBackupCodeFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MfaBackupCodePayload>[]
+        }
+        create: {
+          args: Prisma.MfaBackupCodeCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MfaBackupCodePayload>
+        }
+        createMany: {
+          args: Prisma.MfaBackupCodeCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MfaBackupCodeCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MfaBackupCodePayload>[]
+        }
+        delete: {
+          args: Prisma.MfaBackupCodeDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MfaBackupCodePayload>
+        }
+        update: {
+          args: Prisma.MfaBackupCodeUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MfaBackupCodePayload>
+        }
+        deleteMany: {
+          args: Prisma.MfaBackupCodeDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MfaBackupCodeUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MfaBackupCodeUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MfaBackupCodePayload>[]
+        }
+        upsert: {
+          args: Prisma.MfaBackupCodeUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MfaBackupCodePayload>
+        }
+        aggregate: {
+          args: Prisma.MfaBackupCodeAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMfaBackupCode>
+        }
+        groupBy: {
+          args: Prisma.MfaBackupCodeGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MfaBackupCodeGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MfaBackupCodeCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MfaBackupCodeCountAggregateOutputType> | number
         }
       }
     }
@@ -1283,7 +1358,9 @@ export const UserScalarFieldEnum = {
   companyName: 'companyName',
   cnpj: 'cnpj',
   cnpjBlindIndex: 'cnpjBlindIndex',
-  tradeName: 'tradeName'
+  tradeName: 'tradeName',
+  mfaEnabled: 'mfaEnabled',
+  mfaSecret: 'mfaSecret'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
@@ -1312,6 +1389,17 @@ export const PasswordResetScalarFieldEnum = {
 } as const
 
 export type PasswordResetScalarFieldEnum = (typeof PasswordResetScalarFieldEnum)[keyof typeof PasswordResetScalarFieldEnum]
+
+
+export const MfaBackupCodeScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  codeHash: 'codeHash',
+  usedAt: 'usedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type MfaBackupCodeScalarFieldEnum = (typeof MfaBackupCodeScalarFieldEnum)[keyof typeof MfaBackupCodeScalarFieldEnum]
 
 
 export const AuditLogScalarFieldEnum = {
@@ -1526,6 +1614,13 @@ export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel
  * Reference to a field of type 'DateTime[]'
  */
 export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime[]'>
+    
+
+
+/**
+ * Reference to a field of type 'Boolean'
+ */
+export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 
@@ -1795,6 +1890,7 @@ export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   authToken?: Prisma.AuthTokenOmit
   passwordReset?: Prisma.PasswordResetOmit
+  mfaBackupCode?: Prisma.MfaBackupCodeOmit
   auditLog?: Prisma.AuditLogOmit
   energyDistributor?: Prisma.EnergyDistributorOmit
   property?: Prisma.PropertyOmit

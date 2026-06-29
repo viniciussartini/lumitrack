@@ -57,6 +57,11 @@ export type AuthToken = Prisma.AuthTokenModel
  */
 export type PasswordReset = Prisma.PasswordResetModel
 /**
+ * Model MfaBackupCode
+ * 
+ */
+export type MfaBackupCode = Prisma.MfaBackupCodeModel
+/**
  * Model AuditLog
  * 
  */

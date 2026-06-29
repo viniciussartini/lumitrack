@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { passwordSchema } from "@/shared/validation/passwordSchema.js"
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 // O campo `channel` é obrigatório porque ele determina duas coisas críticas:
@@ -26,18 +27,42 @@ export const forgotPasswordSchema = z.object({
 
 // ─── Reset Password ───────────────────────────────────────────────────────────
 // O `token` é o UUID gerado e enviado por e-mail.
-// A `newPassword` segue as mesmas regras de força do cadastro de usuário 
+// A `newPassword` segue as mesmas regras de força do cadastro de usuário
 export const resetPasswordSchema = z.object({
     token: z.string().min(1, { message: "Token é obrigatório" }),
-    newPassword: z
-        .string()
-        .min(8, { message: "A senha deve ter ao menos 8 caracteres" })
-        .regex(/[A-Z]/, { message: "A senha deve conter ao menos uma letra maiúscula" })
-        .regex(/[a-z]/, { message: "A senha deve conter ao menos uma letra minúscula" })
-        .regex(/[0-9]/, { message: "A senha deve conter ao menos um número" }),
+    newPassword: passwordSchema,
+})
+
+// ─── MFA — login (segunda etapa) ───────────────────────────────────────────────
+// Completa o login após `mfaRequired:true` — `mfaToken` é o JWT de curta
+// duração (5min) emitido por login() quando o usuário tem MFA habilitado;
+// `code` pode ser um código TOTP de 6 dígitos OU um backup code.
+export const mfaLoginVerifySchema = z.object({
+    mfaToken: z.string().min(1, { message: "mfaToken é obrigatório" }),
+    code: z.string().min(1, { message: "Código é obrigatório" }),
+})
+
+// ─── MFA — confirmação do setup ────────────────────────────────────────────────
+// O secret volta do cliente (foi devolvido por POST /mfa/setup) junto com
+// o código gerado pelo app autenticador, confirmando que o usuário
+// escaneou o QR corretamente antes de persistir o secret/habilitar o MFA.
+export const mfaSetupVerifySchema = z.object({
+    secret: z.string().min(1, { message: "secret é obrigatório" }),
+    code: z.string().min(1, { message: "Código é obrigatório" }),
+})
+
+// ─── MFA — desabilitar ──────────────────────────────────────────────────────────
+// Exige senha + código válido (TOTP ou backup code) — uma sessão sozinha
+// não deve ser suficiente para desabilitar o segundo fator.
+export const mfaDisableSchema = z.object({
+    password: z.string().min(1, { message: "Senha é obrigatória" }),
+    code: z.string().min(1, { message: "Código é obrigatório" }),
 })
 
 // ─── Tipos inferidos ──────────────────────────────────────────────────────────
 export type LoginInput = z.infer<typeof loginSchema>
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>
+export type MfaLoginVerifyInput = z.infer<typeof mfaLoginVerifySchema>
+export type MfaSetupVerifyInput = z.infer<typeof mfaSetupVerifySchema>
+export type MfaDisableInput = z.infer<typeof mfaDisableSchema>

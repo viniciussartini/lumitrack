@@ -5,7 +5,7 @@ import { generateBlindIndex } from "@/shared/crypto/blindIndex.js"
 
 export type UserWithoutPassword = Omit<
     Awaited<ReturnType<PrismaClient["user"]["findUniqueOrThrow"]>>,
-    "password" | "cpfBlindIndex" | "cnpjBlindIndex"
+    "password" | "cpfBlindIndex" | "cnpjBlindIndex" | "mfaSecret"
 >
 
 // cpf/cnpj ficam criptografados em repouso (AES-256-GCM — ver
@@ -24,11 +24,14 @@ function decryptSensitiveFields<T extends { cpf: string | null; cnpj: string | n
 
 // cpfBlindIndex/cnpjBlindIndex nunca saem do repository — são detalhe de
 // implementação interno (HMAC usado só para igualdade/unicidade no banco),
-// omitidos de toda leitura junto com a senha.
+// omitidos de toda leitura junto com a senha. mfaSecret (mesmo cifrado)
+// também nunca é exposto fora do módulo auth, que é quem decifra/verifica
+// — só mfaEnabled (não sensível) é exposto normalmente.
 const READ_OMIT = {
     password: true,
     cpfBlindIndex: true,
     cnpjBlindIndex: true,
+    mfaSecret: true,
 } as const
 
 export class UserRepository {

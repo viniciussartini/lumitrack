@@ -12,6 +12,8 @@ export type AuditAction =
     | "PROPERTY_UPDATE"
     | "PROPERTY_DELETE"
     | "DATA_EXPORT"
+    | "MFA_ENABLED"
+    | "MFA_DISABLED"
 
 export type AuditOutcome = "SUCCESS" | "FAILURE"
 

@@ -22,12 +22,18 @@ export function authRoutes(
 
     // Rotas públicas
     router.post("/login", (req, res, next) => authController.login(req, res, next))
+    // Segunda etapa do login quando a conta tem MFA habilitado — pública,
+    // mas só aceita um mfaToken de curta duração emitido por /login.
+    router.post("/login/mfa", (req, res, next) => authController.verifyMfaLogin(req, res, next))
     router.post("/forgot-password", (req, res, next) => authController.forgotPassword(req, res, next))
     router.post("/reset-password", (req, res, next) => authController.resetPassword(req, res, next))
 
     // Rotas protegidas — exigem autenticação
     router.get("/me", authenticate, (req, res, next) => authController.me(req, res, next))
     router.post("/logout", authenticate, (req, res, next) => authController.logout(req, res, next))
+    router.post("/mfa/setup", authenticate, (req, res, next) => authController.setupMfa(req, res, next))
+    router.post("/mfa/verify-setup", authenticate, (req, res, next) => authController.verifyMfaSetup(req, res, next))
+    router.post("/mfa/disable", authenticate, (req, res, next) => authController.disableMfa(req, res, next))
 
     return router
 }

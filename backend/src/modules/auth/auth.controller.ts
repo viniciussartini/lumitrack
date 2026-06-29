@@ -23,7 +23,20 @@ export class AuthController {
     // POST /api/auth/login — Público
     async login(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const { token, channel, userId } = await this.authService.login(req.body)
+            const result = await this.authService.login(req.body)
+
+            if (result.mfaRequired) {
+                // Senha já validada, mas a sessão real ainda não existe —
+                // não audita LOGIN aqui (só quando a sessão é de fato
+                // estabelecida, em completeMfaLogin ou abaixo).
+                res.status(200).json({
+                    status: "success",
+                    data: { mfaRequired: true, mfaToken: result.mfaToken },
+                })
+                return
+            }
+
+            const { token, channel, userId } = result
 
             await this.auditService.record({
                 userId,
@@ -35,25 +48,7 @@ export class AuthController {
                 ...getRequestContext(req),
             })
 
-            if (channel === "WEB") {
-                const maxAge = parseJwtExpiry(env.JWT_WEB_EXPIRES_IN)
-
-                res.cookie(env.AUTH_COOKIE_NAME, token, getAuthCookieOptions(env.NODE_ENV, maxAge))
-                res.cookie(
-                    env.CSRF_COOKIE_NAME,
-                    generateCsrfToken(),
-                    getCsrfCookieOptions(env.NODE_ENV, maxAge),
-                )
-
-                // O JWT nunca entra no body para WEB — ele só viaja pelo
-                // cookie httpOnly. Incluí-lo aqui anularia a proteção contra
-                // roubo de sessão via XSS que é o objetivo desta mudança.
-                res.status(200).json({ status: "success", data: {} })
-                return
-            }
-
-            // MOBILE — comportamento inalterado.
-            res.status(200).json({ status: "success", data: { token } })
+            this.respondWithSession(res, channel, token)
         } catch (error) {
             // Só audita credenciais inválidas — não um corpo malformado
             // (ValidationError), que não é uma tentativa de login real.
@@ -67,6 +62,38 @@ export class AuthController {
                     metadata: {
                         attemptedEmail: typeof attemptedEmail === "string" ? attemptedEmail : null,
                     },
+                    ...getRequestContext(req),
+                })
+            }
+            next(error)
+        }
+    }
+
+    // POST /api/auth/login/mfa — Público (mas exige mfaToken válido)
+    // Segunda etapa do login quando a conta tem MFA habilitado.
+    async verifyMfaLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { token, channel, userId } = await this.authService.completeMfaLogin(req.body)
+
+            await this.auditService.record({
+                userId,
+                action: "LOGIN",
+                outcome: "SUCCESS",
+                resourceType: "User",
+                resourceId: userId,
+                metadata: { channel, mfa: true },
+                ...getRequestContext(req),
+            })
+
+            this.respondWithSession(res, channel, token)
+        } catch (error) {
+            if (error instanceof UnauthorizedError) {
+                await this.auditService.record({
+                    userId: null,
+                    action: "LOGIN",
+                    outcome: "FAILURE",
+                    resourceType: "User",
+                    metadata: { mfaStep: true },
                     ...getRequestContext(req),
                 })
             }
@@ -134,7 +161,7 @@ export class AuthController {
     async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             await this.authService.resetPassword(req.body)
-            
+
             res.status(200).json({
                 status: "success",
                 message: "Senha redefinida com sucesso",
@@ -142,5 +169,86 @@ export class AuthController {
         } catch (error) {
             next(error)
         }
+    }
+
+    // POST /api/auth/mfa/setup — Protegido
+    // Gera um secret+QR novo — nada é persistido até verifyMfaSetup().
+    async setupMfa(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { email } = (req as AuthenticatedRequest).user
+            const result = await this.authService.setupMfa(email)
+
+            res.status(200).json({ status: "success", data: result })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    // POST /api/auth/mfa/verify-setup — Protegido
+    async verifyMfaSetup(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id: userId } = (req as AuthenticatedRequest).user
+            const result = await this.authService.verifyMfaSetup(userId, req.body)
+
+            await this.auditService.record({
+                userId,
+                action: "MFA_ENABLED",
+                outcome: "SUCCESS",
+                resourceType: "User",
+                resourceId: userId,
+                ...getRequestContext(req),
+            })
+
+            res.status(200).json({ status: "success", data: result })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    // POST /api/auth/mfa/disable — Protegido
+    async disableMfa(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id: userId } = (req as AuthenticatedRequest).user
+            await this.authService.disableMfa(userId, req.body)
+
+            await this.auditService.record({
+                userId,
+                action: "MFA_DISABLED",
+                outcome: "SUCCESS",
+                resourceType: "User",
+                resourceId: userId,
+                ...getRequestContext(req),
+            })
+
+            res.status(200).json({ status: "success", message: "MFA desabilitado com sucesso" })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    // ─── Helper privado ─────────────────────────────────────────────────────
+    // Compartilhado por login() e verifyMfaLogin() — emite os cookies de
+    // sessão (WEB) ou o token no body (MOBILE), exatamente como antes da
+    // introdução do MFA.
+    private respondWithSession(res: Response, channel: "WEB" | "MOBILE", token: string): void {
+        if (channel === "WEB") {
+            const maxAge = parseJwtExpiry(env.JWT_WEB_EXPIRES_IN)
+
+            res.cookie(env.AUTH_COOKIE_NAME, token, getAuthCookieOptions(env.NODE_ENV, maxAge))
+            res.cookie(
+                env.CSRF_COOKIE_NAME,
+                generateCsrfToken(),
+                getCsrfCookieOptions(env.NODE_ENV, maxAge),
+            )
+
+            // O JWT nunca entra no body para WEB — ele só viaja pelo
+            // cookie httpOnly. Incluí-lo aqui anularia a proteção contra
+            // roubo de sessão via XSS que é o objetivo desta mudança.
+            res.status(200).json({ status: "success", data: {} })
+            return
+        }
+
+        // MOBILE — comportamento inalterado.
+        res.status(200).json({ status: "success", data: { token } })
     }
 }

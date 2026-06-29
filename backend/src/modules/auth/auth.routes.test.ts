@@ -5,6 +5,7 @@ import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
 import { hashToken } from "@/shared/crypto/hashToken.js"
 import { env } from "@/config/env.js"
+import { generate } from "otplib"
 
 // O mock de e-mail é criado uma vez e injetado no app via createApp().
 // Isso garante que nenhum e-mail real seja disparado durante os testes HTTP.
@@ -528,5 +529,260 @@ describe("POST /api/auth/reset-password", () => {
         })
 
         expect(response.status).toBe(422)
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MFA (#12 — A06/A07)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Timeout maior que o default (5000ms) — habilitar o MFA hasheia 10 backup
+// codes via bcrypt (BCRYPT_ROUNDS=12) e o fluxo HTTP completo (supertest +
+// app real) soma overhead extra sobre o já visto em auth.service.test.ts.
+describe("MFA", { timeout: 15000 }, () => {
+    async function registerAndLoginMobile(): Promise<string> {
+        await request(app).post("/api/users").send(validUser)
+        const loginRes = await request(app).post("/api/auth/login").send({
+            email: validUser.email,
+            password: validUser.password,
+            channel: "MOBILE",
+        })
+        return loginRes.body.data.token as string
+    }
+
+    // Habilita o MFA via HTTP de ponta a ponta (setup → verify-setup) e
+    // devolve o secret em texto claro + os backup codes, reaproveitados
+    // pelos testes de login/disable.
+    async function enableMfaViaHttp(token: string) {
+        const setupRes = await request(app)
+            .post("/api/auth/mfa/setup")
+            .set("Authorization", `Bearer ${token}`)
+        const { secret } = setupRes.body.data as { secret: string }
+        const code = await generate({ secret })
+
+        const verifyRes = await request(app)
+            .post("/api/auth/mfa/verify-setup")
+            .set("Authorization", `Bearer ${token}`)
+            .send({ secret, code })
+
+        return { secret, backupCodes: verifyRes.body.data.backupCodes as string[] }
+    }
+
+    describe("POST /api/auth/mfa/setup", () => {
+        it("retorna 200 com secret e QR code data URL", async () => {
+            const token = await registerAndLoginMobile()
+
+            const response = await request(app)
+                .post("/api/auth/mfa/setup")
+                .set("Authorization", `Bearer ${token}`)
+
+            expect(response.status).toBe(200)
+            expect(response.body.data.secret).toBeTruthy()
+            expect(response.body.data.qrCodeDataUrl).toMatch(/^data:image\/png;base64,/)
+        })
+
+        it("retorna 401 sem token", async () => {
+            const response = await request(app).post("/api/auth/mfa/setup")
+            expect(response.status).toBe(401)
+        })
+    })
+
+    describe("POST /api/auth/mfa/verify-setup", () => {
+        it("retorna 200, habilita o MFA e devolve 10 backup codes", async () => {
+            const token = await registerAndLoginMobile()
+            const setupRes = await request(app)
+                .post("/api/auth/mfa/setup")
+                .set("Authorization", `Bearer ${token}`)
+            const { secret } = setupRes.body.data as { secret: string }
+            const code = await generate({ secret })
+
+            const response = await request(app)
+                .post("/api/auth/mfa/verify-setup")
+                .set("Authorization", `Bearer ${token}`)
+                .send({ secret, code })
+
+            expect(response.status).toBe(200)
+            expect(response.body.data.backupCodes).toHaveLength(10)
+
+            const auditEntry = await prismaHttpTest.auditLog.findFirst({
+                where: { action: "MFA_ENABLED" },
+            })
+            expect(auditEntry).not.toBeNull()
+            expect(auditEntry?.outcome).toBe("SUCCESS")
+        })
+
+        it("retorna 401 para código inválido", async () => {
+            const token = await registerAndLoginMobile()
+            const setupRes = await request(app)
+                .post("/api/auth/mfa/setup")
+                .set("Authorization", `Bearer ${token}`)
+            const { secret } = setupRes.body.data as { secret: string }
+
+            const response = await request(app)
+                .post("/api/auth/mfa/verify-setup")
+                .set("Authorization", `Bearer ${token}`)
+                .send({ secret, code: "000000" })
+
+            expect(response.status).toBe(401)
+        })
+    })
+
+    describe("login com MFA habilitado → POST /api/auth/login/mfa", () => {
+        it("login retorna mfaRequired:true em vez de um token, quando o MFA está habilitado", async () => {
+            const token = await registerAndLoginMobile()
+            await enableMfaViaHttp(token)
+
+            const response = await request(app).post("/api/auth/login").send({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "MOBILE",
+            })
+
+            expect(response.status).toBe(200)
+            expect(response.body.data.mfaRequired).toBe(true)
+            expect(response.body.data.mfaToken).toBeTruthy()
+            expect(response.body.data.token).toBeUndefined()
+        })
+
+        it("completa o login com um código TOTP válido", async () => {
+            const token = await registerAndLoginMobile()
+            const { secret } = await enableMfaViaHttp(token)
+
+            const loginRes = await request(app).post("/api/auth/login").send({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "MOBILE",
+            })
+            const { mfaToken } = loginRes.body.data as { mfaToken: string }
+            const code = await generate({ secret })
+
+            const response = await request(app).post("/api/auth/login/mfa").send({ mfaToken, code })
+
+            expect(response.status).toBe(200)
+            expect(response.body.data.token).toBeTruthy()
+        })
+
+        it("completa o login com um backup code válido", async () => {
+            const token = await registerAndLoginMobile()
+            const { backupCodes } = await enableMfaViaHttp(token)
+
+            const loginRes = await request(app).post("/api/auth/login").send({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "MOBILE",
+            })
+            const { mfaToken } = loginRes.body.data as { mfaToken: string }
+
+            const response = await request(app)
+                .post("/api/auth/login/mfa")
+                .send({ mfaToken, code: backupCodes[0] })
+
+            expect(response.status).toBe(200)
+            expect(response.body.data.token).toBeTruthy()
+        })
+
+        it("retorna 401 para código incorreto", async () => {
+            const token = await registerAndLoginMobile()
+            await enableMfaViaHttp(token)
+
+            const loginRes = await request(app).post("/api/auth/login").send({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "MOBILE",
+            })
+            const { mfaToken } = loginRes.body.data as { mfaToken: string }
+
+            const response = await request(app)
+                .post("/api/auth/login/mfa")
+                .send({ mfaToken, code: "000000" })
+
+            expect(response.status).toBe(401)
+        })
+
+        it("registra LOGIN/SUCCESS apenas ao completar o MFA, não na primeira etapa", async () => {
+            const token = await registerAndLoginMobile() // 1 LOGIN/SUCCESS (sem MFA ainda)
+            const { secret } = await enableMfaViaHttp(token)
+
+            const countBeforeChallenge = await prismaHttpTest.auditLog.count({
+                where: { action: "LOGIN", outcome: "SUCCESS" },
+            })
+
+            const loginRes = await request(app).post("/api/auth/login").send({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "MOBILE",
+            })
+
+            // O desafio de MFA em si não gera um novo LOGIN/SUCCESS.
+            const countAfterChallenge = await prismaHttpTest.auditLog.count({
+                where: { action: "LOGIN", outcome: "SUCCESS" },
+            })
+            expect(countAfterChallenge).toBe(countBeforeChallenge)
+
+            const { mfaToken } = loginRes.body.data as { mfaToken: string }
+            const code = await generate({ secret })
+            await request(app).post("/api/auth/login/mfa").send({ mfaToken, code })
+
+            const countAfterCompletion = await prismaHttpTest.auditLog.count({
+                where: { action: "LOGIN", outcome: "SUCCESS" },
+            })
+            expect(countAfterCompletion).toBe(countBeforeChallenge + 1)
+        })
+    })
+
+    describe("POST /api/auth/mfa/disable", () => {
+        it("retorna 200, desabilita o MFA e a conta deixa de exigi-lo no login", async () => {
+            const token = await registerAndLoginMobile()
+            const { secret } = await enableMfaViaHttp(token)
+            const code = await generate({ secret })
+
+            const response = await request(app)
+                .post("/api/auth/mfa/disable")
+                .set("Authorization", `Bearer ${token}`)
+                .send({ password: validUser.password, code })
+
+            expect(response.status).toBe(200)
+
+            const auditEntry = await prismaHttpTest.auditLog.findFirst({
+                where: { action: "MFA_DISABLED" },
+            })
+            expect(auditEntry).not.toBeNull()
+
+            const loginRes = await request(app).post("/api/auth/login").send({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "MOBILE",
+            })
+            expect(loginRes.body.data.mfaRequired).toBeUndefined()
+            expect(loginRes.body.data.token).toBeTruthy()
+        })
+
+        it("retorna 401 para senha incorreta, sem desabilitar o MFA", async () => {
+            const token = await registerAndLoginMobile()
+            const { secret } = await enableMfaViaHttp(token)
+            const code = await generate({ secret })
+
+            const response = await request(app)
+                .post("/api/auth/mfa/disable")
+                .set("Authorization", `Bearer ${token}`)
+                .send({ password: "SenhaErrada@123", code })
+
+            expect(response.status).toBe(401)
+
+            const loginRes = await request(app).post("/api/auth/login").send({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "MOBILE",
+            })
+            expect(loginRes.body.data.mfaRequired).toBe(true)
+        })
+
+        it("retorna 401 sem token", async () => {
+            const response = await request(app)
+                .post("/api/auth/mfa/disable")
+                .send({ password: validUser.password, code: "123456" })
+
+            expect(response.status).toBe(401)
+        })
     })
 })

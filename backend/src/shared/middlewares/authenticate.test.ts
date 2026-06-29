@@ -49,12 +49,17 @@ function makeReq(overrides: {
 
 async function loginAndGetTokens(channel: "WEB" | "MOBILE" = "WEB") {
     await userService.createUser(validUser)
-    const { token } = await authService.login({
+    const result = await authService.login({
         email: validUser.email,
         password: validUser.password,
         channel,
     })
-    return token
+    // validUser nunca tem MFA habilitado — login() sempre retorna a sessão
+    // completa aqui, nunca o desafio {mfaRequired:true}.
+    if (result.mfaRequired) {
+        throw new Error("login inesperadamente exigiu MFA neste teste")
+    }
+    return result.token
 }
 
 beforeEach(async () => {

@@ -111,6 +111,25 @@ export class AuthRepository {
                 email: true,
                 password: true,
                 userType: true,
+                mfaEnabled: true,
+                mfaSecret: true,
+            },
+        })
+    }
+
+    // Usado pelo fluxo de desabilitar MFA (#12) — a requisição chega
+    // autenticada (só tem o userId do JWT), precisa da senha hasheada para
+    // re-confirmar antes de desligar o segundo fator.
+    async findUserByIdWithPassword(userId: string) {
+        return this.prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                email: true,
+                password: true,
+                userType: true,
+                mfaEnabled: true,
+                mfaSecret: true,
             },
         })
     }
@@ -119,6 +138,56 @@ export class AuthRepository {
         await this.prisma.user.update({
             where: { id: userId },
             data: { password: hashedPassword },
+        })
+    }
+
+    // ─── MFA (#12 — A06/A07) ────────────────────────────────────────────────
+
+    // `encryptedSecret` já vem cifrado (shared/crypto/mfaEncryption.ts) —
+    // este repository nunca lida com o segredo em texto claro.
+    async setMfaSecret(userId: string, encryptedSecret: string): Promise<void> {
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: { mfaSecret: encryptedSecret, mfaEnabled: true },
+        })
+    }
+
+    // Desabilita o MFA e limpa os backup codes na mesma transação — não
+    // deixa códigos órfãos de uma configuração anterior caso o usuário
+    // reabilite o MFA depois (evita reaproveitar hashes antigos).
+    async disableMfa(userId: string): Promise<void> {
+        await this.prisma.$transaction([
+            this.prisma.user.update({
+                where: { id: userId },
+                data: { mfaSecret: null, mfaEnabled: false },
+            }),
+            this.prisma.mfaBackupCode.deleteMany({ where: { userId } }),
+        ])
+    }
+
+    // `codeHashes` já vêm hasheados (bcrypt, mesmo padrão da senha) — o
+    // código em texto claro nunca é persistido, só devolvido ao cliente
+    // uma única vez na resposta do setup.
+    async createBackupCodes(userId: string, codeHashes: string[]): Promise<void> {
+        await this.prisma.mfaBackupCode.createMany({
+            data: codeHashes.map((codeHash) => ({ userId, codeHash })),
+        })
+    }
+
+    // Backup codes são hasheados com salt aleatório (bcrypt) — não há como
+    // indexar/buscar por igualdade direta. Busca todos os não-usados do
+    // usuário e o caller compara um a um via bcrypt.compare.
+    async findUnusedBackupCodes(userId: string): Promise<{ id: string; codeHash: string }[]> {
+        return this.prisma.mfaBackupCode.findMany({
+            where: { userId, usedAt: null },
+            select: { id: true, codeHash: true },
+        })
+    }
+
+    async markBackupCodeUsed(id: string): Promise<void> {
+        await this.prisma.mfaBackupCode.update({
+            where: { id },
+            data: { usedAt: new Date() },
         })
     }
 }

@@ -19,6 +19,7 @@ export async function cleanHttpDatabase(): Promise<void> {
         prismaHttpTest.energyDistributor.deleteMany(),
         prismaHttpTest.authToken.deleteMany(),
         prismaHttpTest.passwordReset.deleteMany(),
+        prismaHttpTest.mfaBackupCode.deleteMany(),
         prismaHttpTest.user.deleteMany(),
     ])
 }

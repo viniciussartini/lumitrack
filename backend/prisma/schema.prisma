@@ -45,6 +45,8 @@ enum AuditAction {
   PROPERTY_UPDATE
   PROPERTY_DELETE
   DATA_EXPORT
+  MFA_ENABLED
+  MFA_DISABLED
 
   @@map("audit_action")
 }
@@ -119,6 +121,14 @@ model User {
   cnpjBlindIndex String? @unique
   tradeName      String?
 
+  // MFA opcional via TOTP (#12 — A06/A07). mfaSecret armazena o segredo
+  // criptografado (AES-256-GCM, chave própria — ver
+  // shared/crypto/mfaEncryption.ts), nunca em texto claro. mfaEnabled
+  // controla se o segundo fator é exigido no login — fica false até o
+  // usuário confirmar o setup com um código válido.
+  mfaEnabled Boolean @default(false)
+  mfaSecret  String?
+
   // Relacionamentos
   properties     Property[]
   distributors   EnergyDistributor[]
@@ -126,6 +136,7 @@ model User {
   passwordResets PasswordReset[]
   alerts         Alert[]
   auditLogs      AuditLog[]
+  mfaBackupCodes MfaBackupCode[]
 
   @@map("users")
 }
@@ -163,6 +174,22 @@ model PasswordReset {
 
   @@index([token])
   @@map("password_resets")
+}
+
+// Códigos de backup do MFA (#12) — uso único, gerados em lote no momento do
+// setup e exibidos uma única vez ao usuário (só o hash bcrypt fica
+// persistido). Cobrem o caso de perda do dispositivo com o app autenticador.
+model MfaBackupCode {
+  id        String    @id @default(uuid())
+  userId    String
+  codeHash  String // hash bcrypt — mesmo padrão usado para a senha
+  usedAt    DateTime? // null = ainda não usado
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("mfa_backup_codes")
 }
 
 // Trilha de auditoria (#08 — A09/Art. 46): login/logout, acesso negado (403)

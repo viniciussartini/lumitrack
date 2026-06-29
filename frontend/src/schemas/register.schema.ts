@@ -51,6 +51,7 @@ const passwordSchema = z
     .regex(/[A-Z]/, { message: "A senha deve conter ao menos uma letra maiúscula" })
     .regex(/[a-z]/, { message: "A senha deve conter ao menos uma letra minúscula" })
     .regex(/[0-9]/, { message: "A senha deve conter ao menos um número" })
+    .regex(/[^A-Za-z0-9]/, { message: "A senha deve conter ao menos um caractere especial" })
 
 const baseSchema = z.object({
     email: z

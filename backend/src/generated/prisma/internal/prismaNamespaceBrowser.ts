@@ -54,6 +54,7 @@ export const ModelName = {
   User: 'User',
   AuthToken: 'AuthToken',
   PasswordReset: 'PasswordReset',
+  MfaBackupCode: 'MfaBackupCode',
   AuditLog: 'AuditLog',
   EnergyDistributor: 'EnergyDistributor',
   Property: 'Property',
@@ -96,7 +97,9 @@ export const UserScalarFieldEnum = {
   companyName: 'companyName',
   cnpj: 'cnpj',
   cnpjBlindIndex: 'cnpjBlindIndex',
-  tradeName: 'tradeName'
+  tradeName: 'tradeName',
+  mfaEnabled: 'mfaEnabled',
+  mfaSecret: 'mfaSecret'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
@@ -125,6 +128,17 @@ export const PasswordResetScalarFieldEnum = {
 } as const
 
 export type PasswordResetScalarFieldEnum = (typeof PasswordResetScalarFieldEnum)[keyof typeof PasswordResetScalarFieldEnum]
+
+
+export const MfaBackupCodeScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  codeHash: 'codeHash',
+  usedAt: 'usedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type MfaBackupCodeScalarFieldEnum = (typeof MfaBackupCodeScalarFieldEnum)[keyof typeof MfaBackupCodeScalarFieldEnum]
 
 
 export const AuditLogScalarFieldEnum = {
