@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest"
+import { createHash } from "node:crypto"
 import { RetentionService } from "@/shared/retention/retention.service.js"
 import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
@@ -130,7 +131,7 @@ describe("RetentionService.purgeExpiredData", () => {
 
     it("expurga RefreshToken revogado ou expirado há mais tempo que o período de retenção, preservando os demais", async () => {
         const user = await userService.createUser(validUser)
-        const hash = (s: string) => require("crypto").createHash("sha256").update(s).digest("hex")
+        const hash = (s: string) => createHash("sha256").update(s).digest("hex")
 
         await prismaTest.refreshToken.create({
             data: { userId: user.id, token: hash("revoked-old"), expiresAt: daysFromNow(7), revokedAt: daysAgo(35) },

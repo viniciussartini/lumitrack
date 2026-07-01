@@ -1,4 +1,4 @@
-import { PrismaClient } from "@/generated/prisma/client.js"
+import { PrismaClient, Prisma } from "@/generated/prisma/client.js"
 import type { CreateUserInput, UpdateUserInput } from "@/modules/user/user.schema.js"
 import { encrypt, decrypt } from "@/shared/crypto/encryption.js"
 import { generateBlindIndex } from "@/shared/crypto/blindIndex.js"
@@ -104,7 +104,7 @@ export class UserRepository {
         )
 
         const user = await this.prisma.user.create({
-            data: cleanData as any,
+            data: cleanData as unknown as Prisma.UserCreateInput,
             omit: READ_OMIT,
         })
 
@@ -118,7 +118,7 @@ export class UserRepository {
 
         const user = await this.prisma.user.update({
             where: { id },
-            data: cleanData as any,
+            data: cleanData as Prisma.UserUpdateInput,
             omit: READ_OMIT,
         })
 

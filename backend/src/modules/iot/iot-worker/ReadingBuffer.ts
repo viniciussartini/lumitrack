@@ -13,7 +13,7 @@
 
 export type DeviceReading = {
     deviceId: string
-    kwhConsumed: Number
+    kwhConsumed: number
     receivedAt: Date
 }
 

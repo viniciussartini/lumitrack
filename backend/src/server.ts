@@ -166,16 +166,16 @@ async function shutdown(signal: string): Promise<void> {
     // Flush final: persiste qualquer acumulado pendente no buffer antes de sair.
     // Sem isso, até 59 minutos de leituras IoT poderiam ser perdidos em um restart.
     logger.info("[Shutdown] Executando flush final do buffer IoT...")
-    await processor.buffer.getAllHourlySnapshots().length > 0
-        ? new HourlyRollupScheduler(
+    if (processor.buffer.getAllHourlySnapshots().length > 0) {
+        await new HourlyRollupScheduler(
             processor.buffer,
             new ConsumptionRepository(prisma),
             new DeviceRepository(prisma),
             new AreaRepository(prisma),
             new PropertyRepository(prisma),
             new DistributorRepository(prisma),
-            ).flush()
-        : Promise.resolve()
+        ).flush()
+    }
 
     // Desconecta todos os devices IoT de forma limpa.
     await IoTConnectionManager.getInstance().stopAll()

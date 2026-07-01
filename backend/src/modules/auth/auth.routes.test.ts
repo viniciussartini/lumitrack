@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from "vitest"
 import request from "supertest"
+import { createHash } from "node:crypto"
 import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
@@ -850,8 +851,7 @@ describe("MFA", { timeout: 15000 }, () => {
                 .set(env.REFRESH_CSRF_HEADER_NAME, refreshCsrfToken)
 
             // Força o token original a estar fora da janela de graça
-            const oldHash = require("crypto")
-                .createHash("sha256")
+            const oldHash = createHash("sha256")
                 .update(extractCookieValue(loginRes, env.REFRESH_COOKIE_NAME))
                 .digest("hex")
             await prismaHttpTest.refreshToken.updateMany({

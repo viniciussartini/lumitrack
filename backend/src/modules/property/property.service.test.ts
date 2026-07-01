@@ -12,6 +12,7 @@ import {
     NotFoundError,
     ValidationError,
 } from "@/shared/errors/AppError.js"
+import type { CreatePropertyInput } from "@/modules/property/property.schema.js"
 
 // ─── Instâncias ───────────────────────────────────────────────────────────────
 
@@ -157,7 +158,7 @@ describe("PropertyService", () => {
                 propertyService.create(user.id, {
                     ...validPropertyInput,
                     distributorId: distributor.id,
-                    state: "XX" as any,
+                    state: "XX" as unknown as CreatePropertyInput["state"],
                 }),
             ).rejects.toThrow(ValidationError)
         })
@@ -368,7 +369,9 @@ describe("PropertyService", () => {
             })
 
             await expect(
-                propertyService.update(property.id, user.id, { state: "ZZ" as any }),
+                propertyService.update(property.id, user.id, {
+                    state: "ZZ" as unknown as CreatePropertyInput["state"],
+                }),
             ).rejects.toThrow(ValidationError)
         })
     })
