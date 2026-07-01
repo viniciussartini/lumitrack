@@ -83,6 +83,21 @@ export const envSchema = z.object({
             message: "MFA_SECRET_ENCRYPTION_KEY deve ter 64 caracteres hexadecimais (32 bytes)",
         }),
 
+    // Criptografia do endereço da propriedade em repouso (#15 da remediação
+    // OWASP/LGPD — A04/Art. 46). Chave própria (separada de
+    // CPF_CNPJ_ENCRYPTION_KEY e MFA_SECRET_ENCRYPTION_KEY) — endereço
+    // geográfico é categoria de dado pessoal distinta dos outros campos
+    // sensíveis; o comprometimento de uma chave não deve expor as demais.
+    // Não há blind index: ao contrário de CPF/CNPJ, endereço não tem
+    // constraint @unique e nunca é usado como filtro de query.
+    // Mesmo formato (64 caracteres hex / 32 bytes). Gerar com:
+    //   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+    ADDRESS_ENCRYPTION_KEY: z
+        .string()
+        .regex(/^[0-9a-f]{64}$/i, {
+            message: "ADDRESS_ENCRYPTION_KEY deve ter 64 caracteres hexadecimais (32 bytes)",
+        }),
+
     // Refresh token da sessão WEB (#14 da remediação OWASP/LGPD — A06).
     // Canal MOBILE não usa refresh (token de 90 dias já cobre a UX).
     JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),

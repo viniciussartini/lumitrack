@@ -146,6 +146,8 @@ jobs:
       JWT_SECRET: ci-only-dummy-secret-nao-e-usado-em-producao-32chars
       CPF_CNPJ_ENCRYPTION_KEY: 6fd4bad67bbdb0573f391bffdc1f0b3e710203034d07ace29e71bb1f49c835f4
       CPF_CNPJ_BLIND_INDEX_KEY: 25e6454d84f1a7348ee8a2410b6a244814e719d0fafb1cf30e54aa40ada5657d
+      MFA_SECRET_ENCRYPTION_KEY: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2
+      ADDRESS_ENCRYPTION_KEY: f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9
       SMTP_HOST: smtp.ci.invalid
       SMTP_USER: ci
       SMTP_PASS: ci
@@ -193,6 +195,8 @@ jobs:
       JWT_SECRET: ci-only-dummy-secret-nao-e-usado-em-producao-32chars
       CPF_CNPJ_ENCRYPTION_KEY: 6fd4bad67bbdb0573f391bffdc1f0b3e710203034d07ace29e71bb1f49c835f4
       CPF_CNPJ_BLIND_INDEX_KEY: 25e6454d84f1a7348ee8a2410b6a244814e719d0fafb1cf30e54aa40ada5657d
+      MFA_SECRET_ENCRYPTION_KEY: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2
+      ADDRESS_ENCRYPTION_KEY: f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9
       SMTP_HOST: smtp.ci.invalid
       SMTP_USER: ci
       SMTP_PASS: ci

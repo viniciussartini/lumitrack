@@ -541,3 +541,82 @@ describe("Audit log", () => {
         expect(logs[0]).toMatchObject({ outcome: "FAILURE", userId: userIdB, resourceType: "properties" })
     })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Criptografia do endereço (#15 — A04/Art. 46)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("Criptografia do endereço em repouso", () => {
+    it("armazena address cifrado no banco (não em texto claro)", async () => {
+        const { token } = await registerAndLogin()
+        const dist = await createDistributor(token)
+        const property = await createProperty(token, dist.id)
+
+        const raw = await prismaHttpTest.property.findUnique({ where: { id: property.id } })
+
+        expect(raw?.address).not.toBe(validPropertyBody.address)
+        expect(raw?.address).not.toBeNull()
+        // Ciphertext AES-256-GCM é base64 e não contém o texto claro
+        expect(raw?.address).not.toContain("Rua das Flores")
+    })
+
+    it("armazena city, state e zipCode cifrados no banco", async () => {
+        const { token } = await registerAndLogin()
+        const dist = await createDistributor(token)
+        const property = await createProperty(token, dist.id)
+
+        const raw = await prismaHttpTest.property.findUnique({ where: { id: property.id } })
+
+        expect(raw?.city).not.toBe(validPropertyBody.city)
+        expect(raw?.state).not.toBe(validPropertyBody.state)
+        expect(raw?.zipCode).not.toBe(validPropertyBody.zipCode)
+    })
+
+    it("a resposta da API contém o endereço em texto claro (decifrado pelo repository)", async () => {
+        const { token } = await registerAndLogin()
+        const dist = await createDistributor(token)
+
+        const response = await request(app)
+            .post("/api/properties")
+            .set("Authorization", `Bearer ${token}`)
+            .send({ ...validPropertyBody, distributorId: dist.id })
+
+        expect(response.body.data.address).toBe(validPropertyBody.address)
+        expect(response.body.data.city).toBe(validPropertyBody.city)
+        expect(response.body.data.state).toBe(validPropertyBody.state)
+        expect(response.body.data.zipCode).toBe(validPropertyBody.zipCode)
+    })
+
+    it("mantém address null no banco quando não fornecido", async () => {
+        const { token } = await registerAndLogin()
+        const dist = await createDistributor(token)
+
+        await request(app)
+            .post("/api/properties")
+            .set("Authorization", `Bearer ${token}`)
+            .send({ name: "Galpão Sem Endereço", distributorId: dist.id })
+
+        const properties = await prismaHttpTest.property.findMany({ where: { name: "Galpão Sem Endereço" } })
+        expect(properties[0]?.address).toBeNull()
+        expect(properties[0]?.city).toBeNull()
+        expect(properties[0]?.state).toBeNull()
+        expect(properties[0]?.zipCode).toBeNull()
+    })
+
+    it("atualiza o address cifrado no banco via PUT", async () => {
+        const { token } = await registerAndLogin()
+        const dist = await createDistributor(token)
+        const property = await createProperty(token, dist.id)
+
+        const novoEndereco = "Avenida Atualizada, 999"
+        await request(app)
+            .put(`/api/properties/${property.id}`)
+            .set("Authorization", `Bearer ${token}`)
+            .send({ address: novoEndereco })
+
+        const raw = await prismaHttpTest.property.findUnique({ where: { id: property.id } })
+
+        expect(raw?.address).not.toBe(novoEndereco)
+        expect(raw?.address).not.toContain("Atualizada")
+    })
+})

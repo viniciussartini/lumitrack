@@ -30,14 +30,14 @@ produção com usuários reais.
 | 🟡 Médio   | 3 | Vulns de dependência (dev); sem CI/CD com gates; política de senha fraca |
 | 🟢 Baixo   | 3 | Injection (mitigado); RBAC raso; tratamento de exceções (mitigado) |
 
-**Estado atual (pós #01/#02/#04/#05/#06/#07/#08/#11/#12 — ver Seção 3 e `IMPLEMENTATION_LOG.md`):**
+**Estado atual (pós #01/#02/#04/#05/#06/#07/#08/#11/#12/#15 — ver Seção 3 e `IMPLEMENTATION_LOG.md`):**
 
 | Severidade | Quantidade | Categorias |
 |------------|-----------|----------|
 | 🔴 Crítico | 0 | — |
 | 🟠 Alto    | 0 | — |
-| 🟡 Médio   | 1 | A04 (endereço da propriedade ainda em texto claro — ver #15) |
-| 🟢 Baixo   | 9 | A01, A02, A03, A05, A06, A07, A08, A09, A10 |
+| 🟡 Médio   | 0 | — |
+| 🟢 Baixo   | 10 | A01, A02, A03, A04, A05, A06, A07, A08, A09, A10 |
 
 A remediação está organizada em **4 fases** (ver Seção 6), iniciando pelos itens
 críticos antes de qualquer ida a produção.
@@ -67,7 +67,7 @@ Evidências são referenciadas no formato `arquivo:linha`.
 | A01 | Broken Access Control | Autorização por posse de recurso presente e consistente (✅). Atenção: `userType` (INDIVIDUAL/COMPANY) não é RBAC real — sem papel admin/escopos. | 🟢 Baixo |
 | A02 | Security Misconfiguration | ~~Helmet com config padrão~~ ~~CORS sem guard~~ ~~sem HTTPS/HSTS~~ ~~sem `.env.example`~~ **corrigido (#05)** — CSP explícito (deny-all, API pura), HSTS explícito, guard `CORS_ORIGIN='*'` bloqueado em produção, redirect HTTP→HTTPS + `trust proxy` em produção, `.env.example` criado. ~~Cookie de sessão WEB sem atributos de segurança~~ **corrigido (#06)** — `httpOnly`/`Secure` (produção)/`SameSite=Lax`. | 🟢 Baixo (era 🟠 Alto) |
 | A03 | Software Supply Chain Failures | ~~Sem CI com auditoria automática~~ ~~sem Dependabot~~ **corrigido (#11)** — GitHub Actions audita `npm audit` (bloqueia em high/critical) em todo PR/push, `.github/dependabot.yml` mantém dependências atualizadas semanalmente. 3 vulns moderadas no backend (`@hono/node-server` via `@prisma/dev` — **dependência de desenvolvimento**, risco real reduzido, sem fix não-breaking disponível) seguem como aviso não-bloqueante, monitoradas pelo gate. | 🟢 Baixo (era 🟡 Médio) |
-| A04 | Cryptographic Failures | ~~CPF/CNPJ em texto claro~~ **corrigido (#07)** — AES-256-GCM + blind index (HMAC-SHA256) para preservar unicidade/busca. Endereço da propriedade **ainda em texto claro** (gap residual, ver #15 no roadmap — a #07 foi escopada apenas a CPF/CNPJ, decisão registrada com o usuário). ~~JWT armazenado em texto claro~~ **corrigido (#04)** — agora SHA-256. Senhas com bcrypt 12 (✅). | 🟡 Médio (era 🟠 Alto) |
+| A04 | Cryptographic Failures | ~~CPF/CNPJ em texto claro~~ **corrigido (#07)** — AES-256-GCM + blind index (HMAC-SHA256) para preservar unicidade/busca. ~~Endereço da propriedade em texto claro~~ **corrigido (#15)** — AES-256-GCM (sem blind index: endereço não tem `@unique` nem é filtro de query), chave própria `ADDRESS_ENCRYPTION_KEY` para compartimentalização; todos os 4 campos cifrados (`address`, `city`, `state`, `zipCode`). ~~JWT armazenado em texto claro~~ **corrigido (#04)** — agora SHA-256. Senhas com bcrypt 12 (✅). | 🟢 Baixo (era 🟡 Médio) |
 | A05 | Injection | Prisma parametrizado, sem `$queryRaw`; React escapa por padrão, sem `dangerouslySetInnerHTML` (✅). | 🟢 Baixo |
 | A06 | Insecure Design | ~~Tokens MOBILE nunca expiram~~ **corrigido (#04)** — expiram após `MOBILE_TOKEN_EXPIRES_IN` (default 90d). ~~Política de senha sem caractere especial~~ **corrigido (#12)** — exige símbolo, além de maiúscula/minúscula/número. ~~Sem refresh token para sessão WEB~~ **corrigido (#14)** — refresh token opaco (32 bytes, SHA-256) com rotação + detecção de reuso, CSRF dedicado, renovação proativa e reativa no frontend. Sem rate limit por design. | 🟢 Baixo (era 🟠 Alto) |
 | A07 | Authentication Failures | ~~Sem rate limiting / proteção brute-force~~ **corrigido (#01)** — limiter global por IP + limiter estrito por IP+e-mail em `/login`, `/forgot-password`, `/reset-password`, `/login/mfa`. ~~Sem proteção CSRF na sessão WEB~~ **corrigido (#06)** — double-submit cookie. ~~Sem MFA~~ **corrigido (#12)** — MFA opcional via TOTP (`otplib`) + backup codes de uso único; API completa, UI do frontend pendente (ver #18). Ainda sem lockout de conta (gap menor, não bloqueante). Anti-enumeração no forgot-password (✅). | 🟢 Baixo (era 🔴 Crítico) |
@@ -106,8 +106,22 @@ Evidências são referenciadas no formato `arquivo:linha`.
   [blindIndex.ts](../backend/src/shared/crypto/blindIndex.ts),
   [user.repository.ts](../backend/src/modules/user/user.repository.ts),
   [schema.prisma](../backend/prisma/schema.prisma).
-  Pendente (ver #15 no roadmap): endereço da propriedade ainda em texto claro
-  — fora do escopo desta sub-issue.
+- **A04 — Endereço da propriedade em texto claro — ✅ corrigido (#15).** Os
+  campos `address`, `city`, `state` e `zipCode` do modelo `Property` passam a
+  guardar o valor cifrado com AES-256-GCM (chave própria
+  `ADDRESS_ENCRYPTION_KEY`, separada de `CPF_CNPJ_ENCRYPTION_KEY` e
+  `MFA_SECRET_ENCRYPTION_KEY` — compartimentalização de risco entre categorias
+  de dado pessoal). Não há blind index: ao contrário de CPF/CNPJ, endereço não
+  tem constraint `@unique` e nunca é usado como filtro de query. Nenhuma
+  migration de schema foi necessária (colunas já existiam como `String?`).
+  Cifra/decifra centralizada na borda do `PropertyRepository` — contrato de
+  API inalterado. Script de backfill idempotente
+  (`backend/scripts/backfill-address-encryption.ts`) via heurística
+  try-decrypt (AES-GCM auth tag torna falso-positivos negligíveis). CI
+  atualizado com `MFA_SECRET_ENCRYPTION_KEY` (que estava faltando desde a
+  #12) e `ADDRESS_ENCRYPTION_KEY`. Evidência:
+  [addressEncryption.ts](../backend/src/shared/crypto/addressEncryption.ts),
+  [property.repository.ts](../backend/src/modules/property/property.repository.ts).
 - **A06 — Token MOBILE sem expiração — ✅ corrigido (#04).** Tokens MOBILE agora
   expiram após `MOBILE_TOKEN_EXPIRES_IN` (default 90 dias), tanto no `exp` do
   JWT quanto no `expiresAt` persistido — verificado pelo middleware
@@ -192,7 +206,7 @@ Evidências são referenciadas no formato `arquivo:linha`.
 | Art. 18 | Acesso e portabilidade | ✅ Implementado (#09) | Endpoint `GET /api/users/me/data-export?format=json\|pdf` — JSON traz perfil, properties, distribuidoras, áreas, dispositivos, alertas, histórico de consumo completo (sem corte) e audit log do titular; PDF traz o mesmo conteúdo com resumo agregado de consumo (não a lista bruta) e identidade visual do LumiTrack |
 | Art. 16/18 | Eliminação de dados | ✅ Implementado | `DELETE /api/users/:id` + cascade — manter e auditar |
 | Art. 18 | Retificação | ✅ Implementado | `PUT /api/users/:id` — manter |
-| Art. 46 | Segurança dos dados | ⚠️ Parcial | ~~Cripto de CPF/CNPJ~~ ✅ (#07); hardening ✅ (#02/#05/#06); ~~audit log~~ ✅ (#08); falta cripto do endereço (#15) |
+| Art. 46 | Segurança dos dados | ✅ Implementado (#07/#15) | ~~Cripto de CPF/CNPJ~~ ✅ (#07); hardening ✅ (#02/#05/#06); ~~audit log~~ ✅ (#08); ~~cripto do endereço~~ ✅ (#15) |
 | Art. 15/16 | Retenção mínima | ✅ Implementado (#10) | `RetentionPurgeScheduler` (roda no boot + 1x/dia) remove `AuthToken`/`PasswordReset` inativos há 30 dias e `AuditLog` com mais de ~2 anos; períodos configuráveis via `DATA_RETENTION_*` |
 | Art. 37-39 | Operadores (DPA com SMTP) | ⚠️ Parcial | Checklist de requisitos de segurança para provedor SMTP documentado (ver Seção 7.1); nenhum provedor de produção escolhido ainda; DPA pendente de assinatura quando selecionado |
 | Art. 48 | Resposta a incidentes | ✅ Implementado (#13) | Runbook operacional completo em `docs/RUNBOOK_INCIDENTES.md` (detecção → contenção → avaliação de risco → notificação ANPD/titulares → lições aprendidas) |
@@ -264,10 +278,12 @@ Registro formal da auditoria — base para governança e Art. 48.
   restrito a `/api/auth`), expurgo pelo `RetentionPurgeScheduler`; frontend
   com renovação proativa em ~12min + interceptor reativo de 401 com retry
   único — resolve o loop SSE silencioso quando o JWT expira
-- **#15** Criptografia do endereço da propriedade (A04) — gap conhecido desde
-  a #07 (o achado original mencionava CPF/CNPJ **e** endereço; a #07 foi
-  escopada apenas a CPF/CNPJ, decisão registrada com o usuário); endereço
-  geográfico é dado pessoal sob a LGPD e continua em texto claro
+- **#15** ✅ Criptografia do endereço da propriedade (A04/Art. 46) — AES-256-GCM
+  com chave própria `ADDRESS_ENCRYPTION_KEY` para todos os 4 campos
+  (`address`, `city`, `state`, `zipCode`); sem blind index (não há unicidade
+  nem busca por endereço); nenhuma migration de schema; backfill idempotente
+  via try-decrypt. Corrigido também o gap de CI: `MFA_SECRET_ENCRYPTION_KEY`
+  estava faltando nos jobs `backend-test` e `e2e` desde a #12.
 - **#16** Endpoint administrativo para consulta do audit log (A09/Art. 48) —
   hoje a tabela `audit_logs` só é consultável via acesso direto ao banco
   (Prisma Studio/SQL); um endpoint HTTP dedicado depende de RBAC real
@@ -356,3 +372,4 @@ Após assinatura da DPA, arquivar uma cópia em local seguro (não no repositór
 | 1.8 | 2026-06-29 | Auditoria de Segurança | #12 concluída: política de senha agora exige caractere especial (gap citado em A06); MFA opcional via TOTP (`otplib`) com QR code (`qrcode`) e 10 backup codes de uso único (bcrypt) — login em duas etapas (`mfaToken` stateless de 5min) quando habilitado, chave de cifra própria para o secret (`MFA_SECRET_ENCRYPTION_KEY`, separada de CPF/CNPJ). Escopo restrito ao backend (API completa e testada); UI do frontend registrada como **#18** no roadmap. Achados A06 e A07 atualizados — A06 rebaixado para 🟢 Baixo. Tabela-resumo executiva (Seção 1) recalculada: 🟡 Médio caiu de 2 para 1 categoria, 🟢 Baixo subiu de 8 para 9. |
 | 2.0 | 2026-06-30 | Auditoria de Segurança | #14 concluída (Fase 3): refresh token para sessão WEB (A06) — token opaco (32 bytes, SHA-256), rotação a cada uso, detecção de reuso (revogação em cascata + `REFRESH_TOKEN_REUSE_DETECTED` no audit log), janela de graça de 5s para corrida entre abas, CSRF dedicado (`lumitrack_refresh_csrf`, path restrito `/api/auth`, maxAge 7d), expurgo automático pelo `RetentionPurgeScheduler`. Frontend: renovação proativa via timer em ~12min (`scheduleProactiveRefresh`) + interceptor de 401 com retry único (`ensureFreshSession` singleton) — resolve deslogamento abrupto e loop SSE silencioso. `jti: randomUUID()` adicionado ao payload JWT para garantir unicidade do hash mesmo com logins no mesmo segundo. Backend: 665/665 testes; Frontend: 1227/1227 testes. Achado A06 atualizado (~~Sem refresh token~~). |
 | 1.9 | 2026-06-29 | Auditoria de Segurança | #13 concluída (Fase 3): runbook de resposta a incidentes em `docs/RUNBOOK_INCIDENTES.md` (novo arquivo versionado) — detecção/classificação (severidade, fontes de log), contenção (ações por tipo de incidente), avaliação de risco aos titulares (como usar `audit_logs` + export DSAR), notificação à ANPD/titulares (critérios, prazos, templates), registro e lições aprendidas. Seção 7.1 nova: checklist de requisitos de segurança para qualificar futuro operador SMTP (TLS obrigatório, retenção de logs, localização de processamento, notificação de incidente, revogação, subcontratadores, auditoria). Achado Art. 48 corrigido de "❌ Ausente" para "✅ Implementado"; achado Art. 37-39 rebaixado de "⚠️ Não confirmado" para "⚠️ Parcial" (checklist documentado, DPA pendente de assinatura quando provedor for selecionado). Nenhuma mudança de código — sub-issue 100% documental. |
+| 2.1 | 2026-06-30 | Auditoria de Segurança | #15 concluída (Fase 3): criptografia do endereço da propriedade (A04/Art. 46) — AES-256-GCM com chave própria `ADDRESS_ENCRYPTION_KEY` (compartimentalizada de `CPF_CNPJ_ENCRYPTION_KEY` e `MFA_SECRET_ENCRYPTION_KEY`) para `address`, `city`, `state` e `zipCode`; sem blind index (endereço não tem `@unique` nem é filtro de query); nenhuma migration de schema; `PropertyRepository` é a única borda onde ocorre cifra/decifra — contrato de API e testes existentes inalterados; backfill idempotente via heurística try-decrypt. CI corrigido: `MFA_SECRET_ENCRYPTION_KEY` (faltava desde a #12) e `ADDRESS_ENCRYPTION_KEY` adicionados aos jobs `backend-test` e `e2e`. Achado A04 corrigido (🟢 Baixo — 0 achados 🟡 Médio remanescentes na auditoria). Achado Art. 46 corrigido de "⚠️ Parcial" para "✅ Implementado". Tabela-resumo executiva: 🟡 Médio → 0, 🟢 Baixo → 10. Backend: 675/675 testes; Frontend: 1227/1227 testes. |
