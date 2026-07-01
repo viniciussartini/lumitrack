@@ -25,6 +25,10 @@ export function authRoutes(
     // Segunda etapa do login quando a conta tem MFA habilitado — pública,
     // mas só aceita um mfaToken de curta duração emitido por /login.
     router.post("/login/mfa", (req, res, next) => authController.verifyMfaLogin(req, res, next))
+    // Renovação de sessão WEB via refresh token httpOnly (#14 — A06).
+    // Não passa pelo middleware `authenticate` — o JWT pode estar expirado,
+    // que é exatamente o cenário que motiva o refresh.
+    router.post("/refresh", (req, res, next) => authController.refresh(req, res, next))
     router.post("/forgot-password", (req, res, next) => authController.forgotPassword(req, res, next))
     router.post("/reset-password", (req, res, next) => authController.resetPassword(req, res, next))
 

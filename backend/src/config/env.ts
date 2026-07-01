@@ -82,6 +82,16 @@ export const envSchema = z.object({
         .regex(/^[0-9a-f]{64}$/i, {
             message: "MFA_SECRET_ENCRYPTION_KEY deve ter 64 caracteres hexadecimais (32 bytes)",
         }),
+
+    // Refresh token da sessão WEB (#14 da remediação OWASP/LGPD — A06).
+    // Canal MOBILE não usa refresh (token de 90 dias já cobre a UX).
+    JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+    // Janela de graça após rotação — tolera corrida entre abas do mesmo browser.
+    REFRESH_TOKEN_GRACE_PERIOD_MS: z.coerce.number().default(5000),
+    REFRESH_COOKIE_NAME: z.string().default("lumitrack_refresh"),
+    REFRESH_CSRF_COOKIE_NAME: z.string().default("lumitrack_refresh_csrf"),
+    REFRESH_CSRF_HEADER_NAME: z.string().default("x-refresh-csrf-token"),
+    DATA_RETENTION_REFRESH_TOKEN_DAYS: z.coerce.number().default(30),
 }).refine(
     (data) => !(data.NODE_ENV === "production" && data.CORS_ORIGIN === "*"),
     {

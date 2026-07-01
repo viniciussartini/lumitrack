@@ -190,4 +190,93 @@ export class AuthRepository {
             data: { usedAt: new Date() },
         })
     }
+
+    // ─── Refresh token (#14 — A06, canal WEB) ───────────────────────────────
+
+    // Persiste um novo refresh token e, atomicamente, revoga o token anterior
+    // (quando `replacesTokenId` é fornecido) linkando a cadeia de rotação.
+    async createRefreshToken(data: {
+        userId: string
+        token: string
+        expiresAt: Date
+        replacesTokenId?: string
+    }): Promise<{ id: string }> {
+        const now = new Date()
+        return this.prisma.$transaction(async (tx) => {
+            const created = await tx.refreshToken.create({
+                data: {
+                    userId: data.userId,
+                    token: data.token,
+                    expiresAt: data.expiresAt,
+                },
+                select: { id: true },
+            })
+            if (data.replacesTokenId) {
+                await tx.refreshToken.update({
+                    where: { id: data.replacesTokenId },
+                    data: { revokedAt: now, replacedByTokenId: created.id },
+                })
+            }
+            return created
+        })
+    }
+
+    async findRefreshToken(token: string): Promise<{
+        id: string
+        userId: string
+        revokedAt: Date | null
+        expiresAt: Date
+        replacedByTokenId: string | null
+        createdAt: Date
+    } | null> {
+        return this.prisma.refreshToken.findUnique({
+            where: { token },
+            select: {
+                id: true,
+                userId: true,
+                revokedAt: true,
+                expiresAt: true,
+                replacedByTokenId: true,
+                createdAt: true,
+            },
+        })
+    }
+
+    async revokeRefreshToken(id: string): Promise<void> {
+        await this.prisma.refreshToken.update({
+            where: { id },
+            data: { revokedAt: new Date() },
+        })
+    }
+
+    async revokeAllRefreshTokensForUser(userId: string): Promise<void> {
+        await this.prisma.refreshToken.updateMany({
+            where: { userId, revokedAt: null },
+            data: { revokedAt: new Date() },
+        })
+    }
+
+    async deleteExpiredOrRevokedRefreshTokens(threshold: Date): Promise<number> {
+        const result = await this.prisma.refreshToken.deleteMany({
+            where: {
+                OR: [
+                    { revokedAt: { lt: threshold } },
+                    { revokedAt: null, expiresAt: { lt: threshold } },
+                ],
+            },
+        })
+        return result.count
+    }
+
+    // Enxuto — só o necessário para remontar o JWT payload no refresh.
+    async findUserById(id: string): Promise<{
+        id: string
+        email: string
+        userType: string
+    } | null> {
+        return this.prisma.user.findUnique({
+            where: { id },
+            select: { id: true, email: true, userType: true },
+        })
+    }
 }

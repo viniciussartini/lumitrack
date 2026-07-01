@@ -20,6 +20,7 @@ const retentionService = new RetentionService(authRepository, auditRepository, {
     authToken: 30,
     passwordReset: 30,
     auditLog: 730,
+    refreshToken: 30,
 })
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
@@ -127,6 +128,31 @@ describe("RetentionService.purgeExpiredData", () => {
         expect(remaining).toHaveLength(1)
     })
 
+    it("expurga RefreshToken revogado ou expirado há mais tempo que o período de retenção, preservando os demais", async () => {
+        const user = await userService.createUser(validUser)
+        const hash = (s: string) => require("crypto").createHash("sha256").update(s).digest("hex")
+
+        await prismaTest.refreshToken.create({
+            data: { userId: user.id, token: hash("revoked-old"), expiresAt: daysFromNow(7), revokedAt: daysAgo(35) },
+        })
+        await prismaTest.refreshToken.create({
+            data: { userId: user.id, token: hash("revoked-recent"), expiresAt: daysFromNow(7), revokedAt: daysAgo(5) },
+        })
+        await prismaTest.refreshToken.create({
+            data: { userId: user.id, token: hash("expired-old"), expiresAt: daysAgo(35), revokedAt: null },
+        })
+        await prismaTest.refreshToken.create({
+            data: { userId: user.id, token: hash("still-valid"), expiresAt: daysFromNow(7), revokedAt: null },
+        })
+
+        const summary = await retentionService.purgeExpiredData()
+
+        expect(summary.refreshTokensDeleted).toBe(2)
+
+        const remaining = await prismaTest.refreshToken.findMany()
+        expect(remaining).toHaveLength(2)
+    })
+
     it("não expurga nada quando não há dados elegíveis", async () => {
         const summary = await retentionService.purgeExpiredData()
 
@@ -134,6 +160,7 @@ describe("RetentionService.purgeExpiredData", () => {
             authTokensDeleted: 0,
             passwordResetsDeleted: 0,
             auditLogsDeleted: 0,
+            refreshTokensDeleted: 0,
         })
     })
 })

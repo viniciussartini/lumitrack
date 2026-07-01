@@ -8,6 +8,7 @@ import {
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
 import { authState } from "@/lib/authState"
+import { scheduleProactiveRefresh, cancelProactiveRefresh } from "@/lib/sessionRefresh"
 import type { LoginInput, User, RegisterInput } from "@/types/auth.types"
 import { useNavigate } from "react-router-dom"
 
@@ -42,13 +43,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const bootstrap = async () => {
             const currentUser = await authService.getCurrentUser()
             updateUser(currentUser)
+            if (currentUser) scheduleProactiveRefresh()
             setIsLoading(false)
         }
         bootstrap()
+        return () => { cancelProactiveRefresh() }
     }, [])
 
     useEffect(() => {
         const handleUnauthorized = () => {
+            cancelProactiveRefresh()
             updateUser(null)
             navigate("/login", { replace: true })
         }
@@ -62,6 +66,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         try {
             const fullUser = await authService.login(input)
             updateUser(fullUser)
+            scheduleProactiveRefresh()
         } catch (error) {
             // eslint-disable-next-line @typescript-eslint/only-throw-error
             throw new Error(extractErrorMessage(error), { cause: error })
@@ -69,6 +74,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
 
     const logout = async (): Promise<void> => {
+        cancelProactiveRefresh()
         await authService.logout()
         updateUser(null)
     }

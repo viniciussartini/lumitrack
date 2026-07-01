@@ -116,7 +116,7 @@ describe("POST /api/auth/login", () => {
         expect(response.headers["set-cookie"]).toBeUndefined()
     })
 
-    it("WEB deve retornar 200 sem token no body e setar os cookies de sessão e CSRF", async () => {
+    it("WEB deve retornar 200 sem token no body e setar os 4 cookies (sessão, CSRF, refresh, CSRF-refresh)", async () => {
         await request(app).post("/api/users").send(validUser)
 
         const response = await request(app).post("/api/auth/login").send({
@@ -132,6 +132,8 @@ describe("POST /api/auth/login", () => {
 
         const sessionCookie = findSetCookieLine(response, env.AUTH_COOKIE_NAME)
         const csrfCookie = findSetCookieLine(response, env.CSRF_COOKIE_NAME)
+        const refreshCookie = findSetCookieLine(response, env.REFRESH_COOKIE_NAME)
+        const refreshCsrfCookie = findSetCookieLine(response, env.REFRESH_CSRF_COOKIE_NAME)
 
         expect(sessionCookie).toBeDefined()
         expect(sessionCookie).toContain("HttpOnly")
@@ -144,6 +146,15 @@ describe("POST /api/auth/login", () => {
         expect(csrfCookie).toBeDefined()
         expect(csrfCookie).not.toContain("HttpOnly")
         expect(csrfCookie).toContain("SameSite=Lax")
+
+        expect(refreshCookie).toBeDefined()
+        expect(refreshCookie).toContain("HttpOnly")
+        // Cookies de refresh têm path restrito — browser só os envia em /api/auth.
+        expect(refreshCookie).toContain("Path=/api/auth")
+
+        expect(refreshCsrfCookie).toBeDefined()
+        expect(refreshCsrfCookie).not.toContain("HttpOnly")
+        expect(refreshCsrfCookie).toContain("Path=/api/auth")
     })
 
     it("deve retornar 401 para e-mail inexistente", async () => {
@@ -783,6 +794,105 @@ describe("MFA", { timeout: 15000 }, () => {
                 .send({ password: validUser.password, code: "123456" })
 
             expect(response.status).toBe(401)
+        })
+    })
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // POST /api/auth/refresh
+    // ─────────────────────────────────────────────────────────────────────────
+    describe("POST /api/auth/refresh", () => {
+        async function loginWebWithAgent() {
+            await request(app).post("/api/users").send(validUser)
+            const agent = request.agent(app)
+            const loginRes = await agent.post("/api/auth/login").send({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "WEB",
+            })
+            const csrfToken = extractCookieValue(loginRes, env.CSRF_COOKIE_NAME)
+            const refreshCsrfToken = extractCookieValue(loginRes, env.REFRESH_CSRF_COOKIE_NAME)
+            return { agent, csrfToken, refreshCsrfToken, loginRes }
+        }
+
+        it("retorna 401 sem o cookie de refresh", async () => {
+            const response = await request(app).post("/api/auth/refresh")
+            expect(response.status).toBe(401)
+        })
+
+        it("retorna 401 sem o header CSRF de refresh", async () => {
+            const { agent } = await loginWebWithAgent()
+            const response = await agent.post("/api/auth/refresh")
+            expect(response.status).toBe(401)
+        })
+
+        it("retorna 200 e emite novos 4 cookies com CSRF de refresh válido", async () => {
+            const { agent, refreshCsrfToken } = await loginWebWithAgent()
+
+            const response = await agent
+                .post("/api/auth/refresh")
+                .set(env.REFRESH_CSRF_HEADER_NAME, refreshCsrfToken)
+
+            expect(response.status).toBe(200)
+
+            // Novos cookies devem ter sido setados
+            const newSessionCookie = findSetCookieLine(response, env.AUTH_COOKIE_NAME)
+            const newRefreshCookie = findSetCookieLine(response, env.REFRESH_COOKIE_NAME)
+            expect(newSessionCookie).toBeDefined()
+            expect(newRefreshCookie).toBeDefined()
+        })
+
+        it("após refresh, o refresh token antigo não funciona mais (fora da janela de graça)", async () => {
+            const { agent, refreshCsrfToken, loginRes } = await loginWebWithAgent()
+
+            // Executa o refresh
+            await agent
+                .post("/api/auth/refresh")
+                .set(env.REFRESH_CSRF_HEADER_NAME, refreshCsrfToken)
+
+            // Força o token original a estar fora da janela de graça
+            const oldHash = require("crypto")
+                .createHash("sha256")
+                .update(extractCookieValue(loginRes, env.REFRESH_COOKIE_NAME))
+                .digest("hex")
+            await prismaHttpTest.refreshToken.updateMany({
+                where: { token: oldHash },
+                data: { revokedAt: new Date(Date.now() - 60_000) },
+            })
+
+            // Tenta usar o cookie antigo de refresh (agent ainda o tem)
+            // Com um novo agent sem os cookies atualizados
+            const agent2 = request.agent(app)
+            const oldRefreshValue = extractCookieValue(loginRes, env.REFRESH_COOKIE_NAME)
+            const oldRefreshCsrfValue = extractCookieValue(loginRes, env.REFRESH_CSRF_COOKIE_NAME)
+            const replayRes = await agent2
+                .post("/api/auth/refresh")
+                .set("Cookie", [
+                    `${env.REFRESH_COOKIE_NAME}=${oldRefreshValue}`,
+                    `${env.REFRESH_CSRF_COOKIE_NAME}=${oldRefreshCsrfValue}`,
+                ])
+                .set(env.REFRESH_CSRF_HEADER_NAME, oldRefreshCsrfValue)
+
+            expect(replayRes.status).toBe(401)
+        })
+
+        it("logout limpa os 4 cookies incluindo refresh", async () => {
+            const { agent, csrfToken } = await loginWebWithAgent()
+
+            const logoutRes = await agent
+                .post("/api/auth/logout")
+                .set(env.CSRF_HEADER_NAME, csrfToken)
+
+            expect(logoutRes.status).toBe(200)
+
+            const cookies = logoutRes.headers["set-cookie"] as unknown as string[] | undefined
+            const deletedNames = (cookies ?? [])
+                .filter((c) => c.includes("Max-Age=0") || c.includes("Expires="))
+                .map((c) => c.split("=")[0])
+
+            expect(deletedNames).toContain(env.AUTH_COOKIE_NAME)
+            expect(deletedNames).toContain(env.CSRF_COOKIE_NAME)
+            expect(deletedNames).toContain(env.REFRESH_COOKIE_NAME)
+            expect(deletedNames).toContain(env.REFRESH_CSRF_COOKIE_NAME)
         })
     })
 })

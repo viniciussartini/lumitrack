@@ -47,6 +47,7 @@ enum AuditAction {
   DATA_EXPORT
   MFA_ENABLED
   MFA_DISABLED
+  REFRESH_TOKEN_REUSE_DETECTED
 
   @@map("audit_action")
 }
@@ -133,6 +134,7 @@ model User {
   properties     Property[]
   distributors   EnergyDistributor[]
   tokens         AuthToken[]
+  refreshTokens  RefreshToken[]
   passwordResets PasswordReset[]
   alerts         Alert[]
   auditLogs      AuditLog[]
@@ -160,6 +162,29 @@ model AuthToken {
   @@index([token])
   @@index([userId])
   @@map("auth_tokens")
+}
+
+// Refresh token da sessão WEB (#14 — A06). Token opaco (randomBytes), nunca
+// um JWT — só é validado via lookup no banco, nunca decodificado client-side.
+// Rotacionado a cada uso: replacedByTokenId encadeia a linhagem, permitindo
+// detectar reuso de um token já trocado (sinal de roubo — ver auth.service.ts).
+// Existe só para o canal WEB; MOBILE já tem token de 90 dias, sem refresh.
+model RefreshToken {
+  id                String    @id @default(uuid())
+  userId            String
+  token             String    @unique // hash SHA-256 do valor opaco — nunca o valor puro
+  expiresAt         DateTime
+  revokedAt         DateTime? // null = ainda válido
+  replacedByTokenId String?   @unique
+  createdAt         DateTime  @default(now())
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedByToken RefreshToken? @relation("RefreshTokenRotation", fields: [replacedByTokenId], references: [id], onDelete: SetNull)
+  replacesToken   RefreshToken? @relation("RefreshTokenRotation")
+
+  @@index([token])
+  @@index([userId])
+  @@map("refresh_tokens")
 }
 
 model PasswordReset {

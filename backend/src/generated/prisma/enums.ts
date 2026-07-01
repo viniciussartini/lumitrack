@@ -46,7 +46,8 @@ export const AuditAction = {
   PROPERTY_DELETE: 'PROPERTY_DELETE',
   DATA_EXPORT: 'DATA_EXPORT',
   MFA_ENABLED: 'MFA_ENABLED',
-  MFA_DISABLED: 'MFA_DISABLED'
+  MFA_DISABLED: 'MFA_DISABLED',
+  REFRESH_TOKEN_REUSE_DETECTED: 'REFRESH_TOKEN_REUSE_DETECTED'
 } as const
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction]

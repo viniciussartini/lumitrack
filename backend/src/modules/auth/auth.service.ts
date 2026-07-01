@@ -45,7 +45,12 @@ const MFA_TOKEN_EXPIRES_IN: StringValue = "5m"
 const MFA_TOKEN_PURPOSE = "mfa-pending"
 const BACKUP_CODE_COUNT = 10
 
-type SessionResult = { token: string; channel: "WEB" | "MOBILE"; userId: string }
+type SessionResult = {
+    token: string
+    refreshToken: string | null // preenchido apenas para WEB
+    channel: "WEB" | "MOBILE"
+    userId: string
+}
 type LoginResult =
     | (SessionResult & { mfaRequired: false })
     | { mfaRequired: true; mfaToken: string }
@@ -203,21 +208,6 @@ export class AuthService {
         await this.authRepository.disableMfa(userId)
     }
 
-    async logout(token: string): Promise<void> {
-        const hashedToken = hashToken(token)
-        const stored = await this.authRepository.findActiveToken(hashedToken)
-
-        if (!stored) {
-            throw new UnauthorizedError("Token inválido")
-        }
-
-        if (stored.revokedAt !== null) {
-            throw new UnauthorizedError("Token já foi revogado")
-        }
-
-        await this.authRepository.revokeToken(hashedToken)
-    }
-
     async forgotPassword(input: unknown): Promise<void> {
         const parsed = forgotPasswordSchema.safeParse(input)
 
@@ -282,6 +272,74 @@ export class AuthService {
         ])
     }
 
+    async logout(sessionToken: string, rawRefreshToken?: string): Promise<void> {
+        const hashedToken = hashToken(sessionToken)
+        const stored = await this.authRepository.findActiveToken(hashedToken)
+
+        if (!stored) {
+            throw new UnauthorizedError("Token inválido")
+        }
+
+        if (stored.revokedAt !== null) {
+            throw new UnauthorizedError("Token já foi revogado")
+        }
+
+        await this.authRepository.revokeToken(hashedToken)
+
+        if (rawRefreshToken) {
+            const hashedRefresh = hashToken(rawRefreshToken)
+            const storedRefresh = await this.authRepository.findRefreshToken(hashedRefresh)
+            if (storedRefresh && storedRefresh.revokedAt === null) {
+                await this.authRepository.revokeRefreshToken(storedRefresh.id)
+            }
+        }
+    }
+
+    // Renova a sessão WEB: valida o refresh token, rotaciona-o e emite um
+    // novo JWT + novo refresh token. Detecta reuso de tokens já revogados
+    // (sinal de roubo) e revoga todas as sessões do usuário nesse caso.
+    async refresh(
+        rawRefreshToken: string,
+        auditFn?: (userId: string) => Promise<void>,
+    ): Promise<SessionResult> {
+        const hashedToken = hashToken(rawRefreshToken)
+        const stored = await this.authRepository.findRefreshToken(hashedToken)
+
+        if (!stored) {
+            throw new UnauthorizedError("Refresh token inválido")
+        }
+
+        if (stored.revokedAt !== null) {
+            const gracePeriodMs = env.REFRESH_TOKEN_GRACE_PERIOD_MS
+            const withinGrace =
+                stored.replacedByTokenId !== null &&
+                Date.now() - stored.revokedAt.getTime() <= gracePeriodMs
+
+            if (withinGrace) {
+                // Corrida entre abas: token já foi rotacionado, mas dentro da
+                // janela de graça — emite nova sessão sem segunda rotação.
+                const user = await this.authRepository.findUserById(stored.userId)
+                if (!user) throw new UnauthorizedError("Refresh token inválido")
+                return this.issueSessionToken(user.id, user.email, user.userType, "WEB")
+            }
+
+            // Reuso real (token revogado fora da janela de graça) — compromisso
+            // potencial: revogar tudo e forçar re-login.
+            await this.authRepository.revokeAllRefreshTokensForUser(stored.userId)
+            if (auditFn) await auditFn(stored.userId)
+            throw new UnauthorizedError("Refresh token inválido")
+        }
+
+        if (stored.expiresAt < new Date()) {
+            throw new UnauthorizedError("Refresh token expirado")
+        }
+
+        const user = await this.authRepository.findUserById(stored.userId)
+        if (!user) throw new UnauthorizedError("Refresh token inválido")
+
+        return this.issueSessionToken(user.id, user.email, user.userType, "WEB", stored.id)
+    }
+
     // ─── Helpers privados ───────────────────────────────────────────────────
 
     // Emite a sessão real (JWT assinado + persistência do hash em
@@ -292,8 +350,13 @@ export class AuthService {
         email: string,
         userType: string,
         channel: "WEB" | "MOBILE",
+        replacesRefreshTokenId?: string,
     ): Promise<SessionResult> {
-        const jwtPayload = { id: userId, email, userType }
+        // jti (JWT ID) é um UUID aleatório que garante unicidade mesmo quando
+        // dois tokens são emitidos no mesmo segundo para o mesmo usuário —
+        // sem ele, o mesmo `iat`+`exp`+payload produziria o mesmo JWT e
+        // violaria o unique constraint de auth_tokens.token.
+        const jwtPayload = { id: userId, email, userType, jti: randomUUID() }
 
         // Web expira rápido (sessão curta); mobile expira mais tarde, mas
         // SEMPRE expira — um token vazado não pode ter validade indefinida.
@@ -318,7 +381,28 @@ export class AuthService {
             expiresAt,
         })
 
-        return { token, channel, userId }
+        const refreshToken =
+            channel === "WEB"
+                ? await this.issueRefreshToken(userId, replacesRefreshTokenId)
+                : null
+
+        return { token, refreshToken, channel, userId }
+    }
+
+    // Gera um token opaco de alta entropia, persiste apenas o hash.
+    private async issueRefreshToken(
+        userId: string,
+        replacesTokenId?: string,
+    ): Promise<string> {
+        const raw = randomBytes(32).toString("hex")
+        const expiresAt = new Date(Date.now() + parseJwtExpiry(env.JWT_REFRESH_EXPIRES_IN as StringValue))
+        await this.authRepository.createRefreshToken({
+            userId,
+            token: hashToken(raw),
+            expiresAt,
+            ...(replacesTokenId !== undefined && { replacesTokenId }),
+        })
+        return raw
     }
 
     // Verifica um código contra o secret TOTP do usuário; se não bater,

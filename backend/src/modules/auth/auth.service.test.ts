@@ -660,4 +660,128 @@ describe("AuthService", () => {
             })
         })
     })
+
+    // ─── refresh (#14 — A06) ──────────────────────────────────────────────────
+    describe("refresh", () => {
+        async function createUserAndLogin() {
+            const { UserService } = await import("@/modules/user/user.service.js")
+            const userService = new UserService(userRepository)
+            await userService.createUser(validUser)
+            const result = await loginAsSession({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "WEB",
+            })
+            if (!result.refreshToken) throw new Error("refreshToken ausente no login WEB")
+            return { sessionToken: result.token, rawRefreshToken: result.refreshToken }
+        }
+
+        it("emite novo JWT e novo refresh token, revogando o antigo", async () => {
+            const { rawRefreshToken } = await createUserAndLogin()
+
+            const renewed = await authService.refresh(rawRefreshToken)
+
+            expect(renewed.token).toBeDefined()
+            expect(renewed.refreshToken).toBeDefined()
+            expect(renewed.channel).toBe("WEB")
+
+            // Token antigo deve estar revogado e linkado ao novo
+            const oldStored = await prismaTest.refreshToken.findUnique({
+                where: { token: hashToken(rawRefreshToken) },
+            })
+            expect(oldStored?.revokedAt).not.toBeNull()
+            expect(oldStored?.replacedByTokenId).not.toBeNull()
+        })
+
+        it("token rotacionado não pode ser usado novamente (fora da janela de graça)", async () => {
+            const { rawRefreshToken } = await createUserAndLogin()
+
+            // Primeira renovação (válida)
+            await authService.refresh(rawRefreshToken)
+
+            // Força revokedAt para muito antes para sair da janela de graça
+            await prismaTest.refreshToken.updateMany({
+                where: { token: hashToken(rawRefreshToken) },
+                data: { revokedAt: new Date(Date.now() - 60_000) },
+            })
+
+            // Reuso real: deve revogar tudo e lançar erro
+            const auditSpy = vi.fn()
+            await expect(authService.refresh(rawRefreshToken, auditSpy)).rejects.toThrow(
+                UnauthorizedError,
+            )
+            // Todas as sessões revogadas
+            const all = await prismaTest.refreshToken.findMany()
+            expect(all.every((t) => t.revokedAt !== null)).toBe(true)
+            // Função de auditoria chamada
+            expect(auditSpy).toHaveBeenCalledOnce()
+        })
+
+        it("dentro da janela de graça (multi-aba), aceita token recentemente rotacionado sem segunda rotação", async () => {
+            const { rawRefreshToken } = await createUserAndLogin()
+
+            // Primeira renovação (normal)
+            await authService.refresh(rawRefreshToken)
+
+            // Não move o revokedAt — permanece dentro da janela de graça
+            const auditSpy = vi.fn()
+            const renewed2 = await authService.refresh(rawRefreshToken, auditSpy)
+
+            expect(renewed2.token).toBeDefined()
+            // Auditoria de reuso NÃO deve ter sido chamada
+            expect(auditSpy).not.toHaveBeenCalled()
+        })
+
+        it("lança UnauthorizedError para token inexistente", async () => {
+            await expect(authService.refresh("token-invalido")).rejects.toThrow(UnauthorizedError)
+        })
+
+        it("lança UnauthorizedError para token expirado (sem revogação em cascata)", async () => {
+            const { rawRefreshToken } = await createUserAndLogin()
+
+            // Move expiresAt para o passado
+            await prismaTest.refreshToken.updateMany({
+                where: { token: hashToken(rawRefreshToken) },
+                data: { expiresAt: new Date(Date.now() - 1000) },
+            })
+
+            const auditSpy = vi.fn()
+            await expect(authService.refresh(rawRefreshToken, auditSpy)).rejects.toThrow(
+                UnauthorizedError,
+            )
+            // Expiração natural não dispara revogação em cascata
+            expect(auditSpy).not.toHaveBeenCalled()
+        })
+
+        it("logout revoga também o refresh token quando presente", async () => {
+            const { sessionToken, rawRefreshToken } = await createUserAndLogin()
+
+            await authService.logout(sessionToken, rawRefreshToken)
+
+            const refreshStored = await prismaTest.refreshToken.findUnique({
+                where: { token: hashToken(rawRefreshToken) },
+            })
+            expect(refreshStored?.revokedAt).not.toBeNull()
+        })
+
+        it("login WEB retorna refreshToken; login MOBILE retorna null", async () => {
+            const { UserService } = await import("@/modules/user/user.service.js")
+            const userService = new UserService(userRepository)
+            await userService.createUser(validUser)
+
+            const webResult = await loginAsSession({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "WEB",
+            })
+            const mobileResult = await loginAsSession({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "MOBILE",
+            })
+
+            expect(webResult.refreshToken).not.toBeNull()
+            expect(mobileResult.refreshToken).toBeNull()
+        })
+    })
 })

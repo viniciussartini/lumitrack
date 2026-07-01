@@ -79,6 +79,7 @@ const retentionService = new RetentionService(
         authToken: env.DATA_RETENTION_AUTH_TOKEN_DAYS,
         passwordReset: env.DATA_RETENTION_PASSWORD_RESET_DAYS,
         auditLog: env.DATA_RETENTION_AUDIT_LOG_DAYS,
+        refreshToken: env.DATA_RETENTION_REFRESH_TOKEN_DAYS,
     },
 )
 const retentionScheduler = new RetentionPurgeScheduler(retentionService)

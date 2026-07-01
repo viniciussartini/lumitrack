@@ -3,6 +3,8 @@ import {
     generateCsrfToken,
     getAuthCookieOptions,
     getCsrfCookieOptions,
+    getRefreshCookieOptions,
+    getRefreshCsrfCookieOptions,
     validateCsrf,
 } from "@/shared/security/csrf.js"
 
@@ -46,6 +48,31 @@ describe("getCsrfCookieOptions", () => {
         const csrf = getCsrfCookieOptions("production", 900_000)
 
         expect(csrf).toEqual({ ...auth, httpOnly: false })
+    })
+})
+
+describe("getRefreshCookieOptions", () => {
+    it("usa path:/api/auth (restrito) em vez de path:/ do cookie de sessão", () => {
+        const options = getRefreshCookieOptions("production", 604_800_000)
+        expect(options).toEqual({
+            httpOnly: true,
+            secure: true,
+            sameSite: "lax",
+            path: "/api/auth",
+            maxAge: 604_800_000,
+        })
+    })
+
+    it("secure:false fora de production", () => {
+        expect(getRefreshCookieOptions("development", 1000).secure).toBe(false)
+    })
+})
+
+describe("getRefreshCsrfCookieOptions", () => {
+    it("é idêntico ao cookie de refresh exceto httpOnly:false", () => {
+        const refresh = getRefreshCookieOptions("production", 604_800_000)
+        const refreshCsrf = getRefreshCsrfCookieOptions("production", 604_800_000)
+        expect(refreshCsrf).toEqual({ ...refresh, httpOnly: false })
     })
 })
 

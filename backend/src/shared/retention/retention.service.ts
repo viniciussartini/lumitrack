@@ -13,12 +13,14 @@ export type RetentionDays = {
     authToken: number
     passwordReset: number
     auditLog: number
+    refreshToken: number
 }
 
 export type PurgeSummary = {
     authTokensDeleted: number
     passwordResetsDeleted: number
     auditLogsDeleted: number
+    refreshTokensDeleted: number
 }
 
 function daysAgo(days: number): Date {
@@ -45,8 +47,16 @@ export class RetentionService {
         const auditLogsDeleted = await this.auditRepository.deleteOlderThan(
             daysAgo(this.retentionDays.auditLog),
         )
+        const refreshTokensDeleted = await this.authRepository.deleteExpiredOrRevokedRefreshTokens(
+            daysAgo(this.retentionDays.refreshToken),
+        )
 
-        const summary: PurgeSummary = { authTokensDeleted, passwordResetsDeleted, auditLogsDeleted }
+        const summary: PurgeSummary = {
+            authTokensDeleted,
+            passwordResetsDeleted,
+            auditLogsDeleted,
+            refreshTokensDeleted,
+        }
         log.info(summary, "Expurgo de retenção concluído")
         return summary
     }

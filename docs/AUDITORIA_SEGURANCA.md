@@ -2,7 +2,7 @@
 
 > **Escopo:** OWASP Top 10:2025 + conformidade com a LGPD (Lei nº 13.709/2018)
 > **Data da auditoria:** 2026-06-27
-> **Versão do documento:** 1.8
+> **Versão do documento:** 2.0
 > **Branch de remediação:** `security/owasp-lgpd-remediation`
 > **Stack auditado:** Backend Node.js/TypeScript (Express 5, Prisma 7, PostgreSQL) · Frontend React 19/Vite
 
@@ -69,7 +69,7 @@ Evidências são referenciadas no formato `arquivo:linha`.
 | A03 | Software Supply Chain Failures | ~~Sem CI com auditoria automática~~ ~~sem Dependabot~~ **corrigido (#11)** — GitHub Actions audita `npm audit` (bloqueia em high/critical) em todo PR/push, `.github/dependabot.yml` mantém dependências atualizadas semanalmente. 3 vulns moderadas no backend (`@hono/node-server` via `@prisma/dev` — **dependência de desenvolvimento**, risco real reduzido, sem fix não-breaking disponível) seguem como aviso não-bloqueante, monitoradas pelo gate. | 🟢 Baixo (era 🟡 Médio) |
 | A04 | Cryptographic Failures | ~~CPF/CNPJ em texto claro~~ **corrigido (#07)** — AES-256-GCM + blind index (HMAC-SHA256) para preservar unicidade/busca. Endereço da propriedade **ainda em texto claro** (gap residual, ver #15 no roadmap — a #07 foi escopada apenas a CPF/CNPJ, decisão registrada com o usuário). ~~JWT armazenado em texto claro~~ **corrigido (#04)** — agora SHA-256. Senhas com bcrypt 12 (✅). | 🟡 Médio (era 🟠 Alto) |
 | A05 | Injection | Prisma parametrizado, sem `$queryRaw`; React escapa por padrão, sem `dangerouslySetInnerHTML` (✅). | 🟢 Baixo |
-| A06 | Insecure Design | ~~Tokens MOBILE nunca expiram~~ **corrigido (#04)** — expiram após `MOBILE_TOKEN_EXPIRES_IN` (default 90d). ~~Política de senha sem caractere especial~~ **corrigido (#12)** — exige símbolo, além de maiúscula/minúscula/número. Sem refresh token (gap conhecido, ver #14); sem rate limit por design. | 🟢 Baixo (era 🟠 Alto) |
+| A06 | Insecure Design | ~~Tokens MOBILE nunca expiram~~ **corrigido (#04)** — expiram após `MOBILE_TOKEN_EXPIRES_IN` (default 90d). ~~Política de senha sem caractere especial~~ **corrigido (#12)** — exige símbolo, além de maiúscula/minúscula/número. ~~Sem refresh token para sessão WEB~~ **corrigido (#14)** — refresh token opaco (32 bytes, SHA-256) com rotação + detecção de reuso, CSRF dedicado, renovação proativa e reativa no frontend. Sem rate limit por design. | 🟢 Baixo (era 🟠 Alto) |
 | A07 | Authentication Failures | ~~Sem rate limiting / proteção brute-force~~ **corrigido (#01)** — limiter global por IP + limiter estrito por IP+e-mail em `/login`, `/forgot-password`, `/reset-password`, `/login/mfa`. ~~Sem proteção CSRF na sessão WEB~~ **corrigido (#06)** — double-submit cookie. ~~Sem MFA~~ **corrigido (#12)** — MFA opcional via TOTP (`otplib`) + backup codes de uso único; API completa, UI do frontend pendente (ver #18). Ainda sem lockout de conta (gap menor, não bloqueante). Anti-enumeração no forgot-password (✅). | 🟢 Baixo (era 🔴 Crítico) |
 | A08 | Software/Data Integrity Failures | ~~Sem CI/CD~~ ~~sem verificação de integridade de build~~ **corrigido (#11)** — pipeline GitHub Actions (`.github/workflows/ci.yml`) builda/testa backend e frontend (typecheck, testes unitários/integração, e2e via Playwright) em todo PR/push usando `npm ci` (instalação reprodutível a partir do lockfile) em todos os jobs. Scripts de dependência (`postinstall` etc.) continuam não auditados individualmente — gap residual, fora do escopo desta sub-issue. | 🟢 Baixo (era 🟡 Médio) |
 | A09 | Logging & Alerting Failures | ~~Apenas `console.*`~~ **corrigido (#08)** — logger estruturado (pino) em todo o backend; ~~sem audit log~~ **corrigido (#08)** — tabela `audit_logs` registra login/logout, acessos negados (403, capturado centralizadamente) e CRUD de User/Property. | 🟢 Baixo (era 🟠 Alto) |
@@ -156,8 +156,30 @@ Evidências são referenciadas no formato `arquivo:linha`.
   [auth.controller.ts](../backend/src/modules/auth/auth.controller.ts),
   [api.ts](../frontend/src/services/api.ts),
   [auth.service.ts](../frontend/src/services/auth.service.ts).
-  Pendente (fora do escopo desta sub-issue, ver #14 no roadmap): refresh
-  token — o JWT WEB continua expirando em 15min sem renovação automática.
+  ~~Pendente (fora do escopo desta sub-issue, ver #14 no roadmap): refresh
+  token — o JWT WEB continua expirando em 15min sem renovação automática.~~ **corrigido (#14)** — ver abaixo.
+- **A06 — Refresh token para sessão WEB — ✅ corrigido (#14).** Novo modelo
+  `RefreshToken` (token opaco de 32 bytes, SHA-256 persistido, nunca JWT)
+  emitido a cada login WEB com `JWT_REFRESH_EXPIRES_IN` (default 7d). Rotação
+  a cada uso: token antigo marcado como `revokedAt` + `replacedByTokenId` →
+  novo token; reuso de token revogado (fora da janela de graça
+  `REFRESH_TOKEN_GRACE_PERIOD_MS=5s`) revoga **todas** as sessões/refresh
+  tokens do usuário e registra `REFRESH_TOKEN_REUSE_DETECTED` no audit log
+  (compromisso potencial). Janela de graça curta evita falso positivo quando
+  duas abas renovam quase simultaneamente. CSRF dedicado: cookies
+  `lumitrack_refresh` (httpOnly, `path:/api/auth`) e `lumitrack_refresh_csrf`
+  (não-httpOnly, `path:/api/auth`, `maxAge` de 7d) — separados dos cookies
+  de sessão (15min) para sobreviver à expiração do JWT. Frontend: renovação
+  proativa via timer (~80% = 12min, `scheduleProactiveRefresh`) + fallback
+  reativo no interceptor de 401 com retry único (`ensureFreshSession` singleton)
+  — evita que o stream SSE quebre silenciosamente. Evidência:
+  [schema.prisma](../backend/prisma/schema.prisma),
+  [auth.repository.ts](../backend/src/modules/auth/auth.repository.ts),
+  [auth.service.ts](../backend/src/modules/auth/auth.service.ts),
+  [auth.controller.ts](../backend/src/modules/auth/auth.controller.ts),
+  [csrf.ts](../backend/src/shared/security/csrf.ts),
+  [sessionRefresh.ts](../frontend/src/lib/sessionRefresh.ts),
+  [api.ts](../frontend/src/services/api.ts).
 
 ---
 
@@ -235,10 +257,13 @@ Registro formal da auditoria — base para governança e Art. 48.
   separada de CPF/CNPJ); escopo restrito ao backend — UI do frontend
   (tela de configuração + segundo passo no login) fica para **#18**
 - **#13** ✅ DPA com operador SMTP + runbook de incidentes (Art. 37-39/48)
-- **#14** Refresh token para sessão WEB (A06) — gap conhecido desde a #06
-  (JWT WEB expira em 15min sem renovação automática); fora do escopo da #06
-  por introduzir superfície de ataque própria (rotação/roubo de refresh
-  token) que merece análise de segurança dedicada
+- **#14** ✅ Refresh token para sessão WEB (A06) — token opaco (32 bytes,
+  SHA-256) com rotação a cada uso, detecção de reuso (revogação em cascata
+  + `REFRESH_TOKEN_REUSE_DETECTED` no audit log), janela de graça de 5s
+  para corrida entre abas, CSRF dedicado (`lumitrack_refresh_csrf`, path
+  restrito a `/api/auth`), expurgo pelo `RetentionPurgeScheduler`; frontend
+  com renovação proativa em ~12min + interceptor reativo de 401 com retry
+  único — resolve o loop SSE silencioso quando o JWT expira
 - **#15** Criptografia do endereço da propriedade (A04) — gap conhecido desde
   a #07 (o achado original mencionava CPF/CNPJ **e** endereço; a #07 foi
   escopada apenas a CPF/CNPJ, decisão registrada com o usuário); endereço
@@ -329,4 +354,5 @@ Após assinatura da DPA, arquivar uma cópia em local seguro (não no repositór
 | 1.6 | 2026-06-28 | Auditoria de Segurança | #10 concluída (abre a Fase 3): `RetentionPurgeScheduler` (mesmo padrão sem dependência nova do `HourlyRollupScheduler` já existente no módulo IoT) roda no boot e a cada 24h, removendo `AuthToken`/`PasswordReset` inativos há mais de 30 dias e `AuditLog` com mais de ~2 anos — remoção completa, não anonimização (decisão registrada com o usuário). Períodos configuráveis via novas variáveis `DATA_RETENTION_AUTH_TOKEN_DAYS`/`DATA_RETENTION_PASSWORD_RESET_DAYS`/`DATA_RETENTION_AUDIT_LOG_DAYS` (todas com default, nada obrigatório novo). Achado Art. 15/16 corrigido de "❌ Indefinida" para "✅ Implementado". |
 | 1.7 | 2026-06-28 | Auditoria de Segurança | #11 concluída: pipeline GitHub Actions (`.github/workflows/ci.yml`) — typecheck/build/testes unitários e e2e (Playwright) de backend e frontend em todo PR/push para `main`, com `npm ci` (build reprodutível) em todos os jobs; `npm audit` bloqueia em high/critical (moderate só avisa, por causa da vuln moderada conhecida em devDependency do Prisma, sem fix não-breaking ainda); `.github/dependabot.yml` adicionado (npm backend+frontend, GitHub Actions, semanal). Achados A03 e A08 corrigidos e rebaixados para 🟢 Baixo. Lint do backend ficou fora do escopo, registrado como **#17** no roadmap. Tabela-resumo executiva (Seção 1) recalculada: 🟡 Médio caiu de 4 para 2 categorias, 🟢 Baixo subiu de 6 para 8. |
 | 1.8 | 2026-06-29 | Auditoria de Segurança | #12 concluída: política de senha agora exige caractere especial (gap citado em A06); MFA opcional via TOTP (`otplib`) com QR code (`qrcode`) e 10 backup codes de uso único (bcrypt) — login em duas etapas (`mfaToken` stateless de 5min) quando habilitado, chave de cifra própria para o secret (`MFA_SECRET_ENCRYPTION_KEY`, separada de CPF/CNPJ). Escopo restrito ao backend (API completa e testada); UI do frontend registrada como **#18** no roadmap. Achados A06 e A07 atualizados — A06 rebaixado para 🟢 Baixo. Tabela-resumo executiva (Seção 1) recalculada: 🟡 Médio caiu de 2 para 1 categoria, 🟢 Baixo subiu de 8 para 9. |
+| 2.0 | 2026-06-30 | Auditoria de Segurança | #14 concluída (Fase 3): refresh token para sessão WEB (A06) — token opaco (32 bytes, SHA-256), rotação a cada uso, detecção de reuso (revogação em cascata + `REFRESH_TOKEN_REUSE_DETECTED` no audit log), janela de graça de 5s para corrida entre abas, CSRF dedicado (`lumitrack_refresh_csrf`, path restrito `/api/auth`, maxAge 7d), expurgo automático pelo `RetentionPurgeScheduler`. Frontend: renovação proativa via timer em ~12min (`scheduleProactiveRefresh`) + interceptor de 401 com retry único (`ensureFreshSession` singleton) — resolve deslogamento abrupto e loop SSE silencioso. `jti: randomUUID()` adicionado ao payload JWT para garantir unicidade do hash mesmo com logins no mesmo segundo. Backend: 665/665 testes; Frontend: 1227/1227 testes. Achado A06 atualizado (~~Sem refresh token~~). |
 | 1.9 | 2026-06-29 | Auditoria de Segurança | #13 concluída (Fase 3): runbook de resposta a incidentes em `docs/RUNBOOK_INCIDENTES.md` (novo arquivo versionado) — detecção/classificação (severidade, fontes de log), contenção (ações por tipo de incidente), avaliação de risco aos titulares (como usar `audit_logs` + export DSAR), notificação à ANPD/titulares (critérios, prazos, templates), registro e lições aprendidas. Seção 7.1 nova: checklist de requisitos de segurança para qualificar futuro operador SMTP (TLS obrigatório, retenção de logs, localização de processamento, notificação de incidente, revogação, subcontratadores, auditoria). Achado Art. 48 corrigido de "❌ Ausente" para "✅ Implementado"; achado Art. 37-39 rebaixado de "⚠️ Não confirmado" para "⚠️ Parcial" (checklist documentado, DPA pendente de assinatura quando provedor for selecionado). Nenhuma mudança de código — sub-issue 100% documental. |

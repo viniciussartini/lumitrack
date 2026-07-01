@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import { AuthProvider, useAuth } from "@/contexts/AuthContext"
 import { authService } from "@/services/auth.service"
+import { scheduleProactiveRefresh, cancelProactiveRefresh } from "@/lib/sessionRefresh"
 import type { User } from "@/types/auth.types"
 
 // useNavigate precisa de um Router no contexto — MemoryRouter resolve isso.
@@ -20,7 +21,13 @@ vi.mock("@/services/auth.service", () => ({
         logout: vi.fn(),
         getCurrentUser: vi.fn(),
         register: vi.fn(),
+        refresh: vi.fn(),
     },
+}))
+
+vi.mock("@/lib/sessionRefresh", () => ({
+    scheduleProactiveRefresh: vi.fn(),
+    cancelProactiveRefresh: vi.fn(),
 }))
 
 vi.mock("@/services/api", () => ({
@@ -139,6 +146,58 @@ describe("AuthProvider — evento lumitrack:unauthorized", () => {
 
         expect(result.current.user).toBeNull()
         expect(mockNavigate).toHaveBeenCalledWith("/login", { replace: true })
+    })
+})
+
+describe("AuthProvider — refresh proativo", () => {
+    it("agenda refresh após login bem-sucedido", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
+        vi.mocked(authService.login).mockResolvedValue(mockUser)
+
+        const { result } = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+        await act(async () => {
+            await result.current.login({ email: "test@example.com", password: "Senha@123" })
+        })
+
+        expect(vi.mocked(scheduleProactiveRefresh)).toHaveBeenCalled()
+    })
+
+    it("agenda refresh no bootstrap quando há sessão ativa", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser)
+
+        const { result } = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+        expect(vi.mocked(scheduleProactiveRefresh)).toHaveBeenCalled()
+    })
+
+    it("cancela o refresh ao fazer logout", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser)
+        vi.mocked(authService.logout).mockResolvedValue()
+
+        const { result } = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(result.current.isAuthenticated).toBe(true))
+
+        await act(async () => {
+            await result.current.logout()
+        })
+
+        expect(vi.mocked(cancelProactiveRefresh)).toHaveBeenCalled()
+    })
+
+    it("cancela o refresh ao receber evento lumitrack:unauthorized", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser)
+
+        const { result } = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(result.current.isAuthenticated).toBe(true))
+
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent("lumitrack:unauthorized"))
+        })
+
+        expect(vi.mocked(cancelProactiveRefresh)).toHaveBeenCalled()
     })
 })
 

@@ -37,6 +37,28 @@ export function getCsrfCookieOptions(nodeEnv: string, maxAgeMs: number): CookieO
     }
 }
 
+// Cookies de refresh: mesmas regras do par de sessão, mas com path restrito
+// a "/api/auth" — o browser só os envia para rotas de autenticação, reduzindo
+// a superfície de exposição. O CSRF de refresh tem maxAge igual ao refresh
+// token (7 d por padrão), diferente do CSRF de sessão (15 min) — a distinção
+// é o que permite o endpoint /refresh ser protegido mesmo com o JWT expirado.
+export function getRefreshCookieOptions(nodeEnv: string, maxAgeMs: number): CookieOptions {
+    return {
+        httpOnly: true,
+        secure: nodeEnv === "production",
+        sameSite: "lax",
+        path: "/api/auth",
+        maxAge: maxAgeMs,
+    }
+}
+
+export function getRefreshCsrfCookieOptions(nodeEnv: string, maxAgeMs: number): CookieOptions {
+    return {
+        ...getRefreshCookieOptions(nodeEnv, maxAgeMs),
+        httpOnly: false,
+    }
+}
+
 // Compara o cookie CSRF com o header enviado pelo cliente (double-submit).
 // Usa comparação de tempo constante para evitar timing attacks; checa o
 // tamanho antes, já que `timingSafeEqual` lança se os buffers diferirem.

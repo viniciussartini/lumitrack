@@ -1,4 +1,5 @@
 import { api } from "@/services/api"
+import { getRefreshCsrfToken } from "@/lib/csrf"
 import type {
     LoginInput,
     LoginResponse,
@@ -54,6 +55,21 @@ export const authService = {
         } catch {
             return null
         }
+    },
+
+    /**
+     * Renova a sessão WEB via refresh token httpOnly. Não retorna dados —
+     * o backend sobrescreve os cookies de sessão. O header CSRF de refresh
+     * é injetado manualmente (o interceptor genérico de api.ts usa o CSRF
+     * de sessão, que pode estar expirado neste momento).
+     */
+    refresh: async (): Promise<void> => {
+        const refreshCsrf = getRefreshCsrfToken()
+        await api.post(
+            "/auth/refresh",
+            {},
+            { headers: { "x-refresh-csrf-token": refreshCsrf ?? "" } },
+        )
     },
 
     /**
