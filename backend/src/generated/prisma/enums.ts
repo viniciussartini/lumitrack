@@ -34,6 +34,14 @@ export const TokenChannel = {
 export type TokenChannel = (typeof TokenChannel)[keyof typeof TokenChannel]
 
 
+export const Role = {
+  USER: 'USER',
+  ADMIN: 'ADMIN'
+} as const
+
+export type Role = (typeof Role)[keyof typeof Role]
+
+
 export const AuditAction = {
   LOGIN: 'LOGIN',
   LOGOUT: 'LOGOUT',
@@ -47,7 +55,8 @@ export const AuditAction = {
   DATA_EXPORT: 'DATA_EXPORT',
   MFA_ENABLED: 'MFA_ENABLED',
   MFA_DISABLED: 'MFA_DISABLED',
-  REFRESH_TOKEN_REUSE_DETECTED: 'REFRESH_TOKEN_REUSE_DETECTED'
+  REFRESH_TOKEN_REUSE_DETECTED: 'REFRESH_TOKEN_REUSE_DETECTED',
+  ADMIN_AUDIT_LOG_VIEW: 'ADMIN_AUDIT_LOG_VIEW'
 } as const
 
 export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction]

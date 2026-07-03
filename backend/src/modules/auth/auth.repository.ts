@@ -1,12 +1,17 @@
-import { PrismaClient } from "@/generated/prisma/client.js"
+import { PrismaClient, Role } from "@/generated/prisma/client.js"
 
 // Retornado pelo findActiveToken — usado tanto no middleware de autenticação
 // quanto no service de logout para verificar se o token é válido.
+// `user.role` (#16 — RBAC) é lido junto nesta mesma query — o middleware
+// authenticate já fazia este lookup por requisição para validar o token;
+// alargar o select evita uma segunda query só para saber a role, e garante
+// que ela é sempre lida fresca do banco (nunca um claim do JWT).
 export type ActiveToken = {
     id: string
     userId: string
     revokedAt: Date | null
     expiresAt: Date | null
+    user: { role: Role }
 }
 
 export class AuthRepository {
@@ -31,6 +36,7 @@ export class AuthRepository {
                 userId: true,
                 revokedAt: true,
                 expiresAt: true,
+                user: { select: { role: true } },
             },
         })
     }

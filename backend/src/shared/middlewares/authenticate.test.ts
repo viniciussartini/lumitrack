@@ -189,4 +189,36 @@ describe("authenticate", () => {
 
         expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError))
     })
+
+    // RBAC mínimo (#16) — role sempre lida do banco, nunca um claim do JWT.
+    it("popula req.user.role com o default USER para um usuário recém-criado", async () => {
+        const token = await loginAndGetTokens("MOBILE")
+        const req = makeReq({ headers: { authorization: `Bearer ${token}` } })
+        const next = vi.fn() as NextFunction
+
+        await authenticate(req, {} as Response, next)
+
+        expect(next).toHaveBeenCalledWith()
+        expect((req as AuthenticatedRequest).user.role).toBe("USER")
+    })
+
+    it("reflete uma promoção a ADMIN feita em pleno meio da sessão, sem exigir novo login", async () => {
+        const token = await loginAndGetTokens("MOBILE")
+
+        // Promove o usuário a ADMIN diretamente no banco — simula uma
+        // mudança de role feita por outro admin enquanto a sessão já existe.
+        await prismaTest.user.update({
+            where: { email: validUser.email },
+            data: { role: "ADMIN" },
+        })
+
+        // Mesmo token, ainda válido — reinvoca authenticate sem novo login.
+        const req = makeReq({ headers: { authorization: `Bearer ${token}` } })
+        const next = vi.fn() as NextFunction
+
+        await authenticate(req, {} as Response, next)
+
+        expect(next).toHaveBeenCalledWith()
+        expect((req as AuthenticatedRequest).user.role).toBe("ADMIN")
+    })
 })

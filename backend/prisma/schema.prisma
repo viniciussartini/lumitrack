@@ -33,6 +33,18 @@ enum TokenChannel {
   MOBILE
 }
 
+// RBAC mínimo (#16 — A01/Art. 48): distingue usuários comuns de
+// administradores. Sempre lida do banco a cada requisição (nunca um claim do
+// JWT) — ver shared/middlewares/authenticate.ts — para que promover/rebaixar
+// um admin tenha efeito imediato, sem exigir novo login. Documento de design
+// para um sistema de permissões mais extensível: docs/RBAC_DESIGN.md.
+enum Role {
+  USER
+  ADMIN
+
+  @@map("role")
+}
+
 // Eventos de segurança registrados no audit log (#08 — A09/Art. 46).
 enum AuditAction {
   LOGIN
@@ -48,6 +60,7 @@ enum AuditAction {
   MFA_ENABLED
   MFA_DISABLED
   REFRESH_TOKEN_REUSE_DETECTED
+  ADMIN_AUDIT_LOG_VIEW
 
   @@map("audit_action")
 }
@@ -98,6 +111,9 @@ model User {
   userType  UserType
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // RBAC mínimo (#16 — A01/Art. 48). Ver enum Role acima.
+  role Role @default(USER)
 
   // Consentimento LGPD (Art. 7º/8º) — registrado no cadastro.
   // consentVersion identifica qual versão da Política de Privacidade/Termos
@@ -242,6 +258,8 @@ model AuditLog {
   @@index([userId])
   @@index([action])
   @@index([createdAt])
+  @@index([outcome])
+  @@index([resourceType])
   @@map("audit_logs")
 }
 

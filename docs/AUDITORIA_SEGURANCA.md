@@ -64,7 +64,7 @@ Evidências são referenciadas no formato `arquivo:linha`.
 
 | Cat. | Categoria | Achado | Severidade |
 |------|-----------|--------|------------|
-| A01 | Broken Access Control | Autorização por posse de recurso presente e consistente (✅). Atenção: `userType` (INDIVIDUAL/COMPANY) não é RBAC real — sem papel admin/escopos. | 🟢 Baixo |
+| A01 | Broken Access Control | Autorização por posse de recurso presente e consistente (✅). ~~`userType` (INDIVIDUAL/COMPANY) não é RBAC real — sem papel admin/escopos~~ **corrigido (#16)** — RBAC mínimo: enum `Role` (USER/ADMIN) no `User`, sempre lido do banco a cada requisição (nunca claim do JWT, promoção/rebaixamento tem efeito imediato), middleware `requireRole` reutilizável. Escopo restrito a gatear o novo endpoint administrativo de audit log — sem matriz de permissões ainda (ver `docs/RBAC_DESIGN.md` para uma versão futura mais extensível). | 🟢 Baixo |
 | A02 | Security Misconfiguration | ~~Helmet com config padrão~~ ~~CORS sem guard~~ ~~sem HTTPS/HSTS~~ ~~sem `.env.example`~~ **corrigido (#05)** — CSP explícito (deny-all, API pura), HSTS explícito, guard `CORS_ORIGIN='*'` bloqueado em produção, redirect HTTP→HTTPS + `trust proxy` em produção, `.env.example` criado. ~~Cookie de sessão WEB sem atributos de segurança~~ **corrigido (#06)** — `httpOnly`/`Secure` (produção)/`SameSite=Lax`. | 🟢 Baixo (era 🟠 Alto) |
 | A03 | Software Supply Chain Failures | ~~Sem CI com auditoria automática~~ ~~sem Dependabot~~ **corrigido (#11)** — GitHub Actions audita `npm audit` (bloqueia em high/critical) em todo PR/push, `.github/dependabot.yml` mantém dependências atualizadas semanalmente. 3 vulns moderadas no backend (`@hono/node-server` via `@prisma/dev` — **dependência de desenvolvimento**, risco real reduzido, sem fix não-breaking disponível) seguem como aviso não-bloqueante, monitoradas pelo gate. ~~Sem ESLint no backend~~ **corrigido (#17)** — flat config espelhando o padrão do frontend, job dedicado `backend-lint` no CI. | 🟢 Baixo (era 🟡 Médio) |
 | A04 | Cryptographic Failures | ~~CPF/CNPJ em texto claro~~ **corrigido (#07)** — AES-256-GCM + blind index (HMAC-SHA256) para preservar unicidade/busca. ~~Endereço da propriedade em texto claro~~ **corrigido (#15)** — AES-256-GCM (sem blind index: endereço não tem `@unique` nem é filtro de query), chave própria `ADDRESS_ENCRYPTION_KEY` para compartimentalização; todos os 4 campos cifrados (`address`, `city`, `state`, `zipCode`). ~~JWT armazenado em texto claro~~ **corrigido (#04)** — agora SHA-256. Senhas com bcrypt 12 (✅). | 🟢 Baixo (era 🟡 Médio) |
@@ -194,6 +194,44 @@ Evidências são referenciadas no formato `arquivo:linha`.
   [csrf.ts](../backend/src/shared/security/csrf.ts),
   [sessionRefresh.ts](../frontend/src/lib/sessionRefresh.ts),
   [api.ts](../frontend/src/services/api.ts).
+- **A01 — RBAC mínimo + endpoint administrativo de audit log — ✅ corrigido
+  (#16).** Novo enum `Role` (`USER`/`ADMIN`) no `User`, com default `USER`.
+  A role é sempre lida do banco a cada requisição — o middleware
+  `authenticate` já fazia uma consulta por requisição para validar o token
+  (`AuthRepository.findActiveToken`); o `select` dessa mesma consulta foi
+  alargado para trazer `user.role` via o relacionamento `AuthToken → User`,
+  então nenhuma consulta nova foi adicionada em nenhuma rota. Isso garante
+  que promover/rebaixar um admin tem efeito imediato, sem exigir novo login
+  — diferente de deixar a role como claim do JWT (que só atualizaria no
+  próximo login ou refresh). Novo middleware `requireRole(...roles)`,
+  reutilizável, lança `ForbiddenError` (já capturado centralmente pelo
+  `errorHandler`, que audita automaticamente como `ACCESS_DENIED` — nenhum
+  código de auditoria extra foi necessário para negativas de role). Novo
+  endpoint `GET /api/admin/audit-logs` (módulo `modules/admin/`, mesmo
+  padrão de módulo dedicado e enxuto de `modules/export/`) — filtros por
+  `userId`/`action`/`outcome`/`resourceType`/`resourceId`/intervalo de
+  datas, com paginação; novos índices `outcome`/`resourceType` em
+  `AuditLog` (tabela com retenção de ~2 anos, exatamente os campos que este
+  endpoint filtra). A própria consulta é auditada como `ADMIN_AUDIT_LOG_VIEW`
+  (com os filtros usados em `metadata`, nunca o conteúdo retornado) — uma
+  exceção deliberada à filosofia de só auditar CRUD e negativas de acesso,
+  pelo mesmo raciocínio do `DATA_EXPORT` (#09): é leitura em massa de dados
+  de outros titulares por um usuário privilegiado, exatamente o tipo de
+  evento que o Art. 48 precisa conseguir reconstruir. Bootstrap do primeiro
+  admin via script dedicado `npm run promote-admin -- <email>` (idempotente,
+  mesmo padrão dos scripts de backfill de CPF/CNPJ e endereço) — não existe
+  UI nem endpoint de gestão de papéis (problema do ovo e da galinha).
+  Escopo deliberadamente mínimo: sem matriz de permissões, sem
+  administração de outros recursos além do audit log — desenho de uma
+  versão mais extensível (múltiplos papéis, permissões por recurso)
+  documentado em [RBAC_DESIGN.md](RBAC_DESIGN.md) como referência futura,
+  não implementado agora. Evidência:
+  [schema.prisma](../backend/prisma/schema.prisma),
+  [authenticate.ts](../backend/src/shared/middlewares/authenticate.ts),
+  [requireRole.ts](../backend/src/shared/middlewares/requireRole.ts),
+  [audit.repository.ts](../backend/src/shared/audit/audit.repository.ts),
+  [admin.routes.ts](../backend/src/modules/admin/admin.routes.ts),
+  [promote-admin.ts](../backend/scripts/promote-admin.ts).
 
 ---
 
@@ -250,7 +288,7 @@ Registro formal da auditoria — base para governança e Art. 48.
   agregado de consumo e identidade visual do LumiTrack (PDFKit, sem
   Chromium — minimiza superfície de supply chain do A03)
 
-### Fase 3 — Médio
+### Fase 3 — Médio — ✅ Concluída (2026-07-03)
 - **#10** ✅ Retenção e expurgo de dados (Art. 15/16) — `RetentionPurgeScheduler`
   (mesmo padrão sem dependência nova do `HourlyRollupScheduler`) roda no boot
   e a cada 24h; remove `AuthToken`/`PasswordReset` inativos há mais de 30
@@ -284,11 +322,22 @@ Registro formal da auditoria — base para governança e Art. 48.
   nem busca por endereço); nenhuma migration de schema; backfill idempotente
   via try-decrypt. Corrigido também o gap de CI: `MFA_SECRET_ENCRYPTION_KEY`
   estava faltando nos jobs `backend-test` e `e2e` desde a #12.
-- **#16** Endpoint administrativo para consulta do audit log (A09/Art. 48) —
-  hoje a tabela `audit_logs` só é consultável via acesso direto ao banco
-  (Prisma Studio/SQL); um endpoint HTTP dedicado depende de RBAC real
-  (papel admin), que não existe ainda (ver A01 — `userType` não é RBAC) —
-  bloqueado até essa base existir
+- **#16** ✅ Endpoint administrativo para consulta do audit log (A01/A09/Art. 48) —
+  antes só consultável via acesso direto ao banco (Prisma Studio/SQL);
+  desbloqueado ao implementar um RBAC mínimo (enum `Role` USER/ADMIN no
+  `User`, sempre lido do banco por requisição — nunca claim do JWT — via
+  middleware `requireRole`). Novo `GET /api/admin/audit-logs` (filtros por
+  `userId`/`action`/`outcome`/`resourceType`/`resourceId`/intervalo de
+  datas, paginado), gated por `requireRole("ADMIN")`. Bootstrap do primeiro
+  admin via script dedicado (`npm run promote-admin -- <email>`), mesmo
+  padrão dos scripts de backfill existentes — não há UI/endpoint de gestão
+  de papéis (problema do ovo e da galinha). A própria consulta ao audit log
+  é auditada (`ADMIN_AUDIT_LOG_VIEW`), exceção deliberada à filosofia de "só
+  audita CRUD e negativas de acesso" — decisão registrada com o usuário,
+  mesmo raciocínio do `DATA_EXPORT` (#09). Escopo deliberadamente mínimo —
+  sem matriz de permissões ou administração de outros recursos; desenho de
+  uma versão mais extensível documentado em `docs/RBAC_DESIGN.md` para
+  referência futura, não implementado agora.
 - **#17** ✅ ESLint no backend (qualidade/A03) — gap conhecido desde a #11:
   o frontend já tem ESLint configurado e lintado no CI, mas o backend não
   tinha nenhuma configuração de lint; ficou fora do escopo da #11 (que focou
@@ -394,3 +443,4 @@ Após assinatura da DPA, arquivar uma cópia em local seguro (não no repositór
 | 2.1 | 2026-06-30 | Auditoria de Segurança | #15 concluída (Fase 3): criptografia do endereço da propriedade (A04/Art. 46) — AES-256-GCM com chave própria `ADDRESS_ENCRYPTION_KEY` (compartimentalizada de `CPF_CNPJ_ENCRYPTION_KEY` e `MFA_SECRET_ENCRYPTION_KEY`) para `address`, `city`, `state` e `zipCode`; sem blind index (endereço não tem `@unique` nem é filtro de query); nenhuma migration de schema; `PropertyRepository` é a única borda onde ocorre cifra/decifra — contrato de API e testes existentes inalterados; backfill idempotente via heurística try-decrypt. CI corrigido: `MFA_SECRET_ENCRYPTION_KEY` (faltava desde a #12) e `ADDRESS_ENCRYPTION_KEY` adicionados aos jobs `backend-test` e `e2e`. Achado A04 corrigido (🟢 Baixo — 0 achados 🟡 Médio remanescentes na auditoria). Achado Art. 46 corrigido de "⚠️ Parcial" para "✅ Implementado". Tabela-resumo executiva: 🟡 Médio → 0, 🟢 Baixo → 10. Backend: 675/675 testes; Frontend: 1227/1227 testes. |
 | 2.2 | 2026-07-01 | Auditoria de Segurança | #17 concluída (Fase 3): ESLint no backend (qualidade/A03) — gap aberto desde a #11. `backend/eslint.config.js` (flat config) espelha o padrão já validado no frontend (`js.configs.recommended` + `tseslint.configs.recommended`, variante não type-aware, `globals.node`), com uma única regra de override (`no-unused-vars` ignorando prefixo `_`, convenção já usada no código, ex.: `_next` em assinatura de error handler do Express). Novo job `backend-lint` no CI, espelhando `frontend-lint`. O lint revelou 17 violações reais: a maioria mecânica (2 `require()` estilo CJS trocados por `import { createHash } from "node:crypto"`, 1 uso de `Number` maiúsculo trocado por `number`, 4 usos de `any` trocados por `Prisma.UserCreateInput`/`UserUpdateInput` e por `CreatePropertyInput["state"]`), mas uma foi um **bug real pré-existente**: em `server.ts`, o flush final do buffer IoT no shutdown gracioso (`await condição ? scheduler.flush() : Promise.resolve()`) nunca esperava de fato o `flush()` — a precedência do operador `await` fazia com que só a comparação numérica fosse aguardada, deixando a Promise do flush solta; reescrito como `if`/`await` explícito. Nenhuma mudança de comportamento de runtime além dessa correção. Backend: 675/675 testes. |
 | 2.3 | 2026-07-02 | Auditoria de Segurança | #18 concluída (Fase 3, encerra a Fase 3 — só resta a #16, bloqueada por RBAC): UI de MFA no frontend (A06/A07) — gap aberto desde a #12 (API completa e testada, faltava a tela). Nova página `/seguranca` (`SecurityPage.tsx`, link no `UserMenu`) cobre setup (QR code + secret manual + confirmação TOTP), exibição única dos 10 backup codes e desativação (senha + código); segundo passo do login em `LoginPage.tsx` via componente compartilhado `MfaCodeForm` (login e setup usam o mesmo formato de campo — TOTP ou backup code). `AuthContext.login()` passou a retornar um `LoginResult` discriminado (`{mfaRequired,mfaToken}` ou `{user}`) em vez de autenticar direto — o caller decide se mostra o segundo passo; novos `completeMfaLogin()`/`refreshUser()` no contexto. Mutations via `@tanstack/react-query` (`useMfaMutations.ts`), mesmo padrão do resto do app. Achado A07 atualizado (~~UI do frontend pendente~~). Frontend: 1255/1255 testes (+28 em relação ao ciclo anterior). Verificação manual em browser real não foi possível neste ciclo — ambiente sem Chromium do Playwright instalável (download truncava repetidamente); typecheck, lint e suíte automatizada cobriram a mudança, mas o fluxo ponta a ponta (registrar → ativar 2FA → logout → login com código → desativar) não foi observado rodando de fato. |
+| 2.4 | 2026-07-03 | Auditoria de Segurança | #16 concluída (Fase 3, encerra a Fase 3 por completo): RBAC mínimo (A01/A09/Art. 48) — enum `Role` (`USER`/`ADMIN`) no `User`, sempre lido do banco a cada requisição via alargamento do `select` que `authenticate` já executava (`AuthRepository.findActiveToken`, agora trazendo `user.role` pelo relacionamento `AuthToken → User`) — zero queries novas, e promover/rebaixar um admin tem efeito imediato, sem exigir novo login. Novo middleware `requireRole(...roles)`; negativas de role já ficam auditadas de graça como `ACCESS_DENIED` via o `errorHandler` existente. Novo endpoint `GET /api/admin/audit-logs` (módulo `modules/admin/`, mesmo padrão enxuto de `modules/export/`) com filtros (`userId`/`action`/`outcome`/`resourceType`/`resourceId`/intervalo de datas) e paginação; novos índices `outcome`/`resourceType` em `AuditLog`. A própria consulta é auditada como `ADMIN_AUDIT_LOG_VIEW` (metadata com os filtros usados, nunca o conteúdo retornado) — mesmo raciocínio do `DATA_EXPORT` (#09). Bootstrap do primeiro admin via `npm run promote-admin -- <email>` (script idempotente, mesmo padrão dos backfills de CPF/CNPJ e endereço). Escopo deliberadamente mínimo — sem matriz de permissões; desenho de uma versão mais extensível documentado em `docs/RBAC_DESIGN.md`, não implementado agora. Achado A01 atualizado (~~`userType` não é RBAC real~~). Backend: 701/701 testes (+26 em relação ao ciclo anterior). Verificação manual via servidor dev confirmou o ponto central do design — o mesmo token de sessão, promovido a ADMIN em pleno uso, passa a ter acesso ao endpoint sem novo login. Marco: **Fase 3 encerrada por completo** (#10 a #18, todos ✅). |

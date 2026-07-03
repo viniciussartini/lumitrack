@@ -16,6 +16,7 @@ import type { SendPasswordResetEmailFn } from "@/modules/auth/auth.service.js"
 import { sendPasswordResetEmail as realSendPasswordResetEmail } from "@/modules/auth/email.service.js"
 import { userRoutes } from "@/modules/user/user.routes.js"
 import { exportRoutes } from "@/modules/export/export.routes.js"
+import { adminRoutes } from "@/modules/admin/admin.routes.js"
 import { authRoutes } from "@/modules/auth/auth.routes.js"
 import { distributorRoutes } from "./modules/distributor/distributor.routes.js"
 import { propertyRoutes } from "./modules/property/property.routes.js"
@@ -125,6 +126,7 @@ export function createApp(deps: AppDependencies = {}) {
 
     app.use("/api/users", exportRoutes(authenticate, prismaClient, auditService))
     app.use("/api/users", userRoutes(authenticate, prismaClient, auditService))
+    app.use("/api/admin", adminRoutes(authenticate, prismaClient, auditService))
     app.use("/api/auth", authRoutes(authenticate, prismaClient, sendPasswordResetEmail, auditService))
     app.use("/api/distributors", distributorRoutes(authenticate, prismaClient))
     app.use("/api/properties", propertyRoutes(authenticate, prismaClient, alertNotifier ?? new AlertNotifier(), auditService))

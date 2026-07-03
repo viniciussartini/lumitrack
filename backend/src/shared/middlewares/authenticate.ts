@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken"
 import { env } from "@/config/env.js"
 import { UnauthorizedError, ForbiddenError } from "@/shared/errors/AppError.js"
 import { AuthRepository } from "@/modules/auth/auth.repository.js"
-import { PrismaClient } from "@/generated/prisma/client.js"
+import { PrismaClient, Role } from "@/generated/prisma/client.js"
 import { hashToken } from "@/shared/crypto/hashToken.js"
 import { validateCsrf } from "@/shared/security/csrf.js"
 
@@ -14,6 +14,10 @@ export interface AuthenticatedRequest extends Request {
         id: string
         email: string
         userType: string
+        // RBAC mínimo (#16) — sempre lida do banco a cada requisição (ver
+        // abaixo), nunca um claim do JWT, para que promover/rebaixar um
+        // admin tenha efeito imediato sem exigir novo login.
+        role: Role
     }
     // De onde o token foi extraído nesta requisição — usado para decidir se
     // a checagem de CSRF se aplica (só faz sentido para "cookie", já que
@@ -58,7 +62,7 @@ export function createAuthenticateMiddleware(prisma: PrismaClient) {
                 }
             }
 
-            const payload = jwt.verify(token, env.JWT_SECRET) as AuthenticatedRequest["user"]
+            const payload = jwt.verify(token, env.JWT_SECRET) as Omit<AuthenticatedRequest["user"], "role">
             const storedToken = await authRepository.findActiveToken(hashToken(token))
 
             if (!storedToken) {
@@ -89,7 +93,9 @@ export function createAuthenticateMiddleware(prisma: PrismaClient) {
             }
 
             const authenticatedReq = req as AuthenticatedRequest
-            authenticatedReq.user = payload
+            // `role` sempre vem do banco (storedToken.user.role), nunca do
+            // payload do JWT — garante efeito imediato de promoção/rebaixamento.
+            authenticatedReq.user = { ...payload, role: storedToken.user.role }
             authenticatedReq.authSource = authSource
             authenticatedReq.authToken = token
             next()
