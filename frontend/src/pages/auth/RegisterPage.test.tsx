@@ -23,6 +23,7 @@ const mockUser: User = {
     id: "user-new",
     email: "joao@example.com",
     userType: "INDIVIDUAL",
+    mfaEnabled: false,
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",
@@ -194,7 +195,7 @@ describe("RegisterPage — validação client-side", () => {
 describe("RegisterPage — submit", () => {
     it("chama register + login e navega para /dashboard", async () => {
         vi.mocked(authService.register).mockResolvedValue(mockUser)
-        vi.mocked(authService.login).mockResolvedValue(mockUser)
+        vi.mocked(authService.login).mockResolvedValue({ user: mockUser })
 
         const user = userEvent.setup()
         renderWithProviders(<RegisterPage />)

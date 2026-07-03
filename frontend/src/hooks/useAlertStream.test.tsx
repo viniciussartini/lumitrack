@@ -80,6 +80,7 @@ const setupHook = (options: SetupOptions = {}) => {
                 id: userId,
                 email: "test@example.com",
                 userType: "INDIVIDUAL",
+                mfaEnabled: false,
                 firstName: "Test",
                 lastName: "User",
                 cpf: "529.982.247-25",
@@ -90,8 +91,10 @@ const setupHook = (options: SetupOptions = {}) => {
         isAuthenticated,
         isLoading: false,
         login: vi.fn(),
+        completeMfaLogin: vi.fn(),
         logout: vi.fn(),
         register: vi.fn(),
+        refreshUser: vi.fn(),
     })
 
     const queryClient = new QueryClient({

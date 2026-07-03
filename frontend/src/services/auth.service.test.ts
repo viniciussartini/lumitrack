@@ -17,6 +17,7 @@ const mockUser: User = {
     id: "user-123",
     email: "test@example.com",
     userType: "INDIVIDUAL",
+    mfaEnabled: false,
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",
@@ -57,13 +58,13 @@ describe("authService.login", () => {
             data: { status: "success", data: mockUser },
         })
 
-        const user = await authService.login({
+        const result = await authService.login({
             email: "test@example.com",
             password: "Senha@123",
         })
 
         expect(api.get).toHaveBeenCalledWith("/auth/me")
-        expect(user).toEqual(mockUser)
+        expect(result).toEqual({ user: mockUser })
     })
 
     it("propaga o erro quando o backend retorna 401 (sem chamar /auth/me)", async () => {
@@ -79,6 +80,105 @@ describe("authService.login", () => {
         ).rejects.toThrow("Credenciais inválidas")
 
         expect(api.get).not.toHaveBeenCalled()
+    })
+
+    it("retorna mfaRequired + mfaToken sem chamar /auth/me quando a conta tem MFA habilitado", async () => {
+        vi.mocked(api.post).mockResolvedValueOnce({
+            data: {
+                status: "success",
+                data: { mfaRequired: true, mfaToken: "mfa-token-123" },
+            },
+        })
+
+        const result = await authService.login({
+            email: "test@example.com",
+            password: "Senha@123",
+        })
+
+        expect(result).toEqual({ mfaRequired: true, mfaToken: "mfa-token-123" })
+        expect(api.get).not.toHaveBeenCalled()
+    })
+})
+
+describe("authService.verifyMfaLogin", () => {
+    it("envia mfaToken + code e busca o usuário completo via /auth/me", async () => {
+        vi.mocked(api.post).mockResolvedValueOnce({
+            data: { status: "success", data: {} },
+        })
+        vi.mocked(api.get).mockResolvedValueOnce({
+            data: { status: "success", data: mockUser },
+        })
+
+        const user = await authService.verifyMfaLogin({
+            mfaToken: "mfa-token-123",
+            code: "123456",
+        })
+
+        expect(api.post).toHaveBeenCalledWith("/auth/login/mfa", {
+            mfaToken: "mfa-token-123",
+            code: "123456",
+        })
+        expect(api.get).toHaveBeenCalledWith("/auth/me")
+        expect(user).toEqual(mockUser)
+    })
+
+    it("propaga o erro quando o código é inválido (sem chamar /auth/me)", async () => {
+        vi.mocked(api.post).mockRejectedValueOnce(new Error("Código inválido"))
+
+        await expect(
+            authService.verifyMfaLogin({ mfaToken: "mfa-token-123", code: "000000" }),
+        ).rejects.toThrow("Código inválido")
+
+        expect(api.get).not.toHaveBeenCalled()
+    })
+})
+
+describe("authService.mfaSetup", () => {
+    it("busca o secret e o QR code em POST /auth/mfa/setup", async () => {
+        vi.mocked(api.post).mockResolvedValueOnce({
+            data: {
+                status: "success",
+                data: { secret: "ABC123", qrCodeDataUrl: "data:image/png;base64,xyz" },
+            },
+        })
+
+        const result = await authService.mfaSetup()
+
+        expect(api.post).toHaveBeenCalledWith("/auth/mfa/setup")
+        expect(result).toEqual({ secret: "ABC123", qrCodeDataUrl: "data:image/png;base64,xyz" })
+    })
+})
+
+describe("authService.mfaVerifySetup", () => {
+    it("envia secret + code e retorna os backup codes", async () => {
+        const backupCodes = Array.from({ length: 10 }, (_, i) => `CODE${i}-CODE${i}`)
+        vi.mocked(api.post).mockResolvedValueOnce({
+            data: { status: "success", data: { backupCodes } },
+        })
+
+        const result = await authService.mfaVerifySetup({
+            secret: "ABC123",
+            code: "123456",
+        })
+
+        expect(api.post).toHaveBeenCalledWith("/auth/mfa/verify-setup", {
+            secret: "ABC123",
+            code: "123456",
+        })
+        expect(result.backupCodes).toEqual(backupCodes)
+    })
+})
+
+describe("authService.mfaDisable", () => {
+    it("envia senha + code para POST /auth/mfa/disable", async () => {
+        vi.mocked(api.post).mockResolvedValueOnce({ data: { status: "success" } })
+
+        await authService.mfaDisable({ password: "Senha@123", code: "123456" })
+
+        expect(api.post).toHaveBeenCalledWith("/auth/mfa/disable", {
+            password: "Senha@123",
+            code: "123456",
+        })
     })
 })
 
@@ -130,12 +230,14 @@ const validIndividualInput: IndividualRegisterInput = {
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",
+    acceptedTerms: true,
 }
 
 const mockCreatedUser: User = {
     id: "user-new",
     email: "joao@example.com",
     userType: "INDIVIDUAL",
+    mfaEnabled: false,
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",

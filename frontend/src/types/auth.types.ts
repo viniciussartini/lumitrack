@@ -8,6 +8,8 @@ export interface User {
     userType: UserType
     createdAt: string
     updatedAt: string
+    // MFA (TOTP) — ver Seção "MFA" abaixo. Nunca inclui o secret, só a flag.
+    mfaEnabled: boolean
 
     // Campos PF
     firstName?: string | null
@@ -26,9 +28,50 @@ export interface LoginInput {
     password: string
 }
 
-// Resposta crua do backend para o canal WEB — o JWT viaja só no cookie
-// httpOnly, nunca no body (ver backend/modules/auth/auth.controller.ts).
-export type LoginResponse = Record<string, never>
+// Resposta crua de POST /auth/login. Canal WEB: o JWT viaja só no cookie
+// httpOnly, nunca no body. Quando a conta tem MFA habilitado, o backend não
+// emite sessão ainda — retorna um mfaToken de curta duração (5min) que deve
+// ser trocado em POST /auth/login/mfa.
+export interface LoginResponse {
+    mfaRequired?: boolean
+    mfaToken?: string
+}
+
+// Resultado do login já processado pelo authService/AuthContext — evita que
+// o restante do app precise checar `mfaRequired` + presença de `mfaToken`
+// como campos soltos.
+export type LoginResult =
+    | { mfaRequired: true; mfaToken: string }
+    | { mfaRequired?: false; user: User }
+
+// ─── MFA (TOTP) ─────────────────────────────────────────────────────────────
+
+export interface MfaSetupResponse {
+    /** Secret base32 — reenviado em MfaVerifySetupInput para confirmar o setup. */
+    secret: string
+    /** PNG em base64 pronto para <img src>. */
+    qrCodeDataUrl: string
+}
+
+export interface MfaVerifySetupInput {
+    secret: string
+    code: string
+}
+
+export interface MfaVerifySetupResponse {
+    /** 10 códigos de backup em texto plano — exibidos apenas nesta resposta. */
+    backupCodes: string[]
+}
+
+export interface MfaDisableInput {
+    password: string
+    code: string
+}
+
+export interface MfaLoginVerifyInput {
+    mfaToken: string
+    code: string
+}
 
 // Registro
 interface BaseRegisterInput {

@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { ChevronDown, LogOut, User as UserIcon } from "lucide-react"
+import { ChevronDown, LogOut, Shield, User as UserIcon } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useClickOutside } from "@/lib/hooks/useClickOutside"
 import { cn } from "@/lib/cn"
@@ -137,6 +137,24 @@ export const UserMenu = () => {
                     >
                         <UserIcon className="h-4 w-4" aria-hidden="true" />
                         Perfil <span className="ml-auto text-xs">(em breve)</span>
+                    </button>
+
+                    {/* Item: Segurança (MFA) */}
+                    <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                            setIsOpen(false)
+                            navigate("/seguranca")
+                        }}
+                        className={cn(
+                            "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
+                            "text-slate-700 hover:bg-slate-100",
+                            "dark:text-slate-200 dark:hover:bg-slate-800",
+                        )}
+                    >
+                        <Shield className="h-4 w-4" aria-hidden="true" />
+                        Segurança
                     </button>
 
                     {/* Item: Sair */}

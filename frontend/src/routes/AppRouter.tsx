@@ -24,6 +24,7 @@ import { AreaReportPage } from "@/pages/report/AreaReportPage"
 import { DeviceReportPage } from "@/pages/report/DeviceReportPage"
 import { PrivacyPolicyPage } from "@/pages/legal/PrivacyPolicyPage"
 import { TermsOfUsePage } from "@/pages/legal/TermsOfUsePage"
+import { SecurityPage } from "@/pages/settings/SecurityPage"
 
 /**
  * Mapa de rotas
@@ -79,6 +80,9 @@ export const AppRouter = () => (
                 <Route path="/propriedades/:id/relatorio" element={<PropertyReportPage />} />
                 <Route path="/propriedades/:propertyId/areas/:areaId/relatorio" element={<AreaReportPage />} />
                 <Route path="/propriedades/:propertyId/areas/:areaId/devices/:deviceId/relatorio" element={<DeviceReportPage />} />
+
+                {/* Conta do usuário logado — acessível via UserMenu no Header. */}
+                <Route path="/seguranca" element={<SecurityPage />} />
 
             </Route>
         </Route>

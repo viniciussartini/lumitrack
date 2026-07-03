@@ -5,6 +5,12 @@ import { UserMenu } from "@/components/layout/UserMenu"
 import { authService } from "@/services/auth.service"
 import type { User } from "@/types/auth.types"
 
+const mockNavigate = vi.fn()
+vi.mock("react-router-dom", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("react-router-dom")>()
+    return { ...actual, useNavigate: () => mockNavigate }
+})
+
 vi.mock("@/services/auth.service", () => ({
     authService: {
         login: vi.fn(),
@@ -22,6 +28,7 @@ const mockUserPF: User = {
     id: "user-123",
     email: "joao@example.com",
     userType: "INDIVIDUAL",
+    mfaEnabled: false,
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",
@@ -33,6 +40,7 @@ const mockUserPJ: User = {
     id: "user-456",
     email: "contato@empresa.com",
     userType: "COMPANY",
+    mfaEnabled: false,
     companyName: "Empresa Ltda",
     tradeName: "Empresa",
     cnpj: "11.222.333/0001-81",
@@ -120,6 +128,19 @@ describe("UserMenu — interação", () => {
         // Click no body, fora do container do menu
         await user.click(document.body)
         expect(screen.queryByRole("menu")).not.toBeInTheDocument()
+    })
+})
+
+describe("UserMenu — navegação", () => {
+    it("navega para /seguranca ao clicar em Segurança", async () => {
+        const user = userEvent.setup()
+        renderWithUser(mockUserPF)
+        await screen.findByText("João Silva")
+
+        await user.click(screen.getByRole("button", { name: /menu do usuário/i }))
+        await user.click(screen.getByRole("menuitem", { name: /segurança/i }))
+
+        expect(mockNavigate).toHaveBeenCalledWith("/seguranca")
     })
 })
 

@@ -18,6 +18,7 @@ vi.mock("react-router-dom", async (importOriginal) => {
 vi.mock("@/services/auth.service", () => ({
     authService: {
         login: vi.fn(),
+        verifyMfaLogin: vi.fn(),
         logout: vi.fn(),
         getCurrentUser: vi.fn(),
         register: vi.fn(),
@@ -39,6 +40,7 @@ const mockUser: User = {
     id: "user-123",
     email: "test@example.com",
     userType: "INDIVIDUAL",
+    mfaEnabled: false,
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",
@@ -81,7 +83,7 @@ describe("AuthProvider — boot", () => {
 describe("AuthProvider — login", () => {
     it("autentica o user em caso de sucesso", async () => {
         vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
-        vi.mocked(authService.login).mockResolvedValue(mockUser)
+        vi.mocked(authService.login).mockResolvedValue({ user: mockUser })
 
         const { result } = renderHook(() => useAuth(), { wrapper })
         await waitFor(() => expect(result.current.isLoading).toBe(false))
@@ -113,6 +115,91 @@ describe("AuthProvider — login", () => {
         ).rejects.toThrow("Credenciais inválidas")
 
         expect(result.current.isAuthenticated).toBe(false)
+    })
+
+    it("NÃO autentica quando o login responde mfaRequired — devolve o resultado para o caller", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
+        vi.mocked(authService.login).mockResolvedValue({
+            mfaRequired: true,
+            mfaToken: "mfa-token-123",
+        })
+
+        const { result } = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+        let loginResult
+        await act(async () => {
+            loginResult = await result.current.login({
+                email: "test@example.com",
+                password: "Senha@123",
+            })
+        })
+
+        expect(loginResult).toEqual({ mfaRequired: true, mfaToken: "mfa-token-123" })
+        expect(result.current.isAuthenticated).toBe(false)
+    })
+})
+
+describe("AuthProvider — completeMfaLogin", () => {
+    it("autentica o user após o segundo passo do MFA", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
+        vi.mocked(authService.verifyMfaLogin).mockResolvedValue(mockUser)
+
+        const { result } = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+        await act(async () => {
+            await result.current.completeMfaLogin({
+                mfaToken: "mfa-token-123",
+                code: "123456",
+            })
+        })
+
+        expect(authService.verifyMfaLogin).toHaveBeenCalledWith({
+            mfaToken: "mfa-token-123",
+            code: "123456",
+        })
+        expect(result.current.isAuthenticated).toBe(true)
+        expect(result.current.user?.id).toBe("user-123")
+    })
+
+    it("propaga erro com mensagem amigável quando o código é inválido", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
+        vi.mocked(authService.verifyMfaLogin).mockRejectedValue(
+            new Error("Código inválido"),
+        )
+
+        const { result } = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+        await expect(
+            act(async () => {
+                await result.current.completeMfaLogin({
+                    mfaToken: "mfa-token-123",
+                    code: "000000",
+                })
+            }),
+        ).rejects.toThrow("Código inválido")
+
+        expect(result.current.isAuthenticated).toBe(false)
+    })
+})
+
+describe("AuthProvider — refreshUser", () => {
+    it("rebusca o usuário via getCurrentUser e atualiza o estado", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValueOnce(mockUser)
+
+        const { result } = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(result.current.isAuthenticated).toBe(true))
+
+        const updatedUser = { ...mockUser, mfaEnabled: true }
+        vi.mocked(authService.getCurrentUser).mockResolvedValueOnce(updatedUser)
+
+        await act(async () => {
+            await result.current.refreshUser()
+        })
+
+        expect(result.current.user?.mfaEnabled).toBe(true)
     })
 })
 
@@ -152,7 +239,7 @@ describe("AuthProvider — evento lumitrack:unauthorized", () => {
 describe("AuthProvider — refresh proativo", () => {
     it("agenda refresh após login bem-sucedido", async () => {
         vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
-        vi.mocked(authService.login).mockResolvedValue(mockUser)
+        vi.mocked(authService.login).mockResolvedValue({ user: mockUser })
 
         const { result } = renderHook(() => useAuth(), { wrapper })
         await waitFor(() => expect(result.current.isLoading).toBe(false))

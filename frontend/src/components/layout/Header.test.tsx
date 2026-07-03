@@ -42,6 +42,7 @@ const mockUser: User = {
     id: "user-123",
     email: "joao@example.com",
     userType: "INDIVIDUAL",
+    mfaEnabled: false,
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",

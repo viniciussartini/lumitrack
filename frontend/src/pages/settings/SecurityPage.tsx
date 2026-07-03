@@ -1,0 +1,343 @@
+import { useState } from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { ShieldCheck, ShieldOff, Copy, Check } from "lucide-react"
+import { toast } from "sonner"
+import { useAuth } from "@/contexts/AuthContext"
+import {
+    useMfaSetup,
+    useMfaVerifySetup,
+    useMfaDisable,
+} from "@/hooks/queries/useMfaMutations"
+import { MfaCodeForm } from "@/components/auth/MfaCodeForm"
+import { Button } from "@/components/ui/Button"
+import { Input } from "@/components/ui/Input"
+import { extractErrorMessage } from "@/services/api"
+import { cn } from "@/lib/cn"
+import { mfaDisableSchema, type MfaDisableFormData } from "@/schemas/mfa.schema"
+import type { MfaSetupResponse } from "@/types/auth.types"
+
+type Step = "idle" | "setup" | "backup-codes" | "disable"
+
+/**
+ * Configuração de MFA (TOTP) da conta — única página de "Segurança"/conta
+ * do app hoje (acessível via UserMenu). Fluxos:
+ *
+ *   idle          → botão Ativar/Desativar conforme user.mfaEnabled
+ *   setup         → QR code + secret + MfaCodeForm confirmando o código
+ *   backup-codes  → os 10 códigos de backup, exibidos uma única vez
+ *   disable       → senha + código, exige dupla confirmação
+ *
+ * `refreshUser()` (AuthContext) é chamado após verify-setup/disable para
+ * sincronizar `user.mfaEnabled` — as mutations em si só falam com a API,
+ * não conhecem o AuthContext (ver useMfaMutations.ts).
+ */
+export const SecurityPage = () => {
+    const { user, refreshUser } = useAuth()
+    const mfaSetup = useMfaSetup()
+    const mfaVerifySetup = useMfaVerifySetup()
+    const mfaDisable = useMfaDisable()
+
+    const [step, setStep] = useState<Step>("idle")
+    const [setupData, setSetupData] = useState<MfaSetupResponse | null>(null)
+    const [backupCodes, setBackupCodes] = useState<string[]>([])
+
+    if (!user) return null
+
+    const handleStartSetup = async (): Promise<void> => {
+        try {
+            const data = await mfaSetup.mutateAsync()
+            setSetupData(data)
+            setStep("setup")
+        } catch (error) {
+            toast.error("Não foi possível iniciar a configuração", {
+                description: extractErrorMessage(error),
+            })
+        }
+    }
+
+    const handleVerifySetup = async (code: string): Promise<void> => {
+        if (!setupData) return
+        const result = await mfaVerifySetup.mutateAsync({
+            secret: setupData.secret,
+            code,
+        })
+        setBackupCodes(result.backupCodes)
+        setStep("backup-codes")
+        await refreshUser()
+    }
+
+    const handleFinish = (): void => {
+        setStep("idle")
+        setSetupData(null)
+        setBackupCodes([])
+    }
+
+    const handleDisable = async (data: MfaDisableFormData): Promise<void> => {
+        await mfaDisable.mutateAsync(data)
+        setStep("idle")
+        await refreshUser()
+    }
+
+    return (
+        <div className="flex flex-col gap-6">
+            <div>
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                    Segurança
+                </h1>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                    Gerencie a autenticação de dois fatores da sua conta.
+                </p>
+            </div>
+
+            <div
+                className={cn(
+                    "rounded-lg border bg-white p-6 shadow-sm",
+                    "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
+                )}
+            >
+                <div className="flex items-start gap-3">
+                    <div
+                        className={cn(
+                            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+                            user.mfaEnabled
+                                ? "bg-success/10 text-success"
+                                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
+                        )}
+                    >
+                        {user.mfaEnabled ? (
+                            <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+                        ) : (
+                            <ShieldOff className="h-5 w-5" aria-hidden="true" />
+                        )}
+                    </div>
+                    <div className="flex-1">
+                        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                            Autenticação de dois fatores (2FA)
+                        </h2>
+                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                            {user.mfaEnabled
+                                ? "Ativada — um código do seu aplicativo autenticador é exigido a cada login."
+                                : "Desativada — adicione uma camada extra de segurança exigindo um código do seu aplicativo autenticador a cada login."}
+                        </p>
+                    </div>
+                </div>
+
+                {step === "idle" && (
+                    <div className="mt-4">
+                        {user.mfaEnabled ? (
+                            <Button variant="danger" onClick={() => setStep("disable")}>
+                                Desativar 2FA
+                            </Button>
+                        ) : (
+                            <Button onClick={handleStartSetup} isLoading={mfaSetup.isPending}>
+                                Ativar 2FA
+                            </Button>
+                        )}
+                    </div>
+                )}
+
+                {step === "setup" && setupData && (
+                    <div className="mt-6 flex flex-col gap-4 border-t border-slate-200 pt-6 dark:border-slate-800">
+                        <div>
+                            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                1. Escaneie o QR code
+                            </h3>
+                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                                Use um aplicativo autenticador (Google Authenticator, Authy
+                                etc.) para escanear o código abaixo.
+                            </p>
+                            <img
+                                src={setupData.qrCodeDataUrl}
+                                alt="QR code para configurar a autenticação de dois fatores"
+                                className="mt-3 h-48 w-48 rounded-md border border-slate-200 dark:border-slate-800"
+                            />
+                            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                                Não consegue escanear? Digite a chave manualmente:{" "}
+                                <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono dark:bg-slate-800">
+                                    {setupData.secret}
+                                </code>
+                            </p>
+                        </div>
+
+                        <div>
+                            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                2. Confirme o código gerado
+                            </h3>
+                            <div className="mt-3">
+                                <MfaCodeForm
+                                    description="Digite o código de 6 dígitos exibido no aplicativo."
+                                    submitLabel="Verificar e ativar"
+                                    onSubmit={handleVerifySetup}
+                                    onCancel={handleFinish}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {step === "backup-codes" && (
+                    <BackupCodesReveal codes={backupCodes} onFinish={handleFinish} />
+                )}
+
+                {step === "disable" && (
+                    <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-800">
+                        <MfaDisableForm
+                            onSubmit={handleDisable}
+                            onCancel={() => setStep("idle")}
+                            isLoading={mfaDisable.isPending}
+                        />
+                    </div>
+                )}
+            </div>
+        </div>
+    )
+}
+
+// Subcomponentes locais
+
+interface BackupCodesRevealProps {
+    codes: string[]
+    onFinish: () => void
+}
+
+const BackupCodesReveal = ({ codes, onFinish }: BackupCodesRevealProps) => {
+    const [copied, setCopied] = useState(false)
+
+    const handleCopy = async (): Promise<void> => {
+        try {
+            await navigator.clipboard.writeText(codes.join("\n"))
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+        } catch {
+            toast.error("Não foi possível copiar — copie os códigos manualmente")
+        }
+    }
+
+    return (
+        <div className="mt-6 flex flex-col gap-4 border-t border-slate-200 pt-6 dark:border-slate-800">
+            <div
+                role="alert"
+                className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+            >
+                2FA ativado com sucesso. Guarde estes códigos de backup em um
+                lugar seguro — eles não serão exibidos novamente, e cada um
+                pode ser usado uma única vez para entrar caso você perca acesso
+                ao aplicativo autenticador.
+            </div>
+
+            <ul className="grid grid-cols-2 gap-2 rounded-md bg-slate-50 p-4 font-mono text-sm dark:bg-slate-800">
+                {codes.map((code) => (
+                    <li key={code} className="text-slate-900 dark:text-slate-100">
+                        {code}
+                    </li>
+                ))}
+            </ul>
+
+            <div className="flex gap-2">
+                <Button
+                    type="button"
+                    variant="secondary"
+                    leftIcon={
+                        copied ? (
+                            <Check className="h-4 w-4" aria-hidden="true" />
+                        ) : (
+                            <Copy className="h-4 w-4" aria-hidden="true" />
+                        )
+                    }
+                    onClick={handleCopy}
+                >
+                    {copied ? "Copiado" : "Copiar códigos"}
+                </Button>
+                <Button type="button" onClick={onFinish} className="flex-1">
+                    Concluir
+                </Button>
+            </div>
+        </div>
+    )
+}
+
+interface MfaDisableFormProps {
+    onSubmit: (data: MfaDisableFormData) => Promise<void>
+    onCancel: () => void
+    isLoading: boolean
+}
+
+const MfaDisableForm = ({ onSubmit, onCancel, isLoading }: MfaDisableFormProps) => {
+    const [serverError, setServerError] = useState<string | null>(null)
+
+    const {
+        register,
+        handleSubmit,
+        formState: { errors, isSubmitting },
+    } = useForm<MfaDisableFormData>({
+        resolver: zodResolver(mfaDisableSchema),
+        mode: "onBlur",
+    })
+
+    const handleFormSubmit = async (data: MfaDisableFormData): Promise<void> => {
+        setServerError(null)
+        try {
+            await onSubmit(data)
+        } catch (error) {
+            setServerError(extractErrorMessage(error))
+        }
+    }
+
+    return (
+        <form
+            onSubmit={handleSubmit(handleFormSubmit)}
+            className="flex flex-col gap-4"
+            noValidate
+        >
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+                Confirme sua senha e um código válido do aplicativo
+                autenticador (ou um código de backup) para desativar o 2FA.
+            </p>
+
+            <Input
+                label="Senha atual"
+                type="password"
+                autoComplete="current-password"
+                error={errors.password?.message}
+                {...register("password")}
+            />
+
+            <Input
+                label="Código de verificação"
+                autoComplete="one-time-code"
+                placeholder="000000 ou XXXXX-XXXXX"
+                error={errors.code?.message}
+                {...register("code")}
+            />
+
+            {serverError && (
+                <div
+                    role="alert"
+                    className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-300"
+                >
+                    {serverError}
+                </div>
+            )}
+
+            <div className="flex gap-2">
+                <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={onCancel}
+                    disabled={isSubmitting || isLoading}
+                >
+                    Cancelar
+                </Button>
+                <Button
+                    type="submit"
+                    variant="danger"
+                    isLoading={isSubmitting || isLoading}
+                    className="flex-1"
+                >
+                    Desativar 2FA
+                </Button>
+            </div>
+        </form>
+    )
+}

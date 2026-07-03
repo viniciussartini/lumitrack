@@ -9,16 +9,31 @@ import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
 import { authState } from "@/lib/authState"
 import { scheduleProactiveRefresh, cancelProactiveRefresh } from "@/lib/sessionRefresh"
-import type { LoginInput, User, RegisterInput } from "@/types/auth.types"
+import type {
+    LoginInput,
+    LoginResult,
+    MfaLoginVerifyInput,
+    User,
+    RegisterInput,
+} from "@/types/auth.types"
 import { useNavigate } from "react-router-dom"
 
 interface AuthContextValue {
     user: User | null
     isLoading: boolean
     isAuthenticated: boolean
-    login: (input: LoginInput) => Promise<void>
+    /**
+     * Retorna o LoginResult para o caller decidir o que fazer quando
+     * `mfaRequired:true` (mostrar o segundo passo) — só atualiza o estado
+     * de sessão quando o login já está completo (sem MFA, ou seja).
+     */
+    login: (input: LoginInput) => Promise<LoginResult>
+    /** Segundo passo do login quando a conta tem MFA habilitado. */
+    completeMfaLogin: (input: MfaLoginVerifyInput) => Promise<void>
     logout: () => Promise<void>
     register: (input: RegisterInput) => Promise<void>
+    /** Rebusca o usuário via /auth/me — usado após setup/disable de MFA. */
+    refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -62,13 +77,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
     }, [navigate])
 
-    const login = async (input: LoginInput): Promise<void> => {
+    const login = async (input: LoginInput): Promise<LoginResult> => {
         try {
-            const fullUser = await authService.login(input)
+            const result = await authService.login(input)
+            if (!result.mfaRequired) {
+                updateUser(result.user)
+                scheduleProactiveRefresh()
+            }
+            return result
+        } catch (error) {
+            // eslint-disable-next-line @typescript-eslint/only-throw-error
+            throw new Error(extractErrorMessage(error), { cause: error })
+        }
+    }
+
+    const completeMfaLogin = async (
+        input: MfaLoginVerifyInput,
+    ): Promise<void> => {
+        try {
+            const fullUser = await authService.verifyMfaLogin(input)
             updateUser(fullUser)
             scheduleProactiveRefresh()
         } catch (error) {
-            // eslint-disable-next-line @typescript-eslint/only-throw-error
             throw new Error(extractErrorMessage(error), { cause: error })
         }
     }
@@ -88,15 +118,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
 
         try {
-            const fullUser = await authService.login({
+            // Uma conta recém-criada nunca tem MFA habilitado (o setup exige
+            // estar autenticado), mas tratamos mfaRequired defensivamente
+            // como falha do auto-login em vez de assumir a forma da resposta.
+            const result = await authService.login({
                 email: input.email,
                 password: input.password,
             })
-            updateUser(fullUser)
+            if (result.mfaRequired) {
+                throw new Error("POST_REGISTER_LOGIN_FAILED")
+            }
+            updateUser(result.user)
         } catch {
             // eslint-disable-next-line @typescript-eslint/only-throw-error
             throw new Error("POST_REGISTER_LOGIN_FAILED")
         }
+    }
+
+    const refreshUser = async (): Promise<void> => {
+        const fullUser = await authService.getCurrentUser()
+        updateUser(fullUser)
     }
 
     const value: AuthContextValue = {
@@ -104,8 +145,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         isLoading,
         isAuthenticated: user !== null,
         login,
+        completeMfaLogin,
         logout,
         register,
+        refreshUser,
     }
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
