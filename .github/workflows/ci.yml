@@ -102,6 +102,12 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    env:
+      # `prisma.config.ts` resolve a datasource via `env("DATABASE_URL")` —
+      # `prisma generate` nunca chega a conectar no banco, mas o loader do
+      # config falha se a variável não existir. Valor descartável, nunca
+      # usado para conexão real neste job.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

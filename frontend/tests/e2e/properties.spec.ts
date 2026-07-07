@@ -14,17 +14,6 @@ import { test, expect, type Page, type Route } from "@playwright/test"
 
 // ─── Constantes de teste ─────────────────────────────────────────────────────
 
-const FAKE_JWT_PAYLOAD = btoa(
-    JSON.stringify({
-        id: "user-123",
-        email: "test@example.com",
-        userType: "INDIVIDUAL",
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 3600,
-    }),
-)
-const FAKE_JWT = `header.${FAKE_JWT_PAYLOAD}.signature`
-
 const FAKE_USER = {
     id: "user-123",
     email: "test@example.com",
@@ -32,6 +21,8 @@ const FAKE_USER = {
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",
+    role: "USER",
+    mfaEnabled: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -77,7 +68,9 @@ const fulfillJson = (route: Route, data: unknown, status = 200) =>
  * respostas pra controlar o estado da lista.
  */
 const setupAuthAndDistributors = async (page: Page) => {
-    await page.route("**/api/users/user-123", (route) =>
+    // Desde a #06 (sessão WEB via cookie httpOnly), a única rota que precisa
+    // ser mockada para simular "usuário autenticado" é GET /auth/me.
+    await page.route("**/api/auth/me", (route) =>
         fulfillJson(route, FAKE_USER),
     )
     // Lista de distribuidoras (usada na PropertiesPage e forms)
@@ -103,11 +96,6 @@ const setupAuthAndDistributors = async (page: Page) => {
         }
         return route.continue()
     })
-
-    // pre-loga o usuário pra pular tela de login
-    await page.addInitScript((token) => {
-        localStorage.setItem("lumitrack:auth:token", token)
-    }, FAKE_JWT)
 }
 
 // ─── Testes ──────────────────────────────────────────────────────────────────
@@ -292,7 +280,7 @@ test.describe("Fluxo CRUD de propriedades", () => {
     test("bloqueia criação de propriedade quando não há distribuidora cadastrada", async ({
         page,
     }) => {
-        await page.route("**/api/users/user-123", (route) =>
+        await page.route("**/api/auth/me", (route) =>
             fulfillJson(route, FAKE_USER),
         )
         // Distribuidoras vazia
@@ -302,10 +290,6 @@ test.describe("Fluxo CRUD de propriedades", () => {
         await page.route("**/api/properties", (route) =>
             fulfillJson(route, []),
         )
-
-        await page.addInitScript((token) => {
-            localStorage.setItem("lumitrack:auth:token", token)
-        }, FAKE_JWT)
 
         await page.goto("/propriedades/nova")
 

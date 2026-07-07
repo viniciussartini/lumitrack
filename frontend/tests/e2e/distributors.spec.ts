@@ -14,17 +14,6 @@ import { test, expect, type Page, type Route } from "@playwright/test"
 
 // ─── Constantes de teste ─────────────────────────────────────────────────────
 
-const FAKE_JWT_PAYLOAD = btoa(
-    JSON.stringify({
-        id: "user-123",
-        email: "test@example.com",
-        userType: "INDIVIDUAL",
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 3600,
-    }),
-)
-const FAKE_JWT = `header.${FAKE_JWT_PAYLOAD}.signature`
-
 const FAKE_USER = {
     id: "user-123",
     email: "test@example.com",
@@ -32,6 +21,8 @@ const FAKE_USER = {
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",
+    role: "USER",
+    mfaEnabled: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -61,16 +52,15 @@ const fulfillError = (route: Route, message: string, status = 400) =>
     })
 
 /**
- * Configura mocks compartilhados (auth + perfil).
- * Cada teste configura suas próprias respostas de /api/distributors.
+ * Configura mocks compartilhados (auth + perfil). Desde a #06 (sessão WEB
+ * via cookie httpOnly), a única rota que precisa ser mockada para simular
+ * "usuário autenticado" é GET /auth/me — usada tanto no bootstrap quanto
+ * logo após o login. Não há mais token em localStorage para pré-semear.
  */
 const setupAuth = async (page: Page) => {
-    await page.route("**/api/users/user-123", (route) =>
+    await page.route("**/api/auth/me", (route) =>
         fulfillJson(route, FAKE_USER),
     )
-    await page.addInitScript((token) => {
-        localStorage.setItem("lumitrack:auth:token", token)
-    }, FAKE_JWT)
 }
 
 // ─── Testes ──────────────────────────────────────────────────────────────────

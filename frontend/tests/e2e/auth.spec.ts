@@ -1,21 +1,13 @@
 import { test, expect } from "@playwright/test"
 
-// E2E focado em UI: mocka as respostas do backend via page.route().
-// Vantagem: não depende do backend rodando — roda no CI sem coordenação.
-// Quando você quiser um teste de integração real (front + back),
-// crie um spec separado em tests/e2e/integration/ com seed de DB.
-
-const FAKE_JWT_PAYLOAD = btoa(
-    JSON.stringify({
-        id: "user-123",
-        email: "test@example.com",
-        userType: "INDIVIDUAL",
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 3600,
-    }),
-)
-const FAKE_JWT = `header.${FAKE_JWT_PAYLOAD}.signature`
-
+// E2E focado em UI: mocka as respostas do backend via page.route(). Vantagem:
+// não depende do backend rodando de verdade — roda no CI sem coordenação.
+//
+// Desde a #06 (sessão WEB via cookie httpOnly + CSRF), o login não retorna
+// mais o token no body nem existe leitura de token via localStorage — o
+// frontend sempre busca o usuário autenticado via GET /auth/me (tanto no
+// bootstrap quanto logo após o login), e é essa a única rota que precisa
+// ser mockada para simular "usuário autenticado" nestes testes.
 const FAKE_USER = {
     id: "user-123",
     email: "test@example.com",
@@ -23,6 +15,8 @@ const FAKE_USER = {
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",
+    role: "USER",
+    mfaEnabled: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -72,25 +66,23 @@ test.describe("Fluxo de autenticação", () => {
     })
 
     test("autentica com sucesso e redireciona para /dashboard", async ({ page }) => {
+        // Sem MFA: o backend seta os cookies de sessão/CSRF via Set-Cookie
+        // real (não simulável por page.route) e responde corpo vazio — o
+        // que importa pro app é o GET /auth/me em seguida, que aqui é
+        // mockado para sempre devolver o usuário autenticado.
         await page.route("**/api/auth/login", (route) =>
             route.fulfill({
                 status: 200,
                 contentType: "application/json",
-                body: JSON.stringify({
-                    status: "success",
-                    data: { token: FAKE_JWT },
-                }),
+                body: JSON.stringify({ status: "success", data: {} }),
             }),
         )
 
-        await page.route("**/api/users/user-123", (route) =>
+        await page.route("**/api/auth/me", (route) =>
             route.fulfill({
                 status: 200,
                 contentType: "application/json",
-                body: JSON.stringify({
-                    status: "success",
-                    data: FAKE_USER,
-                }),
+                body: JSON.stringify({ status: "success", data: FAKE_USER }),
             }),
         )
 
@@ -104,11 +96,10 @@ test.describe("Fluxo de autenticação", () => {
     })
 
     test("logout limpa sessão e volta para /login", async ({ page }) => {
-        await page.addInitScript((token) => {
-            localStorage.setItem("lumitrack:auth:token", token)
-        }, FAKE_JWT)
-
-        await page.route("**/api/users/user-123", (route) =>
+        // "Já logado" é simulado mockando /auth/me como autenticado desde o
+        // bootstrap — não há mais token em localStorage para pré-semear
+        // (sessão vive num cookie httpOnly, invisível a JS).
+        await page.route("**/api/auth/me", (route) =>
             route.fulfill({
                 status: 200,
                 contentType: "application/json",

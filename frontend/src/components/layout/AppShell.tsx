@@ -31,9 +31,13 @@ export const AppShell = () => {
 
     // Fecha o drawer ao trocar de rota — sem isso, o user clica num link
     // do menu mobile e o drawer fica aberto sobre a página de destino.
-    useEffect(() => {
+    // Ajuste de estado durante o render (em vez de um effect que chama
+    // setState) — evita a cascata de renders extra que um effect causaria.
+    const [prevPathname, setPrevPathname] = useState(location.pathname)
+    if (location.pathname !== prevPathname) {
+        setPrevPathname(location.pathname)
         setIsSidebarOpen(false)
-    }, [location.pathname])
+    }
 
     // Fecha com Escape — pareia com o resto da app
     useEffect(() => {
