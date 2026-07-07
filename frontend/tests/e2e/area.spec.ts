@@ -83,6 +83,18 @@ const fulfillJson = (route: Route, data: unknown, status = 200) =>
     })
 
 /**
+ * Oculta permanentemente o TanStack Query DevTools via CSS injetado — o
+ * botão flutuante remonta após cada invalidação de query e volta a
+ * interceptar pointer events sobre outros controles da página (ver mesmo
+ * helper em consumption.spec.ts, onde o problema foi originalmente
+ * diagnosticado).
+ */
+const hideDevTools = (page: Page) =>
+    page.addStyleTag({
+        content: ".tsqd-parent-container { display: none !important; }",
+    })
+
+/**
  * Configura mocks compartilhados (auth + perfil + distribuidoras + 1 propriedade).
  * As ÁREAS são geridas dentro de cada teste via closure mutável, porque o
  * estado da DB simulada evolui ao longo do fluxo (criar, editar, deletar).
@@ -308,6 +320,7 @@ test.describe("Fluxo CRUD de áreas", () => {
 
         // ─── 1. Propriedade carrega com EmptyState de áreas ──────────────────
         await page.goto("/propriedades/prop-1")
+        await hideDevTools(page)
 
         await expect(
             page.getByRole("heading", { level: 1, name: /casa principal/i }),
@@ -444,6 +457,7 @@ test.describe("Fluxo CRUD de áreas", () => {
         await setupAreasRoutes(page, state)
 
         await page.goto("/propriedades/prop-1")
+        await hideDevTools(page)
 
         // Confirma o card visível
         await expect(page.getByTestId("area-card-area-1")).toBeVisible()
@@ -514,6 +528,7 @@ test.describe("Fluxo CRUD de áreas", () => {
         await setupAreasRoutes(page, state)
 
         await page.goto("/propriedades/prop-1/areas/nova")
+        await hideDevTools(page)
 
         // Click direto no submit sem preencher
         await page.getByRole("button", { name: /cadastrar área/i }).click()

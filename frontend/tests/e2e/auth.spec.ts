@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test"
+import { test, expect, type Page } from "@playwright/test"
 
 // E2E focado em UI: mocka as respostas do backend via page.route(). Vantagem:
 // não depende do backend rodando de verdade — roda no CI sem coordenação.
@@ -20,6 +20,18 @@ const FAKE_USER = {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
+
+/**
+ * Oculta permanentemente o TanStack Query DevTools via CSS injetado — o
+ * botão flutuante remonta após cada invalidação de query e volta a
+ * interceptar pointer events sobre outros controles da página (ver mesmo
+ * helper em consumption.spec.ts, onde o problema foi originalmente
+ * diagnosticado).
+ */
+const hideDevTools = (page: Page) =>
+    page.addStyleTag({
+        content: ".tsqd-parent-container { display: none !important; }",
+    })
 
 test.describe("Fluxo de autenticação", () => {
     test.beforeEach(async ({ context }) => {
@@ -92,6 +104,7 @@ test.describe("Fluxo de autenticação", () => {
         await page.getByRole("button", { name: /entrar/i }).click()
 
         await expect(page).toHaveURL(/\/dashboard/)
+        await hideDevTools(page)
         await expect(page.getByText(/olá, joão/i)).toBeVisible()
     })
 
@@ -116,6 +129,7 @@ test.describe("Fluxo de autenticação", () => {
         )
 
         await page.goto("/dashboard")
+        await hideDevTools(page)
         await expect(page.getByText(/olá, joão/i)).toBeVisible()
 
         await page.getByRole("button", { name: /menu do usuário/i }).click()

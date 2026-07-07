@@ -63,6 +63,18 @@ const setupAuth = async (page: Page) => {
     )
 }
 
+/**
+ * Oculta permanentemente o TanStack Query DevTools via CSS injetado — o
+ * botão flutuante remonta após cada invalidação de query e volta a
+ * interceptar pointer events sobre outros controles da página (ver mesmo
+ * helper em consumption.spec.ts, onde o problema foi originalmente
+ * diagnosticado).
+ */
+const hideDevTools = (page: Page) =>
+    page.addStyleTag({
+        content: ".tsqd-parent-container { display: none !important; }",
+    })
+
 // ─── Testes ──────────────────────────────────────────────────────────────────
 
 test.describe("Fluxo CRUD de distribuidoras", () => {
@@ -132,6 +144,7 @@ test.describe("Fluxo CRUD de distribuidoras", () => {
 
         // ─── 1. Lista vazia inicialmente ─────────────────────────────────────
         await page.goto("/distribuidoras")
+        await hideDevTools(page)
 
         await expect(
             page.getByRole("heading", { name: /distribuidoras/i, level: 1 }),
@@ -243,6 +256,7 @@ test.describe("Fluxo CRUD de distribuidoras", () => {
         })
 
         await page.goto("/distribuidoras")
+        await hideDevTools(page)
 
         await expect(page.getByTestId("distributor-card-dist-1")).toBeVisible()
 

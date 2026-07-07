@@ -98,6 +98,18 @@ const fulfillJson = (route: Route, data: unknown, status = 200) =>
     })
 
 /**
+ * Oculta permanentemente o TanStack Query DevTools via CSS injetado — o
+ * botão flutuante remonta após cada invalidação de query e volta a
+ * interceptar pointer events sobre outros controles da página (ver mesmo
+ * helper em consumption.spec.ts, onde o problema foi originalmente
+ * diagnosticado).
+ */
+const hideDevTools = (page: Page) =>
+    page.addStyleTag({
+        content: ".tsqd-parent-container { display: none !important; }",
+    })
+
+/**
  * Configura mocks compartilhados (auth + perfil + distribuidoras + 1
  * propriedade + 1 área). Os DEVICES são geridos dentro de cada teste via
  * closure mutável, porque o estado da DB simulada evolui ao longo do fluxo.
@@ -298,6 +310,7 @@ test.describe("Fluxo CRUD de dispositivos", () => {
 
         // ─── 1. Área carrega com EmptyState de devices ───────────────────────
         await page.goto("/propriedades/prop-1/areas/area-1")
+        await hideDevTools(page)
 
         await expect(
             page.getByRole("heading", { level: 1, name: /^sala$/i }),
@@ -484,6 +497,7 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         await setupDevicesRoutes(page, state)
 
         await page.goto("/propriedades/prop-1/areas/area-1")
+        await hideDevTools(page)
 
         // Confirma o card visível
         await expect(page.getByTestId("device-card-device-1")).toBeVisible()
@@ -563,6 +577,7 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         await setupDevicesRoutes(page, state)
 
         await page.goto("/propriedades/prop-1/areas/area-1/devices/novo")
+        await hideDevTools(page)
 
         // Click direto no submit sem preencher
         await page
