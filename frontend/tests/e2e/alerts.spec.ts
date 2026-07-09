@@ -807,8 +807,11 @@ test.describe("Alertas — badge no Header", () => {
         }
         await setupAlertRoutes(page, state)
 
-        // Vai pra qualquer página autenticada (dashboard mostra header)
-        await page.goto("/")
+        // Vai pra uma página autenticada qualquer só pra ver o Header. Usamos
+        // /alertas (não /) porque o dashboard dispara GET
+        // /api/properties/:id/report, não mockado aqui — cairia no backend
+        // real → 401 → redirect, detachando o badge. /alertas é 100% mockada.
+        await page.goto("/alertas")
         await hideDevTools(page)
 
         // Badge no header com contagem 2 (só conta disparados-não-lidos)

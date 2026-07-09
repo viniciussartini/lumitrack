@@ -53,6 +53,17 @@ const mockAppShellBackground = async (page: Page) => {
             body: JSON.stringify({ status: "success", data: [] }),
         }),
     )
+    // A DashboardPage chama GET /api/properties (e, por propriedade, um
+    // report). Lista vazia → nenhuma query de report dispara e nada cai no
+    // backend real → 401 → redirect pra /login (o que detachava o menu do
+    // usuário no meio do teste de logout).
+    await page.route("**/api/properties", (route) =>
+        route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({ status: "success", data: [] }),
+        }),
+    )
     await page.route("**/api/iot/stream", (route) =>
         route.fulfill({ status: 200, contentType: "text/event-stream", body: "" }),
     )

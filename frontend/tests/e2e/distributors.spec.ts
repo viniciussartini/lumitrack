@@ -209,7 +209,11 @@ test.describe("Fluxo CRUD de distribuidoras", () => {
         await page.getByRole("button", { name: /salvar alterações/i }).click()
 
         await expect(page).toHaveURL(/\/distribuidoras$/)
-        await expect(page.getByText(/CEMIG Renovada/i)).toBeVisible()
+        // Escopa ao card — /CEMIG Renovada/ também casaria o toast de sucesso
+        // ("...foi atualizada."), causando strict mode violation.
+        await expect(
+            page.getByTestId("distributor-card-dist-1"),
+        ).toContainText(/CEMIG Renovada/i)
 
         // ─── 4. Excluir ──────────────────────────────────────────────────────
         await page
