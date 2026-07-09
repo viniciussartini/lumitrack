@@ -49,7 +49,7 @@
     "profibus": "^0.0.0",
     "qrcode": "^1.5.4",
     "serialport": "^13.0.0",
-    "uuid": "^13.0.0",
+    "uuid": "^14.0.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
