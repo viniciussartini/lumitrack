@@ -114,25 +114,31 @@ test.describe("Fluxo de autenticação", () => {
     })
 
     test("autentica com sucesso e redireciona para /dashboard", async ({ page }) => {
-        // Sem MFA: o backend seta os cookies de sessão/CSRF via Set-Cookie
-        // real (não simulável por page.route) e responde corpo vazio — o
-        // que importa pro app é o GET /auth/me em seguida, que aqui é
-        // mockado para sempre devolver o usuário autenticado.
-        await page.route("**/api/auth/login", (route) =>
-            route.fulfill({
+        // /auth/me precisa responder NÃO autenticado durante o bootstrap:
+        // se devolvesse o usuário já no goto("/login"), o PublicRoute
+        // redirecionaria pra /dashboard antes do formulário renderizar (o
+        // campo de e-mail nunca apareceria). Só depois do POST de login é que
+        // /auth/me passa a devolver o usuário — que é o fluxo real.
+        let loggedIn = false
+        await page.route("**/api/auth/login", (route) => {
+            loggedIn = true
+            return route.fulfill({
                 status: 200,
                 contentType: "application/json",
                 body: JSON.stringify({ status: "success", data: {} }),
-            }),
-        )
-
+            })
+        })
         await page.route("**/api/auth/me", (route) =>
             route.fulfill({
-                status: 200,
+                status: loggedIn ? 200 : 401,
                 contentType: "application/json",
-                body: JSON.stringify({ status: "success", data: FAKE_USER }),
+                body: loggedIn
+                    ? JSON.stringify({ status: "success", data: FAKE_USER })
+                    : JSON.stringify({ status: "error", message: "Não autenticado" }),
             }),
         )
+        // mockAppShellBackground já cobre /api/properties → [] (dashboard sem
+        // propriedades, sem queries de report caindo no backend real).
         await mockAppShellBackground(page)
 
         await page.goto("/login")
