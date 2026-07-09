@@ -22,7 +22,7 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -37,7 +37,7 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -53,7 +53,7 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -68,7 +68,7 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -89,7 +89,7 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -110,7 +110,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -128,7 +128,7 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -175,7 +175,7 @@ jobs:
       SMTP_FROM: "LumiTrack CI <ci@lumitrack.invalid>"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -226,7 +226,7 @@ jobs:
       FRONTEND_URL: http://localhost:5173
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
