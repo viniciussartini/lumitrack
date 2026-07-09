@@ -61,6 +61,19 @@ const setupAuth = async (page: Page) => {
     await page.route("**/api/auth/me", (route) =>
         fulfillJson(route, FAKE_USER),
     )
+    // O AppShell monta useAlertStream → fetchEventSource("/api/iot/stream").
+    // Sem este mock, a requisição SSE cai no backend real (via proxy do Vite)
+    // e a lib reconecta em loop, re-renderizando o AppShell continuamente —
+    // o que faz o Playwright ver os elementos "detached from DOM" no clique.
+    await page.route("**/api/iot/stream", (route) =>
+        route.fulfill({ status: 200, contentType: "text/event-stream", body: "" }),
+    )
+    // AlertBellBadge (no Header do AppShell) chama GET /api/alerts. Sem este
+    // mock a chamada cai no backend real → 401 → o interceptor dispara
+    // "lumitrack:unauthorized" e o app redireciona pra /login no meio do
+    // teste (elementos "detached from DOM"). Regex casa /api/alerts e
+    // /api/alerts?query, mas não /api/alerts/:id.
+    await page.route(/\/api\/alerts(\?.*)?$/, (route) => fulfillJson(route, []))
 }
 
 /**

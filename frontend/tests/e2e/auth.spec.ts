@@ -33,6 +33,31 @@ const hideDevTools = (page: Page) =>
         content: ".tsqd-parent-container { display: none !important; }",
     })
 
+/**
+ * Mocka as chamadas de fundo que o AppShell (rotas autenticadas) dispara,
+ * para que caiam num 200 mockado em vez do backend real:
+ *
+ *   - GET /api/alerts — o AlertBellBadge no Header consulta essa rota. Sem
+ *     o mock, cai no backend real → 401 → o interceptor dispara
+ *     "lumitrack:unauthorized" e o app redireciona pra /login no meio do
+ *     teste (elementos "detached from DOM").
+ *   - GET /api/iot/stream — useAlertStream abre SSE aqui; mockado só para
+ *     não tocar o backend real (não é a causa das falhas, mas mantém o
+ *     teste isolado).
+ */
+const mockAppShellBackground = async (page: Page) => {
+    await page.route(/\/api\/alerts(\?.*)?$/, (route) =>
+        route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({ status: "success", data: [] }),
+        }),
+    )
+    await page.route("**/api/iot/stream", (route) =>
+        route.fulfill({ status: 200, contentType: "text/event-stream", body: "" }),
+    )
+}
+
 test.describe("Fluxo de autenticação", () => {
     test.beforeEach(async ({ context }) => {
         await context.clearCookies()
@@ -97,6 +122,7 @@ test.describe("Fluxo de autenticação", () => {
                 body: JSON.stringify({ status: "success", data: FAKE_USER }),
             }),
         )
+        await mockAppShellBackground(page)
 
         await page.goto("/login")
         await page.getByLabel(/e-mail/i).fill("test@example.com")
@@ -127,6 +153,7 @@ test.describe("Fluxo de autenticação", () => {
                 body: JSON.stringify({ status: "success" }),
             }),
         )
+        await mockAppShellBackground(page)
 
         await page.goto("/dashboard")
         await hideDevTools(page)
