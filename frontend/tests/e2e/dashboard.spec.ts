@@ -21,11 +21,6 @@ import { test, expect, type Page, type Route } from "@playwright/test"
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
-const FAKE_JWT =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
-    "eyJpZCI6InVzZXItMTIzIiwiZW1haWwiOiJ0ZXN0QGV4YW1wbGUuY29tIiwidXNlclR5cGUiOiJJTkRJVklEVUFMIiwiaWF0IjoxNzMwMDAwMDAwLCJleHAiOjk5OTk5OTk5OTl9." +
-    "signature"
-
 const FAKE_USER = {
     id: "user-123",
     email: "test@example.com",
@@ -33,6 +28,8 @@ const FAKE_USER = {
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",
+    role: "USER",
+    mfaEnabled: false,
     createdAt: "2025-01-01T00:00:00.000Z",
     updatedAt: "2025-01-01T00:00:00.000Z",
 }
@@ -169,7 +166,9 @@ const hideDevTools = (page: Page) =>
  * SSE stream. Cada teste configura /api/properties e /api/.../report.
  */
 const setupBaseFixtures = async (page: Page) => {
-    await page.route("**/api/users/user-123", (route) =>
+    // Desde a #06 (sessão WEB via cookie httpOnly), a única rota que precisa
+    // ser mockada para simular "usuário autenticado" é GET /auth/me.
+    await page.route("**/api/auth/me", (route) =>
         fulfillJson(route, FAKE_USER),
     )
     await page.route("**/api/distributors", (route) =>
@@ -193,10 +192,6 @@ const setupBaseFixtures = async (page: Page) => {
             body: "",
         }),
     )
-
-    await page.addInitScript((token) => {
-        localStorage.setItem("lumitrack:auth:token", token)
-    }, FAKE_JWT)
 }
 
 // ─── Testes ──────────────────────────────────────────────────────────────────

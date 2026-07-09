@@ -21,6 +21,7 @@ const validIndividualInput = {
     email: "joao@example.com",
     password: "Senha@123",
     userType: "INDIVIDUAL" as const,
+    acceptedTerms: true,
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25", // CPF válido para testes
@@ -30,6 +31,7 @@ const validCompanyInput = {
     email: "contato@empresa.com",
     password: "Senha@123",
     userType: "COMPANY" as const,
+    acceptedTerms: true,
     companyName: "Empresa Ltda",
     cnpj: "11.222.333/0001-81", // CNPJ válido para testes
     tradeName: "Empresa",
@@ -141,6 +143,7 @@ describe("UserService", () => {
                 email: "sem-cpf@example.com",
                 password: "Senha@123",
                 userType: "INDIVIDUAL" as const,
+                acceptedTerms: true,
                 firstName: "João",
                 lastName: "Silva",
                 // cpf ausente intencionalmente
@@ -154,6 +157,7 @@ describe("UserService", () => {
                 email: "sem-cnpj@empresa.com",
                 password: "Senha@123",
                 userType: "COMPANY" as const,
+                acceptedTerms: true,
                 companyName: "Empresa Ltda",
                 // cnpj ausente intencionalmente
                 }),

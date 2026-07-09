@@ -28,10 +28,25 @@ export type User = Prisma.UserModel
  */
 export type AuthToken = Prisma.AuthTokenModel
 /**
+ * Model RefreshToken
+ * 
+ */
+export type RefreshToken = Prisma.RefreshTokenModel
+/**
  * Model PasswordReset
  * 
  */
 export type PasswordReset = Prisma.PasswordResetModel
+/**
+ * Model MfaBackupCode
+ * 
+ */
+export type MfaBackupCode = Prisma.MfaBackupCodeModel
+/**
+ * Model AuditLog
+ * 
+ */
+export type AuditLog = Prisma.AuditLogModel
 /**
  * Model EnergyDistributor
  * 

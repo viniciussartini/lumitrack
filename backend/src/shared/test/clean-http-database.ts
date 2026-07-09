@@ -6,6 +6,10 @@ import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 
 export async function cleanHttpDatabase(): Promise<void> {
     await prismaHttpTest.$transaction([
+        // AuditLog usa onDelete: SetNull (não Cascade) — de propósito, pra
+        // sobreviver à exclusão da conta (#08). Por isso precisa ser limpo
+        // explicitamente, não seria removido automaticamente pelo delete de User.
+        prismaHttpTest.auditLog.deleteMany(),
         prismaHttpTest.ioTDeviceConfig.deleteMany(),
         prismaHttpTest.consumptionRecord.deleteMany(),
         prismaHttpTest.alert.deleteMany(),
@@ -15,6 +19,7 @@ export async function cleanHttpDatabase(): Promise<void> {
         prismaHttpTest.energyDistributor.deleteMany(),
         prismaHttpTest.authToken.deleteMany(),
         prismaHttpTest.passwordReset.deleteMany(),
+        prismaHttpTest.mfaBackupCode.deleteMany(),
         prismaHttpTest.user.deleteMany(),
     ])
 }

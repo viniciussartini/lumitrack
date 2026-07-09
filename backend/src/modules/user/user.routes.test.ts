@@ -19,6 +19,7 @@ const validIndividualBody = {
     email: "joao@example.com",
     password: "Senha@123",
     userType: "INDIVIDUAL",
+    acceptedTerms: true,
     firstName: "Joao",
     lastName: "Silva",
     cpf: "529.982.247-25",
@@ -28,6 +29,7 @@ const validCompanyBody = {
     email: "contato@empresa.com",
     password: "Senha@123",
     userType: "COMPANY",
+    acceptedTerms: true,
     companyName: "Empresa Ltda",
     cnpj: "11.222.333/0001-81",
 }
@@ -36,6 +38,8 @@ const validCompanyBody = {
 
 // Cria um usuario e faz login, retornando o userId e o token JWT real.
 // Substituiu generateTestToken: o token agora existe na tabela auth_tokens.
+// channel: "MOBILE" porque este teste só precisa de um Bearer token para
+// autenticar via header — WEB não devolve token no body (#06, cookie httpOnly).
 async function registerAndLogin(body = validIndividualBody) {
     const createRes = await request(app).post("/api/users").send(body)
     const userId = createRes.body.data.id as string
@@ -43,7 +47,7 @@ async function registerAndLogin(body = validIndividualBody) {
     const loginRes = await request(app).post("/api/auth/login").send({
         email: body.email,
         password: body.password,
-        channel: "WEB",
+        channel: "MOBILE",
     })
     const token = loginRes.body.data.token as string
 
@@ -75,6 +79,36 @@ describe("POST /api/users", () => {
         expect(response.body.data.email).toBe("joao@example.com")
         expect(response.body.data.userType).toBe("INDIVIDUAL")
         expect(response.body.data).not.toHaveProperty("password")
+    })
+
+    it("deve registrar consentedAt e consentVersion ao criar o usuario (LGPD Art. 7º/8º)", async () => {
+        const response = await request(app)
+            .post("/api/users")
+            .send(validIndividualBody)
+
+        expect(response.status).toBe(201)
+        expect(response.body.data.consentedAt).not.toBeNull()
+        expect(new Date(response.body.data.consentedAt).getTime()).toBeLessThanOrEqual(Date.now())
+        expect(response.body.data.consentVersion).toBe("1.0")
+    })
+
+    it("deve retornar 422 quando acceptedTerms nao for enviado", async () => {
+        const { acceptedTerms: _acceptedTerms, ...bodyWithoutConsent } = validIndividualBody
+
+        const response = await request(app)
+            .post("/api/users")
+            .send(bodyWithoutConsent)
+
+        expect(response.status).toBe(422)
+        expect(response.body.status).toBe("error")
+    })
+
+    it("deve retornar 422 quando acceptedTerms for false", async () => {
+        const response = await request(app)
+            .post("/api/users")
+            .send({ ...validIndividualBody, acceptedTerms: false })
+
+        expect(response.status).toBe(422)
     })
 
     it("deve criar um usuario pessoa juridica e retornar 201", async () => {
@@ -271,5 +305,70 @@ describe("DELETE /api/users/:id", () => {
         )
 
         expect(response.status).toBe(401)
+    })
+})
+
+// ---
+// Audit log (#08 — A09): USER_CREATE/UPDATE/DELETE + ACCESS_DENIED
+// ---
+
+describe("Audit log", () => {
+    it("registra USER_CREATE/SUCCESS ao cadastrar", async () => {
+        const response = await request(app).post("/api/users").send(validIndividualBody)
+
+        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "USER_CREATE" } })
+        expect(logs).toHaveLength(1)
+        expect(logs[0]).toMatchObject({
+            action: "USER_CREATE",
+            outcome: "SUCCESS",
+            resourceType: "User",
+            resourceId: response.body.data.id,
+            userId: response.body.data.id,
+        })
+    })
+
+    it("registra USER_UPDATE/SUCCESS com os nomes dos campos alterados (não os valores)", async () => {
+        const { userId, token } = await registerAndLogin()
+
+        await request(app)
+            .put(`/api/users/${userId}`)
+            .set("Authorization", `Bearer ${token}`)
+            .send({ firstName: "Carlos", lastName: "Souza" })
+
+        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "USER_UPDATE" } })
+        expect(logs).toHaveLength(1)
+        expect(logs[0]).toMatchObject({ outcome: "SUCCESS", resourceType: "User", resourceId: userId })
+        expect((logs[0]?.metadata as { fields?: string[] } | null)?.fields).toEqual(
+            expect.arrayContaining(["firstName", "lastName"]),
+        )
+    })
+
+    it("registra USER_DELETE/SUCCESS com userId null (a conta já não existe)", async () => {
+        const { userId, token } = await registerAndLogin()
+
+        await request(app)
+            .delete(`/api/users/${userId}`)
+            .set("Authorization", `Bearer ${token}`)
+
+        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "USER_DELETE" } })
+        expect(logs).toHaveLength(1)
+        expect(logs[0]).toMatchObject({ outcome: "SUCCESS", resourceType: "User", resourceId: userId, userId: null })
+    })
+
+    it("registra ACCESS_DENIED ao tentar acessar perfil de outro usuário (403)", async () => {
+        const { userId, token } = await registerAndLogin()
+
+        await request(app)
+            .get("/api/users/00000000-0000-0000-0000-000000000002")
+            .set("Authorization", `Bearer ${token}`)
+
+        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "ACCESS_DENIED" } })
+        expect(logs).toHaveLength(1)
+        expect(logs[0]).toMatchObject({
+            action: "ACCESS_DENIED",
+            outcome: "FAILURE",
+            userId,
+            resourceType: "users",
+        })
     })
 })

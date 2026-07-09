@@ -223,7 +223,7 @@ export type IoTDeviceConfigGroupByOutputType = {
   _max: IoTDeviceConfigMaxAggregateOutputType | null
 }
 
-type GetIoTDeviceConfigGroupByPayload<T extends IoTDeviceConfigGroupByArgs> = Prisma.PrismaPromise<
+export type GetIoTDeviceConfigGroupByPayload<T extends IoTDeviceConfigGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<IoTDeviceConfigGroupByOutputType, T['by']> &
       {
@@ -1282,6 +1282,11 @@ export type IoTDeviceConfigFindManyArgs<ExtArgs extends runtime.Types.Extensions
    * Skip the first `n` IoTDeviceConfigs.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of IoTDeviceConfigs.
+   */
   distinct?: Prisma.IoTDeviceConfigScalarFieldEnum | Prisma.IoTDeviceConfigScalarFieldEnum[]
 }
 

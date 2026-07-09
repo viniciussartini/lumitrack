@@ -1,5 +1,6 @@
 import { createApp } from "@/app.js"
 import { env } from "@/config/env.js"
+import { logger } from "@/shared/logger/logger.js"
 import { prisma } from "@/shared/database/prisma.js"
 import { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
 import { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
@@ -13,6 +14,10 @@ import type { IoTConfigResponse } from "@/modules/iot/iot.repository.js"
 import { AlertRepository } from "./modules/alert/alert.repository.js"
 import { AlertNotifier } from "./modules/alert/alert-notifier.js"
 import { AlertService } from "./modules/alert/alert.service.js"
+import { AuthRepository } from "@/modules/auth/auth.repository.js"
+import { AuditRepository } from "@/shared/audit/audit.repository.js"
+import { RetentionService } from "@/shared/retention/retention.service.js"
+import { RetentionPurgeScheduler } from "@/shared/retention/RetentionPurgeScheduler.js"
 
 // Extraídos para variáveis porque são reutilizados no AlertService e no scheduler.
 const deviceRepository = new DeviceRepository(prisma)
@@ -64,6 +69,22 @@ const scheduler = new HourlyRollupScheduler(
 processor.start()
 scheduler.start()
 
+// #10 — Retenção e expurgo de dados (Art. 15/16 LGPD): roda no boot e a
+// cada 24h, removendo tokens/resets já inativos e audit logs antigos
+// (períodos configuráveis via env.DATA_RETENTION_*).
+const retentionService = new RetentionService(
+    new AuthRepository(prisma),
+    new AuditRepository(prisma),
+    {
+        authToken: env.DATA_RETENTION_AUTH_TOKEN_DAYS,
+        passwordReset: env.DATA_RETENTION_PASSWORD_RESET_DAYS,
+        auditLog: env.DATA_RETENTION_AUDIT_LOG_DAYS,
+        refreshToken: env.DATA_RETENTION_REFRESH_TOKEN_DAYS,
+    },
+)
+const retentionScheduler = new RetentionPurgeScheduler(retentionService)
+retentionScheduler.start()
+
 /**
  * Criação do app
  * 
@@ -73,9 +94,9 @@ scheduler.start()
 const app = createApp({ processor })
 
 const server = app.listen(env.PORT, async () => {
-    console.log(`LumiTrack API rodando em http://localhost:${env.PORT}`)
-    console.log(`Ambiente: ${env.NODE_ENV}`)
-    console.log(`Health: http://localhost:${env.PORT}/health`)
+    logger.info(`LumiTrack API rodando em http://localhost:${env.PORT}`)
+    logger.info(`Ambiente: ${env.NODE_ENV}`)
+    logger.info(`Health: http://localhost:${env.PORT}/health`)
 
     // Restaura as conexões IoT ativas do banco após o servidor estar escutando.
     // Fazemos isso aqui (e não antes do listen) para garantir que o servidor
@@ -100,11 +121,11 @@ async function restoreIoTConnections(): Promise<void> {
         const configs = await prisma.ioTDeviceConfig.findMany()
 
         if (configs.length === 0) {
-            console.log("[Boot] Nenhuma config IoT encontrada. Nada a restaurar.")
+            logger.info("[Boot] Nenhuma config IoT encontrada. Nada a restaurar.")
             return
         }
 
-        console.log(`[Boot] Restaurando ${configs.length} conexão(ões) IoT...`)
+        logger.info(`[Boot] Restaurando ${configs.length} conexão(ões) IoT...`)
 
         // O campo `extra` retornado pelo Prisma é tipado como `JsonValue`
         // (união de string | number | boolean | null | JsonObject | JsonArray),
@@ -119,11 +140,11 @@ async function restoreIoTConnections(): Promise<void> {
         const succeeded = results.filter((r) => r.status === "fulfilled").length
         const failed    = results.filter((r) => r.status === "rejected").length
 
-        console.log(`[Boot] Conexões restauradas: ${succeeded} ok, ${failed} falha(s).`)
+        logger.info(`[Boot] Conexões restauradas: ${succeeded} ok, ${failed} falha(s).`)
     } catch (err) {
         // Falha na restauração não deve impedir o servidor de responder —
         // o monitoramento IoT é importante mas não é o núcleo da API REST.
-        console.error("[Boot] Erro ao restaurar conexões IoT:", err)
+        logger.error({ err }, "[Boot] Erro ao restaurar conexões IoT")
     }
 }
 
@@ -136,30 +157,31 @@ async function restoreIoTConnections(): Promise<void> {
  * @param signal 
  */
 async function shutdown(signal: string): Promise<void> {
-    console.log(`\n⚡ Sinal ${signal} recebido. Encerrando servidor...`)
+    logger.info(`Sinal ${signal} recebido. Encerrando servidor...`)
 
     // Para o scheduler — evita que um flush parcial aconteça durante o shutdown.
     scheduler.stop()
+    retentionScheduler.stop()
 
     // Flush final: persiste qualquer acumulado pendente no buffer antes de sair.
     // Sem isso, até 59 minutos de leituras IoT poderiam ser perdidos em um restart.
-    console.log("[Shutdown] Executando flush final do buffer IoT...")
-    await processor.buffer.getAllHourlySnapshots().length > 0
-        ? new HourlyRollupScheduler(
+    logger.info("[Shutdown] Executando flush final do buffer IoT...")
+    if (processor.buffer.getAllHourlySnapshots().length > 0) {
+        await new HourlyRollupScheduler(
             processor.buffer,
             new ConsumptionRepository(prisma),
             new DeviceRepository(prisma),
             new AreaRepository(prisma),
             new PropertyRepository(prisma),
             new DistributorRepository(prisma),
-            ).flush()
-        : Promise.resolve()
+        ).flush()
+    }
 
     // Desconecta todos os devices IoT de forma limpa.
     await IoTConnectionManager.getInstance().stopAll()
 
     server.close(() => {
-        console.log("Servidor encerrado com sucesso.")
+        logger.info("Servidor encerrado com sucesso.")
         process.exit(0)
     })
 }

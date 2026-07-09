@@ -1,10 +1,14 @@
-import { jwtDecode } from "jwt-decode"
 import { api } from "@/services/api"
-import { storage, STORAGE_KEYS } from "@/lib/storage"
+import { getRefreshCsrfToken } from "@/lib/csrf"
 import type {
-    JwtPayload,
     LoginInput,
     LoginResponse,
+    LoginResult,
+    MfaDisableInput,
+    MfaLoginVerifyInput,
+    MfaSetupResponse,
+    MfaVerifySetupInput,
+    MfaVerifySetupResponse,
     RegisterInput,
     User,
 } from "@/types/auth.types"
@@ -16,66 +20,121 @@ interface ApiEnvelope<T> {
 
 export const authService = {
     /**
-     * Login. Persiste o token no storage e retorna o payload decodificado.
+     * Login. Quando a conta tem MFA habilitado, o backend não emite sessão
+     * ainda — retorna `mfaRequired:true` + um `mfaToken` de 5min, e o
+     * segundo passo (verifyMfaLogin) é quem efetivamente autentica. Sem
+     * MFA, o backend já seta os cookies httpOnly de sessão e CSRF; o JWT
+     * nunca chega a JS, então buscamos o usuário completo via /auth/me
+     * (o id não está mais disponível para decodificação local).
      * O channel é fixo "WEB" — o app mobile usaria "MOBILE".
      */
-    login: async (input: LoginInput): Promise<JwtPayload> => {
+    login: async (input: LoginInput): Promise<LoginResult> => {
         const { data } = await api.post<ApiEnvelope<LoginResponse>>(
             "/auth/login",
             { ...input, channel: "WEB" },
         )
 
-        const token = data.data.token
-        storage.set(STORAGE_KEYS.TOKEN, token)
+        if (data.data.mfaRequired && data.data.mfaToken) {
+            return { mfaRequired: true, mfaToken: data.data.mfaToken }
+        }
 
-        return jwtDecode<JwtPayload>(token)
+        const { data: meData } = await api.get<ApiEnvelope<User>>("/auth/me")
+        return { user: meData.data }
     },
 
     /**
-     * Logout. Revoga o token no backend e limpa o storage local.
-     * Se o backend falhar (rede caiu, token já inválido), limpa o storage
-     * mesmo assim — o pior cenário é o usuário ficar deslogado, o que é
-     * exatamente o que ele pediu.
+     * Segundo passo do login quando a conta tem MFA habilitado. `code`
+     * aceita tanto um TOTP de 6 dígitos quanto um código de backup
+     * (formato XXXXX-XXXXX). Em caso de sucesso, o backend seta os cookies
+     * de sessão exatamente como um login normal — mesmo padrão de
+     * `login()`: busca o usuário completo via /auth/me em seguida.
+     */
+    verifyMfaLogin: async (input: MfaLoginVerifyInput): Promise<User> => {
+        await api.post<ApiEnvelope<LoginResponse>>("/auth/login/mfa", input)
+
+        const { data } = await api.get<ApiEnvelope<User>>("/auth/me")
+        return data.data
+    },
+
+    /**
+     * Inicia a configuração de MFA para o usuário autenticado. Nada é
+     * persistido nesta chamada — o secret só é gravado quando confirmado
+     * via mfaVerifySetup. Retorna o secret (para digitação manual) e um QR
+     * code pronto (data URL PNG) para escanear no app autenticador.
+     */
+    mfaSetup: async (): Promise<MfaSetupResponse> => {
+        const { data } = await api.post<ApiEnvelope<MfaSetupResponse>>(
+            "/auth/mfa/setup",
+        )
+        return data.data
+    },
+
+    /**
+     * Confirma o código gerado a partir do secret recebido em mfaSetup e
+     * ativa o MFA na conta. Retorna os 10 códigos de backup em texto
+     * plano — única vez que ficam visíveis, nunca mais recuperáveis depois
+     * (persistidos como hash).
+     */
+    mfaVerifySetup: async (
+        input: MfaVerifySetupInput,
+    ): Promise<MfaVerifySetupResponse> => {
+        const { data } = await api.post<ApiEnvelope<MfaVerifySetupResponse>>(
+            "/auth/mfa/verify-setup",
+            input,
+        )
+        return data.data
+    },
+
+    /**
+     * Desativa o MFA. Exige senha atual + um código válido (TOTP ou
+     * backup) — dupla confirmação porque desativar reduz a segurança da
+     * conta.
+     */
+    mfaDisable: async (input: MfaDisableInput): Promise<void> => {
+        await api.post("/auth/mfa/disable", input)
+    },
+
+    /**
+     * Logout. Revoga o token no backend (cookie + CSRF enviados
+     * automaticamente pelos interceptors de api.ts), que também limpa os
+     * cookies httpOnly/CSRF na resposta.
      */
     logout: async (): Promise<void> => {
         try {
             await api.post("/auth/logout")
         } catch {
-            // Ignora — vamos limpar local de qualquer forma
+            // Ignora — o pior cenário é o usuário ficar deslogado localmente
+            // mesmo que a revogação no backend tenha falhado (rede caiu).
         }
-        storage.remove(STORAGE_KEYS.TOKEN)
     },
 
     /**
-     * Hidrata os dados completos do usuário pelo ID do JWT.
-     * Usado depois do login e no boot da app (se já tiver token salvo).
+     * Busca o usuário autenticado via cookie/sessão atual. Retorna null se
+     * não houver sessão (401) — usado no boot da app para restaurar o
+     * estado de autenticação sem decodificar nada no cliente.
      */
-    fetchCurrentUser: async (userId: string): Promise<User> => {
-        const { data } = await api.get<ApiEnvelope<User>>(`/users/${userId}`)
-        return data.data
-    },
-
-    /**
-     * Lê o token do storage e decodifica. Retorna null se não houver
-     * ou se o token estiver expirado (para tokens WEB).
-     */
-    getStoredSession: (): JwtPayload | null => {
-        const token = storage.get(STORAGE_KEYS.TOKEN)
-        if (!token) return null
-
+    getCurrentUser: async (): Promise<User | null> => {
         try {
-            const payload = jwtDecode<JwtPayload>(token)
-
-            if (payload.exp && payload.exp * 1000 < Date.now()) {
-                storage.remove(STORAGE_KEYS.TOKEN)
-                return null
-            }
-
-            return payload
+            const { data } = await api.get<ApiEnvelope<User>>("/auth/me")
+            return data.data
         } catch {
-            storage.remove(STORAGE_KEYS.TOKEN)
             return null
         }
+    },
+
+    /**
+     * Renova a sessão WEB via refresh token httpOnly. Não retorna dados —
+     * o backend sobrescreve os cookies de sessão. O header CSRF de refresh
+     * é injetado manualmente (o interceptor genérico de api.ts usa o CSRF
+     * de sessão, que pode estar expirado neste momento).
+     */
+    refresh: async (): Promise<void> => {
+        const refreshCsrf = getRefreshCsrfToken()
+        await api.post(
+            "/auth/refresh",
+            {},
+            { headers: { "x-refresh-csrf-token": refreshCsrf ?? "" } },
+        )
     },
 
     /**
@@ -84,7 +143,7 @@ export const authService = {
      * (validação) ou 409 (email duplicado).
      *
      * NOTA: este método NÃO faz login. O auto-login é responsabilidade
-     * do AuthContext.register, que orquestra register + login + fetch.
+     * do AuthContext.register, que orquestra register + login.
      */
     register: async (input: RegisterInput): Promise<User> => {
         const { data } = await api.post<ApiEnvelope<User>>("/users", input)

@@ -14,17 +14,6 @@ import { test, expect, type Page, type Route } from "@playwright/test"
 
 // ─── Constantes de teste ─────────────────────────────────────────────────────
 
-const FAKE_JWT_PAYLOAD = btoa(
-    JSON.stringify({
-        id: "user-123",
-        email: "test@example.com",
-        userType: "INDIVIDUAL",
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 3600,
-    }),
-)
-const FAKE_JWT = `header.${FAKE_JWT_PAYLOAD}.signature`
-
 const FAKE_USER = {
     id: "user-123",
     email: "test@example.com",
@@ -32,6 +21,8 @@ const FAKE_USER = {
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",
+    role: "USER",
+    mfaEnabled: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -61,17 +52,41 @@ const fulfillError = (route: Route, message: string, status = 400) =>
     })
 
 /**
- * Configura mocks compartilhados (auth + perfil).
- * Cada teste configura suas próprias respostas de /api/distributors.
+ * Configura mocks compartilhados (auth + perfil). Desde a #06 (sessão WEB
+ * via cookie httpOnly), a única rota que precisa ser mockada para simular
+ * "usuário autenticado" é GET /auth/me — usada tanto no bootstrap quanto
+ * logo após o login. Não há mais token em localStorage para pré-semear.
  */
 const setupAuth = async (page: Page) => {
-    await page.route("**/api/users/user-123", (route) =>
+    await page.route("**/api/auth/me", (route) =>
         fulfillJson(route, FAKE_USER),
     )
-    await page.addInitScript((token) => {
-        localStorage.setItem("lumitrack:auth:token", token)
-    }, FAKE_JWT)
+    // O AppShell monta useAlertStream → fetchEventSource("/api/iot/stream").
+    // Sem este mock, a requisição SSE cai no backend real (via proxy do Vite)
+    // e a lib reconecta em loop, re-renderizando o AppShell continuamente —
+    // o que faz o Playwright ver os elementos "detached from DOM" no clique.
+    await page.route("**/api/iot/stream", (route) =>
+        route.fulfill({ status: 200, contentType: "text/event-stream", body: "" }),
+    )
+    // AlertBellBadge (no Header do AppShell) chama GET /api/alerts. Sem este
+    // mock a chamada cai no backend real → 401 → o interceptor dispara
+    // "lumitrack:unauthorized" e o app redireciona pra /login no meio do
+    // teste (elementos "detached from DOM"). Regex casa /api/alerts e
+    // /api/alerts?query, mas não /api/alerts/:id.
+    await page.route(/\/api\/alerts(\?.*)?$/, (route) => fulfillJson(route, []))
 }
+
+/**
+ * Oculta permanentemente o TanStack Query DevTools via CSS injetado — o
+ * botão flutuante remonta após cada invalidação de query e volta a
+ * interceptar pointer events sobre outros controles da página (ver mesmo
+ * helper em consumption.spec.ts, onde o problema foi originalmente
+ * diagnosticado).
+ */
+const hideDevTools = (page: Page) =>
+    page.addStyleTag({
+        content: ".tsqd-parent-container { display: none !important; }",
+    })
 
 // ─── Testes ──────────────────────────────────────────────────────────────────
 
@@ -142,6 +157,7 @@ test.describe("Fluxo CRUD de distribuidoras", () => {
 
         // ─── 1. Lista vazia inicialmente ─────────────────────────────────────
         await page.goto("/distribuidoras")
+        await hideDevTools(page)
 
         await expect(
             page.getByRole("heading", { name: /distribuidoras/i, level: 1 }),
@@ -193,7 +209,11 @@ test.describe("Fluxo CRUD de distribuidoras", () => {
         await page.getByRole("button", { name: /salvar alterações/i }).click()
 
         await expect(page).toHaveURL(/\/distribuidoras$/)
-        await expect(page.getByText(/CEMIG Renovada/i)).toBeVisible()
+        // Escopa ao card — /CEMIG Renovada/ também casaria o toast de sucesso
+        // ("...foi atualizada."), causando strict mode violation.
+        await expect(
+            page.getByTestId("distributor-card-dist-1"),
+        ).toContainText(/CEMIG Renovada/i)
 
         // ─── 4. Excluir ──────────────────────────────────────────────────────
         await page
@@ -253,6 +273,7 @@ test.describe("Fluxo CRUD de distribuidoras", () => {
         })
 
         await page.goto("/distribuidoras")
+        await hideDevTools(page)
 
         await expect(page.getByTestId("distributor-card-dist-1")).toBeVisible()
 

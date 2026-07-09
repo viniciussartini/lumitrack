@@ -3,14 +3,13 @@ import userEvent from "@testing-library/user-event"
 import { renderWithProviders, screen, waitFor } from "@/tests/test-utils"
 import { RegisterPage } from "@/pages/auth/RegisterPage"
 import { authService } from "@/services/auth.service"
-import type { JwtPayload, User } from "@/types/auth.types"
+import type { User } from "@/types/auth.types"
 
 vi.mock("@/services/auth.service", () => ({
     authService: {
         login: vi.fn(),
         logout: vi.fn(),
-        fetchCurrentUser: vi.fn(),
-        getStoredSession: vi.fn(() => null),
+        getCurrentUser: vi.fn(() => Promise.resolve(null)),
         register: vi.fn(),
     },
 }))
@@ -24,19 +23,12 @@ const mockUser: User = {
     id: "user-new",
     email: "joao@example.com",
     userType: "INDIVIDUAL",
+    mfaEnabled: false,
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-}
-
-const mockPayload: JwtPayload = {
-    id: "user-new",
-    email: "joao@example.com",
-    userType: "INDIVIDUAL",
-    iat: Date.now() / 1000,
-    exp: Date.now() / 1000 + 3600,
 }
 
 beforeEach(() => {
@@ -51,6 +43,7 @@ const fillIndividualForm = async (user: ReturnType<typeof userEvent.setup>) => {
     await user.type(screen.getByLabelText(/cpf/i), "52998224725")
     await user.type(screen.getByLabelText(/^senha$/i), "Senha@123")
     await user.type(screen.getByLabelText(/confirmar senha/i), "Senha@123")
+    await user.click(screen.getByLabelText(/li e concordo/i))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -174,6 +167,25 @@ describe("RegisterPage — validação client-side", () => {
 
         expect(await screen.findByText(/e-mail inválido/i)).toBeInTheDocument()
     })
+
+    it("mostra erro quando o consentimento LGPD não é marcado e não envia o cadastro", async () => {
+        const user = userEvent.setup()
+        renderWithProviders(<RegisterPage />)
+
+        // Preenche tudo, exceto o checkbox de consentimento
+        await user.type(await screen.findByLabelText(/e-mail/i), "joao@example.com")
+        await user.type(screen.getByLabelText(/^nome$/i), "João")
+        await user.type(screen.getByLabelText(/sobrenome/i), "Silva")
+        await user.type(screen.getByLabelText(/cpf/i), "52998224725")
+        await user.type(screen.getByLabelText(/^senha$/i), "Senha@123")
+        await user.type(screen.getByLabelText(/confirmar senha/i), "Senha@123")
+        await user.click(screen.getByRole("button", { name: /criar conta/i }))
+
+        expect(
+            await screen.findByText(/é necessário aceitar a política de privacidade/i),
+        ).toBeInTheDocument()
+        expect(authService.register).not.toHaveBeenCalled()
+    })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -181,10 +193,9 @@ describe("RegisterPage — validação client-side", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("RegisterPage — submit", () => {
-    it("chama register + login + fetchCurrentUser e navega para /dashboard", async () => {
+    it("chama register + login e navega para /dashboard", async () => {
         vi.mocked(authService.register).mockResolvedValue(mockUser)
-        vi.mocked(authService.login).mockResolvedValue(mockPayload)
-        vi.mocked(authService.fetchCurrentUser).mockResolvedValue(mockUser)
+        vi.mocked(authService.login).mockResolvedValue({ user: mockUser })
 
         const user = userEvent.setup()
         renderWithProviders(<RegisterPage />)
@@ -201,6 +212,7 @@ describe("RegisterPage — submit", () => {
                 firstName: "João",
                 lastName: "Silva",
                 cpf: "529.982.247-25",
+                acceptedTerms: true,
             })
         })
 

@@ -3,14 +3,19 @@ import userEvent from "@testing-library/user-event"
 import { renderWithProviders, screen, waitFor } from "@/tests/test-utils"
 import { UserMenu } from "@/components/layout/UserMenu"
 import { authService } from "@/services/auth.service"
-import type { JwtPayload, User } from "@/types/auth.types"
+import type { User } from "@/types/auth.types"
+
+const mockNavigate = vi.fn()
+vi.mock("react-router-dom", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("react-router-dom")>()
+    return { ...actual, useNavigate: () => mockNavigate }
+})
 
 vi.mock("@/services/auth.service", () => ({
     authService: {
         login: vi.fn(),
         logout: vi.fn(),
-        fetchCurrentUser: vi.fn(),
-        getStoredSession: vi.fn(),
+        getCurrentUser: vi.fn(),
     },
 }))
 
@@ -23,6 +28,7 @@ const mockUserPF: User = {
     id: "user-123",
     email: "joao@example.com",
     userType: "INDIVIDUAL",
+    mfaEnabled: false,
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",
@@ -34,6 +40,7 @@ const mockUserPJ: User = {
     id: "user-456",
     email: "contato@empresa.com",
     userType: "COMPANY",
+    mfaEnabled: false,
     companyName: "Empresa Ltda",
     tradeName: "Empresa",
     cnpj: "11.222.333/0001-81",
@@ -41,21 +48,12 @@ const mockUserPJ: User = {
     updatedAt: new Date().toISOString(),
 }
 
-const mockPayload: JwtPayload = {
-    id: "user-123",
-    email: "joao@example.com",
-    userType: "INDIVIDUAL",
-    iat: Date.now() / 1000,
-    exp: Date.now() / 1000 + 3600,
-}
-
 beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(authService.getStoredSession).mockReturnValue(mockPayload)
 })
 
 const renderWithUser = (user: User) => {
-    vi.mocked(authService.fetchCurrentUser).mockResolvedValue(user)
+    vi.mocked(authService.getCurrentUser).mockResolvedValue(user)
     return renderWithProviders(<UserMenu />)
 }
 
@@ -69,10 +67,6 @@ describe("UserMenu — renderização", () => {
     })
 
     it("exibe tradeName e inicial para pessoa jurídica", async () => {
-        vi.mocked(authService.getStoredSession).mockReturnValue({
-            ...mockPayload,
-            userType: "COMPANY",
-        })
         renderWithUser(mockUserPJ)
 
         expect(await screen.findByText("Empresa")).toBeInTheDocument()
@@ -134,6 +128,19 @@ describe("UserMenu — interação", () => {
         // Click no body, fora do container do menu
         await user.click(document.body)
         expect(screen.queryByRole("menu")).not.toBeInTheDocument()
+    })
+})
+
+describe("UserMenu — navegação", () => {
+    it("navega para /seguranca ao clicar em Segurança", async () => {
+        const user = userEvent.setup()
+        renderWithUser(mockUserPF)
+        await screen.findByText("João Silva")
+
+        await user.click(screen.getByRole("button", { name: /menu do usuário/i }))
+        await user.click(screen.getByRole("menuitem", { name: /segurança/i }))
+
+        expect(mockNavigate).toHaveBeenCalledWith("/seguranca")
     })
 })
 

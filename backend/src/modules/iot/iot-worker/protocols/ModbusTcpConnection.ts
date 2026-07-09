@@ -1,4 +1,5 @@
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
+import { logger } from "@/shared/logger/logger.js"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ModbusTcpConnection
@@ -81,7 +82,7 @@ export class ModbusTcpConnection implements IConnection {
                 const value  = result.response.body.values[0]
                 this.dataHandler({ register: this.config.address, value, timestamp: new Date().toISOString() })
             } catch (err) {
-                console.error(`[ModbusTCP:${this.deviceId}] Erro na leitura:`, err)
+                logger.error({ module: "ModbusTCP", deviceId: this.deviceId, err }, "Erro na leitura")
             }
         }, intervalMs)
     }
@@ -192,7 +193,7 @@ export class ModbusRtuConnection implements IConnection {
                 const value  = result.response.body.values[0]
                 this.dataHandler({ port: this.config.address, value, timestamp: new Date().toISOString() })
             } catch (err) {
-                console.error(`[ModbusRTU:${this.deviceId}] Erro na leitura:`, err)
+                logger.error({ module: "ModbusRTU", deviceId: this.deviceId, err }, "Erro na leitura")
             }
         }, intervalMs)
     }
@@ -285,7 +286,7 @@ export class EthernetIpConnection implements IConnection {
                 const result = await plc.readTag(tag)
                 this.dataHandler({ tag, value: result.value, timestamp: new Date().toISOString() })
             } catch (err) {
-                console.error(`[EthernetIP:${this.deviceId}] Erro na leitura:`, err)
+                logger.error({ module: "EthernetIP", deviceId: this.deviceId, err }, "Erro na leitura")
             }
         }, intervalMs)
     }
@@ -441,7 +442,7 @@ export class ProfinetConnection implements IConnection {
                 })
                 this.dataHandler({ db: dbNumber, data: Array.from(data), timestamp: new Date().toISOString() })
             } catch (err) {
-                console.error(`[Profinet:${this.deviceId}] Erro na leitura:`, err)
+                logger.error({ module: "Profinet", deviceId: this.deviceId, err }, "Erro na leitura")
             }
         }, intervalMs)
     }

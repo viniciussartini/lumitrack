@@ -5,6 +5,8 @@ import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 import { UnauthorizedError, BadRequestError } from "@/shared/errors/AppError.js"
+import { hashToken } from "@/shared/crypto/hashToken.js"
+import { generate } from "otplib"
 
 // ─── Instâncias ───────────────────────────────────────────────────────────────
 // O AuthService recebe duas dependências por injeção:
@@ -23,12 +25,25 @@ const userRepository = new UserRepository(prismaTest)
 // O AuthService será instanciado com o mock de e-mail — detalhes na criação do service.
 let authService: AuthService
 
+// Helper: chama login() e estreita o tipo do union para uma sessão completa
+// (mfaRequired:false) — os usuários deste arquivo nunca têm MFA habilitado,
+// então isso nunca deveria de fato lançar; o guard serve para o TypeScript
+// (login() retorna `{mfaRequired:true,mfaToken}|{mfaRequired:false,...}`).
+async function loginAsSession(input: unknown) {
+    const result = await authService.login(input)
+    if (result.mfaRequired) {
+        throw new Error("login inesperadamente exigiu MFA neste teste")
+    }
+    return result
+}
+
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
 
 const validUser = {
     email: "joao@example.com",
     password: "Senha@123",
     userType: "INDIVIDUAL" as const,
+    acceptedTerms: true,
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",
@@ -60,7 +75,7 @@ describe("AuthService", () => {
             await userService.createUser(validUser)
 
             // Act
-            const result = await authService.login({
+            const result = await loginAsSession({
                 email: "joao@example.com",
                 password: "Senha@123",
                 channel: "WEB",
@@ -73,20 +88,26 @@ describe("AuthService", () => {
             expect(result.token.split(".")).toHaveLength(3)
         })
 
-        it("deve persistir o token na tabela auth_tokens após login WEB", async () => {
+        it("deve persistir o HASH do token (não o JWT puro) na tabela auth_tokens após login WEB", async () => {
             const { UserService } = await import("@/modules/user/user.service.js")
             const userService = new UserService(userRepository)
             await userService.createUser(validUser)
 
-            const result = await authService.login({
+            const result = await loginAsSession({
                 email: "joao@example.com",
                 password: "Senha@123",
                 channel: "WEB",
             })
 
-            // O token deve existir no banco — não apenas na memória
-            const storedToken = await prismaTest.authToken.findUnique({
+            // O JWT puro NUNCA é persistido — apenas seu hash
+            const storedRaw = await prismaTest.authToken.findUnique({
                 where: { token: result.token },
+            })
+            expect(storedRaw).toBeNull()
+
+            // O token deve existir no banco pelo hash — não apenas na memória
+            const storedToken = await prismaTest.authToken.findUnique({
+                where: { token: hashToken(result.token) },
             })
 
             expect(storedToken).not.toBeNull()
@@ -97,24 +118,27 @@ describe("AuthService", () => {
             expect(storedToken?.revokedAt).toBeNull()
         })
 
-        it("deve persistir token MOBILE sem expiresAt (mobile não expira)", async () => {
+        it("deve persistir token MOBILE com expiresAt preenchido (token vazado não dura para sempre)", async () => {
             const { UserService } = await import("@/modules/user/user.service.js")
             const userService = new UserService(userRepository)
             await userService.createUser(validUser)
 
-            const result = await authService.login({
+            const beforeLogin = Date.now()
+            const result = await loginAsSession({
                 email: "joao@example.com",
                 password: "Senha@123",
                 channel: "MOBILE",
             })
 
             const storedToken = await prismaTest.authToken.findUnique({
-                where: { token: result.token },
+                where: { token: hashToken(result.token) },
             })
 
             expect(storedToken?.channel).toBe("MOBILE")
-            // Para MOBILE, expiresAt deve ser null — o token nunca expira por tempo
-            expect(storedToken?.expiresAt).toBeNull()
+            // Para MOBILE, expiresAt agora é preenchido (default 90 dias) —
+            // um token vazado não tem mais validade indefinida.
+            expect(storedToken?.expiresAt).not.toBeNull()
+            expect(storedToken!.expiresAt!.getTime()).toBeGreaterThan(beforeLogin)
         })
 
         it("deve lançar UnauthorizedError para e-mail inexistente", async () => {
@@ -187,7 +211,7 @@ describe("AuthService", () => {
             const userService = new UserService(userRepository)
             await userService.createUser(validUser)
 
-            const { token } = await authService.login({
+            const { token } = await loginAsSession({
                 email: "joao@example.com",
                 password: "Senha@123",
                 channel: "WEB",
@@ -196,7 +220,7 @@ describe("AuthService", () => {
             await authService.logout(token)
 
             const storedToken = await prismaTest.authToken.findUnique({
-                where: { token },
+                where: { token: hashToken(token) },
             })
 
             expect(storedToken?.revokedAt).not.toBeNull()
@@ -215,7 +239,7 @@ describe("AuthService", () => {
             const userService = new UserService(userRepository)
             await userService.createUser(validUser)
 
-            const { token } = await authService.login({
+            const { token } = await loginAsSession({
                 email: "joao@example.com",
                 password: "Senha@123",
                 channel: "WEB",
@@ -304,7 +328,7 @@ describe("AuthService", () => {
             expect(reset?.usedAt).not.toBeNull()
 
             // E o usuário deve conseguir fazer login com a nova senha
-            const loginResult = await authService.login({
+            const loginResult = await loginAsSession({
                 email: "joao@example.com",
                 password: "NovaSenha@456",
                 channel: "WEB",
@@ -375,6 +399,389 @@ describe("AuthService", () => {
                     newPassword: "fraca",
                 }),
             ).rejects.toThrow()
+        })
+    })
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUITE: MFA (#12 — A06/A07)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Timeout maior que o default (5000ms) para todo o bloco — habilitar o
+    // MFA hasheia 10 backup codes via bcrypt (BCRYPT_ROUNDS=12, ~100-300ms
+    // cada) e alguns testes ainda comparam contra eles na desabilitação/
+    // segundo fator do login, o que facilmente passa de 2-3s mesmo em
+    // hardware razoável.
+    describe("MFA", { timeout: 15000 }, () => {
+        async function createUserAndGetId(): Promise<string> {
+            const { UserService } = await import("@/modules/user/user.service.js")
+            const userService = new UserService(userRepository)
+            const user = await userService.createUser(validUser)
+            return user.id
+        }
+
+        // Habilita o MFA de ponta a ponta (setup → verify) e devolve o
+        // secret em texto claro + os backup codes — reaproveitado pelos
+        // testes de login/disable, que precisam gerar códigos válidos.
+        async function enableMfaForUser(userId: string) {
+            const { secret } = await authService.setupMfa(validUser.email)
+            const code = await generate({ secret })
+            const { backupCodes } = await authService.verifyMfaSetup(userId, { secret, code })
+            return { secret, backupCodes }
+        }
+
+        describe("setupMfa", () => {
+            it("gera um secret e um QR code, sem persistir nada ainda", async () => {
+                const userId = await createUserAndGetId()
+
+                const result = await authService.setupMfa(validUser.email)
+
+                expect(result.secret).toBeTruthy()
+                expect(result.qrCodeDataUrl).toMatch(/^data:image\/png;base64,/)
+
+                const user = await prismaTest.user.findUnique({ where: { id: userId } })
+                expect(user?.mfaEnabled).toBe(false)
+                expect(user?.mfaSecret).toBeNull()
+            })
+        })
+
+        describe("verifyMfaSetup", () => {
+            it("habilita o MFA e retorna backup codes quando o código é válido", async () => {
+                const userId = await createUserAndGetId()
+                const { secret } = await authService.setupMfa(validUser.email)
+                const code = await generate({ secret })
+
+                const result = await authService.verifyMfaSetup(userId, { secret, code })
+
+                expect(result.backupCodes).toHaveLength(10)
+                // Cada backup code é único
+                expect(new Set(result.backupCodes).size).toBe(10)
+
+                const user = await prismaTest.user.findUnique({ where: { id: userId } })
+                expect(user?.mfaEnabled).toBe(true)
+                expect(user?.mfaSecret).not.toBeNull()
+                // O secret nunca é persistido em texto claro
+                expect(user?.mfaSecret).not.toBe(secret)
+
+                const storedCodes = await prismaTest.mfaBackupCode.findMany({ where: { userId } })
+                expect(storedCodes).toHaveLength(10)
+                expect(storedCodes.every((c) => c.usedAt === null)).toBe(true)
+            })
+
+            it("lança UnauthorizedError e não persiste nada para código inválido", async () => {
+                const userId = await createUserAndGetId()
+                const { secret } = await authService.setupMfa(validUser.email)
+
+                await expect(
+                    authService.verifyMfaSetup(userId, { secret, code: "000000" }),
+                ).rejects.toThrow(UnauthorizedError)
+
+                const user = await prismaTest.user.findUnique({ where: { id: userId } })
+                expect(user?.mfaEnabled).toBe(false)
+            })
+        })
+
+        describe("login com MFA habilitado", () => {
+            it("retorna mfaRequired:true em vez de uma sessão, sem persistir AuthToken", async () => {
+                const userId = await createUserAndGetId()
+                await enableMfaForUser(userId)
+
+                const result = await authService.login({
+                    email: validUser.email,
+                    password: validUser.password,
+                    channel: "WEB",
+                })
+
+                expect(result.mfaRequired).toBe(true)
+                if (!result.mfaRequired) throw new Error("esperava mfaRequired:true")
+                expect(result.mfaToken).toBeTruthy()
+
+                const tokens = await prismaTest.authToken.findMany({ where: { userId } })
+                expect(tokens).toHaveLength(0)
+            })
+
+            it("continua lançando UnauthorizedError para senha errada antes de chegar no MFA", async () => {
+                const userId = await createUserAndGetId()
+                await enableMfaForUser(userId)
+
+                await expect(
+                    authService.login({
+                        email: validUser.email,
+                        password: "SenhaErrada@123",
+                        channel: "WEB",
+                    }),
+                ).rejects.toThrow(UnauthorizedError)
+            })
+        })
+
+        describe("completeMfaLogin", () => {
+            async function getMfaToken(): Promise<{ userId: string; mfaToken: string; secret: string; backupCodes: string[] }> {
+                const userId = await createUserAndGetId()
+                const { secret, backupCodes } = await enableMfaForUser(userId)
+
+                const result = await authService.login({
+                    email: validUser.email,
+                    password: validUser.password,
+                    channel: "WEB",
+                })
+                if (!result.mfaRequired) throw new Error("esperava mfaRequired:true")
+
+                return { userId, mfaToken: result.mfaToken, secret, backupCodes }
+            }
+
+            it("completa o login com um código TOTP válido e persiste a sessão", async () => {
+                const { userId, mfaToken, secret } = await getMfaToken()
+                const code = await generate({ secret })
+
+                const session = await authService.completeMfaLogin({ mfaToken, code })
+
+                expect(session.token).toBeTruthy()
+                expect(session.channel).toBe("WEB")
+                expect(session.userId).toBe(userId)
+
+                const tokens = await prismaTest.authToken.findMany({ where: { userId } })
+                expect(tokens).toHaveLength(1)
+            })
+
+            it("completa o login com um backup code válido e o marca como usado", async () => {
+                const { userId, mfaToken, backupCodes } = await getMfaToken()
+                const backupCode = backupCodes[0]!
+
+                const session = await authService.completeMfaLogin({ mfaToken, code: backupCode })
+
+                expect(session.token).toBeTruthy()
+
+                // Exatamente 1 dos 10 backup codes foi consumido — os
+                // outros 9 continuam disponíveis para uso futuro.
+                const allCodes = await prismaTest.mfaBackupCode.findMany({ where: { userId } })
+                const usedCodes = allCodes.filter((c) => c.usedAt !== null)
+                expect(usedCodes).toHaveLength(1)
+                expect(allCodes).toHaveLength(10)
+            })
+
+            it("lança UnauthorizedError para código inválido", async () => {
+                const { mfaToken } = await getMfaToken()
+
+                await expect(
+                    authService.completeMfaLogin({ mfaToken, code: "000000" }),
+                ).rejects.toThrow(UnauthorizedError)
+            })
+
+            it("lança UnauthorizedError para mfaToken inválido", async () => {
+                await expect(
+                    authService.completeMfaLogin({ mfaToken: "token.invalido.aqui", code: "123456" }),
+                ).rejects.toThrow(UnauthorizedError)
+            })
+
+            it("não permite reutilizar o mesmo backup code duas vezes", async () => {
+                const { mfaToken, backupCodes } = await getMfaToken()
+                const backupCode = backupCodes[0]!
+
+                await authService.completeMfaLogin({ mfaToken, code: backupCode })
+
+                // Mesmo backup code, novo mfaToken (simula uma segunda tentativa de login)
+                const secondLogin = await authService.login({
+                    email: validUser.email,
+                    password: validUser.password,
+                    channel: "WEB",
+                })
+                if (!secondLogin.mfaRequired) throw new Error("esperava mfaRequired:true")
+
+                await expect(
+                    authService.completeMfaLogin({ mfaToken: secondLogin.mfaToken, code: backupCode }),
+                ).rejects.toThrow(UnauthorizedError)
+            })
+        })
+
+        describe("disableMfa", () => {
+            it("desabilita o MFA e remove os backup codes com senha+código corretos", async () => {
+                const userId = await createUserAndGetId()
+                const { secret } = await enableMfaForUser(userId)
+                const code = await generate({ secret })
+
+                await authService.disableMfa(userId, { password: validUser.password, code })
+
+                const user = await prismaTest.user.findUnique({ where: { id: userId } })
+                expect(user?.mfaEnabled).toBe(false)
+                expect(user?.mfaSecret).toBeNull()
+
+                const remainingCodes = await prismaTest.mfaBackupCode.findMany({ where: { userId } })
+                expect(remainingCodes).toHaveLength(0)
+
+                // Login deixa de exigir MFA
+                const result = await authService.login({
+                    email: validUser.email,
+                    password: validUser.password,
+                    channel: "WEB",
+                })
+                expect(result.mfaRequired).toBe(false)
+            })
+
+            it("também aceita um backup code válido para desabilitar", async () => {
+                const userId = await createUserAndGetId()
+                const { backupCodes } = await enableMfaForUser(userId)
+
+                await authService.disableMfa(userId, {
+                    password: validUser.password,
+                    code: backupCodes[0]!,
+                })
+
+                const user = await prismaTest.user.findUnique({ where: { id: userId } })
+                expect(user?.mfaEnabled).toBe(false)
+            })
+
+            it("lança UnauthorizedError para senha incorreta, sem desabilitar o MFA", async () => {
+                const userId = await createUserAndGetId()
+                const { secret } = await enableMfaForUser(userId)
+                const code = await generate({ secret })
+
+                await expect(
+                    authService.disableMfa(userId, { password: "SenhaErrada@123", code }),
+                ).rejects.toThrow(UnauthorizedError)
+
+                const user = await prismaTest.user.findUnique({ where: { id: userId } })
+                expect(user?.mfaEnabled).toBe(true)
+            })
+
+            it("lança UnauthorizedError para código incorreto", async () => {
+                const userId = await createUserAndGetId()
+                await enableMfaForUser(userId)
+
+                await expect(
+                    authService.disableMfa(userId, { password: validUser.password, code: "000000" }),
+                ).rejects.toThrow(UnauthorizedError)
+            })
+
+            it("lança BadRequestError quando o MFA não está habilitado", async () => {
+                const userId = await createUserAndGetId()
+
+                await expect(
+                    authService.disableMfa(userId, { password: validUser.password, code: "123456" }),
+                ).rejects.toThrow(BadRequestError)
+            })
+        })
+    })
+
+    // ─── refresh (#14 — A06) ──────────────────────────────────────────────────
+    describe("refresh", () => {
+        async function createUserAndLogin() {
+            const { UserService } = await import("@/modules/user/user.service.js")
+            const userService = new UserService(userRepository)
+            await userService.createUser(validUser)
+            const result = await loginAsSession({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "WEB",
+            })
+            if (!result.refreshToken) throw new Error("refreshToken ausente no login WEB")
+            return { sessionToken: result.token, rawRefreshToken: result.refreshToken }
+        }
+
+        it("emite novo JWT e novo refresh token, revogando o antigo", async () => {
+            const { rawRefreshToken } = await createUserAndLogin()
+
+            const renewed = await authService.refresh(rawRefreshToken)
+
+            expect(renewed.token).toBeDefined()
+            expect(renewed.refreshToken).toBeDefined()
+            expect(renewed.channel).toBe("WEB")
+
+            // Token antigo deve estar revogado e linkado ao novo
+            const oldStored = await prismaTest.refreshToken.findUnique({
+                where: { token: hashToken(rawRefreshToken) },
+            })
+            expect(oldStored?.revokedAt).not.toBeNull()
+            expect(oldStored?.replacedByTokenId).not.toBeNull()
+        })
+
+        it("token rotacionado não pode ser usado novamente (fora da janela de graça)", async () => {
+            const { rawRefreshToken } = await createUserAndLogin()
+
+            // Primeira renovação (válida)
+            await authService.refresh(rawRefreshToken)
+
+            // Força revokedAt para muito antes para sair da janela de graça
+            await prismaTest.refreshToken.updateMany({
+                where: { token: hashToken(rawRefreshToken) },
+                data: { revokedAt: new Date(Date.now() - 60_000) },
+            })
+
+            // Reuso real: deve revogar tudo e lançar erro
+            const auditSpy = vi.fn()
+            await expect(authService.refresh(rawRefreshToken, auditSpy)).rejects.toThrow(
+                UnauthorizedError,
+            )
+            // Todas as sessões revogadas
+            const all = await prismaTest.refreshToken.findMany()
+            expect(all.every((t) => t.revokedAt !== null)).toBe(true)
+            // Função de auditoria chamada
+            expect(auditSpy).toHaveBeenCalledOnce()
+        })
+
+        it("dentro da janela de graça (multi-aba), aceita token recentemente rotacionado sem segunda rotação", async () => {
+            const { rawRefreshToken } = await createUserAndLogin()
+
+            // Primeira renovação (normal)
+            await authService.refresh(rawRefreshToken)
+
+            // Não move o revokedAt — permanece dentro da janela de graça
+            const auditSpy = vi.fn()
+            const renewed2 = await authService.refresh(rawRefreshToken, auditSpy)
+
+            expect(renewed2.token).toBeDefined()
+            // Auditoria de reuso NÃO deve ter sido chamada
+            expect(auditSpy).not.toHaveBeenCalled()
+        })
+
+        it("lança UnauthorizedError para token inexistente", async () => {
+            await expect(authService.refresh("token-invalido")).rejects.toThrow(UnauthorizedError)
+        })
+
+        it("lança UnauthorizedError para token expirado (sem revogação em cascata)", async () => {
+            const { rawRefreshToken } = await createUserAndLogin()
+
+            // Move expiresAt para o passado
+            await prismaTest.refreshToken.updateMany({
+                where: { token: hashToken(rawRefreshToken) },
+                data: { expiresAt: new Date(Date.now() - 1000) },
+            })
+
+            const auditSpy = vi.fn()
+            await expect(authService.refresh(rawRefreshToken, auditSpy)).rejects.toThrow(
+                UnauthorizedError,
+            )
+            // Expiração natural não dispara revogação em cascata
+            expect(auditSpy).not.toHaveBeenCalled()
+        })
+
+        it("logout revoga também o refresh token quando presente", async () => {
+            const { sessionToken, rawRefreshToken } = await createUserAndLogin()
+
+            await authService.logout(sessionToken, rawRefreshToken)
+
+            const refreshStored = await prismaTest.refreshToken.findUnique({
+                where: { token: hashToken(rawRefreshToken) },
+            })
+            expect(refreshStored?.revokedAt).not.toBeNull()
+        })
+
+        it("login WEB retorna refreshToken; login MOBILE retorna null", async () => {
+            const { UserService } = await import("@/modules/user/user.service.js")
+            const userService = new UserService(userRepository)
+            await userService.createUser(validUser)
+
+            const webResult = await loginAsSession({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "WEB",
+            })
+            const mobileResult = await loginAsSession({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "MOBILE",
+            })
+
+            expect(webResult.refreshToken).not.toBeNull()
+            expect(mobileResult.refreshToken).toBeNull()
         })
     })
 })

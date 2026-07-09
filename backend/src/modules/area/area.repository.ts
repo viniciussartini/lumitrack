@@ -22,6 +22,15 @@ export class AreaRepository {
         })
     }
 
+    // Usado pela exportação de dados do titular (#09) — resolve direto via
+    // filtro de relação aninhada, sem precisar buscar as properties primeiro.
+    async findAllByUser(userId: string): Promise<AreaResponse[]> {
+        return this.prisma.area.findMany({
+            where: { property: { userId } },
+            orderBy: { name: "asc" },
+        })
+    }
+
     async create(propertyId: string, data: CreateAreaInput): Promise<AreaResponse> {
         return this.prisma.area.create({
             data: {

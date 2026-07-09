@@ -63,6 +63,18 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
         ),
     )
 
+    // Deriva resolvedTheme de "theme" de forma síncrona durante o render
+    // ("ajustar estado quando uma prop/estado muda", em vez de um effect que
+    // chama setState — evita a cascata de renders que o effect antigo
+    // causava). Effect 3 abaixo continua sendo o responsável legítimo por
+    // atualizar resolvedTheme quando o SO muda de tema com theme==="system"
+    // (aí sim é reagir a um evento de um sistema externo).
+    const [prevTheme, setPrevTheme] = useState(theme)
+    if (theme !== prevTheme) {
+        setPrevTheme(theme)
+        setResolvedTheme(resolveTheme(theme))
+    }
+
     // Effect 1: aplicar a classe no <html> sempre que resolvedTheme muda.
     useEffect(() => {
         const root = document.documentElement
@@ -74,10 +86,9 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
         }
     }, [resolvedTheme])
 
-    // Effect 2: persistir no storage e re-resolver quando theme muda.
+    // Effect 2: persistir no storage quando theme muda.
     useEffect(() => {
         storage.set(STORAGE_KEYS.THEME, theme)
-        setResolvedTheme(resolveTheme(theme))
     }, [theme])
 
     // Effect 3: escutar mudanças do OS — somente quando estamos em 'system'.

@@ -26,7 +26,7 @@ const mqttSchema = z.object({
     host:     z.string().min(1, { message: "host é obrigatório para MQTT" }),
     port:     z.number().int().min(1).max(65535, { message: "port é obrigatório para MQTT" }),
     topic:    z.string().min(1, { message: "topic é obrigatório para MQTT" }),
-    address:  z.undefined(), // não faz sentido para MQTT
+    address:  z.undefined().optional(), // não faz sentido para MQTT
 })
 
 const modbusTcpSchema = z.object({
@@ -35,16 +35,16 @@ const modbusTcpSchema = z.object({
     host:     z.string().min(1, { message: "host é obrigatório para MODBUS_TCP" }),
     port:     z.number().int().min(1).max(65535, { message: "port é obrigatório para MODBUS_TCP" }),
     address:  z.string().min(1, { message: "address é obrigatório para MODBUS_TCP" }),
-    topic:    z.undefined(),
+    topic:    z.undefined().optional(),
 })
 
 const modbusRtuSchema = z.object({
     ...baseFields,
     protocol: z.literal("MODBUS_RTU"),
     address:  z.string().min(1, { message: "address é obrigatório para MODBUS_RTU" }),
-    host:     z.undefined(),
-    port:     z.undefined(),
-    topic:    z.undefined(),
+    host:     z.undefined().optional(),
+    port:     z.undefined().optional(),
+    topic:    z.undefined().optional(),
 })
 
 const ethernetIpSchema = z.object({
@@ -53,16 +53,16 @@ const ethernetIpSchema = z.object({
     host:     z.string().min(1, { message: "host é obrigatório para ETHERNET_IP" }),
     port:     z.number().int().min(1).max(65535).optional(),
     address:  z.string().optional(),
-    topic:    z.undefined(),
+    topic:    z.undefined().optional(),
 })
 
 const profibusSchema = z.object({
     ...baseFields,
     protocol: z.literal("PROFIBUS"),
     address:  z.string().min(1, { message: "address é obrigatório para PROFIBUS" }),
-    host:     z.undefined(),
-    port:     z.undefined(),
-    topic:    z.undefined(),
+    host:     z.undefined().optional(),
+    port:     z.undefined().optional(),
+    topic:    z.undefined().optional(),
 })
 
 const profinetSchema = z.object({
@@ -71,25 +71,25 @@ const profinetSchema = z.object({
     host:     z.string().min(1, { message: "host é obrigatório para PROFINET" }),
     port:     z.number().int().min(1).max(65535).optional(),
     address:  z.string().optional(),
-    topic:    z.undefined(),
+    topic:    z.undefined().optional(),
 })
 
 const rs232Schema = z.object({
     ...baseFields,
     protocol: z.literal("RS232"),
     address:  z.string().min(1, { message: "address é obrigatório para RS232" }),
-    host:     z.undefined(),
-    port:     z.undefined(),
-    topic:    z.undefined(),
+    host:     z.undefined().optional(),
+    port:     z.undefined().optional(),
+    topic:    z.undefined().optional(),
 })
 
 const rs485Schema = z.object({
     ...baseFields,
     protocol: z.literal("RS485"),
     address:  z.string().min(1, { message: "address é obrigatório para RS485" }),
-    host:     z.undefined(),
-    port:     z.undefined(),
-    topic:    z.undefined(),
+    host:     z.undefined().optional(),
+    port:     z.undefined().optional(),
+    topic:    z.undefined().optional(),
 })
 
 // Union discriminada para criação

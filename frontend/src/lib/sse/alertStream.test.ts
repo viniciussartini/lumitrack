@@ -16,6 +16,7 @@ import type { Alert } from "@/types/alert.types"
 interface MockFetchEventSourceConfig {
     signal?: AbortSignal
     headers?: Record<string, string>
+    credentials?: string
     onopen?: (response: Response) => Promise<void>
     onmessage?: (event: { event: string; data: string }) => void
     onerror?: (error: unknown) => void
@@ -62,18 +63,16 @@ beforeEach(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("createAlertStream — conexão", () => {
-    it("passa Authorization header com o token", () => {
+    it("passa credentials:'include' (cookie httpOnly enviado automaticamente)", () => {
         createAlertStream({
-            token: "abc.def.ghi",
             onAlert: vi.fn(),
         })
 
-        expect(lastConfig?.headers?.Authorization).toBe("Bearer abc.def.ghi")
+        expect(lastConfig?.credentials).toBe("include")
     })
 
     it("passa Accept: text/event-stream", () => {
         createAlertStream({
-            token: "abc",
             onAlert: vi.fn(),
         })
 
@@ -82,7 +81,6 @@ describe("createAlertStream — conexão", () => {
 
     it("retorna cleanup que dispara abort", () => {
         const cleanup = createAlertStream({
-            token: "abc",
             onAlert: vi.fn(),
         })
 
@@ -103,7 +101,6 @@ describe("createAlertStream — onopen", () => {
     it("dispara onOpen quando response.ok + content-type correto", async () => {
         const onOpen = vi.fn()
         createAlertStream({
-            token: "abc",
             onAlert: vi.fn(),
             onOpen,
         })
@@ -121,7 +118,6 @@ describe("createAlertStream — onopen", () => {
     it("NÃO dispara onOpen e lança erro fatal em status 401", async () => {
         const onOpen = vi.fn()
         createAlertStream({
-            token: "abc",
             onAlert: vi.fn(),
             onOpen,
         })
@@ -139,7 +135,6 @@ describe("createAlertStream — onopen", () => {
 
     it("lança erro fatal quando content-type não é event-stream (mesmo com 200)", async () => {
         createAlertStream({
-            token: "abc",
             onAlert: vi.fn(),
         })
 
@@ -160,7 +155,7 @@ describe("createAlertStream — onmessage", () => {
     it("dispara onAlert quando evento é 'alert' com payload válido", () => {
         const onAlert = vi.fn()
         const alert = makeAlert()
-        createAlertStream({ token: "abc", onAlert })
+        createAlertStream({ onAlert })
 
         lastConfig?.onmessage?.({
             event: "alert",
@@ -172,7 +167,7 @@ describe("createAlertStream — onmessage", () => {
 
     it("IGNORA eventos 'connected' (não dispara onAlert)", () => {
         const onAlert = vi.fn()
-        createAlertStream({ token: "abc", onAlert })
+        createAlertStream({ onAlert })
 
         lastConfig?.onmessage?.({
             event: "connected",
@@ -184,7 +179,7 @@ describe("createAlertStream — onmessage", () => {
 
     it("IGNORA eventos 'reading' (leituras IoT, não usamos nesta camada)", () => {
         const onAlert = vi.fn()
-        createAlertStream({ token: "abc", onAlert })
+        createAlertStream({ onAlert })
 
         lastConfig?.onmessage?.({
             event: "reading",
@@ -197,7 +192,7 @@ describe("createAlertStream — onmessage", () => {
     it("dispara onError quando payload do 'alert' é JSON inválido", () => {
         const onAlert = vi.fn()
         const onError = vi.fn()
-        createAlertStream({ token: "abc", onAlert, onError })
+        createAlertStream({ onAlert, onError })
 
         lastConfig?.onmessage?.({
             event: "alert",
@@ -212,7 +207,7 @@ describe("createAlertStream — onmessage", () => {
         const onAlert = vi.fn()
         const onError = vi.fn()
         const alert = makeAlert()
-        createAlertStream({ token: "abc", onAlert, onError })
+        createAlertStream({ onAlert, onError })
 
         // Mensagem inválida → onError, NÃO aborta
         lastConfig?.onmessage?.({
@@ -238,7 +233,6 @@ describe("createAlertStream — onerror", () => {
     it("dispara o callback onError", () => {
         const onError = vi.fn()
         createAlertStream({
-            token: "abc",
             onAlert: vi.fn(),
             onError,
         })

@@ -20,17 +20,6 @@ import { test, expect, type Page, type Route } from "@playwright/test"
 
 // ─── Constantes de teste ─────────────────────────────────────────────────────
 
-const FAKE_JWT_PAYLOAD = btoa(
-    JSON.stringify({
-        id: "user-123",
-        email: "test@example.com",
-        userType: "INDIVIDUAL",
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 3600,
-    }),
-)
-const FAKE_JWT = `header.${FAKE_JWT_PAYLOAD}.signature`
-
 const FAKE_USER = {
     id: "user-123",
     email: "test@example.com",
@@ -38,6 +27,8 @@ const FAKE_USER = {
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",
+    role: "USER",
+    mfaEnabled: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -92,12 +83,26 @@ const fulfillJson = (route: Route, data: unknown, status = 200) =>
     })
 
 /**
+ * Oculta permanentemente o TanStack Query DevTools via CSS injetado — o
+ * botão flutuante remonta após cada invalidação de query e volta a
+ * interceptar pointer events sobre outros controles da página (ver mesmo
+ * helper em consumption.spec.ts, onde o problema foi originalmente
+ * diagnosticado).
+ */
+const hideDevTools = (page: Page) =>
+    page.addStyleTag({
+        content: ".tsqd-parent-container { display: none !important; }",
+    })
+
+/**
  * Configura mocks compartilhados (auth + perfil + distribuidoras + 1 propriedade).
  * As ÁREAS são geridas dentro de cada teste via closure mutável, porque o
  * estado da DB simulada evolui ao longo do fluxo (criar, editar, deletar).
  */
 const setupAuthAndProperty = async (page: Page) => {
-    await page.route("**/api/users/user-123", (route) =>
+    // Desde a #06 (sessão WEB via cookie httpOnly), a única rota que precisa
+    // ser mockada para simular "usuário autenticado" é GET /auth/me.
+    await page.route("**/api/auth/me", (route) =>
         fulfillJson(route, FAKE_USER),
     )
     // Distribuidoras — usadas apenas no chip da PropertyDetailsPage. Lista
@@ -191,10 +196,6 @@ const setupAuthAndProperty = async (page: Page) => {
         }),
     )
 
-    // Pre-loga o usuário pra pular tela de login
-    await page.addInitScript((token) => {
-        localStorage.setItem("lumitrack:auth:token", token)
-    }, FAKE_JWT)
 }
 
 /**
@@ -319,6 +320,7 @@ test.describe("Fluxo CRUD de áreas", () => {
 
         // ─── 1. Propriedade carrega com EmptyState de áreas ──────────────────
         await page.goto("/propriedades/prop-1")
+        await hideDevTools(page)
 
         await expect(
             page.getByRole("heading", { level: 1, name: /casa principal/i }),
@@ -455,6 +457,7 @@ test.describe("Fluxo CRUD de áreas", () => {
         await setupAreasRoutes(page, state)
 
         await page.goto("/propriedades/prop-1")
+        await hideDevTools(page)
 
         // Confirma o card visível
         await expect(page.getByTestId("area-card-area-1")).toBeVisible()
@@ -525,6 +528,7 @@ test.describe("Fluxo CRUD de áreas", () => {
         await setupAreasRoutes(page, state)
 
         await page.goto("/propriedades/prop-1/areas/nova")
+        await hideDevTools(page)
 
         // Click direto no submit sem preencher
         await page.getByRole("button", { name: /cadastrar área/i }).click()

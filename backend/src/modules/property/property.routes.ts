@@ -10,12 +10,13 @@ import { propertyAlertRoutes } from "@/modules/alert/alert.routes.js"
 import { simulationRoutes } from "@/modules/simulation/simulation.routes.js"
 import { reportRoutes } from "@/modules/report/report.routes.js"
 import { AlertNotifier } from "../alert/alert-notifier.js"
+import type { AuditService } from "@/shared/audit/audit.service.js"
 
 export function propertyRoutes(
     authenticate: RequestHandler,
     prismaClient: PrismaClient,
     alertNotifier: AlertNotifier,
-
+    auditService: AuditService,
 ): Router {
     const router = Router()
 
@@ -24,7 +25,7 @@ export function propertyRoutes(
     const distributorRepository = new DistributorRepository(prismaClient)
     const propertyRepository = new PropertyRepository(prismaClient)
     const propertyService = new PropertyService(propertyRepository, distributorRepository)
-    const propertyController = new PropertyController(propertyService)
+    const propertyController = new PropertyController(propertyService, auditService)
 
     // Rotas protegidas
     router.post("/", authenticate, (req, res, next) => propertyController.create(req, res, next))

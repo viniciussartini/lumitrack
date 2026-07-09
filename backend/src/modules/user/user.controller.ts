@@ -1,18 +1,29 @@
 import type { Request, Response, NextFunction } from "express"
-import { UserService } from "@/modules/user/user.service.js"
-import { UserRepository } from "@/modules/user/user.repository.js"
-import { prisma } from "@/shared/database/prisma.js"
+import type { UserService } from "@/modules/user/user.service.js"
 import { ForbiddenError } from "@/shared/errors/AppError.js"
 import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
-
-const userRepository = new UserRepository(prisma)
-const userService = new UserService(userRepository)
+import type { AuditService } from "@/shared/audit/audit.service.js"
+import { getRequestContext } from "@/shared/audit/requestContext.js"
 
 export class UserController {
+    constructor(
+        private readonly userService: UserService,
+        private readonly auditService: AuditService,
+    ) {}
+
     // POST /api/users - Público
     async create(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const user = await userService.createUser(req.body)
+            const user = await this.userService.createUser(req.body)
+
+            await this.auditService.record({
+                userId: user.id,
+                action: "USER_CREATE",
+                outcome: "SUCCESS",
+                resourceType: "User",
+                resourceId: user.id,
+                ...getRequestContext(req),
+            })
 
             res.status(201).json({ status: "success", data: user })
         } catch (error) {
@@ -30,7 +41,7 @@ export class UserController {
                 throw new ForbiddenError("Acesso negado")
             }
 
-            const user = await userService.findById(id)
+            const user = await this.userService.findById(id)
 
             res.status(200).json({ status: "success", data: user })
         } catch (error) {
@@ -48,7 +59,19 @@ export class UserController {
                 throw new ForbiddenError("Acesso negado")
             }
 
-            const user = await userService.updateUser(id, req.body)
+            const user = await this.userService.updateUser(id, req.body)
+
+            // Registra QUAIS campos mudaram, nunca os valores — o audit log
+            // não deve se tornar, ele mesmo, um repositório de dados pessoais.
+            await this.auditService.record({
+                userId: authenticatedUser.id,
+                action: "USER_UPDATE",
+                outcome: "SUCCESS",
+                resourceType: "User",
+                resourceId: id,
+                metadata: { fields: Object.keys(req.body as object) },
+                ...getRequestContext(req),
+            })
 
             res.status(200).json({ status: "success", data: user })
         } catch (error) {
@@ -66,7 +89,19 @@ export class UserController {
                 throw new ForbiddenError("Acesso negado")
             }
 
-            await userService.deleteUser(id)
+            await this.userService.deleteUser(id)
+
+            // userId aqui ficaria nulo de qualquer forma após a exclusão
+            // (FK com onDelete: SetNull) — registrado explicitamente como
+            // null por clareza, já que o usuário não existe mais.
+            await this.auditService.record({
+                userId: null,
+                action: "USER_DELETE",
+                outcome: "SUCCESS",
+                resourceType: "User",
+                resourceId: id,
+                ...getRequestContext(req),
+            })
 
             res.status(204).send()
         } catch (error) {

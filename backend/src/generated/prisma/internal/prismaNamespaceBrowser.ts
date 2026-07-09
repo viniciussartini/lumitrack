@@ -53,7 +53,10 @@ export const AnyNull = runtime.AnyNull
 export const ModelName = {
   User: 'User',
   AuthToken: 'AuthToken',
+  RefreshToken: 'RefreshToken',
   PasswordReset: 'PasswordReset',
+  MfaBackupCode: 'MfaBackupCode',
+  AuditLog: 'AuditLog',
   EnergyDistributor: 'EnergyDistributor',
   Property: 'Property',
   Area: 'Area',
@@ -86,12 +89,19 @@ export const UserScalarFieldEnum = {
   userType: 'userType',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
+  role: 'role',
+  consentedAt: 'consentedAt',
+  consentVersion: 'consentVersion',
   firstName: 'firstName',
   lastName: 'lastName',
   cpf: 'cpf',
+  cpfBlindIndex: 'cpfBlindIndex',
   companyName: 'companyName',
   cnpj: 'cnpj',
-  tradeName: 'tradeName'
+  cnpjBlindIndex: 'cnpjBlindIndex',
+  tradeName: 'tradeName',
+  mfaEnabled: 'mfaEnabled',
+  mfaSecret: 'mfaSecret'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
@@ -110,6 +120,19 @@ export const AuthTokenScalarFieldEnum = {
 export type AuthTokenScalarFieldEnum = (typeof AuthTokenScalarFieldEnum)[keyof typeof AuthTokenScalarFieldEnum]
 
 
+export const RefreshTokenScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  token: 'token',
+  expiresAt: 'expiresAt',
+  revokedAt: 'revokedAt',
+  replacedByTokenId: 'replacedByTokenId',
+  createdAt: 'createdAt'
+} as const
+
+export type RefreshTokenScalarFieldEnum = (typeof RefreshTokenScalarFieldEnum)[keyof typeof RefreshTokenScalarFieldEnum]
+
+
 export const PasswordResetScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -120,6 +143,33 @@ export const PasswordResetScalarFieldEnum = {
 } as const
 
 export type PasswordResetScalarFieldEnum = (typeof PasswordResetScalarFieldEnum)[keyof typeof PasswordResetScalarFieldEnum]
+
+
+export const MfaBackupCodeScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  codeHash: 'codeHash',
+  usedAt: 'usedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type MfaBackupCodeScalarFieldEnum = (typeof MfaBackupCodeScalarFieldEnum)[keyof typeof MfaBackupCodeScalarFieldEnum]
+
+
+export const AuditLogScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  action: 'action',
+  outcome: 'outcome',
+  resourceType: 'resourceType',
+  resourceId: 'resourceId',
+  ipAddress: 'ipAddress',
+  userAgent: 'userAgent',
+  metadata: 'metadata',
+  createdAt: 'createdAt'
+} as const
+
+export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typeof AuditLogScalarFieldEnum]
 
 
 export const EnergyDistributorScalarFieldEnum = {

@@ -12,11 +12,12 @@ interface Requirement {
 }
 
 /**
- * Os critérios espelham o backend (user.schema.ts):
+ * Os critérios espelham o backend (shared/validation/passwordSchema.ts):
  *   - mín 8 caracteres
  *   - 1 maiúscula
  *   - 1 minúscula
  *   - 1 número
+ *   - 1 caractere especial
  *
  * Mantenha sincronizado se o backend mudar.
  */
@@ -25,6 +26,7 @@ const REQUIREMENTS: readonly Requirement[] = [
     { label: "Uma letra maiúscula", test: (p) => /[A-Z]/.test(p) },
     { label: "Uma letra minúscula", test: (p) => /[a-z]/.test(p) },
     { label: "Um número", test: (p) => /[0-9]/.test(p) },
+    { label: "Um caractere especial", test: (p) => /[^A-Za-z0-9]/.test(p) },
 ] as const
 
 export const PasswordRequirements = ({ password }: PasswordRequirementsProps) => (

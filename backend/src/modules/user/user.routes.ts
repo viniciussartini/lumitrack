@@ -1,11 +1,22 @@
 import { Router } from "express"
 import type { RequestHandler } from "express"
+import { PrismaClient } from "@/generated/prisma/client.js"
 import { UserController } from "@/modules/user/user.controller.js"
+import { UserRepository } from "@/modules/user/user.repository.js"
+import { UserService } from "@/modules/user/user.service.js"
+import type { AuditService } from "@/shared/audit/audit.service.js"
 
-export function userRoutes(authenticate: RequestHandler): Router {
+export function userRoutes(
+    authenticate: RequestHandler,
+    prismaClient: PrismaClient,
+    auditService: AuditService,
+): Router {
     const router = Router()
-    const userController = new UserController()
-    
+
+    const userRepository = new UserRepository(prismaClient)
+    const userService = new UserService(userRepository)
+    const userController = new UserController(userService, auditService)
+
     // Rotas públicas
     // Cadastro de novo usuário — não exige autenticação.
     router.post("/", (req, res, next) => userController.create(req, res, next))

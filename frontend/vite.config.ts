@@ -20,6 +20,18 @@ export default defineConfig({
             },
         },
     },
+    // `vite preview` não herda `server.proxy` — precisa da própria config.
+    // Usado pelo job `e2e` do CI (ver playwright.config.ts), que roda os
+    // testes contra um build de produção em vez de `vite dev`.
+    preview: {
+        port: 5173,
+        proxy: {
+            "/api": {
+                target: "http://localhost:3333",
+                changeOrigin: true,
+            },
+        },
+    },
     test: {
         globals: true,
         environment: "jsdom",

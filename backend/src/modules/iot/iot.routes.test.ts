@@ -12,6 +12,7 @@ const validUser = {
     email:     "joao@example.com",
     password:  "Senha@123",
     userType:  "INDIVIDUAL",
+    acceptedTerms: true,
     firstName: "João",
     lastName:  "Silva",
     cpf:       "529.982.247-25",
@@ -21,6 +22,7 @@ const anotherUser = {
     email:     "maria@example.com",
     password:  "Senha@123",
     userType:  "INDIVIDUAL",
+    acceptedTerms: true,
     firstName: "Maria",
     lastName:  "Santos",
     cpf:       "310.037.856-38",
@@ -50,12 +52,14 @@ const validRs485Body = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// channel: "MOBILE" porque só precisamos de um Bearer token para autenticar
+// via header — WEB não devolve token no body (#06, cookie httpOnly).
 async function registerAndLogin(user = validUser) {
     await request(app).post("/api/users").send(user)
     const res = await request(app).post("/api/auth/login").send({
         email:    user.email,
         password: user.password,
-        channel:  "WEB",
+        channel:  "MOBILE",
     })
     return res.body.data.token as string
 }

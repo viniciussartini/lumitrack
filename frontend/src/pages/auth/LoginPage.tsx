@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { loginSchema, type LoginFormData } from "@/schemas/auth.schema"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
+import { MfaCodeForm } from "@/components/auth/MfaCodeForm"
 
 interface LocationState {
     from?: { pathname: string }
@@ -16,8 +17,11 @@ interface LocationState {
 export const LoginPage = () => {
     const navigate = useNavigate()
     const location = useLocation()
-    const { login } = useAuth()
+    const { login, completeMfaLogin } = useAuth()
     const [serverError, setServerError] = useState<string | null>(null)
+    // Preenchido quando o backend responde `mfaRequired:true` — enquanto
+    // não-nulo, a página troca o form de credenciais pelo segundo passo.
+    const [mfaToken, setMfaToken] = useState<string | null>(null)
 
     const state = (location.state ?? null) as LocationState | null
     const [notice] = useState<string | null>(state?.notice ?? null)
@@ -31,17 +35,28 @@ export const LoginPage = () => {
         mode: "onBlur",
     })
 
+    const redirectTo = state?.from?.pathname ?? "/dashboard"
+
     const onSubmit = async (data: LoginFormData): Promise<void> => {
         setServerError(null)
         try {
-            await login(data)
-            const redirectTo = state?.from?.pathname ?? "/dashboard"
+            const result = await login(data)
+            if (result.mfaRequired) {
+                setMfaToken(result.mfaToken)
+                return
+            }
             navigate(redirectTo, { replace: true })
         } catch (error) {
             setServerError(
                 error instanceof Error ? error.message : "Erro ao fazer login",
             )
         }
+    }
+
+    const handleMfaSubmit = async (code: string): Promise<void> => {
+        if (!mfaToken) return
+        await completeMfaLogin({ mfaToken, code })
+        navigate(redirectTo, { replace: true })
     }
 
     return (
@@ -60,71 +75,89 @@ export const LoginPage = () => {
                 </div>
 
                 <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                    <h2 className="mb-6 text-lg font-semibold text-slate-900 dark:text-slate-100">
-                        Entrar na conta
-                    </h2>
+                    {mfaToken ? (
+                        <>
+                            <h2 className="mb-6 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                                Verificação em duas etapas
+                            </h2>
 
-                    {/* Notice (vinda de redirects, ex: pós-registro com auto-login falho) */}
-                    {notice && (
-                        <div
-                            role="status"
-                            className="mb-4 rounded-md bg-success/10 px-3 py-2 text-sm text-success"
-                        >
-                            {notice}
-                        </div>
-                    )}
+                            <MfaCodeForm
+                                description="Digite o código de 6 dígitos do seu aplicativo autenticador, ou um código de backup."
+                                submitLabel="Verificar"
+                                onSubmit={handleMfaSubmit}
+                                onCancel={() => setMfaToken(null)}
+                                cancelLabel="Voltar"
+                            />
+                        </>
+                    ) : (
+                        <>
+                            <h2 className="mb-6 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                                Entrar na conta
+                            </h2>
 
-                    <form
-                        onSubmit={handleSubmit(onSubmit)}
-                        className="flex flex-col gap-4"
-                        noValidate
-                    >
-                        <Input
-                            label="E-mail"
-                            type="email"
-                            autoComplete="email"
-                            placeholder="seu@email.com"
-                            error={errors.email?.message}
-                            {...register("email")}
-                        />
+                            {/* Notice (vinda de redirects, ex: pós-registro com auto-login falho) */}
+                            {notice && (
+                                <div
+                                    role="status"
+                                    className="mb-4 rounded-md bg-success/10 px-3 py-2 text-sm text-success"
+                                >
+                                    {notice}
+                                </div>
+                            )}
 
-                        <Input
-                            label="Senha"
-                            type="password"
-                            autoComplete="current-password"
-                            placeholder="••••••••"
-                            error={errors.password?.message}
-                            {...register("password")}
-                        />
-
-                        {serverError && (
-                            <div
-                                role="alert"
-                                className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-300"
+                            <form
+                                onSubmit={handleSubmit(onSubmit)}
+                                className="flex flex-col gap-4"
+                                noValidate
                             >
-                                {serverError}
-                            </div>
-                        )}
+                                <Input
+                                    label="E-mail"
+                                    type="email"
+                                    autoComplete="email"
+                                    placeholder="seu@email.com"
+                                    error={errors.email?.message}
+                                    {...register("email")}
+                                />
 
-                        <Button
-                            type="submit"
-                            size="lg"
-                            isLoading={isSubmitting}
-                            className="mt-2 w-full"
-                        >
-                            Entrar
-                        </Button>
-                    </form>
+                                <Input
+                                    label="Senha"
+                                    type="password"
+                                    autoComplete="current-password"
+                                    placeholder="••••••••"
+                                    error={errors.password?.message}
+                                    {...register("password")}
+                                />
 
-                    <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
-                        Não tem conta?{" "}
-                        <Link
-                            to="/registro"
-                            className="font-medium text-brand-500 hover:text-brand-700"
-                        >
-                            Criar conta
-                        </Link>
-                    </p>
+                                {serverError && (
+                                    <div
+                                        role="alert"
+                                        className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-300"
+                                    >
+                                        {serverError}
+                                    </div>
+                                )}
+
+                                <Button
+                                    type="submit"
+                                    size="lg"
+                                    isLoading={isSubmitting}
+                                    className="mt-2 w-full"
+                                >
+                                    Entrar
+                                </Button>
+                            </form>
+
+                            <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
+                                Não tem conta?{" "}
+                                <Link
+                                    to="/registro"
+                                    className="font-medium text-brand-500 hover:text-brand-700"
+                                >
+                                    Criar conta
+                                </Link>
+                            </p>
+                        </>
+                    )}
                 </div>
             </div>
         </div>

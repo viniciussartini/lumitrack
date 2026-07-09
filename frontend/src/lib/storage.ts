@@ -1,5 +1,4 @@
 const KEYS = {
-    TOKEN: "lumitrack:auth:token",
     THEME: "lumitrack:theme",
 } as const
 

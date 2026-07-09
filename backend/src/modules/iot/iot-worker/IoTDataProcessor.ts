@@ -20,6 +20,9 @@
  */
 import type { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
 import { ReadingBuffer } from "@/modules/iot/iot-worker/ReadingBuffer.js"
+import { logger } from "@/shared/logger/logger.js"
+
+const log = logger.child({ module: "IoTProcessor" })
 
 // Tipo do handler SSE: recebe o deviceId e o kWh incremental lidos neste segundo.
 // O router SSE registra um listener aqui e o remove quando o cliente desconecta.
@@ -61,9 +64,7 @@ export class IoTDataProcessor {
         // Valida que o valor é um número positivo — leituras negativas ou
         // ausentes são descartadas silenciosamente com um log de aviso.
         if (typeof raw !== "number" || !isFinite(raw) || raw < 0) {
-            console.warn(
-                `[IoTProcessor] Leitura inválida descartada — deviceId=${deviceId} value=${String(raw)}`,
-            )
+            log.warn({ deviceId, value: raw }, "Leitura inválida descartada")
             return
         }
 
@@ -80,7 +81,7 @@ export class IoTDataProcessor {
                 listener(deviceId, kwhIncrement, receivedAt)
             } catch (err) {
                 // Um listener quebrado não deve interromper os demais.
-                console.error("[IoTProcessor] Erro em listener SSE:", err)
+                log.error({ err }, "Erro em listener SSE")
             }
         }
     }

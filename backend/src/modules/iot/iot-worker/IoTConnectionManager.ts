@@ -21,6 +21,9 @@
 
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
 import type { IoTConfigResponse } from "@/modules/iot/iot.repository.js"
+import { logger } from "@/shared/logger/logger.js"
+
+const log = logger.child({ module: "IoTManager" })
 import { MqttConnection } from "@/modules/iot/iot-worker/protocols/MqttConnection.js"
 import {
     ModbusTcpConnection,
@@ -250,7 +253,7 @@ export class IoTConnectionManager {
 
     async start(config: IoTConfigResponse): Promise<void> {
         if (this.connections.has(config.deviceId)) {
-            console.log(`[IoTManager] deviceId=${config.deviceId} ja esta conectado. Ignorando.`)
+            log.info({ deviceId: config.deviceId }, "Já está conectado. Ignorando.")
             return
         }
 
@@ -260,9 +263,9 @@ export class IoTConnectionManager {
         try {
             await connection.connect()
             this.connections.set(config.deviceId, connection)
-            console.log(`[IoTManager] Conectado: deviceId=${config.deviceId} protocolo=${config.protocol}`)
+            log.info({ deviceId: config.deviceId, protocol: config.protocol }, "Conectado")
         } catch (err) {
-            console.error(`[IoTManager] Falha ao conectar deviceId=${config.deviceId}:`, err)
+            log.error({ deviceId: config.deviceId, err }, "Falha ao conectar")
         }
     }
 
@@ -275,7 +278,7 @@ export class IoTConnectionManager {
 
         await connection.disconnect()
         this.connections.delete(deviceId)
-        console.log(`[IoTManager] Desconectado: deviceId=${deviceId}`)
+        log.info({ deviceId }, "Desconectado")
     }
 
     async restart(config: IoTConfigResponse): Promise<void> {
@@ -288,6 +291,6 @@ export class IoTConnectionManager {
     async stopAll(): Promise<void> {
         const deviceIds = [...this.connections.keys()]
         await Promise.allSettled(deviceIds.map((id) => this.stop(id)))
-        console.log("[IoTManager] Todas as conexoes encerradas.")
+        log.info("Todas as conexões encerradas.")
     }
 }

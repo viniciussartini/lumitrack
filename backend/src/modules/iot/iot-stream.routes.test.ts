@@ -60,6 +60,7 @@ const validUser = {
     email:     "joao@example.com",
     password:  "Senha@123",
     userType:  "INDIVIDUAL",
+    acceptedTerms: true,
     firstName: "João",
     lastName:  "Silva",
     cpf:       "529.982.247-25",
@@ -69,6 +70,7 @@ const anotherUser = {
     email:     "maria@example.com",
     password:  "Senha@123",
     userType:  "INDIVIDUAL",
+    acceptedTerms: true,
     firstName: "Maria",
     lastName:  "Santos",
     cpf:       "310.037.856-38",
@@ -84,10 +86,12 @@ const validDistributorBody = {
 
 // ─── Helpers de setup ─────────────────────────────────────────────────────────
 
+// channel: "MOBILE" porque só precisamos de um Bearer token para autenticar
+// via header — WEB não devolve token no body (#06, cookie httpOnly).
 async function registerAndLogin(user = validUser): Promise<string> {
     await request(app).post("/api/users").send(user)
     const res = await request(app).post("/api/auth/login").send({
-        email: user.email, password: user.password, channel: "WEB",
+        email: user.email, password: user.password, channel: "MOBILE",
     })
     return res.body.data.token as string
 }

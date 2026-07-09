@@ -2,17 +2,6 @@ import { test, expect, type Page, type Route } from "@playwright/test"
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
-const FAKE_JWT_PAYLOAD = btoa(
-    JSON.stringify({
-        id: "user-123",
-        email: "test@example.com",
-        userType: "INDIVIDUAL",
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 3600,
-    }),
-)
-const FAKE_JWT = `header.${FAKE_JWT_PAYLOAD}.signature`
-
 const FAKE_USER = {
     id: "user-123",
     email: "test@example.com",
@@ -20,6 +9,8 @@ const FAKE_USER = {
     firstName: "João",
     lastName: "Silva",
     cpf: "529.982.247-25",
+    role: "USER",
+    mfaEnabled: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -104,8 +95,28 @@ const fulfillError = (route: Route, message: string, status: number) =>
     })
 
 const setupBaseFixtures = async (page: Page) => {
-    await page.route("**/api/users/user-123", (route) =>
+    // Desde a #06 (sessão WEB via cookie httpOnly), a única rota que precisa
+    // ser mockada para simular "usuário autenticado" é GET /auth/me.
+    await page.route("**/api/auth/me", (route) =>
         fulfillJson(route, FAKE_USER),
+    )
+    // O AppShell monta useAlertStream → fetchEventSource("/api/iot/stream").
+    // Sem este mock, a requisição SSE cai no backend real (via proxy do Vite)
+    // e a lib reconecta em loop, re-renderizando o AppShell continuamente —
+    // o que faz o Playwright ver os elementos "detached from DOM" no clique.
+    await page.route("**/api/iot/stream", (route) =>
+        route.fulfill({ status: 200, contentType: "text/event-stream", body: "" }),
+    )
+    // AlertBellBadge (no Header do AppShell) chama GET /api/alerts. Sem este
+    // mock a chamada cai no backend real → 401 → o interceptor dispara
+    // "lumitrack:unauthorized" e o app redireciona pra /login no meio do
+    // teste (elementos "detached from DOM"). Regex casa /api/alerts e
+    // /api/alerts?query, mas não /api/alerts/:id.
+    await page.route(/\/api\/alerts(\?.*)?$/, (route) => fulfillJson(route, []))
+    // As páginas de detalhe (property/area/device) também consultam alertas
+    // aninhados — sem mock, mesma cadeia 401 → redirect pra /login.
+    await page.route(/\/api\/properties\/.*\/alerts(\?.*)?$/, (route) =>
+        fulfillJson(route, []),
     )
     await page.route("**/api/distributors", (route) =>
         fulfillJson(route, [DIST_CEMIG]),
@@ -133,10 +144,6 @@ const setupBaseFixtures = async (page: Page) => {
         "**/api/properties/prop-1/areas/area-1/devices/device-1",
         (route) => fulfillJson(route, DEVICE_1),
     )
-
-    await page.addInitScript((token) => {
-        localStorage.setItem("lumitrack:auth:token", token)
-    }, FAKE_JWT)
 }
 
 /**

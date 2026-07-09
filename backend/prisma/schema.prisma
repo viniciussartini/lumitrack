@@ -33,6 +33,45 @@ enum TokenChannel {
   MOBILE
 }
 
+// RBAC mínimo (#16 — A01/Art. 48): distingue usuários comuns de
+// administradores. Sempre lida do banco a cada requisição (nunca um claim do
+// JWT) — ver shared/middlewares/authenticate.ts — para que promover/rebaixar
+// um admin tenha efeito imediato, sem exigir novo login. Documento de design
+// para um sistema de permissões mais extensível: docs/RBAC_DESIGN.md.
+enum Role {
+  USER
+  ADMIN
+
+  @@map("role")
+}
+
+// Eventos de segurança registrados no audit log (#08 — A09/Art. 46).
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  ACCESS_DENIED
+  USER_CREATE
+  USER_UPDATE
+  USER_DELETE
+  PROPERTY_CREATE
+  PROPERTY_UPDATE
+  PROPERTY_DELETE
+  DATA_EXPORT
+  MFA_ENABLED
+  MFA_DISABLED
+  REFRESH_TOKEN_REUSE_DETECTED
+  ADMIN_AUDIT_LOG_VIEW
+
+  @@map("audit_action")
+}
+
+enum AuditOutcome {
+  SUCCESS
+  FAILURE
+
+  @@map("audit_outcome")
+}
+
 // Granularidade das entradas de histórico de consumo
 enum ConsumptionPeriod {
   HOURLY
@@ -73,22 +112,49 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // RBAC mínimo (#16 — A01/Art. 48). Ver enum Role acima.
+  role Role @default(USER)
+
+  // Consentimento LGPD (Art. 7º/8º) — registrado no cadastro.
+  // consentVersion identifica qual versão da Política de Privacidade/Termos
+  // foi aceita, permitindo solicitar reaceite quando o documento mudar.
+  consentedAt    DateTime?
+  consentVersion String?
+
   // Campos exclusivos de pessoa física
   firstName String?
   lastName  String?
-  cpf       String? @unique
+  // cpf armazena o valor criptografado (AES-256-GCM, ver shared/crypto/encryption.ts)
+  // — não pode ser @unique porque o IV aleatório faz o mesmo CPF gerar
+  // ciphertext diferente a cada criptografia. cpfBlindIndex (HMAC-SHA256,
+  // determinístico) é quem garante unicidade e permite busca por igualdade.
+  cpf           String?
+  cpfBlindIndex String? @unique
 
   // Campos exclusivos de pessoa jurídica
   companyName String?
-  cnpj        String? @unique
-  tradeName   String?
+  // cnpj armazena o valor criptografado — mesma lógica do cpf acima.
+  cnpj           String?
+  cnpjBlindIndex String? @unique
+  tradeName      String?
+
+  // MFA opcional via TOTP (#12 — A06/A07). mfaSecret armazena o segredo
+  // criptografado (AES-256-GCM, chave própria — ver
+  // shared/crypto/mfaEncryption.ts), nunca em texto claro. mfaEnabled
+  // controla se o segundo fator é exigido no login — fica false até o
+  // usuário confirmar o setup com um código válido.
+  mfaEnabled Boolean @default(false)
+  mfaSecret  String?
 
   // Relacionamentos
   properties     Property[]
   distributors   EnergyDistributor[]
   tokens         AuthToken[]
+  refreshTokens  RefreshToken[]
   passwordResets PasswordReset[]
   alerts         Alert[]
+  auditLogs      AuditLog[]
+  mfaBackupCodes MfaBackupCode[]
 
   @@map("users")
 }
@@ -114,6 +180,29 @@ model AuthToken {
   @@map("auth_tokens")
 }
 
+// Refresh token da sessão WEB (#14 — A06). Token opaco (randomBytes), nunca
+// um JWT — só é validado via lookup no banco, nunca decodificado client-side.
+// Rotacionado a cada uso: replacedByTokenId encadeia a linhagem, permitindo
+// detectar reuso de um token já trocado (sinal de roubo — ver auth.service.ts).
+// Existe só para o canal WEB; MOBILE já tem token de 90 dias, sem refresh.
+model RefreshToken {
+  id                String    @id @default(uuid())
+  userId            String
+  token             String    @unique // hash SHA-256 do valor opaco — nunca o valor puro
+  expiresAt         DateTime
+  revokedAt         DateTime? // null = ainda válido
+  replacedByTokenId String?   @unique
+  createdAt         DateTime  @default(now())
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedByToken RefreshToken? @relation("RefreshTokenRotation", fields: [replacedByTokenId], references: [id], onDelete: SetNull)
+  replacesToken   RefreshToken? @relation("RefreshTokenRotation")
+
+  @@index([token])
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
 model PasswordReset {
   id        String    @id @default(uuid())
   userId    String
@@ -126,6 +215,52 @@ model PasswordReset {
 
   @@index([token])
   @@map("password_resets")
+}
+
+// Códigos de backup do MFA (#12) — uso único, gerados em lote no momento do
+// setup e exibidos uma única vez ao usuário (só o hash bcrypt fica
+// persistido). Cobrem o caso de perda do dispositivo com o app autenticador.
+model MfaBackupCode {
+  id        String    @id @default(uuid())
+  userId    String
+  codeHash  String // hash bcrypt — mesmo padrão usado para a senha
+  usedAt    DateTime? // null = ainda não usado
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("mfa_backup_codes")
+}
+
+// Trilha de auditoria (#08 — A09/Art. 46): login/logout, acesso negado (403)
+// e CRUD de dados pessoais (User/Property). `userId` é nullable e usa
+// `onDelete: SetNull` — diferente das outras relações com User (que usam
+// Cascade) — de propósito: o registro de auditoria deve sobreviver à
+// exclusão da conta (é exatamente o tipo de evento que o Art. 48 pede pra
+// conseguir reconstruir depois de um incidente). `metadata` guarda contexto
+// adicional sem incluir valores sensíveis (ex.: nomes de campos alterados,
+// nunca os valores em si).
+model AuditLog {
+  id           String       @id @default(uuid())
+  userId       String?
+  action       AuditAction
+  outcome      AuditOutcome
+  resourceType String?
+  resourceId   String?
+  ipAddress    String?
+  userAgent    String?
+  metadata     Json?
+  createdAt    DateTime     @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([outcome])
+  @@index([resourceType])
+  @@map("audit_logs")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
