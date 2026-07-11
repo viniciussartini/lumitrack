@@ -20,8 +20,18 @@ export type PropertyModel = runtime.Types.Result.DefaultSelection<Prisma.$Proper
 
 export type AggregateProperty = {
   _count: PropertyCountAggregateOutputType | null
+  _avg: PropertyAvgAggregateOutputType | null
+  _sum: PropertySumAggregateOutputType | null
   _min: PropertyMinAggregateOutputType | null
   _max: PropertyMaxAggregateOutputType | null
+}
+
+export type PropertyAvgAggregateOutputType = {
+  publicLightingFeeBrl: runtime.Decimal | null
+}
+
+export type PropertySumAggregateOutputType = {
+  publicLightingFeeBrl: runtime.Decimal | null
 }
 
 export type PropertyMinAggregateOutputType = {
@@ -33,6 +43,9 @@ export type PropertyMinAggregateOutputType = {
   city: string | null
   state: string | null
   zipCode: string | null
+  electricalSystem: $Enums.ElectricalSystemType | null
+  billingClass: $Enums.BillingClass | null
+  publicLightingFeeBrl: runtime.Decimal | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -46,6 +59,9 @@ export type PropertyMaxAggregateOutputType = {
   city: string | null
   state: string | null
   zipCode: string | null
+  electricalSystem: $Enums.ElectricalSystemType | null
+  billingClass: $Enums.BillingClass | null
+  publicLightingFeeBrl: runtime.Decimal | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -59,11 +75,22 @@ export type PropertyCountAggregateOutputType = {
   city: number
   state: number
   zipCode: number
+  electricalSystem: number
+  billingClass: number
+  publicLightingFeeBrl: number
   createdAt: number
   updatedAt: number
   _all: number
 }
 
+
+export type PropertyAvgAggregateInputType = {
+  publicLightingFeeBrl?: true
+}
+
+export type PropertySumAggregateInputType = {
+  publicLightingFeeBrl?: true
+}
 
 export type PropertyMinAggregateInputType = {
   id?: true
@@ -74,6 +101,9 @@ export type PropertyMinAggregateInputType = {
   city?: true
   state?: true
   zipCode?: true
+  electricalSystem?: true
+  billingClass?: true
+  publicLightingFeeBrl?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -87,6 +117,9 @@ export type PropertyMaxAggregateInputType = {
   city?: true
   state?: true
   zipCode?: true
+  electricalSystem?: true
+  billingClass?: true
+  publicLightingFeeBrl?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -100,6 +133,9 @@ export type PropertyCountAggregateInputType = {
   city?: true
   state?: true
   zipCode?: true
+  electricalSystem?: true
+  billingClass?: true
+  publicLightingFeeBrl?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -143,6 +179,18 @@ export type PropertyAggregateArgs<ExtArgs extends runtime.Types.Extensions.Inter
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: PropertyAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: PropertySumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: PropertyMinAggregateInputType
@@ -173,6 +221,8 @@ export type PropertyGroupByArgs<ExtArgs extends runtime.Types.Extensions.Interna
   take?: number
   skip?: number
   _count?: PropertyCountAggregateInputType | true
+  _avg?: PropertyAvgAggregateInputType
+  _sum?: PropertySumAggregateInputType
   _min?: PropertyMinAggregateInputType
   _max?: PropertyMaxAggregateInputType
 }
@@ -186,9 +236,14 @@ export type PropertyGroupByOutputType = {
   city: string | null
   state: string | null
   zipCode: string | null
+  electricalSystem: $Enums.ElectricalSystemType
+  billingClass: $Enums.BillingClass
+  publicLightingFeeBrl: runtime.Decimal | null
   createdAt: Date
   updatedAt: Date
   _count: PropertyCountAggregateOutputType | null
+  _avg: PropertyAvgAggregateOutputType | null
+  _sum: PropertySumAggregateOutputType | null
   _min: PropertyMinAggregateOutputType | null
   _max: PropertyMaxAggregateOutputType | null
 }
@@ -220,13 +275,15 @@ export type PropertyWhereInput = {
   city?: Prisma.StringNullableFilter<"Property"> | string | null
   state?: Prisma.StringNullableFilter<"Property"> | string | null
   zipCode?: Prisma.StringNullableFilter<"Property"> | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFilter<"Property"> | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFilter<"Property"> | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.DecimalNullableFilter<"Property"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFilter<"Property"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Property"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   distributor?: Prisma.XOR<Prisma.EnergyDistributorScalarRelationFilter, Prisma.EnergyDistributorWhereInput>
   areas?: Prisma.AreaListRelationFilter
-  consumption?: Prisma.ConsumptionRecordListRelationFilter
-  alerts?: Prisma.AlertListRelationFilter
+  meter?: Prisma.XOR<Prisma.MeterNullableScalarRelationFilter, Prisma.MeterWhereInput> | null
 }
 
 export type PropertyOrderByWithRelationInput = {
@@ -238,13 +295,15 @@ export type PropertyOrderByWithRelationInput = {
   city?: Prisma.SortOrderInput | Prisma.SortOrder
   state?: Prisma.SortOrderInput | Prisma.SortOrder
   zipCode?: Prisma.SortOrderInput | Prisma.SortOrder
+  electricalSystem?: Prisma.SortOrder
+  billingClass?: Prisma.SortOrder
+  publicLightingFeeBrl?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
   distributor?: Prisma.EnergyDistributorOrderByWithRelationInput
   areas?: Prisma.AreaOrderByRelationAggregateInput
-  consumption?: Prisma.ConsumptionRecordOrderByRelationAggregateInput
-  alerts?: Prisma.AlertOrderByRelationAggregateInput
+  meter?: Prisma.MeterOrderByWithRelationInput
 }
 
 export type PropertyWhereUniqueInput = Prisma.AtLeast<{
@@ -259,13 +318,15 @@ export type PropertyWhereUniqueInput = Prisma.AtLeast<{
   city?: Prisma.StringNullableFilter<"Property"> | string | null
   state?: Prisma.StringNullableFilter<"Property"> | string | null
   zipCode?: Prisma.StringNullableFilter<"Property"> | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFilter<"Property"> | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFilter<"Property"> | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.DecimalNullableFilter<"Property"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFilter<"Property"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Property"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   distributor?: Prisma.XOR<Prisma.EnergyDistributorScalarRelationFilter, Prisma.EnergyDistributorWhereInput>
   areas?: Prisma.AreaListRelationFilter
-  consumption?: Prisma.ConsumptionRecordListRelationFilter
-  alerts?: Prisma.AlertListRelationFilter
+  meter?: Prisma.XOR<Prisma.MeterNullableScalarRelationFilter, Prisma.MeterWhereInput> | null
 }, "id">
 
 export type PropertyOrderByWithAggregationInput = {
@@ -277,11 +338,16 @@ export type PropertyOrderByWithAggregationInput = {
   city?: Prisma.SortOrderInput | Prisma.SortOrder
   state?: Prisma.SortOrderInput | Prisma.SortOrder
   zipCode?: Prisma.SortOrderInput | Prisma.SortOrder
+  electricalSystem?: Prisma.SortOrder
+  billingClass?: Prisma.SortOrder
+  publicLightingFeeBrl?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.PropertyCountOrderByAggregateInput
+  _avg?: Prisma.PropertyAvgOrderByAggregateInput
   _max?: Prisma.PropertyMaxOrderByAggregateInput
   _min?: Prisma.PropertyMinOrderByAggregateInput
+  _sum?: Prisma.PropertySumOrderByAggregateInput
 }
 
 export type PropertyScalarWhereWithAggregatesInput = {
@@ -296,6 +362,9 @@ export type PropertyScalarWhereWithAggregatesInput = {
   city?: Prisma.StringNullableWithAggregatesFilter<"Property"> | string | null
   state?: Prisma.StringNullableWithAggregatesFilter<"Property"> | string | null
   zipCode?: Prisma.StringNullableWithAggregatesFilter<"Property"> | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeWithAggregatesFilter<"Property"> | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassWithAggregatesFilter<"Property"> | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.DecimalNullableWithAggregatesFilter<"Property"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Property"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Property"> | Date | string
 }
@@ -307,13 +376,15 @@ export type PropertyCreateInput = {
   city?: string | null
   state?: string | null
   zipCode?: string | null
+  electricalSystem: $Enums.ElectricalSystemType
+  billingClass?: $Enums.BillingClass
+  publicLightingFeeBrl?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutPropertiesInput
   distributor: Prisma.EnergyDistributorCreateNestedOneWithoutPropertiesInput
   areas?: Prisma.AreaCreateNestedManyWithoutPropertyInput
-  consumption?: Prisma.ConsumptionRecordCreateNestedManyWithoutPropertyInput
-  alerts?: Prisma.AlertCreateNestedManyWithoutPropertyInput
+  meter?: Prisma.MeterCreateNestedOneWithoutPropertyInput
 }
 
 export type PropertyUncheckedCreateInput = {
@@ -325,11 +396,13 @@ export type PropertyUncheckedCreateInput = {
   city?: string | null
   state?: string | null
   zipCode?: string | null
+  electricalSystem: $Enums.ElectricalSystemType
+  billingClass?: $Enums.BillingClass
+  publicLightingFeeBrl?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   areas?: Prisma.AreaUncheckedCreateNestedManyWithoutPropertyInput
-  consumption?: Prisma.ConsumptionRecordUncheckedCreateNestedManyWithoutPropertyInput
-  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutPropertyInput
+  meter?: Prisma.MeterUncheckedCreateNestedOneWithoutPropertyInput
 }
 
 export type PropertyUpdateInput = {
@@ -339,13 +412,15 @@ export type PropertyUpdateInput = {
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   state?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   zipCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFieldUpdateOperationsInput | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutPropertiesNestedInput
   distributor?: Prisma.EnergyDistributorUpdateOneRequiredWithoutPropertiesNestedInput
   areas?: Prisma.AreaUpdateManyWithoutPropertyNestedInput
-  consumption?: Prisma.ConsumptionRecordUpdateManyWithoutPropertyNestedInput
-  alerts?: Prisma.AlertUpdateManyWithoutPropertyNestedInput
+  meter?: Prisma.MeterUpdateOneWithoutPropertyNestedInput
 }
 
 export type PropertyUncheckedUpdateInput = {
@@ -357,11 +432,13 @@ export type PropertyUncheckedUpdateInput = {
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   state?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   zipCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFieldUpdateOperationsInput | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   areas?: Prisma.AreaUncheckedUpdateManyWithoutPropertyNestedInput
-  consumption?: Prisma.ConsumptionRecordUncheckedUpdateManyWithoutPropertyNestedInput
-  alerts?: Prisma.AlertUncheckedUpdateManyWithoutPropertyNestedInput
+  meter?: Prisma.MeterUncheckedUpdateOneWithoutPropertyNestedInput
 }
 
 export type PropertyCreateManyInput = {
@@ -373,6 +450,9 @@ export type PropertyCreateManyInput = {
   city?: string | null
   state?: string | null
   zipCode?: string | null
+  electricalSystem: $Enums.ElectricalSystemType
+  billingClass?: $Enums.BillingClass
+  publicLightingFeeBrl?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -384,6 +464,9 @@ export type PropertyUpdateManyMutationInput = {
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   state?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   zipCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFieldUpdateOperationsInput | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -397,6 +480,9 @@ export type PropertyUncheckedUpdateManyInput = {
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   state?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   zipCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFieldUpdateOperationsInput | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -420,8 +506,15 @@ export type PropertyCountOrderByAggregateInput = {
   city?: Prisma.SortOrder
   state?: Prisma.SortOrder
   zipCode?: Prisma.SortOrder
+  electricalSystem?: Prisma.SortOrder
+  billingClass?: Prisma.SortOrder
+  publicLightingFeeBrl?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type PropertyAvgOrderByAggregateInput = {
+  publicLightingFeeBrl?: Prisma.SortOrder
 }
 
 export type PropertyMaxOrderByAggregateInput = {
@@ -433,6 +526,9 @@ export type PropertyMaxOrderByAggregateInput = {
   city?: Prisma.SortOrder
   state?: Prisma.SortOrder
   zipCode?: Prisma.SortOrder
+  electricalSystem?: Prisma.SortOrder
+  billingClass?: Prisma.SortOrder
+  publicLightingFeeBrl?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -446,8 +542,15 @@ export type PropertyMinOrderByAggregateInput = {
   city?: Prisma.SortOrder
   state?: Prisma.SortOrder
   zipCode?: Prisma.SortOrder
+  electricalSystem?: Prisma.SortOrder
+  billingClass?: Prisma.SortOrder
+  publicLightingFeeBrl?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type PropertySumOrderByAggregateInput = {
+  publicLightingFeeBrl?: Prisma.SortOrder
 }
 
 export type PropertyScalarRelationFilter = {
@@ -544,6 +647,22 @@ export type PropertyUncheckedUpdateManyWithoutDistributorNestedInput = {
   deleteMany?: Prisma.PropertyScalarWhereInput | Prisma.PropertyScalarWhereInput[]
 }
 
+export type EnumElectricalSystemTypeFieldUpdateOperationsInput = {
+  set?: $Enums.ElectricalSystemType
+}
+
+export type EnumBillingClassFieldUpdateOperationsInput = {
+  set?: $Enums.BillingClass
+}
+
+export type NullableDecimalFieldUpdateOperationsInput = {
+  set?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  increment?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  decrement?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  multiply?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  divide?: runtime.Decimal | runtime.DecimalJsLike | number | string
+}
+
 export type PropertyCreateNestedOneWithoutAreasInput = {
   create?: Prisma.XOR<Prisma.PropertyCreateWithoutAreasInput, Prisma.PropertyUncheckedCreateWithoutAreasInput>
   connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutAreasInput
@@ -558,36 +677,20 @@ export type PropertyUpdateOneRequiredWithoutAreasNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.PropertyUpdateToOneWithWhereWithoutAreasInput, Prisma.PropertyUpdateWithoutAreasInput>, Prisma.PropertyUncheckedUpdateWithoutAreasInput>
 }
 
-export type PropertyCreateNestedOneWithoutConsumptionInput = {
-  create?: Prisma.XOR<Prisma.PropertyCreateWithoutConsumptionInput, Prisma.PropertyUncheckedCreateWithoutConsumptionInput>
-  connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutConsumptionInput
+export type PropertyCreateNestedOneWithoutMeterInput = {
+  create?: Prisma.XOR<Prisma.PropertyCreateWithoutMeterInput, Prisma.PropertyUncheckedCreateWithoutMeterInput>
+  connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutMeterInput
   connect?: Prisma.PropertyWhereUniqueInput
 }
 
-export type PropertyUpdateOneWithoutConsumptionNestedInput = {
-  create?: Prisma.XOR<Prisma.PropertyCreateWithoutConsumptionInput, Prisma.PropertyUncheckedCreateWithoutConsumptionInput>
-  connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutConsumptionInput
-  upsert?: Prisma.PropertyUpsertWithoutConsumptionInput
+export type PropertyUpdateOneWithoutMeterNestedInput = {
+  create?: Prisma.XOR<Prisma.PropertyCreateWithoutMeterInput, Prisma.PropertyUncheckedCreateWithoutMeterInput>
+  connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutMeterInput
+  upsert?: Prisma.PropertyUpsertWithoutMeterInput
   disconnect?: Prisma.PropertyWhereInput | boolean
   delete?: Prisma.PropertyWhereInput | boolean
   connect?: Prisma.PropertyWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.PropertyUpdateToOneWithWhereWithoutConsumptionInput, Prisma.PropertyUpdateWithoutConsumptionInput>, Prisma.PropertyUncheckedUpdateWithoutConsumptionInput>
-}
-
-export type PropertyCreateNestedOneWithoutAlertsInput = {
-  create?: Prisma.XOR<Prisma.PropertyCreateWithoutAlertsInput, Prisma.PropertyUncheckedCreateWithoutAlertsInput>
-  connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutAlertsInput
-  connect?: Prisma.PropertyWhereUniqueInput
-}
-
-export type PropertyUpdateOneWithoutAlertsNestedInput = {
-  create?: Prisma.XOR<Prisma.PropertyCreateWithoutAlertsInput, Prisma.PropertyUncheckedCreateWithoutAlertsInput>
-  connectOrCreate?: Prisma.PropertyCreateOrConnectWithoutAlertsInput
-  upsert?: Prisma.PropertyUpsertWithoutAlertsInput
-  disconnect?: Prisma.PropertyWhereInput | boolean
-  delete?: Prisma.PropertyWhereInput | boolean
-  connect?: Prisma.PropertyWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.PropertyUpdateToOneWithWhereWithoutAlertsInput, Prisma.PropertyUpdateWithoutAlertsInput>, Prisma.PropertyUncheckedUpdateWithoutAlertsInput>
+  update?: Prisma.XOR<Prisma.XOR<Prisma.PropertyUpdateToOneWithWhereWithoutMeterInput, Prisma.PropertyUpdateWithoutMeterInput>, Prisma.PropertyUncheckedUpdateWithoutMeterInput>
 }
 
 export type PropertyCreateWithoutUserInput = {
@@ -597,12 +700,14 @@ export type PropertyCreateWithoutUserInput = {
   city?: string | null
   state?: string | null
   zipCode?: string | null
+  electricalSystem: $Enums.ElectricalSystemType
+  billingClass?: $Enums.BillingClass
+  publicLightingFeeBrl?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   distributor: Prisma.EnergyDistributorCreateNestedOneWithoutPropertiesInput
   areas?: Prisma.AreaCreateNestedManyWithoutPropertyInput
-  consumption?: Prisma.ConsumptionRecordCreateNestedManyWithoutPropertyInput
-  alerts?: Prisma.AlertCreateNestedManyWithoutPropertyInput
+  meter?: Prisma.MeterCreateNestedOneWithoutPropertyInput
 }
 
 export type PropertyUncheckedCreateWithoutUserInput = {
@@ -613,11 +718,13 @@ export type PropertyUncheckedCreateWithoutUserInput = {
   city?: string | null
   state?: string | null
   zipCode?: string | null
+  electricalSystem: $Enums.ElectricalSystemType
+  billingClass?: $Enums.BillingClass
+  publicLightingFeeBrl?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   areas?: Prisma.AreaUncheckedCreateNestedManyWithoutPropertyInput
-  consumption?: Prisma.ConsumptionRecordUncheckedCreateNestedManyWithoutPropertyInput
-  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutPropertyInput
+  meter?: Prisma.MeterUncheckedCreateNestedOneWithoutPropertyInput
 }
 
 export type PropertyCreateOrConnectWithoutUserInput = {
@@ -658,6 +765,9 @@ export type PropertyScalarWhereInput = {
   city?: Prisma.StringNullableFilter<"Property"> | string | null
   state?: Prisma.StringNullableFilter<"Property"> | string | null
   zipCode?: Prisma.StringNullableFilter<"Property"> | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFilter<"Property"> | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFilter<"Property"> | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.DecimalNullableFilter<"Property"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFilter<"Property"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Property"> | Date | string
 }
@@ -669,12 +779,14 @@ export type PropertyCreateWithoutDistributorInput = {
   city?: string | null
   state?: string | null
   zipCode?: string | null
+  electricalSystem: $Enums.ElectricalSystemType
+  billingClass?: $Enums.BillingClass
+  publicLightingFeeBrl?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutPropertiesInput
   areas?: Prisma.AreaCreateNestedManyWithoutPropertyInput
-  consumption?: Prisma.ConsumptionRecordCreateNestedManyWithoutPropertyInput
-  alerts?: Prisma.AlertCreateNestedManyWithoutPropertyInput
+  meter?: Prisma.MeterCreateNestedOneWithoutPropertyInput
 }
 
 export type PropertyUncheckedCreateWithoutDistributorInput = {
@@ -685,11 +797,13 @@ export type PropertyUncheckedCreateWithoutDistributorInput = {
   city?: string | null
   state?: string | null
   zipCode?: string | null
+  electricalSystem: $Enums.ElectricalSystemType
+  billingClass?: $Enums.BillingClass
+  publicLightingFeeBrl?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   areas?: Prisma.AreaUncheckedCreateNestedManyWithoutPropertyInput
-  consumption?: Prisma.ConsumptionRecordUncheckedCreateNestedManyWithoutPropertyInput
-  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutPropertyInput
+  meter?: Prisma.MeterUncheckedCreateNestedOneWithoutPropertyInput
 }
 
 export type PropertyCreateOrConnectWithoutDistributorInput = {
@@ -725,12 +839,14 @@ export type PropertyCreateWithoutAreasInput = {
   city?: string | null
   state?: string | null
   zipCode?: string | null
+  electricalSystem: $Enums.ElectricalSystemType
+  billingClass?: $Enums.BillingClass
+  publicLightingFeeBrl?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutPropertiesInput
   distributor: Prisma.EnergyDistributorCreateNestedOneWithoutPropertiesInput
-  consumption?: Prisma.ConsumptionRecordCreateNestedManyWithoutPropertyInput
-  alerts?: Prisma.AlertCreateNestedManyWithoutPropertyInput
+  meter?: Prisma.MeterCreateNestedOneWithoutPropertyInput
 }
 
 export type PropertyUncheckedCreateWithoutAreasInput = {
@@ -742,10 +858,12 @@ export type PropertyUncheckedCreateWithoutAreasInput = {
   city?: string | null
   state?: string | null
   zipCode?: string | null
+  electricalSystem: $Enums.ElectricalSystemType
+  billingClass?: $Enums.BillingClass
+  publicLightingFeeBrl?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
-  consumption?: Prisma.ConsumptionRecordUncheckedCreateNestedManyWithoutPropertyInput
-  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutPropertyInput
+  meter?: Prisma.MeterUncheckedCreateNestedOneWithoutPropertyInput
 }
 
 export type PropertyCreateOrConnectWithoutAreasInput = {
@@ -771,12 +889,14 @@ export type PropertyUpdateWithoutAreasInput = {
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   state?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   zipCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFieldUpdateOperationsInput | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutPropertiesNestedInput
   distributor?: Prisma.EnergyDistributorUpdateOneRequiredWithoutPropertiesNestedInput
-  consumption?: Prisma.ConsumptionRecordUpdateManyWithoutPropertyNestedInput
-  alerts?: Prisma.AlertUpdateManyWithoutPropertyNestedInput
+  meter?: Prisma.MeterUpdateOneWithoutPropertyNestedInput
 }
 
 export type PropertyUncheckedUpdateWithoutAreasInput = {
@@ -788,28 +908,32 @@ export type PropertyUncheckedUpdateWithoutAreasInput = {
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   state?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   zipCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFieldUpdateOperationsInput | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  consumption?: Prisma.ConsumptionRecordUncheckedUpdateManyWithoutPropertyNestedInput
-  alerts?: Prisma.AlertUncheckedUpdateManyWithoutPropertyNestedInput
+  meter?: Prisma.MeterUncheckedUpdateOneWithoutPropertyNestedInput
 }
 
-export type PropertyCreateWithoutConsumptionInput = {
+export type PropertyCreateWithoutMeterInput = {
   id?: string
   name: string
   address?: string | null
   city?: string | null
   state?: string | null
   zipCode?: string | null
+  electricalSystem: $Enums.ElectricalSystemType
+  billingClass?: $Enums.BillingClass
+  publicLightingFeeBrl?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutPropertiesInput
   distributor: Prisma.EnergyDistributorCreateNestedOneWithoutPropertiesInput
   areas?: Prisma.AreaCreateNestedManyWithoutPropertyInput
-  alerts?: Prisma.AlertCreateNestedManyWithoutPropertyInput
 }
 
-export type PropertyUncheckedCreateWithoutConsumptionInput = {
+export type PropertyUncheckedCreateWithoutMeterInput = {
   id?: string
   userId: string
   distributorId: string
@@ -818,44 +942,48 @@ export type PropertyUncheckedCreateWithoutConsumptionInput = {
   city?: string | null
   state?: string | null
   zipCode?: string | null
+  electricalSystem: $Enums.ElectricalSystemType
+  billingClass?: $Enums.BillingClass
+  publicLightingFeeBrl?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   areas?: Prisma.AreaUncheckedCreateNestedManyWithoutPropertyInput
-  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutPropertyInput
 }
 
-export type PropertyCreateOrConnectWithoutConsumptionInput = {
+export type PropertyCreateOrConnectWithoutMeterInput = {
   where: Prisma.PropertyWhereUniqueInput
-  create: Prisma.XOR<Prisma.PropertyCreateWithoutConsumptionInput, Prisma.PropertyUncheckedCreateWithoutConsumptionInput>
+  create: Prisma.XOR<Prisma.PropertyCreateWithoutMeterInput, Prisma.PropertyUncheckedCreateWithoutMeterInput>
 }
 
-export type PropertyUpsertWithoutConsumptionInput = {
-  update: Prisma.XOR<Prisma.PropertyUpdateWithoutConsumptionInput, Prisma.PropertyUncheckedUpdateWithoutConsumptionInput>
-  create: Prisma.XOR<Prisma.PropertyCreateWithoutConsumptionInput, Prisma.PropertyUncheckedCreateWithoutConsumptionInput>
+export type PropertyUpsertWithoutMeterInput = {
+  update: Prisma.XOR<Prisma.PropertyUpdateWithoutMeterInput, Prisma.PropertyUncheckedUpdateWithoutMeterInput>
+  create: Prisma.XOR<Prisma.PropertyCreateWithoutMeterInput, Prisma.PropertyUncheckedCreateWithoutMeterInput>
   where?: Prisma.PropertyWhereInput
 }
 
-export type PropertyUpdateToOneWithWhereWithoutConsumptionInput = {
+export type PropertyUpdateToOneWithWhereWithoutMeterInput = {
   where?: Prisma.PropertyWhereInput
-  data: Prisma.XOR<Prisma.PropertyUpdateWithoutConsumptionInput, Prisma.PropertyUncheckedUpdateWithoutConsumptionInput>
+  data: Prisma.XOR<Prisma.PropertyUpdateWithoutMeterInput, Prisma.PropertyUncheckedUpdateWithoutMeterInput>
 }
 
-export type PropertyUpdateWithoutConsumptionInput = {
+export type PropertyUpdateWithoutMeterInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   state?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   zipCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFieldUpdateOperationsInput | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutPropertiesNestedInput
   distributor?: Prisma.EnergyDistributorUpdateOneRequiredWithoutPropertiesNestedInput
   areas?: Prisma.AreaUpdateManyWithoutPropertyNestedInput
-  alerts?: Prisma.AlertUpdateManyWithoutPropertyNestedInput
 }
 
-export type PropertyUncheckedUpdateWithoutConsumptionInput = {
+export type PropertyUncheckedUpdateWithoutMeterInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   distributorId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -864,86 +992,12 @@ export type PropertyUncheckedUpdateWithoutConsumptionInput = {
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   state?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   zipCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFieldUpdateOperationsInput | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   areas?: Prisma.AreaUncheckedUpdateManyWithoutPropertyNestedInput
-  alerts?: Prisma.AlertUncheckedUpdateManyWithoutPropertyNestedInput
-}
-
-export type PropertyCreateWithoutAlertsInput = {
-  id?: string
-  name: string
-  address?: string | null
-  city?: string | null
-  state?: string | null
-  zipCode?: string | null
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  user: Prisma.UserCreateNestedOneWithoutPropertiesInput
-  distributor: Prisma.EnergyDistributorCreateNestedOneWithoutPropertiesInput
-  areas?: Prisma.AreaCreateNestedManyWithoutPropertyInput
-  consumption?: Prisma.ConsumptionRecordCreateNestedManyWithoutPropertyInput
-}
-
-export type PropertyUncheckedCreateWithoutAlertsInput = {
-  id?: string
-  userId: string
-  distributorId: string
-  name: string
-  address?: string | null
-  city?: string | null
-  state?: string | null
-  zipCode?: string | null
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  areas?: Prisma.AreaUncheckedCreateNestedManyWithoutPropertyInput
-  consumption?: Prisma.ConsumptionRecordUncheckedCreateNestedManyWithoutPropertyInput
-}
-
-export type PropertyCreateOrConnectWithoutAlertsInput = {
-  where: Prisma.PropertyWhereUniqueInput
-  create: Prisma.XOR<Prisma.PropertyCreateWithoutAlertsInput, Prisma.PropertyUncheckedCreateWithoutAlertsInput>
-}
-
-export type PropertyUpsertWithoutAlertsInput = {
-  update: Prisma.XOR<Prisma.PropertyUpdateWithoutAlertsInput, Prisma.PropertyUncheckedUpdateWithoutAlertsInput>
-  create: Prisma.XOR<Prisma.PropertyCreateWithoutAlertsInput, Prisma.PropertyUncheckedCreateWithoutAlertsInput>
-  where?: Prisma.PropertyWhereInput
-}
-
-export type PropertyUpdateToOneWithWhereWithoutAlertsInput = {
-  where?: Prisma.PropertyWhereInput
-  data: Prisma.XOR<Prisma.PropertyUpdateWithoutAlertsInput, Prisma.PropertyUncheckedUpdateWithoutAlertsInput>
-}
-
-export type PropertyUpdateWithoutAlertsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  state?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  zipCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  user?: Prisma.UserUpdateOneRequiredWithoutPropertiesNestedInput
-  distributor?: Prisma.EnergyDistributorUpdateOneRequiredWithoutPropertiesNestedInput
-  areas?: Prisma.AreaUpdateManyWithoutPropertyNestedInput
-  consumption?: Prisma.ConsumptionRecordUpdateManyWithoutPropertyNestedInput
-}
-
-export type PropertyUncheckedUpdateWithoutAlertsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  userId?: Prisma.StringFieldUpdateOperationsInput | string
-  distributorId?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  address?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  state?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  zipCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  areas?: Prisma.AreaUncheckedUpdateManyWithoutPropertyNestedInput
-  consumption?: Prisma.ConsumptionRecordUncheckedUpdateManyWithoutPropertyNestedInput
 }
 
 export type PropertyCreateManyUserInput = {
@@ -954,6 +1008,9 @@ export type PropertyCreateManyUserInput = {
   city?: string | null
   state?: string | null
   zipCode?: string | null
+  electricalSystem: $Enums.ElectricalSystemType
+  billingClass?: $Enums.BillingClass
+  publicLightingFeeBrl?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -965,12 +1022,14 @@ export type PropertyUpdateWithoutUserInput = {
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   state?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   zipCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFieldUpdateOperationsInput | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   distributor?: Prisma.EnergyDistributorUpdateOneRequiredWithoutPropertiesNestedInput
   areas?: Prisma.AreaUpdateManyWithoutPropertyNestedInput
-  consumption?: Prisma.ConsumptionRecordUpdateManyWithoutPropertyNestedInput
-  alerts?: Prisma.AlertUpdateManyWithoutPropertyNestedInput
+  meter?: Prisma.MeterUpdateOneWithoutPropertyNestedInput
 }
 
 export type PropertyUncheckedUpdateWithoutUserInput = {
@@ -981,11 +1040,13 @@ export type PropertyUncheckedUpdateWithoutUserInput = {
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   state?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   zipCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFieldUpdateOperationsInput | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   areas?: Prisma.AreaUncheckedUpdateManyWithoutPropertyNestedInput
-  consumption?: Prisma.ConsumptionRecordUncheckedUpdateManyWithoutPropertyNestedInput
-  alerts?: Prisma.AlertUncheckedUpdateManyWithoutPropertyNestedInput
+  meter?: Prisma.MeterUncheckedUpdateOneWithoutPropertyNestedInput
 }
 
 export type PropertyUncheckedUpdateManyWithoutUserInput = {
@@ -996,6 +1057,9 @@ export type PropertyUncheckedUpdateManyWithoutUserInput = {
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   state?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   zipCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFieldUpdateOperationsInput | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1008,6 +1072,9 @@ export type PropertyCreateManyDistributorInput = {
   city?: string | null
   state?: string | null
   zipCode?: string | null
+  electricalSystem: $Enums.ElectricalSystemType
+  billingClass?: $Enums.BillingClass
+  publicLightingFeeBrl?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1019,12 +1086,14 @@ export type PropertyUpdateWithoutDistributorInput = {
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   state?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   zipCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFieldUpdateOperationsInput | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutPropertiesNestedInput
   areas?: Prisma.AreaUpdateManyWithoutPropertyNestedInput
-  consumption?: Prisma.ConsumptionRecordUpdateManyWithoutPropertyNestedInput
-  alerts?: Prisma.AlertUpdateManyWithoutPropertyNestedInput
+  meter?: Prisma.MeterUpdateOneWithoutPropertyNestedInput
 }
 
 export type PropertyUncheckedUpdateWithoutDistributorInput = {
@@ -1035,11 +1104,13 @@ export type PropertyUncheckedUpdateWithoutDistributorInput = {
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   state?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   zipCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFieldUpdateOperationsInput | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   areas?: Prisma.AreaUncheckedUpdateManyWithoutPropertyNestedInput
-  consumption?: Prisma.ConsumptionRecordUncheckedUpdateManyWithoutPropertyNestedInput
-  alerts?: Prisma.AlertUncheckedUpdateManyWithoutPropertyNestedInput
+  meter?: Prisma.MeterUncheckedUpdateOneWithoutPropertyNestedInput
 }
 
 export type PropertyUncheckedUpdateManyWithoutDistributorInput = {
@@ -1050,6 +1121,9 @@ export type PropertyUncheckedUpdateManyWithoutDistributorInput = {
   city?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   state?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   zipCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  electricalSystem?: Prisma.EnumElectricalSystemTypeFieldUpdateOperationsInput | $Enums.ElectricalSystemType
+  billingClass?: Prisma.EnumBillingClassFieldUpdateOperationsInput | $Enums.BillingClass
+  publicLightingFeeBrl?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1061,14 +1135,10 @@ export type PropertyUncheckedUpdateManyWithoutDistributorInput = {
 
 export type PropertyCountOutputType = {
   areas: number
-  consumption: number
-  alerts: number
 }
 
 export type PropertyCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   areas?: boolean | PropertyCountOutputTypeCountAreasArgs
-  consumption?: boolean | PropertyCountOutputTypeCountConsumptionArgs
-  alerts?: boolean | PropertyCountOutputTypeCountAlertsArgs
 }
 
 /**
@@ -1088,20 +1158,6 @@ export type PropertyCountOutputTypeCountAreasArgs<ExtArgs extends runtime.Types.
   where?: Prisma.AreaWhereInput
 }
 
-/**
- * PropertyCountOutputType without action
- */
-export type PropertyCountOutputTypeCountConsumptionArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.ConsumptionRecordWhereInput
-}
-
-/**
- * PropertyCountOutputType without action
- */
-export type PropertyCountOutputTypeCountAlertsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.AlertWhereInput
-}
-
 
 export type PropertySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1112,13 +1168,15 @@ export type PropertySelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   city?: boolean
   state?: boolean
   zipCode?: boolean
+  electricalSystem?: boolean
+  billingClass?: boolean
+  publicLightingFeeBrl?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   distributor?: boolean | Prisma.EnergyDistributorDefaultArgs<ExtArgs>
   areas?: boolean | Prisma.Property$areasArgs<ExtArgs>
-  consumption?: boolean | Prisma.Property$consumptionArgs<ExtArgs>
-  alerts?: boolean | Prisma.Property$alertsArgs<ExtArgs>
+  meter?: boolean | Prisma.Property$meterArgs<ExtArgs>
   _count?: boolean | Prisma.PropertyCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["property"]>
 
@@ -1131,6 +1189,9 @@ export type PropertySelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   city?: boolean
   state?: boolean
   zipCode?: boolean
+  electricalSystem?: boolean
+  billingClass?: boolean
+  publicLightingFeeBrl?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1146,6 +1207,9 @@ export type PropertySelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
   city?: boolean
   state?: boolean
   zipCode?: boolean
+  electricalSystem?: boolean
+  billingClass?: boolean
+  publicLightingFeeBrl?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1161,17 +1225,19 @@ export type PropertySelectScalar = {
   city?: boolean
   state?: boolean
   zipCode?: boolean
+  electricalSystem?: boolean
+  billingClass?: boolean
+  publicLightingFeeBrl?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type PropertyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "distributorId" | "name" | "address" | "city" | "state" | "zipCode" | "createdAt" | "updatedAt", ExtArgs["result"]["property"]>
+export type PropertyOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "distributorId" | "name" | "address" | "city" | "state" | "zipCode" | "electricalSystem" | "billingClass" | "publicLightingFeeBrl" | "createdAt" | "updatedAt", ExtArgs["result"]["property"]>
 export type PropertyInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   distributor?: boolean | Prisma.EnergyDistributorDefaultArgs<ExtArgs>
   areas?: boolean | Prisma.Property$areasArgs<ExtArgs>
-  consumption?: boolean | Prisma.Property$consumptionArgs<ExtArgs>
-  alerts?: boolean | Prisma.Property$alertsArgs<ExtArgs>
+  meter?: boolean | Prisma.Property$meterArgs<ExtArgs>
   _count?: boolean | Prisma.PropertyCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type PropertyIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1189,8 +1255,7 @@ export type $PropertyPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     user: Prisma.$UserPayload<ExtArgs>
     distributor: Prisma.$EnergyDistributorPayload<ExtArgs>
     areas: Prisma.$AreaPayload<ExtArgs>[]
-    consumption: Prisma.$ConsumptionRecordPayload<ExtArgs>[]
-    alerts: Prisma.$AlertPayload<ExtArgs>[]
+    meter: Prisma.$MeterPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1201,6 +1266,9 @@ export type $PropertyPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     city: string | null
     state: string | null
     zipCode: string | null
+    electricalSystem: $Enums.ElectricalSystemType
+    billingClass: $Enums.BillingClass
+    publicLightingFeeBrl: runtime.Decimal | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["property"]>
@@ -1600,8 +1668,7 @@ export interface Prisma__PropertyClient<T, Null = never, ExtArgs extends runtime
   user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   distributor<T extends Prisma.EnergyDistributorDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.EnergyDistributorDefaultArgs<ExtArgs>>): Prisma.Prisma__EnergyDistributorClient<runtime.Types.Result.GetResult<Prisma.$EnergyDistributorPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   areas<T extends Prisma.Property$areasArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Property$areasArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AreaPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  consumption<T extends Prisma.Property$consumptionArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Property$consumptionArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConsumptionRecordPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  alerts<T extends Prisma.Property$alertsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Property$alertsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AlertPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  meter<T extends Prisma.Property$meterArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Property$meterArgs<ExtArgs>>): Prisma.Prisma__MeterClient<runtime.Types.Result.GetResult<Prisma.$MeterPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1639,6 +1706,9 @@ export interface PropertyFieldRefs {
   readonly city: Prisma.FieldRef<"Property", 'String'>
   readonly state: Prisma.FieldRef<"Property", 'String'>
   readonly zipCode: Prisma.FieldRef<"Property", 'String'>
+  readonly electricalSystem: Prisma.FieldRef<"Property", 'ElectricalSystemType'>
+  readonly billingClass: Prisma.FieldRef<"Property", 'BillingClass'>
+  readonly publicLightingFeeBrl: Prisma.FieldRef<"Property", 'Decimal'>
   readonly createdAt: Prisma.FieldRef<"Property", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Property", 'DateTime'>
 }
@@ -2066,51 +2136,22 @@ export type Property$areasArgs<ExtArgs extends runtime.Types.Extensions.Internal
 }
 
 /**
- * Property.consumption
+ * Property.meter
  */
-export type Property$consumptionArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type Property$meterArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the ConsumptionRecord
+   * Select specific fields to fetch from the Meter
    */
-  select?: Prisma.ConsumptionRecordSelect<ExtArgs> | null
+  select?: Prisma.MeterSelect<ExtArgs> | null
   /**
-   * Omit specific fields from the ConsumptionRecord
+   * Omit specific fields from the Meter
    */
-  omit?: Prisma.ConsumptionRecordOmit<ExtArgs> | null
+  omit?: Prisma.MeterOmit<ExtArgs> | null
   /**
    * Choose, which related nodes to fetch as well
    */
-  include?: Prisma.ConsumptionRecordInclude<ExtArgs> | null
-  where?: Prisma.ConsumptionRecordWhereInput
-  orderBy?: Prisma.ConsumptionRecordOrderByWithRelationInput | Prisma.ConsumptionRecordOrderByWithRelationInput[]
-  cursor?: Prisma.ConsumptionRecordWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.ConsumptionRecordScalarFieldEnum | Prisma.ConsumptionRecordScalarFieldEnum[]
-}
-
-/**
- * Property.alerts
- */
-export type Property$alertsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the Alert
-   */
-  select?: Prisma.AlertSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the Alert
-   */
-  omit?: Prisma.AlertOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.AlertInclude<ExtArgs> | null
-  where?: Prisma.AlertWhereInput
-  orderBy?: Prisma.AlertOrderByWithRelationInput | Prisma.AlertOrderByWithRelationInput[]
-  cursor?: Prisma.AlertWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.AlertScalarFieldEnum | Prisma.AlertScalarFieldEnum[]
+  include?: Prisma.MeterInclude<ExtArgs> | null
+  where?: Prisma.MeterWhereInput
 }
 
 /**

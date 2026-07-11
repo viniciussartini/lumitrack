@@ -27,24 +27,23 @@ export type AggregateAlert = {
 }
 
 export type AlertAvgAggregateOutputType = {
-  thresholdKwh: number | null
+  referencePowerKw: number | null
+  tolerancePercent: number | null
 }
 
 export type AlertSumAggregateOutputType = {
-  thresholdKwh: number | null
+  referencePowerKw: number | null
+  tolerancePercent: number | null
 }
 
 export type AlertMinAggregateOutputType = {
   id: string | null
   userId: string | null
-  targetType: $Enums.AlertTargetType | null
-  propertyId: string | null
-  areaId: string | null
-  deviceId: string | null
-  thresholdKwh: number | null
-  message: string | null
-  triggeredAt: Date | null
-  readAt: Date | null
+  meterId: string | null
+  name: string | null
+  referencePowerKw: number | null
+  tolerancePercent: number | null
+  enabled: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -52,14 +51,11 @@ export type AlertMinAggregateOutputType = {
 export type AlertMaxAggregateOutputType = {
   id: string | null
   userId: string | null
-  targetType: $Enums.AlertTargetType | null
-  propertyId: string | null
-  areaId: string | null
-  deviceId: string | null
-  thresholdKwh: number | null
-  message: string | null
-  triggeredAt: Date | null
-  readAt: Date | null
+  meterId: string | null
+  name: string | null
+  referencePowerKw: number | null
+  tolerancePercent: number | null
+  enabled: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -67,14 +63,11 @@ export type AlertMaxAggregateOutputType = {
 export type AlertCountAggregateOutputType = {
   id: number
   userId: number
-  targetType: number
-  propertyId: number
-  areaId: number
-  deviceId: number
-  thresholdKwh: number
-  message: number
-  triggeredAt: number
-  readAt: number
+  meterId: number
+  name: number
+  referencePowerKw: number
+  tolerancePercent: number
+  enabled: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -82,24 +75,23 @@ export type AlertCountAggregateOutputType = {
 
 
 export type AlertAvgAggregateInputType = {
-  thresholdKwh?: true
+  referencePowerKw?: true
+  tolerancePercent?: true
 }
 
 export type AlertSumAggregateInputType = {
-  thresholdKwh?: true
+  referencePowerKw?: true
+  tolerancePercent?: true
 }
 
 export type AlertMinAggregateInputType = {
   id?: true
   userId?: true
-  targetType?: true
-  propertyId?: true
-  areaId?: true
-  deviceId?: true
-  thresholdKwh?: true
-  message?: true
-  triggeredAt?: true
-  readAt?: true
+  meterId?: true
+  name?: true
+  referencePowerKw?: true
+  tolerancePercent?: true
+  enabled?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -107,14 +99,11 @@ export type AlertMinAggregateInputType = {
 export type AlertMaxAggregateInputType = {
   id?: true
   userId?: true
-  targetType?: true
-  propertyId?: true
-  areaId?: true
-  deviceId?: true
-  thresholdKwh?: true
-  message?: true
-  triggeredAt?: true
-  readAt?: true
+  meterId?: true
+  name?: true
+  referencePowerKw?: true
+  tolerancePercent?: true
+  enabled?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -122,14 +111,11 @@ export type AlertMaxAggregateInputType = {
 export type AlertCountAggregateInputType = {
   id?: true
   userId?: true
-  targetType?: true
-  propertyId?: true
-  areaId?: true
-  deviceId?: true
-  thresholdKwh?: true
-  message?: true
-  triggeredAt?: true
-  readAt?: true
+  meterId?: true
+  name?: true
+  referencePowerKw?: true
+  tolerancePercent?: true
+  enabled?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -224,14 +210,11 @@ export type AlertGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalAr
 export type AlertGroupByOutputType = {
   id: string
   userId: string
-  targetType: $Enums.AlertTargetType
-  propertyId: string | null
-  areaId: string | null
-  deviceId: string | null
-  thresholdKwh: number
-  message: string | null
-  triggeredAt: Date | null
-  readAt: Date | null
+  meterId: string
+  name: string
+  referencePowerKw: number
+  tolerancePercent: number
+  enabled: boolean
   createdAt: Date
   updatedAt: Date
   _count: AlertCountAggregateOutputType | null
@@ -262,39 +245,31 @@ export type AlertWhereInput = {
   NOT?: Prisma.AlertWhereInput | Prisma.AlertWhereInput[]
   id?: Prisma.StringFilter<"Alert"> | string
   userId?: Prisma.StringFilter<"Alert"> | string
-  targetType?: Prisma.EnumAlertTargetTypeFilter<"Alert"> | $Enums.AlertTargetType
-  propertyId?: Prisma.StringNullableFilter<"Alert"> | string | null
-  areaId?: Prisma.StringNullableFilter<"Alert"> | string | null
-  deviceId?: Prisma.StringNullableFilter<"Alert"> | string | null
-  thresholdKwh?: Prisma.FloatFilter<"Alert"> | number
-  message?: Prisma.StringNullableFilter<"Alert"> | string | null
-  triggeredAt?: Prisma.DateTimeNullableFilter<"Alert"> | Date | string | null
-  readAt?: Prisma.DateTimeNullableFilter<"Alert"> | Date | string | null
+  meterId?: Prisma.StringFilter<"Alert"> | string
+  name?: Prisma.StringFilter<"Alert"> | string
+  referencePowerKw?: Prisma.FloatFilter<"Alert"> | number
+  tolerancePercent?: Prisma.FloatFilter<"Alert"> | number
+  enabled?: Prisma.BoolFilter<"Alert"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Alert"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Alert"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
-  property?: Prisma.XOR<Prisma.PropertyNullableScalarRelationFilter, Prisma.PropertyWhereInput> | null
-  area?: Prisma.XOR<Prisma.AreaNullableScalarRelationFilter, Prisma.AreaWhereInput> | null
-  device?: Prisma.XOR<Prisma.DeviceNullableScalarRelationFilter, Prisma.DeviceWhereInput> | null
+  meter?: Prisma.XOR<Prisma.MeterScalarRelationFilter, Prisma.MeterWhereInput>
+  events?: Prisma.AlertTriggerEventListRelationFilter
 }
 
 export type AlertOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
-  targetType?: Prisma.SortOrder
-  propertyId?: Prisma.SortOrderInput | Prisma.SortOrder
-  areaId?: Prisma.SortOrderInput | Prisma.SortOrder
-  deviceId?: Prisma.SortOrderInput | Prisma.SortOrder
-  thresholdKwh?: Prisma.SortOrder
-  message?: Prisma.SortOrderInput | Prisma.SortOrder
-  triggeredAt?: Prisma.SortOrderInput | Prisma.SortOrder
-  readAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  meterId?: Prisma.SortOrder
+  name?: Prisma.SortOrder
+  referencePowerKw?: Prisma.SortOrder
+  tolerancePercent?: Prisma.SortOrder
+  enabled?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
-  property?: Prisma.PropertyOrderByWithRelationInput
-  area?: Prisma.AreaOrderByWithRelationInput
-  device?: Prisma.DeviceOrderByWithRelationInput
+  meter?: Prisma.MeterOrderByWithRelationInput
+  events?: Prisma.AlertTriggerEventOrderByRelationAggregateInput
 }
 
 export type AlertWhereUniqueInput = Prisma.AtLeast<{
@@ -303,33 +278,26 @@ export type AlertWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.AlertWhereInput[]
   NOT?: Prisma.AlertWhereInput | Prisma.AlertWhereInput[]
   userId?: Prisma.StringFilter<"Alert"> | string
-  targetType?: Prisma.EnumAlertTargetTypeFilter<"Alert"> | $Enums.AlertTargetType
-  propertyId?: Prisma.StringNullableFilter<"Alert"> | string | null
-  areaId?: Prisma.StringNullableFilter<"Alert"> | string | null
-  deviceId?: Prisma.StringNullableFilter<"Alert"> | string | null
-  thresholdKwh?: Prisma.FloatFilter<"Alert"> | number
-  message?: Prisma.StringNullableFilter<"Alert"> | string | null
-  triggeredAt?: Prisma.DateTimeNullableFilter<"Alert"> | Date | string | null
-  readAt?: Prisma.DateTimeNullableFilter<"Alert"> | Date | string | null
+  meterId?: Prisma.StringFilter<"Alert"> | string
+  name?: Prisma.StringFilter<"Alert"> | string
+  referencePowerKw?: Prisma.FloatFilter<"Alert"> | number
+  tolerancePercent?: Prisma.FloatFilter<"Alert"> | number
+  enabled?: Prisma.BoolFilter<"Alert"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Alert"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Alert"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
-  property?: Prisma.XOR<Prisma.PropertyNullableScalarRelationFilter, Prisma.PropertyWhereInput> | null
-  area?: Prisma.XOR<Prisma.AreaNullableScalarRelationFilter, Prisma.AreaWhereInput> | null
-  device?: Prisma.XOR<Prisma.DeviceNullableScalarRelationFilter, Prisma.DeviceWhereInput> | null
+  meter?: Prisma.XOR<Prisma.MeterScalarRelationFilter, Prisma.MeterWhereInput>
+  events?: Prisma.AlertTriggerEventListRelationFilter
 }, "id">
 
 export type AlertOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
-  targetType?: Prisma.SortOrder
-  propertyId?: Prisma.SortOrderInput | Prisma.SortOrder
-  areaId?: Prisma.SortOrderInput | Prisma.SortOrder
-  deviceId?: Prisma.SortOrderInput | Prisma.SortOrder
-  thresholdKwh?: Prisma.SortOrder
-  message?: Prisma.SortOrderInput | Prisma.SortOrder
-  triggeredAt?: Prisma.SortOrderInput | Prisma.SortOrder
-  readAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  meterId?: Prisma.SortOrder
+  name?: Prisma.SortOrder
+  referencePowerKw?: Prisma.SortOrder
+  tolerancePercent?: Prisma.SortOrder
+  enabled?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AlertCountOrderByAggregateInput
@@ -345,100 +313,85 @@ export type AlertScalarWhereWithAggregatesInput = {
   NOT?: Prisma.AlertScalarWhereWithAggregatesInput | Prisma.AlertScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"Alert"> | string
   userId?: Prisma.StringWithAggregatesFilter<"Alert"> | string
-  targetType?: Prisma.EnumAlertTargetTypeWithAggregatesFilter<"Alert"> | $Enums.AlertTargetType
-  propertyId?: Prisma.StringNullableWithAggregatesFilter<"Alert"> | string | null
-  areaId?: Prisma.StringNullableWithAggregatesFilter<"Alert"> | string | null
-  deviceId?: Prisma.StringNullableWithAggregatesFilter<"Alert"> | string | null
-  thresholdKwh?: Prisma.FloatWithAggregatesFilter<"Alert"> | number
-  message?: Prisma.StringNullableWithAggregatesFilter<"Alert"> | string | null
-  triggeredAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Alert"> | Date | string | null
-  readAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Alert"> | Date | string | null
+  meterId?: Prisma.StringWithAggregatesFilter<"Alert"> | string
+  name?: Prisma.StringWithAggregatesFilter<"Alert"> | string
+  referencePowerKw?: Prisma.FloatWithAggregatesFilter<"Alert"> | number
+  tolerancePercent?: Prisma.FloatWithAggregatesFilter<"Alert"> | number
+  enabled?: Prisma.BoolWithAggregatesFilter<"Alert"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Alert"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Alert"> | Date | string
 }
 
 export type AlertCreateInput = {
   id?: string
-  targetType: $Enums.AlertTargetType
-  thresholdKwh: number
-  message?: string | null
-  triggeredAt?: Date | string | null
-  readAt?: Date | string | null
+  name: string
+  referencePowerKw: number
+  tolerancePercent: number
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutAlertsInput
-  property?: Prisma.PropertyCreateNestedOneWithoutAlertsInput
-  area?: Prisma.AreaCreateNestedOneWithoutAlertsInput
-  device?: Prisma.DeviceCreateNestedOneWithoutAlertsInput
+  meter: Prisma.MeterCreateNestedOneWithoutAlertsInput
+  events?: Prisma.AlertTriggerEventCreateNestedManyWithoutAlertInput
 }
 
 export type AlertUncheckedCreateInput = {
   id?: string
   userId: string
-  targetType: $Enums.AlertTargetType
-  propertyId?: string | null
-  areaId?: string | null
-  deviceId?: string | null
-  thresholdKwh: number
-  message?: string | null
-  triggeredAt?: Date | string | null
-  readAt?: Date | string | null
+  meterId: string
+  name: string
+  referencePowerKw: number
+  tolerancePercent: number
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  events?: Prisma.AlertTriggerEventUncheckedCreateNestedManyWithoutAlertInput
 }
 
 export type AlertUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  targetType?: Prisma.EnumAlertTargetTypeFieldUpdateOperationsInput | $Enums.AlertTargetType
-  thresholdKwh?: Prisma.FloatFieldUpdateOperationsInput | number
-  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  triggeredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  referencePowerKw?: Prisma.FloatFieldUpdateOperationsInput | number
+  tolerancePercent?: Prisma.FloatFieldUpdateOperationsInput | number
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutAlertsNestedInput
-  property?: Prisma.PropertyUpdateOneWithoutAlertsNestedInput
-  area?: Prisma.AreaUpdateOneWithoutAlertsNestedInput
-  device?: Prisma.DeviceUpdateOneWithoutAlertsNestedInput
+  meter?: Prisma.MeterUpdateOneRequiredWithoutAlertsNestedInput
+  events?: Prisma.AlertTriggerEventUpdateManyWithoutAlertNestedInput
 }
 
 export type AlertUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
-  targetType?: Prisma.EnumAlertTargetTypeFieldUpdateOperationsInput | $Enums.AlertTargetType
-  propertyId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  areaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  deviceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thresholdKwh?: Prisma.FloatFieldUpdateOperationsInput | number
-  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  triggeredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  meterId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  referencePowerKw?: Prisma.FloatFieldUpdateOperationsInput | number
+  tolerancePercent?: Prisma.FloatFieldUpdateOperationsInput | number
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  events?: Prisma.AlertTriggerEventUncheckedUpdateManyWithoutAlertNestedInput
 }
 
 export type AlertCreateManyInput = {
   id?: string
   userId: string
-  targetType: $Enums.AlertTargetType
-  propertyId?: string | null
-  areaId?: string | null
-  deviceId?: string | null
-  thresholdKwh: number
-  message?: string | null
-  triggeredAt?: Date | string | null
-  readAt?: Date | string | null
+  meterId: string
+  name: string
+  referencePowerKw: number
+  tolerancePercent: number
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
 
 export type AlertUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  targetType?: Prisma.EnumAlertTargetTypeFieldUpdateOperationsInput | $Enums.AlertTargetType
-  thresholdKwh?: Prisma.FloatFieldUpdateOperationsInput | number
-  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  triggeredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  referencePowerKw?: Prisma.FloatFieldUpdateOperationsInput | number
+  tolerancePercent?: Prisma.FloatFieldUpdateOperationsInput | number
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -446,14 +399,11 @@ export type AlertUpdateManyMutationInput = {
 export type AlertUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
-  targetType?: Prisma.EnumAlertTargetTypeFieldUpdateOperationsInput | $Enums.AlertTargetType
-  propertyId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  areaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  deviceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thresholdKwh?: Prisma.FloatFieldUpdateOperationsInput | number
-  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  triggeredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  meterId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  referencePowerKw?: Prisma.FloatFieldUpdateOperationsInput | number
+  tolerancePercent?: Prisma.FloatFieldUpdateOperationsInput | number
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -471,33 +421,28 @@ export type AlertOrderByRelationAggregateInput = {
 export type AlertCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
-  targetType?: Prisma.SortOrder
-  propertyId?: Prisma.SortOrder
-  areaId?: Prisma.SortOrder
-  deviceId?: Prisma.SortOrder
-  thresholdKwh?: Prisma.SortOrder
-  message?: Prisma.SortOrder
-  triggeredAt?: Prisma.SortOrder
-  readAt?: Prisma.SortOrder
+  meterId?: Prisma.SortOrder
+  name?: Prisma.SortOrder
+  referencePowerKw?: Prisma.SortOrder
+  tolerancePercent?: Prisma.SortOrder
+  enabled?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
 export type AlertAvgOrderByAggregateInput = {
-  thresholdKwh?: Prisma.SortOrder
+  referencePowerKw?: Prisma.SortOrder
+  tolerancePercent?: Prisma.SortOrder
 }
 
 export type AlertMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
-  targetType?: Prisma.SortOrder
-  propertyId?: Prisma.SortOrder
-  areaId?: Prisma.SortOrder
-  deviceId?: Prisma.SortOrder
-  thresholdKwh?: Prisma.SortOrder
-  message?: Prisma.SortOrder
-  triggeredAt?: Prisma.SortOrder
-  readAt?: Prisma.SortOrder
+  meterId?: Prisma.SortOrder
+  name?: Prisma.SortOrder
+  referencePowerKw?: Prisma.SortOrder
+  tolerancePercent?: Prisma.SortOrder
+  enabled?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -505,20 +450,23 @@ export type AlertMaxOrderByAggregateInput = {
 export type AlertMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
-  targetType?: Prisma.SortOrder
-  propertyId?: Prisma.SortOrder
-  areaId?: Prisma.SortOrder
-  deviceId?: Prisma.SortOrder
-  thresholdKwh?: Prisma.SortOrder
-  message?: Prisma.SortOrder
-  triggeredAt?: Prisma.SortOrder
-  readAt?: Prisma.SortOrder
+  meterId?: Prisma.SortOrder
+  name?: Prisma.SortOrder
+  referencePowerKw?: Prisma.SortOrder
+  tolerancePercent?: Prisma.SortOrder
+  enabled?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
 export type AlertSumOrderByAggregateInput = {
-  thresholdKwh?: Prisma.SortOrder
+  referencePowerKw?: Prisma.SortOrder
+  tolerancePercent?: Prisma.SortOrder
+}
+
+export type AlertScalarRelationFilter = {
+  is?: Prisma.AlertWhereInput
+  isNot?: Prisma.AlertWhereInput
 }
 
 export type AlertCreateNestedManyWithoutUserInput = {
@@ -563,162 +511,84 @@ export type AlertUncheckedUpdateManyWithoutUserNestedInput = {
   deleteMany?: Prisma.AlertScalarWhereInput | Prisma.AlertScalarWhereInput[]
 }
 
-export type AlertCreateNestedManyWithoutPropertyInput = {
-  create?: Prisma.XOR<Prisma.AlertCreateWithoutPropertyInput, Prisma.AlertUncheckedCreateWithoutPropertyInput> | Prisma.AlertCreateWithoutPropertyInput[] | Prisma.AlertUncheckedCreateWithoutPropertyInput[]
-  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutPropertyInput | Prisma.AlertCreateOrConnectWithoutPropertyInput[]
-  createMany?: Prisma.AlertCreateManyPropertyInputEnvelope
+export type AlertCreateNestedManyWithoutMeterInput = {
+  create?: Prisma.XOR<Prisma.AlertCreateWithoutMeterInput, Prisma.AlertUncheckedCreateWithoutMeterInput> | Prisma.AlertCreateWithoutMeterInput[] | Prisma.AlertUncheckedCreateWithoutMeterInput[]
+  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutMeterInput | Prisma.AlertCreateOrConnectWithoutMeterInput[]
+  createMany?: Prisma.AlertCreateManyMeterInputEnvelope
   connect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
 }
 
-export type AlertUncheckedCreateNestedManyWithoutPropertyInput = {
-  create?: Prisma.XOR<Prisma.AlertCreateWithoutPropertyInput, Prisma.AlertUncheckedCreateWithoutPropertyInput> | Prisma.AlertCreateWithoutPropertyInput[] | Prisma.AlertUncheckedCreateWithoutPropertyInput[]
-  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutPropertyInput | Prisma.AlertCreateOrConnectWithoutPropertyInput[]
-  createMany?: Prisma.AlertCreateManyPropertyInputEnvelope
+export type AlertUncheckedCreateNestedManyWithoutMeterInput = {
+  create?: Prisma.XOR<Prisma.AlertCreateWithoutMeterInput, Prisma.AlertUncheckedCreateWithoutMeterInput> | Prisma.AlertCreateWithoutMeterInput[] | Prisma.AlertUncheckedCreateWithoutMeterInput[]
+  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutMeterInput | Prisma.AlertCreateOrConnectWithoutMeterInput[]
+  createMany?: Prisma.AlertCreateManyMeterInputEnvelope
   connect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
 }
 
-export type AlertUpdateManyWithoutPropertyNestedInput = {
-  create?: Prisma.XOR<Prisma.AlertCreateWithoutPropertyInput, Prisma.AlertUncheckedCreateWithoutPropertyInput> | Prisma.AlertCreateWithoutPropertyInput[] | Prisma.AlertUncheckedCreateWithoutPropertyInput[]
-  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutPropertyInput | Prisma.AlertCreateOrConnectWithoutPropertyInput[]
-  upsert?: Prisma.AlertUpsertWithWhereUniqueWithoutPropertyInput | Prisma.AlertUpsertWithWhereUniqueWithoutPropertyInput[]
-  createMany?: Prisma.AlertCreateManyPropertyInputEnvelope
+export type AlertUpdateManyWithoutMeterNestedInput = {
+  create?: Prisma.XOR<Prisma.AlertCreateWithoutMeterInput, Prisma.AlertUncheckedCreateWithoutMeterInput> | Prisma.AlertCreateWithoutMeterInput[] | Prisma.AlertUncheckedCreateWithoutMeterInput[]
+  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutMeterInput | Prisma.AlertCreateOrConnectWithoutMeterInput[]
+  upsert?: Prisma.AlertUpsertWithWhereUniqueWithoutMeterInput | Prisma.AlertUpsertWithWhereUniqueWithoutMeterInput[]
+  createMany?: Prisma.AlertCreateManyMeterInputEnvelope
   set?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
   disconnect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
   delete?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
   connect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  update?: Prisma.AlertUpdateWithWhereUniqueWithoutPropertyInput | Prisma.AlertUpdateWithWhereUniqueWithoutPropertyInput[]
-  updateMany?: Prisma.AlertUpdateManyWithWhereWithoutPropertyInput | Prisma.AlertUpdateManyWithWhereWithoutPropertyInput[]
+  update?: Prisma.AlertUpdateWithWhereUniqueWithoutMeterInput | Prisma.AlertUpdateWithWhereUniqueWithoutMeterInput[]
+  updateMany?: Prisma.AlertUpdateManyWithWhereWithoutMeterInput | Prisma.AlertUpdateManyWithWhereWithoutMeterInput[]
   deleteMany?: Prisma.AlertScalarWhereInput | Prisma.AlertScalarWhereInput[]
 }
 
-export type AlertUncheckedUpdateManyWithoutPropertyNestedInput = {
-  create?: Prisma.XOR<Prisma.AlertCreateWithoutPropertyInput, Prisma.AlertUncheckedCreateWithoutPropertyInput> | Prisma.AlertCreateWithoutPropertyInput[] | Prisma.AlertUncheckedCreateWithoutPropertyInput[]
-  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutPropertyInput | Prisma.AlertCreateOrConnectWithoutPropertyInput[]
-  upsert?: Prisma.AlertUpsertWithWhereUniqueWithoutPropertyInput | Prisma.AlertUpsertWithWhereUniqueWithoutPropertyInput[]
-  createMany?: Prisma.AlertCreateManyPropertyInputEnvelope
+export type AlertUncheckedUpdateManyWithoutMeterNestedInput = {
+  create?: Prisma.XOR<Prisma.AlertCreateWithoutMeterInput, Prisma.AlertUncheckedCreateWithoutMeterInput> | Prisma.AlertCreateWithoutMeterInput[] | Prisma.AlertUncheckedCreateWithoutMeterInput[]
+  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutMeterInput | Prisma.AlertCreateOrConnectWithoutMeterInput[]
+  upsert?: Prisma.AlertUpsertWithWhereUniqueWithoutMeterInput | Prisma.AlertUpsertWithWhereUniqueWithoutMeterInput[]
+  createMany?: Prisma.AlertCreateManyMeterInputEnvelope
   set?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
   disconnect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
   delete?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
   connect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  update?: Prisma.AlertUpdateWithWhereUniqueWithoutPropertyInput | Prisma.AlertUpdateWithWhereUniqueWithoutPropertyInput[]
-  updateMany?: Prisma.AlertUpdateManyWithWhereWithoutPropertyInput | Prisma.AlertUpdateManyWithWhereWithoutPropertyInput[]
+  update?: Prisma.AlertUpdateWithWhereUniqueWithoutMeterInput | Prisma.AlertUpdateWithWhereUniqueWithoutMeterInput[]
+  updateMany?: Prisma.AlertUpdateManyWithWhereWithoutMeterInput | Prisma.AlertUpdateManyWithWhereWithoutMeterInput[]
   deleteMany?: Prisma.AlertScalarWhereInput | Prisma.AlertScalarWhereInput[]
 }
 
-export type AlertCreateNestedManyWithoutAreaInput = {
-  create?: Prisma.XOR<Prisma.AlertCreateWithoutAreaInput, Prisma.AlertUncheckedCreateWithoutAreaInput> | Prisma.AlertCreateWithoutAreaInput[] | Prisma.AlertUncheckedCreateWithoutAreaInput[]
-  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutAreaInput | Prisma.AlertCreateOrConnectWithoutAreaInput[]
-  createMany?: Prisma.AlertCreateManyAreaInputEnvelope
-  connect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
+export type AlertCreateNestedOneWithoutEventsInput = {
+  create?: Prisma.XOR<Prisma.AlertCreateWithoutEventsInput, Prisma.AlertUncheckedCreateWithoutEventsInput>
+  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutEventsInput
+  connect?: Prisma.AlertWhereUniqueInput
 }
 
-export type AlertUncheckedCreateNestedManyWithoutAreaInput = {
-  create?: Prisma.XOR<Prisma.AlertCreateWithoutAreaInput, Prisma.AlertUncheckedCreateWithoutAreaInput> | Prisma.AlertCreateWithoutAreaInput[] | Prisma.AlertUncheckedCreateWithoutAreaInput[]
-  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutAreaInput | Prisma.AlertCreateOrConnectWithoutAreaInput[]
-  createMany?: Prisma.AlertCreateManyAreaInputEnvelope
-  connect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-}
-
-export type AlertUpdateManyWithoutAreaNestedInput = {
-  create?: Prisma.XOR<Prisma.AlertCreateWithoutAreaInput, Prisma.AlertUncheckedCreateWithoutAreaInput> | Prisma.AlertCreateWithoutAreaInput[] | Prisma.AlertUncheckedCreateWithoutAreaInput[]
-  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutAreaInput | Prisma.AlertCreateOrConnectWithoutAreaInput[]
-  upsert?: Prisma.AlertUpsertWithWhereUniqueWithoutAreaInput | Prisma.AlertUpsertWithWhereUniqueWithoutAreaInput[]
-  createMany?: Prisma.AlertCreateManyAreaInputEnvelope
-  set?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  disconnect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  delete?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  connect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  update?: Prisma.AlertUpdateWithWhereUniqueWithoutAreaInput | Prisma.AlertUpdateWithWhereUniqueWithoutAreaInput[]
-  updateMany?: Prisma.AlertUpdateManyWithWhereWithoutAreaInput | Prisma.AlertUpdateManyWithWhereWithoutAreaInput[]
-  deleteMany?: Prisma.AlertScalarWhereInput | Prisma.AlertScalarWhereInput[]
-}
-
-export type AlertUncheckedUpdateManyWithoutAreaNestedInput = {
-  create?: Prisma.XOR<Prisma.AlertCreateWithoutAreaInput, Prisma.AlertUncheckedCreateWithoutAreaInput> | Prisma.AlertCreateWithoutAreaInput[] | Prisma.AlertUncheckedCreateWithoutAreaInput[]
-  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutAreaInput | Prisma.AlertCreateOrConnectWithoutAreaInput[]
-  upsert?: Prisma.AlertUpsertWithWhereUniqueWithoutAreaInput | Prisma.AlertUpsertWithWhereUniqueWithoutAreaInput[]
-  createMany?: Prisma.AlertCreateManyAreaInputEnvelope
-  set?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  disconnect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  delete?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  connect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  update?: Prisma.AlertUpdateWithWhereUniqueWithoutAreaInput | Prisma.AlertUpdateWithWhereUniqueWithoutAreaInput[]
-  updateMany?: Prisma.AlertUpdateManyWithWhereWithoutAreaInput | Prisma.AlertUpdateManyWithWhereWithoutAreaInput[]
-  deleteMany?: Prisma.AlertScalarWhereInput | Prisma.AlertScalarWhereInput[]
-}
-
-export type AlertCreateNestedManyWithoutDeviceInput = {
-  create?: Prisma.XOR<Prisma.AlertCreateWithoutDeviceInput, Prisma.AlertUncheckedCreateWithoutDeviceInput> | Prisma.AlertCreateWithoutDeviceInput[] | Prisma.AlertUncheckedCreateWithoutDeviceInput[]
-  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutDeviceInput | Prisma.AlertCreateOrConnectWithoutDeviceInput[]
-  createMany?: Prisma.AlertCreateManyDeviceInputEnvelope
-  connect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-}
-
-export type AlertUncheckedCreateNestedManyWithoutDeviceInput = {
-  create?: Prisma.XOR<Prisma.AlertCreateWithoutDeviceInput, Prisma.AlertUncheckedCreateWithoutDeviceInput> | Prisma.AlertCreateWithoutDeviceInput[] | Prisma.AlertUncheckedCreateWithoutDeviceInput[]
-  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutDeviceInput | Prisma.AlertCreateOrConnectWithoutDeviceInput[]
-  createMany?: Prisma.AlertCreateManyDeviceInputEnvelope
-  connect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-}
-
-export type AlertUpdateManyWithoutDeviceNestedInput = {
-  create?: Prisma.XOR<Prisma.AlertCreateWithoutDeviceInput, Prisma.AlertUncheckedCreateWithoutDeviceInput> | Prisma.AlertCreateWithoutDeviceInput[] | Prisma.AlertUncheckedCreateWithoutDeviceInput[]
-  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutDeviceInput | Prisma.AlertCreateOrConnectWithoutDeviceInput[]
-  upsert?: Prisma.AlertUpsertWithWhereUniqueWithoutDeviceInput | Prisma.AlertUpsertWithWhereUniqueWithoutDeviceInput[]
-  createMany?: Prisma.AlertCreateManyDeviceInputEnvelope
-  set?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  disconnect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  delete?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  connect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  update?: Prisma.AlertUpdateWithWhereUniqueWithoutDeviceInput | Prisma.AlertUpdateWithWhereUniqueWithoutDeviceInput[]
-  updateMany?: Prisma.AlertUpdateManyWithWhereWithoutDeviceInput | Prisma.AlertUpdateManyWithWhereWithoutDeviceInput[]
-  deleteMany?: Prisma.AlertScalarWhereInput | Prisma.AlertScalarWhereInput[]
-}
-
-export type AlertUncheckedUpdateManyWithoutDeviceNestedInput = {
-  create?: Prisma.XOR<Prisma.AlertCreateWithoutDeviceInput, Prisma.AlertUncheckedCreateWithoutDeviceInput> | Prisma.AlertCreateWithoutDeviceInput[] | Prisma.AlertUncheckedCreateWithoutDeviceInput[]
-  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutDeviceInput | Prisma.AlertCreateOrConnectWithoutDeviceInput[]
-  upsert?: Prisma.AlertUpsertWithWhereUniqueWithoutDeviceInput | Prisma.AlertUpsertWithWhereUniqueWithoutDeviceInput[]
-  createMany?: Prisma.AlertCreateManyDeviceInputEnvelope
-  set?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  disconnect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  delete?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  connect?: Prisma.AlertWhereUniqueInput | Prisma.AlertWhereUniqueInput[]
-  update?: Prisma.AlertUpdateWithWhereUniqueWithoutDeviceInput | Prisma.AlertUpdateWithWhereUniqueWithoutDeviceInput[]
-  updateMany?: Prisma.AlertUpdateManyWithWhereWithoutDeviceInput | Prisma.AlertUpdateManyWithWhereWithoutDeviceInput[]
-  deleteMany?: Prisma.AlertScalarWhereInput | Prisma.AlertScalarWhereInput[]
-}
-
-export type EnumAlertTargetTypeFieldUpdateOperationsInput = {
-  set?: $Enums.AlertTargetType
+export type AlertUpdateOneRequiredWithoutEventsNestedInput = {
+  create?: Prisma.XOR<Prisma.AlertCreateWithoutEventsInput, Prisma.AlertUncheckedCreateWithoutEventsInput>
+  connectOrCreate?: Prisma.AlertCreateOrConnectWithoutEventsInput
+  upsert?: Prisma.AlertUpsertWithoutEventsInput
+  connect?: Prisma.AlertWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.AlertUpdateToOneWithWhereWithoutEventsInput, Prisma.AlertUpdateWithoutEventsInput>, Prisma.AlertUncheckedUpdateWithoutEventsInput>
 }
 
 export type AlertCreateWithoutUserInput = {
   id?: string
-  targetType: $Enums.AlertTargetType
-  thresholdKwh: number
-  message?: string | null
-  triggeredAt?: Date | string | null
-  readAt?: Date | string | null
+  name: string
+  referencePowerKw: number
+  tolerancePercent: number
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
-  property?: Prisma.PropertyCreateNestedOneWithoutAlertsInput
-  area?: Prisma.AreaCreateNestedOneWithoutAlertsInput
-  device?: Prisma.DeviceCreateNestedOneWithoutAlertsInput
+  meter: Prisma.MeterCreateNestedOneWithoutAlertsInput
+  events?: Prisma.AlertTriggerEventCreateNestedManyWithoutAlertInput
 }
 
 export type AlertUncheckedCreateWithoutUserInput = {
   id?: string
-  targetType: $Enums.AlertTargetType
-  propertyId?: string | null
-  areaId?: string | null
-  deviceId?: string | null
-  thresholdKwh: number
-  message?: string | null
-  triggeredAt?: Date | string | null
-  readAt?: Date | string | null
+  meterId: string
+  name: string
+  referencePowerKw: number
+  tolerancePercent: number
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  events?: Prisma.AlertTriggerEventUncheckedCreateNestedManyWithoutAlertInput
 }
 
 export type AlertCreateOrConnectWithoutUserInput = {
@@ -753,517 +623,339 @@ export type AlertScalarWhereInput = {
   NOT?: Prisma.AlertScalarWhereInput | Prisma.AlertScalarWhereInput[]
   id?: Prisma.StringFilter<"Alert"> | string
   userId?: Prisma.StringFilter<"Alert"> | string
-  targetType?: Prisma.EnumAlertTargetTypeFilter<"Alert"> | $Enums.AlertTargetType
-  propertyId?: Prisma.StringNullableFilter<"Alert"> | string | null
-  areaId?: Prisma.StringNullableFilter<"Alert"> | string | null
-  deviceId?: Prisma.StringNullableFilter<"Alert"> | string | null
-  thresholdKwh?: Prisma.FloatFilter<"Alert"> | number
-  message?: Prisma.StringNullableFilter<"Alert"> | string | null
-  triggeredAt?: Prisma.DateTimeNullableFilter<"Alert"> | Date | string | null
-  readAt?: Prisma.DateTimeNullableFilter<"Alert"> | Date | string | null
+  meterId?: Prisma.StringFilter<"Alert"> | string
+  name?: Prisma.StringFilter<"Alert"> | string
+  referencePowerKw?: Prisma.FloatFilter<"Alert"> | number
+  tolerancePercent?: Prisma.FloatFilter<"Alert"> | number
+  enabled?: Prisma.BoolFilter<"Alert"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Alert"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Alert"> | Date | string
 }
 
-export type AlertCreateWithoutPropertyInput = {
+export type AlertCreateWithoutMeterInput = {
   id?: string
-  targetType: $Enums.AlertTargetType
-  thresholdKwh: number
-  message?: string | null
-  triggeredAt?: Date | string | null
-  readAt?: Date | string | null
+  name: string
+  referencePowerKw: number
+  tolerancePercent: number
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutAlertsInput
-  area?: Prisma.AreaCreateNestedOneWithoutAlertsInput
-  device?: Prisma.DeviceCreateNestedOneWithoutAlertsInput
+  events?: Prisma.AlertTriggerEventCreateNestedManyWithoutAlertInput
 }
 
-export type AlertUncheckedCreateWithoutPropertyInput = {
+export type AlertUncheckedCreateWithoutMeterInput = {
   id?: string
   userId: string
-  targetType: $Enums.AlertTargetType
-  areaId?: string | null
-  deviceId?: string | null
-  thresholdKwh: number
-  message?: string | null
-  triggeredAt?: Date | string | null
-  readAt?: Date | string | null
+  name: string
+  referencePowerKw: number
+  tolerancePercent: number
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  events?: Prisma.AlertTriggerEventUncheckedCreateNestedManyWithoutAlertInput
 }
 
-export type AlertCreateOrConnectWithoutPropertyInput = {
+export type AlertCreateOrConnectWithoutMeterInput = {
   where: Prisma.AlertWhereUniqueInput
-  create: Prisma.XOR<Prisma.AlertCreateWithoutPropertyInput, Prisma.AlertUncheckedCreateWithoutPropertyInput>
+  create: Prisma.XOR<Prisma.AlertCreateWithoutMeterInput, Prisma.AlertUncheckedCreateWithoutMeterInput>
 }
 
-export type AlertCreateManyPropertyInputEnvelope = {
-  data: Prisma.AlertCreateManyPropertyInput | Prisma.AlertCreateManyPropertyInput[]
+export type AlertCreateManyMeterInputEnvelope = {
+  data: Prisma.AlertCreateManyMeterInput | Prisma.AlertCreateManyMeterInput[]
   skipDuplicates?: boolean
 }
 
-export type AlertUpsertWithWhereUniqueWithoutPropertyInput = {
+export type AlertUpsertWithWhereUniqueWithoutMeterInput = {
   where: Prisma.AlertWhereUniqueInput
-  update: Prisma.XOR<Prisma.AlertUpdateWithoutPropertyInput, Prisma.AlertUncheckedUpdateWithoutPropertyInput>
-  create: Prisma.XOR<Prisma.AlertCreateWithoutPropertyInput, Prisma.AlertUncheckedCreateWithoutPropertyInput>
+  update: Prisma.XOR<Prisma.AlertUpdateWithoutMeterInput, Prisma.AlertUncheckedUpdateWithoutMeterInput>
+  create: Prisma.XOR<Prisma.AlertCreateWithoutMeterInput, Prisma.AlertUncheckedCreateWithoutMeterInput>
 }
 
-export type AlertUpdateWithWhereUniqueWithoutPropertyInput = {
+export type AlertUpdateWithWhereUniqueWithoutMeterInput = {
   where: Prisma.AlertWhereUniqueInput
-  data: Prisma.XOR<Prisma.AlertUpdateWithoutPropertyInput, Prisma.AlertUncheckedUpdateWithoutPropertyInput>
+  data: Prisma.XOR<Prisma.AlertUpdateWithoutMeterInput, Prisma.AlertUncheckedUpdateWithoutMeterInput>
 }
 
-export type AlertUpdateManyWithWhereWithoutPropertyInput = {
+export type AlertUpdateManyWithWhereWithoutMeterInput = {
   where: Prisma.AlertScalarWhereInput
-  data: Prisma.XOR<Prisma.AlertUpdateManyMutationInput, Prisma.AlertUncheckedUpdateManyWithoutPropertyInput>
+  data: Prisma.XOR<Prisma.AlertUpdateManyMutationInput, Prisma.AlertUncheckedUpdateManyWithoutMeterInput>
 }
 
-export type AlertCreateWithoutAreaInput = {
+export type AlertCreateWithoutEventsInput = {
   id?: string
-  targetType: $Enums.AlertTargetType
-  thresholdKwh: number
-  message?: string | null
-  triggeredAt?: Date | string | null
-  readAt?: Date | string | null
+  name: string
+  referencePowerKw: number
+  tolerancePercent: number
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutAlertsInput
-  property?: Prisma.PropertyCreateNestedOneWithoutAlertsInput
-  device?: Prisma.DeviceCreateNestedOneWithoutAlertsInput
+  meter: Prisma.MeterCreateNestedOneWithoutAlertsInput
 }
 
-export type AlertUncheckedCreateWithoutAreaInput = {
+export type AlertUncheckedCreateWithoutEventsInput = {
   id?: string
   userId: string
-  targetType: $Enums.AlertTargetType
-  propertyId?: string | null
-  deviceId?: string | null
-  thresholdKwh: number
-  message?: string | null
-  triggeredAt?: Date | string | null
-  readAt?: Date | string | null
+  meterId: string
+  name: string
+  referencePowerKw: number
+  tolerancePercent: number
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
 
-export type AlertCreateOrConnectWithoutAreaInput = {
+export type AlertCreateOrConnectWithoutEventsInput = {
   where: Prisma.AlertWhereUniqueInput
-  create: Prisma.XOR<Prisma.AlertCreateWithoutAreaInput, Prisma.AlertUncheckedCreateWithoutAreaInput>
+  create: Prisma.XOR<Prisma.AlertCreateWithoutEventsInput, Prisma.AlertUncheckedCreateWithoutEventsInput>
 }
 
-export type AlertCreateManyAreaInputEnvelope = {
-  data: Prisma.AlertCreateManyAreaInput | Prisma.AlertCreateManyAreaInput[]
-  skipDuplicates?: boolean
+export type AlertUpsertWithoutEventsInput = {
+  update: Prisma.XOR<Prisma.AlertUpdateWithoutEventsInput, Prisma.AlertUncheckedUpdateWithoutEventsInput>
+  create: Prisma.XOR<Prisma.AlertCreateWithoutEventsInput, Prisma.AlertUncheckedCreateWithoutEventsInput>
+  where?: Prisma.AlertWhereInput
 }
 
-export type AlertUpsertWithWhereUniqueWithoutAreaInput = {
-  where: Prisma.AlertWhereUniqueInput
-  update: Prisma.XOR<Prisma.AlertUpdateWithoutAreaInput, Prisma.AlertUncheckedUpdateWithoutAreaInput>
-  create: Prisma.XOR<Prisma.AlertCreateWithoutAreaInput, Prisma.AlertUncheckedCreateWithoutAreaInput>
+export type AlertUpdateToOneWithWhereWithoutEventsInput = {
+  where?: Prisma.AlertWhereInput
+  data: Prisma.XOR<Prisma.AlertUpdateWithoutEventsInput, Prisma.AlertUncheckedUpdateWithoutEventsInput>
 }
 
-export type AlertUpdateWithWhereUniqueWithoutAreaInput = {
-  where: Prisma.AlertWhereUniqueInput
-  data: Prisma.XOR<Prisma.AlertUpdateWithoutAreaInput, Prisma.AlertUncheckedUpdateWithoutAreaInput>
+export type AlertUpdateWithoutEventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  referencePowerKw?: Prisma.FloatFieldUpdateOperationsInput | number
+  tolerancePercent?: Prisma.FloatFieldUpdateOperationsInput | number
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneRequiredWithoutAlertsNestedInput
+  meter?: Prisma.MeterUpdateOneRequiredWithoutAlertsNestedInput
 }
 
-export type AlertUpdateManyWithWhereWithoutAreaInput = {
-  where: Prisma.AlertScalarWhereInput
-  data: Prisma.XOR<Prisma.AlertUpdateManyMutationInput, Prisma.AlertUncheckedUpdateManyWithoutAreaInput>
-}
-
-export type AlertCreateWithoutDeviceInput = {
-  id?: string
-  targetType: $Enums.AlertTargetType
-  thresholdKwh: number
-  message?: string | null
-  triggeredAt?: Date | string | null
-  readAt?: Date | string | null
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  user: Prisma.UserCreateNestedOneWithoutAlertsInput
-  property?: Prisma.PropertyCreateNestedOneWithoutAlertsInput
-  area?: Prisma.AreaCreateNestedOneWithoutAlertsInput
-}
-
-export type AlertUncheckedCreateWithoutDeviceInput = {
-  id?: string
-  userId: string
-  targetType: $Enums.AlertTargetType
-  propertyId?: string | null
-  areaId?: string | null
-  thresholdKwh: number
-  message?: string | null
-  triggeredAt?: Date | string | null
-  readAt?: Date | string | null
-  createdAt?: Date | string
-  updatedAt?: Date | string
-}
-
-export type AlertCreateOrConnectWithoutDeviceInput = {
-  where: Prisma.AlertWhereUniqueInput
-  create: Prisma.XOR<Prisma.AlertCreateWithoutDeviceInput, Prisma.AlertUncheckedCreateWithoutDeviceInput>
-}
-
-export type AlertCreateManyDeviceInputEnvelope = {
-  data: Prisma.AlertCreateManyDeviceInput | Prisma.AlertCreateManyDeviceInput[]
-  skipDuplicates?: boolean
-}
-
-export type AlertUpsertWithWhereUniqueWithoutDeviceInput = {
-  where: Prisma.AlertWhereUniqueInput
-  update: Prisma.XOR<Prisma.AlertUpdateWithoutDeviceInput, Prisma.AlertUncheckedUpdateWithoutDeviceInput>
-  create: Prisma.XOR<Prisma.AlertCreateWithoutDeviceInput, Prisma.AlertUncheckedCreateWithoutDeviceInput>
-}
-
-export type AlertUpdateWithWhereUniqueWithoutDeviceInput = {
-  where: Prisma.AlertWhereUniqueInput
-  data: Prisma.XOR<Prisma.AlertUpdateWithoutDeviceInput, Prisma.AlertUncheckedUpdateWithoutDeviceInput>
-}
-
-export type AlertUpdateManyWithWhereWithoutDeviceInput = {
-  where: Prisma.AlertScalarWhereInput
-  data: Prisma.XOR<Prisma.AlertUpdateManyMutationInput, Prisma.AlertUncheckedUpdateManyWithoutDeviceInput>
+export type AlertUncheckedUpdateWithoutEventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  meterId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  referencePowerKw?: Prisma.FloatFieldUpdateOperationsInput | number
+  tolerancePercent?: Prisma.FloatFieldUpdateOperationsInput | number
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type AlertCreateManyUserInput = {
   id?: string
-  targetType: $Enums.AlertTargetType
-  propertyId?: string | null
-  areaId?: string | null
-  deviceId?: string | null
-  thresholdKwh: number
-  message?: string | null
-  triggeredAt?: Date | string | null
-  readAt?: Date | string | null
+  meterId: string
+  name: string
+  referencePowerKw: number
+  tolerancePercent: number
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
 
 export type AlertUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  targetType?: Prisma.EnumAlertTargetTypeFieldUpdateOperationsInput | $Enums.AlertTargetType
-  thresholdKwh?: Prisma.FloatFieldUpdateOperationsInput | number
-  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  triggeredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  referencePowerKw?: Prisma.FloatFieldUpdateOperationsInput | number
+  tolerancePercent?: Prisma.FloatFieldUpdateOperationsInput | number
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  property?: Prisma.PropertyUpdateOneWithoutAlertsNestedInput
-  area?: Prisma.AreaUpdateOneWithoutAlertsNestedInput
-  device?: Prisma.DeviceUpdateOneWithoutAlertsNestedInput
+  meter?: Prisma.MeterUpdateOneRequiredWithoutAlertsNestedInput
+  events?: Prisma.AlertTriggerEventUpdateManyWithoutAlertNestedInput
 }
 
 export type AlertUncheckedUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  targetType?: Prisma.EnumAlertTargetTypeFieldUpdateOperationsInput | $Enums.AlertTargetType
-  propertyId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  areaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  deviceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thresholdKwh?: Prisma.FloatFieldUpdateOperationsInput | number
-  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  triggeredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  meterId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  referencePowerKw?: Prisma.FloatFieldUpdateOperationsInput | number
+  tolerancePercent?: Prisma.FloatFieldUpdateOperationsInput | number
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  events?: Prisma.AlertTriggerEventUncheckedUpdateManyWithoutAlertNestedInput
 }
 
 export type AlertUncheckedUpdateManyWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  targetType?: Prisma.EnumAlertTargetTypeFieldUpdateOperationsInput | $Enums.AlertTargetType
-  propertyId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  areaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  deviceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thresholdKwh?: Prisma.FloatFieldUpdateOperationsInput | number
-  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  triggeredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  meterId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  referencePowerKw?: Prisma.FloatFieldUpdateOperationsInput | number
+  tolerancePercent?: Prisma.FloatFieldUpdateOperationsInput | number
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
-export type AlertCreateManyPropertyInput = {
+export type AlertCreateManyMeterInput = {
   id?: string
   userId: string
-  targetType: $Enums.AlertTargetType
-  areaId?: string | null
-  deviceId?: string | null
-  thresholdKwh: number
-  message?: string | null
-  triggeredAt?: Date | string | null
-  readAt?: Date | string | null
+  name: string
+  referencePowerKw: number
+  tolerancePercent: number
+  enabled?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
 }
 
-export type AlertUpdateWithoutPropertyInput = {
+export type AlertUpdateWithoutMeterInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
-  targetType?: Prisma.EnumAlertTargetTypeFieldUpdateOperationsInput | $Enums.AlertTargetType
-  thresholdKwh?: Prisma.FloatFieldUpdateOperationsInput | number
-  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  triggeredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  referencePowerKw?: Prisma.FloatFieldUpdateOperationsInput | number
+  tolerancePercent?: Prisma.FloatFieldUpdateOperationsInput | number
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutAlertsNestedInput
-  area?: Prisma.AreaUpdateOneWithoutAlertsNestedInput
-  device?: Prisma.DeviceUpdateOneWithoutAlertsNestedInput
+  events?: Prisma.AlertTriggerEventUpdateManyWithoutAlertNestedInput
 }
 
-export type AlertUncheckedUpdateWithoutPropertyInput = {
+export type AlertUncheckedUpdateWithoutMeterInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
-  targetType?: Prisma.EnumAlertTargetTypeFieldUpdateOperationsInput | $Enums.AlertTargetType
-  areaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  deviceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thresholdKwh?: Prisma.FloatFieldUpdateOperationsInput | number
-  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  triggeredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  referencePowerKw?: Prisma.FloatFieldUpdateOperationsInput | number
+  tolerancePercent?: Prisma.FloatFieldUpdateOperationsInput | number
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  events?: Prisma.AlertTriggerEventUncheckedUpdateManyWithoutAlertNestedInput
 }
 
-export type AlertUncheckedUpdateManyWithoutPropertyInput = {
+export type AlertUncheckedUpdateManyWithoutMeterInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
-  targetType?: Prisma.EnumAlertTargetTypeFieldUpdateOperationsInput | $Enums.AlertTargetType
-  areaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  deviceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thresholdKwh?: Prisma.FloatFieldUpdateOperationsInput | number
-  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  triggeredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  referencePowerKw?: Prisma.FloatFieldUpdateOperationsInput | number
+  tolerancePercent?: Prisma.FloatFieldUpdateOperationsInput | number
+  enabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
-export type AlertCreateManyAreaInput = {
-  id?: string
-  userId: string
-  targetType: $Enums.AlertTargetType
-  propertyId?: string | null
-  deviceId?: string | null
-  thresholdKwh: number
-  message?: string | null
-  triggeredAt?: Date | string | null
-  readAt?: Date | string | null
-  createdAt?: Date | string
-  updatedAt?: Date | string
+
+/**
+ * Count Type AlertCountOutputType
+ */
+
+export type AlertCountOutputType = {
+  events: number
 }
 
-export type AlertUpdateWithoutAreaInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  targetType?: Prisma.EnumAlertTargetTypeFieldUpdateOperationsInput | $Enums.AlertTargetType
-  thresholdKwh?: Prisma.FloatFieldUpdateOperationsInput | number
-  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  triggeredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  user?: Prisma.UserUpdateOneRequiredWithoutAlertsNestedInput
-  property?: Prisma.PropertyUpdateOneWithoutAlertsNestedInput
-  device?: Prisma.DeviceUpdateOneWithoutAlertsNestedInput
+export type AlertCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  events?: boolean | AlertCountOutputTypeCountEventsArgs
 }
 
-export type AlertUncheckedUpdateWithoutAreaInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  userId?: Prisma.StringFieldUpdateOperationsInput | string
-  targetType?: Prisma.EnumAlertTargetTypeFieldUpdateOperationsInput | $Enums.AlertTargetType
-  propertyId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  deviceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thresholdKwh?: Prisma.FloatFieldUpdateOperationsInput | number
-  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  triggeredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+/**
+ * AlertCountOutputType without action
+ */
+export type AlertCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AlertCountOutputType
+   */
+  select?: Prisma.AlertCountOutputTypeSelect<ExtArgs> | null
 }
 
-export type AlertUncheckedUpdateManyWithoutAreaInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  userId?: Prisma.StringFieldUpdateOperationsInput | string
-  targetType?: Prisma.EnumAlertTargetTypeFieldUpdateOperationsInput | $Enums.AlertTargetType
-  propertyId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  deviceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thresholdKwh?: Prisma.FloatFieldUpdateOperationsInput | number
-  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  triggeredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+/**
+ * AlertCountOutputType without action
+ */
+export type AlertCountOutputTypeCountEventsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AlertTriggerEventWhereInput
 }
-
-export type AlertCreateManyDeviceInput = {
-  id?: string
-  userId: string
-  targetType: $Enums.AlertTargetType
-  propertyId?: string | null
-  areaId?: string | null
-  thresholdKwh: number
-  message?: string | null
-  triggeredAt?: Date | string | null
-  readAt?: Date | string | null
-  createdAt?: Date | string
-  updatedAt?: Date | string
-}
-
-export type AlertUpdateWithoutDeviceInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  targetType?: Prisma.EnumAlertTargetTypeFieldUpdateOperationsInput | $Enums.AlertTargetType
-  thresholdKwh?: Prisma.FloatFieldUpdateOperationsInput | number
-  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  triggeredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  user?: Prisma.UserUpdateOneRequiredWithoutAlertsNestedInput
-  property?: Prisma.PropertyUpdateOneWithoutAlertsNestedInput
-  area?: Prisma.AreaUpdateOneWithoutAlertsNestedInput
-}
-
-export type AlertUncheckedUpdateWithoutDeviceInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  userId?: Prisma.StringFieldUpdateOperationsInput | string
-  targetType?: Prisma.EnumAlertTargetTypeFieldUpdateOperationsInput | $Enums.AlertTargetType
-  propertyId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  areaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thresholdKwh?: Prisma.FloatFieldUpdateOperationsInput | number
-  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  triggeredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-}
-
-export type AlertUncheckedUpdateManyWithoutDeviceInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  userId?: Prisma.StringFieldUpdateOperationsInput | string
-  targetType?: Prisma.EnumAlertTargetTypeFieldUpdateOperationsInput | $Enums.AlertTargetType
-  propertyId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  areaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thresholdKwh?: Prisma.FloatFieldUpdateOperationsInput | number
-  message?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  triggeredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  readAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-}
-
 
 
 export type AlertSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   userId?: boolean
-  targetType?: boolean
-  propertyId?: boolean
-  areaId?: boolean
-  deviceId?: boolean
-  thresholdKwh?: boolean
-  message?: boolean
-  triggeredAt?: boolean
-  readAt?: boolean
+  meterId?: boolean
+  name?: boolean
+  referencePowerKw?: boolean
+  tolerancePercent?: boolean
+  enabled?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
-  property?: boolean | Prisma.Alert$propertyArgs<ExtArgs>
-  area?: boolean | Prisma.Alert$areaArgs<ExtArgs>
-  device?: boolean | Prisma.Alert$deviceArgs<ExtArgs>
+  meter?: boolean | Prisma.MeterDefaultArgs<ExtArgs>
+  events?: boolean | Prisma.Alert$eventsArgs<ExtArgs>
+  _count?: boolean | Prisma.AlertCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["alert"]>
 
 export type AlertSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   userId?: boolean
-  targetType?: boolean
-  propertyId?: boolean
-  areaId?: boolean
-  deviceId?: boolean
-  thresholdKwh?: boolean
-  message?: boolean
-  triggeredAt?: boolean
-  readAt?: boolean
+  meterId?: boolean
+  name?: boolean
+  referencePowerKw?: boolean
+  tolerancePercent?: boolean
+  enabled?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
-  property?: boolean | Prisma.Alert$propertyArgs<ExtArgs>
-  area?: boolean | Prisma.Alert$areaArgs<ExtArgs>
-  device?: boolean | Prisma.Alert$deviceArgs<ExtArgs>
+  meter?: boolean | Prisma.MeterDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["alert"]>
 
 export type AlertSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   userId?: boolean
-  targetType?: boolean
-  propertyId?: boolean
-  areaId?: boolean
-  deviceId?: boolean
-  thresholdKwh?: boolean
-  message?: boolean
-  triggeredAt?: boolean
-  readAt?: boolean
+  meterId?: boolean
+  name?: boolean
+  referencePowerKw?: boolean
+  tolerancePercent?: boolean
+  enabled?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
-  property?: boolean | Prisma.Alert$propertyArgs<ExtArgs>
-  area?: boolean | Prisma.Alert$areaArgs<ExtArgs>
-  device?: boolean | Prisma.Alert$deviceArgs<ExtArgs>
+  meter?: boolean | Prisma.MeterDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["alert"]>
 
 export type AlertSelectScalar = {
   id?: boolean
   userId?: boolean
-  targetType?: boolean
-  propertyId?: boolean
-  areaId?: boolean
-  deviceId?: boolean
-  thresholdKwh?: boolean
-  message?: boolean
-  triggeredAt?: boolean
-  readAt?: boolean
+  meterId?: boolean
+  name?: boolean
+  referencePowerKw?: boolean
+  tolerancePercent?: boolean
+  enabled?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AlertOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "targetType" | "propertyId" | "areaId" | "deviceId" | "thresholdKwh" | "message" | "triggeredAt" | "readAt" | "createdAt" | "updatedAt", ExtArgs["result"]["alert"]>
+export type AlertOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "meterId" | "name" | "referencePowerKw" | "tolerancePercent" | "enabled" | "createdAt" | "updatedAt", ExtArgs["result"]["alert"]>
 export type AlertInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
-  property?: boolean | Prisma.Alert$propertyArgs<ExtArgs>
-  area?: boolean | Prisma.Alert$areaArgs<ExtArgs>
-  device?: boolean | Prisma.Alert$deviceArgs<ExtArgs>
+  meter?: boolean | Prisma.MeterDefaultArgs<ExtArgs>
+  events?: boolean | Prisma.Alert$eventsArgs<ExtArgs>
+  _count?: boolean | Prisma.AlertCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type AlertIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
-  property?: boolean | Prisma.Alert$propertyArgs<ExtArgs>
-  area?: boolean | Prisma.Alert$areaArgs<ExtArgs>
-  device?: boolean | Prisma.Alert$deviceArgs<ExtArgs>
+  meter?: boolean | Prisma.MeterDefaultArgs<ExtArgs>
 }
 export type AlertIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
-  property?: boolean | Prisma.Alert$propertyArgs<ExtArgs>
-  area?: boolean | Prisma.Alert$areaArgs<ExtArgs>
-  device?: boolean | Prisma.Alert$deviceArgs<ExtArgs>
+  meter?: boolean | Prisma.MeterDefaultArgs<ExtArgs>
 }
 
 export type $AlertPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Alert"
   objects: {
     user: Prisma.$UserPayload<ExtArgs>
-    property: Prisma.$PropertyPayload<ExtArgs> | null
-    area: Prisma.$AreaPayload<ExtArgs> | null
-    device: Prisma.$DevicePayload<ExtArgs> | null
+    meter: Prisma.$MeterPayload<ExtArgs>
+    events: Prisma.$AlertTriggerEventPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     userId: string
-    targetType: $Enums.AlertTargetType
-    propertyId: string | null
-    areaId: string | null
-    deviceId: string | null
-    thresholdKwh: number
-    message: string | null
-    triggeredAt: Date | null
-    readAt: Date | null
+    meterId: string
+    name: string
+    referencePowerKw: number
+    tolerancePercent: number
+    enabled: boolean
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["alert"]>
@@ -1661,9 +1353,8 @@ readonly fields: AlertFieldRefs;
 export interface Prisma__AlertClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
-  property<T extends Prisma.Alert$propertyArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Alert$propertyArgs<ExtArgs>>): Prisma.Prisma__PropertyClient<runtime.Types.Result.GetResult<Prisma.$PropertyPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-  area<T extends Prisma.Alert$areaArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Alert$areaArgs<ExtArgs>>): Prisma.Prisma__AreaClient<runtime.Types.Result.GetResult<Prisma.$AreaPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-  device<T extends Prisma.Alert$deviceArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Alert$deviceArgs<ExtArgs>>): Prisma.Prisma__DeviceClient<runtime.Types.Result.GetResult<Prisma.$DevicePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  meter<T extends Prisma.MeterDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.MeterDefaultArgs<ExtArgs>>): Prisma.Prisma__MeterClient<runtime.Types.Result.GetResult<Prisma.$MeterPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  events<T extends Prisma.Alert$eventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Alert$eventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AlertTriggerEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1695,14 +1386,11 @@ export interface Prisma__AlertClient<T, Null = never, ExtArgs extends runtime.Ty
 export interface AlertFieldRefs {
   readonly id: Prisma.FieldRef<"Alert", 'String'>
   readonly userId: Prisma.FieldRef<"Alert", 'String'>
-  readonly targetType: Prisma.FieldRef<"Alert", 'AlertTargetType'>
-  readonly propertyId: Prisma.FieldRef<"Alert", 'String'>
-  readonly areaId: Prisma.FieldRef<"Alert", 'String'>
-  readonly deviceId: Prisma.FieldRef<"Alert", 'String'>
-  readonly thresholdKwh: Prisma.FieldRef<"Alert", 'Float'>
-  readonly message: Prisma.FieldRef<"Alert", 'String'>
-  readonly triggeredAt: Prisma.FieldRef<"Alert", 'DateTime'>
-  readonly readAt: Prisma.FieldRef<"Alert", 'DateTime'>
+  readonly meterId: Prisma.FieldRef<"Alert", 'String'>
+  readonly name: Prisma.FieldRef<"Alert", 'String'>
+  readonly referencePowerKw: Prisma.FieldRef<"Alert", 'Float'>
+  readonly tolerancePercent: Prisma.FieldRef<"Alert", 'Float'>
+  readonly enabled: Prisma.FieldRef<"Alert", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"Alert", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Alert", 'DateTime'>
 }
@@ -2106,60 +1794,27 @@ export type AlertDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Interna
 }
 
 /**
- * Alert.property
+ * Alert.events
  */
-export type Alert$propertyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type Alert$eventsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the Property
+   * Select specific fields to fetch from the AlertTriggerEvent
    */
-  select?: Prisma.PropertySelect<ExtArgs> | null
+  select?: Prisma.AlertTriggerEventSelect<ExtArgs> | null
   /**
-   * Omit specific fields from the Property
+   * Omit specific fields from the AlertTriggerEvent
    */
-  omit?: Prisma.PropertyOmit<ExtArgs> | null
+  omit?: Prisma.AlertTriggerEventOmit<ExtArgs> | null
   /**
    * Choose, which related nodes to fetch as well
    */
-  include?: Prisma.PropertyInclude<ExtArgs> | null
-  where?: Prisma.PropertyWhereInput
-}
-
-/**
- * Alert.area
- */
-export type Alert$areaArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the Area
-   */
-  select?: Prisma.AreaSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the Area
-   */
-  omit?: Prisma.AreaOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.AreaInclude<ExtArgs> | null
-  where?: Prisma.AreaWhereInput
-}
-
-/**
- * Alert.device
- */
-export type Alert$deviceArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the Device
-   */
-  select?: Prisma.DeviceSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the Device
-   */
-  omit?: Prisma.DeviceOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.DeviceInclude<ExtArgs> | null
-  where?: Prisma.DeviceWhereInput
+  include?: Prisma.AlertTriggerEventInclude<ExtArgs> | null
+  where?: Prisma.AlertTriggerEventWhereInput
+  orderBy?: Prisma.AlertTriggerEventOrderByWithRelationInput | Prisma.AlertTriggerEventOrderByWithRelationInput[]
+  cursor?: Prisma.AlertTriggerEventWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AlertTriggerEventScalarFieldEnum | Prisma.AlertTriggerEventScalarFieldEnum[]
 }
 
 /**

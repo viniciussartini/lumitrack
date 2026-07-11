@@ -70,23 +70,32 @@ export const AuditOutcome = {
 export type AuditOutcome = (typeof AuditOutcome)[keyof typeof AuditOutcome]
 
 
-export const ConsumptionPeriod = {
-  HOURLY: 'HOURLY',
-  DAILY: 'DAILY',
-  MONTHLY: 'MONTHLY',
-  ANNUAL: 'ANNUAL'
-} as const
-
-export type ConsumptionPeriod = (typeof ConsumptionPeriod)[keyof typeof ConsumptionPeriod]
-
-
-export const AlertTargetType = {
+export const TargetType = {
   PROPERTY: 'PROPERTY',
   AREA: 'AREA',
   DEVICE: 'DEVICE'
 } as const
 
-export type AlertTargetType = (typeof AlertTargetType)[keyof typeof AlertTargetType]
+export type TargetType = (typeof TargetType)[keyof typeof TargetType]
+
+
+export const BillingClass = {
+  B1: 'B1',
+  B2: 'B2',
+  B3: 'B3'
+} as const
+
+export type BillingClass = (typeof BillingClass)[keyof typeof BillingClass]
+
+
+export const TariffFlag = {
+  GREEN: 'GREEN',
+  YELLOW: 'YELLOW',
+  RED_P1: 'RED_P1',
+  RED_P2: 'RED_P2'
+} as const
+
+export type TariffFlag = (typeof TariffFlag)[keyof typeof TariffFlag]
 
 
 export const IoTProtocol = {
