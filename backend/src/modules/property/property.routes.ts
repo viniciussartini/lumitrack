@@ -5,15 +5,12 @@ import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { areaRoutes } from "@/modules/area/area.routes.js"
-import { propertyAlertRoutes } from "@/modules/alert/alert.routes.js"
 import { simulationRoutes } from "@/modules/simulation/simulation.routes.js"
-import { AlertNotifier } from "../alert/alert-notifier.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
 
 export function propertyRoutes(
     authenticate: RequestHandler,
     prismaClient: PrismaClient,
-    alertNotifier: AlertNotifier,
     auditService: AuditService,
 ): Router {
     const router = Router()
@@ -32,8 +29,7 @@ export function propertyRoutes(
     // Rotas aninhadas ANTES das rotas /:id — ordem crítica no Express.
     // Rotas aninhadas de área montadas aqui para que :propertyId fique
     // disponível via mergeParams no router filho (area).
-    router.use("/:propertyId/areas", areaRoutes(authenticate, prismaClient, alertNotifier))
-    router.use("/:propertyId/alerts", propertyAlertRoutes(authenticate, prismaClient, alertNotifier))
+    router.use("/:propertyId/areas", areaRoutes(authenticate, prismaClient))
     router.use("/:propertyId/simulation", simulationRoutes(authenticate, prismaClient))
 
     router.get("/:id", authenticate, (req, res, next) => propertyController.findById(req, res, next))

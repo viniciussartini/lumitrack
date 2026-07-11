@@ -1,17 +1,12 @@
 import { PrismaClient } from "@/generated/prisma/client.js"
 import type { CreateAlertInput, UpdateAlertInput } from "@/modules/alert/alert.schema.js"
+import { toSkipTake, type Paginated, type PaginationQuery } from "@/shared/pagination.js"
 
 type PrismaAlert = NonNullable<
     Awaited<ReturnType<PrismaClient["alert"]["findUnique"]>>
 >
 
 export type AlertResponse = PrismaAlert
-
-// Um dos três FKs deve ser preenchido por alerta.
-export type AlertTarget =
-    | { propertyId: string; areaId?: never; deviceId?: never }
-    | { areaId: string; propertyId?: never; deviceId?: never }
-    | { deviceId: string; propertyId?: never; areaId?: never }
 
 export class AlertRepository {
     constructor(private readonly prisma: PrismaClient) {}
@@ -20,53 +15,49 @@ export class AlertRepository {
         return this.prisma.alert.findUnique({ where: { id } })
     }
 
-    async findAllByUser(userId: string, triggered?: boolean
+    async findAllByUserPaginated(userId: string, pagination: PaginationQuery): Promise<Paginated<AlertResponse>> {
+        const { skip, take } = toSkipTake(pagination)
 
-    ): Promise<AlertResponse[]> {
-        return this.prisma.alert.findMany({
-            where: {
-                userId,
-                ...(triggered === true
-                    ? { triggeredAt: { not: null } }
-                    : triggered === false
-                    ? { triggeredAt: null }
-                    : {}),
-            },
-            orderBy: { createdAt: "desc" },
-        })
+        const [items, total] = await Promise.all([
+            this.prisma.alert.findMany({
+                where: { userId },
+                orderBy: { createdAt: "desc" },
+                skip,
+                take,
+            }),
+            this.prisma.alert.count({ where: { userId } }),
+        ])
+
+        return { items, total, page: pagination.page, pageSize: pagination.pageSize }
     }
 
-    async findAllByTarget(target: AlertTarget): Promise<AlertResponse[]> {
-        return this.prisma.alert.findMany({
-            where: { ...target },
-            orderBy: { createdAt: "desc" },
-        })
+    // Sem paginação de propósito — usado só pela exportação LGPD (#09, Art.
+    // 18), que precisa de todos os alertas do titular de uma vez.
+    async findAllByUser(userId: string): Promise<AlertResponse[]> {
+        return this.prisma.alert.findMany({ where: { userId }, orderBy: { createdAt: "desc" } })
     }
 
-    // Busca alertas de um target que ainda não foram disparados —
-    // usado pelo mecanismo de disparo automático no ConsumptionService.
-    async findActiveByTarget(target: AlertTarget): Promise<AlertResponse[]> {
-        return this.prisma.alert.findMany({
-            where: {
-                ...target,
-                triggeredAt: null,
-            },
-        })
+    // Todos os alertas habilitados de todos os usuários — usado só pelo
+    // AlertEvaluator para popular o cache (meterId → Alert[]) no boot.
+    async findAllEnabled(): Promise<AlertResponse[]> {
+        return this.prisma.alert.findMany({ where: { enabled: true } })
     }
 
-    async create(
-        userId: string,
-        target: AlertTarget,
-        targetType: "PROPERTY" | "AREA" | "DEVICE",
-        data: CreateAlertInput,
-    ): Promise<AlertResponse> {
+    // Alertas habilitados de um medidor específico — usado pelo
+    // AlertEvaluator para recarregar o cache após create/update/delete/toggle.
+    async findAllEnabledByMeter(meterId: string): Promise<AlertResponse[]> {
+        return this.prisma.alert.findMany({ where: { meterId, enabled: true } })
+    }
+
+    async create(userId: string, data: CreateAlertInput): Promise<AlertResponse> {
         return this.prisma.alert.create({
             data: {
                 userId,
-                targetType,
-                ...target,
-                thresholdKwh: data.thresholdKwh,
-                message: data.message ?? null,
+                meterId: data.meterId,
+                name: data.name,
+                referencePowerKw: data.referencePowerKw,
+                tolerancePercent: data.tolerancePercent,
+                enabled: data.enabled ?? true,
             },
         })
     }
@@ -76,21 +67,6 @@ export class AlertRepository {
             Object.entries(data).filter(([, value]) => value !== undefined),
         )
         return this.prisma.alert.update({ where: { id }, data: cleanData })
-    }
-
-    // Preenche triggeredAt com o momento atual.
-    async trigger(id: string): Promise<AlertResponse> {
-        return this.prisma.alert.update({
-            where: { id },
-            data: { triggeredAt: new Date() },
-        })
-    }
-
-    async markAsRead(id: string): Promise<AlertResponse> {
-        return this.prisma.alert.update({
-            where: { id },
-            data: { readAt: new Date() },
-        })
     }
 
     async delete(id: string): Promise<void> {

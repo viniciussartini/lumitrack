@@ -1,450 +1,372 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest"
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest"
 import { AlertService } from "@/modules/alert/alert.service.js"
 import { AlertRepository } from "@/modules/alert/alert.repository.js"
+import { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
-import { AreaRepository } from "@/modules/area/area.repository.js"
-import { AreaService } from "@/modules/area/area.service.js"
-import { DeviceRepository } from "@/modules/device/device.repository.js"
-import { DeviceService } from "@/modules/device/device.service.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
-import { DistributorService } from "@/modules/distributor/distributor.service.js"
-import { UserRepository } from "@/modules/user/user.repository.js"
+import { AreaRepository } from "@/modules/area/area.repository.js"
+import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { UserService } from "@/modules/user/user.service.js"
+import { UserRepository } from "@/modules/user/user.repository.js"
+import type { AlertEvaluator, FiringAlert } from "@/modules/alert/alert-evaluator.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
+import { createTestDistributor } from "@/shared/test/distributorFixture.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 
 // ─── Instâncias ───────────────────────────────────────────────────────────────
 
-const distributorRepository = new DistributorRepository(prismaTest)
-const distributorService = new DistributorService(distributorRepository)
-
-const propertyRepository = new PropertyRepository(prismaTest)
-const propertyService = new PropertyService(propertyRepository, distributorRepository)
-
-const areaRepository = new AreaRepository(prismaTest)
-const areaService = new AreaService(areaRepository, propertyRepository)
-
-const deviceRepository = new DeviceRepository(prismaTest)
-const deviceService = new DeviceService(deviceRepository, areaRepository, propertyRepository)
-
 const alertRepository = new AlertRepository(prismaTest)
-const alertService = new AlertService(alertRepository, propertyRepository, areaRepository, deviceRepository)
-
+const meterRepository = new MeterRepository(prismaTest)
+const propertyRepository = new PropertyRepository(prismaTest)
+const distributorRepository = new DistributorRepository(prismaTest)
+const propertyService = new PropertyService(propertyRepository, distributorRepository)
+const areaRepository = new AreaRepository(prismaTest)
+const deviceRepository = new DeviceRepository(prismaTest)
 const userRepository = new UserRepository(prismaTest)
 const userService = new UserService(userRepository)
 
-// ─── Dados de apoio ───────────────────────────────────────────────────────────
+const meterTargetRepos = { meterRepository, propertyRepository, areaRepository, deviceRepository }
 
-const validUserA = {
-    email: "joao@example.com",
-    password: "Senha@123",
-    userType: "INDIVIDUAL" as const,
-    acceptedTerms: true,
-    firstName: "João",
-    lastName: "Silva",
-    cpf: "529.982.247-25",
+// Fake mínimo do AlertEvaluator — o service só chama isFiring/getFiringByUser/
+// invalidateMeter, então um fake simples evita subir o pipeline de amostras
+// inteiro só para testar o CRUD.
+function buildFakeEvaluator(firingAlertIds: Set<string> = new Set()) {
+    const invalidateMeter = vi.fn().mockResolvedValue(undefined)
+    const evaluator = {
+        isFiring: (alertId: string) => firingAlertIds.has(alertId),
+        getFiringByUser: (): FiringAlert[] => [],
+        invalidateMeter,
+    } as unknown as AlertEvaluator
+    return { evaluator, invalidateMeter }
 }
 
-const validUserB = {
-    email: "maria@example.com",
-    password: "Senha@123",
-    userType: "INDIVIDUAL" as const,
-    acceptedTerms: true,
-    firstName: "Maria",
-    lastName: "Santos",
-    cpf: "310.037.856-38",
-}
-
-const validDistributorInput = {
-    name: "CEMIG",
-    cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC" as const,
-    workingVoltage: 220,
-    kwhPrice: 0.75,
+async function setupUserAndMeter(email = "joao@example.com") {
+    const user = await userService.createUser({
+        email, password: "Senha@123", userType: "INDIVIDUAL", acceptedTerms: true,
+        firstName: "João", lastName: "Silva", cpf: email === "joao@example.com" ? "529.982.247-25" : "310.037.856-38",
+    })
+    const distributor = await createTestDistributor(prismaTest)
+    const property = await propertyService.create(user.id, {
+        name: "Casa", distributorId: distributor.id, electricalSystem: "TRIPHASIC",
+    })
+    const meter = await prismaTest.meter.create({
+        data: { name: "Medidor", targetType: "PROPERTY", propertyId: property.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "t" },
+    })
+    return { user, property, meter }
 }
 
 const validAlertInput = {
-    thresholdKwh: 100,
-    message: "Consumo alto detectado",
+    name: "Pico de potência",
+    referencePowerKw: 10,
+    tolerancePercent: 2,
 }
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
+beforeEach(async () => { await cleanDatabase() })
+afterAll(async () => { await prismaTest.$disconnect() })
 
-async function setupAll(userInput = validUserA) {
-    const user = await userService.createUser(userInput)
-    const distributor = await distributorService.create(user.id, validDistributorInput)
-    const property = await propertyService.create(user.id, {
-        name: "Casa",
-        distributorId: distributor.id,
-    })
-    const area = await areaService.create(property.id, user.id, { name: "Sala" })
-    const device = await deviceService.create(area.id, property.id, user.id, {
-        name: "Ar-condicionado",
-        powerWatts: 1200,
-    })
-    return { user, property, area, device }
-}
+describe("AlertService", () => {
+    describe("create", () => {
+        it("cria um alerta vinculado a um medidor do próprio usuário", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const { evaluator } = buildFakeEvaluator()
+            const service = new AlertService(alertRepository, meterTargetRepos, evaluator)
 
-// ─── Setup e Teardown ─────────────────────────────────────────────────────────
+            const alert = await service.create(user.id, { ...validAlertInput, meterId: meter.id })
 
-beforeEach(async () => {
-    await cleanDatabase()
-})
-
-afterAll(async () => {
-    await prismaTest.$disconnect()
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SUITE: AlertService — criação por target
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("AlertService — create", () => {
-    it("deve criar alerta para property com targetType PROPERTY", async () => {
-        const { user, property } = await setupAll()
-
-        const alert = await alertService.createForProperty(property.id, user.id, validAlertInput)
-
-        expect(alert.id).toBeDefined()
-        expect(alert.propertyId).toBe(property.id)
-        expect(alert.targetType).toBe("PROPERTY")
-        expect(alert.thresholdKwh).toBe(100)
-        expect(alert.triggeredAt).toBeNull()
-        expect(alert.readAt).toBeNull()
-    })
-
-    it("deve criar alerta para area com targetType AREA", async () => {
-        const { user, property, area } = await setupAll()
-
-        const alert = await alertService.createForArea(area.id, property.id, user.id, validAlertInput)
-
-        expect(alert.areaId).toBe(area.id)
-        expect(alert.targetType).toBe("AREA")
-        expect(alert.propertyId).toBeNull()
-    })
-
-    it("deve criar alerta para device com targetType DEVICE", async () => {
-        const { user, property, area, device } = await setupAll()
-
-        const alert = await alertService.createForDevice(device.id, area.id, property.id, user.id, validAlertInput)
-
-        expect(alert.deviceId).toBe(device.id)
-        expect(alert.targetType).toBe("DEVICE")
-    })
-
-    it("deve criar alerta sem message (campo opcional)", async () => {
-        const { user, property } = await setupAll()
-
-        const alert = await alertService.createForProperty(property.id, user.id, { thresholdKwh: 50 })
-
-        expect(alert.message).toBeNull()
-    })
-
-    it("deve lançar ValidationError para thresholdKwh zero ou negativo", async () => {
-        const { user, property } = await setupAll()
-
-        await expect(
-            alertService.createForProperty(property.id, user.id, { thresholdKwh: 0 }),
-        ).rejects.toThrow(ValidationError)
-
-        await expect(
-            alertService.createForProperty(property.id, user.id, { thresholdKwh: -10 }),
-        ).rejects.toThrow(ValidationError)
-    })
-
-    it("deve lançar NotFoundError para propertyId inexistente", async () => {
-        const user = await userService.createUser(validUserA)
-
-        await expect(
-            alertService.createForProperty("00000000-0000-0000-0000-000000000000", user.id, validAlertInput),
-        ).rejects.toThrow(NotFoundError)
-    })
-
-    it("deve lançar ForbiddenError ao criar alerta em property de outro usuário", async () => {
-        const { property } = await setupAll(validUserA)
-        const userB = await userService.createUser(validUserB)
-
-        await expect(
-            alertService.createForProperty(property.id, userB.id, validAlertInput),
-        ).rejects.toThrow(ForbiddenError)
-    })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SUITE: AlertService — listagem
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("AlertService — findAll (global)", () => {
-    it("deve retornar todos os alertas do usuário", async () => {
-        const { user, property, area } = await setupAll()
-        await alertService.createForProperty(property.id, user.id, validAlertInput)
-        await alertService.createForArea(area.id, property.id, user.id, { thresholdKwh: 50 })
-
-        const list = await alertService.findAll(user.id, {})
-
-        expect(list).toHaveLength(2)
-    })
-
-    it("deve filtrar apenas alertas disparados com ?triggered=true", async () => {
-        const { user, property } = await setupAll()
-        const alert = await alertService.createForProperty(property.id, user.id, validAlertInput)
-        await alertService.createForProperty(property.id, user.id, { thresholdKwh: 200 })
-
-        // Dispara manualmente o primeiro
-        await alertRepository.trigger(alert.id)
-
-        const triggered = await alertService.findAll(user.id, { triggered: "true" })
-        expect(triggered).toHaveLength(1)
-        expect(triggered[0]?.id).toBe(alert.id)
-    })
-
-    it("deve filtrar apenas alertas não disparados com ?triggered=false", async () => {
-        const { user, property } = await setupAll()
-        const alert = await alertService.createForProperty(property.id, user.id, validAlertInput)
-        await alertService.createForProperty(property.id, user.id, { thresholdKwh: 200 })
-        await alertRepository.trigger(alert.id)
-
-        const notTriggered = await alertService.findAll(user.id, { triggered: "false" })
-
-        expect(notTriggered).toHaveLength(1)
-        expect(notTriggered[0]?.triggeredAt).toBeNull()
-    })
-
-    it("deve retornar lista vazia quando usuário não tem alertas", async () => {
-        const user = await userService.createUser(validUserA)
-
-        const list = await alertService.findAll(user.id, {})
-
-        expect(list).toEqual([])
-    })
-})
-
-describe("AlertService — findAllForProperty / Area / Device", () => {
-    it("deve retornar apenas alertas da property especificada", async () => {
-        const { user, property } = await setupAll()
-        await alertService.createForProperty(property.id, user.id, validAlertInput)
-
-        const list = await alertService.findAllForProperty(property.id, user.id)
-
-        expect(list).toHaveLength(1)
-        expect(list[0]?.propertyId).toBe(property.id)
-    })
-
-    it("deve lançar ForbiddenError ao listar alertas de property de outro usuário", async () => {
-        const { property } = await setupAll(validUserA)
-        const userB = await userService.createUser(validUserB)
-
-        await expect(
-            alertService.findAllForProperty(property.id, userB.id),
-        ).rejects.toThrow(ForbiddenError)
-    })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SUITE: AlertService — findById
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("AlertService — findById", () => {
-    it("deve retornar o alerta pelo id", async () => {
-        const { user, property } = await setupAll()
-        const created = await alertService.createForProperty(property.id, user.id, validAlertInput)
-
-        const found = await alertService.findById(created.id, user.id)
-
-        expect(found.id).toBe(created.id)
-    })
-
-    it("deve lançar NotFoundError para id inexistente", async () => {
-        const user = await userService.createUser(validUserA)
-
-        await expect(
-            alertService.findById("00000000-0000-0000-0000-000000000000", user.id),
-        ).rejects.toThrow(NotFoundError)
-    })
-
-    it("deve lançar ForbiddenError para alerta de outro usuário", async () => {
-        const { user, property } = await setupAll(validUserA)
-        const alert = await alertService.createForProperty(property.id, user.id, validAlertInput)
-        const userB = await userService.createUser(validUserB)
-
-        await expect(
-            alertService.findById(alert.id, userB.id),
-        ).rejects.toThrow(ForbiddenError)
-    })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SUITE: AlertService — update
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("AlertService — update", () => {
-    it("deve atualizar thresholdKwh e message", async () => {
-        const { user, property } = await setupAll()
-        const alert = await alertService.createForProperty(property.id, user.id, validAlertInput)
-
-        const updated = await alertService.update(alert.id, user.id, {
-            thresholdKwh: 250,
-            message: "Novo limite",
+            expect(alert.id).toBeDefined()
+            expect(alert.userId).toBe(user.id)
+            expect(alert.meterId).toBe(meter.id)
+            expect(alert.name).toBe("Pico de potência")
+            expect(alert.referencePowerKw).toBe(10)
+            expect(alert.tolerancePercent).toBe(2)
+            expect(alert.enabled).toBe(true) // default
         })
 
-        expect(updated.thresholdKwh).toBe(250)
-        expect(updated.message).toBe("Novo limite")
+        it("aceita enabled explícito", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const { evaluator } = buildFakeEvaluator()
+            const service = new AlertService(alertRepository, meterTargetRepos, evaluator)
+
+            const alert = await service.create(user.id, { ...validAlertInput, meterId: meter.id, enabled: false })
+
+            expect(alert.enabled).toBe(false)
+        })
+
+        it("invalida o cache do evaluator para o medidor após criar", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const { evaluator, invalidateMeter } = buildFakeEvaluator()
+            const service = new AlertService(alertRepository, meterTargetRepos, evaluator)
+
+            const alert = await service.create(user.id, { ...validAlertInput, meterId: meter.id })
+
+            expect(invalidateMeter).toHaveBeenCalledWith(alert.meterId)
+        })
+
+        it("lança NotFoundError para meterId inexistente", async () => {
+            const user = await userService.createUser({
+                email: "joao@example.com", password: "Senha@123", userType: "INDIVIDUAL",
+                acceptedTerms: true, firstName: "João", lastName: "Silva", cpf: "529.982.247-25",
+            })
+            const service = new AlertService(alertRepository, meterTargetRepos)
+
+            await expect(
+                service.create(user.id, { ...validAlertInput, meterId: "00000000-0000-0000-0000-000000000000" }),
+            ).rejects.toThrow(NotFoundError)
+        })
+
+        it("lança ForbiddenError ao vincular medidor de outro usuário", async () => {
+            const { meter } = await setupUserAndMeter("joao@example.com")
+            const userB = await userService.createUser({
+                email: "maria@example.com", password: "Senha@123", userType: "INDIVIDUAL",
+                acceptedTerms: true, firstName: "Maria", lastName: "Santos", cpf: "310.037.856-38",
+            })
+            const service = new AlertService(alertRepository, meterTargetRepos)
+
+            await expect(
+                service.create(userB.id, { ...validAlertInput, meterId: meter.id }),
+            ).rejects.toThrow(ForbiddenError)
+        })
+
+        it("lança ValidationError para nome vazio", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const service = new AlertService(alertRepository, meterTargetRepos)
+
+            await expect(
+                service.create(user.id, { ...validAlertInput, meterId: meter.id, name: "" }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("lança ValidationError para referencePowerKw zero ou negativo", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const service = new AlertService(alertRepository, meterTargetRepos)
+
+            await expect(
+                service.create(user.id, { ...validAlertInput, meterId: meter.id, referencePowerKw: 0 }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("lança ValidationError para tolerancePercent acima de 100", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const service = new AlertService(alertRepository, meterTargetRepos)
+
+            await expect(
+                service.create(user.id, { ...validAlertInput, meterId: meter.id, tolerancePercent: 101 }),
+            ).rejects.toThrow(ValidationError)
+        })
     })
 
-    it("deve lançar NotFoundError para id inexistente", async () => {
-        const user = await userService.createUser(validUserA)
+    describe("findAll", () => {
+        it("retorna paginado com status e target resolvidos", async () => {
+            const { user, meter, property } = await setupUserAndMeter()
+            const service = new AlertService(alertRepository, meterTargetRepos)
+            const alert = await service.create(user.id, { ...validAlertInput, meterId: meter.id })
 
-        await expect(
-            alertService.update("00000000-0000-0000-0000-000000000000", user.id, { thresholdKwh: 100 }),
-        ).rejects.toThrow(NotFoundError)
+            const result = await service.findAll(user.id, {})
+
+            expect(result.total).toBe(1)
+            expect(result.items[0]!.id).toBe(alert.id)
+            expect(result.items[0]!.status).toBe("normal")
+            expect(result.items[0]!.target).toEqual({ type: "PROPERTY", name: "Casa", path: `/propriedades/${property.id}` })
+        })
+
+        it("marca como firing quando o evaluator reporta o alerta em disparo", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const bareService = new AlertService(alertRepository, meterTargetRepos)
+            const alert = await bareService.create(user.id, { ...validAlertInput, meterId: meter.id })
+
+            const { evaluator } = buildFakeEvaluator(new Set([alert.id]))
+            const service = new AlertService(alertRepository, meterTargetRepos, evaluator)
+
+            const result = await service.findAll(user.id, {})
+            expect(result.items[0]!.status).toBe("firing")
+        })
+
+        it("retorna apenas os alertas do usuário autenticado", async () => {
+            const { user: userA, meter: meterA } = await setupUserAndMeter("joao@example.com")
+            const { user: userB, meter: meterB } = await setupUserAndMeter("maria@example.com")
+            const service = new AlertService(alertRepository, meterTargetRepos)
+
+            await service.create(userA.id, { ...validAlertInput, meterId: meterA.id })
+            await service.create(userB.id, { ...validAlertInput, meterId: meterB.id, name: "Alerta B" })
+
+            const resultA = await service.findAll(userA.id, {})
+            expect(resultA.items).toHaveLength(1)
+            expect(resultA.items[0]!.name).toBe("Pico de potência")
+        })
+
+        it("pagina respeitando page e pageSize", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const service = new AlertService(alertRepository, meterTargetRepos)
+            for (let i = 0; i < 3; i++) {
+                await service.create(user.id, { ...validAlertInput, meterId: meter.id, name: `Alerta ${i}` })
+            }
+
+            const result = await service.findAll(user.id, { page: 1, pageSize: 2 })
+            expect(result.items).toHaveLength(2)
+            expect(result.total).toBe(3)
+        })
     })
 
-    it("deve lançar ForbiddenError ao atualizar alerta de outro usuário", async () => {
-        const { user, property } = await setupAll(validUserA)
-        const alert = await alertService.createForProperty(property.id, user.id, validAlertInput)
-        const userB = await userService.createUser(validUserB)
+    describe("findFiring", () => {
+        it("delega para o evaluator.getFiringByUser", async () => {
+            const user = await userService.createUser({
+                email: "joao@example.com", password: "Senha@123", userType: "INDIVIDUAL",
+                acceptedTerms: true, firstName: "João", lastName: "Silva", cpf: "529.982.247-25",
+            })
+            const fakeFiring: FiringAlert[] = [{ alertId: "a1", meterId: "m1", alertName: "X", startedAt: new Date() }]
+            const evaluator = { getFiringByUser: () => fakeFiring } as unknown as AlertEvaluator
+            const service = new AlertService(alertRepository, meterTargetRepos, evaluator)
 
-        await expect(
-            alertService.update(alert.id, userB.id, { thresholdKwh: 999 }),
-        ).rejects.toThrow(ForbiddenError)
+            expect(await service.findFiring(user.id)).toEqual(fakeFiring)
+        })
+
+        it("retorna lista vazia quando não há evaluator configurado", async () => {
+            const user = await userService.createUser({
+                email: "joao@example.com", password: "Senha@123", userType: "INDIVIDUAL",
+                acceptedTerms: true, firstName: "João", lastName: "Silva", cpf: "529.982.247-25",
+            })
+            const service = new AlertService(alertRepository, meterTargetRepos)
+
+            expect(await service.findFiring(user.id)).toEqual([])
+        })
     })
 
-    it("deve lançar ValidationError para thresholdKwh negativo na atualização", async () => {
-        const { user, property } = await setupAll()
-        const alert = await alertService.createForProperty(property.id, user.id, validAlertInput)
+    describe("findById", () => {
+        it("retorna o alerta quando o usuário é dono", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const service = new AlertService(alertRepository, meterTargetRepos)
+            const created = await service.create(user.id, { ...validAlertInput, meterId: meter.id })
 
-        await expect(
-            alertService.update(alert.id, user.id, { thresholdKwh: -1 }),
-        ).rejects.toThrow(ValidationError)
-    })
-})
+            const found = await service.findById(created.id, user.id)
+            expect(found.id).toBe(created.id)
+        })
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SUITE: AlertService — markAsRead
-// ─────────────────────────────────────────────────────────────────────────────
+        it("lança NotFoundError para ID inexistente", async () => {
+            const { user } = await setupUserAndMeter()
+            const service = new AlertService(alertRepository, meterTargetRepos)
 
-describe("AlertService — markAsRead", () => {
-    it("deve preencher readAt ao marcar alerta como lido", async () => {
-        const { user, property } = await setupAll()
-        const alert = await alertService.createForProperty(property.id, user.id, validAlertInput)
+            await expect(
+                service.findById("00000000-0000-0000-0000-000000000000", user.id),
+            ).rejects.toThrow(NotFoundError)
+        })
 
-        expect(alert.readAt).toBeNull()
+        it("lança ForbiddenError quando o alerta pertence a outro usuário", async () => {
+            const { user: userA, meter: meterA } = await setupUserAndMeter("joao@example.com")
+            const { user: userB } = await setupUserAndMeter("maria@example.com")
+            const service = new AlertService(alertRepository, meterTargetRepos)
+            const alert = await service.create(userA.id, { ...validAlertInput, meterId: meterA.id })
 
-        const read = await alertService.markAsRead(alert.id, user.id)
-
-        expect(read.readAt).not.toBeNull()
-    })
-
-    it("deve lançar ForbiddenError ao marcar alerta de outro usuário como lido", async () => {
-        const { user, property } = await setupAll(validUserA)
-        const alert = await alertService.createForProperty(property.id, user.id, validAlertInput)
-        const userB = await userService.createUser(validUserB)
-
-        await expect(
-            alertService.markAsRead(alert.id, userB.id),
-        ).rejects.toThrow(ForbiddenError)
-    })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SUITE: AlertService — delete
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("AlertService — delete", () => {
-    it("deve deletar um alerta existente", async () => {
-        const { user, property } = await setupAll()
-        const alert = await alertService.createForProperty(property.id, user.id, validAlertInput)
-
-        await alertService.delete(alert.id, user.id)
-
-        await expect(
-            alertService.findById(alert.id, user.id),
-        ).rejects.toThrow(NotFoundError)
+            await expect(service.findById(alert.id, userB.id)).rejects.toThrow(ForbiddenError)
+        })
     })
 
-    it("deve lançar NotFoundError ao deletar alerta inexistente", async () => {
-        const user = await userService.createUser(validUserA)
+    describe("update", () => {
+        it("atualiza os campos permitidos", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const { evaluator, invalidateMeter } = buildFakeEvaluator()
+            const service = new AlertService(alertRepository, meterTargetRepos, evaluator)
+            const alert = await service.create(user.id, { ...validAlertInput, meterId: meter.id })
 
-        await expect(
-            alertService.delete("00000000-0000-0000-0000-000000000000", user.id),
-        ).rejects.toThrow(NotFoundError)
+            const updated = await service.update(alert.id, user.id, { name: "Renomeado", referencePowerKw: 15 })
+
+            expect(updated.name).toBe("Renomeado")
+            expect(updated.referencePowerKw).toBe(15)
+            expect(invalidateMeter).toHaveBeenCalledWith(meter.id)
+        })
+
+        it("lança NotFoundError ao atualizar alerta inexistente", async () => {
+            const { user } = await setupUserAndMeter()
+            const service = new AlertService(alertRepository, meterTargetRepos)
+
+            await expect(
+                service.update("00000000-0000-0000-0000-000000000000", user.id, { name: "X" }),
+            ).rejects.toThrow(NotFoundError)
+        })
+
+        it("lança ForbiddenError ao atualizar alerta de outro usuário", async () => {
+            const { user: userA, meter: meterA } = await setupUserAndMeter("joao@example.com")
+            const { user: userB } = await setupUserAndMeter("maria@example.com")
+            const service = new AlertService(alertRepository, meterTargetRepos)
+            const alert = await service.create(userA.id, { ...validAlertInput, meterId: meterA.id })
+
+            await expect(service.update(alert.id, userB.id, { name: "X" })).rejects.toThrow(ForbiddenError)
+        })
+
+        it("lança ValidationError para tolerancePercent negativo", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const service = new AlertService(alertRepository, meterTargetRepos)
+            const alert = await service.create(user.id, { ...validAlertInput, meterId: meter.id })
+
+            await expect(
+                service.update(alert.id, user.id, { tolerancePercent: -1 }),
+            ).rejects.toThrow(ValidationError)
+        })
     })
 
-    it("deve lançar ForbiddenError ao deletar alerta de outro usuário", async () => {
-        const { user, property } = await setupAll(validUserA)
-        const alert = await alertService.createForProperty(property.id, user.id, validAlertInput)
-        const userB = await userService.createUser(validUserB)
+    describe("patchEnabled", () => {
+        it("alterna o campo enabled e invalida o cache", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const { evaluator, invalidateMeter } = buildFakeEvaluator()
+            const service = new AlertService(alertRepository, meterTargetRepos, evaluator)
+            const alert = await service.create(user.id, { ...validAlertInput, meterId: meter.id })
 
-        await expect(
-            alertService.delete(alert.id, userB.id),
-        ).rejects.toThrow(ForbiddenError)
+            const updated = await service.patchEnabled(alert.id, user.id, { enabled: false })
+
+            expect(updated.enabled).toBe(false)
+            expect(invalidateMeter).toHaveBeenCalledWith(meter.id)
+        })
+
+        it("lança ValidationError quando enabled não é booleano", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const service = new AlertService(alertRepository, meterTargetRepos)
+            const alert = await service.create(user.id, { ...validAlertInput, meterId: meter.id })
+
+            await expect(
+                service.patchEnabled(alert.id, user.id, { enabled: "não" }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("lança ForbiddenError para alerta de outro usuário", async () => {
+            const { user: userA, meter: meterA } = await setupUserAndMeter("joao@example.com")
+            const { user: userB } = await setupUserAndMeter("maria@example.com")
+            const service = new AlertService(alertRepository, meterTargetRepos)
+            const alert = await service.create(userA.id, { ...validAlertInput, meterId: meterA.id })
+
+            await expect(service.patchEnabled(alert.id, userB.id, { enabled: false })).rejects.toThrow(ForbiddenError)
+        })
     })
 
-    it("deve cascatear: deletar property remove alertas vinculados", async () => {
-        const { user, property } = await setupAll()
-        const alert = await alertService.createForProperty(property.id, user.id, validAlertInput)
+    describe("delete", () => {
+        it("deleta um alerta existente e invalida o cache", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const { evaluator, invalidateMeter } = buildFakeEvaluator()
+            const service = new AlertService(alertRepository, meterTargetRepos, evaluator)
+            const alert = await service.create(user.id, { ...validAlertInput, meterId: meter.id })
 
-        await prismaTest.property.delete({ where: { id: property.id } })
+            await service.delete(alert.id, user.id)
 
-        const deleted = await prismaTest.alert.findUnique({ where: { id: alert.id } })
-        expect(deleted).toBeNull()
-    })
-})
+            await expect(service.findById(alert.id, user.id)).rejects.toThrow(NotFoundError)
+            expect(invalidateMeter).toHaveBeenCalledWith(meter.id)
+        })
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SUITE: AlertService — checkAndTrigger (disparo automático)
-// ─────────────────────────────────────────────────────────────────────────────
+        it("lança NotFoundError ao deletar alerta inexistente", async () => {
+            const { user } = await setupUserAndMeter()
+            const service = new AlertService(alertRepository, meterTargetRepos)
 
-describe("AlertService — checkAndTrigger", () => {
-    it("deve disparar alerta quando kwhConsumed > thresholdKwh", async () => {
-        const { user, property } = await setupAll()
-        const alert = await alertService.createForProperty(property.id, user.id, { thresholdKwh: 50 })
+            await expect(
+                service.delete("00000000-0000-0000-0000-000000000000", user.id),
+            ).rejects.toThrow(NotFoundError)
+        })
 
-        // Simula consumo de 80 kWh — acima do threshold de 50
-        await alertService.checkAndTrigger({ propertyId: property.id }, 80)
+        it("lança ForbiddenError ao deletar alerta de outro usuário", async () => {
+            const { user: userA, meter: meterA } = await setupUserAndMeter("joao@example.com")
+            const { user: userB } = await setupUserAndMeter("maria@example.com")
+            const service = new AlertService(alertRepository, meterTargetRepos)
+            const alert = await service.create(userA.id, { ...validAlertInput, meterId: meterA.id })
 
-        const updated = await prismaTest.alert.findUnique({ where: { id: alert.id } })
-        expect(updated?.triggeredAt).not.toBeNull()
-    })
-
-    it("não deve disparar alerta quando kwhConsumed <= thresholdKwh", async () => {
-        const { user, property } = await setupAll()
-        const alert = await alertService.createForProperty(property.id, user.id, { thresholdKwh: 100 })
-
-        await alertService.checkAndTrigger({ propertyId: property.id }, 80)
-
-        const notTriggered = await prismaTest.alert.findUnique({ where: { id: alert.id } })
-        expect(notTriggered?.triggeredAt).toBeNull()
-    })
-
-    it("não deve disparar alerta já disparado anteriormente", async () => {
-        const { user, property } = await setupAll()
-        const alert = await alertService.createForProperty(property.id, user.id, { thresholdKwh: 50 })
-        await alertRepository.trigger(alert.id)
-
-        // checkAndTrigger só busca alertas com triggeredAt null (findActiveByTarget)
-        await alertService.checkAndTrigger({ propertyId: property.id }, 999)
-
-        const raw = await prismaTest.alert.findUnique({ where: { id: alert.id } })
-        // triggeredAt não deve ser atualizado — permanece o valor original
-        expect(raw?.triggeredAt).toStrictEqual(
-            (await prismaTest.alert.findUnique({ where: { id: alert.id } }))?.triggeredAt,
-        )
-    })
-
-    it("deve disparar apenas alertas cujo threshold é violado entre múltiplos alertas", async () => {
-        const { user, property } = await setupAll()
-        const low = await alertService.createForProperty(property.id, user.id, { thresholdKwh: 30 })
-        const high = await alertService.createForProperty(property.id, user.id, { thresholdKwh: 200 })
-
-        await alertService.checkAndTrigger({ propertyId: property.id }, 100)
-
-        const lowAfter = await prismaTest.alert.findUnique({ where: { id: low.id } })
-        const highAfter = await prismaTest.alert.findUnique({ where: { id: high.id } })
-
-        expect(lowAfter?.triggeredAt).not.toBeNull()   // 100 > 30 → disparado
-        expect(highAfter?.triggeredAt).toBeNull()      // 100 < 200 → não disparado
+            await expect(service.delete(alert.id, userB.id)).rejects.toThrow(ForbiddenError)
+        })
     })
 })

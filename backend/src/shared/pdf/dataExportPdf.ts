@@ -153,13 +153,9 @@ function drawAlertsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload):
     }
 
     for (const alert of payload.alerts) {
-        const status = alert.triggeredAt
-            ? `disparado em ${alert.triggeredAt.toLocaleString("pt-BR")}`
-            : "não disparado"
         doc.text(
-            `• [${alert.targetType}] limite de ${alert.thresholdKwh} kWh — ${status}${
-                alert.message ? ` — "${alert.message}"` : ""
-            }`,
+            `• ${alert.name} — ${alert.referencePowerKw} kW ± ${alert.tolerancePercent}% — `
+                + (alert.enabled ? "habilitado" : "desabilitado"),
         )
     }
 }

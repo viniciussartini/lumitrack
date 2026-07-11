@@ -1,214 +1,127 @@
 import { z } from "zod"
-import { createAlertSchema, updateAlertSchema, listAlertQuerySchema } from "@/modules/alert/alert.schema.js"
-import type { AlertRepository, AlertResponse, AlertTarget } from "@/modules/alert/alert.repository.js"
-import type { PropertyRepository } from "@/modules/property/property.repository.js"
-import type { AreaRepository } from "@/modules/area/area.repository.js"
-import type { DeviceRepository } from "@/modules/device/device.repository.js"
+import { createAlertSchema, updateAlertSchema, patchEnabledSchema, listAlertQuerySchema } from "@/modules/alert/alert.schema.js"
+import type { AlertRepository, AlertResponse } from "@/modules/alert/alert.repository.js"
+import type { AlertEvaluator, FiringAlert } from "@/modules/alert/alert-evaluator.js"
+import { resolveMeterTarget, type MeterTargetRepos } from "@/modules/meter/meter-target.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
-import { AlertNotifier } from "./alert-notifier.js"
+import type { Paginated } from "@/shared/pagination.js"
+import type { TargetType } from "@/generated/prisma/client.js"
 
+export type AlertWithStatus = AlertResponse & {
+    status: "firing" | "normal"
+    target: { type: TargetType; name: string; path: string } | null
+}
+
+// CRUD de alertas por faixa de potência (Fase 4) — substitui a semântica
+// one-shot antiga (thresholdKwh/triggeredAt/readAt). Cada alerta agora é um
+// monitor contínuo de um medidor: dispara (e volta a disparar) quantas vezes
+// a potência sair da faixa, enquanto `enabled`. `alertEvaluator` é opcional
+// para permitir montar o service sem o singleton em contextos de teste que
+// não precisam do status de disparo.
 export class AlertService {
     constructor(
         private readonly alertRepository: AlertRepository,
-        private readonly propertyRepository: PropertyRepository,
-        private readonly areaRepository: AreaRepository,
-        private readonly deviceRepository: DeviceRepository,
-        private readonly alertNotifier?: AlertNotifier,
+        private readonly meterTargetRepos: MeterTargetRepos,
+        private readonly alertEvaluator?: AlertEvaluator,
     ) {}
-
-    //  Helpers
-    private parseAndValidateCreate(input: unknown) {
-        const parsed = createAlertSchema.safeParse(input)
-        if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-        return parsed.data
-    }
-
-    private async validatePropertyOwnership(
-        propertyId: string,
-        userId: string,
-    ): Promise<void> {
-        const property = await this.propertyRepository.findById(propertyId)
-
-        if (!property) {
-            throw new NotFoundError("Propriedade não encontrada")
-        }
-
-        if (property.userId !== userId) {
-            throw new ForbiddenError("Acesso negado")
-        }
-    }
-
-    private async validateAreaBelongsToProperty(
-        areaId: string,
-        propertyId: string,
-    ): Promise<void> {
-        const area = await this.areaRepository.findById(areaId)
-        if (!area) {
-            throw new NotFoundError("Área não encontrada")
-        }
-
-        if (area.propertyId !== propertyId) {
-            throw new ForbiddenError("Área não pertence a esta propriedade")
-        }
-    }
-
-    private async validateDeviceBelongsToArea(
-        deviceId: string,
-        areaId: string,
-    ): Promise<void> {
-        const device = await this.deviceRepository.findById(deviceId)
-        if (!device) {
-            throw new NotFoundError("Dispositivo não encontrado")
-        }
-
-        if (device.areaId !== areaId) {
-            throw new ForbiddenError("Dispositivo não pertence a esta área")
-        }
-    }
 
     private async getOwnedAlert(id: string, userId: string): Promise<AlertResponse> {
         const alert = await this.alertRepository.findById(id)
         if (!alert) {
             throw new NotFoundError("Alerta não encontrado")
         }
-
         if (alert.userId !== userId) {
             throw new ForbiddenError("Acesso negado")
         }
         return alert
     }
 
-    // Criação por target (property/area/device) — valida hierarquia e posse antes de criar.
-    async createForProperty(
-        propertyId: string,
-        userId: string,
-        input: unknown,
-    ): Promise<AlertResponse> {
-        const data = this.parseAndValidateCreate(input)
-        await this.validatePropertyOwnership(propertyId, userId)
-        return this.alertRepository.create(userId, { propertyId }, "PROPERTY", data)
+    private async withStatusAndTarget(alert: AlertResponse): Promise<AlertWithStatus> {
+        const targetInfo = await resolveMeterTarget(this.meterTargetRepos, alert.meterId)
+        return {
+            ...alert,
+            status: this.alertEvaluator?.isFiring(alert.id) ? "firing" : "normal",
+            target: targetInfo
+                ? { type: targetInfo.targetType, name: targetInfo.targetName, path: targetInfo.targetPath }
+                : null,
+        }
     }
 
-    async createForArea(
-        areaId: string,
-        propertyId: string,
-        userId: string,
-        input: unknown,
-    ): Promise<AlertResponse> {
-        const data = this.parseAndValidateCreate(input)
-        await this.validatePropertyOwnership(propertyId, userId)
-        await this.validateAreaBelongsToProperty(areaId, propertyId)
-        return this.alertRepository.create(userId, { areaId }, "AREA", data)
+    async create(userId: string, input: unknown): Promise<AlertResponse> {
+        const parsed = createAlertSchema.safeParse(input)
+        if (!parsed.success) {
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
+            throw new ValidationError(firstError ?? "Dados inválidos")
+        }
+
+        const targetInfo = await resolveMeterTarget(this.meterTargetRepos, parsed.data.meterId)
+        if (!targetInfo) {
+            throw new NotFoundError("Medidor não encontrado")
+        }
+        if (targetInfo.ownerId !== userId) {
+            throw new ForbiddenError("Acesso negado")
+        }
+
+        const alert = await this.alertRepository.create(userId, parsed.data)
+        await this.alertEvaluator?.invalidateMeter(alert.meterId)
+        return alert
     }
 
-    async createForDevice(
-        deviceId: string,
-        areaId: string,
-        propertyId: string,
-        userId: string,
-        input: unknown,
-    ): Promise<AlertResponse> {
-        const data = this.parseAndValidateCreate(input)
-        await this.validatePropertyOwnership(propertyId, userId)
-        await this.validateAreaBelongsToProperty(areaId, propertyId)
-        await this.validateDeviceBelongsToArea(deviceId, areaId)
-        return this.alertRepository.create(userId, { deviceId }, "DEVICE", data)
+    async findAll(userId: string, query: unknown): Promise<Paginated<AlertWithStatus>> {
+        const parsed = listAlertQuerySchema.safeParse(query)
+        if (!parsed.success) {
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
+            throw new ValidationError(firstError ?? "Dados inválidos")
+        }
+
+        const result = await this.alertRepository.findAllByUserPaginated(userId, parsed.data)
+        const items = await Promise.all(result.items.map((alert) => this.withStatusAndTarget(alert)))
+
+        return { items, total: result.total, page: result.page, pageSize: result.pageSize }
     }
 
-    async findAll(userId: string, query: unknown): Promise<AlertResponse[]> {
-        const { triggered } = listAlertQuerySchema.parse(query)
-        return this.alertRepository.findAllByUser(userId, triggered)
+    // GET /api/alerts/firing — hidratação inicial do badge de alertas em
+    // disparo (o resto vem via SSE, evento alert-firing).
+    async findFiring(userId: string): Promise<FiringAlert[]> {
+        return this.alertEvaluator?.getFiringByUser(userId) ?? []
     }
 
-    async findAllForProperty(
-        propertyId: string,
-        userId: string,
-    ): Promise<AlertResponse[]> {
-        await this.validatePropertyOwnership(propertyId, userId)
-        return this.alertRepository.findAllByTarget({ propertyId })
+    async findById(id: string, userId: string): Promise<AlertWithStatus> {
+        const alert = await this.getOwnedAlert(id, userId)
+        return this.withStatusAndTarget(alert)
     }
 
-    async findAllForArea(
-        areaId: string,
-        propertyId: string,
-        userId: string,
-    ): Promise<AlertResponse[]> {
-        await this.validatePropertyOwnership(propertyId, userId)
-        await this.validateAreaBelongsToProperty(areaId, propertyId)
-        return this.alertRepository.findAllByTarget({ areaId })
-    }
-
-    async findAllForDevice(
-        deviceId: string,
-        areaId: string,
-        propertyId: string,
-        userId: string,
-    ): Promise<AlertResponse[]> {
-        await this.validatePropertyOwnership(propertyId, userId)
-        await this.validateAreaBelongsToProperty(areaId, propertyId)
-        await this.validateDeviceBelongsToArea(deviceId, areaId)
-        return this.alertRepository.findAllByTarget({ deviceId })
-    }
-
-    async findById(id: string, userId: string): Promise<AlertResponse> {
-        return this.getOwnedAlert(id, userId)
-    }
-
-    async update(
-        id: string,
-        userId: string,
-        input: unknown,
-    ): Promise<AlertResponse> {
+    async update(id: string, userId: string, input: unknown): Promise<AlertResponse> {
         await this.getOwnedAlert(id, userId)
 
         const parsed = updateAlertSchema.safeParse(input)
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
-        return this.alertRepository.update(id, parsed.data)
+        const updated = await this.alertRepository.update(id, parsed.data)
+        await this.alertEvaluator?.invalidateMeter(updated.meterId)
+        return updated
     }
 
-    async markAsRead(id: string, userId: string): Promise<AlertResponse> {
-        await this.getOwnedAlert(id, userId)
-        return this.alertRepository.markAsRead(id)
+    async patchEnabled(id: string, userId: string, input: unknown): Promise<AlertResponse> {
+        const alert = await this.getOwnedAlert(id, userId)
+
+        const parsed = patchEnabledSchema.safeParse(input)
+        if (!parsed.success) {
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
+            throw new ValidationError(firstError ?? "Dados inválidos")
+        }
+
+        const updated = await this.alertRepository.update(id, parsed.data)
+        await this.alertEvaluator?.invalidateMeter(alert.meterId)
+        return updated
     }
 
     async delete(id: string, userId: string): Promise<void> {
-        await this.getOwnedAlert(id, userId)
+        const alert = await this.getOwnedAlert(id, userId)
         await this.alertRepository.delete(id)
-    }
-
-
-    /**
-     *  Disparo automático
-     *  Chamado pelo ConsumptionService após cada create/update.
-     *  Verifica se kwhConsumed supera o thresholdKwh de algum alerta ativo
-     *  do target em questão. Se sim, preenche triggeredAt.
-     * 
-     * @param target 
-     * @param kwhConsumed 
-     */
-    async checkAndTrigger(
-        target: AlertTarget,
-        kwhConsumed: number,
-    ): Promise<void> {
-        const activeAlerts = await this.alertRepository.findActiveByTarget(target)
-
-        for (const alert of activeAlerts) {
-            if (kwhConsumed > alert.thresholdKwh) {
-                const triggered =await this.alertRepository.trigger(alert.id)
-
-                this.alertNotifier?.notify(triggered) // Notifica listeners SSE, se houver conexão ativa. Fire-and-forget.
-            }
-        }
+        await this.alertEvaluator?.invalidateMeter(alert.meterId)
     }
 }

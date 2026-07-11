@@ -1,6 +1,6 @@
 # Plano — Reformulação LumiTrack: medidores IoT, consumo minuto a minuto, tarifação realista e alertas por potência
 
-> **Status:** em implementação na branch `feat/iot-meters-rework`. Fase 1 concluída em 09/07/2026, Fase 2 concluída em 09/07/2026, Fase 3 concluída em 11/07/2026 (ver log de implementação em [LOG_IMPLEMENTACAO_IOT.md](./LOG_IMPLEMENTACAO_IOT.md)).
+> **Status:** em implementação na branch `feat/iot-meters-rework`. Fase 1 concluída em 09/07/2026, Fase 2 concluída em 09/07/2026, Fase 3 concluída em 11/07/2026, Fase 4 concluída em 11/07/2026 (ver log de implementação em [LOG_IMPLEMENTACAO_IOT.md](./LOG_IMPLEMENTACAO_IOT.md)). Backend completo (Fases 1–4); falta só o Frontend (Fase 5).
 >
 > **Data do planejamento:** 03/07/2026.
 >
@@ -133,7 +133,7 @@ Arquivo: `backend/prisma/schema.prisma`
 
 ---
 
-## Fase 4 — Backend: alertas por potência, notificações efêmeras, SSE
+## Fase 4 — Backend: alertas por potência, notificações efêmeras, SSE ✅ Concluída (11/07/2026)
 
 ### 4.1 `AlertEvaluator` (`backend/src/modules/alert/alert-evaluator.ts`, singleton no `server.ts`)
 
@@ -167,6 +167,15 @@ notification  { …Notification }
 - `server.ts`: wiring novo (UserEventHub, AlertEvaluator, NotificationStore, MinuteRollupScheduler, restore por Meter) — ponto único de integração, revisar com cuidado.
 
 **Verificação:** Vitest do evaluator (histerese, episódio, disable durante firing) e do store; integração das rotas; `curl -N` simulando potência fora da faixa.
+
+**Nota de implementação:** executado como planejado, com os desvios abaixo:
+
+- **`GET /api/alert-events` é módulo próprio** (`backend/src/modules/alert-event/`), não uma rota dentro de `modules/alert/` — mesmo padrão de `consumption`/`meters` (recurso filtrado por query param, top-level).
+- **Estatísticas do episódio (`min/max/avgPowerW`, `sampleCount`) contam a partir da amostra que CONFIRMA a abertura** (a 3ª consecutiva fora da faixa), não das duas amostras anteriores ainda não confirmadas — e continuam acumulando durante as amostras "dentro" que eventualmente fecham o episódio. É a leitura mais natural de "estatísticas do período do episódio": antes da 3ª amostra não se sabe ainda que é um episódio real (poderia ser ruído), e o processo de confirmar o retorno ao normal faz parte do episódio observado.
+- **`resolveMeterTarget`** (`backend/src/modules/meter/meter-target.ts`) é um helper novo, não previsto explicitamente no texto do plano — necessário porque tanto o `AlertEvaluator` (para montar `targetPath`/`targetType` da notificação) quanto o `AlertService` (para exibir "dados do alvo" na listagem) precisam resolver a mesma cadeia medidor→propriedade/área/dispositivo→dono. `targetPath` usa as rotas de details page já existentes no frontend hoje (`/propriedades/:id`, `.../areas/:areaId`, `.../devices/:deviceId`) — a Fase 5 não muda essas rotas, só as de relatório/dashboard/distribuidora.
+- **`export.service.ts` e `dataExportPdf.ts` precisaram ser corrigidos nesta fase** (não são escopo literal da Fase 4, mas dependiam do `Alert` antigo desde a Fase 1): `AlertRepository` ganhou de volta um `findAllByUser` sem paginação (mesma exceção LGPD de sempre) e a seção de alertas do PDF passou a mostrar nome/potência de referência/tolerância/habilitado em vez de limiar/mensagem/disparo (conceitos que não existem mais no modelo).
+- **Rotas aninhadas de alerta sob property/area/device foram removidas por completo** (não apenas desmontadas) — `propertyAlertRoutes`/`areaAlertRoutes`/`deviceAlertRoutes` deixaram de fazer sentido porque o alerta agora se vincula direto a um `meterId` (que já carrega o alvo), então `propertyRoutes`/`areaRoutes`/`deviceRoutes` também perderam o parâmetro `alertNotifier`/`userEventHub` que só existia para repassar às rotas aninhadas.
+- **Intervalo de re-resolução do SSE é configurável** (parâmetro opcional de `iotStreamRoutes`, default 60s) — não para uso em produção, só para permitir testar o refresh periódico com um intervalo curto sem depender de esperar 60s reais no Vitest.
 
 ---
 

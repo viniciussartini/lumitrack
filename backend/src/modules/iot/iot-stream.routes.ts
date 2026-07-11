@@ -1,5 +1,5 @@
 /**
- * iot-stream.routes.ts — endpoint SSE para leituras IoT em tempo real
+ * iot-stream.routes.ts — endpoint SSE para leituras e eventos em tempo real
  *
  * SSE (Server-Sent Events) é uma tecnologia HTTP padrão onde o servidor mantém
  * uma conexão aberta e envia eventos unidirecionais ao cliente quando há dados
@@ -12,26 +12,29 @@
  *
  * Segurança: o endpoint exige autenticação. As leituras são filtradas por
  * userId — cada cliente só recebe dados dos seus próprios medidores.
- * O conjunto de medidores do usuário é resolvido no momento da conexão
- * (snapshot) — um medidor criado depois exige reconectar. A re-resolução
- * periódica desse conjunto fica para a Fase 4, junto com o contrato SSE
- * completo (alert-firing/notification).
  *
- * Reformulação IoT (Fase 2): o evento "reading" deixou de carregar apenas um
- * incremento de kWh por device — agora carrega a leitura elétrica instantânea
- * (tensão/corrente/potência/fator de potência) por medidor.
+ * Contrato de eventos (Fase 4):
+ *   connected     { meterCount }
+ *   reading       { meterId, voltage, current, powerW, powerFactor, receivedAt }
+ *   alert-firing  { type: "start"|"end", alertId, alertName, meterId, startedAt, endedAt? }
+ *   notification  { ...Notification }
  */
 import { Router, type RequestHandler } from "express"
 import { PrismaClient } from "@/generated/prisma/client.js"
 import type { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
-import { AlertNotifier } from "@/modules/alert/alert-notifier.js"
+import type { UserEventHub } from "@/shared/sse/user-event-hub.js"
+
+// Re-resolução periódica do conjunto de medidores do usuário dentro da
+// mesma conexão — corrige o snapshot inicial: um medidor criado (ou
+// removido) depois de abrir a conexão passa a (deixar de) transmitir sem
+// que o cliente precise reconectar.
+const DEFAULT_MEMBERSHIP_REFRESH_INTERVAL_MS = 60_000
 
 /**
  * Resolve o conjunto de meterIds que pertencem a um usuário, unindo os 3
  * caminhos de posse (medidor vinculado a property, area ou device do
- * usuário). Executado uma única vez no momento em que o cliente abre a
- * conexão SSE.
+ * usuário).
  */
 async function resolveUserMeterIds(userId: string, prisma: PrismaClient): Promise<Set<string>> {
     const meters = await prisma.meter.findMany({
@@ -52,22 +55,15 @@ export function iotStreamRoutes(
     authenticate: RequestHandler,
     prismaClient: PrismaClient,
     processor: IoTDataProcessor,
-    alertNotifier: AlertNotifier,
+    userEventHub: UserEventHub,
+    membershipRefreshIntervalMs: number = DEFAULT_MEMBERSHIP_REFRESH_INTERVAL_MS,
 ): Router {
     const router = Router()
 
     /**
      * GET /api/iot/stream
-     * Abre uma conexão SSE e começa a receber leituras em tempo real.
-     *
-     * Eventos emitidos:
-     *   event: "connected"
-     *   data: { "meterCount": 3 }  ← enviado imediatamente ao conectar
-     *
-     *   event: "reading"
-     *   data: { "meterId": "...", "voltage": 127.3, "current": 4.2,
-     *            "powerW": 532.1, "powerFactor": 0.98,
-     *            "receivedAt": "2025-01-15T14:37:22.500Z" }
+     * Abre uma conexão SSE e começa a receber leituras e eventos por usuário
+     * em tempo real.
      *
      * O cliente deve tratar a desconexão e reconectar se necessário.
      * Intervalo de keep-alive: um comentário ":" é enviado a cada 30 segundos
@@ -83,7 +79,7 @@ export function iotStreamRoutes(
         res.setHeader("X-Accel-Buffering", "no")
         res.flushHeaders()
 
-        const userMeterIds = await resolveUserMeterIds(userId, prismaClient)
+        let userMeterIds = await resolveUserMeterIds(userId, prismaClient)
 
         res.write(`event: connected\ndata: ${JSON.stringify({ meterCount: userMeterIds.size })}\n\n`)
 
@@ -94,15 +90,21 @@ export function iotStreamRoutes(
             res.write(`event: reading\ndata: ${payload}\n\n`)
         })
 
-        // ─── Listener de alertas ──────────────────────────────────────────────
-        // O AlertNotifier já filtra por userId — só chama este listener quando
-        // um alerta do próprio usuário é disparado. Sem necessidade de filtro
-        // aqui. O contrato de payload deste evento é redesenhado na Fase 4
-        // (alert-firing), quando o módulo alert é reescrito.
-        const alertUnsub = alertNotifier.addListener(userId, (alert) => {
-            const payload = JSON.stringify(alert)
-            res.write(`event: alert\ndata: ${payload}\n\n`)
+        // ─── Listener de eventos por usuário (alert-firing, notification) ────
+        // O UserEventHub já filtra por userId — só chama este listener quando
+        // o evento é do próprio usuário. O nome do evento SSE é o mesmo nome
+        // passado para userEventHub.emit(...).
+        const eventUnsub = userEventHub.addListener(userId, (event, payload) => {
+            res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
         })
+
+        // Re-resolve o conjunto de medidores periodicamente, sem exigir
+        // reconexão do cliente.
+        const membershipRefresh = setInterval(() => {
+            void resolveUserMeterIds(userId, prismaClient).then((ids) => {
+                userMeterIds = ids
+            })
+        }, membershipRefreshIntervalMs)
 
         // Keep-alive: envia um comentário SSE a cada 30 segundos.
         const keepAlive = setInterval(() => {
@@ -112,7 +114,8 @@ export function iotStreamRoutes(
         // Cleanup ao desconectar.
         req.on("close", () => {
             readingUnsub()
-            alertUnsub()
+            eventUnsub()
+            clearInterval(membershipRefresh)
             clearInterval(keepAlive)
         })
     })

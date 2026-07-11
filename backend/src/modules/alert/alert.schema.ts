@@ -1,37 +1,52 @@
 import { z } from "zod"
+import { paginationQuerySchema } from "@/shared/pagination.js"
 
-// Schema de criação
+// Alerta por faixa de potência (Fase 4) — dispara quando a potência ativa do
+// medidor sai de [referencePowerKw×1000×(1−tolerancePercent/100),
+// referencePowerKw×1000×(1+tolerancePercent/100)]. `meterId` só é informado
+// na criação — trocar o medidor de um alerta não é permitido (mesmo padrão
+// de imutabilidade de alvo usado em `meter`).
+
 export const createAlertSchema = z.object({
-    thresholdKwh: z
-        .number({ error: "thresholdKwh deve ser um número" })
-        .positive({ message: "thresholdKwh deve ser maior que zero" }),
+    name: z.string().min(1, { message: "Nome é obrigatório" }).max(200),
 
-    message: z.string().max(500).optional(),
+    meterId: z.uuid({ message: "meterId inválido" }),
+
+    referencePowerKw: z
+        .number({ error: "referencePowerKw deve ser um número" })
+        .positive({ message: "referencePowerKw deve ser maior que zero" }),
+
+    tolerancePercent: z
+        .number({ error: "tolerancePercent deve ser um número" })
+        .min(0, { message: "tolerancePercent não pode ser negativo" })
+        .max(100, { message: "tolerancePercent não pode ultrapassar 100" }),
+
+    enabled: z.boolean().optional(),
 })
 
-// Schema de atualização
 export const updateAlertSchema = z.object({
-    thresholdKwh: z
+    name: z.string().min(1).max(200).optional(),
+
+    referencePowerKw: z
         .number()
-        .positive({ message: "thresholdKwh deve ser maior que zero" })
+        .positive({ message: "referencePowerKw deve ser maior que zero" })
         .optional(),
 
-    message: z.string().max(500).optional(),
-})
-
-// Schema de query params para listagem global
-export const listAlertQuerySchema = z.object({
-    // triggered=true → apenas alertas disparados (triggeredAt != null)
-    // triggered=false → apenas alertas ainda não disparados
-    // ausente → todos
-    triggered: z
-        .enum(["true", "false"])
-        .transform((v) => v === "true")
+    tolerancePercent: z
+        .number()
+        .min(0, { message: "tolerancePercent não pode ser negativo" })
+        .max(100, { message: "tolerancePercent não pode ultrapassar 100" })
         .optional(),
+
+    enabled: z.boolean().optional(),
 })
 
-// Tipos inferidos
+export const patchEnabledSchema = z.object({
+    enabled: z.boolean({ error: "enabled deve ser booleano" }),
+})
+
+export const listAlertQuerySchema = paginationQuerySchema
 
 export type CreateAlertInput = z.infer<typeof createAlertSchema>
 export type UpdateAlertInput = z.infer<typeof updateAlertSchema>
-export type ListAlertQuery = z.infer<typeof listAlertQuerySchema>
+export type PatchEnabledInput = z.infer<typeof patchEnabledSchema>

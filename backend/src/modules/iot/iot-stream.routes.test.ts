@@ -9,11 +9,12 @@
 // Solução: iniciamos o Express em um servidor TCP real (porta aleatória) e
 // usamos o módulo `http` nativo do Node, que suporta streaming completamente.
 //
-// Reformulação IoT (Fase 2): o evento "reading" passou a carregar a leitura
-// elétrica por medidor (meterId/voltage/current/powerW/powerFactor), não mais
-// um incremento de kWh por device. Os testes de "alert" (evento SSE de
-// alerta) foram removidos desta suíte nesta fase — o módulo `alert` e o
-// contrato SSE de alert-firing/notification são redesenhados na Fase 4.
+// Reformulação IoT (Fase 4): contrato SSE completo — `alert-firing` e
+// `notification` chegam via UserEventHub (substituiu o antigo AlertNotifier,
+// que só sabia notificar o payload cru do Alert antigo). O intervalo de
+// re-resolução do conjunto de medidores é injetado curto neste app de teste
+// (200ms) para exercitar o refresh periódico sem esperar os 60s reais de
+// produção.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest"
@@ -21,21 +22,37 @@ import request from "supertest"
 import { createServer, type Server } from "http"
 import http from "http"
 import type { AddressInfo } from "net"
+import { Router } from "express"
 import { createApp } from "@/app.js"
 import { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
-import { AlertNotifier } from "@/modules/alert/alert-notifier.js"
+import { iotStreamRoutes } from "@/modules/iot/iot-stream.routes.js"
+import { createAuthenticateMiddleware } from "@/shared/middlewares/authenticate.js"
+import { UserEventHub } from "@/shared/sse/user-event-hub.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
 
-// ─── Processor e AlertNotifier ────────────────────────────────────────────────
+// ─── Processor e UserEventHub ─────────────────────────────────────────────────
 
-const manager       = IoTConnectionManager.getInstance()
-const processor     = new IoTDataProcessor(manager)
-const alertNotifier = new AlertNotifier()
+const manager = IoTConnectionManager.getInstance()
+const processor = new IoTDataProcessor(manager)
+const userEventHub = new UserEventHub()
 processor.start()
 
-const app = createApp({ prismaClient: prismaHttpTest, processor, alertNotifier })
+// createApp não expõe o parâmetro de intervalo de refresh (é interno da
+// rota) — montamos a rota SSE manualmente aqui, com um intervalo curto, e
+// anexamos ao app já criado pelas demais rotas.
+const app = createApp({ prismaClient: prismaHttpTest })
+const authenticate = createAuthenticateMiddleware(prismaHttpTest)
+const testStreamRouter = Router()
+testStreamRouter.use("/", iotStreamRoutes(
+    authenticate,
+    prismaHttpTest,
+    processor,
+    userEventHub,
+    200, // membershipRefreshIntervalMs curto, só para teste
+))
+app.use("/api/iot-test", testStreamRouter)
 
 // ─── Servidor TCP ─────────────────────────────────────────────────────────────
 
@@ -81,22 +98,19 @@ const anotherUser = {
 
 // channel: "MOBILE" porque só precisamos de um Bearer token para autenticar
 // via header — WEB não devolve token no body (#06, cookie httpOnly).
-async function registerAndLogin(user = validUser): Promise<string> {
-    await request(app).post("/api/users").send(user)
+async function registerAndLogin(user = validUser): Promise<{ userId: string; token: string }> {
+    const createRes = await request(app).post("/api/users").send(user)
     const res = await request(app).post("/api/auth/login").send({
         email: user.email, password: user.password, channel: "MOBILE",
     })
-    return res.body.data.token as string
+    return { userId: createRes.body.data.id as string, token: res.body.data.token as string }
 }
 
 let distributorSeq = 0
 
-// Property/EnergyDistributor criados direto via Prisma — os módulos HTTP
-// ainda não foram atualizados para o schema v2 (Fase 3). O medidor é criado
-// via a API real (/api/meters), que é o que esta fase está testando.
-async function setupUserWithMeter(user = validUser): Promise<{ token: string; meterId: string }> {
-    const token = await registerAndLogin(user)
-    const dbUser = await prismaHttpTest.user.findUniqueOrThrow({ where: { email: user.email } })
+// Property/EnergyDistributor criados direto via Prisma; medidor via API real.
+async function setupUserWithMeter(user = validUser): Promise<{ userId: string; token: string; meterId: string }> {
+    const { userId, token } = await registerAndLogin(user)
 
     distributorSeq += 1
     const distributor = await prismaHttpTest.energyDistributor.create({
@@ -114,7 +128,7 @@ async function setupUserWithMeter(user = validUser): Promise<{ token: string; me
 
     const property = await prismaHttpTest.property.create({
         data: {
-            userId: dbUser.id,
+            userId,
             distributorId: distributor.id,
             name: "Casa",
             electricalSystem: "MONOPHASIC",
@@ -134,7 +148,7 @@ async function setupUserWithMeter(user = validUser): Promise<{ token: string; me
             topic: "lumitrack/meter",
         })
 
-    return { token, meterId: meterRes.body.data.id as string }
+    return { userId, token, meterId: meterRes.body.data.id as string }
 }
 
 // ─── Helpers de SSE ───────────────────────────────────────────────────────────
@@ -144,7 +158,7 @@ function openSseStream(token: string): Promise<http.IncomingMessage> {
         const req = http.get({
             hostname: "127.0.0.1",
             port:     serverPort,
-            path:     "/api/iot/stream",
+            path:     "/api/iot-test/stream",
             headers:  {
                 Authorization: `Bearer ${token}`,
                 Accept:        "text/event-stream",
@@ -226,7 +240,7 @@ const validReadingPayload = { voltage: 220, current: 2, powerW: 440, powerFactor
 describe("GET /api/iot/stream", () => {
 
     it("deve retornar 401 sem token", async () => {
-        const response = await request(app).get("/api/iot/stream")
+        const response = await request(app).get("/api/iot-test/stream")
         expect(response.status).toBe(401)
     })
 
@@ -303,5 +317,121 @@ describe("GET /api/iot/stream", () => {
 
         const readings = events.filter((e) => e.event === "reading")
         expect(readings).toHaveLength(0)
+    })
+
+    it("deve receber evento 'alert-firing' emitido pelo UserEventHub para o próprio usuário", async () => {
+        const { userId, token } = await setupUserWithMeter()
+
+        const stream = await openSseStream(token)
+
+        let connectedReceived = false
+        const events = await collectSseEvents(stream, {
+            maxWaitMs:      3000,
+            stopAfterEvent: "alert-firing",
+            onEvent:        (event) => {
+                if (event === "connected" && !connectedReceived) {
+                    connectedReceived = true
+                    userEventHub.emit(userId, "alert-firing", {
+                        type: "start", alertId: "alert-1", alertName: "Pico", meterId: "meter-1", startedAt: new Date().toISOString(),
+                    })
+                }
+            },
+        })
+
+        const firing = events.find((e) => e.event === "alert-firing")
+        expect(firing).toBeDefined()
+        expect((firing!.data as { type: string }).type).toBe("start")
+    })
+
+    it("deve receber evento 'notification' emitido pelo UserEventHub para o próprio usuário", async () => {
+        const { userId, token } = await setupUserWithMeter()
+
+        const stream = await openSseStream(token)
+
+        let connectedReceived = false
+        const events = await collectSseEvents(stream, {
+            maxWaitMs:      3000,
+            stopAfterEvent: "notification",
+            onEvent:        (event) => {
+                if (event === "connected" && !connectedReceived) {
+                    connectedReceived = true
+                    userEventHub.emit(userId, "notification", {
+                        id: "n1", alertName: "Pico", message: "Alerta disparado",
+                    })
+                }
+            },
+        })
+
+        const notification = events.find((e) => e.event === "notification")
+        expect(notification).toBeDefined()
+        expect((notification!.data as { message: string }).message).toBe("Alerta disparado")
+    })
+
+    it("não deve receber eventos alert-firing/notification de outro usuário", async () => {
+        const { userId: userIdA } = await setupUserWithMeter(validUser)
+        const { token: tokenB } = await setupUserWithMeter(anotherUser)
+
+        const stream = await openSseStream(tokenB)
+
+        let connectedReceived = false
+        const events = await collectSseEvents(stream, {
+            maxWaitMs: 1000,
+            onEvent:   (event) => {
+                if (event === "connected" && !connectedReceived) {
+                    connectedReceived = true
+                    userEventHub.emit(userIdA, "alert-firing", { type: "start" })
+                }
+            },
+        })
+
+        expect(events.filter((e) => e.event === "alert-firing")).toHaveLength(0)
+    })
+
+    it("deve re-resolver o conjunto de medidores periodicamente (novo medidor passa a transmitir sem reconectar)", async () => {
+        const { userId, token } = await registerAndLogin()
+
+        // Conecta ANTES de existir qualquer medidor — meterCount inicial = 0.
+        const stream = await openSseStream(token)
+
+        let connectedReceived = false
+        let meterIdCreated: string | undefined
+
+        const events = await collectSseEvents(stream, {
+            maxWaitMs:      3000,
+            stopAfterEvent: "reading",
+            onEvent:        (event, data) => {
+                if (event === "connected" && !connectedReceived) {
+                    connectedReceived = true
+                    expect((data as { meterCount: number }).meterCount).toBe(0)
+
+                    // Cria o medidor DEPOIS de conectado — só deve passar a
+                    // transmitir após o próximo refresh periódico (200ms no
+                    // app de teste), sem precisar reconectar.
+                    void (async () => {
+                        distributorSeq += 1
+                        const distributor = await prismaHttpTest.energyDistributor.create({
+                            data: {
+                                name: "CEMIG", cnpj: `06.981.180/000${distributorSeq}-16`, state: "MG",
+                                tusdPerKwh: 0.3, tePerKwh: 0.3, icmsRate: 0.18, pisRate: 0.0165, cofinsRate: 0.076,
+                            },
+                        })
+                        const property = await prismaHttpTest.property.create({
+                            data: { userId, distributorId: distributor.id, name: "Casa", electricalSystem: "MONOPHASIC" },
+                        })
+                        const meter = await prismaHttpTest.meter.create({
+                            data: { name: "Medidor Tardio", targetType: "PROPERTY", propertyId: property.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "t" },
+                        })
+                        meterIdCreated = meter.id
+
+                        // Espera o refresh periódico (200ms) rodar antes de simular a leitura.
+                        setTimeout(() => simulateReading(meter.id, validReadingPayload), 400)
+                    })()
+                }
+            },
+        })
+
+        const reading = events.find((e) => e.event === "reading")
+        expect(reading).toBeDefined()
+        expect((reading!.data as { meterId: string }).meterId).toBe(meterIdCreated)
     })
 })

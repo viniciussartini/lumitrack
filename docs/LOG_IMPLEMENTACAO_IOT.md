@@ -127,3 +127,54 @@ Fase 3 — TariffService, catálogo de distribuidoras somente leitura, consumo a
 ### Próximo passo
 
 Fase 4 — `AlertEvaluator` (histerese/episódios por faixa de potência), `NotificationStore` efêmero, módulo `alert` reescrito por completo (CRUD `{name, meterId, referencePowerKw, tolerancePercent, enabled}` + histórico de disparo), contrato SSE novo (`UserEventHub`). É o que finalmente desbloqueia `alert.service.test.ts`/`alert.routes.test.ts` e a seção de alertas de `dataExportPdf.ts`.
+
+---
+
+## Fase 4 — Backend: alertas por potência, notificações efêmeras, SSE
+
+**Data:** 11/07/2026
+
+### O que foi implementado
+
+**`backend/src/shared/sse/user-event-hub.ts`** (novo, substitui `alert-notifier.ts`, removido) — `UserEventHub.emit(userId, event, payload)` genérico por nome de evento, no lugar do antigo `notify(alert)` amarrado ao payload do `Alert`. Mesma técnica de registro/cleanup de listener por `userId` de sempre.
+
+**`backend/src/shared/notifications/notification-store.ts`** (novo) — `Map<userId, Notification[]>` em memória, cap 100 por usuário, FIFO (`add` descarta a mais antiga ao ultrapassar o cap; a mais recente sempre no início da lista). `remove`/`removeAll` para "lida = excluída".
+
+**`backend/src/modules/meter/meter-target.ts`** (novo) — `resolveMeterTarget(repos, meterId)` resolve, a partir de um medidor, o dono (`ownerId`, para checagem de posse e roteamento SSE), o nome do alvo e o `targetPath` (rota de details page do frontend) — reaproveitado tanto pelo `AlertEvaluator` (montar a notificação) quanto pelo `AlertService` (exibir "dados do alvo" na listagem).
+
+**`backend/src/modules/alert/alert-evaluator.ts`** (novo) — `AlertEvaluator`: cache `meterId → Alert[]` habilitados (`loadCache` no boot, `invalidateMeter` chamado pelo `AlertService` a cada create/update/delete/toggle). `evaluate(meterId, powerW, at)` por amostra: histerese por contagem — 3 amostras consecutivas fora da faixa `[ref×1000×(1∓tol/100)]` abrem o episódio (emite SSE `alert-firing` `start`), 5 consecutivas dentro fecham (persiste `AlertTriggerEvent` via `alert-trigger-event.repository.ts` novo, emite `alert-firing` `end` e só então cria a notificação e emite SSE `notification`). `invalidateMeter` também fecha na hora qualquer episódio cujo alerta foi desabilitado/excluído durante o disparo. `isFiring`/`getFiringByUser` para o `AlertService`.
+
+**Módulo `alert` reescrito por completo** (schema/repository/service/controller/routes) — CRUD flat `{name, meterId, referencePowerKw, tolerancePercent, enabled}`, sem mais rotas aninhadas sob property/area/device (o medidor já carrega o alvo). `PATCH /api/alerts/:id/enabled`, `GET /api/alerts/firing` (hidratação do badge), listagem paginada com `status: "firing"|"normal"` e `target: {type, name, path}` resolvidos via `resolveMeterTarget`.
+
+**Módulo `alert-event`** (novo, `backend/src/modules/alert-event/`) — `GET /api/alert-events?alertId=&page=&pageSize=`, somente leitura, valida posse do alerta antes de listar o histórico.
+
+**Módulo `notification`** (novo) — `GET /api/notifications`, `DELETE /api/notifications/:id` (lida = excluída), `DELETE /api/notifications` (limpa todas), lendo/escrevendo direto no `NotificationStore` injetado.
+
+**`iot-stream.routes.ts` reescrito** — contrato SSE completo (`connected`, `reading`, `alert-firing`, `notification`); `alert-firing`/`notification` chegam via `UserEventHub` (um único listener por conexão cobre os dois eventos, o nome do evento SSE é o mesmo passado para `emit`). Conjunto de medidores do usuário agora é re-resolvido periodicamente dentro da mesma conexão (default 60s, configurável via parâmetro — só para permitir testar com intervalo curto), corrigindo o snapshot inicial sem exigir reconexão.
+
+**`server.ts`/`app.ts` rewiring** — `UserEventHub`/`NotificationStore`/`AlertEvaluator` singletons no `server.ts`; `AlertEvaluator` registrado como mais um `processor.addSampleListener`; `alertEvaluator.loadCache()` chamado ANTES de `restoreIoTConnections()` no boot (para não perder avaliação das primeiras amostras). `propertyRoutes`/`areaRoutes`/`deviceRoutes` perderam o parâmetro `alertNotifier` (não repassam mais para rotas aninhadas de alerta, que deixaram de existir).
+
+**Correções de cauda (dependiam do `Alert` antigo desde a Fase 1, mas só quebravam nesta fase por serem o próprio escopo do módulo `alert`)**: `AlertRepository` ganhou de volta um `findAllByUser` sem paginação (exceção LGPD de sempre, usado só pelo `export`); `dataExportPdf.ts` — seção de alertas do PDF agora mostra nome/potência de referência/tolerância/habilitado em vez de limiar/mensagem/disparo (conceitos que não existem mais no modelo `Alert`).
+
+### Desvios do plano (documentados também em PLANO_REFORMULACAO_IOT.md)
+
+1. **`alert-event` é módulo próprio**, não uma sub-rota de `modules/alert/` — mesmo padrão de `consumption`/`meters` (recurso filtrado por query param, top-level).
+2. **Estatísticas do episódio contam a partir da amostra que confirma a abertura** (a 3ª consecutiva fora da faixa), incluindo as amostras "dentro" do período de fechamento — não das amostras anteriores à confirmação, que ainda podem ser ruído.
+3. **`resolveMeterTarget` não estava no texto do plano** — necessário para não duplicar a resolução de hierarquia medidor→alvo→dono entre `AlertEvaluator` e `AlertService`.
+4. **Rotas aninhadas de alerta removidas por completo**, não apenas desmontadas — `propertyAlertRoutes`/`areaAlertRoutes`/`deviceAlertRoutes` não fazem mais sentido (alerta se vincula direto a um `meterId`).
+5. **Intervalo de re-resolução do SSE é configurável** (parâmetro opcional, default 60s) — só para testar o refresh periódico sem esperar 60s reais no Vitest.
+
+### Testes escritos
+
+- **Novos**: `user-event-hub.test.ts` (8), `notification-store.test.ts` (10), `meter-target.test.ts` (4), `alert-evaluator.test.ts` (12 — histerese de abertura/fechamento, múltiplos alertas por medidor, invalidação/encerramento ao desabilitar durante o disparo, `getFiringByUser`), `alert-event.service.test.ts` (7), `alert-event.routes.test.ts` (5), `notification.service.test.ts` (6), `notification.routes.test.ts` (9).
+- **Reescritos por completo**: `alert.service.test.ts` (27, CRUD flat + status/target + invalidação do cache), `alert.routes.test.ts` (26, mesmo CRUD via HTTP), `iot-stream.routes.test.ts` (9, contrato SSE completo incluindo `alert-firing`/`notification`/isolamento entre usuários e o refresh periódico de medidores).
+
+### Verificação executada
+
+- `npx tsc --noEmit`: limpo, zero erros em todo o backend — pela primeira vez desde o início da reformulação (Fases 1–3 sempre tinham erros conhecidos e adiados no módulo `alert`).
+- `npx eslint src`: limpo, zero avisos.
+- Suíte completa (`npx vitest run`): **695 passando / 0 falhando** em 58 arquivos. Zero falhas — marco da reformulação: todo o backend (Fases 1–4) compila, lint limpo e testa verde.
+
+### Próximo passo
+
+Fase 5 — Frontend: remoções (registro manual de consumo, relatórios por entidade, CRUD de distribuidora, dashboard antigo), paginação universal nos hooks de lista, `RealtimeContext`/SSE novo, `MeterSection`/`RealTimeCard`, `ConsumptionChart`/`ConsumptionTable`, `NotificationDropdown`/`WarningBadge`, `AlertsPage` reescrita, `ReportsPage` (`/relatorios`) e `SimulationPage` (`/simulacao`) placeholders.

@@ -6,19 +6,43 @@ import { IoTConnectionManager, type MeterConnectionConfig } from "@/modules/iot/
 import { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import { MinuteRollupScheduler } from "@/modules/iot/iot-worker/MinuteRollupScheduler.js"
 import { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
-import { AlertNotifier } from "@/modules/alert/alert-notifier.js"
+import { MeterRepository } from "@/modules/meter/meter.repository.js"
+import { PropertyRepository } from "@/modules/property/property.repository.js"
+import { AreaRepository } from "@/modules/area/area.repository.js"
+import { DeviceRepository } from "@/modules/device/device.repository.js"
+import { AlertRepository } from "@/modules/alert/alert.repository.js"
+import { AlertTriggerEventRepository } from "@/modules/alert/alert-trigger-event.repository.js"
+import { AlertEvaluator } from "@/modules/alert/alert-evaluator.js"
+import { UserEventHub } from "@/shared/sse/user-event-hub.js"
+import { NotificationStore } from "@/shared/notifications/notification-store.js"
 import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { RetentionService } from "@/shared/retention/retention.service.js"
 import { RetentionPurgeScheduler } from "@/shared/retention/RetentionPurgeScheduler.js"
 
-// Singleton do processo — distribui notificações SSE (alertas, e futuramente
-// alert-firing/notification na Fase 4) para clientes conectados. Passado
-// para createApp() para que a MESMA instância seja usada tanto pelas rotas
-// HTTP (property/alert) quanto pelo stream SSE — sem isso, um alerta
-// disparado via HTTP nunca chegaria a um listener SSE registrado numa
-// instância diferente.
-const alertNotifier = new AlertNotifier()
+// Singletons do processo — distribuem eventos SSE (alert-firing,
+// notification) para clientes conectados. Passados para createApp() para
+// que a MESMA instância seja usada tanto pelas rotas HTTP (alert) quanto
+// pelo stream SSE — sem isso, um alerta disparado pelo AlertEvaluator nunca
+// chegaria a um listener SSE registrado numa instância diferente.
+const userEventHub = new UserEventHub()
+const notificationStore = new NotificationStore()
+
+// AlertEvaluator (Fase 4) — avalia cada amostra elétrica contra os alertas
+// por faixa de potência habilitados do medidor (histerese por contagem de
+// amostras consecutivas). Registrado como listener do processor logo abaixo.
+const alertEvaluator = new AlertEvaluator(
+    new AlertRepository(prisma),
+    new AlertTriggerEventRepository(prisma),
+    {
+        meterRepository: new MeterRepository(prisma),
+        propertyRepository: new PropertyRepository(prisma),
+        areaRepository: new AreaRepository(prisma),
+        deviceRepository: new DeviceRepository(prisma),
+    },
+    userEventHub,
+    notificationStore,
+)
 
 /**
  * Inicialização do pipeline IoT (Fase 2 — reformulação)
@@ -45,6 +69,13 @@ const scheduler = new MinuteRollupScheduler(
 processor.start()
 scheduler.start()
 
+// Registra o AlertEvaluator como mais um listener de amostras processadas —
+// cada leitura elétrica recebida é avaliada contra os alertas habilitados
+// do medidor, sem acoplar o processor ao módulo de alertas.
+processor.addSampleListener((sample) => {
+    void alertEvaluator.evaluate(sample.meterId, sample.powerW, sample.receivedAt)
+})
+
 // #10 — Retenção e expurgo de dados (Art. 15/16 LGPD): roda no boot e a
 // cada 24h, removendo tokens/resets já inativos e audit logs antigos
 // (períodos configuráveis via env.DATA_RETENTION_*).
@@ -64,15 +95,19 @@ retentionScheduler.start()
 /**
  * Criação do app
  *
- * processor e alertNotifier atravessam a fronteira server→app: a rota SSE
+ * processor e userEventHub atravessam a fronteira server→app: a rota SSE
  * (/api/iot/stream) só é montada quando ambos estão presentes.
  */
-const app = createApp({ processor, alertNotifier })
+const app = createApp({ processor, userEventHub, alertEvaluator, notificationStore })
 
 const server = app.listen(env.PORT, async () => {
     logger.info(`LumiTrack API rodando em http://localhost:${env.PORT}`)
     logger.info(`Ambiente: ${env.NODE_ENV}`)
     logger.info(`Health: http://localhost:${env.PORT}/health`)
+
+    // Carrega o cache de alertas habilitados ANTES de restaurar as conexões
+    // IoT — evita que as primeiras amostras recebidas passem sem avaliação.
+    await alertEvaluator.loadCache()
 
     // Restaura as conexões IoT ativas do banco após o servidor estar escutando.
     // Fazemos isso aqui (e não antes do listen) para garantir que o servidor

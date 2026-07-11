@@ -22,17 +22,23 @@ import { distributorRoutes } from "./modules/distributor/distributor.routes.js"
 import { tariffFlagRoutes } from "./modules/tariff-flag/tariff-flag.routes.js"
 import { propertyRoutes } from "./modules/property/property.routes.js"
 import { alertRoutes } from "./modules/alert/alert.routes.js"
+import { alertEventRoutes } from "./modules/alert-event/alert-event.routes.js"
+import { notificationRoutes } from "./modules/notification/notification.routes.js"
 import { meterRoutes } from "./modules/meter/meter.routes.js"
 import { consumptionRoutes } from "./modules/consumption/consumption.routes.js"
 import { IoTDataProcessor } from "./modules/iot/iot-worker/IoTDataProcessor.js"
 import { iotStreamRoutes } from "./modules/iot/iot-stream.routes.js"
-import { AlertNotifier } from "./modules/alert/alert-notifier.js"
+import type { AlertEvaluator } from "./modules/alert/alert-evaluator.js"
+import { UserEventHub } from "./shared/sse/user-event-hub.js"
+import { NotificationStore } from "./shared/notifications/notification-store.js"
 
 export interface AppDependencies {
     prismaClient?: PrismaClient
     sendPasswordResetEmail?: SendPasswordResetEmailFn
     processor?: IoTDataProcessor
-    alertNotifier?: AlertNotifier
+    userEventHub?: UserEventHub
+    alertEvaluator?: AlertEvaluator
+    notificationStore?: NotificationStore
     globalRateLimiter?: RequestHandler
     authRateLimiter?: RequestHandler
 }
@@ -41,7 +47,9 @@ export function createApp(deps: AppDependencies = {}) {
     const prismaClient = deps.prismaClient ?? prisma
     const sendPasswordResetEmail = deps.sendPasswordResetEmail ?? realSendPasswordResetEmail
     const processor = deps.processor
-    const alertNotifier = deps.alertNotifier
+    const userEventHub = deps.userEventHub
+    const alertEvaluator = deps.alertEvaluator
+    const notificationStore = deps.notificationStore ?? new NotificationStore()
     const globalRateLimiter = deps.globalRateLimiter ?? createGlobalRateLimiter()
     const authRateLimiter = deps.authRateLimiter ?? createAuthRateLimiter()
 
@@ -133,13 +141,15 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/auth", authRoutes(authenticate, prismaClient, sendPasswordResetEmail, auditService))
     app.use("/api/distributors", distributorRoutes(authenticate, prismaClient))
     app.use("/api/tariff-flag", tariffFlagRoutes(authenticate, prismaClient))
-    app.use("/api/properties", propertyRoutes(authenticate, prismaClient, alertNotifier ?? new AlertNotifier(), auditService))
-    app.use("/api/alerts", alertRoutes(authenticate, prismaClient, alertNotifier ?? new AlertNotifier()))
+    app.use("/api/properties", propertyRoutes(authenticate, prismaClient, auditService))
+    app.use("/api/alerts", alertRoutes(authenticate, prismaClient, alertEvaluator))
+    app.use("/api/alert-events", alertEventRoutes(authenticate, prismaClient))
+    app.use("/api/notifications", notificationRoutes(authenticate, notificationStore))
     app.use("/api/meters", meterRoutes(authenticate, prismaClient))
     app.use("/api/consumption", consumptionRoutes(authenticate, prismaClient))
 
-    if (processor && alertNotifier) {
-        app.use("/api/iot", iotStreamRoutes(authenticate, prismaClient, processor, alertNotifier))
+    if (processor && userEventHub) {
+        app.use("/api/iot", iotStreamRoutes(authenticate, prismaClient, processor, userEventHub))
     }
 
     app.use(createErrorHandler(auditService))
