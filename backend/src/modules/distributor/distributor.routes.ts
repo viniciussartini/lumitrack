@@ -4,6 +4,7 @@ import { DistributorController } from "@/modules/distributor/distributor.control
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { DistributorService } from "@/modules/distributor/distributor.service.js"
 
+// Catálogo global de distribuidoras — somente leitura (populado via seed).
 export function distributorRoutes(authenticate: RequestHandler, prismaClient: PrismaClient): Router {
     const router = Router()
 
@@ -11,12 +12,8 @@ export function distributorRoutes(authenticate: RequestHandler, prismaClient: Pr
     const distributorService = new DistributorService(distributorRepository)
     const distributorController = new DistributorController(distributorService)
 
-    // Rotas protegidas
-    router.post("/", authenticate, (req, res, next) => distributorController.create(req, res, next))
     router.get("/", authenticate, (req, res, next) => distributorController.findAll(req, res, next))
     router.get("/:id", authenticate, (req, res, next) => distributorController.findById(req, res, next))
-    router.put("/:id", authenticate, (req, res, next) => distributorController.update(req, res, next))
-    router.delete("/:id", authenticate, (req, res, next) => distributorController.delete(req, res, next))
 
     return router
 }

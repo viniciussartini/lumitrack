@@ -47,12 +47,12 @@ export class MeterController {
         }
     }
 
-    // GET /api/meters
+    // GET /api/meters?page=&pageSize=
     async findAll(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id: userId } = (req as AuthenticatedRequest).user
-            const meters = await this.meterService.findAll(userId)
-            res.status(200).json({ status: "success", data: meters })
+            const result = await this.meterService.findAll(userId, req.query)
+            res.status(200).json({ status: "success", data: result })
         } catch (error) {
             next(error)
         }

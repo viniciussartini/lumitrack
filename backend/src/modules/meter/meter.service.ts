@@ -7,6 +7,7 @@ import type { PropertyRepository } from "@/modules/property/property.repository.
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { paginationQuerySchema, type Paginated } from "@/shared/pagination.js"
 
 export class MeterService {
     constructor(
@@ -94,8 +95,14 @@ export class MeterService {
         return this.meterRepository.create(parsed.data)
     }
 
-    async findAll(userId: string): Promise<MeterResponse[]> {
-        return this.meterRepository.findAllByUser(userId)
+    async findAll(userId: string, query: unknown): Promise<Paginated<MeterResponse>> {
+        const parsed = paginationQuerySchema.safeParse(query)
+        if (!parsed.success) {
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
+            throw new ValidationError(firstError ?? "Dados inválidos")
+        }
+
+        return this.meterRepository.findAllByUserPaginated(userId, parsed.data)
     }
 
     async findByTargetQuery(userId: string, query: unknown): Promise<MeterResponse> {

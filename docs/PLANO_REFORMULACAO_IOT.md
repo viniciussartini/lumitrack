@@ -1,6 +1,6 @@
 # Plano — Reformulação LumiTrack: medidores IoT, consumo minuto a minuto, tarifação realista e alertas por potência
 
-> **Status:** em implementação na branch `feat/iot-meters-rework`. Fase 1 concluída em 09/07/2026, Fase 2 concluída em 09/07/2026 (ver log de implementação em [LOG_IMPLEMENTACAO_IOT.md](./LOG_IMPLEMENTACAO_IOT.md)).
+> **Status:** em implementação na branch `feat/iot-meters-rework`. Fase 1 concluída em 09/07/2026, Fase 2 concluída em 09/07/2026, Fase 3 concluída em 11/07/2026 (ver log de implementação em [LOG_IMPLEMENTACAO_IOT.md](./LOG_IMPLEMENTACAO_IOT.md)).
 >
 > **Data do planejamento:** 03/07/2026.
 >
@@ -89,7 +89,7 @@ Arquivo: `backend/prisma/schema.prisma`
 
 ---
 
-## Fase 3 — Backend: tarifação, agregação e paginação
+## Fase 3 — Backend: tarifação, agregação e paginação ✅ Concluída (11/07/2026)
 
 ### 3.1 `backend/src/shared/tariff/tariff.service.ts` (novo)
 
@@ -120,6 +120,16 @@ Arquivo: `backend/prisma/schema.prisma`
 - **Exceção mantida**: export LGPD (`findAllByUser` tem comentário "sem paginação de propósito" — Art. 18) continua íntegro.
 
 **Verificação:** Vitest dos services (tarifa, agregação, paginação); `curl` nos endpoints com `meter_readings` populadas.
+
+**Nota de implementação:** executado como planejado, com os desvios abaixo (documentados também no log de implementação):
+
+- **Pré-requisito 3.1/3.2 descoberto na prática**: `minuteStart` é `TIMESTAMP(3)` **sem** fuso (grava o instante em UTC). Um único `AT TIME ZONE 'America/Sao_Paulo'` sobre esse tipo faz o Postgres **interpretar** o valor como se já estivesse em SP e convertê-lo para UTC — o oposto do desejado. A conversão correta (e a usada no repository) é a dupla: `("minuteStart" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo'` (marca como UTC, depois projeta para o horário de parede de SP). Testado explicitamente o caso de virada de dia (duas leituras no mesmo dia UTC caindo em dias SP diferentes).
+- **Granularidade `year` + alvo PROPERTY**: implementado exatamente como previsto (soma de custos mensais, cada um com seu piso), via uma segunda consulta (`findMonthlyKwhForYears`) que reaproveita os próprios valores de bucket anual já retornados pela primeira consulta como chave de filtro (`= ANY(...)`) — evita reconverter fuso horário manualmente em JS.
+- **`tariff-flag`: RBAC já existia** — o texto original do plano previa "comentário admin futuro (projeto não tem RBAC)", mas o RBAC mínimo (#16) já tinha sido concluído antes desta branch (commit `d057618`). `PUT /api/tariff-flag` usa `requireRole("ADMIN")` de verdade, não um comentário.
+- **`simulation` não ficou intacto** — o texto da Fase 3.3 prendia isso ("módulo simulation fica intacto"), mas isso pressupunha que `kwhPrice` continuaria existindo; como a Fase 3.2 o removeu de vez (substituído por TUSD/TE/tributos), `simulation.service.ts` precisou ser adaptado para usar o `TariffService` (mesma lógica de piso/CIP do `ConsumptionService`: MONTHLY+PROPERTY aplica piso direto; ANNUAL+PROPERTY aproxima dividindo por 12 meses iguais; os demais casos não têm piso/CIP). `SimulationResult` perdeu o campo `kwhPrice` (não existe mais um preço único da distribuidora).
+- **`export`: `distributors` deixou de vir de `findAllByUser`** — como a distribuidora não tem mais dono, o payload de exportação LGPD passou a buscar só as distribuidoras referenciadas pelas propriedades do titular (`DistributorRepository.findAllByIds`, método novo, sem paginação — uso interno).
+- **Paginação de `alerts`/`alert-events` (item 3.4) adiada para a Fase 4** — o módulo `alert` ainda está no formato pré-reformulação (não compila contra o schema atual desde a Fase 1) e será inteiramente reescrito na Fase 4; paginar um módulo que vai ser jogado fora nesta mesma fase seguinte seria retrabalho. Aplicada a todos os outros: properties, areas, devices, meters, distributors, consumption.
+- **Quebra em cadeia herdada da Fase 1, não desta fase**: o módulo `alert` (schema/repository/service ainda com `thresholdKwh`/`targetType`/`triggeredAt`, campos que não existem mais no model `Alert` desde a Fase 1) e a seção de alertas de `dataExportPdf.ts` continuam quebrados — são o escopo explícito da Fase 4 ("Módulo `alert` reescrito"). Todos os testes desses dois arquivos (`alert.service.test.ts`, `alert.routes.test.ts`) já falhavam antes desta fase pelo mesmo motivo; nenhuma regressão nova.
 
 ---
 

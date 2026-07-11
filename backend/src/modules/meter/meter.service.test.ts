@@ -270,8 +270,8 @@ describe("MeterService", () => {
             await meterService.create(user.id, { ...validMeterMqtt, name: "M2", targetType: "AREA", areaId: area.id })
             await meterService.create(user.id, { ...validMeterMqtt, name: "M3", targetType: "DEVICE", deviceId: device.id })
 
-            const meters = await meterService.findAll(user.id)
-            expect(meters).toHaveLength(3)
+            const result = await meterService.findAll(user.id, {})
+            expect(result.items).toHaveLength(3)
         })
 
         it("não retorna medidores de outro usuário", async () => {
@@ -283,8 +283,8 @@ describe("MeterService", () => {
                 { ...validMeterMqtt, targetType: "PROPERTY", propertyId: property.id },
             )
 
-            const metersB = await meterService.findAll(userB.id)
-            expect(metersB).toHaveLength(0)
+            const resultB = await meterService.findAll(userB.id, {})
+            expect(resultB.items).toHaveLength(0)
         })
     })
 

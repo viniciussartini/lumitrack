@@ -3,6 +3,7 @@ import request from "supertest"
 import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
+import { createTestDistributor } from "@/shared/test/distributorFixture.js"
 
 const app = createApp({ prismaClient: prismaHttpTest })
 
@@ -28,14 +29,6 @@ const anotherUser = {
     cpf: "310.037.856-38",
 }
 
-const validDistributorBody = {
-    name: "CEMIG",
-    cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC",
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-}
-
 const validDeviceBody = {
     name: "Ar-condicionado",
     brand: "Daikin",
@@ -59,16 +52,12 @@ async function registerAndLogin(user = validUser) {
 
 async function setupFull(user = validUser) {
     const token = await registerAndLogin(user)
-
-    const distRes = await request(app)
-        .post("/api/distributors")
-        .set("Authorization", `Bearer ${token}`)
-        .send(validDistributorBody)
+    const distributor = await createTestDistributor(prismaHttpTest)
 
     const propRes = await request(app)
         .post("/api/properties")
         .set("Authorization", `Bearer ${token}`)
-        .send({ name: "Casa", distributorId: distRes.body.data.id })
+        .send({ name: "Casa", distributorId: distributor.id, electricalSystem: "TRIPHASIC" })
 
     const areaRes = await request(app)
         .post(`/api/properties/${propRes.body.data.id}/areas`)
@@ -210,7 +199,7 @@ describe("POST /api/properties/:propertyId/areas/:areaId/devices", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("GET /api/properties/:propertyId/areas/:areaId/devices", () => {
-    it("deve retornar 200 com lista vazia quando não há dispositivos", async () => {
+    it("deve retornar 200 com envelope paginado vazio quando não há dispositivos", async () => {
         const { token, propertyId, areaId } = await setupFull()
 
         const response = await request(app)
@@ -218,7 +207,8 @@ describe("GET /api/properties/:propertyId/areas/:areaId/devices", () => {
             .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(200)
-        expect(response.body.data).toEqual([])
+        expect(response.body.data.items).toEqual([])
+        expect(response.body.data.total).toBe(0)
     })
 
     it("deve retornar dispositivos ordenados por nome", async () => {
@@ -232,10 +222,25 @@ describe("GET /api/properties/:propertyId/areas/:areaId/devices", () => {
             .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(200)
-        expect(response.body.data).toHaveLength(3)
-        expect(response.body.data[0].name).toBe("Ar-condicionado")
-        expect(response.body.data[1].name).toBe("Lâmpada")
-        expect(response.body.data[2].name).toBe("Ventilador")
+        expect(response.body.data.items).toHaveLength(3)
+        expect(response.body.data.items[0].name).toBe("Ar-condicionado")
+        expect(response.body.data.items[1].name).toBe("Lâmpada")
+        expect(response.body.data.items[2].name).toBe("Ventilador")
+    })
+
+    it("deve paginar respeitando page e pageSize", async () => {
+        const { token, propertyId, areaId } = await setupFull()
+        await createDevice(token, propertyId, areaId, { name: "Dispositivo 1" })
+        await createDevice(token, propertyId, areaId, { name: "Dispositivo 2" })
+        await createDevice(token, propertyId, areaId, { name: "Dispositivo 3" })
+
+        const response = await request(app)
+            .get(`${deviceUrl(propertyId, areaId)}?page=1&pageSize=2`)
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(200)
+        expect(response.body.data.items).toHaveLength(2)
+        expect(response.body.data.total).toBe(3)
     })
 
     it("deve retornar 403 ao listar dispositivos de área de outro usuário", async () => {

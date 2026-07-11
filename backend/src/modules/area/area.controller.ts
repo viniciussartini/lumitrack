@@ -18,14 +18,14 @@ export class AreaController {
         }
     }
 
-    // GET /api/properties/:propertyId/areas
+    // GET /api/properties/:propertyId/areas?page=&pageSize=
     async findAll(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { propertyId } = req.params as { propertyId: string }
             const { id: userId } = (req as AuthenticatedRequest).user
 
-            const areas = await this.areaService.findAll(propertyId, userId)
-            res.status(200).json({ status: "success", data: areas })
+            const result = await this.areaService.findAll(propertyId, userId, req.query)
+            res.status(200).json({ status: "success", data: result })
         } catch (error) {
             next(error)
         }

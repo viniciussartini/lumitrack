@@ -1,5 +1,6 @@
 import { PrismaClient, TargetType, IoTProtocol, Prisma } from "@/generated/prisma/client.js"
 import type { CreateMeterInput, UpdateMeterInput } from "@/modules/meter/meter.schema.js"
+import { toSkipTake, type Paginated, type PaginationQuery } from "@/shared/pagination.js"
 
 export type MeterResponse = {
     id: string
@@ -86,6 +87,24 @@ export class MeterRepository {
             orderBy: { name: "asc" },
         })
         return rows.map(toMeterResponse)
+    }
+
+    async findAllByUserPaginated(userId: string, pagination: PaginationQuery): Promise<Paginated<MeterResponse>> {
+        const { skip, take } = toSkipTake(pagination)
+        const where = {
+            OR: [
+                { property: { userId } },
+                { area: { property: { userId } } },
+                { device: { area: { property: { userId } } } },
+            ],
+        }
+
+        const [rows, total] = await Promise.all([
+            this.prisma.meter.findMany({ where, orderBy: { name: "asc" }, skip, take }),
+            this.prisma.meter.count({ where }),
+        ])
+
+        return { items: rows.map(toMeterResponse), total, page: pagination.page, pageSize: pagination.pageSize }
     }
 
     async create(input: CreateMeterInput): Promise<MeterResponse> {

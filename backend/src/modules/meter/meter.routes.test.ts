@@ -182,7 +182,8 @@ describe("GET /api/meters", () => {
         const response = await request(app).get("/api/meters").set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(200)
-        expect(response.body.data).toHaveLength(1)
+        expect(response.body.data.items).toHaveLength(1)
+        expect(response.body.data.total).toBe(1)
     })
 
     it("retorna 401 sem token", async () => {

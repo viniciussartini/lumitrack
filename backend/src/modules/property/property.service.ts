@@ -2,26 +2,23 @@ import { z } from "zod"
 import { createPropertySchema, updatePropertySchema } from "@/modules/property/property.schema.js"
 import type { PropertyRepository, PropertyResponse } from "@/modules/property/property.repository.js"
 import type { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
-import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { NotFoundError, ForbiddenError, ValidationError } from "@/shared/errors/AppError.js"
+import { paginationQuerySchema, type Paginated } from "@/shared/pagination.js"
 
 export class PropertyService {
     constructor(
         private readonly propertyRepository: PropertyRepository,
-        // DistributorRepository é injetado para validar posse da distribuidora.
+        // DistributorRepository é injetado para validar que o distributorId
+        // informado existe no catálogo global (Fase 3.2 — distribuidora
+        // deixou de ter dono, é um catálogo somente leitura compartilhado).
         private readonly distributorRepository: DistributorRepository,
     ) {}
 
-    private async validateDistributorOwnership(distributorId: string, userId: string
+    private async validateDistributorExists(distributorId: string): Promise<void> {
+        const exists = await this.distributorRepository.exists(distributorId)
 
-    ): Promise<void> {
-        const distributor = await this.distributorRepository.findById(distributorId)
-
-        if (!distributor) {
+        if (!exists) {
             throw new NotFoundError("Distribuidora não encontrada")
-        }
-
-        if (distributor.userId !== userId) {
-            throw new ForbiddenError("A distribuidora informada não pertence a você")
         }
     }
 
@@ -37,7 +34,7 @@ export class PropertyService {
 
         const data = parsed.data
 
-        await this.validateDistributorOwnership(data.distributorId, userId)
+        await this.validateDistributorExists(data.distributorId)
 
         return this.propertyRepository.create(userId, data)
     }
@@ -56,13 +53,20 @@ export class PropertyService {
         return property
     }
 
-    async findAll(userId: string): Promise<PropertyResponse[]> {
-        return this.propertyRepository.findAllByUser(userId)
+    async findAll(userId: string, query: unknown): Promise<Paginated<PropertyResponse>> {
+        const parsed = paginationQuerySchema.safeParse(query)
+
+        if (!parsed.success) {
+            const firstError = Object.values(
+                z.flattenError(parsed.error).fieldErrors,
+            ).flat()[0]
+            throw new ValidationError(firstError ?? "Dados inválidos")
+        }
+
+        return this.propertyRepository.findAllByUserPaginated(userId, parsed.data)
     }
 
-    async update(id: string, requestingUserId: string, input: unknown
-
-    ): Promise<PropertyResponse> {
+    async update(id: string, requestingUserId: string, input: unknown): Promise<PropertyResponse> {
         await this.findById(id, requestingUserId)
 
         const parsed = updatePropertySchema.safeParse(input)
@@ -77,7 +81,7 @@ export class PropertyService {
         const data = parsed.data
 
         if (data.distributorId !== undefined) {
-            await this.validateDistributorOwnership(data.distributorId, requestingUserId)
+            await this.validateDistributorExists(data.distributorId)
         }
 
         return this.propertyRepository.update(id, data)

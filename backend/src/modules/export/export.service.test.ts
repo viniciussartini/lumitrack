@@ -5,9 +5,7 @@ import { UserService } from "@/modules/user/user.service.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
-import { DistributorService } from "@/modules/distributor/distributor.service.js"
 import { AlertRepository } from "@/modules/alert/alert.repository.js"
-import { AlertService } from "@/modules/alert/alert.service.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { AreaService } from "@/modules/area/area.service.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
@@ -15,6 +13,7 @@ import { DeviceService } from "@/modules/device/device.service.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
+import { createTestDistributor } from "@/shared/test/distributorFixture.js"
 import { NotFoundError } from "@/shared/errors/AppError.js"
 
 // ─── Instâncias ───────────────────────────────────────────────────────────────
@@ -23,7 +22,6 @@ const userRepository = new UserRepository(prismaTest)
 const userService = new UserService(userRepository)
 
 const distributorRepository = new DistributorRepository(prismaTest)
-const distributorService = new DistributorService(distributorRepository)
 
 const propertyRepository = new PropertyRepository(prismaTest)
 const propertyService = new PropertyService(propertyRepository, distributorRepository)
@@ -35,7 +33,6 @@ const deviceRepository = new DeviceRepository(prismaTest)
 const deviceService = new DeviceService(deviceRepository, areaRepository, propertyRepository)
 
 const alertRepository = new AlertRepository(prismaTest)
-const alertService = new AlertService(alertRepository, propertyRepository, areaRepository, deviceRepository)
 
 const auditRepository = new AuditRepository(prismaTest)
 
@@ -71,22 +68,18 @@ const validUserB = {
     cpf: "310.037.856-38",
 }
 
-const validDistributorInput = {
-    name: "CEMIG",
-    cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC" as const,
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-}
-
-// Cria a cadeia completa user → distributor → property → area → device,
-// um alerta e uma linha de audit log.
+// Cria a cadeia completa user → distributor (catálogo) → property → area →
+// device, um medidor + alerta (inseridos direto via Prisma — o módulo
+// `alert` ainda está no formato pré-reformulação e será reescrito na Fase 4;
+// aqui só precisamos de uma linha válida contra o schema atual para testar
+// a agregação do export) e uma linha de audit log.
 async function setupFull(userInput = validUserA) {
     const user = await userService.createUser(userInput)
-    const distributor = await distributorService.create(user.id, validDistributorInput)
+    const distributor = await createTestDistributor(prismaTest)
     const property = await propertyService.create(user.id, {
         name: "Casa",
         distributorId: distributor.id,
+        electricalSystem: "TRIPHASIC",
     })
     const area = await areaService.create(property.id, user.id, { name: "Sala" })
     const device = await deviceService.create(area.id, property.id, user.id, {
@@ -94,7 +87,12 @@ async function setupFull(userInput = validUserA) {
         powerWatts: 1000,
     })
 
-    await alertService.createForProperty(property.id, user.id, { thresholdKwh: 500 })
+    const meter = await prismaTest.meter.create({
+        data: { name: "Medidor Casa", targetType: "PROPERTY", propertyId: property.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "casa/medidor" },
+    })
+    await prismaTest.alert.create({
+        data: { userId: user.id, meterId: meter.id, name: "Pico de potência", referencePowerKw: 10, tolerancePercent: 2 },
+    })
 
     await auditRepository.create({
         userId: user.id,
@@ -129,6 +127,8 @@ describe("ExportService.generate", () => {
         expect(payload.properties).toHaveLength(1)
         expect(payload.properties[0]!.id).toBe(property.id)
 
+        // Distribuidora agora é catálogo global — o export traz só as
+        // efetivamente vinculadas às propriedades do titular (Fase 3.2).
         expect(payload.distributors).toHaveLength(1)
         expect(payload.distributors[0]!.id).toBe(distributor.id)
 

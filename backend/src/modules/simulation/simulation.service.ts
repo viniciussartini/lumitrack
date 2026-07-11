@@ -1,10 +1,12 @@
 import { z } from "zod"
 import { simulationInputSchema } from "@/modules/simulation/simulation.schema.js"
-import type { SimulationInput, SimulationResult } from "@/modules/simulation/simulation.schema.js"
-import type { PropertyRepository } from "@/modules/property/property.repository.js"
-import type { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
+import type { SimulationInput, SimulationResult, SimulationTarget } from "@/modules/simulation/simulation.schema.js"
+import type { PropertyRepository, PropertyResponse } from "@/modules/property/property.repository.js"
+import type { DistributorRepository, DistributorResponse } from "@/modules/distributor/distributor.repository.js"
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
+import { resolveFlagPer100Kwh, type TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
+import { TariffService } from "@/shared/tariff/tariff.service.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 
 const PROJECTED_DAYS: Record<"DAILY" | "MONTHLY" | "ANNUAL", number> = {
@@ -19,6 +21,8 @@ export class SimulationService {
         private readonly distributorRepository: DistributorRepository,
         private readonly areaRepository: AreaRepository,
         private readonly deviceRepository: DeviceRepository,
+        private readonly tariffFlagRepository: TariffFlagRepository,
+        private readonly tariffService: TariffService = new TariffService(),
     ) {}
 
     async simulate(propertyId: string, userId: string, input: unknown): Promise<SimulationResult> {
@@ -32,13 +36,24 @@ export class SimulationService {
 
         const data = parsed.data
 
-        const kwhPrice = await this.validatePropertyAndGetKwhPrice(propertyId, userId)
+        const property = await this.validatePropertyOwnership(propertyId, userId)
         await this.validateTarget(data, propertyId)
         const effectivePowerWatts = await this.resolveEffectivePowerWatts(data)
 
         const projectedDays = PROJECTED_DAYS[data.period]
         const kwhConsumed = this.calculateKwh(data, effectivePowerWatts, projectedDays)
-        const costBrl = kwhConsumed * kwhPrice
+
+        const distributor = await this.distributorRepository.findById(property.distributorId)
+        if (!distributor) {
+            throw new NotFoundError("Distribuidora vinculada não encontrada")
+        }
+
+        const flagConfig = await this.tariffFlagRepository.get()
+        if (!flagConfig) {
+            throw new NotFoundError("Configuração de bandeira tarifária não encontrada")
+        }
+
+        const costBrl = this.calculateCost(data.target, data.period, kwhConsumed, property, distributor, resolveFlagPer100Kwh(flagConfig))
 
         return {
             period: data.period,
@@ -48,12 +63,11 @@ export class SimulationService {
             dailyUsageHours: data.inputMode === "WATTS_HOURS" ? data.dailyUsageHours : null,
             kwhConsumed,
             costBrl,
-            kwhPrice,
             projectedDays,
         }
     }
 
-    private async validatePropertyAndGetKwhPrice(propertyId: string, userId: string): Promise<number> {
+    private async validatePropertyOwnership(propertyId: string, userId: string): Promise<PropertyResponse> {
         const property = await this.propertyRepository.findById(propertyId)
 
         if (!property) {
@@ -64,13 +78,70 @@ export class SimulationService {
             throw new ForbiddenError("Acesso negado")
         }
 
-        const distributor = await this.distributorRepository.findById(property.distributorId)
+        return property
+    }
 
-        if (!distributor) {
-            throw new NotFoundError("Distribuidora vinculada não encontrada")
+    // Custo da simulação via TariffService — mesmo racional do
+    // ConsumptionService (Fase 3.3): piso de disponibilidade + CIP só fazem
+    // sentido para o alvo PROPERTY num período que representa um mês
+    // faturável inteiro.
+    //   MONTHLY + PROPERTY: kwhConsumed já é o total do mês → piso/CIP direto.
+    //   ANNUAL + PROPERTY: sem leituras reais mês a mês (é uma simulação
+    //     hipotética), então aproxima-se dividindo o total por 12 meses
+    //     iguais, aplicando piso/CIP em cada "mês médio" e multiplicando por
+    //     12 — mais realista do que aplicar o piso uma única vez sobre o
+    //     total anual.
+    //   Qualquer outro caso (DAILY, ou alvo AREA/DEVICE): só energia +
+    //     bandeira + tributos, sem piso nem CIP.
+    private calculateCost(
+        target: SimulationTarget,
+        period: "DAILY" | "MONTHLY" | "ANNUAL",
+        kwhConsumed: number,
+        property: PropertyResponse,
+        distributor: DistributorResponse,
+        flagPer100Kwh: number,
+    ): number {
+        const isProperty = target.type === "PROPERTY"
+
+        if (isProperty && period === "MONTHLY") {
+            return this.tariffService.calculateForProperty({
+                kwhConsumed,
+                electricalSystem: property.electricalSystem,
+                publicLightingFeeBrl: property.publicLightingFeeBrl,
+                tusdPerKwh: distributor.tusdPerKwh,
+                tePerKwh: distributor.tePerKwh,
+                icmsRate: distributor.icmsRate,
+                pisRate: distributor.pisRate,
+                cofinsRate: distributor.cofinsRate,
+                flagPer100Kwh,
+            }).totalBrl
         }
 
-        return distributor.kwhPrice
+        if (isProperty && period === "ANNUAL") {
+            const avgMonthKwh = kwhConsumed / 12
+            const avgMonthCost = this.tariffService.calculateForProperty({
+                kwhConsumed: avgMonthKwh,
+                electricalSystem: property.electricalSystem,
+                publicLightingFeeBrl: property.publicLightingFeeBrl,
+                tusdPerKwh: distributor.tusdPerKwh,
+                tePerKwh: distributor.tePerKwh,
+                icmsRate: distributor.icmsRate,
+                pisRate: distributor.pisRate,
+                cofinsRate: distributor.cofinsRate,
+                flagPer100Kwh,
+            }).totalBrl
+            return avgMonthCost * 12
+        }
+
+        return this.tariffService.calculateForSubTarget({
+            kwhConsumed,
+            tusdPerKwh: distributor.tusdPerKwh,
+            tePerKwh: distributor.tePerKwh,
+            icmsRate: distributor.icmsRate,
+            pisRate: distributor.pisRate,
+            cofinsRate: distributor.cofinsRate,
+            flagPer100Kwh,
+        }).totalBrl
     }
 
 

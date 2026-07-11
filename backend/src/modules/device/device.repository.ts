@@ -1,5 +1,6 @@
 import { PrismaClient } from "@/generated/prisma/client.js"
 import type { CreateDeviceInput, UpdateDeviceInput } from "@/modules/device/device.schema.js"
+import { toSkipTake, type Paginated, type PaginationQuery } from "@/shared/pagination.js"
 
 type PrismaDevice = NonNullable<
     Awaited<ReturnType<PrismaClient["device"]["findUnique"]>>
@@ -19,6 +20,22 @@ export class DeviceRepository {
             where: { areaId },
             orderBy: { name: "asc" },
         })
+    }
+
+    async findAllByAreaPaginated(areaId: string, pagination: PaginationQuery): Promise<Paginated<DeviceResponse>> {
+        const { skip, take } = toSkipTake(pagination)
+
+        const [devices, total] = await Promise.all([
+            this.prisma.device.findMany({
+                where: { areaId },
+                orderBy: { name: "asc" },
+                skip,
+                take,
+            }),
+            this.prisma.device.count({ where: { areaId } }),
+        ])
+
+        return { items: devices, total, page: pagination.page, pageSize: pagination.pageSize }
     }
 
     // Usado pela exportação de dados do titular (#09) — filtro de relação

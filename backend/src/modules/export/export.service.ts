@@ -15,6 +15,12 @@ import { NotFoundError } from "@/shared/errors/AppError.js"
 // esse modelo não existe mais (schema v2). A exportação de consumo agregado
 // via MeterReading fica para quando a agregação (TariffService/Fase 3)
 // existir.
+//
+// Reformulação IoT (Fase 3): `distributors` deixou de vir de
+// `findAllByUser` — a distribuidora agora é um catálogo global sem dono
+// (Fase 3.2). Aqui buscamos só as distribuidoras efetivamente vinculadas às
+// propriedades do titular (via `findAllByIds`), que é a informação que de
+// fato compõe o dado pessoal exportado (a propriedade aponta pra elas).
 export type DataExportPayload = {
     generatedAt: Date
     user: UserWithoutPassword
@@ -46,15 +52,17 @@ export class ExportService {
             throw new NotFoundError("Usuário não encontrado")
         }
 
-        const [properties, distributors, alerts, areas, devices, auditLogs] =
+        const [properties, alerts, areas, devices, auditLogs] =
             await Promise.all([
                 this.propertyRepository.findAllByUser(userId),
-                this.distributorRepository.findAllByUser(userId),
                 this.alertRepository.findAllByUser(userId),
                 this.areaRepository.findAllByUser(userId),
                 this.deviceRepository.findAllByUser(userId),
                 this.auditRepository.findByUserId(userId),
             ])
+
+        const distributorIds = [...new Set(properties.map((p) => p.distributorId))]
+        const distributors = await this.distributorRepository.findAllByIds(distributorIds)
 
         return {
             generatedAt: new Date(),

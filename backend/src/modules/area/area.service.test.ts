@@ -3,18 +3,17 @@ import { AreaService } from "@/modules/area/area.service.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
-import { DistributorService } from "@/modules/distributor/distributor.service.js"
 import { PropertyService } from "@/modules/property/property.service.js"
 import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
+import { createTestDistributor } from "@/shared/test/distributorFixture.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 
 // ─── Instâncias ───────────────────────────────────────────────────────────────
 
 const distributorRepository = new DistributorRepository(prismaTest)
-const distributorService = new DistributorService(distributorRepository)
 
 const propertyRepository = new PropertyRepository(prismaTest)
 const propertyService = new PropertyService(propertyRepository, distributorRepository)
@@ -47,14 +46,6 @@ const validUserB = {
     cpf: "310.037.856-38",
 }
 
-const validDistributorInput = {
-    name: "CEMIG Distribuição S.A.",
-    cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC" as const,
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-}
-
 const validAreaInput = {
     name: "Sala de Estar",
     description: "Área principal de convivência",
@@ -67,10 +58,11 @@ const validAreaInput = {
 // você precisa ter uma casa, e antes da casa, um contrato de energia.
 async function setupUserAndProperty(userInput = validUserA) {
     const user = await userService.createUser(userInput)
-    const distributor = await distributorService.create(user.id, validDistributorInput)
+    const distributor = await createTestDistributor(prismaTest)
     const property = await propertyService.create(user.id, {
         name: "Casa Principal",
         distributorId: distributor.id,
+        electricalSystem: "TRIPHASIC",
     })
     return { user, distributor, property }
 }
@@ -188,11 +180,11 @@ describe("AreaService", () => {
             // Usuário tenta acessar uma área de outra propriedade sua.
             // Analogia: você tem dois apartamentos — não faz sentido buscar
             // o quarto do apt 101 usando o ID do apt 202.
-            const { user, property: propertyA } = await setupUserAndProperty(validUserA)
-            const distributorA = await distributorService.findAll(user.id)
+            const { user, property: propertyA, distributor } = await setupUserAndProperty(validUserA)
             const propertyB = await propertyService.create(user.id, {
                 name: "Escritório",
-                distributorId: distributorA[0]!.id,
+                distributorId: distributor.id,
+                electricalSystem: "TRIPHASIC",
             })
             const area = await areaService.create(propertyA.id, user.id, validAreaInput)
 
@@ -208,26 +200,27 @@ describe("AreaService", () => {
         it("deve retornar lista vazia quando a propriedade não tem áreas", async () => {
             const { user, property } = await setupUserAndProperty()
 
-            const list = await areaService.findAll(property.id, user.id)
+            const result = await areaService.findAll(property.id, user.id, {})
 
-            expect(list).toEqual([])
+            expect(result.items).toEqual([])
+            expect(result.total).toBe(0)
         })
 
         it("deve retornar apenas as áreas da propriedade solicitada", async () => {
-            const { user, property: propertyA } = await setupUserAndProperty(validUserA)
-            const distributorA = await distributorService.findAll(user.id)
+            const { user, property: propertyA, distributor } = await setupUserAndProperty(validUserA)
             const propertyB = await propertyService.create(user.id, {
                 name: "Escritório",
-                distributorId: distributorA[0]!.id,
+                distributorId: distributor.id,
+                electricalSystem: "TRIPHASIC",
             })
 
             await areaService.create(propertyA.id, user.id, { name: "Sala" })
             await areaService.create(propertyB.id, user.id, { name: "Recepção" })
 
-            const listA = await areaService.findAll(propertyA.id, user.id)
+            const resultA = await areaService.findAll(propertyA.id, user.id, {})
 
-            expect(listA).toHaveLength(1)
-            expect(listA[0]?.name).toBe("Sala")
+            expect(resultA.items).toHaveLength(1)
+            expect(resultA.items[0]?.name).toBe("Sala")
         })
 
         it("deve retornar áreas ordenadas por nome", async () => {
@@ -237,11 +230,24 @@ describe("AreaService", () => {
             await areaService.create(property.id, user.id, { name: "Cozinha" })
             await areaService.create(property.id, user.id, { name: "Banheiro" })
 
-            const list = await areaService.findAll(property.id, user.id)
+            const result = await areaService.findAll(property.id, user.id, {})
 
-            expect(list[0]?.name).toBe("Banheiro")
-            expect(list[1]?.name).toBe("Cozinha")
-            expect(list[2]?.name).toBe("Quarto")
+            expect(result.items[0]?.name).toBe("Banheiro")
+            expect(result.items[1]?.name).toBe("Cozinha")
+            expect(result.items[2]?.name).toBe("Quarto")
+        })
+
+        it("deve paginar respeitando page e pageSize", async () => {
+            const { user, property } = await setupUserAndProperty()
+
+            await areaService.create(property.id, user.id, { name: "Área 1" })
+            await areaService.create(property.id, user.id, { name: "Área 2" })
+            await areaService.create(property.id, user.id, { name: "Área 3" })
+
+            const result = await areaService.findAll(property.id, user.id, { page: 1, pageSize: 2 })
+
+            expect(result.items).toHaveLength(2)
+            expect(result.total).toBe(3)
         })
 
         it("deve lançar ForbiddenError ao listar áreas de propriedade de outro usuário", async () => {
@@ -249,7 +255,7 @@ describe("AreaService", () => {
             const userB = await userService.createUser(validUserB)
 
             await expect(
-                areaService.findAll(property.id, userB.id),
+                areaService.findAll(property.id, userB.id, {}),
             ).rejects.toThrow(ForbiddenError)
         })
 
@@ -257,7 +263,7 @@ describe("AreaService", () => {
             const user = await userService.createUser(validUserA)
 
             await expect(
-                areaService.findAll("00000000-0000-0000-0000-000000000000", user.id),
+                areaService.findAll("00000000-0000-0000-0000-000000000000", user.id, {}),
             ).rejects.toThrow(NotFoundError)
         })
     })
@@ -352,7 +358,7 @@ describe("AreaService", () => {
 
             // Tentar listar as áreas da propriedade deletada retorna NotFoundError
             await expect(
-                areaService.findAll(property.id, user.id),
+                areaService.findAll(property.id, user.id, {}),
             ).rejects.toThrow(NotFoundError)
         })
     })

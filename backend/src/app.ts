@@ -19,9 +19,11 @@ import { exportRoutes } from "@/modules/export/export.routes.js"
 import { adminRoutes } from "@/modules/admin/admin.routes.js"
 import { authRoutes } from "@/modules/auth/auth.routes.js"
 import { distributorRoutes } from "./modules/distributor/distributor.routes.js"
+import { tariffFlagRoutes } from "./modules/tariff-flag/tariff-flag.routes.js"
 import { propertyRoutes } from "./modules/property/property.routes.js"
 import { alertRoutes } from "./modules/alert/alert.routes.js"
 import { meterRoutes } from "./modules/meter/meter.routes.js"
+import { consumptionRoutes } from "./modules/consumption/consumption.routes.js"
 import { IoTDataProcessor } from "./modules/iot/iot-worker/IoTDataProcessor.js"
 import { iotStreamRoutes } from "./modules/iot/iot-stream.routes.js"
 import { AlertNotifier } from "./modules/alert/alert-notifier.js"
@@ -130,9 +132,11 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/admin", adminRoutes(authenticate, prismaClient, auditService))
     app.use("/api/auth", authRoutes(authenticate, prismaClient, sendPasswordResetEmail, auditService))
     app.use("/api/distributors", distributorRoutes(authenticate, prismaClient))
+    app.use("/api/tariff-flag", tariffFlagRoutes(authenticate, prismaClient))
     app.use("/api/properties", propertyRoutes(authenticate, prismaClient, alertNotifier ?? new AlertNotifier(), auditService))
     app.use("/api/alerts", alertRoutes(authenticate, prismaClient, alertNotifier ?? new AlertNotifier()))
     app.use("/api/meters", meterRoutes(authenticate, prismaClient))
+    app.use("/api/consumption", consumptionRoutes(authenticate, prismaClient))
 
     if (processor && alertNotifier) {
         app.use("/api/iot", iotStreamRoutes(authenticate, prismaClient, processor, alertNotifier))

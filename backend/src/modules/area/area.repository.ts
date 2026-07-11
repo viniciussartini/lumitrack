@@ -1,5 +1,6 @@
 import { PrismaClient } from "@/generated/prisma/client.js"
 import type { CreateAreaInput, UpdateAreaInput } from "@/modules/area/area.schema.js"
+import { toSkipTake, type Paginated, type PaginationQuery } from "@/shared/pagination.js"
 
 // Tipo inferido diretamente do Prisma
 type PrismaArea = NonNullable<
@@ -20,6 +21,22 @@ export class AreaRepository {
             where: { propertyId },
             orderBy: { name: "asc" },
         })
+    }
+
+    async findAllByPropertyPaginated(propertyId: string, pagination: PaginationQuery): Promise<Paginated<AreaResponse>> {
+        const { skip, take } = toSkipTake(pagination)
+
+        const [areas, total] = await Promise.all([
+            this.prisma.area.findMany({
+                where: { propertyId },
+                orderBy: { name: "asc" },
+                skip,
+                take,
+            }),
+            this.prisma.area.count({ where: { propertyId } }),
+        ])
+
+        return { items: areas, total, page: pagination.page, pageSize: pagination.pageSize }
     }
 
     // Usado pela exportação de dados do titular (#09) — resolve direto via

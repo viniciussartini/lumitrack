@@ -31,12 +31,12 @@ export class PropertyController {
         }
     }
 
-    // GET /api/properties — Autenticado
+    // GET /api/properties?page=&pageSize= — Autenticado
     async findAll(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id: userId } = (req as AuthenticatedRequest).user
-            const properties = await this.propertyService.findAll(userId)
-            res.status(200).json({ status: "success", data: properties })
+            const result = await this.propertyService.findAll(userId, req.query)
+            res.status(200).json({ status: "success", data: result })
         } catch (error) {
             next(error)
         }

@@ -50,7 +50,7 @@ describe("generateDataExportPdf", () => {
             buildFakePayload({
                 properties,
                 distributors: [
-                    { id: "dist-1", userId: "user-1", name: "CEMIG", cnpj: "06.981.180/0001-16", electricalSystem: "TRIPHASIC", workingVoltage: 220, kwhPrice: 0.75, taxRate: null, publicLightingFee: null, createdAt: new Date(), updatedAt: new Date() },
+                    { id: "dist-1", name: "CEMIG", cnpj: "06.981.180/0001-16", state: "MG", tusdPerKwh: 0.3, tePerKwh: 0.3, icmsRate: 0.18, pisRate: 0.0165, cofinsRate: 0.076, createdAt: new Date(), updatedAt: new Date() },
                 ],
                 alerts: [
                     { id: "alert-1", userId: "user-1", targetType: "PROPERTY", propertyId: "prop-1", areaId: null, deviceId: null, thresholdKwh: 100, message: "Atenção", triggeredAt: null, readAt: null, createdAt: new Date(), updatedAt: new Date() },

@@ -19,15 +19,15 @@ export class DeviceController {
         }
     }
 
-    // GET /api/properties/:propertyId/areas/:areaId/devices
+    // GET /api/properties/:propertyId/areas/:areaId/devices?page=&pageSize=
     async findAll(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { propertyId, areaId } = req.params as { propertyId: string; areaId: string }
             const { id: userId } = (req as AuthenticatedRequest).user
 
-            const devices = await this.deviceService.findAll(areaId, propertyId, userId)
+            const result = await this.deviceService.findAll(areaId, propertyId, userId, req.query)
 
-            res.status(200).json({ status: "success", data: devices })
+            res.status(200).json({ status: "success", data: result })
         } catch (error) {
             next(error)
         }

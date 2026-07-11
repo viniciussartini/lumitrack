@@ -5,18 +5,17 @@ import { AreaRepository } from "@/modules/area/area.repository.js"
 import { AreaService } from "@/modules/area/area.service.js"
 import { PropertyService } from "@/modules/property/property.service.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
-import { DistributorService } from "@/modules/distributor/distributor.service.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
+import { createTestDistributor } from "@/shared/test/distributorFixture.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 
 // ─── Instâncias ───────────────────────────────────────────────────────────────
 
 const distributorRepository = new DistributorRepository(prismaTest)
-const distributorService = new DistributorService(distributorRepository)
 
 const propertyRepository = new PropertyRepository(prismaTest)
 const propertyService = new PropertyService(propertyRepository, distributorRepository)
@@ -54,14 +53,6 @@ const validUserB = {
     cpf: "310.037.856-38",
 }
 
-const validDistributorInput = {
-    name: "CEMIG",
-    cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC" as const,
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-}
-
 const validDeviceInput = {
     name: "Ar-condicionado",
     brand: "Daikin",
@@ -73,10 +64,11 @@ const validDeviceInput = {
 
 async function setupUserAndArea(userInput = validUserA) {
     const user = await userService.createUser(userInput)
-    const distributor = await distributorService.create(user.id, validDistributorInput)
+    const distributor = await createTestDistributor(prismaTest)
     const property = await propertyService.create(user.id, {
         name: "Casa",
         distributorId: distributor.id,
+        electricalSystem: "TRIPHASIC",
     })
     const area = await areaService.create(property.id, user.id, { name: "Sala" })
     return { user, property, area }
@@ -129,10 +121,11 @@ describe("DeviceService", () => {
 
         it("deve lançar NotFoundError ao criar dispositivo em área inexistente", async () => {
             const user = await userService.createUser(validUserA)
-            const distributor = await distributorService.create(user.id, validDistributorInput)
+            const distributor = await createTestDistributor(prismaTest)
             const property = await propertyService.create(user.id, {
                 name: "Casa",
                 distributorId: distributor.id,
+                electricalSystem: "TRIPHASIC",
             })
 
             await expect(
@@ -235,9 +228,10 @@ describe("DeviceService", () => {
         it("deve retornar lista vazia quando a área não tem dispositivos", async () => {
             const { user, area } = await setupUserAndArea()
 
-            const list = await deviceService.findAll(area.id, area.propertyId, user.id)
+            const result = await deviceService.findAll(area.id, area.propertyId, user.id, {})
 
-            expect(list).toEqual([])
+            expect(result.items).toEqual([])
+            expect(result.total).toBe(0)
         })
 
         it("deve retornar apenas os dispositivos da área especificada", async () => {
@@ -247,10 +241,10 @@ describe("DeviceService", () => {
             await deviceService.create(areaA.id, property.id, user.id, { name: "Dispositivo A" })
             await deviceService.create(areaB.id, property.id, user.id, { name: "Dispositivo B" })
 
-            const listA = await deviceService.findAll(areaA.id, property.id, user.id)
+            const resultA = await deviceService.findAll(areaA.id, property.id, user.id, {})
 
-            expect(listA).toHaveLength(1)
-            expect(listA[0]?.name).toBe("Dispositivo A")
+            expect(resultA.items).toHaveLength(1)
+            expect(resultA.items[0]?.name).toBe("Dispositivo A")
         })
 
         it("deve retornar dispositivos ordenados por nome", async () => {
@@ -260,11 +254,24 @@ describe("DeviceService", () => {
             await deviceService.create(area.id, area.propertyId, user.id, { name: "Ar-condicionado" })
             await deviceService.create(area.id, area.propertyId, user.id, { name: "Lâmpada" })
 
-            const list = await deviceService.findAll(area.id, area.propertyId, user.id)
+            const result = await deviceService.findAll(area.id, area.propertyId, user.id, {})
 
-            expect(list[0]?.name).toBe("Ar-condicionado")
-            expect(list[1]?.name).toBe("Lâmpada")
-            expect(list[2]?.name).toBe("Ventilador")
+            expect(result.items[0]?.name).toBe("Ar-condicionado")
+            expect(result.items[1]?.name).toBe("Lâmpada")
+            expect(result.items[2]?.name).toBe("Ventilador")
+        })
+
+        it("deve paginar respeitando page e pageSize", async () => {
+            const { user, area } = await setupUserAndArea()
+
+            await deviceService.create(area.id, area.propertyId, user.id, { name: "Dispositivo 1" })
+            await deviceService.create(area.id, area.propertyId, user.id, { name: "Dispositivo 2" })
+            await deviceService.create(area.id, area.propertyId, user.id, { name: "Dispositivo 3" })
+
+            const result = await deviceService.findAll(area.id, area.propertyId, user.id, { page: 1, pageSize: 2 })
+
+            expect(result.items).toHaveLength(2)
+            expect(result.total).toBe(3)
         })
 
         it("deve lançar ForbiddenError ao listar dispositivos de área de outro usuário", async () => {
@@ -272,7 +279,7 @@ describe("DeviceService", () => {
             const userB = await userService.createUser(validUserB)
 
             await expect(
-                deviceService.findAll(area.id, area.propertyId, userB.id),
+                deviceService.findAll(area.id, area.propertyId, userB.id, {}),
             ).rejects.toThrow(ForbiddenError)
         })
     })
@@ -352,26 +359,33 @@ describe("DeviceService", () => {
             ).rejects.toThrow(ForbiddenError)
         })
 
-        it("deve cascatear o delete para os registros de consumo do dispositivo", async () => {
+        it("deve cascatear o delete para o medidor e leituras vinculadas ao dispositivo", async () => {
             const { user, area } = await setupUserAndArea()
             const device = await deviceService.create(area.id, area.propertyId, user.id, validDeviceInput)
 
-            // Cria um registro de consumo vinculado ao dispositivo
-            const record = await prismaTest.consumptionRecord.create({
+            const meter = await prismaTest.meter.create({
+                data: { name: "Medidor", targetType: "DEVICE", deviceId: device.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "device/medidor" },
+            })
+            const reading = await prismaTest.meterReading.create({
                 data: {
-                    deviceId: device.id,
-                    period: "DAILY",
-                    referenceDate: new Date("2025-01-01"),
-                    kwhConsumed: 2.5,
+                    meterId: meter.id,
+                    minuteStart: new Date("2025-01-01T00:00:00Z"),
+                    kwhConsumed: 0.1,
+                    avgVoltage: 220,
+                    avgCurrent: 1,
+                    avgPowerW: 220,
+                    avgPowerFactor: 1,
+                    sampleCount: 60,
+                    secondsCovered: 60,
                 },
             })
 
             await deviceService.delete(device.id, area.id, area.propertyId, user.id)
 
-            const recordAfter = await prismaTest.consumptionRecord.findUnique({
-                where: { id: record.id },
-            })
-            expect(recordAfter).toBeNull()
+            const meterAfter = await prismaTest.meter.findUnique({ where: { id: meter.id } })
+            const readingAfter = await prismaTest.meterReading.findUnique({ where: { id: reading.id } })
+            expect(meterAfter).toBeNull()
+            expect(readingAfter).toBeNull()
         })
     })
 

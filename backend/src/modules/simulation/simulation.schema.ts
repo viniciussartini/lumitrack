@@ -98,7 +98,6 @@ export type SimulationResult = {
     powerWatts:      number | null   // null se inputMode = KWH_DIRECT
     dailyUsageHours: number | null   // null se inputMode = KWH_DIRECT
     kwhConsumed:     number          // calculado ou informado
-    costBrl:         number          // kwhConsumed × kwhPrice da distribuidora
-    kwhPrice:        number          // snapshot do preço no momento da simulação
+    costBrl:         number          // via TariffService — energia + bandeira + tributos (e piso/CIP para PROPERTY em MONTHLY/ANNUAL)
     projectedDays:   number          // 1 | 30 | 365
 }

@@ -77,3 +77,53 @@
 ### Próximo passo
 
 Fase 3 — TariffService, catálogo de distribuidoras somente leitura, consumo agregado (`GET /api/consumption` via `MeterReading`), paginação universal. É o que desbloqueia `property`/`distributor` e, por consequência, boa parte das falhas hoje conhecidas.
+
+---
+
+## Fase 3 — Backend: tarifação, agregação e paginação
+
+**Data:** 11/07/2026
+
+### O que foi implementado
+
+**`backend/src/shared/tariff/tariff.service.ts`** (novo) — `TariffService.calculateForProperty` (piso de disponibilidade 30/50/100 kWh conforme `electricalSystem`, CIP somada fora da base de tributos) e `calculateForSubTarget` (AREA/DEVICE — sem piso, sem CIP), ambos com o cálculo "por dentro" (`total = (energia + bandeira) / (1 − (icms+pis+cofins))`).
+
+**`backend/src/modules/distributor/`** reescrito como catálogo global somente leitura: `create/update/delete` removidos, `findAll` paginado, `findById` sem checagem de dono (não existe mais), `findAllByIds` (novo, sem paginação, uso interno pelo `export`) e `exists` (usado pelo `property` para validar o vínculo).
+
+**`backend/src/modules/tariff-flag/`** (novo módulo): `GET /api/tariff-flag` (qualquer usuário autenticado) e `PUT /api/tariff-flag` (`requireRole("ADMIN")` — RBAC já existia, ver desvio abaixo). `resolveFlagPer100Kwh` exportado do repository para uso compartilhado por `consumption` e `simulation`.
+
+**`backend/src/modules/property/`**: schema ganhou `electricalSystem` (obrigatório), `billingClass` (default `B1`) e `publicLightingFeeBrl` (opcional); `distributorId` agora só valida existência no catálogo (`DistributorRepository.exists`), não mais posse — a distribuidora deixou de ter dono.
+
+**`backend/src/modules/consumption/`** (novo, reescrito do zero como somente leitura): `GET /api/consumption?targetType=&targetId=&granularity=hour|day|month|year&from=&to=&page=&pageSize=`. Resolve o medidor vinculado diretamente ao alvo (sem rollup de subárvore). Repository com `$queryRaw` (`Prisma.sql`) agregando por `date_trunc` sobre o instante convertido para `America/Sao_Paulo` (ver desvio de fuso horário abaixo), com média de potência ponderada por `secondsCovered`. Custo por bucket via `TariffService`: hour/day nunca aplicam piso/CIP; month+PROPERTY aplica piso direto (o bucket já é um mês inteiro); year+PROPERTY soma os custos de cada mês do ano (`findMonthlyKwhForYears`), preservando o piso mês a mês em vez de aplicá-lo uma única vez sobre o total anual.
+
+**Paginação universal** (`backend/src/shared/pagination.ts`): `paginationQuerySchema` (zod, `page≥1` default 1, `pageSize` 1–31 default 10) + `toSkipTake`/`toPaginated`. Aplicada a `properties`, `areas`, `devices`, `meters` e `distributors` — repositories ganharam `findAllXxxPaginated` (skip/take + count), services passaram a receber `query` (não mais só `userId`), controllers passam `req.query` e devolvem `{ items, total, page, pageSize }` em vez do array bruto.
+
+**`backend/src/modules/simulation/simulation.service.ts`** reescrito para usar `TariffService` no lugar do antigo `distributor.kwhPrice` (removido na Fase 1, mas o `simulation` só foi migrado agora — ver desvio abaixo). Mesma lógica de piso: MONTHLY+PROPERTY aplica piso direto; ANNUAL+PROPERTY divide por 12 meses iguais (não há leituras reais mês a mês numa simulação hipotética) e aplica o piso por "mês médio"; os demais casos (DAILY, ou alvo AREA/DEVICE) não têm piso nem CIP. `SimulationResult` perdeu o campo `kwhPrice`.
+
+**`backend/src/modules/export/export.service.ts`**: `distributors` do payload passou a vir de `DistributorRepository.findAllByIds` (distribuidoras referenciadas pelas propriedades do titular), não mais de `findAllByUser` (que não existe mais — catálogo sem dono).
+
+**`backend/src/app.ts`**: montadas `/api/tariff-flag` e `/api/consumption`.
+
+### Desvios do plano (documentados também em PLANO_REFORMULACAO_IOT.md)
+
+1. **Fuso horário em `consumption.repository.ts`** — `minuteStart` é `TIMESTAMP(3)` sem fuso (grava o instante em UTC). Um único `AT TIME ZONE 'America/Sao_Paulo'` faria o Postgres interpretar o valor como se já estivesse em SP e convertê-lo para UTC — o oposto do necessário. Usada a conversão dupla `("minuteStart" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo'`. Testado o caso de virada de dia (duas leituras no mesmo dia UTC caindo em dias SP diferentes).
+2. **RBAC já existia para `tariff-flag`** — o plano previa "comentário admin futuro (projeto não tem RBAC)", escrito antes de #16 (RBAC mínimo) ser concluído nesta mesma branch antes da reformulação IoT começar. `PUT /api/tariff-flag` usa `requireRole("ADMIN")` de verdade.
+3. **`simulation` não ficou intacto** — a Fase 3.3 prendia isso, mas pressupunha que `kwhPrice` continuaria existindo. Como a Fase 3.2 o removeu de vez, `simulation.service.ts` precisou migrar para `TariffService` (fora do escopo literal do texto original, mas inevitável).
+4. **Paginação de `alerts`/`alert-events` adiada para a Fase 4** — o módulo `alert` ainda está no formato pré-reformulação (quebrado desde a Fase 1) e será reescrito por completo na Fase 4; paginar algo que será jogado fora na fase seguinte seria retrabalho. Aplicada a todos os outros alvos previstos (properties, areas, devices, meters, distributors, consumption).
+5. **`device.service.test.ts` tinha um teste obsoleto** (cascade delete via `ConsumptionRecord`, modelo removido desde a Fase 1) que nunca tinha sido corrigido — substituído por um equivalente via `Meter`/`MeterReading` (cascade real do schema atual: `Device → Meter → MeterReading`).
+6. **Nova fixture de teste** `backend/src/shared/test/distributorFixture.ts` (`createTestDistributor`, `createTestTariffFlagConfig`) — como distribuidora virou catálogo sem dono, todos os testes que antes criavam distribuidora via `POST /api/distributors`/`DistributorService.create` passaram a inserir direto via Prisma.
+
+### Testes escritos/reescritos
+
+- **Novos**: `tariff.service.test.ts` (14), `pagination.test.ts` (9), `tariff-flag.service.test.ts` (8), `tariff-flag.routes.test.ts` (7), `consumption.service.test.ts` (11, incluindo o caso de virada de dia e o de soma de custos mensais no `year`), `consumption.routes.test.ts` (6).
+- **Reescritos** (catálogo global + novos campos + paginação): `distributor.service.test.ts`, `distributor.routes.test.ts`, `property.service.test.ts`, `property.routes.test.ts`, `simulation.service.test.ts`, `simulation.routes.test.ts`, `export.service.test.ts`, `export.routes.test.ts`, `dataExportPdf.test.ts`, `area.service.test.ts`, `area.routes.test.ts`, `device.service.test.ts`, `device.routes.test.ts`, `meter.service.test.ts` (2 asserts), `meter.routes.test.ts` (1 assert).
+
+### Verificação executada
+
+- `npx tsc --noEmit`: nenhum erro fora do módulo `alert` (schema/repository/service ainda pré-reformulação, quebrado desde a Fase 1 — escopo da Fase 4) e da seção de alertas de `dataExportPdf.ts` (mesma causa).
+- `npx eslint src`: limpo, zero avisos.
+- Suíte completa (`npx vitest run`): **597 passando / 43 falhando** em 51 arquivos — as 43 falhas são 100% dos dois arquivos do módulo `alert` (`alert.service.test.ts`, `alert.routes.test.ts`), exatamente como previsto (Fase 4 os reescreve). Nenhuma falha fora desse conjunto. Comparado à Fase 2 (373 passando/249 falhando), a Fase 3 desbloqueou `property`, `distributor`, `simulation`, `export`, `area`, `device` e `meter` como esperado, além de adicionar cobertura nova (18 testes a mais no total).
+
+### Próximo passo
+
+Fase 4 — `AlertEvaluator` (histerese/episódios por faixa de potência), `NotificationStore` efêmero, módulo `alert` reescrito por completo (CRUD `{name, meterId, referencePowerKw, tolerancePercent, enabled}` + histórico de disparo), contrato SSE novo (`UserEventHub`). É o que finalmente desbloqueia `alert.service.test.ts`/`alert.routes.test.ts` e a seção de alertas de `dataExportPdf.ts`.

@@ -3,6 +3,7 @@ import request from "supertest"
 import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
+import { createTestDistributor } from "@/shared/test/distributorFixture.js"
 
 const app = createApp({ prismaClient: prismaHttpTest })
 
@@ -28,14 +29,6 @@ const anotherUser = {
     cpf: "310.037.856-38",
 }
 
-const validDistributorBody = {
-    name: "CEMIG Distribuição S.A.",
-    cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC",
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-}
-
 const validAreaBody = {
     name: "Sala de Estar",
     description: "Área principal de convivência",
@@ -55,19 +48,18 @@ async function registerAndLogin(user = validUser) {
     return loginRes.body.data.token as string
 }
 
-async function createDistributor(token: string) {
-    const res = await request(app)
-        .post("/api/distributors")
-        .set("Authorization", `Bearer ${token}`)
-        .send(validDistributorBody)
-    return res.body.data as { id: string }
+// Distribuidora agora é catálogo global (Fase 3.2) — inserida direto no
+// banco de teste, não existe mais POST /api/distributors.
+async function createDistributor() {
+    const dist = await createTestDistributor(prismaHttpTest)
+    return { id: dist.id }
 }
 
 async function createProperty(token: string, distributorId: string) {
     const res = await request(app)
         .post("/api/properties")
         .set("Authorization", `Bearer ${token}`)
-        .send({ name: "Casa Principal", distributorId })
+        .send({ name: "Casa Principal", distributorId, electricalSystem: "TRIPHASIC" })
     return res.body.data as { id: string }
 }
 
@@ -82,7 +74,7 @@ async function createArea(token: string, propertyId: string, body: Record<string
 // Setup completo: token + distribuidora + propriedade, pronto para testar áreas
 async function setupFull(user = validUser) {
     const token = await registerAndLogin(user)
-    const dist = await createDistributor(token)
+    const dist = await createDistributor()
     const property = await createProperty(token, dist.id)
     return { token, propertyId: property.id }
 }
@@ -188,7 +180,7 @@ describe("POST /api/properties/:propertyId/areas", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("GET /api/properties/:propertyId/areas", () => {
-    it("deve retornar 200 com lista vazia", async () => {
+    it("deve retornar 200 com envelope paginado vazio", async () => {
         const { token, propertyId } = await setupFull()
 
         const response = await request(app)
@@ -196,7 +188,8 @@ describe("GET /api/properties/:propertyId/areas", () => {
             .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(200)
-        expect(response.body.data).toEqual([])
+        expect(response.body.data.items).toEqual([])
+        expect(response.body.data.total).toBe(0)
     })
 
     it("deve retornar 200 com as áreas da propriedade ordenadas por nome", async () => {
@@ -210,10 +203,25 @@ describe("GET /api/properties/:propertyId/areas", () => {
             .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(200)
-        expect(response.body.data).toHaveLength(3)
-        expect(response.body.data[0].name).toBe("Banheiro")
-        expect(response.body.data[1].name).toBe("Cozinha")
-        expect(response.body.data[2].name).toBe("Quarto")
+        expect(response.body.data.items).toHaveLength(3)
+        expect(response.body.data.items[0].name).toBe("Banheiro")
+        expect(response.body.data.items[1].name).toBe("Cozinha")
+        expect(response.body.data.items[2].name).toBe("Quarto")
+    })
+
+    it("deve paginar respeitando page e pageSize", async () => {
+        const { token, propertyId } = await setupFull()
+        await createArea(token, propertyId, { name: "Área 1" })
+        await createArea(token, propertyId, { name: "Área 2" })
+        await createArea(token, propertyId, { name: "Área 3" })
+
+        const response = await request(app)
+            .get(`/api/properties/${propertyId}/areas?page=1&pageSize=2`)
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(200)
+        expect(response.body.data.items).toHaveLength(2)
+        expect(response.body.data.total).toBe(3)
     })
 
     it("deve retornar 403 ao listar áreas de propriedade de outro usuário", async () => {
@@ -286,13 +294,8 @@ describe("GET /api/properties/:propertyId/areas/:areaId", () => {
     it("deve retornar 404 ao buscar área que pertence a outra propriedade", async () => {
         const { token, propertyId: propertyIdA } = await setupFull()
 
-        // Segundo distribuidor com CNPJ diferente — o mesmo CNPJ do setup
-        // causaria ConflictError 409 para o mesmo usuário.
-        const distRes = await request(app)
-            .post("/api/distributors")
-            .set("Authorization", `Bearer ${token}`)
-            .send({ ...validDistributorBody, cnpj: "02.429.144/0001-93", name: "CPFL" })
-        const propertyB = await createProperty(token, distRes.body.data.id)
+        const dist2 = await createDistributor()
+        const propertyB = await createProperty(token, dist2.id)
         const areaFromA = await createArea(token, propertyIdA)
 
         // A área existe mas pertence à propriedade A, não à B
