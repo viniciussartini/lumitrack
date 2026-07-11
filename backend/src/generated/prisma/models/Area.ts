@@ -192,8 +192,7 @@ export type AreaWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"Area"> | Date | string
   property?: Prisma.XOR<Prisma.PropertyScalarRelationFilter, Prisma.PropertyWhereInput>
   devices?: Prisma.DeviceListRelationFilter
-  consumption?: Prisma.ConsumptionRecordListRelationFilter
-  alerts?: Prisma.AlertListRelationFilter
+  meter?: Prisma.XOR<Prisma.MeterNullableScalarRelationFilter, Prisma.MeterWhereInput> | null
 }
 
 export type AreaOrderByWithRelationInput = {
@@ -205,8 +204,7 @@ export type AreaOrderByWithRelationInput = {
   updatedAt?: Prisma.SortOrder
   property?: Prisma.PropertyOrderByWithRelationInput
   devices?: Prisma.DeviceOrderByRelationAggregateInput
-  consumption?: Prisma.ConsumptionRecordOrderByRelationAggregateInput
-  alerts?: Prisma.AlertOrderByRelationAggregateInput
+  meter?: Prisma.MeterOrderByWithRelationInput
 }
 
 export type AreaWhereUniqueInput = Prisma.AtLeast<{
@@ -221,8 +219,7 @@ export type AreaWhereUniqueInput = Prisma.AtLeast<{
   updatedAt?: Prisma.DateTimeFilter<"Area"> | Date | string
   property?: Prisma.XOR<Prisma.PropertyScalarRelationFilter, Prisma.PropertyWhereInput>
   devices?: Prisma.DeviceListRelationFilter
-  consumption?: Prisma.ConsumptionRecordListRelationFilter
-  alerts?: Prisma.AlertListRelationFilter
+  meter?: Prisma.XOR<Prisma.MeterNullableScalarRelationFilter, Prisma.MeterWhereInput> | null
 }, "id">
 
 export type AreaOrderByWithAggregationInput = {
@@ -257,8 +254,7 @@ export type AreaCreateInput = {
   updatedAt?: Date | string
   property: Prisma.PropertyCreateNestedOneWithoutAreasInput
   devices?: Prisma.DeviceCreateNestedManyWithoutAreaInput
-  consumption?: Prisma.ConsumptionRecordCreateNestedManyWithoutAreaInput
-  alerts?: Prisma.AlertCreateNestedManyWithoutAreaInput
+  meter?: Prisma.MeterCreateNestedOneWithoutAreaInput
 }
 
 export type AreaUncheckedCreateInput = {
@@ -269,8 +265,7 @@ export type AreaUncheckedCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   devices?: Prisma.DeviceUncheckedCreateNestedManyWithoutAreaInput
-  consumption?: Prisma.ConsumptionRecordUncheckedCreateNestedManyWithoutAreaInput
-  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutAreaInput
+  meter?: Prisma.MeterUncheckedCreateNestedOneWithoutAreaInput
 }
 
 export type AreaUpdateInput = {
@@ -281,8 +276,7 @@ export type AreaUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   property?: Prisma.PropertyUpdateOneRequiredWithoutAreasNestedInput
   devices?: Prisma.DeviceUpdateManyWithoutAreaNestedInput
-  consumption?: Prisma.ConsumptionRecordUpdateManyWithoutAreaNestedInput
-  alerts?: Prisma.AlertUpdateManyWithoutAreaNestedInput
+  meter?: Prisma.MeterUpdateOneWithoutAreaNestedInput
 }
 
 export type AreaUncheckedUpdateInput = {
@@ -293,8 +287,7 @@ export type AreaUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   devices?: Prisma.DeviceUncheckedUpdateManyWithoutAreaNestedInput
-  consumption?: Prisma.ConsumptionRecordUncheckedUpdateManyWithoutAreaNestedInput
-  alerts?: Prisma.AlertUncheckedUpdateManyWithoutAreaNestedInput
+  meter?: Prisma.MeterUncheckedUpdateOneWithoutAreaNestedInput
 }
 
 export type AreaCreateManyInput = {
@@ -426,36 +419,20 @@ export type AreaUpdateOneRequiredWithoutDevicesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.AreaUpdateToOneWithWhereWithoutDevicesInput, Prisma.AreaUpdateWithoutDevicesInput>, Prisma.AreaUncheckedUpdateWithoutDevicesInput>
 }
 
-export type AreaCreateNestedOneWithoutConsumptionInput = {
-  create?: Prisma.XOR<Prisma.AreaCreateWithoutConsumptionInput, Prisma.AreaUncheckedCreateWithoutConsumptionInput>
-  connectOrCreate?: Prisma.AreaCreateOrConnectWithoutConsumptionInput
+export type AreaCreateNestedOneWithoutMeterInput = {
+  create?: Prisma.XOR<Prisma.AreaCreateWithoutMeterInput, Prisma.AreaUncheckedCreateWithoutMeterInput>
+  connectOrCreate?: Prisma.AreaCreateOrConnectWithoutMeterInput
   connect?: Prisma.AreaWhereUniqueInput
 }
 
-export type AreaUpdateOneWithoutConsumptionNestedInput = {
-  create?: Prisma.XOR<Prisma.AreaCreateWithoutConsumptionInput, Prisma.AreaUncheckedCreateWithoutConsumptionInput>
-  connectOrCreate?: Prisma.AreaCreateOrConnectWithoutConsumptionInput
-  upsert?: Prisma.AreaUpsertWithoutConsumptionInput
+export type AreaUpdateOneWithoutMeterNestedInput = {
+  create?: Prisma.XOR<Prisma.AreaCreateWithoutMeterInput, Prisma.AreaUncheckedCreateWithoutMeterInput>
+  connectOrCreate?: Prisma.AreaCreateOrConnectWithoutMeterInput
+  upsert?: Prisma.AreaUpsertWithoutMeterInput
   disconnect?: Prisma.AreaWhereInput | boolean
   delete?: Prisma.AreaWhereInput | boolean
   connect?: Prisma.AreaWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.AreaUpdateToOneWithWhereWithoutConsumptionInput, Prisma.AreaUpdateWithoutConsumptionInput>, Prisma.AreaUncheckedUpdateWithoutConsumptionInput>
-}
-
-export type AreaCreateNestedOneWithoutAlertsInput = {
-  create?: Prisma.XOR<Prisma.AreaCreateWithoutAlertsInput, Prisma.AreaUncheckedCreateWithoutAlertsInput>
-  connectOrCreate?: Prisma.AreaCreateOrConnectWithoutAlertsInput
-  connect?: Prisma.AreaWhereUniqueInput
-}
-
-export type AreaUpdateOneWithoutAlertsNestedInput = {
-  create?: Prisma.XOR<Prisma.AreaCreateWithoutAlertsInput, Prisma.AreaUncheckedCreateWithoutAlertsInput>
-  connectOrCreate?: Prisma.AreaCreateOrConnectWithoutAlertsInput
-  upsert?: Prisma.AreaUpsertWithoutAlertsInput
-  disconnect?: Prisma.AreaWhereInput | boolean
-  delete?: Prisma.AreaWhereInput | boolean
-  connect?: Prisma.AreaWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.AreaUpdateToOneWithWhereWithoutAlertsInput, Prisma.AreaUpdateWithoutAlertsInput>, Prisma.AreaUncheckedUpdateWithoutAlertsInput>
+  update?: Prisma.XOR<Prisma.XOR<Prisma.AreaUpdateToOneWithWhereWithoutMeterInput, Prisma.AreaUpdateWithoutMeterInput>, Prisma.AreaUncheckedUpdateWithoutMeterInput>
 }
 
 export type AreaCreateWithoutPropertyInput = {
@@ -465,8 +442,7 @@ export type AreaCreateWithoutPropertyInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   devices?: Prisma.DeviceCreateNestedManyWithoutAreaInput
-  consumption?: Prisma.ConsumptionRecordCreateNestedManyWithoutAreaInput
-  alerts?: Prisma.AlertCreateNestedManyWithoutAreaInput
+  meter?: Prisma.MeterCreateNestedOneWithoutAreaInput
 }
 
 export type AreaUncheckedCreateWithoutPropertyInput = {
@@ -476,8 +452,7 @@ export type AreaUncheckedCreateWithoutPropertyInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   devices?: Prisma.DeviceUncheckedCreateNestedManyWithoutAreaInput
-  consumption?: Prisma.ConsumptionRecordUncheckedCreateNestedManyWithoutAreaInput
-  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutAreaInput
+  meter?: Prisma.MeterUncheckedCreateNestedOneWithoutAreaInput
 }
 
 export type AreaCreateOrConnectWithoutPropertyInput = {
@@ -525,8 +500,7 @@ export type AreaCreateWithoutDevicesInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   property: Prisma.PropertyCreateNestedOneWithoutAreasInput
-  consumption?: Prisma.ConsumptionRecordCreateNestedManyWithoutAreaInput
-  alerts?: Prisma.AlertCreateNestedManyWithoutAreaInput
+  meter?: Prisma.MeterCreateNestedOneWithoutAreaInput
 }
 
 export type AreaUncheckedCreateWithoutDevicesInput = {
@@ -536,8 +510,7 @@ export type AreaUncheckedCreateWithoutDevicesInput = {
   description?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
-  consumption?: Prisma.ConsumptionRecordUncheckedCreateNestedManyWithoutAreaInput
-  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutAreaInput
+  meter?: Prisma.MeterUncheckedCreateNestedOneWithoutAreaInput
 }
 
 export type AreaCreateOrConnectWithoutDevicesInput = {
@@ -563,8 +536,7 @@ export type AreaUpdateWithoutDevicesInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   property?: Prisma.PropertyUpdateOneRequiredWithoutAreasNestedInput
-  consumption?: Prisma.ConsumptionRecordUpdateManyWithoutAreaNestedInput
-  alerts?: Prisma.AlertUpdateManyWithoutAreaNestedInput
+  meter?: Prisma.MeterUpdateOneWithoutAreaNestedInput
 }
 
 export type AreaUncheckedUpdateWithoutDevicesInput = {
@@ -574,11 +546,10 @@ export type AreaUncheckedUpdateWithoutDevicesInput = {
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  consumption?: Prisma.ConsumptionRecordUncheckedUpdateManyWithoutAreaNestedInput
-  alerts?: Prisma.AlertUncheckedUpdateManyWithoutAreaNestedInput
+  meter?: Prisma.MeterUncheckedUpdateOneWithoutAreaNestedInput
 }
 
-export type AreaCreateWithoutConsumptionInput = {
+export type AreaCreateWithoutMeterInput = {
   id?: string
   name: string
   description?: string | null
@@ -586,10 +557,9 @@ export type AreaCreateWithoutConsumptionInput = {
   updatedAt?: Date | string
   property: Prisma.PropertyCreateNestedOneWithoutAreasInput
   devices?: Prisma.DeviceCreateNestedManyWithoutAreaInput
-  alerts?: Prisma.AlertCreateNestedManyWithoutAreaInput
 }
 
-export type AreaUncheckedCreateWithoutConsumptionInput = {
+export type AreaUncheckedCreateWithoutMeterInput = {
   id?: string
   propertyId: string
   name: string
@@ -597,26 +567,25 @@ export type AreaUncheckedCreateWithoutConsumptionInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   devices?: Prisma.DeviceUncheckedCreateNestedManyWithoutAreaInput
-  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutAreaInput
 }
 
-export type AreaCreateOrConnectWithoutConsumptionInput = {
+export type AreaCreateOrConnectWithoutMeterInput = {
   where: Prisma.AreaWhereUniqueInput
-  create: Prisma.XOR<Prisma.AreaCreateWithoutConsumptionInput, Prisma.AreaUncheckedCreateWithoutConsumptionInput>
+  create: Prisma.XOR<Prisma.AreaCreateWithoutMeterInput, Prisma.AreaUncheckedCreateWithoutMeterInput>
 }
 
-export type AreaUpsertWithoutConsumptionInput = {
-  update: Prisma.XOR<Prisma.AreaUpdateWithoutConsumptionInput, Prisma.AreaUncheckedUpdateWithoutConsumptionInput>
-  create: Prisma.XOR<Prisma.AreaCreateWithoutConsumptionInput, Prisma.AreaUncheckedCreateWithoutConsumptionInput>
+export type AreaUpsertWithoutMeterInput = {
+  update: Prisma.XOR<Prisma.AreaUpdateWithoutMeterInput, Prisma.AreaUncheckedUpdateWithoutMeterInput>
+  create: Prisma.XOR<Prisma.AreaCreateWithoutMeterInput, Prisma.AreaUncheckedCreateWithoutMeterInput>
   where?: Prisma.AreaWhereInput
 }
 
-export type AreaUpdateToOneWithWhereWithoutConsumptionInput = {
+export type AreaUpdateToOneWithWhereWithoutMeterInput = {
   where?: Prisma.AreaWhereInput
-  data: Prisma.XOR<Prisma.AreaUpdateWithoutConsumptionInput, Prisma.AreaUncheckedUpdateWithoutConsumptionInput>
+  data: Prisma.XOR<Prisma.AreaUpdateWithoutMeterInput, Prisma.AreaUncheckedUpdateWithoutMeterInput>
 }
 
-export type AreaUpdateWithoutConsumptionInput = {
+export type AreaUpdateWithoutMeterInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -624,10 +593,9 @@ export type AreaUpdateWithoutConsumptionInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   property?: Prisma.PropertyUpdateOneRequiredWithoutAreasNestedInput
   devices?: Prisma.DeviceUpdateManyWithoutAreaNestedInput
-  alerts?: Prisma.AlertUpdateManyWithoutAreaNestedInput
 }
 
-export type AreaUncheckedUpdateWithoutConsumptionInput = {
+export type AreaUncheckedUpdateWithoutMeterInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   propertyId?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
@@ -635,67 +603,6 @@ export type AreaUncheckedUpdateWithoutConsumptionInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   devices?: Prisma.DeviceUncheckedUpdateManyWithoutAreaNestedInput
-  alerts?: Prisma.AlertUncheckedUpdateManyWithoutAreaNestedInput
-}
-
-export type AreaCreateWithoutAlertsInput = {
-  id?: string
-  name: string
-  description?: string | null
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  property: Prisma.PropertyCreateNestedOneWithoutAreasInput
-  devices?: Prisma.DeviceCreateNestedManyWithoutAreaInput
-  consumption?: Prisma.ConsumptionRecordCreateNestedManyWithoutAreaInput
-}
-
-export type AreaUncheckedCreateWithoutAlertsInput = {
-  id?: string
-  propertyId: string
-  name: string
-  description?: string | null
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  devices?: Prisma.DeviceUncheckedCreateNestedManyWithoutAreaInput
-  consumption?: Prisma.ConsumptionRecordUncheckedCreateNestedManyWithoutAreaInput
-}
-
-export type AreaCreateOrConnectWithoutAlertsInput = {
-  where: Prisma.AreaWhereUniqueInput
-  create: Prisma.XOR<Prisma.AreaCreateWithoutAlertsInput, Prisma.AreaUncheckedCreateWithoutAlertsInput>
-}
-
-export type AreaUpsertWithoutAlertsInput = {
-  update: Prisma.XOR<Prisma.AreaUpdateWithoutAlertsInput, Prisma.AreaUncheckedUpdateWithoutAlertsInput>
-  create: Prisma.XOR<Prisma.AreaCreateWithoutAlertsInput, Prisma.AreaUncheckedCreateWithoutAlertsInput>
-  where?: Prisma.AreaWhereInput
-}
-
-export type AreaUpdateToOneWithWhereWithoutAlertsInput = {
-  where?: Prisma.AreaWhereInput
-  data: Prisma.XOR<Prisma.AreaUpdateWithoutAlertsInput, Prisma.AreaUncheckedUpdateWithoutAlertsInput>
-}
-
-export type AreaUpdateWithoutAlertsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  property?: Prisma.PropertyUpdateOneRequiredWithoutAreasNestedInput
-  devices?: Prisma.DeviceUpdateManyWithoutAreaNestedInput
-  consumption?: Prisma.ConsumptionRecordUpdateManyWithoutAreaNestedInput
-}
-
-export type AreaUncheckedUpdateWithoutAlertsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  propertyId?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  devices?: Prisma.DeviceUncheckedUpdateManyWithoutAreaNestedInput
-  consumption?: Prisma.ConsumptionRecordUncheckedUpdateManyWithoutAreaNestedInput
 }
 
 export type AreaCreateManyPropertyInput = {
@@ -713,8 +620,7 @@ export type AreaUpdateWithoutPropertyInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   devices?: Prisma.DeviceUpdateManyWithoutAreaNestedInput
-  consumption?: Prisma.ConsumptionRecordUpdateManyWithoutAreaNestedInput
-  alerts?: Prisma.AlertUpdateManyWithoutAreaNestedInput
+  meter?: Prisma.MeterUpdateOneWithoutAreaNestedInput
 }
 
 export type AreaUncheckedUpdateWithoutPropertyInput = {
@@ -724,8 +630,7 @@ export type AreaUncheckedUpdateWithoutPropertyInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   devices?: Prisma.DeviceUncheckedUpdateManyWithoutAreaNestedInput
-  consumption?: Prisma.ConsumptionRecordUncheckedUpdateManyWithoutAreaNestedInput
-  alerts?: Prisma.AlertUncheckedUpdateManyWithoutAreaNestedInput
+  meter?: Prisma.MeterUncheckedUpdateOneWithoutAreaNestedInput
 }
 
 export type AreaUncheckedUpdateManyWithoutPropertyInput = {
@@ -743,14 +648,10 @@ export type AreaUncheckedUpdateManyWithoutPropertyInput = {
 
 export type AreaCountOutputType = {
   devices: number
-  consumption: number
-  alerts: number
 }
 
 export type AreaCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   devices?: boolean | AreaCountOutputTypeCountDevicesArgs
-  consumption?: boolean | AreaCountOutputTypeCountConsumptionArgs
-  alerts?: boolean | AreaCountOutputTypeCountAlertsArgs
 }
 
 /**
@@ -770,20 +671,6 @@ export type AreaCountOutputTypeCountDevicesArgs<ExtArgs extends runtime.Types.Ex
   where?: Prisma.DeviceWhereInput
 }
 
-/**
- * AreaCountOutputType without action
- */
-export type AreaCountOutputTypeCountConsumptionArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.ConsumptionRecordWhereInput
-}
-
-/**
- * AreaCountOutputType without action
- */
-export type AreaCountOutputTypeCountAlertsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.AlertWhereInput
-}
-
 
 export type AreaSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -794,8 +681,7 @@ export type AreaSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   updatedAt?: boolean
   property?: boolean | Prisma.PropertyDefaultArgs<ExtArgs>
   devices?: boolean | Prisma.Area$devicesArgs<ExtArgs>
-  consumption?: boolean | Prisma.Area$consumptionArgs<ExtArgs>
-  alerts?: boolean | Prisma.Area$alertsArgs<ExtArgs>
+  meter?: boolean | Prisma.Area$meterArgs<ExtArgs>
   _count?: boolean | Prisma.AreaCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["area"]>
 
@@ -832,8 +718,7 @@ export type AreaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = run
 export type AreaInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   property?: boolean | Prisma.PropertyDefaultArgs<ExtArgs>
   devices?: boolean | Prisma.Area$devicesArgs<ExtArgs>
-  consumption?: boolean | Prisma.Area$consumptionArgs<ExtArgs>
-  alerts?: boolean | Prisma.Area$alertsArgs<ExtArgs>
+  meter?: boolean | Prisma.Area$meterArgs<ExtArgs>
   _count?: boolean | Prisma.AreaCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type AreaIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -848,8 +733,7 @@ export type $AreaPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   objects: {
     property: Prisma.$PropertyPayload<ExtArgs>
     devices: Prisma.$DevicePayload<ExtArgs>[]
-    consumption: Prisma.$ConsumptionRecordPayload<ExtArgs>[]
-    alerts: Prisma.$AlertPayload<ExtArgs>[]
+    meter: Prisma.$MeterPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1254,8 +1138,7 @@ export interface Prisma__AreaClient<T, Null = never, ExtArgs extends runtime.Typ
   readonly [Symbol.toStringTag]: "PrismaPromise"
   property<T extends Prisma.PropertyDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.PropertyDefaultArgs<ExtArgs>>): Prisma.Prisma__PropertyClient<runtime.Types.Result.GetResult<Prisma.$PropertyPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   devices<T extends Prisma.Area$devicesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Area$devicesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$DevicePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  consumption<T extends Prisma.Area$consumptionArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Area$consumptionArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConsumptionRecordPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  alerts<T extends Prisma.Area$alertsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Area$alertsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AlertPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  meter<T extends Prisma.Area$meterArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Area$meterArgs<ExtArgs>>): Prisma.Prisma__MeterClient<runtime.Types.Result.GetResult<Prisma.$MeterPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1716,51 +1599,22 @@ export type Area$devicesArgs<ExtArgs extends runtime.Types.Extensions.InternalAr
 }
 
 /**
- * Area.consumption
+ * Area.meter
  */
-export type Area$consumptionArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type Area$meterArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the ConsumptionRecord
+   * Select specific fields to fetch from the Meter
    */
-  select?: Prisma.ConsumptionRecordSelect<ExtArgs> | null
+  select?: Prisma.MeterSelect<ExtArgs> | null
   /**
-   * Omit specific fields from the ConsumptionRecord
+   * Omit specific fields from the Meter
    */
-  omit?: Prisma.ConsumptionRecordOmit<ExtArgs> | null
+  omit?: Prisma.MeterOmit<ExtArgs> | null
   /**
    * Choose, which related nodes to fetch as well
    */
-  include?: Prisma.ConsumptionRecordInclude<ExtArgs> | null
-  where?: Prisma.ConsumptionRecordWhereInput
-  orderBy?: Prisma.ConsumptionRecordOrderByWithRelationInput | Prisma.ConsumptionRecordOrderByWithRelationInput[]
-  cursor?: Prisma.ConsumptionRecordWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.ConsumptionRecordScalarFieldEnum | Prisma.ConsumptionRecordScalarFieldEnum[]
-}
-
-/**
- * Area.alerts
- */
-export type Area$alertsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the Alert
-   */
-  select?: Prisma.AlertSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the Alert
-   */
-  omit?: Prisma.AlertOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.AlertInclude<ExtArgs> | null
-  where?: Prisma.AlertWhereInput
-  orderBy?: Prisma.AlertOrderByWithRelationInput | Prisma.AlertOrderByWithRelationInput[]
-  cursor?: Prisma.AlertWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.AlertScalarFieldEnum | Prisma.AlertScalarFieldEnum[]
+  include?: Prisma.MeterInclude<ExtArgs> | null
+  where?: Prisma.MeterWhereInput
 }
 
 /**

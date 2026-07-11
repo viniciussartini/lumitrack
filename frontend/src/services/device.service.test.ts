@@ -37,6 +37,7 @@ describe("deviceService.list", () => {
 
         expect(api.get).toHaveBeenCalledWith(
             "/properties/prop-1/areas/area-1/devices",
+            { params: {} },
         )
         expect(result).toEqual([mockDevice])
     })

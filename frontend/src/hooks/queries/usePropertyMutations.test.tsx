@@ -38,6 +38,9 @@ const mockProperty: Property = {
     city: "Belo Horizonte",
     state: "MG",
     zipCode: "30000-000",
+    electricalSystem: "MONOPHASIC",
+    billingClass: "B1",
+    publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -80,6 +83,7 @@ describe("useCreateProperty", () => {
         const input = {
             distributorId: "dist-1",
             name: "Casa Principal",
+            electricalSystem: "MONOPHASIC" as const,
         }
 
         result.current.mutate(input)
@@ -98,7 +102,7 @@ describe("useCreateProperty", () => {
 
         const { result } = renderHook(() => useCreateProperty(), { wrapper })
 
-        result.current.mutate({ distributorId: "dist-1", name: "X" })
+        result.current.mutate({ distributorId: "dist-1", name: "X", electricalSystem: "MONOPHASIC" })
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
@@ -113,7 +117,7 @@ describe("useCreateProperty", () => {
         const { wrapper } = createWrapper()
         const { result } = renderHook(() => useCreateProperty(), { wrapper })
 
-        result.current.mutate({ distributorId: "dist-1", name: "Casa Principal" })
+        result.current.mutate({ distributorId: "dist-1", name: "Casa Principal", electricalSystem: "MONOPHASIC" })
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
@@ -133,7 +137,7 @@ describe("useCreateProperty", () => {
         const { wrapper } = createWrapper()
         const { result } = renderHook(() => useCreateProperty(), { wrapper })
 
-        result.current.mutate({ distributorId: "dist-1", name: "X" })
+        result.current.mutate({ distributorId: "dist-1", name: "X", electricalSystem: "MONOPHASIC" })
 
         await waitFor(() => expect(result.current.isError).toBe(true))
 
@@ -184,7 +188,7 @@ describe("useUpdateProperty", () => {
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
         expect(invalidateSpy).toHaveBeenCalledWith({
-            queryKey: queryKeys.properties.list(),
+            queryKey: [...queryKeys.properties.all, "list"],
         })
         expect(invalidateSpy).toHaveBeenCalledWith({
             queryKey: queryKeys.properties.detail("prop-1"),
@@ -243,7 +247,7 @@ describe("useDeleteProperty", () => {
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
         expect(invalidateSpy).toHaveBeenCalledWith({
-            queryKey: queryKeys.properties.list(),
+            queryKey: [...queryKeys.properties.all, "list"],
         })
         expect(removeSpy).toHaveBeenCalledWith({
             queryKey: queryKeys.properties.detail("prop-1"),

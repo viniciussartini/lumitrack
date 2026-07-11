@@ -3,10 +3,9 @@ import request from "supertest"
 import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
+import { createTestDistributor, createTestTariffFlagConfig } from "@/shared/test/distributorFixture.js"
 
 const app = createApp({ prismaClient: prismaHttpTest })
-
-// ─── Dados de apoio ───────────────────────────────────────────────────────────
 
 const validUser = {
     email: "joao@example.com",
@@ -28,24 +27,6 @@ const anotherUser = {
     cpf: "310.037.856-38",
 }
 
-const validDistributorBody = {
-    name: "CEMIG",
-    cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC",
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-}
-
-const validConsumptionBody = {
-    period: "DAILY",
-    referenceDate: "2025-01-15",
-    kwhConsumed: 10,
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-// channel: "MOBILE" porque só precisamos de um Bearer token para autenticar
-// via header — WEB não devolve token no body (#06, cookie httpOnly).
 async function registerAndLogin(user = validUser) {
     await request(app).post("/api/users").send(user)
     const loginRes = await request(app).post("/api/auth/login").send({
@@ -56,445 +37,107 @@ async function registerAndLogin(user = validUser) {
     return loginRes.body.data.token as string
 }
 
-async function setupFull(user = validUser) {
+async function setupPropertyWithMeter(user = validUser) {
     const token = await registerAndLogin(user)
-
-    const distRes = await request(app)
-        .post("/api/distributors")
-        .set("Authorization", `Bearer ${token}`)
-        .send(validDistributorBody)
+    const distributor = await createTestDistributor(prismaHttpTest)
+    await createTestTariffFlagConfig(prismaHttpTest)
 
     const propRes = await request(app)
         .post("/api/properties")
         .set("Authorization", `Bearer ${token}`)
-        .send({ name: "Casa", distributorId: distRes.body.data.id })
+        .send({ name: "Casa", distributorId: distributor.id, electricalSystem: "TRIPHASIC" })
+    const propertyId = propRes.body.data.id as string
 
-    const areaRes = await request(app)
-        .post(`/api/properties/${propRes.body.data.id}/areas`)
+    const meterRes = await request(app)
+        .post("/api/meters")
         .set("Authorization", `Bearer ${token}`)
-        .send({ name: "Sala" })
+        .send({ name: "Medidor", targetType: "PROPERTY", propertyId, protocol: "MQTT", host: "localhost", port: 1883, topic: "casa/medidor" })
+    const meterId = meterRes.body.data.id as string
 
-    const deviceRes = await request(app)
-        .post(`/api/properties/${propRes.body.data.id}/areas/${areaRes.body.data.id}/devices`)
-        .set("Authorization", `Bearer ${token}`)
-        .send({ name: "Ar-condicionado", powerWatts: 1200 })
+    await prismaHttpTest.meterReading.create({
+        data: {
+            meterId,
+            minuteStart: new Date("2026-01-15T13:00:00Z"),
+            kwhConsumed: 0.02,
+            avgVoltage: 220,
+            avgCurrent: 5,
+            avgPowerW: 1100,
+            avgPowerFactor: 1,
+            sampleCount: 60,
+            secondsCovered: 60,
+        },
+    })
 
-    return {
-        token,
-        propertyId: propRes.body.data.id as string,
-        areaId: areaRes.body.data.id as string,
-        deviceId: deviceRes.body.data.id as string,
-    }
+    return { token, propertyId }
 }
 
-// ─── Setup e Teardown ─────────────────────────────────────────────────────────
+beforeEach(async () => { await cleanHttpDatabase() })
+afterAll(async () => { await prismaHttpTest.$disconnect() })
 
-beforeEach(async () => {
-    await cleanHttpDatabase()
-})
-
-afterAll(async () => {
-    await prismaHttpTest.$disconnect()
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TARGET: PROPERTY — /api/properties/:propertyId/consumption
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("POST /api/properties/:propertyId/consumption", () => {
-    it("deve criar registro de consumo e retornar 201 com costBrl calculado", async () => {
-        const { token, propertyId } = await setupFull()
-
-        const response = await request(app)
-            .post(`/api/properties/${propertyId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send(validConsumptionBody)
-
-        expect(response.status).toBe(201)
-        expect(response.body.data.propertyId).toBe(propertyId)
-        expect(response.body.data.kwhConsumed).toBe(10)
-        // 10 kWh × R$0,75 = R$7,50
-        expect(response.body.data.costBrl).toBeCloseTo(7.5)
-    })
-
-    it("deve retornar 409 para duplicidade period + property + referenceDate", async () => {
-        const { token, propertyId } = await setupFull()
-        await request(app)
-            .post(`/api/properties/${propertyId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send(validConsumptionBody)
-
-        const response = await request(app)
-            .post(`/api/properties/${propertyId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send(validConsumptionBody)
-
-        expect(response.status).toBe(409)
-    })
-
-    it("deve retornar 403 para propriedade de outro usuário", async () => {
-        const { propertyId } = await setupFull(validUser)
-        const tokenB = await registerAndLogin(anotherUser)
-
-        const response = await request(app)
-            .post(`/api/properties/${propertyId}/consumption`)
-            .set("Authorization", `Bearer ${tokenB}`)
-            .send(validConsumptionBody)
-
-        expect(response.status).toBe(403)
-    })
-
-    it("deve retornar 422 para kwhConsumed zero", async () => {
-        const { token, propertyId } = await setupFull()
-
-        const response = await request(app)
-            .post(`/api/properties/${propertyId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send({ ...validConsumptionBody, kwhConsumed: 0 })
-
-        expect(response.status).toBe(422)
-    })
-
-    it("deve retornar 422 para period inválido", async () => {
-        const { token, propertyId } = await setupFull()
-
-        const response = await request(app)
-            .post(`/api/properties/${propertyId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send({ ...validConsumptionBody, period: "WEEKLY" })
-
-        expect(response.status).toBe(422)
-    })
-
-    it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .post("/api/properties/00000000-0000-0000-0000-000000000000/consumption")
-            .send(validConsumptionBody)
-
+describe("GET /api/consumption", () => {
+    it("retorna 401 sem token", async () => {
+        const response = await request(app).get("/api/consumption?targetType=PROPERTY&targetId=00000000-0000-0000-0000-000000000000&granularity=hour")
         expect(response.status).toBe(401)
     })
-})
 
-describe("GET /api/properties/:propertyId/consumption", () => {
-    it("deve retornar 200 com lista vazia", async () => {
-        const { token, propertyId } = await setupFull()
+    it("retorna 200 com os buckets agregados para o alvo com medidor", async () => {
+        const { token, propertyId } = await setupPropertyWithMeter()
 
         const response = await request(app)
-            .get(`/api/properties/${propertyId}/consumption`)
+            .get(`/api/consumption?targetType=PROPERTY&targetId=${propertyId}&granularity=hour`)
             .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(200)
-        expect(response.body.data).toEqual([])
+        expect(response.body.data.granularity).toBe("hour")
+        expect(response.body.data.items).toHaveLength(1)
+        expect(response.body.data.items[0].kwhConsumed).toBeCloseTo(0.02)
+        expect(response.body.data.total).toBe(1)
     })
 
-    it("deve filtrar por period via query param", async () => {
-        const { token, propertyId } = await setupFull()
+    it("retorna 404 quando o alvo não tem medidor vinculado", async () => {
+        const token = await registerAndLogin()
+        const distributor = await createTestDistributor(prismaHttpTest)
 
-        await request(app)
-            .post(`/api/properties/${propertyId}/consumption`)
+        const propRes = await request(app)
+            .post("/api/properties")
             .set("Authorization", `Bearer ${token}`)
-            .send({ period: "DAILY", referenceDate: "2025-01-01", kwhConsumed: 5 })
-
-        await request(app)
-            .post(`/api/properties/${propertyId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send({ period: "MONTHLY", referenceDate: "2025-01-01", kwhConsumed: 150 })
+            .send({ name: "Sem medidor", distributorId: distributor.id, electricalSystem: "MONOPHASIC" })
 
         const response = await request(app)
-            .get(`/api/properties/${propertyId}/consumption?period=MONTHLY`)
-            .set("Authorization", `Bearer ${token}`)
-
-        expect(response.status).toBe(200)
-        expect(response.body.data).toHaveLength(1)
-        expect(response.body.data[0].period).toBe("MONTHLY")
-    })
-
-    it("deve retornar 403 para propriedade de outro usuário", async () => {
-        const { propertyId } = await setupFull(validUser)
-        const tokenB = await registerAndLogin(anotherUser)
-
-        const response = await request(app)
-            .get(`/api/properties/${propertyId}/consumption`)
-            .set("Authorization", `Bearer ${tokenB}`)
-
-        expect(response.status).toBe(403)
-    })
-
-    it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .get("/api/properties/00000000-0000-0000-0000-000000000000/consumption")
-
-        expect(response.status).toBe(401)
-    })
-})
-
-describe("GET /api/properties/:propertyId/consumption/:id", () => {
-    it("deve retornar 200 com os dados do registro", async () => {
-        const { token, propertyId } = await setupFull()
-        const createRes = await request(app)
-            .post(`/api/properties/${propertyId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send(validConsumptionBody)
-        const recordId = createRes.body.data.id as string
-
-        const response = await request(app)
-            .get(`/api/properties/${propertyId}/consumption/${recordId}`)
-            .set("Authorization", `Bearer ${token}`)
-
-        expect(response.status).toBe(200)
-        expect(response.body.data.id).toBe(recordId)
-    })
-
-    it("deve retornar 404 para id inexistente", async () => {
-        const { token, propertyId } = await setupFull()
-
-        const response = await request(app)
-            .get(`/api/properties/${propertyId}/consumption/00000000-0000-0000-0000-000000000000`)
+            .get(`/api/consumption?targetType=PROPERTY&targetId=${propRes.body.data.id}&granularity=hour`)
             .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(404)
     })
 
-    it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .get("/api/properties/00000000-0000-0000-0000-000000000000/consumption/00000000-0000-0000-0000-000000000001")
-
-        expect(response.status).toBe(401)
-    })
-})
-
-describe("PUT /api/properties/:propertyId/consumption/:id", () => {
-    it("deve atualizar kwhConsumed e recalcular costBrl", async () => {
-        const { token, propertyId } = await setupFull()
-        const createRes = await request(app)
-            .post(`/api/properties/${propertyId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send(validConsumptionBody)
-        const recordId = createRes.body.data.id as string
+    it("retorna 403 para propriedade de outro usuário", async () => {
+        const { propertyId } = await setupPropertyWithMeter(validUser)
+        const tokenB = await registerAndLogin(anotherUser)
 
         const response = await request(app)
-            .put(`/api/properties/${propertyId}/consumption/${recordId}`)
-            .set("Authorization", `Bearer ${token}`)
-            .send({ kwhConsumed: 20 })
+            .get(`/api/consumption?targetType=PROPERTY&targetId=${propertyId}&granularity=hour`)
+            .set("Authorization", `Bearer ${tokenB}`)
 
-        expect(response.status).toBe(200)
-        expect(response.body.data.kwhConsumed).toBe(20)
-        // 20 × 0,75 = 15
-        expect(response.body.data.costBrl).toBeCloseTo(15)
+        expect(response.status).toBe(403)
     })
 
-    it("deve retornar 422 para kwhConsumed negativo", async () => {
-        const { token, propertyId } = await setupFull()
-        const createRes = await request(app)
-            .post(`/api/properties/${propertyId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send(validConsumptionBody)
-        const recordId = createRes.body.data.id as string
+    it("retorna 422 para granularity inválida", async () => {
+        const { token, propertyId } = await setupPropertyWithMeter()
 
         const response = await request(app)
-            .put(`/api/properties/${propertyId}/consumption/${recordId}`)
+            .get(`/api/consumption?targetType=PROPERTY&targetId=${propertyId}&granularity=week`)
             .set("Authorization", `Bearer ${token}`)
-            .send({ kwhConsumed: -5 })
 
         expect(response.status).toBe(422)
     })
 
-    it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .put("/api/properties/00000000-0000-0000-0000-000000000000/consumption/00000000-0000-0000-0000-000000000001")
-            .send({ kwhConsumed: 5 })
-
-        expect(response.status).toBe(401)
-    })
-})
-
-describe("DELETE /api/properties/:propertyId/consumption/:id", () => {
-    it("deve deletar o registro e retornar 204", async () => {
-        const { token, propertyId } = await setupFull()
-        const createRes = await request(app)
-            .post(`/api/properties/${propertyId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send(validConsumptionBody)
-        const recordId = createRes.body.data.id as string
+    it("retorna 422 quando faltam parâmetros obrigatórios", async () => {
+        const token = await registerAndLogin()
 
         const response = await request(app)
-            .delete(`/api/properties/${propertyId}/consumption/${recordId}`)
+            .get("/api/consumption?granularity=hour")
             .set("Authorization", `Bearer ${token}`)
 
-        expect(response.status).toBe(204)
-    })
-
-    it("deve retornar 404 para id inexistente", async () => {
-        const { token, propertyId } = await setupFull()
-
-        const response = await request(app)
-            .delete(`/api/properties/${propertyId}/consumption/00000000-0000-0000-0000-000000000000`)
-            .set("Authorization", `Bearer ${token}`)
-
-        expect(response.status).toBe(404)
-    })
-
-    it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .delete("/api/properties/00000000-0000-0000-0000-000000000000/consumption/00000000-0000-0000-0000-000000000001")
-
-        expect(response.status).toBe(401)
-    })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TARGET: AREA
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("POST /api/properties/:propertyId/areas/:areaId/consumption", () => {
-    it("deve criar registro de consumo para área com costBrl calculado", async () => {
-        const { token, propertyId, areaId } = await setupFull()
-
-        const response = await request(app)
-            .post(`/api/properties/${propertyId}/areas/${areaId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send(validConsumptionBody)
-
-        expect(response.status).toBe(201)
-        expect(response.body.data.areaId).toBe(areaId)
-        expect(response.body.data.costBrl).toBeCloseTo(7.5)
-    })
-
-    it("deve retornar 409 para duplicidade", async () => {
-        const { token, propertyId, areaId } = await setupFull()
-        await request(app)
-            .post(`/api/properties/${propertyId}/areas/${areaId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send(validConsumptionBody)
-
-        const response = await request(app)
-            .post(`/api/properties/${propertyId}/areas/${areaId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send(validConsumptionBody)
-
-        expect(response.status).toBe(409)
-    })
-
-    it("deve retornar 403 para área de outro usuário", async () => {
-        const { propertyId, areaId } = await setupFull(validUser)
-        const tokenB = await registerAndLogin(anotherUser)
-
-        const response = await request(app)
-            .post(`/api/properties/${propertyId}/areas/${areaId}/consumption`)
-            .set("Authorization", `Bearer ${tokenB}`)
-            .send(validConsumptionBody)
-
-        expect(response.status).toBe(403)
-    })
-
-    it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .post("/api/properties/00000000-0000-0000-0000-000000000000/areas/00000000-0000-0000-0000-000000000001/consumption")
-            .send(validConsumptionBody)
-
-        expect(response.status).toBe(401)
-    })
-})
-
-describe("GET /api/properties/:propertyId/areas/:areaId/consumption", () => {
-    it("deve retornar 200 com lista e suporte a filtro por period", async () => {
-        const { token, propertyId, areaId } = await setupFull()
-        await request(app)
-            .post(`/api/properties/${propertyId}/areas/${areaId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send({ period: "DAILY", referenceDate: "2025-01-01", kwhConsumed: 5 })
-
-        const response = await request(app)
-            .get(`/api/properties/${propertyId}/areas/${areaId}/consumption?period=DAILY`)
-            .set("Authorization", `Bearer ${token}`)
-
-        expect(response.status).toBe(200)
-        expect(response.body.data).toHaveLength(1)
-    })
-
-    it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .get("/api/properties/00000000-0000-0000-0000-000000000000/areas/00000000-0000-0000-0000-000000000001/consumption")
-
-        expect(response.status).toBe(401)
-    })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TARGET: DEVICE
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("POST /api/properties/:propertyId/areas/:areaId/devices/:deviceId/consumption", () => {
-    it("deve criar registro de consumo para device com costBrl calculado", async () => {
-        const { token, propertyId, areaId, deviceId } = await setupFull()
-
-        const response = await request(app)
-            .post(`/api/properties/${propertyId}/areas/${areaId}/devices/${deviceId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send(validConsumptionBody)
-
-        expect(response.status).toBe(201)
-        expect(response.body.data.deviceId).toBe(deviceId)
-        expect(response.body.data.costBrl).toBeCloseTo(7.5)
-    })
-
-    it("deve retornar 409 para duplicidade", async () => {
-        const { token, propertyId, areaId, deviceId } = await setupFull()
-        await request(app)
-            .post(`/api/properties/${propertyId}/areas/${areaId}/devices/${deviceId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send(validConsumptionBody)
-
-        const response = await request(app)
-            .post(`/api/properties/${propertyId}/areas/${areaId}/devices/${deviceId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send(validConsumptionBody)
-
-        expect(response.status).toBe(409)
-    })
-
-    it("deve retornar 403 para device de outro usuário", async () => {
-        const { propertyId, areaId, deviceId } = await setupFull(validUser)
-        const tokenB = await registerAndLogin(anotherUser)
-
-        const response = await request(app)
-            .post(`/api/properties/${propertyId}/areas/${areaId}/devices/${deviceId}/consumption`)
-            .set("Authorization", `Bearer ${tokenB}`)
-            .send(validConsumptionBody)
-
-        expect(response.status).toBe(403)
-    })
-
-    it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .post("/api/properties/p/areas/a/devices/d/consumption")
-            .send(validConsumptionBody)
-
-        expect(response.status).toBe(401)
-    })
-})
-
-describe("GET /api/properties/:propertyId/areas/:areaId/devices/:deviceId/consumption", () => {
-    it("deve retornar 200 com lista de registros do device", async () => {
-        const { token, propertyId, areaId, deviceId } = await setupFull()
-        await request(app)
-            .post(`/api/properties/${propertyId}/areas/${areaId}/devices/${deviceId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-            .send(validConsumptionBody)
-
-        const response = await request(app)
-            .get(`/api/properties/${propertyId}/areas/${areaId}/devices/${deviceId}/consumption`)
-            .set("Authorization", `Bearer ${token}`)
-
-        expect(response.status).toBe(200)
-        expect(response.body.data).toHaveLength(1)
-        expect(response.body.data[0].deviceId).toBe(deviceId)
-    })
-
-    it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .get("/api/properties/p/areas/a/devices/d/consumption")
-
-        expect(response.status).toBe(401)
+        expect(response.status).toBe(422)
     })
 })

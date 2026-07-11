@@ -5,16 +5,11 @@ import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DeviceService } from "@/modules/device/device.service.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
-import { deviceConsumptionRoutes } from "@/modules/consumption/consumption.routes.js"
-import { deviceAlertRoutes } from "@/modules/alert/alert.routes.js"
-import { iotRoutes } from "@/modules/iot/iot.routes.js"
-import { AlertNotifier } from "../alert/alert-notifier.js"
 
 
 export function deviceRoutes(
     authenticate: RequestHandler,
     prismaClient: PrismaClient,
-    alertNotifier: AlertNotifier,
 ): Router {
 
     // Montado em area.routes.ts como:
@@ -34,10 +29,6 @@ export function deviceRoutes(
     const deviceRepository = new DeviceRepository(prismaClient)
     const deviceService = new DeviceService(deviceRepository, areaRepository, propertyRepository)
     const deviceController = new DeviceController(deviceService)
-
-    router.use("/:deviceId/consumption", deviceConsumptionRoutes(authenticate, prismaClient, alertNotifier))
-    router.use("/:deviceId/alerts", deviceAlertRoutes(authenticate, prismaClient, alertNotifier))
-    router.use("/:deviceId/iot-config", iotRoutes(authenticate, prismaClient))
 
     router.post("/", authenticate, (req, res, next) => deviceController.create(req, res, next))
     router.get("/", authenticate, (req, res, next) => deviceController.findAll(req, res, next))

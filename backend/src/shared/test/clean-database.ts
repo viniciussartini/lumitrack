@@ -4,14 +4,15 @@ import { prismaTest } from "@/shared/test/prisma-test.js"
 //   User
 //   ├── AuthToken
 //   ├── PasswordReset
-//   ├── EnergyDistributor
-//   │   └── Property
-//   │       └── Area
-//   │           └── Device
-//   │               ├── ConsumptionRecord
-//   │               ├── Alert
-//   │               └── IoTDeviceConfig
-//   └── Alert
+//   ├── Property (distributorId → catálogo global, sem dono)
+//   │   ├── Area
+//   │   │   └── Device
+//   │   │       └── Meter (targetType DEVICE)
+//   │   │           ├── MeterReading
+//   │   │           └── Alert
+//   │   │               └── AlertTriggerEvent
+//   │   └── Meter (targetType AREA ou PROPERTY)
+//   └── EnergyDistributor (catálogo global — não pertence a User)
 //
 // A regra é: sempre deletar os filhos antes dos pais.
 // Deletar User antes de AuthToken causaria violação de foreign key.
@@ -27,13 +28,18 @@ export async function cleanDatabase(): Promise<void> {
         // explicitamente aqui, não seria removido automaticamente pelo
         // delete de User.
         prismaTest.auditLog.deleteMany(),
-        prismaTest.ioTDeviceConfig.deleteMany(),
-        prismaTest.consumptionRecord.deleteMany(),
+        prismaTest.alertTriggerEvent.deleteMany(),
         prismaTest.alert.deleteMany(),
+        prismaTest.meterReading.deleteMany(),
+        prismaTest.meter.deleteMany(),
         prismaTest.device.deleteMany(),
         prismaTest.area.deleteMany(),
         prismaTest.property.deleteMany(),
+        // Catálogo global — sem dono, mas precisa ser limpo entre testes
+        // porque o seed/os testes recriam distribuidoras com CNPJ fixo
+        // (@unique).
         prismaTest.energyDistributor.deleteMany(),
+        prismaTest.tariffFlagConfig.deleteMany(),
         prismaTest.authToken.deleteMany(),
         prismaTest.passwordReset.deleteMany(),
         prismaTest.mfaBackupCode.deleteMany(),

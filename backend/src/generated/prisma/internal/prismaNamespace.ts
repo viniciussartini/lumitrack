@@ -394,9 +394,11 @@ export const ModelName = {
   Property: 'Property',
   Area: 'Area',
   Device: 'Device',
-  ConsumptionRecord: 'ConsumptionRecord',
+  Meter: 'Meter',
+  MeterReading: 'MeterReading',
+  TariffFlagConfig: 'TariffFlagConfig',
   Alert: 'Alert',
-  IoTDeviceConfig: 'IoTDeviceConfig'
+  AlertTriggerEvent: 'AlertTriggerEvent'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -412,7 +414,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "authToken" | "refreshToken" | "passwordReset" | "mfaBackupCode" | "auditLog" | "energyDistributor" | "property" | "area" | "device" | "consumptionRecord" | "alert" | "ioTDeviceConfig"
+    modelProps: "user" | "authToken" | "refreshToken" | "passwordReset" | "mfaBackupCode" | "auditLog" | "energyDistributor" | "property" | "area" | "device" | "meter" | "meterReading" | "tariffFlagConfig" | "alert" | "alertTriggerEvent"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1156,77 +1158,225 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    ConsumptionRecord: {
-      payload: Prisma.$ConsumptionRecordPayload<ExtArgs>
-      fields: Prisma.ConsumptionRecordFieldRefs
+    Meter: {
+      payload: Prisma.$MeterPayload<ExtArgs>
+      fields: Prisma.MeterFieldRefs
       operations: {
         findUnique: {
-          args: Prisma.ConsumptionRecordFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConsumptionRecordPayload> | null
+          args: Prisma.MeterFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterPayload> | null
         }
         findUniqueOrThrow: {
-          args: Prisma.ConsumptionRecordFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConsumptionRecordPayload>
+          args: Prisma.MeterFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterPayload>
         }
         findFirst: {
-          args: Prisma.ConsumptionRecordFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConsumptionRecordPayload> | null
+          args: Prisma.MeterFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterPayload> | null
         }
         findFirstOrThrow: {
-          args: Prisma.ConsumptionRecordFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConsumptionRecordPayload>
+          args: Prisma.MeterFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterPayload>
         }
         findMany: {
-          args: Prisma.ConsumptionRecordFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConsumptionRecordPayload>[]
+          args: Prisma.MeterFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterPayload>[]
         }
         create: {
-          args: Prisma.ConsumptionRecordCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConsumptionRecordPayload>
+          args: Prisma.MeterCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterPayload>
         }
         createMany: {
-          args: Prisma.ConsumptionRecordCreateManyArgs<ExtArgs>
+          args: Prisma.MeterCreateManyArgs<ExtArgs>
           result: BatchPayload
         }
         createManyAndReturn: {
-          args: Prisma.ConsumptionRecordCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConsumptionRecordPayload>[]
+          args: Prisma.MeterCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterPayload>[]
         }
         delete: {
-          args: Prisma.ConsumptionRecordDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConsumptionRecordPayload>
+          args: Prisma.MeterDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterPayload>
         }
         update: {
-          args: Prisma.ConsumptionRecordUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConsumptionRecordPayload>
+          args: Prisma.MeterUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterPayload>
         }
         deleteMany: {
-          args: Prisma.ConsumptionRecordDeleteManyArgs<ExtArgs>
+          args: Prisma.MeterDeleteManyArgs<ExtArgs>
           result: BatchPayload
         }
         updateMany: {
-          args: Prisma.ConsumptionRecordUpdateManyArgs<ExtArgs>
+          args: Prisma.MeterUpdateManyArgs<ExtArgs>
           result: BatchPayload
         }
         updateManyAndReturn: {
-          args: Prisma.ConsumptionRecordUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConsumptionRecordPayload>[]
+          args: Prisma.MeterUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterPayload>[]
         }
         upsert: {
-          args: Prisma.ConsumptionRecordUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConsumptionRecordPayload>
+          args: Prisma.MeterUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterPayload>
         }
         aggregate: {
-          args: Prisma.ConsumptionRecordAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateConsumptionRecord>
+          args: Prisma.MeterAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMeter>
         }
         groupBy: {
-          args: Prisma.ConsumptionRecordGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.ConsumptionRecordGroupByOutputType>[]
+          args: Prisma.MeterGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MeterGroupByOutputType>[]
         }
         count: {
-          args: Prisma.ConsumptionRecordCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.ConsumptionRecordCountAggregateOutputType> | number
+          args: Prisma.MeterCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MeterCountAggregateOutputType> | number
+        }
+      }
+    }
+    MeterReading: {
+      payload: Prisma.$MeterReadingPayload<ExtArgs>
+      fields: Prisma.MeterReadingFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MeterReadingFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterReadingPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MeterReadingFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterReadingPayload>
+        }
+        findFirst: {
+          args: Prisma.MeterReadingFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterReadingPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MeterReadingFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterReadingPayload>
+        }
+        findMany: {
+          args: Prisma.MeterReadingFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterReadingPayload>[]
+        }
+        create: {
+          args: Prisma.MeterReadingCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterReadingPayload>
+        }
+        createMany: {
+          args: Prisma.MeterReadingCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MeterReadingCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterReadingPayload>[]
+        }
+        delete: {
+          args: Prisma.MeterReadingDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterReadingPayload>
+        }
+        update: {
+          args: Prisma.MeterReadingUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterReadingPayload>
+        }
+        deleteMany: {
+          args: Prisma.MeterReadingDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MeterReadingUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MeterReadingUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterReadingPayload>[]
+        }
+        upsert: {
+          args: Prisma.MeterReadingUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MeterReadingPayload>
+        }
+        aggregate: {
+          args: Prisma.MeterReadingAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMeterReading>
+        }
+        groupBy: {
+          args: Prisma.MeterReadingGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MeterReadingGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MeterReadingCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MeterReadingCountAggregateOutputType> | number
+        }
+      }
+    }
+    TariffFlagConfig: {
+      payload: Prisma.$TariffFlagConfigPayload<ExtArgs>
+      fields: Prisma.TariffFlagConfigFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.TariffFlagConfigFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TariffFlagConfigPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.TariffFlagConfigFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TariffFlagConfigPayload>
+        }
+        findFirst: {
+          args: Prisma.TariffFlagConfigFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TariffFlagConfigPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.TariffFlagConfigFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TariffFlagConfigPayload>
+        }
+        findMany: {
+          args: Prisma.TariffFlagConfigFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TariffFlagConfigPayload>[]
+        }
+        create: {
+          args: Prisma.TariffFlagConfigCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TariffFlagConfigPayload>
+        }
+        createMany: {
+          args: Prisma.TariffFlagConfigCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.TariffFlagConfigCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TariffFlagConfigPayload>[]
+        }
+        delete: {
+          args: Prisma.TariffFlagConfigDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TariffFlagConfigPayload>
+        }
+        update: {
+          args: Prisma.TariffFlagConfigUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TariffFlagConfigPayload>
+        }
+        deleteMany: {
+          args: Prisma.TariffFlagConfigDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.TariffFlagConfigUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.TariffFlagConfigUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TariffFlagConfigPayload>[]
+        }
+        upsert: {
+          args: Prisma.TariffFlagConfigUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$TariffFlagConfigPayload>
+        }
+        aggregate: {
+          args: Prisma.TariffFlagConfigAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateTariffFlagConfig>
+        }
+        groupBy: {
+          args: Prisma.TariffFlagConfigGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TariffFlagConfigGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.TariffFlagConfigCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.TariffFlagConfigCountAggregateOutputType> | number
         }
       }
     }
@@ -1304,77 +1454,77 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    IoTDeviceConfig: {
-      payload: Prisma.$IoTDeviceConfigPayload<ExtArgs>
-      fields: Prisma.IoTDeviceConfigFieldRefs
+    AlertTriggerEvent: {
+      payload: Prisma.$AlertTriggerEventPayload<ExtArgs>
+      fields: Prisma.AlertTriggerEventFieldRefs
       operations: {
         findUnique: {
-          args: Prisma.IoTDeviceConfigFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$IoTDeviceConfigPayload> | null
+          args: Prisma.AlertTriggerEventFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertTriggerEventPayload> | null
         }
         findUniqueOrThrow: {
-          args: Prisma.IoTDeviceConfigFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$IoTDeviceConfigPayload>
+          args: Prisma.AlertTriggerEventFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertTriggerEventPayload>
         }
         findFirst: {
-          args: Prisma.IoTDeviceConfigFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$IoTDeviceConfigPayload> | null
+          args: Prisma.AlertTriggerEventFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertTriggerEventPayload> | null
         }
         findFirstOrThrow: {
-          args: Prisma.IoTDeviceConfigFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$IoTDeviceConfigPayload>
+          args: Prisma.AlertTriggerEventFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertTriggerEventPayload>
         }
         findMany: {
-          args: Prisma.IoTDeviceConfigFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$IoTDeviceConfigPayload>[]
+          args: Prisma.AlertTriggerEventFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertTriggerEventPayload>[]
         }
         create: {
-          args: Prisma.IoTDeviceConfigCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$IoTDeviceConfigPayload>
+          args: Prisma.AlertTriggerEventCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertTriggerEventPayload>
         }
         createMany: {
-          args: Prisma.IoTDeviceConfigCreateManyArgs<ExtArgs>
+          args: Prisma.AlertTriggerEventCreateManyArgs<ExtArgs>
           result: BatchPayload
         }
         createManyAndReturn: {
-          args: Prisma.IoTDeviceConfigCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$IoTDeviceConfigPayload>[]
+          args: Prisma.AlertTriggerEventCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertTriggerEventPayload>[]
         }
         delete: {
-          args: Prisma.IoTDeviceConfigDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$IoTDeviceConfigPayload>
+          args: Prisma.AlertTriggerEventDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertTriggerEventPayload>
         }
         update: {
-          args: Prisma.IoTDeviceConfigUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$IoTDeviceConfigPayload>
+          args: Prisma.AlertTriggerEventUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertTriggerEventPayload>
         }
         deleteMany: {
-          args: Prisma.IoTDeviceConfigDeleteManyArgs<ExtArgs>
+          args: Prisma.AlertTriggerEventDeleteManyArgs<ExtArgs>
           result: BatchPayload
         }
         updateMany: {
-          args: Prisma.IoTDeviceConfigUpdateManyArgs<ExtArgs>
+          args: Prisma.AlertTriggerEventUpdateManyArgs<ExtArgs>
           result: BatchPayload
         }
         updateManyAndReturn: {
-          args: Prisma.IoTDeviceConfigUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$IoTDeviceConfigPayload>[]
+          args: Prisma.AlertTriggerEventUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertTriggerEventPayload>[]
         }
         upsert: {
-          args: Prisma.IoTDeviceConfigUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$IoTDeviceConfigPayload>
+          args: Prisma.AlertTriggerEventUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertTriggerEventPayload>
         }
         aggregate: {
-          args: Prisma.IoTDeviceConfigAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateIoTDeviceConfig>
+          args: Prisma.AlertTriggerEventAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAlertTriggerEvent>
         }
         groupBy: {
-          args: Prisma.IoTDeviceConfigGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.IoTDeviceConfigGroupByOutputType>[]
+          args: Prisma.AlertTriggerEventGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AlertTriggerEventGroupByOutputType>[]
         }
         count: {
-          args: Prisma.IoTDeviceConfigCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.IoTDeviceConfigCountAggregateOutputType> | number
+          args: Prisma.AlertTriggerEventCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AlertTriggerEventCountAggregateOutputType> | number
         }
       }
     }
@@ -1509,14 +1659,14 @@ export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typ
 
 export const EnergyDistributorScalarFieldEnum = {
   id: 'id',
-  userId: 'userId',
   name: 'name',
   cnpj: 'cnpj',
-  electricalSystem: 'electricalSystem',
-  workingVoltage: 'workingVoltage',
-  kwhPrice: 'kwhPrice',
-  taxRate: 'taxRate',
-  publicLightingFee: 'publicLightingFee',
+  state: 'state',
+  tusdPerKwh: 'tusdPerKwh',
+  tePerKwh: 'tePerKwh',
+  icmsRate: 'icmsRate',
+  pisRate: 'pisRate',
+  cofinsRate: 'cofinsRate',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -1533,6 +1683,9 @@ export const PropertyScalarFieldEnum = {
   city: 'city',
   state: 'state',
   zipCode: 'zipCode',
+  electricalSystem: 'electricalSystem',
+  billingClass: 'billingClass',
+  publicLightingFeeBrl: 'publicLightingFeeBrl',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -1566,43 +1719,12 @@ export const DeviceScalarFieldEnum = {
 export type DeviceScalarFieldEnum = (typeof DeviceScalarFieldEnum)[keyof typeof DeviceScalarFieldEnum]
 
 
-export const ConsumptionRecordScalarFieldEnum = {
+export const MeterScalarFieldEnum = {
   id: 'id',
-  propertyId: 'propertyId',
-  areaId: 'areaId',
-  deviceId: 'deviceId',
-  period: 'period',
-  referenceDate: 'referenceDate',
-  kwhConsumed: 'kwhConsumed',
-  costBrl: 'costBrl',
-  notes: 'notes',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type ConsumptionRecordScalarFieldEnum = (typeof ConsumptionRecordScalarFieldEnum)[keyof typeof ConsumptionRecordScalarFieldEnum]
-
-
-export const AlertScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
+  name: 'name',
   targetType: 'targetType',
   propertyId: 'propertyId',
   areaId: 'areaId',
-  deviceId: 'deviceId',
-  thresholdKwh: 'thresholdKwh',
-  message: 'message',
-  triggeredAt: 'triggeredAt',
-  readAt: 'readAt',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type AlertScalarFieldEnum = (typeof AlertScalarFieldEnum)[keyof typeof AlertScalarFieldEnum]
-
-
-export const IoTDeviceConfigScalarFieldEnum = {
-  id: 'id',
   deviceId: 'deviceId',
   protocol: 'protocol',
   host: 'host',
@@ -1614,7 +1736,69 @@ export const IoTDeviceConfigScalarFieldEnum = {
   updatedAt: 'updatedAt'
 } as const
 
-export type IoTDeviceConfigScalarFieldEnum = (typeof IoTDeviceConfigScalarFieldEnum)[keyof typeof IoTDeviceConfigScalarFieldEnum]
+export type MeterScalarFieldEnum = (typeof MeterScalarFieldEnum)[keyof typeof MeterScalarFieldEnum]
+
+
+export const MeterReadingScalarFieldEnum = {
+  id: 'id',
+  meterId: 'meterId',
+  minuteStart: 'minuteStart',
+  kwhConsumed: 'kwhConsumed',
+  avgVoltage: 'avgVoltage',
+  avgCurrent: 'avgCurrent',
+  avgPowerW: 'avgPowerW',
+  avgPowerFactor: 'avgPowerFactor',
+  sampleCount: 'sampleCount',
+  secondsCovered: 'secondsCovered',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MeterReadingScalarFieldEnum = (typeof MeterReadingScalarFieldEnum)[keyof typeof MeterReadingScalarFieldEnum]
+
+
+export const TariffFlagConfigScalarFieldEnum = {
+  id: 'id',
+  currentFlag: 'currentFlag',
+  greenPer100Kwh: 'greenPer100Kwh',
+  yellowPer100Kwh: 'yellowPer100Kwh',
+  redP1Per100Kwh: 'redP1Per100Kwh',
+  redP2Per100Kwh: 'redP2Per100Kwh',
+  updatedAt: 'updatedAt'
+} as const
+
+export type TariffFlagConfigScalarFieldEnum = (typeof TariffFlagConfigScalarFieldEnum)[keyof typeof TariffFlagConfigScalarFieldEnum]
+
+
+export const AlertScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  meterId: 'meterId',
+  name: 'name',
+  referencePowerKw: 'referencePowerKw',
+  tolerancePercent: 'tolerancePercent',
+  enabled: 'enabled',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AlertScalarFieldEnum = (typeof AlertScalarFieldEnum)[keyof typeof AlertScalarFieldEnum]
+
+
+export const AlertTriggerEventScalarFieldEnum = {
+  id: 'id',
+  alertId: 'alertId',
+  startedAt: 'startedAt',
+  endedAt: 'endedAt',
+  durationSeconds: 'durationSeconds',
+  minPowerW: 'minPowerW',
+  maxPowerW: 'maxPowerW',
+  avgPowerW: 'avgPowerW',
+  sampleCount: 'sampleCount',
+  createdAt: 'createdAt'
+} as const
+
+export type AlertTriggerEventScalarFieldEnum = (typeof AlertTriggerEventScalarFieldEnum)[keyof typeof AlertTriggerEventScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1784,6 +1968,20 @@ export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$Prisma
 
 
 /**
+ * Reference to a field of type 'Decimal'
+ */
+export type DecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Decimal'>
+    
+
+
+/**
+ * Reference to a field of type 'Decimal[]'
+ */
+export type ListDecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Decimal[]'>
+    
+
+
+/**
  * Reference to a field of type 'ElectricalSystemType'
  */
 export type EnumElectricalSystemTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ElectricalSystemType'>
@@ -1794,6 +1992,20 @@ export type EnumElectricalSystemTypeFieldRefInput<$PrismaModel> = FieldRefInputT
  * Reference to a field of type 'ElectricalSystemType[]'
  */
 export type ListEnumElectricalSystemTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ElectricalSystemType[]'>
+    
+
+
+/**
+ * Reference to a field of type 'BillingClass'
+ */
+export type EnumBillingClassFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BillingClass'>
+    
+
+
+/**
+ * Reference to a field of type 'BillingClass[]'
+ */
+export type ListEnumBillingClassFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BillingClass[]'>
     
 
 
@@ -1812,44 +2024,16 @@ export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaMode
 
 
 /**
- * Reference to a field of type 'Decimal'
+ * Reference to a field of type 'TargetType'
  */
-export type DecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Decimal'>
+export type EnumTargetTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TargetType'>
     
 
 
 /**
- * Reference to a field of type 'Decimal[]'
+ * Reference to a field of type 'TargetType[]'
  */
-export type ListDecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Decimal[]'>
-    
-
-
-/**
- * Reference to a field of type 'ConsumptionPeriod'
- */
-export type EnumConsumptionPeriodFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ConsumptionPeriod'>
-    
-
-
-/**
- * Reference to a field of type 'ConsumptionPeriod[]'
- */
-export type ListEnumConsumptionPeriodFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ConsumptionPeriod[]'>
-    
-
-
-/**
- * Reference to a field of type 'AlertTargetType'
- */
-export type EnumAlertTargetTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AlertTargetType'>
-    
-
-
-/**
- * Reference to a field of type 'AlertTargetType[]'
- */
-export type ListEnumAlertTargetTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AlertTargetType[]'>
+export type ListEnumTargetTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TargetType[]'>
     
 
 
@@ -1878,6 +2062,20 @@ export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'In
  * Reference to a field of type 'Int[]'
  */
 export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+    
+
+
+/**
+ * Reference to a field of type 'TariffFlag'
+ */
+export type EnumTariffFlagFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TariffFlag'>
+    
+
+
+/**
+ * Reference to a field of type 'TariffFlag[]'
+ */
+export type ListEnumTariffFlagFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'TariffFlag[]'>
     
 
 /**
@@ -2000,9 +2198,11 @@ export type GlobalOmitConfig = {
   property?: Prisma.PropertyOmit
   area?: Prisma.AreaOmit
   device?: Prisma.DeviceOmit
-  consumptionRecord?: Prisma.ConsumptionRecordOmit
+  meter?: Prisma.MeterOmit
+  meterReading?: Prisma.MeterReadingOmit
+  tariffFlagConfig?: Prisma.TariffFlagConfigOmit
   alert?: Prisma.AlertOmit
-  ioTDeviceConfig?: Prisma.IoTDeviceConfigOmit
+  alertTriggerEvent?: Prisma.AlertTriggerEventOmit
 }
 
 /* Types for Logging */

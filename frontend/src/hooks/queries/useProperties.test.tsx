@@ -25,6 +25,9 @@ const mockProperty: Property = {
     city: "Belo Horizonte",
     state: "MG",
     zipCode: "30000-000",
+    electricalSystem: "MONOPHASIC",
+    billingClass: "B1",
+    publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -52,8 +55,13 @@ beforeEach(() => {
 })
 
 describe("useProperties", () => {
-    it("retorna a lista de propriedades em caso de sucesso", async () => {
-        vi.mocked(propertyService.list).mockResolvedValue([mockProperty])
+    it("retorna a lista paginada de propriedades em caso de sucesso", async () => {
+        vi.mocked(propertyService.list).mockResolvedValue({
+            items: [mockProperty],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+        })
 
         const { result } = renderHook(() => useProperties(), {
             wrapper: createWrapper(),
@@ -61,8 +69,23 @@ describe("useProperties", () => {
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-        expect(result.current.data).toEqual([mockProperty])
-        expect(propertyService.list).toHaveBeenCalledTimes(1)
+        expect(result.current.data?.items).toEqual([mockProperty])
+        expect(propertyService.list).toHaveBeenCalledWith({ page: 1, pageSize: 10 })
+    })
+
+    it("repassa a página customizada", async () => {
+        vi.mocked(propertyService.list).mockResolvedValue({
+            items: [],
+            total: 0,
+            page: 2,
+            pageSize: 10,
+        })
+
+        renderHook(() => useProperties(2), { wrapper: createWrapper() })
+
+        await waitFor(() =>
+            expect(propertyService.list).toHaveBeenCalledWith({ page: 2, pageSize: 10 }),
+        )
     })
 
     it("retorna isError quando a chamada falha", async () => {

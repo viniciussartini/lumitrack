@@ -4,6 +4,7 @@ import type {
     CreateDeviceInput,
     UpdateDeviceInput,
 } from "@/types/device.types"
+import type { Paginated, PaginationParams } from "@/types/pagination.types"
 
 interface ApiEnvelope<T> {
     status: "success"
@@ -27,9 +28,11 @@ export const deviceService = {
     list: async (
         propertyId: string,
         areaId: string,
-    ): Promise<Device[]> => {
-        const { data } = await api.get<ApiEnvelope<Device[]>>(
+        params: PaginationParams = {},
+    ): Promise<Paginated<Device>> => {
+        const { data } = await api.get<ApiEnvelope<Paginated<Device>>>(
             `/properties/${propertyId}/areas/${areaId}/devices`,
+            { params },
         )
         return data.data
     },

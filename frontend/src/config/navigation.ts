@@ -4,6 +4,7 @@ import {
     Home,
     Bell,
     BarChart3,
+    Calculator,
     type LucideIcon,
 } from "lucide-react"
 
@@ -47,5 +48,10 @@ export const NAV_ITEMS: readonly NavItem[] = [
         to: "/relatorios",
         label: "Relatórios",
         icon: BarChart3,
+    },
+    {
+        to: "/simulacao",
+        label: "Simulação",
+        icon: Calculator,
     },
 ] as const

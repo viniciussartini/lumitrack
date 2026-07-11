@@ -1,36 +1,22 @@
 import { useState } from "react"
-import { AlertCircle, LineChart, Plus } from "lucide-react"
-import type { UseQueryResult } from "@tanstack/react-query"
-import { Button } from "@/components/ui/Button"
+import { AlertCircle, LineChart } from "lucide-react"
 import { EmptyState } from "@/components/ui/EmptyState"
-import { ConsumptionPeriodFilter } from "@/components/consumption/ConsumptionPeriodFilter"
+import { Pagination } from "@/components/ui/Pagination"
+import { GranularityTabs } from "@/components/consumption/GranularityTabs"
+import { ConsumptionChart } from "@/components/consumption/ConsumptionChart"
 import { ConsumptionTable } from "@/components/consumption/ConsumptionTable"
-import {
-    ConsumptionFormDialog,
-    type ConsumptionFormTarget,
-} from "@/components/consumption/ConsumptionFormDialog"
-import {
-    useConsumptionByProperty,
-    useConsumptionByArea,
-    useConsumptionByDevice,
-} from "@/hooks/queries/useConsumption"
+import { useConsumption } from "@/hooks/queries/useConsumption"
+import { useMeterByTarget } from "@/hooks/queries/useMeters"
 import { cn } from "@/lib/cn"
-import type {
-    ConsumptionPeriod,
-    ConsumptionRecord,
-} from "@/types/consumption.types"
+import { DEFAULT_PAGE_SIZE } from "@/types/pagination.types"
+import { DETAILS_GRANULARITIES, type Granularity } from "@/types/consumption.types"
+import type { TargetType } from "@/types/meter.types"
 
-/**
- * Label da entidade com artigo CONTRAÍDO (preposição "de" + artigo).
- * Exemplos: "desta propriedade", "desta área", "deste dispositivo".
- */
-interface EntityLabel {
-    /** Com preposição "de": "desta" (feminino) ou "deste" (masculino). */
-    artigo: "desta" | "deste"
-    nome: string
-}
-
-// Wrappers "smart"
+// Wrappers "smart" — mesmo padrão de 3 por target usado no resto do app
+// (AlertSection antes da Fase 5, DeviceAlertSection, etc). propertyId/areaId
+// continuam na assinatura para não obrigar as details pages a mudar como
+// chamam o componente — só targetId (o id do próprio nível) é usado de fato,
+// já que /api/consumption resolve a propriedade raiz internamente.
 
 interface PropertyConsumptionSectionProps {
     propertyId: string
@@ -38,45 +24,18 @@ interface PropertyConsumptionSectionProps {
 
 export const PropertyConsumptionSection = ({
     propertyId,
-}: PropertyConsumptionSectionProps) => {
-    const [period, setPeriod] = useState<ConsumptionPeriod | undefined>()
-    const query = useConsumptionByProperty(propertyId, period)
-    const target: ConsumptionFormTarget = { type: "property", propertyId }
-
-    return (
-        <ConsumptionSection
-            query={query}
-            period={period}
-            onPeriodChange={setPeriod}
-            target={target}
-            entityLabel={{ artigo: "desta", nome: "propriedade" }}
-        />
-    )
-}
+}: PropertyConsumptionSectionProps) => (
+    <ConsumptionSection targetType="PROPERTY" targetId={propertyId} />
+)
 
 interface AreaConsumptionSectionProps {
     propertyId: string
     areaId: string
 }
 
-export const AreaConsumptionSection = ({
-    propertyId,
-    areaId,
-}: AreaConsumptionSectionProps) => {
-    const [period, setPeriod] = useState<ConsumptionPeriod | undefined>()
-    const query = useConsumptionByArea(propertyId, areaId, period)
-    const target: ConsumptionFormTarget = { type: "area", propertyId, areaId }
-
-    return (
-        <ConsumptionSection
-            query={query}
-            period={period}
-            onPeriodChange={setPeriod}
-            target={target}
-            entityLabel={{ artigo: "desta", nome: "área" }}
-        />
-    )
-}
+export const AreaConsumptionSection = ({ areaId }: AreaConsumptionSectionProps) => (
+    <ConsumptionSection targetType="AREA" targetId={areaId} />
+)
 
 interface DeviceConsumptionSectionProps {
     propertyId: string
@@ -85,113 +44,78 @@ interface DeviceConsumptionSectionProps {
 }
 
 export const DeviceConsumptionSection = ({
-    propertyId,
-    areaId,
     deviceId,
-}: DeviceConsumptionSectionProps) => {
-    const [period, setPeriod] = useState<ConsumptionPeriod | undefined>()
-    const query = useConsumptionByDevice(propertyId, areaId, deviceId, period)
-    const target: ConsumptionFormTarget = {
-        type: "device",
-        propertyId,
-        areaId,
-        deviceId,
-    }
+}: DeviceConsumptionSectionProps) => (
+    <ConsumptionSection targetType="DEVICE" targetId={deviceId} />
+)
 
-    return (
-        <ConsumptionSection
-            query={query}
-            period={period}
-            onPeriodChange={setPeriod}
-            target={target}
-            entityLabel={{ artigo: "deste", nome: "dispositivo" }}
-        />
-    )
-}
-
-// Dialog state
-
-type DialogState =
-    | { isOpen: false; lastMode: DialogMode }
-    | { isOpen: true; mode: DialogMode }
-
-type DialogMode =
-    | { kind: "create" }
-    | { kind: "edit"; record: ConsumptionRecord }
-
-// Presentational
+// Presentational + orquestração de dados
 
 interface ConsumptionSectionProps {
-    query: UseQueryResult<ConsumptionRecord[]>
-    period: ConsumptionPeriod | undefined
-    onPeriodChange: (next: ConsumptionPeriod | undefined) => void
-    target: ConsumptionFormTarget
-    entityLabel: EntityLabel
+    targetType: TargetType
+    targetId: string
+    /** Granularidades disponíveis — Hora|Dia nas details pages (default),
+     * os 4 níveis em /relatorios. */
+    granularities?: readonly Granularity[]
 }
 
-const ConsumptionSection = ({
-    query,
-    period,
-    onPeriodChange,
-    target,
-    entityLabel,
+export const ConsumptionSection = ({
+    targetType,
+    targetId,
+    granularities = DETAILS_GRANULARITIES,
 }: ConsumptionSectionProps) => {
-    const [dialogState, setDialogState] = useState<DialogState>({
-        isOpen: false,
-        lastMode: { kind: "create" },
-    })
+    const [granularity, setGranularity] = useState<Granularity>(granularities[0]!)
+    const [page, setPage] = useState(1)
 
-    const records = query.data ?? []
-    const total = records.length
-    const totalLabel =
-        total === 0
-            ? undefined
-            : total === 1
-                ? "1 registro"
-                : `${total} registros`
+    // Sem medidor vinculado, /api/consumption devolve 404 — checamos
+    // primeiro se existe medidor pra distinguir "sem medidor" (EmptyState
+    // orientando a configurar um) de qualquer outro erro real.
+    const meterQuery = useMeterByTarget(targetType, targetId)
+    const hasMeter = Boolean(meterQuery.data)
 
-    const openCreateDialog = () =>
-        setDialogState({ isOpen: true, mode: { kind: "create" } })
+    // Só dispara a query quando já sabemos que há medidor — evita uma
+    // chamada fadada ao 404 "sem medidor" enquanto o meterQuery ainda
+    // não resolveu (ou resolveu para null).
+    const query = useConsumption(
+        targetType,
+        hasMeter ? targetId : undefined,
+        granularity,
+        page,
+        DEFAULT_PAGE_SIZE,
+    )
 
-    const openEditDialog = (record: ConsumptionRecord) =>
-        setDialogState({ isOpen: true, mode: { kind: "edit", record } })
+    const handleGranularityChange = (next: Granularity) => {
+        setGranularity(next)
+        setPage(1)
+    }
 
-    const closeDialog = () =>
-        setDialogState((prev) =>
-            prev.isOpen
-                ? { isOpen: false, lastMode: prev.mode }
-                : prev,
-        )
+    const buckets = query.data?.items ?? []
 
     return (
-        <section
-            className="flex flex-col gap-3"
-            data-testid="consumption-section"
-        >
+        <section className="flex flex-col gap-3" data-testid="consumption-section">
             <header className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                     Consumo
                 </h2>
-                <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={openCreateDialog}
-                    data-testid="consumption-section-create"
-                >
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                    Registrar consumo
-                </Button>
             </header>
 
-            <ConsumptionPeriodFilter
-                value={period}
-                onChange={onPeriodChange}
-                totalLabel={totalLabel}
+            <GranularityTabs
+                granularities={granularities}
+                value={granularity}
+                onChange={handleGranularityChange}
             />
 
-            {query.isLoading && <TableSkeleton />}
+            {!meterQuery.isLoading && !hasMeter && (
+                <EmptyState
+                    icon={LineChart}
+                    title="Sem consumo para exibir"
+                    description="Configure um medidor na seção acima para começar a acompanhar o consumo automaticamente."
+                />
+            )}
 
-            {query.isError && (
+            {hasMeter && query.isLoading && <SectionSkeleton />}
+
+            {hasMeter && query.isError && (
                 <div
                     role="alert"
                     className={cn(
@@ -204,50 +128,44 @@ const ConsumptionSection = ({
                     <p className="text-sm">
                         {query.error instanceof Error
                             ? query.error.message
-                            : "Não foi possível carregar os registros de consumo."}
+                            : "Não foi possível carregar o consumo."}
                     </p>
                 </div>
             )}
 
-            {query.isSuccess && records.length === 0 && (
+            {hasMeter && query.isSuccess && buckets.length === 0 && (
                 <EmptyState
                     icon={LineChart}
-                    title="Nenhum registro de consumo"
-                    description={
-                        period
-                            ? `Não há registros ${entityLabel.artigo} ${entityLabel.nome} para o período selecionado.`
-                            : `Cadastre o consumo ${entityLabel.artigo} ${entityLabel.nome} clicando em "Registrar consumo". Você pode registrar por hora, dia, mês ou ano.`
-                    }
+                    title="Sem leituras neste período"
+                    description="Ainda não há consumo agregado para a granularidade selecionada."
                 />
             )}
 
-            {query.isSuccess && records.length > 0 && (
-                <ConsumptionTable
-                    records={records}
-                    propertyId={target.propertyId}
-                    onEdit={openEditDialog}
-                />
+            {hasMeter && query.isSuccess && buckets.length > 0 && (
+                <>
+                    <ConsumptionChart
+                        buckets={buckets}
+                        granularity={granularity}
+                        isRefetching={query.isFetching}
+                    />
+                    <ConsumptionTable buckets={buckets} granularity={granularity} />
+                    <Pagination
+                        page={query.data!.page}
+                        pageSize={query.data!.pageSize}
+                        total={query.data!.total}
+                        onPageChange={setPage}
+                    />
+                </>
             )}
-
-            <ConsumptionFormDialog
-                isOpen={dialogState.isOpen}
-                onClose={closeDialog}
-                target={target}
-                mode={
-                    dialogState.isOpen
-                        ? dialogState.mode
-                        : dialogState.lastMode
-                }
-            />
         </section>
     )
 }
 
-const TableSkeleton = () => (
+const SectionSkeleton = () => (
     <div
         className="flex flex-col gap-2 rounded-lg border border-slate-200 p-2 dark:border-slate-800"
         aria-busy="true"
-        aria-label="Carregando registros de consumo"
+        aria-label="Carregando consumo"
         data-testid="consumption-section-skeleton"
     >
         {[0, 1, 2].map((i) => (

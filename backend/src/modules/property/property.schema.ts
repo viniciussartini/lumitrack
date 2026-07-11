@@ -21,6 +21,22 @@ const VALID_UFS = [
     "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
 ] as const
 
+// Sistema elétrico da unidade consumidora — define o piso de disponibilidade
+// (30/50/100 kWh) aplicado na tarifação mensal (ver TariffService).
+const electricalSystemSchema = z.enum(["MONOPHASIC", "BIPHASIC", "TRIPHASIC"], {
+    error: "Sistema elétrico deve ser MONOPHASIC, BIPHASIC ou TRIPHASIC",
+})
+
+// Classe de faturamento Grupo B — REN 1.000/2021.
+const billingClassSchema = z.enum(["B1", "B2", "B3"], {
+    error: "Classe de faturamento deve ser B1, B2 ou B3",
+})
+
+// CIP/COSIP municipal — valor fixo em BRL, opcional (nem todo município cobra).
+const publicLightingFeeBrlSchema = z
+    .number()
+    .min(0, { message: "Contribuição de iluminação pública não pode ser negativa" })
+
 // Schema de criação
 
 export const createPropertySchema = z.object({
@@ -43,6 +59,13 @@ export const createPropertySchema = z.object({
         .regex(cepRegex, { message: "CEP deve estar no formato 00000-000" })
         .refine(isValidCep, { message: "CEP inválido" })
         .optional(),
+
+    electricalSystem: electricalSystemSchema,
+
+    // default residencial B1 — mesmo default do banco.
+    billingClass: billingClassSchema.default("B1"),
+
+    publicLightingFeeBrl: publicLightingFeeBrlSchema.optional(),
 })
 
 // Schema de atualização
@@ -64,6 +87,12 @@ export const updatePropertySchema = z.object({
         .regex(cepRegex, { message: "CEP deve estar no formato 00000-000" })
         .refine(isValidCep, { message: "CEP inválido" })
         .optional(),
+
+    electricalSystem: electricalSystemSchema.optional(),
+
+    billingClass: billingClassSchema.optional(),
+
+    publicLightingFeeBrl: publicLightingFeeBrlSchema.optional(),
 })
 
 // Tipos inferidos

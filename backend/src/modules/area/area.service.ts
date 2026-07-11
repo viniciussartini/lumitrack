@@ -3,6 +3,7 @@ import { createAreaSchema, updateAreaSchema } from "@/modules/area/area.schema.j
 import type { AreaRepository, AreaResponse } from "@/modules/area/area.repository.js"
 import type { PropertyRepository } from "@/modules/property/property.repository.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { paginationQuerySchema, type Paginated } from "@/shared/pagination.js"
 
 export class AreaService {
     constructor(
@@ -57,9 +58,18 @@ export class AreaService {
         return area
     }
 
-    async findAll(propertyId: string, userId: string): Promise<AreaResponse[]> {
+    async findAll(propertyId: string, userId: string, query: unknown): Promise<Paginated<AreaResponse>> {
         await this.validatePropertyOwnership(propertyId, userId)
-        return this.areaRepository.findAllByProperty(propertyId)
+
+        const parsed = paginationQuerySchema.safeParse(query)
+        if (!parsed.success) {
+            const firstError = Object.values(
+                z.flattenError(parsed.error).fieldErrors,
+            ).flat()[0]
+            throw new ValidationError(firstError ?? "Dados inválidos")
+        }
+
+        return this.areaRepository.findAllByPropertyPaginated(propertyId, parsed.data)
     }
 
     async update(id: string, propertyId: string, userId: string, input: unknown

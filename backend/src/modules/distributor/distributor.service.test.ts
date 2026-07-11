@@ -1,67 +1,15 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest"
 import { DistributorService } from "@/modules/distributor/distributor.service.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
-import { UserService } from "@/modules/user/user.service.js"
-import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
-import { PropertyService } from "../property/property.service.js"
-import { PropertyRepository } from "../property/property.repository.js"
+import { createTestDistributor } from "@/shared/test/distributorFixture.js"
+import { NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 
 // ─── Instâncias ───────────────────────────────────────────────────────────────
 
 const distributorRepository = new DistributorRepository(prismaTest)
 const distributorService = new DistributorService(distributorRepository)
-
-const userRepository = new UserRepository(prismaTest)
-const userService = new UserService(userRepository)
-
-const propertyRepository = new PropertyRepository(prismaTest)
-const propertyService = new PropertyService(propertyRepository, distributorRepository)
-
-// ─── Dados de apoio ───────────────────────────────────────────────────────────
-
-const validUserInput = {
-    email: "joao@example.com",
-    password: "Senha@123",
-    userType: "INDIVIDUAL" as const,
-    acceptedTerms: true,
-    firstName: "João",
-    lastName: "Silva",
-    cpf: "529.982.247-25",
-}
-
-const anotherUserInput = {
-    email: "maria@example.com",
-    password: "Senha@123",
-    userType: "INDIVIDUAL" as const,
-    acceptedTerms: true,
-    firstName: "Maria",
-    lastName: "Santos",
-    cpf: "310.037.856-38",
-}
-
-const validDistributorInput = {
-    name: "CEMIG Distribuição S.A.",
-    cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC" as const,
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-    taxRate: 0.12,
-    publicLightingFee: 45.90,
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-// Cria usuário + distribuidora e retorna ambos prontos para uso nos testes.
-// Evita repetição de setup inline nos testes que não estão testando a criação
-// em si — o foco fica no comportamento que o teste realmente quer verificar.
-async function setupUserAndDistributor(userInput = validUserInput) {
-    const user = await userService.createUser(userInput)
-    const distributor = await distributorService.create(user.id, validDistributorInput)
-    return { user, distributor }
-}
 
 // ─── Setup e Teardown ─────────────────────────────────────────────────────────
 
@@ -74,283 +22,70 @@ afterAll(async () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SUITE: DistributorService
+// SUITE: DistributorService — catálogo global somente leitura (Fase 3.2)
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("DistributorService", () => {
-
-    // ─── create ───────────────────────────────────────────────────────────────
-
-    describe("create", () => {
-        it("deve criar uma distribuidora com dados válidos e retornar campos numéricos", async () => {
-            const user = await userService.createUser(validUserInput)
-
-            const distributor = await distributorService.create(user.id, validDistributorInput)
-
-            expect(distributor.id).toBeDefined()
-            expect(distributor.userId).toBe(user.id)
-            expect(distributor.name).toBe("CEMIG Distribuição S.A.")
-            expect(distributor.cnpj).toBe("06.981.180/0001-16")
-            expect(distributor.electricalSystem).toBe("TRIPHASIC")
-            expect(distributor.workingVoltage).toBe(220)
-
-            // Campos Decimal devem chegar como number, não como objeto Decimal.js.
-            // Analogia: o repository é o câmbio — o service sempre recebe "reais",
-            // não "cheques em moeda estrangeira".
-            expect(typeof distributor.kwhPrice).toBe("number")
-            expect(distributor.kwhPrice).toBe(0.75)
-            expect(distributor.taxRate).toBe(0.12)
-            expect(distributor.publicLightingFee).toBe(45.9)
-        })
-
-        it("deve criar uma distribuidora sem campos opcionais (taxRate e publicLightingFee)", async () => {
-            const user = await userService.createUser(validUserInput)
-            const { taxRate: _tr, publicLightingFee: _plf, ...inputWithoutOptionals } = validDistributorInput
-
-            const distributor = await distributorService.create(user.id, inputWithoutOptionals)
-
-            expect(distributor.taxRate).toBeNull()
-            expect(distributor.publicLightingFee).toBeNull()
-        })
-
-        it("deve permitir que dois usuários diferentes cadastrem o mesmo CNPJ", async () => {
-            // A constraint @@unique([userId, cnpj]) permite isso:
-            // a CEMIG pode ter contrato com João E com Maria.
-            const userA = await userService.createUser(validUserInput)
-            const userB = await userService.createUser(anotherUserInput)
-
-            const distA = await distributorService.create(userA.id, validDistributorInput)
-            const distB = await distributorService.create(userB.id, validDistributorInput)
-
-            expect(distA.id).not.toBe(distB.id)
-            expect(distA.cnpj).toBe(distB.cnpj)
-        })
-
-        it("deve lançar ConflictError ao cadastrar o mesmo CNPJ duas vezes para o mesmo usuário", async () => {
-            const user = await userService.createUser(validUserInput)
-            await distributorService.create(user.id, validDistributorInput)
-
-            await expect(
-                distributorService.create(user.id, { ...validDistributorInput, name: "CEMIG Outro" }),
-            ).rejects.toThrow(ConflictError)
-        })
-
-        it("deve lançar ValidationError para CNPJ com formato inválido", async () => {
-            const user = await userService.createUser(validUserInput)
-
-            await expect(
-                distributorService.create(user.id, { ...validDistributorInput, cnpj: "00.000.000/0000-00" }),
-            ).rejects.toThrow(ValidationError)
-        })
-
-        it("deve lançar ValidationError para kwhPrice negativo ou zero", async () => {
-            const user = await userService.createUser(validUserInput)
-
-            await expect(
-                distributorService.create(user.id, { ...validDistributorInput, kwhPrice: 0 }),
-            ).rejects.toThrow(ValidationError)
-
-            await expect(
-                distributorService.create(user.id, { ...validDistributorInput, kwhPrice: -1 }),
-            ).rejects.toThrow(ValidationError)
-        })
-
-        it("deve lançar ValidationError para taxRate fora do intervalo [0, 1]", async () => {
-            const user = await userService.createUser(validUserInput)
-
-            await expect(
-                distributorService.create(user.id, { ...validDistributorInput, taxRate: 1.5 }),
-            ).rejects.toThrow(ValidationError)
-        })
-
-        it("deve lançar ValidationError para tensão de trabalho inválida", async () => {
-            const user = await userService.createUser(validUserInput)
-
-            await expect(
-                distributorService.create(user.id, { ...validDistributorInput, workingVoltage: 999 }),
-            ).rejects.toThrow(ValidationError)
-        })
-    })
-
-    // ─── findById ─────────────────────────────────────────────────────────────
-
     describe("findById", () => {
-        it("deve retornar a distribuidora quando o usuário é o dono", async () => {
-            const { user, distributor } = await setupUserAndDistributor()
+        it("deve retornar a distribuidora do catálogo com campos numéricos", async () => {
+            const dist = await createTestDistributor(prismaTest, {
+                name: "CEMIG Distribuição S.A.",
+                tusdPerKwh: 0.3,
+                tePerKwh: 0.3,
+                icmsRate: 0.18,
+            })
 
-            const found = await distributorService.findById(distributor.id, user.id)
+            const found = await distributorService.findById(dist.id)
 
-            expect(found.id).toBe(distributor.id)
+            expect(found.id).toBe(dist.id)
             expect(found.name).toBe("CEMIG Distribuição S.A.")
+            expect(typeof found.tusdPerKwh).toBe("number")
+            expect(found.tusdPerKwh).toBe(0.3)
+            expect(found.tePerKwh).toBe(0.3)
+            expect(found.icmsRate).toBe(0.18)
         })
 
         it("deve lançar NotFoundError para ID inexistente", async () => {
-            const user = await userService.createUser(validUserInput)
-
             await expect(
-                distributorService.findById("00000000-0000-0000-0000-000000000000", user.id),
+                distributorService.findById("00000000-0000-0000-0000-000000000000"),
             ).rejects.toThrow(NotFoundError)
-        })
-
-        it("deve lançar ForbiddenError quando a distribuidora pertence a outro usuário", async () => {
-            // ForbiddenError (403) e não NotFoundError (404) porque o recurso
-            // existe — apenas pertence a outro dono.
-            // Analogia: você chega na portaria e o porteiro diz "esse apartamento existe,
-            // mas você não tem autorização para entrar" — não "esse apartamento não existe".
-            const { distributor } = await setupUserAndDistributor(validUserInput)
-            const userB = await userService.createUser(anotherUserInput)
-
-            await expect(
-                distributorService.findById(distributor.id, userB.id),
-            ).rejects.toThrow(ForbiddenError)
         })
     })
 
-    // ─── findAll ──────────────────────────────────────────────────────────────
-
     describe("findAll", () => {
-        it("deve retornar lista vazia quando o usuário não tem distribuidoras", async () => {
-            const user = await userService.createUser(validUserInput)
-
-            const list = await distributorService.findAll(user.id)
-
-            expect(list).toEqual([])
-        })
-
-        it("deve retornar apenas as distribuidoras do usuário autenticado", async () => {
-            const { user: userA } = await setupUserAndDistributor(validUserInput)
-            const userB = await userService.createUser(anotherUserInput)
-
-            await distributorService.create(userB.id, {
-                ...validDistributorInput,
-                name: "Distribuidora do usuário B",
-                cnpj: "11.222.333/0001-81",
-            })
-
-            const listA = await distributorService.findAll(userA.id)
-
-            expect(listA).toHaveLength(1)
-            expect(listA[0]?.name).toBe("CEMIG Distribuição S.A.")
+        it("deve retornar lista vazia quando não há distribuidoras no catálogo", async () => {
+            const result = await distributorService.findAll({})
+            expect(result.items).toEqual([])
+            expect(result.total).toBe(0)
         })
 
         it("deve retornar distribuidoras ordenadas por nome", async () => {
-            const user = await userService.createUser(validUserInput)
+            await createTestDistributor(prismaTest, { name: "CPFL Energia" })
+            await createTestDistributor(prismaTest, { name: "Enel São Paulo" })
+            await createTestDistributor(prismaTest, { name: "CEMIG" })
 
-            await distributorService.create(user.id, { ...validDistributorInput, name: "CPFL Energia" })
-            await distributorService.create(user.id, {
-                ...validDistributorInput,
-                name: "Enel São Paulo",
-                cnpj: "11.222.333/0001-81",
-            })
-            await distributorService.create(user.id, {
-                ...validDistributorInput,
-                name: "CEMIG",
-                cnpj: "61.695.227/0001-93",
-            })
+            const result = await distributorService.findAll({})
 
-            const list = await distributorService.findAll(user.id)
-
-            expect(list[0]?.name).toBe("CEMIG")
-            expect(list[1]?.name).toBe("CPFL Energia")
-            expect(list[2]?.name).toBe("Enel São Paulo")
-        })
-    })
-
-    // ─── update ───────────────────────────────────────────────────────────────
-
-    describe("update", () => {
-        it("deve atualizar campos permitidos", async () => {
-            const { user, distributor } = await setupUserAndDistributor()
-
-            const updated = await distributorService.update(distributor.id, user.id, {
-                name: "CEMIG Atualizada",
-                kwhPrice: 0.85,
-            })
-
-            expect(updated.name).toBe("CEMIG Atualizada")
-            expect(updated.kwhPrice).toBe(0.85)
-            expect(updated.cnpj).toBe(distributor.cnpj) // CNPJ não muda
+            expect(result.items[0]?.name).toBe("CEMIG")
+            expect(result.items[1]?.name).toBe("CPFL Energia")
+            expect(result.items[2]?.name).toBe("Enel São Paulo")
         })
 
-        it("deve lançar NotFoundError ao tentar atualizar distribuidora inexistente", async () => {
-            const user = await userService.createUser(validUserInput)
+        it("deve paginar respeitando page e pageSize", async () => {
+            for (let i = 0; i < 5; i++) {
+                await createTestDistributor(prismaTest, { name: `Distribuidora ${i}` })
+            }
 
-            await expect(
-                distributorService.update("00000000-0000-0000-0000-000000000000", user.id, { name: "X" }),
-            ).rejects.toThrow(NotFoundError)
+            const result = await distributorService.findAll({ page: 2, pageSize: 2 })
+
+            expect(result.items).toHaveLength(2)
+            expect(result.total).toBe(5)
+            expect(result.page).toBe(2)
+            expect(result.pageSize).toBe(2)
         })
 
-        it("deve lançar ForbiddenError ao tentar atualizar distribuidora de outro usuário", async () => {
-            const { distributor } = await setupUserAndDistributor(validUserInput)
-            const userB = await userService.createUser(anotherUserInput)
-
-            await expect(
-                distributorService.update(distributor.id, userB.id, { name: "Tentativa" }),
-            ).rejects.toThrow(ForbiddenError)
-        })
-
-        it("deve lançar ValidationError para kwhPrice inválido na atualização", async () => {
-            const { user, distributor } = await setupUserAndDistributor()
-
-            await expect(
-                distributorService.update(distributor.id, user.id, { kwhPrice: -5 }),
-            ).rejects.toThrow(ValidationError)
-        })
-    })
-
-    // ─── delete ───────────────────────────────────────────────────────────────
-
-    describe("delete", () => {
-        it("deve deletar uma distribuidora existente do dono", async () => {
-            const { user, distributor } = await setupUserAndDistributor()
-
-            await distributorService.delete(distributor.id, user.id)
-
-            await expect(
-                distributorService.findById(distributor.id, user.id),
-            ).rejects.toThrow(NotFoundError)
-        })
-
-        it("deve lançar NotFoundError ao tentar deletar distribuidora inexistente", async () => {
-            const user = await userService.createUser(validUserInput)
-
-            await expect(
-                distributorService.delete("00000000-0000-0000-0000-000000000000", user.id),
-            ).rejects.toThrow(NotFoundError)
-        })
-
-        it("deve lançar ForbiddenError ao tentar deletar distribuidora de outro usuário", async () => {
-            const { distributor } = await setupUserAndDistributor(validUserInput)
-            const userB = await userService.createUser(anotherUserInput)
-
-            await expect(
-                distributorService.delete(distributor.id, userB.id),
-            ).rejects.toThrow(ForbiddenError)
-        })
-
-        it("deve lançar ConflictError ao tentar deletar distribuidora com propriedades vinculadas", async () => {
-            // Analogia: você não pode cancelar um contrato de energia enquanto
-            // houver imóveis registrados nesse contrato — desvincule primeiro.
-            const { user, distributor } = await setupUserAndDistributor()
-
-            await propertyService.create(user.id, {
-                name: "Casa Principal",
-                distributorId: distributor.id,
-            })
-
-            await expect(
-                distributorService.delete(distributor.id, user.id),
-            ).rejects.toThrow(ConflictError)
-        })
-
-        it("deve permitir deletar distribuidora sem propriedades vinculadas", async () => {
-            // Garante que o caminho feliz continua funcionando após a adição
-            // da checagem de propriedades vinculadas.
-            const { user, distributor } = await setupUserAndDistributor()
-
-            await expect(
-                distributorService.delete(distributor.id, user.id),
-            ).resolves.not.toThrow()
+        it("deve lançar ValidationError para pageSize acima do teto (31)", async () => {
+            await expect(distributorService.findAll({ pageSize: 32 })).rejects.toThrow(ValidationError)
         })
     })
 })

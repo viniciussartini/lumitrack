@@ -3,6 +3,7 @@ import request from "supertest"
 import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
+import { createTestDistributor } from "@/shared/test/distributorFixture.js"
 
 const app = createApp({ prismaClient: prismaHttpTest })
 
@@ -28,14 +29,6 @@ const anotherUser = {
     cpf: "310.037.856-38",
 }
 
-const validDistributorBody = {
-    name: "CEMIG",
-    cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC",
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-}
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // channel: "MOBILE" porque só precisamos de um Bearer token para autenticar
@@ -50,19 +43,16 @@ async function registerAndLogin(user = validUser) {
     return loginRes.body.data.token as string
 }
 
-// Cria user → distributor → property, para que o export tenha algo a agregar.
+// Cria user → distributor (catálogo, inserido direto no banco) → property,
+// para que o export tenha algo a agregar.
 async function setupWithProperty(user = validUser) {
     const token = await registerAndLogin(user)
-
-    const distRes = await request(app)
-        .post("/api/distributors")
-        .set("Authorization", `Bearer ${token}`)
-        .send(validDistributorBody)
+    const distributor = await createTestDistributor(prismaHttpTest)
 
     const propRes = await request(app)
         .post("/api/properties")
         .set("Authorization", `Bearer ${token}`)
-        .send({ name: "Casa", distributorId: distRes.body.data.id })
+        .send({ name: "Casa", distributorId: distributor.id, electricalSystem: "TRIPHASIC" })
 
     return { token, propertyId: propRes.body.data.id as string }
 }

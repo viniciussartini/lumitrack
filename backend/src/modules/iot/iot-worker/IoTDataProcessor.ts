@@ -2,16 +2,21 @@
  * IoTDataProcessor — orquestrador central do pipeline de dados IoT
  *
  * Este componente é o "intérprete" entre o mundo físico e o mundo da aplicação.
- * Ele vive entre o IoTConnectionManager (que fala com os sensores) e o
- * ReadingBuffer (que acumula os dados em memória).
+ * Ele vive entre o IoTConnectionManager (que fala com os medidores) e o
+ * MinuteBuffer (que acumula os dados em memória).
  *
  * Fluxo de dados:
- *   Sensor → IConnection.onData → IoTConnectionManager.dataHandler
- *         → IoTDataProcessor.process → ReadingBuffer.add
- *         → SSE broadcast para clientes conectados
- * O processor também é responsável por validar o payload recebido:
- * se o campo "value" não for um número válido, a leitura é descartada
- * com um log de aviso — sem lançar exceções que quebrariam o fluxo do worker.
+ *   Medidor → IConnection.onData → IoTConnectionManager.dataHandler
+ *          → IoTDataProcessor.process → MinuteBuffer.add
+ *          → listeners (SSE, e futuramente AlertEvaluator na Fase 4)
+ *
+ * Reformulação IoT (Fase 2): o payload deixou de ser um incremento de kWh
+ * pronto (`{ value }`) e passou a ser uma leitura elétrica instantânea
+ * (~1/s): `{ deviceTimestamp?, voltage, current, powerW, powerFactor }`.
+ * A energia do intervalo é calculada aqui no backend a partir da potência e
+ * do tempo decorrido desde a amostra anterior — o timestamp OFICIAL da
+ * leitura é sempre o momento de recebimento (`new Date()`), nunca o
+ * `deviceTimestamp` do payload, que é só metadado de diagnóstico (log).
  *
  * Por que não lançar exceções aqui? Porque este código roda em um loop
  * assíncrono de background, fora do ciclo request/response do Express.
@@ -19,23 +24,70 @@
  * A estratégia "log and discard" é a correta para workers de longa duração.
  */
 import type { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
-import { ReadingBuffer } from "@/modules/iot/iot-worker/ReadingBuffer.js"
+import { MinuteBuffer } from "@/modules/iot/iot-worker/MinuteBuffer.js"
 import { logger } from "@/shared/logger/logger.js"
 
 const log = logger.child({ module: "IoTProcessor" })
 
-// Tipo do handler SSE: recebe o deviceId e o kWh incremental lidos neste segundo.
-// O router SSE registra um listener aqui e o remove quando o cliente desconecta.
-export type SseListener = (deviceId: string, kwhIncrement: number, receivedAt: Date) => void
+// Δt (segundos entre duas amostras consecutivas do mesmo medidor) é limitado
+// a este teto. Um gap maior indica medidor silencioso (reconexão, queda de
+// rede) — nesse caso não "inventamos" energia para o período sem amostra;
+// a amostra seguinte só reinicia o relógio (deltaSeconds = 0 nessa leitura).
+const MAX_SAMPLE_INTERVAL_SECONDS = 5
+
+export interface MeterReadingSample {
+    meterId: string
+    voltage: number
+    current: number
+    powerW: number
+    powerFactor: number
+    receivedAt: Date
+}
+
+// Listener genérico de amostras processadas. Usado hoje pela rota SSE
+// (evento "reading"); a Fase 4 registra aqui também o AlertEvaluator, sem
+// precisar mudar a API pública do processor.
+export type SampleListener = (sample: MeterReadingSample) => void
+
+interface RawReadingPayload extends Record<string, unknown> {
+    deviceTimestamp?: string
+    voltage: number
+    current: number
+    powerW: number
+    powerFactor: number
+}
+
+function isFiniteNonNegative(value: unknown): value is number {
+    return typeof value === "number" && Number.isFinite(value) && value >= 0
+}
+
+function isValidPayload(raw: Record<string, unknown>): raw is RawReadingPayload {
+    const { voltage, current, powerW, powerFactor } = raw
+
+    return (
+        isFiniteNonNegative(voltage) &&
+        isFiniteNonNegative(current) &&
+        isFiniteNonNegative(powerW) &&
+        typeof powerFactor === "number" && Number.isFinite(powerFactor) &&
+        powerFactor >= 0 && powerFactor <= 1
+    )
+}
 
 export class IoTDataProcessor {
     // Buffer compartilhado — singleton por natureza, pois o processor também é
     // instanciado uma única vez no server.ts.
-    readonly buffer = new ReadingBuffer()
+    readonly buffer = new MinuteBuffer()
 
-    // Lista de listeners SSE ativos. Cada cliente conectado ao endpoint
+    // Instante da última amostra válida recebida de cada medidor — usado para
+    // calcular Δt. Ausência de entrada = primeira amostra (ou o medidor não
+    // reporta há tempo suficiente para ter sido limpo — não há necessidade de
+    // limpar essa Map explicitamente: o volume é limitado ao nº de medidores
+    // ativos, não ao nº de leituras).
+    private readonly lastSampleAt = new Map<string, Date>()
+
+    // Listeners de amostras processadas — cada cliente SSE conectado a
     // GET /api/iot/stream adiciona um listener aqui.
-    private readonly sseListeners = new Set<SseListener>()
+    private readonly listeners = new Set<SampleListener>()
 
     constructor(private readonly manager: IoTConnectionManager) {}
 
@@ -45,62 +97,70 @@ export class IoTDataProcessor {
      * ter restaurado as conexões do banco.
      */
     start(): void {
-        this.manager.onData((deviceId, rawData) => {
-            this.process(deviceId, rawData)
+        this.manager.onData((meterId, rawData) => {
+            this.process(meterId, rawData)
         })
     }
 
     /**
      * Processa um payload bruto recebido de qualquer protocolo.
-     * Extrai o campo "value", valida, atualiza o buffer e notifica SSE.
-     * 
-     * @param deviceId 
-     * @param rawData 
-     * @returns 
+     * Valida os campos elétricos, calcula a energia do intervalo, atualiza o
+     * buffer e notifica os listeners registrados.
      */
-    private process(deviceId: string, rawData: Record<string, unknown>): void {
-        const raw = rawData["value"]
-
-        // Valida que o valor é um número positivo — leituras negativas ou
-        // ausentes são descartadas silenciosamente com um log de aviso.
-        if (typeof raw !== "number" || !isFinite(raw) || raw < 0) {
-            log.warn({ deviceId, value: raw }, "Leitura inválida descartada")
+    private process(meterId: string, rawData: Record<string, unknown>): void {
+        if (!isValidPayload(rawData)) {
+            log.warn({ meterId, payload: rawData }, "Leitura inválida descartada")
             return
         }
 
-        const kwhIncrement = raw
-        const receivedAt   = new Date()
+        const { voltage, current, powerW, powerFactor, deviceTimestamp } = rawData
+        const receivedAt = new Date()
 
-        this.buffer.add(deviceId, kwhIncrement)
+        const lastAt = this.lastSampleAt.get(meterId)
+        this.lastSampleAt.set(meterId, receivedAt)
 
-        // Notifica todos os clientes SSE com a leitura instantânea.
+        // Sem amostra anterior (primeira leitura deste medidor, ou após um
+        // gap silencioso) — não há Δt confiável, então não acumulamos
+        // energia; esta leitura só inicializa o relógio para a próxima.
+        let deltaSeconds = 0
+        let energyKwh = 0
+
+        if (lastAt) {
+            const rawDeltaSeconds = (receivedAt.getTime() - lastAt.getTime()) / 1000
+            deltaSeconds = Math.max(0, Math.min(rawDeltaSeconds, MAX_SAMPLE_INTERVAL_SECONDS))
+            energyKwh = (powerW * deltaSeconds) / 3_600_000
+        }
+
+        this.buffer.add(meterId, { energyKwh, voltage, current, powerW, powerFactor, deltaSeconds })
+
+        if (deviceTimestamp !== undefined) {
+            log.debug({ meterId, deviceTimestamp, receivedAt }, "Leitura recebida")
+        }
+
+        const sample: MeterReadingSample = { meterId, voltage, current, powerW, powerFactor, receivedAt }
+
         // Iterar sobre um Set é seguro mesmo se um listener for removido
         // durante a iteração — o Set cria um snapshot estável.
-        for (const listener of this.sseListeners) {
+        for (const listener of this.listeners) {
             try {
-                listener(deviceId, kwhIncrement, receivedAt)
+                listener(sample)
             } catch (err) {
                 // Um listener quebrado não deve interromper os demais.
-                log.error({ err }, "Erro em listener SSE")
+                log.error({ err }, "Erro em listener de leitura")
             }
         }
     }
 
     /**
-     * Adiciona um listener SSE. Retorna uma função de cleanup para remover
-     * o listener quando o cliente desconectar — padrão comum em event emitters.
-     *    const unsubscribe = processor.addSseListener(handler)
-     * 
-     * Uso no router:
+     * Adiciona um listener de amostras processadas. Retorna uma função de
+     * cleanup para remover o listener (ex.: ao desconectar o cliente SSE).
+     *    const unsubscribe = processor.addSampleListener(handler)
      *    req.on("close", unsubscribe)
-     * 
-     * @param listener 
-     * @returns 
      */
-    addSseListener(listener: SseListener): () => void {
-        this.sseListeners.add(listener)
-        return () => { this.sseListeners.delete(listener) }
+    addSampleListener(listener: SampleListener): () => void {
+        this.listeners.add(listener)
+        return () => { this.listeners.delete(listener) }
     }
 
-    activeSseCount(): number { return this.sseListeners.size }
+    activeListenerCount(): number { return this.listeners.size }
 }

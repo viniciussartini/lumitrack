@@ -6,18 +6,21 @@ import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
+import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
 
 function buildController(prismaClient: PrismaClient): SimulationController {
     const propertyRepository    = new PropertyRepository(prismaClient)
     const distributorRepository = new DistributorRepository(prismaClient)
     const areaRepository        = new AreaRepository(prismaClient)
     const deviceRepository      = new DeviceRepository(prismaClient)
+    const tariffFlagRepository  = new TariffFlagRepository(prismaClient)
 
     const simulationService = new SimulationService(
         propertyRepository,
         distributorRepository,
         areaRepository,
         deviceRepository,
+        tariffFlagRepository,
     )
 
     return new SimulationController(simulationService)

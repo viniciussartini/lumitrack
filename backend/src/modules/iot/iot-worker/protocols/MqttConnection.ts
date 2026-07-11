@@ -16,7 +16,7 @@
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
 
 export interface MqttConnectionConfig {
-    deviceId: string
+    meterId: string
     host: string
     port: number
     topic: string
@@ -25,7 +25,7 @@ export interface MqttConnectionConfig {
 }
 
 export class MqttConnection implements IConnection {
-    readonly deviceId: string
+    readonly meterId: string
 
     private client: unknown = null
     private connected = false
@@ -33,7 +33,7 @@ export class MqttConnection implements IConnection {
     private readonly config: MqttConnectionConfig
 
     constructor(config: MqttConnectionConfig) {
-        this.deviceId = config.deviceId
+        this.meterId = config.meterId
         this.config   = config
     }
 

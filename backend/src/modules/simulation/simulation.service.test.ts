@@ -4,7 +4,7 @@ import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
-import { DistributorService } from "@/modules/distributor/distributor.service.js"
+import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
 import { AreaService } from "@/modules/area/area.service.js"
 import { DeviceService } from "@/modules/device/device.service.js"
@@ -12,22 +12,19 @@ import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
+import { createTestDistributor, createTestTariffFlagConfig } from "@/shared/test/distributorFixture.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 
 // ─── Instâncias ───────────────────────────────────────────────────────────────
-// SimulationService é stateless — não possui repositório próprio.
-// Ele depende dos repositórios de Property, Distributor, Area e Device
-// para validar a cadeia de posse e buscar kwhPrice e powerWatts.
-//
-// Analogia: a simulação é como uma calculadora de imposto de renda.
-// Ela não armazena nada — apenas recebe os dados, faz os cálculos e devolve
-// o resultado. Os repositórios são as "fontes de dados" que ela consulta.
+// SimulationService é stateless — não possui repositório próprio. Ele depende
+// dos repositórios de Property, Distributor, Area, Device e TariffFlag para
+// validar a cadeia de posse e calcular o custo via TariffService (Fase 3 —
+// substituiu o antigo kwhPrice fixo da distribuidora).
 
 const userRepository        = new UserRepository(prismaTest)
 const userService           = new UserService(userRepository)
 
 const distributorRepository = new DistributorRepository(prismaTest)
-const distributorService    = new DistributorService(distributorRepository)
 
 const propertyRepository    = new PropertyRepository(prismaTest)
 const propertyService       = new PropertyService(propertyRepository, distributorRepository)
@@ -38,11 +35,14 @@ const areaService           = new AreaService(areaRepository, propertyRepository
 const deviceRepository      = new DeviceRepository(prismaTest)
 const deviceService         = new DeviceService(deviceRepository, areaRepository, propertyRepository)
 
+const tariffFlagRepository  = new TariffFlagRepository(prismaTest)
+
 const simulationService     = new SimulationService(
     propertyRepository,
     distributorRepository,
     areaRepository,
     deviceRepository,
+    tariffFlagRepository,
 )
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
@@ -67,26 +67,27 @@ const validUserB = {
     cpf:       "310.037.856-38",
 }
 
-// kwhPrice = 0.75 — usado para conferir todos os cálculos de costBrl
-const validDistributorInput = {
-    name:             "CEMIG",
-    cnpj:             "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC" as const,
-    workingVoltage:   220,
-    kwhPrice:         0.75,
-}
+// tusdPerKwh=0.3 + tePerKwh=0.3 = 0.6 R$/kWh; tributos 27,25%
+// (18% ICMS + 1,65% PIS + 7,6% COFINS); bandeira GREEN = 0. Cálculo "por
+// dentro": custo = kWh × 0,6 / (1 − 0,2725) — mesma fórmula em todos os
+// testes abaixo, via a constante RATE.
+const RATE = 0.6 / (1 - 0.2725)
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
-// Monta a cadeia completa: user → distributor → property → area → device.
-// `powerWatts` no device é 1000W para facilitar a matemática:
+// Monta a cadeia completa: user → distributor (catálogo) → property → area
+// → device. `powerWatts` no device é 1000W para facilitar a matemática:
 //   1000W × N horas = N kWh (sem divisão por 1000 na cabeça).
+// Área/dispositivo não têm piso de disponibilidade nem CIP — só a
+// propriedade em MONTHLY/ANNUAL tem.
 
 async function setupAll(userInput = validUserA) {
     const user        = await userService.createUser(userInput)
-    const distributor = await distributorService.create(user.id, validDistributorInput)
+    const distributor  = await createTestDistributor(prismaTest)
+    await createTestTariffFlagConfig(prismaTest)
     const property    = await propertyService.create(user.id, {
-        name:          "Casa",
-        distributorId: distributor.id,
+        name:             "Casa",
+        distributorId:    distributor.id,
+        electricalSystem: "TRIPHASIC", // piso de 100 kWh
     })
     const area   = await areaService.create(property.id, user.id, { name: "Sala" })
     const device = await deviceService.create(area.id, property.id, user.id, {
@@ -110,10 +111,9 @@ describe("SimulationService — target: PROPERTY", () => {
     // ─── Modo KWH_DIRECT ─────────────────────────────────────────────────────
 
     describe("inputMode: KWH_DIRECT", () => {
-        it("deve calcular simulação DAILY para property com kWh direto", async () => {
+        it("deve calcular simulação DAILY para property com kWh direto (sem piso — não é o mês inteiro)", async () => {
             const { user, property } = await setupAll()
 
-            // 10 kWh × R$ 0,75 = R$ 7,50
             const result = await simulationService.simulate(property.id, user.id, {
                 period:      "DAILY",
                 target:      { type: "PROPERTY" },
@@ -125,17 +125,15 @@ describe("SimulationService — target: PROPERTY", () => {
             expect(result.target).toEqual({ type: "PROPERTY" })
             expect(result.inputMode).toBe("KWH_DIRECT")
             expect(result.kwhConsumed).toBe(10)
-            expect(result.costBrl).toBeCloseTo(7.5)
-            expect(result.kwhPrice).toBe(0.75)
+            expect(result.costBrl).toBeCloseTo(10 * RATE, 6)
             expect(result.projectedDays).toBe(1)
             expect(result.powerWatts).toBeNull()
             expect(result.dailyUsageHours).toBeNull()
         })
 
-        it("deve calcular simulação MONTHLY para property — projectedDays = 30", async () => {
+        it("deve calcular simulação MONTHLY para property acima do piso (100 kWh, TRIPHASIC)", async () => {
             const { user, property } = await setupAll()
 
-            // 300 kWh × R$ 0,75 = R$ 225,00
             const result = await simulationService.simulate(property.id, user.id, {
                 period:      "MONTHLY",
                 target:      { type: "PROPERTY" },
@@ -144,14 +142,29 @@ describe("SimulationService — target: PROPERTY", () => {
             })
 
             expect(result.kwhConsumed).toBe(300)
-            expect(result.costBrl).toBeCloseTo(225)
+            expect(result.costBrl).toBeCloseTo(300 * RATE, 6)
             expect(result.projectedDays).toBe(30)
         })
 
-        it("deve calcular simulação ANNUAL para property — projectedDays = 365", async () => {
+        it("deve aplicar o piso de disponibilidade na MONTHLY quando o consumo fica abaixo dele", async () => {
             const { user, property } = await setupAll()
 
-            // 3650 kWh × R$ 0,75 = R$ 2737,50
+            // 10 kWh/dia × 1 dia direto não é o caso aqui — kwhConsumed é o
+            // total do mês em KWH_DIRECT; 50 kWh < piso de 100 (TRIPHASIC).
+            const result = await simulationService.simulate(property.id, user.id, {
+                period:      "MONTHLY",
+                target:      { type: "PROPERTY" },
+                inputMode:   "KWH_DIRECT",
+                kwhConsumed: 50,
+            })
+
+            // Custo cobrado como se fossem 100 kWh (piso), não 50.
+            expect(result.costBrl).toBeCloseTo(100 * RATE, 6)
+        })
+
+        it("deve calcular simulação ANNUAL para property (acima do piso mensal médio)", async () => {
+            const { user, property } = await setupAll()
+
             const result = await simulationService.simulate(property.id, user.id, {
                 period:      "ANNUAL",
                 target:      { type: "PROPERTY" },
@@ -160,22 +173,8 @@ describe("SimulationService — target: PROPERTY", () => {
             })
 
             expect(result.kwhConsumed).toBe(3650)
-            expect(result.costBrl).toBeCloseTo(2737.5)
+            expect(result.costBrl).toBeCloseTo(3650 * RATE, 6)
             expect(result.projectedDays).toBe(365)
-        })
-
-        it("deve usar o kwhPrice da distribuidora vinculada à property", async () => {
-            // Verifica que o snapshot do kwhPrice no resultado vem da distribuidora correta
-            const { user, property } = await setupAll()
-
-            const result = await simulationService.simulate(property.id, user.id, {
-                period:      "DAILY",
-                target:      { type: "PROPERTY" },
-                inputMode:   "KWH_DIRECT",
-                kwhConsumed: 1,
-            })
-
-            expect(result.kwhPrice).toBe(0.75)
         })
     })
 
@@ -185,7 +184,7 @@ describe("SimulationService — target: PROPERTY", () => {
         it("deve calcular simulação DAILY com watts + horas para property", async () => {
             const { user, property } = await setupAll()
 
-            // 2000W × 5h = 10 kWh/dia → DAILY: 10 kWh × 0,75 = R$ 7,50
+            // 2000W × 5h = 10 kWh/dia
             const result = await simulationService.simulate(property.id, user.id, {
                 period:          "DAILY",
                 target:          { type: "PROPERTY" },
@@ -198,14 +197,14 @@ describe("SimulationService — target: PROPERTY", () => {
             expect(result.powerWatts).toBe(2000)
             expect(result.dailyUsageHours).toBe(5)
             expect(result.kwhConsumed).toBeCloseTo(10)    // (2000/1000) × 5 × 1
-            expect(result.costBrl).toBeCloseTo(7.5)
+            expect(result.costBrl).toBeCloseTo(10 * RATE, 6)
             expect(result.projectedDays).toBe(1)
         })
 
         it("deve calcular simulação MONTHLY com watts + horas — projectedDays = 30", async () => {
             const { user, property } = await setupAll()
 
-            // 1000W × 4h × 30 dias = 120 kWh → 120 × 0,75 = R$ 90,00
+            // 1000W × 4h × 30 dias = 120 kWh
             const result = await simulationService.simulate(property.id, user.id, {
                 period:          "MONTHLY",
                 target:          { type: "PROPERTY" },
@@ -215,24 +214,25 @@ describe("SimulationService — target: PROPERTY", () => {
             })
 
             expect(result.kwhConsumed).toBeCloseTo(120)
-            expect(result.costBrl).toBeCloseTo(90)
+            expect(result.costBrl).toBeCloseTo(120 * RATE, 6)
             expect(result.projectedDays).toBe(30)
         })
 
         it("deve calcular simulação ANNUAL com watts + horas — projectedDays = 365", async () => {
             const { user, property } = await setupAll()
 
-            // 500W × 2h × 365 dias = 365 kWh → 365 × 0,75 = R$ 273,75
+            // 2000W × 2h × 365 dias = 1460 kWh — média mensal de ~121,7 kWh,
+            // acima do piso de 100 (TRIPHASIC), então o piso não interfere.
             const result = await simulationService.simulate(property.id, user.id, {
                 period:          "ANNUAL",
                 target:          { type: "PROPERTY" },
                 inputMode:       "WATTS_HOURS",
-                powerWatts:      500,
+                powerWatts:      2000,
                 dailyUsageHours: 2,
             })
 
-            expect(result.kwhConsumed).toBeCloseTo(365)
-            expect(result.costBrl).toBeCloseTo(273.75)
+            expect(result.kwhConsumed).toBeCloseTo(1460)
+            expect(result.costBrl).toBeCloseTo(1460 * RATE, 6)
             expect(result.projectedDays).toBe(365)
         })
     })
@@ -316,10 +316,9 @@ describe("SimulationService — target: PROPERTY", () => {
 
 describe("SimulationService — target: AREA", () => {
 
-    it("deve calcular simulação DAILY para area com kWh direto", async () => {
+    it("deve calcular simulação DAILY para area com kWh direto (sem piso/CIP)", async () => {
         const { user, property, area } = await setupAll()
 
-        // 5 kWh × 0,75 = R$ 3,75
         const result = await simulationService.simulate(property.id, user.id, {
             period:      "DAILY",
             target:      { type: "AREA", areaId: area.id },
@@ -329,13 +328,14 @@ describe("SimulationService — target: AREA", () => {
 
         expect(result.target).toEqual({ type: "AREA", areaId: area.id })
         expect(result.kwhConsumed).toBe(5)
-        expect(result.costBrl).toBeCloseTo(3.75)
+        expect(result.costBrl).toBeCloseTo(5 * RATE, 6)
     })
 
-    it("deve calcular simulação MONTHLY para area com watts + horas", async () => {
+    it("deve calcular simulação MONTHLY para area sem aplicar o piso da propriedade", async () => {
         const { user, property, area } = await setupAll()
 
-        // 800W × 3h × 30 dias = 72 kWh → 72 × 0,75 = R$ 54,00
+        // 800W × 3h × 30 dias = 72 kWh — abaixo do piso de 100 kWh, mas o
+        // piso não se aplica a AREA/DEVICE.
         const result = await simulationService.simulate(property.id, user.id, {
             period:          "MONTHLY",
             target:          { type: "AREA", areaId: area.id },
@@ -345,7 +345,7 @@ describe("SimulationService — target: AREA", () => {
         })
 
         expect(result.kwhConsumed).toBeCloseTo(72)
-        expect(result.costBrl).toBeCloseTo(54)
+        expect(result.costBrl).toBeCloseTo(72 * RATE, 6)
     })
 
     it("deve lançar ForbiddenError para area de outro usuário", async () => {
@@ -377,14 +377,11 @@ describe("SimulationService — target: AREA", () => {
 
     it("deve lançar ForbiddenError quando area não pertence à property da URL", async () => {
         // Cenário: usuário tenta simular com área válida mas de outra propriedade sua.
-        // Isso detecta tentativa de misturar hierarquias.
-        const { user, property } = await setupAll()
+        const { user, property, distributor } = await setupAll()
         const property2 = await propertyService.create(user.id, {
-            name:          "Escritório",
-            distributorId: (await distributorService.create(user.id, {
-                ...validDistributorInput,
-                cnpj: "11.222.333/0001-81",
-            })).id,
+            name:             "Escritório",
+            distributorId:    distributor.id,
+            electricalSystem: "TRIPHASIC",
         })
         const area2 = await areaService.create(property2.id, user.id, { name: "Sala 2" })
 
@@ -410,7 +407,6 @@ describe("SimulationService — target: DEVICE", () => {
     it("deve calcular simulação DAILY para device com kWh direto", async () => {
         const { user, property, area, device } = await setupAll()
 
-        // 8 kWh × 0,75 = R$ 6,00
         const result = await simulationService.simulate(property.id, user.id, {
             period:      "DAILY",
             target:      { type: "DEVICE", deviceId: device.id, areaId: area.id },
@@ -420,7 +416,7 @@ describe("SimulationService — target: DEVICE", () => {
 
         expect(result.target).toEqual({ type: "DEVICE", deviceId: device.id, areaId: area.id })
         expect(result.kwhConsumed).toBe(8)
-        expect(result.costBrl).toBeCloseTo(6)
+        expect(result.costBrl).toBeCloseTo(8 * RATE, 6)
     })
 
     // ─── Modo WATTS_HOURS com powerWatts explícito ────────────────────────────
@@ -428,7 +424,7 @@ describe("SimulationService — target: DEVICE", () => {
     it("deve calcular simulação MONTHLY para device com watts + horas (powerWatts explícito)", async () => {
         const { user, property, area, device } = await setupAll()
 
-        // 500W × 6h × 30 dias = 90 kWh → 90 × 0,75 = R$ 67,50
+        // 500W × 6h × 30 dias = 90 kWh
         const result = await simulationService.simulate(property.id, user.id, {
             period:          "MONTHLY",
             target:          { type: "DEVICE", deviceId: device.id, areaId: area.id },
@@ -439,7 +435,7 @@ describe("SimulationService — target: DEVICE", () => {
 
         expect(result.powerWatts).toBe(500)
         expect(result.kwhConsumed).toBeCloseTo(90)
-        expect(result.costBrl).toBeCloseTo(67.5)
+        expect(result.costBrl).toBeCloseTo(90 * RATE, 6)
     })
 
     // ─── Modo WATTS_HOURS usando powerWatts do cadastro ──────────────────────
@@ -448,7 +444,6 @@ describe("SimulationService — target: DEVICE", () => {
         const { user, property, area, device } = await setupAll()
         // device.powerWatts = 1000W (definido no helper setupAll)
 
-        // 1000W × 8h × 1 dia = 8 kWh → 8 × 0,75 = R$ 6,00
         const result = await simulationService.simulate(property.id, user.id, {
             period:          "DAILY",
             target:          { type: "DEVICE", deviceId: device.id, areaId: area.id },
@@ -459,15 +454,13 @@ describe("SimulationService — target: DEVICE", () => {
 
         expect(result.powerWatts).toBe(1000) // vindo do cadastro
         expect(result.kwhConsumed).toBeCloseTo(8)
-        expect(result.costBrl).toBeCloseTo(6)
+        expect(result.costBrl).toBeCloseTo(8 * RATE, 6)
     })
 
     it("deve lançar ValidationError ao omitir powerWatts para device sem powerWatts cadastrado", async () => {
-        // Device sem powerWatts cadastrado + body sem powerWatts → impossível calcular
         const { user, property, area } = await setupAll()
         const deviceSemWatts = await deviceService.create(area.id, property.id, user.id, {
             name: "Dispositivo sem watts",
-            // powerWatts não informado
         })
 
         await expect(
@@ -475,7 +468,6 @@ describe("SimulationService — target: DEVICE", () => {
                 period:          "DAILY",
                 target:          { type: "DEVICE", deviceId: deviceSemWatts.id, areaId: area.id },
                 inputMode:       "WATTS_HOURS",
-                // powerWatts ausente no body E no cadastro
                 dailyUsageHours: 8,
             }),
         ).rejects.toThrow(ValidationError)
@@ -509,7 +501,6 @@ describe("SimulationService — target: DEVICE", () => {
     })
 
     it("deve lançar ForbiddenError quando device não pertence à area informada", async () => {
-        // Cenário: device real, mas areaId errado — cadeia de posse inválida.
         const { user, property, device } = await setupAll()
         const area2 = await areaService.create(property.id, user.id, { name: "Quarto" })
 

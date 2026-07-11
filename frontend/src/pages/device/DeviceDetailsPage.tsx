@@ -3,13 +3,10 @@ import {
     AlertCircle,
     ArrowLeft,
     Cpu,
-    FileBarChart,
     Gauge,
     Home,
     LayoutGrid,
     Pencil,
-    Plus,
-    Radio,
     Tag,
     type LucideIcon,
 } from "lucide-react"
@@ -17,14 +14,13 @@ import { useDevice } from "@/hooks/queries/useDevices"
 import { useArea } from "@/hooks/queries/useAreas"
 import { useProperty } from "@/hooks/queries/useProperties"
 import { Button } from "@/components/ui/Button"
-import { EmptyState } from "@/components/ui/EmptyState"
 import { DeviceMenu } from "@/components/device/DeviceMenu"
 import { cn } from "@/lib/cn"
 import type { Device } from "@/types/device.types"
 import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
 import { DeviceConsumptionSection } from "@/components/consumption/ConsumptionSection"
-import { DeviceAlertSection } from "@/components/alert/AlertSection"
+import { MeterSection } from "@/components/meter/MeterSection"
 
 /**
  * Página de detalhes de um dispositivo.
@@ -107,13 +103,12 @@ export const DeviceDetailsPage = () => {
                 onAfterDelete={handleAfterDelete}
             />
 
+            <MeterSection targetType="DEVICE" targetId={deviceId!} />
             <DeviceConsumptionSection
                 propertyId={propertyId!}
                 areaId={areaId!}
                 deviceId={deviceId!}
             />
-            <DeviceAlertSection propertyId={propertyId!} areaId={areaId!} deviceId={deviceId!} />
-            <IoTSection />
         </div>
     )
 }
@@ -243,14 +238,6 @@ const DeviceHeaderCard = ({
             <div className="mt-6 flex flex-wrap gap-2">
                 <Button asChild variant="secondary" size="sm">
                     <Link
-                        to={`/propriedades/${propertyId}/areas/${areaId}/devices/${device.id}/relatorio`}
-                    >
-                        <FileBarChart className="h-4 w-4" aria-hidden="true" />
-                        Gerar relatório
-                    </Link>
-                </Button>
-                <Button asChild variant="secondary" size="sm">
-                    <Link
                         to={`/propriedades/${propertyId}/areas/${areaId}/devices/${device.id}/editar`}
                     >
                         <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -288,39 +275,6 @@ const Chip = ({ icon: Icon, label, variant = "default", testId }: ChipProps) => 
         </span>
     )
 }
-
-const IoTSection = () => (
-    <section className="flex flex-col gap-3">
-        <header className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                Integração IoT
-            </h2>
-            <Button
-                variant="secondary"
-                size="sm"
-                disabled
-                title="Em breve"
-                aria-label="Configurar IoT (em breve)"
-            >
-                <Plus className="h-4 w-4" aria-hidden="true" />
-                Configurar
-            </Button>
-        </header>
-
-        <EmptyState
-            icon={Radio}
-            title="Nenhuma configuração IoT"
-            description="Em breve você poderá conectar este dispositivo a protocolos como MQTT, Modbus ou EtherNet/IP para coleta automática de consumo."
-        />
-
-        <p
-            className="text-center text-xs text-slate-400 dark:text-slate-500"
-            data-testid="iot-coming-soon"
-        >
-            Em breve
-        </p>
-    </section>
-)
 
 const DetailsSkeleton = () => (
     <div className="rounded-lg border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">

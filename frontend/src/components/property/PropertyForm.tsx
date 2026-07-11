@@ -10,7 +10,14 @@ import {
     type PropertyFormData,
     type PropertyFormInput,
 } from "@/schemas/property.schema"
-import { type Property, VALID_UFS } from "@/types/property.types"
+import {
+    BILLING_CLASS_LABELS,
+    ELECTRICAL_SYSTEM_LABELS,
+    VALID_UFS,
+    type BillingClass,
+    type ElectricalSystem,
+    type Property,
+} from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
 
 interface PropertyFormProps {
@@ -67,6 +74,9 @@ export const PropertyForm = ({
                 city: initialData.city ?? "",
                 state: initialData.state ?? "",
                 zipCode: initialData.zipCode ?? "",
+                electricalSystem: initialData.electricalSystem,
+                billingClass: initialData.billingClass,
+                publicLightingFeeBrl: initialData.publicLightingFeeBrl ?? undefined,
             }
             : {
                 distributorId: "",
@@ -75,6 +85,9 @@ export const PropertyForm = ({
                 city: "",
                 state: "",
                 zipCode: "",
+                electricalSystem: "MONOPHASIC",
+                billingClass: "B1",
+                publicLightingFeeBrl: undefined,
             },
     })
 
@@ -110,6 +123,57 @@ export const PropertyForm = ({
                         </option>
                     ))}
                 </Select>
+            </Section>
+
+            <Section title="Faturamento">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <Select
+                        label="Sistema elétrico"
+                        helperText="Define o piso de disponibilidade (30/50/100 kWh) na tarifação."
+                        error={errors.electricalSystem?.message}
+                        {...register("electricalSystem")}
+                        defaultValue={initialData?.electricalSystem ?? "MONOPHASIC"}
+                    >
+                        {(
+                            Object.entries(ELECTRICAL_SYSTEM_LABELS) as [
+                                ElectricalSystem,
+                                string,
+                            ][]
+                        ).map(([value, label]) => (
+                            <option key={value} value={value}>
+                                {label}
+                            </option>
+                        ))}
+                    </Select>
+
+                    <Select
+                        label="Classe de faturamento"
+                        error={errors.billingClass?.message}
+                        {...register("billingClass")}
+                        defaultValue={initialData?.billingClass ?? "B1"}
+                    >
+                        {(
+                            Object.entries(BILLING_CLASS_LABELS) as [
+                                BillingClass,
+                                string,
+                            ][]
+                        ).map(([value, label]) => (
+                            <option key={value} value={value}>
+                                {label}
+                            </option>
+                        ))}
+                    </Select>
+                </div>
+
+                <Input
+                    label="Contribuição de iluminação pública — CIP (R$)"
+                    type="number"
+                    step="0.01"
+                    placeholder="0,00"
+                    helperText="Opcional — nem todo município cobra."
+                    error={errors.publicLightingFeeBrl?.message}
+                    {...register("publicLightingFeeBrl")}
+                />
             </Section>
 
             <Section

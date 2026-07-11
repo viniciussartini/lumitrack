@@ -48,7 +48,7 @@ export const useUpdateProperty = () => {
         onSuccess: (updated) => {
             // Invalida lista (ordem pode ter mudado) e o detalhe específico
             queryClient.invalidateQueries({
-                queryKey: queryKeys.properties.list(),
+                queryKey: [...queryKeys.properties.all, "list"],
             })
             queryClient.invalidateQueries({
                 queryKey: queryKeys.properties.detail(updated.id),
@@ -78,7 +78,7 @@ export const useDeleteProperty = () => {
         mutationFn: (id) => propertyService.delete(id),
         onSuccess: (_, id) => {
             queryClient.invalidateQueries({
-                queryKey: queryKeys.properties.list(),
+                queryKey: [...queryKeys.properties.all, "list"],
             })
             // Remove o detalhe do cache — não vai existir mais
             queryClient.removeQueries({

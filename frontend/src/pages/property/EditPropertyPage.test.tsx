@@ -8,6 +8,7 @@ import { propertyService } from "@/services/property.service"
 import { distributorService } from "@/services/distributor.service"
 import type { Property } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
+import type { Paginated } from "@/types/pagination.types"
 
 vi.mock("@/services/property.service", () => ({
     propertyService: {
@@ -23,9 +24,6 @@ vi.mock("@/services/distributor.service", () => ({
     distributorService: {
         list: vi.fn(),
         getById: vi.fn(),
-        create: vi.fn(),
-        update: vi.fn(),
-        delete: vi.fn(),
     },
 }))
 
@@ -42,16 +40,23 @@ vi.mock("sonner", () => ({
     },
 }))
 
+const paginated = <T,>(items: T[]): Paginated<T> => ({
+    items,
+    total: items.length,
+    page: 1,
+    pageSize: 31,
+})
+
 const mockDistributor1: Distributor = {
     id: "dist-1",
-    userId: "user-1",
     name: "CEMIG Distribuição S.A.",
     cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC",
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-    taxRate: 0.12,
-    publicLightingFee: 45.9,
+    state: "MG",
+    tusdPerKwh: 0.35,
+    tePerKwh: 0.4,
+    icmsRate: 0.18,
+    pisRate: 0.0165,
+    cofinsRate: 0.076,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -72,6 +77,9 @@ const mockProperty: Property = {
     city: "Belo Horizonte",
     state: "MG",
     zipCode: "30000-000",
+    electricalSystem: "TRIPHASIC",
+    billingClass: "B1",
+    publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -108,7 +116,7 @@ beforeEach(() => {
 describe("EditPropertyPage — header", () => {
     it("renderiza título e link de voltar", async () => {
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-        vi.mocked(distributorService.list).mockResolvedValue([mockDistributor1])
+        vi.mocked(distributorService.list).mockResolvedValue(paginated([mockDistributor1]))
 
         renderPage()
 
@@ -144,7 +152,7 @@ describe("EditPropertyPage — erro", () => {
         vi.mocked(propertyService.getById).mockRejectedValue(
             new Error("Propriedade não encontrada"),
         )
-        vi.mocked(distributorService.list).mockResolvedValue([mockDistributor1])
+        vi.mocked(distributorService.list).mockResolvedValue(paginated([mockDistributor1]))
 
         renderPage()
 
@@ -170,10 +178,9 @@ describe("EditPropertyPage — erro", () => {
 describe("EditPropertyPage — sucesso", () => {
     it("preenche o form com os dados da propriedade", async () => {
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-        vi.mocked(distributorService.list).mockResolvedValue([
-            mockDistributor1,
-            mockDistributor2,
-        ])
+        vi.mocked(distributorService.list).mockResolvedValue(
+            paginated([mockDistributor1, mockDistributor2]),
+        )
 
         renderPage()
 
@@ -193,7 +200,7 @@ describe("EditPropertyPage — sucesso", () => {
     it("submete update e navega após sucesso", async () => {
         const user = userEvent.setup()
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-        vi.mocked(distributorService.list).mockResolvedValue([mockDistributor1])
+        vi.mocked(distributorService.list).mockResolvedValue(paginated([mockDistributor1]))
         vi.mocked(propertyService.update).mockResolvedValue({
             ...mockProperty,
             name: "Casa Renovada",
@@ -227,10 +234,9 @@ describe("EditPropertyPage — sucesso", () => {
     it("permite trocar a distribuidora vinculada", async () => {
         const user = userEvent.setup()
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-        vi.mocked(distributorService.list).mockResolvedValue([
-            mockDistributor1,
-            mockDistributor2,
-        ])
+        vi.mocked(distributorService.list).mockResolvedValue(
+            paginated([mockDistributor1, mockDistributor2]),
+        )
         vi.mocked(propertyService.update).mockResolvedValue({
             ...mockProperty,
             distributorId: "dist-2",

@@ -1,62 +1,7 @@
 import PDFDocument from "pdfkit"
 import { BRAND, ZAP_ICON_PATH, ZAP_ICON_VIEWBOX_SIZE } from "@/shared/pdf/brand.js"
 import type { DataExportPayload } from "@/modules/export/export.service.js"
-import type { ConsumptionResponse } from "@/modules/consumption/consumption.repository.js"
-import type { PropertyResponse } from "@/modules/property/property.repository.js"
-import type { AreaResponse } from "@/modules/area/area.repository.js"
-import type { DeviceResponse } from "@/modules/device/device.repository.js"
 import type { UserWithoutPassword } from "@/modules/user/user.repository.js"
-
-type ConsumptionSummaryRow = {
-    propertyId: string
-    propertyName: string
-    totalKwh: number
-    totalCostBrl: number
-    recordCount: number
-}
-
-// Agrega em memória, reaproveitando o array completo que já foi buscado para
-// a resposta JSON (sem segunda query). Usado só pelo PDF — que nunca lista
-// os ConsumptionRecord brutos, pois podem chegar a dezenas de milhares de
-// linhas por usuário; o JSON continua trazendo a lista completa, sem corte.
-export function buildConsumptionSummaryByProperty(
-    records: ConsumptionResponse[],
-    properties: PropertyResponse[],
-    areas: AreaResponse[],
-    devices: DeviceResponse[],
-): ConsumptionSummaryRow[] {
-    const areaToProperty = new Map(areas.map((area) => [area.id, area.propertyId]))
-    const deviceToArea = new Map(devices.map((device) => [device.id, device.areaId]))
-    const propertyNameById = new Map(properties.map((property) => [property.id, property.name]))
-
-    const totals = new Map<string, { totalKwh: number; totalCostBrl: number; recordCount: number }>()
-
-    for (const record of records) {
-        let propertyId = record.propertyId
-        if (!propertyId && record.areaId) {
-            propertyId = areaToProperty.get(record.areaId) ?? null
-        }
-        if (!propertyId && record.deviceId) {
-            const areaId = deviceToArea.get(record.deviceId)
-            propertyId = areaId ? areaToProperty.get(areaId) ?? null : null
-        }
-        // Órfão defensivo — não deveria acontecer, a integridade referencial
-        // do banco garante que todo registro aponta para um target válido.
-        if (!propertyId) continue
-
-        const acc = totals.get(propertyId) ?? { totalKwh: 0, totalCostBrl: 0, recordCount: 0 }
-        acc.totalKwh += record.kwhConsumed
-        acc.totalCostBrl += record.costBrl ?? 0
-        acc.recordCount += 1
-        totals.set(propertyId, acc)
-    }
-
-    return [...totals.entries()].map(([propertyId, acc]) => ({
-        propertyId,
-        propertyName: propertyNameById.get(propertyId) ?? "Propriedade removida",
-        ...acc,
-    }))
-}
 
 function userDisplayName(user: UserWithoutPassword): string {
     if (user.userType === "COMPANY") {
@@ -106,9 +51,8 @@ function drawCover(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
 
     doc.fontSize(8.5).fillColor(BRAND.mutedColor).text(
         "Documento gerado em atendimento ao direito de acesso do titular " +
-            "(Art. 18 da Lei nº 13.709/2018 — LGPD). O histórico de consumo " +
-            "abaixo é apresentado de forma resumida — para a lista completa e " +
-            "detalhada, consulte a exportação em formato JSON.",
+            "(Art. 18 da Lei nº 13.709/2018 — LGPD). Para a lista completa e " +
+            "detalhada de todos os dados, consulte a exportação em formato JSON.",
     )
 
     doc.fillColor(BRAND.textColor).font("Helvetica")
@@ -209,46 +153,11 @@ function drawAlertsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload):
     }
 
     for (const alert of payload.alerts) {
-        const status = alert.triggeredAt
-            ? `disparado em ${alert.triggeredAt.toLocaleString("pt-BR")}`
-            : "não disparado"
         doc.text(
-            `• [${alert.targetType}] limite de ${alert.thresholdKwh} kWh — ${status}${
-                alert.message ? ` — "${alert.message}"` : ""
-            }`,
+            `• ${alert.name} — ${alert.referencePowerKw} kW ± ${alert.tolerancePercent}% — `
+                + (alert.enabled ? "habilitado" : "desabilitado"),
         )
     }
-}
-
-function drawConsumptionSummarySection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
-    sectionTitle(doc, "Resumo de consumo por propriedade")
-
-    const summary = buildConsumptionSummaryByProperty(
-        payload.consumptionRecords,
-        payload.properties,
-        payload.areas,
-        payload.devices,
-    )
-
-    if (summary.length === 0) {
-        emptyNote(doc, "Nenhum registro de consumo encontrado.")
-        return
-    }
-
-    for (const row of summary) {
-        doc.text(
-            `• ${row.propertyName}: ${row.totalKwh.toFixed(2)} kWh totais, ` +
-                `R$ ${row.totalCostBrl.toFixed(2)} totais, ${row.recordCount} registro(s)`,
-        )
-    }
-
-    doc.moveDown(0.3)
-    emptyNote(
-        doc,
-        "Este resumo agrega o consumo total por propriedade. Para o histórico " +
-            "detalhado e completo (todos os registros individuais), consulte a " +
-            "exportação em formato JSON.",
-    )
 }
 
 function drawAuditLogSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
@@ -303,7 +212,6 @@ export async function generateDataExportPdf(payload: DataExportPayload): Promise
     drawPropertiesSection(doc, payload)
     drawAreasAndDevicesSection(doc, payload)
     drawAlertsSection(doc, payload)
-    drawConsumptionSummarySection(doc, payload)
     drawAuditLogSection(doc, payload)
     drawFooterOnAllPages(doc)
 

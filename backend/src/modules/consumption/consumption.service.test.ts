@@ -1,463 +1,232 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest"
 import { ConsumptionService } from "@/modules/consumption/consumption.service.js"
 import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
-import { DeviceService } from "@/modules/device/device.service.js"
-import { DeviceRepository } from "@/modules/device/device.repository.js"
-import { AreaService } from "@/modules/area/area.service.js"
-import { AreaRepository } from "@/modules/area/area.repository.js"
+import { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
+import { AreaRepository } from "@/modules/area/area.repository.js"
+import { AreaService } from "@/modules/area/area.service.js"
+import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
-import { DistributorService } from "@/modules/distributor/distributor.service.js"
-import { UserRepository } from "@/modules/user/user.repository.js"
+import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
 import { UserService } from "@/modules/user/user.service.js"
+import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
-import {
-    ConflictError,
-    ForbiddenError,
-    NotFoundError,
-    ValidationError,
-} from "@/shared/errors/AppError.js"
+import { createTestDistributor, createTestTariffFlagConfig } from "@/shared/test/distributorFixture.js"
+import { ForbiddenError, NotFoundError } from "@/shared/errors/AppError.js"
 
-// ─── Instâncias ───────────────────────────────────────────────────────────────
-
-const distributorRepository = new DistributorRepository(prismaTest)
-const distributorService = new DistributorService(distributorRepository)
-
+const meterRepository = new MeterRepository(prismaTest)
 const propertyRepository = new PropertyRepository(prismaTest)
+const distributorRepository = new DistributorRepository(prismaTest)
 const propertyService = new PropertyService(propertyRepository, distributorRepository)
-
 const areaRepository = new AreaRepository(prismaTest)
 const areaService = new AreaService(areaRepository, propertyRepository)
-
 const deviceRepository = new DeviceRepository(prismaTest)
-const deviceService = new DeviceService(deviceRepository, areaRepository, propertyRepository)
-
+const tariffFlagRepository = new TariffFlagRepository(prismaTest)
 const consumptionRepository = new ConsumptionRepository(prismaTest)
-const consumptionService = new ConsumptionService(
-    consumptionRepository,
-    propertyRepository,
-    areaRepository,
-    deviceRepository,
-    distributorRepository,
-)
 
 const userRepository = new UserRepository(prismaTest)
 const userService = new UserService(userRepository)
 
-// ─── Dados de apoio ───────────────────────────────────────────────────────────
+const consumptionService = new ConsumptionService(
+    consumptionRepository,
+    meterRepository,
+    propertyRepository,
+    areaRepository,
+    deviceRepository,
+    distributorRepository,
+    tariffFlagRepository,
+)
 
-const validUserA = {
-    email: "joao@example.com",
-    password: "Senha@123",
-    userType: "INDIVIDUAL" as const,
-    acceptedTerms: true,
-    firstName: "João",
-    lastName: "Silva",
-    cpf: "529.982.247-25",
-}
+// tusdPerKwh=0.3 + tePerKwh=0.3 = 0.6 R$/kWh; tributos 27,25%; bandeira
+// GREEN = 0 — mesma fórmula "por dentro" usada no TariffService.
+const RATE = 0.6 / (1 - 0.2725)
 
-const validUserB = {
-    email: "maria@example.com",
-    password: "Senha@123",
-    userType: "INDIVIDUAL" as const,
-    acceptedTerms: true,
-    firstName: "Maria",
-    lastName: "Santos",
-    cpf: "310.037.856-38",
-}
-
-// kwhPrice = 0.75 → usado para verificar cálculo automático de costBrl
-const validDistributorInput = {
-    name: "CEMIG",
-    cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC" as const,
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-}
-
-const baseConsumptionInput = {
-    period: "DAILY" as const,
-    referenceDate: "2025-01-15",
-    kwhConsumed: 10,
-}
-
-// ─── Helper ───────────────────────────────────────────────────────────────────
-
-async function setupAll(userInput = validUserA) {
-    const user = await userService.createUser(userInput)
-    const distributor = await distributorService.create(user.id, validDistributorInput)
+async function setupPropertyMeter() {
+    const user = await userService.createUser({
+        email: "joao@example.com",
+        password: "Senha@123",
+        userType: "INDIVIDUAL",
+        acceptedTerms: true,
+        firstName: "João",
+        lastName: "Silva",
+        cpf: "529.982.247-25",
+    })
+    const distributor = await createTestDistributor(prismaTest)
+    await createTestTariffFlagConfig(prismaTest)
     const property = await propertyService.create(user.id, {
         name: "Casa",
         distributorId: distributor.id,
+        electricalSystem: "TRIPHASIC", // piso de 100 kWh
     })
-    const area = await areaService.create(property.id, user.id, { name: "Sala" })
-    const device = await deviceService.create(area.id, property.id, user.id, {
-        name: "Ar-condicionado",
-        powerWatts: 1200,
+    const meter = await prismaTest.meter.create({
+        data: { name: "Medidor", targetType: "PROPERTY", propertyId: property.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "casa/medidor" },
     })
-    return { user, distributor, property, area, device }
+    return { user, property, meter }
 }
 
-// ─── Setup e Teardown ─────────────────────────────────────────────────────────
+async function insertReading(meterId: string, minuteStart: string, kwhConsumed: number, avgPowerW: number) {
+    return prismaTest.meterReading.create({
+        data: {
+            meterId,
+            minuteStart: new Date(minuteStart),
+            kwhConsumed,
+            avgVoltage: 220,
+            avgCurrent: avgPowerW / 220,
+            avgPowerW,
+            avgPowerFactor: 1,
+            sampleCount: 60,
+            secondsCovered: 60,
+        },
+    })
+}
 
-beforeEach(async () => {
-    await cleanDatabase()
-})
+beforeEach(async () => { await cleanDatabase() })
+afterAll(async () => { await prismaTest.$disconnect() })
 
-afterAll(async () => {
-    await prismaTest.$disconnect()
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SUITE: ConsumptionService — target: PROPERTY
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("ConsumptionService — target: property", () => {
-
-    describe("create", () => {
-        it("deve criar registro de consumo para uma propriedade e calcular costBrl automaticamente", async () => {
-            const { user, property } = await setupAll()
-
-            const record = await consumptionService.createForProperty(
-                property.id, user.id, baseConsumptionInput,
-            )
-
-            expect(record.id).toBeDefined()
-            expect(record.propertyId).toBe(property.id)
-            expect(record.kwhConsumed).toBe(10)
-            // costBrl = 10 kWh × R$0,75 = R$7,50
-            expect(record.costBrl).toBeCloseTo(7.5)
-            expect(record.areaId).toBeNull()
-            expect(record.deviceId).toBeNull()
-        })
-
-        it("deve criar registro com notes", async () => {
-            const { user, property } = await setupAll()
-
-            const record = await consumptionService.createForProperty(
-                property.id, user.id, { ...baseConsumptionInput, notes: "Mês com pico de calor" },
-            )
-
-            expect(record.notes).toBe("Mês com pico de calor")
-        })
-
-        it("deve lançar ConflictError para period + property + referenceDate duplicados", async () => {
-            const { user, property } = await setupAll()
-            await consumptionService.createForProperty(property.id, user.id, baseConsumptionInput)
+describe("ConsumptionService.list", () => {
+    describe("validação de acesso", () => {
+        it("lança NotFoundError quando o alvo não tem medidor vinculado", async () => {
+            const user = await userService.createUser({
+                email: "semmedidor@example.com", password: "Senha@123", userType: "INDIVIDUAL",
+                acceptedTerms: true, firstName: "Sem", lastName: "Medidor", cpf: "310.037.856-38",
+            })
+            const distributor = await createTestDistributor(prismaTest)
+            await createTestTariffFlagConfig(prismaTest)
+            const property = await propertyService.create(user.id, {
+                name: "Casa", distributorId: distributor.id, electricalSystem: "MONOPHASIC",
+            })
 
             await expect(
-                consumptionService.createForProperty(property.id, user.id, baseConsumptionInput),
-            ).rejects.toThrow(ConflictError)
-        })
-
-        it("deve lançar NotFoundError para propertyId inexistente", async () => {
-            const user = await userService.createUser(validUserA)
-
-            await expect(
-                consumptionService.createForProperty(
-                    "00000000-0000-0000-0000-000000000000", user.id, baseConsumptionInput,
-                ),
+                consumptionService.list(user.id, {
+                    targetType: "PROPERTY", targetId: property.id, granularity: "hour",
+                }),
             ).rejects.toThrow(NotFoundError)
         })
 
-        it("deve lançar ForbiddenError para propriedade de outro usuário", async () => {
-            const { property } = await setupAll(validUserA)
-            const userB = await userService.createUser(validUserB)
-
-            await expect(
-                consumptionService.createForProperty(property.id, userB.id, baseConsumptionInput),
-            ).rejects.toThrow(ForbiddenError)
-        })
-
-        it("deve lançar ValidationError para kwhConsumed zero ou negativo", async () => {
-            const { user, property } = await setupAll()
-
-            await expect(
-                consumptionService.createForProperty(
-                    property.id, user.id, { ...baseConsumptionInput, kwhConsumed: 0 },
-                ),
-            ).rejects.toThrow(ValidationError)
-        })
-
-        it("deve lançar ValidationError para referenceDate inválida", async () => {
-            const { user, property } = await setupAll()
-
-            await expect(
-                consumptionService.createForProperty(
-                    property.id, user.id, { ...baseConsumptionInput, referenceDate: "nao-e-data" },
-                ),
-            ).rejects.toThrow(ValidationError)
-        })
-    })
-
-    describe("findAll", () => {
-        it("deve retornar todos os registros da propriedade ordenados por referenceDate desc", async () => {
-            const { user, property } = await setupAll()
-            await consumptionService.createForProperty(property.id, user.id, {
-                ...baseConsumptionInput, referenceDate: "2025-01-01",
-            })
-            await consumptionService.createForProperty(property.id, user.id, {
-                ...baseConsumptionInput, referenceDate: "2025-01-02",
+        it("lança ForbiddenError quando a propriedade pertence a outro usuário", async () => {
+            const { property } = await setupPropertyMeter()
+            const userB = await userService.createUser({
+                email: "outro@example.com", password: "Senha@123", userType: "INDIVIDUAL",
+                acceptedTerms: true, firstName: "Outro", lastName: "Usuário", cpf: "310.037.856-38",
             })
 
-            const list = await consumptionService.findAllForProperty(property.id, user.id, {})
-
-            expect(list).toHaveLength(2)
-            expect(new Date(list[0]!.referenceDate) > new Date(list[1]!.referenceDate)).toBe(true)
-        })
-
-        it("deve filtrar por period quando informado", async () => {
-            const { user, property } = await setupAll()
-            await consumptionService.createForProperty(property.id, user.id, {
-                period: "DAILY", referenceDate: "2025-01-01", kwhConsumed: 5,
-            })
-            await consumptionService.createForProperty(property.id, user.id, {
-                period: "MONTHLY", referenceDate: "2025-01-01", kwhConsumed: 150,
-            })
-
-            const daily = await consumptionService.findAllForProperty(property.id, user.id, { period: "DAILY" })
-            expect(daily).toHaveLength(1)
-            expect(daily[0]?.period).toBe("DAILY")
-        })
-
-        it("deve lançar ForbiddenError ao listar consumo de propriedade de outro usuário", async () => {
-            const { property } = await setupAll(validUserA)
-            const userB = await userService.createUser(validUserB)
-
             await expect(
-                consumptionService.findAllForProperty(property.id, userB.id, {}),
+                consumptionService.list(userB.id, {
+                    targetType: "PROPERTY", targetId: property.id, granularity: "hour",
+                }),
             ).rejects.toThrow(ForbiddenError)
         })
     })
 
-    describe("findById", () => {
-        it("deve retornar o registro pelo id", async () => {
-            const { user, property } = await setupAll()
-            const created = await consumptionService.createForProperty(
-                property.id, user.id, baseConsumptionInput,
-            )
+    describe("granularidade hour", () => {
+        it("agrega leituras no mesmo horário local (SP) num único bucket", async () => {
+            const { user, meter, property } = await setupPropertyMeter()
 
-            const found = await consumptionService.findById(created.id, property.id, user.id)
+            // 13:05Z e 13:45Z → mesma hora em SP (UTC-3 → 10h); 14:10Z → 11h SP.
+            await insertReading(meter.id, "2026-01-15T13:05:00Z", 0.01, 600)
+            await insertReading(meter.id, "2026-01-15T13:45:00Z", 0.02, 1200)
+            await insertReading(meter.id, "2026-01-15T14:10:00Z", 0.03, 1800)
 
-            expect(found.id).toBe(created.id)
-        })
+            const result = await consumptionService.list(user.id, {
+                targetType: "PROPERTY", targetId: property.id,
+                granularity: "hour",
+            })
 
-        it("deve lançar NotFoundError para id inexistente", async () => {
-            const { user, property } = await setupAll()
-
-            await expect(
-                consumptionService.findById("00000000-0000-0000-0000-000000000000", property.id, user.id),
-            ).rejects.toThrow(NotFoundError)
-        })
-
-        it("deve lançar ForbiddenError para propriedade de outro usuário", async () => {
-            const { property } = await setupAll(validUserA)
-            const userB = await userService.createUser(validUserB)
-
-            await expect(
-                consumptionService.findById("00000000-0000-0000-0000-000000000000", property.id, userB.id),
-            ).rejects.toThrow(ForbiddenError)
+            expect(result.total).toBe(2)
+            expect(result.items).toHaveLength(2)
+            // ORDER BY bucket DESC — hora 11 (mais recente) vem primeiro
+            expect(result.items[0]!.kwhConsumed).toBeCloseTo(0.03)
+            expect(result.items[0]!.avgPowerW).toBeCloseTo(1800)
+            expect(result.items[1]!.kwhConsumed).toBeCloseTo(0.03)
+            expect(result.items[1]!.avgPowerW).toBeCloseTo(900) // média ponderada: (600×60+1200×60)/120
         })
     })
 
-    describe("update", () => {
-        it("deve atualizar kwhConsumed e recalcular costBrl automaticamente", async () => {
-            const { user, property } = await setupAll()
-            const record = await consumptionService.createForProperty(
-                property.id, user.id, baseConsumptionInput,
-            )
+    describe("granularidade day — virada de dia em America/Sao_Paulo", () => {
+        it("separa leituras do mesmo dia UTC em dias SP diferentes", async () => {
+            const { user, meter, property } = await setupPropertyMeter()
 
-            // kwhConsumed de 10 → 20; costBrl esperado: 20 × 0,75 = 15,00
-            const updated = await consumptionService.update(
-                record.id, property.id, user.id, { kwhConsumed: 20 },
-            )
+            // Ambos no dia UTC 2026-01-15, mas em dias SP diferentes (UTC-3):
+            // 02:30Z → 2026-01-14 23:30 SP; 04:00Z → 2026-01-15 01:00 SP.
+            await insertReading(meter.id, "2026-01-15T02:30:00Z", 0.05, 3000)
+            await insertReading(meter.id, "2026-01-15T04:00:00Z", 0.07, 4200)
 
-            expect(updated.kwhConsumed).toBe(20)
-            expect(updated.costBrl).toBeCloseTo(15)
-        })
+            const result = await consumptionService.list(user.id, {
+                targetType: "PROPERTY", targetId: property.id, granularity: "day",
+            })
 
-        it("deve atualizar apenas notes sem recalcular costBrl", async () => {
-            const { user, property } = await setupAll()
-            const record = await consumptionService.createForProperty(
-                property.id, user.id, baseConsumptionInput,
-            )
-            const originalCost = record.costBrl
-
-            const updated = await consumptionService.update(
-                record.id, property.id, user.id, { notes: "Atualizado" },
-            )
-
-            expect(updated.notes).toBe("Atualizado")
-            expect(updated.costBrl).toBe(originalCost)
-        })
-
-        it("deve lançar NotFoundError para id inexistente", async () => {
-            const { user, property } = await setupAll()
-
-            await expect(
-                consumptionService.update(
-                    "00000000-0000-0000-0000-000000000000", property.id, user.id, { notes: "X" },
-                ),
-            ).rejects.toThrow(NotFoundError)
-        })
-
-        it("deve lançar ValidationError para kwhConsumed negativo na atualização", async () => {
-            const { user, property } = await setupAll()
-            const record = await consumptionService.createForProperty(
-                property.id, user.id, baseConsumptionInput,
-            )
-
-            await expect(
-                consumptionService.update(record.id, property.id, user.id, { kwhConsumed: -5 }),
-            ).rejects.toThrow(ValidationError)
+            expect(result.total).toBe(2)
         })
     })
 
-    describe("delete", () => {
-        it("deve deletar um registro de consumo", async () => {
-            const { user, property } = await setupAll()
-            const record = await consumptionService.createForProperty(
-                property.id, user.id, baseConsumptionInput,
-            )
+    describe("granularidade month/year — piso de disponibilidade (alvo PROPERTY)", () => {
+        it("aplica o piso por mês na granularidade month quando abaixo de 100 kWh (TRIPHASIC)", async () => {
+            const { user, meter, property } = await setupPropertyMeter()
 
-            await consumptionService.delete(record.id, property.id, user.id)
+            // 40 kWh em janeiro/2026 (SP) — abaixo do piso de 100.
+            await insertReading(meter.id, "2026-01-15T15:00:00Z", 40, 1000)
 
-            await expect(
-                consumptionService.findById(record.id, property.id, user.id),
-            ).rejects.toThrow(NotFoundError)
+            const result = await consumptionService.list(user.id, {
+                targetType: "PROPERTY", targetId: property.id, granularity: "month",
+            })
+
+            expect(result.items).toHaveLength(1)
+            expect(result.items[0]!.kwhConsumed).toBeCloseTo(40)
+            expect(result.items[0]!.costBrl).toBeCloseTo(100 * RATE, 6)
         })
 
-        it("deve lançar ForbiddenError ao deletar consumo de propriedade de outro usuário", async () => {
-            const { property } = await setupAll(validUserA)
-            const userB = await userService.createUser(validUserB)
+        it("granularidade year soma os custos mensais (cada um com seu piso), não o piso aplicado uma vez sobre o total anual", async () => {
+            const { user, meter, property } = await setupPropertyMeter()
 
-            await expect(
-                consumptionService.delete("00000000-0000-0000-0000-000000000000", property.id, userB.id),
-            ).rejects.toThrow(ForbiddenError)
+            // 40 kWh em janeiro e 30 kWh em fevereiro/2026 (SP) — ambos abaixo do piso de 100.
+            await insertReading(meter.id, "2026-01-15T15:00:00Z", 40, 1000)
+            await insertReading(meter.id, "2026-02-15T15:00:00Z", 30, 1000)
+
+            const result = await consumptionService.list(user.id, {
+                targetType: "PROPERTY", targetId: property.id, granularity: "year",
+            })
+
+            expect(result.items).toHaveLength(1)
+            expect(result.items[0]!.kwhConsumed).toBeCloseTo(70) // exibição = soma real
+            // custo correto = 100×RATE (jan) + 100×RATE (fev), não 100×RATE (piso único) nem 70×RATE
+            expect(result.items[0]!.costBrl).toBeCloseTo(200 * RATE, 6)
         })
     })
-})
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SUITE: ConsumptionService — target: AREA
-// ─────────────────────────────────────────────────────────────────────────────
+    describe("alvo AREA/DEVICE — sem piso nem CIP", () => {
+        it("não aplica piso de disponibilidade mesmo abaixo de 100 kWh no mês", async () => {
+            const { user, property } = await setupPropertyMeter()
+            const area = await areaService.create(property.id, user.id, { name: "Sala" })
+            const areaMeter = await prismaTest.meter.create({
+                data: { name: "Medidor Área", targetType: "AREA", areaId: area.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "area/medidor" },
+            })
 
-describe("ConsumptionService — target: area", () => {
-    it("deve criar registro para área e calcular costBrl via distribuidora da propriedade pai", async () => {
-        const { user, property, area } = await setupAll()
+            await insertReading(areaMeter.id, "2026-01-15T15:00:00Z", 40, 1000)
 
-        const record = await consumptionService.createForArea(
-            area.id, property.id, user.id, baseConsumptionInput,
-        )
+            const result = await consumptionService.list(user.id, {
+                targetType: "AREA", targetId: area.id, granularity: "month",
+            })
 
-        expect(record.areaId).toBe(area.id)
-        expect(record.propertyId).toBeNull()
-        // costBrl calculado via distribuidora da property pai
-        expect(record.costBrl).toBeCloseTo(7.5)
-    })
-
-    it("deve lançar ConflictError para period + area + referenceDate duplicados", async () => {
-        const { user, property, area } = await setupAll()
-        await consumptionService.createForArea(area.id, property.id, user.id, baseConsumptionInput)
-
-        await expect(
-            consumptionService.createForArea(area.id, property.id, user.id, baseConsumptionInput),
-        ).rejects.toThrow(ConflictError)
-    })
-
-    it("deve lançar ForbiddenError para área de outro usuário", async () => {
-        const { property, area } = await setupAll(validUserA)
-        const userB = await userService.createUser(validUserB)
-
-        await expect(
-            consumptionService.createForArea(area.id, property.id, userB.id, baseConsumptionInput),
-        ).rejects.toThrow(ForbiddenError)
-    })
-
-    it("deve filtrar registros da área por period", async () => {
-        const { user, property, area } = await setupAll()
-        await consumptionService.createForArea(area.id, property.id, user.id, {
-            period: "DAILY", referenceDate: "2025-01-01", kwhConsumed: 5,
+            expect(result.items[0]!.costBrl).toBeCloseTo(40 * RATE, 6)
         })
-        await consumptionService.createForArea(area.id, property.id, user.id, {
-            period: "MONTHLY", referenceDate: "2025-01-01", kwhConsumed: 150,
+    })
+
+    describe("paginação", () => {
+        it("respeita page e pageSize sobre os buckets", async () => {
+            const { user, meter, property } = await setupPropertyMeter()
+
+            await insertReading(meter.id, "2026-01-15T13:00:00Z", 0.01, 600)
+            await insertReading(meter.id, "2026-01-15T14:00:00Z", 0.01, 600)
+            await insertReading(meter.id, "2026-01-15T15:00:00Z", 0.01, 600)
+
+            const result = await consumptionService.list(user.id, {
+                targetType: "PROPERTY", targetId: property.id, granularity: "hour", page: 1, pageSize: 2,
+            })
+
+            expect(result.items).toHaveLength(2)
+            expect(result.total).toBe(3)
         })
-
-        const list = await consumptionService.findAllForArea(area.id, property.id, user.id, { period: "MONTHLY" })
-
-        expect(list).toHaveLength(1)
-        expect(list[0]?.period).toBe("MONTHLY")
-    })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SUITE: ConsumptionService — target: DEVICE
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("ConsumptionService — target: device", () => {
-    it("deve criar registro para device e calcular costBrl via distribuidora da propriedade pai", async () => {
-        const { user, property, area, device } = await setupAll()
-
-        const record = await consumptionService.createForDevice(
-            device.id, area.id, property.id, user.id, baseConsumptionInput,
-        )
-
-        expect(record.deviceId).toBe(device.id)
-        expect(record.propertyId).toBeNull()
-        expect(record.areaId).toBeNull()
-        expect(record.costBrl).toBeCloseTo(7.5)
-    })
-
-    it("deve lançar ConflictError para period + device + referenceDate duplicados", async () => {
-        const { user, property, area, device } = await setupAll()
-        await consumptionService.createForDevice(device.id, area.id, property.id, user.id, baseConsumptionInput)
-
-        await expect(
-            consumptionService.createForDevice(device.id, area.id, property.id, user.id, baseConsumptionInput),
-        ).rejects.toThrow(ConflictError)
-    })
-
-    it("deve lançar ForbiddenError para device de outro usuário", async () => {
-        const { property, area, device } = await setupAll(validUserA)
-        const userB = await userService.createUser(validUserB)
-
-        await expect(
-            consumptionService.createForDevice(device.id, area.id, property.id, userB.id, baseConsumptionInput),
-        ).rejects.toThrow(ForbiddenError)
-    })
-
-    it("deve retornar lista vazia quando device não tem registros", async () => {
-        const { user, property, area, device } = await setupAll()
-
-        const list = await consumptionService.findAllForDevice(device.id, area.id, property.id, user.id, {})
-
-        expect(list).toEqual([])
-    })
-
-    it("deve lançar ForbiddenError ao tentar acessar device inexistente", async () => {
-        const { user, property, area } = await setupAll()
-
-        await expect(
-            consumptionService.createForDevice(
-                "00000000-0000-0000-0000-000000000000",
-                area.id, property.id, user.id, baseConsumptionInput,
-            ),
-        ).rejects.toThrow(NotFoundError)
-    })
-
-    it("deve recalcular costBrl ao atualizar kwhConsumed de registro de device", async () => {
-        const { user, property, area, device } = await setupAll()
-        const record = await consumptionService.createForDevice(
-            device.id, area.id, property.id, user.id, baseConsumptionInput,
-        )
-
-        // kwhConsumed 10 → 4; costBrl esperado: 4 × 0,75 = 3,00
-        const updated = await consumptionService.update(
-            record.id, property.id, user.id, { kwhConsumed: 4 },
-        )
-
-        expect(updated.costBrl).toBeCloseTo(3)
     })
 })

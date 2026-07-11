@@ -41,7 +41,7 @@ export const useCreateDevice = () => {
             deviceService.create(propertyId, areaId, input),
         onSuccess: (created, { propertyId, areaId }) => {
             queryClient.invalidateQueries({
-                queryKey: queryKeys.devices.list(propertyId, areaId),
+                queryKey: [...queryKeys.devices.all, "list", propertyId, areaId],
             })
             toast.success("Dispositivo criado", {
                 description: `${created.name} foi adicionado com sucesso.`,
@@ -67,7 +67,7 @@ export const useUpdateDevice = () => {
             // Invalida lista (nome pode ter mudado, ordem pode ter mudado)
             // e o detalhe específico
             queryClient.invalidateQueries({
-                queryKey: queryKeys.devices.list(propertyId, areaId),
+                queryKey: [...queryKeys.devices.all, "list", propertyId, areaId],
             })
             queryClient.invalidateQueries({
                 queryKey: queryKeys.devices.detail(
@@ -97,7 +97,7 @@ export const useDeleteDevice = () => {
             deviceService.delete(propertyId, areaId, deviceId),
         onSuccess: (_, { propertyId, areaId, deviceId }) => {
             queryClient.invalidateQueries({
-                queryKey: queryKeys.devices.list(propertyId, areaId),
+                queryKey: [...queryKeys.devices.all, "list", propertyId, areaId],
             })
             // Remove o detalhe do cache — não vai mais existir
             queryClient.removeQueries({

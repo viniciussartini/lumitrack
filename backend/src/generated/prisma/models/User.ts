@@ -295,7 +295,6 @@ export type UserWhereInput = {
   mfaEnabled?: Prisma.BoolFilter<"User"> | boolean
   mfaSecret?: Prisma.StringNullableFilter<"User"> | string | null
   properties?: Prisma.PropertyListRelationFilter
-  distributors?: Prisma.EnergyDistributorListRelationFilter
   tokens?: Prisma.AuthTokenListRelationFilter
   refreshTokens?: Prisma.RefreshTokenListRelationFilter
   passwordResets?: Prisma.PasswordResetListRelationFilter
@@ -325,7 +324,6 @@ export type UserOrderByWithRelationInput = {
   mfaEnabled?: Prisma.SortOrder
   mfaSecret?: Prisma.SortOrderInput | Prisma.SortOrder
   properties?: Prisma.PropertyOrderByRelationAggregateInput
-  distributors?: Prisma.EnergyDistributorOrderByRelationAggregateInput
   tokens?: Prisma.AuthTokenOrderByRelationAggregateInput
   refreshTokens?: Prisma.RefreshTokenOrderByRelationAggregateInput
   passwordResets?: Prisma.PasswordResetOrderByRelationAggregateInput
@@ -358,7 +356,6 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   mfaEnabled?: Prisma.BoolFilter<"User"> | boolean
   mfaSecret?: Prisma.StringNullableFilter<"User"> | string | null
   properties?: Prisma.PropertyListRelationFilter
-  distributors?: Prisma.EnergyDistributorListRelationFilter
   tokens?: Prisma.AuthTokenListRelationFilter
   refreshTokens?: Prisma.RefreshTokenListRelationFilter
   passwordResets?: Prisma.PasswordResetListRelationFilter
@@ -438,7 +435,6 @@ export type UserCreateInput = {
   mfaEnabled?: boolean
   mfaSecret?: string | null
   properties?: Prisma.PropertyCreateNestedManyWithoutUserInput
-  distributors?: Prisma.EnergyDistributorCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   passwordResets?: Prisma.PasswordResetCreateNestedManyWithoutUserInput
@@ -468,7 +464,6 @@ export type UserUncheckedCreateInput = {
   mfaEnabled?: boolean
   mfaSecret?: string | null
   properties?: Prisma.PropertyUncheckedCreateNestedManyWithoutUserInput
-  distributors?: Prisma.EnergyDistributorUncheckedCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   passwordResets?: Prisma.PasswordResetUncheckedCreateNestedManyWithoutUserInput
@@ -498,7 +493,6 @@ export type UserUpdateInput = {
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUpdateManyWithoutUserNestedInput
-  distributors?: Prisma.EnergyDistributorUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   passwordResets?: Prisma.PasswordResetUpdateManyWithoutUserNestedInput
@@ -528,7 +522,6 @@ export type UserUncheckedUpdateInput = {
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUncheckedUpdateManyWithoutUserNestedInput
-  distributors?: Prisma.EnergyDistributorUncheckedUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   passwordResets?: Prisma.PasswordResetUncheckedUpdateManyWithoutUserNestedInput
@@ -779,20 +772,6 @@ export type UserUpdateOneWithoutAuditLogsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutAuditLogsInput, Prisma.UserUpdateWithoutAuditLogsInput>, Prisma.UserUncheckedUpdateWithoutAuditLogsInput>
 }
 
-export type UserCreateNestedOneWithoutDistributorsInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutDistributorsInput, Prisma.UserUncheckedCreateWithoutDistributorsInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutDistributorsInput
-  connect?: Prisma.UserWhereUniqueInput
-}
-
-export type UserUpdateOneRequiredWithoutDistributorsNestedInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutDistributorsInput, Prisma.UserUncheckedCreateWithoutDistributorsInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutDistributorsInput
-  upsert?: Prisma.UserUpsertWithoutDistributorsInput
-  connect?: Prisma.UserWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutDistributorsInput, Prisma.UserUpdateWithoutDistributorsInput>, Prisma.UserUncheckedUpdateWithoutDistributorsInput>
-}
-
 export type UserCreateNestedOneWithoutPropertiesInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutPropertiesInput, Prisma.UserUncheckedCreateWithoutPropertiesInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutPropertiesInput
@@ -842,7 +821,6 @@ export type UserCreateWithoutTokensInput = {
   mfaEnabled?: boolean
   mfaSecret?: string | null
   properties?: Prisma.PropertyCreateNestedManyWithoutUserInput
-  distributors?: Prisma.EnergyDistributorCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   passwordResets?: Prisma.PasswordResetCreateNestedManyWithoutUserInput
   alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
@@ -871,7 +849,6 @@ export type UserUncheckedCreateWithoutTokensInput = {
   mfaEnabled?: boolean
   mfaSecret?: string | null
   properties?: Prisma.PropertyUncheckedCreateNestedManyWithoutUserInput
-  distributors?: Prisma.EnergyDistributorUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   passwordResets?: Prisma.PasswordResetUncheckedCreateNestedManyWithoutUserInput
   alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
@@ -916,7 +893,6 @@ export type UserUpdateWithoutTokensInput = {
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUpdateManyWithoutUserNestedInput
-  distributors?: Prisma.EnergyDistributorUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   passwordResets?: Prisma.PasswordResetUpdateManyWithoutUserNestedInput
   alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
@@ -945,7 +921,6 @@ export type UserUncheckedUpdateWithoutTokensInput = {
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUncheckedUpdateManyWithoutUserNestedInput
-  distributors?: Prisma.EnergyDistributorUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   passwordResets?: Prisma.PasswordResetUncheckedUpdateManyWithoutUserNestedInput
   alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
@@ -974,7 +949,6 @@ export type UserCreateWithoutRefreshTokensInput = {
   mfaEnabled?: boolean
   mfaSecret?: string | null
   properties?: Prisma.PropertyCreateNestedManyWithoutUserInput
-  distributors?: Prisma.EnergyDistributorCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenCreateNestedManyWithoutUserInput
   passwordResets?: Prisma.PasswordResetCreateNestedManyWithoutUserInput
   alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
@@ -1003,7 +977,6 @@ export type UserUncheckedCreateWithoutRefreshTokensInput = {
   mfaEnabled?: boolean
   mfaSecret?: string | null
   properties?: Prisma.PropertyUncheckedCreateNestedManyWithoutUserInput
-  distributors?: Prisma.EnergyDistributorUncheckedCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenUncheckedCreateNestedManyWithoutUserInput
   passwordResets?: Prisma.PasswordResetUncheckedCreateNestedManyWithoutUserInput
   alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
@@ -1048,7 +1021,6 @@ export type UserUpdateWithoutRefreshTokensInput = {
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUpdateManyWithoutUserNestedInput
-  distributors?: Prisma.EnergyDistributorUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUpdateManyWithoutUserNestedInput
   passwordResets?: Prisma.PasswordResetUpdateManyWithoutUserNestedInput
   alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
@@ -1077,7 +1049,6 @@ export type UserUncheckedUpdateWithoutRefreshTokensInput = {
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUncheckedUpdateManyWithoutUserNestedInput
-  distributors?: Prisma.EnergyDistributorUncheckedUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUncheckedUpdateManyWithoutUserNestedInput
   passwordResets?: Prisma.PasswordResetUncheckedUpdateManyWithoutUserNestedInput
   alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
@@ -1106,7 +1077,6 @@ export type UserCreateWithoutPasswordResetsInput = {
   mfaEnabled?: boolean
   mfaSecret?: string | null
   properties?: Prisma.PropertyCreateNestedManyWithoutUserInput
-  distributors?: Prisma.EnergyDistributorCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
@@ -1135,7 +1105,6 @@ export type UserUncheckedCreateWithoutPasswordResetsInput = {
   mfaEnabled?: boolean
   mfaSecret?: string | null
   properties?: Prisma.PropertyUncheckedCreateNestedManyWithoutUserInput
-  distributors?: Prisma.EnergyDistributorUncheckedCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
@@ -1180,7 +1149,6 @@ export type UserUpdateWithoutPasswordResetsInput = {
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUpdateManyWithoutUserNestedInput
-  distributors?: Prisma.EnergyDistributorUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
@@ -1209,7 +1177,6 @@ export type UserUncheckedUpdateWithoutPasswordResetsInput = {
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUncheckedUpdateManyWithoutUserNestedInput
-  distributors?: Prisma.EnergyDistributorUncheckedUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
@@ -1238,7 +1205,6 @@ export type UserCreateWithoutMfaBackupCodesInput = {
   mfaEnabled?: boolean
   mfaSecret?: string | null
   properties?: Prisma.PropertyCreateNestedManyWithoutUserInput
-  distributors?: Prisma.EnergyDistributorCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   passwordResets?: Prisma.PasswordResetCreateNestedManyWithoutUserInput
@@ -1267,7 +1233,6 @@ export type UserUncheckedCreateWithoutMfaBackupCodesInput = {
   mfaEnabled?: boolean
   mfaSecret?: string | null
   properties?: Prisma.PropertyUncheckedCreateNestedManyWithoutUserInput
-  distributors?: Prisma.EnergyDistributorUncheckedCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   passwordResets?: Prisma.PasswordResetUncheckedCreateNestedManyWithoutUserInput
@@ -1312,7 +1277,6 @@ export type UserUpdateWithoutMfaBackupCodesInput = {
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUpdateManyWithoutUserNestedInput
-  distributors?: Prisma.EnergyDistributorUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   passwordResets?: Prisma.PasswordResetUpdateManyWithoutUserNestedInput
@@ -1341,7 +1305,6 @@ export type UserUncheckedUpdateWithoutMfaBackupCodesInput = {
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUncheckedUpdateManyWithoutUserNestedInput
-  distributors?: Prisma.EnergyDistributorUncheckedUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   passwordResets?: Prisma.PasswordResetUncheckedUpdateManyWithoutUserNestedInput
@@ -1370,7 +1333,6 @@ export type UserCreateWithoutAuditLogsInput = {
   mfaEnabled?: boolean
   mfaSecret?: string | null
   properties?: Prisma.PropertyCreateNestedManyWithoutUserInput
-  distributors?: Prisma.EnergyDistributorCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   passwordResets?: Prisma.PasswordResetCreateNestedManyWithoutUserInput
@@ -1399,7 +1361,6 @@ export type UserUncheckedCreateWithoutAuditLogsInput = {
   mfaEnabled?: boolean
   mfaSecret?: string | null
   properties?: Prisma.PropertyUncheckedCreateNestedManyWithoutUserInput
-  distributors?: Prisma.EnergyDistributorUncheckedCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   passwordResets?: Prisma.PasswordResetUncheckedCreateNestedManyWithoutUserInput
@@ -1444,7 +1405,6 @@ export type UserUpdateWithoutAuditLogsInput = {
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUpdateManyWithoutUserNestedInput
-  distributors?: Prisma.EnergyDistributorUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   passwordResets?: Prisma.PasswordResetUpdateManyWithoutUserNestedInput
@@ -1473,143 +1433,10 @@ export type UserUncheckedUpdateWithoutAuditLogsInput = {
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUncheckedUpdateManyWithoutUserNestedInput
-  distributors?: Prisma.EnergyDistributorUncheckedUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   passwordResets?: Prisma.PasswordResetUncheckedUpdateManyWithoutUserNestedInput
   alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
-  mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedUpdateManyWithoutUserNestedInput
-}
-
-export type UserCreateWithoutDistributorsInput = {
-  id?: string
-  email: string
-  password: string
-  userType: $Enums.UserType
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  role?: $Enums.Role
-  consentedAt?: Date | string | null
-  consentVersion?: string | null
-  firstName?: string | null
-  lastName?: string | null
-  cpf?: string | null
-  cpfBlindIndex?: string | null
-  companyName?: string | null
-  cnpj?: string | null
-  cnpjBlindIndex?: string | null
-  tradeName?: string | null
-  mfaEnabled?: boolean
-  mfaSecret?: string | null
-  properties?: Prisma.PropertyCreateNestedManyWithoutUserInput
-  tokens?: Prisma.AuthTokenCreateNestedManyWithoutUserInput
-  refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
-  passwordResets?: Prisma.PasswordResetCreateNestedManyWithoutUserInput
-  alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
-  auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
-  mfaBackupCodes?: Prisma.MfaBackupCodeCreateNestedManyWithoutUserInput
-}
-
-export type UserUncheckedCreateWithoutDistributorsInput = {
-  id?: string
-  email: string
-  password: string
-  userType: $Enums.UserType
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  role?: $Enums.Role
-  consentedAt?: Date | string | null
-  consentVersion?: string | null
-  firstName?: string | null
-  lastName?: string | null
-  cpf?: string | null
-  cpfBlindIndex?: string | null
-  companyName?: string | null
-  cnpj?: string | null
-  cnpjBlindIndex?: string | null
-  tradeName?: string | null
-  mfaEnabled?: boolean
-  mfaSecret?: string | null
-  properties?: Prisma.PropertyUncheckedCreateNestedManyWithoutUserInput
-  tokens?: Prisma.AuthTokenUncheckedCreateNestedManyWithoutUserInput
-  refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
-  passwordResets?: Prisma.PasswordResetUncheckedCreateNestedManyWithoutUserInput
-  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
-  auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
-  mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedCreateNestedManyWithoutUserInput
-}
-
-export type UserCreateOrConnectWithoutDistributorsInput = {
-  where: Prisma.UserWhereUniqueInput
-  create: Prisma.XOR<Prisma.UserCreateWithoutDistributorsInput, Prisma.UserUncheckedCreateWithoutDistributorsInput>
-}
-
-export type UserUpsertWithoutDistributorsInput = {
-  update: Prisma.XOR<Prisma.UserUpdateWithoutDistributorsInput, Prisma.UserUncheckedUpdateWithoutDistributorsInput>
-  create: Prisma.XOR<Prisma.UserCreateWithoutDistributorsInput, Prisma.UserUncheckedCreateWithoutDistributorsInput>
-  where?: Prisma.UserWhereInput
-}
-
-export type UserUpdateToOneWithWhereWithoutDistributorsInput = {
-  where?: Prisma.UserWhereInput
-  data: Prisma.XOR<Prisma.UserUpdateWithoutDistributorsInput, Prisma.UserUncheckedUpdateWithoutDistributorsInput>
-}
-
-export type UserUpdateWithoutDistributorsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  password?: Prisma.StringFieldUpdateOperationsInput | string
-  userType?: Prisma.EnumUserTypeFieldUpdateOperationsInput | $Enums.UserType
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
-  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  properties?: Prisma.PropertyUpdateManyWithoutUserNestedInput
-  tokens?: Prisma.AuthTokenUpdateManyWithoutUserNestedInput
-  refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
-  passwordResets?: Prisma.PasswordResetUpdateManyWithoutUserNestedInput
-  alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
-  auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
-  mfaBackupCodes?: Prisma.MfaBackupCodeUpdateManyWithoutUserNestedInput
-}
-
-export type UserUncheckedUpdateWithoutDistributorsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  password?: Prisma.StringFieldUpdateOperationsInput | string
-  userType?: Prisma.EnumUserTypeFieldUpdateOperationsInput | $Enums.UserType
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
-  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  properties?: Prisma.PropertyUncheckedUpdateManyWithoutUserNestedInput
-  tokens?: Prisma.AuthTokenUncheckedUpdateManyWithoutUserNestedInput
-  refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
-  passwordResets?: Prisma.PasswordResetUncheckedUpdateManyWithoutUserNestedInput
-  alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
-  auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -1633,7 +1460,6 @@ export type UserCreateWithoutPropertiesInput = {
   tradeName?: string | null
   mfaEnabled?: boolean
   mfaSecret?: string | null
-  distributors?: Prisma.EnergyDistributorCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   passwordResets?: Prisma.PasswordResetCreateNestedManyWithoutUserInput
@@ -1662,7 +1488,6 @@ export type UserUncheckedCreateWithoutPropertiesInput = {
   tradeName?: string | null
   mfaEnabled?: boolean
   mfaSecret?: string | null
-  distributors?: Prisma.EnergyDistributorUncheckedCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   passwordResets?: Prisma.PasswordResetUncheckedCreateNestedManyWithoutUserInput
@@ -1707,7 +1532,6 @@ export type UserUpdateWithoutPropertiesInput = {
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  distributors?: Prisma.EnergyDistributorUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   passwordResets?: Prisma.PasswordResetUpdateManyWithoutUserNestedInput
@@ -1736,7 +1560,6 @@ export type UserUncheckedUpdateWithoutPropertiesInput = {
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  distributors?: Prisma.EnergyDistributorUncheckedUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   passwordResets?: Prisma.PasswordResetUncheckedUpdateManyWithoutUserNestedInput
@@ -1766,7 +1589,6 @@ export type UserCreateWithoutAlertsInput = {
   mfaEnabled?: boolean
   mfaSecret?: string | null
   properties?: Prisma.PropertyCreateNestedManyWithoutUserInput
-  distributors?: Prisma.EnergyDistributorCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
   passwordResets?: Prisma.PasswordResetCreateNestedManyWithoutUserInput
@@ -1795,7 +1617,6 @@ export type UserUncheckedCreateWithoutAlertsInput = {
   mfaEnabled?: boolean
   mfaSecret?: string | null
   properties?: Prisma.PropertyUncheckedCreateNestedManyWithoutUserInput
-  distributors?: Prisma.EnergyDistributorUncheckedCreateNestedManyWithoutUserInput
   tokens?: Prisma.AuthTokenUncheckedCreateNestedManyWithoutUserInput
   refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
   passwordResets?: Prisma.PasswordResetUncheckedCreateNestedManyWithoutUserInput
@@ -1840,7 +1661,6 @@ export type UserUpdateWithoutAlertsInput = {
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUpdateManyWithoutUserNestedInput
-  distributors?: Prisma.EnergyDistributorUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
   passwordResets?: Prisma.PasswordResetUpdateManyWithoutUserNestedInput
@@ -1869,7 +1689,6 @@ export type UserUncheckedUpdateWithoutAlertsInput = {
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   properties?: Prisma.PropertyUncheckedUpdateManyWithoutUserNestedInput
-  distributors?: Prisma.EnergyDistributorUncheckedUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   passwordResets?: Prisma.PasswordResetUncheckedUpdateManyWithoutUserNestedInput
@@ -1884,7 +1703,6 @@ export type UserUncheckedUpdateWithoutAlertsInput = {
 
 export type UserCountOutputType = {
   properties: number
-  distributors: number
   tokens: number
   refreshTokens: number
   passwordResets: number
@@ -1895,7 +1713,6 @@ export type UserCountOutputType = {
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   properties?: boolean | UserCountOutputTypeCountPropertiesArgs
-  distributors?: boolean | UserCountOutputTypeCountDistributorsArgs
   tokens?: boolean | UserCountOutputTypeCountTokensArgs
   refreshTokens?: boolean | UserCountOutputTypeCountRefreshTokensArgs
   passwordResets?: boolean | UserCountOutputTypeCountPasswordResetsArgs
@@ -1919,13 +1736,6 @@ export type UserCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensi
  */
 export type UserCountOutputTypeCountPropertiesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.PropertyWhereInput
-}
-
-/**
- * UserCountOutputType without action
- */
-export type UserCountOutputTypeCountDistributorsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.EnergyDistributorWhereInput
 }
 
 /**
@@ -1992,7 +1802,6 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   mfaEnabled?: boolean
   mfaSecret?: boolean
   properties?: boolean | Prisma.User$propertiesArgs<ExtArgs>
-  distributors?: boolean | Prisma.User$distributorsArgs<ExtArgs>
   tokens?: boolean | Prisma.User$tokensArgs<ExtArgs>
   refreshTokens?: boolean | Prisma.User$refreshTokensArgs<ExtArgs>
   passwordResets?: boolean | Prisma.User$passwordResetsArgs<ExtArgs>
@@ -2071,7 +1880,6 @@ export type UserSelectScalar = {
 export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "password" | "userType" | "createdAt" | "updatedAt" | "role" | "consentedAt" | "consentVersion" | "firstName" | "lastName" | "cpf" | "cpfBlindIndex" | "companyName" | "cnpj" | "cnpjBlindIndex" | "tradeName" | "mfaEnabled" | "mfaSecret", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   properties?: boolean | Prisma.User$propertiesArgs<ExtArgs>
-  distributors?: boolean | Prisma.User$distributorsArgs<ExtArgs>
   tokens?: boolean | Prisma.User$tokensArgs<ExtArgs>
   refreshTokens?: boolean | Prisma.User$refreshTokensArgs<ExtArgs>
   passwordResets?: boolean | Prisma.User$passwordResetsArgs<ExtArgs>
@@ -2087,7 +1895,6 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   name: "User"
   objects: {
     properties: Prisma.$PropertyPayload<ExtArgs>[]
-    distributors: Prisma.$EnergyDistributorPayload<ExtArgs>[]
     tokens: Prisma.$AuthTokenPayload<ExtArgs>[]
     refreshTokens: Prisma.$RefreshTokenPayload<ExtArgs>[]
     passwordResets: Prisma.$PasswordResetPayload<ExtArgs>[]
@@ -2510,7 +2317,6 @@ readonly fields: UserFieldRefs;
 export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   properties<T extends Prisma.User$propertiesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$propertiesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PropertyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  distributors<T extends Prisma.User$distributorsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$distributorsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$EnergyDistributorPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   tokens<T extends Prisma.User$tokensArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$tokensArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AuthTokenPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   refreshTokens<T extends Prisma.User$refreshTokensArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$refreshTokensArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RefreshTokenPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   passwordResets<T extends Prisma.User$passwordResetsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$passwordResetsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PasswordResetPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -2979,30 +2785,6 @@ export type User$propertiesArgs<ExtArgs extends runtime.Types.Extensions.Interna
   take?: number
   skip?: number
   distinct?: Prisma.PropertyScalarFieldEnum | Prisma.PropertyScalarFieldEnum[]
-}
-
-/**
- * User.distributors
- */
-export type User$distributorsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the EnergyDistributor
-   */
-  select?: Prisma.EnergyDistributorSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the EnergyDistributor
-   */
-  omit?: Prisma.EnergyDistributorOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.EnergyDistributorInclude<ExtArgs> | null
-  where?: Prisma.EnergyDistributorWhereInput
-  orderBy?: Prisma.EnergyDistributorOrderByWithRelationInput | Prisma.EnergyDistributorOrderByWithRelationInput[]
-  cursor?: Prisma.EnergyDistributorWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.EnergyDistributorScalarFieldEnum | Prisma.EnergyDistributorScalarFieldEnum[]
 }
 
 /**

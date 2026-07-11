@@ -13,7 +13,7 @@ import { logger } from "@/shared/logger/logger.js"
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ModbusTcpConnectionConfig {
-    deviceId: string
+    meterId: string
     host: string
     port: number
     address: string
@@ -22,7 +22,7 @@ export interface ModbusTcpConnectionConfig {
 }
 
 export class ModbusTcpConnection implements IConnection {
-    readonly deviceId: string
+    readonly meterId: string
 
     private socket: unknown = null
     private client: unknown = null
@@ -32,7 +32,7 @@ export class ModbusTcpConnection implements IConnection {
     private readonly config: ModbusTcpConnectionConfig
 
     constructor(config: ModbusTcpConnectionConfig) {
-        this.deviceId = config.deviceId
+        this.meterId = config.meterId
         this.config = config
     }
 
@@ -82,7 +82,7 @@ export class ModbusTcpConnection implements IConnection {
                 const value  = result.response.body.values[0]
                 this.dataHandler({ register: this.config.address, value, timestamp: new Date().toISOString() })
             } catch (err) {
-                logger.error({ module: "ModbusTCP", deviceId: this.deviceId, err }, "Erro na leitura")
+                logger.error({ module: "ModbusTCP", meterId: this.meterId, err }, "Erro na leitura")
             }
         }, intervalMs)
     }
@@ -121,7 +121,7 @@ export class ModbusTcpConnection implements IConnection {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ModbusRtuConnectionConfig {
-    deviceId: string
+    meterId: string
     address: string   // caminho da porta serial, ex: "/dev/ttyUSB0" ou "COM3"
     baudRate?: number   // (do campo extra) padrao 9600
     pollingIntervalMs?: number
@@ -129,7 +129,7 @@ export interface ModbusRtuConnectionConfig {
 }
 
 export class ModbusRtuConnection implements IConnection {
-    readonly deviceId: string
+    readonly meterId: string
 
     private port: unknown = null
     private client: unknown = null
@@ -139,7 +139,7 @@ export class ModbusRtuConnection implements IConnection {
     private readonly config: ModbusRtuConnectionConfig
 
     constructor(config: ModbusRtuConnectionConfig) {
-        this.deviceId = config.deviceId
+        this.meterId = config.meterId
         this.config   = config
     }
 
@@ -193,7 +193,7 @@ export class ModbusRtuConnection implements IConnection {
                 const value  = result.response.body.values[0]
                 this.dataHandler({ port: this.config.address, value, timestamp: new Date().toISOString() })
             } catch (err) {
-                logger.error({ module: "ModbusRTU", deviceId: this.deviceId, err }, "Erro na leitura")
+                logger.error({ module: "ModbusRTU", meterId: this.meterId, err }, "Erro na leitura")
             }
         }, intervalMs)
     }
@@ -231,7 +231,7 @@ export class ModbusRtuConnection implements IConnection {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface EthernetIpConnectionConfig {
-    deviceId: string
+    meterId: string
     host: string
     port?: number
     address?: string   // tag CIP a monitorar, ex: "Motor.Speed"
@@ -239,7 +239,7 @@ export interface EthernetIpConnectionConfig {
 }
 
 export class EthernetIpConnection implements IConnection {
-    readonly deviceId: string
+    readonly meterId: string
 
     private plc: unknown = null
     private connected = false
@@ -248,7 +248,7 @@ export class EthernetIpConnection implements IConnection {
     private readonly config: EthernetIpConnectionConfig
 
     constructor(config: EthernetIpConnectionConfig) {
-        this.deviceId = config.deviceId
+        this.meterId = config.meterId
         this.config = config
     }
 
@@ -286,7 +286,7 @@ export class EthernetIpConnection implements IConnection {
                 const result = await plc.readTag(tag)
                 this.dataHandler({ tag, value: result.value, timestamp: new Date().toISOString() })
             } catch (err) {
-                logger.error({ module: "EthernetIP", deviceId: this.deviceId, err }, "Erro na leitura")
+                logger.error({ module: "EthernetIP", meterId: this.meterId, err }, "Erro na leitura")
             }
         }, intervalMs)
     }
@@ -335,19 +335,19 @@ export class EthernetIpConnection implements IConnection {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ProfibusConnectionConfig {
-    deviceId: string
+    meterId: string
     address: string
     slaveAddress?: number
     pollingIntervalMs?: number
 }
 
 export class ProfibusConnection implements IConnection {
-    readonly deviceId: string
+    readonly meterId: string
     private connected = false
     private readonly config: ProfibusConnectionConfig
 
     constructor(config: ProfibusConnectionConfig) {
-        this.deviceId = config.deviceId
+        this.meterId = config.meterId
         this.config = config
     }
 
@@ -375,7 +375,7 @@ export class ProfibusConnection implements IConnection {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ProfinetConnectionConfig {
-    deviceId: string
+    meterId: string
     host: string
     port?: number
     address?: string   // area de memoria, ex: "DB1" (Data Block 1)
@@ -385,7 +385,7 @@ export interface ProfinetConnectionConfig {
 }
 
 export class ProfinetConnection implements IConnection {
-    readonly deviceId: string
+    readonly meterId: string
 
     private client: unknown = null
     private connected = false
@@ -394,7 +394,7 @@ export class ProfinetConnection implements IConnection {
     private readonly config: ProfinetConnectionConfig
 
     constructor(config: ProfinetConnectionConfig) {
-        this.deviceId = config.deviceId
+        this.meterId = config.meterId
         this.config = config
     }
 
@@ -442,7 +442,7 @@ export class ProfinetConnection implements IConnection {
                 })
                 this.dataHandler({ db: dbNumber, data: Array.from(data), timestamp: new Date().toISOString() })
             } catch (err) {
-                logger.error({ module: "Profinet", deviceId: this.deviceId, err }, "Erro na leitura")
+                logger.error({ module: "Profinet", meterId: this.meterId, err }, "Erro na leitura")
             }
         }, intervalMs)
     }
@@ -481,7 +481,7 @@ export class ProfinetConnection implements IConnection {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface Rs232ConnectionConfig {
-    deviceId: string
+    meterId: string
     address: string
     baudRate?: number
     dataBits?: 5 | 6 | 7 | 8
@@ -491,7 +491,7 @@ export interface Rs232ConnectionConfig {
 }
 
 export class Rs232Connection implements IConnection {
-    readonly deviceId: string
+    readonly meterId: string
 
     private port: unknown = null
     private connected = false
@@ -500,7 +500,7 @@ export class Rs232Connection implements IConnection {
     private readonly config: Rs232ConnectionConfig
 
     constructor(config: Rs232ConnectionConfig) {
-        this.deviceId = config.deviceId
+        this.meterId = config.meterId
         this.config   = config
     }
 
@@ -582,7 +582,7 @@ export class Rs232Connection implements IConnection {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface Rs485ConnectionConfig {
-    deviceId: string
+    meterId: string
     address: string   // porta serial, ex: "/dev/ttyUSB0" ou "COM3"
     baudRate?: number
     dataBits?: 5 | 6 | 7 | 8
@@ -592,7 +592,7 @@ export interface Rs485ConnectionConfig {
 }
 
 export class Rs485Connection implements IConnection {
-    readonly deviceId: string
+    readonly meterId: string
 
     private port: unknown = null
     private connected = false
@@ -601,7 +601,7 @@ export class Rs485Connection implements IConnection {
     private readonly config: Rs485ConnectionConfig
 
     constructor(config: Rs485ConnectionConfig) {
-        this.deviceId = config.deviceId
+        this.meterId = config.meterId
         this.config   = config
     }
 

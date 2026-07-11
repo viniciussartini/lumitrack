@@ -5,25 +5,21 @@ import type { Distributor } from "@/types/distributor.types"
 vi.mock("@/services/api", () => ({
     api: {
         get: vi.fn(),
-        post: vi.fn(),
-        put: vi.fn(),
-        delete: vi.fn(),
     },
-    extractErrorMessage: vi.fn(),
 }))
 
 import { api } from "@/services/api"
 
 const mockDistributor: Distributor = {
     id: "dist-1",
-    userId: "user-1",
     name: "CEMIG Distribuição S.A.",
     cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC",
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-    taxRate: 0.12,
-    publicLightingFee: 45.9,
+    state: "MG",
+    tusdPerKwh: 0.35,
+    tePerKwh: 0.4,
+    icmsRate: 0.18,
+    pisRate: 0.0165,
+    cofinsRate: 0.076,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -33,25 +29,34 @@ beforeEach(() => {
 })
 
 describe("distributorService.list", () => {
-    it("retorna o array descapsulado do envelope", async () => {
+    it("faz GET em /distributors com os params de paginação e descasca o envelope", async () => {
         vi.mocked(api.get).mockResolvedValueOnce({
-            data: { status: "success", data: [mockDistributor] },
+            data: {
+                status: "success",
+                data: { items: [mockDistributor], total: 1, page: 1, pageSize: 10 },
+            },
         })
 
-        const result = await distributorService.list()
+        const result = await distributorService.list({ page: 1, pageSize: 10 })
 
-        expect(api.get).toHaveBeenCalledWith("/distributors")
-        expect(result).toEqual([mockDistributor])
+        expect(api.get).toHaveBeenCalledWith("/distributors", {
+            params: { page: 1, pageSize: 10 },
+        })
+        expect(result.items).toEqual([mockDistributor])
     })
 
-    it("retorna array vazio quando não há distribuidoras", async () => {
+    it("funciona sem params (default do backend)", async () => {
         vi.mocked(api.get).mockResolvedValueOnce({
-            data: { status: "success", data: [] },
+            data: {
+                status: "success",
+                data: { items: [], total: 0, page: 1, pageSize: 10 },
+            },
         })
 
         const result = await distributorService.list()
 
-        expect(result).toEqual([])
+        expect(api.get).toHaveBeenCalledWith("/distributors", { params: {} })
+        expect(result.items).toEqual([])
     })
 })
 
@@ -65,53 +70,5 @@ describe("distributorService.getById", () => {
 
         expect(api.get).toHaveBeenCalledWith("/distributors/dist-1")
         expect(result).toEqual(mockDistributor)
-    })
-})
-
-describe("distributorService.create", () => {
-    it("envia POST com o input e retorna a entidade criada", async () => {
-        vi.mocked(api.post).mockResolvedValueOnce({
-            data: { status: "success", data: mockDistributor },
-        })
-
-        const input = {
-            name: "CEMIG Distribuição S.A.",
-            cnpj: "06.981.180/0001-16",
-            electricalSystem: "TRIPHASIC" as const,
-            workingVoltage: 220,
-            kwhPrice: 0.75,
-            taxRate: 0.12,
-            publicLightingFee: 45.9,
-        }
-
-        const result = await distributorService.create(input)
-
-        expect(api.post).toHaveBeenCalledWith("/distributors", input)
-        expect(result).toEqual(mockDistributor)
-    })
-})
-
-describe("distributorService.update", () => {
-    it("envia PUT com o ID na URL e o input no body", async () => {
-        vi.mocked(api.put).mockResolvedValueOnce({
-            data: { status: "success", data: mockDistributor },
-        })
-
-        const input = { name: "Novo Nome" }
-
-        const result = await distributorService.update("dist-1", input)
-
-        expect(api.put).toHaveBeenCalledWith("/distributors/dist-1", input)
-        expect(result).toEqual(mockDistributor)
-    })
-})
-
-describe("distributorService.delete", () => {
-    it("envia DELETE com o ID na URL", async () => {
-        vi.mocked(api.delete).mockResolvedValueOnce({ data: {} })
-
-        await distributorService.delete("dist-1")
-
-        expect(api.delete).toHaveBeenCalledWith("/distributors/dist-1")
     })
 })

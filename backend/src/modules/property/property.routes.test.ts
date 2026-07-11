@@ -3,6 +3,7 @@ import request from "supertest"
 import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
+import { createTestDistributor } from "@/shared/test/distributorFixture.js"
 
 const app = createApp({ prismaClient: prismaHttpTest })
 
@@ -28,20 +29,13 @@ const anotherUser = {
     cpf: "310.037.856-38",
 }
 
-const validDistributorBody = {
-    name: "CEMIG Distribuição S.A.",
-    cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC",
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-}
-
 const validPropertyBody = {
     name: "Casa Principal",
     address: "Rua das Flores, 123",
     city: "Belo Horizonte",
     state: "MG",
     zipCode: "30130-010",
+    electricalSystem: "TRIPHASIC",
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -60,12 +54,11 @@ async function registerAndLogin(user = validUser) {
     return { userId, token }
 }
 
-async function createDistributor(token: string, body = validDistributorBody) {
-    const res = await request(app)
-        .post("/api/distributors")
-        .set("Authorization", `Bearer ${token}`)
-        .send(body)
-    return res.body.data as { id: string }
+// Distribuidora agora é catálogo global (Fase 3.2) — inserida direto no
+// banco de teste, não existe mais POST /api/distributors.
+async function createDistributor() {
+    const dist = await createTestDistributor(prismaHttpTest)
+    return { id: dist.id }
 }
 
 async function createProperty(token: string, distributorId: string, body = validPropertyBody) {
@@ -93,7 +86,7 @@ afterAll(async () => {
 describe("POST /api/properties", () => {
     it("deve criar uma propriedade com todos os campos e retornar 201", async () => {
         const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
 
         const response = await request(app)
             .post("/api/properties")
@@ -107,22 +100,38 @@ describe("POST /api/properties", () => {
         expect(response.body.data.state).toBe("MG")
         expect(response.body.data.zipCode).toBe("30130-010")
         expect(response.body.data.distributorId).toBe(dist.id)
+        expect(response.body.data.electricalSystem).toBe("TRIPHASIC")
+        expect(response.body.data.billingClass).toBe("B1")
     })
 
     it("deve criar uma propriedade sem campos de endereço e retornar 201", async () => {
         const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
 
         const response = await request(app)
             .post("/api/properties")
             .set("Authorization", `Bearer ${token}`)
-            .send({ name: "Galpão", distributorId: dist.id })
+            .send({ name: "Galpão", distributorId: dist.id, electricalSystem: "TRIPHASIC" })
 
         expect(response.status).toBe(201)
         expect(response.body.data.address).toBeNull()
         expect(response.body.data.city).toBeNull()
         expect(response.body.data.state).toBeNull()
         expect(response.body.data.zipCode).toBeNull()
+    })
+
+    it("deve aceitar billingClass e publicLightingFeeBrl explícitos", async () => {
+        const { token } = await registerAndLogin()
+        const dist = await createDistributor()
+
+        const response = await request(app)
+            .post("/api/properties")
+            .set("Authorization", `Bearer ${token}`)
+            .send({ ...validPropertyBody, distributorId: dist.id, billingClass: "B3", publicLightingFeeBrl: 25.5 })
+
+        expect(response.status).toBe(201)
+        expect(response.body.data.billingClass).toBe("B3")
+        expect(response.body.data.publicLightingFeeBrl).toBe(25.5)
     })
 
     it("deve retornar 401 sem token", async () => {
@@ -144,22 +153,21 @@ describe("POST /api/properties", () => {
         expect(response.status).toBe(404)
     })
 
-    it("deve retornar 403 ao vincular distribuidora de outro usuário", async () => {
-        const { token: tokenA } = await registerAndLogin(validUser)
-        const { token: tokenB } = await registerAndLogin(anotherUser)
-        const distA = await createDistributor(tokenA)
+    it("deve retornar 422 quando electricalSystem está ausente", async () => {
+        const { token } = await registerAndLogin()
+        const dist = await createDistributor()
 
         const response = await request(app)
             .post("/api/properties")
-            .set("Authorization", `Bearer ${tokenB}`)
-            .send({ ...validPropertyBody, distributorId: distA.id })
+            .set("Authorization", `Bearer ${token}`)
+            .send({ name: "Casa", distributorId: dist.id })
 
-        expect(response.status).toBe(403)
+        expect(response.status).toBe(422)
     })
 
     it("deve retornar 422 para UF inválida", async () => {
         const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
 
         const response = await request(app)
             .post("/api/properties")
@@ -171,7 +179,7 @@ describe("POST /api/properties", () => {
 
     it("deve retornar 422 para CEP com formato inválido", async () => {
         const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
 
         const response = await request(app)
             .post("/api/properties")
@@ -183,7 +191,7 @@ describe("POST /api/properties", () => {
 
     it("deve retornar 422 para CEP com sequência repetida (00000-000)", async () => {
         const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
 
         const response = await request(app)
             .post("/api/properties")
@@ -210,7 +218,7 @@ describe("POST /api/properties", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("GET /api/properties", () => {
-    it("deve retornar 200 com lista vazia", async () => {
+    it("deve retornar 200 com envelope paginado vazio", async () => {
         const { token } = await registerAndLogin()
 
         const response = await request(app)
@@ -218,25 +226,41 @@ describe("GET /api/properties", () => {
             .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(200)
-        expect(response.body.data).toEqual([])
+        expect(response.body.data.items).toEqual([])
+        expect(response.body.data.total).toBe(0)
     })
 
     it("deve retornar apenas as propriedades do usuário autenticado", async () => {
         const { token: tokenA } = await registerAndLogin(validUser)
         const { token: tokenB } = await registerAndLogin(anotherUser)
-        const distA = await createDistributor(tokenA)
-        const distB = await createDistributor(tokenB)
+        const dist = await createDistributor()
 
-        await createProperty(tokenA, distA.id)
-        await createProperty(tokenB, distB.id, { ...validPropertyBody, name: "Casa de B" })
+        await createProperty(tokenA, dist.id)
+        await createProperty(tokenB, dist.id, { ...validPropertyBody, name: "Casa de B" })
 
         const responseA = await request(app)
             .get("/api/properties")
             .set("Authorization", `Bearer ${tokenA}`)
 
         expect(responseA.status).toBe(200)
-        expect(responseA.body.data).toHaveLength(1)
-        expect(responseA.body.data[0].name).toBe("Casa Principal")
+        expect(responseA.body.data.items).toHaveLength(1)
+        expect(responseA.body.data.items[0].name).toBe("Casa Principal")
+    })
+
+    it("deve paginar respeitando page e pageSize", async () => {
+        const { token } = await registerAndLogin()
+        const dist = await createDistributor()
+        for (let i = 0; i < 3; i++) {
+            await createProperty(token, dist.id, { ...validPropertyBody, name: `Prop ${i}` })
+        }
+
+        const response = await request(app)
+            .get("/api/properties?page=1&pageSize=2")
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(200)
+        expect(response.body.data.items).toHaveLength(2)
+        expect(response.body.data.total).toBe(3)
     })
 
     it("deve retornar 401 sem token", async () => {
@@ -252,7 +276,7 @@ describe("GET /api/properties", () => {
 describe("GET /api/properties/:id", () => {
     it("deve retornar 200 com os dados da propriedade do usuário autenticado", async () => {
         const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
         const property = await createProperty(token, dist.id)
 
         const response = await request(app)
@@ -276,8 +300,8 @@ describe("GET /api/properties/:id", () => {
     it("deve retornar 403 ao acessar propriedade de outro usuário", async () => {
         const { token: tokenA } = await registerAndLogin(validUser)
         const { token: tokenB } = await registerAndLogin(anotherUser)
-        const distA = await createDistributor(tokenA)
-        const property = await createProperty(tokenA, distA.id)
+        const dist = await createDistributor()
+        const property = await createProperty(tokenA, dist.id)
 
         const response = await request(app)
             .get(`/api/properties/${property.id}`)
@@ -300,7 +324,7 @@ describe("GET /api/properties/:id", () => {
 describe("PUT /api/properties/:id", () => {
     it("deve atualizar campos de endereço e retornar 200", async () => {
         const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
         const property = await createProperty(token, dist.id)
 
         const response = await request(app)
@@ -316,12 +340,8 @@ describe("PUT /api/properties/:id", () => {
 
     it("deve permitir trocar a distribuidora e retornar 200", async () => {
         const { token } = await registerAndLogin()
-        const dist1 = await createDistributor(token)
-        const dist2 = await createDistributor(token, {
-            ...validDistributorBody,
-            name: "CPFL Energia",
-            cnpj: "02.429.144/0001-93",
-        })
+        const dist1 = await createDistributor()
+        const dist2 = await createDistributor()
         const property = await createProperty(token, dist1.id)
 
         const response = await request(app)
@@ -333,26 +353,24 @@ describe("PUT /api/properties/:id", () => {
         expect(response.body.data.distributorId).toBe(dist2.id)
     })
 
-    it("deve retornar 403 ao tentar vincular distribuidora de outro usuário na atualização", async () => {
-        const { token: tokenA } = await registerAndLogin(validUser)
-        const { token: tokenB } = await registerAndLogin(anotherUser)
-        const distA = await createDistributor(tokenA)
-        const distB = await createDistributor(tokenB)
-        const property = await createProperty(tokenA, distA.id)
+    it("deve retornar 404 ao trocar para distribuidora inexistente", async () => {
+        const { token } = await registerAndLogin()
+        const dist = await createDistributor()
+        const property = await createProperty(token, dist.id)
 
         const response = await request(app)
             .put(`/api/properties/${property.id}`)
-            .set("Authorization", `Bearer ${tokenA}`)
-            .send({ distributorId: distB.id })
+            .set("Authorization", `Bearer ${token}`)
+            .send({ distributorId: "00000000-0000-0000-0000-000000000000" })
 
-        expect(response.status).toBe(403)
+        expect(response.status).toBe(404)
     })
 
     it("deve retornar 403 ao tentar atualizar propriedade de outro usuário", async () => {
         const { token: tokenA } = await registerAndLogin(validUser)
         const { token: tokenB } = await registerAndLogin(anotherUser)
-        const distA = await createDistributor(tokenA)
-        const property = await createProperty(tokenA, distA.id)
+        const dist = await createDistributor()
+        const property = await createProperty(tokenA, dist.id)
 
         const response = await request(app)
             .put(`/api/properties/${property.id}`)
@@ -375,7 +393,7 @@ describe("PUT /api/properties/:id", () => {
 
     it("deve retornar 422 para UF inválida na atualização", async () => {
         const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
         const property = await createProperty(token, dist.id)
 
         const response = await request(app)
@@ -401,7 +419,7 @@ describe("PUT /api/properties/:id", () => {
 describe("DELETE /api/properties/:id", () => {
     it("deve deletar a propriedade e retornar 204", async () => {
         const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
         const property = await createProperty(token, dist.id)
 
         const response = await request(app)
@@ -420,8 +438,8 @@ describe("DELETE /api/properties/:id", () => {
     it("deve retornar 403 ao tentar deletar propriedade de outro usuário", async () => {
         const { token: tokenA } = await registerAndLogin(validUser)
         const { token: tokenB } = await registerAndLogin(anotherUser)
-        const distA = await createDistributor(tokenA)
-        const property = await createProperty(tokenA, distA.id)
+        const dist = await createDistributor()
+        const property = await createProperty(tokenA, dist.id)
 
         const response = await request(app)
             .delete(`/api/properties/${property.id}`)
@@ -448,43 +466,13 @@ describe("DELETE /api/properties/:id", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Regra de integridade: distribuidora com propriedades vinculadas
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("DELETE /api/distributors/:id — bloqueio com propriedades vinculadas", () => {
-    it("deve retornar 409 ao tentar deletar distribuidora com propriedades vinculadas", async () => {
-        const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
-        await createProperty(token, dist.id)
-
-        const response = await request(app)
-            .delete(`/api/distributors/${dist.id}`)
-            .set("Authorization", `Bearer ${token}`)
-
-        expect(response.status).toBe(409)
-        expect(response.body.status).toBe("error")
-    })
-
-    it("deve permitir deletar distribuidora sem propriedades vinculadas", async () => {
-        const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
-
-        const response = await request(app)
-            .delete(`/api/distributors/${dist.id}`)
-            .set("Authorization", `Bearer ${token}`)
-
-        expect(response.status).toBe(204)
-    })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Audit log (#08 — A09): PROPERTY_CREATE/UPDATE/DELETE + ACCESS_DENIED
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("Audit log", () => {
     it("registra PROPERTY_CREATE/SUCCESS ao criar", async () => {
         const { userId, token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
         const property = await createProperty(token, dist.id)
 
         const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "PROPERTY_CREATE" } })
@@ -499,7 +487,7 @@ describe("Audit log", () => {
 
     it("registra PROPERTY_UPDATE/SUCCESS com os nomes dos campos alterados (não os valores)", async () => {
         const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
         const property = await createProperty(token, dist.id)
 
         await request(app)
@@ -514,7 +502,7 @@ describe("Audit log", () => {
 
     it("registra PROPERTY_DELETE/SUCCESS ao deletar", async () => {
         const { userId, token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
         const property = await createProperty(token, dist.id)
 
         await request(app)
@@ -529,8 +517,8 @@ describe("Audit log", () => {
     it("registra ACCESS_DENIED ao tentar deletar propriedade de outro usuário (403)", async () => {
         const { token: tokenA } = await registerAndLogin(validUser)
         const { userId: userIdB, token: tokenB } = await registerAndLogin(anotherUser)
-        const distA = await createDistributor(tokenA)
-        const property = await createProperty(tokenA, distA.id)
+        const dist = await createDistributor()
+        const property = await createProperty(tokenA, dist.id)
 
         await request(app)
             .delete(`/api/properties/${property.id}`)
@@ -549,7 +537,7 @@ describe("Audit log", () => {
 describe("Criptografia do endereço em repouso", () => {
     it("armazena address cifrado no banco (não em texto claro)", async () => {
         const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
         const property = await createProperty(token, dist.id)
 
         const raw = await prismaHttpTest.property.findUnique({ where: { id: property.id } })
@@ -562,7 +550,7 @@ describe("Criptografia do endereço em repouso", () => {
 
     it("armazena city, state e zipCode cifrados no banco", async () => {
         const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
         const property = await createProperty(token, dist.id)
 
         const raw = await prismaHttpTest.property.findUnique({ where: { id: property.id } })
@@ -574,7 +562,7 @@ describe("Criptografia do endereço em repouso", () => {
 
     it("a resposta da API contém o endereço em texto claro (decifrado pelo repository)", async () => {
         const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
 
         const response = await request(app)
             .post("/api/properties")
@@ -589,12 +577,12 @@ describe("Criptografia do endereço em repouso", () => {
 
     it("mantém address null no banco quando não fornecido", async () => {
         const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
 
         await request(app)
             .post("/api/properties")
             .set("Authorization", `Bearer ${token}`)
-            .send({ name: "Galpão Sem Endereço", distributorId: dist.id })
+            .send({ name: "Galpão Sem Endereço", distributorId: dist.id, electricalSystem: "TRIPHASIC" })
 
         const properties = await prismaHttpTest.property.findMany({ where: { name: "Galpão Sem Endereço" } })
         expect(properties[0]?.address).toBeNull()
@@ -605,7 +593,7 @@ describe("Criptografia do endereço em repouso", () => {
 
     it("atualiza o address cifrado no banco via PUT", async () => {
         const { token } = await registerAndLogin()
-        const dist = await createDistributor(token)
+        const dist = await createDistributor()
         const property = await createProperty(token, dist.id)
 
         const novoEndereco = "Avenida Atualizada, 999"

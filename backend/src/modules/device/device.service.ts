@@ -4,6 +4,7 @@ import type { DeviceRepository, DeviceResponse } from "@/modules/device/device.r
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { PropertyRepository } from "@/modules/property/property.repository.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { paginationQuerySchema, type Paginated } from "@/shared/pagination.js"
 
 export class DeviceService {
     constructor(
@@ -74,11 +75,20 @@ export class DeviceService {
         return device
     }
 
-    async findAll(areaId: string, propertyId: string, userId: string
+    async findAll(areaId: string, propertyId: string, userId: string, query: unknown
 
-    ): Promise<DeviceResponse[]> {
+    ): Promise<Paginated<DeviceResponse>> {
         await this.validateAreaOwnership(areaId, propertyId, userId)
-        return this.deviceRepository.findAllByArea(areaId)
+
+        const parsed = paginationQuerySchema.safeParse(query)
+        if (!parsed.success) {
+            const firstError = Object.values(
+                z.flattenError(parsed.error).fieldErrors,
+            ).flat()[0]
+            throw new ValidationError(firstError ?? "Dados inválidos")
+        }
+
+        return this.deviceRepository.findAllByAreaPaginated(areaId, parsed.data)
     }
 
     async update(id: string, areaId: string, propertyId: string, userId: string, input: unknown

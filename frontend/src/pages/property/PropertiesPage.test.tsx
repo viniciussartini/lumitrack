@@ -11,6 +11,7 @@ import {
 import { PropertiesPage } from "@/pages/property/PropertiesPage"
 import { propertyService } from "@/services/property.service"
 import { distributorService } from "@/services/distributor.service"
+import type { Paginated } from "@/types/pagination.types"
 import type { Property } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
 
@@ -28,22 +29,26 @@ vi.mock("@/services/distributor.service", () => ({
     distributorService: {
         list: vi.fn(),
         getById: vi.fn(),
-        create: vi.fn(),
-        update: vi.fn(),
-        delete: vi.fn(),
     },
 }))
 
+const paginated = <T,>(items: T[]): Paginated<T> => ({
+    items,
+    total: items.length,
+    page: 1,
+    pageSize: 10,
+})
+
 const mockDistributor: Distributor = {
     id: "dist-1",
-    userId: "user-1",
     name: "CEMIG Distribuição S.A.",
     cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC",
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-    taxRate: 0.12,
-    publicLightingFee: 45.9,
+    state: "MG",
+    tusdPerKwh: 0.35,
+    tePerKwh: 0.4,
+    icmsRate: 0.18,
+    pisRate: 0.0165,
+    cofinsRate: 0.076,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -57,6 +62,9 @@ const mockProperty1: Property = {
     city: "Belo Horizonte",
     state: "MG",
     zipCode: "30000-000",
+    electricalSystem: "TRIPHASIC",
+    billingClass: "B1",
+    publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -102,8 +110,8 @@ beforeEach(() => {
 
 describe("PropertiesPage — header", () => {
     it("renderiza título e link de nova propriedade", async () => {
-        vi.mocked(propertyService.list).mockResolvedValue([])
-        vi.mocked(distributorService.list).mockResolvedValue([])
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([]))
+        vi.mocked(distributorService.list).mockResolvedValue(paginated([]))
 
         renderPage()
 
@@ -136,7 +144,7 @@ describe("PropertiesPage — loading", () => {
     })
 
     it("continua em loading se distributors ainda carrega mesmo com properties prontas", () => {
-        vi.mocked(propertyService.list).mockResolvedValue([mockProperty1])
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([mockProperty1]))
         vi.mocked(distributorService.list).mockReturnValue(new Promise(() => {}))
 
         renderPage()
@@ -148,7 +156,7 @@ describe("PropertiesPage — loading", () => {
 
     it("continua em loading se properties ainda carrega mesmo com distributors prontas", () => {
         vi.mocked(propertyService.list).mockReturnValue(new Promise(() => {}))
-        vi.mocked(distributorService.list).mockResolvedValue([mockDistributor])
+        vi.mocked(distributorService.list).mockResolvedValue(paginated([mockDistributor]))
 
         renderPage()
 
@@ -164,8 +172,8 @@ describe("PropertiesPage — loading", () => {
 
 describe("PropertiesPage — empty state", () => {
     it("exibe empty state quando não há propriedades", async () => {
-        vi.mocked(propertyService.list).mockResolvedValue([])
-        vi.mocked(distributorService.list).mockResolvedValue([])
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([]))
+        vi.mocked(distributorService.list).mockResolvedValue(paginated([]))
 
         renderPage()
 
@@ -180,8 +188,8 @@ describe("PropertiesPage — empty state", () => {
     })
 
     it("não renderiza grid quando lista está vazia", async () => {
-        vi.mocked(propertyService.list).mockResolvedValue([])
-        vi.mocked(distributorService.list).mockResolvedValue([])
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([]))
+        vi.mocked(distributorService.list).mockResolvedValue(paginated([]))
 
         renderPage()
 
@@ -196,11 +204,10 @@ describe("PropertiesPage — empty state", () => {
 
 describe("PropertiesPage — sucesso", () => {
     it("renderiza um card por propriedade", async () => {
-        vi.mocked(propertyService.list).mockResolvedValue([
-            mockProperty1,
-            mockProperty2,
-        ])
-        vi.mocked(distributorService.list).mockResolvedValue([mockDistributor])
+        vi.mocked(propertyService.list).mockResolvedValue(
+            paginated([mockProperty1, mockProperty2]),
+        )
+        vi.mocked(distributorService.list).mockResolvedValue(paginated([mockDistributor]))
 
         renderPage()
 
@@ -211,11 +218,10 @@ describe("PropertiesPage — sucesso", () => {
     })
 
     it("resolve o nome da distribuidora em cada card", async () => {
-        vi.mocked(propertyService.list).mockResolvedValue([
-            mockProperty1,
-            mockProperty2,
-        ])
-        vi.mocked(distributorService.list).mockResolvedValue([mockDistributor])
+        vi.mocked(propertyService.list).mockResolvedValue(
+            paginated([mockProperty1, mockProperty2]),
+        )
+        vi.mocked(distributorService.list).mockResolvedValue(paginated([mockDistributor]))
 
         renderPage()
 
@@ -225,9 +231,9 @@ describe("PropertiesPage — sucesso", () => {
     })
 
     it("mostra fallback quando a distribuidora vinculada não está na lista", async () => {
-        vi.mocked(propertyService.list).mockResolvedValue([mockProperty1])
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([mockProperty1]))
         // Lista vazia — caso hipotético onde a distribuidora foi removida
-        vi.mocked(distributorService.list).mockResolvedValue([])
+        vi.mocked(distributorService.list).mockResolvedValue(paginated([]))
 
         renderPage()
 
@@ -248,7 +254,7 @@ describe("PropertiesPage — erro", () => {
         vi.mocked(propertyService.list).mockRejectedValue(
             new Error("Falhou geral"),
         )
-        vi.mocked(distributorService.list).mockResolvedValue([])
+        vi.mocked(distributorService.list).mockResolvedValue(paginated([]))
 
         renderPage()
 
@@ -256,7 +262,7 @@ describe("PropertiesPage — erro", () => {
         expect(screen.getByText(/falhou geral/i)).toBeInTheDocument()
 
         // Retry chama list de novo
-        vi.mocked(propertyService.list).mockResolvedValueOnce([])
+        vi.mocked(propertyService.list).mockResolvedValueOnce(paginated([]))
         await user.click(
             screen.getByRole("button", { name: /tentar novamente/i }),
         )
@@ -267,7 +273,7 @@ describe("PropertiesPage — erro", () => {
     })
 
     it("exibe estado de erro quando distributors falha", async () => {
-        vi.mocked(propertyService.list).mockResolvedValue([mockProperty1])
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([mockProperty1]))
         vi.mocked(distributorService.list).mockRejectedValue(
             new Error("API caiu"),
         )

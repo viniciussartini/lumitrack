@@ -8,7 +8,6 @@ import { DistributorRepository } from "@/modules/distributor/distributor.reposit
 import { AlertRepository } from "@/modules/alert/alert.repository.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
-import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
 
@@ -30,7 +29,6 @@ export function exportRoutes(
         new AlertRepository(prismaClient),
         new AreaRepository(prismaClient),
         new DeviceRepository(prismaClient),
-        new ConsumptionRepository(prismaClient),
         new AuditRepository(prismaClient),
     )
     const exportController = new ExportController(exportService, auditService)

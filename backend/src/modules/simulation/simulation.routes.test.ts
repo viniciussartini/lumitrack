@@ -3,6 +3,7 @@ import request from "supertest"
 import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
+import { createTestDistributor, createTestTariffFlagConfig } from "@/shared/test/distributorFixture.js"
 
 const app = createApp({ prismaClient: prismaHttpTest })
 
@@ -28,13 +29,9 @@ const anotherUser = {
     cpf:       "310.037.856-38",
 }
 
-const validDistributorBody = {
-    name:             "CEMIG",
-    cnpj:             "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC",
-    workingVoltage:   220,
-    kwhPrice:         0.75,
-}
+// tusdPerKwh=0.3 + tePerKwh=0.3 = 0.6 R$/kWh; tributos 27,25%; bandeira
+// GREEN = 0 — mesma fórmula "por dentro" em todos os testes via RATE.
+const RATE = 0.6 / (1 - 0.2725)
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -50,19 +47,18 @@ async function registerAndLogin(user = validUser) {
     return loginRes.body.data.token as string
 }
 
-// Monta a cadeia completa: distribuidora → property → area → device (1000W)
+// Monta a cadeia completa: distribuidora (catálogo) → property → area →
+// device (1000W). Distribuidora e bandeira tarifária são inseridas direto
+// no banco de teste — não existe mais POST /api/distributors.
 async function setupFull(user = validUser) {
     const token = await registerAndLogin(user)
-
-    const distRes = await request(app)
-        .post("/api/distributors")
-        .set("Authorization", `Bearer ${token}`)
-        .send(validDistributorBody)
+    const distributor = await createTestDistributor(prismaHttpTest)
+    await createTestTariffFlagConfig(prismaHttpTest)
 
     const propRes = await request(app)
         .post("/api/properties")
         .set("Authorization", `Bearer ${token}`)
-        .send({ name: "Casa", distributorId: distRes.body.data.id })
+        .send({ name: "Casa", distributorId: distributor.id, electricalSystem: "TRIPHASIC" })
 
     const areaRes = await request(app)
         .post(`/api/properties/${propRes.body.data.id}/areas`)
@@ -114,9 +110,7 @@ describe("POST /api/properties/:propertyId/simulation — target: PROPERTY", () 
         expect(response.body.data.period).toBe("DAILY")
         expect(response.body.data.inputMode).toBe("KWH_DIRECT")
         expect(response.body.data.kwhConsumed).toBe(10)
-        // 10 × 0,75 = 7,50
-        expect(response.body.data.costBrl).toBeCloseTo(7.5)
-        expect(response.body.data.kwhPrice).toBe(0.75)
+        expect(response.body.data.costBrl).toBeCloseTo(10 * RATE, 6)
         expect(response.body.data.projectedDays).toBe(1)
         expect(response.body.data.powerWatts).toBeNull()
         expect(response.body.data.dailyUsageHours).toBeNull()
@@ -137,9 +131,9 @@ describe("POST /api/properties/:propertyId/simulation — target: PROPERTY", () 
             })
 
         expect(response.status).toBe(200)
-        // 1000W × 4h × 30 dias = 120 kWh → 120 × 0,75 = R$ 90,00
+        // 1000W × 4h × 30 dias = 120 kWh (acima do piso de 100, TRIPHASIC)
         expect(response.body.data.kwhConsumed).toBeCloseTo(120)
-        expect(response.body.data.costBrl).toBeCloseTo(90)
+        expect(response.body.data.costBrl).toBeCloseTo(120 * RATE, 6)
         expect(response.body.data.projectedDays).toBe(30)
         expect(response.body.data.powerWatts).toBe(1000)
         expect(response.body.data.dailyUsageHours).toBe(4)
@@ -155,14 +149,14 @@ describe("POST /api/properties/:propertyId/simulation — target: PROPERTY", () 
                 period:          "ANNUAL",
                 target:          { type: "PROPERTY" },
                 inputMode:       "WATTS_HOURS",
-                powerWatts:      500,
+                powerWatts:      2000,
                 dailyUsageHours: 2,
             })
 
         expect(response.status).toBe(200)
-        // 500W × 2h × 365 dias = 365 kWh → 365 × 0,75 = R$ 273,75
-        expect(response.body.data.kwhConsumed).toBeCloseTo(365)
-        expect(response.body.data.costBrl).toBeCloseTo(273.75)
+        // 2000W × 2h × 365 dias = 1460 kWh — média mensal acima do piso de 100
+        expect(response.body.data.kwhConsumed).toBeCloseTo(1460)
+        expect(response.body.data.costBrl).toBeCloseTo(1460 * RATE, 6)
         expect(response.body.data.projectedDays).toBe(365)
     })
 
@@ -282,8 +276,7 @@ describe("POST /api/properties/:propertyId/simulation — target: AREA", () => {
 
         expect(response.status).toBe(200)
         expect(response.body.data.target).toMatchObject({ type: "AREA", areaId })
-        // 5 × 0,75 = R$ 3,75
-        expect(response.body.data.costBrl).toBeCloseTo(3.75)
+        expect(response.body.data.costBrl).toBeCloseTo(5 * RATE, 6)
     })
 
     it("deve retornar 200 para simulação de área com WATTS_HOURS", async () => {
@@ -301,9 +294,9 @@ describe("POST /api/properties/:propertyId/simulation — target: AREA", () => {
             })
 
         expect(response.status).toBe(200)
-        // 800W × 3h × 30 dias = 72 kWh → 72 × 0,75 = R$ 54,00
+        // 800W × 3h × 30 dias = 72 kWh (área não tem piso)
         expect(response.body.data.kwhConsumed).toBeCloseTo(72)
-        expect(response.body.data.costBrl).toBeCloseTo(54)
+        expect(response.body.data.costBrl).toBeCloseTo(72 * RATE, 6)
     })
 
     it("deve retornar 404 para areaId inexistente", async () => {
@@ -360,8 +353,7 @@ describe("POST /api/properties/:propertyId/simulation — target: DEVICE", () =>
 
         expect(response.status).toBe(200)
         expect(response.body.data.target).toMatchObject({ type: "DEVICE", deviceId, areaId })
-        // 8 × 0,75 = R$ 6,00
-        expect(response.body.data.costBrl).toBeCloseTo(6)
+        expect(response.body.data.costBrl).toBeCloseTo(8 * RATE, 6)
     })
 
     it("deve retornar 200 para simulação de device com WATTS_HOURS (powerWatts explícito)", async () => {
@@ -379,9 +371,9 @@ describe("POST /api/properties/:propertyId/simulation — target: DEVICE", () =>
             })
 
         expect(response.status).toBe(200)
-        // 500W × 6h × 30 dias = 90 kWh → 90 × 0,75 = R$ 67,50
+        // 500W × 6h × 30 dias = 90 kWh
         expect(response.body.data.kwhConsumed).toBeCloseTo(90)
-        expect(response.body.data.costBrl).toBeCloseTo(67.5)
+        expect(response.body.data.costBrl).toBeCloseTo(90 * RATE, 6)
     })
 
     it("deve usar powerWatts do device cadastrado quando omitido no body", async () => {
@@ -400,16 +392,15 @@ describe("POST /api/properties/:propertyId/simulation — target: DEVICE", () =>
             })
 
         expect(response.status).toBe(200)
-        // 1000W × 8h × 1 dia = 8 kWh → 8 × 0,75 = R$ 6,00
+        // 1000W × 8h × 1 dia = 8 kWh
         expect(response.body.data.powerWatts).toBe(1000)
         expect(response.body.data.kwhConsumed).toBeCloseTo(8)
-        expect(response.body.data.costBrl).toBeCloseTo(6)
+        expect(response.body.data.costBrl).toBeCloseTo(8 * RATE, 6)
     })
 
     it("deve retornar 422 ao omitir powerWatts para device sem powerWatts cadastrado", async () => {
         const { token, propertyId, areaId } = await setupFull()
 
-        // Cria um device sem powerWatts
         const deviceSemWattsRes = await request(app)
             .post(`/api/properties/${propertyId}/areas/${areaId}/devices`)
             .set("Authorization", `Bearer ${token}`)

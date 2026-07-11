@@ -49,7 +49,12 @@ beforeEach(() => {
 
 describe("useDevices", () => {
     it("dispara a query quando propertyId E areaId são informados", async () => {
-        vi.mocked(deviceService.list).mockResolvedValue([mockDevice])
+        vi.mocked(deviceService.list).mockResolvedValue({
+            items: [mockDevice],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+        })
         const queryClient = createTestQueryClient()
 
         const { result } = renderHook(() => useDevices("prop-1", "area-1"), {
@@ -57,8 +62,11 @@ describe("useDevices", () => {
         })
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
-        expect(deviceService.list).toHaveBeenCalledWith("prop-1", "area-1")
-        expect(result.current.data).toEqual([mockDevice])
+        expect(deviceService.list).toHaveBeenCalledWith("prop-1", "area-1", {
+            page: 1,
+            pageSize: 10,
+        })
+        expect(result.current.data?.items).toEqual([mockDevice])
     })
 
     it("NÃO dispara a query quando propertyId é undefined", () => {

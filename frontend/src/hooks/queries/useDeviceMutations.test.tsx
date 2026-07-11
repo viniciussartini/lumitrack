@@ -109,7 +109,7 @@ describe("useCreateDevice", () => {
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
         expect(invalidateSpy).toHaveBeenCalledWith({
-            queryKey: queryKeys.devices.list("prop-1", "area-1"),
+            queryKey: [...queryKeys.devices.all, "list", "prop-1", "area-1"],
         })
     })
 
@@ -203,7 +203,7 @@ describe("useUpdateDevice", () => {
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
         expect(invalidateSpy).toHaveBeenCalledWith({
-            queryKey: queryKeys.devices.list("prop-1", "area-1"),
+            queryKey: [...queryKeys.devices.all, "list", "prop-1", "area-1"],
         })
         expect(invalidateSpy).toHaveBeenCalledWith({
             queryKey: queryKeys.devices.detail(
@@ -283,7 +283,7 @@ describe("useDeleteDevice", () => {
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
         expect(invalidateSpy).toHaveBeenCalledWith({
-            queryKey: queryKeys.devices.list("prop-1", "area-1"),
+            queryKey: [...queryKeys.devices.all, "list", "prop-1", "area-1"],
         })
         expect(removeSpy).toHaveBeenCalledWith({
             queryKey: queryKeys.devices.detail(

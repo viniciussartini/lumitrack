@@ -241,9 +241,7 @@ export type DeviceWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"Device"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Device"> | Date | string
   area?: Prisma.XOR<Prisma.AreaScalarRelationFilter, Prisma.AreaWhereInput>
-  consumption?: Prisma.ConsumptionRecordListRelationFilter
-  alerts?: Prisma.AlertListRelationFilter
-  iotConfig?: Prisma.XOR<Prisma.IoTDeviceConfigNullableScalarRelationFilter, Prisma.IoTDeviceConfigWhereInput> | null
+  meter?: Prisma.XOR<Prisma.MeterNullableScalarRelationFilter, Prisma.MeterWhereInput> | null
 }
 
 export type DeviceOrderByWithRelationInput = {
@@ -256,9 +254,7 @@ export type DeviceOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   area?: Prisma.AreaOrderByWithRelationInput
-  consumption?: Prisma.ConsumptionRecordOrderByRelationAggregateInput
-  alerts?: Prisma.AlertOrderByRelationAggregateInput
-  iotConfig?: Prisma.IoTDeviceConfigOrderByWithRelationInput
+  meter?: Prisma.MeterOrderByWithRelationInput
 }
 
 export type DeviceWhereUniqueInput = Prisma.AtLeast<{
@@ -274,9 +270,7 @@ export type DeviceWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"Device"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Device"> | Date | string
   area?: Prisma.XOR<Prisma.AreaScalarRelationFilter, Prisma.AreaWhereInput>
-  consumption?: Prisma.ConsumptionRecordListRelationFilter
-  alerts?: Prisma.AlertListRelationFilter
-  iotConfig?: Prisma.XOR<Prisma.IoTDeviceConfigNullableScalarRelationFilter, Prisma.IoTDeviceConfigWhereInput> | null
+  meter?: Prisma.XOR<Prisma.MeterNullableScalarRelationFilter, Prisma.MeterWhereInput> | null
 }, "id">
 
 export type DeviceOrderByWithAggregationInput = {
@@ -318,9 +312,7 @@ export type DeviceCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   area: Prisma.AreaCreateNestedOneWithoutDevicesInput
-  consumption?: Prisma.ConsumptionRecordCreateNestedManyWithoutDeviceInput
-  alerts?: Prisma.AlertCreateNestedManyWithoutDeviceInput
-  iotConfig?: Prisma.IoTDeviceConfigCreateNestedOneWithoutDeviceInput
+  meter?: Prisma.MeterCreateNestedOneWithoutDeviceInput
 }
 
 export type DeviceUncheckedCreateInput = {
@@ -332,9 +324,7 @@ export type DeviceUncheckedCreateInput = {
   powerWatts?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
-  consumption?: Prisma.ConsumptionRecordUncheckedCreateNestedManyWithoutDeviceInput
-  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutDeviceInput
-  iotConfig?: Prisma.IoTDeviceConfigUncheckedCreateNestedOneWithoutDeviceInput
+  meter?: Prisma.MeterUncheckedCreateNestedOneWithoutDeviceInput
 }
 
 export type DeviceUpdateInput = {
@@ -346,9 +336,7 @@ export type DeviceUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   area?: Prisma.AreaUpdateOneRequiredWithoutDevicesNestedInput
-  consumption?: Prisma.ConsumptionRecordUpdateManyWithoutDeviceNestedInput
-  alerts?: Prisma.AlertUpdateManyWithoutDeviceNestedInput
-  iotConfig?: Prisma.IoTDeviceConfigUpdateOneWithoutDeviceNestedInput
+  meter?: Prisma.MeterUpdateOneWithoutDeviceNestedInput
 }
 
 export type DeviceUncheckedUpdateInput = {
@@ -360,9 +348,7 @@ export type DeviceUncheckedUpdateInput = {
   powerWatts?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  consumption?: Prisma.ConsumptionRecordUncheckedUpdateManyWithoutDeviceNestedInput
-  alerts?: Prisma.AlertUncheckedUpdateManyWithoutDeviceNestedInput
-  iotConfig?: Prisma.IoTDeviceConfigUncheckedUpdateOneWithoutDeviceNestedInput
+  meter?: Prisma.MeterUncheckedUpdateOneWithoutDeviceNestedInput
 }
 
 export type DeviceCreateManyInput = {
@@ -453,11 +439,6 @@ export type DeviceNullableScalarRelationFilter = {
   isNot?: Prisma.DeviceWhereInput | null
 }
 
-export type DeviceScalarRelationFilter = {
-  is?: Prisma.DeviceWhereInput
-  isNot?: Prisma.DeviceWhereInput
-}
-
 export type DeviceCreateNestedManyWithoutAreaInput = {
   create?: Prisma.XOR<Prisma.DeviceCreateWithoutAreaInput, Prisma.DeviceUncheckedCreateWithoutAreaInput> | Prisma.DeviceCreateWithoutAreaInput[] | Prisma.DeviceUncheckedCreateWithoutAreaInput[]
   connectOrCreate?: Prisma.DeviceCreateOrConnectWithoutAreaInput | Prisma.DeviceCreateOrConnectWithoutAreaInput[]
@@ -508,50 +489,20 @@ export type NullableFloatFieldUpdateOperationsInput = {
   divide?: number
 }
 
-export type DeviceCreateNestedOneWithoutConsumptionInput = {
-  create?: Prisma.XOR<Prisma.DeviceCreateWithoutConsumptionInput, Prisma.DeviceUncheckedCreateWithoutConsumptionInput>
-  connectOrCreate?: Prisma.DeviceCreateOrConnectWithoutConsumptionInput
+export type DeviceCreateNestedOneWithoutMeterInput = {
+  create?: Prisma.XOR<Prisma.DeviceCreateWithoutMeterInput, Prisma.DeviceUncheckedCreateWithoutMeterInput>
+  connectOrCreate?: Prisma.DeviceCreateOrConnectWithoutMeterInput
   connect?: Prisma.DeviceWhereUniqueInput
 }
 
-export type DeviceUpdateOneWithoutConsumptionNestedInput = {
-  create?: Prisma.XOR<Prisma.DeviceCreateWithoutConsumptionInput, Prisma.DeviceUncheckedCreateWithoutConsumptionInput>
-  connectOrCreate?: Prisma.DeviceCreateOrConnectWithoutConsumptionInput
-  upsert?: Prisma.DeviceUpsertWithoutConsumptionInput
+export type DeviceUpdateOneWithoutMeterNestedInput = {
+  create?: Prisma.XOR<Prisma.DeviceCreateWithoutMeterInput, Prisma.DeviceUncheckedCreateWithoutMeterInput>
+  connectOrCreate?: Prisma.DeviceCreateOrConnectWithoutMeterInput
+  upsert?: Prisma.DeviceUpsertWithoutMeterInput
   disconnect?: Prisma.DeviceWhereInput | boolean
   delete?: Prisma.DeviceWhereInput | boolean
   connect?: Prisma.DeviceWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.DeviceUpdateToOneWithWhereWithoutConsumptionInput, Prisma.DeviceUpdateWithoutConsumptionInput>, Prisma.DeviceUncheckedUpdateWithoutConsumptionInput>
-}
-
-export type DeviceCreateNestedOneWithoutAlertsInput = {
-  create?: Prisma.XOR<Prisma.DeviceCreateWithoutAlertsInput, Prisma.DeviceUncheckedCreateWithoutAlertsInput>
-  connectOrCreate?: Prisma.DeviceCreateOrConnectWithoutAlertsInput
-  connect?: Prisma.DeviceWhereUniqueInput
-}
-
-export type DeviceUpdateOneWithoutAlertsNestedInput = {
-  create?: Prisma.XOR<Prisma.DeviceCreateWithoutAlertsInput, Prisma.DeviceUncheckedCreateWithoutAlertsInput>
-  connectOrCreate?: Prisma.DeviceCreateOrConnectWithoutAlertsInput
-  upsert?: Prisma.DeviceUpsertWithoutAlertsInput
-  disconnect?: Prisma.DeviceWhereInput | boolean
-  delete?: Prisma.DeviceWhereInput | boolean
-  connect?: Prisma.DeviceWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.DeviceUpdateToOneWithWhereWithoutAlertsInput, Prisma.DeviceUpdateWithoutAlertsInput>, Prisma.DeviceUncheckedUpdateWithoutAlertsInput>
-}
-
-export type DeviceCreateNestedOneWithoutIotConfigInput = {
-  create?: Prisma.XOR<Prisma.DeviceCreateWithoutIotConfigInput, Prisma.DeviceUncheckedCreateWithoutIotConfigInput>
-  connectOrCreate?: Prisma.DeviceCreateOrConnectWithoutIotConfigInput
-  connect?: Prisma.DeviceWhereUniqueInput
-}
-
-export type DeviceUpdateOneRequiredWithoutIotConfigNestedInput = {
-  create?: Prisma.XOR<Prisma.DeviceCreateWithoutIotConfigInput, Prisma.DeviceUncheckedCreateWithoutIotConfigInput>
-  connectOrCreate?: Prisma.DeviceCreateOrConnectWithoutIotConfigInput
-  upsert?: Prisma.DeviceUpsertWithoutIotConfigInput
-  connect?: Prisma.DeviceWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.DeviceUpdateToOneWithWhereWithoutIotConfigInput, Prisma.DeviceUpdateWithoutIotConfigInput>, Prisma.DeviceUncheckedUpdateWithoutIotConfigInput>
+  update?: Prisma.XOR<Prisma.XOR<Prisma.DeviceUpdateToOneWithWhereWithoutMeterInput, Prisma.DeviceUpdateWithoutMeterInput>, Prisma.DeviceUncheckedUpdateWithoutMeterInput>
 }
 
 export type DeviceCreateWithoutAreaInput = {
@@ -562,9 +513,7 @@ export type DeviceCreateWithoutAreaInput = {
   powerWatts?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
-  consumption?: Prisma.ConsumptionRecordCreateNestedManyWithoutDeviceInput
-  alerts?: Prisma.AlertCreateNestedManyWithoutDeviceInput
-  iotConfig?: Prisma.IoTDeviceConfigCreateNestedOneWithoutDeviceInput
+  meter?: Prisma.MeterCreateNestedOneWithoutDeviceInput
 }
 
 export type DeviceUncheckedCreateWithoutAreaInput = {
@@ -575,9 +524,7 @@ export type DeviceUncheckedCreateWithoutAreaInput = {
   powerWatts?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
-  consumption?: Prisma.ConsumptionRecordUncheckedCreateNestedManyWithoutDeviceInput
-  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutDeviceInput
-  iotConfig?: Prisma.IoTDeviceConfigUncheckedCreateNestedOneWithoutDeviceInput
+  meter?: Prisma.MeterUncheckedCreateNestedOneWithoutDeviceInput
 }
 
 export type DeviceCreateOrConnectWithoutAreaInput = {
@@ -620,7 +567,7 @@ export type DeviceScalarWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"Device"> | Date | string
 }
 
-export type DeviceCreateWithoutConsumptionInput = {
+export type DeviceCreateWithoutMeterInput = {
   id?: string
   name: string
   brand?: string | null
@@ -629,11 +576,9 @@ export type DeviceCreateWithoutConsumptionInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   area: Prisma.AreaCreateNestedOneWithoutDevicesInput
-  alerts?: Prisma.AlertCreateNestedManyWithoutDeviceInput
-  iotConfig?: Prisma.IoTDeviceConfigCreateNestedOneWithoutDeviceInput
 }
 
-export type DeviceUncheckedCreateWithoutConsumptionInput = {
+export type DeviceUncheckedCreateWithoutMeterInput = {
   id?: string
   areaId: string
   name: string
@@ -642,27 +587,25 @@ export type DeviceUncheckedCreateWithoutConsumptionInput = {
   powerWatts?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
-  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutDeviceInput
-  iotConfig?: Prisma.IoTDeviceConfigUncheckedCreateNestedOneWithoutDeviceInput
 }
 
-export type DeviceCreateOrConnectWithoutConsumptionInput = {
+export type DeviceCreateOrConnectWithoutMeterInput = {
   where: Prisma.DeviceWhereUniqueInput
-  create: Prisma.XOR<Prisma.DeviceCreateWithoutConsumptionInput, Prisma.DeviceUncheckedCreateWithoutConsumptionInput>
+  create: Prisma.XOR<Prisma.DeviceCreateWithoutMeterInput, Prisma.DeviceUncheckedCreateWithoutMeterInput>
 }
 
-export type DeviceUpsertWithoutConsumptionInput = {
-  update: Prisma.XOR<Prisma.DeviceUpdateWithoutConsumptionInput, Prisma.DeviceUncheckedUpdateWithoutConsumptionInput>
-  create: Prisma.XOR<Prisma.DeviceCreateWithoutConsumptionInput, Prisma.DeviceUncheckedCreateWithoutConsumptionInput>
+export type DeviceUpsertWithoutMeterInput = {
+  update: Prisma.XOR<Prisma.DeviceUpdateWithoutMeterInput, Prisma.DeviceUncheckedUpdateWithoutMeterInput>
+  create: Prisma.XOR<Prisma.DeviceCreateWithoutMeterInput, Prisma.DeviceUncheckedCreateWithoutMeterInput>
   where?: Prisma.DeviceWhereInput
 }
 
-export type DeviceUpdateToOneWithWhereWithoutConsumptionInput = {
+export type DeviceUpdateToOneWithWhereWithoutMeterInput = {
   where?: Prisma.DeviceWhereInput
-  data: Prisma.XOR<Prisma.DeviceUpdateWithoutConsumptionInput, Prisma.DeviceUncheckedUpdateWithoutConsumptionInput>
+  data: Prisma.XOR<Prisma.DeviceUpdateWithoutMeterInput, Prisma.DeviceUncheckedUpdateWithoutMeterInput>
 }
 
-export type DeviceUpdateWithoutConsumptionInput = {
+export type DeviceUpdateWithoutMeterInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   brand?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -671,11 +614,9 @@ export type DeviceUpdateWithoutConsumptionInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   area?: Prisma.AreaUpdateOneRequiredWithoutDevicesNestedInput
-  alerts?: Prisma.AlertUpdateManyWithoutDeviceNestedInput
-  iotConfig?: Prisma.IoTDeviceConfigUpdateOneWithoutDeviceNestedInput
 }
 
-export type DeviceUncheckedUpdateWithoutConsumptionInput = {
+export type DeviceUncheckedUpdateWithoutMeterInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   areaId?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
@@ -684,144 +625,6 @@ export type DeviceUncheckedUpdateWithoutConsumptionInput = {
   powerWatts?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  alerts?: Prisma.AlertUncheckedUpdateManyWithoutDeviceNestedInput
-  iotConfig?: Prisma.IoTDeviceConfigUncheckedUpdateOneWithoutDeviceNestedInput
-}
-
-export type DeviceCreateWithoutAlertsInput = {
-  id?: string
-  name: string
-  brand?: string | null
-  model?: string | null
-  powerWatts?: number | null
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  area: Prisma.AreaCreateNestedOneWithoutDevicesInput
-  consumption?: Prisma.ConsumptionRecordCreateNestedManyWithoutDeviceInput
-  iotConfig?: Prisma.IoTDeviceConfigCreateNestedOneWithoutDeviceInput
-}
-
-export type DeviceUncheckedCreateWithoutAlertsInput = {
-  id?: string
-  areaId: string
-  name: string
-  brand?: string | null
-  model?: string | null
-  powerWatts?: number | null
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  consumption?: Prisma.ConsumptionRecordUncheckedCreateNestedManyWithoutDeviceInput
-  iotConfig?: Prisma.IoTDeviceConfigUncheckedCreateNestedOneWithoutDeviceInput
-}
-
-export type DeviceCreateOrConnectWithoutAlertsInput = {
-  where: Prisma.DeviceWhereUniqueInput
-  create: Prisma.XOR<Prisma.DeviceCreateWithoutAlertsInput, Prisma.DeviceUncheckedCreateWithoutAlertsInput>
-}
-
-export type DeviceUpsertWithoutAlertsInput = {
-  update: Prisma.XOR<Prisma.DeviceUpdateWithoutAlertsInput, Prisma.DeviceUncheckedUpdateWithoutAlertsInput>
-  create: Prisma.XOR<Prisma.DeviceCreateWithoutAlertsInput, Prisma.DeviceUncheckedCreateWithoutAlertsInput>
-  where?: Prisma.DeviceWhereInput
-}
-
-export type DeviceUpdateToOneWithWhereWithoutAlertsInput = {
-  where?: Prisma.DeviceWhereInput
-  data: Prisma.XOR<Prisma.DeviceUpdateWithoutAlertsInput, Prisma.DeviceUncheckedUpdateWithoutAlertsInput>
-}
-
-export type DeviceUpdateWithoutAlertsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  brand?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  model?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  powerWatts?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  area?: Prisma.AreaUpdateOneRequiredWithoutDevicesNestedInput
-  consumption?: Prisma.ConsumptionRecordUpdateManyWithoutDeviceNestedInput
-  iotConfig?: Prisma.IoTDeviceConfigUpdateOneWithoutDeviceNestedInput
-}
-
-export type DeviceUncheckedUpdateWithoutAlertsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  areaId?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  brand?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  model?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  powerWatts?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  consumption?: Prisma.ConsumptionRecordUncheckedUpdateManyWithoutDeviceNestedInput
-  iotConfig?: Prisma.IoTDeviceConfigUncheckedUpdateOneWithoutDeviceNestedInput
-}
-
-export type DeviceCreateWithoutIotConfigInput = {
-  id?: string
-  name: string
-  brand?: string | null
-  model?: string | null
-  powerWatts?: number | null
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  area: Prisma.AreaCreateNestedOneWithoutDevicesInput
-  consumption?: Prisma.ConsumptionRecordCreateNestedManyWithoutDeviceInput
-  alerts?: Prisma.AlertCreateNestedManyWithoutDeviceInput
-}
-
-export type DeviceUncheckedCreateWithoutIotConfigInput = {
-  id?: string
-  areaId: string
-  name: string
-  brand?: string | null
-  model?: string | null
-  powerWatts?: number | null
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  consumption?: Prisma.ConsumptionRecordUncheckedCreateNestedManyWithoutDeviceInput
-  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutDeviceInput
-}
-
-export type DeviceCreateOrConnectWithoutIotConfigInput = {
-  where: Prisma.DeviceWhereUniqueInput
-  create: Prisma.XOR<Prisma.DeviceCreateWithoutIotConfigInput, Prisma.DeviceUncheckedCreateWithoutIotConfigInput>
-}
-
-export type DeviceUpsertWithoutIotConfigInput = {
-  update: Prisma.XOR<Prisma.DeviceUpdateWithoutIotConfigInput, Prisma.DeviceUncheckedUpdateWithoutIotConfigInput>
-  create: Prisma.XOR<Prisma.DeviceCreateWithoutIotConfigInput, Prisma.DeviceUncheckedCreateWithoutIotConfigInput>
-  where?: Prisma.DeviceWhereInput
-}
-
-export type DeviceUpdateToOneWithWhereWithoutIotConfigInput = {
-  where?: Prisma.DeviceWhereInput
-  data: Prisma.XOR<Prisma.DeviceUpdateWithoutIotConfigInput, Prisma.DeviceUncheckedUpdateWithoutIotConfigInput>
-}
-
-export type DeviceUpdateWithoutIotConfigInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  brand?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  model?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  powerWatts?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  area?: Prisma.AreaUpdateOneRequiredWithoutDevicesNestedInput
-  consumption?: Prisma.ConsumptionRecordUpdateManyWithoutDeviceNestedInput
-  alerts?: Prisma.AlertUpdateManyWithoutDeviceNestedInput
-}
-
-export type DeviceUncheckedUpdateWithoutIotConfigInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  areaId?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  brand?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  model?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  powerWatts?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  consumption?: Prisma.ConsumptionRecordUncheckedUpdateManyWithoutDeviceNestedInput
-  alerts?: Prisma.AlertUncheckedUpdateManyWithoutDeviceNestedInput
 }
 
 export type DeviceCreateManyAreaInput = {
@@ -842,9 +645,7 @@ export type DeviceUpdateWithoutAreaInput = {
   powerWatts?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  consumption?: Prisma.ConsumptionRecordUpdateManyWithoutDeviceNestedInput
-  alerts?: Prisma.AlertUpdateManyWithoutDeviceNestedInput
-  iotConfig?: Prisma.IoTDeviceConfigUpdateOneWithoutDeviceNestedInput
+  meter?: Prisma.MeterUpdateOneWithoutDeviceNestedInput
 }
 
 export type DeviceUncheckedUpdateWithoutAreaInput = {
@@ -855,9 +656,7 @@ export type DeviceUncheckedUpdateWithoutAreaInput = {
   powerWatts?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  consumption?: Prisma.ConsumptionRecordUncheckedUpdateManyWithoutDeviceNestedInput
-  alerts?: Prisma.AlertUncheckedUpdateManyWithoutDeviceNestedInput
-  iotConfig?: Prisma.IoTDeviceConfigUncheckedUpdateOneWithoutDeviceNestedInput
+  meter?: Prisma.MeterUncheckedUpdateOneWithoutDeviceNestedInput
 }
 
 export type DeviceUncheckedUpdateManyWithoutAreaInput = {
@@ -871,44 +670,6 @@ export type DeviceUncheckedUpdateManyWithoutAreaInput = {
 }
 
 
-/**
- * Count Type DeviceCountOutputType
- */
-
-export type DeviceCountOutputType = {
-  consumption: number
-  alerts: number
-}
-
-export type DeviceCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  consumption?: boolean | DeviceCountOutputTypeCountConsumptionArgs
-  alerts?: boolean | DeviceCountOutputTypeCountAlertsArgs
-}
-
-/**
- * DeviceCountOutputType without action
- */
-export type DeviceCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the DeviceCountOutputType
-   */
-  select?: Prisma.DeviceCountOutputTypeSelect<ExtArgs> | null
-}
-
-/**
- * DeviceCountOutputType without action
- */
-export type DeviceCountOutputTypeCountConsumptionArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.ConsumptionRecordWhereInput
-}
-
-/**
- * DeviceCountOutputType without action
- */
-export type DeviceCountOutputTypeCountAlertsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.AlertWhereInput
-}
-
 
 export type DeviceSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -920,10 +681,7 @@ export type DeviceSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   createdAt?: boolean
   updatedAt?: boolean
   area?: boolean | Prisma.AreaDefaultArgs<ExtArgs>
-  consumption?: boolean | Prisma.Device$consumptionArgs<ExtArgs>
-  alerts?: boolean | Prisma.Device$alertsArgs<ExtArgs>
-  iotConfig?: boolean | Prisma.Device$iotConfigArgs<ExtArgs>
-  _count?: boolean | Prisma.DeviceCountOutputTypeDefaultArgs<ExtArgs>
+  meter?: boolean | Prisma.Device$meterArgs<ExtArgs>
 }, ExtArgs["result"]["device"]>
 
 export type DeviceSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -964,10 +722,7 @@ export type DeviceSelectScalar = {
 export type DeviceOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "areaId" | "name" | "brand" | "model" | "powerWatts" | "createdAt" | "updatedAt", ExtArgs["result"]["device"]>
 export type DeviceInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   area?: boolean | Prisma.AreaDefaultArgs<ExtArgs>
-  consumption?: boolean | Prisma.Device$consumptionArgs<ExtArgs>
-  alerts?: boolean | Prisma.Device$alertsArgs<ExtArgs>
-  iotConfig?: boolean | Prisma.Device$iotConfigArgs<ExtArgs>
-  _count?: boolean | Prisma.DeviceCountOutputTypeDefaultArgs<ExtArgs>
+  meter?: boolean | Prisma.Device$meterArgs<ExtArgs>
 }
 export type DeviceIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   area?: boolean | Prisma.AreaDefaultArgs<ExtArgs>
@@ -980,9 +735,7 @@ export type $DevicePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
   name: "Device"
   objects: {
     area: Prisma.$AreaPayload<ExtArgs>
-    consumption: Prisma.$ConsumptionRecordPayload<ExtArgs>[]
-    alerts: Prisma.$AlertPayload<ExtArgs>[]
-    iotConfig: Prisma.$IoTDeviceConfigPayload<ExtArgs> | null
+    meter: Prisma.$MeterPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1388,9 +1141,7 @@ readonly fields: DeviceFieldRefs;
 export interface Prisma__DeviceClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   area<T extends Prisma.AreaDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AreaDefaultArgs<ExtArgs>>): Prisma.Prisma__AreaClient<runtime.Types.Result.GetResult<Prisma.$AreaPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
-  consumption<T extends Prisma.Device$consumptionArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Device$consumptionArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConsumptionRecordPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  alerts<T extends Prisma.Device$alertsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Device$alertsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AlertPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  iotConfig<T extends Prisma.Device$iotConfigArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Device$iotConfigArgs<ExtArgs>>): Prisma.Prisma__IoTDeviceConfigClient<runtime.Types.Result.GetResult<Prisma.$IoTDeviceConfigPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  meter<T extends Prisma.Device$meterArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Device$meterArgs<ExtArgs>>): Prisma.Prisma__MeterClient<runtime.Types.Result.GetResult<Prisma.$MeterPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1829,70 +1580,22 @@ export type DeviceDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Intern
 }
 
 /**
- * Device.consumption
+ * Device.meter
  */
-export type Device$consumptionArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type Device$meterArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the ConsumptionRecord
+   * Select specific fields to fetch from the Meter
    */
-  select?: Prisma.ConsumptionRecordSelect<ExtArgs> | null
+  select?: Prisma.MeterSelect<ExtArgs> | null
   /**
-   * Omit specific fields from the ConsumptionRecord
+   * Omit specific fields from the Meter
    */
-  omit?: Prisma.ConsumptionRecordOmit<ExtArgs> | null
+  omit?: Prisma.MeterOmit<ExtArgs> | null
   /**
    * Choose, which related nodes to fetch as well
    */
-  include?: Prisma.ConsumptionRecordInclude<ExtArgs> | null
-  where?: Prisma.ConsumptionRecordWhereInput
-  orderBy?: Prisma.ConsumptionRecordOrderByWithRelationInput | Prisma.ConsumptionRecordOrderByWithRelationInput[]
-  cursor?: Prisma.ConsumptionRecordWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.ConsumptionRecordScalarFieldEnum | Prisma.ConsumptionRecordScalarFieldEnum[]
-}
-
-/**
- * Device.alerts
- */
-export type Device$alertsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the Alert
-   */
-  select?: Prisma.AlertSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the Alert
-   */
-  omit?: Prisma.AlertOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.AlertInclude<ExtArgs> | null
-  where?: Prisma.AlertWhereInput
-  orderBy?: Prisma.AlertOrderByWithRelationInput | Prisma.AlertOrderByWithRelationInput[]
-  cursor?: Prisma.AlertWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.AlertScalarFieldEnum | Prisma.AlertScalarFieldEnum[]
-}
-
-/**
- * Device.iotConfig
- */
-export type Device$iotConfigArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the IoTDeviceConfig
-   */
-  select?: Prisma.IoTDeviceConfigSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the IoTDeviceConfig
-   */
-  omit?: Prisma.IoTDeviceConfigOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.IoTDeviceConfigInclude<ExtArgs> | null
-  where?: Prisma.IoTDeviceConfigWhereInput
+  include?: Prisma.MeterInclude<ExtArgs> | null
+  where?: Prisma.MeterWhereInput
 }
 
 /**

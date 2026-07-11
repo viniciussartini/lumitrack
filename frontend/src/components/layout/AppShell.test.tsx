@@ -22,26 +22,32 @@ vi.mock("@/services/api", () => ({
         error instanceof Error ? error.message : "Erro",
 }))
 
-// AlertBellBadge usa useAlerts() → precisamos do alertService mockado
+// WarningBadge usa useFiringAlerts() → precisamos do alertService mockado
 vi.mock("@/services/alert.service", () => ({
     alertService: {
-        listGlobal: vi.fn().mockResolvedValue([]),
-        listByProperty: vi.fn(),
-        listByArea: vi.fn(),
-        listByDevice: vi.fn(),
+        list: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 10 }),
+        firing: vi.fn().mockResolvedValue([]),
         getById: vi.fn(),
-        createForProperty: vi.fn(),
-        createForArea: vi.fn(),
-        createForDevice: vi.fn(),
+        create: vi.fn(),
         update: vi.fn(),
-        markAsRead: vi.fn(),
+        patchEnabled: vi.fn(),
         delete: vi.fn(),
     },
 }))
 
-// useAlertStream abre SSE — mockar pra evitar side effects em testes
-vi.mock("@/hooks/useAlertStream", () => ({
-    useAlertStream: vi.fn(),
+// NotificationDropdown usa useNotifications() → precisamos do notificationService mockado
+vi.mock("@/services/notification.service", () => ({
+    notificationService: {
+        list: vi.fn().mockResolvedValue([]),
+        delete: vi.fn(),
+        deleteAll: vi.fn(),
+    },
+}))
+
+// RealtimeProvider abre SSE via createAppStream — mockar pra evitar side
+// effects em testes (conexão de rede real, timers pendentes).
+vi.mock("@/lib/sse/appStream", () => ({
+    createAppStream: vi.fn(() => () => {}),
 }))
 
 const mockUser: User = {

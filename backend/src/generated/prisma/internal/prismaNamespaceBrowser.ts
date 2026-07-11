@@ -61,9 +61,11 @@ export const ModelName = {
   Property: 'Property',
   Area: 'Area',
   Device: 'Device',
-  ConsumptionRecord: 'ConsumptionRecord',
+  Meter: 'Meter',
+  MeterReading: 'MeterReading',
+  TariffFlagConfig: 'TariffFlagConfig',
   Alert: 'Alert',
-  IoTDeviceConfig: 'IoTDeviceConfig'
+  AlertTriggerEvent: 'AlertTriggerEvent'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -174,14 +176,14 @@ export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typ
 
 export const EnergyDistributorScalarFieldEnum = {
   id: 'id',
-  userId: 'userId',
   name: 'name',
   cnpj: 'cnpj',
-  electricalSystem: 'electricalSystem',
-  workingVoltage: 'workingVoltage',
-  kwhPrice: 'kwhPrice',
-  taxRate: 'taxRate',
-  publicLightingFee: 'publicLightingFee',
+  state: 'state',
+  tusdPerKwh: 'tusdPerKwh',
+  tePerKwh: 'tePerKwh',
+  icmsRate: 'icmsRate',
+  pisRate: 'pisRate',
+  cofinsRate: 'cofinsRate',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -198,6 +200,9 @@ export const PropertyScalarFieldEnum = {
   city: 'city',
   state: 'state',
   zipCode: 'zipCode',
+  electricalSystem: 'electricalSystem',
+  billingClass: 'billingClass',
+  publicLightingFeeBrl: 'publicLightingFeeBrl',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -231,43 +236,12 @@ export const DeviceScalarFieldEnum = {
 export type DeviceScalarFieldEnum = (typeof DeviceScalarFieldEnum)[keyof typeof DeviceScalarFieldEnum]
 
 
-export const ConsumptionRecordScalarFieldEnum = {
+export const MeterScalarFieldEnum = {
   id: 'id',
-  propertyId: 'propertyId',
-  areaId: 'areaId',
-  deviceId: 'deviceId',
-  period: 'period',
-  referenceDate: 'referenceDate',
-  kwhConsumed: 'kwhConsumed',
-  costBrl: 'costBrl',
-  notes: 'notes',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type ConsumptionRecordScalarFieldEnum = (typeof ConsumptionRecordScalarFieldEnum)[keyof typeof ConsumptionRecordScalarFieldEnum]
-
-
-export const AlertScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
+  name: 'name',
   targetType: 'targetType',
   propertyId: 'propertyId',
   areaId: 'areaId',
-  deviceId: 'deviceId',
-  thresholdKwh: 'thresholdKwh',
-  message: 'message',
-  triggeredAt: 'triggeredAt',
-  readAt: 'readAt',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type AlertScalarFieldEnum = (typeof AlertScalarFieldEnum)[keyof typeof AlertScalarFieldEnum]
-
-
-export const IoTDeviceConfigScalarFieldEnum = {
-  id: 'id',
   deviceId: 'deviceId',
   protocol: 'protocol',
   host: 'host',
@@ -279,7 +253,69 @@ export const IoTDeviceConfigScalarFieldEnum = {
   updatedAt: 'updatedAt'
 } as const
 
-export type IoTDeviceConfigScalarFieldEnum = (typeof IoTDeviceConfigScalarFieldEnum)[keyof typeof IoTDeviceConfigScalarFieldEnum]
+export type MeterScalarFieldEnum = (typeof MeterScalarFieldEnum)[keyof typeof MeterScalarFieldEnum]
+
+
+export const MeterReadingScalarFieldEnum = {
+  id: 'id',
+  meterId: 'meterId',
+  minuteStart: 'minuteStart',
+  kwhConsumed: 'kwhConsumed',
+  avgVoltage: 'avgVoltage',
+  avgCurrent: 'avgCurrent',
+  avgPowerW: 'avgPowerW',
+  avgPowerFactor: 'avgPowerFactor',
+  sampleCount: 'sampleCount',
+  secondsCovered: 'secondsCovered',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MeterReadingScalarFieldEnum = (typeof MeterReadingScalarFieldEnum)[keyof typeof MeterReadingScalarFieldEnum]
+
+
+export const TariffFlagConfigScalarFieldEnum = {
+  id: 'id',
+  currentFlag: 'currentFlag',
+  greenPer100Kwh: 'greenPer100Kwh',
+  yellowPer100Kwh: 'yellowPer100Kwh',
+  redP1Per100Kwh: 'redP1Per100Kwh',
+  redP2Per100Kwh: 'redP2Per100Kwh',
+  updatedAt: 'updatedAt'
+} as const
+
+export type TariffFlagConfigScalarFieldEnum = (typeof TariffFlagConfigScalarFieldEnum)[keyof typeof TariffFlagConfigScalarFieldEnum]
+
+
+export const AlertScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  meterId: 'meterId',
+  name: 'name',
+  referencePowerKw: 'referencePowerKw',
+  tolerancePercent: 'tolerancePercent',
+  enabled: 'enabled',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AlertScalarFieldEnum = (typeof AlertScalarFieldEnum)[keyof typeof AlertScalarFieldEnum]
+
+
+export const AlertTriggerEventScalarFieldEnum = {
+  id: 'id',
+  alertId: 'alertId',
+  startedAt: 'startedAt',
+  endedAt: 'endedAt',
+  durationSeconds: 'durationSeconds',
+  minPowerW: 'minPowerW',
+  maxPowerW: 'maxPowerW',
+  avgPowerW: 'avgPowerW',
+  sampleCount: 'sampleCount',
+  createdAt: 'createdAt'
+} as const
+
+export type AlertTriggerEventScalarFieldEnum = (typeof AlertTriggerEventScalarFieldEnum)[keyof typeof AlertTriggerEventScalarFieldEnum]
 
 
 export const SortOrder = {

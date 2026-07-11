@@ -6,8 +6,6 @@ import { DashboardPage } from "@/pages/dashboard/DashboardPage"
 import { AppShell } from "@/components/layout/AppShell"
 import { RegisterPage } from "@/pages/auth/RegisterPage"
 import { DistribuidorsPage } from "@/pages/distributor/DistributorsPage"
-import { NewDistributorPage } from "@/pages/distributor/NewDistributorPage"
-import { EditDistributorPage } from "@/pages/distributor/EditDistributorPage"
 import { PropertiesPage } from "@/pages/property/PropertiesPage"
 import { NewPropertyPage } from "@/pages/property/NewPropertyPage"
 import { PropertyDetailsPage } from "@/pages/property/PropertyDetailsPage"
@@ -19,9 +17,8 @@ import { NewDevicePage } from "@/pages/device/NewDevicePage"
 import { DeviceDetailsPage } from "@/pages/device/DeviceDetailsPage"
 import { EditDevicePage } from "@/pages/device/EditDevicePage"
 import { AlertsPage } from "@/pages/alert/AlertsPage"
-import { PropertyReportPage } from "@/pages/report/PropertyReportPage"
-import { AreaReportPage } from "@/pages/report/AreaReportPage"
-import { DeviceReportPage } from "@/pages/report/DeviceReportPage"
+import { ReportsPage } from "@/pages/report/ReportsPage"
+import { SimulationPage } from "@/pages/simulation/SimulationPage"
 import { PrivacyPolicyPage } from "@/pages/legal/PrivacyPolicyPage"
 import { TermsOfUsePage } from "@/pages/legal/TermsOfUsePage"
 import { SecurityPage } from "@/pages/settings/SecurityPage"
@@ -54,8 +51,6 @@ export const AppRouter = () => (
                 <Route path="/dashboard" element={<DashboardPage />} />
                 
                 <Route path="/distribuidoras" element={<DistribuidorsPage />} />
-                <Route path="/distribuidoras/nova" element={<NewDistributorPage />} />
-                <Route path="/distribuidoras/:id/editar" element={<EditDistributorPage />} />
 
                 <Route path="/propriedades" element={<PropertiesPage />} />
                 <Route path="/propriedades/nova" element={<NewPropertyPage />} />
@@ -72,14 +67,15 @@ export const AppRouter = () => (
                 <Route path="/propriedades/:propertyId/areas/:areaId/devices/:deviceId" element={<DeviceDetailsPage />} />
                 <Route path="/propriedades/:propertyId/areas/:areaId/devices/:deviceId/editar" element={<EditDevicePage />} />
 
-                {/* Alertas — inbox global. Filtros via query string (?triggered=true|false). */}
+                {/* Alertas — inbox global. */}
                 <Route path="/alertas" element={<AlertsPage />} />
 
-                {/* Relatórios — uma rota dedicada por nível (Property/Area/Device).
-                    Query string sincronizada: ?period=DAILY|MONTHLY|ANNUAL&dateFrom=...&dateTo=... */}
-                <Route path="/propriedades/:id/relatorio" element={<PropertyReportPage />} />
-                <Route path="/propriedades/:propertyId/areas/:areaId/relatorio" element={<AreaReportPage />} />
-                <Route path="/propriedades/:propertyId/areas/:areaId/devices/:deviceId/relatorio" element={<DeviceReportPage />} />
+                {/* Relatórios — seletor cascata de alvo (propriedade → área → dispositivo)
+                    + 4 granularidades (hora/dia/mês/ano). */}
+                <Route path="/relatorios" element={<ReportsPage />} />
+
+                {/* Simulação — placeholder (Fase 5). */}
+                <Route path="/simulacao" element={<SimulationPage />} />
 
                 {/* Conta do usuário logado — acessível via UserMenu no Header. */}
                 <Route path="/seguranca" element={<SecurityPage />} />

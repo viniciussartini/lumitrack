@@ -40,31 +40,56 @@ export const queryClient = new QueryClient({
 
 /**
  * Chaves de query — centralizadas para evitar typos e facilitar invalidação.
+ *
+ * Reformulação IoT (Fase 5): listagens paginadas (properties, areas, devices,
+ * meters, distributors, alerts, alertEvents, consumption) incluem page/pageSize
+ * na key — páginas diferentes são resultados diferentes que valem cache
+ * próprio. `notifications` não é paginado (efêmero, cap de 100 no backend).
  */
 export const queryKeys = {
     distributors: {
         all: ["distributors"] as const,
-        list: () => [...queryKeys.distributors.all, "list"] as const,
+        list: (page: number, pageSize: number) =>
+            [...queryKeys.distributors.all, "list", page, pageSize] as const,
         detail: (id: string) =>
             [...queryKeys.distributors.all, "detail", id] as const,
     },
     properties: {
         all: ["properties"] as const,
-        list: () => [...queryKeys.properties.all, "list"] as const,
+        list: (page: number, pageSize: number) =>
+            [...queryKeys.properties.all, "list", page, pageSize] as const,
         detail: (id: string) =>
             [...queryKeys.properties.all, "detail", id] as const,
     },
     areas: {
         all: ["areas"] as const,
-        list: (propertyId: string) =>
-            [...queryKeys.areas.all, "list", propertyId] as const,
+        list: (propertyId: string, page: number, pageSize: number) =>
+            [
+                ...queryKeys.areas.all,
+                "list",
+                propertyId,
+                page,
+                pageSize,
+            ] as const,
         detail: (propertyId: string, areaId: string) =>
             [...queryKeys.areas.all, "detail", propertyId, areaId] as const,
     },
     devices: {
         all: ["devices"] as const,
-        list: (propertyId: string, areaId: string) =>
-            [...queryKeys.devices.all, "list", propertyId, areaId] as const,
+        list: (
+            propertyId: string,
+            areaId: string,
+            page: number,
+            pageSize: number,
+        ) =>
+            [
+                ...queryKeys.devices.all,
+                "list",
+                propertyId,
+                areaId,
+                page,
+                pageSize,
+            ] as const,
         detail: (propertyId: string, areaId: string, deviceId: string) =>
             [
                 ...queryKeys.devices.all,
@@ -74,158 +99,55 @@ export const queryKeys = {
                 deviceId,
             ] as const,
     },
+    meters: {
+        all: ["meters"] as const,
+        list: (page: number, pageSize: number) =>
+            [...queryKeys.meters.all, "list", page, pageSize] as const,
+        byTarget: (targetType: string, targetId: string) =>
+            [...queryKeys.meters.all, "by-target", targetType, targetId] as const,
+        detail: (id: string) =>
+            [...queryKeys.meters.all, "detail", id] as const,
+    },
     consumption: {
         all: ["consumption"] as const,
-        byProperty: (propertyId: string, period?: string) =>
-            [
-                ...queryKeys.consumption.all,
-                "list",
-                "property",
-                propertyId,
-                period ?? "all",
-            ] as const,
-
-        byArea: (propertyId: string, areaId: string, period?: string) =>
-            [
-                ...queryKeys.consumption.all,
-                "list",
-                "area",
-                propertyId,
-                areaId,
-                period ?? "all",
-            ] as const,
-
-        byDevice: (
-            propertyId: string,
-            areaId: string,
-            deviceId: string,
-            period?: string,
+        list: (
+            targetType: string,
+            targetId: string,
+            granularity: string,
+            page: number,
+            pageSize: number,
         ) =>
             [
                 ...queryKeys.consumption.all,
                 "list",
-                "device",
-                propertyId,
-                areaId,
-                deviceId,
-                period ?? "all",
+                targetType,
+                targetId,
+                granularity,
+                page,
+                pageSize,
             ] as const,
-
-        // Detalhe — apenas pelo id; o backend não exige propertyId pra
-        // localizar (mas exige pra autorizar). A query inclui propertyId
-        // como "scope guard" implícito via queryFn, mas a key é só pelo id.
-        detail: (id: string) =>
-            [...queryKeys.consumption.all, "detail", id] as const,
     },
     alerts: {
         all: ["alerts"] as const,
-    
-        /**
-         * Inbox global em /alertas — filtro por triggered.
-         * Convenção: undefined → "all", true → "triggered", false → "active".
-         */
-        global: (triggered?: boolean) =>
-            [
-                ...queryKeys.alerts.all,
-                "list",
-                "global",
-                triggered === undefined
-                    ? "all"
-                    : triggered
-                    ? "triggered"
-                    : "active",
-            ] as const,
-    
-        byProperty: (propertyId: string) =>
-            [
-                ...queryKeys.alerts.all,
-                "list",
-                "property",
-                propertyId,
-            ] as const,
-    
-        byArea: (propertyId: string, areaId: string) =>
-            [
-                ...queryKeys.alerts.all,
-                "list",
-                "area",
-                propertyId,
-                areaId,
-            ] as const,
-    
-        byDevice: (propertyId: string, areaId: string, deviceId: string) =>
-            [
-                ...queryKeys.alerts.all,
-                "list",
-                "device",
-                propertyId,
-                areaId,
-                deviceId,
-            ] as const,
-    
-        /**
-         * Detalhe — apenas pelo id; backend usa /alerts/:id.
-         */
+        list: (page: number, pageSize: number) =>
+            [...queryKeys.alerts.all, "list", page, pageSize] as const,
+        firing: () => [...queryKeys.alerts.all, "firing"] as const,
         detail: (id: string) =>
             [...queryKeys.alerts.all, "detail", id] as const,
     },
-    reports: {
-        all: ["reports"] as const,
-        /**
-         * Chave de um relatório de propriedade. Inclui filtros porque cada
-         * combinação (period + dateFrom + dateTo) é um resultado distinto
-         * que vale a pena cachear separadamente.
-         *
-         * `?? "all"` mantém a chave estável quando o filtro é undefined —
-         * mesmo padrão do queryKeys.consumption.byProperty.
-         */
-        byProperty: (
-            propertyId: string,
-            period: string,
-            dateFrom?: string,
-            dateTo?: string,
-        ) =>
+    alertEvents: {
+        all: ["alertEvents"] as const,
+        list: (alertId: string, page: number, pageSize: number) =>
             [
-                ...queryKeys.reports.all,
-                "property",
-                propertyId,
-                period,
-                dateFrom ?? "all",
-                dateTo ?? "all",
+                ...queryKeys.alertEvents.all,
+                "list",
+                alertId,
+                page,
+                pageSize,
             ] as const,
-        byArea: (
-            propertyId: string,
-            areaId: string,
-            period: string,
-            dateFrom?: string,
-            dateTo?: string,
-        ) =>
-            [
-                ...queryKeys.reports.all,
-                "area",
-                propertyId,
-                areaId,
-                period,
-                dateFrom ?? "all",
-                dateTo ?? "all",
-            ] as const,
-        byDevice: (
-            propertyId: string,
-            areaId: string,
-            deviceId: string,
-            period: string,
-            dateFrom?: string,
-            dateTo?: string,
-        ) =>
-            [
-                ...queryKeys.reports.all,
-                "device",
-                propertyId,
-                areaId,
-                deviceId,
-                period,
-                dateFrom ?? "all",
-                dateTo ?? "all",
-            ] as const,
+    },
+    notifications: {
+        all: ["notifications"] as const,
+        list: () => [...queryKeys.notifications.all, "list"] as const,
     },
 } as const

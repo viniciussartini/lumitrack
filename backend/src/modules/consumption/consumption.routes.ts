@@ -3,93 +3,39 @@ import { PrismaClient } from "@/generated/prisma/client.js"
 import { ConsumptionController } from "@/modules/consumption/consumption.controller.js"
 import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
 import { ConsumptionService } from "@/modules/consumption/consumption.service.js"
+import { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
-import { AlertRepository } from "../alert/alert.repository.js"
-import { AlertService } from "../alert/alert.service.js"
-import { AlertNotifier } from "../alert/alert-notifier.js"
+import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
 
-// Fábrica compartilhada — instancia o service uma única vez,
-// independente do target (property, area ou device).
-function buildController(prismaClient: PrismaClient, alertNotifier: AlertNotifier): ConsumptionController {
+// Rota top-level: /api/consumption — consumo agregado via MeterReading,
+// somente leitura (Fase 3.3). Não aninhada sob property/area/device porque o
+// alvo é escolhido por query param (targetType/targetId), igual a /api/meters.
+export function consumptionRoutes(authenticate: RequestHandler, prismaClient: PrismaClient): Router {
+    const router = Router()
+
     const consumptionRepository = new ConsumptionRepository(prismaClient)
+    const meterRepository = new MeterRepository(prismaClient)
     const propertyRepository = new PropertyRepository(prismaClient)
     const areaRepository = new AreaRepository(prismaClient)
     const deviceRepository = new DeviceRepository(prismaClient)
     const distributorRepository = new DistributorRepository(prismaClient)
-    const alertRepository = new AlertRepository(prismaClient)
-
-    const alertService = new AlertService(alertRepository,
-        propertyRepository,
-        areaRepository,
-        deviceRepository,
-        alertNotifier
-    )
+    const tariffFlagRepository = new TariffFlagRepository(prismaClient)
 
     const consumptionService = new ConsumptionService(
         consumptionRepository,
+        meterRepository,
         propertyRepository,
         areaRepository,
         deviceRepository,
         distributorRepository,
-        alertService,
+        tariffFlagRepository,
     )
+    const controller = new ConsumptionController(consumptionService)
 
-    return new ConsumptionController(consumptionService)
-}
-
-// Router: PROPERTY 
-// Montado em property.routes como:
-// router.use("/:propertyId/consumption", propertyConsumptionRoutes(...))
-export function propertyConsumptionRoutes(
-    authenticate: RequestHandler,
-    prismaClient: PrismaClient,
-    alertNotifier: AlertNotifier,
-): Router {
-    const router = Router({ mergeParams: true })
-    const controller = buildController(prismaClient, alertNotifier)
-
-    router.post("/", authenticate, (req, res, next) => controller.createForProperty(req, res, next))
-    router.get("/", authenticate, (req, res, next) => controller.findAllForProperty(req, res, next))
-    router.get("/:id", authenticate, (req, res, next) => controller.findById(req, res, next))
-    router.put("/:id", authenticate, (req, res, next) => controller.update(req, res, next))
-    router.delete("/:id", authenticate, (req, res, next) => controller.delete(req, res, next))
-
-    return router
-}
-
-// Router: AREA 
-// Montado em area.routes como:
-// router.use("/:areaId/consumption", areaConsumptionRoutes(...))
-export function areaConsumptionRoutes(
-    authenticate: RequestHandler,
-    prismaClient: PrismaClient,
-    alertNotifier: AlertNotifier,
-): Router {
-    const router = Router({ mergeParams: true })
-    const controller = buildController(prismaClient, alertNotifier)
-
-    router.post("/", authenticate, (req, res, next) => controller.createForArea(req, res, next))
-    router.get("/", authenticate, (req, res, next) => controller.findAllForArea(req, res, next))
-
-    return router
-}
-
-// Router: target DEVICE 
-// Montado em device.routes como:
-// router.use("/:deviceId/consumption", deviceConsumptionRoutes(...))
-export function deviceConsumptionRoutes(
-    authenticate: RequestHandler,
-    prismaClient: PrismaClient,
-    alertNotifier: AlertNotifier,
-): Router {
-    const router = Router({ mergeParams: true })
-    const controller = buildController(prismaClient, alertNotifier)
-
-    router.post("/", authenticate, (req, res, next) => controller.createForDevice(req, res, next))
-    router.get("/", authenticate, (req, res, next) => controller.findAllForDevice(req, res, next))
+    router.get("/", authenticate, (req, res, next) => controller.list(req, res, next))
 
     return router
 }

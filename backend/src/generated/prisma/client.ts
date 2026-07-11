@@ -92,17 +92,27 @@ export type Area = Prisma.AreaModel
  */
 export type Device = Prisma.DeviceModel
 /**
- * Model ConsumptionRecord
+ * Model Meter
  * 
  */
-export type ConsumptionRecord = Prisma.ConsumptionRecordModel
+export type Meter = Prisma.MeterModel
+/**
+ * Model MeterReading
+ * 
+ */
+export type MeterReading = Prisma.MeterReadingModel
+/**
+ * Model TariffFlagConfig
+ * 
+ */
+export type TariffFlagConfig = Prisma.TariffFlagConfigModel
 /**
  * Model Alert
  * 
  */
 export type Alert = Prisma.AlertModel
 /**
- * Model IoTDeviceConfig
+ * Model AlertTriggerEvent
  * 
  */
-export type IoTDeviceConfig = Prisma.IoTDeviceConfigModel
+export type AlertTriggerEvent = Prisma.AlertTriggerEventModel
