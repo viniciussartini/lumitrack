@@ -7,14 +7,14 @@ import type { Distributor } from "@/types/distributor.types"
 
 const mockDistributor1: Distributor = {
     id: "dist-1",
-    userId: "user-1",
     name: "CEMIG Distribuição S.A.",
     cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC",
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-    taxRate: 0.12,
-    publicLightingFee: 45.9,
+    state: "MG",
+    tusdPerKwh: 0.35,
+    tePerKwh: 0.4,
+    icmsRate: 0.18,
+    pisRate: 0.0165,
+    cofinsRate: 0.076,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -35,6 +35,9 @@ const mockProperty: Property = {
     city: "Belo Horizonte",
     state: "MG",
     zipCode: "30000-000",
+    electricalSystem: "TRIPHASIC",
+    billingClass: "B1",
+    publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -60,7 +63,7 @@ beforeEach(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("PropertyForm — renderização", () => {
-    it("renderiza as três seções com headings", () => {
+    it("renderiza as quatro seções com headings", () => {
         renderForm()
 
         expect(
@@ -68,6 +71,9 @@ describe("PropertyForm — renderização", () => {
         ).toBeInTheDocument()
         expect(
             screen.getByRole("heading", { level: 2, name: /distribuidora/i }),
+        ).toBeInTheDocument()
+        expect(
+            screen.getByRole("heading", { level: 2, name: /faturamento/i }),
         ).toBeInTheDocument()
         expect(
             screen.getByRole("heading", { level: 2, name: /endereço/i }),
@@ -81,6 +87,9 @@ describe("PropertyForm — renderização", () => {
         expect(
             screen.getByLabelText(/distribuidora vinculada/i),
         ).toBeInTheDocument()
+        expect(screen.getByLabelText(/sistema elétrico/i)).toBeInTheDocument()
+        expect(screen.getByLabelText(/classe de faturamento/i)).toBeInTheDocument()
+        expect(screen.getByLabelText(/iluminação pública/i)).toBeInTheDocument()
         expect(screen.getByLabelText(/logradouro/i)).toBeInTheDocument()
         expect(screen.getByLabelText(/cep/i)).toBeInTheDocument()
         expect(screen.getByLabelText(/cidade/i)).toBeInTheDocument()
@@ -121,6 +130,8 @@ describe("PropertyForm — modo edição", () => {
         )
         expect(screen.getByLabelText(/cep/i)).toHaveValue("30000-000")
         expect(screen.getByLabelText(/cidade/i)).toHaveValue("Belo Horizonte")
+        expect(screen.getByLabelText(/sistema elétrico/i)).toHaveValue("TRIPHASIC")
+        expect(screen.getByLabelText(/classe de faturamento/i)).toHaveValue("B1")
     })
 
     it("converte campos null em string vazia sem quebrar", () => {
@@ -188,8 +199,7 @@ describe("PropertyForm — validação", () => {
 
     it("rejeita CEP com sequência repetida (00000-000)", async () => {
         const user = userEvent.setup()
-        const onSubmit = vi.fn()
-        renderForm({ onSubmit })
+        renderForm()
 
         const cepInput = screen.getByLabelText(/cep/i)
         await user.type(cepInput, "00000000")
@@ -230,14 +240,14 @@ describe("PropertyForm — máscara de CEP", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("PropertyForm — submit", () => {
-    it("chama onSubmit com dados transformados (vazios viram undefined)", async () => {
+    it("chama onSubmit com defaults de faturamento e endereço vazio→undefined", async () => {
         const user = userEvent.setup()
         const onSubmit = vi.fn().mockResolvedValue(undefined)
         renderForm({ onSubmit })
 
         await user.type(screen.getByLabelText(/nome/i), "Casa Principal")
         await user.selectOptions(
-            screen.getByLabelText(/distribuidora/i),
+            screen.getByLabelText(/distribuidora vinculada/i),
             "dist-1",
         )
 
@@ -249,6 +259,8 @@ describe("PropertyForm — submit", () => {
             expect.objectContaining({
                 name: "Casa Principal",
                 distributorId: "dist-1",
+                electricalSystem: "MONOPHASIC",
+                billingClass: "B1",
                 address: undefined,
                 city: undefined,
                 state: undefined,
@@ -265,9 +277,11 @@ describe("PropertyForm — submit", () => {
 
         await user.type(screen.getByLabelText(/nome/i), "Casa Principal")
         await user.selectOptions(
-            screen.getByLabelText(/distribuidora/i),
+            screen.getByLabelText(/distribuidora vinculada/i),
             "dist-1",
         )
+        await user.selectOptions(screen.getByLabelText(/sistema elétrico/i), "TRIPHASIC")
+        await user.selectOptions(screen.getByLabelText(/classe de faturamento/i), "B2")
         await user.type(
             screen.getByLabelText(/logradouro/i),
             "Rua das Flores, 100",
@@ -284,6 +298,9 @@ describe("PropertyForm — submit", () => {
             {
                 name: "Casa Principal",
                 distributorId: "dist-1",
+                electricalSystem: "TRIPHASIC",
+                billingClass: "B2",
+                publicLightingFeeBrl: undefined,
                 address: "Rua das Flores, 100",
                 city: "Belo Horizonte",
                 state: "MG",

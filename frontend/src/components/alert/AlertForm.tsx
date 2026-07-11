@@ -2,57 +2,39 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
-import { cn } from "@/lib/cn"
+import { Select } from "@/components/ui/Select"
 import {
     alertFormSchema,
     type AlertFormData,
     type AlertFormInput,
 } from "@/schemas/alert.schema"
-import type { Alert } from "@/types/alert.types"
+import type { AlertWithStatus } from "@/types/alert.types"
+import type { Meter } from "@/types/meter.types"
 
 interface AlertFormProps {
-    /** Dados iniciais — quando presente, o form opera em modo edição */
-    initialData?: Alert
-    /** Callback de submit. Recebe os dados validados e transformados. */
+    /** Dados iniciais — quando presente, o form opera em modo edição
+     * (o medidor não é mais selecionável, é imutável). */
+    initialData?: AlertWithStatus
+    /** Medidores disponíveis para o Select — só usado em modo criação. */
+    meters: Meter[]
     onSubmit: (data: AlertFormData) => Promise<void>
-    /** Callback de cancelamento — geralmente onClose do dialog */
     onCancel: () => void
-    /** Texto do botão de submit. Default: "Salvar" */
     submitLabel?: string
 }
 
 /**
- * Form de Alerta — usado em criação e edição.
- *
- * Diferenças entre os modos:
- *   - CRIAÇÃO (initialData=undefined): defaults vazios, autofocus no threshold
- *   - EDIÇÃO (initialData=Alert): campos preenchidos. null → "" no message
- *     pra <textarea> não reclamar; o schema converte "" → undefined no submit.
- *
- * Em UPDATE, ambos os campos (threshold e message) são editáveis. Não há
- * campo "identificador" imutável como em consumption (que tinha period +
- * referenceDate disabled). Isso simplifica o form — único schema cobre
- * os dois modos.
- *
- * Aviso de "one-shot" em modo edição:
- *   Quando o alerta JÁ disparou (triggeredAt !== null), editar o threshold
- *   NÃO reaviva o disparo — o backend é one-shot. O AlertRowMenu
- *   já oculta "Editar" em alertas disparados, mas se em algum cenário
- *   excepcional o form for aberto com um alerta disparado, mostramos um
- *   banner orientando o usuário.
- *
- * Não recebe target (property/area/device) — o pai (AlertFormDialog) tem
- * essa info e monta a mutation correta. O form é puro: só vê os campos
- * que o usuário edita.
+ * Form de Alerta — faixa de potência (Fase 5, substitui o antigo threshold
+ * de kWh acumulado). `meterId` é imutável: em edição viaja como campo
+ * hidden com o valor original, sem exigir nova escolha do usuário.
  */
 export const AlertForm = ({
     initialData,
+    meters,
     onSubmit,
     onCancel,
     submitLabel = "Salvar",
 }: AlertFormProps) => {
     const isEditMode = Boolean(initialData)
-    const isAlreadyTriggered = Boolean(initialData?.triggeredAt)
 
     const {
         register,
@@ -63,14 +45,18 @@ export const AlertForm = ({
         mode: "onBlur",
         defaultValues: initialData
             ? {
-                thresholdKwh: String(initialData.thresholdKwh),
-                // null → "" porque <textarea> não aceita null; o schema
-                // converte string vazia de volta pra undefined antes do submit
-                message: initialData.message ?? "",
+                name: initialData.name,
+                meterId: initialData.meterId,
+                referencePowerKw: initialData.referencePowerKw,
+                tolerancePercent: initialData.tolerancePercent,
+                enabled: initialData.enabled,
             }
             : {
-                thresholdKwh: "",
-                message: "",
+                name: "",
+                meterId: "",
+                referencePowerKw: undefined,
+                tolerancePercent: 10,
+                enabled: true,
             },
     })
 
@@ -80,76 +66,72 @@ export const AlertForm = ({
             className="flex flex-col gap-4"
             noValidate
         >
-            {/* Banner one-shot — quando editando alerta JÁ disparado */}
-            {isEditMode && isAlreadyTriggered && (
-                <div
-                    role="status"
-                    data-testid="alert-form-triggered-warning"
-                    className={cn(
-                        "rounded-md border p-3 text-xs",
-                        "border-amber-200 bg-amber-50 text-amber-900",
-                        "dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200",
-                    )}
-                >
-                    Este alerta já disparou. Editar o limite{" "}
-                    <strong>não fará</strong> ele disparar novamente — para
-                    receber novo aviso, exclua e crie outro.
-                </div>
-            )}
-
-            {/* Threshold (kWh) */}
             <Input
-                label="Limite de consumo (kWh)"
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0.01"
+                label="Nome do alerta"
+                placeholder="Ar-condicionado ligado demais"
                 autoFocus
-                placeholder="100"
-                helperText="Você será notificado quando o consumo ultrapassar este valor."
-                error={errors.thresholdKwh?.message}
-                data-testid="alert-form-thresholdKwh"
-                {...register("thresholdKwh")}
+                error={errors.name?.message}
+                data-testid="alert-form-name"
+                {...register("name")}
             />
 
-            {/* Message (opcional) */}
-            <div className="flex flex-col gap-1">
-                <label
-                    htmlFor="alert-form-message"
-                    className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            {isEditMode ? (
+                <input type="hidden" {...register("meterId")} />
+            ) : (
+                <Select
+                    label="Medidor"
+                    error={errors.meterId?.message}
+                    data-testid="alert-form-meterId"
+                    {...register("meterId")}
                 >
-                    Mensagem
-                    <span className="ml-1 text-xs font-normal text-slate-500 dark:text-slate-400">
-                        (opcional)
-                    </span>
-                </label>
-                <textarea
-                    id="alert-form-message"
-                    data-testid="alert-form-message"
-                    {...register("message")}
-                    rows={3}
-                    maxLength={500}
-                    placeholder="Ex.: Verificar se algum aparelho ficou ligado durante a noite."
-                    aria-invalid={errors.message ? "true" : "false"}
-                    className={cn(
-                        "rounded-md border bg-white px-3 py-2 text-sm shadow-sm",
-                        "border-slate-300 text-slate-900 placeholder:text-slate-400",
-                        "focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500",
-                        "dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500",
-                        "resize-none",
-                        errors.message &&
-                            "border-red-500 focus:border-red-500 focus:ring-red-500",
-                    )}
+                    <option value="" disabled>
+                        Selecione
+                    </option>
+                    {meters.map((meter) => (
+                        <option key={meter.id} value={meter.id}>
+                            {meter.name}
+                        </option>
+                    ))}
+                </Select>
+            )}
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Input
+                    label="Potência de referência (kW)"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0.01"
+                    placeholder="10"
+                    error={errors.referencePowerKw?.message}
+                    data-testid="alert-form-referencePowerKw"
+                    {...register("referencePowerKw")}
                 />
-                {errors.message && (
-                    <p
-                        className="text-xs text-red-600 dark:text-red-400"
-                        role="alert"
-                    >
-                        {errors.message.message}
-                    </p>
-                )}
+
+                <Input
+                    label="Tolerância (%)"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    placeholder="10"
+                    helperText="Ex.: 10 kW ± 2% dispara fora de [9,8, 10,2] kW."
+                    error={errors.tolerancePercent?.message}
+                    data-testid="alert-form-tolerancePercent"
+                    {...register("tolerancePercent")}
+                />
             </div>
+
+            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500 dark:border-slate-700"
+                    data-testid="alert-form-enabled"
+                    {...register("enabled")}
+                />
+                Alerta habilitado
+            </label>
 
             <div className="flex justify-end gap-2 pt-2">
                 <Button

@@ -31,6 +31,21 @@ const emptyToUndefined = z
     .transform((val) => (val === "" || val === undefined ? undefined : val))
 
 /**
+ * Campo numérico opcional (CIP) — mesma técnica do `distributor.schema.ts`
+ * antigo: `<input type="number">` entrega string ao RHF; string vazia vira
+ * undefined antes de qualquer validação numérica.
+ */
+const optionalNonNegativeNumber = z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((val) => {
+        if (val === "" || val === undefined || val === null) return undefined
+        const parsed = Number(val)
+        return Number.isNaN(parsed) ? undefined : parsed
+    })
+    .pipe(z.number().min(0, "Não pode ser negativo").optional())
+
+/**
  * Schema do form de Property.
  *
  * Diferenças em relação ao backend:
@@ -40,6 +55,8 @@ const emptyToUndefined = z
  *     só consegue escolher ids legítimos das distribuidoras carregadas).
  *   - Campos opcionais aceitam string vazia e convertem pra undefined antes
  *     de validar (vide emptyToUndefined acima).
+ *   - `electricalSystem`/`billingClass`/`publicLightingFeeBrl` migraram da
+ *     distribuidora para a propriedade na Fase 1 da reformulação IoT.
  */
 export const propertyFormSchema = z.object({
     distributorId: z
@@ -70,6 +87,14 @@ export const propertyFormSchema = z.object({
             .refine(isValidCep, "CEP inválido")
             .optional(),
     ),
+
+    electricalSystem: z.enum(["MONOPHASIC", "BIPHASIC", "TRIPHASIC"], {
+        message: "Selecione o sistema elétrico",
+    }),
+
+    billingClass: z.enum(["B1", "B2", "B3"]).default("B1"),
+
+    publicLightingFeeBrl: optionalNonNegativeNumber,
 })
 
 /** Tipo de SAÍDA — o que onSubmit recebe (já transformado) */

@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Link } from "react-router-dom"
 import { Plus, Home, AlertCircle } from "lucide-react"
 import { useProperties } from "@/hooks/queries/useProperties"
@@ -5,11 +6,12 @@ import { useDistributors } from "@/hooks/queries/useDistributors"
 import { PropertyCard } from "@/components/property/PropertyCard"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Button } from "@/components/ui/Button"
+import { Pagination } from "@/components/ui/Pagination"
 import { cn } from "@/lib/cn"
 import type { Distributor } from "@/types/distributor.types"
 
 /**
- * Lista de propriedades do usuário autenticado.
+ * Lista de propriedades do usuário autenticado (paginada — Fase 5).
  *
  * Estados visuais:
  *   - Loading inicial — quando QUALQUER das duas queries
@@ -21,15 +23,14 @@ import type { Distributor } from "@/types/distributor.types"
  * Por que duas queries em paralelo?
  *   PropertyCard precisa do NOME da distribuidora pra exibir o badge,
  *   mas Property só tem distributorId. Resolvemos no pai (aqui) montando
- *   um Map<id, name> e passando pro card. Mais eficiente que cada card
- *   disparar sua própria query (N+1 requests em listas grandes).
- *
- * O TanStack Query roda as duas queries em paralelo automaticamente —
- * não há overhead extra em chamar dois hooks.
+ *   um Map<id, name> e passando pro card. O catálogo de distribuidoras é
+ *   pequeno (dezenas), então buscamos com pageSize máximo (31) para cobrir
+ *   o catálogo inteiro numa única página em vez de paginar essa resolução.
  */
 export const PropertiesPage = () => {
-    const propertiesQuery = useProperties()
-    const distributorsQuery = useDistributors()
+    const [page, setPage] = useState(1)
+    const propertiesQuery = useProperties(page)
+    const distributorsQuery = useDistributors(1, 31)
 
     const isLoading = propertiesQuery.isLoading || distributorsQuery.isLoading
     const isError = propertiesQuery.isError || distributorsQuery.isError
@@ -44,9 +45,9 @@ export const PropertiesPage = () => {
         if (distributorsQuery.isError) distributorsQuery.refetch()
     }
 
-    const distributorMap = buildDistributorMap(distributorsQuery.data ?? [])
+    const distributorMap = buildDistributorMap(distributorsQuery.data?.items ?? [])
 
-    const properties = propertiesQuery.data
+    const properties = propertiesQuery.data?.items
     const hasNoProperties = !isLoading && !isError && properties && properties.length === 0
     const hasProperties = !isLoading && !isError && properties && properties.length > 0
 
@@ -94,21 +95,29 @@ export const PropertiesPage = () => {
             )}
 
             {hasProperties && (
-                <div
-                    className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
-                    data-testid="properties-grid"
-                >
-                    {properties.map((property) => (
-                        <PropertyCard
-                            key={property.id}
-                            property={property}
-                            distributorName={
-                                distributorMap.get(property.distributorId) ??
-                                "Distribuidora removida"
-                            }
-                        />
-                    ))}
-                </div>
+                <>
+                    <div
+                        className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+                        data-testid="properties-grid"
+                    >
+                        {properties.map((property) => (
+                            <PropertyCard
+                                key={property.id}
+                                property={property}
+                                distributorName={
+                                    distributorMap.get(property.distributorId) ??
+                                    "Distribuidora removida"
+                                }
+                            />
+                        ))}
+                    </div>
+                    <Pagination
+                        page={propertiesQuery.data!.page}
+                        pageSize={propertiesQuery.data!.pageSize}
+                        total={propertiesQuery.data!.total}
+                        onPageChange={setPage}
+                    />
+                </>
             )}
         </div>
     )

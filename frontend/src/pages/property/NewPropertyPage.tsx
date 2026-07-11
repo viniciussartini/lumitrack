@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom"
-import { ArrowLeft, AlertCircle, Zap, Plus } from "lucide-react"
+import { ArrowLeft, AlertCircle, Zap } from "lucide-react"
 import { toast } from "sonner"
 import { PropertyForm } from "@/components/property/PropertyForm"
 import { useCreateProperty } from "@/hooks/queries/usePropertyMutations"
@@ -31,16 +31,23 @@ import type { CreatePropertyInput } from "@/types/property.types"
 export const NewPropertyPage = () => {
     const navigate = useNavigate()
     const createMutation = useCreateProperty()
-    const distributorsQuery = useDistributors()
+    // pageSize 31 (máximo) cobre o catálogo inteiro numa única página —
+    // o form precisa de todas as distribuidoras disponíveis no select.
+    const distributorsQuery = useDistributors(1, 31)
 
     const handleSubmit = async (data: PropertyFormData) => {
         const payload: CreatePropertyInput = {
             distributorId: data.distributorId,
             name: data.name,
+            electricalSystem: data.electricalSystem,
+            billingClass: data.billingClass,
             ...(data.address !== undefined && { address: data.address }),
             ...(data.city !== undefined && { city: data.city }),
             ...(data.state !== undefined && { state: data.state }),
             ...(data.zipCode !== undefined && { zipCode: data.zipCode }),
+            ...(data.publicLightingFeeBrl !== undefined && {
+                publicLightingFeeBrl: data.publicLightingFeeBrl,
+            }),
         }
 
         try {
@@ -54,7 +61,7 @@ export const NewPropertyPage = () => {
         }
     }
 
-    const distributors = distributorsQuery.data ?? []
+    const distributors = distributorsQuery.data?.items ?? []
     const hasNoDistributors =
         !distributorsQuery.isLoading &&
         !distributorsQuery.isError &&
@@ -100,14 +107,11 @@ export const NewPropertyPage = () => {
             {hasNoDistributors && (
                 <EmptyState
                     icon={Zap}
-                    title="Cadastre uma distribuidora primeiro"
-                    description="Toda propriedade precisa estar vinculada a uma distribuidora de energia. Cadastre uma distribuidora antes de continuar."
+                    title="Catálogo de distribuidoras indisponível"
+                    description="Toda propriedade precisa estar vinculada a uma distribuidora do catálogo. Tente novamente em instantes."
                     action={
-                        <Button asChild>
-                            <Link to="/distribuidoras/nova">
-                                <Plus className="h-4 w-4" aria-hidden="true" />
-                                Cadastrar distribuidora
-                            </Link>
+                        <Button asChild variant="secondary">
+                            <Link to="/distribuidoras">Ver catálogo de distribuidoras</Link>
                         </Button>
                     }
                 />

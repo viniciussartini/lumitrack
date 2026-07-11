@@ -33,7 +33,7 @@ export const EditPropertyPage = () => {
     const navigate = useNavigate()
 
     const propertyQuery = useProperty(id)
-    const distributorsQuery = useDistributors()
+    const distributorsQuery = useDistributors(1, 31)
     const updateMutation = useUpdateProperty()
 
     const isLoading = propertyQuery.isLoading || distributorsQuery.isLoading
@@ -56,6 +56,9 @@ export const EditPropertyPage = () => {
             city: data.city,
             state: data.state,
             zipCode: data.zipCode,
+            electricalSystem: data.electricalSystem,
+            billingClass: data.billingClass,
+            publicLightingFeeBrl: data.publicLightingFeeBrl,
         }
 
         try {
@@ -108,7 +111,7 @@ export const EditPropertyPage = () => {
                     >
                         <PropertyForm
                             initialData={propertyQuery.data}
-                            distributors={distributorsQuery.data}
+                            distributors={distributorsQuery.data.items}
                             onSubmit={handleSubmit}
                             onCancel={() => navigate("/propriedades")}
                             submitLabel="Salvar alterações"

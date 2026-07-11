@@ -2,122 +2,61 @@ import * as Dialog from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 import { toast } from "sonner"
 import { AlertForm } from "@/components/alert/AlertForm"
-import {
-    useCreateAlertForArea,
-    useCreateAlertForDevice,
-    useCreateAlertForProperty,
-    useUpdateAlert,
-} from "@/hooks/queries/useAlertMutations"
+import { useCreateAlert, useUpdateAlert } from "@/hooks/queries/useAlertMutations"
 import { extractErrorMessage } from "@/services/api"
 import { cn } from "@/lib/cn"
 import type { AlertFormData } from "@/schemas/alert.schema"
-import type {
-    Alert,
-    AlertFormTarget,
-    CreateAlertInput,
-    UpdateAlertInput,
-} from "@/types/alert.types"
+import type { AlertWithStatus, CreateAlertInput, UpdateAlertInput } from "@/types/alert.types"
+import type { Meter } from "@/types/meter.types"
 
-type DialogMode =
-    | { kind: "create" }
-    | { kind: "edit"; alert: Alert }
+type DialogMode = { kind: "create" } | { kind: "edit"; alert: AlertWithStatus }
 
 interface AlertFormDialogProps {
     isOpen: boolean
     onClose: () => void
-    target: AlertFormTarget
+    meters: Meter[]
     mode: DialogMode
 }
 
 /**
- * Dialog (Radix) que envolve o AlertForm e orquestra a mutation apropriada
- * baseada em (target × mode).
- *
- * Form vs FormDialog (mesmo padrão do consumption):
- *   - AlertForm é PURO (RHF + UI). Não conhece mutations nem toasts.
- *   - AlertFormDialog faz orquestração: escolhe a mutation certa (por
- *     target em CREATE; única em EDIT), fecha em sucesso, traduz erro
- *     pra toast.
- *
- * Por que mode é discriminated union em vez de duas props:
- *   - Garantia em compile-time de que `alert` existe quando estamos em
- *     edit. Sem isso, teríamos `alert?` opcional e if/else runtime para
- *     cada acesso.
- *
- * Por que target é separado de mode:
- *   - target descreve ONDE o alerta vive (qual entity). É necessário tanto
- *     em CREATE quanto em EDIT (em EDIT só pra contexto visual no header).
- *     Não muda entre kinds.
- *
- * Sobre erros (mesma decisão do consumption — toast genérico):
- *   - Erros 4xx/5xx caem no try/catch e viram toast.error com mensagem
- *     do extractErrorMessage. Backend já entrega mensagens humanas.
- *   - Dialog NÃO fecha em erro — usuário pode corrigir e tentar de novo
- *     sem ter que reabrir e reescrever tudo.
+ * Dialog (Radix) que envolve o AlertForm e orquestra create/update.
+ * Mesmo padrão de `MeterFormDialog`/`ConsumptionFormDialog` (antigo): o
+ * form é puro, o dialog escolhe a mutation e traduz erro pra toast.
  */
-export const AlertFormDialog = ({
-    isOpen,
-    onClose,
-    target,
-    mode,
-}: AlertFormDialogProps) => {
-    const createProperty = useCreateAlertForProperty()
-    const createArea = useCreateAlertForArea()
-    const createDevice = useCreateAlertForDevice()
-    const update = useUpdateAlert()
+export const AlertFormDialog = ({ isOpen, onClose, meters, mode }: AlertFormDialogProps) => {
+    const createAlert = useCreateAlert()
+    const updateAlert = useUpdateAlert()
 
     const handleSubmit = async (data: AlertFormData) => {
         if (mode.kind === "create") {
-            await handleCreate(data)
-        } else {
-            await handleEdit(data, mode.alert)
-        }
-    }
+            const input: CreateAlertInput = {
+                name: data.name,
+                meterId: data.meterId,
+                referencePowerKw: data.referencePowerKw,
+                tolerancePercent: data.tolerancePercent,
+                enabled: data.enabled,
+            }
 
-    const handleCreate = async (data: AlertFormData) => {
-        // Constrói o input — message só vai pro payload se foi preenchida
-        const input: CreateAlertInput = {
-            thresholdKwh: data.thresholdKwh,
-            ...(data.message !== undefined && { message: data.message }),
-        }
-
-        try {
-            if (target.type === "property") {
-                await createProperty.mutateAsync({
-                    propertyId: target.propertyId,
-                    input,
-                })
-            } else if (target.type === "area") {
-                await createArea.mutateAsync({
-                    propertyId: target.propertyId,
-                    areaId: target.areaId,
-                    input,
-                })
-            } else {
-                await createDevice.mutateAsync({
-                    propertyId: target.propertyId,
-                    areaId: target.areaId,
-                    deviceId: target.deviceId,
-                    input,
+            try {
+                await createAlert.mutateAsync(input)
+                onClose()
+            } catch (error) {
+                toast.error("Erro ao criar alerta", {
+                    description: extractErrorMessage(error),
                 })
             }
-            onClose()
-        } catch (error) {
-            // Toast de sucesso vem do hook. Aqui só erro.
-            toast.error("Erro ao criar alerta", {
-                description: extractErrorMessage(error),
-            })
+            return
         }
-    }
 
-    const handleEdit = async (data: AlertFormData, alert: Alert) => {
         const input: UpdateAlertInput = {
-            thresholdKwh: data.thresholdKwh,
-            ...(data.message !== undefined && { message: data.message }),
+            name: data.name,
+            referencePowerKw: data.referencePowerKw,
+            tolerancePercent: data.tolerancePercent,
+            enabled: data.enabled,
         }
 
         try {
-            await update.mutateAsync({ id: alert.id, input })
+            await updateAlert.mutateAsync({ id: mode.alert.id, input })
             onClose()
         } catch (error) {
             toast.error("Erro ao atualizar alerta", {
@@ -155,14 +94,12 @@ export const AlertFormDialog = ({
                     <div className="flex items-start justify-between gap-4">
                         <div>
                             <Dialog.Title className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                                {mode.kind === "create"
-                                    ? "Criar alerta"
-                                    : "Editar alerta"}
+                                {mode.kind === "create" ? "Criar alerta" : "Editar alerta"}
                             </Dialog.Title>
                             <Dialog.Description className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                                 {mode.kind === "create"
-                                    ? "Defina um limite (kWh) para ser notificado quando o consumo ultrapassar."
-                                    : "Atualize o limite ou a mensagem do alerta."}
+                                    ? "Monitore uma faixa de potência de um medidor e seja avisado quando ela sair do esperado."
+                                    : "Atualize a faixa monitorada ou desabilite o alerta."}
                             </Dialog.Description>
                         </div>
                         <Dialog.Close
@@ -180,16 +117,11 @@ export const AlertFormDialog = ({
 
                     <div className="mt-4">
                         <AlertForm
-                            initialData={
-                                mode.kind === "edit" ? mode.alert : undefined
-                            }
+                            initialData={mode.kind === "edit" ? mode.alert : undefined}
+                            meters={meters}
                             onSubmit={handleSubmit}
                             onCancel={onClose}
-                            submitLabel={
-                                mode.kind === "create"
-                                    ? "Criar alerta"
-                                    : "Salvar alterações"
-                            }
+                            submitLabel={mode.kind === "create" ? "Criar alerta" : "Salvar alterações"}
                         />
                     </div>
                 </Dialog.Content>

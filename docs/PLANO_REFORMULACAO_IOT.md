@@ -1,6 +1,6 @@
 # Plano — Reformulação LumiTrack: medidores IoT, consumo minuto a minuto, tarifação realista e alertas por potência
 
-> **Status:** em implementação na branch `feat/iot-meters-rework`. Fase 1 concluída em 09/07/2026, Fase 2 concluída em 09/07/2026, Fase 3 concluída em 11/07/2026, Fase 4 concluída em 11/07/2026 (ver log de implementação em [LOG_IMPLEMENTACAO_IOT.md](./LOG_IMPLEMENTACAO_IOT.md)). Backend completo (Fases 1–4); falta só o Frontend (Fase 5).
+> **Status:** reformulação **completa** na branch `feat/iot-meters-rework`. Fase 1 concluída em 09/07/2026, Fase 2 concluída em 09/07/2026, Fase 3 concluída em 11/07/2026, Fase 4 concluída em 11/07/2026, Fase 5 concluída em 11/07/2026 (ver log de implementação em [LOG_IMPLEMENTACAO_IOT.md](./LOG_IMPLEMENTACAO_IOT.md)). Pendência conhecida: suíte Playwright (`frontend/tests/e2e/`) ainda não foi atualizada para o novo modelo — ver desvios da Fase 5 no log.
 >
 > **Data do planejamento:** 03/07/2026.
 >
@@ -179,7 +179,7 @@ notification  { …Notification }
 
 ---
 
-## Fase 5 — Frontend
+## Fase 5 — Frontend ✅ Concluída (11/07/2026)
 
 ### 5.1 Remoções
 
@@ -206,6 +206,15 @@ notification  { …Notification }
 Adicionar `/relatorios`, `/simulacao`; remover as 3 rotas `/…/relatorio` e as de CRUD de distribuidora.
 
 **Verificação:** Vitest de components/hooks; Playwright do fluxo principal.
+
+**Nota de implementação:** executado como planejado, com os desvios abaixo (documentados também no log de implementação):
+
+- **`AlertSection` por entidade removida por completo**, não reescrita — o texto desta fase já não a listava entre os novos componentes (só `AlertsPage`); manter uma seção de alertas embutida nas details pages seria redundante com a listagem global em `/alertas`, já que o alerta se vincula a um medidor, não a uma entidade de página específica.
+- **Histórico de disparos usa um seletor de alerta** (`Select` acima da tabela) em vez de uma tabela combinada entre todos os alertas — o backend só expõe `GET /api/alert-events?alertId=` (um alerta por vez), sem endpoint agregado.
+- **`ConsumptionSection` só chama `/api/consumption` depois de confirmar (via `useMeterByTarget`) que o alvo tem medidor** — evita uma chamada fadada ao 404 "sem medidor"; descoberto durante a verificação com Vitest.
+- **Sem filtro de intervalo de datas em `/relatorios`** — não exigido explicitamente pelo texto original; a paginação já cobre "ver mais antigo".
+- **Suíte Playwright (`frontend/tests/e2e/*.spec.ts`) não foi atualizada** — os 9 specs (exceto `auth.spec.ts`) dependem de fluxos removidos/reformulados nesta fase (consumo manual, CRUD de distribuidora, `AlertSection`, relatório por entidade, dashboard agregado). Reescrevê-los é um esforço do mesmo porte da própria Fase 5 e ficou fora desta entrega — os specs atuais falham até serem revisados.
+- **Verificação em browser (Playwright avulso) não foi possível neste sandbox** — download do `chromium-headless-shell` falhou repetidamente (rede restrita). Verificação desta fase: `tsc`/`eslint` limpos, Vitest 516/516, e um ciclo completo via `curl` autenticado contra backend+Postgres reais (distribuidoras, propriedade, medidor, consumo, alerta) confirmando que as respostas JSON batem com os tipos do frontend.
 
 ---
 

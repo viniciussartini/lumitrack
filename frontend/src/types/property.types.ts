@@ -19,6 +19,28 @@ export const VALID_UFS = [
 
 export type Uf = (typeof VALID_UFS)[number]
 
+/**
+ * Sistema elétrico da unidade consumidora — define o piso de disponibilidade
+ * (30/50/100 kWh) aplicado na tarifação mensal (TariffService no backend).
+ * Migrou da distribuidora para a propriedade na Fase 1 da reformulação IoT.
+ */
+export type ElectricalSystem = "MONOPHASIC" | "BIPHASIC" | "TRIPHASIC"
+
+export const ELECTRICAL_SYSTEM_LABELS: Record<ElectricalSystem, string> = {
+    MONOPHASIC: "Monofásico",
+    BIPHASIC: "Bifásico",
+    TRIPHASIC: "Trifásico",
+}
+
+/** Classe de faturamento Grupo B — REN 1.000/2021 (ANEEL). */
+export type BillingClass = "B1" | "B2" | "B3"
+
+export const BILLING_CLASS_LABELS: Record<BillingClass, string> = {
+    B1: "B1 — Residencial",
+    B2: "B2 — Rural",
+    B3: "B3 — Demais classes",
+}
+
 /** Property retornada pela API */
 export interface Property {
     id: string
@@ -33,6 +55,10 @@ export interface Property {
      */
     state: string | null
     zipCode: string | null
+    electricalSystem: ElectricalSystem
+    billingClass: BillingClass
+    /** CIP/COSIP municipal (R$) — opcional, nem todo município cobra. */
+    publicLightingFeeBrl: number | null
     createdAt: string
     updatedAt: string
 }
@@ -40,7 +66,7 @@ export interface Property {
 /**
  * Input do form de criação — body do POST /api/properties.
  * `distributorId` é obrigatório por regra de negócio (toda propriedade
- * tem que estar vinculada a uma distribuidora).
+ * tem que estar vinculada a uma distribuidora do catálogo).
  */
 export interface CreatePropertyInput {
     distributorId: string
@@ -49,11 +75,15 @@ export interface CreatePropertyInput {
     city?: string
     state?: Uf
     zipCode?: string
+    electricalSystem: ElectricalSystem
+    billingClass?: BillingClass
+    publicLightingFeeBrl?: number
 }
 
 /**
  * Input do form de edição.
- * Diferente de Distributor (CNPJ imutável), aqui distributorId pode ser
- * alterado — o backend permite trocar a distribuidora vinculada.
+ * Diferente de Distributor (catálogo, sem edição pelo usuário), aqui
+ * distributorId pode ser alterado — o backend permite trocar a distribuidora
+ * vinculada.
  */
 export type UpdatePropertyInput = Partial<CreatePropertyInput>

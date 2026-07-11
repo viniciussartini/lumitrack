@@ -3,7 +3,6 @@ import {
     AlertCircle,
     ArrowLeft,
     Cpu,
-    FileBarChart,
     Home,
     LayoutGrid,
     Pencil,
@@ -20,7 +19,7 @@ import type { Property } from "@/types/property.types"
 import { DeviceCard } from "@/components/device/DeviceCard"
 import { useDevices } from "@/hooks/queries/useDevices"
 import { AreaConsumptionSection } from "@/components/consumption/ConsumptionSection"
-import { AreaAlertSection } from "@/components/alert/AlertSection"
+import { MeterSection } from "@/components/meter/MeterSection"
 
 /**
  * Página de detalhes de uma área.
@@ -104,8 +103,8 @@ export const AreaDetailsPage = () => {
             />
 
             <DevicesSection propertyId={propertyId!} areaId={areaId!} />
+            <MeterSection targetType="AREA" targetId={areaId!} />
             <AreaConsumptionSection propertyId={propertyId!} areaId={areaId!} />
-            <AreaAlertSection propertyId={propertyId!} areaId={areaId!} />
         </div>
     )
 }
@@ -185,14 +184,6 @@ const AreaHeaderCard = ({
 
         {/* Ações */}
         <div className="mt-6 flex flex-wrap gap-2">
-            <Button asChild variant="secondary" size="sm">
-                <Link
-                    to={`/propriedades/${area.propertyId}/areas/${area.id}/relatorio`}
-                >
-                    <FileBarChart className="h-4 w-4" aria-hidden="true" />
-                    Gerar relatório
-                </Link>
-            </Button>
             <Button asChild variant="secondary" size="sm">
                 <Link
                     to={`/propriedades/${area.propertyId}/areas/${area.id}/editar`}
@@ -292,7 +283,7 @@ const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
                 </div>
             )}
 
-            {devicesQuery.isSuccess && devicesQuery.data.length === 0 && (
+            {devicesQuery.isSuccess && devicesQuery.data.items.length === 0 && (
                 <>
                     <EmptyState
                         icon={Cpu}
@@ -308,12 +299,12 @@ const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
                 </>
             )}
 
-            {devicesQuery.isSuccess && devicesQuery.data.length > 0 && (
+            {devicesQuery.isSuccess && devicesQuery.data.items.length > 0 && (
                 <div
                     className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
                     data-testid="devices-grid"
                 >
-                    {devicesQuery.data.map((device) => (
+                    {devicesQuery.data.items.map((device) => (
                         <DeviceCard key={device.id} device={device} />
                     ))}
                 </div>

@@ -1,46 +1,32 @@
 import { useEffect, useRef, useState } from "react"
-import { Check, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { MoreHorizontal, Pencil, Power, PowerOff, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog"
 import {
     useDeleteAlert,
-    useMarkAlertAsRead,
+    usePatchAlertEnabled,
 } from "@/hooks/queries/useAlertMutations"
 import { extractErrorMessage } from "@/services/api"
-import { formatThresholdKwh } from "@/lib/formatters/alert"
 import { cn } from "@/lib/cn"
-import type { Alert } from "@/types/alert.types"
+import type { AlertWithStatus } from "@/types/alert.types"
 
 interface AlertRowMenuProps {
-    alert: Alert
+    alert: AlertWithStatus
     onEdit?: () => void
-    onAfterDelete?: () => void
 }
 
 /**
- * Menu de ações (⋯) numa linha da tabela de alertas.
- *
- * Testids seguem padrão `alert-menu-{action}-{id}` (em vez de
- * `alert-row-{id}-menu-{action}`) para evitar que o regex `/^alert-row-/`
- * capture tanto as linhas da tabela quanto os elementos internos.
- * Ex: `alert-menu-trigger-alert-1`, `alert-menu-edit-alert-1`.
+ * Menu de ações (⋯) numa linha da tabela de alertas (Fase 5) — Editar,
+ * Habilitar/Desabilitar, Excluir. Sem mais "marcar como lido" (não existe
+ * mais leitura — o alerta é um monitor contínuo, não um evento único).
  */
-export const AlertRowMenu = ({
-    alert,
-    onEdit,
-    onAfterDelete,
-}: AlertRowMenuProps) => {
+export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const [isConfirmOpen, setIsConfirmOpen] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
 
-    const markAsRead = useMarkAlertAsRead()
+    const patchEnabled = usePatchAlertEnabled()
     const deleteMutation = useDeleteAlert()
-
-    const isTriggered = alert.triggeredAt !== null
-    const isRead = alert.readAt !== null
-    const canMarkAsRead = isTriggered && !isRead
-    const canEdit = !isTriggered && Boolean(onEdit)
 
     useEffect(() => {
         if (!isMenuOpen) return
@@ -56,13 +42,13 @@ export const AlertRowMenu = ({
         return () => document.removeEventListener("mousedown", handler)
     }, [isMenuOpen])
 
-    const handleMarkAsReadClick = async (e: React.MouseEvent) => {
+    const handleToggleEnabled = async (e: React.MouseEvent) => {
         e.stopPropagation()
         setIsMenuOpen(false)
         try {
-            await markAsRead.mutateAsync(alert.id)
+            await patchEnabled.mutateAsync({ id: alert.id, enabled: !alert.enabled })
         } catch (error) {
-            toast.error("Erro ao marcar como lido", {
+            toast.error("Erro ao atualizar alerta", {
                 description: extractErrorMessage(error),
             })
         }
@@ -82,12 +68,8 @@ export const AlertRowMenu = ({
 
     const handleConfirmDelete = async () => {
         try {
-            await deleteMutation.mutateAsync({
-                id: alert.id,
-                thresholdKwh: alert.thresholdKwh,
-            })
+            await deleteMutation.mutateAsync(alert.id)
             setIsConfirmOpen(false)
-            onAfterDelete?.()
         } catch (error) {
             toast.error("Erro ao excluir alerta", {
                 description: extractErrorMessage(error),
@@ -95,8 +77,7 @@ export const AlertRowMenu = ({
         }
     }
 
-    const thresholdLabel = formatThresholdKwh(alert.thresholdKwh)
-    const triggerAriaLabel = `Opções do alerta de ${thresholdLabel}`
+    const triggerAriaLabel = `Opções do alerta ${alert.name}`
 
     return (
         <div ref={containerRef} className="relative">
@@ -131,26 +112,7 @@ export const AlertRowMenu = ({
                         "border-slate-200 dark:border-slate-700 dark:bg-slate-800",
                     )}
                 >
-                    {canMarkAsRead && (
-                        <button
-                            type="button"
-                            role="menuitem"
-                            onClick={handleMarkAsReadClick}
-                            disabled={markAsRead.isPending}
-                            data-testid={`alert-menu-mark-read-${alert.id}`}
-                            className={cn(
-                                "flex w-full items-center gap-2 px-3 py-2 text-sm text-left",
-                                "text-slate-700 hover:bg-slate-50",
-                                "dark:text-slate-200 dark:hover:bg-slate-700",
-                                "disabled:cursor-not-allowed disabled:opacity-60",
-                            )}
-                        >
-                            <Check className="h-4 w-4" aria-hidden="true" />
-                            Marcar como lido
-                        </button>
-                    )}
-
-                    {canEdit && (
+                    {onEdit && (
                         <button
                             type="button"
                             role="menuitem"
@@ -167,17 +129,31 @@ export const AlertRowMenu = ({
                         </button>
                     )}
 
-                    {isTriggered && onEdit && (
-                        <p
-                            data-testid={`alert-menu-rearm-hint-${alert.id}`}
-                            className={cn(
-                                "border-b border-slate-200 px-3 py-2 text-xs",
-                                "text-slate-500 dark:border-slate-700 dark:text-slate-400",
-                            )}
-                        >
-                            Para receber novo aviso, exclua e crie outro.
-                        </p>
-                    )}
+                    <button
+                        type="button"
+                        role="menuitem"
+                        onClick={handleToggleEnabled}
+                        disabled={patchEnabled.isPending}
+                        data-testid={`alert-menu-toggle-enabled-${alert.id}`}
+                        className={cn(
+                            "flex w-full items-center gap-2 px-3 py-2 text-sm text-left",
+                            "text-slate-700 hover:bg-slate-50",
+                            "dark:text-slate-200 dark:hover:bg-slate-700",
+                            "disabled:cursor-not-allowed disabled:opacity-60",
+                        )}
+                    >
+                        {alert.enabled ? (
+                            <>
+                                <PowerOff className="h-4 w-4" aria-hidden="true" />
+                                Desabilitar
+                            </>
+                        ) : (
+                            <>
+                                <Power className="h-4 w-4" aria-hidden="true" />
+                                Habilitar
+                            </>
+                        )}
+                    </button>
 
                     <button
                         type="button"
@@ -200,7 +176,7 @@ export const AlertRowMenu = ({
                 open={isConfirmOpen}
                 onOpenChange={setIsConfirmOpen}
                 title="Excluir alerta?"
-                description={`O alerta de ${thresholdLabel} será excluído permanentemente. Essa ação não pode ser desfeita.`}
+                description={`O alerta "${alert.name}" será excluído permanentemente. Essa ação não pode ser desfeita.`}
                 confirmLabel="Excluir"
                 isLoading={deleteMutation.isPending}
                 onConfirm={handleConfirmDelete}

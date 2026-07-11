@@ -93,7 +93,7 @@ describe("useCreateArea", () => {
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
         expect(invalidateSpy).toHaveBeenCalledWith({
-            queryKey: queryKeys.areas.list("prop-1"),
+            queryKey: [...queryKeys.areas.all, "list", "prop-1"],
         })
     })
 
@@ -180,7 +180,7 @@ describe("useUpdateArea", () => {
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
         expect(invalidateSpy).toHaveBeenCalledWith({
-            queryKey: queryKeys.areas.list("prop-1"),
+            queryKey: [...queryKeys.areas.all, "list", "prop-1"],
         })
         expect(invalidateSpy).toHaveBeenCalledWith({
             queryKey: queryKeys.areas.detail("prop-1", "area-1"),
@@ -249,7 +249,7 @@ describe("useDeleteArea", () => {
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
         expect(invalidateSpy).toHaveBeenCalledWith({
-            queryKey: queryKeys.areas.list("prop-1"),
+            queryKey: [...queryKeys.areas.all, "list", "prop-1"],
         })
         expect(removeSpy).toHaveBeenCalledWith({
             queryKey: queryKeys.areas.detail("prop-1", "area-1"),

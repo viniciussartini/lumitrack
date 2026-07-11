@@ -7,20 +7,25 @@ import { PropertyDetailsPage } from "@/pages/property/PropertyDetailsPage"
 import { propertyService } from "@/services/property.service"
 import { distributorService } from "@/services/distributor.service"
 import { areaService } from "@/services/area.service"
+import { meterService } from "@/services/meter.service"
 import type { Property } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
 import type { Area } from "@/types/area.types"
+import type { Paginated } from "@/types/pagination.types"
 import { consumptionService } from "@/services/consumption.service"
 
 vi.mock("@/services/consumption.service", () => ({
     consumptionService: {
-        listByProperty: vi.fn(),
-        listByArea: vi.fn(),
-        listByDevice: vi.fn(),
+        list: vi.fn(),
+    },
+}))
+
+vi.mock("@/services/meter.service", () => ({
+    meterService: {
+        list: vi.fn(),
+        byTarget: vi.fn(),
         getById: vi.fn(),
-        createForProperty: vi.fn(),
-        createForArea: vi.fn(),
-        createForDevice: vi.fn(),
+        create: vi.fn(),
         update: vi.fn(),
         delete: vi.fn(),
     },
@@ -50,9 +55,6 @@ vi.mock("@/services/distributor.service", () => ({
     distributorService: {
         list: vi.fn(),
         getById: vi.fn(),
-        create: vi.fn(),
-        update: vi.fn(),
-        delete: vi.fn(),
     },
 }))
 
@@ -69,16 +71,23 @@ vi.mock("sonner", () => ({
     },
 }))
 
+const paginated = <T,>(items: T[]): Paginated<T> => ({
+    items,
+    total: items.length,
+    page: 1,
+    pageSize: 10,
+})
+
 const mockDistributor: Distributor = {
     id: "dist-1",
-    userId: "user-1",
     name: "CEMIG Distribuição S.A.",
     cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC",
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-    taxRate: 0.12,
-    publicLightingFee: 45.9,
+    state: "MG",
+    tusdPerKwh: 0.35,
+    tePerKwh: 0.4,
+    icmsRate: 0.18,
+    pisRate: 0.0165,
+    cofinsRate: 0.076,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -92,6 +101,9 @@ const mockProperty: Property = {
     city: "Belo Horizonte",
     state: "MG",
     zipCode: "30000-000",
+    electricalSystem: "TRIPHASIC",
+    billingClass: "B1",
+    publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -136,7 +148,7 @@ const renderPage = () => {
 
 beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(consumptionService.listByProperty).mockResolvedValue([])
+    vi.mocked(meterService.byTarget).mockResolvedValue(null)
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -218,7 +230,7 @@ describe("PropertyDetailsPage — header", () => {
         vi.mocked(distributorService.getById).mockResolvedValue(
             mockDistributor,
         )
-        vi.mocked(areaService.list).mockResolvedValue([])
+        vi.mocked(areaService.list).mockResolvedValue(paginated([]))
     })
 
     it("renderiza nome da propriedade como heading principal", async () => {
@@ -275,16 +287,17 @@ describe("PropertyDetailsPage — header", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Chips com dados da distribuidora
+// Chips com dados da distribuidora e faturamento
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("PropertyDetailsPage — chips de distribuidora", () => {
-    it("renderiza nome da distribuidora vinculada", async () => {
+describe("PropertyDetailsPage — chips de distribuidora e faturamento", () => {
+    beforeEach(() => {
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-        vi.mocked(distributorService.getById).mockResolvedValue(
-            mockDistributor,
-        )
+        vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
+        vi.mocked(areaService.list).mockResolvedValue(paginated([]))
+    })
 
+    it("renderiza nome da distribuidora vinculada", async () => {
         renderPage()
 
         expect(
@@ -292,45 +305,20 @@ describe("PropertyDetailsPage — chips de distribuidora", () => {
         ).toBeInTheDocument()
     })
 
-    it("renderiza sistema elétrico traduzido para português", async () => {
-        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-        vi.mocked(distributorService.getById).mockResolvedValue(
-            mockDistributor,
-        )
-
+    it("renderiza a tarifa TUSD formatada em BRL", async () => {
         renderPage()
 
-        // TRIPHASIC → Trifásico
+        expect(await screen.findByText(/TUSD/i)).toBeInTheDocument()
+    })
+
+    it("renderiza o sistema elétrico da PROPRIEDADE traduzido para português", async () => {
+        renderPage()
+
+        // TRIPHASIC → Trifásico (agora é campo da propriedade, não da distribuidora)
         expect(await screen.findByText(/trifásico/i)).toBeInTheDocument()
     })
 
-    it("renderiza voltagem com unidade V", async () => {
-        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-        vi.mocked(distributorService.getById).mockResolvedValue(
-            mockDistributor,
-        )
-
-        renderPage()
-
-        expect(await screen.findByText(/220V/i)).toBeInTheDocument()
-    })
-
-    it("renderiza preço do kWh formatado em BRL", async () => {
-        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-        vi.mocked(distributorService.getById).mockResolvedValue(
-            mockDistributor,
-        )
-
-        renderPage()
-
-        // 0.75 → R$ 0,75/kWh (com NBSP entre R$ e número, depende do locale)
-        expect(
-            await screen.findByText(/R\$\s?0,75\/kWh/i),
-        ).toBeInTheDocument()
-    })
-
     it("mostra fallback quando distribuidora não está disponível", async () => {
-        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
         vi.mocked(distributorService.getById).mockRejectedValue(
             new Error("Distribuidora removida"),
         )
@@ -357,7 +345,7 @@ describe("PropertyDetailsPage — seção de áreas (vazia)", () => {
     beforeEach(() => {
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
         vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
-        vi.mocked(areaService.list).mockResolvedValue([])
+        vi.mocked(areaService.list).mockResolvedValue(paginated([]))
     })
 
     it("renderiza seção 'Áreas' como heading", async () => {
@@ -377,17 +365,17 @@ describe("PropertyDetailsPage — seção de áreas (vazia)", () => {
     })
 
     it("link 'Adicionar área' aponta para a página de criação", async () => {
-            renderPage()
+        renderPage()
 
-            const addLink = await screen.findByRole("link", {
-                name: /adicionar área/i,
-            })
-
-            expect(addLink).toHaveAttribute(
-                "href",
-                "/propriedades/prop-1/areas/nova",
-            )
+        const addLink = await screen.findByRole("link", {
+            name: /adicionar área/i,
         })
+
+        expect(addLink).toHaveAttribute(
+            "href",
+            "/propriedades/prop-1/areas/nova",
+        )
+    })
 
     it("renderiza a marca 'Em breve' explicitamente", async () => {
         renderPage()
@@ -405,10 +393,9 @@ describe("PropertyDetailsPage — seção de áreas (com dados)", () => {
     })
 
     it("renderiza grid de cards quando há áreas", async () => {
-        vi.mocked(areaService.list).mockResolvedValue([
-            mockArea,
-            { ...mockArea, id: "area-2", name: "Cozinha" },
-        ])
+        vi.mocked(areaService.list).mockResolvedValue(
+            paginated([mockArea, { ...mockArea, id: "area-2", name: "Cozinha" }]),
+        )
 
         renderPage()
 
@@ -427,7 +414,7 @@ describe("PropertyDetailsPage — seção de áreas (com dados)", () => {
     })
 
     it("card aponta para a página de detalhes da área", async () => {
-        vi.mocked(areaService.list).mockResolvedValue([mockArea])
+        vi.mocked(areaService.list).mockResolvedValue(paginated([mockArea]))
 
         renderPage()
 
@@ -457,8 +444,6 @@ describe("PropertyDetailsPage — seção de áreas (erro)", () => {
         })
 
         // Alerta inline com a mensagem de erro.
-        // Pode haver mais de um role="alert" na página, então buscamos
-        // diretamente pelo texto da mensagem específica:
         expect(
             await screen.findByText(/falha ao listar áreas/i),
         ).toBeInTheDocument()
@@ -466,14 +451,25 @@ describe("PropertyDetailsPage — seção de áreas (erro)", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Seção de Consumo — integração
+// Seção de Medidor / Consumo — integração
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("PropertyDetailsPage — seção de consumo (integração)", () => {
+describe("PropertyDetailsPage — seção de medidor/consumo (integração)", () => {
     beforeEach(() => {
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
         vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
-        vi.mocked(areaService.list).mockResolvedValue([])
+        vi.mocked(areaService.list).mockResolvedValue(paginated([]))
+    })
+
+    it("renderiza a seção 'Medidor'", async () => {
+        renderPage()
+
+        expect(
+            await screen.findByRole("heading", {
+                level: 2,
+                name: /^medidor$/i,
+            }),
+        ).toBeInTheDocument()
     })
 
     it("renderiza a seção 'Consumo'", async () => {
@@ -487,31 +483,19 @@ describe("PropertyDetailsPage — seção de consumo (integração)", () => {
         ).toBeInTheDocument()
     })
 
-    it("invoca listByProperty com o id da URL", async () => {
+    it("consulta o medidor do alvo PROPERTY", async () => {
         renderPage()
 
         await waitFor(() => {
-            expect(consumptionService.listByProperty).toHaveBeenCalledWith(
-                "prop-1",
-                undefined,
-            )
+            expect(meterService.byTarget).toHaveBeenCalledWith("PROPERTY", "prop-1")
         })
     })
 
-    it("renderiza o filtro de período", async () => {
+    it("sem medidor vinculado, não chama /api/consumption", async () => {
         renderPage()
 
-        expect(
-            await screen.findByTestId("consumption-period-filter"),
-        ).toBeInTheDocument()
-    })
+        await screen.findByRole("heading", { level: 2, name: /^consumo$/i })
 
-    it("EmptyState menciona 'propriedade' (entityLabel correto)", async () => {
-        renderPage()
-
-        // Mensagem default (sem filtro): "...consumo desta propriedade..."
-        expect(
-            await screen.findByText(/desta propriedade/i),
-        ).toBeInTheDocument()
+        expect(consumptionService.list).not.toHaveBeenCalled()
     })
 })

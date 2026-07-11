@@ -7,38 +7,25 @@ import { deviceService } from "@/services/device.service"
 import { areaService } from "@/services/area.service"
 import { propertyService } from "@/services/property.service"
 import { consumptionService } from "@/services/consumption.service"
+import { meterService } from "@/services/meter.service"
 import type { Device } from "@/types/device.types"
 import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
-import { alertService } from "@/services/alert.service"
 
 vi.mock("@/services/consumption.service", () => ({
     consumptionService: {
-        listByProperty: vi.fn(),
-        listByArea: vi.fn(),
-        listByDevice: vi.fn(),
-        getById: vi.fn(),
-        createForProperty: vi.fn(),
-        createForArea: vi.fn(),
-        createForDevice: vi.fn(),
-        update: vi.fn(),
-        delete: vi.fn(),
+        list: vi.fn(),
     },
 }))
 
-// AlertSection (DeviceAlertSection) usa alertService.listByDevice
-vi.mock("@/services/alert.service", () => ({
-    alertService: {
-        listGlobal: vi.fn(),
-        listByProperty: vi.fn(),
-        listByArea: vi.fn(),
-        listByDevice: vi.fn(),
+// MeterSection/ConsumptionSection consultam o medidor do alvo.
+vi.mock("@/services/meter.service", () => ({
+    meterService: {
+        list: vi.fn(),
+        byTarget: vi.fn(),
         getById: vi.fn(),
-        createForProperty: vi.fn(),
-        createForArea: vi.fn(),
-        createForDevice: vi.fn(),
+        create: vi.fn(),
         update: vi.fn(),
-        markAsRead: vi.fn(),
         delete: vi.fn(),
     },
 }))
@@ -108,6 +95,9 @@ const mockProperty: Property = {
     city: null,
     state: null,
     zipCode: null,
+    electricalSystem: "MONOPHASIC",
+    billingClass: "B1",
+    publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -143,10 +133,9 @@ const renderPage = () => {
 
 beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(consumptionService.listByDevice).mockResolvedValue([])
-    // alertService.listByDevice precisa retornar [] pra DeviceAlertSection
-    // não ficar em loading indefinido (sem isso o EmptyState nunca renderiza)
-    vi.mocked(alertService.listByDevice).mockResolvedValue([])
+    // Sem medidor vinculado por padrão — MeterSection/ConsumptionSection
+    // caem no EmptyState "Nenhum medidor vinculado" sem ficar em loading.
+    vi.mocked(meterService.byTarget).mockResolvedValue(null)
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -280,39 +269,15 @@ describe("DeviceDetailsPage — seções", () => {
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
     })
 
-    it("renderiza seção 'Alertas' integrada (DeviceAlertSection)", async () => {
+    it("renderiza seção 'Medidor'", async () => {
         renderPage()
 
         expect(
-            await screen.findByRole("heading", {
-                level: 2,
-                name: /^alertas$/i,
-            }),
+            await screen.findByRole("heading", { level: 2, name: /^medidor$/i }),
         ).toBeInTheDocument()
 
-        // EmptyState do PR1 — cópia nova
         expect(
-            await screen.findByText(/nenhum alerta configurado/i),
-        ).toBeInTheDocument()
-
-        // PR1: sem botão "Criar alerta" originalmente; PR2 adicionou
-        // Se o PR2 foi aplicado, o botão existe. Se não, não existe.
-        // O teste não deve depender de qual PR está aplicado — apenas
-        // verifica que a seção renderizou corretamente.
-        // Nota: se o PR2 está aplicado, o botão "Criar alerta" aparece.
-
-        // PR1/PR2: NÃO tem mais o testid antigo "alerts-coming-soon"
-        expect(screen.queryByTestId("alerts-coming-soon")).toBeNull()
-    })
-
-    it("renderiza seção 'Integração IoT'", async () => {
-        renderPage()
-
-        expect(
-            await screen.findByRole("heading", {
-                level: 2,
-                name: /integração iot/i,
-            }),
+            await screen.findByText(/nenhum medidor vinculado/i),
         ).toBeInTheDocument()
     })
 
@@ -327,26 +292,12 @@ describe("DeviceDetailsPage — seções", () => {
         ).toBeInTheDocument()
     })
 
-    it("invoca listByDevice para consumo com a tripla de IDs da URL", async () => {
+    it("consulta o medidor do device (targetType=DEVICE)", async () => {
         renderPage()
 
         await waitFor(() => {
-            expect(consumptionService.listByDevice).toHaveBeenCalledWith(
-                "prop-1",
-                "area-1",
-                "device-1",
-                undefined,
-            )
-        })
-    })
-
-    it("invoca listByDevice para alertas com a tripla de IDs da URL", async () => {
-        renderPage()
-
-        await waitFor(() => {
-            expect(alertService.listByDevice).toHaveBeenCalledWith(
-                "prop-1",
-                "area-1",
+            expect(meterService.byTarget).toHaveBeenCalledWith(
+                "DEVICE",
                 "device-1",
             )
         })
@@ -364,20 +315,22 @@ describe("DeviceDetailsPage — seção de consumo (integração)", () => {
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
     })
 
-    it("renderiza o filtro de período", async () => {
+    it("renderiza as abas de granularidade (Hora/Dia)", async () => {
         renderPage()
 
         expect(
-            await screen.findByTestId("consumption-period-filter"),
+            await screen.findByTestId("granularity-tabs"),
         ).toBeInTheDocument()
+        expect(screen.getByTestId("granularity-tab-hour")).toBeInTheDocument()
+        expect(screen.getByTestId("granularity-tab-day")).toBeInTheDocument()
     })
 
-    it("não exibe mais o testid antigo 'consumption-coming-soon'", async () => {
+    it("sem medidor vinculado, não chama /api/consumption", async () => {
         renderPage()
 
         await screen.findByRole("heading", { level: 2, name: /^consumo$/i })
 
-        expect(screen.queryByTestId("consumption-coming-soon")).toBeNull()
+        expect(consumptionService.list).not.toHaveBeenCalled()
     })
 })
 

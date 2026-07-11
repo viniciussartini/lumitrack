@@ -1,9 +1,6 @@
 import { api } from "@/services/api"
-import type {
-    Distributor,
-    CreateDistributorInput,
-    UpdateDistributorInput,
-} from "@/types/distributor.types"
+import type { Distributor } from "@/types/distributor.types"
+import type { Paginated, PaginationParams } from "@/types/pagination.types"
 
 interface ApiEnvelope<T> {
     status: "success"
@@ -13,14 +10,17 @@ interface ApiEnvelope<T> {
 /**
  * Camada de acesso à API de distribuidoras.
  *
- * Nível "burro": só faz HTTP, sem lógica de cache (isso é dos hooks).
- * O envelope { status, data } do backend é descascado aqui — quem usa o
- * service recebe direto a entidade.
+ * Reformulação IoT: distribuidora virou catálogo global somente leitura
+ * (populado via seed) — sem mais create/update/delete nem escopo por
+ * usuário. `list` é paginada.
  */
 export const distributorService = {
-    list: async (): Promise<Distributor[]> => {
-        const { data } = await api.get<ApiEnvelope<Distributor[]>>(
+    list: async (
+        params: PaginationParams = {},
+    ): Promise<Paginated<Distributor>> => {
+        const { data } = await api.get<ApiEnvelope<Paginated<Distributor>>>(
             "/distributors",
+            { params },
         )
         return data.data
     },
@@ -30,28 +30,5 @@ export const distributorService = {
             `/distributors/${id}`,
         )
         return data.data
-    },
-
-    create: async (input: CreateDistributorInput): Promise<Distributor> => {
-        const { data } = await api.post<ApiEnvelope<Distributor>>(
-            "/distributors",
-            input,
-        )
-        return data.data
-    },
-
-    update: async (
-        id: string,
-        input: UpdateDistributorInput,
-    ): Promise<Distributor> => {
-        const { data } = await api.put<ApiEnvelope<Distributor>>(
-            `/distributors/${id}`,
-            input,
-        )
-        return data.data
-    },
-
-    delete: async (id: string): Promise<void> => {
-        await api.delete(`/distributors/${id}`)
     },
 }

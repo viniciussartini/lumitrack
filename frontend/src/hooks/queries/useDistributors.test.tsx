@@ -13,22 +13,19 @@ vi.mock("@/services/distributor.service", () => ({
     distributorService: {
         list: vi.fn(),
         getById: vi.fn(),
-        create: vi.fn(),
-        update: vi.fn(),
-        delete: vi.fn(),
     },
 }))
 
 const mockDistributor: Distributor = {
     id: "dist-1",
-    userId: "user-1",
     name: "CEMIG Distribuição S.A.",
     cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC",
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-    taxRate: 0.12,
-    publicLightingFee: 45.9,
+    state: "MG",
+    tusdPerKwh: 0.35,
+    tePerKwh: 0.4,
+    icmsRate: 0.18,
+    pisRate: 0.0165,
+    cofinsRate: 0.076,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -56,12 +53,17 @@ beforeEach(() => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// useDistributors (lista)
+// useDistributors (catálogo paginado)
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("useDistributors", () => {
-    it("retorna a lista de distribuidoras em caso de sucesso", async () => {
-        vi.mocked(distributorService.list).mockResolvedValue([mockDistributor])
+    it("retorna a lista paginada de distribuidoras em caso de sucesso", async () => {
+        vi.mocked(distributorService.list).mockResolvedValue({
+            items: [mockDistributor],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+        })
 
         const { result } = renderHook(() => useDistributors(), {
             wrapper: createWrapper(),
@@ -69,8 +71,8 @@ describe("useDistributors", () => {
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-        expect(result.current.data).toEqual([mockDistributor])
-        expect(distributorService.list).toHaveBeenCalledTimes(1)
+        expect(result.current.data?.items).toEqual([mockDistributor])
+        expect(distributorService.list).toHaveBeenCalledWith({ page: 1, pageSize: 10 })
     })
 
     it("retorna isError quando a chamada falha", async () => {

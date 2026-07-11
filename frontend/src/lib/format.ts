@@ -40,17 +40,30 @@ export const formatPercent = (value: number | null | undefined): string => {
 }
 
 /**
- * Formata uma tensão em volts.
- * formatVoltage(220) → "220 V"
- */
-export const formatVoltage = (value: number): string => `${value} V`
-
-/**
- * Formata kWh com casas decimais e unidade.
- * formatKwh(0.75)   → "R$ 0,75/kWh"
+ * Formata uma tarifa em R$/kWh (TUSD, TE, etc.).
+ * formatKwhPrice(0.75) → "R$ 0,75/kWh"
  */
 export const formatKwhPrice = (value: number): string =>
     `${formatBrl(value)}/kWh`
+
+const electricalFormatter = new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+})
+
+/**
+ * Formatadores de grandezas elétricas — usados pelo RealTimeCard (leituras
+ * SSE por medidor). Duas casas decimais, unidade colada ao número.
+ * formatVoltageRms(220.4) → "220,40V"
+ */
+export const formatVoltageRms = (value: number): string =>
+    `${electricalFormatter.format(value)}V`
+
+export const formatCurrentRms = (value: number): string =>
+    `${electricalFormatter.format(value)}A`
+
+export const formatPowerW = (value: number): string =>
+    `${electricalFormatter.format(value)}W`
 
 /**
  * Trunca uma string adicionando elipse no final.

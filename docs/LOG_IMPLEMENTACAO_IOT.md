@@ -178,3 +178,59 @@ Fase 4 — `AlertEvaluator` (histerese/episódios por faixa de potência), `Noti
 ### Próximo passo
 
 Fase 5 — Frontend: remoções (registro manual de consumo, relatórios por entidade, CRUD de distribuidora, dashboard antigo), paginação universal nos hooks de lista, `RealtimeContext`/SSE novo, `MeterSection`/`RealTimeCard`, `ConsumptionChart`/`ConsumptionTable`, `NotificationDropdown`/`WarningBadge`, `AlertsPage` reescrita, `ReportsPage` (`/relatorios`) e `SimulationPage` (`/simulacao`) placeholders.
+
+---
+
+## Fase 5 — Frontend
+
+**Data:** 11/07/2026
+
+### O que foi implementado
+
+**Paginação universal** (`types/pagination.types.ts`, `components/ui/Pagination.tsx`) — envelope `Paginated<T>` espelhando o backend; `queryKeys` reescrito para incluir `page`/`pageSize` nas chaves de lista paginada (properties, areas, devices, meters, distributors, alerts, alertEvents, consumption). Hooks `useProperties`/`useAreas`/`useDevices`/`useDistributors` migrados para o shape `{items,total,page,pageSize}`; mutations passaram a invalidar por **prefixo** (`[...queryKeys.X.all, "list", ids...]`) em vez de `.list(...)` completo, porque a invalidação não conhece a página atual do usuário.
+
+**Camada de tipos/services/hooks refeita para os módulos novos**: `meter` (types/service/hooks/mutations), `consumption` (rewrite completo — `Granularity`/`ConsumptionBucket`, sem mais CRUD manual), `alert`/`alert-event` (contrato flat: `name`/`meterId`/`referencePowerKw`/`tolerancePercent`/`enabled`/`status`/`target`), `notification`. `distributor` e `property` atualizados para os campos da Fase 1/3 (catálogo global; `electricalSystem`/`billingClass`/`publicLightingFeeBrl` na propriedade).
+
+**SSE novo** (`lib/sse/appStream.ts` substitui `alertStream.ts`) — dispatcher genérico por nome de evento (`connected`/`reading`/`alert-firing`/`notification`), preservando o padrão de `FatalStreamError` e `openWhenHidden`. **`contexts/RealtimeContext.tsx`** (novo, montado no `AppShell`) mantém a conexão única: `reading` vira estado local por `meterId` (alta frequência, não cabe em React Query), `alert-firing` invalida `alerts.firing`/`alerts.all`, `notification` escreve direto no cache de `notifications.list` e dispara toast com ação de navegação.
+
+**`components/meter/`** (novo) — `MeterForm`/`MeterFormDialog` (união por protocolo replicando a validação do backend, campos condicionais host/port/topic/address), `RealTimeCard` (tensão/corrente/potência da última leitura via `useRealtime()`, estado "sem leitura recente" após 10s sem amostra) e `MeterSection` (orquestra tudo, inserida nas três details pages — Property/Area/Device — substituindo o placeholder "Integração IoT" do Device).
+
+**`components/consumption/`** (reescrito) — `GranularityTabs` (substitui `ConsumptionPeriodFilter`, sem opção "Tudo"), `ConsumptionChart` (mesmo padrão visual do antigo `ReportChart`, adaptado ao bucket agregado), `ConsumptionTable` somente leitura (Período/kWh/Custo/Potência média), `ConsumptionSection` orquestrando tudo + `Pagination`, mantendo os 3 wrappers por target (`Property/Area/DeviceConsumptionSection`). Removidos por completo: `ConsumptionForm(Dialog)`, `ConsumptionRowMenu`, `ConsumptionPeriodFilter`, `lib/consumption-date.ts`, `schemas/consumption.schema.ts`.
+
+**Header** — `NotificationDropdown` (substitui `AlertBellBadge`: lista de notificações efêmeras, clique navega + exclui, ícone de check só exclui) e `WarningBadge` separado (âmbar, contagem de `useFiringAlerts`, some sozinho quando a lista de firing esvazia).
+
+**Módulo `alert` reescrito por completo** — `AlertForm` (nome, medidor via Select só na criação — em edição vira `<input type="hidden">` porque o medidor é imutável —, potência de referência, tolerância, toggle habilitado), `AlertTable`/`AlertRowMenu`/`AlertStatusBadge` (status `firing`/`normal`, ações Editar/Habilitar-Desabilitar/Excluir), `AlertEventTable` (histórico de episódios). `AlertsPage` reescrita: área (a) CRUD paginado de alertas + botão "Criar alerta"; área (b) histórico de disparos com um `Select` para escolher qual alerta ver (o backend filtra por um `alertId` por vez, sem endpoint agregado entre alertas — ver desvio abaixo). **Removidos**: `AlertSection` (e os 3 wrappers `Property/Area/DeviceAlertSection`) e `AlertTriggeredFilter` — a gestão de alertas passou a viver inteiramente em `/alertas`, já que o alerta se vincula a um medidor (não mais a uma entidade específica da página).
+
+**Distribuidoras → catálogo somente leitura** — `DistributorsPage` reescrita (paginada, sem botão de criação), `DistributorCard` mostrando os campos novos (CNPJ, UF, TUSD, TE, ICMS/PIS/COFINS). Removidos: `NewDistributorPage`, `EditDistributorPage`, `DistributorForm`, `DistributorMenu`, `schemas/distributor.schema.ts`, rotas `/distribuidoras/nova` e `/distribuidoras/:id/editar`.
+
+**`ReportsPage`** (nova, `/relatorios`) — seletor cascata de alvo (Select de propriedade → área → dispositivo, cada nível com pageSize 31 pra carregar todas as opções de uma vez) + reaproveita o próprio `ConsumptionSection` com `granularities=REPORT_GRANULARITIES` (hora/dia/mês/ano) + banner placeholder "Montagem de relatórios personalizados em breve".
+
+**`SimulationPage`** (nova, `/simulacao`) e **`DashboardPage`** (reescrita como placeholder) — ambas usam `PlaceholderPage`; `DashboardPage` preserva a saudação personalizada (nome do usuário) do dashboard antigo. Removidos por completo: módulo `report` (páginas + `components/report/*` + `reportFiltersUrl.ts`) e `dashboard` antigo (`components/dashboard/*`, `useDashboard`, `lib/dashboard/aggregate.ts`, `lib/csv/*Csv.ts`).
+
+**Property form** — `schemas/property.schema.ts` e `PropertyForm` ganharam `electricalSystem` (obrigatório), `billingClass` (default B1) e `publicLightingFeeBrl` (CIP, opcional) numa nova seção "Faturamento"; `PropertyDetailsPage` ganhou chips próprios pra esses campos (a distribuidora não tem mais `electricalSystem`/`kwhPrice`/`workingVoltage` — esses migraram/desapareceram na Fase 1/3).
+
+**Rotas/navegação** — `AppRouter.tsx`: removidas as rotas de CRUD de distribuidora e as 3 rotas `/…/relatorio`; adicionadas `/relatorios` e `/simulacao`. `navigation.ts`: item "Simulação" (ícone `Calculator`) adicionado — "Relatórios" já existia no menu mas apontava para uma rota inexistente antes desta fase (bug pré-existente, corrigido de brinde).
+
+### Desvios do plano (documentados também em PLANO_REFORMULACAO_IOT.md)
+
+1. **`AlertSection` por entidade removida por completo** (não só reescrita) — o texto da Fase 5.2 já não previa esses wrappers (só listava `AlertsPage` reescrita); manter uma seção de alertas embutida nas details pages exigiria filtrar alertas por medidores pertencentes àquele alvo, redundante com a listagem global. Gestão de alertas ficou inteiramente em `/alertas`.
+2. **Histórico de disparos usa um seletor de alerta, não uma tabela combinada entre todos os alertas** — o backend só expõe `GET /api/alert-events?alertId=` (filtrado por um alerta por vez), sem endpoint agregado. A leitura mais barata (sem N+1 requests) foi um `Select` "escolha o alerta" acima da tabela, já pré-selecionando o primeiro alerta da lista.
+3. **`ConsumptionSection` não dispara `/api/consumption` enquanto não confirma que o alvo tem medidor** — descoberto durante a verificação (Vitest): sem essa guarda, a seção de consumo chamava o endpoint sabendo de antemão que receberia 404 "sem medidor". `useMeterByTarget` decide primeiro; `useConsumption` só recebe um `targetId` real quando `hasMeter` é `true`.
+4. **Sem filtro de intervalo de datas (`from`/`to`) em `/relatorios`** — o texto do plano não exige explicitamente; a navegação por página (`Pagination`) já cobre "ver mais antigo". Fica como possível melhoria futura, não bloqueia a Fase 5.
+5. **Suíte Playwright (`frontend/tests/e2e/*.spec.ts`, ~4500 linhas em 9 arquivos) não foi atualizada nesta fase** — todos os specs exceto `auth.spec.ts` dependem de fluxos removidos ou reformulados (registro manual de consumo, CRUD de distribuidora, `AlertSection` por entidade, páginas de relatório por entidade, dashboard agregado). Atualizar/reescrever esses specs é um esforço do mesmo porte da própria Fase 5 e ficou fora do escopo desta entrega — os specs atuais **vão falhar** até serem revisados.
+6. **Verificação manual via browser (Playwright avulso) não foi possível neste ambiente** — o download do binário `chromium-headless-shell` falhou/expirou repetidamente (rede restrita do sandbox). Em vez de screenshots de UI, a verificação de integração foi feita via `curl` autenticado contra o backend real (`dev`, Postgres local) exercitando o ciclo completo que o frontend depende: login → catálogo de distribuidoras (paginado) → criar propriedade (`electricalSystem`/`billingClass`) → criar medidor (`POST /api/meters`, `MQTT`) → `GET /api/meters/by-target` → `GET /api/consumption?granularity=day` (200 com `items:[]`, sem medidor teria sido 404) → criar alerta (`POST /api/alerts`) → `GET /api/alerts` já retornando `status`/`target` resolvidos — todas as respostas bateram exatamente com os tipos TypeScript do frontend. Dados de teste removidos ao final (`DELETE` em cascata: alerta → medidor → propriedade).
+
+### Testes escritos/reescritos
+
+Toda a suíte Vitest de componentes/hooks/services tocados pela Fase 5 foi reescrita para o novo contrato — destaques: `useAlerts.test.tsx`/`useConsumption.test.tsx` (hooks novos), `PropertiesPage`/`PropertyDetailsPage`/`NewPropertyPage`/`EditPropertyPage`/`AreaDetailsPage`/`DeviceDetailsPage`.test.tsx (paginação + novos campos de Property + mocks de `meterService`), `DistributorsPage.test.tsx` (catálogo somente leitura), `alert.service.test.ts`/`distributor.service.test.ts`/`property.service.test.ts` (contratos novos). `AlertSection.test.tsx`/`AlertTriggeredFilter.test.tsx`/testes de CRUD de distribuidora removidos junto com o código que testavam.
+
+### Verificação executada
+
+- `npx tsc -p tsconfig.app.json --noEmit`: limpo, zero erros (todo o app, incluindo testes).
+- `npx eslint src`: limpo, zero erros (11 avisos pré-existentes de `react-hooks/incompatible-library` em `watch()` do React Hook Form e `react-refresh/only-export-components` em contexts — mesmo padrão já presente antes da Fase 5).
+- `npx vitest run`: **516 passando / 0 falhando** em 56 arquivos.
+- Backend/frontend `dev` reais + Postgres local: usuário de teste criado via `POST /api/users`, login via `POST /api/auth/login` (canal WEB), e ciclo completo via `curl` autenticado (distribuidoras paginadas, criar propriedade, criar medidor, `by-target`, `/api/consumption`, criar alerta com `status`/`target` resolvidos) — todas as respostas JSON bateram com os tipos do frontend. Verificação de UI em browser (Playwright) não foi possível neste sandbox (ver desvio #6).
+
+### Próximo passo
+
+Reformulação IoT completa (Fases 1–5). Pendências conhecidas para uma fase futura: suíte Playwright (`tests/e2e/`) precisa ser reescrita para o novo modelo; dashboard consolidado sobre `/api/consumption` (hoje placeholder); UI de simulação (hoje placeholder, backend já pronto).

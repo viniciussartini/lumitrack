@@ -1,19 +1,19 @@
 import { useQuery } from "@tanstack/react-query"
 import { propertyService } from "@/services/property.service"
 import { queryKeys } from "@/lib/queryClient"
+import { DEFAULT_PAGE_SIZE } from "@/types/pagination.types"
 import type { Property } from "@/types/property.types"
 
 /**
- * Lista todas as propriedades do usuário autenticado.
- *
- * Retorna o `result` completo do useQuery — quem consome decide se quer
- * `data`, `isLoading`, `isError`, etc. Mais flexível do que retornar só
- * o array (desperdiçaria os estados de loading/error).
+ * Lista as propriedades do usuário autenticado (paginado — Fase 5).
  */
-export const useProperties = () =>
+export const useProperties = (
+    page: number = 1,
+    pageSize: number = DEFAULT_PAGE_SIZE,
+) =>
     useQuery({
-        queryKey: queryKeys.properties.list(),
-        queryFn: () => propertyService.list(),
+        queryKey: queryKeys.properties.list(page, pageSize),
+        queryFn: () => propertyService.list({ page, pageSize }),
     })
 
 /**

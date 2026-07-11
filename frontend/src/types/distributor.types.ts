@@ -1,54 +1,33 @@
 /**
  * Tipos compartilhados de Distribuidora.
- * Espelham as respostas do backend (DistributorResponse + schemas Zod).
  *
- * IMPORTANTE: kwhPrice, taxRate e publicLightingFee são `number` aqui
- * porque o backend converte os Decimal do Prisma antes de serializar.
+ * Reformulação IoT (Fase 1/3): a distribuidora virou um catálogo GLOBAL
+ * somente leitura, populado via seed — não tem mais dono (`userId`) nem
+ * CRUD pelo usuário. Os campos de tarifação mudaram de um único `kwhPrice`
+ * para a composição real Grupo B: TUSD + TE, e as três alíquotas de
+ * tributos (ICMS/PIS/COFINS) aplicadas "por dentro" pelo TariffService.
+ *
+ * `tusdPerKwh`, `tePerKwh`, `icmsRate`, `pisRate`, `cofinsRate` são `number`
+ * aqui porque o backend converte os Decimal do Prisma antes de serializar.
  */
 
-export type ElectricalSystem = "MONOPHASIC" | "BIPHASIC" | "TRIPHASIC"
-
-/** Tensões válidas no sistema elétrico brasileiro suportadas pelo schema */
-export const VALID_VOLTAGES = [110, 127, 220, 380, 440, 660, 13800] as const
-export type Voltage = (typeof VALID_VOLTAGES)[number]
-
-/** Distribuidora retornada pela API */
+/** Distribuidora retornada pela API (GET /api/distributors) */
 export interface Distributor {
     id: string
-    userId: string
     name: string
     cnpj: string
-    electricalSystem: ElectricalSystem
-    workingVoltage: number
-    kwhPrice: number
-    /** Alíquota de impostos (0–1, ex: 0.12 = 12%) */
-    taxRate: number | null
-    /** Contribuição de iluminação pública (BRL) */
-    publicLightingFee: number | null
+    /** UF onde a distribuidora atua */
+    state: string
+    /** Tarifa de Uso do Sistema de Distribuição, R$/kWh */
+    tusdPerKwh: number
+    /** Tarifa de Energia, R$/kWh */
+    tePerKwh: number
+    /** Alíquota de ICMS (0–1, ex: 0.18 = 18%) */
+    icmsRate: number
+    /** Alíquota de PIS (0–1) */
+    pisRate: number
+    /** Alíquota de COFINS (0–1) */
+    cofinsRate: number
     createdAt: string
     updatedAt: string
-}
-
-/** Input do form de criação — vai como body do POST /api/distributors */
-export interface CreateDistributorInput {
-    name: string
-    cnpj: string
-    electricalSystem: ElectricalSystem
-    workingVoltage: number
-    kwhPrice: number
-    taxRate?: number
-    publicLightingFee?: number
-}
-
-/**
- * Input do form de edição.
- * CNPJ é imutável após criar — não está aqui de propósito.
- */
-export type UpdateDistributorInput = Partial<Omit<CreateDistributorInput, "cnpj">>
-
-/** Labels em português para o sistema elétrico (UI helper) */
-export const ELECTRICAL_SYSTEM_LABELS: Record<ElectricalSystem, string> = {
-    MONOPHASIC: "Monofásico",
-    BIPHASIC: "Bifásico",
-    TRIPHASIC: "Trifásico",
 }

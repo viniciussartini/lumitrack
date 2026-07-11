@@ -8,19 +8,24 @@ import { areaService } from "@/services/area.service"
 import { propertyService } from "@/services/property.service"
 import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
+import type { Paginated } from "@/types/pagination.types"
 import { deviceService } from "@/services/device.service"
 import type { Device } from "@/types/device.types"
 import { consumptionService } from "@/services/consumption.service"
+import { meterService } from "@/services/meter.service"
 
 vi.mock("@/services/consumption.service", () => ({
     consumptionService: {
-        listByProperty: vi.fn(),
-        listByArea: vi.fn(),
-        listByDevice: vi.fn(),
+        list: vi.fn(),
+    },
+}))
+
+vi.mock("@/services/meter.service", () => ({
+    meterService: {
+        list: vi.fn(),
+        byTarget: vi.fn(),
         getById: vi.fn(),
-        createForProperty: vi.fn(),
-        createForArea: vi.fn(),
-        createForDevice: vi.fn(),
+        create: vi.fn(),
         update: vi.fn(),
         delete: vi.fn(),
     },
@@ -69,6 +74,13 @@ vi.mock("sonner", () => ({
     },
 }))
 
+const paginated = <T,>(items: T[]): Paginated<T> => ({
+    items,
+    total: items.length,
+    page: 1,
+    pageSize: 10,
+})
+
 const mockProperty: Property = {
     id: "prop-1",
     userId: "user-1",
@@ -78,6 +90,9 @@ const mockProperty: Property = {
     city: "Belo Horizonte",
     state: "MG",
     zipCode: "30000-000",
+    electricalSystem: "MONOPHASIC",
+    billingClass: "B1",
+    publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -135,7 +150,7 @@ const renderPage = () => {
 
 beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(consumptionService.listByArea).mockResolvedValue([])
+    vi.mocked(meterService.byTarget).mockResolvedValue(null)
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -344,7 +359,7 @@ describe("AreaDetailsPage — seção de dispositivos (vazia)", () => {
     beforeEach(() => {
         vi.mocked(areaService.getById).mockResolvedValue(mockArea)
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-        vi.mocked(deviceService.list).mockResolvedValue([])
+        vi.mocked(deviceService.list).mockResolvedValue(paginated([]))
     })
 
     it("renderiza seção 'Dispositivos' como heading", async () => {
@@ -395,10 +410,9 @@ describe("AreaDetailsPage — seção de dispositivos (com dados)", () => {
     })
 
     it("renderiza grid de cards quando há dispositivos", async () => {
-        vi.mocked(deviceService.list).mockResolvedValue([
-            mockDevice,
-            { ...mockDevice, id: "device-2", name: "TV" },
-        ])
+        vi.mocked(deviceService.list).mockResolvedValue(
+            paginated([mockDevice, { ...mockDevice, id: "device-2", name: "TV" }]),
+        )
 
         renderPage()
 
@@ -417,7 +431,7 @@ describe("AreaDetailsPage — seção de dispositivos (com dados)", () => {
     })
 
     it("card do dispositivo aponta para a página de detalhes do device", async () => {
-        vi.mocked(deviceService.list).mockResolvedValue([mockDevice])
+        vi.mocked(deviceService.list).mockResolvedValue(paginated([mockDevice]))
 
         renderPage()
 
@@ -451,14 +465,25 @@ describe("AreaDetailsPage — seção de dispositivos (erro)", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Seção de Consumo — integração
+// Seção de Medidor / Consumo — integração
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("AreaDetailsPage — seção de consumo (integração)", () => {
+describe("AreaDetailsPage — seção de medidor/consumo (integração)", () => {
     beforeEach(() => {
         vi.mocked(areaService.getById).mockResolvedValue(mockArea)
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-        vi.mocked(deviceService.list).mockResolvedValue([])
+        vi.mocked(deviceService.list).mockResolvedValue(paginated([]))
+    })
+
+    it("renderiza a seção 'Medidor'", async () => {
+        renderPage()
+
+        expect(
+            await screen.findByRole("heading", {
+                level: 2,
+                name: /^medidor$/i,
+            }),
+        ).toBeInTheDocument()
     })
 
     it("renderiza a seção 'Consumo'", async () => {
@@ -472,31 +497,20 @@ describe("AreaDetailsPage — seção de consumo (integração)", () => {
         ).toBeInTheDocument()
     })
 
-    it("invoca listByArea com propertyId + areaId da URL", async () => {
+    it("consulta o medidor do alvo AREA", async () => {
         renderPage()
 
         await waitFor(() => {
-            expect(consumptionService.listByArea).toHaveBeenCalledWith(
-                "prop-1",
-                "area-1",
-                undefined,
-            )
+            expect(meterService.byTarget).toHaveBeenCalledWith("AREA", "area-1")
         })
     })
 
-    it("renderiza o filtro de período", async () => {
+    it("sem medidor vinculado, não chama /api/consumption", async () => {
         renderPage()
 
-        expect(
-            await screen.findByTestId("consumption-period-filter"),
-        ).toBeInTheDocument()
-    })
+        await screen.findByRole("heading", { level: 2, name: /^consumo$/i })
 
-    it("EmptyState menciona 'área' (entityLabel correto)", async () => {
-        renderPage()
-
-        // Mensagem default (sem filtro): "...consumo desta área..."
-        expect(await screen.findByText(/desta área/i)).toBeInTheDocument()
+        expect(consumptionService.list).not.toHaveBeenCalled()
     })
 })
 

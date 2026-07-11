@@ -21,6 +21,9 @@ const mockProperty: Property = {
     city: "Belo Horizonte",
     state: "MG",
     zipCode: "30000-000",
+    electricalSystem: "MONOPHASIC",
+    billingClass: "B1",
+    publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }
@@ -30,25 +33,34 @@ beforeEach(() => {
 })
 
 describe("propertyService.list", () => {
-    it("faz GET em /properties e descasca o envelope", async () => {
+    it("faz GET em /properties com os params de paginação e descasca o envelope", async () => {
         vi.mocked(api.get).mockResolvedValue({
-            data: { status: "success", data: [mockProperty] },
+            data: {
+                status: "success",
+                data: { items: [mockProperty], total: 1, page: 1, pageSize: 10 },
+            },
         })
 
-        const result = await propertyService.list()
+        const result = await propertyService.list({ page: 1, pageSize: 10 })
 
-        expect(api.get).toHaveBeenCalledWith("/properties")
-        expect(result).toEqual([mockProperty])
+        expect(api.get).toHaveBeenCalledWith("/properties", {
+            params: { page: 1, pageSize: 10 },
+        })
+        expect(result.items).toEqual([mockProperty])
     })
 
-    it("retorna array vazio quando o backend devolve []", async () => {
+    it("funciona sem params", async () => {
         vi.mocked(api.get).mockResolvedValue({
-            data: { status: "success", data: [] },
+            data: {
+                status: "success",
+                data: { items: [], total: 0, page: 1, pageSize: 10 },
+            },
         })
 
         const result = await propertyService.list()
 
-        expect(result).toEqual([])
+        expect(api.get).toHaveBeenCalledWith("/properties", { params: {} })
+        expect(result.items).toEqual([])
     })
 
     it("propaga erros do axios", async () => {
@@ -81,6 +93,7 @@ describe("propertyService.create", () => {
             distributorId: "dist-1",
             name: "Casa Principal",
             city: "Belo Horizonte",
+            electricalSystem: "MONOPHASIC" as const,
         }
 
         const result = await propertyService.create(input)

@@ -2,8 +2,10 @@ import { describe, it, expect } from "vitest"
 import {
     formatBrl,
     formatPercent,
-    formatVoltage,
     formatKwhPrice,
+    formatVoltageRms,
+    formatCurrentRms,
+    formatPowerW,
     truncate,
 } from "@/lib/format"
 
@@ -47,16 +49,17 @@ describe("formatPercent", () => {
     })
 })
 
-describe("formatVoltage", () => {
-    it("adiciona sufixo V", () => {
-        expect(formatVoltage(220)).toBe("220 V")
-        expect(formatVoltage(13800)).toBe("13800 V")
-    })
-})
-
 describe("formatKwhPrice", () => {
     it("compõe formato BRL com sufixo /kWh", () => {
         expect(formatKwhPrice(0.75)).toMatch(/^R\$\s?0,75\/kWh$/)
+    })
+})
+
+describe("formatVoltageRms / formatCurrentRms / formatPowerW", () => {
+    it("formata com 2 casas decimais e unidade colada", () => {
+        expect(formatVoltageRms(220.4)).toBe("220,40V")
+        expect(formatCurrentRms(4.321)).toBe("4,32A")
+        expect(formatPowerW(1050)).toBe("1.050,00W")
     })
 })
 

@@ -47,7 +47,12 @@ beforeEach(() => {
 
 describe("useAreas", () => {
     it("dispara a query quando propertyId é informado", async () => {
-        vi.mocked(areaService.list).mockResolvedValue([mockArea])
+        vi.mocked(areaService.list).mockResolvedValue({
+            items: [mockArea],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+        })
         const queryClient = createTestQueryClient()
 
         const { result } = renderHook(() => useAreas("prop-1"), {
@@ -55,8 +60,11 @@ describe("useAreas", () => {
         })
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
-        expect(areaService.list).toHaveBeenCalledWith("prop-1")
-        expect(result.current.data).toEqual([mockArea])
+        expect(areaService.list).toHaveBeenCalledWith("prop-1", {
+            page: 1,
+            pageSize: 10,
+        })
+        expect(result.current.data?.items).toEqual([mockArea])
     })
 
     it("NÃO dispara a query quando propertyId é undefined", () => {

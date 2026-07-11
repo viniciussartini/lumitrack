@@ -1,58 +1,45 @@
 import { z } from "zod"
 
 /**
- * Helper: transforma string vazia em undefined.
- * Mesmo padrão usado em consumption.schema — <input> vazio entrega "" ao
- * RHF, mas campos opcionais esperam undefined.
+ * Campo numérico obrigatório — <input type="number"> entrega string ao RHF;
+ * coagimos para number distinguindo "" (não informado) de 0 (inválido aqui,
+ * ambos os campos exigem > 0 ou faixa específica).
  */
-const emptyStringToUndefined = z
-    .string()
-    .optional()
-    .transform((val) => (val === "" || val === undefined ? undefined : val))
-
-/**
- * Schema do form de Alerta — usado em criação e edição.
- *
- * Espelha createAlertSchema do backend, com adaptações para o
- * <input type="number">:
- *
- *   - thresholdKwh: HTML input entrega string. Coercimos para number
- *     distinguindo "" (não informado) de 0 (informado mas inválido).
- *     NaN cai na validação z.number({ message }) com mensagem amigável;
- *     positive() rejeita ≤ 0. Mesmo padrão de kwhConsumed em consumption.
- *
- *   - message: opcional, max 500 chars. emptyStringToUndefined normaliza
- *     string vazia para undefined antes do schema string ser aplicado.
- *
- * Em UPDATE, ambos os campos são editáveis (não há campo "identificador"
- * imutável como em consumption, onde period+referenceDate definem o
- * registro). O backend valida thresholdKwh positive em ambos create e
- * update — então um único schema cobre os dois modos.
- */
-export const alertFormSchema = z.object({
-    /**
-     * Coerção string→number igual ao consumption.kwhConsumed.
-     * Sem essa preprocess, z.coerce.number() converteria "" para 0
-     * silenciosamente (perderíamos a distinção "não informado" vs zero,
-     * que é inválido neste domínio).
-     */
-    thresholdKwh: z
+const requiredNumber = (message: string) =>
+    z
         .union([z.string(), z.number()])
         .transform((val) => {
             if (val === "" || val === undefined) return NaN
-            if (typeof val === "number") return val
-            const n = Number(val)
-            return Number.isNaN(n) ? NaN : n
+            return Number(val)
         })
-        .pipe(
-            z
-                .number({ message: "Informe um número válido" })
-                .positive("Limite deve ser maior que zero"),
-        ),
+        .pipe(z.number({ message }))
 
-    message: emptyStringToUndefined.pipe(
-        z.string().max(500, "Máximo 500 caracteres").optional(),
+/**
+ * Schema do form de Alerta (Fase 5 — faixa de potência, substitui o antigo
+ * thresholdKwh). Espelha `createAlertSchema`/`updateAlertSchema` do backend.
+ *
+ * `meterId` é imutável após a criação — o form só o exibe (Select) em modo
+ * criação; em edição, viaja como `<input type="hidden">` com o valor
+ * original, garantindo que participe da validação sem exigir escolha do
+ * usuário.
+ */
+export const alertFormSchema = z.object({
+    name: z.string().min(1, "Nome é obrigatório").max(200, "Nome muito longo"),
+
+    meterId: z.string().min(1, "Selecione um medidor"),
+
+    referencePowerKw: requiredNumber("Informe um número válido").pipe(
+        z.number().positive("Deve ser maior que zero"),
     ),
+
+    tolerancePercent: requiredNumber("Informe um número válido").pipe(
+        z
+            .number()
+            .min(0, "Não pode ser negativo")
+            .max(100, "Não pode ultrapassar 100"),
+    ),
+
+    enabled: z.boolean().default(true),
 })
 
 /** Tipo de SAÍDA — o que onSubmit recebe (já transformado) */

@@ -33,7 +33,9 @@ describe("areaService.list", () => {
 
         const result = await areaService.list("prop-1")
 
-        expect(api.get).toHaveBeenCalledWith("/properties/prop-1/areas")
+        expect(api.get).toHaveBeenCalledWith("/properties/prop-1/areas", {
+            params: {},
+        })
         expect(result).toEqual([mockArea])
     })
 

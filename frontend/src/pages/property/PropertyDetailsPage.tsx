@@ -10,7 +10,6 @@ import {
     Plus,
     Zap,
     Activity,
-    FileBarChart,
 } from "lucide-react"
 import { useProperty } from "@/hooks/queries/useProperties"
 import { useDistributor } from "@/hooks/queries/useDistributors"
@@ -18,12 +17,12 @@ import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { PropertyMenu } from "@/components/property/PropertyMenu"
 import { cn } from "@/lib/cn"
-import type { Property } from "@/types/property.types"
+import { BILLING_CLASS_LABELS, type Property } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
 import { useAreas } from "@/hooks/queries/useAreas"
 import { AreaCard } from "@/components/area/AreaCard"
 import { PropertyConsumptionSection } from "@/components/consumption/ConsumptionSection"
-import { PropertyAlertSection } from "@/components/alert/AlertSection"
+import { MeterSection } from "@/components/meter/MeterSection"
 
 /**
  * Página de detalhes de uma propriedade.
@@ -104,8 +103,8 @@ export const PropertyDetailsPage = () => {
             />
 
             <AreasSection  propertyId={property.id} />
+            <MeterSection targetType="PROPERTY" targetId={property.id} />
             <PropertyConsumptionSection propertyId={property.id} />
-            <PropertyAlertSection propertyId={property.id} />
         </div>
     )
 }
@@ -160,12 +159,6 @@ const PropertyHeaderCard = ({
                 {/* Ações */}
                 <div className="flex shrink-0 items-center gap-2">
                     <Button asChild variant="secondary" size="sm">
-                        <Link to={`/propriedades/${property.id}/relatorio`}>
-                            <FileBarChart className="h-4 w-4" aria-hidden="true" />
-                            Gerar relatório
-                        </Link>
-                    </Button>
-                    <Button asChild variant="secondary" size="sm">
                         <Link to={`/propriedades/${property.id}/editar`}>
                             <Pencil className="h-4 w-4" aria-hidden="true" />
                             Editar propriedade
@@ -194,6 +187,27 @@ const PropertyHeaderCard = ({
                     distributor={distributor}
                     isLoading={isDistributorLoading}
                 />
+            </div>
+
+            {/* Chips com o faturamento da própria propriedade (Fase 1: migrou
+                da distribuidora — sistema elétrico, classe, CIP) */}
+            <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-800">
+                <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Faturamento
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                    <Chip
+                        icon={Activity}
+                        label={formatElectricalSystem(property.electricalSystem)}
+                    />
+                    <Chip icon={Gauge} label={BILLING_CLASS_LABELS[property.billingClass]} />
+                    {property.publicLightingFeeBrl !== null && (
+                        <Chip
+                            icon={Zap}
+                            label={`CIP: ${formatBrl(property.publicLightingFeeBrl)}`}
+                        />
+                    )}
+                </div>
             </div>
         </div>
     )
@@ -233,18 +247,12 @@ const DistributorChips = ({
         )
     }
 
-    const systemLabel = formatElectricalSystem(distributor.electricalSystem)
-    const kwhFormatted = formatBrl(distributor.kwhPrice)
-
     return (
         <div className="flex flex-wrap gap-2">
             <Chip icon={Zap} label={distributor.name} variant="brand" />
-            <Chip icon={Activity} label={systemLabel} />
-            <Chip
-                icon={Gauge}
-                label={`${distributor.workingVoltage}V`}
-            />
-            <Chip icon={Zap} label={`${kwhFormatted}/kWh`} />
+            <Chip icon={MapPin} label={distributor.state} />
+            <Chip icon={Zap} label={`TUSD ${formatBrl(distributor.tusdPerKwh)}/kWh`} />
+            <Chip icon={Zap} label={`TE ${formatBrl(distributor.tePerKwh)}/kWh`} />
         </div>
     )
 }
@@ -325,7 +333,7 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
                 </div>
             )}
 
-            {areasQuery.isSuccess && areasQuery.data.length === 0 && (
+            {areasQuery.isSuccess && areasQuery.data.items.length === 0 && (
                 <>
                     <EmptyState
                         icon={LayoutGrid}
@@ -341,12 +349,12 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
                 </>
             )}
 
-            {areasQuery.isSuccess && areasQuery.data.length > 0 && (
+            {areasQuery.isSuccess && areasQuery.data.items.length > 0 && (
                 <div
                     className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
                     data-testid="areas-grid"
                 >
-                    {areasQuery.data.map((area) => (
+                    {areasQuery.data.items.map((area) => (
                         <AreaCard key={area.id} area={area} />
                     ))}
                 </div>
