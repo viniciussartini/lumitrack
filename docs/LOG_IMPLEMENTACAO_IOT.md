@@ -234,3 +234,15 @@ Toda a suíte Vitest de componentes/hooks/services tocados pela Fase 5 foi reesc
 ### Próximo passo
 
 Reformulação IoT completa (Fases 1–5). Pendências conhecidas para uma fase futura: suíte Playwright (`tests/e2e/`) precisa ser reescrita para o novo modelo; dashboard consolidado sobre `/api/consumption` (hoje placeholder); UI de simulação (hoje placeholder, backend já pronto).
+
+---
+
+## Revisão pós-implementação (11/07/2026)
+
+Auditoria de conformidade das Fases 1–5 contra `PLANO_REFORMULACAO_IOT.md` e `ISSUES_REFORMULACAO_IOT.md` (12 sub-issues), feita em sessão à parte após a conclusão da Fase 5.
+
+**Verificação executada:** `tsc --noEmit` e `eslint` limpos (backend e frontend), `vitest run` **695/695** (backend) e **516/516** (frontend), busca por resíduos de código morto dos modelos/módulos removidos (`ConsumptionRecord`, `IoTDeviceConfig`, `alertStream`, `AlertSection`, dashboard antigo — nenhum encontrado, só comentários residuais). Cruzamento linha a linha das 12 sub-issues do épico contra o código: todas as tarefas e critérios de aceite confirmados no código (409 em medidor duplicado, 404 em consumo sem medidor, `pageSize.max(31)`, rotas `/relatorios`/`/simulacao`, etc.).
+
+**Único gap encontrado, não coberto pelos docs anteriores:** `backend/src/shared/pdf/dataExportPdf.test.ts` (teste "gera um PDF válido mesmo com seções preenchidas") mockava um alerta no formato do modelo **antigo** (`targetType`/`thresholdKwh`/`message`/`triggeredAt`/`readAt`) usando `as unknown as` para escapar do type-check, enquanto `dataExportPdf.ts` já lia os campos novos (`name`/`referencePowerKw`/`tolerancePercent`/`enabled`) desde a correção de cauda da Fase 4. O teste passava porque só valida o cabeçalho `%PDF`, sem checar o conteúdo — os campos novos renderizavam `undefined` nesse cenário sem que nada acusasse. Corrigido: fixture reescrita com os campos reais do modelo `Alert` e troca do `as unknown as` por `satisfies DataExportPayload["alerts"]`, o que faz o TypeScript validar a fixture de verdade (bug de qualidade de teste, não de produção; não havia impacto em runtime real, já que o payload de exportação sempre veio do Prisma com o schema atual).
+
+**Confirmado sem gaps:** as únicas pendências reais são as já documentadas (Playwright, dashboard consolidado, UI de simulação) — nenhuma tarefa das 12 sub-issues ficou incompleta.

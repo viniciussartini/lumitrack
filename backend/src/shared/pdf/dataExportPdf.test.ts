@@ -53,8 +53,8 @@ describe("generateDataExportPdf", () => {
                     { id: "dist-1", name: "CEMIG", cnpj: "06.981.180/0001-16", state: "MG", tusdPerKwh: 0.3, tePerKwh: 0.3, icmsRate: 0.18, pisRate: 0.0165, cofinsRate: 0.076, createdAt: new Date(), updatedAt: new Date() },
                 ],
                 alerts: [
-                    { id: "alert-1", userId: "user-1", targetType: "PROPERTY", propertyId: "prop-1", areaId: null, deviceId: null, thresholdKwh: 100, message: "Atenção", triggeredAt: null, readAt: null, createdAt: new Date(), updatedAt: new Date() },
-                ] as unknown as DataExportPayload["alerts"],
+                    { id: "alert-1", userId: "user-1", meterId: "meter-1", name: "Pico de consumo", referencePowerKw: 10, tolerancePercent: 2, enabled: true, createdAt: new Date(), updatedAt: new Date() },
+                ] satisfies DataExportPayload["alerts"],
                 auditLogs: [
                     { id: "audit-1", userId: "user-1", action: "LOGIN", outcome: "SUCCESS", resourceType: "User", resourceId: "user-1", ipAddress: "127.0.0.1", userAgent: "vitest", metadata: null, createdAt: new Date() },
                 ] as unknown as DataExportPayload["auditLogs"],
