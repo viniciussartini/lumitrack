@@ -8,6 +8,12 @@
 //
 // Solução: iniciamos o Express em um servidor TCP real (porta aleatória) e
 // usamos o módulo `http` nativo do Node, que suporta streaming completamente.
+//
+// Reformulação IoT (Fase 2): o evento "reading" passou a carregar a leitura
+// elétrica por medidor (meterId/voltage/current/powerW/powerFactor), não mais
+// um incremento de kWh por device. Os testes de "alert" (evento SSE de
+// alerta) foram removidos desta suíte nesta fase — o módulo `alert` e o
+// contrato SSE de alert-firing/notification são redesenhados na Fase 4.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest"
@@ -19,7 +25,6 @@ import { createApp } from "@/app.js"
 import { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
 import { AlertNotifier } from "@/modules/alert/alert-notifier.js"
-import type { AlertResponse } from "@/modules/alert/alert.repository.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
 
@@ -33,8 +38,6 @@ processor.start()
 const app = createApp({ prismaClient: prismaHttpTest, processor, alertNotifier })
 
 // ─── Servidor TCP ─────────────────────────────────────────────────────────────
-// Iniciado com porta 0 (o SO escolhe uma porta livre automaticamente).
-// Todos os testes SSE fazem requisições a esta porta via http.get().
 
 let httpServer: Server
 let serverPort: number
@@ -76,16 +79,6 @@ const anotherUser = {
     cpf:       "310.037.856-38",
 }
 
-const validDistributorBody = {
-    name:             "CEMIG",
-    cnpj:             "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC",
-    workingVoltage:   220,
-    kwhPrice:         0.75,
-}
-
-// ─── Helpers de setup ─────────────────────────────────────────────────────────
-
 // channel: "MOBILE" porque só precisamos de um Bearer token para autenticar
 // via header — WEB não devolve token no body (#06, cookie httpOnly).
 async function registerAndLogin(user = validUser): Promise<string> {
@@ -96,41 +89,52 @@ async function registerAndLogin(user = validUser): Promise<string> {
     return res.body.data.token as string
 }
 
-async function setupFull(user = validUser) {
+let distributorSeq = 0
+
+// Property/EnergyDistributor criados direto via Prisma — os módulos HTTP
+// ainda não foram atualizados para o schema v2 (Fase 3). O medidor é criado
+// via a API real (/api/meters), que é o que esta fase está testando.
+async function setupUserWithMeter(user = validUser): Promise<{ token: string; meterId: string }> {
     const token = await registerAndLogin(user)
+    const dbUser = await prismaHttpTest.user.findUniqueOrThrow({ where: { email: user.email } })
 
-    const distRes = await request(app)
-        .post("/api/distributors")
+    distributorSeq += 1
+    const distributor = await prismaHttpTest.energyDistributor.create({
+        data: {
+            name: "CEMIG",
+            cnpj: `06.981.180/000${distributorSeq}-16`,
+            state: "MG",
+            tusdPerKwh: 0.3,
+            tePerKwh: 0.3,
+            icmsRate: 0.18,
+            pisRate: 0.0165,
+            cofinsRate: 0.076,
+        },
+    })
+
+    const property = await prismaHttpTest.property.create({
+        data: {
+            userId: dbUser.id,
+            distributorId: distributor.id,
+            name: "Casa",
+            electricalSystem: "MONOPHASIC",
+        },
+    })
+
+    const meterRes = await request(app)
+        .post("/api/meters")
         .set("Authorization", `Bearer ${token}`)
-        .send(validDistributorBody)
+        .send({
+            name: "Medidor",
+            targetType: "PROPERTY",
+            propertyId: property.id,
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "lumitrack/meter",
+        })
 
-    const propRes = await request(app)
-        .post("/api/properties")
-        .set("Authorization", `Bearer ${token}`)
-        .send({ name: "Casa", distributorId: distRes.body.data.id as string })
-
-    const areaRes = await request(app)
-        .post(`/api/properties/${propRes.body.data.id as string}/areas`)
-        .set("Authorization", `Bearer ${token}`)
-        .send({ name: "Sala" })
-
-    const deviceRes = await request(app)
-        .post(`/api/properties/${propRes.body.data.id as string}/areas/${areaRes.body.data.id as string}/devices`)
-        .set("Authorization", `Bearer ${token}`)
-        .send({ name: "Medidor", powerWatts: 1000 })
-
-    return {
-        token,
-        propertyId: propRes.body.data.id    as string,
-        areaId:     areaRes.body.data.id    as string,
-        deviceId:   deviceRes.body.data.id  as string,
-    }
-}
-
-// Retorna o userId a partir de um token — decodifica o payload JWT sem verificar a assinatura.
-function extractUserId(token: string): string {
-    const payload = JSON.parse(Buffer.from(token.split(".")[1]!, "base64url").toString()) as { id: string }
-    return payload.id
+    return { token, meterId: meterRes.body.data.id as string }
 }
 
 // ─── Helpers de SSE ───────────────────────────────────────────────────────────
@@ -207,30 +211,13 @@ function collectSseEvents(
     })
 }
 
-function simulateReading(deviceId: string, value: number): void {
+function simulateReading(meterId: string, payload: Record<string, unknown>): void {
     ;(processor as unknown as {
         process: (id: string, data: Record<string, unknown>) => void
-    }).process(deviceId, { value })
+    }).process(meterId, payload)
 }
 
-// Constrói um AlertResponse mínimo para simular o disparo de um alerta.
-function makeAlert(userId: string, overrides: Partial<AlertResponse> = {}): AlertResponse {
-    return {
-        id:           "alert-test-id",
-        userId,
-        targetType:   "PROPERTY",
-        propertyId:   "property-id",
-        areaId:       null,
-        deviceId:     null,
-        thresholdKwh: 100,
-        message:      "Consumo alto detectado",
-        triggeredAt:  new Date(),
-        readAt:       null,
-        createdAt:    new Date(),
-        updatedAt:    new Date(),
-        ...overrides,
-    }
-}
+const validReadingPayload = { voltage: 220, current: 2, powerW: 440, powerFactor: 0.95 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SUITE: GET /api/iot/stream
@@ -244,7 +231,7 @@ describe("GET /api/iot/stream", () => {
     })
 
     it("deve retornar headers SSE corretos ao conectar com token válido", async () => {
-        const { token } = await setupFull()
+        const { token } = await setupUserWithMeter()
 
         const stream = await openSseStream(token)
 
@@ -255,8 +242,8 @@ describe("GET /api/iot/stream", () => {
         stream.destroy()
     })
 
-    it("deve receber evento 'connected' com deviceCount ao abrir o stream", async () => {
-        const { token } = await setupFull()
+    it("deve receber evento 'connected' com meterCount ao abrir o stream", async () => {
+        const { token } = await setupUserWithMeter()
 
         const stream = await openSseStream(token)
         const events = await collectSseEvents(stream, {
@@ -267,12 +254,12 @@ describe("GET /api/iot/stream", () => {
         const connected = events.find((e) => e.event === "connected")
         expect(connected).toBeDefined()
 
-        const data = connected?.data as { deviceCount: number }
-        expect(data.deviceCount).toBe(1)
+        const data = connected?.data as { meterCount: number }
+        expect(data.meterCount).toBe(1)
     })
 
-    it("deve receber evento 'reading' quando uma leitura do seu device chega", async () => {
-        const { token, deviceId } = await setupFull()
+    it("deve receber evento 'reading' com a leitura elétrica quando o próprio medidor reporta", async () => {
+        const { token, meterId } = await setupUserWithMeter()
 
         const stream = await openSseStream(token)
 
@@ -283,7 +270,7 @@ describe("GET /api/iot/stream", () => {
             onEvent:        (event) => {
                 if (event === "connected" && !connectedReceived) {
                     connectedReceived = true
-                    simulateReading(deviceId, 0.003)
+                    simulateReading(meterId, validReadingPayload)
                 }
             },
         })
@@ -291,14 +278,15 @@ describe("GET /api/iot/stream", () => {
         const reading = events.find((e) => e.event === "reading")
         expect(reading).toBeDefined()
 
-        const data = reading!.data as { deviceId: string; kwhConsumed: number }
-        expect(data.deviceId).toBe(deviceId)
-        expect(data.kwhConsumed).toBeCloseTo(0.003)
+        const data = reading!.data as { meterId: string; voltage: number; powerW: number }
+        expect(data.meterId).toBe(meterId)
+        expect(data.voltage).toBe(220)
+        expect(data.powerW).toBe(440)
     })
 
-    it("não deve receber leituras de devices de outro usuário", async () => {
-        const { deviceId: deviceIdA } = await setupFull(validUser)
-        const tokenB = await registerAndLogin(anotherUser)
+    it("não deve receber leituras de medidores de outro usuário", async () => {
+        const { meterId: meterIdA } = await setupUserWithMeter(validUser)
+        const { token: tokenB } = await setupUserWithMeter(anotherUser)
 
         const stream = await openSseStream(tokenB)
 
@@ -308,70 +296,12 @@ describe("GET /api/iot/stream", () => {
             onEvent:   (event) => {
                 if (event === "connected" && !connectedReceived) {
                     connectedReceived = true
-                    simulateReading(deviceIdA, 0.005)
+                    simulateReading(meterIdA, validReadingPayload)
                 }
             },
         })
 
         const readings = events.filter((e) => e.event === "reading")
         expect(readings).toHaveLength(0)
-    })
-
-    // ─── Testes de alertas em tempo real ───────────────────────────────────────
-
-    it("deve receber evento 'alert' quando um alerta do usuário é disparado", async () => {
-        const { token } = await setupFull()
-        const userId    = extractUserId(token)
-
-        const stream = await openSseStream(token)
-
-        // Simula o disparo de um alerta do usuário após a conexão ser estabelecida.
-        // Na produção, esse notify seria chamado pelo AlertService.checkAndTrigger.
-        // Aqui chamamos diretamente o AlertNotifier para testar o canal SSE
-        // de forma isolada, sem depender de um consumo real no banco.
-        let connectedReceived = false
-        const events = await collectSseEvents(stream, {
-            maxWaitMs:      3000,
-            stopAfterEvent: "alert",
-            onEvent:        (event) => {
-                if (event === "connected" && !connectedReceived) {
-                    connectedReceived = true
-                    alertNotifier.notify(makeAlert(userId))
-                }
-            },
-        })
-
-        const alertEvent = events.find((e) => e.event === "alert")
-        expect(alertEvent).toBeDefined()
-
-        const data = alertEvent!.data as { id: string; userId: string; thresholdKwh: number }
-        expect(data.userId).toBe(userId)
-        expect(data.thresholdKwh).toBe(100)
-        expect(data.id).toBe("alert-test-id")
-    })
-
-    it("não deve receber alertas de outro usuário", async () => {
-        const { token: tokenA } = await setupFull(validUser)
-        const tokenB            = await registerAndLogin(anotherUser)
-        const userIdA           = extractUserId(tokenA)
-
-        // Usuário B conecta ao stream.
-        const stream = await openSseStream(tokenB)
-
-        // Dispara alerta do usuário A após o connected do usuário B.
-        let connectedReceived = false
-        const events = await collectSseEvents(stream, {
-            maxWaitMs: 1000,
-            onEvent:   (event) => {
-                if (event === "connected" && !connectedReceived) {
-                    connectedReceived = true
-                    // Alerta do usuário A — não deve chegar ao usuário B.
-                    alertNotifier.notify(makeAlert(userIdA))
-                }
-            },
-        })
-
-        const alertEvents = events.filter((e) => e.event === "alert")
-        expect(alertEvents).toHaveLength(0)
     })
 })

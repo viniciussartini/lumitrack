@@ -1,0 +1,116 @@
+import type { Request, Response, NextFunction } from "express"
+import type { MeterService } from "@/modules/meter/meter.service.js"
+import type { MeterResponse } from "@/modules/meter/meter.repository.js"
+import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
+import type { MeterConnectionConfig } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
+
+function toConnectionConfig(meter: MeterResponse): MeterConnectionConfig {
+    return {
+        meterId: meter.id,
+        protocol: meter.protocol,
+        host: meter.host,
+        port: meter.port,
+        topic: meter.topic,
+        address: meter.address,
+        extra: meter.extra,
+    }
+}
+
+// Dispara ações no IoTConnectionManager fora do ciclo request/response —
+// uma falha de conexão IoT não deve impedir a resposta HTTP. Import
+// dinâmico para não acoplar o módulo de negócio ao worker no nível de
+// módulo (mesmo padrão usado pelo antigo iot.controller.ts).
+function withConnectionManager(fn: (manager: {
+    start: (config: MeterConnectionConfig) => Promise<void>
+    restart: (config: MeterConnectionConfig) => Promise<void>
+    stop: (meterId: string) => Promise<void>
+}) => void): void {
+    void import("@/modules/iot/iot-worker/IoTConnectionManager.js").then(({ IoTConnectionManager }) => {
+        fn(IoTConnectionManager.getInstance())
+    })
+}
+
+export class MeterController {
+    constructor(private readonly meterService: MeterService) {}
+
+    // POST /api/meters
+    async create(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id: userId } = (req as AuthenticatedRequest).user
+            const meter = await this.meterService.create(userId, req.body)
+
+            withConnectionManager((manager) => { void manager.start(toConnectionConfig(meter)) })
+
+            res.status(201).json({ status: "success", data: meter })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    // GET /api/meters
+    async findAll(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id: userId } = (req as AuthenticatedRequest).user
+            const meters = await this.meterService.findAll(userId)
+            res.status(200).json({ status: "success", data: meters })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    // GET /api/meters/by-target?targetType=&targetId=
+    async findByTarget(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id: userId } = (req as AuthenticatedRequest).user
+            const meter = await this.meterService.findByTargetQuery(userId, req.query)
+            res.status(200).json({ status: "success", data: meter })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    // GET /api/meters/:id
+    async findById(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id } = req.params as { id: string }
+            const { id: userId } = (req as AuthenticatedRequest).user
+            const meter = await this.meterService.findById(id, userId)
+            res.status(200).json({ status: "success", data: meter })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    // PUT /api/meters/:id
+    async update(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id } = req.params as { id: string }
+            const { id: userId } = (req as AuthenticatedRequest).user
+            const meter = await this.meterService.update(id, userId, req.body)
+
+            // Reinicia a conexão com os dados atualizados — se o protocolo ou
+            // os parâmetros mudaram, a conexão antiga precisa cair e uma nova
+            // subir com a config nova.
+            withConnectionManager((manager) => { void manager.restart(toConnectionConfig(meter)) })
+
+            res.status(200).json({ status: "success", data: meter })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    // DELETE /api/meters/:id
+    async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id } = req.params as { id: string }
+            const { id: userId } = (req as AuthenticatedRequest).user
+            await this.meterService.delete(id, userId)
+
+            withConnectionManager((manager) => { void manager.stop(id) })
+
+            res.status(204).send()
+        } catch (error) {
+            next(error)
+        }
+    }
+}

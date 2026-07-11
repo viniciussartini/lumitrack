@@ -5,7 +5,6 @@ import { AreaRepository } from "@/modules/area/area.repository.js"
 import { AreaService } from "@/modules/area/area.service.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { deviceRoutes } from "@/modules/device/device.routes.js"
-import { areaConsumptionRoutes } from "@/modules/consumption/consumption.routes.js"
 import { areaAlertRoutes } from "../alert/alert.routes.js"
 import { AlertNotifier } from "../alert/alert-notifier.js"
 
@@ -34,7 +33,6 @@ export function areaRoutes(
     // property.routes: o Express casaria "/:areaId/devices" como areaId="<uuid>"
     // sem nunca chegar ao router filho se /:areaId estivesse registrado primeiro.
     router.use("/:areaId/devices", deviceRoutes(authenticate, prismaClient, alertNotifier))
-    router.use("/:areaId/consumption", areaConsumptionRoutes(authenticate, prismaClient, alertNotifier))
     router.use("/:areaId/alerts", areaAlertRoutes(authenticate, prismaClient, alertNotifier))
 
     router.get("/:areaId", authenticate, (req, res, next) => areaController.findById(req, res, next))

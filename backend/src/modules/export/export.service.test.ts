@@ -12,8 +12,6 @@ import { AreaRepository } from "@/modules/area/area.repository.js"
 import { AreaService } from "@/modules/area/area.service.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DeviceService } from "@/modules/device/device.service.js"
-import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
-import { ConsumptionService } from "@/modules/consumption/consumption.service.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
@@ -36,15 +34,6 @@ const areaService = new AreaService(areaRepository, propertyRepository)
 const deviceRepository = new DeviceRepository(prismaTest)
 const deviceService = new DeviceService(deviceRepository, areaRepository, propertyRepository)
 
-const consumptionRepository = new ConsumptionRepository(prismaTest)
-const consumptionService = new ConsumptionService(
-    consumptionRepository,
-    propertyRepository,
-    areaRepository,
-    deviceRepository,
-    distributorRepository,
-)
-
 const alertRepository = new AlertRepository(prismaTest)
 const alertService = new AlertService(alertRepository, propertyRepository, areaRepository, deviceRepository)
 
@@ -57,7 +46,6 @@ const exportService = new ExportService(
     alertRepository,
     areaRepository,
     deviceRepository,
-    consumptionRepository,
     auditRepository,
 )
 
@@ -92,8 +80,7 @@ const validDistributorInput = {
 }
 
 // Cria a cadeia completa user → distributor → property → area → device,
-// com um registro de consumo em cada um dos 3 níveis (exercita a resolução
-// polimórfica de ConsumptionRecord), um alerta e uma linha de audit log.
+// um alerta e uma linha de audit log.
 async function setupFull(userInput = validUserA) {
     const user = await userService.createUser(userInput)
     const distributor = await distributorService.create(user.id, validDistributorInput)
@@ -105,22 +92,6 @@ async function setupFull(userInput = validUserA) {
     const device = await deviceService.create(area.id, property.id, user.id, {
         name: "Ar-condicionado",
         powerWatts: 1000,
-    })
-
-    await consumptionService.createForProperty(property.id, user.id, {
-        period: "MONTHLY",
-        referenceDate: "2025-01-01",
-        kwhConsumed: 100,
-    })
-    await consumptionService.createForArea(area.id, property.id, user.id, {
-        period: "MONTHLY",
-        referenceDate: "2025-01-01",
-        kwhConsumed: 50,
-    })
-    await consumptionService.createForDevice(device.id, area.id, property.id, user.id, {
-        period: "MONTHLY",
-        referenceDate: "2025-01-01",
-        kwhConsumed: 20,
     })
 
     await alertService.createForProperty(property.id, user.id, { thresholdKwh: 500 })
@@ -169,13 +140,6 @@ describe("ExportService.generate", () => {
 
         expect(payload.alerts).toHaveLength(1)
 
-        // Os 3 níveis (property/area/device) devem aparecer — confirma a
-        // resolução polimórfica via OR de relação aninhada.
-        expect(payload.consumptionRecords).toHaveLength(3)
-        expect(payload.consumptionRecords.map((r) => r.propertyId).filter(Boolean)).toHaveLength(1)
-        expect(payload.consumptionRecords.map((r) => r.areaId).filter(Boolean)).toHaveLength(1)
-        expect(payload.consumptionRecords.map((r) => r.deviceId).filter(Boolean)).toHaveLength(1)
-
         expect(payload.auditLogs).toHaveLength(1)
         expect(payload.auditLogs[0]!.action).toBe("LOGIN")
     })
@@ -194,8 +158,6 @@ describe("ExportService.generate", () => {
         const idsB = payloadB.properties.map((p) => p.id)
         expect(idsA).not.toEqual(idsB)
 
-        expect(payloadA.consumptionRecords).toHaveLength(3)
-        expect(payloadB.consumptionRecords).toHaveLength(3)
         expect(payloadA.auditLogs).toHaveLength(1)
         expect(payloadB.auditLogs).toHaveLength(1)
     })
@@ -210,7 +172,6 @@ describe("ExportService.generate", () => {
         expect(payload.areas).toEqual([])
         expect(payload.devices).toEqual([])
         expect(payload.alerts).toEqual([])
-        expect(payload.consumptionRecords).toEqual([])
         expect(payload.auditLogs).toEqual([])
     })
 

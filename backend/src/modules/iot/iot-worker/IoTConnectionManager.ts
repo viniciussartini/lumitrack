@@ -9,18 +9,22 @@
 // Por que singleton? Porque todo o processo Node.js deve compartilhar
 // o mesmo mapa de conexões ativas. Se cada requisição criasse sua própria
 // instância do manager, conexões duplicadas seriam abertas para o mesmo
-// device — desperdiçando recursos e causando conflitos.
+// medidor — desperdiçando recursos e causando conflitos.
 //
 // Separação de responsabilidades:
-//   - IoTService (módulo de negócio): CRUD das configs no banco
+//   - MeterService (módulo de negócio): CRUD dos medidores no banco
 //   - IoTConnectionManager (worker): gerencia conexões reais em memória
 //
 // O service notifica o manager via start/stop/restart. O manager não toca
-// no banco — só mantém o Map<deviceId, IConnection> atualizado.
+// no banco — só mantém o Map<meterId, IConnection> atualizado.
+//
+// Reformulação IoT (Fase 2): a chave passou de deviceId para meterId — a
+// config de conexão agora vem do Meter, não mais do antigo IoTDeviceConfig
+// 1:1 com Device. Um medidor pode estar vinculado a Property, Area ou Device.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
-import type { IoTConfigResponse } from "@/modules/iot/iot.repository.js"
+import { IoTProtocol } from "@/generated/prisma/client.js"
 import { logger } from "@/shared/logger/logger.js"
 
 const log = logger.child({ module: "IoTManager" })
@@ -35,7 +39,19 @@ import {
     Rs485Connection,
 } from "@/modules/iot/iot-worker/protocols/ModbusTcpConnection.js"
 
-// Extrai campos opcionais do  de forma segura.
+// Config de conexão de um medidor — subconjunto do MeterResponse do módulo
+// meter, mantido aqui para não acoplar o worker ao módulo de negócio.
+export interface MeterConnectionConfig {
+    meterId: string
+    protocol: IoTProtocol
+    host: string | null
+    port: number | null
+    topic: string | null
+    address: string | null
+    extra: Record<string, unknown> | null
+}
+
+// Extrai campos opcionais do extra de forma segura.
 // Retorna undefined (nao null) para respeitar exactOptionalPropertyTypes
 // das interfaces de config dos protocolos.
 function extraField<T>(extra: Record<string, unknown>, key: string): T | undefined {
@@ -43,7 +59,7 @@ function extraField<T>(extra: Record<string, unknown>, key: string): T | undefin
     return val !== undefined && val !== null ? (val as T) : undefined
 }
 
-function createConnection(config: IoTConfigResponse): IConnection {
+function createConnection(config: MeterConnectionConfig): IConnection {
     const extra = (config.extra ?? {}) as Record<string, unknown>
 
     switch (config.protocol) {
@@ -52,7 +68,7 @@ function createConnection(config: IoTConfigResponse): IConnection {
             //  num objeto cujo tipo nao aceita undefined explicito.
             // Construimos o config condicionalmente.
             const mqttConfig: ConstructorParameters<typeof MqttConnection>[0] = {
-                deviceId: config.deviceId,
+                meterId: config.meterId,
                 host: config.host!,
                 port: config.port!,
                 topic: config.topic!,
@@ -73,7 +89,7 @@ function createConnection(config: IoTConfigResponse): IConnection {
 
         case "MODBUS_TCP": {
             const modbusTcpConfig: ConstructorParameters<typeof ModbusTcpConnection>[0] = {
-                deviceId: config.deviceId,
+                meterId: config.meterId,
                 host: config.host!,
                 port: config.port!,
                 address: config.address!,
@@ -94,7 +110,7 @@ function createConnection(config: IoTConfigResponse): IConnection {
 
         case "MODBUS_RTU": {
             const modbusRtuConfig: ConstructorParameters<typeof ModbusRtuConnection>[0] = {
-                deviceId: config.deviceId,
+                meterId: config.meterId,
                 address:  config.address!,
             }
             const baudRate = extraField<number>(extra, "baudRate")
@@ -118,7 +134,7 @@ function createConnection(config: IoTConfigResponse): IConnection {
 
         case "ETHERNET_IP": {
             const ethernetConfig: ConstructorParameters<typeof EthernetIpConnection>[0] = {
-                deviceId: config.deviceId,
+                meterId: config.meterId,
                 host: config.host!,
             }
             const port = config.port   !== null ? config.port   : undefined
@@ -142,7 +158,7 @@ function createConnection(config: IoTConfigResponse): IConnection {
 
         case "PROFIBUS": {
             const profibusConfig: ConstructorParameters<typeof ProfibusConnection>[0] = {
-                deviceId: config.deviceId,
+                meterId: config.meterId,
                 address: config.address!,
             }
             const slaveAddress = extraField<number>(extra, "slaveAddress")
@@ -161,7 +177,7 @@ function createConnection(config: IoTConfigResponse): IConnection {
 
         case "PROFINET": {
             const profinetConfig: ConstructorParameters<typeof ProfinetConnection>[0] = {
-                deviceId: config.deviceId,
+                meterId: config.meterId,
                 host: config.host!,
             }
             const port = config.port   !== null ? config.port   : undefined
@@ -195,7 +211,7 @@ function createConnection(config: IoTConfigResponse): IConnection {
 
         case "RS232": {
             const rs232Config: ConstructorParameters<typeof Rs232Connection>[0] = {
-                deviceId: config.deviceId,
+                meterId: config.meterId,
                 address:  config.address!,
             }
             const baudRate = extraField<number>(extra, "baudRate")
@@ -214,7 +230,7 @@ function createConnection(config: IoTConfigResponse): IConnection {
 
         case "RS485": {
             const rs485Config: ConstructorParameters<typeof Rs485Connection>[0] = {
-                deviceId: config.deviceId,
+                meterId: config.meterId,
                 address:  config.address!,
             }
             const baudRate = extraField<number>(extra, "baudRate")
@@ -235,7 +251,7 @@ function createConnection(config: IoTConfigResponse): IConnection {
 
 export class IoTConnectionManager {
     private readonly connections = new Map<string, IConnection>()
-    private dataHandler: ((deviceId: string, data: Record<string, unknown>) => void) | null = null
+    private dataHandler: ((meterId: string, data: Record<string, unknown>) => void) | null = null
 
     private static instance: IoTConnectionManager | null = null
     private constructor() {}
@@ -247,50 +263,50 @@ export class IoTConnectionManager {
         return IoTConnectionManager.instance
     }
 
-    onData(handler: (deviceId: string, data: Record<string, unknown>) => void): void {
+    onData(handler: (meterId: string, data: Record<string, unknown>) => void): void {
         this.dataHandler = handler
     }
 
-    async start(config: IoTConfigResponse): Promise<void> {
-        if (this.connections.has(config.deviceId)) {
-            log.info({ deviceId: config.deviceId }, "Já está conectado. Ignorando.")
+    async start(config: MeterConnectionConfig): Promise<void> {
+        if (this.connections.has(config.meterId)) {
+            log.info({ meterId: config.meterId }, "Já está conectado. Ignorando.")
             return
         }
 
         const connection = createConnection(config)
-        connection.onData((data) => { this.dataHandler?.(config.deviceId, data) })
+        connection.onData((data) => { this.dataHandler?.(config.meterId, data) })
 
         try {
             await connection.connect()
-            this.connections.set(config.deviceId, connection)
-            log.info({ deviceId: config.deviceId, protocol: config.protocol }, "Conectado")
+            this.connections.set(config.meterId, connection)
+            log.info({ meterId: config.meterId, protocol: config.protocol }, "Conectado")
         } catch (err) {
-            log.error({ deviceId: config.deviceId, err }, "Falha ao conectar")
+            log.error({ meterId: config.meterId, err }, "Falha ao conectar")
         }
     }
 
-    async stop(deviceId: string): Promise<void> {
-        const connection = this.connections.get(deviceId)
+    async stop(meterId: string): Promise<void> {
+        const connection = this.connections.get(meterId)
 
         if (!connection) {
             return
         }
 
         await connection.disconnect()
-        this.connections.delete(deviceId)
-        log.info({ deviceId }, "Desconectado")
+        this.connections.delete(meterId)
+        log.info({ meterId }, "Desconectado")
     }
 
-    async restart(config: IoTConfigResponse): Promise<void> {
-        await this.stop(config.deviceId)
+    async restart(config: MeterConnectionConfig): Promise<void> {
+        await this.stop(config.meterId)
         await this.start(config)
     }
 
     activeCount(): number { return this.connections.size }
 
     async stopAll(): Promise<void> {
-        const deviceIds = [...this.connections.keys()]
-        await Promise.allSettled(deviceIds.map((id) => this.stop(id)))
+        const meterIds = [...this.connections.keys()]
+        await Promise.allSettled(meterIds.map((id) => this.stop(id)))
         log.info("Todas as conexões encerradas.")
     }
 }

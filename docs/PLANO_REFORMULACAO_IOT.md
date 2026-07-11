@@ -1,6 +1,6 @@
 # Plano — Reformulação LumiTrack: medidores IoT, consumo minuto a minuto, tarifação realista e alertas por potência
 
-> **Status:** planejado (não iniciado). Implementar em uma branch nova a partir de `main` (ex.: `feat/iot-meters-rework`), após o encerramento do trabalho em `security/owasp-lgpd-remediation`.
+> **Status:** em implementação na branch `feat/iot-meters-rework`. Fase 1 concluída em 09/07/2026, Fase 2 concluída em 09/07/2026 (ver log de implementação em [LOG_IMPLEMENTACAO_IOT.md](./LOG_IMPLEMENTACAO_IOT.md)).
 >
 > **Data do planejamento:** 03/07/2026.
 >
@@ -19,7 +19,7 @@ O LumiTrack hoje registra consumo por dois caminhos (manual via REST e rollup Io
 
 ---
 
-## Fase 1 — Schema Prisma, migração destrutiva e seed
+## Fase 1 — Schema Prisma, migração destrutiva e seed ✅ Concluída (09/07/2026)
 
 Arquivo: `backend/prisma/schema.prisma`
 
@@ -53,9 +53,11 @@ Arquivo: `backend/prisma/schema.prisma`
 
 **Verificação:** `npx prisma migrate reset` limpo; seed roda 2× sem duplicar; `prisma generate` OK. Correção dos tipos/mocks quebrados acontece nas fases 2–4.
 
+**Nota de implementação:** executado exatamente como planejado. Detalhes (11 distribuidoras calibradas, migração `20260709215523_rework_v2`, etc.) no log de implementação.
+
 ---
 
-## Fase 2 — Backend: módulo Meter, ingestão por segundo, rollup por minuto
+## Fase 2 — Backend: módulo Meter, ingestão por segundo, rollup por minuto ✅ Concluída (09/07/2026)
 
 ### 2.1 Novo módulo `backend/src/modules/meter/` (padrão controller/service/repository/schema/routes + testes)
 
@@ -73,6 +75,17 @@ Arquivo: `backend/prisma/schema.prisma`
 - **Remover o módulo `consumption` de escrita** (POST/PUT/DELETE manuais, form schemas) — o módulo é reescrito como somente leitura na Fase 3. Remover `checkAndTrigger` do fluxo.
 
 **Verificação:** Vitest (buffer, rollup com merge, processor com payload novo); subir backend + publicar MQTT fake e conferir linhas em `meter_readings` e evento SSE via `curl -N /api/iot/stream`.
+
+**Notas de implementação (desvios do texto acima):**
+
+- `GET /api/meters` **não** paginado nesta fase — a paginação universal (incluindo `meters`) é responsabilidade explícita da Fase 3.4; aplicar retroativamente lá.
+- `alertEvaluator.evaluate(meterId, powerW, now)` **não** foi chamado do `IoTDataProcessor` (o evaluator só existe na Fase 4). Em vez disso, o processor expõe um `addSampleListener` genérico — a Fase 4 registra o `AlertEvaluator` como mais um listener, sem precisar mudar a API pública do processor.
+- `checkAndTrigger` não existia mais para remover do fluxo — o modelo `Alert` já tinha sido reformulado na Fase 1 (sem `thresholdKwh`), então o `HourlyRollupScheduler` antigo (que chamava `checkAndTrigger`) foi substituído inteiro pelo `MinuteRollupScheduler`, que não conhece alertas.
+- **Quebra em cadeia além do previsto**: dois módulos tinham *imports em runtime* (não só de tipo) para `consumption.repository.ts`, o que impedia `createApp()` de sequer inicializar (`Cannot find package`), derrubando toda a suíte de testes HTTP — não só os deste módulo: `export.routes.ts`/`export.service.ts` (exportação LGPD) e `report.routes.ts` (montado por `property.routes.ts`). Corrigido nesta fase (fora do escopo original, mas necessário para o boot da aplicação):
+  - `ExportService`/`DataExportPayload` perderam `consumptionRecords`/`ConsumptionRepository` (a exportação de consumo agregado via `MeterReading` fica para quando a agregação existir — Fase 3+).
+  - `dataExportPdf.ts` perdeu a seção de resumo de consumo (`buildConsumptionSummaryByProperty`/`drawConsumptionSummarySection`).
+  - Módulo `report` inteiro **removido** (não só desmontado) — antecipação pontual da tarefa "Remover módulo `report`" da Fase 3.3, que já dependia de `ConsumptionRecord` e não tinha como sobreviver.
+- Testes cobrindo os módulos ainda não corrigidos (`alert`, `distributor`, `property`, `area`/`device` — que dependem de fixtures de distribuidora/propriedade no formato antigo — e `simulation`) continuam falhando, como esperado pelo plano. Nenhuma regressão fora desse conjunto: suíte completa em 09/07/2026 = 373 passando / 249 falhando, todas as 249 dentro desses módulos já previstos como quebrados até a Fase 3/4.
 
 ---
 

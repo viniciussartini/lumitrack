@@ -4,14 +4,17 @@ import type { DistributorRepository, DistributorResponse } from "@/modules/distr
 import type { AlertRepository, AlertResponse } from "@/modules/alert/alert.repository.js"
 import type { AreaRepository, AreaResponse } from "@/modules/area/area.repository.js"
 import type { DeviceRepository, DeviceResponse } from "@/modules/device/device.repository.js"
-import type { ConsumptionRepository, ConsumptionResponse } from "@/modules/consumption/consumption.repository.js"
 import type { AuditRepository, AuditLogResponse } from "@/shared/audit/audit.repository.js"
 import { NotFoundError } from "@/shared/errors/AppError.js"
 
 // Payload agregado com todos os dados pessoais que o LumiTrack guarda sobre
-// o titular (#09 — Art. 18 LGPD). Usado tanto pela resposta JSON (lista
-// completa, sem paginação) quanto pelo gerador de PDF (que usa um resumo
-// agregado de `consumptionRecords`, nunca a lista bruta).
+// o titular (#09 — Art. 18 LGPD).
+//
+// Reformulação IoT (Fase 2): o histórico de consumo (antigo
+// `consumptionRecords`, baseado em ConsumptionRecord) foi removido daqui —
+// esse modelo não existe mais (schema v2). A exportação de consumo agregado
+// via MeterReading fica para quando a agregação (TariffService/Fase 3)
+// existir.
 export type DataExportPayload = {
     generatedAt: Date
     user: UserWithoutPassword
@@ -20,7 +23,6 @@ export type DataExportPayload = {
     areas: AreaResponse[]
     devices: DeviceResponse[]
     alerts: AlertResponse[]
-    consumptionRecords: ConsumptionResponse[]
     auditLogs: AuditLogResponse[]
 }
 
@@ -32,7 +34,6 @@ export class ExportService {
         private readonly alertRepository: AlertRepository,
         private readonly areaRepository: AreaRepository,
         private readonly deviceRepository: DeviceRepository,
-        private readonly consumptionRepository: ConsumptionRepository,
         private readonly auditRepository: AuditRepository,
     ) {}
 
@@ -45,14 +46,13 @@ export class ExportService {
             throw new NotFoundError("Usuário não encontrado")
         }
 
-        const [properties, distributors, alerts, areas, devices, consumptionRecords, auditLogs] =
+        const [properties, distributors, alerts, areas, devices, auditLogs] =
             await Promise.all([
                 this.propertyRepository.findAllByUser(userId),
                 this.distributorRepository.findAllByUser(userId),
                 this.alertRepository.findAllByUser(userId),
                 this.areaRepository.findAllByUser(userId),
                 this.deviceRepository.findAllByUser(userId),
-                this.consumptionRepository.findAllByUser(userId),
                 this.auditRepository.findByUserId(userId),
             ])
 
@@ -64,7 +64,6 @@ export class ExportService {
             areas,
             devices,
             alerts,
-            consumptionRecords,
             auditLogs,
         }
     }

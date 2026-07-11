@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface IConnection {
-    readonly deviceId: string
+    readonly meterId: string
 
     /**
      * Abre a conexão com o dispositivo físico.
