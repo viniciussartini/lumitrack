@@ -83,3 +83,46 @@ Componentes visuais (`NetworkCard`, `DeviceCard`, `AnomalyButton`, etc.) **não 
 ### Próximo passo
 
 Fase 1 (simulador) **completa** — servidor e UI implementados e verificados. Próximo: Fase 2 (seed de demonstração), Fase 4 (proteção da conta demo), Fase 3 (login de demonstração), na ordem sugerida pelo plano (2 → 4 → 3).
+
+---
+
+## Fase 2 — Seed de demonstração: identidades e topologia (Sub-issue 3)
+
+**Data:** 13/07/2026
+
+### O que foi implementado
+
+`backend/src/shared/config/demoAccounts.ts` — fonte única dos e-mails demo (`DEMO_RESIDENTIAL_EMAIL`, `DEMO_COMMERCIAL_EMAIL`, `DEMO_ACCOUNT_EMAILS`), já preparada para ser reaproveitada pelo guard da Fase 4.
+
+`backend/prisma/seed-demo.ts` (script manual, `npm run db:seed:demo`) + `backend/prisma/seed-demo/`:
+
+- **`constants.ts`** — senha demo (`DemoLumi@2026`, satisfaz `passwordSchema`), reexporta os e-mails de `demoAccounts.ts`.
+- **`identities.ts`** — geradores `generateCpf`/`generateCnpj` (dígito verificador calculado "de trás para frente", mesma fórmula de `isValidCpf`/`isValidCnpj` do `user.schema.ts`) + `createDemoResidentialUser`/`createDemoCommercialUser`, ambos via `UserService.createUser` real (hash bcrypt, criptografia+blind index de CPF/CNPJ, `consentedAt`/`consentVersion` — idêntico a um cadastro de verdade).
+- **`topology.ts`** (não previsto na árvore original do plano — ver desvio) — cria a hierarquia completa reaproveitando `PropertyService.create`/`AreaService.create`/`DeviceService.create` reais (criptografia de endereço, validação de posse) + `prisma.meter.create` direto para os medidores (sem service próprio de escrita, como já documentado no plano). Residencial: 1 `Property` (`BIPHASIC`/`B1`) + 1 `Meter` `PROPERTY`. Comercial: 1 `Property` (`TRIPHASIC`/`B3`, CIP `R$42,50`) + 2 `Area` ("Área de Vendas", "Produção/Cozinha") + 3 `Device` (Forno Industrial e Câmara Fria na cozinha, Ar-condicionado nas vendas) + 3 `Meter` (`PROPERTY`, `AREA` da área de vendas, `DEVICE` do forno) — exatamente como especificado no plano.
+- **`verify.ts`** — `printSummary(residentialUserId, commercialUserId)`: lista os medidores criados (nome/nível/tópico) via uma única query com `OR` pelos 3 caminhos de posse (mesmo padrão de `resolveUserMeterIds` do backend), e imprime as credenciais de login no console.
+- `backend/package.json`: novo script `"db:seed:demo": "tsx prisma/seed-demo.ts"`.
+
+### Desvios do plano (documentados também em PLANO_SIMULADOR_IOT_E_SEED_DEMO.md)
+
+1. **`topology.ts` é um arquivo novo, não previsto na árvore original** (`constants.ts`, `identities.ts`, `consumptionGen.ts`, `anomalies.ts`, `verify.ts`) — a criação de propriedade/área/dispositivo/medidor é uma responsabilidade distinta o bastante de "identidades" (CPF/CNPJ/usuário) pra justificar um módulo próprio; `main()` já falava em "identities → topology" como passos separados, só o arquivo não estava na lista.
+2. **Medidores demo usam `protocol: MQTT` com `host: localhost, port: 1883`** — aponta pro broker embutido do `iot-simulator` (Fase 1), assim quem tiver o simulador rodando pode ligar um device virtual em qualquer um dos 4 medidores demo sem precisar recriar nada.
+3. **Distribuidora escolhida via `findFirst` (ordenada por nome)** — o plano não especificava qual das 11 distribuidoras do catálogo usar; qualquer uma serve (só precisa existir), então a primeira em ordem alfabética foi suficiente.
+4. **Geradores de CPF/CNPJ testados por reimplementação independente do validador**, não por importar `isValidCpf`/`isValidCnpj` (funções privadas do módulo `user.schema.ts`, não exportadas) — mesmo padrão já usado no `iot-simulator` pra validar contra o predicado real do `IoTDataProcessor`. A prova mais forte, porém, foi rodar o script de verdade contra o Postgres de dev: `UserService.createUser` chama a validação real internamente, e os dois usuários foram criados sem erro.
+
+### Testes escritos (8, todos passando)
+
+- `prisma/seed-demo/identities.test.ts` — `generateCpf`/`generateCnpj` produzem documentos com dígito verificador válido (reimplementação independente de `isValidCpf`/`isValidCnpj`, testada com múltiplas bases), incluindo os valores reais usados no seed (`DEMO_CPF`, `DEMO_CNPJ`), e formatação (`000.000.000-00`/`00.000.000/0000-00`).
+
+### Verificação executada
+
+- `npx tsc --noEmit` e `npx eslint` (arquivos novos): limpos.
+- **Suíte completa do backend**: 1398/1398 testes em 117 arquivos, nenhuma regressão.
+- **Rodado de verdade contra o Postgres de dev** (`lumitrack_dev`, ambiente com o catálogo de 11 distribuidoras já seedado):
+  - 1ª execução: `Medidores criados: 4` (1 residencial + 3 comercial).
+  - 2ª execução (idempotência): mesmo resultado, `4` medidores — confirmado via SQL direto que não há duplicação (`SELECT count(*)` em `users`/`properties`/`meters` batendo exatamente).
+  - Login real via `POST /api/auth/login` (backend `dev` de verdade) — `200 OK` para os dois usuários demo, sem MFA (confirma `mfaEnabled: false` default).
+  - `GET /api/meters` autenticado: residencial retorna 1 medidor (`PROPERTY`); comercial retorna exatamente 3 medidores nos 3 níveis (`AREA`, `DEVICE`, `PROPERTY`) — bate com o critério de aceite da Sub-issue 3.
+
+### Próximo passo
+
+Fase 2 segue para a Sub-issue 4 (1 ano de `MeterReading` por medidor, alertas e episódios de anomalia históricos) — depende desta (identidades/topologia já prontas). Depois: Fase 4 (proteção da conta demo — `DEMO_ACCOUNT_EMAILS` já existe), Fase 3 (login de demonstração).

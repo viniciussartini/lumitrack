@@ -1,6 +1,6 @@
 # Plano — Simulador de dispositivos IoT e seed de demonstração realista
 
-> **Status:** em implementação na branch `feat/demo-environment`. Fase 1 (simulador) **completa** em 13/07/2026 — servidor (Sub-issue 1) e UI (Sub-issue 2) implementados e verificados (ver log de implementação em [LOG_SIMULADOR_IOT.md](./LOG_SIMULADOR_IOT.md)). Fases 2-4 (seed, login demo, proteção) ainda não implementadas.
+> **Status:** em implementação na branch `feat/demo-environment`. Fase 1 (simulador) **completa** em 13/07/2026 — servidor (Sub-issue 1) e UI (Sub-issue 2) implementados e verificados. Fase 2 (seed) **parcial** — identidades e topologia (Sub-issue 3) concluídas em 13/07/2026, histórico de consumo/alertas (Sub-issue 4) pendente (ver log de implementação em [LOG_SIMULADOR_IOT.md](./LOG_SIMULADOR_IOT.md)). Fases 3-4 (login demo, proteção) ainda não implementadas.
 >
 > **Data do planejamento:** 11/07/2026.
 >
@@ -150,7 +150,7 @@ Modbus TCP e demais protocolos (`MODBUS_RTU`, `ETHERNET_IP`, `PROFIBUS`, `PROFIN
 
 ---
 
-## Fase 2 — Seed de demonstração realista (`backend/prisma/seed-demo.ts`, script opcional)
+## Fase 2 — Seed de demonstração realista (`backend/prisma/seed-demo.ts`, script opcional) 🚧 Identidades e topologia concluídas (13/07/2026) — histórico/alertas pendente
 
 ### Estrutura
 
@@ -209,6 +209,14 @@ Nunca gerar os ~2,1M registros em memória de uma vez. Por medidor, iterar minut
 ### Verificação final (console)
 
 Por medidor: contagem de leituras, soma de kWh, potência média. Lista dos episódios de alerta gerados. Credenciais de login dos dois usuários demo.
+
+**Nota de implementação:** identidades e topologia (Sub-issue 3) executadas como planejado, com os desvios abaixo; geração de 1 ano de consumo/alertas/anomalias (Sub-issue 4) ainda não implementada.
+
+1. **`topology.ts` é um arquivo novo**, não previsto na árvore original (`constants.ts`, `identities.ts`, `consumptionGen.ts`, `anomalies.ts`, `verify.ts`) — a criação de propriedade/área/dispositivo/medidor é uma responsabilidade distinta o bastante de "identidades" pra justificar um módulo próprio.
+2. **Medidores demo usam `protocol: MQTT`, `host: localhost, port: 1883`** — aponta pro broker embutido do `iot-simulator` (Fase 1), então dá pra ligar um device virtual em qualquer medidor demo sem reconfigurar nada.
+3. **Distribuidora escolhida via `findFirst` (ordenada por nome)** — qualquer uma das 11 do catálogo serve; não havia critério de escolha especificado.
+4. **Geradores de CPF/CNPJ testados por reimplementação independente do validador** (não importando `isValidCpf`/`isValidCnpj`, privadas do módulo `user.schema.ts`) — mesmo padrão usado no `iot-simulator` pra validar contra o predicado real do backend. Confirmado também rodando o script de verdade: `UserService.createUser` roda a validação real internamente e os dois usuários foram criados sem erro contra o Postgres de dev.
+5. **Verificado contra um Postgres de dev real** (não só testes/mocks): script rodado 2× seguidas sem duplicar (confirmado via SQL direto), login real via `POST /api/auth/login` (200, sem MFA) para os dois usuários, e `GET /api/meters` do usuário PJ retornando exatamente os 3 medidores nos 3 níveis esperados.
 
 ---
 
