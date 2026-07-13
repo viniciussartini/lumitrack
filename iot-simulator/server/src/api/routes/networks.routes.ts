@@ -14,7 +14,10 @@ export function networksRoutes(store: SimulationStore, engine: SimulationEngine)
     router.post("/", (req, res) => {
         const { name } = createNetworkSchema.parse(req.body)
         const network = store.createNetwork(name)
-        res.status(201).json(network)
+        // `network.devices` é um Map — JSON.stringify(Map) vira "{}", não
+        // "[]". Serializa explicitamente para o formato de array, igual ao
+        // resto da API (snapshot(), GET /:id/devices).
+        res.status(201).json({ id: network.id, name: network.name, devices: [] })
     })
 
     router.delete("/:id", (req, res) => {

@@ -35,12 +35,15 @@ describe("networksRoutes", () => {
         expect(res.body.issues.name).toBeDefined()
     })
 
-    it("POST /api/networks válido retorna 201 com id", async () => {
+    it("POST /api/networks válido retorna 201 com id e devices como array vazio", async () => {
         const res = await request(app).post("/api/networks").send({ name: "Casa Teste" })
 
         expect(res.status).toBe(201)
         expect(res.body.id).toBeDefined()
         expect(res.body.name).toBe("Casa Teste")
+        // Regressão: `network.devices` é um Map internamente — serializar o
+        // objeto cru faz `devices` virar `{}` em vez de `[]` no JSON.
+        expect(res.body.devices).toEqual([])
     })
 
     it("GET /api/networks lista as redes criadas", async () => {

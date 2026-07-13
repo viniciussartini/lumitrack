@@ -1,6 +1,6 @@
 # Plano — Simulador de dispositivos IoT e seed de demonstração realista
 
-> **Status:** em implementação na branch `feat/demo-environment`. Fase 1 (simulador) parcialmente concluída — servidor (Sub-issue 1) concluído em 13/07/2026 (ver log de implementação em [LOG_SIMULADOR_IOT.md](./LOG_SIMULADOR_IOT.md)); UI (Sub-issue 2) e Fases 2-4 (seed, login demo, proteção) ainda não implementadas.
+> **Status:** em implementação na branch `feat/demo-environment`. Fase 1 (simulador) **completa** em 13/07/2026 — servidor (Sub-issue 1) e UI (Sub-issue 2) implementados e verificados (ver log de implementação em [LOG_SIMULADOR_IOT.md](./LOG_SIMULADOR_IOT.md)). Fases 2-4 (seed, login demo, proteção) ainda não implementadas.
 >
 > **Data do planejamento:** 11/07/2026.
 >
@@ -33,7 +33,7 @@ Achados de pesquisa no código que moldam a solução:
 
 ---
 
-## Fase 1 — Simulador de dispositivos IoT (`iot-simulator/`, novo app standalone) 🚧 Servidor concluído (13/07/2026) — UI pendente
+## Fase 1 — Simulador de dispositivos IoT (`iot-simulator/`, novo app standalone) ✅ Concluída (13/07/2026)
 
 ### Estrutura
 
@@ -134,14 +134,19 @@ Modbus TCP e demais protocolos (`MODBUS_RTU`, `ETHERNET_IP`, `PROFIBUS`, `PROFIN
 
 **Verificação:** `npm run dev` sobe broker + API + UI; criar um `Meter` no LumiTrack apontando pro broker embutido e ligar um dispositivo virtual faz o `RealTimeCard` do LumiTrack atualizar ao vivo; "Injetar anomalia" faz o `WarningBadge` acender.
 
-**Nota de implementação:** servidor (Sub-issue 1) executado como planejado, com os desvios abaixo (documentados também no log de implementação); UI (Sub-issue 2) ainda não implementada.
+**Nota de implementação:** executado como planejado (servidor e UI, Sub-issues 1 e 2), com os desvios abaixo (documentados também no log de implementação):
 
-1. **`npm workspaces` raiz ainda não criado** — `iot-simulator/package.json` com `["server","ui"]` fica para quando `ui/` existir; por ora `server/` é standalone (`package.json` próprio), igual a `backend/`/`frontend/`.
-2. **Vitest 4 não exclui `dist/` por padrão** (diferente de versões anteriores) — depois do primeiro build, os testes rodavam em dobro (fonte + compilado); corrigido com `exclude` explícito no `vitest.config.ts`.
+1. **`npm workspaces` raiz criado só quando a UI começou** — `iot-simulator/package.json` com `["server","ui"]` + script `dev` via `concurrently` foi adiado da Sub-issue 1 pra Sub-issue 2, quando `ui/` passou a existir de fato; `server/package-lock.json` próprio foi removido e consolidado no lockfile raiz do workspace.
+2. **Vitest 4 não exclui `dist/` por padrão** (diferente de versões anteriores) — depois do primeiro build, os testes rodavam em dobro (fonte + compilado); corrigido com `exclude` explícito no `vitest.config.ts` do servidor.
 3. **Aedes 1.x exige `await aedes.listen()`** antes de aceitar conexões — sem isso o handshake MQTT trava silenciosamente (o socket TCP conecta, mas nenhum CONNACK/erro é emitido); não documentado nos exemplos públicos da lib.
 4. **`exactOptionalPropertyTypes: true` rejeitava o merge de `params` parcial** (zod `.partial()`) sobre `DeviceParams` — corrigido com um helper `mergeDefined()` e tipos de input declarando `| undefined` explicitamente, espelhando a inferência real do zod.
 5. **`EmbeddedBroker.start(port)` retorna a porta efetivamente vinculada** (`Promise<number>`, não `void`) — permite testes pedirem porta `0` (SO escolhe) sem colisão entre execuções paralelas.
 6. **Arquivos extras não previstos na árvore da Estrutura**, mas consistentes com o padrão do backend: `api/schemas.ts` (schemas zod centralizados) e `shared/errors.ts` (`NotFoundError`).
+7. **`POST /api/networks` tinha um bug de serialização** — devolvia a `VirtualNetwork` crua (`devices` é um `Map`, que vira `"{}"` no JSON em vez de `"[]"`), inconsistente com o resto da API. Encontrado testando o fluxo completo pela UI; corrigido para serializar `devices: []` explicitamente, com teste de regressão.
+8. **`Button` da UI é um subset do original** — sem a variante `asChild`/Radix `Slot` (não há necessidade de botão polimórfico aqui), evitando uma dependência extra.
+9. **`useLiveStatus` usa `EventSource` nativo do browser**, não `@microsoft/fetch-event-source` (lib usada no frontend principal) — o endpoint SSE do simulador não exige headers customizados/credenciais, então a API nativa basta.
+10. **Sem `useQuery` de leitura para redes/devices na UI** — só o hook de SSE (`useLiveStatus`). O primeiro evento já chega com o snapshot completo ao conectar, tornando uma query REST inicial redundante.
+11. **Verificação em browser real não foi possível** — sem acesso à internet no sandbox usado para baixar o Chromium via Playwright (mesma limitação já registrada na reformulação IoT, `LOG_IMPLEMENTACAO_IOT.md` Fase 5 desvio #6). Verificação alternativa: fluxo completo exercitado via HTTP direto contra o proxy `/api` da UI (`localhost:5180`), incluindo consumo do SSE stream via `fetch` com leitura manual de chunks — mesmo caminho que o browser usaria.
 
 ---
 

@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+/* Mesmos tokens de marca do frontend principal, só o necessário para os
+   componentes de UI copiados (Button/Input/Select) renderizarem idênticos. */
+@theme {
+    --color-brand-50: oklch(0.97 0.02 78);
+    --color-brand-500: oklch(0.8 0.18 78);
+    --color-brand-700: oklch(0.7 0.2 78);
+}
+
+html,
+body,
+#root {
+    height: 100%;
+}
+
+body {
+    @apply bg-white text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+}
