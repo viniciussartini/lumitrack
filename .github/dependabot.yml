@@ -4,13 +4,28 @@ updates:
     directory: "/backend"
     schedule:
       interval: "weekly"
+    groups:
+      # Minor/patch são normalmente compatíveis entre si — agrupa num PR só.
+      # Major fica de fora do grupo (PR individual) porque costuma exigir
+      # revisão manual: já vimos major bump quebrar build por conflito de
+      # peer dependency (ver PR #35, typescript 5→7 x typescript-eslint).
+      backend-dependencies:
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
+    groups:
+      frontend-dependencies:
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      # GitHub Actions costuma incrementar a major a cada release (não é
+      # sinal de breaking change real), então agrupa tudo, major incluso.
+      github-actions:
+        patterns: ["*"]
