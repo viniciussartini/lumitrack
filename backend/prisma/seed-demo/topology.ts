@@ -48,7 +48,7 @@ export async function createResidentialTopology(userId: string) {
         billingClass: "B1",
     })
 
-    await prisma.meter.create({
+    const generalMeter = await prisma.meter.create({
         data: {
             name: "Medidor Geral",
             targetType: "PROPERTY",
@@ -60,7 +60,7 @@ export async function createResidentialTopology(userId: string) {
         },
     })
 
-    return { property }
+    return { property, meters: { general: generalMeter } }
 }
 
 export async function createCommercialTopology(userId: string) {
@@ -78,7 +78,7 @@ export async function createCommercialTopology(userId: string) {
         publicLightingFeeBrl: 42.5,
     })
 
-    await prisma.meter.create({
+    const generalMeter = await prisma.meter.create({
         data: {
             name: "Medidor Geral",
             targetType: "PROPERTY",
@@ -93,7 +93,7 @@ export async function createCommercialTopology(userId: string) {
     const salesArea = await areaService.create(property.id, userId, { name: "Área de Vendas" })
     const kitchenArea = await areaService.create(property.id, userId, { name: "Produção/Cozinha" })
 
-    await prisma.meter.create({
+    const salesAreaMeter = await prisma.meter.create({
         data: {
             name: "Medidor Área de Vendas",
             targetType: "AREA",
@@ -124,7 +124,7 @@ export async function createCommercialTopology(userId: string) {
         powerWatts: 2200,
     })
 
-    await prisma.meter.create({
+    const ovenMeter = await prisma.meter.create({
         data: {
             name: "Medidor Forno",
             targetType: "DEVICE",
@@ -136,5 +136,11 @@ export async function createCommercialTopology(userId: string) {
         },
     })
 
-    return { property, salesArea, kitchenArea, devices: { oven, freezer, airConditioner } }
+    return {
+        property,
+        salesArea,
+        kitchenArea,
+        devices: { oven, freezer, airConditioner },
+        meters: { general: generalMeter, salesArea: salesAreaMeter, oven: ovenMeter },
+    }
 }

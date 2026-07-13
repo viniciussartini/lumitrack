@@ -126,3 +126,53 @@ Fase 1 (simulador) **completa** — servidor e UI implementados e verificados. P
 ### Próximo passo
 
 Fase 2 segue para a Sub-issue 4 (1 ano de `MeterReading` por medidor, alertas e episódios de anomalia históricos) — depende desta (identidades/topologia já prontas). Depois: Fase 4 (proteção da conta demo — `DEMO_ACCOUNT_EMAILS` já existe), Fase 3 (login de demonstração).
+
+Nota (Sub-issue 4): `topology.ts` passou a retornar os `Meter` criados (não só `Property`/`Area`/`Device`), necessário para `alerts.ts`/`readings.ts` referenciarem os medidores certos sem query extra — ver detalhes abaixo.
+
+---
+
+## Fase 2 — Seed de demonstração: consumo de 1 ano, alertas e anomalias históricas (Sub-issue 4)
+
+**Data:** 13/07/2026
+
+### O que foi implementado
+
+- **`consumptionGen.ts`** — gerador puro (sem I/O) de amostra por minuto para 4 perfis de carga (`RESIDENTIAL`, `COMMERCIAL_GENERAL`, `SALES_AREA`, `OVEN`). PRNG determinístico (`mulberry32`, mesma escolha do `iot-simulator`) + ruído gaussiano (Box-Muller). Cada perfil deriva a potência-alvo da hora/dia da semana/época do ano local (Brasil, deslocamento fixo de -3h, sem depender do fuso da máquina que roda o script — todo cálculo usa `getUTC*` sobre um timestamp já deslocado, nunca `getHours`/`getDay` do host). `avgCurrent` é sempre derivada de `avgPowerW/(avgVoltage·avgPowerFactor)`, garantindo `P=V·I·PF` por construção.
+- **`anomalies.ts`** — 6 janelas de anomalia fixas (2 por medidor alertável: residencial, comercial geral, forno), com `meterKey`/`startUtc`/`durationMinutes`/`multiplier`, todas em horário de atividade normal do respectivo perfil (evita "salto do zero").
+- **`alerts.ts`** — cria os 3 `Alert` reais via `AlertRepository.create` (residencial `4kW±25%`, comercial geral `11kW±20%`, forno `5kW±15%`), calibrados para o pico normal de cada perfil.
+- **`readings.ts`** — orquestra o loop de 1 ano (525.600 minutos) por medidor, gerando a leitura de cada minuto, acumulando em lote de `READINGS_BATCH_SIZE=10_000` e persistindo via `prisma.meterReading.createMany({ skipDuplicates: true })`; para os 3 medidores alertáveis, acumula estatísticas (`min`/`max`/`avg`/`sampleCount`) durante cada janela de anomalia e grava um `AlertTriggerEvent` diretamente ao fim da janela — nunca via `AlertEvaluator` ao vivo.
+- **`seed-demo.ts`** — `main()` agora encadeia identities → topology → alerts → readings → printSummary, medindo e imprimindo o tempo real da geração de leituras.
+- **`verify.ts`** — resumo final agora inclui, por medidor, contagem de leituras/kWh total/potência média (`prisma.meterReading.aggregate`), e a lista dos episódios de anomalia gerados (via `AlertTriggerEvent` + nome do alerta).
+- **`topology.ts`** (Sub-issue 3) passou a retornar os `Meter` criados (`meters: { general, salesArea?, oven? }`) — necessário para `alerts.ts`/`readings.ts` referenciarem os medidores certos sem uma query extra.
+
+### Desvios do plano (documentados também em PLANO_SIMULADOR_IOT_E_SEED_DEMO.md)
+
+1. **4º perfil de carga (`SALES_AREA`), não previsto na lista original de 3** (residencial/comercial geral/forno) — o medidor da "Área de Vendas" (nível `AREA`) precisa de uma curva própria (iluminação + ar-condicionado, mesmo horário de funcionamento da loja, escala bem menor que o medidor geral que cobre o prédio inteiro). Sem `Alert` associado (só residencial/comercial geral/forno têm alerta, como já especificado no plano).
+2. **`alerts.ts` e `readings.ts` são arquivos novos**, não previstos na árvore original (`constants.ts`, `identities.ts`, `consumptionGen.ts`, `anomalies.ts`, `verify.ts`) — mesmo raciocínio do desvio #1 da Sub-issue 3 (`topology.ts`): criar os `Alert` e orquestrar o loop de geração/batching são responsabilidades distintas o bastante das de `consumptionGen.ts`/`anomalies.ts` (que ficam puras, sem I/O) para justificar módulos próprios.
+3. **RNG com seed fixa por papel de medidor (`residential`/`commercialGeneral`/`salesArea`/`oven`), não pelo `meterId`** — o `meterId` é um UUID gerado pelo Postgres a cada execução do seed; usá-lo como seed do RNG quebraria o determinismo entre execuções (mesma contagem de linhas, mas valores de consumo diferentes a cada run). Seeds fixas por papel garantem que rodar o script 2× produz exatamente os mesmos números, não só a mesma contagem.
+4. **`sampleCount`/`durationSeconds` do `AlertTriggerEvent` aproximados a partir dos minutos gerados** (`duracaoMinutos × 60`), não de amostras por segundo reais — o seed só retém agregados por minuto (sem raw samples a 1Hz, diferente do pipeline real de ingestão). `min`/`max`/`avg` de potência do episódio vêm dos `avgPowerW` de cada minuto dentro da janela, uma aproximação razoável dado que o seed não guarda granularidade menor.
+5. **Transições suaves (função logística) em vez de degraus** nas janelas de abertura/fechamento comercial e nos lobos de pico residenciais — evita um "serrote" artificial entre minutos consecutivos num gráfico de linha; não estava especificado no plano, mas é consistente com "coerência física" já exigida para tensão/corrente/potência.
+
+### Testes escritos (26, todos passando; total do módulo `seed-demo/` sobe para 34)
+
+- `consumptionGen.test.ts` (20) — determinismo do RNG (mesma seed ⇒ mesma sequência), distribuição uniforme, coerência `P=V·I·PF` e validade de campo (finito, `≥0`, `powerFactor∈[0,1]`) para os 4 perfis, comparações de forma (pico noturno > madrugada, fim de semana > dia de semana, loja fechada `<<` horário comercial, forno em produção `>>` fora dela, domingo zerado), e efeito da anomalia (potência bem maior + leve sag de tensão).
+- `anomalies.test.ts` (6) — `anomalyMultiplierAt` retorna 1 fora de qualquer janela, aplica o multiplicador correto durante toda a duração configurada, cessa exatamente no minuto seguinte ao fim, não vaza entre medidores diferentes, e há exatamente 6 janelas (2 por medidor alertável).
+
+`alerts.ts`/`readings.ts`/mudanças em `topology.ts`/`verify.ts` **não têm teste unitário dedicado** — mesmo padrão já registrado para `topology.ts` na Sub-issue 3: tocam `prisma`/services reais diretamente, verificados pela execução de verdade contra o Postgres de dev (abaixo), não por mocks.
+
+### Verificação executada
+
+- `npx tsc --noEmit` e `npx eslint prisma/seed-demo prisma/seed-demo.ts`: limpos.
+- **Suíte completa do backend**: 1425/1425 testes em 119 arquivos (1398 anteriores + 27 novos: 26 de `consumptionGen.test.ts`/`anomalies.test.ts` + 1 de ajuste), nenhuma regressão. Duração ~850s (suíte inteira contra Postgres real, `maxWorkers: 1`).
+- **Rodado de verdade contra o Postgres de dev** (`lumitrack_dev`, dados da Sub-issue 3 recriados do zero pelo próprio `resetDemoData`):
+  - **Tempo real**: geração das leituras (`generateYearOfReadings`) levou **602,9s** (~10min) para os 4 medidores; script completo (`time npm run db:seed:demo`) **10m6s**. `BATCH_SIZE=10_000` (constants.ts) não precisou de ajuste — throughput estável do início ao fim, sem degradação perceptível conforme o volume crescia.
+  - **Volume**: exatamente `4 × 525.600 = 2.102.400` linhas de `MeterReading` (confirmado via `SELECT count(*)` e via console do próprio script, medidor a medidor).
+  - **Console do script**: `Medidor Geral` (residencial) 525.600 leituras/9.676,2 kWh/1.105W médios; `Medidor Geral` (comercial) 525.600/35.323,5 kWh/4.032W médios; `Medidor Área de Vendas` 525.600/6.622,8 kWh/756W médios; `Medidor Forno` 525.600/6.539,8 kWh/747W médios. 6 episódios de anomalia impressos com duração e potência de pico coerentes com os multiplicadores configurados.
+  - **`GET /api/consumption?granularity=year`** (login real via `POST /api/auth/login`, sem MFA) para o medidor geral residencial: 2 buckets (2025 e 2026) somando **9.676,2 kWh** — bate exatamente com o total do console.
+  - **`GET /api/alerts`**: 1 alerta residencial (`4kW±25%`) e 2 comerciais (`11kW±20%` geral, `5kW±15%` forno), todos `enabled`.
+  - **`GET /api/alert-events`** por alerta: 2 episódios cada (6 no total), com `startedAt`/`endedAt`/`durationSeconds`/`minPowerW`/`maxPowerW`/`avgPowerW` batendo exatamente com o que o console do seed reportou (ex.: episódio residencial de 2026-03-03, `durationSeconds: 420`, `maxPowerW: 12084.29`).
+  - **Idempotência da geração de leituras não foi reexecutada** (2ª rodada completa levaria outros ~10min) — a garantia vem por construção: `resetDemoData` (cascade) já remove todo o histórico antigo (comportamento testado na Sub-issue 3) e `readings.ts` usa seeds de RNG fixas por papel de medidor (não pelo `meterId`), então uma 2ª execução reproduziria os mesmos valores, não só a mesma contagem — coberto pelos testes de determinismo do RNG em `consumptionGen.test.ts`.
+
+### Próximo passo
+
+Fase 2 (seed de demonstração) **completa**. Próximo: Fase 4 (proteção da conta demo — `DEMO_ACCOUNT_EMAILS` já existe), Fase 3 (login de demonstração).

@@ -1,6 +1,6 @@
 # Plano — Simulador de dispositivos IoT e seed de demonstração realista
 
-> **Status:** em implementação na branch `feat/demo-environment`. Fase 1 (simulador) **completa** em 13/07/2026 — servidor (Sub-issue 1) e UI (Sub-issue 2) implementados e verificados. Fase 2 (seed) **parcial** — identidades e topologia (Sub-issue 3) concluídas em 13/07/2026, histórico de consumo/alertas (Sub-issue 4) pendente (ver log de implementação em [LOG_SIMULADOR_IOT.md](./LOG_SIMULADOR_IOT.md)). Fases 3-4 (login demo, proteção) ainda não implementadas.
+> **Status:** em implementação na branch `feat/demo-environment`. Fase 1 (simulador) **completa** em 13/07/2026 — servidor (Sub-issue 1) e UI (Sub-issue 2) implementados e verificados. Fase 2 (seed) **completa** em 13/07/2026 — identidades/topologia (Sub-issue 3) e consumo de 1 ano + alertas + anomalias (Sub-issue 4) implementados e verificados contra Postgres real (ver log de implementação em [LOG_SIMULADOR_IOT.md](./LOG_SIMULADOR_IOT.md)). Fases 3-4 (login demo, proteção) ainda não implementadas.
 >
 > **Data do planejamento:** 11/07/2026.
 >
@@ -150,7 +150,7 @@ Modbus TCP e demais protocolos (`MODBUS_RTU`, `ETHERNET_IP`, `PROFIBUS`, `PROFIN
 
 ---
 
-## Fase 2 — Seed de demonstração realista (`backend/prisma/seed-demo.ts`, script opcional) 🚧 Identidades e topologia concluídas (13/07/2026) — histórico/alertas pendente
+## Fase 2 — Seed de demonstração realista (`backend/prisma/seed-demo.ts`, script opcional) ✅ Concluída (13/07/2026)
 
 ### Estrutura
 
@@ -158,10 +158,13 @@ Modbus TCP e demais protocolos (`MODBUS_RTU`, `ETHERNET_IP`, `PROFIBUS`, `PROFIN
 backend/src/shared/config/demoAccounts.ts   # fonte única: DEMO_ACCOUNT_EMAILS (Set) — usado pelo seed E pelo guard da Fase 4
 backend/prisma/seed-demo.ts                 # main(): resetDemoData → identities → topology → alerts → readings → AlertTriggerEvents → printSummary
 backend/prisma/seed-demo/
-  ├── constants.ts      # senha demo, nomes, janela de datas — importa e-mails de @/shared/config/demoAccounts.js
+  ├── constants.ts      # senha demo, nomes, janela de datas, BATCH_SIZE — importa e-mails de @/shared/config/demoAccounts.js
   ├── identities.ts     # geradores de CPF/CNPJ válidos + criação dos 2 usuários via UserService
+  ├── topology.ts        # propriedade/área/dispositivo/medidor via services reais (ver desvio #1, Sub-issue 3)
   ├── consumptionGen.ts # perfis de carga + gerador puro de amostra por minuto
   ├── anomalies.ts       # janelas de anomalia por medidor
+  ├── alerts.ts          # cria os 3 Alert reais via AlertRepository
+  ├── readings.ts        # orquestra o loop de 1 ano por medidor, batching + AlertTriggerEvent
   └── verify.ts          # queries de conferência final
 ```
 
@@ -190,6 +193,7 @@ Janela: `2025-07-11T00:00 -03:00` até `2026-07-10T23:59 -03:00` (Brasil sem hor
 Perfis de carga puros, sem I/O:
 - **Residencial**: base ~280W + dois lobos de pico (manhã leve, noite forte), fim de semana ~25% mais alto, leve sazonalidade de verão.
 - **Comercial geral**: base ~600W, patamar alto 8h-19h com dip no almoço, domingo fechado.
+- **Área de vendas** (4º perfil, não previsto na lista original de 3 — ver desvio #1 da Sub-issue 4): subconjunto do comercial geral, iluminação + ar-condicionado, mesmo horário de funcionamento, escala bem menor.
 - **Forno**: rajadas curtas no horário de produção.
 
 Por minuto: potência-alvo → deriva `avgVoltage`/`avgPowerFactor` com ruído pequeno → `avgCurrent = avgPowerW / (avgVoltage * avgPowerFactor)` (coerência física por construção) → `kwhConsumed = avgPowerW * 60 / 3_600_000`. RNG com seed fixa (determinístico entre execuções).
@@ -210,13 +214,20 @@ Nunca gerar os ~2,1M registros em memória de uma vez. Por medidor, iterar minut
 
 Por medidor: contagem de leituras, soma de kWh, potência média. Lista dos episódios de alerta gerados. Credenciais de login dos dois usuários demo.
 
-**Nota de implementação:** identidades e topologia (Sub-issue 3) executadas como planejado, com os desvios abaixo; geração de 1 ano de consumo/alertas/anomalias (Sub-issue 4) ainda não implementada.
+**Nota de implementação:** Sub-issues 3 (identidades/topologia) e 4 (consumo de 1 ano/alertas/anomalias) executadas como planejado, com os desvios abaixo.
 
 1. **`topology.ts` é um arquivo novo**, não previsto na árvore original (`constants.ts`, `identities.ts`, `consumptionGen.ts`, `anomalies.ts`, `verify.ts`) — a criação de propriedade/área/dispositivo/medidor é uma responsabilidade distinta o bastante de "identidades" pra justificar um módulo próprio.
 2. **Medidores demo usam `protocol: MQTT`, `host: localhost, port: 1883`** — aponta pro broker embutido do `iot-simulator` (Fase 1), então dá pra ligar um device virtual em qualquer medidor demo sem reconfigurar nada.
 3. **Distribuidora escolhida via `findFirst` (ordenada por nome)** — qualquer uma das 11 do catálogo serve; não havia critério de escolha especificado.
 4. **Geradores de CPF/CNPJ testados por reimplementação independente do validador** (não importando `isValidCpf`/`isValidCnpj`, privadas do módulo `user.schema.ts`) — mesmo padrão usado no `iot-simulator` pra validar contra o predicado real do backend. Confirmado também rodando o script de verdade: `UserService.createUser` roda a validação real internamente e os dois usuários foram criados sem erro contra o Postgres de dev.
 5. **Verificado contra um Postgres de dev real** (não só testes/mocks): script rodado 2× seguidas sem duplicar (confirmado via SQL direto), login real via `POST /api/auth/login` (200, sem MFA) para os dois usuários, e `GET /api/meters` do usuário PJ retornando exatamente os 3 medidores nos 3 níveis esperados.
+6. **4º perfil de carga (`SALES_AREA`)**, não previsto na lista original de 3 (residencial/comercial geral/forno) — o medidor da "Área de Vendas" (nível `AREA`) precisa de curva própria; sem `Alert` associado.
+7. **`alerts.ts` e `readings.ts` são arquivos novos**, mesmo raciocínio do desvio #1 (`topology.ts`) — criar os `Alert` e orquestrar o loop de geração/batching são responsabilidades distintas o bastante de `consumptionGen.ts`/`anomalies.ts` (mantidos puros, sem I/O) pra justificar módulos próprios.
+8. **RNG com seed fixa por papel de medidor, não pelo `meterId`** (UUID gerado a cada execução) — garante que rodar o script 2× produza os mesmos valores de consumo, não só a mesma contagem de linhas.
+9. **`sampleCount`/`durationSeconds` do `AlertTriggerEvent` aproximados a partir dos minutos gerados** (1 amostra/s dentro da janela) — o seed só retém agregados por minuto, sem amostras por segundo reais.
+10. **Transições suaves (função logística) em vez de degraus** nas janelas de abertura/fechamento comercial e nos lobos de pico residenciais — evita "serrote" artificial entre minutos consecutivos.
+11. **Tempo real medido**: geração das leituras levou 602,9s (~10min) para os 4 medidores (~2,1M linhas), script completo 10m6s. `BATCH_SIZE=10_000` não precisou de ajuste (throughput estável do início ao fim).
+12. **Verificado contra um Postgres de dev real**: contagem exata de `4 × 525.600 = 2.102.400` linhas de `MeterReading`; `GET /api/consumption?granularity=year` do medidor geral residencial somando exatamente o total do console (9.676,2 kWh); `GET /api/alert-events` de cada um dos 3 alertas retornando os 2 episódios esperados, com estatísticas idênticas às impressas pelo script.
 
 ---
 
@@ -279,6 +290,6 @@ Fase 1 (simulador) é independente das demais. Fase 2 (seed) não depende de nad
 ## Riscos e pontos de atenção
 
 - Porta `1883` do broker embutido pode colidir com outro broker MQTT já rodando localmente — ajustável via `.env` do simulador.
-- Tempo real de execução do seed (~2,1M linhas) não foi medido ainda — calibrar `BATCH_SIZE` na primeira rodada.
+- Tempo real de execução do seed (~2,1M linhas): **medido em ~10min** (602,9s só para as leituras) contra o Postgres de dev — `BATCH_SIZE=10_000` não precisou de ajuste. Quem for rodar localmente deve esperar essa ordem de grandeza.
 - Senha demo fixa e visível no código-fonte (`DemoLumi@2026`) — aceitável por ser 100% sintético, mas reforça que `seed-demo.ts` é estritamente dev/local, nunca produção real.
 - Riscos relacionados não cobertos (troca de e-mail/MFA/exclusão da conta demo) documentados na Fase 4, deixados como decisão futura.
