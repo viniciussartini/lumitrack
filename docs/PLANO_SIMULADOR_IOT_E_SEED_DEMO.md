@@ -1,6 +1,6 @@
 # Plano — Simulador de dispositivos IoT e seed de demonstração realista
 
-> **Status:** planejado, **nada implementado ainda**. Este documento (e o épico de issues associado) foi escrito numa sessão de planejamento; a implementação fica para uma branch dedicada, criada separadamente.
+> **Status:** em implementação na branch `feat/demo-environment`. Fase 1 (simulador) parcialmente concluída — servidor (Sub-issue 1) concluído em 13/07/2026 (ver log de implementação em [LOG_SIMULADOR_IOT.md](./LOG_SIMULADOR_IOT.md)); UI (Sub-issue 2) e Fases 2-4 (seed, login demo, proteção) ainda não implementadas.
 >
 > **Data do planejamento:** 11/07/2026.
 >
@@ -33,7 +33,7 @@ Achados de pesquisa no código que moldam a solução:
 
 ---
 
-## Fase 1 — Simulador de dispositivos IoT (`iot-simulator/`, novo app standalone)
+## Fase 1 — Simulador de dispositivos IoT (`iot-simulator/`, novo app standalone) 🚧 Servidor concluído (13/07/2026) — UI pendente
 
 ### Estrutura
 
@@ -133,6 +133,15 @@ Backend do LumiTrack usa `3333`, frontend `5173` — sem colisão.
 Modbus TCP e demais protocolos (`MODBUS_RTU`, `ETHERNET_IP`, `PROFIBUS`, `PROFINET`, `RS232`, `RS485`) não são alvo — o backend real não tem decodificação de registrador implementada para eles.
 
 **Verificação:** `npm run dev` sobe broker + API + UI; criar um `Meter` no LumiTrack apontando pro broker embutido e ligar um dispositivo virtual faz o `RealTimeCard` do LumiTrack atualizar ao vivo; "Injetar anomalia" faz o `WarningBadge` acender.
+
+**Nota de implementação:** servidor (Sub-issue 1) executado como planejado, com os desvios abaixo (documentados também no log de implementação); UI (Sub-issue 2) ainda não implementada.
+
+1. **`npm workspaces` raiz ainda não criado** — `iot-simulator/package.json` com `["server","ui"]` fica para quando `ui/` existir; por ora `server/` é standalone (`package.json` próprio), igual a `backend/`/`frontend/`.
+2. **Vitest 4 não exclui `dist/` por padrão** (diferente de versões anteriores) — depois do primeiro build, os testes rodavam em dobro (fonte + compilado); corrigido com `exclude` explícito no `vitest.config.ts`.
+3. **Aedes 1.x exige `await aedes.listen()`** antes de aceitar conexões — sem isso o handshake MQTT trava silenciosamente (o socket TCP conecta, mas nenhum CONNACK/erro é emitido); não documentado nos exemplos públicos da lib.
+4. **`exactOptionalPropertyTypes: true` rejeitava o merge de `params` parcial** (zod `.partial()`) sobre `DeviceParams` — corrigido com um helper `mergeDefined()` e tipos de input declarando `| undefined` explicitamente, espelhando a inferência real do zod.
+5. **`EmbeddedBroker.start(port)` retorna a porta efetivamente vinculada** (`Promise<number>`, não `void`) — permite testes pedirem porta `0` (SO escolhe) sem colisão entre execuções paralelas.
+6. **Arquivos extras não previstos na árvore da Estrutura**, mas consistentes com o padrão do backend: `api/schemas.ts` (schemas zod centralizados) e `shared/errors.ts` (`NotFoundError`).
 
 ---
 
