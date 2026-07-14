@@ -8,6 +8,7 @@ import { loginSchema, type LoginFormData } from "@/schemas/auth.schema"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { MfaCodeForm } from "@/components/auth/MfaCodeForm"
+import { DEMO_USERS } from "@/config/demoUsers"
 
 interface LocationState {
     from?: { pathname: string }
@@ -18,6 +19,7 @@ export const LoginPage = () => {
     const navigate = useNavigate()
     const location = useLocation()
     const { login, completeMfaLogin } = useAuth()
+    const isDemoModeEnabled = import.meta.env.VITE_DEMO_MODE === "true"
     const [serverError, setServerError] = useState<string | null>(null)
     // Preenchido quando o backend responde `mfaRequired:true` — enquanto
     // não-nulo, a página troca o form de credenciais pelo segundo passo.
@@ -57,6 +59,29 @@ export const LoginPage = () => {
         if (!mfaToken) return
         await completeMfaLogin({ mfaToken, code })
         navigate(redirectTo, { replace: true })
+    }
+
+    // Mesmo caminho do submit normal (login real, sem endpoint novo) — só
+    // troca as credenciais digitadas pelas fixas do seed de demonstração.
+    const [isDemoLoading, setIsDemoLoading] = useState(false)
+
+    const handleDemoLogin = async (demoUser: { email: string; password: string }): Promise<void> => {
+        setServerError(null)
+        setIsDemoLoading(true)
+        try {
+            const result = await login({ email: demoUser.email, password: demoUser.password })
+            if (result.mfaRequired) {
+                setMfaToken(result.mfaToken)
+                return
+            }
+            navigate(redirectTo, { replace: true })
+        } catch (error) {
+            setServerError(
+                error instanceof Error ? error.message : "Erro ao fazer login",
+            )
+        } finally {
+            setIsDemoLoading(false)
+        }
     }
 
     return (
@@ -156,6 +181,32 @@ export const LoginPage = () => {
                                     Criar conta
                                 </Link>
                             </p>
+
+                            {isDemoModeEnabled && (
+                                <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-800">
+                                    <p className="mb-3 text-center text-xs text-slate-500 dark:text-slate-400">
+                                        Ou explore com uma conta de demonstração
+                                    </p>
+                                    <div className="flex flex-col gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            isLoading={isDemoLoading}
+                                            onClick={() => handleDemoLogin(DEMO_USERS.residential)}
+                                        >
+                                            {DEMO_USERS.residential.label}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            isLoading={isDemoLoading}
+                                            onClick={() => handleDemoLogin(DEMO_USERS.commercial)}
+                                        >
+                                            {DEMO_USERS.commercial.label}
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
                         </>
                     )}
                 </div>

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest"
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
 import { renderWithProviders, screen, waitFor } from "@/tests/test-utils"
 import { LoginPage } from "@/pages/auth/LoginPage"
@@ -98,6 +98,65 @@ describe("LoginPage — submit", () => {
         await user.type(await screen.findByLabelText(/e-mail/i), "test@example.com")
         await user.type(screen.getByLabelText(/senha/i), "errada")
         await user.click(screen.getByRole("button", { name: /entrar/i }))
+
+        expect(await screen.findByText(/credenciais inválidas/i)).toBeInTheDocument()
+    })
+})
+
+describe("LoginPage — login de demonstração (VITE_DEMO_MODE)", () => {
+    afterEach(() => {
+        vi.unstubAllEnvs()
+    })
+
+    it("não mostra os botões de demo quando a flag está desligada", async () => {
+        vi.stubEnv("VITE_DEMO_MODE", "false")
+        renderWithProviders(<LoginPage />)
+
+        await screen.findByRole("button", { name: /entrar/i })
+        expect(
+            screen.queryByRole("button", { name: /ver demo residencial/i }),
+        ).not.toBeInTheDocument()
+        expect(
+            screen.queryByRole("button", { name: /ver demo comercial/i }),
+        ).not.toBeInTheDocument()
+    })
+
+    it("mostra os dois botões de demo e loga com as credenciais fixas", async () => {
+        vi.stubEnv("VITE_DEMO_MODE", "true")
+        vi.mocked(authService.login).mockResolvedValue({ user: mockUser })
+
+        const user = userEvent.setup()
+        renderWithProviders(<LoginPage />)
+
+        const residentialButton = await screen.findByRole("button", {
+            name: /ver demo residencial/i,
+        })
+        expect(
+            screen.getByRole("button", { name: /ver demo comercial/i }),
+        ).toBeInTheDocument()
+
+        await user.click(residentialButton)
+
+        await waitFor(() => {
+            expect(authService.login).toHaveBeenCalledWith({
+                email: "demo.residencial@lumitrack.dev",
+                password: "DemoLumi@2026",
+            })
+        })
+    })
+
+    it("exibe a mesma mensagem de erro do login normal quando o demo falha", async () => {
+        vi.stubEnv("VITE_DEMO_MODE", "true")
+        vi.mocked(authService.login).mockRejectedValue(
+            new Error("Credenciais inválidas"),
+        )
+
+        const user = userEvent.setup()
+        renderWithProviders(<LoginPage />)
+
+        await user.click(
+            await screen.findByRole("button", { name: /ver demo comercial/i }),
+        )
 
         expect(await screen.findByText(/credenciais inválidas/i)).toBeInTheDocument()
     })
