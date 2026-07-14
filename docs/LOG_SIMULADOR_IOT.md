@@ -176,3 +176,65 @@ Nota (Sub-issue 4): `topology.ts` passou a retornar os `Meter` criados (não só
 ### Próximo passo
 
 Fase 2 (seed de demonstração) **completa**. Próximo: Fase 4 (proteção da conta demo — `DEMO_ACCOUNT_EMAILS` já existe), Fase 3 (login de demonstração).
+
+---
+
+## Fase 4 — Proteção da conta demo contra alteração de senha (Sub-issue 6)
+
+**Data:** 14/07/2026
+
+### O que foi implementado
+
+`backend/src/modules/auth/auth.service.ts`: `AuthService.forgotPassword` ganhou uma guarda logo após localizar o usuário — se `DEMO_ACCOUNT_EMAILS.has(user.email)`, retorna silenciosamente (mesmo padrão já usado para e-mail inexistente: nenhum `PasswordReset` criado, nenhum e-mail enviado, resposta HTTP idêntica). Como nenhum token é criado, `resetPassword` já é estruturalmente incapaz de completar para essas contas — nenhuma mudança necessária lá.
+
+### Desvios do plano
+
+Nenhum — implementado exatamente como especificado (guarda de 3 linhas, reaproveitando `DEMO_ACCOUNT_EMAILS` de `@/shared/config/demoAccounts.js`, já existente desde a Sub-issue 3).
+
+### Testes escritos (1, todos passando; suíte de `auth.service.test.ts` sobe para 39)
+
+- `forgotPassword`: novo caso "não deve criar PasswordReset nem enviar e-mail para uma conta de demonstração" — cria um usuário real com o e-mail residencial demo, chama `forgotPassword`, confirma que não resolve com erro, que nenhum `PasswordReset` foi persistido e que `sendPasswordResetEmail` não foi chamado.
+
+### Verificação executada
+
+- `npx tsc --noEmit` e `npx eslint` (arquivos alterados): limpos.
+- **Suíte completa do backend**: 1426/1426 testes em 119 arquivos, nenhuma regressão.
+- **Rodado de verdade contra o Postgres de dev**: `POST /auth/forgot-password` com `demo.residencial@lumitrack.dev` e com um e-mail inexistente (`fantasma-nao-existe@lumitrack.dev`) devolveram exatamente a mesma resposta (`200`, `"Se o e-mail estiver cadastrado, você receberá as instruções de redefinição."`); `SELECT count(*)` em `password_resets` para a conta demo confirmou `0` linhas.
+
+### Próximo passo
+
+Fase 4 **completa**. Próximo: Fase 3 (login de demonstração no frontend).
+
+---
+
+## Fase 3 — Login de demonstração (Sub-issue 5)
+
+**Data:** 14/07/2026
+
+### O que foi implementado
+
+- **`frontend/src/config/demoUsers.ts`** (novo) — `DEMO_USERS.residential`/`.commercial`, cada um com `{email, password, label}`, sincronizado manualmente com `backend/prisma/seed-demo/constants.ts` (mesmo e-mail/senha do seed).
+- **`LoginPage.tsx`** — novo bloco condicional (renderizado só quando `isDemoModeEnabled` é `true`), com dois botões secundários chamando `handleDemoLogin`, que reusa `useAuth().login()` (mesma função do submit normal) com as credenciais fixas, mesmo tratamento de `serverError`/loading/redirecionamento pós-MFA do fluxo normal.
+- **`frontend/.env.example`**: `VITE_DEMO_MODE=false` documentado (só vira `"true"` no ambiente de deploy de demonstração pública).
+
+### Desvios do plano
+
+1. **Flag lida dentro do corpo do componente** (`const isDemoModeEnabled = import.meta.env.VITE_DEMO_MODE === "true"`), não como `const` de módulo — necessário para os testes poderem alternar o valor por caso via `vi.stubEnv("VITE_DEMO_MODE", ...)`; um `const` de módulo fixaria o valor na primeira importação do arquivo de teste, tornando os dois cenários (flag ligada/desligada) impossíveis de testar no mesmo arquivo.
+2. **`handleDemoLogin` recebe só `{email, password}` desestruturado**, não o objeto `DEMO_USERS.residential`/`.commercial` inteiro — o objeto também tem `label` (usado só como texto do botão), que vazaria pro payload de `login()` se passado direto (bug real encontrado no primeiro teste: `authService.login` foi chamado com um `label` extra no corpo).
+3. **Verificação em browser real não foi possível neste ambiente** — mesma limitação sem acesso à internet para o Chromium do Playwright, já registrada nas Fases 1/2. Verificação alternativa: `npm run build` limpo, incluindo uma build extra com `VITE_DEMO_MODE=true` confirmando que os botões (`"Ver demo residencial"`) aparecem no bundle gerado (não são eliminados por dead-code-elimination); testes de componente com React Testing Library que renderizam `LoginPage` de verdade, clicam nos botões e confirmam a chamada correta a `authService.login()` — mesmo caminho de código que um clique real no browser exercitaria. As credenciais em si (login real via `POST /api/auth/login`) já haviam sido validadas contra o Postgres de dev na Fase 2.
+
+### Testes escritos (3, todos passando; suíte de `LoginPage.test.tsx` sobe para 12)
+
+- "não mostra os botões de demo quando a flag está desligada" (`vi.stubEnv("VITE_DEMO_MODE", "false")`).
+- "mostra os dois botões de demo e loga com as credenciais fixas" (`vi.stubEnv("VITE_DEMO_MODE", "true")`, clica no botão residencial, confirma `authService.login` chamado com `{email, password}` exatos, sem `label`).
+- "exibe a mesma mensagem de erro do login normal quando o demo falha" (reusa o mesmo tratamento de `serverError` do form normal).
+
+### Verificação executada
+
+- `npx tsc --noEmit` e `npx eslint` (arquivos alterados): limpos.
+- **Suíte completa do frontend**: 519/519 testes em 56 arquivos, nenhuma regressão.
+- `npm run build`: limpo; build extra com `VITE_DEMO_MODE=true` confirmando a string `"Ver demo residencial"` presente no bundle gerado.
+
+### Próximo passo
+
+Fase 3 **completa**. Com isso, todas as 4 fases do épico (simulador IoT, seed de demonstração, login de demonstração, proteção da conta demo) estão implementadas e verificadas dentro dos limites do ambiente de desenvolvimento atual (sem browser real via Playwright).

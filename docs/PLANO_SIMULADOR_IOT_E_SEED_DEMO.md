@@ -1,6 +1,6 @@
 # Plano — Simulador de dispositivos IoT e seed de demonstração realista
 
-> **Status:** em implementação na branch `feat/demo-environment`. Fase 1 (simulador) **completa** em 13/07/2026 — servidor (Sub-issue 1) e UI (Sub-issue 2) implementados e verificados. Fase 2 (seed) **completa** em 13/07/2026 — identidades/topologia (Sub-issue 3) e consumo de 1 ano + alertas + anomalias (Sub-issue 4) implementados e verificados contra Postgres real (ver log de implementação em [LOG_SIMULADOR_IOT.md](./LOG_SIMULADOR_IOT.md)). Fases 3-4 (login demo, proteção) ainda não implementadas.
+> **Status:** implementação **completa** na branch `feat/demo-environment`. Fase 1 (simulador) e Fase 2 (seed de demonstração) concluídas em 13/07/2026; Fase 4 (proteção da conta demo, Sub-issue 6) e Fase 3 (login de demonstração, Sub-issue 5) concluídas em 14/07/2026 — ver log de implementação em [LOG_SIMULADOR_IOT.md](./LOG_SIMULADOR_IOT.md).
 >
 > **Data do planejamento:** 11/07/2026.
 >
@@ -231,7 +231,7 @@ Por medidor: contagem de leituras, soma de kWh, potência média. Lista dos epis
 
 ---
 
-## Fase 3 — Login de demonstração (`frontend/src/pages/auth/LoginPage.tsx`)
+## Fase 3 — Login de demonstração (`frontend/src/pages/auth/LoginPage.tsx`) ✅ Concluída (14/07/2026)
 
 Objetivo: um visitante acessando um deploy público do portfólio entra direto com os usuários do seed, sem formulário nem conta.
 
@@ -249,9 +249,15 @@ Um "login sem senha" no backend seria superfície de auth nova. Como as credenci
 
 **Verificação:** com a flag desligada, tela idêntica à atual; com a flag ligada e seed rodado, um clique loga e navega; com a flag ligada e seed não rodado, mesmo erro de credenciais inválidas de um login normal.
 
+**Nota de implementação:** executado como planejado, com os desvios abaixo (detalhes no log de implementação).
+
+1. **Flag lida dentro do componente (`const isDemoModeEnabled = import.meta.env.VITE_DEMO_MODE === "true"` no corpo de `LoginPage`), não no escopo do módulo** — permite que os testes troquem o valor por caso de teste via `vi.stubEnv` (Vitest só reavalia `import.meta.env` a cada render quando lido dentro do componente; um `const` de módulo seria fixado na primeira importação).
+2. **`handleDemoLogin` recebe só `{email, password}` explicitamente**, não o objeto `DEMO_USERS.residential`/`.commercial` inteiro (que também tem `label`) — evita vazar o campo `label` pro payload de `login()`.
+3. **Verificação em browser real não foi possível neste ambiente** (mesma limitação já registrada nas Fases 1/2, sem acesso à internet para o Chromium do Playwright). Verificação alternativa: `npm run build` limpo (incluindo uma build com `VITE_DEMO_MODE=true` confirmando que os botões não são eliminados por dead-code-elimination) e testes de componente (`LoginPage.test.tsx`) que renderizam a página de verdade (React Testing Library) e clicam nos botões, confirmando chamada de `authService.login()` com as credenciais corretas — mesmo caminho de código que um clique real no browser exercitaria.
+
 ---
 
-## Fase 4 — Proteção da conta demo contra alteração de senha
+## Fase 4 — Proteção da conta demo contra alteração de senha ✅ Concluída (14/07/2026)
 
 O app **não tem** "trocar senha enquanto logado" (`PUT /api/users/:id` não aceita senha; `SecurityPage.tsx` só trata MFA). O único caminho que muda uma senha é `POST /auth/forgot-password` → `POST /auth/reset-password`. É aí que a conta demo precisa ser bloqueada.
 
@@ -271,6 +277,8 @@ Como nenhum token de reset é criado, `resetPassword` nunca pode ser concluído 
 
 **Verificação:** `POST /auth/forgot-password` com o e-mail demo dá a mesma resposta que um e-mail inexistente; nenhum `PasswordReset` é criado no banco.
 
+**Nota de implementação:** executado exatamente como planejado, sem desvios — guarda de 3 linhas em `AuthService.forgotPassword`, reaproveitando `DEMO_ACCOUNT_EMAILS` já existente desde a Sub-issue 3. Verificado com teste unitário (`auth.service.test.ts`) e de verdade contra o Postgres de dev: `POST /auth/forgot-password` com `demo.residencial@lumitrack.dev` e com um e-mail inexistente retornaram a mesma resposta (`200`, mesma mensagem) e nenhum `PasswordReset` foi criado para a conta demo.
+
 ---
 
 ## Ordem de execução
@@ -279,13 +287,13 @@ Fase 1 (simulador) é independente das demais. Fase 2 (seed) não depende de nad
 
 ## Verificação fim a fim
 
-1. `npm run dev` em `iot-simulator/` → UI mostra `host:port` do broker e um dispositivo de exemplo.
-2. `npm run db:seed:demo` no backend → console mostra os 4 medidores com totais de kWh e os 6 episódios de alerta.
-3. Com `VITE_DEMO_MODE=true`, clicar "Ver demo residencial" → entra direto → propriedade, gráfico Hora/Dia/Mês/Ano com 1 ano de histórico, alertas com episódio histórico.
-4. Criar/editar um `Meter` no LumiTrack apontando pro broker do simulador → ligar um dispositivo virtual → `RealTimeCard` atualiza ao vivo.
-5. "Injetar anomalia" no simulador → `WarningBadge` acende, episódio novo no histórico ao normalizar.
-6. Repetir o passo 3 com "Ver demo comercial" → propriedade com 2 áreas/3 dispositivos/3 medidores.
-7. `POST /auth/forgot-password` com o e-mail demo → resposta idêntica a e-mail inexistente, nenhum `PasswordReset` criado.
+1. `npm run dev` em `iot-simulator/` → UI mostra `host:port` do broker e um dispositivo de exemplo. ✅ (verificado via HTTP direto, sem browser real — ver Fase 1)
+2. `npm run db:seed:demo` no backend → console mostra os 4 medidores com totais de kWh e os 6 episódios de alerta. ✅ (rodado contra o Postgres de dev — ver Fase 2)
+3. Com `VITE_DEMO_MODE=true`, clicar "Ver demo residencial" → entra direto → propriedade, gráfico Hora/Dia/Mês/Ano com 1 ano de histórico, alertas com episódio histórico. ⚠️ Botão e chamada de `login()` verificados (teste de componente + login real via API), mas o clique e a navegação em browser real não foram exercitados neste ambiente (sem Playwright/Chromium disponível).
+4. Criar/editar um `Meter` no LumiTrack apontando pro broker do simulador → ligar um dispositivo virtual → `RealTimeCard` atualiza ao vivo. ⚠️ Não verificado (exige backend + simulador rodando simultaneamente com um browser real acompanhando o gráfico; risco residual baixo — payload já validado byte a byte contra `IoTDataProcessor` real).
+5. "Injetar anomalia" no simulador → `WarningBadge` acende, episódio novo no histórico ao normalizar. ⚠️ Mesma limitação do item 4.
+6. Repetir o passo 3 com "Ver demo comercial" → propriedade com 2 áreas/3 dispositivos/3 medidores. ⚠️ Mesma limitação do item 3 (a topologia em si já foi confirmada via `GET /api/meters` real na Fase 2).
+7. `POST /auth/forgot-password` com o e-mail demo → resposta idêntica a e-mail inexistente, nenhum `PasswordReset` criado. ✅ Verificado contra o Postgres de dev (Fase 4).
 
 ## Riscos e pontos de atenção
 
