@@ -9,6 +9,7 @@ import { encryptMfaSecret, decryptMfaSecret } from "@/shared/crypto/mfaEncryptio
 import { generateTotpSecret, generateTotpUri, verifyTotpCode } from "@/shared/crypto/totp.js"
 import { generateQrCodeDataUrl } from "@/shared/crypto/qrcode.js"
 import { AuthRepository } from "@/modules/auth/auth.repository.js"
+import { DEMO_ACCOUNT_EMAILS } from "@/shared/config/demoAccounts.js"
 import {
     loginSchema,
     forgotPasswordSchema,
@@ -223,6 +224,14 @@ export class AuthService {
         const user = await this.authRepository.findUserByEmailWithPassword(email)
 
         if (!user) {
+            return
+        }
+
+        // Contas de demonstração (ver docs/PLANO_SIMULADOR_IOT_E_SEED_DEMO.md,
+        // Fase 4): nenhum token é criado nem e-mail enviado, mesmo padrão de
+        // retorno silencioso usado acima para e-mail inexistente — a resposta
+        // HTTP é idêntica nos dois casos, sem visitante conseguir distinguir.
+        if (DEMO_ACCOUNT_EMAILS.has(user.email)) {
             return
         }
 

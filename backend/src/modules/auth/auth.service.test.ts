@@ -6,6 +6,7 @@ import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 import { UnauthorizedError, BadRequestError } from "@/shared/errors/AppError.js"
 import { hashToken } from "@/shared/crypto/hashToken.js"
+import { DEMO_RESIDENTIAL_EMAIL } from "@/shared/config/demoAccounts.js"
 import { generate } from "otplib"
 
 // ─── Instâncias ───────────────────────────────────────────────────────────────
@@ -291,6 +292,26 @@ describe("AuthService", () => {
             ).resolves.not.toThrow()
 
             // E o serviço de e-mail NÃO deve ter sido chamado
+            expect(mockSendPasswordResetEmail).not.toHaveBeenCalled()
+        })
+
+        it("não deve criar PasswordReset nem enviar e-mail para uma conta de demonstração", async () => {
+            const { UserService } = await import("@/modules/user/user.service.js")
+            const userService = new UserService(userRepository)
+            await userService.createUser({
+                ...validUser,
+                email: DEMO_RESIDENTIAL_EMAIL,
+                cpf: "912.345.678-73",
+            })
+
+            await expect(
+                authService.forgotPassword({ email: DEMO_RESIDENTIAL_EMAIL }),
+            ).resolves.not.toThrow()
+
+            const reset = await prismaTest.passwordReset.findFirst({
+                where: { user: { email: DEMO_RESIDENTIAL_EMAIL } },
+            })
+            expect(reset).toBeNull()
             expect(mockSendPasswordResetEmail).not.toHaveBeenCalled()
         })
     })

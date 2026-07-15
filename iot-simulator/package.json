@@ -1,0 +1,15 @@
+{
+  "name": "iot-simulator",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "server",
+    "ui"
+  ],
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail -n server,ui -c blue,green \"npm run dev -w server\" \"npm run dev -w ui\""
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
+  }
+}
