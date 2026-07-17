@@ -66,11 +66,17 @@ Não há o que salvar — testam features removidas:
 O CRUD de propriedade/área/dispositivo continua existindo; o que quebrou foi o entorno.
 
 - `auth.spec.ts` ✅ **Concluído (16/07/2026)** — trocar os mocks locais pelos fixtures; `mockAppShellBackground` passa a cobrir firing/notifications (é o que conserta o teste de logout). ~~Ajustar a assertion pós-login: `/dashboard` hoje renderiza `PlaceholderPage` com `<h1>Olá, {firstName}!`.~~ **Não foi necessário** — o arquivo já asserta isso desde antes desta sub-issue. **Desvio adicional:** `mockAppShellBackground` de `support/` não mocka `GET /api/properties` (a versão local antiga mockava por causa do dashboard pré-Fase-5); confirmado que a `DashboardPage` atual (placeholder) não chama essa rota. 183→121 linhas, 10/10 testes verdes nos dois browsers, zero helper duplicado. Detalhes no log.
-- `properties.spec.ts`, `area.spec.ts`, `device.spec.ts` — mesmo padrão em cada um:
+- `properties.spec.ts`, `area.spec.ts`, `device.spec.ts` ✅ **Concluído (16/07/2026)** — mesmo padrão em cada um:
   - `/api/properties`, `/api/properties/*/areas`, `/…/devices`, `/api/distributors` → envelope `Paginated<T>`.
   - Remover mocks de `**/api/properties/*/consumption` e `/api/properties/.../alerts` (não existem) e mockar no lugar `GET /api/meters/by-target?targetType&targetId` (404 → `null` é tratado pelo service) e `GET /api/consumption?targetType&targetId&granularity`.
   - `area.spec.ts` ainda mocka `**/api/alerts/stream` → é `/api/iot/stream`.
   - `PropertyDetailsPage` não tem mais AlertSection; a ordem é `PropertyHeaderCard → AreasSection → MeterSection → PropertyConsumptionSection`.
+
+  **Nota de implementação:** executado como planejado, com os desvios abaixo (documentados também no log):
+  - **`GET /api/consumption` não precisou ser mockado** — como `ConsumptionSection` só chama esse endpoint depois de confirmar (via `meters/by-target`) que o alvo tem medidor, mockar `by-target` como 404 já é suficiente; nenhum dos três specs testa medidor/consumo (fica para as sub-issues #7/#9).
+  - **Bug de roteamento descoberto na verificação, não previsto no plano**: hooks paginados sempre enviam `?page=&pageSize=` (mesmo nos defaults), e globs sem tratar querystring (copiados literalmente dos specs antigos) deixaram de casar a URL real — a requisição vazava pro proxy do Vite (502). Corrigido trocando rotas de **listagem** para regex `(\?.*)?$` (rotas de detalhe, sem query params, continuam glob puro).
+  - **`DeviceDetailsPage` perdeu os 2 placeholders "Alertas"/"Integração IoT"** — viraram `MeterSection` (h2 "Medidor") real; `device.spec.ts` ajustado.
+  - **`properties.spec.ts`**: teste "sem distribuidora" reescrito — mensagem/link mudaram ("Catálogo de distribuidoras indisponível" → `/distribuidoras`, não mais `/distribuidoras/nova`).
 - `distributors.spec.ts` — reduzir ao que existe: listagem read-only (`distributors-grid`, `distributor-card-${id}`, EmptyState "Catálogo indisponível"). Remover criar/editar/excluir e a mensagem de vínculo — `DistributorForm`/`DistributorMenu` foram deletados; o service só expõe `GET /distributors` e `GET /distributors/:id`.
 
 Referências de mock e envelope: `src/pages/property/PropertyDetailsPage.test.tsx`, `AreaDetailsPage.test.tsx`, `DeviceDetailsPage.test.tsx`, `src/components/layout/AppShell.test.tsx` e `Header.test.tsx` (estes dois atualizados no próprio `2c9e9b1`).

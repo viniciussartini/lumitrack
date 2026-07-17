@@ -1,4 +1,10 @@
-import { test, expect, type Page, type Route } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+
+import { fulfillError, fulfillJson, fulfillPaginated } from "./support/api"
+import { mockAppShellBackground, setupAuth } from "./support/appShell"
+import { hideDevTools } from "./support/devtools"
+import { DIST_CEMIG } from "./support/fixtures"
+import type { Property } from "../../src/types/property.types"
 
 /**
  * E2E focado em UI: mocka as respostas do backend via page.route().
@@ -12,35 +18,6 @@ import { test, expect, type Page, type Route } from "@playwright/test"
  *   5. Excluir
  */
 
-// ─── Constantes de teste ─────────────────────────────────────────────────────
-
-const FAKE_USER = {
-    id: "user-123",
-    email: "test@example.com",
-    userType: "INDIVIDUAL",
-    firstName: "João",
-    lastName: "Silva",
-    cpf: "529.982.247-25",
-    role: "USER",
-    mfaEnabled: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-}
-
-const DIST_CEMIG = {
-    id: "dist-cemig",
-    userId: "user-123",
-    name: "CEMIG Distribuição S.A.",
-    cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC",
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-    taxRate: 0.12,
-    publicLightingFee: 45.9,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-}
-
 const DIST_ENEL = {
     ...DIST_CEMIG,
     id: "dist-enel",
@@ -48,55 +25,23 @@ const DIST_ENEL = {
     cnpj: "61.695.227/0001-93",
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
 /**
- * Helper pra responder JSON com envelope { status: "success", data } —
- * formato padrão do backend.
- */
-const fulfillJson = (route: Route, data: unknown, status = 200) =>
-    route.fulfill({
-        status,
-        contentType: "application/json",
-        body: JSON.stringify({ status: "success", data }),
-    })
-
-/**
- * Configura mocks compartilhados (auth + perfil + distribuidoras).
+ * Configura mocks compartilhados (auth + AppShell + distribuidoras).
  *
  * Não mocka /api/properties aqui — cada teste configura suas próprias
  * respostas pra controlar o estado da lista.
  */
-const setupAuthAndDistributors = async (page: Page) => {
-    // Desde a #06 (sessão WEB via cookie httpOnly), a única rota que precisa
-    // ser mockada para simular "usuário autenticado" é GET /auth/me.
-    await page.route("**/api/auth/me", (route) =>
-        fulfillJson(route, FAKE_USER),
+const setupAuthAndDistributors = async (page: Parameters<typeof setupAuth>[0]) => {
+    await mockAppShellBackground(page)
+    await setupAuth(page)
+
+    // Catálogo de distribuidoras — usado pela PropertiesPage, NewPropertyPage
+    // e EditPropertyPage (todas com pageSize=31, cobrindo o catálogo inteiro
+    // numa página só). fulfillPaginated ignora os query params recebidos.
+    await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
+        fulfillPaginated(route, [DIST_CEMIG, DIST_ENEL]),
     )
-    // O AppShell monta useAlertStream → fetchEventSource("/api/iot/stream").
-    // Sem este mock, a requisição SSE cai no backend real (via proxy do Vite)
-    // e a lib reconecta em loop, re-renderizando o AppShell continuamente —
-    // o que faz o Playwright ver os elementos "detached from DOM" no clique.
-    await page.route("**/api/iot/stream", (route) =>
-        route.fulfill({ status: 200, contentType: "text/event-stream", body: "" }),
-    )
-    // AlertBellBadge (no Header do AppShell) chama GET /api/alerts, e a
-    // PropertyDetailsPage consulta alertas aninhados. Sem estes mocks a
-    // chamada cai no backend real → 401 → o interceptor dispara
-    // "lumitrack:unauthorized" e o app redireciona pra /login no meio do
-    // teste (elementos "detached from DOM").
-    await page.route(/\/api\/alerts(\?.*)?$/, (route) => fulfillJson(route, []))
-    await page.route(/\/api\/properties\/.*\/alerts(\?.*)?$/, (route) =>
-        fulfillJson(route, []),
-    )
-    // Lista de distribuidoras (usada na PropertiesPage e forms)
-    await page.route("**/api/distributors", (route) =>
-        fulfillJson(route, [DIST_CEMIG, DIST_ENEL]),
-    )
-    // Detalhe de distribuidora por ID (usada na PropertyDetailsPage via
-    // useDistributor — chama GET /api/distributors/:id, não a lista).
-    // Sem esse mock, o Vite proxy tenta encaminhar pro backend real (3333)
-    // e falha com ECONNREFUSED quando o backend não está rodando.
+    // Detalhe por ID — usado pela PropertyDetailsPage via useDistributor.
     await page.route("**/api/distributors/dist-cemig", (route) =>
         fulfillJson(route, DIST_CEMIG),
     )
@@ -105,28 +50,20 @@ const setupAuthAndDistributors = async (page: Page) => {
     )
 
     // Áreas: lista vazia por default (testes de Property não mexem em áreas).
-    // Sem isso, a PropertyDetailsPage falha ao buscar /properties/:id/areas.
-    await page.route("**/api/properties/*/areas", (route) => {
+    await page.route(/\/api\/properties\/.*\/areas(\?.*)?$/, (route) => {
         if (route.request().method() === "GET") {
-            return fulfillJson(route, [])
+            return fulfillPaginated(route, [])
         }
         return route.continue()
     })
+
+    // MeterSection é renderizada em toda PropertyDetailsPage — sem medidor
+    // vinculado, 404 é o estado normal (meterService.byTarget trata como
+    // null). Nenhum teste deste spec cobre medidor.
+    await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
+        fulfillError(route, "Alvo sem medidor vinculado", 404),
+    )
 }
-
-/**
- * Oculta permanentemente o TanStack Query DevTools via CSS injetado — o
- * botão flutuante remonta após cada invalidação de query e volta a
- * interceptar pointer events sobre outros controles da página (ver mesmo
- * helper em consumption.spec.ts, onde o problema foi originalmente
- * diagnosticado).
- */
-const hideDevTools = (page: Page) =>
-    page.addStyleTag({
-        content: ".tsqd-parent-container { display: none !important; }",
-    })
-
-// ─── Testes ──────────────────────────────────────────────────────────────────
 
 test.describe("Fluxo CRUD de propriedades", () => {
     test.beforeEach(async ({ context }) => {
@@ -138,32 +75,19 @@ test.describe("Fluxo CRUD de propriedades", () => {
     }) => {
         await setupAuthAndDistributors(page)
 
-        // Mock de consumo: retorna lista vazia para não travar o axios
-        // interceptor (que trata network errors sem response como 401→login)
-        await page.route("**/api/properties/*/consumption", (route) => {
-            if (route.request().method() === "GET") {
-                return route.fulfill({
-                    status: 200,
-                    contentType: "application/json",
-                    body: JSON.stringify({ status: "success", data: [] }),
-                })
-            }
-            return route.continue()
-        })
-
         // Estado da "DB" simulada — começa vazio, evolui ao longo do teste
-        let properties: Array<typeof DIST_CEMIG & { distributorId: string }> = []
+        let properties: Property[] = []
 
-        await page.route("**/api/properties", async (route) => {
+        await page.route(/\/api\/properties(\?.*)?$/, async (route) => {
             const method = route.request().method()
 
             if (method === "GET") {
-                return fulfillJson(route, properties)
+                return fulfillPaginated(route, properties)
             }
 
             if (method === "POST") {
                 const body = JSON.parse(route.request().postData() ?? "{}")
-                const created = {
+                const created: Property = {
                     id: "prop-1",
                     userId: "user-123",
                     distributorId: body.distributorId,
@@ -172,10 +96,13 @@ test.describe("Fluxo CRUD de propriedades", () => {
                     city: body.city ?? null,
                     state: body.state ?? null,
                     zipCode: body.zipCode ?? null,
+                    electricalSystem: body.electricalSystem,
+                    billingClass: body.billingClass,
+                    publicLightingFeeBrl: body.publicLightingFeeBrl ?? null,
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
                 }
-                properties = [created as never]
+                properties = [created]
                 return fulfillJson(route, created, 201)
             }
 
@@ -195,7 +122,7 @@ test.describe("Fluxo CRUD de propriedades", () => {
                     ...properties[0]!,
                     ...body,
                     updatedAt: new Date().toISOString(),
-                } as never
+                }
                 return fulfillJson(route, properties[0])
             }
 
@@ -228,7 +155,7 @@ test.describe("Fluxo CRUD de propriedades", () => {
             .selectOption("dist-cemig")
         await page.getByLabel(/logradouro/i).fill("Rua das Flores, 100")
         await page.getByLabel(/cidade/i).fill("Belo Horizonte")
-        await page.getByLabel(/uf/i).selectOption("MG")
+        await page.getByLabel(/^uf$/i).selectOption("MG")
         await page.getByLabel(/cep/i).fill("30000000")
 
         await page
@@ -250,7 +177,12 @@ test.describe("Fluxo CRUD de propriedades", () => {
             page.getByRole("heading", { level: 1, name: /casa principal/i }),
         ).toBeVisible()
         await expect(page.getByText(/cemig/i).first()).toBeVisible()
-        // Seção de áreas — placeholder por enquanto
+        // Faturamento migrado da distribuidora pra propriedade (Fase 1) —
+        // não selecionamos electricalSystem/billingClass no form, então
+        // valem os defaults do PropertyForm (MONOPHASIC/B1).
+        await expect(page.getByText(/monofásico/i)).toBeVisible()
+        await expect(page.getByText(/b1 — residencial/i)).toBeVisible()
+        // Seção de áreas — EmptyState
         await expect(page.getByText(/nenhuma área cadastrada/i)).toBeVisible()
 
         // Botão Editar leva pro form de edição
@@ -309,31 +241,23 @@ test.describe("Fluxo CRUD de propriedades", () => {
     test("bloqueia criação de propriedade quando não há distribuidora cadastrada", async ({
         page,
     }) => {
-        await page.route("**/api/auth/me", (route) =>
-            fulfillJson(route, FAKE_USER),
-        )
-        await page.route("**/api/iot/stream", (route) =>
-            route.fulfill({ status: 200, contentType: "text/event-stream", body: "" }),
-        )
-        await page.route(/\/api\/alerts(\?.*)?$/, (route) =>
-            fulfillJson(route, []),
-        )
-        // Distribuidoras vazia
-        await page.route("**/api/distributors", (route) =>
-            fulfillJson(route, []),
-        )
-        await page.route("**/api/properties", (route) =>
-            fulfillJson(route, []),
+        await mockAppShellBackground(page)
+        await setupAuth(page)
+        // Catálogo vazio
+        await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
+            fulfillPaginated(route, []),
         )
 
         await page.goto("/propriedades/nova")
         await hideDevTools(page)
 
         await expect(
-            page.getByText(/cadastre uma distribuidora primeiro/i),
+            page.getByText(/catálogo de distribuidoras indisponível/i),
         ).toBeVisible()
         await expect(
-            page.getByRole("link", { name: /cadastrar distribuidora/i }),
-        ).toHaveAttribute("href", "/distribuidoras/nova")
+            page.getByRole("link", { name: /ver catálogo de distribuidoras/i }),
+        ).toHaveAttribute("href", "/distribuidoras")
+        // O form não deve renderizar quando o catálogo está vazio
+        await expect(page.getByLabel(/nome da propriedade/i)).not.toBeVisible()
     })
 })

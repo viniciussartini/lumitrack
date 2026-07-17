@@ -151,3 +151,42 @@ Nenhum teste novo — sub-issue de migração/correção. Os 5 testes existentes
 ### Próximo passo
 
 Sub-issue #4 — consertar `properties.spec.ts`, `area.spec.ts`, `device.spec.ts`: envelope `Paginated<T>`, trocar mocks de consumo/alerta por `meters/by-target` e `consumption`, `area.spec.ts` trocar `/api/alerts/stream` por `/api/iot/stream`. Depois #5 (`distributors`), fechando a Fase 1.
+
+---
+
+## Sub-issue 4 — Consertar `properties.spec.ts`, `area.spec.ts`, `device.spec.ts`
+
+**Data:** 16/07/2026
+
+### O que foi implementado
+
+Os três specs migrados para `support/` (mesmo padrão da #3) e realinhados ao contrato atual, explorando a fundo o código-fonte real de cada página antes de escrever qualquer assertion (não só os `.test.tsx` citados no plano — as próprias páginas, forms, menus e schemas):
+
+- **Envelope `Paginated<T>`** em `/api/properties`, `/api/properties/*/areas`, `.../devices`, `/api/distributors` via `fulfillPaginated`.
+- **Mocks de consumo/alerta por entidade removidos por completo** — não existem mais. No lugar, uma única rota `GET /api/meters/by-target` (regex, qualquer `targetType`) mockada com 404 (`fulfillError(..., 404)`), que o `meterService.byTarget` trata como "sem medidor". Como `ConsumptionSection` só chama `/api/consumption` **depois** de confirmar que o alvo tem medidor, isso automaticamente elimina a necessidade de mockar `/api/consumption` nestas três specs — nenhum dos três testa medidor/consumo (isso é escopo das sub-issues #7/#9 da Fase 2).
+- **`area.spec.ts`**: `**/api/alerts/stream` removido — o SSE real é `/api/iot/stream`, já coberto por `mockAppShellBackground`.
+- **`properties.spec.ts`**: teste "bloqueia criação sem distribuidora" reescrito por completo — a mensagem mudou de "Cadastre uma distribuidora primeiro" para "Catálogo de distribuidoras indisponível", e o link deixou de ser "Cadastrar distribuidora" → `/distribuidoras/nova` (rota que não existe mais) para "Ver catálogo de distribuidoras" → `/distribuidoras`. Teste de criação passou a assertar os chips de "Faturamento" (`electricalSystem`/`billingClass`, migrados da distribuidora na Fase 1).
+- **`device.spec.ts`**: as 3 seções placeholder da `DeviceDetailsPage` antiga ("Consumo"/"Alertas"/"Integração IoT") viraram 2 seções reais — `MeterSection` (h2 "Medidor") e `ConsumptionSection` (h2 "Consumo"). Sem placeholder de "Alertas"/"Integração IoT" — a gestão de alertas é global em `/alertas` e a integração IoT é a própria seção de medidor.
+- **`PROP_1`/`AREA_1`/`DIST_CEMIG`/`DEVICE_1` de `support/fixtures.ts`** usados como identidade fixa nos três specs (em vez de constantes locais redigitadas), incluindo nos textos das assertions.
+
+### Desvios do plano
+
+1. **Bug de roteamento descoberto e corrigido durante a verificação, não previsto no plano**: os hooks paginados (`useAreas`/`useDevices`) sempre enviam `?page=&pageSize=` mesmo com os defaults — `axios` não omite params só porque batem com o default. Os padrões `glob` copiados literalmente dos specs antigos (`"**/api/properties/prop-1/areas"`, sem tratar querystring) **não casam mais** com a URL real (`.../areas?page=1&pageSize=10`) — a requisição vaza pro proxy do Vite, que devolve 502 (`ECONNREFUSED` do backend inexistente, convertido em Bad Gateway), e a seção correspondente mostra um erro genérico em vez do EmptyState esperado. `properties.spec.ts` já usava regex com `(\?.*)?$` desde a primeira versão desta sessão (evitando o bug por acidente); `area.spec.ts`/`device.spec.ts` foram corrigidos para o mesmo padrão em todas as rotas de **listagem** (`.../areas`, `.../devices`). Rotas de **detalhe** (`getById`/`update`/`delete`) não enviam query params, então globs simples continuam corretos ali. Fica registrado como um cuidado geral para as próximas sub-issues: qualquer endpoint de listagem precisa de regex tolerante a querystring, nunca glob puro.
+2. **`device.spec.ts` inicialmente assertava "Sala" como nome da área**, herdado do texto do spec antigo — mas a fixture compartilhada `AREA_1` (Sub-issue #1) já representa uma área chamada "Cozinha" (`description: "Área de preparo"`). Corrigido trocando as 3 assertions afetadas para "Cozinha" em vez de criar uma sobrescrita local da fixture — reforça o valor de reusar `support/fixtures.ts` como identidade única, mesmo quando o texto do spec antigo sugeria outro nome.
+3. **`properties.spec.ts`: assertion de faturamento pós-criação usa os defaults do form** ("Monofásico"/"B1 — Residencial"), não valores escolhidos explicitamente — o teste não seleciona `electricalSystem`/`billingClass` no formulário de criação (só preenche nome/distribuidora/endereço, como o spec antigo já fazia), então os defaults do `PropertyForm` (`MONOPHASIC`/`B1`) são o que realmente aparece na `PropertyDetailsPage` depois.
+4. **`properties.spec.ts`: teste de "sem distribuidora" ganhou uma assertion nova** (`expect(...).not.toBeVisible()` no campo "Nome da propriedade") — confirma que o form não é renderizado quando o catálogo está vazio, espelhando `NewPropertyPage.test.tsx`.
+
+### Testes escritos
+
+Nenhum teste novo — sub-issue de migração/correção. Os 8 testes existentes (2 properties + 3 area + 3 device) foram preservados nos mesmos cenários, com os mocks/assertions realinhados ao contrato atual.
+
+### Verificação executada
+
+- `npx tsc -p tsconfig.app.json --noEmit` e `npx eslint tests/e2e/{properties,area,device}.spec.ts`: limpos (um erro de lint pego no caminho — `@typescript-eslint/no-empty-object-type` em `interface AreaSeed extends Area {}`/`interface DeviceSeed extends Device {}`; corrigido para `type AreaSeed = Area`/`type DeviceSeed = Device`).
+- **Os três specs isolados, nos dois browsers (`CI=true npx playwright test properties.spec.ts area.spec.ts device.spec.ts`)**: **16/16 passando** (8 testes × 2 browsers) — incluindo os fluxos completos de CRUD com criação/edição/exclusão em cascata que historicamente eram os mais frágeis da suíte.
+- **Suíte completa (`CI=true npx playwright test`)**: **30 testes, 26 passando / 4 falhando** — as 4 falhas são exatamente `distributors.spec.ts` (2 testes × 2 browsers), o escopo intocado da sub-issue #5. Confirma zero regressão: os 14 que já passavam antes (`auth` 10 + `area`/`device` 2+2, estes últimos por acidente do ambiente sem backend) continuam passando, agora `area`/`device` passam pelos motivos certos (mocks corretos), e `properties` (que não passava nenhum teste antes) foi de 0/4 para 4/4.
+- 1500 → 1127 linhas nos três arquivos somados (support/ absorveu a duplicação).
+
+### Próximo passo
+
+Sub-issue #5 — reduzir `distributors.spec.ts` ao catálogo somente leitura (remover criar/editar/excluir e a mensagem de vínculo — `DistributorForm`/`DistributorMenu` foram deletados). É a última sub-issue da Fase 1: ao concluí-la, a suíte inteira deve ficar verde (30/30) e o marco "fim da Fase 1" é atingido.

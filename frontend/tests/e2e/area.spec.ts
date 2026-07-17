@@ -1,4 +1,10 @@
-import { test, expect, type Page, type Route } from "@playwright/test"
+import { test, expect, type Page } from "@playwright/test"
+
+import { fulfillError, fulfillJson, fulfillPaginated } from "./support/api"
+import { mockAppShellBackground, setupAuth } from "./support/appShell"
+import { hideDevTools } from "./support/devtools"
+import { AREA_1, DIST_CEMIG, PROP_1 } from "./support/fixtures"
+import type { Area } from "../../src/types/area.types"
 
 /**
  * E2E focado em UI: mocka as respostas do backend via page.route().
@@ -18,106 +24,28 @@ import { test, expect, type Page, type Route } from "@playwright/test"
  * o fluxo de criar a propriedade aqui (já coberto em properties.spec.ts).
  */
 
-// ─── Constantes de teste ─────────────────────────────────────────────────────
-
-const FAKE_USER = {
-    id: "user-123",
-    email: "test@example.com",
-    userType: "INDIVIDUAL",
-    firstName: "João",
-    lastName: "Silva",
-    cpf: "529.982.247-25",
-    role: "USER",
-    mfaEnabled: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-}
-
-const DIST_CEMIG = {
-    id: "dist-cemig",
-    userId: "user-123",
-    name: "CEMIG Distribuição S.A.",
-    cnpj: "06.981.180/0001-16",
-    electricalSystem: "TRIPHASIC",
-    workingVoltage: 220,
-    kwhPrice: 0.75,
-    taxRate: 0.12,
-    publicLightingFee: 45.9,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-}
-
-const PROP_1 = {
-    id: "prop-1",
-    userId: "user-123",
-    distributorId: "dist-cemig",
-    name: "Casa Principal",
-    address: "Rua das Flores, 100",
-    city: "Belo Horizonte",
-    state: "MG",
-    zipCode: "30000-000",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-}
-
-interface AreaSeed {
-    id: string
-    propertyId: string
-    name: string
-    description: string | null
-    createdAt: string
-    updatedAt: string
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+type AreaSeed = Area
 
 /**
- * Helper pra responder JSON com envelope { status: "success", data } —
- * formato padrão do backend.
- */
-const fulfillJson = (route: Route, data: unknown, status = 200) =>
-    route.fulfill({
-        status,
-        contentType: "application/json",
-        body: JSON.stringify({ status: "success", data }),
-    })
-
-/**
- * Oculta permanentemente o TanStack Query DevTools via CSS injetado — o
- * botão flutuante remonta após cada invalidação de query e volta a
- * interceptar pointer events sobre outros controles da página (ver mesmo
- * helper em consumption.spec.ts, onde o problema foi originalmente
- * diagnosticado).
- */
-const hideDevTools = (page: Page) =>
-    page.addStyleTag({
-        content: ".tsqd-parent-container { display: none !important; }",
-    })
-
-/**
- * Configura mocks compartilhados (auth + perfil + distribuidoras + 1 propriedade).
- * As ÁREAS são geridas dentro de cada teste via closure mutável, porque o
- * estado da DB simulada evolui ao longo do fluxo (criar, editar, deletar).
+ * Configura mocks compartilhados (auth + AppShell + distribuidora + 1
+ * propriedade fixa). As ÁREAS são geridas dentro de cada teste via closure
+ * mutável, porque o estado da DB simulada evolui ao longo do fluxo.
  */
 const setupAuthAndProperty = async (page: Page) => {
-    // Desde a #06 (sessão WEB via cookie httpOnly), a única rota que precisa
-    // ser mockada para simular "usuário autenticado" é GET /auth/me.
-    await page.route("**/api/auth/me", (route) =>
-        fulfillJson(route, FAKE_USER),
-    )
-    // Distribuidoras — usadas apenas no chip da PropertyDetailsPage. Lista
-    // não é estritamente necessária aqui (não vamos abrir form de propriedade),
-    // mas o mock é barato e protege contra evoluções da página.
-    await page.route("**/api/distributors", (route) =>
-        fulfillJson(route, [DIST_CEMIG]),
+    await mockAppShellBackground(page)
+    await setupAuth(page)
+
+    // Distribuidora — usada apenas nos chips da PropertyDetailsPage.
+    await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
+        fulfillPaginated(route, [DIST_CEMIG]),
     )
     await page.route("**/api/distributors/dist-cemig", (route) =>
         fulfillJson(route, DIST_CEMIG),
     )
-    // Lista de propriedades + detalhe da única propriedade que usamos.
-    await page.route("**/api/properties", (route) => {
+    // Propriedade fixa — não editamos nem deletamos nesta spec.
+    await page.route(/\/api\/properties(\?.*)?$/, (route) => {
         if (route.request().method() === "GET") {
-            return fulfillJson(route, [PROP_1])
+            return fulfillPaginated(route, [PROP_1])
         }
         return route.continue()
     })
@@ -128,74 +56,11 @@ const setupAuthAndProperty = async (page: Page) => {
         return route.continue()
     })
 
-    // Mock de consumo — sem isso, requests sem mock caem no backend real,
-    // o interceptor do axios trata network error como 401 → redirect login
-    await page.route("**/api/properties/*/consumption", (route) => {
-        if (route.request().method() === "GET") {
-            return route.fulfill({
-                status: 200,
-                contentType: "application/json",
-                body: JSON.stringify({ status: "success", data: [] }),
-            })
-        }
-        return route.continue()
-    })
-    await page.route("**/api/properties/*/areas/*/consumption", (route) => {
-        if (route.request().method() === "GET") {
-            return route.fulfill({
-                status: 200,
-                contentType: "application/json",
-                body: JSON.stringify({ status: "success", data: [] }),
-            })
-        }
-        return route.continue()
-    })
-
-    // Alerts — global (bell badge no header) + por nível (DetailsPages)
-    // Sem estes mocks, AreaDetailsPage e PropertyDetailsPage ficam em retry
-    // infinito após o redirect, causando "element was detached" nos clicks.
-    await page.route(/\/api\/alerts(\?.*)?$/, (route) => {
-        if (route.request().method() === "GET") {
-            return route.fulfill({
-                status: 200,
-                contentType: "application/json",
-                body: JSON.stringify({ status: "success", data: [] }),
-            })
-        }
-        return route.continue()
-    })
-
-    await page.route(/\/api\/properties\/.*\/alerts(\?.*)?$/, (route) => {
-        if (route.request().method() === "GET") {
-            return route.fulfill({
-                status: 200,
-                contentType: "application/json",
-                body: JSON.stringify({ status: "success", data: [] }),
-            })
-        }
-        return route.continue()
-    })
-    
-    await page.route(/\/api\/properties\/.*\/areas\/.*\/alerts(\?.*)?$/, (route) => {
-        if (route.request().method() === "GET") {
-            return route.fulfill({
-                status: 200,
-                contentType: "application/json",
-                body: JSON.stringify({ status: "success", data: [] }),
-            })
-        }
-        return route.continue()
-    })
-
-    // SSE de alertas — AppShell monta useAlertStream globalmente
-    await page.route("**/api/alerts/stream", (route) =>
-        route.fulfill({
-            status: 200,
-            contentType: "text/event-stream",
-            body: "",
-        }),
+    // MeterSection é renderizada em toda Property/AreaDetailsPage — sem
+    // medidor vinculado, 404 é o estado normal em qualquer targetType.
+    await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
+        fulfillError(route, "Alvo sem medidor vinculado", 404),
     )
-
 }
 
 /**
@@ -203,11 +68,13 @@ const setupAuthAndProperty = async (page: Page) => {
  * passado como argumento. Encapsula o "DB simulada" pra cada teste.
  *
  * Cobertura de rotas:
- *   - GET    /api/properties/prop-1/areas         → lista
+ *   - GET    /api/properties/prop-1/areas         → lista (paginada)
  *   - POST   /api/properties/prop-1/areas         → cria (gera id sequencial)
  *   - GET    /api/properties/prop-1/areas/:id     → detalhe
  *   - PUT    /api/properties/prop-1/areas/:id     → atualiza
  *   - DELETE /api/properties/prop-1/areas/:id     → remove (204 sem body)
+ *   - GET    .../areas/:id/devices                → lista vazia (DevicesSection
+ *     da AreaDetailsPage renderiza pra toda área, mesmo as recém-criadas)
  *
  * Nota sobre o glob: `**\/api/properties/prop-1/areas/*` casa
  * `/areas/area-1` mas NÃO `/areas` (o `*` exige ao menos um segmento).
@@ -217,12 +84,14 @@ const setupAreasRoutes = async (
     page: Page,
     state: { areas: AreaSeed[]; nextId: number },
 ) => {
-    // Lista e criação
-    await page.route("**/api/properties/prop-1/areas", async (route) => {
+    // Lista e criação. Regex (não glob): useAreas sempre envia
+    // ?page=&pageSize= mesmo nos defaults — um glob sem tratar a query
+    // string não casa a URL real e a requisição vaza pro backend (502).
+    await page.route(/\/api\/properties\/prop-1\/areas(\?.*)?$/, async (route) => {
         const method = route.request().method()
 
         if (method === "GET") {
-            return fulfillJson(route, state.areas)
+            return fulfillPaginated(route, state.areas)
         }
 
         if (method === "POST") {
@@ -254,14 +123,7 @@ const setupAreasRoutes = async (
 
             if (method === "GET") {
                 if (index === -1) {
-                    return route.fulfill({
-                        status: 404,
-                        contentType: "application/json",
-                        body: JSON.stringify({
-                            status: "error",
-                            message: "Área não encontrada",
-                        }),
-                    })
+                    return fulfillError(route, "Área não encontrada", 404)
                 }
                 return fulfillJson(route, state.areas[index])
             }
@@ -290,18 +152,17 @@ const setupAreasRoutes = async (
         },
     )
 
+    // Idem: regex pra tolerar ?page=&pageSize= no GET de useDevices.
     await page.route(
-        "**/api/properties/*/areas/*/devices",
+        /\/api\/properties\/[^/]+\/areas\/[^/]+\/devices(\?.*)?$/,
         (route) => {
             if (route.request().method() === "GET") {
-                return fulfillJson(route, [])
+                return fulfillPaginated(route, [])
             }
             return route.continue()
         },
     )
 }
-
-// ─── Testes ──────────────────────────────────────────────────────────────────
 
 test.describe("Fluxo CRUD de áreas", () => {
     test.beforeEach(async ({ context }) => {
@@ -330,7 +191,6 @@ test.describe("Fluxo CRUD de áreas", () => {
         ).toBeVisible()
 
         // ─── 2. Criar nova área ──────────────────────────────────────────────
-        // Botão "Adicionar área" agora é um Link (PR 2 — Button asChild)
         await page.getByRole("link", { name: /adicionar área/i }).click()
         await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/nova$/)
 
@@ -374,7 +234,7 @@ test.describe("Fluxo CRUD de áreas", () => {
             page.getByText(/área principal de convivência/i),
         ).toBeVisible()
         await expect(page.getByText(/casa principal/i)).toBeVisible()
-        // Seção de devices ainda é placeholder
+        // Seção de devices — EmptyState
         await expect(
             page.getByText(/nenhum dispositivo cadastrado/i),
         ).toBeVisible()
@@ -404,7 +264,6 @@ test.describe("Fluxo CRUD de áreas", () => {
         ).toBeVisible()
 
         // ─── 5. Excluir via menu ⋯ no header da details ──────────────────────
-        // O aria-label é dinâmico — espelha PropertyMenu
         await page
             .getByRole("button", { name: /opções de Sala renovada/i })
             .click()
@@ -442,16 +301,7 @@ test.describe("Fluxo CRUD de áreas", () => {
         await setupAuthAndProperty(page)
         // Pré-popula com 1 área
         const state: { areas: AreaSeed[]; nextId: number } = {
-            areas: [
-                {
-                    id: "area-1",
-                    propertyId: "prop-1",
-                    name: "Cozinha",
-                    description: null,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                },
-            ],
+            areas: [{ ...AREA_1, name: "Cozinha", description: null }],
             nextId: 2,
         }
         await setupAreasRoutes(page, state)
@@ -487,7 +337,7 @@ test.describe("Fluxo CRUD de áreas", () => {
             page.getByRole("heading", { level: 1, name: /cozinha gourmet/i }),
         ).toBeVisible()
 
-        // Volta pra lista
+        // Volta pra propriedade
         await page
             .getByRole("link", { name: /voltar para propriedade/i })
             .click()
