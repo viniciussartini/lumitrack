@@ -65,7 +65,7 @@ Não há o que salvar — testam features removidas:
 
 O CRUD de propriedade/área/dispositivo continua existindo; o que quebrou foi o entorno.
 
-- `auth.spec.ts` — trocar os mocks locais pelos fixtures; `mockAppShellBackground` passa a cobrir firing/notifications (é o que conserta o teste de logout). Ajustar a assertion pós-login: `/dashboard` hoje renderiza `PlaceholderPage` com `<h1>Olá, {firstName}!`.
+- `auth.spec.ts` ✅ **Concluído (16/07/2026)** — trocar os mocks locais pelos fixtures; `mockAppShellBackground` passa a cobrir firing/notifications (é o que conserta o teste de logout). ~~Ajustar a assertion pós-login: `/dashboard` hoje renderiza `PlaceholderPage` com `<h1>Olá, {firstName}!`.~~ **Não foi necessário** — o arquivo já asserta isso desde antes desta sub-issue. **Desvio adicional:** `mockAppShellBackground` de `support/` não mocka `GET /api/properties` (a versão local antiga mockava por causa do dashboard pré-Fase-5); confirmado que a `DashboardPage` atual (placeholder) não chama essa rota. 183→121 linhas, 10/10 testes verdes nos dois browsers, zero helper duplicado. Detalhes no log.
 - `properties.spec.ts`, `area.spec.ts`, `device.spec.ts` — mesmo padrão em cada um:
   - `/api/properties`, `/api/properties/*/areas`, `/…/devices`, `/api/distributors` → envelope `Paginated<T>`.
   - Remover mocks de `**/api/properties/*/consumption` e `/api/properties/.../alerts` (não existem) e mockar no lugar `GET /api/meters/by-target?targetType&targetId` (404 → `null` é tratado pelo service) e `GET /api/consumption?targetType&targetId&granularity`.

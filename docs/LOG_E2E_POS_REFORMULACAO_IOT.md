@@ -118,3 +118,36 @@ Nenhum — sub-issue de remoção pura. Confirmado por `grep` que os únicos res
 ### Próximo passo
 
 Sub-issue #3 — consertar `auth.spec.ts`: trocar os helpers locais pelos de `support/`, cobrir firing/notifications via `mockAppShellBackground`. Depois #4 (`properties`/`area`/`device`) e #5 (`distributors`), fechando a Fase 1 com o CI verde.
+
+---
+
+## Sub-issue 3 — Consertar `auth.spec.ts`
+
+**Data:** 16/07/2026
+
+### O que foi implementado
+
+`auth.spec.ts` migrado para `support/`: `FAKE_USER` local removido (importado de `support/fixtures`), `hideDevTools` local removido (importado de `support/devtools`), `mockAppShellBackground` local removido (importado de `support/appShell`). Arquivo caiu de 183 para 121 linhas.
+
+O teste "autentica com sucesso" manteve sua lógica própria de `let loggedIn = false` + `GET /auth/me` condicional — é comportamento específico deste teste (simular o bootstrap não-autenticado até o `POST /login` completar), não algo generalizável para `setupAuth` (que mocka `/auth/me` com um usuário fixo desde o início, usado pelo teste de logout).
+
+### Desvios do plano
+
+1. **A assertion pós-login não precisou mudar.** O escopo da sub-issue previa "ajustar a assertion pós-login: `/dashboard` hoje renderiza `PlaceholderPage` com `<h1>Olá, {firstName}!`" — mas o arquivo **já** asserta `/olá, joão/i` desde antes desta sub-issue (o autor do spec original, embora não tivesse atualizado os mocks, já tinha alinhado essa assertion com a `DashboardPage` placeholder). Nenhuma mudança necessária aqui, como já suspeitado na nota deixada no plano ao final da sub-issue #1.
+2. **`mockAppShellBackground` de `support/` não mocka `GET /api/properties`**, diferente da versão local antiga (que mockava com o comentário "a DashboardPage chama GET /api/properties... por propriedade, um report"). Confirmado lendo `DashboardPage.tsx` atual: é um placeholder que só usa `useAuth()` — não faz nenhuma chamada de API. O mock antigo era vestígio do dashboard pré-Fase-5 (fan-out de relatórios por propriedade). Nenhum teste depende dele; a suíte passa sem esse mock.
+
+### Testes escritos
+
+Nenhum teste novo — sub-issue de migração/correção. Os 5 testes existentes de `auth.spec.ts` foram preservados como estavam (mesmos cenários, mesmas assertions), só trocando a origem dos helpers.
+
+### Verificação executada
+
+- `npx tsc -p tsconfig.app.json --noEmit` e `npx eslint tests/e2e/auth.spec.ts`: limpos.
+- `grep` confirma **zero helper duplicado** no arquivo (nenhum `const FAKE_USER|hideDevTools|mockAppShellBackground|...` local).
+- **`auth.spec.ts` isolado (`CI=true npx playwright test auth.spec.ts`)**: **10/10 passando** (5 testes × 2 browsers), incluindo o de logout — o que mais historicamente falhava por "element was detached from the DOM".
+- **Confirmado que o backend real não estava rodando** (`lsof -i :3333` vazio) durante a execução — o verde vem dos mocks corretos, não de um backend real respondendo por acidente. Os únicos `[WebServer] ... ECONNREFUSED` nos logs são de `/api/auth/me` nos dois testes que testam o caminho **não autenticado** por desenho (sem mock nenhum, idêntico ao comportamento do arquivo original) — não é regressão.
+- Suíte completa (`CI=true npx playwright test`, todos os 5 specs sobreviventes): ver resultado abaixo.
+
+### Próximo passo
+
+Sub-issue #4 — consertar `properties.spec.ts`, `area.spec.ts`, `device.spec.ts`: envelope `Paginated<T>`, trocar mocks de consumo/alerta por `meters/by-target` e `consumption`, `area.spec.ts` trocar `/api/alerts/stream` por `/api/iot/stream`. Depois #5 (`distributors`), fechando a Fase 1.

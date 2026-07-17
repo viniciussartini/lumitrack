@@ -1,4 +1,8 @@
-import { test, expect, type Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+
+import { mockAppShellBackground, setupAuth } from "./support/appShell"
+import { hideDevTools } from "./support/devtools"
+import { FAKE_USER } from "./support/fixtures"
 
 // E2E focado em UI: mocka as respostas do backend via page.route(). Vantagem:
 // não depende do backend rodando de verdade — roda no CI sem coordenação.
@@ -8,66 +12,6 @@ import { test, expect, type Page } from "@playwright/test"
 // frontend sempre busca o usuário autenticado via GET /auth/me (tanto no
 // bootstrap quanto logo após o login), e é essa a única rota que precisa
 // ser mockada para simular "usuário autenticado" nestes testes.
-const FAKE_USER = {
-    id: "user-123",
-    email: "test@example.com",
-    userType: "INDIVIDUAL",
-    firstName: "João",
-    lastName: "Silva",
-    cpf: "529.982.247-25",
-    role: "USER",
-    mfaEnabled: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-}
-
-/**
- * Oculta permanentemente o TanStack Query DevTools via CSS injetado — o
- * botão flutuante remonta após cada invalidação de query e volta a
- * interceptar pointer events sobre outros controles da página (ver mesmo
- * helper em consumption.spec.ts, onde o problema foi originalmente
- * diagnosticado).
- */
-const hideDevTools = (page: Page) =>
-    page.addStyleTag({
-        content: ".tsqd-parent-container { display: none !important; }",
-    })
-
-/**
- * Mocka as chamadas de fundo que o AppShell (rotas autenticadas) dispara,
- * para que caiam num 200 mockado em vez do backend real:
- *
- *   - GET /api/alerts — o AlertBellBadge no Header consulta essa rota. Sem
- *     o mock, cai no backend real → 401 → o interceptor dispara
- *     "lumitrack:unauthorized" e o app redireciona pra /login no meio do
- *     teste (elementos "detached from DOM").
- *   - GET /api/iot/stream — useAlertStream abre SSE aqui; mockado só para
- *     não tocar o backend real (não é a causa das falhas, mas mantém o
- *     teste isolado).
- */
-const mockAppShellBackground = async (page: Page) => {
-    await page.route(/\/api\/alerts(\?.*)?$/, (route) =>
-        route.fulfill({
-            status: 200,
-            contentType: "application/json",
-            body: JSON.stringify({ status: "success", data: [] }),
-        }),
-    )
-    // A DashboardPage chama GET /api/properties (e, por propriedade, um
-    // report). Lista vazia → nenhuma query de report dispara e nada cai no
-    // backend real → 401 → redirect pra /login (o que detachava o menu do
-    // usuário no meio do teste de logout).
-    await page.route("**/api/properties", (route) =>
-        route.fulfill({
-            status: 200,
-            contentType: "application/json",
-            body: JSON.stringify({ status: "success", data: [] }),
-        }),
-    )
-    await page.route("**/api/iot/stream", (route) =>
-        route.fulfill({ status: 200, contentType: "text/event-stream", body: "" }),
-    )
-}
 
 test.describe("Fluxo de autenticação", () => {
     test.beforeEach(async ({ context }) => {
@@ -118,7 +62,9 @@ test.describe("Fluxo de autenticação", () => {
         // se devolvesse o usuário já no goto("/login"), o PublicRoute
         // redirecionaria pra /dashboard antes do formulário renderizar (o
         // campo de e-mail nunca apareceria). Só depois do POST de login é que
-        // /auth/me passa a devolver o usuário — que é o fluxo real.
+        // /auth/me passa a devolver o usuário — que é o fluxo real. Esse
+        // comportamento condicional é específico deste teste, então não usa
+        // setupAuth (que mocka /auth/me com um usuário fixo desde o início).
         let loggedIn = false
         await page.route("**/api/auth/login", (route) => {
             loggedIn = true
@@ -137,8 +83,6 @@ test.describe("Fluxo de autenticação", () => {
                     : JSON.stringify({ status: "error", message: "Não autenticado" }),
             }),
         )
-        // mockAppShellBackground já cobre /api/properties → [] (dashboard sem
-        // propriedades, sem queries de report caindo no backend real).
         await mockAppShellBackground(page)
 
         await page.goto("/login")
@@ -155,13 +99,7 @@ test.describe("Fluxo de autenticação", () => {
         // "Já logado" é simulado mockando /auth/me como autenticado desde o
         // bootstrap — não há mais token em localStorage para pré-semear
         // (sessão vive num cookie httpOnly, invisível a JS).
-        await page.route("**/api/auth/me", (route) =>
-            route.fulfill({
-                status: 200,
-                contentType: "application/json",
-                body: JSON.stringify({ status: "success", data: FAKE_USER }),
-            }),
-        )
+        await setupAuth(page)
 
         await page.route("**/api/auth/logout", (route) =>
             route.fulfill({
