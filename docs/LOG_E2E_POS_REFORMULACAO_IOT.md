@@ -82,3 +82,39 @@ O primeiro é, na prática, um ensaio do que a sub-issue #3 vai fazer com `auth.
 ### Próximo passo
 
 Sub-issue #2 — podar os 4 specs obsoletos (`dashboard`, `report`, `consumption`, `alerts`; ~2.522 linhas). Não depende da #1 e derruba a maior parte dos 80 testes quebrados de uma vez. Depois: #3 (`auth.spec.ts`), #4 (`properties`/`area`/`device`), #5 (`distributors`) — as três dependem da #1 e fecham a Fase 1 com o CI verde.
+
+---
+
+## Sub-issue 2 — Podar os specs obsoletos
+
+**Data:** 16/07/2026
+
+### O que foi implementado
+
+Removidos os 4 specs que testam features excluídas no rework IoT — nenhum tinha o que consertar, todos os cenários dependiam de telas/modelos que não existem mais:
+
+- `tests/e2e/dashboard.spec.ts` (419 linhas, 6 testes) — dashboard é `PlaceholderPage`.
+- `tests/e2e/report.spec.ts` (462, 8 testes) — rota `/…/relatorio` cai no fallback `*` → `/login`.
+- `tests/e2e/consumption.spec.ts` (698, 5 testes) — consumo não tem mais create/edit/delete.
+- `tests/e2e/alerts.spec.ts` (943, 10 testes) — modelo de alerta invertido por completo.
+
+Total: **2.522 linhas, 29 testes (×2 browsers = 58 execuções) removidos**, via `git rm`.
+
+### Desvios do plano
+
+Nenhum — execução exatamente como especificado (delete puro, sem substituto: a cobertura perdida é rastreada pelas sub-issues #6/#7/#8 da Fase 2).
+
+### Testes escritos
+
+Nenhum — sub-issue de remoção pura. Confirmado por `grep` que os únicos resquícios dos 4 arquivos nos specs sobreviventes são comentários de diagnóstico histórico (`auth.spec.ts`, `device.spec.ts`, `distributors.spec.ts`, `area.spec.ts`, `properties.spec.ts` e `support/devtools.ts` citam `consumption.spec.ts` como onde a flakiness do DevTools foi originalmente diagnosticada) — nenhum import real, nada quebra com a remoção.
+
+### Verificação executada
+
+- `npx eslint tests/e2e` e `npx tsc -p tsconfig.app.json --noEmit`: limpos.
+- **Suíte completa (`CI=true npx playwright test`)**: **30 testes, 14 passando / 16 falhando** — exatamente a previsão (88 − 58 = 30; os 14 que já passavam antes da poda são todos de `auth`/`area`/`device`, nenhum dos 4 arquivos removidos estava entre eles, então a contagem de passes não muda). Specs sobreviventes: `auth.spec.ts`, `area.spec.ts`, `device.spec.ts`, `distributors.spec.ts`, `properties.spec.ts`.
+- **Uma execução intermediária deu um resultado espúrio** (15 testes, todos falhando, `Protocol error: Cannot navigate to invalid URL`) — investigado antes de aceitar qualquer número: reproduzir `auth.spec.ts` isolado (`--project=chromium`) passou 5/5 limpo, com os logs de `[WebServer]` presentes normalmente. Uma reexecução completa e limpa (removendo `dist/`/`test-results/` antes) deu o resultado estável acima. Ficou sem causa raiz identificada — hipótese mais provável é contenção de recursos entre execuções consecutivas de `npm run build && npm run preview` no mesmo shell —, mas não se repetiu; registrado para o caso de reaparecer nas próximas sub-issues.
+- **Efeito colateral corrigido**: ao limpar os artefatos da execução espúria, um `rm -rf playwright-report` (sem barra final) apagou o diretório inteiro em vez de só o conteúdo, removendo `playwright-report/index.html` — que está **versionado** (achado de higiene do repo, não específico desta sub-issue: `frontend/.gitignore` não ignora `test-results/` nem `playwright-report/`, e os dois têm arquivos rastreados por acidente). Restaurado via `git checkout`. Fica registrado como pendência de limpeza do `.gitignore`, fora do escopo desta sub-issue.
+
+### Próximo passo
+
+Sub-issue #3 — consertar `auth.spec.ts`: trocar os helpers locais pelos de `support/`, cobrir firing/notifications via `mockAppShellBackground`. Depois #4 (`properties`/`area`/`device`) e #5 (`distributors`), fechando a Fase 1 com o CI verde.

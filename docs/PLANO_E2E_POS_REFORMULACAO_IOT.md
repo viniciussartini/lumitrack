@@ -1,6 +1,6 @@
 # Plano — Atualização da suíte e2e (Playwright) para o modelo de medidores IoT
 
-> **Status:** em andamento. Fase 1: sub-issue 1.1 (fixtures compartilhados) concluída em 15/07/2026 — ver log de implementação em [LOG_E2E_POS_REFORMULACAO_IOT.md](./LOG_E2E_POS_REFORMULACAO_IOT.md). Resolve a pendência conhecida registrada em [PLANO_REFORMULACAO_IOT.md](./PLANO_REFORMULACAO_IOT.md) ("suíte Playwright (`frontend/tests/e2e/`) ainda não foi atualizada para o novo modelo").
+> **Status:** em andamento. Fase 1: sub-issue 1.1 (fixtures compartilhados) concluída em 15/07/2026, sub-issue 1.2 (poda dos specs obsoletos) concluída em 16/07/2026 — ver log de implementação em [LOG_E2E_POS_REFORMULACAO_IOT.md](./LOG_E2E_POS_REFORMULACAO_IOT.md). Resolve a pendência conhecida registrada em [PLANO_REFORMULACAO_IOT.md](./PLANO_REFORMULACAO_IOT.md) ("suíte Playwright (`frontend/tests/e2e/`) ainda não foi atualizada para o novo modelo").
 >
 > **Data do planejamento:** 15/07/2026.
 >
@@ -50,7 +50,7 @@ Os 8 testes que passam são os da tela de login — a única página que o rewor
 - **Verificação por smoke test descartável** — `support/` não é coletado como spec (é justamente o critério de aceite), então sem isso a entrega ficaria verificada só por type-check. Criado, rodado nos dois browsers e removido antes do commit (detalhes no log).
 - **Sem fixtures de `AlertTriggerEvent`/`Notification`** — só teriam consumidor nas sub-issues da Fase 2; criá-las agora seria adivinhar o shape de uso.
 
-### 1.2 Deletar specs obsoletos
+### 1.2 Deletar specs obsoletos ✅ Concluída (16/07/2026)
 
 Não há o que salvar — testam features removidas:
 
@@ -58,6 +58,8 @@ Não há o que salvar — testam features removidas:
 - `tests/e2e/report.spec.ts` (462) — navega para `/propriedades/:id/relatorio`, que hoje cai no fallback `*` → `/login`. Sem CSV/presets/filtros.
 - `tests/e2e/consumption.spec.ts` (698) — consumo não tem mais create/edit/delete.
 - `tests/e2e/alerts.spec.ts` (943) — modelo de alerta invertido por completo.
+
+**Nota de implementação:** executado exatamente como planejado, sem desvios — 2.522 linhas / 29 testes removidos via `git rm`. Baseline pós-poda: 30 testes, 14 passando / 16 falhando (queda de 58 execuções, todas dentro dos 4 arquivos removidos; os 14 que já passavam antes seguem intactos). Detalhes da investigação de uma execução espúria intermediária no log.
 
 ### 1.3 Consertar os specs que sobrevivem
 
