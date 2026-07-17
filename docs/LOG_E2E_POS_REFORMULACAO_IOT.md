@@ -1,0 +1,84 @@
+# Log de implementação — Suíte e2e pós-reformulação IoT
+
+> Registro cronológico do que foi executado em cada sub-issue do [PLANO_E2E_POS_REFORMULACAO_IOT.md](./PLANO_E2E_POS_REFORMULACAO_IOT.md) (sub-issues detalhadas em [ISSUES_E2E_POS_REFORMULACAO_IOT.md](./ISSUES_E2E_POS_REFORMULACAO_IOT.md)), incluindo desvios do plano original e decisões tomadas durante a implementação. Branch: `test/e2e-rework-iot`. O texto de commit não fica neste arquivo — é dado na conversa, um por sub-issue completa.
+
+---
+
+## Nota de ambiente — browsers do Playwright disponíveis (15/07/2026)
+
+Diferente de todas as fases anteriores deste projeto (`LOG_IMPLEMENTACAO_IOT.md` Fase 5 desvio #6, `LOG_SIMULADOR_IOT.md` Fase 1 desvios #11 e #3 da Sub-issue 5), **a rede do ambiente não está mais bloqueando o CDN do Playwright**. `npx playwright install chromium firefox` completou (938 MB em `~/.cache/ms-playwright`: chromium-1228, chromium_headless_shell-1228, firefox-1532, ffmpeg-1011).
+
+Consequência prática: pela primeira vez neste projeto a verificação de e2e é feita **rodando a suíte de verdade nos dois browsers**, não por inferência a partir de `tsc`/Vitest/`curl`. Todas as seções abaixo trazem números reais de execução.
+
+Ressalva: `npx playwright install --with-deps` **falha** neste ambiente — o `--with-deps` troca para root via `sudo` para instalar bibliotecas de sistema e não há terminal para a senha. O fallback sem `--with-deps` funcionou porque as libs de sistema já estavam presentes (os browsers sobem e executam). Quem for reproduzir num ambiente limpo pode precisar instalar as deps de sistema à parte.
+
+---
+
+## Nota de ambiente — o local NÃO reproduz o CI sem backend rodando (15/07/2026)
+
+Descoberto ao medir o baseline da Sub-issue 1: `CI=true npx playwright test` local dá **14 passando / 74 falhando**, enquanto o CI em `main` dá **8 passando / 80 falhando** ([run 29459167184](https://github.com/viniciussartini/lumitrack/actions/runs/29459167184)). A suíte é a mesma; o ambiente é que não é.
+
+**Causa:** o job `e2e` do CI (`.github/workflows/ci.yml`) sobe um Postgres de serviço, aplica as migrations e roda `npm run dev` do backend em background antes do Playwright. Localmente não há backend na porta 3333. Isso muda o que acontece com uma rota **não mockada**:
+
+- **No CI:** a chamada chega ao backend real → **401** (sem sessão) → o interceptor do `api` dispara `lumitrack:unauthorized` → o app redireciona para `/login` no meio do teste → "element was detached from the DOM".
+- **Local:** o proxy do Vite não conecta (`ECONNREFUSED 127.0.0.1:3333`) → o erro **não** é um 401 → nenhum redirect → o teste sobrevive e às vezes passa.
+
+Ou seja, os 6 testes de diferença passam localmente **por acidente**: dependem de uma rota não mockada falhar de um jeito que o CI não reproduz.
+
+**Consequência para as próximas sub-issues:** "verde local" não é prova de "verde no CI" enquanto houver rota não mockada. Duas leituras práticas: (a) a meta das sub-issues #3–#5 é que **nenhuma** requisição vaze para o backend — se nenhuma vaza, os dois ambientes convergem; (b) antes de declarar o marco de fim da Fase 1, rodar a suíte com o backend local de pé (`cd backend && npm run dev`, Postgres de dev já existente), que é a configuração fiel ao CI. Registrado aqui porque nenhum documento do épico previa essa diferença — o plano assumia que `CI=true` bastava para fidelidade, e ele só cobre `webServer`/`retries`, não o backend.
+
+---
+
+## Sub-issue 1 — Fixtures compartilhados em `tests/e2e/support/`
+
+**Data:** 15/07/2026
+
+### O que foi implementado
+
+Novo diretório `frontend/tests/e2e/support/` com quatro módulos, extraindo o que hoje está duplicado nos 9 specs (a exploração confirmou: **zero** código compartilhado hoje — cada spec tem sua própria cópia dos helpers, com divergências reais entre elas).
+
+- **`api.ts`** — `fulfillJson(route, data, status = 200)`, `fulfillError(route, message, status)` e `fulfillPaginated(route, items, opts?)`. O último monta o envelope `{status:"success",data:{items,total,page,pageSize}}` conforme `src/types/pagination.types.ts`, com `total` default = `items.length`, `page` = 1 e `pageSize` = `DEFAULT_PAGE_SIZE` (importado do próprio app, não redigitado como `10`).
+- **`appShell.ts`** — `mockAppShellBackground(page)` cobrindo as **quatro** chamadas que qualquer rota autenticada dispara só por montar o AppShell: `GET /api/alerts` (paginado), `GET /api/alerts/firing` (array cru), `GET /api/notifications` (array cru), `GET /api/iot/stream` (`text/event-stream`, body vazio). Mais `setupAuth(page, user = FAKE_USER)` mockando `GET /api/auth/me` — único caminho de "usuário autenticado" desde a #06 (sessão em cookie httpOnly, sem token em localStorage para pré-semear).
+- **`fixtures.ts`** — `FAKE_USER`, `DIST_CEMIG`, `PROP_1`, `AREA_1`, `DEVICE_1`, `METER_1`, `ALERT_1`, `BUCKET_HOUR_1|2`, `BUCKET_DAY_1|2`, todos **tipados com os types reais do app** (`import type` de `src/types/*`).
+- **`devtools.ts`** — `hideDevTools(page)`. Mantido apesar de ser no-op no CI (o job roda `vite preview`, onde o DevTools não existe no bundle por ser gated por `import.meta.env.DEV`); continua necessário localmente, onde o webServer é `vite dev`.
+
+Nenhum spec consome `support/` ainda — a migração é das sub-issues #3–#5, conforme o critério de aceite da própria sub-issue.
+
+### Desvios do plano
+
+1. **`FAKE_USER` não tem o campo `role`**, embora o `FAKE_USER` atual de `auth.spec.ts:11` tenha (`role: "USER"`). O backend realmente devolve `role` (RBAC, #16), mas o type `User` do frontend não o modela e um grep confirmou que **nenhuma tela do frontend lê `role`**. Tipar a fixture como `User` e manter o campo exigiria um `as` para escapar do excess property check — exatamente o padrão que escondeu uma fixture desatualizada por meses em `dataExportPdf.test.ts` (ver "Revisão pós-implementação" em `LOG_IMPLEMENTACAO_IOT.md`). Preferi remover o campo morto a enfraquecer o type-check.
+2. **Imports por caminho relativo (`../../../src/types/...`), não pelo alias `@/`.** O alias existe em `tsconfig.app.json`, mas o `tsconfig.json` da raiz do frontend só tem `references` (sem `compilerOptions.paths`) — que é o arquivo que o Playwright consulta para resolver imports em runtime. Como quase todos os imports de `support/` são `import type` (apagados na compilação), o alias até funcionaria por acidente; `DEFAULT_PAGE_SIZE` é um import de **valor** e quebraria. Caminho relativo funciona nos dois casos sem mexer em config de build — e a alternativa (adicionar `paths` ao tsconfig raiz) mudaria a configuração do projeto inteiro para conveniência de um diretório de teste.
+3. **`fixtures.ts` usa timestamps literais fixos** (`"2026-07-15T12:00:00.000Z"`), não `new Date().toISOString()` como o `FAKE_USER` de hoje. A data de "agora" não muda nenhuma assertion, e um literal mantém o teste determinístico.
+4. **`fulfillJson`/`fulfillError` adotaram a assinatura majoritária** (7 dos 9 specs: `status = 200` opcional no primeiro, obrigatório no segundo). `dashboard.spec.ts` e `report.spec.ts` divergem hoje (`fulfillJson` sem `status`, `fulfillError` com default 500) — mas os dois são deletados pela sub-issue #2, então a divergência morre sozinha.
+5. **Um smoke test descartável foi usado para verificar a entrega** (ver abaixo) — não previsto no plano, mas sem ele a sub-issue seria commitada com verificação limitada a type-check, já que `support/` por definição não é coletado como spec.
+6. **Nenhum `ALERT_EVENT_*` ou fixture de `Notification` criada** — o plano lista `BUCKET_*` mas não estes, e eles só são necessários nas sub-issues #6 e #10 (Fase 2). Criar agora seria adivinhar o shape de uso antes de existir um consumidor.
+7. **`mockAppShellBackground` só intercepta `GET`** em `/api/alerts` e `/api/notifications`, caindo em `route.fallback()` nos demais métodos — não estava no plano. Sem isso, um `POST /api/alerts` (criar alerta, sub-issue #6) ou um `DELETE /api/notifications` (limpar todas, #10) casaria a mesma URL e receberia a resposta da **listagem**: uma falha silenciosa, com o teste vendo "sucesso" e nada acontecendo. Com o guard, o método não mockado vaza e falha alto.
+
+### Testes escritos
+
+Nenhum teste permanente — a sub-issue entrega apenas helpers, e o critério de aceite é explícito: "nenhum spec ainda consumindo".
+
+Para verificar a entrega foi criado um **smoke test descartável** (`tests/e2e/support-smoke.spec.ts`, 2 testes), rodado nos dois browsers e **removido antes do commit**:
+
+- "setupAuth + mockAppShellBackground renderizam o AppShell autenticado" — navega para `/dashboard`, assere `Olá, João` visível e a URL estável em `/dashboard`, e — via um listener de `request` — confirma que as três chamadas de fundo (`/api/alerts/firing`, `/api/notifications`, `/api/iot/stream`) foram de fato disparadas e interceptadas (nenhuma vazou para o backend real → nenhum 401 → nenhum redirect para `/login`).
+- "listagem paginada chega no shape `Paginated<T>`" — `/propriedades` com `fulfillPaginated(route, [PROP_1])` renderiza o nome da propriedade, provando que o envelope montado pelo helper é o que os hooks de lista esperam.
+
+O primeiro é, na prática, um ensaio do que a sub-issue #3 vai fazer com `auth.spec.ts`: confirma que os mocks de firing/notifications são mesmo o que conserta o "element was detached from the DOM".
+
+### Verificação executada
+
+- `npx playwright install chromium firefox` — OK (ver "Nota de ambiente" acima).
+- `npx tsc -p tsconfig.app.json --noEmit`: **zero erros no projeto inteiro** (o `tsconfig.app.json` inclui `tests/`, então `support/` é type-checado de verdade).
+- `npx eslint tests/e2e/support`: limpo, zero avisos.
+- **Smoke test descartável**: 4/4 nos dois browsers (2.7s), rodado duas vezes — antes e depois do guard de método do desvio #7.
+- **Suíte completa (`CI=true npx playwright test`, build+preview, 2 browsers, retries: 2)**, rodada duas vezes:
+  - **com** o smoke presente: 92 testes, 74 falhando / 18 passando (3.9min);
+  - **sem** o smoke (baseline final): 88 testes, **74 falhando / 14 passando** (3.9min).
+
+  A contagem de falhas é **idêntica** nas duas (74), e a de passes difere exatamente pelos 4 testes do smoke — confirmando os dois critérios de aceite: `support/` **não é coletado como spec** pelo `testDir: ./tests/e2e` (arquivos sem `.spec.ts` são ignorados — o plano pedia para confirmar; confirmado empiricamente) e a sub-issue **não altera o resultado da suíte**, por desenho (não conserta spec nenhum, só cria o que as #3–#5 vão consumir).
+
+- **Divergência com o número do plano, investigada:** o plano e o épico falam em "80 de 88 quebrados / 8 passando"; localmente são **74 quebrados / 14 passando**. Não é ruído nem melhora — é a ausência do backend local (ver "Nota de ambiente" acima). Os 14 que passam aqui são `auth.spec.ts` (10 = 5 testes × 2 browsers, **incluindo o de logout**, que no CI falha), `area.spec.ts` (2) e `device.spec.ts` (2). A diferença de 6 é exatamente 3 testes × 2 browsers que dependem de uma rota não mockada falhar como `ECONNREFUSED` (local) em vez de `401` (CI). Coerente com o diagnóstico do plano: é o 401 que dispara o redirect para `/login`, não a falha de rede.
+
+### Próximo passo
+
+Sub-issue #2 — podar os 4 specs obsoletos (`dashboard`, `report`, `consumption`, `alerts`; ~2.522 linhas). Não depende da #1 e derruba a maior parte dos 80 testes quebrados de uma vez. Depois: #3 (`auth.spec.ts`), #4 (`properties`/`area`/`device`), #5 (`distributors`) — as três dependem da #1 e fecham a Fase 1 com o CI verde.

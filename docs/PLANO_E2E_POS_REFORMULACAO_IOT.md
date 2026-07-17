@@ -1,10 +1,12 @@
 # Plano — Atualização da suíte e2e (Playwright) para o modelo de medidores IoT
 
-> **Status:** planejado, não iniciado. Resolve a pendência conhecida registrada em [PLANO_REFORMULACAO_IOT.md](./PLANO_REFORMULACAO_IOT.md) ("suíte Playwright (`frontend/tests/e2e/`) ainda não foi atualizada para o novo modelo").
+> **Status:** em andamento. Fase 1: sub-issue 1.1 (fixtures compartilhados) concluída em 15/07/2026 — ver log de implementação em [LOG_E2E_POS_REFORMULACAO_IOT.md](./LOG_E2E_POS_REFORMULACAO_IOT.md). Resolve a pendência conhecida registrada em [PLANO_REFORMULACAO_IOT.md](./PLANO_REFORMULACAO_IOT.md) ("suíte Playwright (`frontend/tests/e2e/`) ainda não foi atualizada para o novo modelo").
 >
 > **Data do planejamento:** 15/07/2026.
 >
 > **Branch:** `test/e2e-rework-iot`.
+>
+> **Issues:** ver [ISSUES_E2E_POS_REFORMULACAO_IOT.md](./ISSUES_E2E_POS_REFORMULACAO_IOT.md) (épico + sub-issues para o GitHub).
 
 ## Contexto
 
@@ -32,12 +34,21 @@ Os 8 testes que passam são os da tela de login — a única página que o rewor
 
 ## Fase 1 — CI verde
 
-### 1.1 Fixtures compartilhados — `frontend/tests/e2e/support/`
+### 1.1 Fixtures compartilhados — `frontend/tests/e2e/support/` ✅ Concluída (15/07/2026)
 
 - `support/api.ts` — `fulfillJson(route, data, status?)`, `fulfillError(route, message, status)` e `fulfillPaginated(route, items, {page,pageSize,total}?)` montando `{status:"success",data:{items,total,page,pageSize}}` conforme `src/types/pagination.types.ts`.
 - `support/appShell.ts` — `mockAppShellBackground(page)` cobrindo **as quatro** chamadas de fundo: `GET /api/alerts` (regex `/\/api\/alerts(\?.*)?$/`, para não capturar `/api/alerts/:id`), `GET /api/alerts/firing` (array cru, **não** paginado), `GET /api/notifications` (array cru), `GET /api/iot/stream` (`text/event-stream`, body vazio). Mais `setupAuth(page, user?)` mockando `GET /api/auth/me`.
 - `support/fixtures.ts` — `FAKE_USER`, `DIST_CEMIG`, `PROP_1`, `AREA_1`, `DEVICE_1`, `METER_1`, `BUCKET_*`. Espelhar os shapes já validados nos testes de service (`src/services/alert.service.test.ts` para `AlertWithStatus`, `src/services/consumption.service.test.ts` para `ConsumptionBucket`) — são a fonte de verdade do contrato.
 - `support/devtools.ts` — `hideDevTools(page)` (injeta CSS ocultando `.tsqd-parent-container`). Manter: o DevTools é gated por `import.meta.env.DEV`, some no `preview` do CI mas existe no `dev` local.
+
+**Nota de implementação:** executado como planejado, com os desvios abaixo (documentados também no log de implementação):
+
+- **`FAKE_USER` sem o campo `role`**, embora o `FAKE_USER` de `auth.spec.ts` o tenha hoje — o backend devolve `role` (RBAC, #16), mas o type `User` do frontend não o modela e nenhuma tela o lê. Mantê-lo exigiria um `as` para escapar do excess property check, enfraquecendo justamente a proteção que motiva tipar as fixtures.
+- **Imports por caminho relativo (`../../../src/types/...`), não pelo alias `@/`** — o alias existe em `tsconfig.app.json`, mas o `tsconfig.json` da raiz (que é o que o Playwright lê para resolver imports em runtime) só tem `references`, sem `compilerOptions.paths`. Os `import type` seriam apagados na compilação e funcionariam por acidente; `DEFAULT_PAGE_SIZE` é import de valor e quebraria.
+- **Fixtures com timestamps literais fixos**, não `new Date().toISOString()` — determinismo, sem custo (nenhuma assertion depende da data de "agora").
+- **`fulfillJson`/`fulfillError` adotaram a assinatura majoritária** (7 dos 9 specs). A divergência de `dashboard.spec.ts`/`report.spec.ts` morre com a sub-issue 1.2, que os deleta.
+- **Verificação por smoke test descartável** — `support/` não é coletado como spec (é justamente o critério de aceite), então sem isso a entrega ficaria verificada só por type-check. Criado, rodado nos dois browsers e removido antes do commit (detalhes no log).
+- **Sem fixtures de `AlertTriggerEvent`/`Notification`** — só teriam consumidor nas sub-issues da Fase 2; criá-las agora seria adivinhar o shape de uso.
 
 ### 1.2 Deletar specs obsoletos
 
@@ -80,15 +91,19 @@ Cobertura vitest inexistente hoje para `AlertsPage`, `ReportsPage`, `MeterSectio
 
 ## Verificação
 
-Os browsers do Playwright não estão instalados no ambiente de dev (`~/.cache/ms-playwright` vazio):
+Os browsers do Playwright foram instalados em 15/07/2026 (~938MB em `~/.cache/ms-playwright`) — a rede restrita que impediu isso durante toda a reformulação IoT e o simulador (três logs registram a limitação) não está mais bloqueando. A suíte roda de verdade nos dois browsers neste ambiente:
 
 ```bash
 cd frontend
-npx playwright install --with-deps chromium firefox   # ~400MB, uma vez
+npx playwright install chromium firefox                # ~938MB, uma vez (já feito)
 npx playwright test --project=chromium                 # ciclo rápido durante o trabalho
 CI=true npx playwright test                            # fiel ao CI: build+preview, 2 browsers, retries
 ```
 
+`--with-deps` **falha** neste ambiente (troca para root via `sudo`, sem terminal para a senha); sem a flag funciona, porque as libs de sistema já estão presentes.
+
 `CI=true` é o que importa antes de abrir PR: muda o `webServer` de `vite dev` para `npm run build && npm run preview` (sem StrictMode, sem DevTools) e liga `retries: 2` — é a configuração que roda no GitHub Actions.
+
+**Mas `CI=true` sozinho não reproduz o CI** (descoberto na sub-issue 1.1, ver log): o job `e2e` sobe um **backend real** (Postgres + `npm run dev`) antes do Playwright, e a variável só controla `webServer`/`retries`. Sem backend local, uma rota não mockada dá `ECONNREFUSED` em vez de `401` — e é o 401 que dispara `lumitrack:unauthorized` → redirect para `/login`. Por isso o baseline local é 74 quebrados/14 passando contra 80/8 no CI: 3 testes (×2 browsers) passam localmente por acidente. Antes de declarar o marco da Fase 1, rodar a suíte com o backend de pé (`cd backend && npm run dev`) — ou aceitar como prova o fato de nenhuma requisição vazar para o backend, que é a meta das sub-issues 1.3.
 
 Ao fim da Fase 1 o esperado é a suíte inteira verde nos dois browsers, com os 4 specs obsoletos removidos.
