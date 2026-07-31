@@ -339,3 +339,40 @@ Spec novo cobrindo `ReportsPage` — página única com seletor cascata de alvo 
 ### Próximo passo
 
 Sub-issue #9 — `meter.spec.ts` (`MeterSection`): EmptyState "Nenhum medidor vinculado", criar via `meter-form-dialog`, `meter-connection-card`, remover (ConfirmDialog "Remover medidor"). Cobre a peça que as sub-issues #4/#7/#8 sempre mockaram (`meters/by-target`) mas nunca testaram de verdade.
+
+---
+
+## Sub-issue 9 — `meter.spec.ts` (`MeterSection`)
+
+**Data:** 17/07/2026
+
+### O que foi implementado
+
+Spec novo cobrindo `MeterSection` — testado através da `PropertyDetailsPage`, a mesma peça que as sub-issues #4/#7/#8 sempre mockaram (`meters/by-target`) mas nunca exercitaram de verdade. Exploração completa antes de escrever qualquer assertion: `MeterSection.tsx`, `MeterForm.tsx`, `MeterFormDialog.tsx`, `RealTimeCard.tsx`, `meter.schema.ts`, `meter.types.ts`, `useMeterMutations.ts`.
+
+3 testes:
+
+- **"sem medidor vinculado: mostra EmptyState, sem card de conexão nem tempo real"** — `by-target` → 404; confirma a ausência de `meter-connection-card` e `real-time-card` (não só a presença do EmptyState).
+- **"vincula, edita e remove um medidor MQTT (ciclo completo)"** — criar via `meter-form-dialog` (nome/host/porta/tópico) → `meter-connection-card` aparece com protocolo/host:porta/tópico formatados → **`RealTimeCard` aparece junto, em estado `real-time-card-stale`** ("Sem leitura recente" — nenhuma amostra chega pelo SSE mockado, é o estado esperado sem simular leitura) → editar host via o mesmo dialog (reaproveitado, `initialData` pré-preenche) → remover via `ConfirmDialog` "Remover medidor" (confirmLabel **"Remover"**, não "Excluir" — diferente do padrão de Property/Area/Device/Alert) → volta ao EmptyState.
+- **"troca de protocolo ajusta os campos exibidos no form (rede / tópico / serial)"** — MQTT (host+porta+tópico) → Modbus TCP (host+porta, sem tópico) → Modbus RTU (só endereço, sem host/porta/tópico) — os três grupos de `NETWORK_PROTOCOLS`/`TOPIC_PROTOCOLS`/`SERIAL_PROTOCOLS`. Termina submetendo em modo serial sem preencher "Endereço", confirmando a mensagem de validação condicional do `.refine()` do schema ("Endereço é obrigatório para este protocolo").
+
+### Desvios do plano
+
+1. **`ConfirmDialog` de remoção usa `confirmLabel="Remover"`**, não "Excluir" como todos os outros menus de exclusão do app (Property/Area/Device/Alert/Distributor) — `MeterSection.tsx:155` define isso explicitamente. Não estava no plano (que só citava "ConfirmDialog 'Remover medidor'", sem detalhar o texto do botão); descoberto lendo o componente antes de escrever a assertion — `getByRole("button", {name: "Excluir"})` copiado por hábito dos outros specs teria falhado silenciosamente por timeout.
+2. **Teste de campos condicionais por protocolo não estava nos critérios de aceite explícitos** (só "ciclo vincular→exibir→remover" e "caso sem medidor"), mas cobre a única peça de UI verdadeiramente distinta do `MeterForm` em relação aos outros forms do app — a alternância de campos por protocolo, com uma validação cruzada (`.refine()`) que nenhum outro schema do projeto usa dessa forma. Mesmo padrão de ir além do mínimo já seguido nas sub-issues #6–#8.
+3. **`RealTimeCard` sempre aparece junto ao card de conexão assim que há medidor**, mesmo sem nenhuma leitura real — confirmado lendo `MeterSection.tsx` (`{meter && (<>...<RealTimeCard/></>)}`, sem condicional própria) e `RealTimeCard.tsx` (renderiza `real-time-card-stale` quando não há leitura, nunca omite o card inteiro). O teste do ciclo completo assere isso explicitamente, não só o card de conexão — é o comportamento correto pós-vínculo, não um estado de erro.
+4. **`ConsumptionSection` mockada também nesta spec** (`GET /api/consumption` → vazio) — monta na mesma `PropertyDetailsPage` e usa o mesmo `by-target`; sem o mock, o teste de vincular medidor faria essa segunda seção vazar pro backend real assim que o medidor passasse a existir.
+
+### Testes escritos
+
+3 testes novos (6 execuções × 2 browsers).
+
+### Verificação executada
+
+- `npx tsc -p tsconfig.app.json --noEmit` e `npx eslint tests/e2e/meter.spec.ts`: limpos.
+- **`meter.spec.ts` isolado, nos dois browsers**: **6/6 passando de primeira** — nenhuma iteração de correção precisou rodar contra o Playwright.
+- **Suíte completa (`CI=true npx playwright test`)**: **60/60 passando** (54 anteriores + 6 novos), zero regressão.
+
+### Próximo passo
+
+Sub-issue #10 — `realtime.spec.ts` (SSE): `page.route` com body `text/event-stream` scriptado cobrindo os três eventos (`reading` → `real-time-card` atualiza e fica stale após 10s; `alert-firing` → `warning-badge`; `notification` → toast + `notification-bell-count`). Última sub-issue da Fase 2 — ao concluí-la, o épico inteiro está completo.
