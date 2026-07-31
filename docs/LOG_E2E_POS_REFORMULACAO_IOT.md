@@ -265,3 +265,40 @@ Spec novo (não migração — `alerts.spec.ts` não existia desde a poda da sub
 ### Próximo passo
 
 Sub-issue #7 — `consumption.spec.ts`: read-only por granularidade (`granularity-tab-hour|day|month|year`), `consumption-table` com linhas `consumption-row-${bucketStart}` (chave é o ISO do bucket, não um id), `consumption-chart`, EmptyStates "Sem consumo para exibir" (sem medidor) e "Sem leituras neste período".
+
+---
+
+## Sub-issue 7 — `consumption.spec.ts` (read-only por granularidade)
+
+**Data:** 17/07/2026
+
+### O que foi implementado
+
+Spec novo cobrindo `ConsumptionSection` — testado através da `PropertyDetailsPage` (via `PropertyConsumptionSection`), já que é ali que a seção monta com `DETAILS_GRANULARITIES` (hora|dia); os 4 níveis de `/relatorios` (`ReportsPage`) ficam pra sub-issue #8. Exploração completa antes de escrever qualquer assertion: `ConsumptionSection.tsx`, `GranularityTabs.tsx`, `ConsumptionTable.tsx`, `ConsumptionChart.tsx`, `consumption.service.ts`, `useConsumption.ts`, `useMeters.ts` (`useMeterByTarget`), `lib/formatters/consumption.ts` e `consumption.types.ts`.
+
+4 testes:
+
+- **"sem medidor vinculado: mostra EmptyState orientando a configurar, sem chamar `/api/consumption`"** — `meters/by-target` → 404; um listener local (`consumptionCalled`) confirma que `GET /api/consumption` **nunca** é chamado — a seção resolve primeiro se há medidor e só então dispara a query de consumo (otimização já documentada como desvio da Fase 5 do rework).
+- **"troca de granularidade (Hora → Dia) re-consulta com o `granularity` correto"** — usa os fixtures `BUCKET_HOUR_1/2`/`BUCKET_DAY_1/2` (já existiam em `support/fixtures.ts` desde a sub-issue #1, sem consumidor até agora) com respostas distintas por `granularity` recebido na query; a prova de que a query mudou de fato é ver as linhas de Hora **sumirem** ao trocar pra Dia, não só linhas novas aparecerem.
+- **"mostra EmptyState 'Sem leituras neste período'"** — medidor presente, `items: []` — distingue do EmptyState "sem medidor" (mensagens e contexto diferentes).
+- **"pagina a tabela de consumo dentro da mesma granularidade"** — mesmo padrão de `alerts.spec.ts` (#6): a segunda página é computada a partir do `page` real recebido na query, não uma resposta fixa.
+
+### Desvios do plano
+
+1. **`consumption-chart-empty` não é alcançável via `ConsumptionSection`** — `ConsumptionChart.tsx` tem uma branch própria pra `buckets.length === 0` (renderiza esse testid), mas `ConsumptionSection` só monta `<ConsumptionChart>` dentro do ramo `buckets.length > 0` — quando os buckets vêm vazios, a seção renderiza o EmptyState "Sem leituras neste período" **no lugar** do chart, nunca chega a instanciar `ConsumptionChart` com array vazio. Não testado via e2e (não há como alcançar esse estado pela UI real); é código morto sob a árvore de render atual, ou só testável isoladamente em Vitest — fora do escopo desta sub-issue, só registrado como achado.
+2. **Assertions das linhas da tabela usam o `data-testid` (`consumption-row-${bucketStart}`), nunca o texto formatado da coluna "Período"** — `formatBucketLabel` usa `Intl.DateTimeFormat` sem `timeZone` explícito, então o texto renderizado depende do fuso horário da máquina que roda o teste. O testid usa o `bucketStart` ISO cru, estável em qualquer fuso — exatamente a ressalva que o próprio texto da sub-issue no plano já registrava ("a chave é o ISO do bucket, não um id"), mas que também se aplica a evitar montar assertions sobre o rótulo formatado.
+3. **Teste de paginação não estava nos critérios de aceite explícitos** (só "troca de granularidade" e "EmptyStates"), mas foi incluído — mesmo padrão de cobertura de `alerts.spec.ts` (#6), e `Pagination` já é renderizada de verdade pela seção quando `total > pageSize`.
+
+### Testes escritos
+
+4 testes novos (8 execuções × 2 browsers).
+
+### Verificação executada
+
+- `npx tsc -p tsconfig.app.json --noEmit` e `npx eslint tests/e2e/consumption.spec.ts`: limpos.
+- **`consumption.spec.ts` isolado, nos dois browsers**: **8/8 passando de primeira** — nenhuma iteração de correção precisou rodar contra o Playwright, os 4 testes passaram já na primeira execução.
+- **Suíte completa (`CI=true npx playwright test`)**: **48/48 passando** (40 anteriores + 8 novos), zero regressão.
+
+### Próximo passo
+
+Sub-issue #8 — `reports.spec.ts`: `/relatorios`, cascata `reports-property-select` → `reports-area-select` → `reports-device-select` e o `targetType` resultante (DEVICE > AREA > PROPERTY) na query de `/api/consumption`. Reaproveita a mesma `ConsumptionSection` já validada aqui, agora com `REPORT_GRANULARITIES` (+ mês/ano).
