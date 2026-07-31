@@ -376,3 +376,47 @@ Spec novo cobrindo `MeterSection` — testado através da `PropertyDetailsPage`,
 ### Próximo passo
 
 Sub-issue #10 — `realtime.spec.ts` (SSE): `page.route` com body `text/event-stream` scriptado cobrindo os três eventos (`reading` → `real-time-card` atualiza e fica stale após 10s; `alert-firing` → `warning-badge`; `notification` → toast + `notification-bell-count`). Última sub-issue da Fase 2 — ao concluí-la, o épico inteiro está completo.
+
+---
+
+## Sub-issue 10 — `realtime.spec.ts` (SSE)
+
+**Data:** 17/07/2026
+
+### O que foi implementado
+
+Spec novo cobrindo os três eventos do SSE (`RealtimeContext` → `createAppStream`, `/api/iot/stream`) além de `connected`. Exploração completa antes de escrever qualquer linha: `appStream.ts`, `RealtimeContext.tsx`, `WarningBadge.tsx`, `NotificationDropdown.tsx`, `queryClient.ts` (config de `refetchOnWindowFocus`) e o `Toaster` do sonner em `App.tsx`.
+
+4 testes:
+
+- **"reading atualiza o RealTimeCard e fica stale após 10s sem nova leitura, com relógio controlado"** — `page.clock.install()` (API de relógio controlado do Playwright) fixa a hora antes de navegar; o evento `reading` chega no corpo inicial do SSE; depois de confirmar as métricas visíveis, `page.clock.fastForward(11_000)` avança o relógio da página **sem esperar de verdade** (o `setInterval` de 2s do `RealTimeCard` dispara dentro do próprio fast-forward) até passar do limiar de 10s — critério de aceite "sem `waitForTimeout` arbitrário" cumprido ao pé da letra.
+- **"sem alertas em disparo, o WarningBadge não é renderizado"** — caso base isolado: `GET /alerts/firing` → `[]`, confirma `toHaveCount(0)` (o componente retorna `null`, não um badge com contagem zero).
+- **"alert-firing dispara o WarningBadge com a contagem certa"** — evento `alert-firing` no SSE invalida a query (não carrega payload novo), forçando um refetch de `GET /alerts/firing`.
+- **"notification dispara toast, atualiza o contador do sino e pode ser descartada"** — evento `notification` escreve direto no cache (`setQueryData`) + dispara toast (sonner); abre o dropdown, vê o item, descarta via botão de check (`DELETE /api/notifications/:id`).
+
+### Desvios do plano
+
+O mais denso de todos os 10 specs em achados — 3 bugs reais de determinismo encontrados e corrigidos, dois deles só visíveis sob a suíte inteira rodando em paralelo (nunca isolados):
+
+1. **`page.route().fulfill()` entrega o corpo inteiro como uma resposta HTTP completa e fecha a conexão** — não há como simular "mais bytes chegam na mesma conexão depois de um tempo" com a API pública de mock do Playwright. Consequência: `fetch-event-source` trata o fim do corpo como desconexão e **reconecta sozinha**, batendo de novo na mesma rota mockada — que, sem tratamento, reentregaria os MESMOS eventos, duplicando toasts e leituras a cada reconexão. Corrigido em `mockSseStream`: só a primeira conexão recebe o script; reconexões recebem só `connected`.
+2. **`page.keyboard.press("Escape")` não fechava nada aqui tampouco** (mesmo padrão do desvio #1 da sub-issue #6, componente diferente) — não relevante neste spec (não há menu a fechar), mas o toast do sonner (`position: top-right`, `closeButton` habilitado em `App.tsx`) fica sobreposto ao sino de notificações por até `duration: 10_000` (`RealtimeContext`), e cliques no sino ficavam retentando (Playwright actionability) até o auto-dismiss — um teste levando 10,5s por causa disso. Corrigido clicando no botão real do sonner (`aria-label="Close toast"`, default da lib) antes de interagir com o sino — caiu pra 1,4s.
+3. **O achado mais sério: duas condições de corrida reais entre a entrega do evento SSE e a resolução do fetch de montagem da própria query**, encontradas rodando a suíte **inteira** (68 testes, 8 workers) repetidamente — nunca reproduziam isolado nem com o spec sozinho repetido 5x. Investigado via `trace.zip` (não assumido): o log de rede confirmou que só **uma** chamada a `GET /api/alerts/firing` acontecia, nunca a segunda esperada.
+   - **`alert-firing`**: `onAlertFiring` só chama `invalidateQueries` (não carrega o payload) — se o evento SSE chega e invalida a query **antes** do fetch de montagem terminar, não há garantia de que uma segunda ida à rede aconteça de forma determinística (a invalidação pode ser absorvida pelo fetch já em andamento).
+   - **`notification`**: `onNotification` escreve direto no cache via `setQueryData` — se isso acontece **antes** do fetch de montagem de `GET /api/notifications` resolver, a resolução tardia desse fetch (que devolve o estado antigo do mock) **sobrescreve** o que o SSE acabou de escrever.
+   - Em ambos os casos a causa raiz é a mesma: duas operações assíncronas independentes (fetch de montagem vs. entrega do evento SSE) sem ordem garantida — e sob carga pesada (8 workers de browser competindo por CPU), a ordem inverte com frequência suficiente pra aparecer mesmo com `retries: 2`.
+   - **Corrigido com ordenação explícita, não com mais retries nem timeouts maiores**: a rota do `/api/iot/stream` passou a **segurar a própria resposta** (`await` numa Promise) até confirmar — via um resolver disparado dentro do handler da rota afetada — que a primeira chamada de `GET /alerts/firing`/`GET /api/notifications` já foi respondida. Isso não bloqueia nada real (é só a resposta *mockada* da conexão SSE que atrasa; as demais requisições seguem em paralelo normalmente) e elimina a corrida por construção, não por sorte de timing.
+   - Verificado com rigor: suíte inteira (68/68) rodada **3 vezes seguidas**, todas limpas, zero retries — antes da correção, rodava vermelha ou com retry em 2 de 3 tentativas.
+
+### Testes escritos
+
+4 testes novos (8 execuções × 2 browsers).
+
+### Verificação executada
+
+- `npx tsc -p tsconfig.app.json --noEmit` e `npx eslint tests/e2e/realtime.spec.ts`: limpos.
+- **`realtime.spec.ts` isolado, nos dois browsers, repetido 5x**: sempre 8/8 (mesmo antes da correção das corridas — elas só apareciam sob a suíte inteira).
+- **Suíte completa (`CI=true npx playwright test`), rodada 3 vezes seguidas após a correção**: **68/68 passando nas três**, sem nenhum retry — antes da correção, a mesma suíte tinha dado 66/68 com 2 flaky (absorvidos por retry) numa rodada e 67/68 com falha persistente mesmo após 2 retries noutra.
+
+### Próximo passo
+
+**Épico completo.** As 10 sub-issues das Fases 1 e 2 estão concluídas. `CI=true npx playwright test` verde nos dois browsers, 68/68, verificado de forma robusta sob carga plena (suíte inteira, repetida). Critério de conclusão do épico atingido: CI verde, sem specs obsoletos, `/alertas`/`/relatorios`/consumo/medidor/SSE cobertos.

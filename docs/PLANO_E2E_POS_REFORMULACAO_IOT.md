@@ -1,6 +1,6 @@
 # Plano — Atualização da suíte e2e (Playwright) para o modelo de medidores IoT
 
-> **Status:** Fase 1 **completa** (16/07/2026) — `CI=true npx playwright test` verde nos dois browsers (32/32), verificado inclusive com backend real de pé (Postgres seedado). Ver log de implementação em [LOG_E2E_POS_REFORMULACAO_IOT.md](./LOG_E2E_POS_REFORMULACAO_IOT.md). Resolve a pendência conhecida registrada em [PLANO_REFORMULACAO_IOT.md](./PLANO_REFORMULACAO_IOT.md) ("suíte Playwright (`frontend/tests/e2e/`) ainda não foi atualizada para o novo modelo"). Próximo: Fase 2 (sub-issues #6–#10, cobertura do novo modelo).
+> **Status:** **Épico completo** (17/07/2026) — Fases 1 e 2 concluídas, 10/10 sub-issues. `CI=true npx playwright test` verde nos dois browsers, **68/68**, verificado sob carga plena (suíte inteira, 3 execuções seguidas sem retry). Ver log de implementação em [LOG_E2E_POS_REFORMULACAO_IOT.md](./LOG_E2E_POS_REFORMULACAO_IOT.md). Resolve a pendência conhecida registrada em [PLANO_REFORMULACAO_IOT.md](./PLANO_REFORMULACAO_IOT.md) ("suíte Playwright (`frontend/tests/e2e/`) ainda não foi atualizada para o novo modelo").
 >
 > **Data do planejamento:** 15/07/2026.
 >
@@ -101,9 +101,13 @@ Specs novos, um commit por spec:
 - `meter.spec.ts` ✅ **Concluído (17/07/2026)** — `MeterSection`: EmptyState "Nenhum medidor vinculado", criar via `meter-form-dialog`, `meter-connection-card`, remover (ConfirmDialog "Remover medidor").
 
   **Nota de implementação:** 3 testes, 6/6 verdes nos dois browsers de primeira, 60/60 na suíte completa. `ConfirmDialog` de remoção usa `confirmLabel="Remover"`, não "Excluir" como os demais menus do app — achado só visível lendo o componente. `RealTimeCard` sempre acompanha o card de conexão assim que há medidor, mesmo sem nenhuma leitura (fica em `real-time-card-stale`); o teste do ciclo completo assere isso. Teste extra de campos condicionais por protocolo (rede/tópico/serial) — a peça de UI mais distinta do `MeterForm` em relação aos outros forms do app. Detalhes no log.
-- `realtime.spec.ts` — SSE por `page.route` com body `text/event-stream` scriptado: evento `reading` → `real-time-card` (e `real-time-card-stale` após 10s sem leitura); `alert-firing` → `warning-badge` aparece com `data-count` (o componente retorna `null` quando não há disparo); `notification` → toast + `notification-bell-count`.
+- `realtime.spec.ts` ✅ **Concluído (17/07/2026)** — SSE por `page.route` com body `text/event-stream` scriptado: evento `reading` → `real-time-card` (e `real-time-card-stale` após 10s sem leitura); `alert-firing` → `warning-badge` aparece com `data-count` (o componente retorna `null` quando não há disparo); `notification` → toast + `notification-bell-count`.
+
+  **Nota de implementação:** 4 testes, 8/8 verdes nos dois browsers. O spec mais denso em achados do épico — 3 bugs reais de determinismo corrigidos: (1) `page.route().fulfill()` entrega o corpo SSE inteiro e fecha a conexão, e a lib reconecta sozinha, reentregando os mesmos eventos se não tratado (duplicava toasts); (2) o toast do sonner (`duration: 10_000`) ficava sobreposto ao sino, fazendo cliques retentarem por até 10s; (3) **duas condições de corrida reais** entre a entrega do evento SSE e a resolução do fetch de montagem das próprias queries (`alerts/firing`, `notifications`) — só apareciam rodando a **suíte inteira sob carga** (68 testes, 8 workers), nunca isoladas; achadas via inspeção de `trace.zip`, não assumidas. Corrigidas com ordenação explícita (a resposta mockada do SSE segura até a primeira chamada da query afetada já ter resolvido), não com mais retries. Suíte completa verificada **3 vezes seguidas, 68/68 sem retry** — antes da correção das corridas, dava 66/68 ou 67/68 mesmo com `retries: 2`. Detalhes no log.
 
 Cobertura vitest inexistente hoje para `AlertsPage`, `ReportsPage`, `MeterSection`, `RealTimeCard`, `ConsumptionSection`, `NotificationDropdown`, `WarningBadge`, `AlertEventTable`, `appStream` e `RealtimeContext` — ou seja, a confiança nessas telas depende inteiramente destes e2e.
+
+**Épico completo.** As 10 sub-issues das Fases 1 e 2 estão concluídas.
 
 ---
 
