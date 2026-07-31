@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom"
+import { NavLink } from "react-router"
 import { Zap, X } from "lucide-react"
 import { NAV_ITEMS } from "@/config/navigation"
 import { cn } from "@/lib/cn"

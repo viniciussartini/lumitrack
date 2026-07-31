@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom"
+import { Link, useParams } from "react-router"
 import { Cpu, Gauge, Tag } from "lucide-react"
 import { cn } from "@/lib/cn"
 import { DeviceMenu } from "@/components/device/DeviceMenu"

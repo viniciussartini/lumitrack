@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom"
+import { Link } from "react-router"
 import { LayoutGrid } from "lucide-react"
 import { cn } from "@/lib/cn"
 import { AreaMenu } from "@/components/area/AreaMenu"

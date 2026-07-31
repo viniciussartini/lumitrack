@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import { act, renderHook, waitFor } from "@testing-library/react"
-import { MemoryRouter } from "react-router-dom"
+import { MemoryRouter } from "react-router"
 import { AuthProvider, useAuth } from "@/contexts/AuthContext"
 import { authService } from "@/services/auth.service"
 import { scheduleProactiveRefresh, cancelProactiveRefresh } from "@/lib/sessionRefresh"
@@ -10,8 +10,8 @@ import type { User } from "@/types/auth.types"
 // O mock abaixo evita erros de "navigate is not a function" nos testes
 // sem depender de um router real.
 const mockNavigate = vi.fn()
-vi.mock("react-router-dom", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("react-router-dom")>()
+vi.mock("react-router", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("react-router")>()
     return { ...actual, useNavigate: () => mockNavigate }
 })
 

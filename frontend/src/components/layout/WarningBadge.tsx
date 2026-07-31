@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom"
+import { Link } from "react-router"
 import { TriangleAlert } from "lucide-react"
 import { useFiringAlerts } from "@/hooks/queries/useAlerts"
 import { cn } from "@/lib/cn"

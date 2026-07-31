@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import { Link } from "react-router-dom"
+import { Link } from "react-router"
 import ReactMarkdown, { type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { ArrowLeft, Zap } from "lucide-react"

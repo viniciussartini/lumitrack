@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { MemoryRouter } from "react-router-dom"
+import { MemoryRouter } from "react-router"
 import { render, screen } from "@testing-library/react"
 import { PropertyCard } from "@/components/property/PropertyCard"
 import type { Property } from "@/types/property.types"

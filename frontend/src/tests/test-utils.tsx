@@ -1,9 +1,8 @@
-// eslint-disable-next-line react-refresh/only-export-components
 // Arquivo de utilitários de teste — não é carregado pelo HMR em dev,
 // apenas pelo runner do Vitest. O warning do react-refresh não se aplica.
 import { type ReactElement, type ReactNode } from "react"
 import { render, type RenderOptions } from "@testing-library/react"
-import { MemoryRouter } from "react-router-dom"
+import { MemoryRouter } from "react-router"
 import { AuthProvider } from "@/contexts/AuthContext"
 import { ThemeProvider } from "@/contexts/ThemeContext"
 
@@ -27,6 +26,7 @@ interface CustomRenderOptions extends Omit<RenderOptions, "wrapper"> {
     initialEntries?: string[]
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const renderWithProviders = (
     ui: ReactElement,
     { initialEntries, ...options }: CustomRenderOptions = {},

@@ -6,7 +6,7 @@ import {
     type ReactNode,
 } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router"
 import { toast } from "sonner"
 import { createAppStream, type ReadingPayload } from "@/lib/sse/appStream"
 import { useAuth } from "@/contexts/AuthContext"
@@ -91,7 +91,6 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
                 // reinicia) — a lib reconecta sozinha. Não vale a pena
                 // um toast ruidoso; só logamos em dev.
                 if (import.meta.env.DEV) {
-                    // eslint-disable-next-line no-console
                     console.warn("[RealtimeContext] SSE error:", error)
                 }
             },

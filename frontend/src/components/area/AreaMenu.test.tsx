@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { MemoryRouter } from "react-router-dom"
+import { MemoryRouter } from "react-router"
 import userEvent from "@testing-library/user-event"
 import { render, screen, waitFor } from "@testing-library/react"
 import { AreaMenu } from "@/components/area/AreaMenu"
