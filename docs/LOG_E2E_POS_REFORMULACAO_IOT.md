@@ -302,3 +302,40 @@ Spec novo cobrindo `ConsumptionSection` — testado através da `PropertyDetails
 ### Próximo passo
 
 Sub-issue #8 — `reports.spec.ts`: `/relatorios`, cascata `reports-property-select` → `reports-area-select` → `reports-device-select` e o `targetType` resultante (DEVICE > AREA > PROPERTY) na query de `/api/consumption`. Reaproveita a mesma `ConsumptionSection` já validada aqui, agora com `REPORT_GRANULARITIES` (+ mês/ano).
+
+---
+
+## Sub-issue 8 — `reports.spec.ts` (`/relatorios`)
+
+**Data:** 17/07/2026
+
+### O que foi implementado
+
+Spec novo cobrindo `ReportsPage` — página única com seletor cascata de alvo (propriedade → área → dispositivo), reaproveitando a mesma `ConsumptionSection` já validada na sub-issue #7 (aqui com `REPORT_GRANULARITIES`, não usadas diretamente nas assertions — o foco é a cascata e o alvo resultante, não as granularidades em si, já cobertas). Exploração completa de `ReportsPage.tsx` antes de escrever qualquer assertion — não há `.test.tsx`/Vitest para essa página (ver nota no topo da Fase 2), então o código-fonte foi a única fonte de verdade.
+
+3 testes:
+
+- **"estado inicial pede pra selecionar uma propriedade, com os selects dependentes desabilitados"** — `reports-area-select`/`reports-device-select` desabilitados até haver propriedade/área escolhida; `consumption-section` não existe ainda; `reports-placeholder-banner` sempre visível, independente do alvo.
+- **"cascata propriedade → área → dispositivo ajusta o `targetType` da consulta (DEVICE > AREA > PROPERTY)"** — o teste central: como `ConsumptionSection` é remontada a cada troca de alvo (`key={targetType-targetId}`), a prova de precedência está na **query real** de `GET /api/consumption`, não só em qual select tem valor. Um array `consumptionRequests` acumula `{targetType, targetId}` de cada chamada interceptada; `expect.poll` confirma a última entrada depois de cada seleção — propriedade sozinha → `PROPERTY`, com área → `AREA`, com dispositivo → `DEVICE` (vencendo sobre área e propriedade, que continuam selecionadas nos outros dois selects ao mesmo tempo — é isso que prova a precedência de verdade, não só "o último selecionado ganha").
+- **"trocar de propriedade reseta área e dispositivo selecionados"** — seleciona os três níveis, troca para uma segunda propriedade (`PROP_2`, sem áreas), confirma que os dois selects dependentes voltam a `""` e ficam desabilitados de novo.
+
+### Desvios do plano
+
+1. **Sem mock de `/api/distributors`** — diferente de todos os specs anteriores que tocam propriedade, `ReportsPage` só chama `useProperties`/`useAreas`/`useDevices` pros três selects (só precisa do nome de cada entidade); não há chip nem select de distribuidora nesta página. Confirmado lendo o componente antes de escrever qualquer mock — evita um mock morto.
+2. **`meters/by-target` mockado como 200 (medidor presente) universalmente, não 404** — inverso do padrão das sub-issues #4/#7, onde "sem medidor" era o caminho principal. Aqui o objetivo é inspecionar a query real de `/api/consumption`, que só dispara quando `ConsumptionSection` confirma que há medidor; mockar 404 (sem medidor) faria a seção nunca chamar `/api/consumption`, esvaziando o próprio teste.
+3. **Segunda propriedade (`PROP_2`, spread local de `PROP_1`)** — usada só no teste de reset de cascata, mesmo padrão de `DIST_ENEL`/`ALERT_2` das sub-issues anteriores (variação só usada dentro de um teste fica local, não em `support/fixtures.ts`).
+4. **Teste de reset de cascata não estava nos critérios de aceite explícitos** (só "precedência" e "estado inicial"), mas cobre uma interação real do componente (`handlePropertyChange` reseta `areaId`/`deviceId`) que ficaria sem cobertura nenhuma — mesmo padrão de ir além do mínimo já seguido nas sub-issues #6/#7.
+
+### Testes escritos
+
+3 testes novos (6 execuções × 2 browsers).
+
+### Verificação executada
+
+- `npx tsc -p tsconfig.app.json --noEmit` e `npx eslint tests/e2e/reports.spec.ts`: limpos.
+- **`reports.spec.ts` isolado, nos dois browsers**: **6/6 passando de primeira** — nenhuma iteração de correção precisou rodar contra o Playwright.
+- **Suíte completa (`CI=true npx playwright test`)**: **54/54 passando** (48 anteriores + 6 novos), zero regressão.
+
+### Próximo passo
+
+Sub-issue #9 — `meter.spec.ts` (`MeterSection`): EmptyState "Nenhum medidor vinculado", criar via `meter-form-dialog`, `meter-connection-card`, remover (ConfirmDialog "Remover medidor"). Cobre a peça que as sub-issues #4/#7/#8 sempre mockaram (`meters/by-target`) mas nunca testaram de verdade.
