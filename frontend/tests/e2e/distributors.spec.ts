@@ -1,291 +1,125 @@
-import { test, expect, type Page, type Route } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+
+import { fulfillError, fulfillPaginated } from "./support/api"
+import { mockAppShellBackground, setupAuth } from "./support/appShell"
+import { hideDevTools } from "./support/devtools"
+import { DIST_CEMIG } from "./support/fixtures"
 
 /**
  * E2E focado em UI: mocka as respostas do backend via page.route().
  * Vantagem: não depende do backend rodando — roda no CI sem coordenação.
  *
- * Este spec cobre o fluxo completo de Distribuidora:
- *   1. Listar (vazio inicial)
- *   2. Criar
- *   3. Editar (mudar nome e kwhPrice)
- *   4. Excluir
- *   5. Excluir bloqueado quando há propriedades vinculadas (cenário separado)
+ * Distribuidora deixou de ser CRUD por usuário e virou catálogo global
+ * somente leitura (populado via seed, sem dono) — `DistributorForm` e
+ * `DistributorMenu` foram deletados; o service só expõe `GET /distributors`
+ * e `GET /distributors/:id`. Este spec cobre só o que a página faz hoje:
+ *   1. Catálogo com distribuidoras (grid de cards, campos de tarifa/tributos)
+ *   2. Catálogo vazio (EmptyState)
+ *   3. Erro ao carregar (ErrorState + retry)
  */
 
-// ─── Constantes de teste ─────────────────────────────────────────────────────
-
-const FAKE_USER = {
-    id: "user-123",
-    email: "test@example.com",
-    userType: "INDIVIDUAL",
-    firstName: "João",
-    lastName: "Silva",
-    cpf: "529.982.247-25",
-    role: "USER",
-    mfaEnabled: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+const DIST_ENEL = {
+    ...DIST_CEMIG,
+    id: "dist-enel",
+    name: "Enel São Paulo",
+    cnpj: "61.695.227/0001-93",
+    state: "SP",
+    tusdPerKwh: 0.42,
+    tePerKwh: 0.31,
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/**
- * Helper pra responder JSON com envelope { status: "success", data } —
- * formato padrão do backend.
- */
-const fulfillJson = (route: Route, data: unknown, status = 200) =>
-    route.fulfill({
-        status,
-        contentType: "application/json",
-        body: JSON.stringify({ status: "success", data }),
-    })
-
-/**
- * Helper pra responder erro com envelope { status: "error", message }.
- * Espelha o shape do AppError do backend.
- */
-const fulfillError = (route: Route, message: string, status = 400) =>
-    route.fulfill({
-        status,
-        contentType: "application/json",
-        body: JSON.stringify({ status: "error", message }),
-    })
-
-/**
- * Configura mocks compartilhados (auth + perfil). Desde a #06 (sessão WEB
- * via cookie httpOnly), a única rota que precisa ser mockada para simular
- * "usuário autenticado" é GET /auth/me — usada tanto no bootstrap quanto
- * logo após o login. Não há mais token em localStorage para pré-semear.
- */
-const setupAuth = async (page: Page) => {
-    await page.route("**/api/auth/me", (route) =>
-        fulfillJson(route, FAKE_USER),
-    )
-    // O AppShell monta useAlertStream → fetchEventSource("/api/iot/stream").
-    // Sem este mock, a requisição SSE cai no backend real (via proxy do Vite)
-    // e a lib reconecta em loop, re-renderizando o AppShell continuamente —
-    // o que faz o Playwright ver os elementos "detached from DOM" no clique.
-    await page.route("**/api/iot/stream", (route) =>
-        route.fulfill({ status: 200, contentType: "text/event-stream", body: "" }),
-    )
-    // AlertBellBadge (no Header do AppShell) chama GET /api/alerts. Sem este
-    // mock a chamada cai no backend real → 401 → o interceptor dispara
-    // "lumitrack:unauthorized" e o app redireciona pra /login no meio do
-    // teste (elementos "detached from DOM"). Regex casa /api/alerts e
-    // /api/alerts?query, mas não /api/alerts/:id.
-    await page.route(/\/api\/alerts(\?.*)?$/, (route) => fulfillJson(route, []))
-}
-
-/**
- * Oculta permanentemente o TanStack Query DevTools via CSS injetado — o
- * botão flutuante remonta após cada invalidação de query e volta a
- * interceptar pointer events sobre outros controles da página (ver mesmo
- * helper em consumption.spec.ts, onde o problema foi originalmente
- * diagnosticado).
- */
-const hideDevTools = (page: Page) =>
-    page.addStyleTag({
-        content: ".tsqd-parent-container { display: none !important; }",
-    })
-
-// ─── Testes ──────────────────────────────────────────────────────────────────
-
-test.describe("Fluxo CRUD de distribuidoras", () => {
+test.describe("Catálogo de distribuidoras", () => {
     test.beforeEach(async ({ context }) => {
         await context.clearCookies()
     })
 
-    test("cria, edita e exclui uma distribuidora", async ({ page }) => {
+    test("mostra o catálogo com distribuidoras cadastradas", async ({
+        page,
+    }) => {
+        await mockAppShellBackground(page)
         await setupAuth(page)
+        await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
+            fulfillPaginated(route, [DIST_CEMIG, DIST_ENEL]),
+        )
 
-        // Estado da "DB" simulada — começa vazio, evolui ao longo do teste
-        let distributors: Array<Record<string, unknown>> = []
-
-        await page.route("**/api/distributors", async (route) => {
-            const method = route.request().method()
-
-            if (method === "GET") {
-                return fulfillJson(route, distributors)
-            }
-
-            if (method === "POST") {
-                const body = JSON.parse(route.request().postData() ?? "{}")
-                const created = {
-                    id: "dist-1",
-                    userId: "user-123",
-                    name: body.name,
-                    cnpj: body.cnpj,
-                    electricalSystem: body.electricalSystem,
-                    workingVoltage: body.workingVoltage,
-                    kwhPrice: body.kwhPrice,
-                    taxRate: body.taxRate ?? null,
-                    publicLightingFee: body.publicLightingFee ?? null,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                }
-                distributors = [created]
-                return fulfillJson(route, created, 201)
-            }
-
-            return route.continue()
-        })
-
-        await page.route("**/api/distributors/dist-1", async (route) => {
-            const method = route.request().method()
-
-            if (method === "GET") {
-                return fulfillJson(route, distributors[0])
-            }
-
-            if (method === "PUT") {
-                const body = JSON.parse(route.request().postData() ?? "{}")
-                distributors[0] = {
-                    ...distributors[0]!,
-                    ...body,
-                    updatedAt: new Date().toISOString(),
-                }
-                return fulfillJson(route, distributors[0])
-            }
-
-            if (method === "DELETE") {
-                distributors = []
-                return route.fulfill({ status: 204 })
-            }
-
-            return route.continue()
-        })
-
-        // ─── 1. Lista vazia inicialmente ─────────────────────────────────────
         await page.goto("/distribuidoras")
         await hideDevTools(page)
 
         await expect(
             page.getByRole("heading", { name: /distribuidoras/i, level: 1 }),
         ).toBeVisible()
+        await expect(page.getByTestId("distributors-grid")).toBeVisible()
+
+        const cemigCard = page.getByTestId("distributor-card-dist-cemig")
+        await expect(cemigCard).toBeVisible()
+        await expect(cemigCard).toContainText(/cemig distribuição/i)
+        await expect(cemigCard).toContainText(/06\.981\.180\/0001-16/)
+        await expect(cemigCard).toContainText(/mg/i)
+        await expect(cemigCard).toContainText(/tusd/i)
+        await expect(cemigCard).toContainText(/te r\$/i)
+        await expect(cemigCard).toContainText(/icms/i)
+        await expect(cemigCard).toContainText(/pis/i)
+        await expect(cemigCard).toContainText(/cofins/i)
+
         await expect(
-            page.getByText(/nenhuma distribuidora cadastrada/i),
-        ).toBeVisible()
+            page.getByTestId("distributor-card-dist-enel"),
+        ).toContainText(/enel são paulo/i)
 
-        // ─── 2. Criar nova distribuidora ─────────────────────────────────────
-        // Usa o botão do header — sempre visível, independente do EmptyState.
-        await page
-            .getByRole("link", { name: /nova distribuidora/i })
-            .click()
-        await expect(page).toHaveURL(/\/distribuidoras\/nova/)
-
-        await page
-            .getByLabel(/nome da distribuidora/i)
-            .fill("CEMIG Distribuição S.A.")
-        await page.getByLabel(/cnpj/i).fill("06981180000116")
-        await page
-            .getByLabel(/sistema elétrico/i)
-            .selectOption("TRIPHASIC")
-        await page.getByLabel(/tensão de trabalho/i).selectOption("220")
-        await page.getByLabel(/preço do kwh/i).fill("0.75")
-        await page.getByLabel(/alíquota de impostos/i).fill("12")
-        await page.getByLabel(/iluminação pública/i).fill("45.90")
-
-        await page.locator('[type="submit"]').click()
-
-        // Volta pra lista, agora com 1 card
-        await expect(page).toHaveURL(/\/distribuidoras$/)
-        await expect(page.getByTestId("distributor-card-dist-1")).toBeVisible()
-        // getByText poderia conflitar com o toast — verificamos via getByTestId acima
-        await expect(page.getByText(/CEMIG Distribuição/i).first()).toBeVisible()
-
-        // ─── 3. Editar (mudar nome e kwhPrice) ───────────────────────────────
-        await page.getByTestId("distributor-card-dist-1").click()
-        await expect(page).toHaveURL(/\/distribuidoras\/dist-1\/editar/)
-
-        // CNPJ deve estar desabilitado em modo edição
-        await expect(page.getByLabel(/cnpj/i)).toBeDisabled()
-
-        const nameInput = page.getByLabel(/nome da distribuidora/i)
-        await nameInput.fill("CEMIG Renovada S.A.")
-
-        const kwhInput = page.getByLabel(/preço do kwh/i)
-        await kwhInput.fill("0.85")
-
-        await page.getByRole("button", { name: /salvar alterações/i }).click()
-
-        await expect(page).toHaveURL(/\/distribuidoras$/)
-        // Escopa ao card — /CEMIG Renovada/ também casaria o toast de sucesso
-        // ("...foi atualizada."), causando strict mode violation.
+        // Catálogo é somente leitura — nada de criar/editar/excluir
         await expect(
-            page.getByTestId("distributor-card-dist-1"),
-        ).toContainText(/CEMIG Renovada/i)
-
-        // ─── 4. Excluir ──────────────────────────────────────────────────────
-        await page
-            .getByRole("button", { name: /opções de CEMIG Renovada/i })
-            .click()
-        await page.getByRole("menuitem", { name: /excluir/i }).click()
-
-        // ConfirmDialog abre
+            page.getByRole("link", { name: /nova distribuidora/i }),
+        ).toHaveCount(0)
         await expect(
-            page.getByRole("heading", { name: /excluir distribuidora/i }),
-        ).toBeVisible()
-
-        await page.getByRole("button", { name: "Excluir" }).click()
-
-        // Volta pro empty state
-        await expect(
-            page.getByText(/nenhuma distribuidora cadastrada/i),
-        ).toBeVisible()
-        await expect(
-            page.getByTestId("distributor-card-dist-1"),
-        ).not.toBeVisible()
+            page.getByRole("button", { name: /opções de/i }),
+        ).toHaveCount(0)
     })
 
-    test("mostra mensagem amigável ao tentar excluir distribuidora com propriedades vinculadas", async ({
+    test("mostra EmptyState quando o catálogo está vazio", async ({
         page,
     }) => {
+        await mockAppShellBackground(page)
         await setupAuth(page)
-
-        const existing = {
-            id: "dist-1",
-            userId: "user-123",
-            name: "CEMIG",
-            cnpj: "06.981.180/0001-16",
-            electricalSystem: "TRIPHASIC",
-            workingVoltage: 220,
-            kwhPrice: 0.75,
-            taxRate: 0.12,
-            publicLightingFee: 45.9,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-        }
-
-        await page.route("**/api/distributors", (route) =>
-            fulfillJson(route, [existing]),
+        await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
+            fulfillPaginated(route, []),
         )
 
-        // DELETE retorna 409 com mensagem do backend
-        await page.route("**/api/distributors/dist-1", (route) => {
-            if (route.request().method() === "DELETE") {
-                return fulfillError(
-                    route,
-                    "Não é possível excluir uma distribuidora com propriedades vinculadas. Desvincule as propriedades primeiro.",
-                    409,
-                )
+        await page.goto("/distribuidoras")
+        await hideDevTools(page)
+
+        await expect(page.getByText(/catálogo indisponível/i)).toBeVisible()
+        await expect(
+            page.getByText(/não há distribuidoras cadastradas no momento/i),
+        ).toBeVisible()
+        await expect(page.getByTestId("distributors-grid")).toHaveCount(0)
+    })
+
+    test("mostra erro ao falhar em carregar o catálogo, com retry", async ({
+        page,
+    }) => {
+        await mockAppShellBackground(page)
+        await setupAuth(page)
+
+        let shouldFail = true
+        await page.route(/\/api\/distributors(\?.*)?$/, (route) => {
+            if (shouldFail) {
+                return fulfillError(route, "Erro interno do servidor", 500)
             }
-            return route.continue()
+            return fulfillPaginated(route, [DIST_CEMIG])
         })
 
         await page.goto("/distribuidoras")
         await hideDevTools(page)
 
-        await expect(page.getByTestId("distributor-card-dist-1")).toBeVisible()
+        await expect(page.getByText(/não foi possível carregar/i)).toBeVisible()
 
-        await page.getByRole("button", { name: /opções de CEMIG/i }).click()
-        await page.getByRole("menuitem", { name: /excluir/i }).click()
+        // Recupera e clica em "Tentar novamente" — a página deve re-consultar
+        // e sair do estado de erro.
+        shouldFail = false
+        await page.getByRole("button", { name: /tentar novamente/i }).click()
 
-        await page.getByRole("button", { name: "Excluir" }).click()
-
-        // Toast de erro com mensagem amigável vem do DistributorMenu
-        // (o hook propaga o erro, e o menu traduz a mensagem do backend)
         await expect(
-            page.getByText(/não é possível excluir/i),
+            page.getByTestId("distributor-card-dist-cemig"),
         ).toBeVisible()
+        await expect(page.getByText(/não foi possível carregar/i)).not.toBeVisible()
     })
 })

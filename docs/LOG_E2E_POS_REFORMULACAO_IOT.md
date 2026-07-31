@@ -190,3 +190,38 @@ Nenhum teste novo — sub-issue de migração/correção. Os 8 testes existentes
 ### Próximo passo
 
 Sub-issue #5 — reduzir `distributors.spec.ts` ao catálogo somente leitura (remover criar/editar/excluir e a mensagem de vínculo — `DistributorForm`/`DistributorMenu` foram deletados). É a última sub-issue da Fase 1: ao concluí-la, a suíte inteira deve ficar verde (30/30) e o marco "fim da Fase 1" é atingido.
+
+---
+
+## Sub-issue 5 — Reduzir `distributors.spec.ts` ao catálogo read-only
+
+**Data:** 16/07/2026
+
+### O que foi implementado
+
+`distributors.spec.ts` reescrito do zero (não uma migração incremental como #3/#4 — o fluxo CRUD antigo não tem equivalente no catálogo atual). Migrado para `support/` desde o início. Três testes cobrindo exatamente o que `DistribuidorsPage`/`DistributorCard` fazem hoje:
+
+- **"mostra o catálogo com distribuidoras cadastradas"** — `distributors-grid`, `distributor-card-${id}` com nome/CNPJ/UF/TUSD/TE/ICMS/PIS/COFINS visíveis (os campos reais de `DistributorCard.tsx`), usando `DIST_CEMIG` de `support/fixtures.ts` + uma segunda distribuidora local (`DIST_ENEL`, clonada por spread). Assertions negativas confirmando a ausência de "Nova distribuidora" e de qualquer botão "Opções de" — o catálogo é 100% somente leitura, sem `DistributorForm`/`DistributorMenu`.
+- **"mostra EmptyState quando o catálogo está vazio"** — título "Catálogo indisponível" + descrição "Não há distribuidoras cadastradas no momento." (texto real de `DistribuidorsPage.tsx`, diferente do "Cadastre uma distribuidora primeiro" do modelo antigo).
+- **"mostra erro ao falhar em carregar o catálogo, com retry"** — teste novo, sem equivalente no spec antigo (que nunca cobriu o `ErrorState`). Mocka 500 na primeira chamada, clica em "Tentar novamente", troca o mock pra sucesso e confirma que o grid aparece — cobre o botão de retry de verdade, não só a mensagem de erro.
+
+### Desvios do plano
+
+1. **Reescrita completa, não edição incremental** — o plano listava "Manter: listagem, EmptyState, erro. Remover: criar, editar, excluir e a mensagem de vínculo", o que daria a entender uma edição do arquivo existente. Na prática, como o fluxo antigo era 100% CRUD (criar → editar → trocar campo → excluir, tudo num único teste gigante) e o novo é 100% leitura, não havia estrutura aproveitável — reescrever do zero foi mais direto que tentar podar um teste de CRUD até sobrar uma leitura.
+2. **Teste de erro/retry é novo**, não estava no spec antigo (que só cobria o cenário de exclusão bloqueada por vínculo, cenário que não existe mais). Adicionado porque o próprio texto da sub-issue no plano listava "erro" entre o que deveria ser mantido/coberto.
+3. **Segunda distribuidora (`DIST_ENEL`) definida localmente** (spread de `DIST_CEMIG` com overrides), mesmo padrão já usado em `properties.spec.ts` — só para confirmar que o grid renderiza múltiplos cards corretamente, não fixture nova em `support/`.
+
+### Testes escritos
+
+3 testes novos/reescritos (o spec antigo tinha 2, nenhum reaproveitável como estava).
+
+### Verificação executada
+
+- `npx tsc -p tsconfig.app.json --noEmit` e `npx eslint tests/e2e/distributors.spec.ts`: limpos. (Dois erros de digitação pegos nessa checagem antes mesmo de rodar o Playwright: uma referência solta a `mockAppShellBackground` sem chamar dentro do `beforeEach`, e uma expressão ternária sem sentido no meio de uma regex — ambos corrigidos antes da primeira execução.)
+- **`distributors.spec.ts` isolado, nos dois browsers**: **6/6 passando** de primeira (nenhuma iteração de correção precisou rodar contra o Playwright — os dois bugs acima foram pegos só por `tsc`/`eslint`).
+- **Suíte completa sem backend (`CI=true npx playwright test`)**: **32/32 passando** — 30 (auth 10 + area 6 + device 6 + properties 4 + distributors antigo 4) vira 32 porque `distributors.spec.ts` ganhou um 3º teste. **Marco "fim da Fase 1" atingido**: zero falhas.
+- **Verificação definitiva — suíte completa com o backend real de pé** (`cd backend && npm run dev`, Postgres de dev já seedado desta mesma sessão): **32/32 passando**, idêntico ao resultado sem backend. Fecha a ressalva registrada desde a sub-issue #1 ("CI=true sozinho não reproduz o CI real sem backend rodando") — com todas as rotas de fundo corretamente mockadas (firing/notifications/SSE) e nenhum endpoint vazando pro backend real, os dois ambientes convergem de verdade, não por coincidência. Backend encerrado ao final da verificação.
+
+### Próximo passo
+
+**Fase 1 completa.** `CI=true npx playwright test` verde nos dois browsers (32/32), verificado também com backend real — o CI deixa de ser ruído e volta a ser gate. Próximo: Fase 2 (sub-issues #6–#10) — `alerts.spec.ts`, `consumption.spec.ts`, `reports.spec.ts`, `meter.spec.ts`, `realtime.spec.ts`, cobrindo o que ficou descoberto pela poda da sub-issue #2.

@@ -1,6 +1,6 @@
 # Plano — Atualização da suíte e2e (Playwright) para o modelo de medidores IoT
 
-> **Status:** em andamento. Fase 1: sub-issue 1.1 (fixtures compartilhados) concluída em 15/07/2026, sub-issue 1.2 (poda dos specs obsoletos) concluída em 16/07/2026 — ver log de implementação em [LOG_E2E_POS_REFORMULACAO_IOT.md](./LOG_E2E_POS_REFORMULACAO_IOT.md). Resolve a pendência conhecida registrada em [PLANO_REFORMULACAO_IOT.md](./PLANO_REFORMULACAO_IOT.md) ("suíte Playwright (`frontend/tests/e2e/`) ainda não foi atualizada para o novo modelo").
+> **Status:** Fase 1 **completa** (16/07/2026) — `CI=true npx playwright test` verde nos dois browsers (32/32), verificado inclusive com backend real de pé (Postgres seedado). Ver log de implementação em [LOG_E2E_POS_REFORMULACAO_IOT.md](./LOG_E2E_POS_REFORMULACAO_IOT.md). Resolve a pendência conhecida registrada em [PLANO_REFORMULACAO_IOT.md](./PLANO_REFORMULACAO_IOT.md) ("suíte Playwright (`frontend/tests/e2e/`) ainda não foi atualizada para o novo modelo"). Próximo: Fase 2 (sub-issues #6–#10, cobertura do novo modelo).
 >
 > **Data do planejamento:** 15/07/2026.
 >
@@ -77,7 +77,9 @@ O CRUD de propriedade/área/dispositivo continua existindo; o que quebrou foi o 
   - **Bug de roteamento descoberto na verificação, não previsto no plano**: hooks paginados sempre enviam `?page=&pageSize=` (mesmo nos defaults), e globs sem tratar querystring (copiados literalmente dos specs antigos) deixaram de casar a URL real — a requisição vazava pro proxy do Vite (502). Corrigido trocando rotas de **listagem** para regex `(\?.*)?$` (rotas de detalhe, sem query params, continuam glob puro).
   - **`DeviceDetailsPage` perdeu os 2 placeholders "Alertas"/"Integração IoT"** — viraram `MeterSection` (h2 "Medidor") real; `device.spec.ts` ajustado.
   - **`properties.spec.ts`**: teste "sem distribuidora" reescrito — mensagem/link mudaram ("Catálogo de distribuidoras indisponível" → `/distribuidoras`, não mais `/distribuidoras/nova`).
-- `distributors.spec.ts` — reduzir ao que existe: listagem read-only (`distributors-grid`, `distributor-card-${id}`, EmptyState "Catálogo indisponível"). Remover criar/editar/excluir e a mensagem de vínculo — `DistributorForm`/`DistributorMenu` foram deletados; o service só expõe `GET /distributors` e `GET /distributors/:id`.
+- `distributors.spec.ts` ✅ **Concluído (16/07/2026)** — reduzir ao que existe: listagem read-only (`distributors-grid`, `distributor-card-${id}`, EmptyState "Catálogo indisponível"). Remover criar/editar/excluir e a mensagem de vínculo — `DistributorForm`/`DistributorMenu` foram deletados; o service só expõe `GET /distributors` e `GET /distributors/:id`.
+
+  **Nota de implementação:** reescrito do zero (não editado incrementalmente) — o fluxo CRUD antigo não tinha estrutura aproveitável para um spec 100% leitura. 3 testes (listagem com dados, EmptyState, erro+retry — este último novo, sem equivalente no spec antigo). 6/6 verdes nos dois browsers de primeira (só `tsc`/`eslint` pegaram os dois erros de digitação cometidos). Detalhes no log.
 
 Referências de mock e envelope: `src/pages/property/PropertyDetailsPage.test.tsx`, `AreaDetailsPage.test.tsx`, `DeviceDetailsPage.test.tsx`, `src/components/layout/AppShell.test.tsx` e `Header.test.tsx` (estes dois atualizados no próprio `2c9e9b1`).
 
@@ -112,6 +114,8 @@ CI=true npx playwright test                            # fiel ao CI: build+previ
 
 `CI=true` é o que importa antes de abrir PR: muda o `webServer` de `vite dev` para `npm run build && npm run preview` (sem StrictMode, sem DevTools) e liga `retries: 2` — é a configuração que roda no GitHub Actions.
 
-**Mas `CI=true` sozinho não reproduz o CI** (descoberto na sub-issue 1.1, ver log): o job `e2e` sobe um **backend real** (Postgres + `npm run dev`) antes do Playwright, e a variável só controla `webServer`/`retries`. Sem backend local, uma rota não mockada dá `ECONNREFUSED` em vez de `401` — e é o 401 que dispara `lumitrack:unauthorized` → redirect para `/login`. Por isso o baseline local é 74 quebrados/14 passando contra 80/8 no CI: 3 testes (×2 browsers) passam localmente por acidente. Antes de declarar o marco da Fase 1, rodar a suíte com o backend de pé (`cd backend && npm run dev`) — ou aceitar como prova o fato de nenhuma requisição vazar para o backend, que é a meta das sub-issues 1.3.
+**`CI=true` sozinho não reproduz o CI** (descoberto na sub-issue 1.1, ver log): o job `e2e` sobe um **backend real** (Postgres + `npm run dev`) antes do Playwright, e a variável só controla `webServer`/`retries`. Sem backend local, uma rota não mockada dá `ECONNREFUSED` em vez de `401` — e é o 401 que dispara `lumitrack:unauthorized` → redirect para `/login`. Por isso o baseline local era 74 quebrados/14 passando contra 80/8 no CI no início da Fase 1: 3 testes (×2 browsers) passavam localmente por acidente.
 
-Ao fim da Fase 1 o esperado é a suíte inteira verde nos dois browsers, com os 4 specs obsoletos removidos.
+**Ressalva fechada ao final da sub-issue #5**: com todas as rotas de fundo corretamente mockadas (o próprio objetivo da Fase 1), rodar a suíte com o backend local de pé (`cd backend && npm run dev`, Postgres de dev já seedado) deu **32/32**, idêntico ao resultado sem backend. Os dois ambientes convergem de verdade agora — não por coincidência, porque nenhuma requisição vaza mais para a rede real.
+
+**Fase 1 completa**: suíte inteira verde nos dois browsers (32/32), com os 4 specs obsoletos removidos e verificação dupla (com e sem backend real).
