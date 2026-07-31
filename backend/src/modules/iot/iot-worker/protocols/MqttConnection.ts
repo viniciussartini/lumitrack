@@ -6,7 +6,8 @@
 // um canal (topic), e o backend "assina" esse canal para receber os dados.
 //
 // Dependência necessária: npm install mqtt
-// Tipos: npm install --save-dev @types/mqtt (ou mqtt já inclui seus próprios tipos)
+// Tipos: o próprio pacote mqtt já os inclui — não instale @types/mqtt, que é
+// um stub obsoleto no DefinitelyTyped.
 //
 // IMPORTANTE: Esta classe é a implementação de referência. As demais
 // (ModbusTcpConnection, etc.) seguirão o mesmo padrão de ciclo de vida:
