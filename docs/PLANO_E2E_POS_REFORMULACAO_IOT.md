@@ -89,7 +89,9 @@ Referências de mock e envelope: `src/pages/property/PropertyDetailsPage.test.ts
 
 Specs novos, um commit por spec:
 
-- `alerts.spec.ts` — `/alertas`: criar/editar via `alert-form-dialog` (campos `alert-form-name`/`-meterId`/`-referencePowerKw`/`-tolerancePercent`/`-enabled`), toggle `PATCH /alerts/:id/enabled`, excluir, `alert-status-badge-${id}` firing/normal, histórico `AlertEventTable` via `GET /alert-events?alertId=`, paginação. Atenção: o select do form carrega `GET /meters?page=1&pageSize=31` (o backend limita `pageSize` a 31).
+- `alerts.spec.ts` ✅ **Concluído (17/07/2026)** — `/alertas`: criar/editar via `alert-form-dialog` (campos `alert-form-name`/`-meterId`/`-referencePowerKw`/`-tolerancePercent`/`-enabled`), toggle `PATCH /alerts/:id/enabled`, excluir, `alert-status-badge-${id}` firing/normal, histórico `AlertEventTable` via `GET /alert-events?alertId=`, paginação. Atenção: o select do form carrega `GET /meters?page=1&pageSize=31` (o backend limita `pageSize` a 31).
+
+  **Nota de implementação:** 4 testes, 8/8 verdes nos dois browsers, 40/40 na suíte completa (32 anteriores + 8 novos). Único desvio: um bug no próprio spec (não no produto) — `page.keyboard.press("Escape")` não fecha `AlertRowMenu` (o componente só escuta clique fora via `mousedown`, sem handler de teclado); corrigido pra clicar fora de verdade. `ALERT_EVENT_1` adicionado a `support/fixtures.ts` (deferido desde a sub-issue #1, agora com consumidor). Detalhes no log.
 - `consumption.spec.ts` — read-only: `granularity-tab-hour|day|month|year`, `consumption-table` com linhas `consumption-row-${bucketStart}` (a chave é o ISO do bucket, não um id), `consumption-chart`, EmptyStates "Sem consumo para exibir" (sem medidor) e "Sem leituras neste período".
 - `reports.spec.ts` — `/relatorios`: cascata `reports-property-select` → `reports-area-select` → `reports-device-select` e o `targetType` resultante (DEVICE > AREA > PROPERTY) na query de `/api/consumption`.
 - `meter.spec.ts` — `MeterSection`: EmptyState "Nenhum medidor vinculado", criar via `meter-form-dialog`, `meter-connection-card`, remover (ConfirmDialog "Remover medidor").

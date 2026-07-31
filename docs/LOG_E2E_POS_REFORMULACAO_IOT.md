@@ -225,3 +225,43 @@ Sub-issue #5 — reduzir `distributors.spec.ts` ao catálogo somente leitura (re
 ### Próximo passo
 
 **Fase 1 completa.** `CI=true npx playwright test` verde nos dois browsers (32/32), verificado também com backend real — o CI deixa de ser ruído e volta a ser gate. Próximo: Fase 2 (sub-issues #6–#10) — `alerts.spec.ts`, `consumption.spec.ts`, `reports.spec.ts`, `meter.spec.ts`, `realtime.spec.ts`, cobrindo o que ficou descoberto pela poda da sub-issue #2.
+
+---
+
+## Sub-issue 6 — `alerts.spec.ts` (modelo firing/enabled)
+
+**Data:** 17/07/2026
+
+### O que foi implementado
+
+Spec novo (não migração — `alerts.spec.ts` não existia desde a poda da sub-issue #2), cobrindo `/alertas` no modelo de faixa de potência. Exploração de código completa antes de escrever qualquer assertion: `AlertsPage.tsx`, `AlertForm.tsx`, `AlertFormDialog.tsx`, `AlertTable.tsx`, `AlertRowMenu.tsx`, `AlertStatusBadge.tsx`, `AlertEventTable.tsx`, `alert.service.ts`, `alert-event.service.ts`, `alert.schema.ts`, hooks de query/mutation, `lib/formatters/alert.ts` e `Pagination.tsx` — todos lidos por completo, não só os `.test.tsx` citados no plano.
+
+4 testes:
+
+- **"cria, edita, alterna habilitado e exclui um alerta"** — ciclo completo: EmptyState "Nenhum alerta configurado" → criar via `alert-form-dialog` (nome/medidor/potência/tolerância, testids `alert-form-*`) → editar (confirma que em modo edição `alert-form-meterId` **não existe** — vira `<input type="hidden">`, medidor é imutável) → alternar habilitado via `alert-menu-toggle-enabled-${id}` sem passar pelo form → excluir via `ConfirmDialog` "Excluir alerta?".
+- **"mostra status firing/normal e o histórico de disparos do alerta selecionado"** — dois alertas, um `firing` outro `normal` (`alert-status-badge-${id}` com `data-status` + texto "Em disparo"/"Normal"), histórico pré-seleciona o primeiro alerta da lista, troca de seleção via `alert-events-select` troca a query (`GET /alert-events?alertId=`) e alterna entre `AlertEventTable` populada e o EmptyState "Nenhum episódio registrado".
+- **"pagina a listagem de alertas"** — 12 alertas sintéticos, `Pagination` (`pagination`/`pagination-next`) navegando de `page=1` pra `page=2` de verdade (a URL da segunda chamada é inspecionada via `URLSearchParams`, não só a UI).
+- **"validação client-side bloqueia submit com campos inválidos"** — submit vazio (nome/medidor/potência obrigatórios; tolerância já vem com default 10, não erra aqui) e depois valores fora de faixa (`referencePowerKw=0` → "Deve ser maior que zero"; `tolerancePercent=150` → "Não pode ultrapassar 100").
+
+`ALERT_EVENT_1` (fixture de `AlertTriggerEvent`) adicionado a `support/fixtures.ts` — a sub-issue #1 tinha deferido essa fixture exatamente para quando existisse um consumidor real; agora existe.
+
+### Desvios do plano
+
+1. **Bug real no próprio spec, achado pela primeira execução (não do produto)**: o teste do ciclo completo travava em 30s tentando clicar em "Excluir" no menu — a causa era um `page.keyboard.press("Escape")` que eu tinha escrito partindo do pressuposto errado de que Escape fecha o menu de ações (`AlertRowMenu`). Lendo o componente: ele só fecha por um listener de `mousedown` no documento (clique fora), sem handler de teclado nenhum. Resultado: o menu ficava aberto, o próximo clique no trigger o fechava (toggle), e o clique seguinte em "excluir" nunca encontrava o item. Corrigido trocando `Escape` por um clique real fora do menu (no `<h1>` da página) + uma assertion nova confirmando que o item do menu realmente sumiu antes de prosseguir. Passou de primeira depois da correção — 3 dos 4 testes já tinham passado de primeira antes disso, evidência de que a exploração de código prévia estava correta na maior parte.
+2. **Teste de paginação inspeciona a query real da segunda página**, não só o texto renderizado — computa `items` a partir de `page=1`/`page=2` recebidos via `URLSearchParams` na própria mock, replicando o comportamento do backend real em vez de devolver sempre a mesma resposta. Não estava explícito no texto do plano, mas é o que dá confiança de que a paginação dispara a query certa, não só que o componente `Pagination` renderiza.
+3. **Segundo alerta (`alert-2`) e alertas sintéticos de paginação definidos localmente**, não em `support/fixtures.ts` — mesmo padrão já estabelecido em `properties.spec.ts` (`DIST_ENEL`) e `distributors.spec.ts`: só o fixture reaproveitável entre specs (`ALERT_1`) vive em `support/`, variações só usadas dentro de um teste ficam locais.
+4. **`ALERT_EVENT_1` ganhou `durationSeconds: 300`** (não um valor arbitrário) — escolhido de propósito para produzir `formatDurationSeconds` → `"5min"` exato (sem segundos residuais), evitando uma assertion frágil que dependesse de replicar o algoritmo de formatação (`Xh Ymin Zs`, omitindo unidades zeradas) na mão.
+
+### Testes escritos
+
+4 testes novos (8 execuções × 2 browsers).
+
+### Verificação executada
+
+- `npx tsc -p tsconfig.app.json --noEmit` e `npx eslint tests/e2e/alerts.spec.ts tests/e2e/support/fixtures.ts`: limpos.
+- **`alerts.spec.ts` isolado, nos dois browsers**: **8/8 passando** — 3 de 4 testes passaram de primeira; o 4º (ciclo completo) precisou da correção do desvio #1.
+- **Suíte completa (`CI=true npx playwright test`)**: **40/40 passando** (32 anteriores + 8 novos), zero regressão.
+
+### Próximo passo
+
+Sub-issue #7 — `consumption.spec.ts`: read-only por granularidade (`granularity-tab-hour|day|month|year`), `consumption-table` com linhas `consumption-row-${bucketStart}` (chave é o ISO do bucket, não um id), `consumption-chart`, EmptyStates "Sem consumo para exibir" (sem medidor) e "Sem leituras neste período".

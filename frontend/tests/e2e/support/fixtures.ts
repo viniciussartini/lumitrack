@@ -1,5 +1,6 @@
 import type { Area } from "../../../src/types/area.types"
 import type { AlertWithStatus } from "../../../src/types/alert.types"
+import type { AlertTriggerEvent } from "../../../src/types/alert-event.types"
 import type { User } from "../../../src/types/auth.types"
 import type { ConsumptionBucket } from "../../../src/types/consumption.types"
 import type { Device } from "../../../src/types/device.types"
@@ -151,6 +152,24 @@ export const ALERT_1: AlertWithStatus = {
         name: DEVICE_1.name,
         path: `/propriedades/${PROP_1.id}/areas/${AREA_1.id}/devices/${DEVICE_1.id}`,
     },
+}
+
+/**
+ * Episódio de disparo encerrado (`GET /api/alert-events?alertId=`) — histórico
+ * somente leitura, persistido pelo `AlertEvaluator` no FIM do episódio
+ * (5 amostras consecutivas de volta à faixa). `durationSeconds: 300` produz
+ * `formatDurationSeconds` → "5min" exato, sem depender de arredondamento.
+ */
+export const ALERT_EVENT_1: AlertTriggerEvent = {
+    id: "event-1",
+    alertId: ALERT_1.id,
+    startedAt: "2026-07-15T10:00:00.000Z",
+    endedAt: "2026-07-15T10:05:00.000Z",
+    durationSeconds: 300,
+    minPowerW: 9800,
+    maxPowerW: 12500,
+    avgPowerW: 11100,
+    sampleCount: 18,
 }
 
 /**
