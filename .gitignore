@@ -13,6 +13,8 @@ prisma/migrations/
 
 # Testes
 coverage/
+playwright-report/
+test-results/
 
 # IDEs
 .vscode/

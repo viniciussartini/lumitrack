@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
-import { MemoryRouter, Route, Routes, Link } from "react-router-dom"
+import { MemoryRouter, Route, Routes, Link } from "react-router"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@/tests/test-utils"
 import { AppShell } from "@/components/layout/AppShell"

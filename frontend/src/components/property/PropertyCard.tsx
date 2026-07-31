@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom"
+import { Link } from "react-router"
 import { Home, MapPin, Zap } from "lucide-react"
 import type { Property } from "@/types/property.types"
 import { PropertyMenu } from "@/components/property/PropertyMenu"

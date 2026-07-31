@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link } from "react-router"
 import { Plus, Home, AlertCircle } from "lucide-react"
 import { useProperties } from "@/hooks/queries/useProperties"
 import { useDistributors } from "@/hooks/queries/useDistributors"

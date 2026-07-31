@@ -1,5 +1,5 @@
 import { useRef, useState } from "react"
-import { Link, useParams } from "react-router-dom"
+import { Link, useParams } from "react-router"
 import { MoreVertical, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useClickOutside } from "@/lib/hooks/useClickOutside"

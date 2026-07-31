@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router"
 import { ChevronDown, LogOut, Shield, User as UserIcon } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useClickOutside } from "@/lib/hooks/useClickOutside"

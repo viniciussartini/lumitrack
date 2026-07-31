@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom"
+import { Link } from "react-router"
 import { AlertStatusBadge } from "@/components/alert/AlertStatusBadge"
 import { AlertRowMenu } from "@/components/alert/AlertRowMenu"
 import { formatReferencePowerKw, formatTolerancePercent } from "@/lib/formatters/alert"

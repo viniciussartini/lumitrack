@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { MemoryRouter } from "react-router-dom"
+import { MemoryRouter } from "react-router"
 import { render, screen, waitFor, type RenderOptions } from "@testing-library/react"
 import { DistribuidorsPage } from "@/pages/distributor/DistributorsPage"
 import { distributorService } from "@/services/distributor.service"

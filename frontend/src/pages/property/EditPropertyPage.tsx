@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams } from "react-router"
 import { ArrowLeft, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { PropertyForm } from "@/components/property/PropertyForm"

@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom"
+import { Navigate, Route, Routes } from "react-router"
 import { ProtectedRoute } from "@/routes/ProtectedRoute"
 import { PublicRoute } from "@/routes/PublicRoute"
 import { LoginPage } from "@/pages/auth/LoginPage"

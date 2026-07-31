@@ -16,7 +16,7 @@ import type {
     User,
     RegisterInput,
 } from "@/types/auth.types"
-import { useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router"
 
 interface AuthContextValue {
     user: User | null
@@ -86,7 +86,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             }
             return result
         } catch (error) {
-            // eslint-disable-next-line @typescript-eslint/only-throw-error
             throw new Error(extractErrorMessage(error), { cause: error })
         }
     }
@@ -113,7 +112,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         try {
             await authService.register(input)
         } catch (error) {
-            // eslint-disable-next-line @typescript-eslint/only-throw-error
             throw new Error(extractErrorMessage(error), { cause: error })
         }
 
@@ -130,7 +128,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             }
             updateUser(result.user)
         } catch {
-            // eslint-disable-next-line @typescript-eslint/only-throw-error
             throw new Error("POST_REGISTER_LOGIN_FAILED")
         }
     }
