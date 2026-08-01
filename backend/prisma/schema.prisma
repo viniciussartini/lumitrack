@@ -37,7 +37,7 @@ enum TokenChannel {
 // administradores. Sempre lida do banco a cada requisição (nunca um claim do
 // JWT) — ver shared/middlewares/authenticate.ts — para que promover/rebaixar
 // um admin tenha efeito imediato, sem exigir novo login. Documento de design
-// para um sistema de permissões mais extensível: docs/RBAC_DESIGN.md.
+// para um sistema de permissões mais extensível: .claude/docs/RBAC_DESIGN.md.
 enum Role {
   USER
   ADMIN

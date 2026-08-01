@@ -227,7 +227,7 @@ export class AuthService {
             return
         }
 
-        // Contas de demonstração (ver docs/PLANO_SIMULADOR_IOT_E_SEED_DEMO.md,
+        // Contas de demonstração (ver .claude/docs/PLANO_SIMULADOR_IOT_E_SEED_DEMO.md,
         // Fase 4): nenhum token é criado nem e-mail enviado, mesmo padrão de
         // retorno silencioso usado acima para e-mail inexistente — a resposta
         // HTTP é idêntica nos dois casos, sem visitante conseguir distinguir.

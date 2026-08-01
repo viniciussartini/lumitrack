@@ -1,0 +1,42 @@
+name: "🔍 Achado de auditoria"
+description: "Issue criada a partir de um relatório de auditoria em .claude/docs/"
+title: "[Auditoria] "
+labels: ["origem: auditoria"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Adicione também a label de **tipo** conforme a auditoria (`tipo: segurança` / `tipo: conformidade` / `tipo: desempenho` / `tipo: refactor`) e a **prioridade** conforme a severidade do achado.
+  - type: input
+    id: relatorio
+    attributes:
+      label: "Relatório de origem"
+      description: "Arquivo em .claude/docs/"
+      placeholder: "2026-07-08-seguranca-audit.md"
+    validations:
+      required: true
+  - type: dropdown
+    id: severidade
+    attributes:
+      label: "Severidade no relatório"
+      options:
+        - "Crítica"
+        - "Alta"
+        - "Média"
+        - "Baixa"
+    validations:
+      required: true
+  - type: textarea
+    id: achado
+    attributes:
+      label: "Achado"
+      description: "Copie o achado do relatório: categoria (OWASP/LGPD/qualidade/desempenho), evidência e local (arquivo:linha)."
+    validations:
+      required: true
+  - type: textarea
+    id: recomendacao
+    attributes:
+      label: "Recomendação"
+      description: "A correção recomendada no relatório."
+    validations:
+      required: true

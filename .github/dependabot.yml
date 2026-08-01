@@ -4,6 +4,7 @@ updates:
     directory: "/backend"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5
     groups:
       # Minor/patch são normalmente compatíveis entre si — agrupa num PR só.
       # Major fica de fora do grupo (PR individual) porque costuma exigir
@@ -11,21 +12,38 @@ updates:
       # peer dependency (ver PR #35, typescript 5→7 x typescript-eslint).
       backend-dependencies:
         update-types: ["minor", "patch"]
+    # Alinha os PRs do Dependabot à taxonomia do kit
+    # (.claude/project_context/08-convencoes-git.md): label `tipo: chore` e
+    # commit no formato Conventional Commits.
+    labels:
+      - "tipo: chore"
+    commit-message:
+      prefix: "chore"
 
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5
     groups:
       frontend-dependencies:
         update-types: ["minor", "patch"]
+    labels:
+      - "tipo: chore"
+    commit-message:
+      prefix: "chore"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5
     groups:
       # GitHub Actions costuma incrementar a major a cada release (não é
       # sinal de breaking change real), então agrupa tudo, major incluso.
       github-actions:
         patterns: ["*"]
+    labels:
+      - "tipo: chore"
+    commit-message:
+      prefix: "chore"

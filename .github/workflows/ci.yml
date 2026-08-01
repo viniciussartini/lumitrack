@@ -1,7 +1,7 @@
 name: CI
 
 # #11 — CI/CD com gates de segurança (A03/A08 da auditoria OWASP/LGPD, ver
-# docs/AUDITORIA_SEGURANCA.md). Roda em toda PR para main e em push direto
+# .claude/docs/AUDITORIA_SEGURANCA.md). Roda em toda PR para main e em push direto
 # para main. Todos os jobs usam `npm ci` (nunca `npm install`) — build
 # reprodutível a partir do lockfile, peça central do gate de integridade.
 
@@ -75,7 +75,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       # Bloqueia em high/critical. Moderate só gera aviso (não falha o
-      # job) — ver achado A03 em docs/AUDITORIA_SEGURANCA.md sobre a vuln
+      # job) — ver achado A03 em .claude/docs/AUDITORIA_SEGURANCA.md sobre a vuln
       # moderada conhecida em devDependency do backend (sem fix ainda).
       - run: npm audit --audit-level=high
       - name: Relatório completo (não bloqueante)

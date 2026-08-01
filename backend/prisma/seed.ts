@@ -32,7 +32,8 @@ interface DistributorSeed {
 }
 
 // ~11 distribuidoras reais, da mais barata (Celesc/SC) à mais cara (Equatorial
-// PA). ICMS conforme a UF (ver docs/O-Sistema-Elétrico-Brasileiro.md).
+// PA). ICMS conforme a UF (ver wiki do projeto:
+// https://github.com/viniciussartini/lumitrack/wiki/O-Sistema-Elétrico-Brasileiro).
 const DISTRIBUTORS: DistributorSeed[] = [
     { name: "Enel Distribuição São Paulo", cnpj: "61.695.227/0001-93", state: "SP", icmsRate: 0.18, targetEffectiveTariff: 0.64 },
     { name: "CPFL Paulista", cnpj: "33.050.196/0001-88", state: "SP", icmsRate: 0.18, targetEffectiveTariff: 0.7 },

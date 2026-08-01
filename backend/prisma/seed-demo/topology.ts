@@ -16,7 +16,7 @@ const deviceRepository = new DeviceRepository(prisma)
 const deviceService = new DeviceService(deviceRepository, areaRepository, propertyRepository)
 
 // MQTT porque é o único protocolo de fato integrado ponta a ponta no backend
-// (ver docs/PLANO_SIMULADOR_IOT_E_SEED_DEMO.md) — host/port apontam pro
+// (ver .claude/docs/PLANO_SIMULADOR_IOT_E_SEED_DEMO.md) — host/port apontam pro
 // broker embutido do iot-simulator, caso o usuário queira ligar um device
 // virtual num desses medidores depois.
 const DEMO_METER_HOST = "localhost"

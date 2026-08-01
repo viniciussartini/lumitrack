@@ -28,7 +28,7 @@ Os 8 testes que passam são os da tela de login — a única página que o rewor
 
 - Abordagem **faseada**: Fase 1 desbloqueia o CI (poda o obsoleto + conserta o que sobrevive); Fase 2 cobre o que ficou descoberto. Alternativa descartada: reescrita completa antes de qualquer commit, que manteria o CI vermelho por mais tempo sem ganho.
 - **Extrair fixtures compartilhados** em `tests/e2e/support/`. Hoje os 9 specs duplicam os mesmos helpers; como os mocks obrigatórios do AppShell cresceram (SSE + firing + notifications), duplicar isso é o que mais causaria re-quebra.
-- Commit por sub-issue; `docs/PLANO_REFORMULACAO_IOT.md` e este plano atualizados a cada entrega.
+- Commit por sub-issue; `.claude/docs/PLANO_REFORMULACAO_IOT.md` e este plano atualizados a cada entrega.
 
 ---
 

@@ -222,7 +222,7 @@ Enquanto não há tabela formal `SecurityIncident` no banco (depende de RBAC/#16
 
 A cada incidente:
 1. Rever este runbook — há algum passo que falhou ou ficou omisso?
-2. Atualizar `docs/AUDITORIA_SEGURANCA.md` se o incidente revelar um gap novo (ex.: "descobrimos que `propertyAddress` não era auditado, vamos adicionar à tabela `audit_logs` na próxima sub-issue").
+2. Atualizar `.claude/docs/AUDITORIA_SEGURANCA.md` se o incidente revelar um gap novo (ex.: "descobrimos que `propertyAddress` não era auditado, vamos adicionar à tabela `audit_logs` na próxima sub-issue").
 3. Comunicar as lições à equipe em uma retrospectiva de segurança.
 
 ---
@@ -303,4 +303,4 @@ Antes de um incidente acontecer, certifique-se que:
 - **LGPD Art. 48:** Lei nº 13.709/2018 — resposta a incidentes.
 - **NIST Cybersecurity Framework:** https://www.nist.gov/cyberframework
 - **OWASP Incident Response:** https://owasp.org/www-project-incident-response/
-- **Documento de auditoria deste projeto:** `docs/AUDITORIA_SEGURANCA.md`
+- **Documento de auditoria deste projeto:** `.claude/docs/AUDITORIA_SEGURANCA.md`

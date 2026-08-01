@@ -1,0 +1,57 @@
+name: "🐛 Bug"
+description: "Comportamento errado, exceção ou resultado incorreto (será tratado pela skill correcao-bugs)"
+title: "[Bug] "
+labels: ["tipo: bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Após criar, adicione a label de **prioridade** (`prioridade: crítica/alta/média/baixa`) e de **área** — ver `.claude/project_context/08-convencoes-git.md`.
+  - type: textarea
+    id: descricao
+    attributes:
+      label: "O que está acontecendo"
+      description: "Descreva o comportamento errado em 1–3 frases."
+    validations:
+      required: true
+  - type: textarea
+    id: reproducao
+    attributes:
+      label: "Passos para reproduzir"
+      description: "Passo a passo determinístico — é o que vira o teste de regressão."
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: "Comportamento esperado"
+    validations:
+      required: true
+  - type: textarea
+    id: atual
+    attributes:
+      label: "Comportamento atual"
+      description: "Inclua mensagem de erro / stack trace se houver (sem dados pessoais!)."
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Área"
+      options:
+        - "Frontend"
+        - "Backend"
+        - "Banco de dados"
+        - "Infra / CI"
+        - "Não sei"
+    validations:
+      required: true
+  - type: textarea
+    id: contexto
+    attributes:
+      label: "Contexto adicional"
+      description: "Ambiente, versão, prints, hipótese de causa — opcional."

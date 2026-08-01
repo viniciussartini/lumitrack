@@ -17,7 +17,7 @@ import type { Property } from "../../../src/types/property.types"
  * que deixou a suíte inteira desatualizada no rework IoT — e o mesmo motivo
  * pelo qual a fixture de `dataExportPdf.test.ts` passou meses com o modelo
  * antigo escondida atrás de um `as unknown as` (ver "Revisão pós-implementação"
- * em docs/LOG_IMPLEMENTACAO_IOT.md).
+ * em .claude/docs/LOG_IMPLEMENTACAO_IOT.md).
  *
  * Os shapes espelham as fontes de verdade já validadas em Vitest:
  * `src/services/alert.service.test.ts` (AlertWithStatus) e

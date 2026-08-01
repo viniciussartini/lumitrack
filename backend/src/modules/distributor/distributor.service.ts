@@ -6,7 +6,7 @@ import type { Paginated } from "@/shared/pagination.js"
 
 // Catálogo global de distribuidoras — somente leitura. Não há mais
 // create/update/delete nem noção de "dono": o catálogo é compartilhado por
-// todos os usuários (ver docs/PLANO_REFORMULACAO_IOT.md, Fase 3.2).
+// todos os usuários (ver .claude/docs/PLANO_REFORMULACAO_IOT.md, Fase 3.2).
 export class DistributorService {
     constructor(private readonly distributorRepository: DistributorRepository) {}
 

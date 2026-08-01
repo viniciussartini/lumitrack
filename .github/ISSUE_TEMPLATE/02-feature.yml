@@ -1,0 +1,56 @@
+name: "✨ Feature"
+description: "Funcionalidade nova (será construída pela skill nova-feature)"
+title: "[Feature] "
+labels: ["tipo: feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Após criar, adicione a label de **prioridade** e de **área** — ver `.claude/project_context/08-convencoes-git.md`.
+  - type: textarea
+    id: problema
+    attributes:
+      label: "Problema / motivação"
+      description: "Que dor do usuário isso resolve? Por que agora?"
+    validations:
+      required: true
+  - type: textarea
+    id: proposta
+    attributes:
+      label: "Comportamento proposto"
+      description: "No formato RF: \"o sistema deve permitir que [ator] [ação]\" (ver 02-requisitos.md)."
+      placeholder: "O sistema deve permitir que o usuário logado ..."
+    validations:
+      required: true
+  - type: textarea
+    id: aceite
+    attributes:
+      label: "Critérios de aceite"
+      description: "Como saber que está pronto? Itens verificáveis."
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: dropdown
+    id: dados-pessoais
+    attributes:
+      label: "Envolve dados pessoais?"
+      description: "Se sim, a base legal e a minimização precisam ser definidas (ver 09-conformidade-legal.md)."
+      options:
+        - "Não"
+        - "Sim — exige análise LGPD"
+        - "Não sei"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Área principal"
+      options:
+        - "Frontend"
+        - "Backend"
+        - "Full-stack"
+        - "Infra / CI"
+    validations:
+      required: true
