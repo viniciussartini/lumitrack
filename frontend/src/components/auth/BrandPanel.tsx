@@ -51,7 +51,7 @@ export const BrandPanel = ({ eyebrow, headline, description, extra }: BrandPanel
             />
             <span>
                 Lumi
-                <span className="bg-gradient-to-r from-[#8fb0d6] via-[#a9c6a2] to-[#e2ef8f] bg-clip-text text-transparent">
+                <span className="bg-linear-to-r from-[#8fb0d6] via-[#a9c6a2] to-[#e2ef8f] bg-clip-text text-transparent">
                     Track
                 </span>
             </span>
