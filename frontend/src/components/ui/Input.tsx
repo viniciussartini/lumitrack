@@ -38,8 +38,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             <div className="field">
                 {label && (
                     labelExtra ? (
-                        <div className="flex items-baseline justify-between gap-3">
-                            <label htmlFor={inputId} className="m-0">
+                        // .field > label (industry.css) exige filho DIRETO de
+                        // .field — como o label some dentro deste wrapper
+                        // flex, precisa repetir aqui o que a regra perderia:
+                        // font-size/cor no label, margin-bottom na linha
+                        // (que agora ocupa a posição que o label ocupava).
+                        <div className="mb-[5px] flex items-baseline justify-between gap-3">
+                            <label htmlFor={inputId} className="text-text/70 text-xs">
                                 {label}
                             </label>
                             {labelExtra}
