@@ -10,6 +10,6 @@
     "dev": "concurrently --kill-others-on-fail -n server,ui -c blue,green \"npm run dev -w server\" \"npm run dev -w ui\""
   },
   "devDependencies": {
-    "concurrently": "^10.0.3"
+    "concurrently": "^10.0.4"
   }
 }
