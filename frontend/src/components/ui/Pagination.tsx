@@ -32,13 +32,10 @@ export const Pagination = ({
 
     return (
         <div
-            className={cn(
-                "flex items-center justify-between gap-3 text-sm",
-                className,
-            )}
+            className={cn("flex items-center justify-between gap-3 text-sm", className)}
             data-testid="pagination"
         >
-            <span className="text-slate-500 dark:text-slate-400">
+            <span className="text-muted">
                 {total} {total === 1 ? "item" : "itens"} · página {page} de{" "}
                 {totalPages}
             </span>
@@ -50,14 +47,9 @@ export const Pagination = ({
                     disabled={!canPrev}
                     aria-label="Página anterior"
                     data-testid="pagination-prev"
-                    className={cn(
-                        "inline-flex h-8 w-8 items-center justify-center rounded-md",
-                        "text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40",
-                        "dark:text-slate-200 dark:hover:bg-slate-800",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
-                    )}
+                    className="btn btn-ghost btn-icon"
                 >
-                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                    <ChevronLeft className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
                 </button>
                 <button
                     type="button"
@@ -65,14 +57,9 @@ export const Pagination = ({
                     disabled={!canNext}
                     aria-label="Próxima página"
                     data-testid="pagination-next"
-                    className={cn(
-                        "inline-flex h-8 w-8 items-center justify-center rounded-md",
-                        "text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40",
-                        "dark:text-slate-200 dark:hover:bg-slate-800",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
-                    )}
+                    className="btn btn-ghost btn-icon"
                 >
-                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                    <ChevronRight className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
                 </button>
             </div>
         </div>

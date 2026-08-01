@@ -1,4 +1,3 @@
-import { Check, X } from "lucide-react"
 import { cn } from "@/lib/cn"
 
 interface PasswordRequirementsProps {
@@ -29,26 +28,36 @@ const REQUIREMENTS: readonly Requirement[] = [
     { label: "Um caractere especial", test: (p) => /[^A-Za-z0-9]/.test(p) },
 ] as const
 
+/**
+ * Grid 2 colunas + caixa de check 14×14 — fiel ao protótipo
+ * LumiTrack Registro.dc.html (renderVals/reqList: caixa com borda/fundo na
+ * cor de status success quando atendido, "✓" branco dentro; texto mudo
+ * quando não atendido). Tamanhos em px arbitrários porque o protótipo não
+ * os deriva da escala de espaçamento (14px/12.5px/7px, não múltiplos de
+ * --space-1).
+ */
 export const PasswordRequirements = ({ password }: PasswordRequirementsProps) => (
-    <ul aria-label="Requisitos da senha" className="flex flex-col gap-1">
+    <ul aria-label="Requisitos da senha" className="grid grid-cols-2 gap-[7px]">
         {REQUIREMENTS.map((req) => {
             const met = req.test(password)
-            const Icon = met ? Check : X
             return (
                 <li
                     key={req.label}
                     className={cn(
-                        "flex items-center gap-2 text-xs",
-                        met
-                            ? "text-success dark:text-success"
-                            : "text-slate-500 dark:text-slate-400",
+                        "flex items-center gap-[7px] text-[12.5px]",
+                        met ? "text-status-success" : "text-muted",
                     )}
                 >
-                    <Icon
-                        className="h-3.5 w-3.5 shrink-0"
+                    <span
                         aria-hidden="true"
                         data-met={met}
-                    />
+                        className={cn(
+                            "flex h-[14px] w-[14px] shrink-0 items-center justify-center border text-[9px] text-white",
+                            met ? "bg-status-success border-status-success" : "border-text/30 bg-transparent",
+                        )}
+                    >
+                        {met ? "✓" : ""}
+                    </span>
                     <span>{req.label}</span>
                 </li>
             )

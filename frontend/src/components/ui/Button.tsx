@@ -15,26 +15,28 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 /**
- * Tabela de estilos por variante. Mantida como objeto puro
- * para que o `prettier-plugin-tailwindcss` ordene as classes
- * na build.
+ * Variantes no vocabulário do Industry (.btn base + modificador):
+ * primary é o único objeto sólido do design system; danger não tem um .btn
+ * sólido vermelho — é .btn-secondary tingido com a cor de status danger
+ * (ver styles/industry.css, confirmado no botão "Excluir conta" do
+ * protótipo LumiTrack Home.dc.html).
  */
-
-const variantStyles: Record<Variant, string> = {
-    primary:
-        "bg-brand-500 text-white hover:bg-brand-700 focus-visible:ring-brand-500 disabled:bg-slate-300 dark:disabled:bg-slate-700",
-    secondary:
-        "bg-slate-100 text-slate-900 hover:bg-slate-200 focus-visible:ring-slate-400 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700",
-    ghost:
-        "bg-transparent text-slate-700 hover:bg-slate-100 focus-visible:ring-slate-400 dark:text-slate-200 dark:hover:bg-slate-800",
-    danger:
-        "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500",
+const variantClass: Record<Variant, string> = {
+    primary: "btn-primary",
+    secondary: "btn-secondary",
+    ghost: "btn-ghost",
+    danger: "btn-danger",
 }
 
+/**
+ * Tamanhos não especificados pelo bundle (os protótipos de auth só usam o
+ * tamanho default de .btn) — extrapolação razoável sobre a mesma escala de
+ * espaçamento do Industry (0.85×, ver index.css @theme inline --spacing).
+ */
 const sizeStyles: Record<Size, string> = {
-    sm: "h-8 px-3 text-sm",
-    md: "h-10 px-4 text-sm",
-    lg: "h-12 px-6 text-base",
+    sm: "text-xs px-3 py-1",
+    md: "",
+    lg: "text-base px-6 py-3",
 }
 
 export const Button = ({
@@ -81,11 +83,8 @@ export const Button = ({
             // Passamos apenas quando não é asChild para evitar warning.
             {...(!asChild && { disabled: isDisabled })}
             className={cn(
-                "inline-flex items-center justify-center gap-2 rounded-md font-medium",
-                "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-                "disabled:cursor-not-allowed disabled:opacity-60",
-                "dark:focus-visible:ring-offset-slate-950",
-                variantStyles[variant],
+                "btn",
+                variantClass[variant],
                 sizeStyles[size],
                 className,
             )}

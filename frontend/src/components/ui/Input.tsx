@@ -1,10 +1,23 @@
-import { forwardRef, useId, type InputHTMLAttributes } from "react"
+import { forwardRef, useId, useState, type InputHTMLAttributes, type ReactNode } from "react"
+import { Eye, EyeOff } from "lucide-react"
 import { cn } from "@/lib/cn"
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
     label?: string
     error?: string
     helperText?: string
+    /**
+     * Mostra um botão de olho para alternar type="password" ↔ "text".
+     * Só tem efeito quando type="password" (ver auth.spec.ts / prototype
+     * LumiTrack Login.dc.html e Registro.dc.html — resolve a issue #2
+     * legada, "Input Senha" sem opção de mostrar/ocultar).
+     */
+    revealable?: boolean
+    /**
+     * Conteúdo ao lado do label, mesma linha (ex.: link "Esqueceu a senha?"
+     * — LumiTrack Login.dc.html). Opcional, só ocupa espaço quando usado.
+     */
+    labelExtra?: ReactNode
 }
 
 // forwardRef é necessário para o React Hook Form conseguir registrar
@@ -12,54 +25,67 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 // gerenciar o valor sem usar useState.
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-    ({ label, error, helperText, className, id, ...rest }, ref) => {
+    ({ label, error, helperText, labelExtra, className, id, type, revealable = false, ...rest }, ref) => {
         const generatedId = useId()
         const inputId = id ?? generatedId
         const hasError = Boolean(error)
+        const [visible, setVisible] = useState(false)
+
+        const isPasswordToggle = revealable && type === "password"
+        const effectiveType = isPasswordToggle ? (visible ? "text" : "password") : type
 
         return (
-            <div className="flex flex-col gap-1.5">
+            <div className="field">
                 {label && (
-                    <label
-                        htmlFor={inputId}
-                        className="text-sm font-medium text-slate-700 dark:text-slate-200"
-                    >
-                        {label}
-                    </label>
+                    labelExtra ? (
+                        <div className="flex items-baseline justify-between gap-3">
+                            <label htmlFor={inputId} className="m-0">
+                                {label}
+                            </label>
+                            {labelExtra}
+                        </div>
+                    ) : (
+                        <label htmlFor={inputId}>{label}</label>
+                    )
                 )}
-                <input
-                    id={inputId}
-                    ref={ref}
-                    aria-invalid={hasError}
-                    aria-describedby={
-                        hasError ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined
-                    }
-                    className={cn(
-                        "h-10 rounded-md border px-3 text-sm",
-                        "bg-white text-slate-900 placeholder:text-slate-400",
-                        "dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500",
-                        "focus:outline-none focus:ring-2 focus:ring-offset-0",
-                        "disabled:cursor-not-allowed disabled:opacity-60",
-                        hasError
-                            ? "border-red-500 focus:ring-red-500 dark:border-red-500"
-                            : "border-slate-300 focus:ring-brand-500 dark:border-slate-700",
-                        className,
+                <div className="relative flex items-center">
+                    <input
+                        id={inputId}
+                        ref={ref}
+                        type={effectiveType}
+                        aria-invalid={hasError}
+                        aria-describedby={
+                            hasError ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined
+                        }
+                        className={cn(
+                            "input lt-input w-full",
+                            isPasswordToggle && "pr-11",
+                            hasError && "border-status-danger",
+                            className,
+                        )}
+                        {...rest}
+                    />
+                    {isPasswordToggle && (
+                        <button
+                            type="button"
+                            onClick={() => setVisible((v) => !v)}
+                            aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
+                            className="text-text/55 hover:text-text absolute right-1.5 inline-flex h-8 w-8 items-center justify-center border-0 bg-transparent"
+                        >
+                            {visible ? (
+                                <EyeOff className="h-[18px] w-[18px]" strokeWidth={1.5} aria-hidden="true" />
+                            ) : (
+                                <Eye className="h-[18px] w-[18px]" strokeWidth={1.5} aria-hidden="true" />
+                            )}
+                        </button>
                     )}
-                    {...rest}
-                />
+                </div>
                 {hasError ? (
-                    <span
-                        id={`${inputId}-error`}
-                        role="alert"
-                        className="text-xs text-red-600 dark:text-red-400"
-                    >
+                    <span id={`${inputId}-error`} role="alert" className="text-status-danger text-xs">
                         {error}
                     </span>
                 ) : helperText ? (
-                    <span
-                        id={`${inputId}-helper`}
-                        className="text-xs text-slate-500 dark:text-slate-400"
-                    >
+                    <span id={`${inputId}-helper`} className="text-muted text-xs">
                         {helperText}
                     </span>
                 ) : null}
