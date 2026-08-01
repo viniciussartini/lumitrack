@@ -2,6 +2,8 @@ import { Navigate, Route, Routes } from "react-router"
 import { ProtectedRoute } from "@/routes/ProtectedRoute"
 import { PublicRoute } from "@/routes/PublicRoute"
 import { LoginPage } from "@/pages/auth/LoginPage"
+import { ForgotPasswordPage } from "@/pages/auth/ForgotPasswordPage"
+import { ResetPasswordPage } from "@/pages/auth/ResetPasswordPage"
 import { DashboardPage } from "@/pages/dashboard/DashboardPage"
 import { AppShell } from "@/components/layout/AppShell"
 import { RegisterPage } from "@/pages/auth/RegisterPage"
@@ -43,6 +45,11 @@ export const AppRouter = () => (
         <Route element={<PublicRoute />}>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/registro" element={<RegisterPage />} />
+            <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />
+            {/* Caminho em inglês, fixo — mesmo path que
+                backend/src/modules/auth/email.service.ts já embute no link
+                enviado por e-mail (?token=...). */}
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Route>
 
         {/* Rotas privadas — exige autenticação */}

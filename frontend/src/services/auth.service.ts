@@ -149,4 +149,25 @@ export const authService = {
         const { data } = await api.post<ApiEnvelope<User>>("/users", input)
         return data.data
     },
+
+    /**
+     * Solicita o link de redefinição de senha. O backend SEMPRE responde
+     * 200 (mesma mensagem genérica), exista ou não o e-mail — proteção
+     * contra enumeração de contas. Por isso não há um "e-mail não
+     * encontrado" a tratar aqui: sucesso é o único caminho desta chamada.
+     */
+    forgotPassword: async (email: string): Promise<void> => {
+        await api.post("/auth/forgot-password", { email })
+    },
+
+    /**
+     * Efetiva a nova senha a partir do token recebido por e-mail (link
+     * gerado em backend/src/modules/auth/email.service.ts, válido por
+     * 1h). Propaga erro (400) se o token for inválido, expirado ou já
+     * usado — extractErrorMessage entrega a mensagem do backend pronta
+     * pra exibir.
+     */
+    resetPassword: async (token: string, newPassword: string): Promise<void> => {
+        await api.post("/auth/reset-password", { token, newPassword })
+    },
 }
