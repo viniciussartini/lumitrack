@@ -47,8 +47,8 @@ interface ThemeProviderProps {
 
 export const ThemeProvider = ({ children }: ThemeProviderProps) => {
     // Lazy initializer — roda 1x no mount, lê localStorage e decide o estado.
-    // Importante: como o script anti-FOUC no index.html já aplicou a classe
-    // .dark antes do React montar, este estado tem que CASAR com o que o
+    // Importante: como o script anti-FOUC no index.html já aplicou o atributo
+    // data-theme antes do React montar, este estado tem que CASAR com o que o
     // script decidiu. A lógica abaixo espelha a do script.
     const [theme, setThemeState] = useState<Theme>(() => {
         const stored = storage.get(STORAGE_KEYS.THEME)
@@ -75,15 +75,11 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
         setResolvedTheme(resolveTheme(theme))
     }
 
-    // Effect 1: aplicar a classe no <html> sempre que resolvedTheme muda.
+    // Effect 1: aplicar data-theme no <html> sempre que resolvedTheme muda.
+    // Convenção do design system Industry (ver frontend/src/styles/industry.css
+    // e ADR-0005) — era classe .dark antes da migração.
     useEffect(() => {
-        const root = document.documentElement
-
-        if (resolvedTheme === "dark") {
-            root.classList.add("dark")
-        } else {
-            root.classList.remove("dark")
-        }
+        document.documentElement.dataset.theme = resolvedTheme
     }, [resolvedTheme])
 
     // Effect 2: persistir no storage quando theme muda.

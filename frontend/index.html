@@ -6,9 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LumiTrack</title>
     <script>
-      // Anti-FOUC: aplica .dark em <html> ANTES do React montar.
-      // Sem isso, usuários com tema dark veem flash branco no boot.
+      // Anti-FOUC: aplica data-theme em <html> ANTES do React montar.
+      // Sem isso, usuários com tema dark veem flash claro no boot.
       // Use `var` e função tradicional pra suporte máximo de browsers.
+      // Convenção do design system Industry (ADR-0005) — era classe .dark.
       (function () {
         try {
           var stored = localStorage.getItem("lumitrack:theme")
@@ -19,10 +20,8 @@
           var isSystemDark =
             (stored === "system" || stored === null) && prefersDark
 
-          if (isExplicitDark || isSystemDark) {
-            document.documentElement.classList.add("dark")
-          }
-          
+          document.documentElement.dataset.theme =
+            isExplicitDark || isSystemDark ? "dark" : "light"
         } catch (e) {
           // Modo privado do Safari, etc — falha silenciosa
         }

@@ -1,9 +1,20 @@
 @import "tailwindcss";
 
-/* Habilita dark mode via classe .dark no <html> */
-@custom-variant dark (&:where(.dark, .dark *));
+/* Fontes e tokens do design system Industry (ver ADR-0005 e
+   .claude/project_context/10-design-system.md). industry.css é cópia fiel
+   do bundle — não editar tokens/classes lá; mudança de design vem de um
+   novo handoff. */
+@import "./styles/industry-fonts.css";
+@import "./styles/industry.css";
 
-/* Tokens do design system — ajuste as cores do LumiTrack aqui */
+/* Dark mode via atributo data-theme no <html> (ThemeContext.tsx seta;
+   convenção do Industry — era classe .dark antes da migração). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* Tokens legados (tema âmbar pré-Industry) — mantidos intocados enquanto
+   telas ainda não migradas (fora do escopo da Fase 1 do roadmap) dependem
+   deles. Remover tela a tela conforme cada fase migra seus consumidores;
+   nenhum uso novo deve ser adicionado a partir daqui. */
 @theme {
     --color-brand-50:  oklch(0.97 0.02 78);
     --color-brand-500: oklch(0.80 0.18 78);
@@ -14,12 +25,81 @@
     --color-success:   oklch(0.68 0.18 145);  /* verde econômico */
 }
 
+/* Mapeia os tokens do Industry (definidos em :root por industry.css) para
+   o tema do Tailwind — @theme inline referencia as custom properties já
+   existentes em vez de redeclarar valores, então dark mode (override em
+   :root[data-theme="dark"]) propaga automaticamente para as utilitárias
+   (bg-accent, text-neutral-500, ...) sem variante dark: extra. Chave por
+   chave porque o Tailwind não importa custom properties por wildcard. */
+@theme inline {
+    --color-bg: var(--color-bg);
+    --color-surface: var(--color-surface);
+    --color-text: var(--color-text);
+    --color-accent: var(--color-accent);
+    --color-accent-2: var(--color-accent-2);
+    --color-divider: var(--color-divider);
+
+    --color-neutral-100: var(--color-neutral-100);
+    --color-neutral-200: var(--color-neutral-200);
+    --color-neutral-300: var(--color-neutral-300);
+    --color-neutral-400: var(--color-neutral-400);
+    --color-neutral-500: var(--color-neutral-500);
+    --color-neutral-600: var(--color-neutral-600);
+    --color-neutral-700: var(--color-neutral-700);
+    --color-neutral-800: var(--color-neutral-800);
+    --color-neutral-900: var(--color-neutral-900);
+
+    --color-accent-100: var(--color-accent-100);
+    --color-accent-200: var(--color-accent-200);
+    --color-accent-300: var(--color-accent-300);
+    --color-accent-400: var(--color-accent-400);
+    --color-accent-500: var(--color-accent-500);
+    --color-accent-600: var(--color-accent-600);
+    --color-accent-700: var(--color-accent-700);
+    --color-accent-800: var(--color-accent-800);
+    --color-accent-900: var(--color-accent-900);
+
+    --color-accent-2-100: var(--color-accent-2-100);
+    --color-accent-2-200: var(--color-accent-2-200);
+    --color-accent-2-300: var(--color-accent-2-300);
+    --color-accent-2-400: var(--color-accent-2-400);
+    --color-accent-2-500: var(--color-accent-2-500);
+    --color-accent-2-600: var(--color-accent-2-600);
+    --color-accent-2-700: var(--color-accent-2-700);
+    --color-accent-2-800: var(--color-accent-2-800);
+    --color-accent-2-900: var(--color-accent-2-900);
+
+    --font-heading: var(--font-heading);
+    --font-body: var(--font-body);
+
+    /* Escala de espaçamento do Industry é 0.85× a de referência do Tailwind
+       (--space-1: 3.4px = 4px × 0.85) — sobrescrever o multiplicador base
+       em vez de mapear passo a passo estende o mesmo ritmo a toda a escala
+       numérica (p-12, gap-24...), não só aos 6 passos que o Industry nomeia. */
+    --spacing: var(--space-1);
+
+    --radius-sm: var(--radius-sm);
+    --radius-md: var(--radius-md);
+    --radius-lg: var(--radius-lg);
+
+    --shadow-sm: var(--shadow-sm);
+    --shadow-md: var(--shadow-md);
+    --shadow-lg: var(--shadow-lg);
+
+    /* Cores semânticas — ver styles/industry.css (adaptação do projeto). */
+    --color-status-success: var(--color-status-success);
+    --color-status-warning: var(--color-status-warning);
+    --color-status-danger: var(--color-status-danger);
+    --color-status-danger-strong: var(--color-status-danger-strong);
+    --color-status-highlight: var(--color-status-highlight);
+}
+
 /* Reset suave + base do app */
 html, body, #root { height: 100%; }
 body {
     @apply bg-white text-slate-900 antialiased;
 }
-.dark body {
+[data-theme="dark"] body {
     @apply bg-slate-950 text-slate-100;
 }
 
@@ -48,11 +128,11 @@ body {
  */
 
 @media print {
-    /*  Forçar tema "claro" no print, independente do .dark do usuário.
+    /*  Forçar tema "claro" no print, independente do tema do usuário.
         Importante: muitas impressoras a jato gastam toner desnecessário
         imprimindo backgrounds escuros, e o contraste fica ruim. */
-    html.dark,
-    html.dark body {
+    html[data-theme="dark"],
+    html[data-theme="dark"] body {
         background-color: white !important;
         color: black !important;
     }
