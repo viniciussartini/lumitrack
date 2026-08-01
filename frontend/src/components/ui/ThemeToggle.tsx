@@ -39,17 +39,9 @@ export const ThemeToggle = ({ className }: ThemeToggleProps) => {
             type="button"
             onClick={handleClick}
             aria-label={`Tema atual: ${THEME_LABELS[theme]}. Clique para alternar.`}
-            className={cn(
-                "inline-flex h-9 w-9 items-center justify-center rounded-md",
-                "text-slate-700 hover:bg-slate-100",
-                "dark:text-slate-200 dark:hover:bg-slate-800",
-                "transition-colors",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2",
-                "dark:focus-visible:ring-offset-slate-950",
-                className,
-            )}
+            className={cn("btn btn-ghost btn-icon", className)}
         >
-            <Icon className="h-5 w-5" aria-hidden="true" />
+            <Icon className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
         </button>
     )
 }

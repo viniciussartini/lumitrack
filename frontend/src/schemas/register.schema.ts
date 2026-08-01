@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { passwordSchema } from "@/schemas/password.schema"
 
 // Validação matemática de CPF/CNPJ
 // Lógica idêntica à do backend (user.schema.ts)
@@ -44,14 +45,6 @@ const isValidCnpj = (cnpj: string): boolean => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Schemas
 // ─────────────────────────────────────────────────────────────────────────────
-
-const passwordSchema = z
-    .string()
-    .min(8, { message: "A senha deve ter ao menos 8 caracteres" })
-    .regex(/[A-Z]/, { message: "A senha deve conter ao menos uma letra maiúscula" })
-    .regex(/[a-z]/, { message: "A senha deve conter ao menos uma letra minúscula" })
-    .regex(/[0-9]/, { message: "A senha deve conter ao menos um número" })
-    .regex(/[^A-Za-z0-9]/, { message: "A senha deve conter ao menos um caractere especial" })
 
 const baseSchema = z.object({
     email: z

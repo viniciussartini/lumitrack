@@ -40,7 +40,7 @@ describe("LoginPage — renderização", () => {
         renderWithProviders(<LoginPage />)
 
         expect(await screen.findByLabelText(/e-mail/i)).toBeInTheDocument()
-        expect(screen.getByLabelText(/senha/i)).toBeInTheDocument()
+        expect(screen.getByLabelText(/^senha$/i)).toBeInTheDocument()
         expect(screen.getByRole("button", { name: /entrar/i })).toBeInTheDocument()
     })
 })
@@ -61,7 +61,7 @@ describe("LoginPage — validação client-side", () => {
         renderWithProviders(<LoginPage />)
 
         await user.type(await screen.findByLabelText(/e-mail/i), "nao-e-email")
-        await user.type(screen.getByLabelText(/senha/i), "qualquer")
+        await user.type(screen.getByLabelText(/^senha$/i), "qualquer")
         await user.click(screen.getByRole("button", { name: /entrar/i }))
 
         expect(await screen.findByText(/e-mail inválido/i)).toBeInTheDocument()
@@ -76,7 +76,7 @@ describe("LoginPage — submit", () => {
         renderWithProviders(<LoginPage />)
 
         await user.type(await screen.findByLabelText(/e-mail/i), "test@example.com")
-        await user.type(screen.getByLabelText(/senha/i), "Senha@123")
+        await user.type(screen.getByLabelText(/^senha$/i), "Senha@123")
         await user.click(screen.getByRole("button", { name: /entrar/i }))
 
         await waitFor(() => {
@@ -96,7 +96,7 @@ describe("LoginPage — submit", () => {
         renderWithProviders(<LoginPage />)
 
         await user.type(await screen.findByLabelText(/e-mail/i), "test@example.com")
-        await user.type(screen.getByLabelText(/senha/i), "errada")
+        await user.type(screen.getByLabelText(/^senha$/i), "errada")
         await user.click(screen.getByRole("button", { name: /entrar/i }))
 
         expect(await screen.findByText(/credenciais inválidas/i)).toBeInTheDocument()
@@ -173,7 +173,7 @@ describe("LoginPage — MFA (segundo passo)", () => {
         renderWithProviders(<LoginPage />)
 
         await user.type(await screen.findByLabelText(/e-mail/i), "test@example.com")
-        await user.type(screen.getByLabelText(/senha/i), "Senha@123")
+        await user.type(screen.getByLabelText(/^senha$/i), "Senha@123")
         await user.click(screen.getByRole("button", { name: /entrar/i }))
 
         expect(
@@ -193,7 +193,7 @@ describe("LoginPage — MFA (segundo passo)", () => {
         renderWithProviders(<LoginPage />)
 
         await user.type(await screen.findByLabelText(/e-mail/i), "test@example.com")
-        await user.type(screen.getByLabelText(/senha/i), "Senha@123")
+        await user.type(screen.getByLabelText(/^senha$/i), "Senha@123")
         await user.click(screen.getByRole("button", { name: /entrar/i }))
 
         await user.type(await screen.findByLabelText(/código de verificação/i), "123456")
@@ -220,7 +220,7 @@ describe("LoginPage — MFA (segundo passo)", () => {
         renderWithProviders(<LoginPage />)
 
         await user.type(await screen.findByLabelText(/e-mail/i), "test@example.com")
-        await user.type(screen.getByLabelText(/senha/i), "Senha@123")
+        await user.type(screen.getByLabelText(/^senha$/i), "Senha@123")
         await user.click(screen.getByRole("button", { name: /entrar/i }))
 
         await user.type(await screen.findByLabelText(/código de verificação/i), "000000")
@@ -239,14 +239,14 @@ describe("LoginPage — MFA (segundo passo)", () => {
         renderWithProviders(<LoginPage />)
 
         await user.type(await screen.findByLabelText(/e-mail/i), "test@example.com")
-        await user.type(screen.getByLabelText(/senha/i), "Senha@123")
+        await user.type(screen.getByLabelText(/^senha$/i), "Senha@123")
         await user.click(screen.getByRole("button", { name: /entrar/i }))
 
         await screen.findByRole("heading", { name: /verificação em duas etapas/i })
         await user.click(screen.getByRole("button", { name: /voltar/i }))
 
         expect(
-            await screen.findByRole("heading", { name: /entrar na conta/i }),
+            await screen.findByRole("heading", { name: /entrar no lumitrack/i }),
         ).toBeInTheDocument()
     })
 })

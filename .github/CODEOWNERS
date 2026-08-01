@@ -1,0 +1,4 @@
+# Toda mudança precisa da aprovação de alguém desta lista.
+# Para autorizar um colaborador a revisar/aprovar/mergear PRs, adicione @usuario aqui
+# e também na lista de restrictions da branch protection (Settings → Branches → main).
+* @viniciussartini

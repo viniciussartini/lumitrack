@@ -53,9 +53,7 @@ export const MfaCodeForm = ({
             className="flex flex-col gap-4"
             noValidate
         >
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-                {description}
-            </p>
+            <p className="text-muted text-sm">{description}</p>
 
             <Input
                 label="Código de verificação"
@@ -67,10 +65,7 @@ export const MfaCodeForm = ({
             />
 
             {serverError && (
-                <div
-                    role="alert"
-                    className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-300"
-                >
+                <div role="alert" className="bg-status-danger/10 text-status-danger px-3 py-2 text-sm">
                     {serverError}
                 </div>
             )}

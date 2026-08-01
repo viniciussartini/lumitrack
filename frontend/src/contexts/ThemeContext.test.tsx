@@ -79,7 +79,7 @@ const ThemeProbe = () => {
 }
 
 beforeEach(() => {
-    document.documentElement.classList.remove("dark")
+    delete document.documentElement.dataset.theme
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ describe("ThemeProvider — boot", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("ThemeProvider — DOM", () => {
-    it("adiciona a classe .dark em <html> quando resolvedTheme é dark", () => {
+    it("aplica data-theme='dark' em <html> quando resolvedTheme é dark", () => {
         storage.set(STORAGE_KEYS.THEME, "dark")
         setOsPrefersDark(false)
 
@@ -171,11 +171,11 @@ describe("ThemeProvider — DOM", () => {
             </ThemeProvider>,
         )
 
-        expect(document.documentElement.classList.contains("dark")).toBe(true)
+        expect(document.documentElement.dataset.theme).toBe("dark")
     })
 
-    it("remove a classe .dark de <html> quando resolvedTheme é light", () => {
-        document.documentElement.classList.add("dark") // simula estado prévio
+    it("aplica data-theme='light' em <html> quando resolvedTheme é light", () => {
+        document.documentElement.dataset.theme = "dark" // simula estado prévio
         storage.set(STORAGE_KEYS.THEME, "light")
 
         render(
@@ -184,7 +184,7 @@ describe("ThemeProvider — DOM", () => {
             </ThemeProvider>,
         )
 
-        expect(document.documentElement.classList.contains("dark")).toBe(false)
+        expect(document.documentElement.dataset.theme).toBe("light")
     })
 })
 
@@ -207,7 +207,7 @@ describe("ThemeProvider — setTheme", () => {
 
         expect(screen.getByTestId("theme").textContent).toBe("dark")
         expect(screen.getByTestId("resolved").textContent).toBe("dark")
-        expect(document.documentElement.classList.contains("dark")).toBe(true)
+        expect(document.documentElement.dataset.theme).toBe("dark")
         expect(storage.get(STORAGE_KEYS.THEME)).toBe("dark")
     })
 
@@ -224,7 +224,7 @@ describe("ThemeProvider — setTheme", () => {
         await user.click(screen.getByText("set-light"))
 
         expect(screen.getByTestId("theme").textContent).toBe("light")
-        expect(document.documentElement.classList.contains("dark")).toBe(false)
+        expect(document.documentElement.dataset.theme).toBe("light")
         expect(storage.get(STORAGE_KEYS.THEME)).toBe("light")
     })
 

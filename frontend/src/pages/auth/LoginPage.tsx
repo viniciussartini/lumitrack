@@ -2,13 +2,13 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useLocation, useNavigate, Link } from "react-router"
-import { Zap } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { loginSchema, type LoginFormData } from "@/schemas/auth.schema"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { MfaCodeForm } from "@/components/auth/MfaCodeForm"
 import { DEMO_USERS } from "@/config/demoUsers"
+import { BrandPanel } from "@/components/auth/BrandPanel"
 
 interface LocationState {
     from?: { pathname: string }
@@ -85,26 +85,52 @@ export const LoginPage = () => {
     }
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 dark:bg-slate-950">
-            <div className="w-full max-w-md">
-                <div className="mb-8 flex flex-col items-center gap-2">
-                    <div className="rounded-full bg-brand-500 p-3">
-                        <Zap className="h-6 w-6 text-white" aria-hidden="true" />
+        <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
+            {/* Painel de marca — oculto em telas pequenas (o protótipo não
+                especifica mobile; assumindo formulário full-width abaixo de
+                lg, ver 10-design-system.md § comportamento não especificado). */}
+            <BrandPanel
+                eyebrow="Painel de energia"
+                headline="Cada kWh sob controle, em tempo real."
+                description="Entre para acompanhar o consumo das suas unidades, comparar propriedades e antecipar o valor da fatura."
+                extra={
+                    // Valores ilustrativos fixos (não é dado real — não há
+                    // sessão/medidor antes do login). Fiel a
+                    // LumiTrack Login.dc.html; pedido explícito do usuário
+                    // após reverter a omissão original desta seção.
+                    <div className="mt-7 flex flex-wrap gap-3.5">
+                        <div className="min-w-[120px] border border-white/22 px-[18px] py-3.5">
+                            <div className="font-heading flex items-center gap-[7px] text-[11px] leading-none font-semibold tracking-[.08em] text-[#e6ecf2]/66 uppercase">
+                                <span
+                                    className="h-2 w-2 rounded-full bg-[#3f8f52]"
+                                    style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
+                                />
+                                Ao vivo
+                            </div>
+                            <div className="font-heading mt-2 text-[30px] leading-none font-semibold font-features-['tnum'_1]">
+                                3,42
+                                <span className="ml-1 text-sm text-[#e6ecf2]/60">kW</span>
+                            </div>
+                        </div>
+                        <div className="min-w-[120px] border border-white/22 px-[18px] py-3.5">
+                            <div className="font-heading text-[11px] leading-none font-semibold tracking-[.08em] text-[#e6ecf2]/66 uppercase">
+                                Bandeira
+                            </div>
+                            <div className="font-heading mt-3 flex items-center gap-[7px] text-xl leading-none font-semibold text-[#8fd0a0]">
+                                <span className="h-[9px] w-[9px] rounded-full bg-[#3f8f52]" />
+                                Verde
+                            </div>
+                        </div>
                     </div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                        LumiTrack
-                    </h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Monitore o consumo de energia em tempo real
-                    </p>
-                </div>
+                }
+            />
 
-                <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            {/* Formulário */}
+            <main className="flex items-center justify-center p-7 lg:p-14">
+                <div className="w-full max-w-[396px]">
                     {mfaToken ? (
                         <>
-                            <h2 className="mb-6 text-lg font-semibold text-slate-900 dark:text-slate-100">
-                                Verificação em duas etapas
-                            </h2>
+                            <h2 className="text-lg">Verificação em duas etapas</h2>
 
                             <MfaCodeForm
                                 description="Digite o código de 6 dígitos do seu aplicativo autenticador, ou um código de backup."
@@ -116,15 +142,21 @@ export const LoginPage = () => {
                         </>
                     ) : (
                         <>
-                            <h2 className="mb-6 text-lg font-semibold text-slate-900 dark:text-slate-100">
-                                Entrar na conta
+                            <span className="text-accent-700 font-heading block text-[13px] font-semibold tracking-[.09em] uppercase">
+                                Acesso à conta
+                            </span>
+                            <h2 className="font-heading mt-3 text-[clamp(28px,3vw,38px)] leading-[1.03] font-semibold uppercase">
+                                Entrar no LumiTrack
                             </h2>
+                            <p className="text-muted mt-3 text-[14.5px] leading-normal">
+                                Bem-vindo de volta. Informe seus dados para continuar.
+                            </p>
 
                             {/* Notice (vinda de redirects, ex: pós-registro com auto-login falho) */}
                             {notice && (
                                 <div
                                     role="status"
-                                    className="mb-4 rounded-md bg-success/10 px-3 py-2 text-sm text-success"
+                                    className="bg-status-success/10 text-status-success mt-4 px-3 py-2 text-sm"
                                 >
                                     {notice}
                                 </div>
@@ -132,59 +164,58 @@ export const LoginPage = () => {
 
                             <form
                                 onSubmit={handleSubmit(onSubmit)}
-                                className="flex flex-col gap-4"
+                                className="mt-7 flex flex-col gap-4"
                                 noValidate
                             >
                                 <Input
                                     label="E-mail"
                                     type="email"
                                     autoComplete="email"
-                                    placeholder="seu@email.com"
+                                    placeholder="voce@empresa.com.br"
                                     error={errors.email?.message}
                                     {...register("email")}
                                 />
 
                                 <Input
                                     label="Senha"
+                                    labelExtra={
+                                        <Link to="/esqueci-senha" className="text-accent-700 text-[12.5px]">
+                                            Esqueceu a senha?
+                                        </Link>
+                                    }
                                     type="password"
+                                    revealable
                                     autoComplete="current-password"
-                                    placeholder="••••••••"
+                                    placeholder="Sua senha"
                                     error={errors.password?.message}
                                     {...register("password")}
                                 />
 
                                 {serverError && (
-                                    <div
-                                        role="alert"
-                                        className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-300"
-                                    >
+                                    <div role="alert" className="bg-status-danger/10 text-status-danger px-3 py-2 text-sm">
                                         {serverError}
                                     </div>
                                 )}
 
                                 <Button
                                     type="submit"
-                                    size="lg"
                                     isLoading={isSubmitting}
-                                    className="mt-2 w-full"
+                                    className="btn-block mt-1 min-h-[46px]"
                                 >
                                     Entrar
                                 </Button>
                             </form>
 
-                            <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
-                                Não tem conta?{" "}
-                                <Link
-                                    to="/registro"
-                                    className="font-medium text-brand-500 hover:text-brand-700"
-                                >
+                            <p className="text-muted mt-6 text-center text-sm">
+                                Ainda não tem conta?{" "}
+                                <Link to="/registro" className="text-accent-700 font-semibold">
                                     Criar conta
                                 </Link>
                             </p>
 
                             {isDemoModeEnabled && (
-                                <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-800">
-                                    <p className="mb-3 text-center text-xs text-slate-500 dark:text-slate-400">
+                                <div className="border-divider mt-6 border-t pt-6">
+                                    <p className="text-muted mb-3 text-center text-xs">
                                         Ou explore com uma conta de demonstração
                                     </p>
                                     <div className="flex flex-col gap-2">
@@ -210,7 +241,7 @@ export const LoginPage = () => {
                         </>
                     )}
                 </div>
-            </div>
+            </main>
         </div>
     )
 }
