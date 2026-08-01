@@ -24,7 +24,7 @@ test.describe("Fluxo de autenticação", () => {
         await page.goto("/dashboard")
         await expect(page).toHaveURL(/\/login/)
         await expect(
-            page.getByRole("heading", { name: /entrar na conta/i }),
+            page.getByRole("heading", { name: /entrar no lumitrack/i }),
         ).toBeVisible()
     })
 
@@ -50,7 +50,7 @@ test.describe("Fluxo de autenticação", () => {
 
         await page.goto("/login")
         await page.getByLabel(/e-mail/i).fill("test@example.com")
-        await page.getByLabel(/senha/i).fill("errada")
+        await page.getByLabel(/^senha$/i).fill("errada")
         await page.getByRole("button", { name: /entrar/i }).click()
 
         await expect(page.getByText(/credenciais inválidas/i)).toBeVisible()
@@ -87,7 +87,7 @@ test.describe("Fluxo de autenticação", () => {
 
         await page.goto("/login")
         await page.getByLabel(/e-mail/i).fill("test@example.com")
-        await page.getByLabel(/senha/i).fill("Senha@123")
+        await page.getByLabel(/^senha$/i).fill("Senha@123")
         await page.getByRole("button", { name: /entrar/i }).click()
 
         await expect(page).toHaveURL(/\/dashboard/)
