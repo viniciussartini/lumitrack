@@ -60,6 +60,7 @@ Obtenha a branch com: `git rev-parse --abbrev-ref HEAD`.
 | `tipo: conformidade` | `#D4537E` | LGPD / legislação (ver `09`) |
 | `tipo: docs` | `#85B7EB` | Documentação, ADRs, contexto do kit |
 | `tipo: chore` | `#B4B2A9` | Config, CI, dependências |
+| `tipo: épico` | `#1B3A5C` | Contêiner de sub-issues (fase do roadmap ou entrega multi-issue); usa as sub-issues nativas do GitHub (`gh issue edit --parent`/`--add-sub-issue`) — sem label nas sub-issues além do `tipo:` que já lhes cabe |
 
 **`prioridade:` — quando (espelha a severidade das auditorias)**
 
@@ -103,6 +104,7 @@ gh label create "tipo: segurança"    --color 993C1D --description "Controles OW
 gh label create "tipo: conformidade" --color D4537E --description "LGPD / legislação brasileira" --force
 gh label create "tipo: docs"         --color 85B7EB --description "Documentação, ADRs, contexto" --force
 gh label create "tipo: chore"        --color B4B2A9 --description "Config, CI, dependências" --force
+gh label create "tipo: épico"        --color 1B3A5C --description "Contêiner de sub-issues (fase/entrega multi-issue)" --force
 gh label create "prioridade: crítica" --color A32D2D --description "Bloqueia release" --force
 gh label create "prioridade: alta"    --color D85A30 --description "Próximo ciclo" --force
 gh label create "prioridade: média"   --color BA7517 --description "Programável" --force
