@@ -10,9 +10,32 @@
 
 ## Localização e convenção dos bundles
 
-- Bundles vivem em **`.claude/design/`**, um diretório por tela/fluxo: `.claude/design/{YYYY-MM-DD}-<tela-ou-fluxo>/`.
-- Ao receber um novo bundle da mesma tela, o diretório antigo **não é apagado** — o mais recente (por data) é o vigente; os anteriores são histórico (mesma lógica append-only do changelog).
+- Bundles vivem em **`.claude/design/`**, um diretório por export: `.claude/design/{YYYY-MM-DD}-<escopo>/`. O escopo de um export do Claude Design pode ser **uma tela, um fluxo ou o produto inteiro** — nomeie o diretório pelo que ele de fato cobre (`...-login/`, `...-onboarding/`, `...-lumitrack-completo/`).
+- **A estrutura interna do export é preservada como veio** — não reorganize nem renomeie arquivos dentro do bundle. Os protótipos referenciam `_ds/`, `support.js` e `uploads/` por caminho relativo; mexer na árvore quebra o rendering.
+- Ao receber um novo bundle, o diretório antigo **não é apagado** — os anteriores são histórico (mesma lógica append-only do changelog). "O mais recente é o vigente" vale **por tela**, não por diretório: um export amplo posterior não invalida automaticamente o bundle mais recente de uma tela específica. Em caso de dúvida sobre qual bundle rege uma tela, consulte "Bundle vigente" abaixo.
 - Assets referenciados pelo bundle são copiados para o projeto conforme a convenção de assets do frontend — nunca referenciados de caminho externo.
+
+## Bundle vigente
+
+**`.claude/design/2026-07-31-lumitrack-completo/`** — export do produto inteiro, fidelidade **hifi** (cores, tipografia, espaçamentos, estados e microinterações são finais). Design system: **Industry** (ver ADR-0005).
+
+| Tela | Arquivo em `design/` | Equivalente no código |
+|---|---|---|
+| Landing pública | `LumiTrack Landing.dc.html` | — (não existe ainda) |
+| Login | `LumiTrack Login.dc.html` | `pages/auth/LoginPage.tsx` |
+| Registro | `LumiTrack Registro.dc.html` | `pages/auth/RegisterPage.tsx` |
+| Recuperar senha | `LumiTrack Recuperar Senha.dc.html` | — (fluxo existe no backend) |
+| LGPD / privacidade | `LumiTrack LGPD.dc.html` | `pages/legal/` |
+| App logado (dashboard, propriedades, alertas, distribuidoras, perfil, segurança/MFA, modais) | `LumiTrack Home.dc.html` | `pages/dashboard/`, `pages/property/`, `pages/alert/`, `pages/distributor/`, `pages/settings/` |
+| Login do simulador IoT | `LumiTrack IoT Login.dc.html` | — (não existe ainda) |
+| Dashboard do simulador IoT | `LumiTrack IoT Simulator.dc.html` | `iot-simulator/ui/` |
+
+- O `README.md` do bundle é a especificação: mapa de telas, tokens, vocabulário de classes (`.lt-*`), estado mínimo e comportamento esperado.
+- `design-system/styles.css` é a **fonte única** de tokens e classes do Industry.
+- Os `.dc.html` são protótipos autocontidos (markup = layout, `renderVals()` = dados mock, `<style>` = tokens locais) — **referência de design, não código de produção para copiar**. A implementação recria em React seguindo os padrões do codebase.
+- Para abrir: `npx serve .claude/design/2026-07-31-lumitrack-completo/design`.
+
+> **Atenção — divergência conhecida:** o frontend em produção ainda usa o tema anterior (âmbar/slate, Tailwind puro, dark mode por classe `.dark`). A migração para o Industry está registrada como decisão em aberto no `07`. Até ela acontecer, trabalho de UI em tela existente **pergunta antes** (ver ADR-0005).
 
 ## Tokens
 
