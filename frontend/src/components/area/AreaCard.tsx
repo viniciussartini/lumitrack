@@ -1,7 +1,9 @@
+import { useState } from "react"
 import { Link } from "react-router"
 import { LayoutGrid } from "lucide-react"
 import { cn } from "@/lib/cn"
 import { AreaMenu } from "@/components/area/AreaMenu"
+import { AreaFormDialog } from "@/components/area/AreaFormDialog"
 import type { Area } from "@/types/area.types"
 
 interface AreaCardProps {
@@ -24,40 +26,50 @@ interface AreaCardProps {
  * próprio invalidate da query no hook re-renderiza o pai (PropertyDetailsPage)
  * sem o card removido. Não há rota a navegar.
  */
-export const AreaCard = ({ area }: AreaCardProps) => (
-    <div className="relative">
-        <Link
-            to={`/propriedades/${area.propertyId}/areas/${area.id}`}
-            className={cn(
-                "group flex flex-col gap-3 rounded-lg border bg-white p-5 transition",
-                "border-slate-200 hover:border-brand-500 hover:shadow-md",
-                "dark:border-slate-800 dark:bg-slate-900 dark:hover:border-brand-500",
-            )}
-            data-testid={`area-card-${area.id}`}
-        >
-            {/* pr-10 reserva o espaço onde o AreaMenu fica em absolute */}
-            <div className="flex items-start gap-3 pr-10">
-                <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-50 dark:bg-brand-500/10"
-                    aria-hidden="true"
-                >
-                    <LayoutGrid className="h-5 w-5 text-brand-500" />
-                </div>
-                <div className="min-w-0 flex-1">
-                    <h3 className="truncate font-semibold text-slate-900 dark:text-slate-100">
-                        {area.name}
-                    </h3>
-                </div>
-            </div>
+export const AreaCard = ({ area }: AreaCardProps) => {
+    const [isEditOpen, setIsEditOpen] = useState(false)
 
-            {/* Descrição — opcional. line-clamp-2 evita cards muito altos */}
-            {area.description && (
-                <p className="line-clamp-2 text-sm text-slate-600 dark:text-slate-400">
-                    {area.description}
-                </p>
-            )}
-        </Link>
+    return (
+        <div className="relative">
+            <Link
+                to={`/propriedades/${area.propertyId}/areas/${area.id}`}
+                className={cn(
+                    "group flex flex-col gap-3 rounded-lg border bg-white p-5 transition",
+                    "border-slate-200 hover:border-brand-500 hover:shadow-md",
+                    "dark:border-slate-800 dark:bg-slate-900 dark:hover:border-brand-500",
+                )}
+                data-testid={`area-card-${area.id}`}
+            >
+                {/* pr-10 reserva o espaço onde o AreaMenu fica em absolute */}
+                <div className="flex items-start gap-3 pr-10">
+                    <div
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-50 dark:bg-brand-500/10"
+                        aria-hidden="true"
+                    >
+                        <LayoutGrid className="h-5 w-5 text-brand-500" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <h3 className="truncate font-semibold text-slate-900 dark:text-slate-100">
+                            {area.name}
+                        </h3>
+                    </div>
+                </div>
 
-        <AreaMenu area={area} />
-    </div>
-)
+                {/* Descrição — opcional. line-clamp-2 evita cards muito altos */}
+                {area.description && (
+                    <p className="line-clamp-2 text-sm text-slate-600 dark:text-slate-400">
+                        {area.description}
+                    </p>
+                )}
+            </Link>
+
+            <AreaMenu area={area} onEdit={() => setIsEditOpen(true)} />
+
+            <AreaFormDialog
+                isOpen={isEditOpen}
+                onClose={() => setIsEditOpen(false)}
+                mode={{ kind: "edit", propertyId: area.propertyId, area }}
+            />
+        </div>
+    )
+}

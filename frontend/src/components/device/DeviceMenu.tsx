@@ -1,5 +1,5 @@
 import { useRef, useState } from "react"
-import { Link, useParams } from "react-router"
+import { useParams } from "react-router"
 import { MoreVertical, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useClickOutside } from "@/lib/hooks/useClickOutside"
@@ -22,6 +22,13 @@ interface DeviceMenuProps {
      */
     showEdit?: boolean
     /**
+     * Callback que abre o modal de edição (DeviceFormDialog, no card
+     * chamador). O item "Editar" só é renderizado quando showEdit E onEdit
+     * estão presentes — sem onEdit, o item some (fail-safe) em vez de virar
+     * link morto (antes de #98, apontava pra rota removida em #97).
+     */
+    onEdit?: () => void
+    /**
      * Callback opcional disparado após exclusão bem-sucedida.
      *
      * Quando o menu é usado na DeviceDetailsPage, depois do delete a URL
@@ -38,11 +45,11 @@ interface DeviceMenuProps {
  * ou no header da página de detalhes.
  *
  * Itens:
- *   - Editar (opcional) — link pra .../areas/:areaId/devices/:deviceId/editar
+ *   - Editar (opcional) — chama onEdit (abre DeviceFormDialog no chamador)
  *   - Excluir — abre ConfirmDialog antes de disparar a mutation
  *
- *   O Device só sabe o areaId — não tem propertyId no objeto. Mas o link
- *   de edição precisa do propertyId pra montar a URL. Pegamos via useParams
+ *   O Device só sabe o areaId — não tem propertyId no objeto. Mas a
+ *   mutation de exclusão precisa do propertyId. Pegamos via useParams
  *   da rota envolvente (este menu só renderiza dentro de AreaDetailsPage
  *   ou DeviceDetailsPage, ambas com :propertyId no path).
  *
@@ -56,6 +63,7 @@ interface DeviceMenuProps {
 export const DeviceMenu = ({
     device,
     showEdit = true,
+    onEdit,
     onAfterDelete,
 }: DeviceMenuProps) => {
     const { propertyId } = useParams<{ propertyId: string }>()
@@ -134,13 +142,14 @@ export const DeviceMenu = ({
                             "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
                         )}
                     >
-                        {showEdit && (
-                            <Link
-                                to={`/propriedades/${propertyId}/areas/${device.areaId}/devices/${device.id}/editar`}
+                        {showEdit && onEdit && (
+                            <button
+                                type="button"
                                 role="menuitem"
                                 onClick={(e) => {
                                     e.stopPropagation()
                                     setIsMenuOpen(false)
+                                    onEdit()
                                 }}
                                 className={cn(
                                     "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
@@ -153,7 +162,7 @@ export const DeviceMenu = ({
                                     aria-hidden="true"
                                 />
                                 Editar
-                            </Link>
+                            </button>
                         )}
                         <button
                             type="button"

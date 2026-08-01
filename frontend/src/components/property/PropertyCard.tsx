@@ -1,8 +1,11 @@
+import { useState } from "react"
 import { Link } from "react-router"
-import { Home, MapPin, Zap } from "lucide-react"
-import type { Property } from "@/types/property.types"
+import { Home, MapPin } from "lucide-react"
+import { ELECTRICAL_SYSTEM_LABELS, type Property } from "@/types/property.types"
+import type { Distributor } from "@/types/distributor.types"
 import { PropertyMenu } from "@/components/property/PropertyMenu"
-import { cn } from "@/lib/cn"
+import { PropertyFormDialog } from "@/components/property/PropertyFormDialog"
+import { Tag } from "@/components/ui/Tag"
 
 interface PropertyCardProps {
     property: Property
@@ -16,50 +19,67 @@ interface PropertyCardProps {
      * o pai passa um fallback ("Distribuidora removida").
      */
     distributorName: string
+    /**
+     * Catálogo completo de distribuidoras — repassado pro PropertyFormDialog
+     * quando o usuário clica em "Editar" no menu ⋯ (select de distribuidora).
+     * O pai (PropertiesPage) já carrega essa lista.
+     */
+    distributors: Distributor[]
 }
 
 /**
- * Card de propriedade.
+ * Card de propriedade — LumiTrack Home.dc.html, view `propListView`.
  *
  * Comportamento:
  *   - Click no card → /propriedades/:id (página de detalhes)
- *   - Click no ⋯ → menu com "Editar" e "Excluir"
+ *   - Click no ⋯ → menu com "Editar" (abre PropertyFormDialog) e "Excluir"
  *
  * O PropertyMenu fica fora do <Link> (em uma camada visual sobreposta)
  * porque ele tem seu próprio <button> e clicks que NÃO devem propagar
  * pro link envolvente. O CSS `relative` no wrapper + `absolute` do menu
  * resolve sem precisar tirar o link.
+ *
+ * O `<Link>` (não um `<div>`) carrega a classe `blueprint` diretamente, com
+ * as 4 marcas de canto inline — mesmo motivo documentado em FormDialog.tsx:
+ * quando o elemento clicável precisa ser outra tag, replica-se o markup do
+ * `Blueprint.tsx` em vez de aninhar o link dentro de um wrapper extra.
  */
-export const PropertyCard = ({ property, distributorName }: PropertyCardProps) => {
+export const PropertyCard = ({
+    property,
+    distributorName,
+    distributors,
+}: PropertyCardProps) => {
     const addressLine = formatAddress(property)
+    const [isEditOpen, setIsEditOpen] = useState(false)
 
     return (
         <div className="relative">
             <Link
                 to={`/propriedades/${property.id}`}
-                className={cn(
-                    "group flex flex-col gap-4 rounded-lg border bg-white p-5 transition",
-                    "border-slate-200 hover:border-brand-500 hover:shadow-md",
-                    "dark:border-slate-800 dark:bg-slate-900 dark:hover:border-brand-500",
-                )}
+                className="blueprint flex cursor-pointer flex-col"
                 data-testid={`property-card-${property.id}`}
             >
+                <i className="corner tl" />
+                <i className="corner tr" />
+                <i className="corner bl" />
+                <i className="corner br" />
+
                 {/* Header — espaço reservado pro menu (em absolute, ver div abaixo) */}
-                <div className="flex items-start gap-3 pr-10">
-                    <div
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-50 dark:bg-brand-500/10"
+                <div className="flex items-start gap-[13px] p-5 pr-12">
+                    <span
+                        className="border-accent text-accent flex h-10 w-10 shrink-0 items-center justify-center border"
                         aria-hidden="true"
                     >
-                        <Home className="h-5 w-5 text-brand-500" />
-                    </div>
+                        <Home className="h-5 w-5" strokeWidth={1.5} />
+                    </span>
                     <div className="min-w-0 flex-1">
-                        <h3 className="truncate font-semibold text-slate-900 dark:text-slate-100">
+                        <h3 className="font-heading truncate text-[19px] leading-tight font-semibold tracking-[.01em] uppercase">
                             {property.name}
                         </h3>
                         {addressLine && (
-                            <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                            <p className="text-muted mt-[5px] flex items-center gap-1.5 text-[12.5px]">
                                 <MapPin
-                                    className="h-3 w-3 shrink-0"
+                                    className="h-3.5 w-3.5 shrink-0"
                                     aria-hidden="true"
                                 />
                                 <span className="truncate">{addressLine}</span>
@@ -68,27 +88,34 @@ export const PropertyCard = ({ property, distributorName }: PropertyCardProps) =
                     </div>
                 </div>
 
-                {/* Footer — badge da distribuidora */}
-                <div className="flex items-center border-t border-slate-200 pt-3 dark:border-slate-800">
-                    <span
-                        className={cn(
-                            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-                            "bg-brand-50 text-brand-700",
-                            "dark:bg-brand-500/10 dark:text-brand-300",
-                        )}
-                    >
-                        <Zap className="h-3 w-3" aria-hidden="true" />
-                        <span className="max-w-50 truncate">
-                            {distributorName}
-                        </span>
-                    </span>
+                {/* Footer — tags de faturamento/sistema/distribuidora */}
+                <div className="flex flex-wrap gap-2 px-5 pb-[18px]">
+                    <Tag variant="accent" className="font-semibold">
+                        {property.billingClass}
+                    </Tag>
+                    <Tag variant="neutral">
+                        {ELECTRICAL_SYSTEM_LABELS[property.electricalSystem]}
+                    </Tag>
+                    <Tag variant="outline" className="max-w-50 truncate">
+                        {distributorName}
+                    </Tag>
                 </div>
             </Link>
 
             {/* Menu sobreposto ao Link, no canto superior direito */}
             <div className="absolute right-3 top-3">
-                <PropertyMenu property={property} />
+                <PropertyMenu
+                    property={property}
+                    onEdit={() => setIsEditOpen(true)}
+                />
             </div>
+
+            <PropertyFormDialog
+                isOpen={isEditOpen}
+                onClose={() => setIsEditOpen(false)}
+                mode={{ kind: "edit", property }}
+                distributors={distributors}
+            />
         </div>
     )
 }

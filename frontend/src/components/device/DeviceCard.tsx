@@ -1,7 +1,9 @@
+import { useState } from "react"
 import { Link, useParams } from "react-router"
 import { Cpu, Gauge, Tag } from "lucide-react"
 import { cn } from "@/lib/cn"
 import { DeviceMenu } from "@/components/device/DeviceMenu"
+import { DeviceFormDialog } from "@/components/device/DeviceFormDialog"
 import type { Device } from "@/types/device.types"
 
 interface DeviceCardProps {
@@ -31,6 +33,7 @@ interface DeviceCardProps {
  */
 export const DeviceCard = ({ device }: DeviceCardProps) => {
     const { propertyId } = useParams<{ propertyId: string }>()
+    const [isEditOpen, setIsEditOpen] = useState(false)
 
     // Concatena marca + modelo num chip único quando ao menos um existe
     const brandModelLabel = [device.brand, device.model]
@@ -102,7 +105,15 @@ export const DeviceCard = ({ device }: DeviceCardProps) => {
                 )}
             </Link>
 
-            <DeviceMenu device={device} />
+            <DeviceMenu device={device} onEdit={() => setIsEditOpen(true)} />
+
+            {propertyId && (
+                <DeviceFormDialog
+                    isOpen={isEditOpen}
+                    onClose={() => setIsEditOpen(false)}
+                    mode={{ kind: "edit", propertyId, areaId: device.areaId, device }}
+                />
+            )}
         </div>
     )
 }

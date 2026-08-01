@@ -1,5 +1,4 @@
 import { useRef, useState } from "react"
-import { Link } from "react-router"
 import { MoreVertical, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useClickOutside } from "@/lib/hooks/useClickOutside"
@@ -21,6 +20,13 @@ interface PropertyMenuProps {
      */
     showEdit?: boolean
     /**
+     * Callback que abre o modal de edição (PropertyFormDialog, no card
+     * chamador). O item "Editar" só é renderizado quando showEdit E onEdit
+     * estão presentes — sem onEdit, o item some (fail-safe) em vez de virar
+     * link morto (antes de #98, apontava pra rota removida em #97).
+     */
+    onEdit?: () => void
+    /**
      * Callback opcional disparado após exclusão bem-sucedida.
      *
      * Quando o menu é usado na PropertyDetailsPage, depois
@@ -37,7 +43,7 @@ interface PropertyMenuProps {
  * ou no header da página de detalhes.
  *
  * Itens:
- *   - Editar (opcional) — link pra /propriedades/:id/editar
+ *   - Editar (opcional) — chama onEdit (abre PropertyFormDialog no chamador)
  *   - Excluir — abre ConfirmDialog antes de disparar a mutation
  *
  * Diferente de DistributorMenu: Property não tem regra de "tem dependências"
@@ -48,6 +54,7 @@ interface PropertyMenuProps {
 export const PropertyMenu = ({
     property,
     showEdit = true,
+    onEdit,
     onAfterDelete,
 }: PropertyMenuProps) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -87,14 +94,9 @@ export const PropertyMenu = ({
         setIsMenuOpen((prev) => !prev)
     }
 
-    /**
-     * Click no Link "Editar": só fecha o menu (a navegação acontece
-     * naturalmente via React Router). Não precisa preventDefault — queremos
-     * a navegação. Não precisa stopPropagation — o menu fica fora do Link
-     * envolvente do card (em absolute positioning), então o click não bolha.
-     */
     const handleEditClick = () => {
         setIsMenuOpen(false)
+        onEdit?.()
     }
 
     return (
@@ -125,10 +127,10 @@ export const PropertyMenu = ({
                             "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
                         )}
                     >
-                        {showEdit && (
-                            <Link
+                        {showEdit && onEdit && (
+                            <button
+                                type="button"
                                 role="menuitem"
-                                to={`/propriedades/${property.id}/editar`}
                                 onClick={handleEditClick}
                                 className={cn(
                                     "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
@@ -138,7 +140,7 @@ export const PropertyMenu = ({
                             >
                                 <Pencil className="h-4 w-4" aria-hidden="true" />
                                 Editar
-                            </Link>
+                            </button>
                         )}
                         <button
                             type="button"

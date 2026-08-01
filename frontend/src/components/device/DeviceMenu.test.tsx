@@ -44,17 +44,19 @@ const mockDevice: Device = {
 interface RenderOptions {
     device?: Device
     showEdit?: boolean
+    onEdit?: () => void
     onAfterDelete?: () => void
 }
 
 /**
- * Renderiza o menu dentro de uma rota que tem :propertyId. O DeviceMenu
- * usa useParams pra montar o link de edição — sem isso, propertyId vira
+ * Renderiza o menu dentro de uma rota que tem :propertyId. A mutation de
+ * exclusão usa useParams pra pegar o propertyId — sem isso, viraria
  * undefined.
  */
 const renderMenu = ({
     device = mockDevice,
     showEdit,
+    onEdit,
     onAfterDelete,
 }: RenderOptions = {}) => {
     const queryClient = new QueryClient({
@@ -77,6 +79,7 @@ const renderMenu = ({
                             <DeviceMenu
                                 device={device}
                                 showEdit={showEdit}
+                                onEdit={onEdit}
                                 onAfterDelete={onAfterDelete}
                             />
                         }
@@ -141,7 +144,24 @@ describe("DeviceMenu — abrir/fechar", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("DeviceMenu — item Editar", () => {
-    it("renderiza link de editar por default (showEdit=true)", async () => {
+    it("renderiza o item Editar por default quando onEdit é passado (showEdit=true)", async () => {
+        const user = userEvent.setup()
+        const onEdit = vi.fn()
+        renderMenu({ onEdit })
+
+        await user.click(
+            screen.getByRole("button", { name: /opções de Ar-condicionado/i }),
+        )
+
+        const editItem = screen.getByRole("menuitem", { name: /editar/i })
+        expect(editItem).toBeInTheDocument()
+
+        await user.click(editItem)
+        expect(onEdit).toHaveBeenCalledTimes(1)
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument()
+    })
+
+    it("não renderiza o item Editar quando onEdit não é passado (fail-safe)", async () => {
         const user = userEvent.setup()
         renderMenu()
 
@@ -149,17 +169,14 @@ describe("DeviceMenu — item Editar", () => {
             screen.getByRole("button", { name: /opções de Ar-condicionado/i }),
         )
 
-        const editLink = screen.getByRole("menuitem", { name: /editar/i })
-        expect(editLink).toBeInTheDocument()
-        expect(editLink).toHaveAttribute(
-            "href",
-            "/propriedades/prop-1/areas/area-1/devices/device-1/editar",
-        )
+        expect(
+            screen.queryByRole("menuitem", { name: /editar/i }),
+        ).not.toBeInTheDocument()
     })
 
-    it("não renderiza link de editar quando showEdit=false", async () => {
+    it("não renderiza o item Editar quando showEdit=false", async () => {
         const user = userEvent.setup()
-        renderMenu({ showEdit: false })
+        renderMenu({ showEdit: false, onEdit: vi.fn() })
 
         await user.click(
             screen.getByRole("button", { name: /opções de Ar-condicionado/i }),
