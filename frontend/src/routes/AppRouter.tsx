@@ -36,6 +36,10 @@ import { SecurityPage } from "@/pages/settings/SecurityPage"
 
 export const AppRouter = () => (
     <Routes>
+        {/* Rota raiz — sem Landing page ainda (Fase 5 do roadmap); redireciona
+            para /login explicitamente em vez de depender do catch-all. */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
         {/* Documentos legais — acessíveis independente do estado de autenticação
             (precisam ser lidos antes do cadastro, e por usuários já logados). */}
         <Route path="/privacidade" element={<PrivacyPolicyPage />} />

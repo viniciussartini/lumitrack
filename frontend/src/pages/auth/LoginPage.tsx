@@ -93,6 +93,36 @@ export const LoginPage = () => {
                 eyebrow="Painel de energia"
                 headline="Cada kWh sob controle, em tempo real."
                 description="Entre para acompanhar o consumo das suas unidades, comparar propriedades e antecipar o valor da fatura."
+                extra={
+                    // Valores ilustrativos fixos (não é dado real — não há
+                    // sessão/medidor antes do login). Fiel a
+                    // LumiTrack Login.dc.html; pedido explícito do usuário
+                    // após reverter a omissão original desta seção.
+                    <div className="mt-7 flex flex-wrap gap-3.5">
+                        <div className="min-w-[120px] border border-white/22 px-[18px] py-3.5">
+                            <div className="font-heading flex items-center gap-[7px] text-[11px] leading-none font-semibold tracking-[.08em] text-[#e6ecf2]/66 uppercase">
+                                <span
+                                    className="h-2 w-2 rounded-full bg-[#3f8f52]"
+                                    style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
+                                />
+                                Ao vivo
+                            </div>
+                            <div className="font-heading mt-2 text-[30px] leading-none font-semibold font-features-['tnum'_1]">
+                                3,42
+                                <span className="ml-1 text-sm text-[#e6ecf2]/60">kW</span>
+                            </div>
+                        </div>
+                        <div className="min-w-[120px] border border-white/22 px-[18px] py-3.5">
+                            <div className="font-heading text-[11px] leading-none font-semibold tracking-[.08em] text-[#e6ecf2]/66 uppercase">
+                                Bandeira
+                            </div>
+                            <div className="font-heading mt-3 flex items-center gap-[7px] text-xl leading-none font-semibold text-[#8fd0a0]">
+                                <span className="h-[9px] w-[9px] rounded-full bg-[#3f8f52]" />
+                                Verde
+                            </div>
+                        </div>
+                    </div>
+                }
             />
 
             {/* Formulário */}
@@ -149,7 +179,7 @@ export const LoginPage = () => {
                                 <Input
                                     label="Senha"
                                     labelExtra={
-                                        <Link to="/esqueci-senha" className="text-[12.5px]">
+                                        <Link to="/esqueci-senha" className="text-accent-700 text-[12.5px]">
                                             Esqueceu a senha?
                                         </Link>
                                     }
@@ -178,7 +208,7 @@ export const LoginPage = () => {
 
                             <p className="text-muted mt-6 text-center text-sm">
                                 Ainda não tem conta?{" "}
-                                <Link to="/registro" className="font-semibold">
+                                <Link to="/registro" className="text-accent-700 font-semibold">
                                     Criar conta
                                 </Link>
                             </p>

@@ -96,7 +96,7 @@ export const ForgotPasswordPage = () => {
                                 Enviar link de recuperação
                             </Button>
                             <p className="text-muted mt-6 text-center text-sm">
-                                <Link to="/login" className="font-semibold">
+                                <Link to="/login" className="text-accent-700 font-semibold">
                                     ← Voltar para o login
                                 </Link>
                             </p>

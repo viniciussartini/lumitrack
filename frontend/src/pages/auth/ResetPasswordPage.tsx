@@ -161,7 +161,7 @@ export const ResetPasswordPage = () => {
                                 Redefinir senha
                             </Button>
                             <p className="text-muted mt-1 text-center text-sm">
-                                <Link to="/login" className="font-semibold">
+                                <Link to="/login" className="text-accent-700 font-semibold">
                                     ← Voltar para o login
                                 </Link>
                             </p>

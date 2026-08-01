@@ -138,7 +138,7 @@ export const RegisterPage = () => {
                         <span className="font-heading text-muted mb-2.5 block text-[11px] leading-none font-semibold tracking-[.08em] uppercase">
                             Tipo de conta
                         </span>
-                        <div className="flex gap-2.5">
+                        <div className="flex gap-[10px]">
                             <button
                                 type="button"
                                 aria-label="Pessoa Física"
@@ -306,11 +306,11 @@ export const RegisterPage = () => {
                                 />
                                 <span>
                                     Li e concordo com a{" "}
-                                    <Link to="/privacidade" target="_blank">
+                                    <Link to="/privacidade" target="_blank" className="text-accent-700">
                                         Política de Privacidade
                                     </Link>{" "}
                                     e os{" "}
-                                    <Link to="/termos" target="_blank">
+                                    <Link to="/termos" target="_blank" className="text-accent-700">
                                         Termos de Uso
                                     </Link>
                                     .
@@ -340,7 +340,7 @@ export const RegisterPage = () => {
 
                     <p className="text-muted mt-6 text-center text-sm">
                         Já tem conta?{" "}
-                        <Link to="/login" className="font-semibold">
+                        <Link to="/login" className="text-accent-700 font-semibold">
                             Entrar
                         </Link>
                     </p>

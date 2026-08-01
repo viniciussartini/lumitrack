@@ -3,9 +3,18 @@
 /* Fontes e tokens do design system Industry (ver ADR-0005 e
    .claude/project_context/10-design-system.md). industry.css é cópia fiel
    do bundle — não editar tokens/classes lá; mudança de design vem de um
-   novo handoff. */
-@import "./styles/industry-fonts.css";
-@import "./styles/industry.css";
+   novo handoff.
+
+   layer(...) é obrigatório aqui: sem layer, estas regras (ex.: o `a {
+   color: var(--color-accent) }` global do bundle) venceriam QUALQUER
+   utilitária Tailwind, mesmo com especificidade menor — regra do CSS
+   Cascade Layers, estilo sem layer sempre bate estilo com layer. `tailwindcss/
+   index.css` já declara `@layer theme, base, components, utilities;`, então
+   layer(components) cai exatamente entre base e utilities — Tailwind
+   continua podendo sobrescrever as classes do Industry, que é o objetivo
+   do híbrido (tokens/classes do Industry + utilitárias por cima). */
+@import "./styles/industry-fonts.css" layer(base);
+@import "./styles/industry.css" layer(components);
 
 /* Dark mode via atributo data-theme no <html> (ThemeContext.tsx seta;
    convenção do Industry — era classe .dark antes da migração). */
