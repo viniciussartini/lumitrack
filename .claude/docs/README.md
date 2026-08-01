@@ -38,5 +38,6 @@ Decisões arquiteturais relevantes, numeradas sequencialmente a partir do templa
 | `0002-token-storage-cookie-httponly.md` | Cookie `HttpOnly` no canal WEB, Bearer no MOBILE |
 | `0003-mfa-totp-opcional.md` | MFA opcional via TOTP + backup codes |
 | `0004-monolito-modular-por-dominio.md` | Monólito modular por domínio, DI via `createApp(deps)` |
+| `0005-industry-como-design-system.md` | Industry como design system (migração do frontend pendente) |
 
 Um ADR nunca é apagado — se a decisão mudar, crie um novo e marque o antigo como "substituída por". Se a decisão resolve um item de `../project_context/07-decisoes-em-aberto.md`, atualize aquele arquivo.
