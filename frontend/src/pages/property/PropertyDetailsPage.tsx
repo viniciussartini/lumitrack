@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import {
     AlertCircle,
@@ -12,10 +13,12 @@ import {
     Activity,
 } from "lucide-react"
 import { useProperty } from "@/hooks/queries/useProperties"
-import { useDistributor } from "@/hooks/queries/useDistributors"
+import { useDistributor, useDistributors } from "@/hooks/queries/useDistributors"
 import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { PropertyMenu } from "@/components/property/PropertyMenu"
+import { PropertyFormDialog } from "@/components/property/PropertyFormDialog"
+import { AreaFormDialog } from "@/components/area/AreaFormDialog"
 import { cn } from "@/lib/cn"
 import { BILLING_CLASS_LABELS, type Property } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
@@ -58,6 +61,9 @@ export const PropertyDetailsPage = () => {
 
     const propertyQuery = useProperty(id)
     const distributorQuery = useDistributor(propertyQuery.data?.distributorId)
+    // Catálogo completo de distribuidoras — pro select do modal de edição
+    // (distributorQuery acima é só a distribuidora JÁ vinculada, pros chips).
+    const distributorsQuery = useDistributors(1, 31)
 
     // Loading só do primeiro nível (property). Distributor carregando depois
     // não bloqueia a página inteira — mostramos um placeholder local.
@@ -97,6 +103,7 @@ export const PropertyDetailsPage = () => {
                 property={property}
                 distributor={distributor}
                 isDistributorLoading={distributorQuery.isLoading}
+                distributors={distributorsQuery.data?.items ?? []}
                 onAfterDelete={() =>
                     navigate("/propriedades", { replace: true })
                 }
@@ -113,6 +120,7 @@ interface PropertyHeaderCardProps {
     property: Property
     distributor: Distributor | undefined
     isDistributorLoading: boolean
+    distributors: Distributor[]
     onAfterDelete: () => void
 }
 
@@ -120,9 +128,11 @@ const PropertyHeaderCard = ({
     property,
     distributor,
     isDistributorLoading,
+    distributors,
     onAfterDelete,
 }: PropertyHeaderCardProps) => {
     const addressLine = formatAddress(property)
+    const [isEditOpen, setIsEditOpen] = useState(false)
 
     return (
         <div
@@ -158,11 +168,9 @@ const PropertyHeaderCard = ({
 
                 {/* Ações */}
                 <div className="flex shrink-0 items-center gap-2">
-                    <Button asChild variant="secondary" size="sm">
-                        <Link to={`/propriedades/${property.id}/editar`}>
-                            <Pencil className="h-4 w-4" aria-hidden="true" />
-                            Editar propriedade
-                        </Link>
+                    <Button variant="secondary" size="sm" onClick={() => setIsEditOpen(true)}>
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
+                        Editar propriedade
                     </Button>
                     {/*
                         showEdit=false: botão "Editar" explícito acima,
@@ -209,6 +217,13 @@ const PropertyHeaderCard = ({
                     )}
                 </div>
             </div>
+
+            <PropertyFormDialog
+                isOpen={isEditOpen}
+                onClose={() => setIsEditOpen(false)}
+                mode={{ kind: "edit", property }}
+                distributors={distributors}
+            />
         </div>
     )
 }
@@ -298,6 +313,7 @@ interface AreasSectionProps {
  */
 const AreasSection = ({ propertyId }: AreasSectionProps) => {
     const areasQuery = useAreas(propertyId)
+    const [isCreateOpen, setIsCreateOpen] = useState(false)
 
     return (
         <section className="flex flex-col gap-3">
@@ -305,11 +321,9 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                     Áreas
                 </h2>
-                <Button asChild variant="secondary" size="sm">
-                    <Link to={`/propriedades/${propertyId}/areas/nova`}>
-                        <Plus className="h-4 w-4" aria-hidden="true" />
-                        Adicionar área
-                    </Link>
+                <Button variant="secondary" size="sm" onClick={() => setIsCreateOpen(true)}>
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Adicionar área
                 </Button>
             </header>
 
@@ -359,6 +373,12 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
                     ))}
                 </div>
             )}
+
+            <AreaFormDialog
+                isOpen={isCreateOpen}
+                onClose={() => setIsCreateOpen(false)}
+                mode={{ kind: "create", propertyId }}
+            />
         </section>
     )
 }

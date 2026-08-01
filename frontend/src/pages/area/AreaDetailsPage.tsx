@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import {
     AlertCircle,
@@ -13,6 +14,8 @@ import { useProperty } from "@/hooks/queries/useProperties"
 import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { AreaMenu } from "@/components/area/AreaMenu"
+import { AreaFormDialog } from "@/components/area/AreaFormDialog"
+import { DeviceFormDialog } from "@/components/device/DeviceFormDialog"
 import { cn } from "@/lib/cn"
 import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
@@ -139,62 +142,68 @@ const AreaHeaderCard = ({
     property,
     isPropertyLoading,
     onAfterDelete,
-}: AreaHeaderCardProps) => (
-    <div
-        className={cn(
-            "relative rounded-lg border bg-white p-6 shadow-sm",
-            "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
-        )}
-    >
-        {/* Menu ⋯ — absolute, no canto superior direito.
-            showEdit=false porque o botão "Editar área" abaixo já cobre essa
-            ação de forma mais visível. */}
-        <AreaMenu
-            area={area}
-            showEdit={false}
-            onAfterDelete={onAfterDelete}
-        />
+}: AreaHeaderCardProps) => {
+    const [isEditOpen, setIsEditOpen] = useState(false)
 
-        <div className="flex items-start gap-3 pr-10">
-            <div
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-brand-50 dark:bg-brand-500/10"
-                aria-hidden="true"
-            >
-                <LayoutGrid className="h-6 w-6 text-brand-500" />
-            </div>
-            <div className="min-w-0 flex-1">
-                <h1 className="truncate text-2xl font-bold text-slate-900 dark:text-slate-100">
-                    {area.name}
-                </h1>
-                {area.description && (
-                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        {area.description}
-                    </p>
-                )}
-            </div>
-        </div>
-
-        {/* Chip — propriedade pai */}
-        <div className="mt-4 flex flex-wrap gap-2">
-            <PropertyChip
-                property={property}
-                isLoading={isPropertyLoading}
+    return (
+        <div
+            className={cn(
+                "relative rounded-lg border bg-white p-6 shadow-sm",
+                "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
+            )}
+        >
+            {/* Menu ⋯ — absolute, no canto superior direito.
+                showEdit=false porque o botão "Editar área" abaixo já cobre essa
+                ação de forma mais visível. */}
+            <AreaMenu
+                area={area}
+                showEdit={false}
+                onAfterDelete={onAfterDelete}
             />
-        </div>
 
-        {/* Ações */}
-        <div className="mt-6 flex flex-wrap gap-2">
-            <Button asChild variant="secondary" size="sm">
-                <Link
-                    to={`/propriedades/${area.propertyId}/areas/${area.id}/editar`}
+            <div className="flex items-start gap-3 pr-10">
+                <div
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-brand-50 dark:bg-brand-500/10"
+                    aria-hidden="true"
                 >
+                    <LayoutGrid className="h-6 w-6 text-brand-500" />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <h1 className="truncate text-2xl font-bold text-slate-900 dark:text-slate-100">
+                        {area.name}
+                    </h1>
+                    {area.description && (
+                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                            {area.description}
+                        </p>
+                    )}
+                </div>
+            </div>
+
+            {/* Chip — propriedade pai */}
+            <div className="mt-4 flex flex-wrap gap-2">
+                <PropertyChip
+                    property={property}
+                    isLoading={isPropertyLoading}
+                />
+            </div>
+
+            {/* Ações */}
+            <div className="mt-6 flex flex-wrap gap-2">
+                <Button variant="secondary" size="sm" onClick={() => setIsEditOpen(true)}>
                     <Pencil className="h-4 w-4" aria-hidden="true" />
                     Editar área
-                </Link>
-            </Button>
+                </Button>
+            </div>
+
+            <AreaFormDialog
+                isOpen={isEditOpen}
+                onClose={() => setIsEditOpen(false)}
+                mode={{ kind: "edit", propertyId: area.propertyId, area }}
+            />
         </div>
-    </div>
-)
+    )
+}
 
 interface PropertyChipProps {
     property: Property | undefined
@@ -243,6 +252,7 @@ interface DevicesSectionProps {
  */
 const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
     const devicesQuery = useDevices(propertyId, areaId)
+    const [isCreateOpen, setIsCreateOpen] = useState(false)
 
     return (
         <section className="flex flex-col gap-3">
@@ -250,13 +260,9 @@ const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                     Dispositivos
                 </h2>
-                <Button asChild variant="secondary" size="sm">
-                    <Link
-                        to={`/propriedades/${propertyId}/areas/${areaId}/devices/novo`}
-                    >
-                        <Plus className="h-4 w-4" aria-hidden="true" />
-                        Adicionar dispositivo
-                    </Link>
+                <Button variant="secondary" size="sm" onClick={() => setIsCreateOpen(true)}>
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Adicionar dispositivo
                 </Button>
             </header>
 
@@ -309,6 +315,12 @@ const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
                     ))}
                 </div>
             )}
+
+            <DeviceFormDialog
+                isOpen={isCreateOpen}
+                onClose={() => setIsCreateOpen(false)}
+                mode={{ kind: "create", propertyId, areaId }}
+            />
         </section>
     )
 }

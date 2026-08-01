@@ -1,9 +1,9 @@
 import { useState } from "react"
-import { Link } from "react-router"
 import { Plus, Home, AlertCircle } from "lucide-react"
 import { useProperties } from "@/hooks/queries/useProperties"
 import { useDistributors } from "@/hooks/queries/useDistributors"
 import { PropertyCard } from "@/components/property/PropertyCard"
+import { PropertyFormDialog } from "@/components/property/PropertyFormDialog"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Button } from "@/components/ui/Button"
 import { Pagination } from "@/components/ui/Pagination"
@@ -29,6 +29,7 @@ import type { Distributor } from "@/types/distributor.types"
  */
 export const PropertiesPage = () => {
     const [page, setPage] = useState(1)
+    const [isCreateOpen, setIsCreateOpen] = useState(false)
     const propertiesQuery = useProperties(page)
     const distributorsQuery = useDistributors(1, 31)
 
@@ -63,11 +64,9 @@ export const PropertiesPage = () => {
                         Gerencie as propriedades vinculadas à sua conta.
                     </p>
                 </div>
-                <Button asChild>
-                    <Link to="/propriedades/nova">
-                        <Plus className="h-4 w-4" aria-hidden="true" />
-                        Nova propriedade
-                    </Link>
+                <Button onClick={() => setIsCreateOpen(true)}>
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Nova propriedade
                 </Button>
             </div>
 
@@ -84,11 +83,9 @@ export const PropertiesPage = () => {
                     title="Nenhuma propriedade cadastrada"
                     description="Cadastre sua primeira propriedade para começar a monitorar o consumo de energia."
                     action={
-                        <Button asChild>
-                            <Link to="/propriedades/nova">
-                                <Plus className="h-4 w-4" aria-hidden="true" />
-                                Cadastrar primeira propriedade
-                            </Link>
+                        <Button onClick={() => setIsCreateOpen(true)}>
+                            <Plus className="h-4 w-4" aria-hidden="true" />
+                            Cadastrar primeira propriedade
                         </Button>
                     }
                 />
@@ -119,6 +116,13 @@ export const PropertiesPage = () => {
                     />
                 </>
             )}
+
+            <PropertyFormDialog
+                isOpen={isCreateOpen}
+                onClose={() => setIsCreateOpen(false)}
+                mode={{ kind: "create" }}
+                distributors={distributorsQuery.data?.items ?? []}
+            />
         </div>
     )
 }

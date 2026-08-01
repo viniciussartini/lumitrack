@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import {
     AlertCircle,
@@ -15,6 +16,7 @@ import { useArea } from "@/hooks/queries/useAreas"
 import { useProperty } from "@/hooks/queries/useProperties"
 import { Button } from "@/components/ui/Button"
 import { DeviceMenu } from "@/components/device/DeviceMenu"
+import { DeviceFormDialog } from "@/components/device/DeviceFormDialog"
 import { cn } from "@/lib/cn"
 import type { Device } from "@/types/device.types"
 import type { Area } from "@/types/area.types"
@@ -162,6 +164,7 @@ const DeviceHeaderCard = ({
         propertyId: string
         areaId: string
     }>()
+    const [isEditOpen, setIsEditOpen] = useState(false)
 
     const brandModelLabel = [device.brand, device.model]
         .filter(Boolean)
@@ -236,15 +239,19 @@ const DeviceHeaderCard = ({
 
             {/* Ações */}
             <div className="mt-6 flex flex-wrap gap-2">
-                <Button asChild variant="secondary" size="sm">
-                    <Link
-                        to={`/propriedades/${propertyId}/areas/${areaId}/devices/${device.id}/editar`}
-                    >
-                        <Pencil className="h-4 w-4" aria-hidden="true" />
-                        Editar dispositivo
-                    </Link>
+                <Button variant="secondary" size="sm" onClick={() => setIsEditOpen(true)}>
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                    Editar dispositivo
                 </Button>
             </div>
+
+            {propertyId && areaId && (
+                <DeviceFormDialog
+                    isOpen={isEditOpen}
+                    onClose={() => setIsEditOpen(false)}
+                    mode={{ kind: "edit", propertyId, areaId, device }}
+                />
+            )}
         </div>
     )
 }
