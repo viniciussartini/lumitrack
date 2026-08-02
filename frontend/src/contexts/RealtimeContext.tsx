@@ -32,7 +32,7 @@ interface RealtimeProviderProps {
  *
  *   - `reading`      → guardado em estado local por `meterId` (alta
  *     frequência, ~1/s por medidor — não faz sentido como React Query;
- *     `RealTimeCard` lê daqui via `useRealtime()`).
+ *     `MeterSection`/`PropertyDetailsPage` leem daqui via `useRealtime()`).
  *   - `alert-firing` → invalida `alerts.firing`/`alerts.all` (o REST já
  *     resolve status/target; SSE só avisa "algo mudou, refaça a query").
  *   - `notification` → escreve direto no cache de `notifications.list`
@@ -40,7 +40,7 @@ interface RealtimeProviderProps {
  *   - `connected`    → no-op (reservado para indicador visual futuro).
  *
  * Montado uma única vez no `AppShell`, acima do Header e do conteúdo —
- * tanto `NotificationDropdown`/`WarningBadge` quanto `RealTimeCard`
+ * tanto `NotificationDropdown`/`WarningBadge` quanto `MeterSection`
  * consultam este contexto ou o cache do TanStack que ele mantém.
  */
 export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {

@@ -255,12 +255,12 @@ describe("PropertyDetailsPage — header", () => {
         ).toBeInTheDocument()
     })
 
-    it("abre o modal de edição ao clicar em 'Editar propriedade'", async () => {
+    it("abre o modal de edição ao clicar em 'Editar' (header)", async () => {
         const user = userEvent.setup()
         renderPage()
 
         const editButton = await screen.findByRole("button", {
-            name: /editar propriedade/i,
+            name: /^editar$/i,
         })
         await user.click(editButton)
 

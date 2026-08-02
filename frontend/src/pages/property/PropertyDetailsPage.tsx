@@ -1,59 +1,60 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
+import { useQueries } from "@tanstack/react-query"
 import {
     AlertCircle,
     ArrowLeft,
-    Gauge,
     Home,
     LayoutGrid,
     MapPin,
     Pencil,
     Plus,
-    Zap,
-    Activity,
 } from "lucide-react"
 import { useProperty } from "@/hooks/queries/useProperties"
 import { useDistributor, useDistributors } from "@/hooks/queries/useDistributors"
+import { useAreas } from "@/hooks/queries/useAreas"
+import { useMeterByTarget } from "@/hooks/queries/useMeters"
+import { useRealtime } from "@/contexts/RealtimeContext"
 import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
+import { Tag } from "@/components/ui/Tag"
 import { PropertyMenu } from "@/components/property/PropertyMenu"
 import { PropertyFormDialog } from "@/components/property/PropertyFormDialog"
 import { AreaFormDialog } from "@/components/area/AreaFormDialog"
-import { cn } from "@/lib/cn"
-import { BILLING_CLASS_LABELS, type Property } from "@/types/property.types"
-import type { Distributor } from "@/types/distributor.types"
-import { useAreas } from "@/hooks/queries/useAreas"
 import { AreaCard } from "@/components/area/AreaCard"
 import { PropertyConsumptionSection } from "@/components/consumption/ConsumptionSection"
 import { MeterSection } from "@/components/meter/MeterSection"
+import { consumptionService } from "@/services/consumption.service"
+import { queryKeys } from "@/lib/queryClient"
+import { formatPowerKw, formatKwhPrice, formatBrl } from "@/lib/format"
+import { formatKwh, formatCostBrl } from "@/lib/formatters/consumption"
+import {
+    BILLING_CLASS_LABELS,
+    ELECTRICAL_SYSTEM_LABELS,
+    type Property,
+} from "@/types/property.types"
+import type { Distributor } from "@/types/distributor.types"
+import type { Area } from "@/types/area.types"
+import type { ConsumptionBucket } from "@/types/consumption.types"
 
 /**
- * Página de detalhes de uma propriedade.
+ * Página de detalhes de uma propriedade — LumiTrack Home.dc.html,
+ * `propDetailView`.
  *
  * Estrutura:
  *   1. Breadcrumb / voltar
- *   2. Header em card destacado: nome + endereço + chips com dados da
- *      distribuidora vinculada + ações (Editar / ⋯)
- *   3. Seção de Áreas — EmptyState com botão desabilitado "Adicionar área"
- *      ou grid de card de áreas.
- *   4. Seção de Consumo — registros agregados desta propriedade (com filtro por período)
- *   5. Seção de Alertas — limites de consumo configurados
+ *   2. Header em blueprint: nome + endereço + tags (distribuidora/UF/TUSD/TE,
+ *      sistema/faturamento/CIP) + ações (Editar / ⋯)
+ *   3. KPI "Potência agora" (só quando há medidor com leitura real — sem
+ *      inventar dado; ver 07-decisoes-em-aberto / ADR sobre os KPIs
+ *      omitidos nesta issue: Consumo hoje, Custo projetado, Bandeira)
+ *   4. Seção de Medidor
+ *   5. Seção de Consumo (histórico real — ocupa o lugar do gráfico "ao vivo"
+ *      bespoke do protótipo, que foi omitido por não ter dado/lógica real)
+ *   6. Seção de Áreas (grid + comparação de áreas por consumo do mês)
  *
- * Carrega DUAS queries em sequência:
- *   - useProperty(id): a propriedade (precisa pra saber o distributorId)
- *   - useDistributor(propertyData?.distributorId): a distribuidora vinculada
- *
- * O `enabled` do useDistributor (que checa `Boolean(id)`) garante que a
- * segunda query só dispara quando a primeira resolve. Sem useEffect,
- * sem race conditions.
- *
- * Estados visuais:
- *   - Loading inicial (property carregando) → skeleton
- *   - Erro ao carregar property → ErrorState
- *   - Property carregada mas distributor com erro → mostra a página com
- *     fallback "Distribuidora não disponível" no header (não é erro fatal:
- *     a propriedade existe, só perdemos um dado complementar)
- *   - Sucesso → renderiza header + seção de áreas
+ * Carrega as queries em paralelo — `enabled`/`targetId` opcional em cada
+ * hook evita disparos fadados ao erro antes do id resolver.
  */
 export const PropertyDetailsPage = () => {
     const { id } = useParams<{ id: string }>()
@@ -62,8 +63,22 @@ export const PropertyDetailsPage = () => {
     const propertyQuery = useProperty(id)
     const distributorQuery = useDistributor(propertyQuery.data?.distributorId)
     // Catálogo completo de distribuidoras — pro select do modal de edição
-    // (distributorQuery acima é só a distribuidora JÁ vinculada, pros chips).
+    // (distributorQuery acima é só a distribuidora JÁ vinculada, pras tags).
     const distributorsQuery = useDistributors(1, 31)
+    // KPI "Potência agora" — mesma fonte que MeterSection usa internamente
+    // (useMeterByTarget dedupe via cache do TanStack Query, sem query extra
+    // de verdade) + useRealtime (SSE) pra leitura ao vivo.
+    const meterQuery = useMeterByTarget("PROPERTY", id)
+    const { readingsByMeterId } = useRealtime()
+    // Estado (não Date.now() direto) pra recalcular a "idade" da leitura
+    // periodicamente sem violar a regra de pureza de render — mesmo padrão
+    // de MeterSection.tsx.
+    const [now, setNow] = useState(() => Date.now())
+
+    useEffect(() => {
+        const interval = setInterval(() => setNow(Date.now()), 2_000)
+        return () => clearInterval(interval)
+    }, [])
 
     // Loading só do primeiro nível (property). Distributor carregando depois
     // não bloqueia a página inteira — mostramos um placeholder local.
@@ -94,6 +109,10 @@ export const PropertyDetailsPage = () => {
 
     const property = propertyQuery.data
     const distributor = distributorQuery.data
+    const meter = meterQuery.data
+    const reading = meter ? readingsByMeterId[meter.id] : undefined
+    const isReadingStale =
+        !reading || now - new Date(reading.receivedAt).getTime() > 10_000
 
     return (
         <div className="flex flex-col gap-6">
@@ -109,9 +128,33 @@ export const PropertyDetailsPage = () => {
                 }
             />
 
-            <AreasSection  propertyId={property.id} />
+            {meter && (
+                <div className="blueprint w-fit min-w-[220px] px-5 py-[18px]">
+                    <i className="corner tl" />
+                    <i className="corner tr" />
+                    <i className="corner bl" />
+                    <i className="corner br" />
+                    <div className="font-heading flex items-center gap-2 text-[11px] font-semibold tracking-[.07em] uppercase">
+                        <span
+                            className="h-2 w-2 rounded-full bg-[#3f8f52]"
+                            style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
+                            aria-hidden="true"
+                        />
+                        Potência agora
+                    </div>
+                    <div className="font-heading mt-2.5 text-[30px] leading-none font-semibold font-features-['tnum'_1]">
+                        {!isReadingStale && reading ? (
+                            formatPowerKw(reading.powerW)
+                        ) : (
+                            <span className="text-muted">—</span>
+                        )}
+                    </div>
+                </div>
+            )}
+
             <MeterSection targetType="PROPERTY" targetId={property.id} />
             <PropertyConsumptionSection propertyId={property.id} />
+            <AreasSection propertyId={property.id} />
         </div>
     )
 }
@@ -135,31 +178,28 @@ const PropertyHeaderCard = ({
     const [isEditOpen, setIsEditOpen] = useState(false)
 
     return (
-        <div
-            className={cn(
-                "rounded-lg border bg-white p-6 shadow-sm",
-                "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
-            )}
-        >
+        <div className="blueprint p-[26px]">
+            <i className="corner tl" />
+            <i className="corner tr" />
+            <i className="corner bl" />
+            <i className="corner br" />
+
             {/* Linha superior: ícone + título/endereço + ações */}
             <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="flex min-w-0 items-start gap-3">
-                    <div
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-brand-50 dark:bg-brand-500/10"
+                <div className="flex min-w-0 items-start gap-[15px]">
+                    <span
+                        className="border-accent text-accent flex h-[52px] w-[52px] shrink-0 items-center justify-center border-[1.5px]"
                         aria-hidden="true"
                     >
-                        <Home className="h-6 w-6 text-brand-500" />
-                    </div>
+                        <Home className="h-[26px] w-[26px]" strokeWidth={1.5} />
+                    </span>
                     <div className="min-w-0">
-                        <h1 className="truncate text-2xl font-bold text-slate-900 dark:text-slate-100">
+                        <h1 className="font-heading truncate text-[clamp(24px,2.6vw,32px)] leading-none font-semibold uppercase">
                             {property.name}
                         </h1>
                         {addressLine && (
-                            <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-400">
-                                <MapPin
-                                    className="h-4 w-4 shrink-0"
-                                    aria-hidden="true"
-                                />
+                            <p className="text-muted mt-2 flex items-center gap-1.5 text-sm">
+                                <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                                 <span className="truncate">{addressLine}</span>
                             </p>
                         )}
@@ -170,7 +210,7 @@ const PropertyHeaderCard = ({
                 <div className="flex shrink-0 items-center gap-2">
                     <Button variant="secondary" size="sm" onClick={() => setIsEditOpen(true)}>
                         <Pencil className="h-4 w-4" aria-hidden="true" />
-                        Editar propriedade
+                        Editar
                     </Button>
                     {/*
                         showEdit=false: botão "Editar" explícito acima,
@@ -186,34 +226,28 @@ const PropertyHeaderCard = ({
                 </div>
             </div>
 
-            {/* Chips com dados da distribuidora */}
-            <div className="mt-5 border-t border-slate-200 pt-4 dark:border-slate-800">
-                <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            {/* Tags — distribuidora vinculada */}
+            <div className="border-divider mt-[22px] border-t pt-[18px]">
+                <div className="font-heading text-muted mb-3 text-[11px] font-semibold tracking-[.08em] uppercase">
                     Distribuidora vinculada
-                </h2>
-                <DistributorChips
-                    distributor={distributor}
-                    isLoading={isDistributorLoading}
-                />
+                </div>
+                <DistributorTags distributor={distributor} isLoading={isDistributorLoading} />
             </div>
 
-            {/* Chips com o faturamento da própria propriedade (Fase 1: migrou
-                da distribuidora — sistema elétrico, classe, CIP) */}
-            <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-800">
-                <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            {/* Tags — faturamento da própria propriedade */}
+            <div className="border-divider mt-[18px] border-t pt-[18px]">
+                <div className="font-heading text-muted mb-3 text-[11px] font-semibold tracking-[.08em] uppercase">
                     Faturamento
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                    <Chip
-                        icon={Activity}
-                        label={formatElectricalSystem(property.electricalSystem)}
-                    />
-                    <Chip icon={Gauge} label={BILLING_CLASS_LABELS[property.billingClass]} />
+                </div>
+                <div className="flex flex-wrap gap-[9px]">
+                    <Tag variant="outline">
+                        {ELECTRICAL_SYSTEM_LABELS[property.electricalSystem]}
+                    </Tag>
+                    <Tag variant="outline">{BILLING_CLASS_LABELS[property.billingClass]}</Tag>
                     {property.publicLightingFeeBrl !== null && (
-                        <Chip
-                            icon={Zap}
-                            label={`CIP: ${formatBrl(property.publicLightingFeeBrl)}`}
-                        />
+                        <Tag variant="outline">
+                            CIP: {formatBrl(property.publicLightingFeeBrl)}
+                        </Tag>
                     )}
                 </div>
             </div>
@@ -228,73 +262,39 @@ const PropertyHeaderCard = ({
     )
 }
 
-interface DistributorChipsProps {
+interface DistributorTagsProps {
     distributor: Distributor | undefined
     isLoading: boolean
 }
 
-const DistributorChips = ({
-    distributor,
-    isLoading,
-}: DistributorChipsProps) => {
+const DistributorTags = ({ distributor, isLoading }: DistributorTagsProps) => {
     if (isLoading) {
         return (
             <div
-                className="flex flex-wrap gap-2"
+                className="flex flex-wrap gap-[9px]"
                 aria-busy="true"
                 aria-label="Carregando dados da distribuidora"
             >
                 {[0, 1, 2, 3].map((i) => (
-                    <div
-                        key={i}
-                        className="h-8 w-32 animate-pulse rounded-full bg-slate-200 dark:bg-slate-800"
-                    />
+                    <div key={i} className="bg-divider h-6 w-24 animate-pulse" />
                 ))}
             </div>
         )
     }
 
     if (!distributor) {
-        return (
-            <p className="text-sm italic text-slate-500 dark:text-slate-400">
-                Distribuidora não disponível
-            </p>
-        )
+        return <p className="text-muted text-sm italic">Distribuidora não disponível</p>
     }
 
     return (
-        <div className="flex flex-wrap gap-2">
-            <Chip icon={Zap} label={distributor.name} variant="brand" />
-            <Chip icon={MapPin} label={distributor.state} />
-            <Chip icon={Zap} label={`TUSD ${formatBrl(distributor.tusdPerKwh)}/kWh`} />
-            <Chip icon={Zap} label={`TE ${formatBrl(distributor.tePerKwh)}/kWh`} />
+        <div className="flex flex-wrap gap-[9px]">
+            <Tag variant="accent" className="font-semibold">
+                {distributor.name}
+            </Tag>
+            <Tag variant="neutral">{distributor.state}</Tag>
+            <Tag variant="neutral">TUSD {formatKwhPrice(distributor.tusdPerKwh)}</Tag>
+            <Tag variant="neutral">TE {formatKwhPrice(distributor.tePerKwh)}</Tag>
         </div>
-    )
-}
-
-interface ChipProps {
-    icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>
-    label: string
-    /** "brand" usa as cores de destaque (verde do brand); default usa cinza neutro */
-    variant?: "brand" | "default"
-}
-
-const Chip = ({ icon: Icon, label, variant = "default" }: ChipProps) => {
-    const styles =
-        variant === "brand"
-            ? "bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300"
-            : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-
-    return (
-        <span
-            className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium",
-                styles,
-            )}
-        >
-            <Icon className="h-3.5 w-3.5" aria-hidden />
-            <span className="max-w-70 truncate">{label}</span>
-        </span>
     )
 }
 
@@ -303,74 +303,174 @@ interface AreasSectionProps {
 }
 
 /**
- * Lista as áreas da propriedade.
+ * Lista as áreas da propriedade + comparação de consumo entre elas.
  *
- * Estados:
- *   - Loading: skeleton
- *   - Erro: mensagem inline (não fatal — header e demais seções continuam)
- *   - Vazio: EmptyState com botão desabilitado "Adicionar área"
- *   - Com áreas: grid de AreaCards
+ * O consumo mensal por área (usado tanto no kWh/mês de cada AreaCard quanto
+ * nas barras de comparação) é buscado UMA vez aqui via `useQueries` — uma
+ * query por área, dinâmica conforme a lista carrega. `useQueries` (não N
+ * chamadas de `useConsumption` em loop) é o jeito correto de disparar um
+ * número variável de queries sem violar a regra de hooks.
+ *
+ * Sem medidor na área, a chamada de consumo 404 — capturado e tratado como
+ * "sem dado" (null), não como erro: não é uma falha, é uma área que ainda
+ * não tem leitura pra comparar.
  */
 const AreasSection = ({ propertyId }: AreasSectionProps) => {
     const areasQuery = useAreas(propertyId)
     const [isCreateOpen, setIsCreateOpen] = useState(false)
+    const [comparisonUnit, setComparisonUnit] = useState<"kwh" | "reais">("kwh")
+    const areas = areasQuery.data?.items ?? []
+
+    const consumptionQueries = useQueries({
+        queries: areas.map((area) => ({
+            queryKey: queryKeys.consumption.list("AREA", area.id, "month", 1, 3),
+            queryFn: async (): Promise<ConsumptionBucket | null> => {
+                try {
+                    const res = await consumptionService.list({
+                        targetType: "AREA",
+                        targetId: area.id,
+                        granularity: "month",
+                        page: 1,
+                        pageSize: 3,
+                    })
+                    if (res.items.length === 0) return null
+                    return res.items.reduce((latest, bucket) =>
+                        new Date(bucket.bucketStart) > new Date(latest.bucketStart)
+                            ? bucket
+                            : latest,
+                    )
+                } catch {
+                    return null
+                }
+            },
+        })),
+    })
+
+    const comparisonRows = areas
+        .map((area, i) => ({ area, bucket: consumptionQueries[i]?.data }))
+        .filter(
+            (row): row is { area: Area; bucket: ConsumptionBucket } =>
+                row.bucket != null,
+        )
 
     return (
-        <section className="flex flex-col gap-3">
-            <header className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                    Áreas
-                </h2>
-                <Button variant="secondary" size="sm" onClick={() => setIsCreateOpen(true)}>
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                    Adicionar área
-                </Button>
-            </header>
+        <section className="flex flex-col gap-4">
+            <div className="blueprint">
+                <i className="corner tl" />
+                <i className="corner tr" />
+                <i className="corner bl" />
+                <i className="corner br" />
 
-            {areasQuery.isLoading && <AreasSkeleton />}
-
-            {areasQuery.isError && (
-                <div
-                    role="alert"
-                    className={cn(
-                        "flex items-start gap-3 rounded-lg border p-4",
-                        "border-red-200 bg-red-50 text-red-900",
-                        "dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200",
-                    )}
-                >
-                    <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
-                    <p className="text-sm">
-                        {areasQuery.error instanceof Error
-                            ? areasQuery.error.message
-                            : "Não foi possível carregar as áreas."}
-                    </p>
-                </div>
-            )}
-
-            {areasQuery.isSuccess && areasQuery.data.items.length === 0 && (
-                <>
-                    <EmptyState
-                        icon={LayoutGrid}
-                        title="Nenhuma área cadastrada"
-                        description="O cadastro de áreas estará disponível em breve. Por aqui você poderá organizar dispositivos por cômodo, setor ou unidade."
-                    />
-                    <p
-                        className="text-center text-xs italic text-slate-500 dark:text-slate-400"
-                        data-testid="areas-coming-soon"
+                <div className="border-divider flex items-center justify-between border-b px-5 py-4">
+                    <h2 className="font-heading text-[17px] font-semibold uppercase">
+                        Áreas
+                    </h2>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setIsCreateOpen(true)}
+                        className="min-h-9 text-[13px]"
                     >
-                        Em breve
-                    </p>
-                </>
-            )}
+                        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                        Adicionar área
+                    </Button>
+                </div>
 
-            {areasQuery.isSuccess && areasQuery.data.items.length > 0 && (
-                <div
-                    className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
-                    data-testid="areas-grid"
-                >
-                    {areasQuery.data.items.map((area) => (
-                        <AreaCard key={area.id} area={area} />
-                    ))}
+                <div className="px-5 py-4">
+                    {areasQuery.isLoading && <AreasSkeleton />}
+
+                    {areasQuery.isError && (
+                        <div
+                            role="alert"
+                            className="border-status-danger/40 flex items-start gap-3 border p-4"
+                        >
+                            <AlertCircle
+                                className="text-status-danger h-5 w-5 shrink-0"
+                                aria-hidden="true"
+                            />
+                            <p className="text-status-danger/85 text-sm">
+                                {areasQuery.error instanceof Error
+                                    ? areasQuery.error.message
+                                    : "Não foi possível carregar as áreas."}
+                            </p>
+                        </div>
+                    )}
+
+                    {areasQuery.isSuccess && areas.length === 0 && (
+                        <>
+                            <EmptyState
+                                icon={LayoutGrid}
+                                title="Nenhuma área cadastrada"
+                                description="O cadastro de áreas estará disponível em breve. Por aqui você poderá organizar dispositivos por cômodo, setor ou unidade."
+                            />
+                            <p
+                                className="text-muted mt-3 text-center text-xs italic"
+                                data-testid="areas-coming-soon"
+                            >
+                                Em breve
+                            </p>
+                        </>
+                    )}
+
+                    {areasQuery.isSuccess && areas.length > 0 && (
+                        <div
+                            className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3"
+                            data-testid="areas-grid"
+                        >
+                            {areas.map((area, i) => (
+                                <AreaCard
+                                    key={area.id}
+                                    area={area}
+                                    monthlyConsumption={consumptionQueries[i]?.data}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {comparisonRows.length > 0 && (
+                <div className="blueprint">
+                    <i className="corner tl" />
+                    <i className="corner tr" />
+                    <i className="corner bl" />
+                    <i className="corner br" />
+
+                    <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
+                        <div>
+                            <span className="font-heading text-[17px] font-semibold uppercase">
+                                Comparação de áreas
+                            </span>
+                            <span className="text-muted mt-[3px] block text-[12.5px]">
+                                Consumo por área neste mês (
+                                {comparisonUnit === "kwh" ? "kWh" : "R$"})
+                            </span>
+                        </div>
+                        <div role="group" aria-label="Unidade de comparação" className="flex gap-1.5">
+                            <button
+                                type="button"
+                                className="lt-selbtn"
+                                data-on={comparisonUnit === "kwh"}
+                                aria-pressed={comparisonUnit === "kwh"}
+                                onClick={() => setComparisonUnit("kwh")}
+                            >
+                                kWh
+                            </button>
+                            <button
+                                type="button"
+                                className="lt-selbtn"
+                                data-on={comparisonUnit === "reais"}
+                                aria-pressed={comparisonUnit === "reais"}
+                                onClick={() => setComparisonUnit("reais")}
+                            >
+                                R$
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="px-5 pt-2 pb-5">
+                        <AreaComparisonBars rows={comparisonRows} unit={comparisonUnit} />
+                    </div>
                 </div>
             )}
 
@@ -383,20 +483,54 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
     )
 }
 
+interface AreaComparisonBarsProps {
+    rows: { area: Area; bucket: ConsumptionBucket }[]
+    unit: "kwh" | "reais"
+}
+
+const AreaComparisonBars = ({ rows, unit }: AreaComparisonBarsProps) => {
+    const values = rows.map((row) =>
+        unit === "reais" ? row.bucket.costBrl : row.bucket.kwhConsumed,
+    )
+    const max = Math.max(...values, 1)
+
+    return (
+        <div className="flex flex-col">
+            {rows.map((row, i) => {
+                const value = values[i]!
+                const pct = (value / max) * 100
+                return (
+                    <div key={row.area.id} className="border-divider border-b py-3 last:border-b-0">
+                        <div className="mb-[7px] flex items-baseline justify-between">
+                            <span className="text-[13.5px]">{row.area.name}</span>
+                            <span className="font-heading text-[17px] font-semibold font-features-['tnum'_1]">
+                                {unit === "reais" ? formatCostBrl(value) : `${formatKwh(value)} kWh`}
+                            </span>
+                        </div>
+                        <div className="bg-divider h-2.5">
+                            <div
+                                className="h-full"
+                                style={{
+                                    width: `${pct}%`,
+                                    background: unit === "reais" ? "#d98a1e" : "#5980a6",
+                                }}
+                            />
+                        </div>
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
+
 const AreasSkeleton = () => (
     <div
-        className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+        className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3"
         aria-busy="true"
         aria-label="Carregando áreas"
     >
         {[0, 1, 2].map((i) => (
-            <div
-                key={i}
-                className={cn(
-                    "h-28 animate-pulse rounded-lg border bg-white",
-                    "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
-                )}
-            />
+            <div key={i} className="border-divider h-28 animate-pulse border" />
         ))}
     </div>
 )
@@ -406,11 +540,7 @@ const AreasSkeleton = () => (
 const BackLink = () => (
     <Link
         to="/propriedades"
-        className={cn(
-            "inline-flex w-fit items-center gap-1 text-sm",
-            "text-slate-600 hover:text-slate-900",
-            "dark:text-slate-400 dark:hover:text-slate-200",
-        )}
+        className="text-muted hover:text-text inline-flex w-fit items-center gap-1.5 text-sm"
     >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Voltar para propriedades
@@ -419,13 +549,13 @@ const BackLink = () => (
 
 const DetailsSkeleton = () => (
     <div
-        className={cn(
-            "h-72 animate-pulse rounded-lg border bg-white p-6",
-            "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
-        )}
+        className="blueprint h-72 p-6"
         aria-busy="true"
         aria-label="Carregando dados da propriedade"
-    />
+    >
+        <div className="bg-divider h-8 w-1/3 animate-pulse" />
+        <div className="bg-divider mt-4 h-4 w-1/2 animate-pulse" />
+    </div>
 )
 
 interface ErrorStateProps {
@@ -435,22 +565,14 @@ interface ErrorStateProps {
 const ErrorState = ({ message }: ErrorStateProps) => (
     <div
         role="alert"
-        className={cn(
-            "flex flex-col items-center justify-center gap-4 rounded-lg border border-red-200 bg-red-50 py-12 text-center",
-            "dark:border-red-900 dark:bg-red-950/30",
-        )}
+        className="border-status-danger/40 flex flex-col items-center justify-center gap-4 border py-12 text-center"
     >
-        <AlertCircle
-            className="h-8 w-8 text-red-500 dark:text-red-400"
-            aria-hidden="true"
-        />
+        <AlertCircle className="text-status-danger h-8 w-8" aria-hidden="true" />
         <div>
-            <h3 className="font-semibold text-red-900 dark:text-red-200">
+            <h3 className="font-heading text-status-danger font-semibold uppercase">
                 Não foi possível carregar
             </h3>
-            <p className="mt-1 text-sm text-red-700 dark:text-red-300">
-                {message}
-            </p>
+            <p className="text-status-danger/85 mt-1 text-sm">{message}</p>
         </div>
         <Button asChild variant="secondary">
             <Link to="/propriedades">Voltar para a lista</Link>
@@ -475,29 +597,3 @@ const formatAddress = (property: Property): string | null => {
 
     return parts.length > 0 ? parts.join(", ") : null
 }
-
-/**
- * Traduz o enum ElectricalSystem (do backend) pra label em português.
- * MONOPHASIC | BIPHASIC | TRIPHASIC.
- */
-const formatElectricalSystem = (system: string): string => {
-    const map: Record<string, string> = {
-        MONOPHASIC: "Monofásico",
-        BIPHASIC: "Bifásico",
-        TRIPHASIC: "Trifásico",
-    }
-    return map[system] ?? system
-}
-
-/**
- * Formata número em Real brasileiro (R$ 0,75).
- *
- * Não reusa a versão de lib/format.ts porque é uma necessidade pontual.
- */
-const formatBrl = (value: number): string =>
-    value.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 4,
-    })

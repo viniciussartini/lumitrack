@@ -1,17 +1,27 @@
 import { useState } from "react"
 import { Link } from "react-router"
 import { LayoutGrid } from "lucide-react"
-import { cn } from "@/lib/cn"
 import { AreaMenu } from "@/components/area/AreaMenu"
 import { AreaFormDialog } from "@/components/area/AreaFormDialog"
+import { formatKwh } from "@/lib/formatters/consumption"
 import type { Area } from "@/types/area.types"
+import type { ConsumptionBucket } from "@/types/consumption.types"
 
 interface AreaCardProps {
     area: Area
+    /**
+     * Bucket de consumo do mês atual — `undefined` enquanto carrega,
+     * `null` quando a área não tem medidor vinculado (sem dado real pra
+     * mostrar, então a linha de kWh/mês some em vez de fabricar um valor).
+     * Resolvido pelo pai (`AreasSection`) via `useQueries`, um por área.
+     */
+    monthlyConsumption?: ConsumptionBucket | null
 }
 
 /**
- * Card de área.
+ * Card de área — LumiTrack Home.dc.html, bloco "Áreas" da propDetailView
+ * (card minimalista: só borda, sem `.blueprint`/corners, diferente do card
+ * de propriedade da listagem).
  *
  * Comportamento:
  *   - Click no card → /propriedades/:propertyId/areas/:areaId (detalhes)
@@ -26,40 +36,41 @@ interface AreaCardProps {
  * próprio invalidate da query no hook re-renderiza o pai (PropertyDetailsPage)
  * sem o card removido. Não há rota a navegar.
  */
-export const AreaCard = ({ area }: AreaCardProps) => {
+export const AreaCard = ({ area, monthlyConsumption }: AreaCardProps) => {
     const [isEditOpen, setIsEditOpen] = useState(false)
 
     return (
         <div className="relative">
             <Link
                 to={`/propriedades/${area.propertyId}/areas/${area.id}`}
-                className={cn(
-                    "group flex flex-col gap-3 rounded-lg border bg-white p-5 transition",
-                    "border-slate-200 hover:border-brand-500 hover:shadow-md",
-                    "dark:border-slate-800 dark:bg-slate-900 dark:hover:border-brand-500",
-                )}
+                className="border-divider flex flex-col gap-3 border p-4"
                 data-testid={`area-card-${area.id}`}
             >
-                {/* pr-10 reserva o espaço onde o AreaMenu fica em absolute */}
-                <div className="flex items-start gap-3 pr-10">
-                    <div
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-50 dark:bg-brand-500/10"
+                {/* pr-8 reserva o espaço onde o AreaMenu fica em absolute */}
+                <div className="flex items-center gap-2.5 pr-8">
+                    <span
+                        className="border-accent text-accent flex h-8 w-8 shrink-0 items-center justify-center border"
                         aria-hidden="true"
                     >
-                        <LayoutGrid className="h-5 w-5 text-brand-500" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                        <h3 className="truncate font-semibold text-slate-900 dark:text-slate-100">
-                            {area.name}
-                        </h3>
-                    </div>
+                        <LayoutGrid className="h-4 w-4" strokeWidth={1.5} />
+                    </span>
+                    <h3 className="min-w-0 truncate text-sm font-semibold">{area.name}</h3>
                 </div>
 
-                {/* Descrição — opcional. line-clamp-2 evita cards muito altos */}
+                {/* Descrição — opcional, não está no protótipo (que não modela esse
+                    campo), mas é dado real do usuário — mantida, sem inventar layout,
+                    só encaixada como linha auxiliar acima do kWh/mês. */}
                 {area.description && (
-                    <p className="line-clamp-2 text-sm text-slate-600 dark:text-slate-400">
-                        {area.description}
-                    </p>
+                    <p className="text-muted line-clamp-2 text-xs">{area.description}</p>
+                )}
+
+                {monthlyConsumption !== undefined && monthlyConsumption !== null && (
+                    <div className="font-heading text-[22px] leading-none font-semibold font-features-['tnum'_1]">
+                        {formatKwh(monthlyConsumption.kwhConsumed)}
+                        <span className="text-muted ml-[3px] text-[13px] font-normal normal-case">
+                            kWh/mês
+                        </span>
+                    </div>
                 )}
             </Link>
 
