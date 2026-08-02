@@ -252,18 +252,15 @@ test.describe("Fluxo CRUD de propriedades", () => {
         ).not.toBeVisible()
     })
 
-    test("sem distribuidora cadastrada, o modal abre mas o submit é bloqueado por validação", async ({
+    test("bloqueia criação de propriedade quando não há distribuidora cadastrada", async ({
         page,
     }) => {
-        // A antiga NewPropertyPage bloqueava a criação inteira com um
-        // EmptyState ("catálogo de distribuidoras indisponível") quando o
-        // catálogo estava vazio — esse guard não existe mais: PropertyForm
-        // (usado dentro do modal desde #97) sempre renderiza o form, com o
-        // select de distribuidora vazio (só a opção desabilitada
-        // "Selecione"). O usuário só descobre o problema ao submeter, via a
-        // validação client-side normal do campo obrigatório. Gap real de
-        // comportamento, fora do escopo de #102 (reescrita de teste, não de
-        // feature) — documentado aqui e no CHANGELOG.
+        // A antiga NewPropertyPage bloqueava a criação inteira com um guard
+        // ("catálogo de distribuidoras indisponível") quando o catálogo
+        // estava vazio — esse guard tinha ficado pra trás quando a criação
+        // virou modal em #97 (achado durante #102, restaurado nesta
+        // branch): PropertyFormDialog agora mostra o mesmo guard dentro do
+        // modal em vez do PropertyForm, no modo "create".
         await mockAppShellBackground(page)
         await setupAuth(page)
         await page.route(/\/api\/properties(\?.*)?$/, (route) => {
@@ -288,19 +285,15 @@ test.describe("Fluxo CRUD de propriedades", () => {
         })
         await expect(createDialog).toBeVisible()
 
-        // O form renderiza normalmente — só não há opção de distribuidora
-        // além do placeholder desabilitado.
-        await expect(page.getByLabel(/nome da propriedade/i)).toBeVisible()
-        const distributorSelect = page.getByLabel(/distribuidora vinculada/i)
-        await expect(distributorSelect.getByRole("option")).toHaveCount(1)
-
-        await page.getByLabel(/nome da propriedade/i).fill("Sítio")
-        await page.getByRole("button", { name: /criar propriedade/i }).click()
-
         await expect(
-            page.getByText(/selecione uma distribuidora/i),
+            createDialog.getByText(/catálogo de distribuidoras indisponível/i),
         ).toBeVisible()
-        // Continua no modal — não foi possível submeter
-        await expect(createDialog).toBeVisible()
+        await expect(
+            createDialog.getByRole("link", {
+                name: /ver catálogo de distribuidoras/i,
+            }),
+        ).toHaveAttribute("href", "/distribuidoras")
+        // O form não renderiza quando o catálogo está vazio
+        await expect(page.getByLabel(/nome da propriedade/i)).not.toBeVisible()
     })
 })

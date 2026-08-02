@@ -128,6 +128,7 @@ export const PropertiesPage = () => {
                 onClose={() => setIsCreateOpen(false)}
                 mode={{ kind: "create" }}
                 distributors={distributorsQuery.data?.items ?? []}
+                isDistributorsLoading={distributorsQuery.isLoading}
             />
         </div>
     )

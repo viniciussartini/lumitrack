@@ -1,4 +1,7 @@
+import { Link } from "react-router"
+import { Zap } from "lucide-react"
 import { toast } from "sonner"
+import { Button } from "@/components/ui/Button"
 import { FormDialog } from "@/components/ui/FormDialog"
 import { PropertyForm } from "@/components/property/PropertyForm"
 import { useCreateProperty, useUpdateProperty } from "@/hooks/queries/usePropertyMutations"
@@ -15,6 +18,15 @@ interface PropertyFormDialogProps {
     mode: DialogMode
     /** Catálogo de distribuidoras pro select — carregado pela página chamadora. */
     distributors: Distributor[]
+    /**
+     * Só relevante no modo "create" — enquanto a query de distribuidoras da
+     * página chamadora ainda não resolveu, `distributors` chega vazio por
+     * estar carregando, não por estar vazio de verdade. Sem essa distinção,
+     * o guard de catálogo vazio (abaixo) apareceria num falso-positivo se o
+     * usuário abrir o modal antes da query resolver. Default `false` — os
+     * demais consumidores (edição) nunca usam o branch que depende disso.
+     */
+    isDistributorsLoading?: boolean
 }
 
 /**
@@ -25,8 +37,22 @@ interface PropertyFormDialogProps {
  * O protótipo (LumiTrack Home.dc.html) só especifica o modo "editar" pra
  * propriedade — o modo "criar" segue o mesmo padrão de texto que ele usa
  * pra Área/Dispositivo (kicker "Nova X" / título "Adicionar X" / "Criar X").
+ *
+ * Toda propriedade precisa de uma distribuidora vinculada — sem nenhuma
+ * cadastrada no catálogo, o form (modo "create") não renderiza; mostra um
+ * guard orientando a cadastrar uma primeiro. Texto recuperado literalmente
+ * da antiga `NewPropertyPage` (removida em #97, quando a criação virou
+ * modal — o guard tinha ficado pra trás, achado durante #102). Não é o
+ * `EmptyState` genérico porque ele vem com o próprio frame `.blueprint` +
+ * cantos — duplicaria a moldura do modal, que já é `.blueprint`.
  */
-export const PropertyFormDialog = ({ isOpen, onClose, mode, distributors }: PropertyFormDialogProps) => {
+export const PropertyFormDialog = ({
+    isOpen,
+    onClose,
+    mode,
+    distributors,
+    isDistributorsLoading = false,
+}: PropertyFormDialogProps) => {
     const createProperty = useCreateProperty()
     const updateProperty = useUpdateProperty()
 
@@ -79,6 +105,11 @@ export const PropertyFormDialog = ({ isOpen, onClose, mode, distributors }: Prop
         }
     }
 
+    const isLoadingCatalog = mode.kind === "create" && isDistributorsLoading
+    const isCreatingWithoutCatalog =
+        mode.kind === "create" && !isDistributorsLoading && distributors.length === 0
+    const showForm = !isLoadingCatalog && !isCreatingWithoutCatalog
+
     return (
         <FormDialog
             open={isOpen}
@@ -88,13 +119,47 @@ export const PropertyFormDialog = ({ isOpen, onClose, mode, distributors }: Prop
             kicker={mode.kind === "create" ? "Nova propriedade" : "Propriedade"}
             title={mode.kind === "create" ? "Adicionar propriedade" : "Editar propriedade"}
         >
-            <PropertyForm
-                initialData={mode.kind === "edit" ? mode.property : undefined}
-                distributors={distributors}
-                onSubmit={handleSubmit}
-                onCancel={onClose}
-                submitLabel={mode.kind === "create" ? "Criar propriedade" : "Salvar alterações"}
-            />
+            {isLoadingCatalog && (
+                <div
+                    className="flex justify-center py-10"
+                    aria-busy="true"
+                    aria-label="Carregando distribuidoras"
+                >
+                    <div className="bg-divider h-6 w-48 animate-pulse" />
+                </div>
+            )}
+
+            {isCreatingWithoutCatalog && (
+                <div className="flex flex-col items-center gap-4 py-6 text-center">
+                    <div className="border-divider flex h-14 w-14 items-center justify-center border">
+                        <Zap
+                            className="text-muted h-7 w-7"
+                            strokeWidth={1.5}
+                            aria-hidden="true"
+                        />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <h3 className="text-lg">Catálogo de distribuidoras indisponível</h3>
+                        <p className="text-muted max-w-md text-sm">
+                            Toda propriedade precisa estar vinculada a uma distribuidora do
+                            catálogo. Tente novamente em instantes.
+                        </p>
+                    </div>
+                    <Button asChild variant="secondary" className="mt-2">
+                        <Link to="/distribuidoras">Ver catálogo de distribuidoras</Link>
+                    </Button>
+                </div>
+            )}
+
+            {showForm && (
+                <PropertyForm
+                    initialData={mode.kind === "edit" ? mode.property : undefined}
+                    distributors={distributors}
+                    onSubmit={handleSubmit}
+                    onCancel={onClose}
+                    submitLabel={mode.kind === "create" ? "Criar propriedade" : "Salvar alterações"}
+                />
+            )}
         </FormDialog>
     )
 }
