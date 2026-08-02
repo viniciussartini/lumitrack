@@ -23,18 +23,17 @@ import { PropertyFormDialog } from "@/components/property/PropertyFormDialog"
 import { AreaFormDialog } from "@/components/area/AreaFormDialog"
 import { AreaCard } from "@/components/area/AreaCard"
 import { PropertyConsumptionSection } from "@/components/consumption/ConsumptionSection"
+import { ComparisonBars } from "@/components/consumption/ComparisonBars"
 import { MeterSection } from "@/components/meter/MeterSection"
 import { consumptionService } from "@/services/consumption.service"
 import { queryKeys } from "@/lib/queryClient"
 import { formatPowerKw, formatKwhPrice, formatBrl } from "@/lib/format"
-import { formatKwh, formatCostBrl } from "@/lib/formatters/consumption"
 import {
     BILLING_CLASS_LABELS,
     ELECTRICAL_SYSTEM_LABELS,
     type Property,
 } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
-import type { Area } from "@/types/area.types"
 import type { ConsumptionBucket } from "@/types/consumption.types"
 
 /**
@@ -347,9 +346,9 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
     })
 
     const comparisonRows = areas
-        .map((area, i) => ({ area, bucket: consumptionQueries[i]?.data }))
+        .map((area, i) => ({ id: area.id, label: area.name, bucket: consumptionQueries[i]?.data }))
         .filter(
-            (row): row is { area: Area; bucket: ConsumptionBucket } =>
+            (row): row is { id: string; label: string; bucket: ConsumptionBucket } =>
                 row.bucket != null,
         )
 
@@ -469,7 +468,7 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
                     </div>
 
                     <div className="px-5 pt-2 pb-5">
-                        <AreaComparisonBars rows={comparisonRows} unit={comparisonUnit} />
+                        <ComparisonBars rows={comparisonRows} unit={comparisonUnit} />
                     </div>
                 </div>
             )}
@@ -480,46 +479,6 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
                 mode={{ kind: "create", propertyId }}
             />
         </section>
-    )
-}
-
-interface AreaComparisonBarsProps {
-    rows: { area: Area; bucket: ConsumptionBucket }[]
-    unit: "kwh" | "reais"
-}
-
-const AreaComparisonBars = ({ rows, unit }: AreaComparisonBarsProps) => {
-    const values = rows.map((row) =>
-        unit === "reais" ? row.bucket.costBrl : row.bucket.kwhConsumed,
-    )
-    const max = Math.max(...values, 1)
-
-    return (
-        <div className="flex flex-col">
-            {rows.map((row, i) => {
-                const value = values[i]!
-                const pct = (value / max) * 100
-                return (
-                    <div key={row.area.id} className="border-divider border-b py-3 last:border-b-0">
-                        <div className="mb-[7px] flex items-baseline justify-between">
-                            <span className="text-[13.5px]">{row.area.name}</span>
-                            <span className="font-heading text-[17px] font-semibold font-features-['tnum'_1]">
-                                {unit === "reais" ? formatCostBrl(value) : `${formatKwh(value)} kWh`}
-                            </span>
-                        </div>
-                        <div className="bg-divider h-2.5">
-                            <div
-                                className="h-full"
-                                style={{
-                                    width: `${pct}%`,
-                                    background: unit === "reais" ? "#d98a1e" : "#5980a6",
-                                }}
-                            />
-                        </div>
-                    </div>
-                )
-            })}
-        </div>
     )
 }
 

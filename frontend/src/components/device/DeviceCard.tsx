@@ -1,9 +1,9 @@
 import { useState } from "react"
 import { Link, useParams } from "react-router"
-import { Cpu, Gauge, Tag } from "lucide-react"
-import { cn } from "@/lib/cn"
+import { Cpu } from "lucide-react"
 import { DeviceMenu } from "@/components/device/DeviceMenu"
 import { DeviceFormDialog } from "@/components/device/DeviceFormDialog"
+import { Tag } from "@/components/ui/Tag"
 import type { Device } from "@/types/device.types"
 
 interface DeviceCardProps {
@@ -11,7 +11,9 @@ interface DeviceCardProps {
 }
 
 /**
- * Card de dispositivo.
+ * Card de dispositivo — LumiTrack Home.dc.html, bloco "Dispositivos" da
+ * areaDetailView (card minimalista: só borda, sem `.blueprint`/corners,
+ * mesmo estilo do AreaCard).
  *
  * Comportamento:
  *   - Click no card → /propriedades/:propertyId/areas/:areaId/devices/:deviceId
@@ -27,7 +29,7 @@ interface DeviceCardProps {
  * sem o card removido. Não há rota a navegar.
  *
  *   O Device só sabe o areaId — não tem propertyId no objeto. Mas o link
- *   precisa do propertyId pra montar a URL. O propertyId vem 
+ *   precisa do propertyId pra montar a URL. O propertyId vem
  *   via useParams da rota envolvente (este card só renderiza dentro de
  *   AreaDetailsPage, que já tem :propertyId no path).
  */
@@ -44,62 +46,27 @@ export const DeviceCard = ({ device }: DeviceCardProps) => {
         <div className="relative">
             <Link
                 to={`/propriedades/${propertyId}/areas/${device.areaId}/devices/${device.id}`}
-                className={cn(
-                    "group flex flex-col gap-3 rounded-lg border bg-white p-5 transition",
-                    "border-slate-200 hover:border-brand-500 hover:shadow-md",
-                    "dark:border-slate-800 dark:bg-slate-900 dark:hover:border-brand-500",
-                )}
+                className="border-divider flex flex-col gap-3 border p-4"
                 data-testid={`device-card-${device.id}`}
             >
-                {/* Header — pr-10 reserva espaço pro DeviceMenu (em absolute) */}
-                <div className="flex items-start gap-3 pr-10">
-                    <div
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand-50 dark:bg-brand-500/10"
+                {/* pr-8 reserva o espaço onde o DeviceMenu fica em absolute */}
+                <div className="flex items-center gap-2.5 pr-8">
+                    <span
+                        className="border-accent text-accent flex h-[38px] w-[38px] shrink-0 items-center justify-center border"
                         aria-hidden="true"
                     >
-                        <Cpu className="h-5 w-5 text-brand-500" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                        <h3 className="truncate font-semibold text-slate-900 dark:text-slate-100">
-                            {device.name}
-                        </h3>
-                    </div>
+                        <Cpu className="h-[19px] w-[19px]" strokeWidth={1.5} />
+                    </span>
+                    <h3 className="min-w-0 truncate text-sm font-semibold">{device.name}</h3>
                 </div>
 
-                {/* Metadados — só renderiza a div se tiver algo pra mostrar */}
                 {(brandModelLabel || device.powerWatts !== null) && (
-                    <div className="flex flex-wrap gap-2">
-                        {brandModelLabel && (
-                            <span
-                                className={cn(
-                                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs",
-                                    "bg-slate-100 text-slate-700",
-                                    "dark:bg-slate-800 dark:text-slate-300",
-                                )}
-                            >
-                                <Tag
-                                    className="h-3 w-3"
-                                    aria-hidden="true"
-                                />
-                                <span className="max-w-50 truncate">
-                                    {brandModelLabel}
-                                </span>
-                            </span>
-                        )}
+                    <div className="flex flex-wrap gap-1.5">
+                        {brandModelLabel && <Tag variant="neutral">{brandModelLabel}</Tag>}
                         {device.powerWatts !== null && (
-                            <span
-                                className={cn(
-                                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs",
-                                    "bg-brand-50 text-brand-700",
-                                    "dark:bg-brand-500/10 dark:text-brand-300",
-                                )}
-                            >
-                                <Gauge
-                                    className="h-3 w-3"
-                                    aria-hidden="true"
-                                />
+                            <Tag variant="accent" className="font-semibold">
                                 {device.powerWatts}W
-                            </span>
+                            </Tag>
                         )}
                     </div>
                 )}
