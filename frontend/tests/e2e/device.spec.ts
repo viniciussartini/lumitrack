@@ -12,20 +12,31 @@ import type { Device } from "../../src/types/device.types"
  *
  * Este spec cobre o fluxo completo de Device:
  *   1. Listar (vazio inicial — EmptyState dentro de AreaDetailsPage)
- *   2. Criar (via botão "Adicionar dispositivo" no header da seção)
- *   3. Ver detalhes (click no card → DeviceDetailsPage com header + chips
+ *   2. Criar (via botão "Adicionar dispositivo" no header da seção, abre
+ *      DeviceFormDialog — sem navegação, desde #97)
+ *   3. Ver detalhes (click no card → DeviceDetailsPage com header + tags
  *      área/propriedade + seções Medidor/Consumo)
- *   4. Editar (via botão "Editar dispositivo" no header da DeviceDetailsPage)
+ *   4. Editar (via botão "Editar dispositivo" no header da
+ *      DeviceDetailsPage, mesmo modal, sem navegar pra fora dela)
  *   5. Excluir (via menu ⋯ na DeviceDetailsPage)
  *
  * Um teste paralelo cobre o fluxo via menu ⋯ no card da lista (editar e
- * excluir) — caminhos que não passam pela DeviceDetailsPage.
+ * excluir) — como DeviceCard nunca navega pro editar/excluir (é tudo modal
+ * local, sem onAfterDelete), esse teste não sai de AreaDetailsPage.
  *
  * Um terceiro teste cobre validação client-side (potência inválida).
  *
  * O spec parte com 1 propriedade e 1 área já cadastradas e 0 devices.
  * Não testamos o fluxo de criar a propriedade/área aqui (já coberto
  * em properties.spec.ts e area.spec.ts).
+ *
+ * Reescrito na sub-issue #102 — a versão anterior assumia rotas
+ * /devices/novo e /devices/:id/editar que não existem mais desde #97, o
+ * label "Salvar alterações" que na verdade é "Salvar dispositivo" pro
+ * DeviceFormDialog, e os testids device-property-chip/device-area-chip
+ * que não existem mais: DeviceDetailsPage (reescrita em #101) mostra a
+ * hierarquia via Tag simples, sem testid — vira locator de texto, mesma
+ * convenção já usada pro chip de propriedade em AreaDetailsPage.
  */
 
 type DeviceSeed = Device
@@ -200,21 +211,16 @@ test.describe("Fluxo CRUD de dispositivos", () => {
             page.getByText(/nenhum dispositivo cadastrado/i),
         ).toBeVisible()
 
-        // ─── 2. Criar novo dispositivo ───────────────────────────────────────
+        // ─── 2. Criar novo dispositivo (via modal, sem navegação) ────────────
         await page
-            .getByRole("link", { name: /adicionar dispositivo/i })
+            .getByRole("button", { name: /adicionar dispositivo/i })
             .click()
-        await expect(page).toHaveURL(
-            /\/propriedades\/prop-1\/areas\/area-1\/devices\/novo$/,
-        )
+        const createDialog = page.getByRole("dialog", {
+            name: /adicionar dispositivo/i,
+        })
+        await expect(createDialog).toBeVisible()
 
-        await expect(
-            page.getByRole("heading", { level: 1, name: /novo dispositivo/i }),
-        ).toBeVisible()
-        // Subtítulo menciona o nome da área pai (AREA_1 do fixture = "Cozinha")
-        await expect(page.getByText(/cozinha/i).first()).toBeVisible()
-
-        // Helper text de potência típica visível
+        // Helper text de potência típica visível dentro do modal
         await expect(page.getByText(/geladeira/i)).toBeVisible()
 
         await page
@@ -225,10 +231,11 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         await page.getByLabel(/potência/i).fill("1200")
 
         await page
-            .getByRole("button", { name: /cadastrar dispositivo/i })
+            .getByRole("button", { name: /criar dispositivo/i })
             .click()
 
-        // Volta pra área pai com 1 card de device
+        // Modal fecha, sem navegação — o card aparece na mesma AreaDetailsPage
+        await expect(createDialog).not.toBeVisible()
         await expect(page).toHaveURL(
             /\/propriedades\/prop-1\/areas\/area-1$/,
         )
@@ -253,14 +260,11 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         await expect(
             page.getByRole("heading", { level: 1, name: /ar-condicionado/i }),
         ).toBeVisible()
-        // Chips da hierarquia
-        await expect(
-            page.getByTestId("device-property-chip"),
-        ).toContainText(/casa principal/i)
-        await expect(
-            page.getByTestId("device-area-chip"),
-        ).toContainText(/^cozinha$/i)
-        // Chips de metadados
+        // Tags da hierarquia (sem testid — DeviceDetailsPage usa Tag simples,
+        // mesma convenção do chip de propriedade em AreaDetailsPage)
+        await expect(page.getByText(/casa principal/i)).toBeVisible()
+        await expect(page.getByText(/^cozinha$/i)).toBeVisible()
+        // Tag de metadados (marca + modelo)
         await expect(
             page.getByText(/daikin · split 12000 btu/i),
         ).toBeVisible()
@@ -274,13 +278,14 @@ test.describe("Fluxo CRUD de dispositivos", () => {
             page.getByRole("heading", { level: 2, name: /^consumo$/i }),
         ).toBeVisible()
 
-        // ─── 4. Editar via botão do header ───────────────────────────────────
+        // ─── 4. Editar via botão do header (modal, sem navegar) ──────────────
         await page
-            .getByRole("link", { name: /editar dispositivo/i })
+            .getByRole("button", { name: /editar dispositivo/i })
             .click()
-        await expect(page).toHaveURL(
-            /\/propriedades\/prop-1\/areas\/area-1\/devices\/device-1\/editar$/,
-        )
+        const editDialog = page.getByRole("dialog", {
+            name: /editar dispositivo/i,
+        })
+        await expect(editDialog).toBeVisible()
 
         // Form pré-preenchido
         await expect(page.getByLabel(/nome do dispositivo/i)).toHaveValue(
@@ -295,10 +300,11 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         await page.getByLabel(/potência/i).fill("1500")
 
         await page
-            .getByRole("button", { name: /salvar alterações/i })
+            .getByRole("button", { name: /salvar dispositivo/i })
             .click()
 
-        // Volta pra detalhes do device com mudanças
+        // Modal fecha, permanece na mesma DeviceDetailsPage com as mudanças
+        await expect(editDialog).not.toBeVisible()
         await expect(page).toHaveURL(
             /\/propriedades\/prop-1\/areas\/area-1\/devices\/device-1$/,
         )
@@ -351,7 +357,7 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         ).not.toBeVisible()
     })
 
-    test("edita e exclui um dispositivo via menu ⋯ do card (sem passar pela details)", async ({
+    test("edita e exclui um dispositivo via menu ⋯ do card, sem sair da AreaDetailsPage", async ({
         page,
     }) => {
         await setupAuthPropertyAndArea(page)
@@ -371,40 +377,33 @@ test.describe("Fluxo CRUD de dispositivos", () => {
             page.getByRole("heading", { level: 3, name: /geladeira/i }),
         ).toBeVisible()
 
-        // ─── 1. Editar via menu ⋯ do card ────────────────────────────────────
+        // ─── 1. Editar via menu ⋯ do card — modal local, nunca navega ────────
         await page
             .getByRole("button", { name: /opções de Geladeira/i })
             .click()
         await page.getByRole("menuitem", { name: /editar/i }).click()
 
-        await expect(page).toHaveURL(
-            /\/propriedades\/prop-1\/areas\/area-1\/devices\/device-1\/editar$/,
-        )
+        const editDialog = page.getByRole("dialog", {
+            name: /editar dispositivo/i,
+        })
+        await expect(editDialog).toBeVisible()
         await page
             .getByLabel(/nome do dispositivo/i)
             .fill("Geladeira gourmet")
-        await page
-            .getByRole("button", { name: /salvar alterações/i })
-            .click()
+        await page.getByRole("button", { name: /salvar dispositivo/i }).click()
 
-        // Volta pra detalhes do device (não pra lista — comportamento da EditDevicePage)
-        await expect(page).toHaveURL(
-            /\/propriedades\/prop-1\/areas\/area-1\/devices\/device-1$/,
-        )
-        await expect(
-            page.getByRole("heading", {
-                level: 1,
-                name: /geladeira gourmet/i,
-            }),
-        ).toBeVisible()
-
-        // Volta pra lista da área
-        await page
-            .getByRole("link", { name: /voltar para área/i })
-            .click()
+        // Modal fecha, card atualizado na mesma grid — sem navegação
+        // (DeviceCard nunca sai de AreaDetailsPage pra editar)
+        await expect(editDialog).not.toBeVisible()
         await expect(page).toHaveURL(
             /\/propriedades\/prop-1\/areas\/area-1$/,
         )
+        await expect(
+            page.getByRole("heading", {
+                level: 3,
+                name: /geladeira gourmet/i,
+            }),
+        ).toBeVisible()
 
         // ─── 2. Excluir via menu ⋯ do card ───────────────────────────────────
         await page
@@ -420,7 +419,6 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         await page.getByRole("button", { name: "Excluir" }).click()
 
         // Permanece na AreaDetailsPage, EmptyState restaurado
-        // (sem navegação — diferente do delete via DeviceDetailsPage)
         await expect(page).toHaveURL(
             /\/propriedades\/prop-1\/areas\/area-1$/,
         )
@@ -442,21 +440,27 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         }
         await setupDevicesRoutes(page, state)
 
-        await page.goto("/propriedades/prop-1/areas/area-1/devices/novo")
+        await page.goto("/propriedades/prop-1/areas/area-1")
         await hideDevTools(page)
+
+        await page
+            .getByRole("button", { name: /adicionar dispositivo/i })
+            .click()
+        const createDialog = page.getByRole("dialog", {
+            name: /adicionar dispositivo/i,
+        })
+        await expect(createDialog).toBeVisible()
 
         // Click direto no submit sem preencher
         await page
-            .getByRole("button", { name: /cadastrar dispositivo/i })
+            .getByRole("button", { name: /criar dispositivo/i })
             .click()
 
         // Mensagem de erro do schema aparece
         await expect(page.getByText(/nome é obrigatório/i)).toBeVisible()
 
-        // Permanece na mesma URL — não navegou
-        await expect(page).toHaveURL(
-            /\/propriedades\/prop-1\/areas\/area-1\/devices\/novo$/,
-        )
+        // Continua no modal — não foi possível submeter
+        await expect(createDialog).toBeVisible()
 
         // Agora preenche nome mas tenta potência zero
         await page.getByLabel(/nome do dispositivo/i).fill("Lâmpada")

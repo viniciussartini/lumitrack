@@ -12,10 +12,17 @@ import type { Property } from "../../src/types/property.types"
  *
  * Este spec cobre o fluxo completo de Property:
  *   1. Listar (vazio inicial)
- *   2. Criar
- *   3. Editar (mudar nome)
- *   4. Trocar distribuidora vinculada
+ *   2. Criar (via modal, sem navegação — #97 substituiu as 6 rotas
+ *      dedicadas de CRUD por PropertyFormDialog/AreaFormDialog/
+ *      DeviceFormDialog)
+ *   3. Editar (mudar nome, via modal aberto na própria PropertyDetailsPage)
+ *   4. Trocar distribuidora vinculada (mesmo modal)
  *   5. Excluir
+ *
+ * Reescrito na sub-issue #102 — a versão anterior assumia rotas /nova e
+ * /:id/editar que não existem mais desde #97, e labels de botão que
+ * divergiram por entidade desde então (ver properties/area/device
+ * FormDialog.tsx: cada um tem seu próprio texto de kicker/título/submit).
  */
 
 const DIST_ENEL = {
@@ -145,9 +152,14 @@ test.describe("Fluxo CRUD de propriedades", () => {
             page.getByText(/nenhuma propriedade cadastrada/i),
         ).toBeVisible()
 
-        // ─── 2. Criar nova propriedade ───────────────────────────────────────
-        await page.getByRole("link", { name: /cadastrar primeira propriedade/i }).click()
-        await expect(page).toHaveURL(/\/propriedades\/nova/)
+        // ─── 2. Criar nova propriedade (via modal) ───────────────────────────
+        await page
+            .getByRole("button", { name: /cadastrar primeira propriedade/i })
+            .click()
+        const createDialog = page.getByRole("dialog", {
+            name: /adicionar propriedade/i,
+        })
+        await expect(createDialog).toBeVisible()
 
         await page.getByLabel(/nome da propriedade/i).fill("Casa Principal")
         await page
@@ -158,17 +170,16 @@ test.describe("Fluxo CRUD de propriedades", () => {
         await page.getByLabel(/^uf$/i).selectOption("MG")
         await page.getByLabel(/cep/i).fill("30000000")
 
-        await page
-            .getByRole("button", { name: /cadastrar propriedade/i })
-            .click()
+        await page.getByRole("button", { name: /criar propriedade/i }).click()
 
-        // Volta pra lista, agora com 1 card
+        // Modal fecha, sem navegação — o card aparece na mesma /propriedades
+        await expect(createDialog).not.toBeVisible()
         await expect(page).toHaveURL(/\/propriedades$/)
         await expect(page.getByTestId("property-card-prop-1")).toBeVisible()
         await expect(page.getByText(/cemig/i).first()).toBeVisible()
 
-        // ─── 3. Detalhes → Editar (via botão "Editar propriedade" no header) ─
-        // Click no card agora vai pra detalhes (não mais direto pra edição).
+        // ─── 3. Detalhes → Editar (via botão "Editar" no header, modal) ──────
+        // Click no card vai pra detalhes.
         await page.getByTestId("property-card-prop-1").click()
         await expect(page).toHaveURL(/\/propriedades\/prop-1$/)
 
@@ -185,38 +196,40 @@ test.describe("Fluxo CRUD de propriedades", () => {
         // Seção de áreas — EmptyState
         await expect(page.getByText(/nenhuma área cadastrada/i)).toBeVisible()
 
-        // Botão Editar leva pro form de edição
-        await page
-            .getByRole("link", { name: /editar propriedade/i })
-            .click()
-        await expect(page).toHaveURL(/\/propriedades\/prop-1\/editar/)
+        // Botão "Editar" (só o verbo, desde #99) abre o modal de edição —
+        // sem navegar, o título do dialog é que diz "Editar propriedade".
+        await page.getByRole("button", { name: /^editar$/i }).click()
+        const editDialog = page.getByRole("dialog", {
+            name: /editar propriedade/i,
+        })
+        await expect(editDialog).toBeVisible()
 
         const nameInput = page.getByLabel(/nome da propriedade/i)
         await nameInput.fill("Casa Renovada")
         await page.getByRole("button", { name: /salvar alterações/i }).click()
 
-        await expect(page).toHaveURL(/\/propriedades$/)
-        await expect(page.getByText(/casa renovada/i).first()).toBeVisible()
-
-        // ─── 4. Trocar distribuidora (via details → editar) ──────────────────
-        await page.getByTestId("property-card-prop-1").click()
+        // Modal fecha, permanece na details (não navega pra lista)
+        await expect(editDialog).not.toBeVisible()
         await expect(page).toHaveURL(/\/propriedades\/prop-1$/)
+        await expect(
+            page.getByRole("heading", { level: 1, name: /casa renovada/i }),
+        ).toBeVisible()
 
-        await page
-            .getByRole("link", { name: /editar propriedade/i })
-            .click()
-        await expect(page).toHaveURL(/\/propriedades\/prop-1\/editar/)
+        // ─── 4. Trocar distribuidora (mesmo botão "Editar", ainda na details) ─
+        await page.getByRole("button", { name: /^editar$/i }).click()
+        await expect(editDialog).toBeVisible()
 
         await page
             .getByLabel(/distribuidora vinculada/i)
             .selectOption("dist-enel")
         await page.getByRole("button", { name: /salvar alterações/i }).click()
 
-        await expect(page).toHaveURL(/\/propriedades$/)
-        // Badge da distribuidora agora mostra ENEL no card
+        await expect(editDialog).not.toBeVisible()
+        await expect(page).toHaveURL(/\/propriedades\/prop-1$/)
+        // Tag da distribuidora na details agora mostra ENEL
         await expect(page.getByText(/enel são paulo/i)).toBeVisible()
 
-        // ─── 5. Excluir (via menu ⋯ no card da lista) ────────────────────────
+        // ─── 5. Excluir (via menu ⋯ no header da details) ────────────────────
         await page
             .getByRole("button", { name: /opções de Casa Renovada/i })
             .click()
@@ -229,7 +242,8 @@ test.describe("Fluxo CRUD de propriedades", () => {
 
         await page.getByRole("button", { name: "Excluir" }).click()
 
-        // Volta pro empty state
+        // onAfterDelete navega de volta pra lista, empty state restaurado
+        await expect(page).toHaveURL(/\/propriedades$/)
         await expect(
             page.getByText(/nenhuma propriedade cadastrada/i),
         ).toBeVisible()
@@ -238,26 +252,55 @@ test.describe("Fluxo CRUD de propriedades", () => {
         ).not.toBeVisible()
     })
 
-    test("bloqueia criação de propriedade quando não há distribuidora cadastrada", async ({
+    test("sem distribuidora cadastrada, o modal abre mas o submit é bloqueado por validação", async ({
         page,
     }) => {
+        // A antiga NewPropertyPage bloqueava a criação inteira com um
+        // EmptyState ("catálogo de distribuidoras indisponível") quando o
+        // catálogo estava vazio — esse guard não existe mais: PropertyForm
+        // (usado dentro do modal desde #97) sempre renderiza o form, com o
+        // select de distribuidora vazio (só a opção desabilitada
+        // "Selecione"). O usuário só descobre o problema ao submeter, via a
+        // validação client-side normal do campo obrigatório. Gap real de
+        // comportamento, fora do escopo de #102 (reescrita de teste, não de
+        // feature) — documentado aqui e no CHANGELOG.
         await mockAppShellBackground(page)
         await setupAuth(page)
+        await page.route(/\/api\/properties(\?.*)?$/, (route) => {
+            if (route.request().method() === "GET") {
+                return fulfillPaginated(route, [])
+            }
+            return route.continue()
+        })
         // Catálogo vazio
         await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
             fulfillPaginated(route, []),
         )
 
-        await page.goto("/propriedades/nova")
+        await page.goto("/propriedades")
         await hideDevTools(page)
 
+        await page
+            .getByRole("button", { name: /cadastrar primeira propriedade/i })
+            .click()
+        const createDialog = page.getByRole("dialog", {
+            name: /adicionar propriedade/i,
+        })
+        await expect(createDialog).toBeVisible()
+
+        // O form renderiza normalmente — só não há opção de distribuidora
+        // além do placeholder desabilitado.
+        await expect(page.getByLabel(/nome da propriedade/i)).toBeVisible()
+        const distributorSelect = page.getByLabel(/distribuidora vinculada/i)
+        await expect(distributorSelect.getByRole("option")).toHaveCount(1)
+
+        await page.getByLabel(/nome da propriedade/i).fill("Sítio")
+        await page.getByRole("button", { name: /criar propriedade/i }).click()
+
         await expect(
-            page.getByText(/catálogo de distribuidoras indisponível/i),
+            page.getByText(/selecione uma distribuidora/i),
         ).toBeVisible()
-        await expect(
-            page.getByRole("link", { name: /ver catálogo de distribuidoras/i }),
-        ).toHaveAttribute("href", "/distribuidoras")
-        // O form não deve renderizar quando o catálogo está vazio
-        await expect(page.getByLabel(/nome da propriedade/i)).not.toBeVisible()
+        // Continua no modal — não foi possível submeter
+        await expect(createDialog).toBeVisible()
     })
 })

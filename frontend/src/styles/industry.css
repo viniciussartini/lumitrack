@@ -420,6 +420,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 .lt-modal {
   position: fixed;
+  z-index: 101;
   left: 50%;
   top: clamp(20px, 6vh, 72px);
   transform: translateX(-50%);
