@@ -458,6 +458,24 @@ textarea.input { min-height: 90px; resize: vertical; }
   border-color: var(--color-accent);
 }
 
+/* Campo de busca com ícone de lupa sobreposto (padding-left reserva o
+   espaço do ícone) — LumiTrack Home.dc.html, <style> local do protótipo.
+   Usado por DistributorsPage.tsx (busca do catálogo de distribuidoras). */
+.lt-search {
+  min-height: 40px;
+  padding: 0 14px 0 38px;
+  border: 1px solid var(--color-divider);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  width: 240px;
+}
+.lt-search:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 /* Documento legal (Política de Privacidade / Termos de Uso) — LumiTrack
    LGPD.dc.html, <style> local do protótipo. `.lt-legal h3` do protótipo
    virou `.lt-legal h2` aqui — o markdown canônico usa `##`, nível h2.
