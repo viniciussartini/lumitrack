@@ -89,6 +89,18 @@ const setupAuthPropertyAndArea = async (page: Page) => {
     await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
         fulfillError(route, "Alvo sem medidor vinculado", 404),
     )
+
+    // `DevicesSection` (AreaDetailsPage) dispara `GET /api/consumption` por
+    // dispositivo da lista pra montar a "Comparação de dispositivos" —
+    // incondicional, não depende de o dispositivo ter medidor. Mesmo motivo
+    // do mock análogo em `area.spec.ts`: sem isso, assim que um dispositivo
+    // é criado a chamada vaza pro backend real em CI (401 sem sessão real →
+    // interceptor global de "unauthorized" → redirect pra /login no meio do
+    // teste → "element was detached from the DOM" em qualquer click
+    // seguinte; ver `support/appShell.ts`).
+    await page.route(/\/api\/consumption(\?.*)?$/, (route) =>
+        fulfillPaginated(route, []),
+    )
 }
 
 /**

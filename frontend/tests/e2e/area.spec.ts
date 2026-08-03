@@ -69,6 +69,21 @@ const setupAuthAndProperty = async (page: Page) => {
     await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
         fulfillError(route, "Alvo sem medidor vinculado", 404),
     )
+
+    // `AreasSection` (PropertyDetailsPage) dispara `GET /api/consumption`
+    // por área da lista pra montar a "Comparação de áreas" — incondicional,
+    // não depende de a área ter medidor (o 404 correspondente é tratado
+    // como "sem dado" dentro do próprio hook). Sem esse mock, assim que uma
+    // área é criada essa chamada vaza pro proxy do Vite: localmente falha
+    // como erro de rede (inofensivo, mascara o problema); em CI, com o
+    // backend real de pé, o 401 (sem sessão real — a auth aqui é só
+    // `page.route` em `/api/auth/me`) dispara o interceptor global de
+    // "unauthorized" e redireciona pra /login no meio do teste — sintoma:
+    // "element was detached from the DOM" ao clicar em qualquer coisa
+    // depois (ver comentário em `support/appShell.ts`).
+    await page.route(/\/api\/consumption(\?.*)?$/, (route) =>
+        fulfillPaginated(route, []),
+    )
 }
 
 /**
