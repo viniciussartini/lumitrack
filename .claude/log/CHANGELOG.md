@@ -309,3 +309,13 @@
 - **Arquivos principais:** `backend/src/shared/crypto/totp.ts`.
 - **Decisões/ADRs:** nenhuma nova.
 - **Notas:** ambiente local exigiu aplicar migrations pendentes nos bancos de teste (`lumitrack_test`/`lumitrack_test_http`, via `prisma migrate deploy`) antes de rodar a suíte — schemas estavam desatualizados localmente, sem relação com o bug em si. `npm run build`/`lint` do backend limpos. `auth.service.test.ts` rodado 5x isolado após a correção, **0 falhas em 5** (antes falhava de forma intermitente). Suíte completa do backend: **118/119 arquivos · 1426/1427 testes** verdes — o único teste restante falho é o achado secundário de `admin.routes.test.ts`, não relacionado a este fix.
+
+## [2026-08-03] fix: testes de audit log pós-resposta racy (admin/export) — fecha #113
+
+- **Branch:** feat/110-alertas-distribuidoras-seguranca
+- **Tipo:** fix
+- **O quê:** fecha #113, achado secundário documentado na entrega anterior (fix de TOTP). `admin.controller.ts` e `export.controller.ts` registram o audit log (`ADMIN_AUDIT_LOG_VIEW`/`DATA_EXPORT`) **depois** de enviar a resposta HTTP — decisão deliberada de latência (comentário já existente no código), fazendo a escrita no banco correr em paralelo ao envio da resposta, sem ordem garantida entre as duas. Os testes correspondentes checavam o audit log **imediatamente** após `await request(app)...` resolver, assumindo (incorretamente) que a escrita já tinha terminado — corrida real, reproduzida de forma intermitente (1 falha em 3 execuções isoladas de `admin.routes.test.ts` antes da correção).
+- **Correção é só nos testes, não no comportamento de produção** (a gravação pós-resposta continua intencional, para não adicionar latência à resposta do usuário): novo helper `waitFor()` (`backend/src/shared/test/waitFor.ts`) faz polling com timeout curto (1000ms, intervalo 20ms) até a query retornar não-nulo, em vez de assumir disponibilidade imediata. Aplicado nas duas asserções afetadas: `admin.routes.test.ts` ("registra um audit log ADMIN_AUDIT_LOG_VIEW após a consulta") e `export.routes.test.ts` ("registra um audit log DATA_EXPORT após a exportação") — a segunda nunca tinha flakado de fato, mas tem a mesma vulnerabilidade estrutural (confirmado por comparação de código, documentado na issue).
+- **Arquivos principais:** `backend/src/shared/test/waitFor.ts` (novo), `backend/src/modules/admin/admin.routes.test.ts`, `backend/src/modules/export/export.routes.test.ts`.
+- **Decisões/ADRs:** nenhuma nova.
+- **Notas:** `npm run build`/`lint` do backend limpos. Os dois testes rodados isoladamente 8x em sequência após a correção — **0 falhas em 8**. Suíte completa do backend: **119/119 arquivos · 1427/1427 testes** verdes — zero regressão, e agora sem nenhum resquício de flake conhecido.
