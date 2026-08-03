@@ -70,7 +70,6 @@ export const AreaForm = ({
             <div className="flex flex-col gap-4">
                 <Input
                     label="Nome da área"
-                    autoFocus
                     error={errors.name?.message}
                     {...register("name")}
                 />

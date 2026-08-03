@@ -474,13 +474,15 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         // Continua no modal — não foi possível submeter
         await expect(createDialog).toBeVisible()
 
-        // Agora preenche nome mas tenta potência zero
-        await page.getByLabel(/nome do dispositivo/i).fill("Lâmpada")
+        // Interage com "potência" (não com "nome") e clica direto no submit
+        // sem blur manual — regressão do bug #111: sem esse fluxo, o clique
+        // só validava o campo com autoFocus, escondendo o erro de "nome".
         await page.getByLabel(/potência/i).fill("0")
-        await page.getByLabel(/potência/i).blur()
+        await page
+            .getByRole("button", { name: /criar dispositivo/i })
+            .click()
 
-        await expect(
-            page.getByText(/maior que zero/i),
-        ).toBeVisible()
+        await expect(page.getByText(/nome é obrigatório/i)).toBeVisible()
+        await expect(page.getByText(/maior que zero/i)).toBeVisible()
     })
 })

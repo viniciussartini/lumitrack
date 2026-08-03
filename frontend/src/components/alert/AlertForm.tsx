@@ -32,9 +32,9 @@ interface AlertFormProps {
  * com um `autoFocus` HTML explícito faz o PRIMEIRO clique no botão de
  * submit, sem tocar em nenhum campo antes, disparar só a validação onBlur
  * do campo focado (não o submit real), escondendo os outros erros até um
- * segundo clique. Bug real do padrão `FormDialog`, não só deste form —
- * `AreaForm`/`DeviceForm` têm o mesmo `autoFocus` redundante e o mesmo risco,
- * fora do escopo desta sub-issue (só Alertas).
+ * segundo clique. Bug do padrão `FormDialog`, não só deste form —
+ * `AreaForm`/`DeviceForm` tinham o mesmo `autoFocus` redundante, corrigido
+ * junto na mesma branch (#111).
  */
 export const AlertForm = ({
     initialData,
