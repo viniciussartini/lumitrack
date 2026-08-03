@@ -1,5 +1,4 @@
 import { useRef, useState } from "react"
-import { Link } from "react-router"
 import { MoreVertical, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useClickOutside } from "@/lib/hooks/useClickOutside"
@@ -21,6 +20,13 @@ interface AreaMenuProps {
      */
     showEdit?: boolean
     /**
+     * Callback que abre o modal de edição (AreaFormDialog, no card
+     * chamador). O item "Editar" só é renderizado quando showEdit E onEdit
+     * estão presentes — sem onEdit, o item some (fail-safe) em vez de virar
+     * link morto (antes de #98, apontava pra rota removida em #97).
+     */
+    onEdit?: () => void
+    /**
      * Callback opcional disparado após exclusão bem-sucedida.
      *
      * Quando o menu é usado na AreaDetailsPage, depois do delete a URL
@@ -37,7 +43,7 @@ interface AreaMenuProps {
  * header da página de detalhes.
  *
  * Itens:
- *   - Editar (opcional) — link pra /propriedades/:propertyId/areas/:areaId/editar
+ *   - Editar (opcional) — chama onEdit (abre AreaFormDialog no chamador)
  *   - Excluir — abre ConfirmDialog antes de disparar a mutation
  *
  * Sobre o aria-label dinâmico:
@@ -55,6 +61,7 @@ interface AreaMenuProps {
 export const AreaMenu = ({
     area,
     showEdit = true,
+    onEdit,
     onAfterDelete,
 }: AreaMenuProps) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -127,13 +134,14 @@ export const AreaMenu = ({
                             "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
                         )}
                     >
-                        {showEdit && (
-                            <Link
-                                to={`/propriedades/${area.propertyId}/areas/${area.id}/editar`}
+                        {showEdit && onEdit && (
+                            <button
+                                type="button"
                                 role="menuitem"
                                 onClick={(e) => {
                                     e.stopPropagation()
                                     setIsMenuOpen(false)
+                                    onEdit()
                                 }}
                                 className={cn(
                                     "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
@@ -143,7 +151,7 @@ export const AreaMenu = ({
                             >
                                 <Pencil className="h-4 w-4" aria-hidden="true" />
                                 Editar
-                            </Link>
+                            </button>
                         )}
                         <button
                             type="button"

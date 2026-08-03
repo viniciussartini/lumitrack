@@ -12,10 +12,23 @@ import type { Meter } from "../../src/types/meter.types"
  *
  * `MeterSection` — testada através da `PropertyDetailsPage`. Cobre:
  *   1. EmptyState "sem medidor" (`by-target` → 404 → `null`)
- *   2. Ciclo vincular → editar → remover (via `meter-form-dialog`)
- *   3. `RealTimeCard` aparece junto com o card de conexão, em estado "sem
- *      leitura recente" (nenhuma amostra chega pelo SSE mockado)
+ *   2. Ciclo vincular → editar → remover (via `MeterFormDialog`, dialog
+ *      identificado por role, não testid — mesmo padrão que
+ *      properties/area/device.spec.ts já usam desde #102)
+ *   3. Leitura em tempo real (Potência/Tensão/Corrente) aparece junto com o
+ *      card de conexão, em estado "sem leitura recente" (nenhuma amostra
+ *      chega pelo SSE mockado) — desde #99, essa leitura entra inline no
+ *      próprio card de `MeterSection` (`meter-connection-card` +
+ *      `meter-status-stale`), não mais no antigo `RealTimeCard` (removido)
  *   4. Campos condicionais do form por protocolo (rede/tópico/serial)
+ *
+ * Reescrito nesta correção — ficou pra trás quando #99 migrou a leitura em
+ * tempo real do antigo `RealTimeCard.tsx` (removido) pra dentro de
+ * `MeterSection.tsx` e quando #97/#98 unificaram os modais de CRUD sem
+ * testid próprio no `FormDialog`: os testids `real-time-card`,
+ * `real-time-card-stale` e `meter-form-dialog` deixaram de existir no
+ * código-fonte havia várias sub-issues, sem que este spec fosse notado —
+ * #102 reescreveu só properties/area/device.spec.ts.
  */
 
 const setupAuthAndProperty = async (page: Page) => {
@@ -71,8 +84,9 @@ test.describe("Medidor (MeterSection)", () => {
         ).toBeVisible()
         await expect(page.getByTestId("meter-section-create")).toBeVisible()
         await expect(page.getByText(/nenhum medidor vinculado/i)).toBeVisible()
+        // Sem medidor, o card inteiro (conexão + leitura em tempo real) nem
+        // renderiza — é o mesmo bloco condicional em MeterSection.
         await expect(page.getByTestId("meter-connection-card")).toHaveCount(0)
-        await expect(page.getByTestId("real-time-card")).toHaveCount(0)
     })
 
     test("vincula, edita e remove um medidor MQTT (ciclo completo)", async ({
@@ -135,10 +149,10 @@ test.describe("Medidor (MeterSection)", () => {
 
         // ─── 1. Vincular ────────────────────────────────────────────────────
         await page.getByTestId("meter-section-create").click()
-        await expect(page.getByTestId("meter-form-dialog")).toBeVisible()
-        await expect(
-            page.getByRole("heading", { name: /^configurar medidor$/i }),
-        ).toBeVisible()
+        const createDialog = page.getByRole("dialog", {
+            name: /configurar medidor/i,
+        })
+        await expect(createDialog).toBeVisible()
 
         await page.getByLabel(/nome do medidor/i).fill("Medidor Geral")
         // Protocolo default já é MQTT — host/porta/tópico aparecem.
@@ -150,7 +164,7 @@ test.describe("Medidor (MeterSection)", () => {
             .getByRole("button", { name: /vincular medidor/i })
             .click()
 
-        await expect(page.getByTestId("meter-form-dialog")).not.toBeVisible()
+        await expect(createDialog).not.toBeVisible()
         const card = page.getByTestId("meter-connection-card")
         await expect(card).toBeVisible()
         await expect(card).toContainText(/medidor geral/i)
@@ -160,17 +174,16 @@ test.describe("Medidor (MeterSection)", () => {
         // Botão "Configurar medidor" some — já há medidor vinculado.
         await expect(page.getByTestId("meter-section-create")).toHaveCount(0)
 
-        // RealTimeCard aparece junto — sem leitura via SSE, fica "stale".
-        await expect(page.getByTestId("real-time-card")).toBeVisible()
-        await expect(page.getByTestId("real-time-card-stale")).toBeVisible()
+        // Leitura em tempo real aparece junto — sem leitura via SSE, fica
+        // "stale" desde o primeiro render (mesmo card, footer de 3 colunas
+        // Potência/Tensão/Corrente com "—" enquanto isStale).
+        await expect(page.getByTestId("meter-status-stale")).toBeVisible()
         await expect(page.getByText(/sem leitura recente/i)).toBeVisible()
 
         // ─── 2. Editar ──────────────────────────────────────────────────────
         await page.getByRole("button", { name: /editar medidor/i }).click()
-        await expect(page.getByTestId("meter-form-dialog")).toBeVisible()
-        await expect(
-            page.getByRole("heading", { name: /^editar medidor$/i }),
-        ).toBeVisible()
+        const editDialog = page.getByRole("dialog", { name: /editar medidor/i })
+        await expect(editDialog).toBeVisible()
         await expect(page.getByLabel(/^host$/i)).toHaveValue("192.168.0.10")
 
         await page.getByLabel(/^host$/i).fill("192.168.0.20")
@@ -178,7 +191,7 @@ test.describe("Medidor (MeterSection)", () => {
             .getByRole("button", { name: /salvar alterações/i })
             .click()
 
-        await expect(page.getByTestId("meter-form-dialog")).not.toBeVisible()
+        await expect(editDialog).not.toBeVisible()
         await expect(card).toContainText(/192\.168\.0\.20:1883/)
 
         // ─── 3. Remover ─────────────────────────────────────────────────────
@@ -190,7 +203,6 @@ test.describe("Medidor (MeterSection)", () => {
 
         await expect(page.getByText(/nenhum medidor vinculado/i)).toBeVisible()
         await expect(page.getByTestId("meter-connection-card")).toHaveCount(0)
-        await expect(page.getByTestId("real-time-card")).toHaveCount(0)
         await expect(page.getByTestId("meter-section-create")).toBeVisible()
     })
 
@@ -206,7 +218,8 @@ test.describe("Medidor (MeterSection)", () => {
         await hideDevTools(page)
 
         await page.getByTestId("meter-section-create").click()
-        await expect(page.getByTestId("meter-form-dialog")).toBeVisible()
+        const dialog = page.getByRole("dialog", { name: /configurar medidor/i })
+        await expect(dialog).toBeVisible()
 
         // Default: MQTT — host/porta/tópico, sem endereço.
         await expect(page.getByLabel(/^host$/i)).toBeVisible()
@@ -237,6 +250,6 @@ test.describe("Medidor (MeterSection)", () => {
         await expect(
             page.getByText(/endereço é obrigatório para este protocolo/i),
         ).toBeVisible()
-        await expect(page.getByTestId("meter-form-dialog")).toBeVisible()
+        await expect(dialog).toBeVisible()
     })
 })

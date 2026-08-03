@@ -7,7 +7,6 @@ import { ConsumptionChart } from "@/components/consumption/ConsumptionChart"
 import { ConsumptionTable } from "@/components/consumption/ConsumptionTable"
 import { useConsumption } from "@/hooks/queries/useConsumption"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
-import { cn } from "@/lib/cn"
 import { DEFAULT_PAGE_SIZE } from "@/types/pagination.types"
 import { DETAILS_GRANULARITIES, type Granularity } from "@/types/consumption.types"
 import type { TargetType } from "@/types/meter.types"
@@ -93,86 +92,87 @@ export const ConsumptionSection = ({
 
     return (
         <section className="flex flex-col gap-3" data-testid="consumption-section">
-            <header className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                    Consumo
-                </h2>
-            </header>
+            <div className="blueprint">
+                <i className="corner tl" />
+                <i className="corner tr" />
+                <i className="corner bl" />
+                <i className="corner br" />
 
-            <GranularityTabs
-                granularities={granularities}
-                value={granularity}
-                onChange={handleGranularityChange}
-            />
-
-            {!meterQuery.isLoading && !hasMeter && (
-                <EmptyState
-                    icon={LineChart}
-                    title="Sem consumo para exibir"
-                    description="Configure um medidor na seção acima para começar a acompanhar o consumo automaticamente."
-                />
-            )}
-
-            {hasMeter && query.isLoading && <SectionSkeleton />}
-
-            {hasMeter && query.isError && (
-                <div
-                    role="alert"
-                    className={cn(
-                        "flex items-start gap-3 rounded-lg border p-4",
-                        "border-red-200 bg-red-50 text-red-900",
-                        "dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200",
-                    )}
-                >
-                    <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
-                    <p className="text-sm">
-                        {query.error instanceof Error
-                            ? query.error.message
-                            : "Não foi possível carregar o consumo."}
-                    </p>
+                <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
+                    <h2 className="font-heading text-[17px] font-semibold uppercase">
+                        Consumo
+                    </h2>
+                    <GranularityTabs
+                        granularities={granularities}
+                        value={granularity}
+                        onChange={handleGranularityChange}
+                    />
                 </div>
-            )}
 
-            {hasMeter && query.isSuccess && buckets.length === 0 && (
-                <EmptyState
-                    icon={LineChart}
-                    title="Sem leituras neste período"
-                    description="Ainda não há consumo agregado para a granularidade selecionada."
-                />
-            )}
+                <div className="px-5 py-[18px]">
+                    {!meterQuery.isLoading && !hasMeter && (
+                        <EmptyState
+                            icon={LineChart}
+                            title="Sem consumo para exibir"
+                            description="Configure um medidor na seção acima para começar a acompanhar o consumo automaticamente."
+                        />
+                    )}
 
-            {hasMeter && query.isSuccess && buckets.length > 0 && (
-                <>
-                    <ConsumptionChart
-                        buckets={buckets}
-                        granularity={granularity}
-                        isRefetching={query.isFetching}
-                    />
-                    <ConsumptionTable buckets={buckets} granularity={granularity} />
-                    <Pagination
-                        page={query.data!.page}
-                        pageSize={query.data!.pageSize}
-                        total={query.data!.total}
-                        onPageChange={setPage}
-                    />
-                </>
-            )}
+                    {hasMeter && query.isLoading && <SectionSkeleton />}
+
+                    {hasMeter && query.isError && (
+                        <div
+                            role="alert"
+                            className="border-status-danger/40 flex items-start gap-3 border p-4"
+                        >
+                            <AlertCircle className="text-status-danger h-5 w-5 shrink-0" aria-hidden="true" />
+                            <p className="text-status-danger/85 text-sm">
+                                {query.error instanceof Error
+                                    ? query.error.message
+                                    : "Não foi possível carregar o consumo."}
+                            </p>
+                        </div>
+                    )}
+
+                    {hasMeter && query.isSuccess && buckets.length === 0 && (
+                        <EmptyState
+                            icon={LineChart}
+                            title="Sem leituras neste período"
+                            description="Ainda não há consumo agregado para a granularidade selecionada."
+                        />
+                    )}
+
+                    {hasMeter && query.isSuccess && buckets.length > 0 && (
+                        <div className="flex flex-col gap-4">
+                            <ConsumptionChart
+                                buckets={buckets}
+                                granularity={granularity}
+                                isRefetching={query.isFetching}
+                            />
+                            <ConsumptionTable buckets={buckets} granularity={granularity} />
+                            <Pagination
+                                page={query.data!.page}
+                                pageSize={query.data!.pageSize}
+                                total={query.data!.total}
+                                onPageChange={setPage}
+                            />
+                        </div>
+                    )}
+                </div>
+            </div>
         </section>
     )
 }
 
 const SectionSkeleton = () => (
     <div
-        className="flex flex-col gap-2 rounded-lg border border-slate-200 p-2 dark:border-slate-800"
+        className="border-divider flex flex-col gap-2 border p-2"
         aria-busy="true"
         aria-label="Carregando consumo"
         data-testid="consumption-section-skeleton"
     >
         {[0, 1, 2].map((i) => (
-            <div
-                key={i}
-                className="h-10 animate-pulse rounded bg-slate-100 dark:bg-slate-800/50"
-            />
+            <div key={i} className="bg-divider h-10 animate-pulse" />
         ))}
     </div>
 )

@@ -11,7 +11,10 @@ import { ALERT_1, DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
  *
  * SSE (`/api/iot/stream`, `RealtimeContext` → `createAppStream`) — os três
  * eventos que o backend emite além de `connected`:
- *   - `reading`      → `RealTimeCard` (via `readingsByMeterId`)
+ *   - `reading`      → `MeterSection` (via `readingsByMeterId` de
+ *     `useRealtime()`) — desde #99 a leitura entra inline no card do
+ *     medidor (`meter-connection-card`/`meter-status-stale`), não mais no
+ *     antigo `RealTimeCard` (removido)
  *   - `alert-firing` → invalida `alerts.firing`/`alerts.all` (o REST
  *     re-resolve status/target; SSE só avisa "algo mudou")
  *   - `notification` → escreve direto no cache de `notifications.list` +
@@ -98,7 +101,7 @@ test.describe("SSE — RealtimeContext (reading, alert-firing, notification)", (
         await context.clearCookies()
     })
 
-    test("reading atualiza o RealTimeCard e fica stale após 10s sem nova leitura, com relógio controlado", async ({
+    test("reading atualiza o card do medidor e fica stale após 10s sem nova leitura, com relógio controlado", async ({
         page,
     }) => {
         await page.clock.install({ time: new Date(CLOCK_TIME) })
@@ -119,20 +122,28 @@ test.describe("SSE — RealtimeContext (reading, alert-firing, notification)", (
         await page.goto("/propriedades/prop-1")
         await hideDevTools(page)
 
-        await expect(page.getByTestId("real-time-card")).toBeVisible()
-        await expect(page.getByText("220,00V")).toBeVisible()
-        await expect(page.getByText("5,00A")).toBeVisible()
-        // pt-BR agrupa milhares ("1.100,00W") — usar um valor < 1000 evita
-        // a armadilha do separador de milhar na assertion.
-        await expect(page.getByText("950,00W")).toBeVisible()
-        await expect(page.getByTestId("real-time-card-stale")).toHaveCount(0)
+        // `meter-connection-card` é só a linha de nome+status — o footer de
+        // 3 colunas (Potência/Tensão/Corrente) é irmão dela, não filho.
+        // `meter-section` (a `<section>` inteira) cobre os dois.
+        const section = page.getByTestId("meter-section")
+        const card = page.getByTestId("meter-connection-card")
+        await expect(card).toBeVisible()
+        await expect(card.getByText(/^conectado$/i)).toBeVisible()
+        await expect(section.getByText("220,00V")).toBeVisible()
+        await expect(section.getByText("5,00A")).toBeVisible()
+        // Potência do footer de MeterSection é em kW (formatPowerKw), não em
+        // W como o antigo RealTimeCard — 950W → 0,95kW. Escopado à section:
+        // o KPI "Potência agora" do topo da página mostra o mesmo valor, e
+        // `getByText` sem escopo bate nos dois (strict mode violation).
+        await expect(section.getByText("0,95kW")).toBeVisible()
+        await expect(page.getByTestId("meter-status-stale")).toHaveCount(0)
 
         // Avança o relógio da página (não espera de verdade) além do limiar
-        // de 10s sem leitura nova — o `setInterval` de 2s do RealTimeCard
+        // de 10s sem leitura nova — o `setInterval` de 2s de MeterSection
         // dispara dentro do próprio fast-forward e recalcula "now".
         await page.clock.fastForward(11_000)
 
-        await expect(page.getByTestId("real-time-card-stale")).toBeVisible()
+        await expect(page.getByTestId("meter-status-stale")).toBeVisible()
         await expect(page.getByText(/sem leitura recente/i)).toBeVisible()
     })
 
@@ -148,7 +159,9 @@ test.describe("SSE — RealtimeContext (reading, alert-firing, notification)", (
         await page.goto("/propriedades/prop-1")
         await hideDevTools(page)
 
-        await expect(page.getByTestId("real-time-card")).toBeVisible()
+        // Sanity de que a página terminou de montar antes de checar a
+        // ausência do badge (o card do medidor é o sinal mais confiável).
+        await expect(page.getByTestId("meter-connection-card")).toBeVisible()
         // O componente retorna null quando não há disparo — nem sequer
         // renderiza, não é um badge com contagem 0.
         await expect(page.getByTestId("warning-badge")).toHaveCount(0)

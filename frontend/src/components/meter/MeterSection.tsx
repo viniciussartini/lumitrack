@@ -1,16 +1,21 @@
-import { useState } from "react"
-import { AlertCircle, Pencil, Plus, Radio, Trash2 } from "lucide-react"
+import { useEffect, useState } from "react"
+import { AlertCircle, Pencil, Plus, Radio, Trash2, WifiOff } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog"
 import { MeterFormDialog } from "@/components/meter/MeterFormDialog"
-import { RealTimeCard } from "@/components/meter/RealTimeCard"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
 import { useDeleteMeter } from "@/hooks/queries/useMeterMutations"
+import { useRealtime } from "@/contexts/RealtimeContext"
 import { extractErrorMessage } from "@/services/api"
+import { formatCurrentRms, formatPowerKw, formatVoltageRms } from "@/lib/format"
 import { cn } from "@/lib/cn"
 import { METER_PROTOCOL_LABELS, type TargetType } from "@/types/meter.types"
 import { toast } from "sonner"
+
+/** Leitura considerada "obsoleta" após esse tempo sem uma amostra nova —
+ * mesmo limiar que o antigo RealTimeCard usava. */
+const STALE_THRESHOLD_MS = 10_000
 
 interface MeterSectionProps {
     targetType: TargetType
@@ -21,16 +26,34 @@ interface MeterSectionProps {
  * Seção de medidor nas details pages (Property/Area/Device) — substitui o
  * antigo placeholder "Integração IoT" (Fase 5). Mostra:
  *   - Sem medidor: EmptyState + botão "Configurar medidor".
- *   - Com medidor: card de conexão (protocolo + endpoint) com editar/remover
- *     + `RealTimeCard` (leituras via SSE) logo abaixo.
+ *   - Com medidor: card (LumiTrack Home.dc.html, bloco "Medidor") com nome/
+ *     conexão + status "Conectado"/"Sem leitura recente" e um footer de 3
+ *     colunas (Potência/Tensão/Corrente) — leitura via SSE (`useRealtime`),
+ *     antes mostrada num `RealTimeCard` separado (removido — a mesma fonte
+ *     de dado agora entra inline no card, conforme o protótipo).
  */
 export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
     const meterQuery = useMeterByTarget(targetType, targetId)
     const deleteMeter = useDeleteMeter()
     const [dialogOpen, setDialogOpen] = useState(false)
     const [confirmOpen, setConfirmOpen] = useState(false)
+    const { readingsByMeterId } = useRealtime()
+    const [now, setNow] = useState(() => Date.now())
 
     const meter = meterQuery.data
+    const reading = meter ? readingsByMeterId[meter.id] : undefined
+
+    // Recalcula a "idade" da leitura periodicamente — sem isso, o status
+    // só re-renderizaria quando uma leitura NOVA chegasse, e nunca
+    // detectaria sozinho que o medidor parou de transmitir (mesma lógica
+    // do antigo RealTimeCard).
+    useEffect(() => {
+        const interval = setInterval(() => setNow(Date.now()), 2_000)
+        return () => clearInterval(interval)
+    }, [])
+
+    const isStale =
+        !reading || now - new Date(reading.receivedAt).getTime() > STALE_THRESHOLD_MS
 
     const handleDelete = async () => {
         if (!meter) return
@@ -46,11 +69,11 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
 
     return (
         <section className="flex flex-col gap-3" data-testid="meter-section">
-            <header className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                    Medidor
-                </h2>
-                {!meter && (
+            {!meter && (
+                <header className="flex items-center justify-between">
+                    <h2 className="font-heading text-lg font-semibold uppercase">
+                        Medidor
+                    </h2>
                     <Button
                         variant="secondary"
                         size="sm"
@@ -60,12 +83,12 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
                         <Plus className="h-4 w-4" aria-hidden="true" />
                         Configurar medidor
                     </Button>
-                )}
-            </header>
+                </header>
+            )}
 
             {meterQuery.isLoading && (
                 <div
-                    className="h-20 animate-pulse rounded-lg border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800/50"
+                    className="blueprint h-20 animate-pulse"
                     aria-busy="true"
                     aria-label="Carregando medidor"
                 />
@@ -74,14 +97,10 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
             {meterQuery.isError && (
                 <div
                     role="alert"
-                    className={cn(
-                        "flex items-start gap-3 rounded-lg border p-4",
-                        "border-red-200 bg-red-50 text-red-900",
-                        "dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200",
-                    )}
+                    className="border-status-danger/40 flex items-start gap-3 border p-4"
                 >
-                    <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
-                    <p className="text-sm">
+                    <AlertCircle className="text-status-danger h-5 w-5 shrink-0" aria-hidden="true" />
+                    <p className="text-status-danger/85 text-sm">
                         {meterQuery.error instanceof Error
                             ? meterQuery.error.message
                             : "Não foi possível carregar o medidor."}
@@ -98,33 +117,25 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
             )}
 
             {meter && (
-                <>
-                    <div
-                        className={cn(
-                            "flex items-center justify-between gap-4 rounded-lg border bg-white p-4",
-                            "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
-                        )}
-                        data-testid="meter-connection-card"
-                    >
-                        <div className="min-w-0">
-                            <p className="truncate font-medium text-slate-900 dark:text-slate-100">
-                                {meter.name}
-                            </p>
-                            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                                {METER_PROTOCOL_LABELS[meter.protocol]}
-                                {meter.host && ` · ${meter.host}${meter.port ? `:${meter.port}` : ""}`}
-                                {meter.topic && ` · ${meter.topic}`}
-                                {meter.address && ` · ${meter.address}`}
-                            </p>
-                        </div>
-                        <div className="flex shrink-0 gap-2">
+                <div className="blueprint">
+                    <i className="corner tl" />
+                    <i className="corner tr" />
+                    <i className="corner bl" />
+                    <i className="corner br" />
+
+                    <div className="border-divider flex items-center justify-between border-b px-5 py-4">
+                        <span className="font-heading text-[17px] font-semibold uppercase">
+                            Medidor
+                        </span>
+                        <div className="flex items-center gap-2">
                             <Button
-                                variant="ghost"
+                                variant="secondary"
                                 size="sm"
                                 onClick={() => setDialogOpen(true)}
-                                aria-label="Editar medidor"
+                                className="min-h-9 text-[13px]"
                             >
-                                <Pencil className="h-4 w-4" aria-hidden="true" />
+                                <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                                Editar medidor
                             </Button>
                             <Button
                                 variant="ghost"
@@ -132,13 +143,69 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
                                 onClick={() => setConfirmOpen(true)}
                                 aria-label="Remover medidor"
                             >
-                                <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" aria-hidden="true" />
+                                <Trash2 className="text-status-danger h-4 w-4" aria-hidden="true" />
                             </Button>
                         </div>
                     </div>
 
-                    <RealTimeCard meterId={meter.id} />
-                </>
+                    <div
+                        className="flex flex-wrap items-center justify-between gap-4 px-5 py-[18px]"
+                        data-testid="meter-connection-card"
+                    >
+                        <div className="flex min-w-0 items-center gap-[13px]">
+                            <span
+                                className="border-accent text-accent flex h-10 w-10 shrink-0 items-center justify-center border"
+                                aria-hidden="true"
+                            >
+                                <Radio className="h-5 w-5" strokeWidth={1.5} />
+                            </span>
+                            <div className="min-w-0">
+                                <p className="truncate text-[14.5px] font-semibold">{meter.name}</p>
+                                <p className="text-muted mt-[3px] text-[12.5px]">
+                                    {METER_PROTOCOL_LABELS[meter.protocol]}
+                                    {meter.host && ` · ${meter.host}${meter.port ? `:${meter.port}` : ""}`}
+                                    {meter.topic && ` · ${meter.topic}`}
+                                    {meter.address && ` · ${meter.address}`}
+                                </p>
+                            </div>
+                        </div>
+
+                        {isStale ? (
+                            <span
+                                className="text-muted font-heading inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[.07em] uppercase"
+                                data-testid="meter-status-stale"
+                            >
+                                <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
+                                Sem leitura recente
+                            </span>
+                        ) : (
+                            <span className="font-heading inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[.07em] text-[#3f8f52] uppercase">
+                                <span
+                                    className="h-2 w-2 rounded-full bg-[#3f8f52]"
+                                    style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
+                                />
+                                Conectado
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="border-divider grid grid-cols-3 border-t">
+                        <MeterStat
+                            label="Potência"
+                            value={!isStale && reading ? formatPowerKw(reading.powerW) : "—"}
+                            className="border-divider border-r"
+                        />
+                        <MeterStat
+                            label="Tensão"
+                            value={!isStale && reading ? formatVoltageRms(reading.voltage) : "—"}
+                            className="border-divider border-r"
+                        />
+                        <MeterStat
+                            label="Corrente"
+                            value={!isStale && reading ? formatCurrentRms(reading.current) : "—"}
+                        />
+                    </div>
+                </div>
             )}
 
             <MeterFormDialog
@@ -159,3 +226,20 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
         </section>
     )
 }
+
+interface MeterStatProps {
+    label: string
+    value: string
+    className?: string
+}
+
+const MeterStat = ({ label, value, className }: MeterStatProps) => (
+    <div className={cn("px-5 py-3.5", className)}>
+        <div className="font-heading text-muted text-[10px] font-semibold tracking-[.07em] uppercase">
+            {label}
+        </div>
+        <div className="font-heading mt-[7px] text-xl font-semibold font-features-['tnum'_1]">
+            {value}
+        </div>
+    </div>
+)

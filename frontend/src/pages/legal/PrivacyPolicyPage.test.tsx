@@ -9,7 +9,9 @@ describe("PrivacyPolicyPage", () => {
         expect(
             await screen.findByRole("heading", { name: /política de privacidade do lumitrack/i }),
         ).toBeInTheDocument()
-        expect(screen.getByText(/quais dados coletamos/i)).toBeInTheDocument()
+        expect(
+            screen.getByRole("heading", { name: /quais dados coletamos/i }),
+        ).toBeInTheDocument()
     })
 
     it("define o título da aba do navegador", async () => {

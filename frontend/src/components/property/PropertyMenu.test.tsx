@@ -49,6 +49,7 @@ const mockProperty: Property = {
 
 interface RenderOptions {
     showEdit?: boolean
+    onEdit?: () => void
     onAfterDelete?: () => void
 }
 
@@ -59,13 +60,17 @@ const renderMenu = (options: RenderOptions = {}) => {
             mutations: { retry: false },
         },
     })
-    return render(
-        <QueryClientProvider client={queryClient}>
-            <MemoryRouter>
-                <PropertyMenu property={mockProperty} {...options} />
-            </MemoryRouter>
-        </QueryClientProvider>,
-    )
+    const onEdit = options.onEdit ?? vi.fn()
+    return {
+        onEdit,
+        ...render(
+            <QueryClientProvider client={queryClient}>
+                <MemoryRouter>
+                    <PropertyMenu property={mockProperty} {...options} onEdit={onEdit} />
+                </MemoryRouter>
+            </QueryClientProvider>,
+        ),
+    }
 }
 
 beforeEach(() => {
@@ -115,7 +120,7 @@ describe("PropertyMenu — abertura do menu", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("PropertyMenu — item Editar", () => {
-    it("mostra o item Editar por padrão (showEdit não passado)", async () => {
+    it("mostra o item Editar por padrão (showEdit não passado, onEdit presente)", async () => {
         const user = userEvent.setup()
         renderMenu()
 
@@ -128,20 +133,17 @@ describe("PropertyMenu — item Editar", () => {
         ).toBeInTheDocument()
     })
 
-    it("link Editar aponta para a rota de edição", async () => {
+    it("chama onEdit e fecha o menu ao clicar em Editar", async () => {
         const user = userEvent.setup()
-        renderMenu()
+        const { onEdit } = renderMenu()
 
         await user.click(
             screen.getByRole("button", { name: /opções de Casa Principal/i }),
         )
+        await user.click(screen.getByRole("menuitem", { name: /editar/i }))
 
-        const editLink = screen.getByRole("menuitem", { name: /editar/i })
-
-        expect(editLink).toHaveAttribute(
-            "href",
-            "/propriedades/prop-1/editar",
-        )
+        expect(onEdit).toHaveBeenCalledTimes(1)
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument()
     })
 
     it("não mostra o item Editar quando showEdit=false", async () => {
@@ -159,6 +161,31 @@ describe("PropertyMenu — item Editar", () => {
         expect(
             screen.getByRole("menuitem", { name: /excluir/i }),
         ).toBeInTheDocument()
+    })
+
+    it("não mostra o item Editar quando onEdit não é passado (fail-safe)", async () => {
+        const user = userEvent.setup()
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: { retry: false, gcTime: 0 },
+                mutations: { retry: false },
+            },
+        })
+        render(
+            <QueryClientProvider client={queryClient}>
+                <MemoryRouter>
+                    <PropertyMenu property={mockProperty} />
+                </MemoryRouter>
+            </QueryClientProvider>,
+        )
+
+        await user.click(
+            screen.getByRole("button", { name: /opções de Casa Principal/i }),
+        )
+
+        expect(
+            screen.queryByRole("menuitem", { name: /editar/i }),
+        ).not.toBeInTheDocument()
     })
 
     it("Editar aparece ANTES de Excluir na ordem do menu", async () => {

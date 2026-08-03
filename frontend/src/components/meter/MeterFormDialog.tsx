@@ -1,10 +1,8 @@
-import * as Dialog from "@radix-ui/react-dialog"
-import { X } from "lucide-react"
 import { toast } from "sonner"
+import { FormDialog } from "@/components/ui/FormDialog"
 import { MeterForm } from "@/components/meter/MeterForm"
 import { useCreateMeter, useUpdateMeter } from "@/hooks/queries/useMeterMutations"
 import { extractErrorMessage } from "@/services/api"
-import { cn } from "@/lib/cn"
 import type { MeterFormData } from "@/schemas/meter.schema"
 import type { CreateMeterInput, Meter, TargetType, UpdateMeterInput } from "@/types/meter.types"
 
@@ -77,65 +75,20 @@ export const MeterFormDialog = ({ isOpen, onClose, mode }: MeterFormDialogProps)
     }
 
     return (
-        <Dialog.Root
+        <FormDialog
             open={isOpen}
             onOpenChange={(open) => {
                 if (!open) onClose()
             }}
+            kicker="Medidor"
+            title={mode.kind === "create" ? "Configurar medidor" : "Editar medidor"}
         >
-            <Dialog.Portal>
-                <Dialog.Overlay
-                    className={cn(
-                        "fixed inset-0 z-40 bg-black/50",
-                        "data-[state=open]:animate-in data-[state=closed]:animate-out",
-                        "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-                    )}
-                />
-                <Dialog.Content
-                    data-testid="meter-form-dialog"
-                    className={cn(
-                        "fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2",
-                        "rounded-lg border bg-white p-6 shadow-lg",
-                        "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
-                        "data-[state=open]:animate-in data-[state=closed]:animate-out",
-                        "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-                        "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-                    )}
-                >
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <Dialog.Title className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                                {mode.kind === "create" ? "Configurar medidor" : "Editar medidor"}
-                            </Dialog.Title>
-                            <Dialog.Description className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                {mode.kind === "create"
-                                    ? "Vincule um medidor IoT para coletar consumo automaticamente."
-                                    : "Atualize a configuração de conexão do medidor."}
-                            </Dialog.Description>
-                        </div>
-                        <Dialog.Close
-                            className={cn(
-                                "rounded-md p-1 text-slate-500",
-                                "hover:bg-slate-100 hover:text-slate-700",
-                                "dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200",
-                                "focus:outline-none focus:ring-2 focus:ring-brand-500",
-                            )}
-                            aria-label="Fechar"
-                        >
-                            <X className="h-4 w-4" aria-hidden="true" />
-                        </Dialog.Close>
-                    </div>
-
-                    <div className="mt-4">
-                        <MeterForm
-                            initialData={mode.kind === "edit" ? mode.meter : undefined}
-                            onSubmit={handleSubmit}
-                            onCancel={onClose}
-                            submitLabel={mode.kind === "create" ? "Vincular medidor" : "Salvar alterações"}
-                        />
-                    </div>
-                </Dialog.Content>
-            </Dialog.Portal>
-        </Dialog.Root>
+            <MeterForm
+                initialData={mode.kind === "edit" ? mode.meter : undefined}
+                onSubmit={handleSubmit}
+                onCancel={onClose}
+                submitLabel={mode.kind === "create" ? "Vincular medidor" : "Salvar alterações"}
+            />
+        </FormDialog>
     )
 }

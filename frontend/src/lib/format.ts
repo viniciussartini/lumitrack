@@ -66,6 +66,15 @@ export const formatPowerW = (value: number): string =>
     `${electricalFormatter.format(value)}W`
 
 /**
+ * Potência em kW (não W) — usado nos KPIs "Potência agora" da hierarquia
+ * (Property/Area/Device Details), convertendo a leitura crua em Watts do
+ * SSE (`reading.powerW`, mesma fonte de `formatPowerW`/`RealTimeCard`).
+ * formatPowerKw(3420) → "3,42kW"
+ */
+export const formatPowerKw = (valueInWatts: number): string =>
+    `${electricalFormatter.format(valueInWatts / 1000)}kW`
+
+/**
  * Trunca uma string adicionando elipse no final.
  * Útil para nomes longos em cards.
  */

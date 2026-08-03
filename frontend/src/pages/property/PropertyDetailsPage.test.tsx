@@ -136,10 +136,6 @@ const renderPage = () => {
                         path="/propriedades"
                         element={<div>Lista de propriedades</div>}
                     />
-                    <Route
-                        path="/propriedades/:id/editar"
-                        element={<div>Edição</div>}
-                    />
                 </Routes>
             </MemoryRouter>
         </QueryClientProvider>,
@@ -149,6 +145,11 @@ const renderPage = () => {
 beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(meterService.byTarget).mockResolvedValue(null)
+    // Catálogo completo de distribuidoras — usado pelo modal de edição
+    // (PropertyFormDialog), carregado incondicionalmente pela página.
+    vi.mocked(distributorService.list).mockResolvedValue(
+        paginated([mockDistributor]),
+    )
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -254,14 +255,18 @@ describe("PropertyDetailsPage — header", () => {
         ).toBeInTheDocument()
     })
 
-    it("renderiza botão Editar com link correto", async () => {
+    it("abre o modal de edição ao clicar em 'Editar' (header)", async () => {
+        const user = userEvent.setup()
         renderPage()
 
-        const editButton = await screen.findByRole("link", {
-            name: /editar propriedade/i,
+        const editButton = await screen.findByRole("button", {
+            name: /^editar$/i,
         })
+        await user.click(editButton)
 
-        expect(editButton).toHaveAttribute("href", "/propriedades/prop-1/editar")
+        expect(
+            await screen.findByRole("dialog", { name: /editar propriedade/i }),
+        ).toBeInTheDocument()
     })
 
     it("renderiza menu de opções (sem item Editar — só Excluir)", async () => {
@@ -364,17 +369,18 @@ describe("PropertyDetailsPage — seção de áreas (vazia)", () => {
         ).toBeInTheDocument()
     })
 
-    it("link 'Adicionar área' aponta para a página de criação", async () => {
+    it("abre o modal de criação ao clicar em 'Adicionar área'", async () => {
+        const user = userEvent.setup()
         renderPage()
 
-        const addLink = await screen.findByRole("link", {
+        const addButton = await screen.findByRole("button", {
             name: /adicionar área/i,
         })
+        await user.click(addButton)
 
-        expect(addLink).toHaveAttribute(
-            "href",
-            "/propriedades/prop-1/areas/nova",
-        )
+        expect(
+            await screen.findByRole("dialog", { name: /adicionar área/i }),
+        ).toBeInTheDocument()
     })
 
     it("renderiza a marca 'Em breve' explicitamente", async () => {
