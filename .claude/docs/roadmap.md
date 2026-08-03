@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack (design system Industry)
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-01 · Fase atual: 2 (Fase 1 concluída — épico #94)
+> Última atualização: 2026-08-02 · Fase atual: 3 (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104)
 >
 > Escopo: migração do frontend para o design system Industry e construção das telas do handoff que ainda não existem. Não altera nenhum RF de backend — só adiciona telas/UI sobre a API já existente.
 
@@ -10,8 +10,8 @@
 | Fase | Objetivo (comportamento entregue) | Status |
 |---|---|---|
 | 1 | Fundação Industry + Autenticação (login, registro, recuperar senha) restilizados | **Concluída** (#89–#93, épico #94) |
-| 2 | Hierarquia do consumidor (Propriedade→Área→Dispositivo) via modal + LGPD | Não iniciada |
-| 3 | Alertas, Distribuidoras, Segurança/MFA restilizados | Não iniciada |
+| 2 | Hierarquia do consumidor (Propriedade→Área→Dispositivo) via modal + LGPD | **Concluída** (#97–#103, épico #104) |
+| 3 | Alertas, Distribuidoras, Segurança/MFA restilizados | Planejada — detalhe abaixo |
 | 4 | Painel (feature nova) + Perfil (tela nova) | Não iniciada |
 | 5 | Landing pública (tela nova) + Simulador IoT (restyle) | Não iniciada |
 
@@ -62,13 +62,42 @@
 - **Depende de:** Componentes base Industry.
 - **Risco/observações:** baixo-médio — tela nova, mas contrato de API já testado no backend.
 
+## Fase 2 — Hierarquia do consumidor + LGPD (concluída)
+
+Restyle de `PropertiesPage`/`PropertyDetailsPage`/`AreaDetailsPage`/`DeviceDetailsPage` (RF07) **e** migração do CRUD de 6 rotas dedicadas para modais (`.lt-modal`) — reescreveu os E2E `properties/area/device.spec.ts`. Restyle de `PrivacyPolicyPage`/`TermsOfUsePage` (consentimento, RF01, `09-conformidade-legal.md`). Épico #104, sub-issues #97–#103, PR #106.
+
+## Fase 3 — Alertas, Distribuidoras, Segurança/MFA
+
+> Handoff de design: as 3 telas estão dentro de `LumiTrack Home.dc.html` (app single-file multi-view, `state.view`) — views `isAlerts` (linhas 644–761), `isDist` (764–820), `isSecurity` (917–1035). Nenhum arquivo `.dc.html` separado por tela nesta fase.
+
+### Restyle de Alertas
+
+- **Comportamento:** usuário gerencia alertas por faixa de potência (criar/editar/habilitar/excluir) e consulta o histórico de disparos, agora com a linguagem visual Industry.
+- **Cobre:** RF14, RF15, RF16.
+- **Priority:** P1 · **Size:** L
+- **Critérios de aceite:** layout conforme o bloco `isAlerts` do handoff (KPIs, tabela de alertas configurados, seção de histórico de disparos, dialog de criar/editar); o dialog de criar/editar (hoje `Dialog.Root` do Radix cru em `AlertFormDialog.tsx`) migrado pro `FormDialog` já padronizado (mesmo padrão de `MeterFormDialog`/`PropertyFormDialog`); KPIs "Alertas ativos" e "Em disparo agora" com dado real (deriváveis do catálogo de alertas já buscado + `GET /api/alerts/firing`, já consumido hoje pelo `WarningBadge`); **sem** o KPI "Disparos · últimos 30d" do protótipo — sem dado real, o backend (`GET /api/alert-events`) exige `alertId` e não tem endpoint agregado por período; `alerts.spec.ts` (E2E, hoje verde) continua verde sem quebra estrutural de fluxo.
+- **Depende de:** Componentes base Industry (Fase 1, já entregue — `Table`/`Tag`/`Menu`).
+- **Risco/observações:** médio — maior superfície das 3 telas (tabela dupla + dialog + menu de contexto + badges de status), e a troca do dialog cru pro `FormDialog` é mudança estrutural, não só visual (mesma classe de risco que a unificação de modais em #97).
+
+### Restyle de Distribuidoras
+
+- **Comportamento:** usuário consulta o catálogo de distribuidoras (somente leitura, sem CRUD — populado por seed), agora com a linguagem visual Industry.
+- **Cobre:** RF08 (parte — catálogo; a "bandeira tarifária vigente" de RF08 já está alocada na Fase 4, junto do Painel, não repetida aqui).
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:** layout conforme o bloco `isDist` do handoff (grid de cards, filtro por UF, busca, estado vazio); `distributors.spec.ts` (E2E, hoje verde) continua verde.
+- **Depende de:** Componentes base Industry.
+- **Risco/observações:** baixo — menor superfície das 3 telas (sem CRUD, sem dialog), migração puramente visual.
+
+### Restyle de Segurança/MFA
+
+- **Comportamento:** usuário habilita/desabilita MFA (TOTP + códigos de backup), agora com a linguagem visual Industry.
+- **Cobre:** RF03, RF04.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:** layout conforme o bloco `isSecurity` do handoff, restrito aos passos que já existem funcionalmente (`idle → setup → backup → disable`) — **sem** "Card Senha" (troca de senha autenticada) nem "Card Sessões ativas" do protótipo: nenhum dos dois tem RF ou endpoint de backend hoje (confirmado por grep — sem rota de change-password autenticado nem de listagem/encerramento de sessões); `SecurityPage.test.tsx`/`MfaCodeForm.test.tsx` verdes; nenhum uso residual do token legado pré-Industry `text-success`/`bg-success` (definido em `src/index.css`, não em `industry.css`) — trocar pelo token Industry `--color-status-success` real.
+- **Depende de:** Componentes base Industry.
+- **Risco/observações:** baixo-médio — funcionalmente já pronto, o risco é de consistência visual: `SecurityPage.tsx` está no token legado enquanto `MfaCodeForm.tsx` (componente compartilhado com `LoginPage`, já migrado na Fase 1) já usa tokens Industry reais — os dois precisam ficar coerentes no mesmo passe.
+
 ## Fases seguintes (menos detalhadas — serão refinadas ao chegar)
-
-**Fase 2 — Hierarquia do consumidor + LGPD**
-Restyle de `PropertiesPage`/`PropertyDetailsPage`/`AreaDetailsPage`/`DeviceDetailsPage` (RF07) **e** migração do CRUD de 6 rotas dedicadas para modais (`.lt-modal`) — reescreve os E2E `properties/area/device.spec.ts`. Restyle de `PrivacyPolicyPage`/`TermsOfUsePage` (consentimento, RF01, `09-conformidade-legal.md`). Maior risco técnico do roadmap: muda navegação e testes ao mesmo tempo.
-
-**Fase 3 — Alertas, Distribuidoras, Segurança**
-Restyle de `AlertsPage` (RF14–16), `DistributorsPage` (RF08), `SecurityPage`/MFA (RF03–04). Sem mudança estrutural — só visual sobre telas já funcionais.
 
 **Fase 4 — Painel (feature nova) + Perfil (tela nova)**
 Painel: consumo ao vivo via SSE (RF11), consumo do dia/custo do mês/comparação por período (RF12, RF13), bandeira vigente (RF08) — `DashboardPage` hoje é um placeholder, isso é feature nova, não restyle. Perfil: leitura/edição via `GET/PUT` de usuário — sem RF hoje, cobertura nova. Requer dois hooks/services que não existem (`tariff-flag`, mutations de usuário).
