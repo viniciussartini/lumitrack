@@ -7,7 +7,7 @@ import { Pagination } from "@/components/ui/Pagination"
 import { AlertTable } from "@/components/alert/AlertTable"
 import { AlertEventTable } from "@/components/alert/AlertEventTable"
 import { AlertFormDialog } from "@/components/alert/AlertFormDialog"
-import { useAlerts } from "@/hooks/queries/useAlerts"
+import { useAlerts, useFiringAlerts } from "@/hooks/queries/useAlerts"
 import { useAlertEvents } from "@/hooks/queries/useAlertEvents"
 import { useMeters } from "@/hooks/queries/useMeters"
 import { cn } from "@/lib/cn"
@@ -15,7 +15,8 @@ import { DEFAULT_PAGE_SIZE } from "@/types/pagination.types"
 import type { AlertWithStatus } from "@/types/alert.types"
 
 /**
- * Inbox global de alertas — /alertas (Fase 5, reescrita completa).
+ * Inbox global de alertas — /alertas, conforme `isAlerts` de
+ * `LumiTrack Home.dc.html`.
  *
  * Duas áreas:
  *   (a) Alertas criados — CRUD flat (nome, alvo, kW de referência,
@@ -23,10 +24,23 @@ import type { AlertWithStatus } from "@/types/alert.types"
  *   (b) Histórico de disparos — paginado, filtrado por um alerta
  *       selecionado (o backend expõe `GET /api/alert-events?alertId=`,
  *       sem endpoint agregado entre alertas).
+ *
+ * KPIs "Alertas ativos"/"Em disparo agora": o protótipo tem um 3º KPI
+ * ("Disparos · últimos 30d") que ficou de fora — sem endpoint agregado por
+ * período (`GET /api/alert-events` exige `alertId`), mesma regra de "sem
+ * inventar dado" já aplicada nos KPIs omitidos de #99-#101.
  */
 export const AlertsPage = () => {
     const [page, setPage] = useState(1)
     const alertsQuery = useAlerts(page, DEFAULT_PAGE_SIZE)
+    // Catálogo completo (pageSize máximo do backend) só pra computar os
+    // KPIs — useAlerts(page, DEFAULT_PAGE_SIZE) é paginado e só refletiria
+    // a página visível da tabela, não o total real de alertas habilitados.
+    const allAlertsQuery = useAlerts(1, 31)
+    // "Em disparo agora" reusa a mesma fonte do WarningBadge do header
+    // (useFiringAlerts, GET /api/alerts/firing) — mesma query key, dedupe
+    // automático do React Query, sem chamada HTTP extra.
+    const firingQuery = useFiringAlerts()
     // pageSize máximo (31) — o seletor de medidor no form de criação
     // precisa de todos os medidores do usuário, não só uma página.
     const metersQuery = useMeters(1, 31)
@@ -47,6 +61,13 @@ export const AlertsPage = () => {
     const eventsQuery = useAlertEvents(effectiveAlertId, eventsPage, DEFAULT_PAGE_SIZE)
     const selectedAlert = alerts.find((a) => a.id === effectiveAlertId)
 
+    const activeAlertsCount = allAlertsQuery.isLoading
+        ? ("—" as const)
+        : (allAlertsQuery.data?.items ?? []).filter((a) => a.enabled).length
+    const firingCount = firingQuery.isLoading
+        ? ("—" as const)
+        : (firingQuery.data ?? []).length
+
     const handleSelectAlertForHistory = (id: string) => {
         setSelectedAlertId(id)
         setEventsPage(1)
@@ -54,23 +75,36 @@ export const AlertsPage = () => {
 
     return (
         <div className="flex flex-col gap-8">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                        Alertas
-                    </h1>
-                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                        Monitore faixas de potência dos seus medidores e veja o histórico de disparos.
-                    </p>
-                </div>
+            <div>
+                <span className="font-heading text-accent-700 block text-xs font-semibold tracking-[.08em] uppercase">
+                    Monitoramento
+                </span>
+                <h1 className="font-heading mt-2 text-[clamp(22px,2.4vw,30px)] leading-[1.05] font-semibold uppercase">
+                    Alertas
+                </h1>
+            </div>
+
+            <div className="flex flex-wrap items-start justify-between gap-4">
+                <p className="text-muted m-0 max-w-[78ch] text-sm leading-relaxed">
+                    Monitore faixas de potência dos seus medidores e veja o histórico de
+                    disparos. Um alerta abre um episódio quando a potência sai da faixa{" "}
+                    <span className="font-mono">referência ± tolerância</span> e o fecha
+                    quando retorna ao normal.
+                </p>
                 <Button
                     type="button"
                     onClick={() => setDialogMode({ kind: "create" })}
+                    className="min-h-[42px] shrink-0"
                     data-testid="alerts-page-create-button"
                 >
                     <Plus className="h-4 w-4" aria-hidden="true" />
                     Criar alerta
                 </Button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <KpiCard label="Alertas ativos" value={activeAlertsCount} />
+                <KpiCard label="Em disparo agora" value={firingCount} highlight />
             </div>
 
             {/* Área (a) — alertas criados */}
@@ -114,7 +148,7 @@ export const AlertsPage = () => {
             {/* Área (b) — histórico de disparos */}
             <section className="flex flex-col gap-3">
                 <header className="flex flex-wrap items-center justify-between gap-3">
-                    <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                    <h2 className="font-heading flex items-center gap-2 text-[17px] font-semibold uppercase">
                         <History className="h-5 w-5" aria-hidden="true" />
                         Histórico de disparos
                     </h2>
@@ -136,7 +170,7 @@ export const AlertsPage = () => {
                 </header>
 
                 {alerts.length === 0 && (
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                    <p className="text-muted text-sm">
                         Crie um alerta para começar a acumular histórico de disparos.
                     </p>
                 )}
@@ -194,20 +228,52 @@ export const AlertsPage = () => {
     )
 }
 
+interface KpiCardProps {
+    label: string
+    value: number | "—"
+    /** "Em disparo agora" — dot pulsante + cor de destaque, sempre (mesmo
+     * com valor 0), fiel ao protótipo (é o KPI que representa o estado ao
+     * vivo, não uma contagem neutra como "Alertas ativos"). */
+    highlight?: boolean
+}
+
+const KpiCard = ({ label, value, highlight }: KpiCardProps) => (
+    <div className="blueprint px-5 py-[18px]">
+        <i className="corner tl" />
+        <i className="corner tr" />
+        <i className="corner bl" />
+        <i className="corner br" />
+        <div className="font-heading flex items-center gap-2 text-[11px] font-semibold tracking-[.07em] uppercase">
+            {highlight && (
+                <span
+                    className="h-2 w-2 rounded-full"
+                    style={{
+                        backgroundColor: "var(--color-status-warning)",
+                        animation: "lt-pulse 1.6s ease-in-out infinite",
+                    }}
+                    aria-hidden="true"
+                />
+            )}
+            {label}
+        </div>
+        <div
+            className={cn(
+                "font-heading mt-2.5 text-[30px] leading-none font-semibold font-features-['tnum'_1]",
+                highlight && "text-status-warning",
+            )}
+        >
+            {value}
+        </div>
+    </div>
+)
+
 const TableSkeleton = () => (
     <div
-        className="flex flex-col gap-2 rounded-lg border border-slate-200 p-2 dark:border-slate-800"
+        className="blueprint h-40 animate-pulse"
         aria-busy="true"
         aria-label="Carregando"
         data-testid="alerts-page-skeleton"
-    >
-        {[0, 1, 2, 3].map((i) => (
-            <div
-                key={i}
-                className="h-12 animate-pulse rounded bg-slate-100 dark:bg-slate-800/50"
-            />
-        ))}
-    </div>
+    />
 )
 
 interface ErrorStateProps {
@@ -217,13 +283,9 @@ interface ErrorStateProps {
 const ErrorState = ({ message }: ErrorStateProps) => (
     <div
         role="alert"
-        className={cn(
-            "flex items-start gap-3 rounded-lg border p-4",
-            "border-red-200 bg-red-50 text-red-900",
-            "dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200",
-        )}
+        className="border-status-danger/40 flex items-start gap-3 border p-4"
     >
-        <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
-        <p className="text-sm">{message}</p>
+        <AlertCircle className="text-status-danger h-5 w-5 shrink-0" aria-hidden="true" />
+        <p className="text-status-danger/85 text-sm">{message}</p>
     </div>
 )
