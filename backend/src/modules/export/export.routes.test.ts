@@ -4,6 +4,7 @@ import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
 import { createTestDistributor } from "@/shared/test/distributorFixture.js"
+import { waitFor } from "@/shared/test/waitFor.js"
 
 const app = createApp({ prismaClient: prismaHttpTest })
 
@@ -154,9 +155,14 @@ describe("GET /api/users/me/data-export", () => {
 
         const userId = response.body.data.user.id as string
 
-        const auditEntry = await prismaHttpTest.auditLog.findFirst({
-            where: { userId, action: "DATA_EXPORT" },
-        })
+        // O controller registra este audit log DEPOIS de enviar a resposta
+        // (decisão de latência) — a escrita corre em paralelo ao fim do
+        // request acima, sem ordem garantida (#113).
+        const auditEntry = await waitFor(() =>
+            prismaHttpTest.auditLog.findFirst({
+                where: { userId, action: "DATA_EXPORT" },
+            }),
+        )
 
         expect(auditEntry).not.toBeNull()
         expect(auditEntry?.outcome).toBe("SUCCESS")

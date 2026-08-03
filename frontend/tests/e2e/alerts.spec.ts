@@ -137,10 +137,8 @@ test.describe("Inbox de alertas (/alertas)", () => {
 
         // ─── 2. Criar novo alerta ─────────────────────────────────────────────
         await page.getByTestId("alerts-page-create-button").click()
-        await expect(page.getByTestId("alert-form-dialog")).toBeVisible()
-        await expect(
-            page.getByRole("heading", { name: /^criar alerta$/i }),
-        ).toBeVisible()
+        const createDialog = page.getByRole("dialog", { name: /^criar alerta$/i })
+        await expect(createDialog).toBeVisible()
 
         await page
             .getByTestId("alert-form-name")
@@ -155,7 +153,7 @@ test.describe("Inbox de alertas (/alertas)", () => {
         await page.getByTestId("alert-form-submit").click()
 
         // Dialog fecha, tabela aparece com a linha nova
-        await expect(page.getByTestId("alert-form-dialog")).not.toBeVisible()
+        await expect(createDialog).not.toBeVisible()
         await expect(page.getByTestId("alert-row-alert-1")).toBeVisible()
         const row = page.getByTestId("alert-row-alert-1")
         await expect(row).toContainText(/geladeira fora da faixa/i)
@@ -170,17 +168,15 @@ test.describe("Inbox de alertas (/alertas)", () => {
         await page.getByTestId("alert-menu-trigger-alert-1").click()
         await page.getByTestId("alert-menu-edit-alert-1").click()
 
-        await expect(page.getByTestId("alert-form-dialog")).toBeVisible()
-        await expect(
-            page.getByRole("heading", { name: /^editar alerta$/i }),
-        ).toBeVisible()
+        const editDialog = page.getByRole("dialog", { name: /^editar alerta$/i })
+        await expect(editDialog).toBeVisible()
         // Em edição não há select de medidor — é um <input type="hidden">
         await expect(page.getByTestId("alert-form-meterId")).toHaveCount(0)
 
         await page.getByTestId("alert-form-referencePowerKw").fill("12")
         await page.getByTestId("alert-form-submit").click()
 
-        await expect(page.getByTestId("alert-form-dialog")).not.toBeVisible()
+        await expect(editDialog).not.toBeVisible()
         await expect(page.getByTestId("alert-row-alert-1")).toContainText(
             /12 kW/,
         )
@@ -350,7 +346,8 @@ test.describe("Inbox de alertas (/alertas)", () => {
         await hideDevTools(page)
 
         await page.getByTestId("alerts-page-create-button").click()
-        await expect(page.getByTestId("alert-form-dialog")).toBeVisible()
+        const dialog = page.getByRole("dialog", { name: /^criar alerta$/i })
+        await expect(dialog).toBeVisible()
 
         // Submit totalmente vazio — nome, medidor e potência são obrigatórios
         // (tolerância já vem com default 10, não dispara erro aqui).
@@ -377,6 +374,6 @@ test.describe("Inbox de alertas (/alertas)", () => {
         ).toBeVisible()
 
         // Continua no dialog — não navegou nem chamou POST
-        await expect(page.getByTestId("alert-form-dialog")).toBeVisible()
+        await expect(dialog).toBeVisible()
     })
 })

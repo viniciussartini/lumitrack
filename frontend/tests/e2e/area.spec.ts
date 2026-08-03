@@ -402,5 +402,16 @@ test.describe("Fluxo CRUD de áreas", () => {
 
         // Continua no modal — não foi possível submeter
         await expect(createDialog).toBeVisible()
+
+        // Interage com "descrição" (não com "nome") e clica direto no submit
+        // sem blur manual — regressão do bug #111: sem esse fluxo, o clique
+        // só validava o campo com autoFocus, escondendo o erro de "nome".
+        await page
+            .getByLabel(/descrição/i)
+            .fill("a".repeat(1001))
+        await page.getByRole("button", { name: /criar área/i }).click()
+
+        await expect(page.getByText(/nome é obrigatório/i)).toBeVisible()
+        await expect(page.getByText(/descrição muito longa/i)).toBeVisible()
     })
 })
