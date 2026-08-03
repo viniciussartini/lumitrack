@@ -24,7 +24,13 @@ export function generateTotpUri(email: string, secret: string): string {
 
 export async function verifyTotpCode(secret: string, code: string): Promise<boolean> {
     try {
-        const result = await verify({ secret, token: code })
+        // epochTolerance por padrão é 0 no otplib v13 — exigiria que o
+        // código fosse validado dentro do mesmíssimo passo de 30s em que
+        // foi gerado, sem margem para o tempo de round-trip (rede + hash de
+        // senha + escrita no banco). Tolerância de 1 passo (±30s) é a
+        // prática padrão de TOTP (RFC 6238) para absorver latência normal e
+        // pequeno desvio de relógio do autenticador do usuário.
+        const result = await verify({ secret, token: code, epochTolerance: 1 })
         return result.valid
     } catch {
         // otplib lança se o código não tiver o formato esperado (ex.: não
