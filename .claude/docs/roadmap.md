@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack (design system Industry)
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-02 · Fase atual: 3 (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104)
+> Última atualização: 2026-08-03 · Fase atual: 4 (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104; Fase 3 concluída — épico #110, PR #112)
 >
 > Escopo: migração do frontend para o design system Industry e construção das telas do handoff que ainda não existem. Não altera nenhum RF de backend — só adiciona telas/UI sobre a API já existente.
 
@@ -11,8 +11,8 @@
 |---|---|---|
 | 1 | Fundação Industry + Autenticação (login, registro, recuperar senha) restilizados | **Concluída** (#89–#93, épico #94) |
 | 2 | Hierarquia do consumidor (Propriedade→Área→Dispositivo) via modal + LGPD | **Concluída** (#97–#103, épico #104) |
-| 3 | Alertas, Distribuidoras, Segurança/MFA restilizados | Planejada — detalhe abaixo |
-| 4 | Painel (feature nova) + Perfil (tela nova) | Não iniciada |
+| 3 | Alertas, Distribuidoras, Segurança/MFA restilizados | **Concluída** (#107–#109, #111, #113, épico #110, PR #112) |
+| 4 | Painel (feature nova) + Perfil (tela nova) | Planejada — detalhe abaixo |
 | 5 | Landing pública (tela nova) + Simulador IoT (restyle) | Não iniciada |
 
 ## Fase 1 — Fundação Industry + Autenticação
@@ -97,10 +97,69 @@ Restyle de `PropertiesPage`/`PropertyDetailsPage`/`AreaDetailsPage`/`DeviceDetai
 - **Depende de:** Componentes base Industry.
 - **Risco/observações:** baixo-médio — funcionalmente já pronto, o risco é de consistência visual: `SecurityPage.tsx` está no token legado enquanto `MfaCodeForm.tsx` (componente compartilhado com `LoginPage`, já migrado na Fase 1) já usa tokens Industry reais — os dois precisam ficar coerentes no mesmo passe.
 
-## Fases seguintes (menos detalhadas — serão refinadas ao chegar)
+**Fechamento (2026-08-03):** entregue via PR #112. Além das 3 sub-issues planejadas, a branch tratou 2 achados descobertos durante a execução — #111 (bug de `autoFocus` vs. foco automático do Radix `Dialog.Content`, herdado de fases anteriores — `AreaForm`/`DeviceForm`) e #113 (testes de audit log pós-resposta racy em `admin`/`export`, achado durante investigação de CI) — e um fix de segurança sem issue própria (tolerância de tempo zerada por padrão na verificação TOTP, `otplib` `epochTolerance`). Nenhuma mudança de escopo nos 3 itens originalmente planejados.
 
-**Fase 4 — Painel (feature nova) + Perfil (tela nova)**
-Painel: consumo ao vivo via SSE (RF11), consumo do dia/custo do mês/comparação por período (RF12, RF13), bandeira vigente (RF08) — `DashboardPage` hoje é um placeholder, isso é feature nova, não restyle. Perfil: leitura/edição via `GET/PUT` de usuário — sem RF hoje, cobertura nova. Requer dois hooks/services que não existem (`tariff-flag`, mutations de usuário).
+## Fase 4 — Painel (feature nova) + Perfil (tela nova)
+
+> Handoff de design: ambas as telas estão dentro de `LumiTrack Home.dc.html` (mesmo app single-file da Fase 3) — views `isDashboard` (linhas 152–246) e `isProfile` (823–914). Nenhuma das duas está "aguardando design" — handoff hifi cobre 100% do escopo abaixo.
+>
+> Achados de exploração que definem o escopo: RF12 (agregação por hora/dia/mês/ano, `GET /api/consumption`) e RF13 (custo TUSD+TE com tributos por dentro, CIP, piso de disponibilidade, `TariffService`) **já estão implementados no backend**. RF08 (bandeira vigente, módulo `tariff-flag`, GET público/PUT admin) **também já existe no backend** — falta só a integração no frontend. RF11 (SSE) já tem client funcional (`RealtimeContext`/`appStream.ts`). Não existem hoje: hook/service de bandeira no frontend, hook/service de usuário no frontend, topbar/seletor de propriedade, troca de senha autenticada, listagem/revogação de sessões (os 2 últimos ficam fora do escopo desta fase — sem RF/endpoint, mesmo corte já aplicado em #109).
+
+### Seletor de propriedade (pré-requisito compartilhado)
+
+- **Comportamento:** usuário troca a propriedade ativa num seletor na topbar/painel; a escolha persiste durante a navegação e direciona os dados exibidos abaixo.
+- **Cobre:** habilita RF08, RF11, RF12, RF13 na UI (nenhum RF isolado).
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** componente novo consumindo `useProperties` (já existe); nenhuma tela quebra sem propriedade selecionada (estado vazio quando o usuário não tem propriedade cadastrada); teste de integração cobrindo a troca de propriedade.
+- **Depende de:** Componentes base Industry (Fase 1).
+- **Risco/observações:** baixo — peça isolada, mas bloqueia os 2 itens de Painel seguintes.
+
+### Painel — visão em tempo real
+
+- **Comportamento:** usuário abre `/dashboard`, vê "Potência agora" (kW) + custo estimado/h atualizando ao vivo, e um gráfico de consumo em tempo real (toggle última hora/24h).
+- **Cobre:** RF11.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:** layout conforme o bloco `isDashboard` (KPIs "Potência agora" + gráfico de consumo em tempo real); dado via `RealtimeContext`/`appStream.ts` (já existe, client SSE) somando as leituras dos medidores da propriedade ativa — **sem endpoint agregado por propriedade no backend**, a soma é feita no cliente sobre `readingsByMeterId`; `dashboard.spec.ts` novo (E2E — hoje não existe nenhum teste, nem para o placeholder atual).
+- **Depende de:** Seletor de propriedade.
+- **Risco/observações:** médio — maior incerteza técnica da fase (agregação de múltiplos medidores em tempo real no cliente, sem precedente no código; atenção a performance de re-render em alta frequência de eventos SSE).
+
+### Painel — KPIs de consumo/custo e bandeira vigente
+
+- **Comportamento:** usuário vê "Consumo hoje" (kWh + delta vs. ontem), "Custo projetado do mês" e a "Bandeira tarifária vigente" (+ lista das 4 bandeiras com valores).
+- **Cobre:** RF12, RF13, RF08 (parte pendente — bandeira vigente na UI; o catálogo de distribuidoras já foi restilizado na Fase 3).
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:** novo `tariff-flag.service.ts`/`useTariffFlag` no frontend (backend já pronto, `GET /api/tariff-flag` público, sem restrição de role para leitura); KPIs de consumo/custo via `useConsumption` já existente (já traz `costBrl` calculado por bucket); card "Bandeiras tarifárias" lista as 4 com a vigente destacada.
+- **Depende de:** Seletor de propriedade.
+- **Risco/observações:** baixo-médio — dado já calculado no backend (`TariffService.calculateCore`/`calculateForProperty`), é composição de UI + 1 hook novo.
+
+### Perfil — visualizar e editar dados pessoais
+
+- **Comportamento:** usuário visualiza nome/sobrenome/CPF (mascarado, read-only)/e-mail/tipo de conta, e edita nome/sobrenome/e-mail.
+- **Cobre:** sem RF formal — funcionalidade nova sobre `PUT /api/users/:id` (já existe, aceita `email`/`firstName`/`lastName`/`companyName`/`tradeName`; CPF/CNPJ deliberadamente fora do schema de update, batendo com o texto do handoff "O CPF não pode ser alterado após o cadastro").
+- **Priority:** P1 · **Size:** S/M
+- **Critérios de aceite:** rota `/perfil` nova + habilitar o item hoje `disabled` "Perfil (em breve)" em `UserMenu.tsx`; novo `user.service.ts`/hook de mutation no frontend; layout conforme o bloco `isProfile` (card de identidade + card "Dados pessoais" com os 2 modos leitura/edição); teste cobrindo o fluxo de edição.
+- **Depende de:** Componentes base Industry (Fase 1). Independente do Painel — pode ser feito em paralelo.
+- **Risco/observações:** baixo — CRUD simples sobre endpoint já testado no backend.
+
+### Painel — histórico e comparação entre propriedades
+
+- **Comportamento:** usuário vê o histórico de consumo mensal (toggle 6/12 meses) e compara consumo/custo entre suas propriedades (toggle kWh/R$).
+- **Cobre:** RF12, RF13.
+- **Priority:** P2 · **Size:** M
+- **Critérios de aceite:** histórico via `useConsumption` (granularidade `month`); comparação faz N chamadas a `/api/consumption` (uma por propriedade — não existe endpoint agregado multi-propriedade) e funciona corretamente com 1 propriedade só (sem quebrar quando não há o que comparar).
+- **Depende de:** Seletor de propriedade; reaproveita o mesmo padrão de gráfico dos 2 itens anteriores de Painel.
+- **Risco/observações:** médio — N chamadas client-side escalam mal com muitas propriedades por usuário; aceitável no MVP (escala real é pequena), mas registrar como possível gatilho de ADR futuro (endpoint agregado) se isso mudar.
+
+### Perfil — Conta e Privacidade & dados
+
+- **Comportamento:** usuário vê "Membro desde", contagem de propriedades e status de 2FA; exporta seus dados (LGPD Art. 18) e exclui a conta — ambos a partir da tela de Perfil.
+- **Cobre:** RF17 (export, já implementado no módulo `export` — só nova entrada de UI); sem RF formal para exclusão de conta (já existe `DELETE /api/users/:id`).
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:** card "Conta" com dado real (`createdAt` do usuário — confirmar disponibilidade do campo antes de implementar); botão "Exportar meus dados" reaproveita o fluxo já existente; "Excluir minha conta" com `ConfirmDialog` (já existe) chamando `DELETE /api/users/:id`.
+- **Depende de:** Perfil — visualizar e editar dados pessoais (mesma página).
+- **Risco/observações:** baixo — reaproveita 2 features de backend já prontas, só nova superfície de UI.
+
+## Fases seguintes (menos detalhadas — serão refinadas ao chegar)
 
 **Fase 5 — Landing pública + Simulador IoT**
 `LandingPage` nova (marketing, sem auth, sem RF — menor risco técnico do roadmap). Restyle do `iot-simulator/ui` (dashboard, redes, dispositivos) — pacote separado, dados já reais via `useNetworks`/`useLiveStatus`.
@@ -118,4 +177,5 @@ Painel: consumo ao vivo via SSE (RF11), consumo do dia/custo do mês/comparaçã
 - **Autenticação antes do resto:** é o primeiro contato de qualquer usuário com o produto — maior visibilidade de um restyle malfeito — e o menor conjunto de telas que valida o pipeline inteiro (tokens → componentes → E2E) antes de escalar para o app logado.
 - **Hierarquia do consumidor (Fase 2) antes de Alertas/Distribuidoras/Segurança (Fase 3):** Propriedade→Área→Dispositivo é a espinha dorsal do resto do produto (medidores penduram nela), e a migração de rotas para modal é a mudança estrutural mais arriscada do roadmap — fazer cedo, enquanto ainda dá para o resto se adaptar ao padrão que ela estabelece.
 - **Painel/Perfil (Fase 4) depois da hierarquia:** o Painel depende de Propriedades/Medidores existirem para ter dado real a mostrar, e do seletor de propriedade da topbar — que só faz sentido com Propriedades já restilizado.
+- **Dentro da Fase 4, seletor de propriedade antes de Painel:** os 3 itens de Painel (tempo real, KPIs/bandeira, histórico/comparação) leem a propriedade ativa — sem o seletor, cada um teria que resolver essa dependência de forma isolada e inconsistente. Perfil é independente e pode avançar em paralelo. Tempo real vem antes de KPIs/bandeira por ser o item de maior incerteza técnica (agregação de SSE no cliente, sem precedente) — validar cedo enquanto ainda é barato ajustar; histórico/comparação fica por último por ser o de menor valor imediato (útil só com mais de um período/propriedade acumulado) e o único com um risco de escala conhecido (N chamadas client-side).
 - **Landing/Simulador (Fase 5) por último:** menor risco técnico e menor dependência de qualquer fase anterior — entram por último por serem os mais paralelizáveis, não por serem menos importantes.

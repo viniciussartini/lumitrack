@@ -319,3 +319,13 @@
 - **Arquivos principais:** `backend/src/shared/test/waitFor.ts` (novo), `backend/src/modules/admin/admin.routes.test.ts`, `backend/src/modules/export/export.routes.test.ts`.
 - **Decisões/ADRs:** nenhuma nova.
 - **Notas:** `npm run build`/`lint` do backend limpos. Os dois testes rodados isoladamente 8x em sequência após a correção — **0 falhas em 8**. Suíte completa do backend: **119/119 arquivos · 1427/1427 testes** verdes — zero regressão, e agora sem nenhum resquício de flake conhecido.
+
+## [2026-08-03] docs: roadmap da Fase 4 (Painel + Perfil) + fechamento da Fase 3
+
+- **Branch:** feat/114-painel-perfil
+- **Tipo:** docs
+- **O quê:** `.claude/docs/roadmap.md` atualizado via skill `planejar-roadmap`. Fase 3 marcada como concluída (PR #112, épico #110, sub-issues #107/#108/#109 + achados #111/#113 + fix de TOTP sem issue própria, com nota de fechamento registrando o que saiu do plano original). Fase 4 detalhada por completo (era só um parágrafo de objetivo): 6 itens verticais — Seletor de propriedade (P0/S, pré-requisito compartilhado), Painel — visão em tempo real (P1/M, RF11), Painel — KPIs de consumo/custo e bandeira vigente (P1/M, RF12/RF13/RF08), Perfil — visualizar e editar dados pessoais (P1/S-M), Painel — histórico e comparação entre propriedades (P2/M), Perfil — Conta e Privacidade & dados (P2/S). Levantamento prévio (via subagente de exploração) confirmou que RF12/RF13 (consumo + custo) e RF08 (bandeira vigente) já estão implementados de ponta a ponta no backend, e RF11 (SSE) já tem client funcional — o trabalho da fase é majoritariamente frontend. Handoff hifi confirmado para as duas telas (`LumiTrack Home.dc.html`, blocos `isDashboard` linhas 152–246 e `isProfile` 823–914) — nenhuma "aguardando design".
+- **Issues criadas (skill `criar-issues`, Modo 2):** épico #114 + sub-issues #115 (Seletor de propriedade), #116 (Painel tempo real), #117 (Painel KPIs/bandeira), #118 (Perfil dados pessoais), #119 (Painel histórico/comparação), #120 (Perfil conta/privacidade) — vinculadas nativamente via `--parent`.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova — nenhum item toca `07-decisoes-em-aberto.md`.
+- **Notas:** branch `feat/114-painel-perfil` criada a partir de `main` (PR #112 já mesclado) para o desenvolvimento da Fase 4, conforme `08-convencoes-git.md` (nome espelha o épico #114, mesmo padrão de `feat/110-...`).
