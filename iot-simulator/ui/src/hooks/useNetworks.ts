@@ -17,8 +17,17 @@ export function useNetworks() {
     })
 
     const createDevice = useMutation({
-        mutationFn: ({ networkId, name, topic }: { networkId: string; name: string; topic: string }) =>
-            api.createDevice(networkId, { name, topic }),
+        mutationFn: ({
+            networkId,
+            name,
+            topic,
+            params,
+        }: {
+            networkId: string
+            name: string
+            topic: string
+            params?: Partial<DeviceParams>
+        }) => api.createDevice(networkId, { name, topic, params }),
     })
 
     const updateDevice = useMutation({

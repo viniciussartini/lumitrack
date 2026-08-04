@@ -547,3 +547,20 @@ textarea.input { min-height: 90px; resize: vertical; }
 .lt-tab:hover {
   border-color: var(--color-accent);
 }
+
+/* Link da nav da Landing — LumiTrack Landing.dc.html, <style> local do
+   protótipo. Opacidade em vez de cor tingida: mesmo texto em qualquer tema. */
+.lt-nav-link {
+  color: var(--color-text);
+  opacity: .78;
+}
+.lt-nav-link:hover {
+  color: var(--color-accent-700);
+  opacity: 1;
+}
+
+/* Desenho do traço do gráfico de área (hero da Landing) — LumiTrack
+   Landing.dc.html, <style> local do protótipo. */
+@keyframes lt-dash {
+  to { stroke-dashoffset: 0; }
+}
