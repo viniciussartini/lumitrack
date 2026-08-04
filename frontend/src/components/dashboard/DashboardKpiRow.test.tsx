@@ -1,0 +1,208 @@
+import { describe, it, expect, beforeEach, vi } from "vitest"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { render, screen } from "@testing-library/react"
+import { DashboardKpiRow } from "@/components/dashboard/DashboardKpiRow"
+import { consumptionService } from "@/services/consumption.service"
+import { tariffFlagService } from "@/services/tariff-flag.service"
+import { computeMonthProjection, daysInMonth } from "@/lib/dashboardKpis"
+import { formatBrl } from "@/lib/format"
+import type { ConsumptionBucket, Granularity } from "@/types/consumption.types"
+import type { Paginated } from "@/types/pagination.types"
+import type { TariffFlagConfig } from "@/types/tariff-flag.types"
+import type { ReadingPayload } from "@/lib/sse/appStream"
+
+vi.mock("@/services/consumption.service", () => ({
+    consumptionService: { list: vi.fn() },
+}))
+
+vi.mock("@/services/tariff-flag.service", () => ({
+    tariffFlagService: { get: vi.fn() },
+}))
+
+// Datas relativas ao "agora" real do processo (sem fake timers — `findByText`/
+// `waitFor` do testing-library dependem de timers reais para o polling
+// assíncrono). Meio-dia local evita qualquer ambiguidade de fuso na
+// comparação `toLocalDateKey` (mesmos componentes locais usados pelo
+// componente).
+const now = new Date()
+const todayNoon = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0)
+const yesterdayNoon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12, 0, 0)
+const firstOfMonthNoon = new Date(now.getFullYear(), now.getMonth(), 1, 12, 0, 0)
+
+const paginated = <T,>(items: T[]): Paginated<T> & { granularity: Granularity } => ({
+    items,
+    total: items.length,
+    page: 1,
+    pageSize: 5,
+    granularity: "hour",
+})
+
+const bucket = (bucketStart: string, kwhConsumed: number, costBrl: number): ConsumptionBucket => ({
+    bucketStart,
+    kwhConsumed,
+    costBrl,
+    avgPowerW: 500,
+})
+
+const mockTariffFlag: TariffFlagConfig = {
+    currentFlag: "YELLOW",
+    greenPer100Kwh: 0,
+    yellowPer100Kwh: 1.88,
+    redP1Per100Kwh: 4.46,
+    redP2Per100Kwh: 7.87,
+    updatedAt: now.toISOString(),
+}
+
+const mockReading = (powerW: number): ReadingPayload => ({
+    meterId: "meter-1",
+    voltage: 220,
+    current: 10,
+    powerW,
+    powerFactor: 0.98,
+    receivedAt: now.toISOString(),
+})
+
+/** Devolve dado diferente por granularidade — cada KPI busca uma. */
+const mockConsumptionByGranularity = (
+    responses: Partial<Record<Granularity, ConsumptionBucket[]>>,
+) => {
+    vi.mocked(consumptionService.list).mockImplementation(async (params) =>
+        paginated(responses[params.granularity] ?? []),
+    )
+}
+
+const createTestQueryClient = () =>
+    new QueryClient({
+        defaultOptions: {
+            queries: { retry: false, gcTime: 0 },
+            mutations: { retry: false },
+        },
+    })
+
+const renderRow = (props: Partial<Parameters<typeof DashboardKpiRow>[0]> = {}) => {
+    const queryClient = createTestQueryClient()
+    return render(
+        <DashboardKpiRow
+            propertyId="prop-1"
+            reading={undefined}
+            isStale={true}
+            {...props}
+        />,
+        {
+            wrapper: ({ children }) => (
+                <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+            ),
+        },
+    )
+}
+
+beforeEach(() => {
+    vi.clearAllMocks()
+    mockConsumptionByGranularity({})
+    vi.mocked(tariffFlagService.get).mockResolvedValue(mockTariffFlag)
+})
+
+describe("DashboardKpiRow — Potência agora / custo estimado", () => {
+    it("mostra '—' sem leitura ao vivo", async () => {
+        renderRow()
+        await screen.findByText("Potência agora")
+        expect(screen.getAllByText("—").length).toBeGreaterThan(0)
+    })
+
+    it("mostra a potência e o custo estimado com leitura + bucket de hora", async () => {
+        mockConsumptionByGranularity({
+            hour: [bucket(now.toISOString(), 2, 1)], // tarifa efetiva R$0,50/kWh
+        })
+
+        renderRow({ reading: mockReading(1000), isStale: false }) // 1 kW
+
+        expect(await screen.findByText("1,00kW")).toBeInTheDocument()
+        expect(await screen.findByText(/≈ R\$\s?0,50\/h estimado/)).toBeInTheDocument()
+    })
+})
+
+describe("DashboardKpiRow — Consumo hoje", () => {
+    it("mostra o delta vs. ontem quando os dois buckets existem", async () => {
+        mockConsumptionByGranularity({
+            day: [
+                bucket(todayNoon.toISOString(), 12, 9.6),
+                bucket(yesterdayNoon.toISOString(), 10, 8),
+            ],
+        })
+
+        renderRow()
+
+        expect(await screen.findByText("12,00kWh")).toBeInTheDocument()
+        // (12-10)/10 = +20% — consumo maior que ontem
+        expect(await screen.findByText(/\+20% vs\. ontem/)).toBeInTheDocument()
+    })
+
+    it("não mostra delta quando não há bucket de ontem", async () => {
+        mockConsumptionByGranularity({
+            day: [bucket(todayNoon.toISOString(), 5, 4)],
+        })
+
+        renderRow()
+
+        expect(await screen.findByText("5,00kWh")).toBeInTheDocument()
+        expect(screen.queryByText(/vs\. ontem/)).not.toBeInTheDocument()
+    })
+
+    it("mostra 0,00kWh quando não há bucket de hoje (sem inventar dado)", async () => {
+        mockConsumptionByGranularity({ day: [] })
+
+        renderRow()
+
+        expect(await screen.findByText("0,00kWh")).toBeInTheDocument()
+    })
+})
+
+describe("DashboardKpiRow — Custo projetado do mês", () => {
+    it("projeta linearmente a partir do custo acumulado no mês corrente", async () => {
+        const costSoFar = 30
+        mockConsumptionByGranularity({
+            month: [bucket(firstOfMonthNoon.toISOString(), 40, costSoFar)],
+        })
+
+        const dayOfMonth = now.getDate()
+        const totalDays = daysInMonth(now)
+        const expectedProjection = computeMonthProjection(costSoFar, dayOfMonth, totalDays)
+        const expectedDaysToClose = totalDays - dayOfMonth
+
+        renderRow()
+
+        // Comparação por conteúdo normalizado (espaço comum vs. NBSP do
+        // Intl.NumberFormat) — o normalizador padrão do testing-library só
+        // normaliza o texto do DOM, não a string de busca.
+        const expectedProjectionText = formatBrl(expectedProjection).replace(/\s/g, " ")
+        expect(
+            await screen.findByText(
+                (content) => content.replace(/\s/g, " ") === expectedProjectionText,
+            ),
+        ).toBeInTheDocument()
+        expect(
+            await screen.findByText(new RegExp(`fechamento em ${expectedDaysToClose} dias`)),
+        ).toBeInTheDocument()
+    })
+})
+
+describe("DashboardKpiRow — Bandeira vigente", () => {
+    it("mostra o label e a nota da bandeira vigente (dado real da API)", async () => {
+        renderRow()
+
+        expect(await screen.findByText("Amarela")).toBeInTheDocument()
+        expect(await screen.findByText(/\+ R\$\s?1,88 \/ 100 kWh/)).toBeInTheDocument()
+    })
+
+    it("mostra 'sem acréscimo' quando o valor da bandeira é zero", async () => {
+        vi.mocked(tariffFlagService.get).mockResolvedValue({
+            ...mockTariffFlag,
+            currentFlag: "GREEN",
+        })
+
+        renderRow()
+
+        expect(await screen.findByText("Verde")).toBeInTheDocument()
+        expect(await screen.findByText("sem acréscimo")).toBeInTheDocument()
+    })
+})
