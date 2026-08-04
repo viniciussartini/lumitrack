@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { formatCpf, formatCnpj, formatCep } from "@/lib/masks"
+import { formatCpf, formatCnpj, formatCep, maskCpf, maskCnpj } from "@/lib/masks"
 
 describe("formatCpf", () => {
     it("formata progressivamente conforme digita", () => {
@@ -54,6 +54,18 @@ describe("formatCnpj", () => {
 
     it("trunca em 14 dígitos", () => {
         expect(formatCnpj("11222333000181999")).toBe("11.222.333/0001-81")
+    })
+})
+
+describe("maskCpf", () => {
+    it("mascara os dois primeiros blocos, preservando o último e o dígito verificador", () => {
+        expect(maskCpf("123.456.789-09")).toBe("•••.•••.789-09")
+    })
+})
+
+describe("maskCnpj", () => {
+    it("mascara os três primeiros blocos, preservando a filial e o dígito verificador", () => {
+        expect(maskCnpj("11.222.333/0001-81")).toBe("••.•••.•••/0001-81")
     })
 })
 
