@@ -103,13 +103,17 @@
     --color-status-highlight: var(--color-status-highlight);
 }
 
-/* Reset suave + base do app */
+/* Reset suave + base do app. Sem cor aqui: `body { background: var(--color-bg);
+   color: var(--color-text) }` já vem de industry.css (layer(components)) e já
+   é theme-reativo (:root[data-theme="dark"] redefine os tokens) — um `body {
+   @apply bg-white ... }` sem layer aqui venceria essa regra (unlayered sempre
+   bate layered no CSS Cascade Layers, independente de especificidade/ordem),
+   fazendo páginas fora do AppShell (Login/Registro/Landing/legal) renderizarem
+   branco/preto puro em vez do cinza claro (#f2f2f3) do Industry — achado ao
+   corrigir a Landing (sub-issue #129, Fase 5). */
 html, body, #root { height: 100%; }
 body {
-    @apply bg-white text-slate-900 antialiased;
-}
-[data-theme="dark"] body {
-    @apply bg-slate-950 text-slate-100;
+    @apply antialiased;
 }
 
 /*

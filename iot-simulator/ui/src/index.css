@@ -1,19 +1,52 @@
 @import "tailwindcss";
 
-/* Mesmos tokens de marca do frontend principal, só o necessário para os
-   componentes de UI copiados (Button/Input/Select) renderizarem idênticos. */
-@theme {
-    --color-brand-50: oklch(0.97 0.02 78);
-    --color-brand-500: oklch(0.8 0.18 78);
-    --color-brand-700: oklch(0.7 0.2 78);
+/* Fontes e tokens do design system Industry (ver ADR-0005 e
+   .claude/project_context/10-design-system.md). industry.css é uma cópia
+   local adaptada — ver comentário de topo do próprio arquivo (mesma decisão
+   documentada na sub-issue #130 do épico #128, Fase 5).
+
+   layer(...) obrigatório aqui pelo mesmo motivo do frontend principal: sem
+   layer, o `a { color: var(--color-accent) }` global do industry.css
+   venceria QUALQUER utilitária Tailwind, mesmo com especificidade menor
+   (CSS Cascade Layers — estilo sem layer sempre bate estilo com layer).
+   `tailwindcss/index.css` já declara `@layer theme, base, components,
+   utilities;`, então layer(components) cai exatamente entre base e
+   utilities. */
+@import "./styles/industry-fonts.css" layer(base);
+@import "./styles/industry.css" layer(components);
+
+/* Mapeia os tokens do Industry pro tema do Tailwind — mesma técnica do
+   frontend principal (@theme inline referencia as custom properties já
+   existentes em vez de redeclarar valores). Sem tema escuro (ver topo de
+   industry.css) — só o subconjunto de chaves realmente usado nesta tela. */
+@theme inline {
+    --color-bg: var(--color-bg);
+    --color-surface: var(--color-surface);
+    --color-text: var(--color-text);
+    --color-accent: var(--color-accent);
+    --color-divider: var(--color-divider);
+
+    --color-neutral-100: var(--color-neutral-100);
+    --color-neutral-800: var(--color-neutral-800);
+
+    --color-accent-100: var(--color-accent-100);
+    --color-accent-600: var(--color-accent-600);
+    --color-accent-700: var(--color-accent-700);
+    --color-accent-900: var(--color-accent-900);
+
+    --color-status-danger: var(--color-status-danger);
+
+    --font-heading: var(--font-heading);
+    --font-body: var(--font-body);
+
+    /* Escala de espaçamento do Industry é 0.85× a de referência do Tailwind
+       (--space-1: 3.4px = 4px × 0.85) — mesma técnica do frontend principal:
+       sobrescrever o multiplicador base estende o mesmo ritmo a toda a
+       escala numérica (p-4, gap-6...), não só aos passos nomeados. */
+    --spacing: var(--space-1);
 }
 
-html,
-body,
-#root {
-    height: 100%;
-}
-
+html, body, #root { height: 100%; }
 body {
-    @apply bg-white text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+    @apply antialiased;
 }
