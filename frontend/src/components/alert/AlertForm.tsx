@@ -26,6 +26,15 @@ interface AlertFormProps {
  * Form de Alerta — faixa de potência (Fase 5, substitui o antigo threshold
  * de kWh acumulado). `meterId` é imutável: em edição viaja como campo
  * hidden com o valor original, sem exigir nova escolha do usuário.
+ *
+ * Sem `autoFocus` no primeiro campo (achado durante #107): o `Dialog.Content`
+ * do Radix já move foco pro primeiro elemento focável ao abrir — competir
+ * com um `autoFocus` HTML explícito faz o PRIMEIRO clique no botão de
+ * submit, sem tocar em nenhum campo antes, disparar só a validação onBlur
+ * do campo focado (não o submit real), escondendo os outros erros até um
+ * segundo clique. Bug do padrão `FormDialog`, não só deste form —
+ * `AreaForm`/`DeviceForm` tinham o mesmo `autoFocus` redundante, corrigido
+ * junto na mesma branch (#111).
  */
 export const AlertForm = ({
     initialData,
@@ -69,7 +78,6 @@ export const AlertForm = ({
             <Input
                 label="Nome do alerta"
                 placeholder="Ar-condicionado ligado demais"
-                autoFocus
                 error={errors.name?.message}
                 data-testid="alert-form-name"
                 {...register("name")}
@@ -116,17 +124,17 @@ export const AlertForm = ({
                     min="0"
                     max="100"
                     placeholder="10"
-                    helperText="Ex.: 10 kW ± 2% dispara fora de [9,8, 10,2] kW."
+                    helperText="Ex.: 10 kW ± 2% dispara fora de [9,8 – 10,2] kW."
                     error={errors.tolerancePercent?.message}
                     data-testid="alert-form-tolerancePercent"
                     {...register("tolerancePercent")}
                 />
             </div>
 
-            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+            <label className="flex items-center gap-2 text-sm">
                 <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500 dark:border-slate-700"
+                    className="accent-accent h-4 w-4"
                     data-testid="alert-form-enabled"
                     {...register("enabled")}
                 />

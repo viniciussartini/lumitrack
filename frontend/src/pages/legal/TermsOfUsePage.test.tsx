@@ -9,7 +9,9 @@ describe("TermsOfUsePage", () => {
         expect(
             await screen.findByRole("heading", { name: /termos de uso do lumitrack/i }),
         ).toBeInTheDocument()
-        expect(screen.getByText(/uso aceitável/i)).toBeInTheDocument()
+        expect(
+            screen.getByRole("heading", { name: /uso aceitável/i }),
+        ).toBeInTheDocument()
     })
 
     it("define o título da aba do navegador", async () => {

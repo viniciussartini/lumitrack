@@ -1,41 +1,39 @@
+import { useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
-import {
-    AlertCircle,
-    ArrowLeft,
-    Cpu,
-    Gauge,
-    Home,
-    LayoutGrid,
-    Pencil,
-    Tag,
-    type LucideIcon,
-} from "lucide-react"
+import { AlertCircle, ArrowLeft, Cpu, Pencil } from "lucide-react"
 import { useDevice } from "@/hooks/queries/useDevices"
 import { useArea } from "@/hooks/queries/useAreas"
 import { useProperty } from "@/hooks/queries/useProperties"
+import { useMeterByTarget } from "@/hooks/queries/useMeters"
+import { useRealtime } from "@/contexts/RealtimeContext"
 import { Button } from "@/components/ui/Button"
+import { Tag } from "@/components/ui/Tag"
 import { DeviceMenu } from "@/components/device/DeviceMenu"
-import { cn } from "@/lib/cn"
+import { DeviceFormDialog } from "@/components/device/DeviceFormDialog"
+import { DeviceConsumptionSection } from "@/components/consumption/ConsumptionSection"
+import { MeterSection } from "@/components/meter/MeterSection"
+import { formatPowerKw } from "@/lib/format"
 import type { Device } from "@/types/device.types"
 import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
-import { DeviceConsumptionSection } from "@/components/consumption/ConsumptionSection"
-import { MeterSection } from "@/components/meter/MeterSection"
 
 /**
- * Página de detalhes de um dispositivo.
+ * Página de detalhes de um dispositivo — LumiTrack Home.dc.html,
+ * `deviceDetailView`. Nível folha da hierarquia (Property → Area → Device):
+ * sem grid de filhos nem comparação, ao contrário das outras duas páginas.
  *
  * Estrutura:
  *   1. Breadcrumb (voltar pra área pai)
- *   2. Header em card destacado: nome + chips (área pai, propriedade avó,
- *      marca/modelo, potência) + ações (Editar / ⋯)
- *   3. Seção de Consumo (real, com filtro por período) + 2 seções
- *      ainda placeholder: Alertas e IoT
+ *   2. Header em blueprint: nome + tags (propriedade avó, área pai,
+ *      marca/modelo, potência) + ações (Editar dispositivo / ⋯)
+ *   3. KPI "Potência agora" (só quando há medidor com leitura real — mesma
+ *      decisão de #99/#100: Consumo hoje/Custo projetado ficam de fora por
+ *      não terem dado/lógica real)
+ *   4. Seção de Medidor
+ *   5. Seção de Consumo
  *
  * Carrega TRÊS queries em paralelo: device, area, property.
- *
- * Erro no Device é fatal; erros em Area/Property viram fallback nos
- * respectivos chips.
+ * Erro no Device é fatal; erros em Area/Property viram fallback nas tags.
  *
  * NOTA: O DeviceMenu aqui usa `showEdit={false}` (já temos botão Editar
  * explícito no header) e `onAfterDelete` que navega de volta pra área pai —
@@ -53,6 +51,20 @@ export const DeviceDetailsPage = () => {
     const deviceQuery = useDevice(propertyId, areaId, deviceId)
     const areaQuery = useArea(propertyId, areaId)
     const propertyQuery = useProperty(propertyId)
+    // KPI "Potência agora" — mesma fonte que MeterSection usa internamente
+    // (useMeterByTarget dedupe via cache do TanStack Query) + useRealtime
+    // (SSE) pra leitura ao vivo.
+    const meterQuery = useMeterByTarget("DEVICE", deviceId)
+    const { readingsByMeterId } = useRealtime()
+    // Estado (não Date.now() direto) pra recalcular a "idade" da leitura
+    // periodicamente sem violar a regra de pureza de render — mesmo padrão
+    // de MeterSection.tsx/PropertyDetailsPage.tsx/AreaDetailsPage.tsx.
+    const [now, setNow] = useState(() => Date.now())
+
+    useEffect(() => {
+        const interval = setInterval(() => setNow(Date.now()), 2_000)
+        return () => clearInterval(interval)
+    }, [])
 
     if (deviceQuery.isLoading) {
         return (
@@ -68,6 +80,8 @@ export const DeviceDetailsPage = () => {
             <div className="flex flex-col gap-6">
                 <BackLink propertyId={propertyId} areaId={areaId} />
                 <ErrorState
+                    propertyId={propertyId}
+                    areaId={areaId}
                     message={
                         deviceQuery.error instanceof Error
                             ? deviceQuery.error.message
@@ -81,6 +95,10 @@ export const DeviceDetailsPage = () => {
     const device = deviceQuery.data
     const area = areaQuery.data
     const property = propertyQuery.data
+    const meter = meterQuery.data
+    const reading = meter ? readingsByMeterId[meter.id] : undefined
+    const isReadingStale =
+        !reading || now - new Date(reading.receivedAt).getTime() > 10_000
 
     const handleAfterDelete = () => {
         // Após excluir, volta pra área pai. replace evita que o botão
@@ -103,6 +121,30 @@ export const DeviceDetailsPage = () => {
                 onAfterDelete={handleAfterDelete}
             />
 
+            {meter && (
+                <div className="blueprint w-fit min-w-[220px] px-5 py-[18px]">
+                    <i className="corner tl" />
+                    <i className="corner tr" />
+                    <i className="corner bl" />
+                    <i className="corner br" />
+                    <div className="font-heading flex items-center gap-2 text-[11px] font-semibold tracking-[.07em] uppercase">
+                        <span
+                            className="h-2 w-2 rounded-full bg-[#3f8f52]"
+                            style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
+                            aria-hidden="true"
+                        />
+                        Potência agora
+                    </div>
+                    <div className="font-heading mt-2.5 text-[30px] leading-none font-semibold font-features-['tnum'_1]">
+                        {!isReadingStale && reading ? (
+                            formatPowerKw(reading.powerW)
+                        ) : (
+                            <span className="text-muted">—</span>
+                        )}
+                    </div>
+                </div>
+            )}
+
             <MeterSection targetType="DEVICE" targetId={deviceId!} />
             <DeviceConsumptionSection
                 propertyId={propertyId!}
@@ -123,17 +165,13 @@ const BackLink = ({ propertyId, areaId }: BackLinkProps) => {
         propertyId && areaId
             ? `/propriedades/${propertyId}/areas/${areaId}`
             : propertyId
-            ? `/propriedades/${propertyId}`
-            : "/propriedades"
+                ? `/propriedades/${propertyId}`
+                : "/propriedades"
 
     return (
         <Link
             to={href}
-            className={cn(
-                "inline-flex w-fit items-center gap-1 text-sm",
-                "text-slate-600 hover:text-slate-900",
-                "dark:text-slate-400 dark:hover:text-slate-200",
-            )}
+            className="text-muted hover:text-text inline-flex w-fit items-center gap-1.5 text-sm"
         >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Voltar para área
@@ -162,149 +200,148 @@ const DeviceHeaderCard = ({
         propertyId: string
         areaId: string
     }>()
+    const [isEditOpen, setIsEditOpen] = useState(false)
 
     const brandModelLabel = [device.brand, device.model]
         .filter(Boolean)
         .join(" · ")
 
     return (
-        <div
-            className={cn(
-                "relative rounded-lg border bg-white p-6 shadow-sm",
-                "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
-            )}
-        >
-            {/* Menu ⋯ — absolute, no canto superior direito.
-                showEdit=false porque o botão "Editar dispositivo" abaixo já
-                cobre essa ação de forma mais visível. */}
-            <DeviceMenu
-                device={device}
-                showEdit={false}
-                onAfterDelete={onAfterDelete}
-            />
+        <div className="blueprint p-[26px]">
+            <i className="corner tl" />
+            <i className="corner tr" />
+            <i className="corner bl" />
+            <i className="corner br" />
 
-            <div className="flex items-start gap-3 pr-10">
-                <div
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-brand-50 dark:bg-brand-500/10"
+            <div className="flex min-w-0 items-start gap-[15px]">
+                <span
+                    className="border-accent text-accent flex h-[52px] w-[52px] shrink-0 items-center justify-center border-[1.5px]"
                     aria-hidden="true"
                 >
-                    <Cpu className="h-6 w-6 text-brand-500" />
-                </div>
+                    <Cpu className="h-[26px] w-[26px]" strokeWidth={1.5} />
+                </span>
                 <div className="min-w-0 flex-1">
-                    <h1 className="truncate text-2xl font-bold text-slate-900 dark:text-slate-100">
+                    <h1 className="font-heading truncate text-[clamp(24px,2.6vw,32px)] leading-none font-semibold uppercase">
                         {device.name}
                     </h1>
                 </div>
             </div>
 
-            {/* Chips — hierarquia (área pai + propriedade avó) e metadados */}
-            <div className="mt-4 flex flex-wrap gap-2">
-                <Chip
-                    icon={Home}
-                    label={
-                        isPropertyLoading
-                            ? "Carregando..."
-                            : property
-                            ? property.name
-                            : "Propriedade não disponível"
-                    }
-                    variant="brand"
-                    testId="device-property-chip"
+            {/* Tags — hierarquia (propriedade avó + área pai) e metadados */}
+            <div className="mt-[18px] flex flex-wrap gap-[9px]">
+                <HierarchyTag
+                    isLoading={isPropertyLoading}
+                    label={property?.name}
+                    fallback="Propriedade não disponível"
                 />
-                <Chip
-                    icon={LayoutGrid}
-                    label={
-                        isAreaLoading
-                            ? "Carregando..."
-                            : area
-                            ? area.name
-                            : "Área não disponível"
-                    }
-                    variant="brand"
-                    testId="device-area-chip"
+                <HierarchyTag
+                    isLoading={isAreaLoading}
+                    label={area?.name}
+                    fallback="Área não disponível"
                 />
-                {brandModelLabel && (
-                    <Chip icon={Tag} label={brandModelLabel} />
-                )}
+                {brandModelLabel && <Tag variant="neutral">{brandModelLabel}</Tag>}
                 {device.powerWatts !== null && (
-                    <Chip
-                        icon={Gauge}
-                        label={`${device.powerWatts}W`}
-                    />
+                    <Tag variant="neutral">{device.powerWatts}W</Tag>
                 )}
             </div>
 
-            {/* Ações */}
-            <div className="mt-6 flex flex-wrap gap-2">
-                <Button asChild variant="secondary" size="sm">
-                    <Link
-                        to={`/propriedades/${propertyId}/areas/${areaId}/devices/${device.id}/editar`}
-                    >
-                        <Pencil className="h-4 w-4" aria-hidden="true" />
-                        Editar dispositivo
-                    </Link>
+            <div className="mt-[22px] flex flex-wrap items-center gap-2">
+                <Button variant="secondary" size="sm" onClick={() => setIsEditOpen(true)}>
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                    Editar dispositivo
                 </Button>
+                {/*
+                    showEdit=false: botão "Editar dispositivo" explícito
+                    acima, no menu sobra apenas Excluir.
+                */}
+                <DeviceMenu device={device} showEdit={false} onAfterDelete={onAfterDelete} />
             </div>
+
+            {propertyId && areaId && (
+                <DeviceFormDialog
+                    isOpen={isEditOpen}
+                    onClose={() => setIsEditOpen(false)}
+                    mode={{ kind: "edit", propertyId, areaId, device }}
+                />
+            )}
         </div>
     )
 }
 
-interface ChipProps {
-    icon: LucideIcon
-    label: string
-    variant?: "brand" | "default"
-    testId?: string
+interface HierarchyTagProps {
+    isLoading: boolean
+    label: string | undefined
+    fallback: string
 }
 
-const Chip = ({ icon: Icon, label, variant = "default", testId }: ChipProps) => {
-    const styles =
-        variant === "brand"
-            ? "bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300"
-            : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+/**
+ * Tag de contexto (propriedade avó / área pai). Três estados:
+ *   - loading: placeholder animado
+ *   - sem dado (erro silencioso): fallback em itálico
+ *   - carregado: nome, em Tag accent
+ */
+const HierarchyTag = ({ isLoading, label, fallback }: HierarchyTagProps) => {
+    if (isLoading) {
+        return (
+            <div
+                className="bg-divider h-6 w-24 animate-pulse"
+                aria-busy="true"
+                aria-label="Carregando"
+            />
+        )
+    }
+
+    if (!label) {
+        return <span className="text-muted text-sm italic">{fallback}</span>
+    }
 
     return (
-        <span
-            data-testid={testId}
-            className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium",
-                styles,
-            )}
-        >
-            <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-            <span className="max-w-70 truncate">{label}</span>
-        </span>
+        <Tag variant="accent" className="font-semibold">
+            {label}
+        </Tag>
     )
 }
 
 const DetailsSkeleton = () => (
-    <div className="rounded-lg border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-start gap-3">
-            <div className="h-12 w-12 shrink-0 animate-pulse rounded-md bg-slate-200 dark:bg-slate-800" />
-            <div className="flex-1 space-y-2">
-                <div className="h-6 w-1/2 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-            </div>
-        </div>
-        <div className="mt-4 flex gap-2">
-            <div className="h-7 w-32 animate-pulse rounded-full bg-slate-200 dark:bg-slate-800" />
-            <div className="h-7 w-32 animate-pulse rounded-full bg-slate-200 dark:bg-slate-800" />
-        </div>
+    <div
+        className="blueprint h-72 p-6"
+        aria-busy="true"
+        aria-label="Carregando dados do dispositivo"
+    >
+        <div className="bg-divider h-8 w-1/3 animate-pulse" />
+        <div className="bg-divider mt-4 h-4 w-1/2 animate-pulse" />
     </div>
 )
 
 interface ErrorStateProps {
+    propertyId: string | undefined
+    areaId: string | undefined
     message: string
 }
 
-const ErrorState = ({ message }: ErrorStateProps) => (
-    <div
-        className={cn(
-            "flex items-start gap-3 rounded-lg border p-4",
-            "border-red-200 bg-red-50 text-red-900",
-            "dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200",
-        )}
-        role="alert"
-    >
-        <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
-        <p className="text-sm">{message}</p>
-    </div>
-)
+const ErrorState = ({ propertyId, areaId, message }: ErrorStateProps) => {
+    const href =
+        propertyId && areaId
+            ? `/propriedades/${propertyId}/areas/${areaId}`
+            : propertyId
+                ? `/propriedades/${propertyId}`
+                : "/propriedades"
+
+    return (
+        <div
+            role="alert"
+            className="border-status-danger/40 flex flex-col items-center justify-center gap-4 border py-12 text-center"
+        >
+            <AlertCircle className="text-status-danger h-8 w-8" aria-hidden="true" />
+            <div>
+                <h3 className="font-heading text-status-danger font-semibold uppercase">
+                    Não foi possível carregar
+                </h3>
+                <p className="text-status-danger/85 mt-1 text-sm">{message}</p>
+            </div>
+            <Button asChild variant="secondary">
+                <Link to={href}>Voltar para a área</Link>
+            </Button>
+        </div>
+    )
+}

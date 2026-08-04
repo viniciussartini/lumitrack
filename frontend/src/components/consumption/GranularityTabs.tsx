@@ -1,4 +1,3 @@
-import { cn } from "@/lib/cn"
 import { GRANULARITY_LABELS, type Granularity } from "@/types/consumption.types"
 
 interface GranularityTabsProps {
@@ -32,15 +31,10 @@ export const GranularityTabs = ({
                     type="button"
                     role="tab"
                     aria-selected={isActive}
+                    data-on={isActive}
                     onClick={() => onChange(granularity)}
                     data-testid={`granularity-tab-${granularity}`}
-                    className={cn(
-                        "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900",
-                        isActive
-                            ? "bg-brand-500 text-white shadow-sm hover:bg-brand-600 dark:bg-brand-500 dark:hover:bg-brand-400"
-                            : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700",
-                    )}
+                    className="lt-selbtn"
                 >
                     {GRANULARITY_LABELS[granularity]}
                 </button>

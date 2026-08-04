@@ -252,17 +252,18 @@ describe("AreaDetailsPage — botão Editar área", () => {
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
     })
 
-    it("renderiza link 'Editar área' apontando para a página de edição", async () => {
+    it("abre o modal de edição ao clicar em 'Editar área'", async () => {
+        const user = userEvent.setup()
         renderPage()
 
-        const editLink = await screen.findByRole("link", {
+        const editButton = await screen.findByRole("button", {
             name: /editar área/i,
         })
+        await user.click(editButton)
 
-        expect(editLink).toHaveAttribute(
-            "href",
-            "/propriedades/prop-1/areas/area-1/editar",
-        )
+        expect(
+            await screen.findByRole("dialog", { name: /editar área/i }),
+        ).toBeInTheDocument()
     })
 })
 
@@ -381,17 +382,18 @@ describe("AreaDetailsPage — seção de dispositivos (vazia)", () => {
         ).toBeInTheDocument()
     })
 
-    it("link 'Adicionar dispositivo' aponta para a página de criação", async () => {
+    it("abre o modal de criação ao clicar em 'Adicionar dispositivo'", async () => {
+        const user = userEvent.setup()
         renderPage()
 
-        const addLink = await screen.findByRole("link", {
+        const addButton = await screen.findByRole("button", {
             name: /adicionar dispositivo/i,
         })
+        await user.click(addButton)
 
-        expect(addLink).toHaveAttribute(
-            "href",
-            "/propriedades/prop-1/areas/area-1/devices/novo",
-        )
+        expect(
+            await screen.findByRole("dialog", { name: /adicionar dispositivo/i }),
+        ).toBeInTheDocument()
     })
 
     it("renderiza a marca 'Em breve' explicitamente", async () => {

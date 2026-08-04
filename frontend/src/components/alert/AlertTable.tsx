@@ -11,46 +11,50 @@ interface AlertTableProps {
 }
 
 /**
- * Tabela de alertas — inbox global em /alertas (Fase 5).
- * Colunas: Nome | Alvo | Referência | Tolerância | Status | Habilitado | Ações
+ * Tabela de alertas — inbox global em /alertas, conforme `isAlerts` de
+ * `LumiTrack Home.dc.html`. Colunas: Nome | Alvo | Referência | Tolerância |
+ * Status | Habilitado | Ações. Primeiro uso real da classe `.table` do
+ * Industry (`industry.css`) — antes só existia no CSS, nunca em JSX.
  */
 export const AlertTable = ({ alerts, onEdit }: AlertTableProps) => (
-    <div
-        className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800"
-        data-testid="alert-table-wrapper"
-    >
-        <table className="w-full text-sm" data-testid="alert-table">
-            <thead className="bg-slate-50 dark:bg-slate-900/50">
-                <tr className="text-left text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    <th scope="col" className="px-4 py-3 font-medium">
-                        Nome
-                    </th>
-                    <th scope="col" className="px-4 py-3 font-medium">
-                        Alvo
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-right font-medium">
-                        Referência
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-right font-medium">
-                        Tolerância
-                    </th>
-                    <th scope="col" className="px-4 py-3 font-medium">
-                        Status
-                    </th>
-                    <th scope="col" className="px-4 py-3 font-medium">
-                        Habilitado
-                    </th>
-                    <th scope="col" className="w-px px-2 py-3">
-                        <span className="sr-only">Ações</span>
-                    </th>
-                </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                {alerts.map((alert) => (
-                    <Row key={alert.id} alert={alert} onEdit={onEdit} />
-                ))}
-            </tbody>
-        </table>
+    <div className="blueprint" data-testid="alert-table-wrapper">
+        <i className="corner tl" />
+        <i className="corner tr" />
+        <i className="corner bl" />
+        <i className="corner br" />
+
+        <div className="border-divider border-b px-5 py-4">
+            <span className="font-heading text-[17px] font-semibold uppercase">
+                Alertas configurados
+            </span>
+        </div>
+
+        <div className="overflow-x-auto">
+            <table className="table min-w-[760px]" data-testid="alert-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Nome</th>
+                        <th scope="col">Alvo</th>
+                        <th scope="col" className="text-right">
+                            Referência
+                        </th>
+                        <th scope="col" className="text-right">
+                            Tolerância
+                        </th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Habilitado</th>
+                        <th scope="col" className="text-right">
+                            <span className="sr-only">Ações</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {alerts.map((alert) => (
+                        <Row key={alert.id} alert={alert} onEdit={onEdit} />
+                    ))}
+                </tbody>
+            </table>
+        </div>
     </div>
 )
 
@@ -60,48 +64,30 @@ interface RowProps {
 }
 
 const Row = ({ alert, onEdit }: RowProps) => (
-    <tr
-        data-testid={`alert-row-${alert.id}`}
-        className={cn(
-            "text-slate-900 dark:text-slate-100",
-            "hover:bg-slate-50 dark:hover:bg-slate-900/50",
-        )}
-    >
-        <td className="px-4 py-3">{alert.name}</td>
-        <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+    <tr data-testid={`alert-row-${alert.id}`}>
+        <td className="font-semibold">{alert.name}</td>
+        <td className="text-muted">
             {alert.target ? (
-                <Link
-                    to={alert.target.path}
-                    className="hover:underline hover:text-brand-600 dark:hover:text-brand-400"
-                >
+                <Link to={alert.target.path} className="hover:text-accent hover:underline">
                     {alert.target.name}
                 </Link>
             ) : (
                 "—"
             )}
         </td>
-        <td className="px-4 py-3 text-right font-mono tabular-nums">
+        <td className={cn("text-right", "font-features-['tnum'_1]")}>
             {formatReferencePowerKw(alert.referencePowerKw)}
         </td>
-        <td className="px-4 py-3 text-right font-mono tabular-nums">
+        <td className={cn("text-right", "font-features-['tnum'_1]")}>
             {formatTolerancePercent(alert.tolerancePercent)}
         </td>
-        <td className="px-4 py-3">
+        <td>
             <AlertStatusBadge alert={alert} />
         </td>
-        <td className="px-4 py-3">
-            <span
-                className={cn(
-                    "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-                    alert.enabled
-                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
-                        : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
-                )}
-            >
-                {alert.enabled ? "Sim" : "Não"}
-            </span>
+        <td className={alert.enabled ? "text-status-success font-semibold" : "text-muted"}>
+            {alert.enabled ? "Sim" : "Não"}
         </td>
-        <td className="px-2 py-2">
+        <td className="text-right">
             <AlertRowMenu alert={alert} onEdit={onEdit ? () => onEdit(alert) : undefined} />
         </td>
     </tr>

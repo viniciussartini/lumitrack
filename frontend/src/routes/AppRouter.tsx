@@ -9,21 +9,16 @@ import { AppShell } from "@/components/layout/AppShell"
 import { RegisterPage } from "@/pages/auth/RegisterPage"
 import { DistribuidorsPage } from "@/pages/distributor/DistributorsPage"
 import { PropertiesPage } from "@/pages/property/PropertiesPage"
-import { NewPropertyPage } from "@/pages/property/NewPropertyPage"
 import { PropertyDetailsPage } from "@/pages/property/PropertyDetailsPage"
-import { EditPropertyPage } from "@/pages/property/EditPropertyPage"
-import { NewAreaPage } from "@/pages/area/NewAreaPage"
 import { AreaDetailsPage } from "@/pages/area/AreaDetailsPage"
-import { EditAreaPage } from "@/pages/area/EditAreaPage"
-import { NewDevicePage } from "@/pages/device/NewDevicePage"
 import { DeviceDetailsPage } from "@/pages/device/DeviceDetailsPage"
-import { EditDevicePage } from "@/pages/device/EditDevicePage"
 import { AlertsPage } from "@/pages/alert/AlertsPage"
 import { ReportsPage } from "@/pages/report/ReportsPage"
 import { SimulationPage } from "@/pages/simulation/SimulationPage"
 import { PrivacyPolicyPage } from "@/pages/legal/PrivacyPolicyPage"
 import { TermsOfUsePage } from "@/pages/legal/TermsOfUsePage"
 import { SecurityPage } from "@/pages/settings/SecurityPage"
+import { ProfilePage } from "@/pages/profile/ProfilePage"
 
 /**
  * Mapa de rotas
@@ -63,20 +58,17 @@ export const AppRouter = () => (
                 
                 <Route path="/distribuidoras" element={<DistribuidorsPage />} />
 
+                {/* Criar/editar Propriedade/Área/Dispositivo acontece via modal
+                    (PropertyFormDialog/AreaFormDialog/DeviceFormDialog), não
+                    mais em rota dedicada — ver sub-issue #97 do épico #104. */}
                 <Route path="/propriedades" element={<PropertiesPage />} />
-                <Route path="/propriedades/nova" element={<NewPropertyPage />} />
                 <Route path="/propriedades/:id" element={<PropertyDetailsPage />} />
-                <Route path="/propriedades/:id/editar" element={<EditPropertyPage />} />
 
                 {/* Áreas — rota aninhada espelha o padrão da API (/api/properties/:propertyId/areas/:areaId). */}
-                <Route path="/propriedades/:propertyId/areas/nova" element={<NewAreaPage />} />
                 <Route path="/propriedades/:propertyId/areas/:areaId" element={<AreaDetailsPage />} />
-                <Route path="/propriedades/:propertyId/areas/:areaId/editar" element={<EditAreaPage />} />
 
                 {/*Dispositivos — rota aninhada em DOIS níveis. */}
-                <Route path="/propriedades/:propertyId/areas/:areaId/devices/novo" element={<NewDevicePage />} />
                 <Route path="/propriedades/:propertyId/areas/:areaId/devices/:deviceId" element={<DeviceDetailsPage />} />
-                <Route path="/propriedades/:propertyId/areas/:areaId/devices/:deviceId/editar" element={<EditDevicePage />} />
 
                 {/* Alertas — inbox global. */}
                 <Route path="/alertas" element={<AlertsPage />} />
@@ -89,6 +81,7 @@ export const AppRouter = () => (
                 <Route path="/simulacao" element={<SimulationPage />} />
 
                 {/* Conta do usuário logado — acessível via UserMenu no Header. */}
+                <Route path="/perfil" element={<ProfilePage />} />
                 <Route path="/seguranca" element={<SecurityPage />} />
 
             </Route>

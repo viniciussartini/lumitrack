@@ -66,8 +66,27 @@ export const formatPowerW = (value: number): string =>
     `${electricalFormatter.format(value)}W`
 
 /**
+ * Potência em kW (não W) — usado nos KPIs "Potência agora" da hierarquia
+ * (Property/Area/Device Details), convertendo a leitura crua em Watts do
+ * SSE (`reading.powerW`, mesma fonte de `formatPowerW`/`RealTimeCard`).
+ * formatPowerKw(3420) → "3,42kW"
+ */
+export const formatPowerKw = (valueInWatts: number): string =>
+    `${electricalFormatter.format(valueInWatts / 1000)}kW`
+
+/**
  * Trunca uma string adicionando elipse no final.
  * Útil para nomes longos em cards.
  */
 export const truncate = (value: string, maxLength: number): string =>
     value.length <= maxLength ? value : `${value.slice(0, maxLength)}…`
+
+const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" })
+
+/**
+ * Formata uma data ISO só com dia/mês/ano (sem hora) — diferente de
+ * `formatDateTime` (formatters/alert.ts), que inclui hora.
+ * formatDate("2025-03-12T14:30:00Z") → "12/03/2025"
+ */
+export const formatDate = (value: string): string =>
+    dateFormatter.format(new Date(value))

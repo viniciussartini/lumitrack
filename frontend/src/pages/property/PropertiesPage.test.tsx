@@ -109,7 +109,7 @@ beforeEach(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("PropertiesPage — header", () => {
-    it("renderiza título e link de nova propriedade", async () => {
+    it("renderiza título e botão de nova propriedade", async () => {
         vi.mocked(propertyService.list).mockResolvedValue(paginated([]))
         vi.mocked(distributorService.list).mockResolvedValue(paginated([]))
 
@@ -119,10 +119,27 @@ describe("PropertiesPage — header", () => {
             screen.getByRole("heading", { name: /propriedades/i, level: 1 }),
         ).toBeInTheDocument()
 
-        const newButton = await screen.findByRole("link", {
-            name: /nova propriedade/i,
-        })
-        expect(newButton).toHaveAttribute("href", "/propriedades/nova")
+        expect(
+            await screen.findByRole("button", { name: /nova propriedade/i }),
+        ).toBeInTheDocument()
+    })
+
+    it("abre o modal de criação ao clicar em 'Nova propriedade'", async () => {
+        const user = userEvent.setup()
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([]))
+        vi.mocked(distributorService.list).mockResolvedValue(
+            paginated([mockDistributor]),
+        )
+
+        renderPage()
+
+        await user.click(
+            await screen.findByRole("button", { name: /nova propriedade/i }),
+        )
+
+        expect(
+            await screen.findByRole("dialog", { name: /adicionar propriedade/i }),
+        ).toBeInTheDocument()
     })
 })
 
@@ -181,10 +198,10 @@ describe("PropertiesPage — empty state", () => {
             await screen.findByText(/nenhuma propriedade cadastrada/i),
         ).toBeInTheDocument()
         expect(
-            screen.getByRole("link", {
+            screen.getByRole("button", {
                 name: /cadastrar primeira propriedade/i,
             }),
-        ).toHaveAttribute("href", "/propriedades/nova")
+        ).toBeInTheDocument()
     })
 
     it("não renderiza grid quando lista está vazia", async () => {

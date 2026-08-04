@@ -12,8 +12,8 @@ const STATUS_LABELS: Record<AlertWithStatus["status"], string> = {
 }
 
 const STATUS_STYLES: Record<AlertWithStatus["status"], string> = {
-    firing: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300",
-    normal: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+    firing: "border-status-warning/40 bg-status-warning/10 text-status-warning",
+    normal: "border-status-success/40 bg-status-success/10 text-status-success",
 }
 
 /**
@@ -21,13 +21,16 @@ const STATUS_STYLES: Record<AlertWithStatus["status"], string> = {
  * resolvido pelo backend (`AlertEvaluator.isFiring`). Diferente do modelo
  * one-shot antigo, um alerta pode voltar a "firing" quantas vezes a
  * potência sair da faixa, enquanto habilitado.
+ *
+ * Badge quadrado com borda (fiel ao `miniBadge` de `LumiTrack Home.dc.html`
+ * — o protótipo não usa pill `rounded-full` pra isso).
  */
 export const AlertStatusBadge = ({ alert, className }: AlertStatusBadgeProps) => (
     <span
         data-testid={`alert-status-badge-${alert.id}`}
         data-status={alert.status}
         className={cn(
-            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+            "font-heading inline-flex items-center border px-2 py-0.5 text-[11px] font-semibold uppercase",
             STATUS_STYLES[alert.status],
             className,
         )}

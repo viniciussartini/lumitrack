@@ -42,12 +42,14 @@ const mockArea: Area = {
 interface RenderOptions {
     area?: Area
     showEdit?: boolean
+    onEdit?: () => void
     onAfterDelete?: () => void
 }
 
 const renderMenu = ({
     area = mockArea,
     showEdit,
+    onEdit,
     onAfterDelete,
 }: RenderOptions = {}) => {
     const queryClient = new QueryClient({
@@ -62,6 +64,7 @@ const renderMenu = ({
                 <AreaMenu
                     area={area}
                     showEdit={showEdit}
+                    onEdit={onEdit}
                     onAfterDelete={onAfterDelete}
                 />
             </MemoryRouter>
@@ -123,23 +126,35 @@ describe("AreaMenu — abrir/fechar", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("AreaMenu — item Editar", () => {
-    it("renderiza link de editar por default (showEdit=true)", async () => {
+    it("renderiza o item Editar por default quando onEdit é passado (showEdit=true)", async () => {
+        const user = userEvent.setup()
+        const onEdit = vi.fn()
+        renderMenu({ onEdit })
+
+        await user.click(screen.getByRole("button", { name: /opções de Sala/i }))
+
+        const editItem = screen.getByRole("menuitem", { name: /editar/i })
+        expect(editItem).toBeInTheDocument()
+
+        await user.click(editItem)
+        expect(onEdit).toHaveBeenCalledTimes(1)
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument()
+    })
+
+    it("não renderiza o item Editar quando onEdit não é passado (fail-safe)", async () => {
         const user = userEvent.setup()
         renderMenu()
 
         await user.click(screen.getByRole("button", { name: /opções de Sala/i }))
 
-        const editLink = screen.getByRole("menuitem", { name: /editar/i })
-        expect(editLink).toBeInTheDocument()
-        expect(editLink).toHaveAttribute(
-            "href",
-            "/propriedades/prop-1/areas/area-1/editar",
-        )
+        expect(
+            screen.queryByRole("menuitem", { name: /editar/i }),
+        ).not.toBeInTheDocument()
     })
 
-    it("não renderiza link de editar quando showEdit=false", async () => {
+    it("não renderiza o item Editar quando showEdit=false", async () => {
         const user = userEvent.setup()
-        renderMenu({ showEdit: false })
+        renderMenu({ showEdit: false, onEdit: vi.fn() })
 
         await user.click(screen.getByRole("button", { name: /opções de Sala/i }))
 

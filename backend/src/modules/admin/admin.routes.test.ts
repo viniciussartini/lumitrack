@@ -3,6 +3,7 @@ import request from "supertest"
 import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
+import { waitFor } from "@/shared/test/waitFor.js"
 
 const app = createApp({ prismaClient: prismaHttpTest })
 
@@ -126,9 +127,14 @@ describe("GET /api/admin/audit-logs", () => {
             .set("Authorization", `Bearer ${token}`)
 
         const adminUser = await prismaHttpTest.user.findUniqueOrThrow({ where: { email: validUser.email } })
-        const auditEntry = await prismaHttpTest.auditLog.findFirst({
-            where: { userId: adminUser.id, action: "ADMIN_AUDIT_LOG_VIEW" },
-        })
+        // O controller registra este audit log DEPOIS de enviar a resposta
+        // (decisão de latência) — a escrita corre em paralelo ao fim do
+        // request acima, sem ordem garantida (#113).
+        const auditEntry = await waitFor(() =>
+            prismaHttpTest.auditLog.findFirst({
+                where: { userId: adminUser.id, action: "ADMIN_AUDIT_LOG_VIEW" },
+            }),
+        )
 
         expect(auditEntry).not.toBeNull()
         expect(auditEntry?.outcome).toBe("SUCCESS")

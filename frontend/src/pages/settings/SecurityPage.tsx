@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { ShieldCheck, ShieldOff, Copy, Check } from "lucide-react"
+import { ShieldCheck, ShieldOff, Copy, Check, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import {
@@ -12,6 +12,7 @@ import {
 import { MfaCodeForm } from "@/components/auth/MfaCodeForm"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
+import { Tag } from "@/components/ui/Tag"
 import { extractErrorMessage } from "@/services/api"
 import { cn } from "@/lib/cn"
 import { mfaDisableSchema, type MfaDisableFormData } from "@/schemas/mfa.schema"
@@ -82,49 +83,56 @@ export const SecurityPage = () => {
     return (
         <div className="flex flex-col gap-6">
             <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                <span className="font-heading text-accent-700 block text-xs font-semibold tracking-[.08em] uppercase">
+                    Sua conta
+                </span>
+                <h1 className="font-heading mt-2 text-[clamp(22px,2.4vw,30px)] leading-[1.05] font-semibold uppercase">
                     Segurança
                 </h1>
-                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                <p className="text-muted mt-2 text-sm">
                     Gerencie a autenticação de dois fatores da sua conta.
                 </p>
             </div>
 
-            <div
-                className={cn(
-                    "rounded-lg border bg-white p-6 shadow-sm",
-                    "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
-                )}
-            >
-                <div className="flex items-start gap-3">
-                    <div
+            <div className="blueprint p-[26px]">
+                <i className="corner tl" />
+                <i className="corner tr" />
+                <i className="corner bl" />
+                <i className="corner br" />
+
+                <div className="flex items-start gap-3.5">
+                    <span
                         className={cn(
-                            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+                            "flex h-11 w-11 shrink-0 items-center justify-center border",
                             user.mfaEnabled
-                                ? "bg-success/10 text-success"
-                                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
+                                ? "border-status-success text-status-success"
+                                : "border-divider text-muted",
                         )}
+                        aria-hidden="true"
                     >
                         {user.mfaEnabled ? (
-                            <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+                            <ShieldCheck className="h-5 w-5" />
                         ) : (
-                            <ShieldOff className="h-5 w-5" aria-hidden="true" />
+                            <ShieldOff className="h-5 w-5" />
                         )}
-                    </div>
-                    <div className="flex-1">
-                        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                    </span>
+                    <div className="min-w-0 flex-1">
+                        <h2 className="font-heading text-lg font-semibold uppercase">
                             Autenticação de dois fatores (2FA)
                         </h2>
-                        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                        <p className="text-muted mt-1.5 text-[13.5px] leading-relaxed">
                             {user.mfaEnabled
                                 ? "Ativada — um código do seu aplicativo autenticador é exigido a cada login."
                                 : "Desativada — adicione uma camada extra de segurança exigindo um código do seu aplicativo autenticador a cada login."}
                         </p>
                     </div>
+                    <Tag variant={user.mfaEnabled ? "accent" : "neutral"} className="ml-auto shrink-0 font-semibold">
+                        {user.mfaEnabled ? "Ativado" : "Desativado"}
+                    </Tag>
                 </div>
 
                 {step === "idle" && (
-                    <div className="mt-4">
+                    <div className="border-divider mt-5 border-t pt-5">
                         {user.mfaEnabled ? (
                             <Button variant="danger" onClick={() => setStep("disable")}>
                                 Desativar 2FA
@@ -138,30 +146,30 @@ export const SecurityPage = () => {
                 )}
 
                 {step === "setup" && setupData && (
-                    <div className="mt-6 flex flex-col gap-4 border-t border-slate-200 pt-6 dark:border-slate-800">
+                    <div className="border-divider mt-5 flex flex-col gap-5 border-t pt-5">
                         <div>
-                            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                            <h3 className="font-heading text-sm font-semibold uppercase">
                                 1. Escaneie o QR code
                             </h3>
-                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                            <p className="text-muted mt-1 text-sm">
                                 Use um aplicativo autenticador (Google Authenticator, Authy
                                 etc.) para escanear o código abaixo.
                             </p>
                             <img
                                 src={setupData.qrCodeDataUrl}
                                 alt="QR code para configurar a autenticação de dois fatores"
-                                className="mt-3 h-48 w-48 rounded-md border border-slate-200 dark:border-slate-800"
+                                className="border-divider mt-3 h-48 w-48 border"
                             />
-                            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                            <p className="text-muted mt-3 text-xs">
                                 Não consegue escanear? Digite a chave manualmente:{" "}
-                                <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono dark:bg-slate-800">
+                                <code className="border-divider font-heading border px-2.5 py-1 font-semibold tracking-wide">
                                     {setupData.secret}
                                 </code>
                             </p>
                         </div>
 
                         <div>
-                            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                            <h3 className="font-heading text-sm font-semibold uppercase">
                                 2. Confirme o código gerado
                             </h3>
                             <div className="mt-3">
@@ -181,7 +189,7 @@ export const SecurityPage = () => {
                 )}
 
                 {step === "disable" && (
-                    <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-800">
+                    <div className="border-divider mt-5 border-t pt-5">
                         <MfaDisableForm
                             onSubmit={handleDisable}
                             onCancel={() => setStep("idle")}
@@ -215,22 +223,26 @@ const BackupCodesReveal = ({ codes, onFinish }: BackupCodesRevealProps) => {
     }
 
     return (
-        <div className="mt-6 flex flex-col gap-4 border-t border-slate-200 pt-6 dark:border-slate-800">
+        <div className="border-divider mt-5 flex flex-col gap-4 border-t pt-5">
             <div
                 role="alert"
-                className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+                className="border-status-warning/40 bg-status-warning/10 text-status-warning flex items-start gap-2.5 border px-3.5 py-3 text-sm leading-relaxed"
             >
+                <AlertTriangle className="mt-0.5 h-[18px] w-[18px] shrink-0" aria-hidden="true" />
                 2FA ativado com sucesso. Guarde estes códigos de backup em um
                 lugar seguro — eles não serão exibidos novamente, e cada um
                 pode ser usado uma única vez para entrar caso você perca acesso
                 ao aplicativo autenticador.
             </div>
 
-            <ul className="grid grid-cols-2 gap-2 rounded-md bg-slate-50 p-4 font-mono text-sm dark:bg-slate-800">
+            <ul
+                className={cn(
+                    "border-divider font-heading grid grid-cols-2 gap-2 border p-4 text-[15px] font-semibold tracking-wide",
+                    "font-features-['tnum'_1]",
+                )}
+            >
                 {codes.map((code) => (
-                    <li key={code} className="text-slate-900 dark:text-slate-100">
-                        {code}
-                    </li>
+                    <li key={code}>{code}</li>
                 ))}
             </ul>
 
@@ -290,7 +302,7 @@ const MfaDisableForm = ({ onSubmit, onCancel, isLoading }: MfaDisableFormProps) 
             className="flex flex-col gap-4"
             noValidate
         >
-            <p className="text-sm text-slate-600 dark:text-slate-400">
+            <p className="text-muted text-[13.5px]">
                 Confirme sua senha e um código válido do aplicativo
                 autenticador (ou um código de backup) para desativar o 2FA.
             </p>
@@ -312,10 +324,7 @@ const MfaDisableForm = ({ onSubmit, onCancel, isLoading }: MfaDisableFormProps) 
             />
 
             {serverError && (
-                <div
-                    role="alert"
-                    className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-300"
-                >
+                <div role="alert" className="bg-status-danger/10 text-status-danger px-3 py-2 text-sm">
                     {serverError}
                 </div>
             )}

@@ -56,10 +56,12 @@ test.describe("Catálogo de distribuidoras", () => {
         await expect(cemigCard).toContainText(/06\.981\.180\/0001-16/)
         await expect(cemigCard).toContainText(/mg/i)
         await expect(cemigCard).toContainText(/tusd/i)
-        await expect(cemigCard).toContainText(/te r\$/i)
+        await expect(cemigCard.getByText("TE", { exact: true })).toBeVisible()
+        await expect(cemigCard).toContainText(/r\$\s0,29\/kwh/i)
         await expect(cemigCard).toContainText(/icms/i)
         await expect(cemigCard).toContainText(/pis/i)
         await expect(cemigCard).toContainText(/cofins/i)
+        await expect(cemigCard).toContainText(/efetiva/i)
 
         await expect(
             page.getByTestId("distributor-card-dist-enel"),
@@ -121,5 +123,71 @@ test.describe("Catálogo de distribuidoras", () => {
             page.getByTestId("distributor-card-dist-cemig"),
         ).toBeVisible()
         await expect(page.getByText(/não foi possível carregar/i)).not.toBeVisible()
+    })
+
+    test("busca filtra o catálogo por nome/CNPJ/UF, sem resultado mostra empty state dedicado", async ({
+        page,
+    }) => {
+        await mockAppShellBackground(page)
+        await setupAuth(page)
+        await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
+            fulfillPaginated(route, [DIST_CEMIG, DIST_ENEL]),
+        )
+
+        await page.goto("/distribuidoras")
+        await hideDevTools(page)
+
+        const search = page.getByLabel(/buscar distribuidora/i)
+        await search.fill("cemig")
+
+        await expect(
+            page.getByTestId("distributor-card-dist-cemig"),
+        ).toBeVisible()
+        await expect(
+            page.getByTestId("distributor-card-dist-enel"),
+        ).not.toBeVisible()
+
+        await search.fill("nenhuma-distribuidora-com-esse-nome")
+
+        await expect(page.getByText(/nenhuma distribuidora encontrada/i)).toBeVisible()
+        await expect(
+            page.getByText(/ajuste a busca ou o filtro de estado/i),
+        ).toBeVisible()
+        await expect(page.getByTestId("distributors-grid")).toHaveCount(0)
+    })
+
+    test("filtro por estado mostra só as distribuidoras da UF selecionada", async ({
+        page,
+    }) => {
+        await mockAppShellBackground(page)
+        await setupAuth(page)
+        await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
+            fulfillPaginated(route, [DIST_CEMIG, DIST_ENEL]),
+        )
+
+        await page.goto("/distribuidoras")
+        await hideDevTools(page)
+
+        await expect(
+            page.getByTestId("distributor-card-dist-cemig"),
+        ).toBeVisible()
+        await expect(
+            page.getByTestId("distributor-card-dist-enel"),
+        ).toBeVisible()
+
+        await page.getByRole("button", { name: /^mg$/i }).click()
+
+        await expect(
+            page.getByTestId("distributor-card-dist-cemig"),
+        ).toBeVisible()
+        await expect(
+            page.getByTestId("distributor-card-dist-enel"),
+        ).not.toBeVisible()
+
+        await page.getByRole("button", { name: /^todos$/i }).click()
+
+        await expect(
+            page.getByTestId("distributor-card-dist-enel"),
+        ).toBeVisible()
     })
 })

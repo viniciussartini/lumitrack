@@ -79,7 +79,6 @@ export const DeviceForm = ({
             <div className="flex flex-col gap-4">
                 <Input
                     label="Nome do dispositivo"
-                    autoFocus
                     placeholder="Ar-condicionado da sala"
                     error={errors.name?.message}
                     {...register("name")}
