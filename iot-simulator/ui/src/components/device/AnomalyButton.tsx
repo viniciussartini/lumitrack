@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
+import { BoltIcon, WarningIcon } from "@/components/ui/icons"
 import type { AnomalyState } from "@/types"
 
 interface AnomalyButtonProps {
@@ -33,8 +34,9 @@ export function AnomalyButton({ anomaly, onTrigger, onClear, isPending = false }
 
     if (anomaly.active) {
         return (
-            <div className="flex items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
-                <span className="font-medium">
+            <div className="border-status-danger bg-status-danger/8 text-status-danger flex flex-wrap items-center gap-3 border px-3.5 py-2.5">
+                <span className="inline-flex items-center gap-2 text-sm font-semibold">
+                    <WarningIcon />
                     anomalia ativa ({anomaly.multiplier}×) — encerra em {secondsRemaining}s
                 </span>
                 <Button variant="ghost" size="sm" onClick={onClear} disabled={isPending}>
@@ -45,13 +47,13 @@ export function AnomalyButton({ anomaly, onTrigger, onClear, isPending = false }
     }
 
     return (
-        <div className="flex flex-wrap items-end gap-2">
+        <div className="flex flex-wrap items-end gap-3">
             <Input
                 label="Multiplicador"
                 type="number"
                 min={1}
                 step={0.1}
-                className="w-24"
+                className="w-[110px]"
                 value={multiplier}
                 onChange={(e) => setMultiplier(Number(e.target.value))}
             />
@@ -59,13 +61,14 @@ export function AnomalyButton({ anomaly, onTrigger, onClear, isPending = false }
                 label="Duração (s)"
                 type="number"
                 min={1}
-                className="w-24"
+                className="w-[110px]"
                 value={durationSeconds}
                 onChange={(e) => setDurationSeconds(Number(e.target.value))}
             />
             <Button
                 variant="danger"
                 size="sm"
+                leftIcon={<BoltIcon width={15} height={15} />}
                 isLoading={isPending}
                 onClick={() => onTrigger(multiplier, durationSeconds)}
             >
