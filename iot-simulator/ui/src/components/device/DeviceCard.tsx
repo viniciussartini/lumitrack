@@ -47,19 +47,20 @@ export function DeviceCard({
     const isPublishing = device.poweredOn && device.connected && device.lastPublishedAt !== null
 
     return (
-        <div className="flex flex-col gap-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                    <h3 className="font-medium">{device.name}</h3>
-                    <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                        <code>{device.topic}</code>
-                        <CopyButton value={device.topic} />
+        <div className="border-divider flex flex-col gap-3.5 border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+                <div className="min-w-0">
+                    <h3 className="font-heading text-[15.5px] font-semibold">{device.name}</h3>
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                        <code className="text-muted text-[12.5px]">{device.topic}</code>
+                        <CopyButton value={device.topic} label="Copiar tópico" />
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-1.5 text-xs">
+                <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-text/70 inline-flex items-center gap-1.5 text-xs">
                         <span
-                            className={`h-2 w-2 rounded-full ${isPublishing ? "bg-green-500" : "bg-slate-300 dark:bg-slate-600"}`}
+                            className={`h-2 w-2 rounded-full ${isPublishing ? "bg-[#3f8f52]" : "bg-neutral-100"}`}
+                            style={isPublishing ? { animation: "lt-pulse 1.6s ease-in-out infinite" } : undefined}
                             aria-hidden="true"
                         />
                         {isPublishing && device.lastPublishedAt !== null
@@ -69,6 +70,7 @@ export function DeviceCard({
                     <Button
                         variant={device.poweredOn ? "secondary" : "primary"}
                         size="sm"
+                        className="min-w-[92px]"
                         isLoading={isPowerPending}
                         onClick={() => onPowerToggle(!device.poweredOn)}
                     >

@@ -14,20 +14,17 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 // Subset do Button do frontend principal — sem `asChild`/Radix Slot (não
 // precisamos de botão polimórfico nesta ferramenta interna pequena).
-
-const variantStyles: Record<Variant, string> = {
-    primary:
-        "bg-brand-500 text-white hover:bg-brand-700 focus-visible:ring-brand-500 disabled:bg-slate-300 dark:disabled:bg-slate-700",
-    secondary:
-        "bg-slate-100 text-slate-900 hover:bg-slate-200 focus-visible:ring-slate-400 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700",
-    ghost: "bg-transparent text-slate-700 hover:bg-slate-100 focus-visible:ring-slate-400 dark:text-slate-200 dark:hover:bg-slate-800",
-    danger: "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500",
+const variantClass: Record<Variant, string> = {
+    primary: "btn-primary",
+    secondary: "btn-secondary",
+    ghost: "btn-ghost",
+    danger: "btn-danger",
 }
 
 const sizeStyles: Record<Size, string> = {
-    sm: "h-8 px-3 text-sm",
-    md: "h-10 px-4 text-sm",
-    lg: "h-12 px-6 text-base",
+    sm: "text-xs px-3 py-1",
+    md: "",
+    lg: "text-base px-6 py-3",
 }
 
 export const Button = ({
@@ -46,15 +43,7 @@ export const Button = ({
     return (
         <button
             disabled={isDisabled}
-            className={cn(
-                "inline-flex items-center justify-center gap-2 rounded-md font-medium",
-                "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-                "disabled:cursor-not-allowed disabled:opacity-60",
-                "dark:focus-visible:ring-offset-slate-950",
-                variantStyles[variant],
-                sizeStyles[size],
-                className,
-            )}
+            className={cn("btn", variantClass[variant], sizeStyles[size], className)}
             {...rest}
         >
             {isLoading ? <Spinner /> : leftIcon}
@@ -65,18 +54,8 @@ export const Button = ({
 }
 
 const Spinner = () => (
-    <svg
-        className="h-4 w-4 animate-spin"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-    >
+    <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-        <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-        />
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
     </svg>
 )
