@@ -4,17 +4,20 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useProperties } from "@/hooks/queries/useProperties"
 import { usePropertySelection } from "@/hooks/usePropertySelection"
 import { PropertySelector } from "@/components/dashboard/PropertySelector"
+import { RealtimeSection } from "@/components/dashboard/RealtimeSection"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Button } from "@/components/ui/Button"
 
 /**
- * Painel (`/dashboard`) — épico #114 (Fase 4).
+ * Painel (`/dashboard`) — épico #114 (Fase 4), bloco `isDashboard` do
+ * handoff (`LumiTrack Home.dc.html`, linhas 152-246). O seletor de
+ * propriedade fica aqui dentro, não na topbar (o handoff não tem nenhum
+ * seletor no header compartilhado) — #115.
  *
- * Esta primeira entrega (#115) cobre só o pré-requisito compartilhado pelas
- * próximas sub-issues (#116/#117/#119): seleção da propriedade ativa,
- * conforme o bloco `isDashboard` do handoff (`LumiTrack Home.dc.html`,
- * linhas 152-246) — o seletor fica aqui dentro, não na topbar (o handoff não
- * tem nenhum seletor no header compartilhado).
+ * KPIs "Potência agora"/"Custo estimado" + gráfico de consumo em tempo real
+ * (#116) vivem em `RealtimeSection`, escopados à propriedade selecionada.
+ * Histórico/comparação (#119) e as demais KPIs (#117) chegam nas próximas
+ * sub-issues do épico.
  *
  * Cardinalidade assumida: pequena quantidade de propriedades por usuário
  * (pageSize 50, sem paginação de UI) — sem precedente idêntico no código,
@@ -84,10 +87,7 @@ export const DashboardPage = () => {
                         selectedId={selectedId}
                         onChange={selectProperty}
                     />
-                    <p className="text-muted text-sm">
-                        Os KPIs e gráficos do Painel chegam nas próximas sub-issues
-                        do épico #114.
-                    </p>
+                    {selectedId && <RealtimeSection propertyId={selectedId} />}
                 </>
             )}
         </div>

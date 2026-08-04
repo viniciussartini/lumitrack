@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import { useQueries } from "@tanstack/react-query"
 import {
@@ -14,7 +14,7 @@ import { useProperty } from "@/hooks/queries/useProperties"
 import { useDistributor, useDistributors } from "@/hooks/queries/useDistributors"
 import { useAreas } from "@/hooks/queries/useAreas"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
-import { useRealtime } from "@/contexts/RealtimeContext"
+import { useLiveMeterReading } from "@/hooks/useLiveMeterReading"
 import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Tag } from "@/components/ui/Tag"
@@ -66,18 +66,9 @@ export const PropertyDetailsPage = () => {
     const distributorsQuery = useDistributors(1, 31)
     // KPI "Potência agora" — mesma fonte que MeterSection usa internamente
     // (useMeterByTarget dedupe via cache do TanStack Query, sem query extra
-    // de verdade) + useRealtime (SSE) pra leitura ao vivo.
+    // de verdade) + useLiveMeterReading (SSE) pra leitura ao vivo.
     const meterQuery = useMeterByTarget("PROPERTY", id)
-    const { readingsByMeterId } = useRealtime()
-    // Estado (não Date.now() direto) pra recalcular a "idade" da leitura
-    // periodicamente sem violar a regra de pureza de render — mesmo padrão
-    // de MeterSection.tsx.
-    const [now, setNow] = useState(() => Date.now())
-
-    useEffect(() => {
-        const interval = setInterval(() => setNow(Date.now()), 2_000)
-        return () => clearInterval(interval)
-    }, [])
+    const { reading, isStale: isReadingStale } = useLiveMeterReading(meterQuery.data?.id)
 
     // Loading só do primeiro nível (property). Distributor carregando depois
     // não bloqueia a página inteira — mostramos um placeholder local.
@@ -109,9 +100,6 @@ export const PropertyDetailsPage = () => {
     const property = propertyQuery.data
     const distributor = distributorQuery.data
     const meter = meterQuery.data
-    const reading = meter ? readingsByMeterId[meter.id] : undefined
-    const isReadingStale =
-        !reading || now - new Date(reading.receivedAt).getTime() > 10_000
 
     return (
         <div className="flex flex-col gap-6">

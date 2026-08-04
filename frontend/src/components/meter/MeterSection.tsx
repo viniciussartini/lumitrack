@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { AlertCircle, Pencil, Plus, Radio, Trash2, WifiOff } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
@@ -6,16 +6,12 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog"
 import { MeterFormDialog } from "@/components/meter/MeterFormDialog"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
 import { useDeleteMeter } from "@/hooks/queries/useMeterMutations"
-import { useRealtime } from "@/contexts/RealtimeContext"
+import { useLiveMeterReading } from "@/hooks/useLiveMeterReading"
 import { extractErrorMessage } from "@/services/api"
 import { formatCurrentRms, formatPowerKw, formatVoltageRms } from "@/lib/format"
 import { cn } from "@/lib/cn"
 import { METER_PROTOCOL_LABELS, type TargetType } from "@/types/meter.types"
 import { toast } from "sonner"
-
-/** Leitura considerada "obsoleta" após esse tempo sem uma amostra nova —
- * mesmo limiar que o antigo RealTimeCard usava. */
-const STALE_THRESHOLD_MS = 10_000
 
 interface MeterSectionProps {
     targetType: TargetType
@@ -37,23 +33,9 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
     const deleteMeter = useDeleteMeter()
     const [dialogOpen, setDialogOpen] = useState(false)
     const [confirmOpen, setConfirmOpen] = useState(false)
-    const { readingsByMeterId } = useRealtime()
-    const [now, setNow] = useState(() => Date.now())
 
     const meter = meterQuery.data
-    const reading = meter ? readingsByMeterId[meter.id] : undefined
-
-    // Recalcula a "idade" da leitura periodicamente — sem isso, o status
-    // só re-renderizaria quando uma leitura NOVA chegasse, e nunca
-    // detectaria sozinho que o medidor parou de transmitir (mesma lógica
-    // do antigo RealTimeCard).
-    useEffect(() => {
-        const interval = setInterval(() => setNow(Date.now()), 2_000)
-        return () => clearInterval(interval)
-    }, [])
-
-    const isStale =
-        !reading || now - new Date(reading.receivedAt).getTime() > STALE_THRESHOLD_MS
+    const { reading, isStale } = useLiveMeterReading(meter?.id)
 
     const handleDelete = async () => {
         if (!meter) return
