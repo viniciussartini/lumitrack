@@ -15,38 +15,24 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         const hasError = Boolean(error)
 
         return (
-            <div className="flex flex-col gap-1.5">
-                {label && (
-                    <label htmlFor={selectId} className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                        {label}
-                    </label>
-                )}
+            <div className={cn("sim-field", className)}>
+                {label && <label htmlFor={selectId}>{label}</label>}
                 <select
                     id={selectId}
                     ref={ref}
                     aria-invalid={hasError}
                     aria-describedby={hasError ? `${selectId}-error` : helperText ? `${selectId}-helper` : undefined}
-                    className={cn(
-                        "h-10 rounded-md border px-3 text-sm",
-                        "bg-white text-slate-900",
-                        "dark:bg-slate-900 dark:text-slate-100",
-                        "focus:outline-none focus:ring-2 focus:ring-offset-0",
-                        "disabled:cursor-not-allowed disabled:opacity-60",
-                        hasError
-                            ? "border-red-500 focus:ring-red-500 dark:border-red-500"
-                            : "border-slate-300 focus:ring-brand-500 dark:border-slate-700",
-                        className,
-                    )}
+                    className={cn("sim-input", hasError && "border-status-danger")}
                     {...rest}
                 >
                     {children}
                 </select>
                 {hasError ? (
-                    <span id={`${selectId}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">
+                    <span id={`${selectId}-error`} role="alert" className="text-status-danger mt-1.5 block text-xs">
                         {error}
                     </span>
                 ) : helperText ? (
-                    <span id={`${selectId}-helper`} className="text-xs text-slate-500 dark:text-slate-400">
+                    <span id={`${selectId}-helper`} className="text-muted mt-1.5 block text-xs">
                         {helperText}
                     </span>
                 ) : null}

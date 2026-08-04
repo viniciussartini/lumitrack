@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/Button"
-import { Input } from "@/components/ui/Input"
 import { Select } from "@/components/ui/Select"
+import { DeviceParamsFields } from "@/components/device/DeviceParamsFields"
 import { DEVICE_PROFILES, type DeviceParams } from "@/types"
 
 interface DeviceControlsProps {
@@ -26,36 +26,8 @@ export function DeviceControls({ params, onSave, isPending = false }: DeviceCont
     const [form, setForm] = useState(params)
 
     return (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Input
-                label="Tensão nominal (V)"
-                type="number"
-                value={form.nominalVoltage}
-                onChange={(e) => setForm({ ...form, nominalVoltage: Number(e.target.value) })}
-            />
-            <Input
-                label="Potência nominal (W)"
-                type="number"
-                value={form.nominalPowerW}
-                onChange={(e) => setForm({ ...form, nominalPowerW: Number(e.target.value) })}
-            />
-            <Input
-                label="Fator de potência"
-                type="number"
-                min={0}
-                max={1}
-                step={0.01}
-                value={form.powerFactorBase}
-                onChange={(e) => setForm({ ...form, powerFactorBase: Number(e.target.value) })}
-            />
-            <Input
-                label="Ruído (%)"
-                type="number"
-                min={0}
-                max={100}
-                value={form.noiseAmplitudePercent}
-                onChange={(e) => setForm({ ...form, noiseAmplitudePercent: Number(e.target.value) })}
-            />
+        <div className="grid grid-cols-2 items-end gap-3 sm:grid-cols-4">
+            <DeviceParamsFields params={form} onChange={setForm} />
             <Select
                 label="Perfil"
                 className="col-span-2"
