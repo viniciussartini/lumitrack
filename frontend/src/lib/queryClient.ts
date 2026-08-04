@@ -150,4 +150,8 @@ export const queryKeys = {
         all: ["notifications"] as const,
         list: () => [...queryKeys.notifications.all, "list"] as const,
     },
+    tariffFlag: {
+        all: ["tariffFlag"] as const,
+        current: () => [...queryKeys.tariffFlag.all, "current"] as const,
+    },
 } as const

@@ -3,29 +3,8 @@ import { useNavigate } from "react-router"
 import { ChevronDown, LogOut, Shield, User as UserIcon } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useClickOutside } from "@/lib/hooks/useClickOutside"
+import { getDisplayInfo } from "@/lib/userDisplay"
 import { cn } from "@/lib/cn"
-import type { User } from "@/types/auth.types"
-
-/**
- * Deriva um nome amigável e iniciais a partir do User.
- * PF: usa firstName + lastName.
- * PJ: usa tradeName se existir, senão companyName.
- * Iniciais: 1-2 caracteres em uppercase, fallback "?" se não der.
- */
-const getDisplayInfo = (user: User): { name: string; initials: string } => {
-    if (user.userType === "INDIVIDUAL") {
-        const first = user.firstName ?? ""
-        const last = user.lastName ?? ""
-        const name = `${first} ${last}`.trim() || user.email
-        const initials =
-            (first[0] ?? "") + (last[0] ?? "") || user.email[0]
-        return { name, initials: initials.toUpperCase() || "?" }
-    }
-
-    const name = user.tradeName ?? user.companyName ?? user.email
-    const initials = name[0]?.toUpperCase() ?? "?"
-    return { name, initials }
-}
 
 export const UserMenu = () => {
     const { user, logout } = useAuth()
@@ -107,7 +86,7 @@ export const UserMenu = () => {
                     role="menu"
                     aria-label="Opções do usuário"
                     className={cn(
-                        "absolute right-0 top-full mt-1 w-56 origin-top-right",
+                        "absolute right-0 top-full z-40 mt-1 w-56 origin-top-right",
                         "rounded-md border border-slate-200 bg-white shadow-lg",
                         "dark:border-slate-800 dark:bg-slate-900",
                         "py-1",
@@ -123,20 +102,22 @@ export const UserMenu = () => {
                         </p>
                     </div>
 
-                    {/* Item: Perfil (placeholder) */}
+                    {/* Item: Perfil */}
                     <button
                         type="button"
                         role="menuitem"
-                        onClick={() => setIsOpen(false)}
-                        disabled
+                        onClick={() => {
+                            setIsOpen(false)
+                            navigate("/perfil")
+                        }}
                         className={cn(
                             "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
-                            "text-slate-400 dark:text-slate-500",
-                            "cursor-not-allowed",
+                            "text-slate-700 hover:bg-slate-100",
+                            "dark:text-slate-200 dark:hover:bg-slate-800",
                         )}
                     >
                         <UserIcon className="h-4 w-4" aria-hidden="true" />
-                        Perfil <span className="ml-auto text-xs">(em breve)</span>
+                        Perfil
                     </button>
 
                     {/* Item: Segurança (MFA) */}

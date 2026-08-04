@@ -22,6 +22,17 @@ export interface User {
     tradeName?: string | null
 }
 
+// Input de PUT /api/users/:id — espelha updateUserSchema do backend.
+// Todos os campos opcionais; nunca inclui cpf/cnpj (o backend já não os
+// aceita na atualização — imutáveis após o cadastro).
+export interface UpdateUserInput {
+    email?: string
+    firstName?: string
+    lastName?: string
+    companyName?: string
+    tradeName?: string
+}
+
 // Input do form de login
 export interface LoginInput {
     email: string

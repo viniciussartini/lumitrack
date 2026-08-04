@@ -1,5 +1,6 @@
 const KEYS = {
     THEME: "lumitrack:theme",
+    SELECTED_PROPERTY: "lumitrack:selected-property",
 } as const
 
 type StorageKey = (typeof KEYS)[keyof typeof KEYS]
