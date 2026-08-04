@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import { Link } from "react-router"
 import { BarChart3, Flag, TrendingUp, Zap } from "lucide-react"
 import { Blueprint } from "@/components/ui/Blueprint"
@@ -11,9 +12,9 @@ import { Tag } from "@/components/ui/Tag"
  * redirecionado para `/dashboard`, mesma regra já aplicada a /login e /registro.
  *
  * Puramente apresentacional — sem chamada de API. O painel "ao vivo" do hero
- * e os valores de bandeira usam números ilustrativos fixos (mesmo padrão já
- * estabelecido em BrandPanel/LoginPage para o painel de marca: não há sessão
- * nem medidor antes do login, então não há dado real para mostrar).
+ * anima kW/custo/gráfico via `useLiveTicker` (mesmo random-walk local do
+ * handoff) e os valores de bandeira/relatório são ilustrativos fixos — não
+ * há sessão nem medidor antes do login, então não há dado real para mostrar.
  *
  * O protótipo não especifica comportamento mobile (10-design-system.md §
  * "comportamento não especificado") — os grids de 3/4 colunas do handoff
@@ -46,8 +47,14 @@ const NAV_LINKS = [
 ]
 
 const LandingNav = () => (
-    <nav className="nav border-divider sticky top-0 z-20 gap-7 border-b bg-white/88 backdrop-blur-sm dark:bg-black/40">
-        <span className="nav-brand inline-flex items-center gap-2.5 tracking-[-.01em]">
+    <nav
+        className="nav border-divider sticky top-0 z-20 gap-[28px] border-b"
+        style={{
+            background: "color-mix(in srgb, var(--color-bg) 88%, transparent)",
+            backdropFilter: "blur(8px)",
+        }}
+    >
+        <span className="nav-brand inline-flex items-center gap-[9px] tracking-[-.01em]">
             <img src="/lumitrack-logo.svg" alt="" className="block h-[29px] w-[26px]" />
             <span className="whitespace-nowrap">
                 Lumi
@@ -56,21 +63,27 @@ const LandingNav = () => (
                 </span>
             </span>
         </span>
-        <div className="hidden items-center gap-7 md:flex">
+        <div className="hidden md:contents">
             {NAV_LINKS.map((link) => (
-                <a key={link.href} href={link.href} className="text-muted hover:text-accent-700 text-sm">
+                <a key={link.href} href={link.href} className="lt-nav-link">
                     {link.label}
                 </a>
             ))}
         </div>
-        <div className="ml-auto flex items-center gap-3 md:ml-0">
-            <Link to="/login" className="text-muted hover:text-accent-700 text-sm">
-                Entrar
-            </Link>
-            <Button asChild size="sm">
-                <Link to="/registro">Criar conta</Link>
-            </Button>
-        </div>
+        <Link to="/login" className="lt-nav-link ml-[8px]">
+            Entrar
+        </Link>
+        {/* `.nav a` (industry.css, regra do próprio `.nav` base) tem mais
+            especificidade que `.btn-primary` na mesma layer e vence: sem o
+            style inline, o texto herda a cor escura do `<nav>` (`color:
+            inherit`) em vez do `var(--color-bg)` do botão, e ainda muda de
+            cor no hover via `.nav a:hover` — nenhum outro botão do app tem
+            esse efeito, porque nenhum outro fica dentro de um `.nav`. Style
+            inline sempre vence regra externa (com ou sem :hover), então
+            resolve as duas coisas de uma vez. */}
+        <Button asChild style={{ color: "var(--color-bg)" }}>
+            <Link to="/registro">Criar conta</Link>
+        </Button>
     </nav>
 )
 
@@ -121,50 +134,119 @@ const LandingHero = () => (
     </section>
 )
 
+const LIVE_KWH_MIN = 2.4
+const LIVE_KWH_MAX = 4.6
+const LIVE_COST_PER_KWH = 0.638
+
+/** Mesmo random-walk de `LumiTrack Landing.dc.html` (Component.state +
+ * setInterval 1500ms) — não é dado real (sem sessão/medidor nesta página),
+ * mas o handoff especifica os números variando, não estáticos. */
+const useLiveTicker = () => {
+    const [kwh, setKwh] = useState(3.42)
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setKwh((prev) => Math.max(LIVE_KWH_MIN, Math.min(LIVE_KWH_MAX, prev + (Math.random() - 0.46) * 0.18)))
+        }, 1500)
+        return () => clearInterval(timer)
+    }, [])
+
+    return { kwh, cost: kwh * LIVE_COST_PER_KWH }
+}
+
+const numberFormatter = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
 /**
- * Painel "ao vivo" do hero — valores ilustrativos fixos, não dado real
- * (sem sessão/medidor nesta página). Mesmo padrão de BrandPanel/LoginPage.
+ * Painel "ao vivo" do hero — números variando via `useLiveTicker` (não é
+ * dado real, sem sessão/medidor nesta página, mas o handoff anima os
+ * valores — mesmo padrão do card de marca de Login/BrandPanel, só que lá
+ * são fixos por não terem o componente de estado do protótipo).
  */
-const LandingLivePanel = () => (
-    <Blueprint className="p-0" data-testid="landing-live-panel">
-        <div className="border-divider flex items-center justify-between border-b px-[18px] py-3.5">
-            <span className="font-heading text-text/70 text-xs font-semibold tracking-[.1em] uppercase">
-                Painel · Tempo real
-            </span>
-            <span className="font-heading inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[.08em] text-[#3f8f52] uppercase">
-                <span
-                    className="h-2 w-2 rounded-full bg-[#3f8f52]"
-                    style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
-                />
-                Ao vivo
-            </span>
-        </div>
-        <div className="border-divider grid grid-cols-2 border-b">
-            <div className="border-divider border-r p-[18px]">
-                <div className="font-heading text-text/55 mb-2 text-[11px] font-semibold tracking-[.08em] uppercase">
-                    Potência agora
+const LandingLivePanel = () => {
+    const { kwh, cost } = useLiveTicker()
+
+    return (
+        <Blueprint className="p-0" data-testid="landing-live-panel">
+            <div className="border-divider flex items-center justify-between border-b px-[18px] py-3.5">
+                <span className="font-heading text-text/70 text-xs font-semibold tracking-widest uppercase">
+                    Painel · Tempo real
+                </span>
+                <span className="font-heading inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[.08em] text-[#3f8f52] uppercase">
+                    <span
+                        className="h-2 w-2 rounded-full bg-[#3f8f52]"
+                        style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
+                    />
+                    Ao vivo
+                </span>
+            </div>
+            <div className="border-divider grid grid-cols-2 border-b">
+                <div className="border-divider border-r p-[18px]">
+                    <div className="font-heading text-text/55 mb-2 text-[11px] font-semibold tracking-[.08em] uppercase">
+                        Potência agora
+                    </div>
+                    <div className="font-heading text-[44px] leading-[.9] font-semibold font-features-['tnum'_1]">
+                        {numberFormatter.format(kwh)}
+                        <span className="text-text/55 ml-1 text-lg">kW</span>
+                    </div>
                 </div>
-                <div className="font-heading text-[44px] leading-[.9] font-semibold [font-feature-settings:'tnum'_1]">
-                    3,42<span className="text-text/55 ml-1 text-lg">kW</span>
+                <div className="p-[18px]">
+                    <div className="font-heading text-text/55 mb-2 text-[11px] font-semibold tracking-[.08em] uppercase">
+                        Custo projetado / h
+                    </div>
+                    <div className="text-status-warning font-heading text-[44px] leading-[.9] font-semibold font-features-['tnum'_1]">
+                        <span className="mr-0.5 text-lg">R$</span>
+                        {numberFormatter.format(cost)}
+                    </div>
                 </div>
             </div>
-            <div className="p-[18px]">
-                <div className="font-heading text-text/55 mb-2 text-[11px] font-semibold tracking-[.08em] uppercase">
-                    Custo projetado / h
+            <div className="px-[18px] pt-4 pb-1.5">
+                <div className="font-heading text-text/55 mb-2.5 text-[11px] font-semibold tracking-[.08em] uppercase">
+                    Consumo · últimas 24h (kWh)
                 </div>
-                <div className="text-status-warning font-heading text-[44px] leading-[.9] font-semibold [font-feature-settings:'tnum'_1]">
-                    <span className="mr-0.5 text-lg">R$</span>2,18
-                </div>
+                <LiveAreaChart />
             </div>
-        </div>
-        <div className="flex items-center justify-between px-[18px] py-3.5">
-            <Tag variant="outline" className="text-status-success border-status-success font-semibold">
-                <span className="bg-status-success h-2 w-2 rounded-full" />
-                Bandeira Verde
-            </Tag>
-            <span className="text-text/60 text-xs">sem acréscimo</span>
-        </div>
-    </Blueprint>
+            <div className="flex items-center justify-between px-[18px] py-3.5">
+                <Tag variant="outline" className="text-status-success border-status-success gap-[7px] font-semibold">
+                    <span className="bg-status-success h-2 w-2 rounded-full" />
+                    Bandeira Verde
+                </Tag>
+                <span className="text-text/60 text-xs font-features-['tnum'_1]">sem acréscimo</span>
+            </div>
+        </Blueprint>
+    )
+}
+
+/** Mesmo path/gradiente de `LumiTrack Landing.dc.html` — mock ilustrativo de
+ * consumo, não dado real (sem sessão/medidor nesta página). */
+const LiveAreaChart = () => (
+    <svg viewBox="0 0 480 150" className="block w-full" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+            <linearGradient id="landing-live-chart-fill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#5980a6" stopOpacity="0.28" />
+                <stop offset="1" stopColor="#5980a6" stopOpacity="0" />
+            </linearGradient>
+        </defs>
+        <g stroke="color-mix(in srgb, #1d1f20 8%, transparent)" strokeWidth={1}>
+            <line x1="0" y1="37" x2="480" y2="37" />
+            <line x1="0" y1="75" x2="480" y2="75" />
+            <line x1="0" y1="113" x2="480" y2="113" />
+        </g>
+        <path
+            d="M0,118 L20,110 40,96 60,104 80,84 100,70 120,80 140,60 160,42 180,56 200,36 220,30 240,48 260,40 280,26 300,34 320,20 340,32 360,16 380,28 400,22 420,44 440,34 460,52 480,44 L480,150 L0,150 Z"
+            fill="url(#landing-live-chart-fill)"
+        />
+        <path
+            d="M0,118 L20,110 40,96 60,104 80,84 100,70 120,80 140,60 160,42 180,56 200,36 220,30 240,48 260,40 280,26 300,34 320,20 340,32 360,16 380,28 400,22 420,44 440,34 460,52 480,44"
+            fill="none"
+            stroke="#5980a6"
+            strokeWidth={2}
+            strokeLinejoin="round"
+            strokeDasharray={1400}
+            strokeDashoffset={1400}
+            style={{ animation: "lt-dash 1.8s ease-out forwards" }}
+        />
+        <circle cx={480} cy={44} r={4} fill="#d98a1e" />
+    </svg>
 )
 
 const METRICS = [
@@ -179,7 +261,7 @@ const LandingMetrics = () => (
         <Blueprint className="grid grid-cols-2 p-0 lg:grid-cols-4">
             {METRICS.map((metric, i) => (
                 <div key={metric.label} className={`p-6 ${i > 0 ? "border-divider border-t lg:border-t-0 lg:border-l" : ""}`}>
-                    <div className={`font-heading text-4xl leading-none font-semibold [font-feature-settings:'tnum'_1] ${metric.accent}`}>
+                    <div className={`font-heading text-4xl leading-none font-semibold font-features-['tnum'_1] ${metric.accent}`}>
                         {metric.value}
                     </div>
                     <div className="text-text/65 mt-2 text-[13px]">{metric.label}</div>
@@ -291,7 +373,7 @@ const LandingFlags = () => (
                     <div className="p-[22px]">
                         <h4 className={`font-heading text-lg uppercase ${flag.colorClass}`}>{flag.name}</h4>
                         <p className="text-text/74 mt-2 text-[13.5px] leading-[1.5]">{flag.description}</p>
-                        <div className={`font-heading mt-3.5 text-[22px] font-semibold [font-feature-settings:'tnum'_1] ${flag.colorClass}`}>
+                        <div className={`font-heading mt-3.5 text-[22px] font-semibold font-features-['tnum'_1] ${flag.colorClass}`}>
                             {flag.value}
                         </div>
                     </div>
@@ -306,7 +388,7 @@ const LandingReports = () => (
         id="relatorios"
         className="mx-auto grid max-w-[1200px] grid-cols-1 items-center gap-9 px-5 py-10 sm:px-8 md:py-14 lg:grid-cols-[7fr_5fr] lg:gap-18"
     >
-        <div className="order-2 lg:order-1">
+        <div>
             <span className="font-heading text-accent-700 block text-[13px] font-semibold tracking-[.09em] uppercase">
                 03 · Relatórios e simulações
             </span>
@@ -337,9 +419,9 @@ const LandingReports = () => (
             </ul>
         </div>
 
-        <Blueprint className="order-1 p-0 lg:order-2">
+        <Blueprint className="order-first p-0">
             <div className="border-divider flex items-center justify-between border-b px-5 py-[18px]">
-                <span className="font-heading text-text/70 text-xs font-semibold tracking-[.1em] uppercase">
+                <span className="font-heading text-text/70 text-xs font-semibold tracking-widest uppercase">
                     Relatório · Simulação de custo
                 </span>
                 <Tag variant="outline" className="font-semibold">
@@ -358,7 +440,8 @@ const LandingReports = () => (
                     <Tag variant="neutral">Branca</Tag>
                     <Tag variant="neutral">Ponta / Fora ponta</Tag>
                 </div>
-                <div className="flex items-end gap-5 text-xs">
+                <ReportsBarChart />
+                <div className="mt-3.5 flex items-end gap-5 text-xs">
                     <span className="inline-flex items-center gap-1.5">
                         <span className="bg-accent h-2.5 w-2.5" />
                         Tarifa atual
@@ -371,6 +454,28 @@ const LandingReports = () => (
             </div>
         </Blueprint>
     </section>
+)
+
+/** Mock ilustrativo de comparação de cenários tarifários — mesmo path de
+ * `LumiTrack Landing.dc.html`, não dado real (sem simulação nesta página). */
+const ReportsBarChart = () => (
+    <svg viewBox="0 0 440 150" className="block w-full" aria-hidden="true">
+        <g stroke="color-mix(in srgb, #1d1f20 8%, transparent)" strokeWidth={1}>
+            <line x1="0" y1="40" x2="440" y2="40" />
+            <line x1="0" y1="80" x2="440" y2="80" />
+            <line x1="0" y1="120" x2="440" y2="120" />
+        </g>
+        <g>
+            <rect x={20} y={55} width={34} height={75} fill="#5980a6" />
+            <rect x={60} y={40} width={34} height={90} fill="#d98a1e" />
+            <rect x={130} y={70} width={34} height={60} fill="#5980a6" />
+            <rect x={170} y={58} width={34} height={72} fill="#d98a1e" />
+            <rect x={240} y={48} width={34} height={82} fill="#5980a6" />
+            <rect x={280} y={30} width={34} height={100} fill="#d98a1e" />
+            <rect x={350} y={82} width={34} height={48} fill="#5980a6" />
+            <rect x={390} y={66} width={34} height={64} fill="#d98a1e" />
+        </g>
+    </svg>
 )
 
 const AUDIENCE = [
