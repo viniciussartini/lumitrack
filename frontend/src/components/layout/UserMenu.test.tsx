@@ -142,6 +142,17 @@ describe("UserMenu — navegação", () => {
 
         expect(mockNavigate).toHaveBeenCalledWith("/seguranca")
     })
+
+    it("navega para /perfil ao clicar em Perfil", async () => {
+        const user = userEvent.setup()
+        renderWithUser(mockUserPF)
+        await screen.findByText("João Silva")
+
+        await user.click(screen.getByRole("button", { name: /menu do usuário/i }))
+        await user.click(screen.getByRole("menuitem", { name: /^perfil$/i }))
+
+        expect(mockNavigate).toHaveBeenCalledWith("/perfil")
+    })
 })
 
 describe("UserMenu — logout", () => {

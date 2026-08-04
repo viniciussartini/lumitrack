@@ -54,6 +54,24 @@ export const formatCnpj = (value: string): string => {
 }
 
 /**
+ * Mascara um CPF já formatado, preservando só o último bloco visível.
+ * Assume entrada já no formato "000.000.000-00" (é sempre o caso — vem
+ * decifrado do backend já com a máscara aplicada).
+ *
+ * Exemplo: maskCpf("123.456.789-00") → "•••.•••.789-00"
+ */
+export const maskCpf = (cpf: string): string => cpf.replace(/^\d{3}\.\d{3}/, "•••.•••")
+
+/**
+ * Mascara um CNPJ já formatado, preservando só o último bloco visível
+ * (filial + dígitos verificadores). Mesma premissa de entrada de `maskCpf`.
+ *
+ * Exemplo: maskCnpj("12.345.678/0001-00") → "••.•••.•••/0001-00"
+ */
+export const maskCnpj = (cnpj: string): string =>
+    cnpj.replace(/^\d{2}\.\d{3}\.\d{3}/, "••.•••.•••")
+
+/**
  * Formata um CEP no padrão 00000-000.
  * Idempotente: input já formatado retorna inalterado.
  *
