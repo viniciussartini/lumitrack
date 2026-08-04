@@ -2,49 +2,49 @@ import { useState } from "react"
 import { Link } from "react-router"
 import { AlertCircle, Radio } from "lucide-react"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
-import { useConsumption } from "@/hooks/queries/useConsumption"
 import { useLiveMeterReading } from "@/hooks/useLiveMeterReading"
 import { usePowerHistory } from "@/hooks/usePowerHistory"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Button } from "@/components/ui/Button"
+import { DashboardKpiRow } from "@/components/dashboard/DashboardKpiRow"
+import { TariffFlagListCard } from "@/components/dashboard/TariffFlagListCard"
 import {
     RealtimeWindowToggle,
     type RealtimeWindow,
 } from "@/components/dashboard/RealtimeWindowToggle"
 import { RealtimePowerChart } from "@/components/dashboard/RealtimePowerChart"
-import { formatBrl, formatPowerKw } from "@/lib/format"
-import type { ConsumptionBucket } from "@/types/consumption.types"
 
 interface RealtimeSectionProps {
     propertyId: string
+    propertyName: string
+}
+
+const WINDOW_LABELS: Record<RealtimeWindow, string> = {
+    "1h": "última hora",
+    "24h": "24 horas",
 }
 
 /**
- * Bloco `isDashboard` do handoff — KPIs "Potência agora"/"Custo estimado" +
- * gráfico "Consumo em tempo real" da propriedade ativa (#116).
+ * Bloco `isDashboard` do handoff — KPIs de topo (#116/#117), gráfico
+ * "Consumo em tempo real" (#116) e card "Bandeiras tarifárias" (#117) da
+ * propriedade ativa.
  *
  * Usa só o medidor vinculado DIRETAMENTE à propriedade (não soma
  * Área/Dispositivo) — mesmo padrão já usado em `PropertyDetailsPage`, evita
  * a dupla contagem que o backend também evita deliberadamente em
- * `/api/consumption` (ver comentário em `consumption.service.ts`).
+ * `/api/consumption` (ver comentário em `consumption.service.ts`). Como
+ * "Consumo hoje"/"Custo projetado" (#117) usam o mesmo `/api/consumption`
+ * do medidor direto, a seção inteira continua atrás do mesmo gate de
+ * "propriedade tem medidor próprio" — inclusive "Bandeira vigente", que é
+ * dado global e não dependeria disso, mas fica junto por coerência visual
+ * (evita um dashboard parcialmente populado).
  */
-export const RealtimeSection = ({ propertyId }: RealtimeSectionProps) => {
+export const RealtimeSection = ({ propertyId, propertyName }: RealtimeSectionProps) => {
     const meterQuery = useMeterByTarget("PROPERTY", propertyId)
     const meter = meterQuery.data
     const { reading, isStale } = useLiveMeterReading(meter?.id)
     const history = usePowerHistory(reading)
     const [timeWindow, setTimeWindow] = useState<RealtimeWindow>("1h")
-
-    // Custo estimado — deriva uma tarifa efetiva (R$/kWh) do bucket de hora
-    // mais recente com consumo real, e multiplica pela potência atual. Sem
-    // bucket com consumo ainda, não inventa número (mostra "—").
-    const consumptionQuery = useConsumption(
-        "PROPERTY",
-        meter ? propertyId : undefined,
-        "hour",
-        1,
-        3,
-    )
 
     if (meterQuery.isLoading) {
         return (
@@ -87,86 +87,44 @@ export const RealtimeSection = ({ propertyId }: RealtimeSectionProps) => {
         )
     }
 
-    const currentPowerKw = !isStale && reading ? reading.powerW / 1000 : null
-    const estimatedCostPerHour = computeEstimatedCostPerHour(
-        consumptionQuery.data?.items,
-        currentPowerKw,
-    )
-
     return (
         <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <LiveKpiCard
-                    label="Potência agora"
-                    value={currentPowerKw !== null ? formatPowerKw(reading!.powerW) : "—"}
-                    isLive={currentPowerKw !== null}
-                />
-                <LiveKpiCard
-                    label="Custo estimado"
-                    value={
-                        estimatedCostPerHour !== null
-                            ? `≈ ${formatBrl(estimatedCostPerHour)}/h`
-                            : "—"
-                    }
-                    isLive={false}
-                />
-            </div>
+            <DashboardKpiRow propertyId={propertyId} reading={reading} isStale={isStale} />
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="font-heading text-sm font-semibold uppercase">
-                    Consumo em tempo real
-                </h2>
-                <RealtimeWindowToggle value={timeWindow} onChange={setTimeWindow} />
-            </div>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2.1fr)_minmax(0,1fr)]">
+                <div className="blueprint p-0">
+                    <i className="corner tl" />
+                    <i className="corner tr" />
+                    <i className="corner bl" />
+                    <i className="corner br" />
+                    <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
+                        <div>
+                            <span className="font-heading text-[17px] font-semibold uppercase">
+                                Consumo em tempo real
+                            </span>
+                            <span className="text-muted mt-0.5 block text-xs">
+                                {propertyName} · {WINDOW_LABELS[timeWindow]}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-3.5">
+                            <RealtimeWindowToggle value={timeWindow} onChange={setTimeWindow} />
+                            <span className="font-heading inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[.07em] text-[#3f8f52] uppercase">
+                                <span
+                                    className="h-2 w-2 rounded-full bg-[#3f8f52]"
+                                    style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
+                                    aria-hidden="true"
+                                />
+                                Ao vivo
+                            </span>
+                        </div>
+                    </div>
+                    <div className="p-4">
+                        <RealtimePowerChart history={history} timeWindow={timeWindow} />
+                    </div>
+                </div>
 
-            <RealtimePowerChart history={history} timeWindow={timeWindow} />
+                <TariffFlagListCard />
+            </div>
         </div>
     )
-}
-
-interface LiveKpiCardProps {
-    label: string
-    value: string
-    isLive: boolean
-}
-
-const LiveKpiCard = ({ label, value, isLive }: LiveKpiCardProps) => (
-    <div className="blueprint px-5 py-[18px]">
-        <i className="corner tl" />
-        <i className="corner tr" />
-        <i className="corner bl" />
-        <i className="corner br" />
-        <div className="font-heading flex items-center gap-2 text-[11px] font-semibold tracking-[.07em] uppercase">
-            {isLive && (
-                <span
-                    className="h-2 w-2 rounded-full bg-[#3f8f52]"
-                    style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
-                    aria-hidden="true"
-                />
-            )}
-            {label}
-        </div>
-        <div className="font-heading mt-2.5 text-[30px] leading-none font-semibold font-features-['tnum'_1]">
-            {value}
-        </div>
-    </div>
-)
-
-/**
- * Tarifa efetiva (R$/kWh) do bucket de hora mais recente com consumo real
- * (backend ordena DESC — `items[0]` é o mais novo), multiplicada pela
- * potência atual. `null` quando não há leitura ao vivo ou nenhum bucket
- * com consumo ainda — nunca fabrica um número.
- */
-const computeEstimatedCostPerHour = (
-    items: ConsumptionBucket[] | undefined,
-    currentPowerKw: number | null,
-): number | null => {
-    if (currentPowerKw === null || !items) return null
-
-    const bucketWithConsumption = items.find((item) => item.kwhConsumed > 0)
-    if (!bucketWithConsumption) return null
-
-    const effectiveTariff = bucketWithConsumption.costBrl / bucketWithConsumption.kwhConsumed
-    return effectiveTariff * currentPowerKw
 }

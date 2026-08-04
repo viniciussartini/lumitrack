@@ -68,6 +68,9 @@ interface RealtimePowerChartProps {
  * buckets fixos vindos da API): aqui é uma série contínua acumulada no
  * cliente via `usePowerHistory`. Sem histórico anterior à abertura da
  * página — nasce vazio, cresce enquanto a página fica aberta.
+ *
+ * Sem frame `.blueprint` próprio (#117) — o card inteiro (header + gráfico)
+ * é UM card só no handoff; o wrapper vive em `RealtimeSection`.
  */
 export const RealtimePowerChart = ({ history, timeWindow }: RealtimePowerChartProps) => {
     const data: ChartDatum[] = useMemo(() => {
@@ -98,11 +101,7 @@ export const RealtimePowerChart = ({ history, timeWindow }: RealtimePowerChartPr
     }
 
     return (
-        <div data-testid="realtime-power-chart" className="blueprint p-4">
-            <i className="corner tl" />
-            <i className="corner tr" />
-            <i className="corner bl" />
-            <i className="corner br" />
+        <div data-testid="realtime-power-chart">
             <ResponsiveContainer width="100%" height={256}>
                 <LineChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-divider" />

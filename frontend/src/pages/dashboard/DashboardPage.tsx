@@ -14,10 +14,10 @@ import { Button } from "@/components/ui/Button"
  * propriedade fica aqui dentro, não na topbar (o handoff não tem nenhum
  * seletor no header compartilhado) — #115.
  *
- * KPIs "Potência agora"/"Custo estimado" + gráfico de consumo em tempo real
- * (#116) vivem em `RealtimeSection`, escopados à propriedade selecionada.
- * Histórico/comparação (#119) e as demais KPIs (#117) chegam nas próximas
- * sub-issues do épico.
+ * KPIs (Potência agora, Consumo hoje, Custo projetado, Bandeira vigente —
+ * #116/#117), gráfico de consumo em tempo real (#116) e card de bandeiras
+ * tarifárias (#117) vivem em `RealtimeSection`, escopados à propriedade
+ * selecionada. Histórico/comparação (#119) chega na próxima sub-issue.
  *
  * Cardinalidade assumida: pequena quantidade de propriedades por usuário
  * (pageSize 50, sem paginação de UI) — sem precedente idêntico no código,
@@ -30,7 +30,7 @@ export const DashboardPage = () => {
     const propertiesQuery = useProperties(1, PROPERTIES_PAGE_SIZE)
 
     const properties = propertiesQuery.data?.items
-    const { selectedId, selectProperty } = usePropertySelection(properties)
+    const { selectedId, selectedProperty, selectProperty } = usePropertySelection(properties)
 
     const greeting = user?.firstName
         ? `Olá, ${user.firstName}!`
@@ -87,7 +87,12 @@ export const DashboardPage = () => {
                         selectedId={selectedId}
                         onChange={selectProperty}
                     />
-                    {selectedId && <RealtimeSection propertyId={selectedId} />}
+                    {selectedId && selectedProperty && (
+                        <RealtimeSection
+                            propertyId={selectedId}
+                            propertyName={selectedProperty.name}
+                        />
+                    )}
                 </>
             )}
         </div>
