@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test"
 
+import { fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
 import { FAKE_USER } from "./support/fixtures"
@@ -84,6 +85,11 @@ test.describe("Fluxo de autenticação", () => {
             }),
         )
         await mockAppShellBackground(page)
+        // Mesmo motivo do teste de logout logo abaixo: DashboardPage sempre
+        // chama useProperties ao montar (#115).
+        await page.route(/\/api\/properties(\?.*)?$/, (route) =>
+            fulfillPaginated(route, []),
+        )
 
         await page.goto("/login")
         await page.getByLabel(/e-mail/i).fill("test@example.com")
@@ -109,6 +115,16 @@ test.describe("Fluxo de autenticação", () => {
             }),
         )
         await mockAppShellBackground(page)
+        // DashboardPage sempre chama useProperties ao montar (#115) — sem
+        // mock, cai no backend real sem sessão válida e redireciona pro
+        // /login no meio do teste (ver appShell.ts). Lista vazia de propósito:
+        // este teste só quer o cabeçalho (saudação) e o menu do usuário, uma
+        // propriedade real montaria RealtimeSection/etc, que por sua vez
+        // fariam suas próprias chamadas não mockadas (medidor, consumo,
+        // bandeira) e cairiam no mesmo problema.
+        await page.route(/\/api\/properties(\?.*)?$/, (route) =>
+            fulfillPaginated(route, []),
+        )
 
         await page.goto("/dashboard")
         await hideDevTools(page)

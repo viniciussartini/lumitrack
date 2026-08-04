@@ -25,10 +25,15 @@ import { Button } from "@/components/ui/Button"
  * são siblings de `RealtimeSection`, não aninhados nela — #119.
  *
  * Cardinalidade assumida: pequena quantidade de propriedades por usuário
- * (pageSize 50, sem paginação de UI) — sem precedente idêntico no código,
- * ver nota no CHANGELOG.
+ * (sem paginação de UI no seletor) — mesmo precedente de
+ * `ReportsPage`/`useDistributors(1,31)`. `pageSize` respeita o teto de 31
+ * do `paginationQuerySchema` compartilhado (`backend/src/shared/pagination.ts`);
+ * um valor maior (ex.: 50, usado por engano antes) é rejeitado com 422 pelo
+ * backend em qualquer conta autenticada — não é validação client-side, é o
+ * schema do servidor. Usuários com mais de 31 propriedades não veriam as
+ * demais no seletor (mesma ressalva já aceita em `ReportsPage`).
  */
-const PROPERTIES_PAGE_SIZE = 50
+const PROPERTIES_PAGE_SIZE = 31
 
 export const DashboardPage = () => {
     const { user } = useAuth()

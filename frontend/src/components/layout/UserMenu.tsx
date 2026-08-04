@@ -86,7 +86,7 @@ export const UserMenu = () => {
                     role="menu"
                     aria-label="Opções do usuário"
                     className={cn(
-                        "absolute right-0 top-full mt-1 w-56 origin-top-right",
+                        "absolute right-0 top-full z-40 mt-1 w-56 origin-top-right",
                         "rounded-md border border-slate-200 bg-white shadow-lg",
                         "dark:border-slate-800 dark:bg-slate-900",
                         "py-1",

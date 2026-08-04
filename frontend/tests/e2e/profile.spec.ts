@@ -27,6 +27,9 @@ test.describe("Perfil — visualizar e editar dados pessoais (#118)", () => {
     test("mostra os dados em modo leitura", async ({ page }) => {
         await mockAppShellBackground(page)
         await setupAuth(page)
+        await page.route(/\/api\/properties(\?.*)?$/, (route) =>
+            fulfillPaginated(route, [PROP_1]),
+        )
 
         await page.goto("/perfil")
         await hideDevTools(page)
@@ -39,6 +42,9 @@ test.describe("Perfil — visualizar e editar dados pessoais (#118)", () => {
     test("edita nome/sobrenome e reflete a mudança no menu do usuário", async ({ page }) => {
         await mockAppShellBackground(page)
         await setupAuth(page)
+        await page.route(/\/api\/properties(\?.*)?$/, (route) =>
+            fulfillPaginated(route, [PROP_1]),
+        )
 
         const updatedUser = { ...FAKE_USER, firstName: "Joana" }
         await page.route(/\/api\/users\/.*$/, (route) =>
