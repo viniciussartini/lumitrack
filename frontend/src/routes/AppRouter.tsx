@@ -20,6 +20,7 @@ import { PrivacyPolicyPage } from "@/pages/legal/PrivacyPolicyPage"
 import { TermsOfUsePage } from "@/pages/legal/TermsOfUsePage"
 import { SecurityPage } from "@/pages/settings/SecurityPage"
 import { ProfilePage } from "@/pages/profile/ProfilePage"
+import { AboutPage } from "@/pages/about/AboutPage"
 
 /**
  * Mapa de rotas
@@ -84,6 +85,9 @@ export const AppRouter = () => (
                 {/* Conta do usuário logado — acessível via UserMenu no Header. */}
                 <Route path="/perfil" element={<ProfilePage />} />
                 <Route path="/seguranca" element={<SecurityPage />} />
+
+                {/* Institucional — sem RF, versão provisória sem handoff (#137). */}
+                <Route path="/sobre" element={<AboutPage />} />
 
             </Route>
         </Route>

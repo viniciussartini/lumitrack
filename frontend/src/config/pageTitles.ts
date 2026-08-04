@@ -49,6 +49,7 @@ const PAGE_TITLE_RULES: readonly PageTitleRule[] = [
     { pattern: "/distribuidoras", kicker: "Catálogo", title: "Distribuidoras" },
     { pattern: "/seguranca", kicker: "Conta", title: "Segurança" },
     { pattern: "/perfil", kicker: "Conta", title: "Perfil" },
+    { pattern: "/sobre", kicker: "Institucional", title: "Sobre o projeto" },
 ] as const
 
 /** Mesmo fallback do protótipo (linha 1502): `titles[view] || ['LumiTrack','Painel']`. */

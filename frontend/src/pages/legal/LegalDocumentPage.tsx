@@ -1,24 +1,15 @@
 import { useEffect, useMemo } from "react"
 import { Link } from "react-router"
-import ReactMarkdown, { type Components } from "react-markdown"
+import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { AlertTriangle, ArrowLeft, Zap } from "lucide-react"
+import { ArrowLeft, Zap } from "lucide-react"
+import { slugify } from "@/lib/slugify"
+import { industryMarkdownComponents } from "@/lib/markdown/industryMarkdownComponents"
 
 interface LegalDocumentPageProps {
     title: string
     markdown: string
 }
-
-/** `"Política de Privacidade" → "politica-de-privacidade"` — determinístico,
- * usado tanto pro `id` de cada `h2` quanto pro `href` do TOC (mesma função,
- * nunca diverge). */
-const slugify = (text: string): string =>
-    text
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "")
 
 interface Heading {
     id: string
@@ -34,50 +25,6 @@ const extractHeadings = (markdown: string): Heading[] =>
         return { id: slugify(text), text }
     })
 
-// Mapeia elementos markdown pros tokens Industry (`.blueprint`/`.lt-legal`/
-// `Tag`-like), consistente com o restante do app.
-const markdownComponents: Components = {
-    h1: ({ children }) => (
-        <h1 className="font-heading text-[clamp(28px,3.4vw,44px)] leading-[1.05] font-semibold uppercase">
-            {children}
-        </h1>
-    ),
-    h2: ({ children }) => {
-        const text = String(children)
-        return <h2 id={slugify(text)}>{children}</h2>
-    },
-    p: ({ children }) => <p className="text-muted text-[15px] leading-[1.62]">{children}</p>,
-    ul: ({ children }) => <ul>{children}</ul>,
-    li: ({ children }) => <li className="text-muted text-[15px] leading-[1.55]">{children}</li>,
-    strong: ({ children }) => <strong>{children}</strong>,
-    a: ({ children, href }) => (
-        <Link to={href ?? "#"} className="text-accent-700 hover:text-accent font-medium">
-            {children}
-        </Link>
-    ),
-    blockquote: ({ children }) => (
-        <div className="blueprint border-status-warning/40 my-8 flex items-start gap-3 px-5 py-[18px]">
-            <i className="corner tl" />
-            <i className="corner tr" />
-            <i className="corner bl" />
-            <i className="corner br" />
-            <AlertTriangle
-                className="text-status-warning mt-0.5 h-[18px] w-[18px] shrink-0"
-                strokeWidth={1.5}
-                aria-hidden="true"
-            />
-            <div className="text-status-warning/90 text-[13.5px] [&_p]:m-0 [&_p]:text-inherit">
-                {children}
-            </div>
-        </div>
-    ),
-    table: ({ children }) => (
-        <div className="mt-4 overflow-x-auto">
-            <table className="table">{children}</table>
-        </div>
-    ),
-}
-
 /**
  * Layout compartilhado para documentos legais (Política de Privacidade,
  * Termos de Uso) — LumiTrack LGPD.dc.html. Renderiza o markdown canônico em
@@ -88,6 +35,9 @@ const markdownComponents: Components = {
  * tem `/privacidade`/`/termos` como rotas separadas (linkadas de
  * RegisterPage, testadas) — mantidas assim, os botões de aba viram `<Link>`
  * pra rota irmã.
+ *
+ * `industryMarkdownComponents`/`slugify` são compartilhados com `AboutPage`
+ * (#137) — extraídos daqui quando ela virou o 2º consumidor real.
  */
 export const LegalDocumentPage = ({ title, markdown }: LegalDocumentPageProps) => {
     useEffect(() => {
@@ -148,7 +98,7 @@ export const LegalDocumentPage = ({ title, markdown }: LegalDocumentPageProps) =
                     </aside>
 
                     <article className="lt-legal min-w-0">
-                        <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+                        <ReactMarkdown components={industryMarkdownComponents} remarkPlugins={[remarkGfm]}>
                             {markdown}
                         </ReactMarkdown>
                     </article>
