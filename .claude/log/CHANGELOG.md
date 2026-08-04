@@ -439,3 +439,17 @@
 - **Arquivos principais:** `.claude/docs/roadmap.md`.
 - **Decisões/ADRs:** nenhum ADR novo — decisões de escopo (ampliar o roadmap além do frontend) e de sequenciamento (Fase 6 depois da Fase 5) tomadas via pergunta direta ao usuário nesta sessão, registradas no próprio roadmap ("Justificativas de sequenciamento").
 - **Notas:** próximo passo natural é `criar-issues` (Modo 3, a partir da Fase 6 do roadmap) — ainda não executado, fica para quando o usuário pedir. PRs do dependabot mesclados nesta sessão (#126, #125, #105, #122, #123) e o achado de #51 vieram da mesma triagem; #35 e #54 (bumps de TypeScript 6/7, quebram CI) ficaram deliberadamente em aberto, sem entrada própria no roadmap por não terem plano de correção definido ainda.
+
+## [2026-08-04] feat: Landing pública (rota /)
+
+- **Branch:** feat/128-landing-simulador-iot
+- **Tipo:** feature
+- **O quê:** sub-issue #129 do épico #128 (Fase 5 do roadmap). `/` deixa de redirecionar direto pra `/login` e passa a mostrar a Landing pública — nav sticky, hero (headline + painel "ao vivo" ilustrativo), plaquinha de métricas, 4 recursos, 3 bandeiras tarifárias, split de relatórios/simulação, 2 públicos-alvo (PF/PJ), CTA de fechamento e rodapé — conforme `LumiTrack Landing.dc.html`.
+- **`/` dentro de `PublicRoute`:** em vez de duplicar a checagem de "usuário já autenticado", a rota raiz entrou no mesmo bloco `<Route element={<PublicRoute />}>` que já engloba `/login`/`/registro`/etc. — autenticado que acessa `/` cai em `/dashboard` de graça, reaproveitando a lógica existente (`AppRouter.tsx`).
+- **Puramente apresentacional, sem chamada de API:** o painel "ao vivo" do hero e os valores de bandeira usam números ilustrativos fixos — mesmo padrão já estabelecido em `BrandPanel`/`LoginPage` (não há sessão nem medidor antes do login).
+- **Sem cor hardcoded fora da escala:** as 3 bandeiras (verde/amarela/vermelha) reaproveitam os tokens `--color-status-success/warning/danger` (mesmos de `TariffFlagListCard`) tanto na faixa superior quanto no texto — o handoff usa 2 tons próximos por elemento que não existem na escala de tokens; usar o mesmo token nos dois lugares evitou introduzir hex novo (10-design-system.md § Tokens). Única exceção: o botão "Criar conta" da seção de fechamento usa texto `#1d1f20` fixo, porque `--color-status-highlight` (seu fundo) não tem variante escura — usar o token `--color-text` ali quebraria o contraste no tema escuro (comentado no código).
+- **Assets:** reaproveita `/lumitrack-logo.svg` já existente (mesmo usado por `BrandPanel`) — não copiou o `uploads/lumitrack-logo-2.svg` do bundle, que é a mesma marca.
+- **Mobile não especificado pelo handoff:** grids de recursos/bandeiras/público colapsam progressivamente (`sm`/`lg`), e os links centrais da nav somem abaixo de `md` (resta marca + Entrar + Criar conta) — mesma categoria de suposição já registrada em `BrandPanel` para o painel de marca das telas de auth.
+- **Arquivos principais:** `frontend/src/pages/landing/LandingPage.tsx` (novo), `frontend/src/routes/AppRouter.tsx`, `frontend/tests/e2e/landing.spec.ts` (novo).
+- **Decisões/ADRs:** nenhuma nova.
+- **Notas:** `npm run build`/`lint`/`test` do frontend limpos (65 arquivos · 572 testes, sem mudança — página nova não ganhou teste unitário dedicado, comportamento é 100% coberto pelo E2E). E2E: `landing.spec.ts` (4 cenários) + suíte completa **102/102 verdes em chromium+firefox, zero retries** (94 anteriores + 8 novos). Conferido visualmente em `vite preview` (light e dark) — fiel ao handoff nas duas variantes de tema.

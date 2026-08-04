@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router"
 import { ProtectedRoute } from "@/routes/ProtectedRoute"
 import { PublicRoute } from "@/routes/PublicRoute"
+import { LandingPage } from "@/pages/landing/LandingPage"
 import { LoginPage } from "@/pages/auth/LoginPage"
 import { ForgotPasswordPage } from "@/pages/auth/ForgotPasswordPage"
 import { ResetPasswordPage } from "@/pages/auth/ResetPasswordPage"
@@ -31,17 +32,17 @@ import { ProfilePage } from "@/pages/profile/ProfilePage"
 
 export const AppRouter = () => (
     <Routes>
-        {/* Rota raiz — sem Landing page ainda (Fase 5 do roadmap); redireciona
-            para /login explicitamente em vez de depender do catch-all. */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
-
         {/* Documentos legais — acessíveis independente do estado de autenticação
             (precisam ser lidos antes do cadastro, e por usuários já logados). */}
         <Route path="/privacidade" element={<PrivacyPolicyPage />} />
         <Route path="/termos" element={<TermsOfUsePage />} />
 
-        {/* Rotas públicas — bloqueia acesso de quem já está logado */}
+        {/* Rotas públicas — bloqueia acesso de quem já está logado. A raiz
+            entra aqui (Fase 5, sub-issue #129): usuário já autenticado que
+            acessa "/" cai em /dashboard pela mesma regra que já vale para
+            /login e /registro, sem duplicar a checagem de PublicRoute. */}
         <Route element={<PublicRoute />}>
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/registro" element={<RegisterPage />} />
             <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />
