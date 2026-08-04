@@ -1,9 +1,9 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-04 · Fase atual: 5 (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104; Fase 3 concluída — épico #110, PR #112; Fase 4 concluída — épico #114, branch `feat/114-painel-perfil`)
+> Última atualização: 2026-08-04 · Fase atual: 6 (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104; Fase 3 concluída — épico #110, PR #112; Fase 4 concluída — épico #114, PR #124; Fase 5 concluída — épico #128, PR #131)
 >
-> Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). A partir da Fase 6 o escopo se amplia para incluir dívida técnica e mudanças de backend fora do design system.
+> Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). A partir da Fase 6 o escopo se amplia: fidelidade ao handoff no chrome do app, consistência entre telas públicas, integração externa e dívida técnica de backend.
 
 ## Visão geral das fases
 
@@ -12,9 +12,12 @@
 | 1 | Fundação Industry + Autenticação (login, registro, recuperar senha) restilizados | **Concluída** (#89–#93, épico #94) |
 | 2 | Hierarquia do consumidor (Propriedade→Área→Dispositivo) via modal + LGPD | **Concluída** (#97–#103, épico #104) |
 | 3 | Alertas, Distribuidoras, Segurança/MFA restilizados | **Concluída** (#107–#109, #111, #113, épico #110, PR #112) |
-| 4 | Painel (feature nova) + Perfil (tela nova) | **Concluída** (#115–#120, épico #114, branch `feat/114-painel-perfil`) |
-| 5 | Landing pública (tela nova) + Simulador IoT (restyle) | Planejada — detalhe abaixo |
-| 6 | Migração ethernet-ip v1→v2 no backend (dívida técnica) | Planejada — a iniciar após a Fase 5, detalhe abaixo |
+| 4 | Painel (feature nova) + Perfil (tela nova) | **Concluída** (#115–#120, épico #114, PR #124) |
+| 5 | Landing pública (tela nova) + Simulador IoT (restyle) | **Concluída** (#129–#130, épico #128, PR #131) |
+| 6 | Shell do app autenticado (Sidebar + Header conforme handoff) + "Sobre o projeto" | Planejada — **fase atual**, detalhe abaixo |
+| 7 | Consistência das telas públicas (autenticação, Landing, LGPD) | Planejada — detalhe abaixo |
+| 8 | Bandeira tarifária a partir da fonte oficial (spike → ADR → integração condicional) | Planejada — detalhe abaixo |
+| 9 | Migração ethernet-ip v1→v2 no backend (dívida técnica) | Planejada — detalhe abaixo (era Fase 6; renumerada em 2026-08-04, ver justificativas) |
 
 ## Fase 1 — Fundação Industry + Autenticação
 
@@ -184,7 +187,148 @@ Restyle de `PropertiesPage`/`PropertyDetailsPage`/`AreaDetailsPage`/`DeviceDetai
 - **Depende de:** nenhuma dependência de outra fase (pacote isolado, `iot-simulator/ui` tem seu próprio `package.json`/build, ver `03-arquitetura.md`) — mas se decidir compartilhar tokens com `frontend/`, reaproveita o aprendizado da Fundação de tokens (Fase 1).
 - **Risco/observações:** médio — única decisão de arquitetura não trivial da fase: `iot-simulator/ui` hoje usa Tailwind cru (`rounded-lg`, `border-slate-200`, sem `industry.css`), sem nenhum precedente no projeto de um pacote do monorepo consumir os tokens Industry de outro (`frontend/src/styles/industry.css`) — decidir na execução se os tokens são compartilhados (ex.: pacote CSS próprio) ou duplicados localmente no `iot-simulator/ui`. Risco de produto é baixo (ferramenta de dev/demo, não afeta usuário final), o risco é só essa decisão estrutural.
 
-## Fase 6 — Migração ethernet-ip v1→v2 no backend (dívida técnica)
+**Fechamento (2026-08-04):** entregue nas 2 sub-issues planejadas (#129 Landing, #130 Simulador IoT), épico #128, PR #131. A decisão de tokens sinalizada como "decidir na execução" foi resolvida em #130 — **duplicação local**, não compartilhamento: `iot-simulator/ui/src/styles/industry.css` é uma cópia adaptada do `design-system/styles.css` canônico, contendo só as classes efetivamente usadas na única tela do simulador. Compartilhar de verdade exigiria infra nova (pacote CSS publicado ou symlink cross-workspace) — over-engineering para uma ferramenta interna. Além do planejado, a fase absorveu 2 rodadas de correção de fidelidade visual da Landing, reportadas pelo usuário após revisão do resultado:
+
+- **Achado de escopo maior que a Landing:** `body { @apply bg-white text-slate-900 }` em `index.css` **não estava dentro de nenhum `@layer`** — e, pela regra de CSS Cascade Layers (estilo sem layer sempre vence estilo com layer), sobrescrevia o `body { background: var(--color-bg) }` de `industry.css`. Efeito: **toda** página fora do `AppShell` (Login, Registro, Landing, LGPD) renderizava branco/preto puro em vez do cinza do Industry, desde a Fase 1 — passou despercebido por 5 fases porque nenhuma tela era comparada lado a lado com o protótipo em ambos os temas.
+- **`.nav a` vencendo `.btn-primary`:** seletor descendente (0,1,1) é mais específico que classe única (0,1,0) na mesma layer — o botão "Criar conta" da nav herdava a cor do `<nav>`. Só a Landing sofre disso por ser a primeira tela a usar a classe `.nav`.
+- **Dívida deixada explicitamente:** `AppShell.tsx` usa `bg-slate-50 dark:bg-slate-950` hardcodado (mesma classe de erro, mascarada hoje porque cobre o body inteiro) — **não corrigido na Fase 5** para não abrir frente de risco fora da sub-issue. Recolhido como critério de aceite da Fase 6, abaixo.
+
+## Fase 6 — Shell do app autenticado + "Sobre o projeto"
+
+> Handoff de design: `LumiTrack Home.dc.html` — sidebar nas linhas 61–81, topbar nas linhas 83–148, definição dos itens de nav na linha ~1356 e o mapa de kicker/título por view na linha ~1501.
+>
+> **Achado que dá origem à fase:** `Sidebar.tsx` e `Header.tsx` são o **único resíduo pré-Industry do app logado**. As Fases 1–5 migraram o conteúdo de todas as telas e deixaram o chrome em volta com os tokens antigos (`bg-white`, `border-slate-200`, `bg-brand-500`, `rounded-md`, `dark:` por classe) — hoje o app renderiza conteúdo Industry dentro de uma moldura do tema anterior, em toda tela autenticada. Junto entra o `bg-slate-50 dark:bg-slate-950` do `AppShell.tsx`, registrado no fechamento da Fase 5 como acompanhamento futuro.
+>
+> A fase **não é só restyle**: o handoff redistribui responsabilidades entre sidebar e header — `UserMenu` e `ThemeToggle` saem do header e passam para o rodapé da sidebar, e o header ganha título contextual da página. Por isso os dois primeiros itens são sequenciais, não paralelos.
+
+### Sidebar conforme o handoff
+
+- **Comportamento:** usuário navega pelo app com a sidebar na linguagem visual Industry — fundo escuro `--color-accent-900`, logo + wordmark do produto, os 7 itens de navegação do handoff, e um rodapé com a própria identidade (iniciais, nome, tipo de conta) que abre o menu de usuário e um botão de alternar tema ao lado.
+- **Cobre:** nenhum RF isolado — chrome de todas as telas autenticadas (RF07, RF11–RF17 na UI).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - `Sidebar.tsx` sem nenhum token pré-Industry (`bg-white`, `border-slate-200`, `bg-brand-500`, `dark:bg-slate-900`, `rounded-md`) — fundo `--color-accent-900`, divisores em `color-mix` com branco, itens em `.lt-navitem` (classe já canônica no bundle), ícones com `strokeWidth={1.5}`, nenhum canto arredondado.
+  - Cabeçalho da sidebar com o logo real (`/lumitrack-logo.svg`) + wordmark "Lumi/Track" com gradiente — mesmo tratamento que `BrandPanel.tsx` já aplica, reaproveitado em vez de reescrito (hoje a sidebar usa um ícone `Zap` genérico em quadro `bg-brand-500`, que é placeholder, não o logo).
+  - `config/navigation.ts` alinhado ao handoff: passa a ter **7 itens** na ordem Painel · Propriedades · Relatórios · Simulações · Alertas · Distribuidoras · Segurança. Entram os labels do handoff ("Painel" no lugar de "Dashboard", "Simulações" no lugar de "Simulação") e o item **Segurança** (`/seguranca`, rota que já existe e hoje só é alcançável pelo dropdown do `UserMenu`).
+  - Rodapé da sidebar com avatar de iniciais + nome + tipo de conta, reaproveitando `getDisplayInfo` (já existe, usado pelo `UserMenu`), e o `ThemeToggle` ao lado.
+  - **Logout preservado (decisão do usuário, 2026-08-04):** o protótipo não tem logout em lugar nenhum — o bloco de identidade do rodapé vira o *trigger* do `UserMenu` atual, mantendo Perfil / Segurança / Sair. Sem isso o logout desapareceria da interface.
+  - `AppShell.tsx` sem `bg-slate-50 dark:bg-slate-950` hardcodado — o background vem de `--color-bg` via `industry.css` (dívida herdada da Fase 5, ver fechamento acima).
+  - Drawer mobile preservado por completo (off-canvas, backdrop, fechar por X / backdrop / Escape / troca de rota); `Sidebar.test.tsx` e `AppShell.test.tsx` verdes.
+- **Depende de:** Componentes base Industry (Fase 1).
+- **Risco/observações:** médio — é o chrome de **toda** tela autenticada, então um erro aqui é visível em todo o produto de uma vez (mesma classe de risco dos Componentes base da Fase 1). O ponto de atenção real não é visual: é a migração do `UserMenu`/`ThemeToggle` para cá, que precisa acontecer no mesmo passe do item de Header para não deixar controles duplicados nem órfãos em nenhum commit intermediário.
+
+### Header conforme o handoff
+
+- **Comportamento:** usuário vê no topo de cada tela o contexto de onde está (kicker + título da página), o estado da conexão de dados ao vivo, e acesso rápido aos alertas disparando e às notificações — sem os controles de tema/usuário, que passaram para a sidebar.
+- **Cobre:** nenhum RF isolado; a superfície de alertas disparando serve RF15/RF16 na UI.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - `Header.tsx` sem tokens pré-Industry; sticky no topo com o fundo translúcido + `backdrop-filter: blur(8px)` e borda `--color-divider` do handoff.
+  - Kicker + título contextual por rota, com **fonte única de verdade** — o par (kicker, título) vive junto da definição de navegação (`config/navigation.ts` ou módulo irmão), nunca duplicado dentro de cada página. Pares do handoff: Painel geral/Olá {nome} · Suas unidades/Propriedades · Análises/Relatórios · Cenários/Simulações · Monitoramento/Alertas · Catálogo/Distribuidoras · Conta/Segurança · Conta/Perfil.
+  - **Badge "Dados ao vivo" ligado ao estado real do SSE (decisão do usuário, 2026-08-04):** reflete a conexão de `RealtimeContext`, não é pintado fixo. Um badge afirmando "ao vivo" com o stream caído é pior que não ter badge — mente sobre a frescura do dado que o usuário está lendo.
+  - `WarningBadge` e `NotificationDropdown` (já existem) restilizados para `.lt-iconbtn` / `.lt-menu`, com o contador de alertas disparando na posição do handoff.
+  - `ThemeToggle` e `UserMenu` **removidos** do header — passaram para o rodapé da sidebar no item anterior; nenhum controle duplicado.
+  - Hamburger mobile preservado (o protótipo é desktop-only e não especifica mobile — `10-design-system.md` § comportamento não especificado: mantém-se o que já funciona).
+  - `Header.test.tsx` e `AppShell.test.tsx` verdes; nenhuma quebra de `testid` usado pelos E2E existentes.
+- **Depende de:** Sidebar conforme o handoff (mesmo passe para a movimentação de `UserMenu`/`ThemeToggle`).
+- **Risco/observações:** médio — o título contextual é a única peça de lógica nova do item (mapeamento rota → texto, com rotas de detalhe aninhadas em `/propriedades/:id/...` que o handoff resolve com títulos variáveis). Resolver isso com um mapa único evita a armadilha óbvia: cada página setando o próprio título e divergindo com o tempo.
+
+### "Sobre o projeto"
+
+- **Comportamento:** usuário abre "Sobre o projeto" pela sidebar e lê o que é o LumiTrack, as motivações e os objetivos do projeto, com acesso ao repositório no GitHub.
+- **Cobre:** sem RF formal — página institucional/de contexto, sem lógica de negócio.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  - Rota `/sobre` nova + item correspondente na sidebar.
+  - **Sem handoff no bundle** — decisão do usuário (2026-08-04): implementar **versão provisória** (regra de ausência do `10-design-system.md`), marcada com `// TODO(design): aguardando handoff — Sobre o projeto`, reaproveitando o padrão visual já estabelecido da página LGPD (faixa de cabeçalho com kicker + título, conteúdo em coluna, `.blueprint` para destaques) — nada inventado fora do vocabulário Industry que já existe no código.
+  - Conteúdo em markdown canônico, mesmo padrão de `src/legal/*.md` renderizado por `LegalDocumentPage` — prosa fora do JSX, editável sem tocar em componente. Texto derivado de `01-descricao.md` (problema, usuário-alvo, motivação, objetivos).
+  - Link para `https://github.com/viniciussartini/lumitrack` com o logo do GitHub, `target="_blank"` + `rel="noopener noreferrer"` + `aria-label`.
+  - **Ícone do GitHub:** `lucide-react` (1.28) **não tem** ícone de marca — foram removidos da biblioteca. O logo é um SVG inline local, mesmo padrão que `iot-simulator/ui/src/components/ui/icons.tsx` já adotou na Fase 5. O mesmo componente é reaproveitado pelos itens da Fase 7 (Landing e painéis de autenticação) — construir aqui como compartilhável, não local desta página.
+- **Depende de:** Sidebar conforme o handoff (o item de nav vem de lá).
+- **Risco/observações:** baixo tecnicamente (página estática, sem estado nem API), mas é o **único item do roadmap sem handoff de design** — a versão provisória fica devendo até um export do Claude Design cobrir a tela, e a `auditoria-qualidade` vai reportar o `TODO(design)` até lá. Isso é intencional, não esquecimento.
+
+## Fase 7 — Consistência das telas públicas
+
+> Escopo: quatro ajustes independentes e pequenos nas telas que um visitante não autenticado vê (autenticação, Landing, LGPD). Nenhum deles muda comportamento de negócio; são consistência visual, crédito de autoria e navegação.
+>
+> **Divergências do handoff assumidas nesta fase** (decisões do usuário, 2026-08-04 — o design não é "corrigido silenciosamente", a divergência fica registrada aqui e no changelog): (1) o logo do GitHub não existe em nenhum `.dc.html` do bundle; (2) o handoff LGPD tem um link "← Voltar ao site" que sai por decisão explícita. O botão "Entrar" da nav do handoff LGPD segue **fora de escopo** — nunca foi implementado e não foi pedido.
+
+### Painel de marca com largura fixa nas telas de autenticação
+
+- **Comportamento:** usuário navegando entre Login → Registro → Esqueci minha senha → Redefinir senha não vê o painel escuro da esquerda mudar de largura entre uma tela e outra.
+- **Cobre:** RF01, RF02, RF05 (consistência visual do fluxo; nenhum comportamento novo).
+- **Priority:** P1 · **Size:** XS
+- **Critérios de aceite:** `LoginPage` usa hoje `lg:grid-cols-[1.05fr_1fr]` enquanto `RegisterPage`, `ForgotPasswordPage` e `ResetPasswordPage` usam `.95fr_1fr` — daí o "pulo" visual na troca de tela. A largura passa a ser **uma só**, definida em um lugar só (dentro do próprio `BrandPanel` ou numa constante de layout que as 4 páginas consomem), nunca repetida como classe em cada página; conferir antes nos 3 `.dc.html` de autenticação qual largura o handoff especifica e adotá-la se as três concordarem — se o próprio handoff divergir entre telas, vence a largura fixa (decisão do usuário) e a divergência é registrada.
+- **Depende de:** —
+- **Risco/observações:** baixo — mudança de uma medida em 4 arquivos. O valor real do item não é a largura em si, é eliminar a duplicação que permitiu a divergência aparecer.
+
+### Bloco de potência ao vivo do Login com mock variável
+
+- **Comportamento:** o card "potência agora" no painel de marca do Login anima os números como já acontece na Landing, em vez de exibir um valor congelado.
+- **Cobre:** sem RF — elemento ilustrativo (não há sessão nem medidor nesta tela; o número é mock, não dado real).
+- **Priority:** P2 · **Size:** XS
+- **Critérios de aceite:** o `useLiveTicker` (hoje declarado dentro de `LandingPage.tsx`) é extraído para um módulo compartilhado e consumido pelas duas telas — o random-walk não pode ser duplicado; o `extra` do `BrandPanel` no `LoginPage` passa a consumi-lo; permanece explícito no código (comentário) que o número é ilustrativo e não vem de medidor, para ninguém confundir com dado real numa tela pré-autenticação.
+- **Depende de:** —
+- **Risco/observações:** baixo. Ponto de atenção de acessibilidade: número em movimento contínuo numa tela de formulário — avaliar na execução se vale respeitar `prefers-reduced-motion` (a Landing tem o mesmo efeito e hoje não respeita; se for adotado, adotar nas duas para não divergirem).
+
+### Logo do GitHub na Landing e nos painéis de autenticação
+
+- **Comportamento:** visitante chega ao repositório do projeto a partir da Landing e das telas de autenticação.
+- **Cobre:** sem RF — atribuição/transparência do projeto.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  - **Landing:** logo do GitHub logo abaixo da linha "Monitoramento de energia elétrica para pessoas físicas e jurídicas do Brasil." (rodapé, `LandingPage.tsx` ~linha 588).
+  - **Login, Registro e Recuperação de senha:** o rodapé do `BrandPanel` passa a ter três posições — © à esquerda, o crédito "Logo desenhada por Magnific" **centralizado**, e o logo do GitHub à direita. Hoje são dois blocos com `justify-between`.
+  - Todos os links: `target="_blank"`, `rel="noopener noreferrer"` e `aria-label` descritivo (ícone sem texto precisa de nome acessível).
+  - Reaproveita o componente de ícone do GitHub criado na Fase 6 ("Sobre o projeto") — um SVG inline compartilhado, não três cópias.
+- **Depende de:** o componente de ícone do GitHub da Fase 6 (se a Fase 7 começar antes, criá-lo aqui e reaproveitar lá — a dependência é do artefato, não da ordem).
+- **Risco/observações:** baixo. Único cuidado é o rodapé de 3 colunas do `BrandPanel` não quebrar em larguras intermediárias — o painel já é `hidden lg:flex`, então o intervalo a verificar é estreito.
+
+### Páginas LGPD — logo no cabeçalho e remoção do "Voltar ao cadastro"
+
+- **Comportamento:** usuário que abre a Política de Privacidade ou os Termos de Uso (sempre em aba nova) vê o logo real do LumiTrack no topo e não encontra mais um link de voltar que não leva a lugar nenhum.
+- **Cobre:** RF01 (consentimento no cadastro), `09-conformidade-legal.md`.
+- **Priority:** P1 · **Size:** XS
+- **Critérios de aceite:**
+  - `LegalDocumentPage.tsx` troca o ícone genérico `Zap` em quadro pelo logo real (`/lumitrack-logo.svg`) + wordmark "Lumi/Track" com gradiente — exatamente o que o handoff `LumiTrack LGPD.dc.html` especifica na nav (linhas 36–40) e o que `BrandPanel.tsx` já implementa.
+  - Link "← Voltar ao cadastro" **removido**: as páginas já abrem em aba nova a partir do Registro (`target="_blank"`, confirmado em `RegisterPage.tsx`), então o botão de volta não tem para onde voltar — fechar a aba é a ação natural.
+  - Os links para `/privacidade` e `/termos` no rodapé da **Landing** passam a abrir em aba nova também, para o comportamento não depender da origem (hoje só o Registro abre em aba nova).
+  - As abas Política de Privacidade / Termos de Uso continuam navegando entre si; `PrivacyPolicyPage.test.tsx` e `TermsOfUsePage.test.tsx` verdes — ajustar qualquer asserção que dependa do link removido.
+- **Depende de:** —
+- **Risco/observações:** baixo — telas estáticas, sem estado. Verificar se algum E2E navega para as páginas legais pelo link de volta antes de removê-lo.
+
+## Fase 8 — Bandeira tarifária a partir da fonte oficial
+
+> **Situação atual:** a bandeira vigente é um registro singleton no banco (`TariffFlagConfig`, id fixo = 1) com `currentFlag` e os quatro acréscimos em R$/100 kWh (`greenPer100Kwh`, `yellowPer100Kwh`, `redP1Per100Kwh`, `redP2Per100Kwh`), lido por `GET /api/tariff-flag` (autenticado) e atualizado **manualmente** por `PUT /api/tariff-flag` (`requireRole("ADMIN")`). Como a bandeira muda mensalmente por decisão da ANEEL, isso é um dado externo mantido à mão — o valor de negócio do item é remover essa intervenção manual, e o risco é passar a depender de um terceiro no caminho do cálculo de custo (RF13).
+
+### Spike — viabilidade da fonte oficial (investigação + ADR)
+
+- **Comportamento:** nenhum comportamento de usuário — investigação. A entrega é uma decisão registrada: se e como o LumiTrack passa a obter a bandeira vigente de uma fonte oficial.
+- **Cobre:** RF08 (bandeira tarifária vigente — hoje atendido por atualização manual).
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  - Levantar os candidatos reais de fonte (Portal Brasileiro de Dados Abertos / dados abertos da ANEEL, publicação institucional da ANEEL, dados publicados pelas distribuidoras) e avaliar cada um contra: existência de endpoint estável e documentado; formato e cadência de atualização (a bandeira é mensal — a fonte precisa refletir a mudança em tempo útil); licença e termos de uso dos dados; necessidade de credencial/cadastro; e se a fonte entrega **as 4 modalidades com o valor por 100 kWh**, que é exatamente a forma como o `TariffFlagConfig` já modela o dado (se entregar só a bandeira vigente sem os valores, a integração cobre metade do problema — isso muda o escopo do item seguinte).
+  - ADR em `.claude/docs/adr/` registrando a decisão, **inclusive se for negativa** — "não viável, permanece o `PUT` manual do ADMIN" é uma decisão válida e vale ser registrada com o porquê, para não ser reinvestigada daqui a seis meses.
+  - **Nenhum código de produção alterado neste item.**
+- **Depende de:** —
+- **Risco/observações:** médio — o resultado pode ser "não viável", e é justamente por isso que a investigação vem separada e antes da integração (regra de risco/incerteza primeiro do kit). Cuidado explícito: não confundir a bandeira tarifária (ANEEL, nacional, mensal) com as tarifas TUSD/TE por distribuidora, que já são tratadas em outro lugar do domínio.
+
+### Sincronização automática da bandeira vigente (condicional ao spike)
+
+- **Comportamento:** a bandeira exibida no Painel e usada no cálculo de custo reflete a fonte oficial sem ninguém precisar atualizar manualmente.
+- **Cobre:** RF08, e protege a precisão de RF13 (custo).
+- **Priority:** P2 · **Size:** M
+- **Critérios de aceite:**
+  - **Só é executado se o spike concluir pela viabilidade** — se o ADR for negativo, este item é cancelado com a justificativa registrada, não fica pendurado no roadmap.
+  - Cliente HTTP da fonte oficial isolado num adapter de infraestrutura; o domínio não importa detalhe de integração (`06-code-quality-standards.md`, direção de dependência).
+  - Sincronização com timeout e retry, e **falha fechada**: indisponibilidade ou resposta inesperada da fonte **mantém o último valor conhecido** e registra o erro — nunca zera, nunca adivinha, nunca deixa o cálculo de custo do usuário sem bandeira. Resposta da fonte validada com Zod na borda, como todo input externo.
+  - Registro de auditoria de cada troca de bandeira (valor anterior, novo, origem manual ou automática, quando) — hoje só existe o caminho manual, protegido por `requireRole("ADMIN")`.
+  - `PUT /api/tariff-flag` preservado como override manual/fallback — a automação não pode ser o único caminho para corrigir um valor errado.
+  - Testes com a resposta da fonte mockada, cobrindo explicitamente o caminho de indisponibilidade e o de payload inválido (não só o happy path).
+- **Depende de:** Spike — viabilidade da fonte oficial.
+- **Risco/observações:** médio-alto — seria a **primeira dependência externa de terceiro em runtime no backend**. Entra na superfície de risco de integração externa do `05-security-standards.md` (validar tudo que vem de fora, falhar fechado) e cria um ponto de falha novo num caminho que hoje é 100% interno e determinístico. O modo de falha a evitar é o silencioso: bandeira desatualizada sem ninguém perceber é pior que sincronização quebrada com erro visível.
+
+## Fase 9 — Migração ethernet-ip v1→v2 no backend (dívida técnica)
 
 > Origem: achado durante triagem dos PRs abertos do dependabot (2026-08-04). O PR #51 (bump `ethernet-ip` 1.2.5→2.0.0 em `backend/`) **não foi mesclado** — passa no CI, mas quebraria em runtime. Detalhe abaixo é a base para as issues da fase (via skill `criar-issues`).
 
@@ -204,7 +348,9 @@ Restyle de `PropertiesPage`/`PropertyDetailsPage`/`AreaDetailsPage`/`DeviceDetai
 
 ## Fases seguintes (menos detalhadas — serão refinadas ao chegar)
 
-Nenhuma Fase 7 definida ainda. Itens novos exigem novos requisitos ou achados equivalentes: retomar este documento (via skill `planejar-roadmap`) só quando surgirem — não antecipar fases especulativas.
+Nenhuma Fase 10 definida ainda. Itens novos exigem novos requisitos ou achados equivalentes: retomar este documento (via skill `planejar-roadmap`) só quando surgirem — não antecipar fases especulativas.
+
+Candidato conhecido, ainda sem fase: um handoff de design para "Sobre o projeto" (Fase 6), que substituiria a versão provisória e fecharia o `TODO(design)` — depende de um export novo do Claude Design, não de decisão de engenharia.
 
 ## RFs/telas adiados do MVP (com justificativa)
 
@@ -222,4 +368,11 @@ Nenhuma Fase 7 definida ainda. Itens novos exigem novos requisitos ou achados eq
 - **Dentro da Fase 4, seletor de propriedade antes de Painel:** os 3 itens de Painel (tempo real, KPIs/bandeira, histórico/comparação) leem a propriedade ativa — sem o seletor, cada um teria que resolver essa dependência de forma isolada e inconsistente. Perfil é independente e pode avançar em paralelo. Tempo real vem antes de KPIs/bandeira por ser o item de maior incerteza técnica (agregação de SSE no cliente, sem precedente) — validar cedo enquanto ainda é barato ajustar; histórico/comparação fica por último por ser o de menor valor imediato (útil só com mais de um período/propriedade acumulado) e o único com um risco de escala conhecido (N chamadas client-side).
 - **Landing/Simulador (Fase 5) por último:** menor risco técnico e menor dependência de qualquer fase anterior — entram por último por serem os mais paralelizáveis, não por serem menos importantes.
 - **Dentro da Fase 5, Landing antes de Simulador:** Landing é rota raiz do produto (`/`) — maior visibilidade de qualquer inconsistência — e P1 por ser o primeiro contato de um visitante, mesma lógica já aplicada à Autenticação na Fase 1. Simulador fica por último (P2): é ferramenta de dev/demo (`iot-simulator/`), não uma tela do produto pro usuário final, e carrega a única decisão de arquitetura não trivial da fase (tokens Industry compartilhados entre pacotes do monorepo vs. duplicados) — vale isolar esse risco no fim, sem bloquear a Landing por causa dele.
-- **Fase 6 depois da Fase 5, não em paralelo:** decisão explícita do usuário (2026-08-04) — a Fase 5 (UI) segue como prioridade corrente; a migração do ethernet-ip (backend, sem RF novo, puramente dívida técnica) só começa depois. Tecnicamente as duas fases são independentes (pacotes/áreas diferentes do monorepo, sem dependência real), mas manter o sequenciamento evita dividir o foco entre uma fase de produto quase fechando o roadmap original e uma migração de biblioteca que reescreve integração com hardware real — risco maior, exige atenção dedicada.
+- **Fase 6 depois da Fase 5, não em paralelo:** decisão explícita do usuário (2026-08-04) — a Fase 5 (UI) segue como prioridade corrente; a migração do ethernet-ip (backend, sem RF novo, puramente dívida técnica) só começa depois. Tecnicamente as duas fases são independentes (pacotes/áreas diferentes do monorepo, sem dependência real), mas manter o sequenciamento evita dividir o foco entre uma fase de produto quase fechando o roadmap original e uma migração de biblioteca que reescreve integração com hardware real — risco maior, exige atenção dedicada. *(A migração passou a ser a Fase 9 no replanejamento de 2026-08-04 — ver abaixo; a justificativa de "não em paralelo com UI" continua valendo.)*
+
+### Replanejamento de 2026-08-04 (Fases 6–9)
+
+- **Shell do app (Fase 6) primeiro:** é o maior desvio de design vivo no produto hoje — moldura pré-Industry em volta de conteúdo Industry, visível em **toda** tela autenticada. Também é a única das frentes novas com acoplamento estrutural real (`UserMenu` e `ThemeToggle` mudando de componente-pai), o tipo de mudança que fica mais caro quanto mais código novo se acumula em volta. Mesma lógica que colocou a Fundação na Fase 1: o que todo o resto herda vem antes.
+- **Telas públicas (Fase 7) depois do shell:** quatro itens pequenos (XS/XS/S/XS), independentes entre si e de baixo risco — poderiam rodar em qualquer ordem. Ficam depois porque afetam telas que o usuário recorrente vê uma vez (autenticação) ou não vê (LGPD, Landing), enquanto o shell da Fase 6 está na frente dele o tempo todo. A única dependência entre as duas fases é um artefato, não uma ordem: o componente de ícone do GitHub, criado onde a execução chegar primeiro.
+- **Bandeira tarifária (Fase 8) antes do ethernet-ip:** toca RF08 e a precisão de RF13 — é produto, não manutenção. A migração do ethernet-ip não tem RF associado. Dentro da fase, o spike vem antes da integração pela regra de risco/incerteza primeiro: a integração inteira pode não existir, e descobrir isso custa uma investigação, não uma implementação jogada fora.
+- **ethernet-ip renumerada de Fase 6 para Fase 9** (decisão do usuário, 2026-08-04): as três frentes novas passaram na frente. O conteúdo do item foi preservado sem alteração. A fase **já tem uma issue aberta — #127** (`[Chore] Migração da integração EtherNet/IP para ethernet-ip v2.0.0`), cujo corpo referenciava "Fase 6"; a referência foi atualizada para "Fase 9" junto com esta renumeração, para o ponteiro issue → roadmap não apontar para a fase errada. Nenhuma issue nova foi criada para esta fase: o item é único, e um épico contendo uma sub-issue só não agrega nada. Ela continua por último pelo mesmo motivo de sempre: reescreve integração com hardware industrial real, sem cobertura de teste de hardware no CI, e merece atenção dedicada em vez de dividir espaço com frentes de UI.

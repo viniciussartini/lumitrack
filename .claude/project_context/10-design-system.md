@@ -21,21 +21,26 @@
 
 | Tela | Arquivo em `design/` | Equivalente no código |
 |---|---|---|
-| Landing pública | `LumiTrack Landing.dc.html` | — (não existe ainda) |
+| Landing pública | `LumiTrack Landing.dc.html` | `pages/landing/LandingPage.tsx` |
 | Login | `LumiTrack Login.dc.html` | `pages/auth/LoginPage.tsx` |
 | Registro | `LumiTrack Registro.dc.html` | `pages/auth/RegisterPage.tsx` |
-| Recuperar senha | `LumiTrack Recuperar Senha.dc.html` | — (fluxo existe no backend) |
+| Recuperar senha | `LumiTrack Recuperar Senha.dc.html` | `pages/auth/ForgotPasswordPage.tsx`, `pages/auth/ResetPasswordPage.tsx` |
 | LGPD / privacidade | `LumiTrack LGPD.dc.html` | `pages/legal/` |
-| App logado (dashboard, propriedades, alertas, distribuidoras, perfil, segurança/MFA, modais) | `LumiTrack Home.dc.html` | `pages/dashboard/`, `pages/property/`, `pages/alert/`, `pages/distributor/`, `pages/settings/` |
+| App logado (dashboard, propriedades, alertas, distribuidoras, perfil, segurança/MFA, modais) | `LumiTrack Home.dc.html` | `pages/dashboard/`, `pages/property/`, `pages/alert/`, `pages/distributor/`, `pages/profile/`, `pages/settings/` |
+| Chrome do app logado (sidebar, topbar) | `LumiTrack Home.dc.html` (linhas 61–148) | `components/layout/` — **ainda não migrado**, ver aviso abaixo |
 | Login do simulador IoT | `LumiTrack IoT Login.dc.html` | — (não existe ainda) |
 | Dashboard do simulador IoT | `LumiTrack IoT Simulator.dc.html` | `iot-simulator/ui/` |
+
+> Telas do código **sem** handoff no bundle: `pages/report/` (Relatórios), `pages/simulation/` (Simulações, hoje placeholder) e "Sobre o projeto" (`/sobre`, Fase 6) — as três caem na **regra de ausência** abaixo. As duas primeiras estão registradas como adiadas no `.claude/docs/roadmap.md`; a terceira é implementada como versão provisória marcada com `TODO(design)`.
 
 - O `README.md` do bundle é a especificação: mapa de telas, tokens, vocabulário de classes (`.lt-*`), estado mínimo e comportamento esperado.
 - `design-system/styles.css` é a **fonte única** de tokens e classes do Industry.
 - Os `.dc.html` são protótipos autocontidos (markup = layout, `renderVals()` = dados mock, `<style>` = tokens locais) — **referência de design, não código de produção para copiar**. A implementação recria em React seguindo os padrões do codebase.
 - Para abrir: `npx serve .claude/design/2026-07-31-lumitrack-completo/design`.
 
-> **Atenção — divergência conhecida:** o frontend em produção ainda usa o tema anterior (âmbar/slate, Tailwind puro, dark mode por classe `.dark`). A migração para o Industry está registrada como decisão em aberto no `07`. Até ela acontecer, trabalho de UI em tela existente **pergunta antes** (ver ADR-0005).
+> **Estado da migração (atualizado em 2026-08-04):** a migração do frontend para o Industry foi **concluída nas Fases 1–5** do `.claude/docs/roadmap.md` — o tema anterior (âmbar/slate, dark mode por classe `.dark`) não existe mais nas telas; o dark mode é por `data-theme` e os tokens vêm de `frontend/src/styles/industry.css`. A decisão deixou de ser um item em aberto do `07` (ver ADR-0005 e ADR-0006). Trabalho de UI em tela já migrada segue o bundle direto, sem perguntar antes.
+>
+> **Divergência conhecida que resta:** `components/layout/Sidebar.tsx` e `Header.tsx` (mais o `bg-slate-50` de `AppShell.tsx`) ainda usam os tokens pré-Industry — é o chrome em volta do conteúdo já migrado, visível em toda tela autenticada. Endereçado na **Fase 6** (issues #135 e #136). Até fechar, evite reproduzir os tokens antigos desses arquivos em código novo.
 
 ## Tokens
 
