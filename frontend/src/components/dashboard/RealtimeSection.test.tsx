@@ -34,7 +34,7 @@ vi.mock("@/services/tariff-flag.service", () => ({
 }))
 
 vi.mock("@/contexts/RealtimeContext", () => ({
-    useRealtime: vi.fn(() => ({ readingsByMeterId: {} })),
+    useRealtime: vi.fn(() => ({ readingsByMeterId: {}, isConnected: false })),
 }))
 
 const mockMeter: Meter = {
@@ -92,7 +92,7 @@ const renderSection = (propertyId = "prop-1", propertyName = "Casa") => {
 
 beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useRealtime).mockReturnValue({ readingsByMeterId: {} })
+    vi.mocked(useRealtime).mockReturnValue({ readingsByMeterId: {}, isConnected: false })
     vi.mocked(consumptionService.list).mockResolvedValue(paginatedConsumption())
     vi.mocked(tariffFlagService.get).mockReturnValue(new Promise(() => {})) // não resolve — não é o foco destes testes
 })
@@ -151,6 +151,7 @@ describe("RealtimeSection — com medidor", () => {
         vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
         vi.mocked(useRealtime).mockReturnValue({
             readingsByMeterId: { "meter-1": mockReading(1500) },
+            isConnected: false,
         })
 
         renderSection()
@@ -162,6 +163,7 @@ describe("RealtimeSection — com medidor", () => {
         vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
         vi.mocked(useRealtime).mockReturnValue({
             readingsByMeterId: { "meter-1": mockReading(1000) },
+            isConnected: false,
         })
 
         renderSection()

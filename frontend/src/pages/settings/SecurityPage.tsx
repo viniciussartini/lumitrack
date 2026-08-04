@@ -82,17 +82,9 @@ export const SecurityPage = () => {
 
     return (
         <div className="flex flex-col gap-6">
-            <div>
-                <span className="font-heading text-accent-700 block text-xs font-semibold tracking-[.08em] uppercase">
-                    Sua conta
-                </span>
-                <h1 className="font-heading mt-2 text-[clamp(22px,2.4vw,30px)] leading-[1.05] font-semibold uppercase">
-                    Segurança
-                </h1>
-                <p className="text-muted mt-2 text-sm">
-                    Gerencie a autenticação de dois fatores da sua conta.
-                </p>
-            </div>
+            <p className="text-muted text-sm">
+                Gerencie a autenticação de dois fatores da sua conta.
+            </p>
 
             <div className="blueprint p-[26px]">
                 <i className="corner tl" />

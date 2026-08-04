@@ -32,3 +32,19 @@ export const getDisplayInfo = (user: User): UserDisplayInfo => {
     const initials = name[0]?.toUpperCase() ?? "?"
     return { name, initials, accountTypeLabel }
 }
+
+/**
+ * Nome curto para a saudação "Olá, {nome}" do título do Painel (Header,
+ * issue #136) — PF usa só o primeiro nome (o protótipo mostra "Olá,
+ * Marina", não o nome completo); PJ usa tradeName/companyName, igual
+ * `getDisplayInfo`. `null` quando não há nome disponível (usuário só com
+ * e-mail) — o chamador decide o fallback ("Olá!").
+ *
+ * Movido de DashboardPage.tsx quando o Header passou a ser a fonte única
+ * de verdade do título da página (antes cada view tinha seu próprio h1
+ * duplicando o mesmo texto do Header).
+ */
+export const getGreetingName = (user: User): string | null => {
+    if (user.userType === "INDIVIDUAL") return user.firstName ?? null
+    return user.tradeName ?? user.companyName ?? null
+}

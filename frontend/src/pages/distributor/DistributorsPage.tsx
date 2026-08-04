@@ -46,15 +46,6 @@ export const DistribuidorsPage = () => {
 
     return (
         <div className="flex flex-col gap-6">
-            <div>
-                <span className="font-heading text-accent-700 block text-xs font-semibold tracking-[.08em] uppercase">
-                    Catálogo
-                </span>
-                <h1 className="font-heading mt-2 text-[clamp(22px,2.4vw,30px)] leading-[1.05] font-semibold uppercase">
-                    Distribuidoras
-                </h1>
-            </div>
-
             <div className="flex flex-wrap items-start justify-between gap-4">
                 <p className="text-muted m-0 max-w-[70ch] text-sm">
                     Catálogo de distribuidoras disponíveis para vincular às propriedades. Tarifação do

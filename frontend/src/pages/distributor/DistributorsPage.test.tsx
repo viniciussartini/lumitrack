@@ -85,14 +85,10 @@ beforeEach(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("DistribuidorsPage — header", () => {
-    it("renderiza título (catálogo somente leitura, sem botão de criação)", async () => {
+    it("catálogo somente leitura, sem botão de criação", async () => {
         vi.mocked(distributorService.list).mockResolvedValue(paginated([]))
 
         renderPage()
-
-        expect(
-            screen.getByRole("heading", { name: /distribuidoras/i, level: 1 }),
-        ).toBeInTheDocument()
 
         expect(
             screen.queryByRole("link", { name: /nova distribuidora/i }),

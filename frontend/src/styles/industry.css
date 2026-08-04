@@ -596,12 +596,12 @@ textarea.input { min-height: 90px; resize: vertical; }
   color: var(--color-status-highlight);
 }
 
-/* Painel de dropdown (menu do usuário, e futuramente alertas/notificações
-   no Header — #136) — LumiTrack Home.dc.html, <style> local do protótipo.
-   Sem width/position fixos aqui: o protótipo só abre esses menus para
-   baixo, mas o rodapé da Sidebar precisa abrir para cima (senão vaza da
-   viewport) — cada consumidor define isso via classe no próprio elemento.
-   Usado por UserMenu.tsx. */
+/* Painel de dropdown (menu do usuário, notificações) — LumiTrack
+   Home.dc.html, <style> local do protótipo. Sem width/position fixos aqui:
+   o protótipo só abre esses menus para baixo, mas o rodapé da Sidebar
+   precisa abrir para cima (senão vaza da viewport) — cada consumidor
+   define isso via classe no próprio elemento. Usado por UserMenu.tsx e
+   NotificationDropdown.tsx. */
 .lt-menu {
   position: absolute;
   z-index: 120;
@@ -633,4 +633,44 @@ textarea.input { min-height: 90px; resize: vertical; }
 }
 .lt-menu-item-danger:hover {
   background: color-mix(in srgb, var(--color-status-danger) 10%, transparent);
+}
+
+/* Botão de ícone do Header (hamburger, alerta, notificações) — LumiTrack
+   Home.dc.html, <style> local do protótipo (linhas 23-24). Usado por
+   Header.tsx, WarningBadge.tsx e NotificationDropdown.tsx. */
+.lt-iconbtn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-divider);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+}
+.lt-iconbtn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent-700);
+}
+
+/* Contador numérico sobreposto no canto do `.lt-iconbtn` (alertas
+   disparando, notificações não lidas) — mesma posição/forma do protótipo
+   (linha 92), cor do token de perigo em vez do `#c14a38` literal. Redondo
+   de propósito: é a mesma exceção à regra "sem cantos arredondados" que o
+   bundle já aplica em badges numéricos pequenos, não um primitivo
+   card/btn/input/tag/seg/dialog. */
+.lt-iconbtn-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--color-status-danger);
+  color: #fff;
+  font: 600 10px/16px var(--font-body);
+  text-align: center;
 }

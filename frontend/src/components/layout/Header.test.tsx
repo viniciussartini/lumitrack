@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { renderWithProviders, screen } from "@/tests/test-utils"
 import { Header } from "@/components/layout/Header"
 import { authService } from "@/services/auth.service"
+import { useRealtime } from "@/contexts/RealtimeContext"
 import type { User } from "@/types/auth.types"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
@@ -41,6 +42,14 @@ vi.mock("@/services/notification.service", () => ({
     },
 }))
 
+// Header não é envolvido por um RealtimeProvider neste teste (isso é papel
+// do AppShell) — useRealtime() cai no valor default do contexto
+// (isConnected: false); mockamos o módulo pra poder simular "conectado"
+// num teste específico.
+vi.mock("@/contexts/RealtimeContext", () => ({
+    useRealtime: vi.fn(() => ({ readingsByMeterId: {}, isConnected: false })),
+}))
+
 const mockUser: User = {
     id: "user-123",
     email: "joao@example.com",
@@ -56,6 +65,7 @@ const mockUser: User = {
 beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser)
+    vi.mocked(useRealtime).mockReturnValue({ readingsByMeterId: {}, isConnected: false })
 })
 
 /**
@@ -63,7 +73,7 @@ beforeEach(() => {
  * O renderWithProviders já provê AuthProvider + MemoryRouter + ThemeProvider,
  * então só precisamos do QCP adicional.
  */
-const renderHeader = (onMenuClick = vi.fn()) => {
+const renderHeader = (initialEntries = ["/dashboard"], onMenuClick = vi.fn()) => {
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false, gcTime: 0 },
@@ -74,6 +84,7 @@ const renderHeader = (onMenuClick = vi.fn()) => {
         <QueryClientProvider client={queryClient}>
             <Header onMenuClick={onMenuClick} />
         </QueryClientProvider>,
+        { initialEntries },
     )
 }
 
@@ -86,18 +97,50 @@ describe("Header — renderização", () => {
         ).toBeInTheDocument()
     })
 
-    it("renderiza o ThemeToggle", () => {
+    it("não renderiza ThemeToggle nem UserMenu — passaram para a Sidebar (#135)", async () => {
         renderHeader()
+        await screen.findByRole("heading", { level: 1 })
 
         expect(
-            screen.getByRole("button", { name: /tema atual/i }),
-        ).toBeInTheDocument()
+            screen.queryByRole("button", { name: /tema atual/i }),
+        ).not.toBeInTheDocument()
+        expect(
+            screen.queryByRole("button", { name: /menu do usuário/i }),
+        ).not.toBeInTheDocument()
     })
 
-    it("renderiza o UserMenu com dados do usuário autenticado", async () => {
-        renderHeader()
+    it("mostra a saudação com o nome do usuário no Painel", async () => {
+        renderHeader(["/dashboard"])
 
-        expect(await screen.findByText("João Silva")).toBeInTheDocument()
+        expect(
+            await screen.findByRole("heading", { level: 1, name: "Olá, João!" }),
+        ).toBeInTheDocument()
+        expect(screen.getByText("Painel geral")).toBeInTheDocument()
+    })
+
+    it("mostra o kicker e o título da rota atual fora do Painel", async () => {
+        renderHeader(["/distribuidoras"])
+
+        expect(
+            await screen.findByRole("heading", { level: 1, name: "Distribuidoras" }),
+        ).toBeInTheDocument()
+        expect(screen.getByText("Catálogo")).toBeInTheDocument()
+    })
+
+    it('mostra "Dados ao vivo" só quando o SSE está conectado', async () => {
+        vi.mocked(useRealtime).mockReturnValue({ readingsByMeterId: {}, isConnected: true })
+
+        renderHeader(["/dashboard"])
+        await screen.findByRole("heading", { level: 1 })
+
+        expect(screen.getByText(/dados ao vivo/i)).toBeInTheDocument()
+    })
+
+    it('não mostra "Dados ao vivo" quando o SSE está desconectado', async () => {
+        renderHeader(["/dashboard"])
+        await screen.findByRole("heading", { level: 1 })
+
+        expect(screen.queryByText(/dados ao vivo/i)).not.toBeInTheDocument()
     })
 })
 
@@ -106,7 +149,7 @@ describe("Header — interação", () => {
         const onMenuClick = vi.fn()
         const user = userEvent.setup()
 
-        renderHeader(onMenuClick)
+        renderHeader(["/dashboard"], onMenuClick)
 
         await user.click(screen.getByRole("button", { name: /abrir menu/i }))
 

@@ -1,9 +1,11 @@
 import { Menu } from "lucide-react"
-import { ThemeToggle } from "@/components/ui/ThemeToggle"
-import { UserMenu } from "@/components/layout/UserMenu"
-import { cn } from "@/lib/cn"
+import { useLocation } from "react-router"
 import { NotificationDropdown } from "@/components/layout/NotificationDropdown"
 import { WarningBadge } from "@/components/layout/WarningBadge"
+import { useAuth } from "@/contexts/AuthContext"
+import { useRealtime } from "@/contexts/RealtimeContext"
+import { getPageTitle } from "@/config/pageTitles"
+import { getGreetingName } from "@/lib/userDisplay"
 
 interface HeaderProps {
     /** Callback chamado pelo botão hamburger (abre a sidebar em mobile) */
@@ -11,44 +13,67 @@ interface HeaderProps {
 }
 
 /**
- * Cabeçalho horizontal do app autenticado.
+ * Cabeçalho horizontal do app autenticado — LumiTrack Home.dc.html,
+ * linhas 83-97. ThemeToggle e UserMenu saíram daqui para o rodapé da
+ * Sidebar (#135); no lugar entrou o título contextual da página.
  *
  * Layout (esquerda → direita):
- *   - Hamburger (só em mobile)
- *   - Spacer (flex-1)
- *   - ThemeToggle
- *   - UserMenu
- *
- * Em desktop o hamburger some — a sidebar já está visível.
+ *   - Hamburger (só em mobile) + kicker/título da rota atual
+ *   - Badge "Dados ao vivo" (só quando o SSE está conectado) + WarningBadge
+ *     + NotificationDropdown
  */
-export const Header = ({ onMenuClick }: HeaderProps) => (
-    <header
-        className={cn(
-            "flex h-16 items-center gap-2 border-b border-slate-200 bg-white px-4",
-            "dark:border-slate-800 dark:bg-slate-900",
-        )}
-    >
-        {/* Hamburger — abre sidebar em mobile */}
-        <button
-            type="button"
-            onClick={onMenuClick}
-            aria-label="Abrir menu"
-            className={cn(
-                "inline-flex h-9 w-9 items-center justify-center rounded-md md:hidden",
-                "text-slate-700 hover:bg-slate-100",
-                "dark:text-slate-200 dark:hover:bg-slate-800",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2",
-                "dark:focus-visible:ring-offset-slate-950",
-            )}
+export const Header = ({ onMenuClick }: HeaderProps) => {
+    const location = useLocation()
+    const { user } = useAuth()
+    const { isConnected } = useRealtime()
+
+    const { kicker, title } = getPageTitle(location.pathname)
+    const isDashboard = location.pathname === "/dashboard"
+    const greetingName = isDashboard && user ? getGreetingName(user) : null
+    const pageTitle = isDashboard && user ? `Olá${greetingName ? `, ${greetingName}` : ""}!` : title
+
+    return (
+        <header
+            className="border-divider sticky top-0 z-10 flex flex-wrap items-center justify-between gap-4 border-b px-[clamp(20px,3vw,36px)] py-[18px] backdrop-blur-sm"
+            style={{ background: "color-mix(in srgb, var(--color-bg) 92%, transparent)" }}
         >
-            <Menu className="h-5 w-5" aria-hidden="true" />
-        </button>
+            <div className="flex min-w-0 items-center gap-3">
+                {/* Hamburger — abre sidebar em mobile */}
+                <button
+                    type="button"
+                    onClick={onMenuClick}
+                    aria-label="Abrir menu"
+                    className="lt-iconbtn shrink-0 md:hidden"
+                >
+                    <Menu className="h-[18px] w-[18px]" strokeWidth={1.5} aria-hidden="true" />
+                </button>
 
-        <div className="flex-1" />
+                <div className="min-w-0">
+                    <span className="font-heading text-accent-700 block text-xs font-semibold tracking-[.08em] uppercase">
+                        {kicker}
+                    </span>
+                    <h1 className="font-heading mt-2 truncate text-[clamp(22px,2.4vw,30px)] leading-[1.05] font-semibold uppercase">
+                        {pageTitle}
+                    </h1>
+                </div>
+            </div>
 
-        <WarningBadge />
-        <NotificationDropdown />
-        <ThemeToggle />
-        <UserMenu />
-    </header>
-)
+            <div className="flex items-center gap-3">
+                {isConnected && (
+                    <span
+                        className="font-heading text-status-success inline-flex items-center gap-[7px] text-[11px] font-semibold tracking-[.07em] uppercase"
+                    >
+                        <span
+                            aria-hidden="true"
+                            className="bg-status-success inline-block h-2 w-2 rounded-full"
+                            style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
+                        />
+                        Dados ao vivo
+                    </span>
+                )}
+                <WarningBadge />
+                <NotificationDropdown />
+            </div>
+        </header>
+    )
+}

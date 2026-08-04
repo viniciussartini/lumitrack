@@ -55,14 +55,12 @@ export const ReportsPage = () => {
 
     return (
         <div className="flex flex-col gap-6">
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                    Relatórios
-                </h1>
-                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                    Selecione um alvo para ver o consumo agregado por hora, dia, mês ou ano.
-                </p>
-            </div>
+            {/* h1 "Relatórios" removido — duplicava o título que o Header
+                (#136) agora mostra pra rota /relatorios. Página sem handoff
+                Industry ainda (ver 10-design-system.md), resto intocado. */}
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+                Selecione um alvo para ver o consumo agregado por hora, dia, mês ou ano.
+            </p>
 
             <div className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 md:grid-cols-3">
                 <Select
