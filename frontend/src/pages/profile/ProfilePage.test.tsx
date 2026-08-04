@@ -2,13 +2,23 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router"
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import { toast } from "sonner"
 import { AuthProvider } from "@/contexts/AuthContext"
 import { ProfilePage } from "@/pages/profile/ProfilePage"
 import { authService } from "@/services/auth.service"
 import { userService } from "@/services/user.service"
+import { propertyService } from "@/services/property.service"
+import { formatDate } from "@/lib/format"
 import type { User } from "@/types/auth.types"
+import type { Paginated } from "@/types/pagination.types"
+import type { Property } from "@/types/property.types"
+
+const mockNavigate = vi.fn()
+vi.mock("react-router", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("react-router")>()
+    return { ...actual, useNavigate: () => mockNavigate }
+})
 
 vi.mock("@/services/auth.service", () => ({
     authService: {
@@ -19,7 +29,17 @@ vi.mock("@/services/auth.service", () => ({
 }))
 
 vi.mock("@/services/user.service", () => ({
-    userService: { update: vi.fn() },
+    userService: { update: vi.fn(), remove: vi.fn() },
+}))
+
+vi.mock("@/services/property.service", () => ({
+    propertyService: {
+        list: vi.fn(),
+        getById: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        remove: vi.fn(),
+    },
 }))
 
 vi.mock("@/services/api", () => ({
@@ -33,6 +53,13 @@ vi.mock("sonner", () => ({
         error: vi.fn(),
     },
 }))
+
+const paginatedProperties = (total: number): Paginated<Property> => ({
+    items: [],
+    total,
+    page: 1,
+    pageSize: 1,
+})
 
 const mockUserPF: User = {
     id: "user-123",
@@ -79,6 +106,7 @@ const renderPage = (user: User = mockUserPF) => {
 
 beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(propertyService.list).mockResolvedValue(paginatedProperties(0))
 })
 
 describe("ProfilePage — modo leitura", () => {
@@ -169,5 +197,86 @@ describe("ProfilePage — edição", () => {
             expect(toast.error).toHaveBeenCalled()
         })
         expect(screen.getByRole("button", { name: /salvar alterações/i })).toBeInTheDocument()
+    })
+})
+
+describe("ProfilePage — Conta", () => {
+    it("mostra a data de entrada, a contagem de propriedades e 2FA ativado", async () => {
+        vi.mocked(propertyService.list).mockResolvedValue(paginatedProperties(3))
+
+        renderPage({ ...mockUserPF, mfaEnabled: true })
+
+        expect(await screen.findByText(formatDate(mockUserPF.createdAt))).toBeInTheDocument()
+        expect(await screen.findByText("3 vinculadas")).toBeInTheDocument()
+        expect(screen.getByText("Ativado")).toBeInTheDocument()
+    })
+
+    it("mostra 2FA desativado e '1 vinculada' no singular", async () => {
+        vi.mocked(propertyService.list).mockResolvedValue(paginatedProperties(1))
+
+        renderPage({ ...mockUserPF, mfaEnabled: false })
+
+        expect(await screen.findByText("1 vinculada")).toBeInTheDocument()
+        expect(screen.getByText("Desativado")).toBeInTheDocument()
+    })
+})
+
+describe("ProfilePage — Privacidade & dados", () => {
+    it("o link de exportar aponta pro endpoint de exportação (formato json)", async () => {
+        renderPage(mockUserPF)
+
+        const link = await screen.findByRole("link", { name: /exportar/i })
+        expect(link).toHaveAttribute("href", "/api/users/me/data-export?format=json")
+        expect(link).toHaveAttribute("download")
+    })
+
+    it("abre o dialog de confirmação ao clicar em Excluir conta", async () => {
+        const user = userEvent.setup()
+        renderPage(mockUserPF)
+        await screen.findByRole("heading", { name: "João Silva" })
+
+        await user.click(screen.getByRole("button", { name: /excluir conta/i }))
+
+        expect(await screen.findByRole("dialog")).toBeInTheDocument()
+        expect(screen.getByText(/excluir sua conta\?/i)).toBeInTheDocument()
+    })
+
+    it("confirma a exclusão: chama userService.remove, desloga e navega pra /login", async () => {
+        vi.mocked(userService.remove).mockResolvedValue(undefined)
+        vi.mocked(authService.logout).mockResolvedValue(undefined)
+
+        const user = userEvent.setup()
+        renderPage(mockUserPF)
+        await screen.findByRole("heading", { name: "João Silva" })
+
+        await user.click(screen.getByRole("button", { name: /excluir conta/i }))
+        const dialog = await screen.findByRole("dialog")
+        await user.click(within(dialog).getByRole("button", { name: /excluir conta/i }))
+
+        await waitFor(() => {
+            expect(userService.remove).toHaveBeenCalledWith("user-123")
+        })
+        await waitFor(() => {
+            expect(authService.logout).toHaveBeenCalled()
+        })
+        expect(mockNavigate).toHaveBeenCalledWith("/login", { replace: true })
+    })
+
+    it("mostra toast de erro e mantém o dialog aberto quando a exclusão falha", async () => {
+        vi.mocked(userService.remove).mockRejectedValue(new Error("Falha de rede"))
+
+        const user = userEvent.setup()
+        renderPage(mockUserPF)
+        await screen.findByRole("heading", { name: "João Silva" })
+
+        await user.click(screen.getByRole("button", { name: /excluir conta/i }))
+        const dialog = await screen.findByRole("dialog")
+        await user.click(within(dialog).getByRole("button", { name: /excluir conta/i }))
+
+        await waitFor(() => {
+            expect(toast.error).toHaveBeenCalled()
+        })
+        expect(screen.getByRole("dialog")).toBeInTheDocument()
+        expect(mockNavigate).not.toHaveBeenCalled()
     })
 })

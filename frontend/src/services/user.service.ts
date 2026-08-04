@@ -7,13 +7,17 @@ interface ApiEnvelope<T> {
 }
 
 /**
- * Camada de acesso a `PUT /api/users/:id` — usada pela edição de perfil
- * (ProfilePage). A leitura do usuário logado não passa por aqui: o
- * `AuthContext` já a resolve via `authService.getCurrentUser` (`/auth/me`).
+ * Camada de acesso a `PUT`/`DELETE /api/users/:id` — usadas pela edição
+ * (ProfilePage, #118) e exclusão de conta (ProfilePage, #120). A leitura do
+ * usuário logado não passa por aqui: o `AuthContext` já a resolve via
+ * `authService.getCurrentUser` (`/auth/me`).
  */
 export const userService = {
     update: async (id: string, input: UpdateUserInput): Promise<User> => {
         const { data } = await api.put<ApiEnvelope<User>>(`/users/${id}`, input)
         return data.data
+    },
+    remove: async (id: string): Promise<void> => {
+        await api.delete(`/users/${id}`)
     },
 }

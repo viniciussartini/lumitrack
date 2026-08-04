@@ -1,16 +1,27 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Mail, Pencil } from "lucide-react"
+import { useNavigate } from "react-router"
+import {
+    Download,
+    Mail,
+    Pencil,
+    ShieldCheck,
+    ShieldOff,
+    Trash2,
+} from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
-import { useUpdateUser } from "@/hooks/queries/useUserMutations"
+import { useUpdateUser, useDeleteUser } from "@/hooks/queries/useUserMutations"
+import { useProperties } from "@/hooks/queries/useProperties"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Tag } from "@/components/ui/Tag"
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog"
 import { extractErrorMessage } from "@/services/api"
 import { getDisplayInfo } from "@/lib/userDisplay"
 import { maskCpf, maskCnpj } from "@/lib/masks"
+import { formatDate } from "@/lib/format"
 import { cn } from "@/lib/cn"
 import {
     individualProfileSchema,
@@ -21,12 +32,14 @@ import {
 import type { UpdateUserInput, User } from "@/types/auth.types"
 
 /**
- * Perfil — dados pessoais. LumiTrack Home.dc.html, `isProfile` (linhas
- * 823-914): só o card de identidade + "Dados pessoais" (leitura/edição).
- * Os cards "Conta" (membro desde/propriedades/2FA) e "Privacidade & dados"
- * do mesmo bloco ficam para a sub-issue #120 — dado real ainda não
- * disponível (contagem de propriedades) ou ação destrutiva que merece
- * tratamento próprio.
+ * Perfil. LumiTrack Home.dc.html, `isProfile` (linhas 823-914): card de
+ * identidade, "Dados pessoais" (leitura/edição, #118), "Conta" (resumo) e
+ * "Privacidade & dados" (exportar/excluir, #120).
+ *
+ * A linha "Política de Privacidade" (link + tag "Aceita") do mesmo card do
+ * handoff fica de fora — fora dos critérios de aceite da #120, e o `User`
+ * do frontend não tem `consentedAt`/`consentVersion` hoje (mesmo critério
+ * "sem inventar dado" já aplicado em #116/#117/#118).
  *
  * Cobre PF e PJ (o handoff só mostra o mock PF) — um usuário `COMPANY`
  * também precisa ver/editar o próprio perfil, mesma ramificação por
@@ -126,11 +139,161 @@ export const ProfilePage = () => {
                     />
                 )}
             </div>
+
+            <AccountSummaryCard user={user} />
+            <PrivacyDataCard userId={user.id} />
         </div>
     )
 }
 
 // Subcomponentes locais
+
+const AccountSummaryCard = ({ user }: { user: User }) => {
+    const propertiesQuery = useProperties(1, 1)
+    const propertiesCount = propertiesQuery.data?.total
+
+    return (
+        <div className="blueprint p-0">
+            <i className="corner tl" />
+            <i className="corner tr" />
+            <i className="corner bl" />
+            <i className="corner br" />
+
+            <div className="border-divider border-b px-5 py-4">
+                <span className="font-heading text-[17px] font-semibold uppercase">
+                    Conta
+                </span>
+            </div>
+
+            <div className="divide-divider grid grid-cols-1 divide-y sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                <div className="px-5 py-[18px]">
+                    <div className="font-heading text-muted text-[10px] font-semibold tracking-[.07em] uppercase">
+                        Membro desde
+                    </div>
+                    <div
+                        className="mt-2 text-[14.5px]"
+                        style={{ fontFeatureSettings: "'tnum' 1" }}
+                    >
+                        {formatDate(user.createdAt)}
+                    </div>
+                </div>
+                <div className="px-5 py-[18px]">
+                    <div className="font-heading text-muted text-[10px] font-semibold tracking-[.07em] uppercase">
+                        Propriedades
+                    </div>
+                    <div
+                        className="mt-2 text-[14.5px]"
+                        style={{ fontFeatureSettings: "'tnum' 1" }}
+                    >
+                        {propertiesCount !== undefined
+                            ? `${propertiesCount} vinculada${propertiesCount === 1 ? "" : "s"}`
+                            : "—"}
+                    </div>
+                </div>
+                <div className="px-5 py-[18px]">
+                    <div className="font-heading text-muted text-[10px] font-semibold tracking-[.07em] uppercase">
+                        2FA
+                    </div>
+                    <div
+                        className={cn(
+                            "mt-2 flex items-center gap-1.5 text-[14.5px] font-semibold",
+                            user.mfaEnabled ? "text-status-success" : "text-muted",
+                        )}
+                    >
+                        {user.mfaEnabled ? (
+                            <ShieldCheck className="h-[15px] w-[15px]" aria-hidden="true" />
+                        ) : (
+                            <ShieldOff className="h-[15px] w-[15px]" aria-hidden="true" />
+                        )}
+                        {user.mfaEnabled ? "Ativado" : "Desativado"}
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+const PrivacyDataCard = ({ userId }: { userId: string }) => {
+    const navigate = useNavigate()
+    const { logout } = useAuth()
+    const deleteUser = useDeleteUser()
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+
+    const handleDelete = async (): Promise<void> => {
+        try {
+            await deleteUser.mutateAsync(userId)
+            await logout()
+            navigate("/login", { replace: true })
+        } catch (error) {
+            toast.error("Não foi possível excluir a conta", {
+                description: extractErrorMessage(error),
+            })
+        }
+    }
+
+    return (
+        <div className="blueprint p-0">
+            <i className="corner tl" />
+            <i className="corner tr" />
+            <i className="corner bl" />
+            <i className="corner br" />
+
+            <div className="border-divider border-b px-5 py-4">
+                <span className="font-heading text-[17px] font-semibold uppercase">
+                    Privacidade & dados
+                </span>
+            </div>
+
+            <div className="px-5 pt-1 pb-3">
+                <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b py-3.5">
+                    <div className="min-w-0">
+                        <div className="text-sm font-semibold">Exportar meus dados</div>
+                        <div className="text-muted mt-0.5 text-[12.5px]">
+                            Baixe uma cópia dos seus dados pessoais (LGPD Art. 18).
+                        </div>
+                    </div>
+                    <Button variant="secondary" size="sm" asChild>
+                        <a href="/api/users/me/data-export?format=json" download>
+                            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                            Exportar
+                        </a>
+                    </Button>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 py-3.5">
+                    <div className="min-w-0">
+                        <div className="text-status-danger text-sm font-semibold">
+                            Excluir minha conta
+                        </div>
+                        <div className="text-muted mt-0.5 text-[12.5px]">
+                            Remove permanentemente sua conta e todos os dados associados.
+                        </div>
+                    </div>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        className="border-status-danger/50 text-status-danger"
+                        leftIcon={<Trash2 className="h-3.5 w-3.5" aria-hidden="true" />}
+                        onClick={() => setIsConfirmOpen(true)}
+                    >
+                        Excluir conta
+                    </Button>
+                </div>
+            </div>
+
+            <ConfirmDialog
+                open={isConfirmOpen}
+                onOpenChange={setIsConfirmOpen}
+                title="Excluir sua conta?"
+                description="Esta ação é permanente e remove sua conta e todos os dados associados (propriedades, medidores, alertas). Não é possível desfazer."
+                confirmLabel="Excluir conta"
+                variant="danger"
+                isLoading={deleteUser.isPending}
+                onConfirm={handleDelete}
+            />
+        </div>
+    )
+}
 
 const ProfileReadView = ({ user }: { user: User }) => {
     const isIndividual = user.userType === "INDIVIDUAL"

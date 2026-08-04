@@ -1,9 +1,9 @@
 import { test, expect } from "@playwright/test"
 
-import { fulfillJson } from "./support/api"
+import { fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
-import { FAKE_USER } from "./support/fixtures"
+import { FAKE_USER, PROP_1 } from "./support/fixtures"
 
 /**
  * E2E do Perfil (#118) — igual a `dashboard.spec.ts`/`realtime.spec.ts`:
@@ -69,5 +69,67 @@ test.describe("Perfil — visualizar e editar dados pessoais (#118)", () => {
         // sujeito ao toast de sucesso sobrepondo o botão, bem menos estável).
         await expect(page.getByRole("heading", { name: "Joana Silva" })).toBeVisible()
         await expect(page.getByRole("button", { name: /editar/i })).toBeVisible()
+    })
+})
+
+test.describe("Perfil — Conta e Privacidade & dados (#120)", () => {
+    test.beforeEach(async ({ context }) => {
+        await context.clearCookies()
+    })
+
+    test("mostra o resumo da conta: membro desde, propriedades vinculadas e status de 2FA", async ({
+        page,
+    }) => {
+        await mockAppShellBackground(page)
+        await setupAuth(page)
+        await page.route(/\/api\/properties(\?.*)?$/, (route) =>
+            fulfillPaginated(route, [PROP_1], { total: 2 }),
+        )
+
+        await page.goto("/perfil")
+        await hideDevTools(page)
+
+        await expect(page.getByText("2 vinculadas")).toBeVisible()
+        // FAKE_USER.mfaEnabled é false — mesmo padrão default de SecurityPage.
+        await expect(page.getByText("Desativado")).toBeVisible()
+
+        const exportLink = page.getByRole("link", { name: /exportar/i })
+        await expect(exportLink).toHaveAttribute(
+            "href",
+            "/api/users/me/data-export?format=json",
+        )
+    })
+
+    test("exclui a conta: confirma no dialog, chama DELETE e redireciona pro login", async ({
+        page,
+    }) => {
+        await mockAppShellBackground(page)
+        await setupAuth(page)
+        await page.route(/\/api\/properties(\?.*)?$/, (route) =>
+            fulfillPaginated(route, [PROP_1]),
+        )
+        await page.route(/\/api\/users\/.*$/, (route) =>
+            route.request().method() === "DELETE"
+                ? route.fulfill({ status: 204 })
+                : route.fallback(),
+        )
+        await page.route("**/api/auth/logout", (route) =>
+            route.fulfill({
+                status: 200,
+                contentType: "application/json",
+                body: JSON.stringify({ status: "success" }),
+            }),
+        )
+
+        await page.goto("/perfil")
+        await hideDevTools(page)
+
+        await page.getByRole("button", { name: /excluir conta/i }).click()
+
+        const dialog = page.getByRole("dialog")
+        await expect(dialog).toBeVisible()
+        await dialog.getByRole("button", { name: /excluir conta/i }).click()
+
+        await expect(page).toHaveURL(/\/login/)
     })
 })

@@ -80,3 +80,13 @@ export const formatPowerKw = (valueInWatts: number): string =>
  */
 export const truncate = (value: string, maxLength: number): string =>
     value.length <= maxLength ? value : `${value.slice(0, maxLength)}…`
+
+const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" })
+
+/**
+ * Formata uma data ISO só com dia/mês/ano (sem hora) — diferente de
+ * `formatDateTime` (formatters/alert.ts), que inclui hora.
+ * formatDate("2025-03-12T14:30:00Z") → "12/03/2025"
+ */
+export const formatDate = (value: string): string =>
+    dateFormatter.format(new Date(value))
