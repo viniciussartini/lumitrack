@@ -5,6 +5,8 @@ import { useProperties } from "@/hooks/queries/useProperties"
 import { usePropertySelection } from "@/hooks/usePropertySelection"
 import { PropertySelector } from "@/components/dashboard/PropertySelector"
 import { RealtimeSection } from "@/components/dashboard/RealtimeSection"
+import { ConsumptionHistorySection } from "@/components/dashboard/ConsumptionHistorySection"
+import { PropertyComparisonSection } from "@/components/dashboard/PropertyComparisonSection"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Button } from "@/components/ui/Button"
 
@@ -17,7 +19,10 @@ import { Button } from "@/components/ui/Button"
  * KPIs (Potência agora, Consumo hoje, Custo projetado, Bandeira vigente —
  * #116/#117), gráfico de consumo em tempo real (#116) e card de bandeiras
  * tarifárias (#117) vivem em `RealtimeSection`, escopados à propriedade
- * selecionada. Histórico/comparação (#119) chega na próxima sub-issue.
+ * selecionada. Histórico de consumo mensal (`ConsumptionHistorySection`,
+ * escopado à propriedade selecionada) e comparação entre propriedades
+ * (`PropertyComparisonSection`, independente da seleção — compara todas)
+ * são siblings de `RealtimeSection`, não aninhados nela — #119.
  *
  * Cardinalidade assumida: pequena quantidade de propriedades por usuário
  * (pageSize 50, sem paginação de UI) — sem precedente idêntico no código,
@@ -88,11 +93,18 @@ export const DashboardPage = () => {
                         onChange={selectProperty}
                     />
                     {selectedId && selectedProperty && (
-                        <RealtimeSection
-                            propertyId={selectedId}
-                            propertyName={selectedProperty.name}
-                        />
+                        <>
+                            <RealtimeSection
+                                propertyId={selectedId}
+                                propertyName={selectedProperty.name}
+                            />
+                            <ConsumptionHistorySection
+                                propertyId={selectedId}
+                                propertyName={selectedProperty.name}
+                            />
+                        </>
                     )}
+                    <PropertyComparisonSection properties={properties} />
                 </>
             )}
         </div>

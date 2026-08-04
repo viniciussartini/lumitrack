@@ -6,13 +6,17 @@ import { hideDevTools } from "./support/devtools"
 import { DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
 
 /**
- * E2E do Painel (#116/#117) — igual a `realtime.spec.ts`: mocka o backend
- * via `page.route()`, sem depender do backend rodando.
+ * E2E do Painel (#116/#117/#119) — igual a `realtime.spec.ts`: mocka o
+ * backend via `page.route()`, sem depender do backend rodando.
  *
  * `#115` (seletor de propriedade) já é exercitado aqui de passagem — é o
  * primeiro E2E da rota `/dashboard`, então cobre também o caminho até
  * chegar na propriedade com o KPI.
  */
+
+/** 2ª propriedade só para os cenários de comparação (#119) — o resto do
+ * arquivo usa só PROP_1, um único item não exercitaria "N propriedades". */
+const PROP_2 = { ...PROP_1, id: "prop-2", name: "Loja" }
 
 const sseEvent = (event: string, data: unknown) =>
     `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
@@ -183,5 +187,119 @@ test.describe("Painel — visão em tempo real (#116)", () => {
         await btn24h.click()
         await expect(btn24h).toHaveAttribute("aria-selected", "true")
         await expect(btn1h).toHaveAttribute("aria-selected", "false")
+    })
+})
+
+test.describe("Painel — histórico e comparação entre propriedades (#119)", () => {
+    test.beforeEach(async ({ context }) => {
+        await context.clearCookies()
+    })
+
+    test("mostra o histórico de consumo mensal e alterna entre 6 e 12 meses", async ({
+        page,
+    }) => {
+        await setupDashboard(page)
+        await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
+            fulfillJson(route, PROPERTY_METER),
+        )
+        await page.route(/\/api\/consumption(\?.*)?$/, (route) => {
+            const url = new URL(route.request().url())
+            if (url.searchParams.get("granularity") === "month") {
+                const pageSize = Number(url.searchParams.get("pageSize"))
+                return fulfillPaginated(
+                    route,
+                    Array.from({ length: pageSize }, (_, i) => ({
+                        bucketStart: new Date(2026, i, 1).toISOString(),
+                        kwhConsumed: 100 + i,
+                        costBrl: 80 + i,
+                        avgPowerW: 500,
+                    })),
+                    { pageSize },
+                )
+            }
+            return fulfillPaginated(route, [])
+        })
+        await mockSseStream(page, sseEvent("connected", { meterCount: 1 }))
+
+        await page.goto("/dashboard")
+        await hideDevTools(page)
+
+        const history = page.getByTestId("consumption-history-section")
+        await expect(history).toBeVisible()
+        await expect(history.getByTestId("consumption-chart")).toBeVisible()
+        await expect(page.getByTestId("history-range-6")).toHaveAttribute("aria-selected", "true")
+
+        await page.getByTestId("history-range-12").click()
+
+        await expect(page.getByTestId("history-range-12")).toHaveAttribute("aria-selected", "true")
+        await expect(page.getByTestId("history-range-6")).toHaveAttribute("aria-selected", "false")
+    })
+
+    test("compara consumo entre propriedades e alterna entre kWh e R$", async ({
+        page,
+    }) => {
+        // setupDashboard registra só PROP_1 — sobrescrevemos /api/properties
+        // depois (last-registered-wins, ver comentário de mockAppShellBackground)
+        // para exercitar N propriedades.
+        await setupDashboard(page)
+        await page.route(/\/api\/properties(\?.*)?$/, (route) => {
+            if (route.request().method() === "GET") {
+                return fulfillPaginated(route, [PROP_1, PROP_2])
+            }
+            return route.continue()
+        })
+        await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
+            fulfillJson(route, PROPERTY_METER),
+        )
+        await page.route(/\/api\/consumption(\?.*)?$/, (route) => {
+            const url = new URL(route.request().url())
+            if (url.searchParams.get("granularity") !== "month") {
+                return fulfillPaginated(route, [])
+            }
+            const targetId = url.searchParams.get("targetId")
+            const kwh = targetId === PROP_1.id ? 120 : 60
+            return fulfillPaginated(route, [
+                { bucketStart: new Date().toISOString(), kwhConsumed: kwh, costBrl: kwh * 0.8, avgPowerW: 500 },
+            ])
+        })
+        await mockSseStream(page, sseEvent("connected", { meterCount: 1 }))
+
+        await page.goto("/dashboard")
+        await hideDevTools(page)
+
+        const comparison = page.getByTestId("property-comparison-section")
+        await expect(comparison).toBeVisible()
+        await expect(comparison.getByText(PROP_1.name)).toBeVisible()
+        await expect(comparison.getByText(PROP_2.name)).toBeVisible()
+        await expect(comparison.getByText("120,00 kWh")).toBeVisible()
+        await expect(comparison.getByText("60,00 kWh")).toBeVisible()
+
+        await comparison.getByRole("button", { name: "R$" }).click()
+
+        await expect(comparison.getByText(/R\$\s*96,00/)).toBeVisible()
+        await expect(comparison.getByText(/R\$\s*48,00/)).toBeVisible()
+    })
+
+    test("não quebra com apenas 1 propriedade cadastrada", async ({ page }) => {
+        await setupDashboard(page)
+        await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
+            fulfillJson(route, PROPERTY_METER),
+        )
+        await page.route(/\/api\/consumption(\?.*)?$/, (route) => {
+            const url = new URL(route.request().url())
+            if (url.searchParams.get("granularity") === "month") {
+                return fulfillPaginated(route, [
+                    { bucketStart: new Date().toISOString(), kwhConsumed: 30, costBrl: 24, avgPowerW: 500 },
+                ])
+            }
+            return fulfillPaginated(route, [])
+        })
+        await mockSseStream(page, sseEvent("connected", { meterCount: 1 }))
+
+        await page.goto("/dashboard")
+        await hideDevTools(page)
+
+        await expect(page.getByTestId("property-comparison-section")).toBeVisible()
+        await expect(page.getByTestId("property-comparison-section").getByText(PROP_1.name)).toBeVisible()
     })
 })
