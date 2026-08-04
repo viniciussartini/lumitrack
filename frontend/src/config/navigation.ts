@@ -1,10 +1,11 @@
 import {
     LayoutDashboard,
-    Zap,
     Home,
+    FileText,
+    ChartNoAxesColumn,
     Bell,
-    BarChart3,
-    Calculator,
+    Zap,
+    Shield,
     type LucideIcon,
 } from "lucide-react"
 
@@ -19,20 +20,17 @@ export interface NavItem {
 
 /**
  * Itens da sidebar — fonte única de verdade.
- * A ordem aqui é a ordem de exibição.
+ * A ordem aqui é a ordem de exibição, alinhada ao handoff (LumiTrack
+ * Home.dc.html, linhas 1356-1364): Painel · Propriedades · Relatórios ·
+ * Simulações · Alertas · Distribuidoras · Segurança.
  *
  * Adicionar um novo módulo? Adicione aqui + crie a rota no AppRouter.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
     {
         to: "/dashboard",
-        label: "Dashboard",
+        label: "Painel",
         icon: LayoutDashboard,
-    },
-    {
-        to: "/distribuidoras",
-        label: "Distribuidoras",
-        icon: Zap,
     },
     {
         to: "/propriedades",
@@ -40,18 +38,28 @@ export const NAV_ITEMS: readonly NavItem[] = [
         icon: Home,
     },
     {
+        to: "/relatorios",
+        label: "Relatórios",
+        icon: FileText,
+    },
+    {
+        to: "/simulacao",
+        label: "Simulações",
+        icon: ChartNoAxesColumn,
+    },
+    {
         to: "/alertas",
         label: "Alertas",
         icon: Bell,
     },
     {
-        to: "/relatorios",
-        label: "Relatórios",
-        icon: BarChart3,
+        to: "/distribuidoras",
+        label: "Distribuidoras",
+        icon: Zap,
     },
     {
-        to: "/simulacao",
-        label: "Simulação",
-        icon: Calculator,
+        to: "/seguranca",
+        label: "Segurança",
+        icon: Shield,
     },
 ] as const

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { Link } from "react-router"
+import { LumiTrackWordmark } from "@/components/ui/LumiTrackWordmark"
 
 interface BrandPanelProps {
     eyebrow: string
@@ -40,21 +41,8 @@ export const BrandPanel = ({ eyebrow, headline, description, extra }: BrandPanel
             </g>
         </svg>
 
-        <Link
-            to="/"
-            className="font-heading relative inline-flex items-center gap-2.5 text-[20px] font-semibold text-[#e6ecf2] no-underline"
-        >
-            <img
-                src="/lumitrack-logo.svg"
-                alt=""
-                className="block h-[29px] w-[26px] brightness-125"
-            />
-            <span>
-                Lumi
-                <span className="bg-linear-to-r from-[#8fb0d6] via-[#a9c6a2] to-[#e2ef8f] bg-clip-text text-transparent">
-                    Track
-                </span>
-            </span>
+        <Link to="/" className="relative inline-block no-underline">
+            <LumiTrackWordmark textClassName="text-[20px]" />
         </Link>
 
         <div className="relative">

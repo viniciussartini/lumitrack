@@ -564,3 +564,73 @@ textarea.input { min-height: 90px; resize: vertical; }
 @keyframes lt-dash {
   to { stroke-dashoffset: 0; }
 }
+
+/* Item de navegação da Sidebar — LumiTrack Home.dc.html, <style> local do
+   protótipo (linhas 25-28). Cores literais (#d7e0ea/#fff), não tokens: o
+   fundo da sidebar é sempre --color-accent-900, independente do tema claro/
+   escuro (mesmo raciocínio já aplicado em BrandPanel.tsx para seu próprio
+   painel sempre-escuro). O protótipo marca o item ativo via atributo
+   `data-on`; aqui usamos `[aria-current="page"]`, que o NavLink do React
+   Router já aplica automaticamente ao item ativo — evita duplicar o estado
+   em um atributo próprio. Usado por Sidebar.tsx. */
+.lt-navitem {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: color-mix(in srgb, #d7e0ea 78%, transparent);
+  border-left: 2px solid transparent;
+  cursor: pointer;
+}
+.lt-navitem:hover {
+  color: #fff;
+  background: color-mix(in srgb, #fff 6%, transparent);
+}
+.lt-navitem[aria-current="page"] {
+  color: #fff;
+  border-left-color: var(--color-status-highlight);
+  background: color-mix(in srgb, #fff 8%, transparent);
+}
+.lt-navitem[aria-current="page"] svg {
+  color: var(--color-status-highlight);
+}
+
+/* Painel de dropdown (menu do usuário, e futuramente alertas/notificações
+   no Header — #136) — LumiTrack Home.dc.html, <style> local do protótipo.
+   Sem width/position fixos aqui: o protótipo só abre esses menus para
+   baixo, mas o rodapé da Sidebar precisa abrir para cima (senão vaza da
+   viewport) — cada consumidor define isso via classe no próprio elemento.
+   Usado por UserMenu.tsx. */
+.lt-menu {
+  position: absolute;
+  z-index: 120;
+  max-width: 88vw;
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  box-shadow: var(--shadow-lg);
+  animation: lt-rise .16s ease-out;
+}
+.lt-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 16px;
+  border: 0;
+  border-top: 1px solid var(--color-divider);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.lt-menu-item:hover {
+  background: color-mix(in srgb, var(--color-accent) 7%, transparent);
+}
+.lt-menu-item-danger {
+  color: var(--color-status-danger);
+}
+.lt-menu-item-danger:hover {
+  background: color-mix(in srgb, var(--color-status-danger) 10%, transparent);
+}
