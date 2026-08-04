@@ -406,3 +406,13 @@
 - **Arquivos principais:** `frontend/src/lib/format.ts` (+`formatDate`, só dia/mês/ano — `formatDateTime` existente inclui hora), `frontend/src/services/user.service.ts` (+`remove`), `frontend/src/hooks/queries/useUserMutations.ts` (+`useDeleteUser`), `frontend/src/pages/profile/ProfilePage.tsx` (+`AccountSummaryCard`/`PrivacyDataCard`, com teste), `frontend/tests/e2e/profile.spec.ts` (+2 cenários).
 - **Decisões/ADRs:** nenhuma nova.
 - **Notas:** `npm run build`/`lint` do frontend limpos. Suíte completa: **65/65 arquivos · 572/572 testes** verdes. E2E: `profile.spec.ts` (6 cenários) + `dashboard.spec.ts` + `realtime.spec.ts` + `properties.spec.ts` — **34/34** verdes em chromium+firefox. **Fecha a Fase 4 do roadmap** (épico #114, sub-issues #115-#120 todas commitadas) — próximo passo natural é `preparar-pr`/atualizar o roadmap pra Fase 5, mas nenhum dos dois foi executado nesta entrega (fora do escopo pedido).
+
+## [2026-08-04] docs: roadmap atualizado (Fase 4 concluída, Fase 5 detalhada)
+
+- **Branch:** feat/114-painel-perfil
+- **Tipo:** docs
+- **O quê:** `.claude/docs/roadmap.md` atualizado via skill `planejar-roadmap` (ciclo de atualização). Fase 4 marcada como concluída (6 sub-issues #115-#120, épico #114, branch `feat/114-painel-perfil`) com nota de fechamento registrando o bug de colisão de `queryKey` encontrado e corrigido em #119 (detalhe completo já no CHANGELOG da própria entrega). Fase 5 (Landing pública + Simulador IoT) detalhada por completo (era só um parágrafo de objetivo): 2 itens verticais — Landing pública (P1/S-M, tela nova, rota raiz `/`) e Simulador IoT restilizado (P2/M, pacote `iot-simulator/ui`, isolado do frontend principal).
+- **Achado da exploração:** RF01-RF19 já estão todos cobertos desde a Fase 3 — Fases 4 e 5 são só UI sobre RFs já implementados no backend ou telas de marketing/apoio sem RF formal. Handoff hifi confirmado para as duas telas da Fase 5 (`LumiTrack Landing.dc.html`, `LumiTrack IoT Simulator.dc.html`) — nenhuma "aguardando design". Fase 5 fecha o escopo original deste roadmap (migração Industry + telas faltantes do handoff) — sem Fase 6 definida ainda.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova — o único ponto sinalizado como "decidir na execução" (tokens Industry compartilhados vs. duplicados entre `frontend/` e `iot-simulator/ui`) fica registrado no próprio item da Fase 5, não é decisão em aberto do `07` (não bloqueia nada, é detalhe de implementação do item Simulador quando chegar a vez dele).
+- **Notas:** roadmap não grava PR nem número de issue novo — issues da Fase 5 ficam para quando o usuário pedir (`criar-issues`, Modo 3).

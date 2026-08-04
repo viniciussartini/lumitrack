@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack (design system Industry)
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-03 · Fase atual: 4 (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104; Fase 3 concluída — épico #110, PR #112)
+> Última atualização: 2026-08-04 · Fase atual: 5 (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104; Fase 3 concluída — épico #110, PR #112; Fase 4 concluída — épico #114, branch `feat/114-painel-perfil`)
 >
 > Escopo: migração do frontend para o design system Industry e construção das telas do handoff que ainda não existem. Não altera nenhum RF de backend — só adiciona telas/UI sobre a API já existente.
 
@@ -12,8 +12,8 @@
 | 1 | Fundação Industry + Autenticação (login, registro, recuperar senha) restilizados | **Concluída** (#89–#93, épico #94) |
 | 2 | Hierarquia do consumidor (Propriedade→Área→Dispositivo) via modal + LGPD | **Concluída** (#97–#103, épico #104) |
 | 3 | Alertas, Distribuidoras, Segurança/MFA restilizados | **Concluída** (#107–#109, #111, #113, épico #110, PR #112) |
-| 4 | Painel (feature nova) + Perfil (tela nova) | Planejada — detalhe abaixo |
-| 5 | Landing pública (tela nova) + Simulador IoT (restyle) | Não iniciada |
+| 4 | Painel (feature nova) + Perfil (tela nova) | **Concluída** (#115–#120, épico #114, branch `feat/114-painel-perfil`) |
+| 5 | Landing pública (tela nova) + Simulador IoT (restyle) | Planejada — detalhe abaixo |
 
 ## Fase 1 — Fundação Industry + Autenticação
 
@@ -159,10 +159,33 @@ Restyle de `PropertiesPage`/`PropertyDetailsPage`/`AreaDetailsPage`/`DeviceDetai
 - **Depende de:** Perfil — visualizar e editar dados pessoais (mesma página).
 - **Risco/observações:** baixo — reaproveita 2 features de backend já prontas, só nova superfície de UI.
 
+**Fechamento (2026-08-04):** entregue nas 6 sub-issues planejadas (#115–#120), branch `feat/114-painel-perfil`, épico #114 — nenhum achado fora do escopo original (diferente da Fase 3, que teve 2 achados extras). Um bug real foi encontrado e corrigido durante a execução do último item (#119): colisão de `queryKey` do TanStack Query entre `PropertyComparisonSection` e `DashboardKpiRow` (mesmos parâmetros `PROPERTY`/`month`/`page:1`/`pageSize:1` pra propriedade selecionada, `queryFn` de formatos incompatíveis — o cache compartilhado servia o formato errado pro outro consumidor e quebrava a página); corrigido alinhando o `pageSize` ao valor que `AreasSection` já usa (3, não 1) — registrado em detalhe no `CHANGELOG.md`. PR ainda não aberto no momento desta atualização do roadmap.
+
+## Fase 5 — Landing pública + Simulador IoT
+
+> Handoff de design: `LumiTrack Landing.dc.html` e `LumiTrack IoT Simulator.dc.html`, ambos em `.claude/design/2026-07-31-lumitrack-completo/design/` — nenhum dos dois "aguardando design". Última fase deste roadmap: RF01–RF19 já estão todos cobertos desde a Fase 3 (Fases 4 e 5 são só UI sobre RFs já implementados ou telas de marketing/apoio sem RF formal) — ver "RFs adiados do MVP" abaixo pro que fica de fora mesmo depois desta fase.
+
+### Landing pública (tela nova)
+
+- **Comportamento:** visitante não autenticado acessa `/` e vê a landing de marketing do produto (hoje a rota raiz só redireciona direto pra `/login`, sem nenhuma página própria), com CTAs para `/login` e `/registro`.
+- **Cobre:** sem RF formal — página de marketing, sem lógica de negócio nova.
+- **Priority:** P1 · **Size:** S/M
+- **Critérios de aceite:** layout conforme `LumiTrack Landing.dc.html`; `AppRouter.tsx` troca `<Route path="/" element={<Navigate to="/login" replace />} />` por `<LandingPage />`; usuário já autenticado que acessa `/` é redirecionado pra `/dashboard` (mesma regra que `PublicRoute.tsx` já aplica a `/login`/`/registro` — decidir na execução se a landing entra dentro de `PublicRoute` ou replica a checagem, já que hoje ela é `PublicRoute`-only); teste E2E cobrindo navegação básica (CTA leva a `/login` e a `/registro`; usuário autenticado que acessa `/` cai em `/dashboard`).
+- **Depende de:** Componentes base Industry (Fase 1).
+- **Risco/observações:** baixo — sem estado, sem chamada de API, puramente apresentacional (mesma classe de risco da Fase 1 antes dos componentes existirem). Único ponto de atenção real é a regra de redirecionamento pra usuário já logado, pra não ficar inconsistente com `/login`/`/registro`.
+
+### Simulador IoT restilizado
+
+- **Comportamento:** operador do simulador (uso interno — dev/demo, não é tela do produto pro usuário final) gerencia redes MQTT simuladas e dispositivos dentro delas com a linguagem visual Industry, preservando o comportamento funcional de hoje.
+- **Cobre:** sem RF formal — pacote de apoio (`iot-simulator/`), existe pra operar o produto ponta a ponta sem hardware físico (ver `01-descricao.md`), não é parte do produto principal.
+- **Priority:** P2 · **Size:** M
+- **Critérios de aceite:** layout conforme `LumiTrack IoT Simulator.dc.html`; telas/componentes migrados: `Dashboard.tsx` (única página hoje, 68 linhas — header com info do broker + status de conexão + form de criar rede), `NetworkCard.tsx`, `DeviceCard.tsx`, `DeviceControls.tsx`, `AnomalyButton.tsx`; testes existentes (`useNetworks.test.tsx`, `useLiveStatus.test.ts`, `services/api.test.ts`) continuam verdes sem alteração — é migração só visual, hooks/services não mudam.
+- **Depende de:** nenhuma dependência de outra fase (pacote isolado, `iot-simulator/ui` tem seu próprio `package.json`/build, ver `03-arquitetura.md`) — mas se decidir compartilhar tokens com `frontend/`, reaproveita o aprendizado da Fundação de tokens (Fase 1).
+- **Risco/observações:** médio — única decisão de arquitetura não trivial da fase: `iot-simulator/ui` hoje usa Tailwind cru (`rounded-lg`, `border-slate-200`, sem `industry.css`), sem nenhum precedente no projeto de um pacote do monorepo consumir os tokens Industry de outro (`frontend/src/styles/industry.css`) — decidir na execução se os tokens são compartilhados (ex.: pacote CSS próprio) ou duplicados localmente no `iot-simulator/ui`. Risco de produto é baixo (ferramenta de dev/demo, não afeta usuário final), o risco é só essa decisão estrutural.
+
 ## Fases seguintes (menos detalhadas — serão refinadas ao chegar)
 
-**Fase 5 — Landing pública + Simulador IoT**
-`LandingPage` nova (marketing, sem auth, sem RF — menor risco técnico do roadmap). Restyle do `iot-simulator/ui` (dashboard, redes, dispositivos) — pacote separado, dados já reais via `useNetworks`/`useLiveStatus`.
+Nenhuma Fase 6 definida ainda — RF01–RF19 já estão cobertos desde a Fase 3, e a Fase 5 fecha o escopo original deste roadmap (migração do frontend pro Industry + telas do handoff que ainda não existiam). Itens novos exigem novos requisitos: retomar este documento (via skill `planejar-roadmap`) só quando surgirem — não antecipar fases especulativas.
 
 ## RFs/telas adiados do MVP (com justificativa)
 
@@ -179,3 +202,4 @@ Restyle de `PropertiesPage`/`PropertyDetailsPage`/`AreaDetailsPage`/`DeviceDetai
 - **Painel/Perfil (Fase 4) depois da hierarquia:** o Painel depende de Propriedades/Medidores existirem para ter dado real a mostrar, e do seletor de propriedade da topbar — que só faz sentido com Propriedades já restilizado.
 - **Dentro da Fase 4, seletor de propriedade antes de Painel:** os 3 itens de Painel (tempo real, KPIs/bandeira, histórico/comparação) leem a propriedade ativa — sem o seletor, cada um teria que resolver essa dependência de forma isolada e inconsistente. Perfil é independente e pode avançar em paralelo. Tempo real vem antes de KPIs/bandeira por ser o item de maior incerteza técnica (agregação de SSE no cliente, sem precedente) — validar cedo enquanto ainda é barato ajustar; histórico/comparação fica por último por ser o de menor valor imediato (útil só com mais de um período/propriedade acumulado) e o único com um risco de escala conhecido (N chamadas client-side).
 - **Landing/Simulador (Fase 5) por último:** menor risco técnico e menor dependência de qualquer fase anterior — entram por último por serem os mais paralelizáveis, não por serem menos importantes.
+- **Dentro da Fase 5, Landing antes de Simulador:** Landing é rota raiz do produto (`/`) — maior visibilidade de qualquer inconsistência — e P1 por ser o primeiro contato de um visitante, mesma lógica já aplicada à Autenticação na Fase 1. Simulador fica por último (P2): é ferramenta de dev/demo (`iot-simulator/`), não uma tela do produto pro usuário final, e carrega a única decisão de arquitetura não trivial da fase (tokens Industry compartilhados entre pacotes do monorepo vs. duplicados) — vale isolar esse risco no fim, sem bloquear a Landing por causa dele.
