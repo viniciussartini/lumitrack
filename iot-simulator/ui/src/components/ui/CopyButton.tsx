@@ -1,22 +1,33 @@
 import { useState } from "react"
-import { Button } from "@/components/ui/Button"
+import { CheckIcon, CopyIcon } from "@/components/ui/icons"
 
 interface CopyButtonProps {
     value: string
+    label: string
 }
 
-export function CopyButton({ value }: CopyButtonProps) {
+/** Botão-ícone de copiar — `.sim-iconbtn` do handoff, troca pra um check por
+ * 1.2s após copiar (mesmo padrão do protótipo). `label` vira o `aria-label`
+ * (ex.: "Copiar endereço do broker", "Copiar tópico") — sem texto visível,
+ * então a acessibilidade depende inteiramente dele. */
+export function CopyButton({ value, label }: CopyButtonProps) {
     const [copied, setCopied] = useState(false)
 
     async function handleCopy() {
         await navigator.clipboard.writeText(value)
         setCopied(true)
-        setTimeout(() => setCopied(false), 1500)
+        setTimeout(() => setCopied(false), 1200)
     }
 
     return (
-        <Button variant="ghost" size="sm" onClick={handleCopy} type="button">
-            {copied ? "Copiado!" : "Copiar"}
-        </Button>
+        <button
+            type="button"
+            className="sim-iconbtn"
+            onClick={handleCopy}
+            title={label}
+            aria-label={label}
+        >
+            {copied ? <CheckIcon /> : <CopyIcon />}
+        </button>
     )
 }

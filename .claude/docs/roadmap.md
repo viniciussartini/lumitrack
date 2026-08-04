@@ -1,9 +1,9 @@
-# Roadmap de Implementação — LumiTrack (design system Industry)
+# Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
 > Última atualização: 2026-08-04 · Fase atual: 5 (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104; Fase 3 concluída — épico #110, PR #112; Fase 4 concluída — épico #114, branch `feat/114-painel-perfil`)
 >
-> Escopo: migração do frontend para o design system Industry e construção das telas do handoff que ainda não existem. Não altera nenhum RF de backend — só adiciona telas/UI sobre a API já existente.
+> Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). A partir da Fase 6 o escopo se amplia para incluir dívida técnica e mudanças de backend fora do design system.
 
 ## Visão geral das fases
 
@@ -14,6 +14,7 @@
 | 3 | Alertas, Distribuidoras, Segurança/MFA restilizados | **Concluída** (#107–#109, #111, #113, épico #110, PR #112) |
 | 4 | Painel (feature nova) + Perfil (tela nova) | **Concluída** (#115–#120, épico #114, branch `feat/114-painel-perfil`) |
 | 5 | Landing pública (tela nova) + Simulador IoT (restyle) | Planejada — detalhe abaixo |
+| 6 | Migração ethernet-ip v1→v2 no backend (dívida técnica) | Planejada — a iniciar após a Fase 5, detalhe abaixo |
 
 ## Fase 1 — Fundação Industry + Autenticação
 
@@ -183,9 +184,27 @@ Restyle de `PropertiesPage`/`PropertyDetailsPage`/`AreaDetailsPage`/`DeviceDetai
 - **Depende de:** nenhuma dependência de outra fase (pacote isolado, `iot-simulator/ui` tem seu próprio `package.json`/build, ver `03-arquitetura.md`) — mas se decidir compartilhar tokens com `frontend/`, reaproveita o aprendizado da Fundação de tokens (Fase 1).
 - **Risco/observações:** médio — única decisão de arquitetura não trivial da fase: `iot-simulator/ui` hoje usa Tailwind cru (`rounded-lg`, `border-slate-200`, sem `industry.css`), sem nenhum precedente no projeto de um pacote do monorepo consumir os tokens Industry de outro (`frontend/src/styles/industry.css`) — decidir na execução se os tokens são compartilhados (ex.: pacote CSS próprio) ou duplicados localmente no `iot-simulator/ui`. Risco de produto é baixo (ferramenta de dev/demo, não afeta usuário final), o risco é só essa decisão estrutural.
 
+## Fase 6 — Migração ethernet-ip v1→v2 no backend (dívida técnica)
+
+> Origem: achado durante triagem dos PRs abertos do dependabot (2026-08-04). O PR #51 (bump `ethernet-ip` 1.2.5→2.0.0 em `backend/`) **não foi mesclado** — passa no CI, mas quebraria em runtime. Detalhe abaixo é a base para as issues da fase (via skill `criar-issues`).
+
+### Migração da integração EtherNet/IP para a API v2
+
+- **Comportamento:** nenhum RF novo — dívida técnica/manutenção. A ingestão de leituras via EtherNet/IP (RF09, RF10) continua funcionando de ponta a ponta, agora sobre a lib `ethernet-ip` atualizada (2.0.0), sem regressão observável pelo usuário final.
+- **Cobre:** mantém RF09 (protocolo de conexão do Medidor) e RF10 (ingestão de amostras) funcionando para o protocolo EtherNet/IP especificamente.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - `backend/src/modules/iot/iot-worker/protocols/ModbusTcpConnection.ts` (linhas ~260–305) reescrito para a API v2 (`PLC` em vez de `Controller`; `plc.connect(host, { slot })`; `plc.read`/`plc.write` em vez de `readTag`/`writeTag`; `plc.destroy()` ou equivalente da v2).
+  - `backend/src/types/ethernet-ip.d.ts` removido (a v2 tem tipos nativos, o pacote de declaração manual fica obsoleto) — build deve continuar sem erro usando os tipos publicados pela própria lib.
+  - Teste novo que exercita o `import("ethernet-ip")` **real** (não mockado) o suficiente para pegar um `TypeError` de API incompatível — a lacuna que deixou o CI verde no PR #51 apesar da quebra em runtime; decidir no design da issue se isso é um teste de integração leve (ex.: instanciar `PLC`/chamar métodos contra um mock de socket) ou um smoke test dedicado.
+  - `npm audit`/`backend-audit` sem a entrada de `ethernet-ip` desatualizado.
+  - Só depois de tudo acima verde: mesclar o bump de versão (pode reabrir o #51 já resolvido, ou o dependabot reabre um PR novo apontando pra mesma versão).
+- **Depende de:** —
+- **Risco/observações:** médio-alto — reescrita de API completa (não é find-and-replace), em código que fala com hardware industrial real (PLC via EtherNet/IP); sem cobertura de teste de hardware real no CI hoje, o risco de regressão silenciosa é o mesmo padrão que permitiu o CI verde mentiroso no PR original — mitigar com o teste de import real acima antes de considerar a fase concluída.
+
 ## Fases seguintes (menos detalhadas — serão refinadas ao chegar)
 
-Nenhuma Fase 6 definida ainda — RF01–RF19 já estão cobertos desde a Fase 3, e a Fase 5 fecha o escopo original deste roadmap (migração do frontend pro Industry + telas do handoff que ainda não existiam). Itens novos exigem novos requisitos: retomar este documento (via skill `planejar-roadmap`) só quando surgirem — não antecipar fases especulativas.
+Nenhuma Fase 7 definida ainda. Itens novos exigem novos requisitos ou achados equivalentes: retomar este documento (via skill `planejar-roadmap`) só quando surgirem — não antecipar fases especulativas.
 
 ## RFs/telas adiados do MVP (com justificativa)
 
@@ -203,3 +222,4 @@ Nenhuma Fase 6 definida ainda — RF01–RF19 já estão cobertos desde a Fase 3
 - **Dentro da Fase 4, seletor de propriedade antes de Painel:** os 3 itens de Painel (tempo real, KPIs/bandeira, histórico/comparação) leem a propriedade ativa — sem o seletor, cada um teria que resolver essa dependência de forma isolada e inconsistente. Perfil é independente e pode avançar em paralelo. Tempo real vem antes de KPIs/bandeira por ser o item de maior incerteza técnica (agregação de SSE no cliente, sem precedente) — validar cedo enquanto ainda é barato ajustar; histórico/comparação fica por último por ser o de menor valor imediato (útil só com mais de um período/propriedade acumulado) e o único com um risco de escala conhecido (N chamadas client-side).
 - **Landing/Simulador (Fase 5) por último:** menor risco técnico e menor dependência de qualquer fase anterior — entram por último por serem os mais paralelizáveis, não por serem menos importantes.
 - **Dentro da Fase 5, Landing antes de Simulador:** Landing é rota raiz do produto (`/`) — maior visibilidade de qualquer inconsistência — e P1 por ser o primeiro contato de um visitante, mesma lógica já aplicada à Autenticação na Fase 1. Simulador fica por último (P2): é ferramenta de dev/demo (`iot-simulator/`), não uma tela do produto pro usuário final, e carrega a única decisão de arquitetura não trivial da fase (tokens Industry compartilhados entre pacotes do monorepo vs. duplicados) — vale isolar esse risco no fim, sem bloquear a Landing por causa dele.
+- **Fase 6 depois da Fase 5, não em paralelo:** decisão explícita do usuário (2026-08-04) — a Fase 5 (UI) segue como prioridade corrente; a migração do ethernet-ip (backend, sem RF novo, puramente dívida técnica) só começa depois. Tecnicamente as duas fases são independentes (pacotes/áreas diferentes do monorepo, sem dependência real), mas manter o sequenciamento evita dividir o foco entre uma fase de produto quase fechando o roadmap original e uma migração de biblioteca que reescreve integração com hardware real — risco maior, exige atenção dedicada.
