@@ -1,9 +1,9 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-05 · Fase atual: nenhuma planejada (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104; Fase 3 concluída — épico #110, PR #112; Fase 4 concluída — épico #114, PR #124; Fase 5 concluída — épico #128, PR #131; Fase 6 concluída — épico #132, PR ainda não aberto; Fase 7 concluída — épico #133, PR ainda não aberto; Fase 8 concluída — épico #134, PR #146; Fase 9 concluída — issue #127, PR ainda não aberto) — ver "Fases seguintes" abaixo
+> Última atualização: 2026-08-05 · Fase atual: 10 (Fases 1–9 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134 e issue #127)
 >
-> Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). A partir da Fase 6 o escopo se amplia: fidelidade ao handoff no chrome do app, consistência entre telas públicas, integração externa e dívida técnica de backend.
+> Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das quatro auditorias de 2026-08-05** (segurança, conformidade, qualidade, desempenho) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado.
 
 ## Visão geral das fases
 
@@ -18,6 +18,15 @@
 | 7 | Consistência das telas públicas (autenticação, Landing, LGPD) | **Concluída** (#138–#141, épico #133, PR ainda não aberto) |
 | 8 | Bandeira tarifária a partir da fonte oficial (spike → ADR → integração condicional) | **Concluída** (#142–#143, épico #134, PR #146) |
 | 9 | Migração ethernet-ip v1→v2 no backend (dívida técnica) | **Concluída** (#127, PR ainda não aberto) |
+| 10 | Bloqueadores de segurança — log, SSRF, ciclo de vida de sessão, MFA | Planejada — **fase atual**, detalhe abaixo |
+| 11 | Bloqueadores de conformidade LGPD — canal do titular, ROPA, RIPD, transferência internacional | Planejada — detalhe abaixo |
+| 12 | Travas mecânicas de qualidade + correções sem trade-off | Planejada — detalhe abaixo |
+| 13 | Endurecimento de segurança (P1) — perímetro, credenciais, lacunas de teste | Planejada — objetivo abaixo |
+| 14 | Conformidade P1 — retenção, DSAR, consentimento e documentos legais | Planejada — objetivo abaixo |
+| 15 | Desempenho — instrumentação, índices e eliminação dos multiplicadores | Planejada — objetivo abaixo |
+| 16 | Worker IoT — robustez, estrutura e cobertura | Planejada — objetivo abaixo |
+| 17 | Frontend — tempo real e bundle | Planejada — objetivo abaixo |
+| 18 | Design system, cobertura de testes e polimento | Planejada — objetivo abaixo |
 
 ## Fase 1 — Fundação Industry + Autenticação
 
@@ -379,11 +388,254 @@ Restyle de `PropertiesPage`/`PropertyDetailsPage`/`AreaDetailsPage`/`DeviceDetai
 - **PR #51 (dependabot) superado, não mesclado diretamente:** o bump de versão que ele propunha já está incluído nesta branch (junto com a migração de código); a descrição do PR desta issue usa `closes #51` para fechá-lo automaticamente no merge, em vez de mesclá-lo à parte.
 - **Estado final:** `EthernetIpConnection` sobre `ethernet-ip` 2.0.0, sem regressão observável na ingestão via EtherNet/IP (RF09, RF10); `npm run build`/`lint`/`test` do backend limpos (125/125 arquivos · 1457/1457 testes, suíte completa); `npm audit --omit=dev` sem vulnerabilidades. `npx dependency-cruiser src` não pôde rodar — sem config no repo, gap pré-existente, não introduzido por esta fase.
 
-Com a Fase 9 concluída, o roadmap não tem fase planejada em seguida — ver "Fases seguintes" abaixo.
+Com a Fase 9 concluída, o escopo original do roadmap (migração Industry + telas do handoff + dívida técnica pontual) fechou. As Fases 10–18 vêm das quatro auditorias de 2026-08-05.
+
+---
+
+## Remediação das auditorias (Fases 10–18)
+
+> **Origem:** os quatro laudos de 2026-08-05 em `.claude/docs/` — `2026-08-05-seguranca-audit.md` (22 achados), `2026-08-05-conformidade-audit.md` (19), `2026-08-05-qualidade-audit.md` (38) e `2026-08-05-desempenho-audit.md` (26). **105 achados brutos, ~95 distintos** após deduplicação: as auditorias se sobrepõem em 10 pontos, sempre pelo mesmo código visto de ângulos diferentes.
+>
+> **Nenhuma destas fases entrega RF novo.** É endurecimento do que já existe. Por isso a regra de fatiamento vertical do kit cede aqui — como já cedeu na Fundação da Fase 1: um achado de segurança não tem "comportamento de usuário" para atravessar banco→API→UI. O critério de agrupamento passa a ser **o gate que o item destrava** (deploy público, operar com titular real, impedir regressão) em vez da fatia de produto.
+>
+> **Verificação por amostragem antes de planejar** (laudo de subagente não vira fase sem conferência): `split("")` confirmado em `ModbusTcpConnection.ts:626` contra `split("\n")` na `:525`; zero ocorrências de `redact` em `backend/src`; e nenhum `@@index` para `Property.userId`, `Area.propertyId`, `Device.areaId` ou `Alert.userId` no `schema.prisma`. Os três conferem.
+
+## Sobreposição entre as auditorias (deduplicação aplicada)
+
+Cada linha abaixo é **um item de trabalho**, não quatro — auditorias diferentes chegaram ao mesmo código:
+
+| Item | Segurança | Conformidade | Qualidade | Desempenho |
+|---|---|---|---|---|
+| pino sem `redact` + PII no log | CRÍTICA + MÉDIA | ALTO | — | — |
+| `Rs485Connection` com `split("")` | — | — | Q-01 (Alto) | A-05 (Alto) |
+| `Meter.extra.password` em claro | MÉDIA | MÉDIO | — | — |
+| `iot-simulator` fora do CI/Dependabot | MÉDIA | — | Q-03 (Alto) | — |
+| `dependency-cruiser` ausente | BAIXA | — | Q-02 (Alto) | — |
+| Dependência morta `profibus` | — | — | Q-24 (Médio) | B-05 (Baixo) |
+| Retenção de `MeterReading` | — | ALTO | — | M-03 (Médio) |
+| Credenciais demo no bundle | MÉDIA | BAIXO | — | — |
+| Export DSAR incompleto / sem limite | — | ALTO | — | M-12 (Médio) |
+| Drift de documentação viva | — | BAIXO | Q-21/22/23/35 | — |
+
+## Fase 10 — Bloqueadores de segurança
+
+> **Gate que esta fase destrava:** deploy público. Os cinco itens são o bloco "P0 — bloqueio antes de qualquer deploy público" do laudo de segurança, na íntegra. Todos são backend, todos exigem teste que **falhe se o controle for removido** (DoD do `05-security-standards.md`).
+>
+> Postura geral registrada pelo laudo, para calibrar: o backend está **acima da média** — autorização por posse consistente e testada (62 asserções de 403 em 12 suítes), Prisma 100% parametrizado, AES-256-GCM com três chaves compartimentadas, CSRF double-submit, rotação de refresh com detecção de reuso. Os achados se concentram em observabilidade e no ciclo de vida da sessão, não na base.
+
+### Redação de dado sensível no log estruturado
+
+- **Comportamento:** nenhuma linha de log da aplicação contém token de sessão, refresh token, Bearer, senha ou e-mail em texto claro — em nenhum ambiente.
+- **Cobre:** OWASP A09; LGPD Art. 6º III/VII e Art. 46; princípio inegociável "PII nunca em log" do `CLAUDE.md`.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:**
+  - `redact` configurado no pino (`shared/logger/logger.ts`) e/ou serializers no `pino-http` (`app.ts:109-117`) cobrindo no mínimo: `req.headers.cookie`, `req.headers.authorization`, `res.headers["set-cookie"]`, `req.headers["x-csrf-token"]`, `req.headers["x-refresh-csrf-token"]`, `audit.metadata.attemptedEmail`, `*.password`, `*.newPassword`, `*.token`, `*.mfaToken`, `*.secret`, `*.cpf`, `*.cnpj` — com `censor: "[REDACTED]"`.
+  - `AuditService.record` (`shared/audit/audit.service.ts:14`) deixa de espelhar a entrada inteira no log de aplicação — loga só resumo não-identificante (`action`, `outcome`, `resourceType`, `userId`); `metadata`/`ipAddress`/`userAgent` continuam **só** na tabela `audit_logs`, onde são legítimos.
+  - `attemptedEmail` deixa de ser gravado em claro: substituído pelo blind index HMAC que já existe (`shared/crypto/blindIndex.ts`), preservando a correlação de tentativas contra o mesmo alvo sem reter e-mail de quem **não é titular** (hoje retido por 730 dias sem base legal).
+  - **Teste que falha se o controle for removido:** requisição autenticada com o stream do pino capturado, assertando que o valor do cookie de sessão **não** aparece na saída.
+- **Depende de:** —
+- **Risco/observações:** baixo tecnicamente, mas é o único achado **Crítico** de segurança e simultaneamente **Alto** de conformidade — a única aparição dupla nesse nível. A gravidade não está na dificuldade: está em que hoje qualquer pessoa com acesso ao log assume qualquer sessão, e o plano do `RUNBOOK_INCIDENTES.md` § 1.1 é justamente exportar esse log para um agregador de terceiro. Fazer **antes** de decidir observabilidade, não depois.
+
+### Allowlist de destino nas conexões de saída do medidor (SSRF)
+
+- **Comportamento:** um medidor só pode ser criado ou atualizado apontando para um destino permitido; endereços internos são recusados na validação, antes de qualquer socket abrir.
+- **Cobre:** OWASP A01 (SSRF). Protege RF09/RF10 sem alterar o comportamento legítimo.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Validador compartilhado (ex.: `shared/security/outboundHost.ts`) aplicado no `meter.service` **antes de persistir** — não no adaptador, para que a recusa seja um 422 explicável e não uma conexão que falha em silêncio.
+  - **Negar por padrão:** loopback, link-local (`169.254.0.0/16` — metadata de cloud — e `fe80::/10`), RFC1918/ULA e multicast, com resolução do hostname (não só checagem textual, senão um DNS que resolve para `127.0.0.1` passa).
+  - Allowlist configurável por env (`IOT_ALLOWED_HOSTS`, hosts e/ou CIDRs) para o caso legítimo de medidor em rede local — que é o caso de uso normal do produto e **não pode ser quebrado** por esta correção.
+  - Faixa de portas restrita.
+  - Teste que falhe se a allowlist for removida, cobrindo `POST /api/meters` **e** `PUT /api/meters/:id` (o `restart` em `meter.controller.ts:94` é o segundo caminho, hoje igualmente aberto).
+- **Depende de:** —
+- **Risco/observações:** médio — é o item de maior risco de **regressão funcional** da fase: apertar demais quebra o uso legítimo (medidor em `192.168.x.x` na casa do usuário é o caso normal, não a exceção). A allowlist por env existe exatamente para isso. Decidir o default com cuidado e documentar no `.env.example`.
+
+### Hash do token de redefinição de senha
+
+- **Comportamento:** nenhuma mudança observável pelo usuário — o link de reset continua funcionando; o que muda é que um dump do banco deixa de entregar tomada de conta.
+- **Cobre:** OWASP A04.
+- **Priority:** P0 · **Size:** XS
+- **Critérios de aceite:** `hashToken(resetToken)` aplicado na escrita (`createPasswordReset`) e na leitura (`findPasswordReset`), com o valor puro saindo **apenas** no e-mail — exatamente o padrão que `AuthToken` e `RefreshToken` já usam (`auth.service.ts:386-391`, `:406-413`); migração invalida os resets pendentes; teste cobrindo o fluxo completo (pedir reset → usar o token do e-mail → senha trocada) e verificando que a coluna do banco **não** contém o valor enviado.
+- **Depende de:** —
+- **Risco/observações:** baixo — o padrão já existe no mesmo arquivo, é aplicá-lo à terceira tabela que ficou de fora. A inconsistência interna é o que torna o achado indefensável: o código já documenta *"em caso de vazamento do dump do banco, o hash não permite reconstruir um token de sessão válido"* — e não fez isso justamente no token de recuperação de conta.
+
+### Revogação de sessões e refresh tokens na redefinição de senha
+
+- **Comportamento:** ao concluir "esqueci minha senha", todas as sessões anteriores do usuário deixam de funcionar — em todos os canais e dispositivos.
+- **Cobre:** OWASP A07.
+- **Priority:** P0 · **Size:** XS
+- **Critérios de aceite:** `resetPassword` (`auth.service.ts:250-282`) revoga todos os `AuthToken` e `RefreshToken` do usuário na **mesma transação** da troca de senha (`revokeAllRefreshTokensForUser` já existe em `auth.repository.ts:258-263`); teste de integração: logar no canal MOBILE, fazer o reset, assertar **401** no Bearer antigo.
+- **Depende de:** —
+- **Risco/observações:** baixo em esforço, alto em consequência. O cenário-alvo do "esqueci minha senha" é recuperar uma conta comprometida — e hoje o atacante sobrevive ao reset com Bearer válido por até **90 dias** (`MOBILE_TOKEN_EXPIRES_IN`). A correção é de poucas linhas; o valor é desproporcional ao tamanho.
+
+### Step-up na re-inscrição de MFA e purga dos backup codes antigos
+
+- **Comportamento:** trocar o segundo fator de uma conta que já tem MFA passa a exigir prova do fator vigente — uma sessão sozinha não basta.
+- **Cobre:** OWASP A07.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:**
+  - Em `verifyMfaSetup` (`auth.service.ts:152-177`): se `user.mfaEnabled === true`, exigir senha atual **e** código válido do fator vigente (reaproveitar `verifyMfaCode`), ou recusar e obrigar o caminho `disable` → `setup`.
+  - `createBackupCodes` apaga os `MfaBackupCode` anteriores antes de criar o novo lote — hoje usa `createMany` sem limpeza (`auth.repository.ts:177-181`), então os códigos da configuração antiga **continuam válidos** depois da reinscrição.
+  - Teste que falhe se o step-up for removido.
+- **Depende de:** —
+- **Risco/observações:** baixo. O que torna o achado forte é a assimetria documentada no próprio código: `disableMfa` já exige senha + código, com o comentário *"uma sessão sozinha (ex.: roubada via XSS) não deve ser suficiente para desligar o segundo fator"* — mas **reinscrever** dá o mesmo resultado prático, com o bônus de expulsar o dono legítimo, e não exige nada.
+
+## Fase 11 — Bloqueadores de conformidade LGPD
+
+> **Gate que esta fase destrava:** operar com titulares reais. O veredito do laudo é explícito: *"o sistema não está apto a operar com titulares reais enquanto os dois achados Críticos existirem"*.
+>
+> **Natureza diferente das outras fases:** três dos quatro itens são **documentais/contratuais**, não código. Isso é uma característica do achado, não uma fraqueza do plano — o laudo observa que a base técnica de proteção de dados está acima da média para o porte (cifra por categoria com chaves segregadas, trilha de auditoria desenhada com a LGPD em mente, expurgo agendado, consentimento versionado); o que falta é a camada de governança, que é a primeira que a ANPD pede em fiscalização.
+>
+> **Ressalva do laudo, repassada aqui:** não é parecer jurídico. Os dois Críticos e a atribuição de base legal (Fase 14) devem passar por advogado ou encarregado antes de serem considerados fechados — a escolha de base legal é decisão jurídica, não de engenharia.
+
+### Canal de comunicação com o titular
+
+- **Comportamento:** o titular encontra, no rodapé público e dentro do app, um endereço real para exercer os direitos do Art. 18 — inclusive os cinco que não são autoatendidos hoje.
+- **Cobre:** Res. CD/ANPD 2/2022 Art. 11; LGPD Art. 18 §1º, Art. 41 §4º; Art. 6º VI (transparência).
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:**
+  - Endereço de privacidade definido (um alias basta, ex.: `privacidade@<domínio>`) e publicado no rodapé da Landing **e** no shell autenticado.
+  - As **três** referências vagas em `privacy-policy.md` (§ 1, § 6, § 9) a um "e-mail do encarregado informado no rodapé da plataforma" substituídas pelo endereço literal — hoje o documento afirma que o canal existe e ele não existe, o que soma falha de transparência à falha de disponibilização.
+  - Bloco "Exercer meus direitos" no card "Privacidade & dados" do Perfil (`ProfilePage.tsx`, `PrivacyDataCard`), com o canal e a lista dos direitos do Art. 18, marcando quais são autoatendidos e quais passam pelo canal.
+  - Procedimento interno de atendimento documentado com o **prazo em dobro do pequeno porte** (30 dias).
+- **Depende de:** você definir o endereço — é a única entrada externa, e sem ela o item não fecha.
+- **Risco/observações:** baixo em esforço, e é o item de **melhor relação custo/risco removido de todo o roadmap**: o regime de pequeno porte dispensa o encarregado, mas não o canal. Hoje os direitos não automatizados são, na prática, inexercíveis.
+
+### ROPA — registro das operações de tratamento
+
+- **Comportamento:** nenhum — artefato de governança. Entrega `.claude/docs/ROPA.md`.
+- **Cobre:** LGPD Art. 37 (exigível **mesmo** do agente de pequeno porte, em forma simplificada).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:** uma linha por operação já identificável no código — cadastro/autenticação (`users`), propriedades e endereço (`properties`), medição e consumo (`meters`, `meter_readings`), alertas (`alerts`, `alert_trigger_events`), trilha de auditoria (`audit_logs`), recuperação de senha (SMTP), MFA (`mfa_backup_codes`) — e, para cada uma: finalidade, categorias de dados e de titulares, **base legal do Art. 7º**, prazo de retenção, operadores, transferência internacional e medidas de segurança. Inclui a tabela de operadores (nome, serviço, dado tratado, país, DPA S/N, SCC S/N, data) que fecha o Art. 39. Acrescentar a manutenção do ROPA ao Definition of Done da skill `nova-feature`, para o documento não nascer desatualizado.
+- **Depende de:** —
+- **Risco/observações:** baixo em risco, alto em alavancagem — é **pré-requisito de outros 4 achados** (transferência internacional, DPA, retenção, base legal). É o primeiro documento pedido em fiscalização.
+
+### RIPD — relatório de impacto do tratamento de medição contínua
+
+- **Comportamento:** nenhum — artefato de governança. Entrega `.claude/docs/RIPD.md`.
+- **Cobre:** LGPD Art. 38, Art. 10 §3º.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:** cobre descrição do tratamento; **necessidade e proporcionalidade da granularidade por minuto** (por que não 15 min? — a pergunta central, e a resposta condiciona a política de retenção da Fase 14); riscos aos titulares; salvaguardas já existentes; riscos residuais com plano de tratamento. Reavaliado a cada mudança material do modelo de dados.
+- **Depende de:** ROPA (o RIPD referencia as operações registradas lá).
+- **Risco/observações:** o achado é mais forte do que parece à primeira vista, e vale entender por quê antes de tratá-lo como burocracia: a cadeia `MeterReading → Meter → Device → Area → Property → User` liga **uma leitura por minuto a um CPF e a um endereço**. Medição elétrica nessa granularidade dentro de uma residência permite inferir presença/ausência, rotina de sono, horário de trabalho e número de ocupantes. Isso é monitoramento sistemático de comportamento — a hipótese clássica em que a ANPD espera RIPD, e que o regime de pequeno porte não dispensa.
+
+### Transferência internacional e DPAs — decisão de hospedagem sob a lente da LGPD
+
+- **Comportamento:** nenhum — decisão + contrato + correção do aviso de privacidade.
+- **Cobre:** LGPD Art. 33-36 e Art. 39; Res. CD/ANPD 19/2024; Art. 6º VI.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Decisão de hospedagem do `07-decisoes-em-aberto.md` tomada **como decisão de conformidade**, não só técnica: avaliar região Brasil (Neon `sa-east-1`, RDS São Paulo, provedores nacionais) ou UE antes de aceitar o default EUA — é a mitigação mais barata, porque elimina o problema em vez de contratá-lo.
+  - Para cada provedor que permaneça nos EUA (hospedagem, banco, APM, agregador de log, SMTP): **SCCs da ANPD incorporadas ao contrato antes do primeiro byte de dado pessoal**; via assinada guardada fora do repositório e referenciada no ROPA.
+  - § 4 do `privacy-policy.md` reescrito com a lista nominal de operadores, país de processamento e mecanismo de transferência; `CURRENT_CONSENT_VERSION` incrementada ao publicar.
+  - ADR registrando a decisão (vincula arquitetura e conformidade ao mesmo tempo).
+- **Depende de:** a decisão de hospedagem — **hoje em aberto no `07`**. Nasce `status: aguardando-decisão` + `status: precisa-adr`.
+- **Risco/observações:** o timing é o ponto. Hoje o aviso de privacidade declara que não há transferência internacional, e isso é verdade — o app não está hospedado. **A declaração vira factualmente falsa no dia do deploy**, se ele for para Vercel/Railway/Neon/Sentry ou qualquer SMTP norte-americano. O período de graça da Res. 19/2024 encerrou em agosto/2025. Por isso o item entra numa fase P0 mesmo bloqueado: o custo de decidir errado é contratual e público, e a hora de decidir é antes, não depois.
+
+## Fase 12 — Travas mecânicas de qualidade + correções sem trade-off
+
+> **Gate que esta fase destrava:** impedir regressão. O diagnóstico central da auditoria de qualidade é que o problema **não é o código escrito** — a arquitetura de módulos é consistente, `any` é praticamente inexistente, os comentários explicam o porquê, e a direção de dependência está substancialmente correta hoje. O problema é que **4 das 5 travas obrigatórias do `06-code-quality-standards.md` não existem**, e as violações que elas pegariam mecanicamente já estão acumulando: uma função de 188 linhas, um arquivo de 662 linhas com 7 classes, 31 repetições do mesmo bloco, 143 valores arbitrários de Tailwind.
+>
+> **Por que antes das fases de refatoração (16–18):** as regras vão apontar exatamente o que refatorar, **com número em vez de opinião**. Instalar a trava depois de refatorar é pagar o trabalho duas vezes. E, como a direção de dependência já está correta, o `dependency-cruiser` entra **verde** — congelando um estado bom em vez de gerar uma lista de dívida.
+>
+> Junto vão as correções que o laudo de desempenho classifica como "sem trade-off, custo baixo" — erros objetivos, não decisões de engenharia, que não precisam de medição prévia.
+
+### Enforcement automatizado — ESLint, dependency-cruiser, husky, Prettier
+
+- **Comportamento:** nenhum — infraestrutura de qualidade. Uma violação de complexidade, formatação ou direção de dependência passa a quebrar o CI em vez de depender de revisão manual.
+- **Cobre:** `06-code-quality-standards.md:40-46` (as 4 travas ausentes); OWASP indiretamente (a direção de dependência é o que impede o domínio contornar `shared/crypto`).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - ESLint dos 4 pacotes com `complexity: ["error", 12]`, `max-depth: ["error", 4]`, `max-lines-per-function: ["error", {max: 60, skipBlankLines: true, skipComments: true}]`. As violações existentes são **catalogadas e endereçadas nas Fases 16–18, não silenciadas com `eslint-disable`** — se for preciso um alívio temporário, que seja um override explícito por arquivo, com prazo e link para a issue da fase que o remove.
+  - `dependency-cruiser` com a regra que o `03-arquitetura.md` mais valoriza: proibir `^backend/src/modules/.*\.(service|repository)\.ts$` → `express|helmet|cors|cookie-parser`. **Uma regra que se paga vale mais que dez especulativas** (YAGNI). Step `npx depcruise src` no job `backend-lint` — fechando o gate que o `PULL_REQUEST_TEMPLATE.md:19` declara obrigatório e que hoje é assinado sem verificação.
+  - `husky` + `lint-staged` rodando `eslint --fix` e `prettier --write` no que está staged.
+  - Prettier no `backend/` e nos dois pacotes do `iot-simulator/` (hoje só o `frontend/` tem) + job `format:check` no CI.
+- **Depende de:** —
+- **Risco/observações:** médio — o risco não é técnico, é de escopo: ligar as regras vai acender violações reais em código que funciona. A disciplina que decide o sucesso da fase é **não silenciar**; catalogar e mandar para a fase certa.
+
+### `iot-simulator` nos gates de CI e Dependabot
+
+- **Comportamento:** nenhum — um PR que quebre o simulador passa a falhar o CI.
+- **Cobre:** OWASP A03; `03-arquitetura.md:35-39` (o simulador é um dos três pacotes do monorepo).
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** jobs `lint`/`build`/`test`/`audit` para `iot-simulator/server` e `iot-simulator/ui` no `ci.yml` (a raiz é workspace npm — `npm ci && npm run lint -w server -w ui` cobre os dois); entrada `directory: "/iot-simulator"` no `dependabot.yml`; os **14 arquivos de teste** que já existem no pacote passam a rodar.
+- **Depende de:** —
+- **Risco/observações:** baixo. O que dá peso ao item: é o único pacote do monorepo sem `npm audit`, **apesar de subir um broker MQTT (`aedes`) e um servidor Express**. As dependências já divergiram em silêncio (`@types/node` em `^25.3.0` no server contra `^26.1.1` na ui).
+
+### Flags de tipagem e lint com informação de tipo
+
+- **Comportamento:** nenhum — o compilador e o lint passam a pegar classes de erro que hoje passam.
+- **Cobre:** `06:42`.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:** `noImplicitReturns` ligado nos 4 pacotes (custo praticamente zero); `noUncheckedIndexedAccess` ligado no `frontend/` e no `iot-simulator/ui` — **em branch dedicada**, porque vai gerar erros reais e cada um é um bug latente de `undefined` em runtime (ex.: `res.items[0]` em `PropertyComparisonSection.tsx:50`); ESLint migrado para `tseslint.configs.recommendedTypeChecked`, ou no mínimo com `no-floating-promises` e `no-misused-promises` ativas — as duas regras de maior valor num codebase com handlers Express assíncronos, listeners de worker, schedulers e o padrão `void alertEvaluator.evaluate(...)` que hoje depende de disciplina manual.
+- **Depende de:** —
+- **Risco/observações:** médio — `noUncheckedIndexedAccess` no frontend é o item com maior chance de gerar trabalho não previsto. Por isso branch dedicada e fora do mesmo commit das outras travas.
+
+### Secret scanning no CI
+
+- **Comportamento:** nenhum — um segredo commitado passa a quebrar o CI.
+- **Cobre:** OWASP A03.
+- **Priority:** P1 · **Size:** XS
+- **Critérios de aceite:** job `secret-scan` (gitleaks) bloqueante; se o repositório for público, Secret Scanning + Push Protection do GitHub habilitados.
+- **Depende de:** —
+- **Risco/observações:** baixo. O hook do `.claude/settings.json` bloqueia o **agente** de ler `.env*`, mas não impede um commit humano de vazar chave — e o repositório **já contém credenciais hardcoded** (as contas demo, tratadas na Fase 13), então o risco não é teórico.
+
+### Bug do `Rs485Connection` — quebra de frame por caractere
+
+- **Comportamento:** leituras RS-485 passam a ser decodificadas corretamente. Hoje **nenhuma** é.
+- **Cobre:** RF09, RF10 no protocolo RS-485.
+- **Priority:** P0 · **Size:** XS
+- **Critérios de aceite:** `split("")` → `split("\n")` em `ModbusTcpConnection.ts:626`, alinhando com o `Rs232Connection` (`:525`) que o próprio comentário do RS-485 diz replicar; **teste de regressão escrito primeiro** (skill `correcao-bugs`) alimentando o handler `"data"` com dois chunks parciais que formam uma linha JSON e assertando **uma** chamada de `dataHandler` com o objeto parseado; teto nomeado de crescimento do buffer nos **dois** adaptadores (ex.: 64 KB) — um dispositivo que nunca envie `\n` hoje faz o buffer crescer sem limite, que é vetor de exaustão de memória.
+- **Depende de:** —
+- **Risco/observações:** o achado tem duas faces e as duas importam. É **bug funcional** (nenhuma linha JSON é jamais montada) e **amplificação de carga**: a 9600 baud são ~960 invocações do pipeline por segundo por medidor, cada uma com `JSON.parse` que falha e um `log.warn` com payload serializado — ~1000× o esperado. A extração do parser para uma função pura compartilhada (Fase 16) é o que fecha isso estruturalmente; aqui vai a correção pontual com teste, porque não deve esperar uma refatoração.
+
+### Correções sem trade-off e limpeza de código morto
+
+- **Comportamento:** nenhum — remoção de erro objetivo e de peso morto.
+- **Cobre:** vários achados Baixos/Médios de qualidade e desempenho, agrupados por serem todos XS e sem decisão envolvida.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  - **`QueryClientProvider` duplicado** (M-11): `main.tsx` monta um provider cuja configuração inteira é código morto (o de `App.tsx`, aninhado, vence por contexto) — e o comportamento efetivo é o **oposto** do que o comentário de `main.tsx:10-14` documenta quanto a `refetchOnWindowFocus`. Manter só o de `App.tsx` e decidir conscientemente se `refetchOnWindowFocus: true` compensa, dado o fan-out do Painel.
+  - **Índices redundantes** (B-01): remover `@@index([token])` de `auth_tokens`, `refresh_tokens` e `password_resets` — as três colunas já têm `@unique`, que cria o índice B-tree; o segundo é puro custo de escrita.
+  - **Dependência morta `profibus@0.0.0`** (Q-24 + B-05): remover de `dependencies` (zero imports em todo o código) e corrigir `04-tech-stack.md:12`, registrando PROFIBUS como stub deliberado.
+  - **Decorators especulativos** (Q-38): remover `experimentalDecorators`/`emitDecoratorMetadata` do `backend/tsconfig.json` — zero decorators no código, com o comentário "(futuro uso...)" que é exatamente a abstração especulativa que o `06:5` proíbe.
+  - **Regras mortas de `.gitignore`**: `prisma/migrations/` na raiz e `/generated/prisma` em `backend/` estão ancoradas errado e por isso são inócuas hoje — mas expressam intenção **oposta** ao estado real. Remover ou reescrever com intenção explícita (as migrações **devem** ser versionadas).
+  - **`DATABASE_TEST_URL`/`DATABASE_HTTP_TEST_URL` no `envSchema`**, com `refine` impedindo que apontem para a mesma URL de `DATABASE_URL` — o `.env.example` avisa que a suíte **apaga os dados** desses bancos, e hoje isso está fora do fail-fast de config.
+  - **`PlaceHolderPage.tsx`** renomeado para bater com o export (`PlaceholderPage`).
+- **Depende de:** —
+- **Risco/observações:** baixo por construção — o critério de entrada neste lote foi "é erro, não trade-off". Qualquer item que exija decisão saiu daqui e foi para a fase temática correspondente.
+
+## Fases 13–18 (objetivo — serão detalhadas ao chegar)
+
+> Planejamento just-in-time, mesmo YAGNI do `06`: fase futura detalhada agora é reescrita antes de ser executada. Cada fase abaixo lista os achados que cobre, para rastreabilidade — **nenhum achado dos quatro laudos ficou fora do roadmap**.
+
+### Fase 13 — Endurecimento de segurança (P1)
+
+Gate: expor a demo pública. Cobre: troca de e-mail sem reautenticação/verificação/revogação (encadeia com o forgot-password numa tomada de conta completa a partir de sessão sequestrada); credenciais demo fora do bundle + contas demo read-only no servidor; perímetro mínimo do `iot-simulator` (token de API, `authenticate` no aedes, bind em `127.0.0.1`, helmet, rate limit); rate limiter dedicado em `POST /api/users` + mensagens de conflito genéricas (hoje o 409 distinguível é oráculo de enumeração de e-mail **e de CPF/CNPJ**); cifra de `Meter.extra.password` + omissão do `MeterResponse`; CSP do SPA e redirect HTTPS com host canônico (ambos ligados à decisão de hospedagem da Fase 11); e as 3 lacunas de teste do laudo (headers de A02, PII cifrada na coluna do banco, revalidação de sessão no SSE) — todas na classe "remover o controle passaria pela suíte inteira".
+
+### Fase 14 — Conformidade P1: retenção, DSAR, consentimento e documentos (P1)
+
+Cobre: retenção de `MeterReading`/`AlertTriggerEvent`/`MfaBackupCode`/`TariffFlagHistory` + política de conta inativa (hoje o `RetentionService` cobre só 4 entidades de credencial — **o dado de maior risco do produto é o único sem prazo**); export DSAR completo (consumo agregado, medidores, disparos) + PDF na UI + limite de janela do audit log; base legal por operação, aceites separados (Termos ≠ Política) e reaceite via `consentVersion` (o campo existe e nunca foi comparado); aviso de privacidade complementado (cookies, prazos reais, decisões automatizadas do Art. 20, idade mínima do Art. 14) e revisão jurídica; `RUNBOOK_INCIDENTES.md` corrigido (3 dias úteis dobrados, canal correto da ANPD, registro de 5 anos incluindo incidentes **não** comunicados); guarda de registros de acesso (Marco Civil Art. 15); TLS obrigatório no SMTP em produção.
+
+### Fase 15 — Desempenho: instrumentação, índices e multiplicadores (P1)
+
+**Instrumentação primeiro** — o `06:36` exige medir antes de otimizar, e hoje não há APM nem tracing (`07`). `pg_stat_statements` + `EXPLAIN (ANALYZE, BUFFERS)`, `prisma.$on('query')` contando queries por requisição, React DevTools Profiler, `rollup-plugin-visualizer` para baseline. Só então: índices de FK (`Property.userId`, `Area.propertyId`, `Device.areaId`, `Alert.userId`, `Property.distributorId` — o Prisma **não** cria índice de FK no PostgreSQL); cache in-process de bandeira e distribuidoras + `staleTime` no frontend; N+1 do `AlertService.findAll` (até 124 queries numa página de 31 alertas, reinvalidado a cada evento SSE de alerta) + endpoint de stats; endpoint batch de consumo (o Painel com 20 propriedades custa ~160 queries, 40 delas `GROUP BY` sobre a maior tabela); teto de `pageSize` maior para `/api/consumption`; `countBuckets` com `COUNT(*) OVER ()`.
+
+### Fase 16 — Worker IoT: robustez, estrutura e cobertura (P2)
+
+Cobre: quebrar `ModbusTcpConnection.ts` (662 linhas, 7 classes de protocolos distintos, com o stub de PROFIBUS instruindo a consultar documentação no próprio arquivo) em um arquivo por adaptador + `serialLineParser.ts` compartilhado; schema Zod por protocolo em `createConnection`, eliminando os **22 non-null assertions** sobre dados do banco e os ~120 linhas de boilerplate de uma vez; polling com guarda de reentrância, timeout, backoff e reconexão nos 4 adaptadores (`setInterval` hoje não espera a promise anterior); mapeamento de payload dos adaptadores não-MQTT (**hoje 100% das leituras Modbus/EtherNet-IP/PROFINET são descartadas** — só MQTT funciona ponta a ponta); tetos plausíveis no payload IoT via Zod; SSE com serialização única e backpressure; `upsertMinute` em `INSERT ... ON CONFLICT`; cobertura dos 6 adaptadores sem teste + da fábrica.
+
+### Fase 17 — Frontend: tempo real e bundle (P2)
+
+Cobre: React Compiler habilitado (o código já é compiler-clean por lint e vários comentários citam o compilador — **colhe zero benefício dele hoje**) + separação do `RealtimeContext` em conexão/leituras; buffer de potência circular com downsampling (hoje O(n) por amostra sobre até 86.400 pontos, com o `useMemo` do gráfico nunca acertando); `useLiveMeterReading` sem render a cada 2 s; code-splitting por rota + `manualChunks` isolando `recharts` e a stack markdown (hoje `/login` baixa as duas dependências mais pesadas do projeto).
+
+### Fase 18 — Design system, cobertura e polimento (P2)
+
+Cobre: **decisão de token primeiro** — mapear no `@theme` a escala tipográfica e de espaçamento que o protótipo de fato usa (os 143 valores arbitrários não são descuido: o tema mapeia cor/fonte/raio/sombra mas não a escala, então cada tela recorre ao colchete) e promover o verde `#3f8f52` a token, com `/design-sync` de volta; depois a limpeza mecânica — tokens pré-Industry em ~16 arquivos, `.lt-live-dot` no lugar da animação inline replicada 10×, ramo morto do `UserMenu` (cuja **suíte de testes valida exclusivamente o ramo morto**), `LiveKpiCard` adotado nas 3 páginas que o copiaram, decisão única sobre `Blueprint` vs. cantos manuais, e lint anti-regressão. Mais: namespace próprio de `queryKey` para "último bucket" (elimina o `pageSize: 3` mágico que hoje evita uma colisão que **já causou bug real**); cobertura de Alertas (RF14–RF16, hoje sem nenhum teste, único mecanismo que avisa o usuário sobre consumo anômalo), do SSE client e do CRUD de Medidor; `parseOrThrow` eliminando as 31 repetições; drift de documentação viva (`10`, `03`, `04`, `README`); e o restante do polimento (Q-25 a Q-37, B-04, B-07, B-08).
 
 ## Fases seguintes (menos detalhadas — serão refinadas ao chegar)
 
-Nenhuma Fase 10 definida ainda. Itens novos exigem novos requisitos ou achados equivalentes: retomar este documento (via skill `planejar-roadmap`) só quando surgirem — não antecipar fases especulativas.
+Nenhuma Fase 19 definida. Itens novos exigem novos requisitos ou achados equivalentes.
 
 Candidato conhecido, ainda sem fase: um handoff de design para "Sobre o projeto" (Fase 6), que substituiria a versão provisória e fecharia o `TODO(design)` — depende de um export novo do Claude Design, não de decisão de engenharia.
 
@@ -411,3 +663,13 @@ Candidato conhecido, ainda sem fase: um handoff de design para "Sobre o projeto"
 - **Telas públicas (Fase 7) depois do shell:** quatro itens pequenos (XS/XS/S/XS), independentes entre si e de baixo risco — poderiam rodar em qualquer ordem. Ficam depois porque afetam telas que o usuário recorrente vê uma vez (autenticação) ou não vê (LGPD, Landing), enquanto o shell da Fase 6 está na frente dele o tempo todo. A única dependência entre as duas fases é um artefato, não uma ordem: o componente de ícone do GitHub, criado onde a execução chegar primeiro.
 - **Bandeira tarifária (Fase 8) antes do ethernet-ip:** toca RF08 e a precisão de RF13 — é produto, não manutenção. A migração do ethernet-ip não tem RF associado. Dentro da fase, o spike vem antes da integração pela regra de risco/incerteza primeiro: a integração inteira pode não existir, e descobrir isso custa uma investigação, não uma implementação jogada fora.
 - **ethernet-ip renumerada de Fase 6 para Fase 9** (decisão do usuário, 2026-08-04): as três frentes novas passaram na frente. O conteúdo do item foi preservado sem alteração. A fase **já tem uma issue aberta — #127** (`[Chore] Migração da integração EtherNet/IP para ethernet-ip v2.0.0`), cujo corpo referenciava "Fase 6"; a referência foi atualizada para "Fase 9" junto com esta renumeração, para o ponteiro issue → roadmap não apontar para a fase errada. Nenhuma issue nova foi criada para esta fase: o item é único, e um épico contendo uma sub-issue só não agrega nada. Ela continua por último pelo mesmo motivo de sempre: reescreve integração com hardware industrial real, sem cobertura de teste de hardware no CI, e merece atenção dedicada em vez de dividir espaço com frentes de UI.
+
+### Remediação das auditorias (Fases 10–18, planejadas em 2026-08-05)
+
+- **Por que o fatiamento vertical cede aqui:** um achado de segurança ou um índice ausente não tem "comportamento de usuário" atravessando banco→API→UI. Forçar a regra produziria fases artificiais. O critério de agrupamento passa a ser **o gate que o conjunto destrava** — deploy público (Fase 10), operar com titular real (Fase 11), impedir regressão (Fase 12) — que é o mesmo raciocínio já aplicado à Fundação da Fase 1, onde a dependência técnica venceu a fatia de produto.
+- **Segurança (10) antes de conformidade (11), embora ambas sejam P0:** as duas bloqueiam gates diferentes e nenhuma depende da outra, então a ordem é uma escolha. Segurança vem primeiro porque é **inteiramente executável agora**: os cinco itens são código, com critério objetivo de pronto. A Fase 11 tem três itens documentais e um preso à decisão de hospedagem — começar por ela seria começar por uma fase que não fecha. Ainda assim, o canal do titular (Fase 11) é o item de melhor custo/benefício de todo o roadmap e pode ser puxado para frente se você quiser um ganho rápido.
+- **Travas mecânicas (12) antes das fases de refatoração (16–18):** as regras de complexidade e o `dependency-cruiser` apontam **com número** o que refatorar, em vez de opinião — e como a direção de dependência já está correta hoje, o `dependency-cruiser` entra verde, congelando um estado bom em vez de gerar backlog. Instalar a trava depois de refatorar paga o trabalho duas vezes.
+- **O bug do RS-485 na Fase 12, não na 16:** ele é corrigido pontualmente com teste junto das travas, e só a **causa raiz estrutural** (duplicação entre RS-232 e RS-485, resolvida extraindo o parser) espera a Fase 16. Um bug funcional confirmado não fica parado esperando refatoração — mesmo padrão já aplicado a #111 e #113 na Fase 3.
+- **Instrumentação antes de otimização (Fase 15):** o `06:36` é explícito ("meça antes de otimizar") e hoje não existe instrumental (`07` — observabilidade em aberto). Metade dos achados de desempenho está marcada **[MEDIR ANTES]** pelo próprio laudo: com poucas centenas de linhas o planner escolhe seq scan de qualquer jeito e o índice não muda nada. Os achados que **não** precisam de medição (são erros, não trade-offs) foram puxados para a Fase 12.
+- **Design system e cobertura por último (18), apesar de serem 17 achados:** são os de menor risco operacional — nenhum deles quebra em produção nem viola obrigação legal. E o maior deles (143 valores arbitrários de Tailwind) é uma **decisão de token**, não implementação: o tema mapeia cor/fonte/raio/sombra mas não a escala tipográfica/espacial, então cada tela recorre ao colchete. Fazer a limpeza antes de mapear a escala geraria só `eslint-disable`.
+- **Fases 13–18 propositalmente não detalhadas:** planejamento just-in-time. Cada uma lista os achados que cobre para rastreabilidade — **nenhum dos ~95 achados distintos ficou fora do roadmap** — mas o detalhamento em critérios de aceite só acontece quando a fase chegar, porque o que se aprende nas anteriores muda as seguintes (a Fase 6 é o precedente: o achado que a originou só apareceu depois de 5 fases executadas).
