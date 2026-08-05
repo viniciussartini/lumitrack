@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-04 · Fase atual: 7 (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104; Fase 3 concluída — épico #110, PR #112; Fase 4 concluída — épico #114, PR #124; Fase 5 concluída — épico #128, PR #131; Fase 6 concluída — épico #132, PR ainda não aberto)
+> Última atualização: 2026-08-04 · Fase atual: 8 (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104; Fase 3 concluída — épico #110, PR #112; Fase 4 concluída — épico #114, PR #124; Fase 5 concluída — épico #128, PR #131; Fase 6 concluída — épico #132, PR ainda não aberto; Fase 7 concluída — épico #133, PR ainda não aberto)
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). A partir da Fase 6 o escopo se amplia: fidelidade ao handoff no chrome do app, consistência entre telas públicas, integração externa e dívida técnica de backend.
 
@@ -15,8 +15,8 @@
 | 4 | Painel (feature nova) + Perfil (tela nova) | **Concluída** (#115–#120, épico #114, PR #124) |
 | 5 | Landing pública (tela nova) + Simulador IoT (restyle) | **Concluída** (#129–#130, épico #128, PR #131) |
 | 6 | Shell do app autenticado (Sidebar + Header conforme handoff) + "Sobre o projeto" | **Concluída** (#135–#137, épico #132, PR ainda não aberto) |
-| 7 | Consistência das telas públicas (autenticação, Landing, LGPD) | Planejada — **fase atual**, detalhe abaixo |
-| 8 | Bandeira tarifária a partir da fonte oficial (spike → ADR → integração condicional) | Planejada — detalhe abaixo |
+| 7 | Consistência das telas públicas (autenticação, Landing, LGPD) | **Concluída** (#138–#141, épico #133, PR ainda não aberto) |
+| 8 | Bandeira tarifária a partir da fonte oficial (spike → ADR → integração condicional) | Planejada — **fase atual**, detalhe abaixo |
 | 9 | Migração ethernet-ip v1→v2 no backend (dívida técnica) | Planejada — detalhe abaixo (era Fase 6; renumerada em 2026-08-04, ver justificativas) |
 
 ## Fase 1 — Fundação Industry + Autenticação
@@ -304,6 +304,14 @@ Restyle de `PropertiesPage`/`PropertyDetailsPage`/`AreaDetailsPage`/`DeviceDetai
   - As abas Política de Privacidade / Termos de Uso continuam navegando entre si; `PrivacyPolicyPage.test.tsx` e `TermsOfUsePage.test.tsx` verdes — ajustar qualquer asserção que dependa do link removido.
 - **Depende de:** —
 - **Risco/observações:** baixo — telas estáticas, sem estado. Verificar se algum E2E navega para as páginas legais pelo link de volta antes de removê-lo.
+
+**Fechamento (2026-08-04):** entregue nos 4 itens planejados (#138 largura fixa do painel, #139 potência ao vivo do Login, #140 logo do GitHub, #141 páginas LGPD), épico #133, branch `feat/133-consistencia-telas-publicas`. Nenhuma redução de escopo; um achado durante #141 ajustou a implementação sugerida pela issue sem mudar o comportamento entregue:
+
+- **Handoff também diverge em #138:** conferido nos 3 `.dc.html` de autenticação — `LumiTrack Login.dc.html` usa `minmax(0,1.05fr)`, enquanto `LumiTrack Registro.dc.html` e `LumiTrack Recuperar Senha.dc.html` usam `minmax(0,.95fr)`. Como o próprio handoff não concorda entre as 3 telas, aplicada a decisão do usuário: padronizar em `.95fr` (maioria do handoff — 2 de 3 — e do código já existente — 3 de 4 arquivos). `AUTH_LAYOUT_GRID_CLASS` exportado de `BrandPanel.tsx` e consumido pelas 4 páginas, eliminando a duplicação que permitiu a divergência aparecer.
+- **Reaproveitamento em vez de duplicação em #139:** `useLiveTicker` — antes só dentro de `LandingPage.tsx` — extraído para `hooks/useLiveTicker.ts` (mesmo padrão de `useLiveMeterReading.ts`/`usePowerHistory.ts`) quando o Login virou o 2º consumidor real. `prefers-reduced-motion` avaliado e **não adotado** nesta fase — a Landing já tem o mesmo efeito hoje sem respeitar a preferência, e mudar isso é uma melhoria de acessibilidade maior que o escopo do item; registrado para não se perder, sem virar item de `07-decisoes-em-aberto.md` por ser de baixo risco/escopo pontual.
+- **Reaproveitamento em vez de duplicação em #140:** `GITHUB_REPO_URL` — antes uma constante local em `AboutPage.tsx` — promovido para `GitHubIcon.tsx` (mesmo módulo do ícone, já que os dois sempre andam juntos) quando a Landing e o `BrandPanel` viraram o 2º e 3º consumidores reais. Rodapé do `BrandPanel` migrado de `flex justify-between` (2 blocos) para `grid grid-cols-[1fr_auto_1fr]` para centralização real do crédito Magnific — um `justify-between` de 3 itens centraliza por espaçamento, não por posição.
+- **Achado que ajustou a implementação sugerida em #141, sem mudar o comportamento entregue:** a issue sugeria reaproveitar `LumiTrackWordmark` "tal como está" no cabeçalho das páginas legais. O componente é estilizado só para fundo escuro (`--color-accent-900` do `BrandPanel`/Sidebar — texto claro, `brightness-125` na imagem); aplicado sem alteração numa página de fundo claro, o texto "Lumi" ficaria quase invisível. Adicionado `variant?: "dark" | "light"` ao `LumiTrackWordmark` (mesmo padrão de extensão já usado em `UserMenu`, `variant="header"|"sidebar"`, Fase 6) — o `"light"` replica o gradiente que a nav do handoff LGPD especifica, já usado em `LandingNav`.
+- **Estado final:** painel de marca com largura única nas 4 telas de autenticação; card "Ao vivo" do Login animado como a Landing; logo do GitHub acessível na Landing e nos 3 painéis de autenticação; páginas LGPD com logo real e sem link de volta órfão; `npm run build`/`lint`/`test` do frontend limpos (70/70 arquivos · 599/599 testes); `.claude/log/CHANGELOG.md` com uma entrada por sub-issue fechada.
 
 ## Fase 8 — Bandeira tarifária a partir da fonte oficial
 

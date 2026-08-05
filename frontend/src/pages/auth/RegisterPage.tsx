@@ -6,7 +6,7 @@ import { User, Building2 } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { PasswordRequirements } from "@/components/ui/PasswordRequirements"
-import { BrandPanel } from "@/components/auth/BrandPanel"
+import { AUTH_LAYOUT_GRID_CLASS, BrandPanel } from "@/components/auth/BrandPanel"
 import { useAuth } from "@/contexts/AuthContext"
 import { registerSchema, type RegisterFormData } from "@/schemas/register.schema"
 import { formatCpf, formatCnpj } from "@/lib/masks"
@@ -104,7 +104,7 @@ export const RegisterPage = () => {
     }
 
     return (
-        <div className="grid min-h-screen lg:grid-cols-[.95fr_1fr]">
+        <div className={AUTH_LAYOUT_GRID_CLASS}>
             <BrandPanel
                 eyebrow="Comece agora"
                 headline="Sua energia, medida e sob controle."

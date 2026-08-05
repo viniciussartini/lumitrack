@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
 import { renderWithProviders, screen, waitFor } from "@/tests/test-utils"
 import { LoginPage } from "@/pages/auth/LoginPage"
+import { AUTH_LAYOUT_GRID_CLASS } from "@/components/auth/BrandPanel"
 import { authService } from "@/services/auth.service"
 import type { User } from "@/types/auth.types"
 
@@ -42,6 +43,25 @@ describe("LoginPage — renderização", () => {
         expect(await screen.findByLabelText(/e-mail/i)).toBeInTheDocument()
         expect(screen.getByLabelText(/^senha$/i)).toBeInTheDocument()
         expect(screen.getByRole("button", { name: /entrar/i })).toBeInTheDocument()
+    })
+
+    it("usa a mesma largura de painel das demais telas de autenticação", async () => {
+        const { container } = renderWithProviders(<LoginPage />)
+        await screen.findByLabelText(/e-mail/i)
+
+        expect(container.firstElementChild).toHaveClass(AUTH_LAYOUT_GRID_CLASS)
+    })
+
+    it("anima o card 'Ao vivo' via useLiveTicker em vez de um valor congelado", async () => {
+        renderWithProviders(<LoginPage />)
+        await screen.findByLabelText(/e-mail/i)
+
+        const liveKwh = screen.getByTestId("login-live-kwh")
+        const initialValue = liveKwh.textContent
+
+        await waitFor(() => expect(liveKwh.textContent).not.toBe(initialValue), {
+            timeout: 3000,
+        })
     })
 })
 

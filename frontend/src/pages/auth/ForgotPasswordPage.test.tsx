@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
 import { renderWithProviders, screen } from "@/tests/test-utils"
 import { ForgotPasswordPage } from "@/pages/auth/ForgotPasswordPage"
+import { AUTH_LAYOUT_GRID_CLASS } from "@/components/auth/BrandPanel"
 import { authService } from "@/services/auth.service"
 
 vi.mock("@/services/auth.service", () => ({
@@ -30,6 +31,13 @@ describe("ForgotPasswordPage — renderização", () => {
         expect(
             screen.getByRole("button", { name: /enviar link de recuperação/i }),
         ).toBeInTheDocument()
+    })
+
+    it("usa a mesma largura de painel das demais telas de autenticação", async () => {
+        const { container } = renderWithProviders(<ForgotPasswordPage />)
+        await screen.findByLabelText(/e-mail cadastrado/i)
+
+        expect(container.firstElementChild).toHaveClass(AUTH_LAYOUT_GRID_CLASS)
     })
 })
 

@@ -1,5 +1,8 @@
 import type { SVGProps } from "react"
 
+/** Repositório público do LumiTrack — destino de todo link do ícone abaixo. */
+export const GITHUB_REPO_URL = "https://github.com/viniciussartini/lumitrack"
+
 /**
  * Logo do GitHub — `lucide-react` 1.28 não tem ícones de marca (removidos
  * da biblioteca). Mesmo padrão de

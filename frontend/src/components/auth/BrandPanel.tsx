@@ -1,6 +1,17 @@
 import type { ReactNode } from "react"
 import { Link } from "react-router"
 import { LumiTrackWordmark } from "@/components/ui/LumiTrackWordmark"
+import { GITHUB_REPO_URL, GitHubIcon } from "@/components/ui/GitHubIcon"
+
+/**
+ * Grade das 4 telas de autenticação (Login/Registro/Esqueci senha/Redefinir
+ * senha) — largura fixa para o painel de marca não "pular" na troca de
+ * tela. Handoff diverge entre si (Login usa 1.05fr, Registro e Recuperar
+ * Senha usam .95fr); decisão do usuário (2026-08-04): padronizar em .95fr
+ * (maioria do handoff e do código já existente) em vez de seguir a
+ * divergência.
+ */
+export const AUTH_LAYOUT_GRID_CLASS = "grid min-h-screen lg:grid-cols-[.95fr_1fr]"
 
 interface BrandPanelProps {
     eyebrow: string
@@ -60,9 +71,12 @@ export const BrandPanel = ({ eyebrow, headline, description, extra }: BrandPanel
             {extra}
         </div>
 
-        <div className="relative flex flex-wrap items-center justify-between gap-2 text-xs text-[#e6ecf2]/55">
+        <div
+            data-testid="brand-panel-footer"
+            className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs text-[#e6ecf2]/55"
+        >
             <span>© 2026 LumiTrack · Feito no Brasil</span>
-            <span>
+            <span className="text-center whitespace-nowrap">
                 Logo desenhada por{" "}
                 <a
                     href="https://www.magnific.com"
@@ -73,6 +87,18 @@ export const BrandPanel = ({ eyebrow, headline, description, extra }: BrandPanel
                     Magnific
                 </a>
             </span>
+            {/* Sem equivalente no handoff — acréscimo pedido pelo usuário
+                (2026-08-04), ver CHANGELOG. Ícone sem texto: aria-label dá o
+                nome acessível. */}
+            <a
+                href={GITHUB_REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Ver o repositório do LumiTrack no GitHub (abre em nova aba)"
+                className="justify-self-end text-[#e6ecf2]/70 hover:text-[#e6ecf2]"
+            >
+                <GitHubIcon className="h-4 w-4" />
+            </a>
         </div>
     </aside>
 )

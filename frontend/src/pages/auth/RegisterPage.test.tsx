@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
 import { renderWithProviders, screen, waitFor } from "@/tests/test-utils"
 import { RegisterPage } from "@/pages/auth/RegisterPage"
+import { AUTH_LAYOUT_GRID_CLASS } from "@/components/auth/BrandPanel"
 import { authService } from "@/services/auth.service"
 import type { User } from "@/types/auth.types"
 
@@ -65,6 +66,13 @@ describe("RegisterPage — renderização", () => {
 
         const loginLink = await screen.findByRole("link", { name: /entrar/i })
         expect(loginLink).toHaveAttribute("href", "/login")
+    })
+
+    it("usa a mesma largura de painel das demais telas de autenticação", async () => {
+        const { container } = renderWithProviders(<RegisterPage />)
+        await screen.findByLabelText(/^nome$/i)
+
+        expect(container.firstElementChild).toHaveClass(AUTH_LAYOUT_GRID_CLASS)
     })
 })
 

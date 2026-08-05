@@ -2,9 +2,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import aboutMarkdown from "@/content/about.md?raw"
 import { industryMarkdownComponents } from "@/lib/markdown/industryMarkdownComponents"
-import { GitHubIcon } from "@/components/ui/GitHubIcon"
-
-const REPO_URL = "https://github.com/viniciussartini/lumitrack"
+import { GITHUB_REPO_URL, GitHubIcon } from "@/components/ui/GitHubIcon"
 
 // TODO(design): aguardando handoff — Sobre o projeto. Não existe tela
 // equivalente em `.claude/design/2026-07-31-lumitrack-completo/` (única
@@ -38,7 +36,7 @@ export const AboutPage = () => (
                 </p>
             </div>
             <a
-                href={REPO_URL}
+                href={GITHUB_REPO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Ver o repositório do LumiTrack no GitHub (abre em nova aba)"

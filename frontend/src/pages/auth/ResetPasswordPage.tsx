@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { PasswordRequirements } from "@/components/ui/PasswordRequirements"
 import { Blueprint } from "@/components/ui/Blueprint"
-import { BrandPanel } from "@/components/auth/BrandPanel"
+import { AUTH_LAYOUT_GRID_CLASS, BrandPanel } from "@/components/auth/BrandPanel"
 import { RecoverySteps } from "@/components/auth/RecoverySteps"
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
@@ -58,7 +58,7 @@ export const ResetPasswordPage = () => {
     // recomeçar o pedido.
     if (!token) {
         return (
-            <div className="grid min-h-screen lg:grid-cols-[.95fr_1fr]">
+            <div className={AUTH_LAYOUT_GRID_CLASS}>
                 <BrandPanel
                     eyebrow="Acesso seguro"
                     headline="Recupere o acesso em três passos."
@@ -82,7 +82,7 @@ export const ResetPasswordPage = () => {
     }
 
     return (
-        <div className="grid min-h-screen lg:grid-cols-[.95fr_1fr]">
+        <div className={AUTH_LAYOUT_GRID_CLASS}>
             <BrandPanel
                 eyebrow="Acesso seguro"
                 headline="Recupere o acesso em três passos."
