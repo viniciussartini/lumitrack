@@ -687,3 +687,13 @@
 - **Arquivos principais:** `backend/src/modules/tariff-flag/tariff-flag.routes.ts`/`.routes.test.ts`, `frontend/src/types/tariff-flag.types.ts` (cores dark + `formatTariffFlagNote`), `frontend/src/components/dashboard/TariffFlagListCard.tsx` (consome a versão promovida), `frontend/src/pages/landing/LandingPage.tsx`/`.test.tsx`, `frontend/src/pages/auth/LoginPage.tsx`/`.test.tsx`.
 - **Decisões/ADRs:** nenhuma nova — a decisão de tornar o GET público foi tomada nesta conversa (não em `07-decisoes-em-aberto.md`) e está documentada aqui e no comentário da rota; não é arquitetural o suficiente para um ADR próprio.
 - **Notas:** `npm run build`/`lint`/`test` do frontend limpos (70/70 arquivos · 605/605 testes) e do backend (123/123 arquivos · 1453/1453 testes, suíte completa re-executada após a mudança de auth). Verificado visualmente via Playwright contra os servidores reais (`/` e `/login`): ambos mostraram "Bandeira Amarela" (bandeira real do momento, sincronizada por #143), com boa legibilidade no fundo escuro do Login.
+
+## [2026-08-05] docs: roadmap de implementação (fase 8 concluída)
+
+- **Branch:** docs/134-bandeira-tarifaria-oficial
+- **Tipo:** docs
+- **O quê:** `.claude/docs/roadmap.md` atualizado via skill `planejar-roadmap` (ciclo de atualização) marcando a Fase 8 como concluída — épico #134, sub-issues #142/#143, branch `docs/134-bandeira-tarifaria-oficial`. Ponteiro "Fase atual" avançado de 8 para 9 (Migração ethernet-ip v1→v2, já detalhada por completo desde o replanejamento de 2026-08-04 — nenhum detalhamento novo necessário).
+- **Nota de fechamento registrada:** spike (#142) concluiu por viabilidade (ADR-0007), então #143 seguiu como planejado, não foi cancelada; fonte real verificada ponta a ponta contra a API da ANEEL durante a implementação; achado que refinou o desenho de #143 em relação ao spike (precisa combinar 2 recursos do dataset, não 1); decisão de histórico em tabela própria (`TariffFlagHistory`) em vez de reaproveitar o `AuditLog`; e a expansão de escopo pedida pelo usuário depois de #143 fechada — bandeira real também na Landing/Login, exigindo tornar `GET /api/tariff-flag` público (decisão perguntada antes de implementar).
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova — a nota de fechamento só documenta decisões já tomadas e registradas nas entradas de changelog das sub-issues (ADR-0007 já existia).
+- **Notas:** nenhum item novo para `07-decisoes-em-aberto.md`. Fase 9 já estava totalmente detalhada no roadmap (replanejamento de 2026-08-04), então o ciclo de atualização não precisou promover nada de nível-objetivo para itens completos.
