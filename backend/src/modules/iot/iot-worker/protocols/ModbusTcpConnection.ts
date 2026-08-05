@@ -227,7 +227,8 @@ export class ModbusRtuConnection implements IConnection {
 // EtherNet/IP e o protocolo da Rockwell/Allen-Bradley para PLCs industriais.
 // Roda sobre TCP/IP e usa o protocolo CIP (Common Industrial Protocol).
 //
-// Dependencia: npm install ethernet-ip
+// Dependencia: npm install ethernet-ip (API v2 — classe PLC, plc.connect(host,
+// {slot}), plc.read(tag), plc.disconnect() assincrono)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface EthernetIpConnectionConfig {
@@ -241,7 +242,7 @@ export interface EthernetIpConnectionConfig {
 export class EthernetIpConnection implements IConnection {
     readonly meterId: string
 
-    private plc: unknown = null
+    private plc: import("ethernet-ip").PLC | null = null
     private connected = false
     private pollingTimer: ReturnType<typeof setInterval> | null = null
     private dataHandler: ((data: Record<string, unknown>) => void) | null = null
@@ -257,15 +258,10 @@ export class EthernetIpConnection implements IConnection {
             return
         }
 
-        const { Controller } = await import("ethernet-ip")
+        const { PLC } = await import("ethernet-ip")
 
-        this.plc = new Controller()
-        const plc = this.plc as {
-            connect: (host: string, slot?: number) => Promise<void>
-            destroy: () => void
-        }
-
-        await plc.connect(this.config.host, 0)
+        this.plc = new PLC()
+        await this.plc.connect(this.config.host, { slot: 0 })
         this.connected = true
         this._startPolling()
     }
@@ -280,11 +276,8 @@ export class EthernetIpConnection implements IConnection {
             }
 
             try {
-                const plc = this.plc as {
-                    readTag: (tag: string) => Promise<{ value: unknown }>
-                }
-                const result = await plc.readTag(tag)
-                this.dataHandler({ tag, value: result.value, timestamp: new Date().toISOString() })
+                const value = await this.plc.read(tag)
+                this.dataHandler({ tag, value, timestamp: new Date().toISOString() })
             } catch (err) {
                 logger.error({ module: "EthernetIP", meterId: this.meterId, err }, "Erro na leitura")
             }
@@ -301,8 +294,7 @@ export class EthernetIpConnection implements IConnection {
             this.pollingTimer = null
         }
 
-        const plc = this.plc as { destroy: () => void }
-        plc.destroy()
+        await this.plc?.disconnect()
         this.connected = false
         this.plc = null
     }

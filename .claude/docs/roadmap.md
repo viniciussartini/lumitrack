@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-05 · Fase atual: 9 (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104; Fase 3 concluída — épico #110, PR #112; Fase 4 concluída — épico #114, PR #124; Fase 5 concluída — épico #128, PR #131; Fase 6 concluída — épico #132, PR ainda não aberto; Fase 7 concluída — épico #133, PR ainda não aberto; Fase 8 concluída — épico #134, PR ainda não aberto)
+> Última atualização: 2026-08-05 · Fase atual: nenhuma planejada (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104; Fase 3 concluída — épico #110, PR #112; Fase 4 concluída — épico #114, PR #124; Fase 5 concluída — épico #128, PR #131; Fase 6 concluída — épico #132, PR ainda não aberto; Fase 7 concluída — épico #133, PR ainda não aberto; Fase 8 concluída — épico #134, PR #146; Fase 9 concluída — issue #127, PR ainda não aberto) — ver "Fases seguintes" abaixo
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). A partir da Fase 6 o escopo se amplia: fidelidade ao handoff no chrome do app, consistência entre telas públicas, integração externa e dívida técnica de backend.
 
@@ -16,8 +16,8 @@
 | 5 | Landing pública (tela nova) + Simulador IoT (restyle) | **Concluída** (#129–#130, épico #128, PR #131) |
 | 6 | Shell do app autenticado (Sidebar + Header conforme handoff) + "Sobre o projeto" | **Concluída** (#135–#137, épico #132, PR ainda não aberto) |
 | 7 | Consistência das telas públicas (autenticação, Landing, LGPD) | **Concluída** (#138–#141, épico #133, PR ainda não aberto) |
-| 8 | Bandeira tarifária a partir da fonte oficial (spike → ADR → integração condicional) | **Concluída** (#142–#143, épico #134, PR ainda não aberto) |
-| 9 | Migração ethernet-ip v1→v2 no backend (dívida técnica) | Planejada — **fase atual**, detalhe abaixo (era Fase 6; renumerada em 2026-08-04, ver justificativas) |
+| 8 | Bandeira tarifária a partir da fonte oficial (spike → ADR → integração condicional) | **Concluída** (#142–#143, épico #134, PR #146) |
+| 9 | Migração ethernet-ip v1→v2 no backend (dívida técnica) | **Concluída** (#127, PR ainda não aberto) |
 
 ## Fase 1 — Fundação Industry + Autenticação
 
@@ -369,6 +369,17 @@ Restyle de `PropertiesPage`/`PropertyDetailsPage`/`AreaDetailsPage`/`DeviceDetai
   - Só depois de tudo acima verde: mesclar o bump de versão (pode reabrir o #51 já resolvido, ou o dependabot reabre um PR novo apontando pra mesma versão).
 - **Depende de:** —
 - **Risco/observações:** médio-alto — reescrita de API completa (não é find-and-replace), em código que fala com hardware industrial real (PLC via EtherNet/IP); sem cobertura de teste de hardware real no CI hoje, o risco de regressão silenciosa é o mesmo padrão que permitiu o CI verde mentiroso no PR original — mitigar com o teste de import real acima antes de considerar a fase concluída.
+
+**Fechamento (2026-08-05):** entregue na única issue planejada (#127), sem épico (item isolado, um épico contendo uma única sub-issue não agregaria nada — decisão já registrada no replanejamento de 2026-08-04), branch `chore/127-migracao-ethernet-ip-v2`. Todos os critérios de aceite atendidos sem redução de escopo:
+
+- **API real verificada, não migrada às cegas pelo changelog do PR:** o pacote `ethernet-ip@2.0.0` foi instalado num diretório à parte e os `.d.ts` nativos publicados foram lidos diretamente — a v2 ganhou tipos TypeScript nativos, então a superfície documentada abaixo é a real, não inferida.
+- **Causa raiz do CI verde mentiroso do PR #51 corrigida na origem:** `EthernetIpConnection` usava `import()` dinâmico, então o TypeScript nunca via a divergência entre a declaração de módulo manual (`ethernet-ip.d.ts`, ainda descrevendo a API v1 — `Controller`/`readTag`) e o pacote real. A declaração manual foi removida (a v2 tem tipos nativos) e a classe reescrita para `PLC`/`connect(host, {slot})`/`read`/`disconnect` assíncrono, agora tipada de verdade em vez de `unknown` + cast.
+- **Lacuna de teste fechada:** não havia nenhum teste em `protocols/` até então. O teste novo (`ModbusTcpConnection.test.ts`) exercita o `import("ethernet-ip")` **real**, não mockado — conecta contra a porta fixa da lib (`44818`) sem nada escutando e afirma que o erro recebido é uma recusa de conexão, não um `TypeError` de API incompatível. É exatamente a classe de regressão que passou pelo CI no PR #51 apesar de quebrar em runtime.
+- **Decisão de escopo registrada:** avaliado usar `MockTransport` (disponível na v2 para injeção de dependência) em vez de conectar contra uma porta fechada; descartado por exigir reconstruir bytes de protocolo CIP reais sem ganho de cobertura adicional para o que a issue pedia.
+- **PR #51 (dependabot) superado, não mesclado diretamente:** o bump de versão que ele propunha já está incluído nesta branch (junto com a migração de código); a descrição do PR desta issue usa `closes #51` para fechá-lo automaticamente no merge, em vez de mesclá-lo à parte.
+- **Estado final:** `EthernetIpConnection` sobre `ethernet-ip` 2.0.0, sem regressão observável na ingestão via EtherNet/IP (RF09, RF10); `npm run build`/`lint`/`test` do backend limpos (125/125 arquivos · 1457/1457 testes, suíte completa); `npm audit --omit=dev` sem vulnerabilidades. `npx dependency-cruiser src` não pôde rodar — sem config no repo, gap pré-existente, não introduzido por esta fase.
+
+Com a Fase 9 concluída, o roadmap não tem fase planejada em seguida — ver "Fases seguintes" abaixo.
 
 ## Fases seguintes (menos detalhadas — serão refinadas ao chegar)
 
