@@ -1,6 +1,5 @@
 import { Home, AlertCircle } from "lucide-react"
 import { Link } from "react-router"
-import { useAuth } from "@/contexts/AuthContext"
 import { useProperties } from "@/hooks/queries/useProperties"
 import { usePropertySelection } from "@/hooks/usePropertySelection"
 import { PropertySelector } from "@/components/dashboard/PropertySelector"
@@ -14,7 +13,9 @@ import { Button } from "@/components/ui/Button"
  * Painel (`/dashboard`) — épico #114 (Fase 4), bloco `isDashboard` do
  * handoff (`LumiTrack Home.dc.html`, linhas 152-246). O seletor de
  * propriedade fica aqui dentro, não na topbar (o handoff não tem nenhum
- * seletor no header compartilhado) — #115.
+ * seletor no header compartilhado) — #115. O kicker/título "Painel geral/
+ * Olá, {nome}" saiu daqui para o Header (#136) — antes duplicava o mesmo
+ * texto que o Header passou a mostrar.
  *
  * KPIs (Potência agora, Consumo hoje, Custo projetado, Bandeira vigente —
  * #116/#117), gráfico de consumo em tempo real (#116) e card de bandeiras
@@ -36,17 +37,10 @@ import { Button } from "@/components/ui/Button"
 const PROPERTIES_PAGE_SIZE = 31
 
 export const DashboardPage = () => {
-    const { user } = useAuth()
     const propertiesQuery = useProperties(1, PROPERTIES_PAGE_SIZE)
 
     const properties = propertiesQuery.data?.items
     const { selectedId, selectedProperty, selectProperty } = usePropertySelection(properties)
-
-    const greeting = user?.firstName
-        ? `Olá, ${user.firstName}!`
-        : user?.companyName
-            ? `Olá, ${user.tradeName ?? user.companyName}!`
-            : "Olá!"
 
     const isLoading = propertiesQuery.isLoading
     const isError = propertiesQuery.isError
@@ -55,15 +49,6 @@ export const DashboardPage = () => {
 
     return (
         <div className="flex flex-col gap-6">
-            <div>
-                <span className="font-heading text-accent-700 block text-xs font-semibold tracking-[.08em] uppercase">
-                    Seu painel
-                </span>
-                <h1 className="font-heading mt-2 text-[clamp(22px,2.4vw,30px)] leading-[1.05] font-semibold uppercase">
-                    {greeting}
-                </h1>
-            </div>
-
             {isLoading && <DashboardSkeleton />}
 
             {!isLoading && isError && (

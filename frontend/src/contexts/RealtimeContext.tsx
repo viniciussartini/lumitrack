@@ -16,10 +16,18 @@ import type { Notification } from "@/types/notification.types"
 interface RealtimeContextValue {
     /** Última leitura elétrica recebida por medidor (`reading`, SSE). */
     readingsByMeterId: Record<string, ReadingPayload>
+    /**
+     * Conexão SSE aberta agora? Consumido pelo badge "Dados ao vivo" do
+     * Header (issue #136) — decisão do usuário (2026-08-04): o badge só
+     * existe quando isto é `true`; nunca fica pintado fixo, porque um
+     * badge "ao vivo" com o stream caído mente sobre a frescura do dado.
+     */
+    isConnected: boolean
 }
 
 const RealtimeContext = createContext<RealtimeContextValue>({
     readingsByMeterId: {},
+    isConnected: false,
 })
 
 interface RealtimeProviderProps {
@@ -37,7 +45,12 @@ interface RealtimeProviderProps {
  *     resolve status/target; SSE só avisa "algo mudou, refaça a query").
  *   - `notification` → escreve direto no cache de `notifications.list`
  *     (evita esperar um refetch) e dispara toast com ação de navegação.
- *   - `connected`    → no-op (reservado para indicador visual futuro).
+ *
+ * `isConnected` reflete o estado real do transporte, não um evento
+ * específico: fica `true` quando `onOpen` dispara (handshake SSE
+ * concluído) e `false` em qualquer `onError` — a lib do `fetch-event-source`
+ * reconecta sozinha em erros não-fatais, então "false" aqui já cobre tanto
+ * a queda quanto a janela de retry, sem precisar de um estado à parte.
  *
  * Montado uma única vez no `AppShell`, acima do Header e do conteúdo —
  * tanto `NotificationDropdown`/`WarningBadge` quanto `MeterSection`
@@ -50,11 +63,19 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
     const [readingsByMeterId, setReadingsByMeterId] = useState<
         Record<string, ReadingPayload>
     >({})
+    const [isConnected, setIsConnected] = useState(false)
 
     useEffect(() => {
+        // Nada a fazer sem sessão — `isConnected` já começa `false`
+        // (useState inicial) e, se veio de uma sessão conectada, o cleanup
+        // do efeito anterior (abaixo) já zerou antes deste corpo rodar.
         if (!isAuthenticated || !user) return
 
         const cleanup = createAppStream({
+            onOpen: () => {
+                setIsConnected(true)
+            },
+
             onReading: (reading) => {
                 setReadingsByMeterId((prev) => ({
                     ...prev,
@@ -90,6 +111,7 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
                 // Erros de SSE são esperados (rede instável, backend
                 // reinicia) — a lib reconecta sozinha. Não vale a pena
                 // um toast ruidoso; só logamos em dev.
+                setIsConnected(false)
                 if (import.meta.env.DEV) {
                     console.warn("[RealtimeContext] SSE error:", error)
                 }
@@ -99,12 +121,13 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
         return () => {
             cleanup()
             setReadingsByMeterId({})
+            setIsConnected(false)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id, isAuthenticated])
 
     return (
-        <RealtimeContext.Provider value={{ readingsByMeterId }}>
+        <RealtimeContext.Provider value={{ readingsByMeterId, isConnected }}>
             {children}
         </RealtimeContext.Provider>
     )

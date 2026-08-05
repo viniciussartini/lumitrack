@@ -53,18 +53,6 @@ export const PropertiesPage = () => {
 
     return (
         <div className="flex flex-col gap-6">
-            {/* Header da página — kicker + h1 locais (AppShell ainda não tem
-                um slot de título compartilhado; cada página segue mantendo
-                o próprio, como já era antes desta restilização). */}
-            <div>
-                <span className="font-heading text-accent-700 block text-xs font-semibold tracking-[.08em] uppercase">
-                    Suas unidades
-                </span>
-                <h1 className="font-heading mt-2 text-[clamp(22px,2.4vw,30px)] leading-[1.05] font-semibold uppercase">
-                    Propriedades
-                </h1>
-            </div>
-
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-muted m-0 text-sm">
                     Gerencie as propriedades vinculadas à sua conta.

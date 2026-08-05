@@ -1,6 +1,9 @@
 import { NavLink } from "react-router"
-import { Zap, X } from "lucide-react"
+import { X } from "lucide-react"
 import { NAV_ITEMS } from "@/config/navigation"
+import { LumiTrackWordmark } from "@/components/ui/LumiTrackWordmark"
+import { UserMenu } from "@/components/layout/UserMenu"
+import { ThemeToggle } from "@/components/ui/ThemeToggle"
 import { cn } from "@/lib/cn"
 
 interface SidebarProps {
@@ -10,8 +13,13 @@ interface SidebarProps {
     onClose: () => void
 }
 
+/** Divisor sutil sobre o fundo sempre-escuro da sidebar (--color-accent-900)
+ *  — cor literal, não token: mesmo raciocínio do BrandPanel.tsx (painel
+ *  sempre-escuro, independente do tema claro/escuro do resto do app). */
+const SIDEBAR_DIVIDER = { borderColor: "color-mix(in srgb, #fff 12%, transparent)" }
+
 /**
- * Sidebar com nav vertical.
+ * Sidebar com nav vertical — LumiTrack Home.dc.html, linhas 61-77.
  *
  * Mobile (< md):
  *   - Off-canvas: fixed inset-y-0 left-0, fora da tela por padrão
@@ -40,9 +48,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => (
             aria-label="Navegação principal"
             className={cn(
                 // Layout base
-                "fixed inset-y-0 left-0 z-40 flex w-64 flex-col",
-                "border-r border-slate-200 bg-white",
-                "dark:border-slate-800 dark:bg-slate-900",
+                "bg-accent-900 fixed inset-y-0 left-0 z-40 flex w-64 flex-col",
                 // Animação de slide em mobile
                 "transition-transform duration-200 ease-out",
                 isOpen ? "translate-x-0" : "-translate-x-full",
@@ -51,59 +57,50 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => (
             )}
         >
             {/* Cabeçalho da sidebar — logo + close (mobile only) */}
-            <div className="flex h-16 items-center justify-between border-b border-slate-200 px-4 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-brand-500">
-                        <Zap className="h-5 w-5 text-white" aria-hidden="true" />
-                    </div>
-                    <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                        LumiTrack
-                    </span>
-                </div>
+            <div
+                className="flex items-center justify-between gap-2.5 border-b px-[18px] pb-[18px] pt-[22px]"
+                style={SIDEBAR_DIVIDER}
+            >
+                <LumiTrackWordmark textClassName="text-[19px]" />
 
                 {/* Botão fechar — só em mobile */}
                 <button
                     type="button"
                     onClick={onClose}
                     aria-label="Fechar menu"
-                    className={cn(
-                        "inline-flex h-8 w-8 items-center justify-center rounded-md md:hidden",
-                        "text-slate-600 hover:bg-slate-100",
-                        "dark:text-slate-300 dark:hover:bg-slate-800",
-                    )}
+                    className="inline-flex h-8 w-8 items-center justify-center text-[#d7e0ea] hover:bg-white/6 md:hidden"
                 >
-                    <X className="h-5 w-5" aria-hidden="true" />
+                    <X className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
                 </button>
             </div>
 
             {/* Lista de links */}
-            <nav className="flex-1 overflow-y-auto px-3 py-4">
-                <ul className="flex flex-col gap-1">
-                    {NAV_ITEMS.map((item) => {
-                        const Icon = item.icon
-                        return (
-                            <li key={item.to}>
-                                <NavLink
-                                    to={item.to}
-                                    end
-                                    className={({ isActive }) =>
-                                        cn(
-                                            "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium",
-                                            "transition-colors",
-                                            isActive
-                                                ? "bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-500"
-                                                : "text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800",
-                                        )
-                                    }
-                                >
-                                    <Icon className="h-5 w-5" aria-hidden="true" />
-                                    <span>{item.label}</span>
-                                </NavLink>
-                            </li>
-                        )
-                    })}
-                </ul>
+            <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto py-3.5">
+                {NAV_ITEMS.map((item) => {
+                    const Icon = item.icon
+                    return (
+                        <NavLink key={item.to} to={item.to} end className="lt-navitem">
+                            <Icon
+                                className="h-[17px] w-[17px] shrink-0"
+                                strokeWidth={1.5}
+                                aria-hidden="true"
+                            />
+                            <span>{item.label}</span>
+                        </NavLink>
+                    )
+                })}
             </nav>
+
+            {/* Rodapé — identidade do usuário (trigger do UserMenu) + tema */}
+            <div
+                className="flex items-center gap-[11px] border-t p-3.5"
+                style={SIDEBAR_DIVIDER}
+            >
+                <div className="min-w-0 flex-1">
+                    <UserMenu variant="sidebar" />
+                </div>
+                <ThemeToggle className="shrink-0 border border-white/26 text-[#d7e0ea] hover:bg-white/6" />
+            </div>
         </aside>
     </>
 )

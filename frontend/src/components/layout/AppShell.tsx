@@ -56,7 +56,7 @@ export const AppShell = () => {
 
     return (
         <RealtimeProvider>
-            <div className="flex h-screen bg-slate-50 dark:bg-slate-950">
+            <div className="bg-bg flex h-screen">
                 <div className="print-hide contents">
                     <Sidebar
                         isOpen={isSidebarOpen}

@@ -147,7 +147,7 @@ test.describe("SSE — RealtimeContext (reading, alert-firing, notification)", (
         await expect(page.getByText(/sem leitura recente/i)).toBeVisible()
     })
 
-    test("sem alertas em disparo, o WarningBadge não é renderizado", async ({
+    test("sem alertas em disparo, o WarningBadge fica visível sem contador", async ({
         page,
     }) => {
         await setupAuthAndProperty(page)
@@ -159,12 +159,15 @@ test.describe("SSE — RealtimeContext (reading, alert-firing, notification)", (
         await page.goto("/propriedades/prop-1")
         await hideDevTools(page)
 
-        // Sanity de que a página terminou de montar antes de checar a
-        // ausência do badge (o card do medidor é o sinal mais confiável).
+        // Sanity de que a página terminou de montar antes de checar o
+        // estado do badge (o card do medidor é o sinal mais confiável).
         await expect(page.getByTestId("meter-connection-card")).toBeVisible()
-        // O componente retorna null quando não há disparo — nem sequer
-        // renderiza, não é um badge com contagem 0.
-        await expect(page.getByTestId("warning-badge")).toHaveCount(0)
+        // O ícone é chrome persistente do Header (LumiTrack Home.dc.html,
+        // linhas 90-93) — sempre visível; só o contador some quando não há
+        // disparo.
+        await expect(page.getByTestId("warning-badge")).toBeVisible()
+        await expect(page.getByTestId("warning-badge")).toHaveAttribute("data-count", "0")
+        await expect(page.getByTestId("warning-badge-count")).toHaveCount(0)
     })
 
     test("alert-firing dispara o WarningBadge com a contagem certa", async ({

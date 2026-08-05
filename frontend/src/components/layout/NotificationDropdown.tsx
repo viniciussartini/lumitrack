@@ -6,7 +6,6 @@ import {
     useNotifications,
 } from "@/hooks/queries/useNotifications"
 import { useClickOutside } from "@/lib/hooks/useClickOutside"
-import { cn } from "@/lib/cn"
 import type { Notification } from "@/types/notification.types"
 
 const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
@@ -72,24 +71,12 @@ export const NotificationDropdown = () => {
                 }
                 data-testid="notification-bell"
                 data-count={count}
-                className={cn(
-                    "relative inline-flex h-9 w-9 items-center justify-center rounded-md",
-                    "text-slate-700 hover:bg-slate-100",
-                    "dark:text-slate-200 dark:hover:bg-slate-800",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2",
-                    "dark:focus-visible:ring-offset-slate-950",
-                )}
+                title="Notificações"
+                className="lt-iconbtn"
             >
-                <Bell className="h-5 w-5" aria-hidden="true" />
+                <Bell className="h-[18px] w-[18px]" strokeWidth={1.5} aria-hidden="true" />
                 {count > 0 && (
-                    <span
-                        data-testid="notification-bell-count"
-                        className={cn(
-                            "absolute -right-0.5 -top-0.5 inline-flex min-w-4.5 items-center justify-center",
-                            "rounded-full bg-red-500 px-1 text-[0.625rem] font-semibold leading-none text-white",
-                            "ring-2 ring-white dark:ring-slate-900",
-                        )}
-                    >
+                    <span data-testid="notification-bell-count" className="lt-iconbtn-badge">
                         {badgeLabel}
                     </span>
                 )}
@@ -100,55 +87,41 @@ export const NotificationDropdown = () => {
                     role="menu"
                     aria-label="Notificações"
                     data-testid="notification-dropdown"
-                    className={cn(
-                        "absolute right-0 top-full z-40 mt-1 w-80 max-w-[90vw] origin-top-right",
-                        "rounded-md border border-slate-200 bg-white shadow-lg",
-                        "dark:border-slate-800 dark:bg-slate-900",
-                        "max-h-96 overflow-y-auto py-1",
-                    )}
+                    className="lt-menu right-0 top-full mt-1 w-80 max-h-96 overflow-y-auto"
                 >
                     {notifications.length === 0 ? (
-                        <p className="px-3 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                        <p className="text-muted px-4 py-6 text-center text-sm">
                             Nenhuma notificação
                         </p>
                     ) : (
                         notifications.map((notification) => (
                             <div
                                 key={notification.id}
-                                className={cn(
-                                    "flex items-start gap-2 border-b border-slate-100 px-3 py-2 last:border-0",
-                                    "dark:border-slate-800",
-                                )}
+                                className="border-divider flex items-start border-t first:border-t-0"
                             >
                                 <button
                                     type="button"
                                     onClick={() => handleNavigate(notification)}
                                     data-testid={`notification-item-${notification.id}`}
-                                    className={cn(
-                                        "flex-1 rounded-md p-1 text-left text-sm",
-                                        "text-slate-700 hover:bg-slate-100",
-                                        "dark:text-slate-200 dark:hover:bg-slate-800",
-                                    )}
+                                    className="lt-menu-item min-w-0 flex-1 border-t-0"
                                 >
-                                    <p>{notification.message}</p>
-                                    <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
-                                        {dateTimeFormatter.format(
-                                            new Date(notification.createdAt),
-                                        )}
-                                    </p>
+                                    <span className="min-w-0 flex-1 text-left">
+                                        <span className="block">{notification.message}</span>
+                                        <span className="text-muted mt-0.5 block text-xs">
+                                            {dateTimeFormatter.format(
+                                                new Date(notification.createdAt),
+                                            )}
+                                        </span>
+                                    </span>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleDismiss(notification.id)}
                                     aria-label="Marcar como lida"
                                     data-testid={`notification-dismiss-${notification.id}`}
-                                    className={cn(
-                                        "shrink-0 rounded-md p-1.5 text-slate-400",
-                                        "hover:bg-slate-100 hover:text-slate-700",
-                                        "dark:hover:bg-slate-800 dark:hover:text-slate-200",
-                                    )}
+                                    className="btn btn-ghost btn-icon my-1 mr-1 shrink-0"
                                 >
-                                    <Check className="h-4 w-4" aria-hidden="true" />
+                                    <Check className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
                                 </button>
                             </div>
                         ))

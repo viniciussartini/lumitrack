@@ -109,15 +109,11 @@ beforeEach(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("PropertiesPage — header", () => {
-    it("renderiza título e botão de nova propriedade", async () => {
+    it("renderiza o botão de nova propriedade", async () => {
         vi.mocked(propertyService.list).mockResolvedValue(paginated([]))
         vi.mocked(distributorService.list).mockResolvedValue(paginated([]))
 
         renderPage()
-
-        expect(
-            screen.getByRole("heading", { name: /propriedades/i, level: 1 }),
-        ).toBeInTheDocument()
 
         expect(
             await screen.findByRole("button", { name: /nova propriedade/i }),

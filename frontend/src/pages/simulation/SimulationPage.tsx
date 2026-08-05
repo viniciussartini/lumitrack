@@ -8,7 +8,6 @@ import { PlaceholderPage } from "@/components/PlaceHolderPage"
  */
 export const SimulationPage = () => (
     <PlaceholderPage
-        title="Simulação"
         description="Em breve você poderá simular o custo de consumo de energia antes de gastar — por potência e uso diário, ou por kWh direto."
         icon={Calculator}
     />

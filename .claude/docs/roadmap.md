@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-04 · Fase atual: 6 (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104; Fase 3 concluída — épico #110, PR #112; Fase 4 concluída — épico #114, PR #124; Fase 5 concluída — épico #128, PR #131)
+> Última atualização: 2026-08-04 · Fase atual: 7 (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104; Fase 3 concluída — épico #110, PR #112; Fase 4 concluída — épico #114, PR #124; Fase 5 concluída — épico #128, PR #131; Fase 6 concluída — épico #132, PR ainda não aberto)
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). A partir da Fase 6 o escopo se amplia: fidelidade ao handoff no chrome do app, consistência entre telas públicas, integração externa e dívida técnica de backend.
 
@@ -14,8 +14,8 @@
 | 3 | Alertas, Distribuidoras, Segurança/MFA restilizados | **Concluída** (#107–#109, #111, #113, épico #110, PR #112) |
 | 4 | Painel (feature nova) + Perfil (tela nova) | **Concluída** (#115–#120, épico #114, PR #124) |
 | 5 | Landing pública (tela nova) + Simulador IoT (restyle) | **Concluída** (#129–#130, épico #128, PR #131) |
-| 6 | Shell do app autenticado (Sidebar + Header conforme handoff) + "Sobre o projeto" | Planejada — **fase atual**, detalhe abaixo |
-| 7 | Consistência das telas públicas (autenticação, Landing, LGPD) | Planejada — detalhe abaixo |
+| 6 | Shell do app autenticado (Sidebar + Header conforme handoff) + "Sobre o projeto" | **Concluída** (#135–#137, épico #132, PR ainda não aberto) |
+| 7 | Consistência das telas públicas (autenticação, Landing, LGPD) | Planejada — **fase atual**, detalhe abaixo |
 | 8 | Bandeira tarifária a partir da fonte oficial (spike → ADR → integração condicional) | Planejada — detalhe abaixo |
 | 9 | Migração ethernet-ip v1→v2 no backend (dívida técnica) | Planejada — detalhe abaixo (era Fase 6; renumerada em 2026-08-04, ver justificativas) |
 
@@ -246,6 +246,14 @@ Restyle de `PropertiesPage`/`PropertyDetailsPage`/`AreaDetailsPage`/`DeviceDetai
   - **Ícone do GitHub:** `lucide-react` (1.28) **não tem** ícone de marca — foram removidos da biblioteca. O logo é um SVG inline local, mesmo padrão que `iot-simulator/ui/src/components/ui/icons.tsx` já adotou na Fase 5. O mesmo componente é reaproveitado pelos itens da Fase 7 (Landing e painéis de autenticação) — construir aqui como compartilhável, não local desta página.
 - **Depende de:** Sidebar conforme o handoff (o item de nav vem de lá).
 - **Risco/observações:** baixo tecnicamente (página estática, sem estado nem API), mas é o **único item do roadmap sem handoff de design** — a versão provisória fica devendo até um export do Claude Design cobrir a tela, e a `auditoria-qualidade` vai reportar o `TODO(design)` até lá. Isso é intencional, não esquecimento.
+
+**Fechamento (2026-08-04):** entregue nas 3 sub-issues planejadas (#135 Sidebar, #136 Header, #137 Sobre o projeto), épico #132, branch `feat/132-shell-app-autenticado` (renomeada no meio do trabalho — a implementação de #135/#136 começou por engano em `feat/135-sidebar-industry`, nomeada pra uma sub-issue em vez do épico; a branch certa foi criada, os commits migrados, e a antiga apagada local e remotamente antes de #137). Um commit de correção adicional (`4a31945`) fecha a fase, fora das 3 sub-issues originais. Nenhuma redução de escopo — um achado durante #136 **expandiu** o escopo pontualmente, com aprovação do usuário:
+
+- **Achado que expandiu o escopo (#136):** o handoff usa `<h1>` para o título do Header, mas 5 páginas (`DashboardPage`, `PropertiesPage`, `DistributorsPage`, `AlertsPage`, `SecurityPage`) já renderizavam seu próprio kicker+`<h1>` local com o **mesmo texto** — resíduo de antes do Header ganhar título contextual (`PropertiesPage.tsx` chegou a comentar isso no código: "AppShell ainda não tem um slot de título compartilhado"). Dois `<h1>` idênticos na mesma tela quebrava `getByRole("heading", {level:1})` em vários E2E (`distributors.spec.ts`, `properties.spec.ts`, `alerts.spec.ts`) e duplicava a heading landmark para leitor de tela. Perguntado ao usuário durante a execução: removidos os kicker+h1 redundantes das 5 páginas — o Header passou a ser a única fonte do título. `ReportsPage.tsx` e `PlaceholderPage.tsx` (usado só por `SimulationPage`) tinham o mesmo problema com h1 pré-Industry — removido também, resto das duas páginas **intocado** (nenhuma tem handoff Industry ainda, fora do escopo desta fase).
+- **Adaptação registrada em #137 (não seguiu a issue ao pé da letra):** a issue sugeria reaproveitar "o padrão visual da página LGPD" (kicker+título local) para "Sobre o projeto". Como `/sobre` fica **dentro** do `AppShell` — o Header já mostra o título contextual dela —, reproduzir um kicker+h1 local reabriria o mesmo bug do achado acima. A página LGPD precisa do próprio cabeçalho porque fica **fora** do `AppShell` (sem chrome compartilhado); não é o caso aqui.
+- **Reaproveitamento em vez de duplicação (#137):** `LegalDocumentPage.tsx` tinha ~40 linhas de mapeamento markdown→Industry e a função `slugify` só para si — promovidos para módulos compartilhados (`lib/markdown/industryMarkdownComponents.tsx`, `lib/slugify.ts`) quando `AboutPage` virou o 2º consumidor real, mesmo critério de promoção já usado em `getDisplayInfo`/`useLiveMeterReading`.
+- **Bug achado pelo usuário testando manualmente, pós-#136:** o ícone de alertas do Header (`WarningBadge`) sumia inteiro quando não havia alerta disparando — o componente preservou por engano o `return null` da versão antiga (Fase 5) ao virar `.lt-iconbtn`; no handoff o ícone é chrome persistente (como o sino de notificações), só o contador é condicional. Corrigido em commit separado, incluindo o E2E que documentava o comportamento antigo como intencional.
+- **Estado final:** nenhum token pré-Industry restante em `Sidebar.tsx`/`Header.tsx`/`AppShell.tsx`; `UserMenu`/`ThemeToggle` vivem só no rodapé da Sidebar; Sidebar com os 7 itens do handoff + Segurança, logout preservado; título contextual de fonte única (`config/pageTitles.ts`); drawer mobile intacto; `npm run build`/`lint`/`test` do frontend limpos (67/67 arquivos · 583/583 testes); `.claude/log/CHANGELOG.md` com uma entrada por sub-issue fechada mais o fix.
 
 ## Fase 7 — Consistência das telas públicas
 
