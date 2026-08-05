@@ -10,6 +10,9 @@ import { MfaCodeForm } from "@/components/auth/MfaCodeForm"
 import { DEMO_USERS } from "@/config/demoUsers"
 import { AUTH_LAYOUT_GRID_CLASS, BrandPanel } from "@/components/auth/BrandPanel"
 import { useLiveTicker } from "@/hooks/useLiveTicker"
+import { useTariffFlag } from "@/hooks/queries/useTariffFlag"
+import { TARIFF_FLAG_DARK_DOT_COLOR, TARIFF_FLAG_DARK_TEXT_CLASS, TARIFF_FLAG_LABELS } from "@/types/tariff-flag.types"
+import { cn } from "@/lib/cn"
 
 interface LocationState {
     from?: { pathname: string }
@@ -23,6 +26,7 @@ export const LoginPage = () => {
     const location = useLocation()
     const { login, completeMfaLogin } = useAuth()
     const { kwh } = useLiveTicker()
+    const { data: tariffFlag } = useTariffFlag()
     const isDemoModeEnabled = import.meta.env.VITE_DEMO_MODE === "true"
     const [serverError, setServerError] = useState<string | null>(null)
     // Preenchido quando o backend responde `mfaRequired:true` — enquanto
@@ -101,9 +105,10 @@ export const LoginPage = () => {
                     // "Ao vivo" anima via useLiveTicker (hooks/useLiveTicker.ts,
                     // compartilhado com a Landing) — número ilustrativo, não é
                     // dado real (não há sessão/medidor antes do login). Bandeira
-                    // permanece fixa, fiel a LumiTrack Login.dc.html; pedido
-                    // explícito do usuário após reverter a omissão original
-                    // desta seção.
+                    // vem de GET /api/tariff-flag (leitura pública desde
+                    // #143/ADR-0007) — enquanto carrega ou em erro, o box
+                    // simplesmente não aparece (sem chutar uma bandeira que
+                    // pode não ser a real).
                     <div className="mt-7 flex flex-wrap gap-3.5">
                         <div className="min-w-[120px] border border-white/22 px-[18px] py-3.5">
                             <div className="font-heading flex items-center gap-[7px] text-[11px] leading-none font-semibold tracking-[.08em] text-[#e6ecf2]/66 uppercase">
@@ -121,15 +126,25 @@ export const LoginPage = () => {
                                 <span className="ml-1 text-sm text-[#e6ecf2]/60">kW</span>
                             </div>
                         </div>
-                        <div className="min-w-[120px] border border-white/22 px-[18px] py-3.5">
-                            <div className="font-heading text-[11px] leading-none font-semibold tracking-[.08em] text-[#e6ecf2]/66 uppercase">
-                                Bandeira
+                        {tariffFlag && (
+                            <div className="min-w-[120px] border border-white/22 px-[18px] py-3.5">
+                                <div className="font-heading text-[11px] leading-none font-semibold tracking-[.08em] text-[#e6ecf2]/66 uppercase">
+                                    Bandeira
+                                </div>
+                                <div
+                                    className={cn(
+                                        "font-heading mt-3 flex items-center gap-[7px] text-xl leading-none font-semibold",
+                                        TARIFF_FLAG_DARK_TEXT_CLASS[tariffFlag.currentFlag],
+                                    )}
+                                >
+                                    <span
+                                        className="h-[9px] w-[9px] rounded-full"
+                                        style={{ background: TARIFF_FLAG_DARK_DOT_COLOR[tariffFlag.currentFlag] }}
+                                    />
+                                    {TARIFF_FLAG_LABELS[tariffFlag.currentFlag]}
+                                </div>
                             </div>
-                            <div className="font-heading mt-3 flex items-center gap-[7px] text-xl leading-none font-semibold text-[#8fd0a0]">
-                                <span className="h-[9px] w-[9px] rounded-full bg-[#3f8f52]" />
-                                Verde
-                            </div>
-                        </div>
+                        )}
                     </div>
                 }
             />

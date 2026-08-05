@@ -1,22 +1,17 @@
 import { Blueprint } from "@/components/ui/Blueprint"
 import { useTariffFlag } from "@/hooks/queries/useTariffFlag"
-import { formatBrl } from "@/lib/format"
 import {
     TARIFF_FLAG_BG_CLASS,
     TARIFF_FLAG_BORDER_CLASS,
     TARIFF_FLAG_LABELS,
     TARIFF_FLAG_ORDER,
     TARIFF_FLAG_TEXT_CLASS,
+    formatTariffFlagNote,
     tariffFlagPer100Kwh,
     type TariffFlag,
     type TariffFlagConfig,
 } from "@/types/tariff-flag.types"
 import { cn } from "@/lib/cn"
-
-/** "sem acréscimo" (valor 0) ou "+ R$ X / 100 kWh" — sempre a partir do
- * valor REAL da API, nunca dos números de exemplo do handoff. */
-const formatFlagNote = (per100Kwh: number): string =>
-    per100Kwh === 0 ? "sem acréscimo" : `+ ${formatBrl(per100Kwh)} / 100 kWh`
 
 /**
  * Card "Bandeiras tarifárias" (bloco `isDashboard` do handoff, linhas
@@ -104,7 +99,7 @@ const TariffFlagRow = ({ flag, config }: TariffFlagRowProps) => {
                 <div>
                     <p className="text-[13.5px] font-semibold">{TARIFF_FLAG_LABELS[flag]}</p>
                     <p className="text-muted text-xs">
-                        {formatFlagNote(tariffFlagPer100Kwh(config, flag))}
+                        {formatTariffFlagNote(tariffFlagPer100Kwh(config, flag))}
                     </p>
                 </div>
             </div>

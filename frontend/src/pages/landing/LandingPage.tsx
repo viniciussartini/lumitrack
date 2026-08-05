@@ -5,6 +5,15 @@ import { Button } from "@/components/ui/Button"
 import { Tag } from "@/components/ui/Tag"
 import { useLiveTicker } from "@/hooks/useLiveTicker"
 import { GITHUB_REPO_URL, GitHubIcon } from "@/components/ui/GitHubIcon"
+import { useTariffFlag } from "@/hooks/queries/useTariffFlag"
+import {
+    TARIFF_FLAG_BORDER_CLASS,
+    TARIFF_FLAG_LABELS,
+    TARIFF_FLAG_TEXT_CLASS,
+    formatTariffFlagNote,
+    tariffFlagPer100Kwh,
+} from "@/types/tariff-flag.types"
+import { cn } from "@/lib/cn"
 
 /**
  * Landing pública (rota `/`) — sub-issue #129 do épico #128 (Fase 5).
@@ -141,9 +150,14 @@ const numberFormatter = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 
 /**
  * Painel "ao vivo" do hero — números variando via `useLiveTicker`
  * (`hooks/useLiveTicker.ts`, compartilhado com o painel de marca do Login).
+ * A bandeira, diferente do kW/custo, não é mock: vem de `GET /api/tariff-flag`
+ * (leitura pública desde #143/ADR-0007) — enquanto carrega ou em erro, a
+ * tag simplesmente não aparece (sem chutar uma bandeira que pode não ser a
+ * real).
  */
 const LandingLivePanel = () => {
     const { kwh, cost } = useLiveTicker()
+    const { data: tariffFlag } = useTariffFlag()
 
     return (
         <Blueprint className="p-0" data-testid="landing-live-panel">
@@ -185,13 +199,24 @@ const LandingLivePanel = () => {
                 </div>
                 <LiveAreaChart />
             </div>
-            <div className="flex items-center justify-between px-[18px] py-3.5">
-                <Tag variant="outline" className="text-status-success border-status-success gap-[7px] font-semibold">
-                    <span className="bg-status-success h-2 w-2 rounded-full" />
-                    Bandeira Verde
-                </Tag>
-                <span className="text-text/60 text-xs font-features-['tnum'_1]">sem acréscimo</span>
-            </div>
+            {tariffFlag && (
+                <div className="flex items-center justify-between px-[18px] py-3.5">
+                    <Tag
+                        variant="outline"
+                        className={cn(
+                            "gap-[7px] font-semibold",
+                            TARIFF_FLAG_TEXT_CLASS[tariffFlag.currentFlag],
+                            TARIFF_FLAG_BORDER_CLASS[tariffFlag.currentFlag],
+                        )}
+                    >
+                        <span className="h-2 w-2 rounded-full" style={{ background: "currentColor" }} />
+                        Bandeira {TARIFF_FLAG_LABELS[tariffFlag.currentFlag]}
+                    </Tag>
+                    <span className="text-text/60 text-xs font-features-['tnum'_1]">
+                        {formatTariffFlagNote(tariffFlagPer100Kwh(tariffFlag, tariffFlag.currentFlag))}
+                    </span>
+                </div>
+            )}
         </Blueprint>
     )
 }
