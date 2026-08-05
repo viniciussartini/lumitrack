@@ -51,6 +51,18 @@ describe("LoginPage — renderização", () => {
 
         expect(container.firstElementChild).toHaveClass(AUTH_LAYOUT_GRID_CLASS)
     })
+
+    it("anima o card 'Ao vivo' via useLiveTicker em vez de um valor congelado", async () => {
+        renderWithProviders(<LoginPage />)
+        await screen.findByLabelText(/e-mail/i)
+
+        const liveKwh = screen.getByTestId("login-live-kwh")
+        const initialValue = liveKwh.textContent
+
+        await waitFor(() => expect(liveKwh.textContent).not.toBe(initialValue), {
+            timeout: 3000,
+        })
+    })
 })
 
 describe("LoginPage — validação client-side", () => {

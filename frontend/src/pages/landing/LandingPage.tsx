@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react"
 import { Link } from "react-router"
 import { BarChart3, Flag, TrendingUp, Zap } from "lucide-react"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { Button } from "@/components/ui/Button"
 import { Tag } from "@/components/ui/Tag"
+import { useLiveTicker } from "@/hooks/useLiveTicker"
 
 /**
  * Landing pública (rota `/`) — sub-issue #129 do épico #128 (Fase 5).
@@ -12,9 +12,10 @@ import { Tag } from "@/components/ui/Tag"
  * redirecionado para `/dashboard`, mesma regra já aplicada a /login e /registro.
  *
  * Puramente apresentacional — sem chamada de API. O painel "ao vivo" do hero
- * anima kW/custo/gráfico via `useLiveTicker` (mesmo random-walk local do
- * handoff) e os valores de bandeira/relatório são ilustrativos fixos — não
- * há sessão nem medidor antes do login, então não há dado real para mostrar.
+ * anima kW/custo/gráfico via `useLiveTicker` (`hooks/useLiveTicker.ts`,
+ * compartilhado com o Login) e os valores de bandeira/relatório são
+ * ilustrativos fixos — não há sessão nem medidor antes do login, então não
+ * há dado real para mostrar.
  *
  * O protótipo não especifica comportamento mobile (10-design-system.md §
  * "comportamento não especificado") — os grids de 3/4 colunas do handoff
@@ -134,33 +135,11 @@ const LandingHero = () => (
     </section>
 )
 
-const LIVE_KWH_MIN = 2.4
-const LIVE_KWH_MAX = 4.6
-const LIVE_COST_PER_KWH = 0.638
-
-/** Mesmo random-walk de `LumiTrack Landing.dc.html` (Component.state +
- * setInterval 1500ms) — não é dado real (sem sessão/medidor nesta página),
- * mas o handoff especifica os números variando, não estáticos. */
-const useLiveTicker = () => {
-    const [kwh, setKwh] = useState(3.42)
-
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setKwh((prev) => Math.max(LIVE_KWH_MIN, Math.min(LIVE_KWH_MAX, prev + (Math.random() - 0.46) * 0.18)))
-        }, 1500)
-        return () => clearInterval(timer)
-    }, [])
-
-    return { kwh, cost: kwh * LIVE_COST_PER_KWH }
-}
-
 const numberFormatter = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /**
- * Painel "ao vivo" do hero — números variando via `useLiveTicker` (não é
- * dado real, sem sessão/medidor nesta página, mas o handoff anima os
- * valores — mesmo padrão do card de marca de Login/BrandPanel, só que lá
- * são fixos por não terem o componente de estado do protótipo).
+ * Painel "ao vivo" do hero — números variando via `useLiveTicker`
+ * (`hooks/useLiveTicker.ts`, compartilhado com o painel de marca do Login).
  */
 const LandingLivePanel = () => {
     const { kwh, cost } = useLiveTicker()

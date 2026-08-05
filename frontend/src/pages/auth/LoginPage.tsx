@@ -9,16 +9,20 @@ import { Input } from "@/components/ui/Input"
 import { MfaCodeForm } from "@/components/auth/MfaCodeForm"
 import { DEMO_USERS } from "@/config/demoUsers"
 import { AUTH_LAYOUT_GRID_CLASS, BrandPanel } from "@/components/auth/BrandPanel"
+import { useLiveTicker } from "@/hooks/useLiveTicker"
 
 interface LocationState {
     from?: { pathname: string }
     notice?: string
 }
 
+const numberFormatter = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
 export const LoginPage = () => {
     const navigate = useNavigate()
     const location = useLocation()
     const { login, completeMfaLogin } = useAuth()
+    const { kwh } = useLiveTicker()
     const isDemoModeEnabled = import.meta.env.VITE_DEMO_MODE === "true"
     const [serverError, setServerError] = useState<string | null>(null)
     // Preenchido quando o backend responde `mfaRequired:true` — enquanto
@@ -94,10 +98,12 @@ export const LoginPage = () => {
                 headline="Cada kWh sob controle, em tempo real."
                 description="Entre para acompanhar o consumo das suas unidades, comparar propriedades e antecipar o valor da fatura."
                 extra={
-                    // Valores ilustrativos fixos (não é dado real — não há
-                    // sessão/medidor antes do login). Fiel a
-                    // LumiTrack Login.dc.html; pedido explícito do usuário
-                    // após reverter a omissão original desta seção.
+                    // "Ao vivo" anima via useLiveTicker (hooks/useLiveTicker.ts,
+                    // compartilhado com a Landing) — número ilustrativo, não é
+                    // dado real (não há sessão/medidor antes do login). Bandeira
+                    // permanece fixa, fiel a LumiTrack Login.dc.html; pedido
+                    // explícito do usuário após reverter a omissão original
+                    // desta seção.
                     <div className="mt-7 flex flex-wrap gap-3.5">
                         <div className="min-w-[120px] border border-white/22 px-[18px] py-3.5">
                             <div className="font-heading flex items-center gap-[7px] text-[11px] leading-none font-semibold tracking-[.08em] text-[#e6ecf2]/66 uppercase">
@@ -107,8 +113,11 @@ export const LoginPage = () => {
                                 />
                                 Ao vivo
                             </div>
-                            <div className="font-heading mt-2 text-[30px] leading-none font-semibold font-features-['tnum'_1]">
-                                3,42
+                            <div
+                                data-testid="login-live-kwh"
+                                className="font-heading mt-2 text-[30px] leading-none font-semibold font-features-['tnum'_1]"
+                            >
+                                {numberFormatter.format(kwh)}
                                 <span className="ml-1 text-sm text-[#e6ecf2]/60">kW</span>
                             </div>
                         </div>
