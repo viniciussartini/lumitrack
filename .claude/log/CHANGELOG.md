@@ -567,3 +567,13 @@
 - **Arquivos principais:** `frontend/src/components/layout/WarningBadge.tsx`, `frontend/tests/e2e/realtime.spec.ts` (o teste "WarningBadge não é renderizado" — que **documentava o comportamento antigo como intencional** — foi reescrito pra "fica visível sem contador"; asserção nova cobre `data-count="0"` + ausência do badge numérico via `warning-badge-count`).
 - **Decisões/ADRs:** nenhuma — implementação, não decisão de arquitetura.
 - **Notas:** `npm run build`/`lint`/`test` do frontend limpos (67/67 arquivos · 583/583 testes, sem regressão). Conferido visualmente via `vite dev` + Playwright: ícone de alerta e sino de notificações lado a lado no Header, sem contador quando não há disparo. E2E não rodado nesta sessão (ambiente sem Postgres/backend disponível pra suíte completa) — a asserção nova foi revisada manualmente contra o comportamento observado no browser.
+
+## [2026-08-04] docs: roadmap de implementação (fase 6 concluída)
+
+- **Branch:** feat/132-shell-app-autenticado
+- **Tipo:** docs
+- **O quê:** `.claude/docs/roadmap.md` atualizado via skill `planejar-roadmap` (ciclo de atualização) marcando a Fase 6 como concluída — épico #132, sub-issues #135/#136/#137, branch `feat/132-shell-app-autenticado`. Ponteiro "Fase atual" avançado de 6 para 7 (Consistência das telas públicas, já detalhada por completo desde o replanejamento anterior — nenhum detalhamento novo necessário).
+- **Nota de fechamento registrada:** achado que expandiu o escopo de #136 (remoção de 5 kicker+`<h1>` duplicados nas páginas Painel/Propriedades/Distribuidoras/Alertas/Segurança, mais `ReportsPage`/`PlaceholderPage`, ao Header ganhar título contextual de fonte única); adaptação de #137 (sem kicker/h1 local em "Sobre o projeto" — diferente do sugerido na issue — porque a rota vive dentro do `AppShell`, que já tem o Header cobrindo isso); reaproveitamento de `industryMarkdownComponents`/`slugify` de `LegalDocumentPage.tsx` quando `AboutPage` virou 2º consumidor; bug pós-#136 do ícone de alertas sumindo sem disparo ativo, corrigido em commit separado; e o histórico da branch renomeada de `feat/135-sidebar-industry` para `feat/132-shell-app-autenticado` no meio do trabalho.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova — a nota de fechamento só documenta decisões já tomadas e registradas nas entradas de changelog das sub-issues.
+- **Notas:** nenhum item novo para `07-decisoes-em-aberto.md`. Fase 7 já estava totalmente detalhada no roadmap (replanejamento de 2026-08-04), então o ciclo de atualização não precisou promover nada de nível-objetivo para itens completos.
