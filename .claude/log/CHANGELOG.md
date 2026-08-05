@@ -709,3 +709,13 @@
 - **Arquivos principais:** `backend/package.json` (`ethernet-ip` `^1.2.5`→`^2.0.0`), `backend/src/types/ethernet-ip.d.ts` (removido), `backend/src/modules/iot/iot-worker/protocols/ModbusTcpConnection.ts` (classe `EthernetIpConnection` reescrita para a API v2; `ModbusTcpConnection` no mesmo arquivo, que usa `jsmodbus`, não foi tocada), `backend/src/modules/iot/iot-worker/protocols/ModbusTcpConnection.test.ts` (novo).
 - **Decisões/ADRs:** nenhuma — migração de API dentro do adapter já existente atrás de `IConnection` (DIP), sem decisão de arquitetura em aberto tocada.
 - **Notas:** `npm run build`/`lint`/`test` do backend limpos (125/125 arquivos · 1457/1457 testes, suíte completa). `npm audit --omit=dev` sem vulnerabilidades para `ethernet-ip`. `npx dependency-cruiser src` não pôde rodar — não há config de dependency-cruiser neste repo, gap pré-existente não introduzido por esta branch.
+
+## [2026-08-05] docs: roadmap de implementação (fase 9 concluída)
+
+- **Branch:** chore/127-migracao-ethernet-ip-v2
+- **Tipo:** docs
+- **O quê:** `.claude/docs/roadmap.md` atualizado via skill `planejar-roadmap` (ciclo de atualização) marcando a Fase 9 como concluída — issue #127 (sem épico, item isolado), branch `chore/127-migracao-ethernet-ip-v2`. Ponteiro "Fase atual" atualizado para "nenhuma planejada" — a Fase 9 era a última definida no roadmap e não há Fase 10 planejada ainda; corrigido também o status da Fase 8 na tabela geral e no cabeçalho, de "PR ainda não aberto" para o PR real (#146), já mesclado.
+- **Nota de fechamento registrada:** API real da lib verificada instalando o pacote publicado, não migrada a partir do changelog do PR; causa raiz do CI verde mentiroso do PR #51 (import dinâmico escondendo a divergência de tipos) corrigida na origem; lacuna de teste em `protocols/` fechada com um teste que exercita o import real; decisão de não usar `MockTransport`; PR #51 superado (fechado via `closes #51` na descrição do PR desta issue, não mesclado à parte).
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova — a nota de fechamento só documenta decisões já tomadas e registradas na entrada de changelog da issue #127.
+- **Notas:** sem Fase 10 definida — o roadmap fica sem fase corrente até surgirem novos requisitos ou achados equivalentes (retomar via skill `planejar-roadmap` só quando isso acontecer, não antecipar fases especulativas, conforme já registrado em "Fases seguintes").
