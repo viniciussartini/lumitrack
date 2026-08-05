@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
 import { renderWithProviders, screen } from "@/tests/test-utils"
 import { ResetPasswordPage } from "@/pages/auth/ResetPasswordPage"
+import { AUTH_LAYOUT_GRID_CLASS } from "@/components/auth/BrandPanel"
 import { authService } from "@/services/auth.service"
 
 vi.mock("@/services/auth.service", () => ({
@@ -31,6 +32,15 @@ describe("ResetPasswordPage — sem token na URL", () => {
         expect(await screen.findByRole("heading", { name: /link inválido/i })).toBeInTheDocument()
         expect(screen.queryByLabelText(/^nova senha$/i)).not.toBeInTheDocument()
     })
+
+    it("usa a mesma largura de painel das demais telas de autenticação", async () => {
+        const { container } = renderWithProviders(<ResetPasswordPage />, {
+            initialEntries: ["/reset-password"],
+        })
+        await screen.findByRole("heading", { name: /link inválido/i })
+
+        expect(container.firstElementChild).toHaveClass(AUTH_LAYOUT_GRID_CLASS)
+    })
 })
 
 describe("ResetPasswordPage — com token", () => {
@@ -44,6 +54,13 @@ describe("ResetPasswordPage — com token", () => {
 
         expect(await screen.findByLabelText(/^nova senha$/i)).toBeInTheDocument()
         expect(screen.getByLabelText(/confirmar nova senha/i)).toBeInTheDocument()
+    })
+
+    it("usa a mesma largura de painel das demais telas de autenticação", async () => {
+        const { container } = renderWithToken()
+        await screen.findByLabelText(/^nova senha$/i)
+
+        expect(container.firstElementChild).toHaveClass(AUTH_LAYOUT_GRID_CLASS)
     })
 
     it("mostra erro quando as senhas não coincidem", async () => {

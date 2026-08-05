@@ -577,3 +577,16 @@
 - **Arquivos principais:** `.claude/docs/roadmap.md`.
 - **Decisões/ADRs:** nenhuma nova — a nota de fechamento só documenta decisões já tomadas e registradas nas entradas de changelog das sub-issues.
 - **Notas:** nenhum item novo para `07-decisoes-em-aberto.md`. Fase 7 já estava totalmente detalhada no roadmap (replanejamento de 2026-08-04), então o ciclo de atualização não precisou promover nada de nível-objetivo para itens completos.
+
+## [2026-08-04] fix: largura fixa do painel de marca nas telas de autenticação
+
+- **Branch:** feat/133-consistencia-telas-publicas
+- **Tipo:** fix
+- **O quê:** `LoginPage.tsx` usava `lg:grid-cols-[1.05fr_1fr]` enquanto `RegisterPage.tsx`, `ForgotPasswordPage.tsx` e `ResetPasswordPage.tsx` usavam `lg:grid-cols-[.95fr_1fr]` — o painel escuro da esquerda (`BrandPanel`) "pulava" de largura ao navegar entre as 4 telas de autenticação.
+- **Causa raiz:** a largura do grid estava hardcoded como classe Tailwind repetida em cada uma das 4 páginas, em vez de vir de uma única fonte — a duplicação foi o que permitiu a divergência aparecer (e passar despercebida) em primeiro lugar.
+- **Handoff também diverge:** conferido nos 3 `.dc.html` de autenticação (`.claude/design/2026-07-31-lumitrack-completo/design/`) — `LumiTrack Login.dc.html` usa `minmax(0,1.05fr)`, enquanto `LumiTrack Registro.dc.html` e `LumiTrack Recuperar Senha.dc.html` usam `minmax(0,.95fr)`. Como o próprio handoff não concorda entre as 3 telas, vale a decisão do usuário (2026-08-04): padronizar em **`.95fr`** (maioria do handoff — 2 de 3 — e do código já existente — 3 de 4 arquivos) em vez de perseguir a divergência tela a tela. Divergência do handoff registrada aqui e no roadmap, não "corrigida" silenciosamente.
+- **Fix:** `AUTH_LAYOUT_GRID_CLASS` exportado de `BrandPanel.tsx` (módulo que já é o dono conceitual do layout de marca das 4 telas) e consumido pelas 4 páginas — nenhuma delas mais declara a classe do grid localmente.
+- **Teste de regressão:** um teste por página (`LoginPage.test.tsx`, `RegisterPage.test.tsx`, `ForgotPasswordPage.test.tsx`, `ResetPasswordPage.test.tsx` — este último cobrindo a variante com e sem token) asserta que o wrapper renderizado usa a mesma `AUTH_LAYOUT_GRID_CLASS` importada de `BrandPanel` — falha se qualquer página voltar a hardcodar um valor divergente. Reproduzido antes do fix (o teste do Login falhava com `lg:grid-cols-[1.05fr_1fr]` vs. o valor esperado) para confirmar a causa-raiz antes de corrigir.
+- **Arquivos principais:** `frontend/src/components/auth/BrandPanel.tsx`, `frontend/src/pages/auth/LoginPage.tsx`, `frontend/src/pages/auth/RegisterPage.tsx`, `frontend/src/pages/auth/ForgotPasswordPage.tsx`, `frontend/src/pages/auth/ResetPasswordPage.tsx`, e os 4 arquivos de teste correspondentes.
+- **Decisões/ADRs:** nenhuma — decisão pontual de padronização visual, sem impacto arquitetural; não gera ADR.
+- **Notas:** `npm run build`/`lint`/`test` do frontend limpos (67/67 arquivos · 588/588 testes — 5 novos, um por assertion de largura). `npx tsc --noEmit` sem erro novo.

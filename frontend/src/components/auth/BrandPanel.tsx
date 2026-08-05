@@ -2,6 +2,16 @@ import type { ReactNode } from "react"
 import { Link } from "react-router"
 import { LumiTrackWordmark } from "@/components/ui/LumiTrackWordmark"
 
+/**
+ * Grade das 4 telas de autenticação (Login/Registro/Esqueci senha/Redefinir
+ * senha) — largura fixa para o painel de marca não "pular" na troca de
+ * tela. Handoff diverge entre si (Login usa 1.05fr, Registro e Recuperar
+ * Senha usam .95fr); decisão do usuário (2026-08-04): padronizar em .95fr
+ * (maioria do handoff e do código já existente) em vez de seguir a
+ * divergência.
+ */
+export const AUTH_LAYOUT_GRID_CLASS = "grid min-h-screen lg:grid-cols-[.95fr_1fr]"
+
 interface BrandPanelProps {
     eyebrow: string
     headline: string

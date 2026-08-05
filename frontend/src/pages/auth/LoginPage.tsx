@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { MfaCodeForm } from "@/components/auth/MfaCodeForm"
 import { DEMO_USERS } from "@/config/demoUsers"
-import { BrandPanel } from "@/components/auth/BrandPanel"
+import { AUTH_LAYOUT_GRID_CLASS, BrandPanel } from "@/components/auth/BrandPanel"
 
 interface LocationState {
     from?: { pathname: string }
@@ -85,7 +85,7 @@ export const LoginPage = () => {
     }
 
     return (
-        <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
+        <div className={AUTH_LAYOUT_GRID_CLASS}>
             {/* Painel de marca — oculto em telas pequenas (o protótipo não
                 especifica mobile; assumindo formulário full-width abaixo de
                 lg, ver 10-design-system.md § comportamento não especificado). */}
