@@ -2,6 +2,7 @@ import { Router, type RequestHandler } from "express"
 import { PrismaClient } from "@/generated/prisma/client.js"
 import { TariffFlagController } from "@/modules/tariff-flag/tariff-flag.controller.js"
 import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
+import { TariffFlagHistoryRepository } from "@/modules/tariff-flag/tariff-flag-history.repository.js"
 import { TariffFlagService } from "@/modules/tariff-flag/tariff-flag.service.js"
 import { requireRole } from "@/shared/middlewares/requireRole.js"
 
@@ -14,7 +15,8 @@ export function tariffFlagRoutes(authenticate: RequestHandler, prismaClient: Pri
     const router = Router()
 
     const tariffFlagRepository = new TariffFlagRepository(prismaClient)
-    const tariffFlagService = new TariffFlagService(tariffFlagRepository)
+    const tariffFlagHistoryRepository = new TariffFlagHistoryRepository(prismaClient)
+    const tariffFlagService = new TariffFlagService(tariffFlagRepository, tariffFlagHistoryRepository)
     const controller = new TariffFlagController(tariffFlagService)
 
     router.get("/", authenticate, (req, res, next) => controller.get(req, res, next))

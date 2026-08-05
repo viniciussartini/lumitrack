@@ -64,6 +64,7 @@ export const ModelName = {
   Meter: 'Meter',
   MeterReading: 'MeterReading',
   TariffFlagConfig: 'TariffFlagConfig',
+  TariffFlagHistory: 'TariffFlagHistory',
   Alert: 'Alert',
   AlertTriggerEvent: 'AlertTriggerEvent'
 } as const
@@ -287,6 +288,20 @@ export const TariffFlagConfigScalarFieldEnum = {
 export type TariffFlagConfigScalarFieldEnum = (typeof TariffFlagConfigScalarFieldEnum)[keyof typeof TariffFlagConfigScalarFieldEnum]
 
 
+export const TariffFlagHistoryScalarFieldEnum = {
+  id: 'id',
+  previousFlag: 'previousFlag',
+  newFlag: 'newFlag',
+  previousValues: 'previousValues',
+  newValues: 'newValues',
+  source: 'source',
+  changedByUserId: 'changedByUserId',
+  createdAt: 'createdAt'
+} as const
+
+export type TariffFlagHistoryScalarFieldEnum = (typeof TariffFlagHistoryScalarFieldEnum)[keyof typeof TariffFlagHistoryScalarFieldEnum]
+
+
 export const AlertScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -332,6 +347,13 @@ export const NullableJsonNullValueInput = {
 } as const
 
 export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
+
+
+export const JsonNullValueInput = {
+  JsonNull: JsonNull
+} as const
+
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
 
 
 export const QueryMode = {

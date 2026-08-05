@@ -1,10 +1,14 @@
 import { z } from "zod"
 import { updateTariffFlagSchema } from "@/modules/tariff-flag/tariff-flag.schema.js"
 import type { TariffFlagRepository, TariffFlagConfigResponse } from "@/modules/tariff-flag/tariff-flag.repository.js"
+import type { TariffFlagHistoryRepository } from "@/modules/tariff-flag/tariff-flag-history.repository.js"
 import { NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 
 export class TariffFlagService {
-    constructor(private readonly tariffFlagRepository: TariffFlagRepository) {}
+    constructor(
+        private readonly tariffFlagRepository: TariffFlagRepository,
+        private readonly tariffFlagHistoryRepository: TariffFlagHistoryRepository,
+    ) {}
 
     async get(): Promise<TariffFlagConfigResponse> {
         const config = await this.tariffFlagRepository.get()
@@ -16,7 +20,10 @@ export class TariffFlagService {
         return config
     }
 
-    async update(input: unknown): Promise<TariffFlagConfigResponse> {
+    // actorUserId: admin autenticado responsável pela troca — gravado no
+    // histórico (#143) junto do config antes/depois. Nunca nulo aqui: só
+    // chega autenticado (requireRole("ADMIN") em tariff-flag.routes.ts).
+    async update(input: unknown, actorUserId: string): Promise<TariffFlagConfigResponse> {
         const parsed = updateTariffFlagSchema.safeParse(input)
 
         if (!parsed.success) {
@@ -26,8 +33,28 @@ export class TariffFlagService {
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
-        await this.get()
+        const current = await this.get()
+        const updated = await this.tariffFlagRepository.update(parsed.data)
 
-        return this.tariffFlagRepository.update(parsed.data)
+        await this.tariffFlagHistoryRepository.create({
+            previousFlag: current.currentFlag,
+            newFlag: updated.currentFlag,
+            previousValues: {
+                greenPer100Kwh: current.greenPer100Kwh,
+                yellowPer100Kwh: current.yellowPer100Kwh,
+                redP1Per100Kwh: current.redP1Per100Kwh,
+                redP2Per100Kwh: current.redP2Per100Kwh,
+            },
+            newValues: {
+                greenPer100Kwh: updated.greenPer100Kwh,
+                yellowPer100Kwh: updated.yellowPer100Kwh,
+                redP1Per100Kwh: updated.redP1Per100Kwh,
+                redP2Per100Kwh: updated.redP2Per100Kwh,
+            },
+            source: "MANUAL",
+            changedByUserId: actorUserId,
+        })
+
+        return updated
     }
 }
