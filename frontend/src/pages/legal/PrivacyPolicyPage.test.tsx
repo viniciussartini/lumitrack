@@ -21,10 +21,17 @@ describe("PrivacyPolicyPage", () => {
         expect(document.title).toBe("Política de Privacidade — LumiTrack")
     })
 
-    it("tem link para voltar ao cadastro", async () => {
+    it("não tem mais o link 'Voltar ao cadastro' — a página abre em aba nova, sem destino de volta", async () => {
         renderWithProviders(<PrivacyPolicyPage />)
 
-        const backLink = await screen.findByRole("link", { name: /voltar ao cadastro/i })
-        expect(backLink).toHaveAttribute("href", "/registro")
+        await screen.findByRole("heading", { name: /política de privacidade/i })
+        expect(screen.queryByRole("link", { name: /voltar ao cadastro/i })).not.toBeInTheDocument()
+    })
+
+    it("mostra o logo real do LumiTrack no cabeçalho, não o ícone genérico", async () => {
+        renderWithProviders(<PrivacyPolicyPage />)
+
+        await screen.findByRole("heading", { name: /política de privacidade/i })
+        expect(screen.getByTestId("lumitrack-wordmark")).toBeInTheDocument()
     })
 })

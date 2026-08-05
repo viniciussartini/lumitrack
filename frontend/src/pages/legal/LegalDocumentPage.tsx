@@ -2,9 +2,9 @@ import { useEffect, useMemo } from "react"
 import { Link } from "react-router"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { ArrowLeft, Zap } from "lucide-react"
 import { slugify } from "@/lib/slugify"
 import { industryMarkdownComponents } from "@/lib/markdown/industryMarkdownComponents"
+import { LumiTrackWordmark } from "@/components/ui/LumiTrackWordmark"
 
 interface LegalDocumentPageProps {
     title: string
@@ -38,6 +38,12 @@ const extractHeadings = (markdown: string): Heading[] =>
  *
  * `industryMarkdownComponents`/`slugify` são compartilhados com `AboutPage`
  * (#137) — extraídos daqui quando ela virou o 2º consumidor real.
+ *
+ * Sem link de volta no cabeçalho (issue #141): a página sempre abre em aba
+ * nova (`target="_blank"` no Registro e nos links do rodapé da Landing) —
+ * "← Voltar ao cadastro" não tinha destino real; fechar a aba é a ação
+ * natural. O handoff tem "← Voltar ao site" na nav — removido por decisão
+ * do usuário (2026-08-04), registrada no CHANGELOG.
  */
 export const LegalDocumentPage = ({ title, markdown }: LegalDocumentPageProps) => {
     useEffect(() => {
@@ -50,25 +56,8 @@ export const LegalDocumentPage = ({ title, markdown }: LegalDocumentPageProps) =
     return (
         <div className="min-h-screen px-4 py-8">
             <div className="mx-auto w-full max-w-[1080px]">
-                <div className="border-divider flex items-center justify-between border-b pb-4">
-                    <div className="flex items-center gap-2">
-                        <span
-                            className="border-accent text-accent flex h-8 w-8 items-center justify-center border"
-                            aria-hidden="true"
-                        >
-                            <Zap className="h-4 w-4" strokeWidth={1.5} />
-                        </span>
-                        <span className="font-heading text-sm font-semibold uppercase">
-                            LumiTrack
-                        </span>
-                    </div>
-                    <Link
-                        to="/registro"
-                        className="text-muted hover:text-text flex items-center gap-1.5 text-sm"
-                    >
-                        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                        Voltar ao cadastro
-                    </Link>
+                <div className="border-divider flex items-center border-b pb-4">
+                    <LumiTrackWordmark variant="light" textClassName="text-sm" />
                 </div>
 
                 <div className="border-divider border-b pt-8 pb-6">

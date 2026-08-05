@@ -520,7 +520,21 @@ const LandingClose = () => (
     </section>
 )
 
-const FOOTER_COLUMNS = [
+interface FooterLink {
+    href: string
+    label: string
+    /** Páginas legais sempre abrem em aba nova (issue #141) — o
+     * comportamento não pode depender de onde o link foi clicado (hoje só o
+     * Registro abria assim). */
+    newTab?: boolean
+}
+
+interface FooterColumn {
+    title: string
+    links: FooterLink[]
+}
+
+const FOOTER_COLUMNS: FooterColumn[] = [
     {
         title: "Produto",
         links: [
@@ -541,12 +555,12 @@ const FOOTER_COLUMNS = [
     {
         title: "Legal",
         links: [
-            { href: "/termos", label: "Termos de Uso" },
+            { href: "/termos", label: "Termos de Uso", newTab: true },
             // LGPD não tem rota própria — a página de Privacidade cobre o
             // conteúdo (mesmo mapeamento do bundle p/ pages/legal/, ver
             // 10-design-system.md § Bundle vigente).
-            { href: "/privacidade", label: "Política de Privacidade" },
-            { href: "/privacidade", label: "LGPD" },
+            { href: "/privacidade", label: "Política de Privacidade", newTab: true },
+            { href: "/privacidade", label: "LGPD", newTab: true },
         ],
     },
 ]
@@ -593,7 +607,12 @@ const LandingFooter = () => (
                                     {link.label}
                                 </a>
                             ) : (
-                                <Link key={link.label} to={link.href} className="text-accent hover:text-accent-700">
+                                <Link
+                                    key={link.label}
+                                    to={link.href}
+                                    {...(link.newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                                    className="text-accent hover:text-accent-700"
+                                >
                                     {link.label}
                                 </Link>
                             ),
