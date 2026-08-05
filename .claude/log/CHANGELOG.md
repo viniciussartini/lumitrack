@@ -643,3 +643,19 @@
 - **Arquivos principais:** `.claude/docs/roadmap.md`.
 - **Decisões/ADRs:** nenhuma nova — a nota de fechamento só documenta decisões já tomadas e registradas nas entradas de changelog das sub-issues.
 - **Notas:** nenhum item novo para `07-decisoes-em-aberto.md`. Fase 8 já estava totalmente detalhada no roadmap (replanejamento de 2026-08-04), então o ciclo de atualização não precisou promover nada de nível-objetivo para itens completos.
+
+## [2026-08-04] docs: spike de viabilidade da bandeira tarifária via fonte oficial (ADR-0007)
+
+- **Branch:** docs/134-bandeira-tarifaria-oficial
+- **Tipo:** docs
+- **O quê:** investigação da issue #142 (spike, épico #134, Fase 8) — se e como o LumiTrack passa a obter a bandeira tarifária vigente de uma fonte oficial, em vez do `PUT /api/tariff-flag` manual. **Nenhum código de produção alterado**, conforme critério de aceite explícito da issue. Resultado registrado em `ADR-0007` (`.claude/docs/adr/0007-bandeira-tarifaria-fonte-oficial-aneel.md`): **viável**.
+- **Fonte identificada:** Portal de Dados Abertos da própria ANEEL (`dadosabertos.aneel.gov.br`), dataset "Bandeiras Tarifárias", via DataStore API (REST/JSON, CKAN padrão, pública, sem credencial). O portal genérico `dados.gov.br` foi checado e descartado — não tem dataset próprio deste dado; a ANEEL migrou para o portal dedicado dela em 2023.
+- **Achados que definem o desenho de #143 (condicional a este ADR):**
+  - Nenhum dos 2 recursos relevantes sozinho cobre o critério "4 modalidades com valor por 100 kWh" — precisa combinar "Acionamento" (mensal, dá a bandeira ativa + seu valor) com "Adicional" (por Resolução Homologatória, irregular, dá as 3 modalidades não-verde) — Verde é sempre 0 (nunca aparece no "Adicional").
+  - Unidade da fonte é R$/MWh, não R$/100 kWh como o schema usa — conversão `÷ 10`. Verificado contra `backend/prisma/seed.ts` (`yellowPer100Kwh: 1.885`/`redP1Per100Kwh: 4.463`/`redP2Per100Kwh: 7.877`): batem exatamente com a REH nº 3.306/2024 (18,85/44,63/78,77 R$/MWh ÷ 10) — o seed atual já veio desta mesma fonte.
+  - Dado com pelo menos um valor malformado observado (`",00"` em vez de `"0,00"`) — parsing precisa ser defensivo; reforça a exigência de falha fechada (manter último valor conhecido em erro, nunca zerar/adivinhar) já prevista no roadmap para #143.
+  - Sem SLA documentado (infra de dados abertos de governo, best-effort) — sincronização deve ser assíncrona/best-effort, nunca bloquear `GET /api/tariff-flag` esperando a fonte responder.
+  - Licença ODbL — sem restrição relevante para uso interno (leitura de valores para cálculo, não redistribuição do dataset).
+- **Arquivos principais:** `.claude/docs/adr/0007-bandeira-tarifaria-fonte-oficial-aneel.md` (novo).
+- **Decisões/ADRs:** ADR-0007 (nova) — não veio de `07-decisoes-em-aberto.md`, nenhuma atualização necessária lá.
+- **Notas:** próximo passo é decidir se #143 (sincronização automática) prossegue — o ADR concluiu por viabilidade, então #143 segue como planejado no roadmap, não fechada como "não aplicável".
