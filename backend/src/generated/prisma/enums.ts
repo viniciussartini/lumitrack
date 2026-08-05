@@ -110,3 +110,11 @@ export const IoTProtocol = {
 } as const
 
 export type IoTProtocol = (typeof IoTProtocol)[keyof typeof IoTProtocol]
+
+
+export const TariffFlagChangeSource = {
+  MANUAL: 'MANUAL',
+  AUTO: 'AUTO'
+} as const
+
+export type TariffFlagChangeSource = (typeof TariffFlagChangeSource)[keyof typeof TariffFlagChangeSource]

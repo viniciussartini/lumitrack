@@ -1,6 +1,32 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, beforeEach, vi } from "vitest"
 import { renderWithProviders, screen } from "@/tests/test-utils"
 import { LandingPage } from "@/pages/landing/LandingPage"
+import { useTariffFlag } from "@/hooks/queries/useTariffFlag"
+import type { TariffFlagConfig } from "@/types/tariff-flag.types"
+
+const mockTariffFlagConfig: TariffFlagConfig = {
+    currentFlag: "GREEN",
+    greenPer100Kwh: 0,
+    yellowPer100Kwh: 1.885,
+    redP1Per100Kwh: 4.463,
+    redP2Per100Kwh: 7.877,
+    updatedAt: new Date().toISOString(),
+}
+
+// Bandeira vem de GET /api/tariff-flag (leitura pública, #143) — mock no
+// nível do hook evita precisar de um QueryClientProvider real neste teste.
+vi.mock("@/hooks/queries/useTariffFlag", () => ({
+    useTariffFlag: vi.fn(),
+}))
+
+beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(useTariffFlag).mockReturnValue({
+        data: mockTariffFlagConfig,
+        isLoading: false,
+        isError: false,
+    } as ReturnType<typeof useTariffFlag>)
+})
 
 describe("LandingPage — rodapé", () => {
     it("tem link para o repositório no GitHub, seguro e acessível", async () => {
@@ -33,5 +59,40 @@ describe("LandingPage — rodapé", () => {
             const link = await screen.findAllByRole("link", { name })
             expect(link.at(-1)).not.toHaveAttribute("target")
         }
+    })
+})
+
+describe("LandingPage — bandeira tarifária vigente (#143)", () => {
+    it("mostra a bandeira real vinda da API no painel ao vivo", async () => {
+        renderWithProviders(<LandingPage />)
+
+        expect(await screen.findByText("Bandeira Verde")).toBeInTheDocument()
+        expect(screen.getByText("sem acréscimo")).toBeInTheDocument()
+    })
+
+    it("mostra o valor de acréscimo formatado quando a bandeira não é verde", async () => {
+        vi.mocked(useTariffFlag).mockReturnValue({
+            data: { ...mockTariffFlagConfig, currentFlag: "YELLOW" },
+            isLoading: false,
+            isError: false,
+        } as ReturnType<typeof useTariffFlag>)
+
+        renderWithProviders(<LandingPage />)
+
+        expect(await screen.findByText("Bandeira Amarela")).toBeInTheDocument()
+        expect(screen.getByText(/\+ R\$\s?1,89\s?\/ 100 kWh/)).toBeInTheDocument()
+    })
+
+    it("não mostra a tag de bandeira enquanto carrega ou em erro", async () => {
+        vi.mocked(useTariffFlag).mockReturnValue({
+            data: undefined,
+            isLoading: false,
+            isError: true,
+        } as ReturnType<typeof useTariffFlag>)
+
+        renderWithProviders(<LandingPage />)
+
+        await screen.findByTestId("landing-live-panel")
+        expect(screen.queryByText(/^Bandeira /)).not.toBeInTheDocument()
     })
 })

@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express"
 import type { TariffFlagService } from "@/modules/tariff-flag/tariff-flag.service.js"
+import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
 
 export class TariffFlagController {
     constructor(private readonly tariffFlagService: TariffFlagService) {}
@@ -17,7 +18,8 @@ export class TariffFlagController {
     // PUT /api/tariff-flag — Autenticado + requireRole("ADMIN")
     async update(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const config = await this.tariffFlagService.update(req.body)
+            const actorUserId = (req as AuthenticatedRequest).user.id
+            const config = await this.tariffFlagService.update(req.body, actorUserId)
             res.status(200).json({ status: "success", data: config })
         } catch (error) {
             next(error)

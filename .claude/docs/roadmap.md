@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-04 · Fase atual: 8 (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104; Fase 3 concluída — épico #110, PR #112; Fase 4 concluída — épico #114, PR #124; Fase 5 concluída — épico #128, PR #131; Fase 6 concluída — épico #132, PR ainda não aberto; Fase 7 concluída — épico #133, PR ainda não aberto)
+> Última atualização: 2026-08-05 · Fase atual: 9 (Fase 1 concluída — épico #94; Fase 2 concluída — épico #104; Fase 3 concluída — épico #110, PR #112; Fase 4 concluída — épico #114, PR #124; Fase 5 concluída — épico #128, PR #131; Fase 6 concluída — épico #132, PR ainda não aberto; Fase 7 concluída — épico #133, PR ainda não aberto; Fase 8 concluída — épico #134, PR ainda não aberto)
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). A partir da Fase 6 o escopo se amplia: fidelidade ao handoff no chrome do app, consistência entre telas públicas, integração externa e dívida técnica de backend.
 
@@ -16,8 +16,8 @@
 | 5 | Landing pública (tela nova) + Simulador IoT (restyle) | **Concluída** (#129–#130, épico #128, PR #131) |
 | 6 | Shell do app autenticado (Sidebar + Header conforme handoff) + "Sobre o projeto" | **Concluída** (#135–#137, épico #132, PR ainda não aberto) |
 | 7 | Consistência das telas públicas (autenticação, Landing, LGPD) | **Concluída** (#138–#141, épico #133, PR ainda não aberto) |
-| 8 | Bandeira tarifária a partir da fonte oficial (spike → ADR → integração condicional) | Planejada — **fase atual**, detalhe abaixo |
-| 9 | Migração ethernet-ip v1→v2 no backend (dívida técnica) | Planejada — detalhe abaixo (era Fase 6; renumerada em 2026-08-04, ver justificativas) |
+| 8 | Bandeira tarifária a partir da fonte oficial (spike → ADR → integração condicional) | **Concluída** (#142–#143, épico #134, PR ainda não aberto) |
+| 9 | Migração ethernet-ip v1→v2 no backend (dívida técnica) | Planejada — **fase atual**, detalhe abaixo (era Fase 6; renumerada em 2026-08-04, ver justificativas) |
 
 ## Fase 1 — Fundação Industry + Autenticação
 
@@ -343,6 +343,14 @@ Restyle de `PropertiesPage`/`PropertyDetailsPage`/`AreaDetailsPage`/`DeviceDetai
   - Testes com a resposta da fonte mockada, cobrindo explicitamente o caminho de indisponibilidade e o de payload inválido (não só o happy path).
 - **Depende de:** Spike — viabilidade da fonte oficial.
 - **Risco/observações:** médio-alto — seria a **primeira dependência externa de terceiro em runtime no backend**. Entra na superfície de risco de integração externa do `05-security-standards.md` (validar tudo que vem de fora, falhar fechado) e cria um ponto de falha novo num caminho que hoje é 100% interno e determinístico. O modo de falha a evitar é o silencioso: bandeira desatualizada sem ninguém perceber é pior que sincronização quebrada com erro visível.
+
+**Fechamento (2026-08-05):** entregue nas 2 sub-issues planejadas (#142 spike + ADR, #143 sincronização automática), épico #134, branch `docs/134-bandeira-tarifaria-oficial`. O spike concluiu por **viabilidade** (`ADR-0007`), então #143 seguiu como planejado — não foi cancelada. Nenhuma redução de escopo; a fase absorveu descobertas que refinaram a implementação e uma expansão de escopo pedida pelo usuário depois de #143 fechada:
+
+- **Fonte real identificada e verificada ponta a ponta:** Portal de Dados Abertos da própria ANEEL (`dadosabertos.aneel.gov.br`, dataset "Bandeiras Tarifárias", API DataStore CKAN pública, sem credencial) — não o portal genérico `dados.gov.br`, que não tem esse dataset. O adapter foi testado contra a API real (não só mockada) durante a implementação e bateu exatamente com os valores já semeados em `seed.ts`.
+- **Achado que refinou #143 em relação ao spike:** nenhum dos 2 recursos do dataset sozinho cobre "as 4 modalidades com valor por 100 kWh" — precisou combinar "Acionamento" (mensal, dá a bandeira ativa) com "Adicional" (por Resolução Homologatória, dá os 3 valores não-verde); Verde é sempre 0. Unidade da fonte é R$/MWh, não R$/100kWh (conversão ÷10).
+- **Decisão de design registrada em #143:** o histórico de troca de bandeira (`TariffFlagHistory`, tabela nova) não reaproveita o `AuditLog` de segurança/LGPD existente — aquela tabela tem uma regra documentada explícita de nunca guardar o valor de um campo alterado (pensada para PII), e o critério de aceite de #143 pedia exatamente "valor anterior, novo". Achado durante a implementação: o `PUT` manual nunca tinha rastro nenhum até então — corrigido junto, não só a sincronização automática.
+- **Expansão de escopo pedida pelo usuário, fora das 2 sub-issues originais:** depois de #143 fechada, a bandeira vigente real passou a ser exibida também na Landing e no Login (antes um mock fixo "Verde"). Isso exigiu tornar `GET /api/tariff-flag` público — decisão perguntada ao usuário antes de implementar (nenhuma rota do backend era pública até então) — e uma variante de cores para o fundo escuro do painel de marca do Login (mesmo tipo de achado do `LumiTrackWordmark` na Fase 7: tokens de cor do Painel não serviam para fundo escuro).
+- **Estado final:** `TariffFlagConfig` sincronizado automaticamente a cada 24h a partir da ANEEL, com falha fechada (mantém último valor conhecido) e `PUT` manual preservado como override; histórico de toda troca (manual ou automática) registrado; bandeira real visível também em Landing/Login; `npm run build`/`lint`/`test` limpos nos dois pacotes (frontend 70/70 arquivos · 605/605 testes; backend 123/123 arquivos · 1453/1453 testes); `.claude/log/CHANGELOG.md` com uma entrada por sub-issue/expansão.
 
 ## Fase 9 — Migração ethernet-ip v1→v2 no backend (dívida técnica)
 

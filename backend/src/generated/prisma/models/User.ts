@@ -301,6 +301,7 @@ export type UserWhereInput = {
   alerts?: Prisma.AlertListRelationFilter
   auditLogs?: Prisma.AuditLogListRelationFilter
   mfaBackupCodes?: Prisma.MfaBackupCodeListRelationFilter
+  tariffFlagChanges?: Prisma.TariffFlagHistoryListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -330,6 +331,7 @@ export type UserOrderByWithRelationInput = {
   alerts?: Prisma.AlertOrderByRelationAggregateInput
   auditLogs?: Prisma.AuditLogOrderByRelationAggregateInput
   mfaBackupCodes?: Prisma.MfaBackupCodeOrderByRelationAggregateInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -362,6 +364,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   alerts?: Prisma.AlertListRelationFilter
   auditLogs?: Prisma.AuditLogListRelationFilter
   mfaBackupCodes?: Prisma.MfaBackupCodeListRelationFilter
+  tariffFlagChanges?: Prisma.TariffFlagHistoryListRelationFilter
 }, "id" | "email" | "cpfBlindIndex" | "cnpjBlindIndex">
 
 export type UserOrderByWithAggregationInput = {
@@ -441,6 +444,7 @@ export type UserCreateInput = {
   alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   mfaBackupCodes?: Prisma.MfaBackupCodeCreateNestedManyWithoutUserInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryCreateNestedManyWithoutChangedByUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -470,6 +474,7 @@ export type UserUncheckedCreateInput = {
   alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedCreateNestedManyWithoutUserInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUncheckedCreateNestedManyWithoutChangedByUserInput
 }
 
 export type UserUpdateInput = {
@@ -499,6 +504,7 @@ export type UserUpdateInput = {
   alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUpdateManyWithoutUserNestedInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUpdateManyWithoutChangedByUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -528,6 +534,7 @@ export type UserUncheckedUpdateInput = {
   alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedUpdateManyWithoutUserNestedInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUncheckedUpdateManyWithoutChangedByUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -786,6 +793,22 @@ export type UserUpdateOneRequiredWithoutPropertiesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutPropertiesInput, Prisma.UserUpdateWithoutPropertiesInput>, Prisma.UserUncheckedUpdateWithoutPropertiesInput>
 }
 
+export type UserCreateNestedOneWithoutTariffFlagChangesInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutTariffFlagChangesInput, Prisma.UserUncheckedCreateWithoutTariffFlagChangesInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutTariffFlagChangesInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneWithoutTariffFlagChangesNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutTariffFlagChangesInput, Prisma.UserUncheckedCreateWithoutTariffFlagChangesInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutTariffFlagChangesInput
+  upsert?: Prisma.UserUpsertWithoutTariffFlagChangesInput
+  disconnect?: Prisma.UserWhereInput | boolean
+  delete?: Prisma.UserWhereInput | boolean
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutTariffFlagChangesInput, Prisma.UserUpdateWithoutTariffFlagChangesInput>, Prisma.UserUncheckedUpdateWithoutTariffFlagChangesInput>
+}
+
 export type UserCreateNestedOneWithoutAlertsInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutAlertsInput, Prisma.UserUncheckedCreateWithoutAlertsInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutAlertsInput
@@ -826,6 +849,7 @@ export type UserCreateWithoutTokensInput = {
   alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   mfaBackupCodes?: Prisma.MfaBackupCodeCreateNestedManyWithoutUserInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryCreateNestedManyWithoutChangedByUserInput
 }
 
 export type UserUncheckedCreateWithoutTokensInput = {
@@ -854,6 +878,7 @@ export type UserUncheckedCreateWithoutTokensInput = {
   alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedCreateNestedManyWithoutUserInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUncheckedCreateNestedManyWithoutChangedByUserInput
 }
 
 export type UserCreateOrConnectWithoutTokensInput = {
@@ -898,6 +923,7 @@ export type UserUpdateWithoutTokensInput = {
   alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUpdateManyWithoutUserNestedInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUpdateManyWithoutChangedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutTokensInput = {
@@ -926,6 +952,7 @@ export type UserUncheckedUpdateWithoutTokensInput = {
   alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedUpdateManyWithoutUserNestedInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUncheckedUpdateManyWithoutChangedByUserNestedInput
 }
 
 export type UserCreateWithoutRefreshTokensInput = {
@@ -954,6 +981,7 @@ export type UserCreateWithoutRefreshTokensInput = {
   alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   mfaBackupCodes?: Prisma.MfaBackupCodeCreateNestedManyWithoutUserInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryCreateNestedManyWithoutChangedByUserInput
 }
 
 export type UserUncheckedCreateWithoutRefreshTokensInput = {
@@ -982,6 +1010,7 @@ export type UserUncheckedCreateWithoutRefreshTokensInput = {
   alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedCreateNestedManyWithoutUserInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUncheckedCreateNestedManyWithoutChangedByUserInput
 }
 
 export type UserCreateOrConnectWithoutRefreshTokensInput = {
@@ -1026,6 +1055,7 @@ export type UserUpdateWithoutRefreshTokensInput = {
   alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUpdateManyWithoutUserNestedInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUpdateManyWithoutChangedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutRefreshTokensInput = {
@@ -1054,6 +1084,7 @@ export type UserUncheckedUpdateWithoutRefreshTokensInput = {
   alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedUpdateManyWithoutUserNestedInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUncheckedUpdateManyWithoutChangedByUserNestedInput
 }
 
 export type UserCreateWithoutPasswordResetsInput = {
@@ -1082,6 +1113,7 @@ export type UserCreateWithoutPasswordResetsInput = {
   alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   mfaBackupCodes?: Prisma.MfaBackupCodeCreateNestedManyWithoutUserInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryCreateNestedManyWithoutChangedByUserInput
 }
 
 export type UserUncheckedCreateWithoutPasswordResetsInput = {
@@ -1110,6 +1142,7 @@ export type UserUncheckedCreateWithoutPasswordResetsInput = {
   alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedCreateNestedManyWithoutUserInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUncheckedCreateNestedManyWithoutChangedByUserInput
 }
 
 export type UserCreateOrConnectWithoutPasswordResetsInput = {
@@ -1154,6 +1187,7 @@ export type UserUpdateWithoutPasswordResetsInput = {
   alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUpdateManyWithoutUserNestedInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUpdateManyWithoutChangedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutPasswordResetsInput = {
@@ -1182,6 +1216,7 @@ export type UserUncheckedUpdateWithoutPasswordResetsInput = {
   alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedUpdateManyWithoutUserNestedInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUncheckedUpdateManyWithoutChangedByUserNestedInput
 }
 
 export type UserCreateWithoutMfaBackupCodesInput = {
@@ -1210,6 +1245,7 @@ export type UserCreateWithoutMfaBackupCodesInput = {
   passwordResets?: Prisma.PasswordResetCreateNestedManyWithoutUserInput
   alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryCreateNestedManyWithoutChangedByUserInput
 }
 
 export type UserUncheckedCreateWithoutMfaBackupCodesInput = {
@@ -1238,6 +1274,7 @@ export type UserUncheckedCreateWithoutMfaBackupCodesInput = {
   passwordResets?: Prisma.PasswordResetUncheckedCreateNestedManyWithoutUserInput
   alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUncheckedCreateNestedManyWithoutChangedByUserInput
 }
 
 export type UserCreateOrConnectWithoutMfaBackupCodesInput = {
@@ -1282,6 +1319,7 @@ export type UserUpdateWithoutMfaBackupCodesInput = {
   passwordResets?: Prisma.PasswordResetUpdateManyWithoutUserNestedInput
   alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUpdateManyWithoutChangedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutMfaBackupCodesInput = {
@@ -1310,6 +1348,7 @@ export type UserUncheckedUpdateWithoutMfaBackupCodesInput = {
   passwordResets?: Prisma.PasswordResetUncheckedUpdateManyWithoutUserNestedInput
   alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUncheckedUpdateManyWithoutChangedByUserNestedInput
 }
 
 export type UserCreateWithoutAuditLogsInput = {
@@ -1338,6 +1377,7 @@ export type UserCreateWithoutAuditLogsInput = {
   passwordResets?: Prisma.PasswordResetCreateNestedManyWithoutUserInput
   alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
   mfaBackupCodes?: Prisma.MfaBackupCodeCreateNestedManyWithoutUserInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryCreateNestedManyWithoutChangedByUserInput
 }
 
 export type UserUncheckedCreateWithoutAuditLogsInput = {
@@ -1366,6 +1406,7 @@ export type UserUncheckedCreateWithoutAuditLogsInput = {
   passwordResets?: Prisma.PasswordResetUncheckedCreateNestedManyWithoutUserInput
   alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedCreateNestedManyWithoutUserInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUncheckedCreateNestedManyWithoutChangedByUserInput
 }
 
 export type UserCreateOrConnectWithoutAuditLogsInput = {
@@ -1410,6 +1451,7 @@ export type UserUpdateWithoutAuditLogsInput = {
   passwordResets?: Prisma.PasswordResetUpdateManyWithoutUserNestedInput
   alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUpdateManyWithoutUserNestedInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUpdateManyWithoutChangedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAuditLogsInput = {
@@ -1438,6 +1480,7 @@ export type UserUncheckedUpdateWithoutAuditLogsInput = {
   passwordResets?: Prisma.PasswordResetUncheckedUpdateManyWithoutUserNestedInput
   alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedUpdateManyWithoutUserNestedInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUncheckedUpdateManyWithoutChangedByUserNestedInput
 }
 
 export type UserCreateWithoutPropertiesInput = {
@@ -1466,6 +1509,7 @@ export type UserCreateWithoutPropertiesInput = {
   alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   mfaBackupCodes?: Prisma.MfaBackupCodeCreateNestedManyWithoutUserInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryCreateNestedManyWithoutChangedByUserInput
 }
 
 export type UserUncheckedCreateWithoutPropertiesInput = {
@@ -1494,6 +1538,7 @@ export type UserUncheckedCreateWithoutPropertiesInput = {
   alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedCreateNestedManyWithoutUserInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUncheckedCreateNestedManyWithoutChangedByUserInput
 }
 
 export type UserCreateOrConnectWithoutPropertiesInput = {
@@ -1538,6 +1583,7 @@ export type UserUpdateWithoutPropertiesInput = {
   alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUpdateManyWithoutUserNestedInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUpdateManyWithoutChangedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutPropertiesInput = {
@@ -1560,6 +1606,139 @@ export type UserUncheckedUpdateWithoutPropertiesInput = {
   tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tokens?: Prisma.AuthTokenUncheckedUpdateManyWithoutUserNestedInput
+  refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
+  passwordResets?: Prisma.PasswordResetUncheckedUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
+  auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
+  mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedUpdateManyWithoutUserNestedInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUncheckedUpdateManyWithoutChangedByUserNestedInput
+}
+
+export type UserCreateWithoutTariffFlagChangesInput = {
+  id?: string
+  email: string
+  password: string
+  userType: $Enums.UserType
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  role?: $Enums.Role
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  cpf?: string | null
+  cpfBlindIndex?: string | null
+  companyName?: string | null
+  cnpj?: string | null
+  cnpjBlindIndex?: string | null
+  tradeName?: string | null
+  mfaEnabled?: boolean
+  mfaSecret?: string | null
+  properties?: Prisma.PropertyCreateNestedManyWithoutUserInput
+  tokens?: Prisma.AuthTokenCreateNestedManyWithoutUserInput
+  refreshTokens?: Prisma.RefreshTokenCreateNestedManyWithoutUserInput
+  passwordResets?: Prisma.PasswordResetCreateNestedManyWithoutUserInput
+  alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
+  auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
+  mfaBackupCodes?: Prisma.MfaBackupCodeCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutTariffFlagChangesInput = {
+  id?: string
+  email: string
+  password: string
+  userType: $Enums.UserType
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  role?: $Enums.Role
+  consentedAt?: Date | string | null
+  consentVersion?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  cpf?: string | null
+  cpfBlindIndex?: string | null
+  companyName?: string | null
+  cnpj?: string | null
+  cnpjBlindIndex?: string | null
+  tradeName?: string | null
+  mfaEnabled?: boolean
+  mfaSecret?: string | null
+  properties?: Prisma.PropertyUncheckedCreateNestedManyWithoutUserInput
+  tokens?: Prisma.AuthTokenUncheckedCreateNestedManyWithoutUserInput
+  refreshTokens?: Prisma.RefreshTokenUncheckedCreateNestedManyWithoutUserInput
+  passwordResets?: Prisma.PasswordResetUncheckedCreateNestedManyWithoutUserInput
+  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
+  auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
+  mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutTariffFlagChangesInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutTariffFlagChangesInput, Prisma.UserUncheckedCreateWithoutTariffFlagChangesInput>
+}
+
+export type UserUpsertWithoutTariffFlagChangesInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutTariffFlagChangesInput, Prisma.UserUncheckedUpdateWithoutTariffFlagChangesInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutTariffFlagChangesInput, Prisma.UserUncheckedCreateWithoutTariffFlagChangesInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutTariffFlagChangesInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutTariffFlagChangesInput, Prisma.UserUncheckedUpdateWithoutTariffFlagChangesInput>
+}
+
+export type UserUpdateWithoutTariffFlagChangesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.StringFieldUpdateOperationsInput | string
+  userType?: Prisma.EnumUserTypeFieldUpdateOperationsInput | $Enums.UserType
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  properties?: Prisma.PropertyUpdateManyWithoutUserNestedInput
+  tokens?: Prisma.AuthTokenUpdateManyWithoutUserNestedInput
+  refreshTokens?: Prisma.RefreshTokenUpdateManyWithoutUserNestedInput
+  passwordResets?: Prisma.PasswordResetUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
+  auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
+  mfaBackupCodes?: Prisma.MfaBackupCodeUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutTariffFlagChangesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.StringFieldUpdateOperationsInput | string
+  userType?: Prisma.EnumUserTypeFieldUpdateOperationsInput | $Enums.UserType
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  consentedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  consentVersion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpf?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cpfBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  companyName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpj?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cnpjBlindIndex?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tradeName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  mfaEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  mfaSecret?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  properties?: Prisma.PropertyUncheckedUpdateManyWithoutUserNestedInput
   tokens?: Prisma.AuthTokenUncheckedUpdateManyWithoutUserNestedInput
   refreshTokens?: Prisma.RefreshTokenUncheckedUpdateManyWithoutUserNestedInput
   passwordResets?: Prisma.PasswordResetUncheckedUpdateManyWithoutUserNestedInput
@@ -1594,6 +1773,7 @@ export type UserCreateWithoutAlertsInput = {
   passwordResets?: Prisma.PasswordResetCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogCreateNestedManyWithoutUserInput
   mfaBackupCodes?: Prisma.MfaBackupCodeCreateNestedManyWithoutUserInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryCreateNestedManyWithoutChangedByUserInput
 }
 
 export type UserUncheckedCreateWithoutAlertsInput = {
@@ -1622,6 +1802,7 @@ export type UserUncheckedCreateWithoutAlertsInput = {
   passwordResets?: Prisma.PasswordResetUncheckedCreateNestedManyWithoutUserInput
   auditLogs?: Prisma.AuditLogUncheckedCreateNestedManyWithoutUserInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedCreateNestedManyWithoutUserInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUncheckedCreateNestedManyWithoutChangedByUserInput
 }
 
 export type UserCreateOrConnectWithoutAlertsInput = {
@@ -1666,6 +1847,7 @@ export type UserUpdateWithoutAlertsInput = {
   passwordResets?: Prisma.PasswordResetUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUpdateManyWithoutUserNestedInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUpdateManyWithoutUserNestedInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUpdateManyWithoutChangedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAlertsInput = {
@@ -1694,6 +1876,7 @@ export type UserUncheckedUpdateWithoutAlertsInput = {
   passwordResets?: Prisma.PasswordResetUncheckedUpdateManyWithoutUserNestedInput
   auditLogs?: Prisma.AuditLogUncheckedUpdateManyWithoutUserNestedInput
   mfaBackupCodes?: Prisma.MfaBackupCodeUncheckedUpdateManyWithoutUserNestedInput
+  tariffFlagChanges?: Prisma.TariffFlagHistoryUncheckedUpdateManyWithoutChangedByUserNestedInput
 }
 
 
@@ -1709,6 +1892,7 @@ export type UserCountOutputType = {
   alerts: number
   auditLogs: number
   mfaBackupCodes: number
+  tariffFlagChanges: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1719,6 +1903,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   alerts?: boolean | UserCountOutputTypeCountAlertsArgs
   auditLogs?: boolean | UserCountOutputTypeCountAuditLogsArgs
   mfaBackupCodes?: boolean | UserCountOutputTypeCountMfaBackupCodesArgs
+  tariffFlagChanges?: boolean | UserCountOutputTypeCountTariffFlagChangesArgs
 }
 
 /**
@@ -1780,6 +1965,13 @@ export type UserCountOutputTypeCountMfaBackupCodesArgs<ExtArgs extends runtime.T
   where?: Prisma.MfaBackupCodeWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountTariffFlagChangesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.TariffFlagHistoryWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1808,6 +2000,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   alerts?: boolean | Prisma.User$alertsArgs<ExtArgs>
   auditLogs?: boolean | Prisma.User$auditLogsArgs<ExtArgs>
   mfaBackupCodes?: boolean | Prisma.User$mfaBackupCodesArgs<ExtArgs>
+  tariffFlagChanges?: boolean | Prisma.User$tariffFlagChangesArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -1886,6 +2079,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   alerts?: boolean | Prisma.User$alertsArgs<ExtArgs>
   auditLogs?: boolean | Prisma.User$auditLogsArgs<ExtArgs>
   mfaBackupCodes?: boolean | Prisma.User$mfaBackupCodesArgs<ExtArgs>
+  tariffFlagChanges?: boolean | Prisma.User$tariffFlagChangesArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1901,6 +2095,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     alerts: Prisma.$AlertPayload<ExtArgs>[]
     auditLogs: Prisma.$AuditLogPayload<ExtArgs>[]
     mfaBackupCodes: Prisma.$MfaBackupCodePayload<ExtArgs>[]
+    tariffFlagChanges: Prisma.$TariffFlagHistoryPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -2323,6 +2518,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   alerts<T extends Prisma.User$alertsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$alertsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AlertPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   auditLogs<T extends Prisma.User$auditLogsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$auditLogsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AuditLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   mfaBackupCodes<T extends Prisma.User$mfaBackupCodesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$mfaBackupCodesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MfaBackupCodePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  tariffFlagChanges<T extends Prisma.User$tariffFlagChangesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$tariffFlagChangesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TariffFlagHistoryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2929,6 +3125,30 @@ export type User$mfaBackupCodesArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   distinct?: Prisma.MfaBackupCodeScalarFieldEnum | Prisma.MfaBackupCodeScalarFieldEnum[]
+}
+
+/**
+ * User.tariffFlagChanges
+ */
+export type User$tariffFlagChangesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the TariffFlagHistory
+   */
+  select?: Prisma.TariffFlagHistorySelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the TariffFlagHistory
+   */
+  omit?: Prisma.TariffFlagHistoryOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.TariffFlagHistoryInclude<ExtArgs> | null
+  where?: Prisma.TariffFlagHistoryWhereInput
+  orderBy?: Prisma.TariffFlagHistoryOrderByWithRelationInput | Prisma.TariffFlagHistoryOrderByWithRelationInput[]
+  cursor?: Prisma.TariffFlagHistoryWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.TariffFlagHistoryScalarFieldEnum | Prisma.TariffFlagHistoryScalarFieldEnum[]
 }
 
 /**

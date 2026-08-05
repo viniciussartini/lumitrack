@@ -47,9 +47,13 @@ beforeEach(async () => { await cleanHttpDatabase() })
 afterAll(async () => { await prismaHttpTest.$disconnect() })
 
 describe("GET /api/tariff-flag", () => {
-    it("retorna 401 sem token", async () => {
+    it("retorna 200 com a bandeira vigente sem token — leitura pública (Landing/Login sem sessão)", async () => {
+        await seedConfig()
+
         const response = await request(app).get("/api/tariff-flag")
-        expect(response.status).toBe(401)
+
+        expect(response.status).toBe(200)
+        expect(response.body.data.currentFlag).toBe("GREEN")
     })
 
     it("retorna 200 com a bandeira vigente para qualquer usuário autenticado", async () => {

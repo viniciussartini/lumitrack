@@ -19,6 +19,11 @@ import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { RetentionService } from "@/shared/retention/retention.service.js"
 import { RetentionPurgeScheduler } from "@/shared/retention/RetentionPurgeScheduler.js"
+import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
+import { TariffFlagHistoryRepository } from "@/modules/tariff-flag/tariff-flag-history.repository.js"
+import { AneelTariffFlagSource } from "@/modules/tariff-flag/sync/AneelTariffFlagSource.js"
+import { TariffFlagSyncService } from "@/modules/tariff-flag/sync/TariffFlagSyncService.js"
+import { TariffFlagSyncScheduler } from "@/modules/tariff-flag/sync/TariffFlagSyncScheduler.js"
 
 // Singletons do processo — distribuem eventos SSE (alert-firing,
 // notification) para clientes conectados. Passados para createApp() para
@@ -91,6 +96,18 @@ const retentionService = new RetentionService(
 )
 const retentionScheduler = new RetentionPurgeScheduler(retentionService)
 retentionScheduler.start()
+
+// #143 — sincronização automática da bandeira tarifária vigente a partir
+// da fonte oficial ANEEL (ver ADR-0007). Mesmo padrão do RetentionPurgeScheduler:
+// roda no boot e a cada 24h; falha da fonte nunca derruba o processo nem
+// altera o config vigente (falha fechada — mantém o último valor conhecido).
+const tariffFlagSyncService = new TariffFlagSyncService(
+    new AneelTariffFlagSource(),
+    new TariffFlagRepository(prisma),
+    new TariffFlagHistoryRepository(prisma),
+)
+const tariffFlagSyncScheduler = new TariffFlagSyncScheduler(tariffFlagSyncService)
+tariffFlagSyncScheduler.start()
 
 /**
  * Criação do app
@@ -177,6 +194,7 @@ async function shutdown(signal: string): Promise<void> {
     // Para o scheduler — evita que um flush parcial aconteça durante o shutdown.
     scheduler.stop()
     retentionScheduler.stop()
+    tariffFlagSyncScheduler.stop()
 
     // Flush final: persiste qualquer balde pendente no buffer antes de sair,
     // incluindo o minuto em curso (flushAll, não flush).

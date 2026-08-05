@@ -1,3 +1,5 @@
+import { formatBrl } from "@/lib/format"
+
 /**
  * Bandeira tarifária vigente — config singleton (não por usuário/propriedade),
  * espelha `backend/src/modules/tariff-flag/tariff-flag.repository.ts`
@@ -55,6 +57,30 @@ export const TARIFF_FLAG_BG_CLASS: Record<TariffFlag, string> = {
     RED_P2: "bg-status-danger-strong/10",
 }
 
+/**
+ * Variante para fundo escuro `--color-accent-900` (painel de marca das
+ * telas de autenticação/Sidebar) — os tokens `TARIFF_FLAG_*_CLASS` acima
+ * são tonalidades escuras pensadas para fundo claro (`--color-status-*` de
+ * `industry.css`) e ficam ilegíveis lá. O handoff (`LumiTrack Login.dc.html`)
+ * só define a cor da bandeira Verde (`#8fd0a0` texto / `#3f8f52` ponto) —
+ * as outras 3 são extrapolação, mantendo o mesmo padrão (texto claro/
+ * pastel, ponto mais saturado), registrada aqui em vez de inventada
+ * silenciosamente no componente.
+ */
+export const TARIFF_FLAG_DARK_TEXT_CLASS: Record<TariffFlag, string> = {
+    GREEN: "text-[#8fd0a0]",
+    YELLOW: "text-[#e0b563]",
+    RED_P1: "text-[#e08a76]",
+    RED_P2: "text-[#e0654a]",
+}
+
+export const TARIFF_FLAG_DARK_DOT_COLOR: Record<TariffFlag, string> = {
+    GREEN: "#3f8f52",
+    YELLOW: "#c98f2e",
+    RED_P1: "#c15a42",
+    RED_P2: "#a83f2c",
+}
+
 /** Valor de acréscimo (R$/100kWh) de cada bandeira, dado um config. */
 export const tariffFlagPer100Kwh = (
     config: TariffFlagConfig,
@@ -71,3 +97,9 @@ export const tariffFlagPer100Kwh = (
             return config.redP2Per100Kwh
     }
 }
+
+/** "sem acréscimo" (valor 0) ou "+ R$ X / 100 kWh" — sempre a partir do
+ * valor REAL da API, nunca dos números de exemplo do handoff. Extraído de
+ * `TariffFlagListCard` quando a Landing/Login viraram consumidores reais. */
+export const formatTariffFlagNote = (per100Kwh: number): string =>
+    per100Kwh === 0 ? "sem acréscimo" : `+ ${formatBrl(per100Kwh)} / 100 kWh`

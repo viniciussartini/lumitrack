@@ -4,7 +4,9 @@ import { renderWithProviders, screen, waitFor } from "@/tests/test-utils"
 import { LoginPage } from "@/pages/auth/LoginPage"
 import { AUTH_LAYOUT_GRID_CLASS } from "@/components/auth/BrandPanel"
 import { authService } from "@/services/auth.service"
+import { useTariffFlag } from "@/hooks/queries/useTariffFlag"
 import type { User } from "@/types/auth.types"
+import type { TariffFlagConfig } from "@/types/tariff-flag.types"
 
 vi.mock("@/services/auth.service", () => ({
     authService: {
@@ -18,6 +20,21 @@ vi.mock("@/services/auth.service", () => ({
 vi.mock("@/services/api", () => ({
     extractErrorMessage: (error: unknown) =>
         error instanceof Error ? error.message : "Erro",
+}))
+
+const mockTariffFlagConfig: TariffFlagConfig = {
+    currentFlag: "GREEN",
+    greenPer100Kwh: 0,
+    yellowPer100Kwh: 1.885,
+    redP1Per100Kwh: 4.463,
+    redP2Per100Kwh: 7.877,
+    updatedAt: new Date().toISOString(),
+}
+
+// Bandeira vem de GET /api/tariff-flag (leitura pública, #143) — mock no
+// nível do hook evita precisar de um QueryClientProvider real neste teste.
+vi.mock("@/hooks/queries/useTariffFlag", () => ({
+    useTariffFlag: vi.fn(),
 }))
 
 const mockUser: User = {
@@ -34,6 +51,11 @@ const mockUser: User = {
 
 beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(useTariffFlag).mockReturnValue({
+        data: mockTariffFlagConfig,
+        isLoading: false,
+        isError: false,
+    } as ReturnType<typeof useTariffFlag>)
 })
 
 describe("LoginPage — renderização", () => {
@@ -62,6 +84,40 @@ describe("LoginPage — renderização", () => {
         await waitFor(() => expect(liveKwh.textContent).not.toBe(initialValue), {
             timeout: 3000,
         })
+    })
+})
+
+describe("LoginPage — bandeira tarifária vigente (#143)", () => {
+    it("mostra a bandeira real vinda da API", async () => {
+        renderWithProviders(<LoginPage />)
+
+        expect(await screen.findByText("Bandeira")).toBeInTheDocument()
+        expect(screen.getByText("Verde")).toBeInTheDocument()
+    })
+
+    it("mostra a bandeira e a cor correspondente quando não é verde", async () => {
+        vi.mocked(useTariffFlag).mockReturnValue({
+            data: { ...mockTariffFlagConfig, currentFlag: "RED_P2" },
+            isLoading: false,
+            isError: false,
+        } as ReturnType<typeof useTariffFlag>)
+
+        renderWithProviders(<LoginPage />)
+
+        expect(await screen.findByText("Vermelha P2")).toBeInTheDocument()
+    })
+
+    it("não mostra o box de bandeira enquanto carrega ou em erro", async () => {
+        vi.mocked(useTariffFlag).mockReturnValue({
+            data: undefined,
+            isLoading: false,
+            isError: true,
+        } as ReturnType<typeof useTariffFlag>)
+
+        renderWithProviders(<LoginPage />)
+
+        await screen.findByLabelText(/e-mail/i)
+        expect(screen.queryByText("Bandeira")).not.toBeInTheDocument()
     })
 })
 

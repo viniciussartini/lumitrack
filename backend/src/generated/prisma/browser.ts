@@ -83,6 +83,11 @@ export type MeterReading = Prisma.MeterReadingModel
  */
 export type TariffFlagConfig = Prisma.TariffFlagConfigModel
 /**
+ * Model TariffFlagHistory
+ * 
+ */
+export type TariffFlagHistory = Prisma.TariffFlagHistoryModel
+/**
  * Model Alert
  * 
  */

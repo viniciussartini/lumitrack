@@ -158,13 +158,14 @@ model User {
   mfaSecret  String?
 
   // Relacionamentos
-  properties     Property[]
-  tokens         AuthToken[]
-  refreshTokens  RefreshToken[]
-  passwordResets PasswordReset[]
-  alerts         Alert[]
-  auditLogs      AuditLog[]
-  mfaBackupCodes MfaBackupCode[]
+  properties        Property[]
+  tokens            AuthToken[]
+  refreshTokens     RefreshToken[]
+  passwordResets    PasswordReset[]
+  alerts            Alert[]
+  auditLogs         AuditLog[]
+  mfaBackupCodes    MfaBackupCode[]
+  tariffFlagChanges TariffFlagHistory[]
 
   @@map("users")
 }
@@ -449,6 +450,36 @@ model TariffFlagConfig {
   updatedAt       DateTime   @updatedAt
 
   @@map("tariff_flag_config")
+}
+
+// Origem de uma troca da bandeira/valores vigentes — #143.
+enum TariffFlagChangeSource {
+  MANUAL
+  AUTO
+
+  @@map("tariff_flag_change_source")
+}
+
+// Histórico de cada troca da bandeira ou dos valores vigentes (#143 —
+// sincronização automática a partir da fonte oficial ANEEL, ver
+// ADR-0007). Cada linha é um snapshot completo do config antes/depois
+// (não só o campo que mudou), para nunca ficar ambíguo sobre o que
+// estava vigente no momento da troca. changedByUserId é nulo quando
+// source = AUTO (a sincronização automática não tem usuário agindo).
+model TariffFlagHistory {
+  id              String                 @id @default(uuid())
+  previousFlag    TariffFlag?
+  newFlag         TariffFlag
+  previousValues  Json?
+  newValues       Json
+  source          TariffFlagChangeSource
+  changedByUserId String?
+  createdAt       DateTime               @default(now())
+
+  changedByUser User? @relation(fields: [changedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@map("tariff_flag_history")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
