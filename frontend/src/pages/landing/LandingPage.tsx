@@ -4,6 +4,7 @@ import { Blueprint } from "@/components/ui/Blueprint"
 import { Button } from "@/components/ui/Button"
 import { Tag } from "@/components/ui/Tag"
 import { useLiveTicker } from "@/hooks/useLiveTicker"
+import { GITHUB_REPO_URL, GitHubIcon } from "@/components/ui/GitHubIcon"
 
 /**
  * Landing pública (rota `/`) — sub-issue #129 do épico #128 (Fase 5).
@@ -566,6 +567,19 @@ const LandingFooter = () => (
                 <p className="text-text/62 mt-3.5 max-w-[34ch] text-[13px] leading-[1.55]">
                     Monitoramento de energia elétrica para pessoas físicas e jurídicas do Brasil.
                 </p>
+                {/* Sem equivalente no handoff (LumiTrack Landing.dc.html não
+                    tem logo do GitHub) — acréscimo pedido pelo usuário
+                    (2026-08-04), ver CHANGELOG. Ícone sem texto: aria-label
+                    dá o nome acessível. */}
+                <a
+                    href={GITHUB_REPO_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Ver o repositório do LumiTrack no GitHub (abre em nova aba)"
+                    className="text-text/55 hover:text-accent mt-3.5 inline-flex"
+                >
+                    <GitHubIcon className="h-[18px] w-[18px]" />
+                </a>
             </div>
             {FOOTER_COLUMNS.map((column) => (
                 <div key={column.title}>

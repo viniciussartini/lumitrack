@@ -603,3 +603,18 @@
 - **Arquivos principais:** `frontend/src/hooks/useLiveTicker.ts` (novo), `frontend/src/hooks/useLiveTicker.test.ts` (novo), `frontend/src/pages/landing/LandingPage.tsx`, `frontend/src/pages/auth/LoginPage.tsx`, `frontend/src/pages/auth/LoginPage.test.tsx`.
 - **Decisões/ADRs:** nenhuma nova.
 - **Notas:** `npm run build`/`lint`/`test` do frontend limpos (68/68 arquivos · 592/592 testes — 4 novos: 3 do hook + 1 do Login). `npx tsc --noEmit` sem erro novo. E2E de autenticação (`auth.spec.ts`) não referencia o card "Ao vivo" — sem alteração necessária; não executado nesta sessão (ambiente sem Postgres/backend para a suíte completa), coberto pela verificação visual acima.
+
+## [2026-08-04] feat: logo do GitHub na Landing e nos painéis de autenticação
+
+- **Branch:** feat/133-consistencia-telas-publicas
+- **Tipo:** feature
+- **O quê:** link para `https://github.com/viniciussartini/lumitrack` adicionado no rodapé da Landing (abaixo da tagline "Monitoramento de energia elétrica...") e no rodapé do `BrandPanel` (compartilhado por Login, Registro e Recuperar Senha). Reaproveita o `GitHubIcon` criado em #137 ("Sobre o projeto", Fase 6) — nenhuma cópia nova do SVG.
+- **Divergência do handoff (assumida, não "corrigida" silenciosamente):** nenhum `.dc.html` do bundle tem logo do GitHub — acréscimo pedido pelo usuário (2026-08-04), fora do handoff visual.
+- **Código compartilhado:** `GITHUB_REPO_URL` (antes uma constante local em `AboutPage.tsx`) promovido para `GitHubIcon.tsx` — mesmo módulo do ícone, já que os dois sempre andam juntos nos 3 pontos de uso agora (Sobre o projeto, Landing, BrandPanel). `AboutPage.tsx` atualizado para consumir a constante em vez de duplicá-la.
+- **Rodapé do `BrandPanel` reestruturado em 3 posições:** de `flex justify-between` (2 blocos) para `grid grid-cols-[1fr_auto_1fr]` — © à esquerda, crédito "Logo desenhada por Magnific" **verdadeiramente centralizado** (não só "no meio" de um `justify-between` de 3 itens, que centraliza por espaçamento e não por posição real), ícone do GitHub à direita via `justify-self-end`.
+- **Acessibilidade:** os 2 links novos são ícone-only (sem texto visível) — `aria-label="Ver o repositório do LumiTrack no GitHub (abre em nova aba)"` dá o nome acessível; `target="_blank"` + `rel="noopener noreferrer"` em ambos.
+- **Testes:** `BrandPanel.test.tsx` novo (link do GitHub com os 3 atributos de segurança/acessibilidade; ordem das 3 posições do rodapé via `data-testid="brand-panel-footer"`) — cobre as 3 páginas de autenticação de uma vez, sem duplicar o teste 3x. `LandingPage.test.tsx` novo (mesmo padrão de asserção do link, replicando o teste equivalente já existente em `AboutPage.test.tsx`).
+- **Verificação visual:** Playwright ad-hoc contra `/login` real em 4 larguras (1024/1150/1280/1440px) — rodapé de 3 colunas sem overflow do link do GitHub em nenhuma; screenshot conferido mostrando copyright/crédito/ícone nas 3 posições esperadas, sem quebra.
+- **Arquivos principais:** `frontend/src/components/ui/GitHubIcon.tsx` (constante `GITHUB_REPO_URL` nova), `frontend/src/pages/about/AboutPage.tsx`, `frontend/src/pages/landing/LandingPage.tsx`, `frontend/src/components/auth/BrandPanel.tsx`, `frontend/src/components/auth/BrandPanel.test.tsx` (novo), `frontend/src/pages/landing/LandingPage.test.tsx` (novo).
+- **Decisões/ADRs:** nenhuma nova.
+- **Notas:** `npm run build`/`lint`/`test` do frontend limpos (70/70 arquivos · 595/595 testes — 3 novos: 2 do `BrandPanel` + 1 da Landing). `npx tsc --noEmit` sem erro novo. E2E da Landing e de autenticação não referenciam o rodapé — sem alteração necessária; não executados nesta sessão (ambiente sem Postgres/backend), cobertos pela verificação visual acima.
