@@ -633,3 +633,13 @@
 - **Arquivos principais:** `frontend/src/components/ui/LumiTrackWordmark.tsx` (variant novo), `frontend/src/pages/legal/LegalDocumentPage.tsx`, `frontend/src/pages/legal/PrivacyPolicyPage.test.tsx`, `frontend/src/pages/legal/TermsOfUsePage.test.tsx`, `frontend/src/pages/landing/LandingPage.tsx`, `frontend/src/pages/landing/LandingPage.test.tsx`.
 - **Decisões/ADRs:** nenhuma — a remoção do "← Voltar ao site" é divergência pontual de UX já decidida pelo usuário na issue, não decisão arquitetural.
 - **Notas:** `npm run build`/`lint`/`test` do frontend limpos (70/70 arquivos · 599/599 testes — 4 novos: 2 nas páginas legais + 2 na Landing). `npx tsc --noEmit` sem erro novo. Nenhum E2E navega para as páginas legais pelo link removido (conferido via grep antes do fix) — sem ajuste necessário. **Fecha o épico #133** (Fase 7 — Consistência das telas públicas): #138/#139/#140/#141 entregues.
+
+## [2026-08-04] docs: roadmap de implementação (fase 7 concluída)
+
+- **Branch:** feat/133-consistencia-telas-publicas
+- **Tipo:** docs
+- **O quê:** `.claude/docs/roadmap.md` atualizado via skill `planejar-roadmap` (ciclo de atualização) marcando a Fase 7 como concluída — épico #133, sub-issues #138/#139/#140/#141, branch `feat/133-consistencia-telas-publicas`. Ponteiro "Fase atual" avançado de 7 para 8 (Bandeira tarifária a partir da fonte oficial, já detalhada por completo desde o replanejamento de 2026-08-04 — nenhum detalhamento novo necessário).
+- **Nota de fechamento registrada:** divergência de handoff em #138 (as 3 telas de autenticação também divergem entre si no handoff — padronizado em `.95fr`, maioria do handoff e do código); reaproveitamento de `useLiveTicker` (#139) e `GITHUB_REPO_URL` (#140) quando Login/Landing/BrandPanel viraram 2º e 3º consumidores reais; ajuste na implementação sugerida por #141 — `LumiTrackWordmark` ganhou `variant="dark"|"light"` em vez de ser reaproveitado sem alteração, porque o componente original só funciona em fundo escuro.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova — a nota de fechamento só documenta decisões já tomadas e registradas nas entradas de changelog das sub-issues.
+- **Notas:** nenhum item novo para `07-decisoes-em-aberto.md`. Fase 8 já estava totalmente detalhada no roadmap (replanejamento de 2026-08-04), então o ciclo de atualização não precisou promover nada de nível-objetivo para itens completos.
