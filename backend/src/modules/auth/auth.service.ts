@@ -161,6 +161,21 @@ export class AuthService {
 
         const { secret, code } = parsed.data
 
+        // Step-up (#10 — A07): reinscrever o segundo fator de uma conta que
+        // já tem MFA dá o mesmo resultado prático de desabilitá-lo — com o
+        // bônus de expulsar o dono legítimo (`createBackupCodes` purga os
+        // códigos antigos) — mas, ao contrário de `disableMfa`, não exigia
+        // nada além de uma sessão válida. Recusa e obriga o caminho já
+        // hardened `disable` → `setup`, em vez de duplicar a exigência de
+        // senha+código aqui. Primeira inscrição (sem MFA) não passa por
+        // aqui — não há fator vigente para provar.
+        const user = await this.authRepository.findUserByIdWithPassword(userId)
+        if (user?.mfaEnabled) {
+            throw new BadRequestError(
+                "MFA já está habilitado nesta conta — desabilite o fator atual antes de configurar um novo",
+            )
+        }
+
         if (!(await verifyTotpCode(secret, code))) {
             throw new UnauthorizedError("Código inválido")
         }
@@ -238,9 +253,13 @@ export class AuthService {
         const resetToken = randomUUID()
         const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRES_MS)
 
+        // Só o hash é persistido — mesmo padrão já usado para AuthToken/
+        // RefreshToken (#10, A04): em caso de vazamento do dump do banco, o
+        // hash não permite reconstruir um token de reset válido. O valor
+        // puro sai apenas no e-mail, nunca é gravado em lugar nenhum.
         await this.authRepository.createPasswordReset({
             userId: user.id,
-            token: resetToken,
+            token: hashToken(resetToken),
             expiresAt,
         })
 
@@ -259,7 +278,7 @@ export class AuthService {
 
         const { token, newPassword } = parsed.data
 
-        const reset = await this.authRepository.findPasswordReset(token)
+        const reset = await this.authRepository.findPasswordReset(hashToken(token))
 
         if (!reset) {
             throw new BadRequestError("Token de redefinição inválido ou expirado")
@@ -275,10 +294,15 @@ export class AuthService {
 
         const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
 
-        await Promise.all([
-            this.authRepository.updateUserPassword(reset.userId, hashedPassword),
-            this.authRepository.markPasswordResetAsUsed(reset.id),
-        ])
+        // #10 — A07: o cenário-alvo do "esqueci minha senha" é recuperar uma
+        // conta comprometida — revoga toda sessão (AuthToken) e refresh
+        // token existente na mesma transação da troca de senha, para que um
+        // atacante não sobreviva ao reset com uma sessão ainda válida.
+        await this.authRepository.resetPasswordAndRevokeSessions({
+            userId: reset.userId,
+            resetId: reset.id,
+            hashedPassword,
+        })
     }
 
     async logout(sessionToken: string, rawRefreshToken?: string): Promise<void> {

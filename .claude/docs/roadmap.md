@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-05 · Fase atual: 10 (Fases 1–9 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134 e issue #127)
+> Última atualização: 2026-08-06 · Fase atual: 11 (Fases 1–10 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148 e issue #127)
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das quatro auditorias de 2026-08-05** (segurança, conformidade, qualidade, desempenho) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
@@ -18,8 +18,8 @@
 | 7 | Consistência das telas públicas (autenticação, Landing, LGPD) | **Concluída** (#138–#141, épico #133, PR ainda não aberto) |
 | 8 | Bandeira tarifária a partir da fonte oficial (spike → ADR → integração condicional) | **Concluída** (#142–#143, épico #134, PR #146) |
 | 9 | Migração ethernet-ip v1→v2 no backend (dívida técnica) | **Concluída** (#127, PR ainda não aberto) |
-| 10 | Bloqueadores de segurança — log, SSRF, ciclo de vida de sessão, MFA | Planejada — **fase atual**, detalhe abaixo |
-| 11 | Bloqueadores de conformidade LGPD — canal do titular, ROPA, RIPD, transferência internacional | Planejada — detalhe abaixo |
+| 10 | Bloqueadores de segurança — log, SSRF, ciclo de vida de sessão, MFA | **Concluída** (#149–#153, épico #148) |
+| 11 | Bloqueadores de conformidade LGPD — canal do titular, ROPA, RIPD, transferência internacional | Planejada — **fase atual**, detalhe abaixo |
 | 12 | Travas mecânicas de qualidade + correções sem trade-off | Planejada — detalhe abaixo |
 | 13 | Endurecimento de segurança (P1) — perímetro, credenciais, lacunas de teste | Planejada — objetivo abaixo |
 | 14 | Conformidade P1 — retenção, DSAR, consentimento e documentos legais | Planejada — objetivo abaixo |
@@ -483,6 +483,16 @@ Cada linha abaixo é **um item de trabalho**, não quatro — auditorias diferen
   - Teste que falhe se o step-up for removido.
 - **Depende de:** —
 - **Risco/observações:** baixo. O que torna o achado forte é a assimetria documentada no próprio código: `disableMfa` já exige senha + código, com o comentário *"uma sessão sozinha (ex.: roubada via XSS) não deve ser suficiente para desligar o segundo fator"* — mas **reinscrever** dá o mesmo resultado prático, com o bônus de expulsar o dono legítimo, e não exige nada.
+
+**Fechamento (2026-08-06):** entregue nas 5 sub-issues planejadas (#149–#153), épico #148, branch `fix/148-bloqueadores-seguranca`. Nenhuma redução de escopo — as 5 issues fecharam exatamente como descritas no laudo de segurança, sem achado extra fora do previsto (diferente de fases anteriores como a 3 e a 6). Ordem de execução seguiu a prioridade do próprio laudo (#149 Crítico primeiro) e a recomendação de agrupar #151/#152 na mesma branch por mexerem no mesmo arquivo/fluxo (`resetPassword`), como o roadmap já sinalizava.
+
+- **#149 — Redação de log:** `redact` no pino cobrindo cookie/authorization/CSRF/campos sensíveis; `AuditService.record` parou de espelhar a entrada inteira no log de aplicação; `attemptedEmail` virou blind index HMAC (reaproveitado de `blindIndex.ts`, sem chave nova).
+- **#150 — SSRF:** validador `shared/security/outboundHost.ts` (novo) aplicado no `MeterService` antes de persistir — nega por padrão qualquer endereço não-unicast público, com resolução real de DNS (não checagem textual) e `IOT_ALLOWED_HOSTS` como escape hatch para rede local. `ipaddr.js` promovida de dependência transitiva para direta.
+- **#151 — Hash do token de reset:** `hashToken()` (já usado por `AuthToken`/`RefreshToken`) aplicado a `PasswordReset.token`; migração de dados invalidou os resets pendentes gerados em claro.
+- **#152 — Revogação de sessão no reset:** novo `resetPasswordAndRevokeSessions` — troca de senha, marca reset usado e revoga todo `AuthToken`/`RefreshToken` do usuário numa única transação Prisma.
+- **#153 — Step-up de MFA:** `verifyMfaSetup` recusa reinscrição enquanto `mfaEnabled === true` (obriga `disable` → `setup`, reaproveitando o fluxo já hardened); `createBackupCodes` passou a purgar o lote anterior antes de criar o novo, na mesma transação.
+
+**Estado final:** todo controle tem teste que falha se for removido (DoD do `05-security-standards.md` cumprido nas 5 issues); `npm run build`/`lint`/`test -- --run` do backend limpos (129/129 arquivos · 1547/1547 testes) e `npm audit --omit=dev` sem vulnerabilidade a cada sub-issue fechada; `.claude/log/CHANGELOG.md` com uma entrada por sub-issue. PR ainda não aberto no momento desta atualização do roadmap.
 
 ## Fase 11 — Bloqueadores de conformidade LGPD
 

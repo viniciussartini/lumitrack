@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from "vitest"
 import { AuditService } from "@/shared/audit/audit.service.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
+import { logger } from "@/shared/logger/logger.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 
@@ -48,5 +49,30 @@ describe("AuditService.record", () => {
         await expect(
             service.record({ userId: null, action: "LOGOUT", outcome: "SUCCESS" }),
         ).resolves.toBeUndefined()
+    })
+
+    // #10 — A09 / LGPD Art. 6º III/VII: metadata/ipAddress/userAgent são
+    // legítimos só na tabela audit_logs (Art. 48) — o logger de aplicação
+    // não pode espelhar a entrada inteira, só um resumo não-identificante.
+    it("loga só um resumo não-identificante — nunca metadata/ipAddress/userAgent", async () => {
+        const infoSpy = vi.spyOn(logger, "info")
+
+        await auditService.record({
+            userId: "user-1",
+            action: "LOGIN",
+            outcome: "FAILURE",
+            resourceType: "User",
+            metadata: { attemptedEmailHash: "hash-super-secreto" },
+            ipAddress: "203.0.113.7",
+            userAgent: "algum-user-agent",
+        })
+
+        expect(infoSpy).toHaveBeenCalledTimes(1)
+        const [loggedObject] = infoSpy.mock.calls[0] as [Record<string, unknown>]
+        expect(loggedObject).toEqual({
+            audit: { action: "LOGIN", outcome: "FAILURE", resourceType: "User", userId: "user-1" },
+        })
+
+        infoSpy.mockRestore()
     })
 })

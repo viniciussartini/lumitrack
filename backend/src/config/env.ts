@@ -107,6 +107,15 @@ export const envSchema = z.object({
     REFRESH_CSRF_COOKIE_NAME: z.string().default("lumitrack_refresh_csrf"),
     REFRESH_CSRF_HEADER_NAME: z.string().default("x-refresh-csrf-token"),
     DATA_RETENTION_REFRESH_TOKEN_DAYS: z.coerce.number().default(30),
+
+    // Proteção SSRF nas conexões de saída do medidor (#10 da remediação
+    // OWASP/LGPD — A01). Loopback, link-local, RFC1918/ULA e multicast são
+    // negados por padrão (ver shared/security/outboundHost.ts) — esta lista
+    // é o único jeito de liberar o caso legítimo de medidor em rede local.
+    // Formato: hosts e/ou CIDRs separados por vírgula
+    // (ex.: "broker.local,192.168.0.0/16,10.0.5.20/32"). Vazio = nenhuma
+    // exceção liberada, só destino público de fato alcançável na internet.
+    IOT_ALLOWED_HOSTS: z.string().optional(),
 }).refine(
     (data) => !(data.NODE_ENV === "production" && data.CORS_ORIGIN === "*"),
     {

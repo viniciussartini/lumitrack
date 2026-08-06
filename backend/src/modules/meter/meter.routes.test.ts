@@ -167,6 +167,22 @@ describe("POST /api/meters", () => {
         const response = await request(app).post("/api/meters").send(validMeterBody)
         expect(response.status).toBe(401)
     })
+
+    // #10 — OWASP A01 (SSRF): antes desta correção, qualquer host era aceito
+    // sem checagem e o controller disparava a conexão de saída logo em
+    // seguida — este é o teste que reproduz o bug e falha se o controle for
+    // removido (DoD do 05-security-standards.md).
+    it("retorna 422 ao apontar para rede privada (RFC1918) sem allowlist", async () => {
+        const token = await registerAndLogin()
+        const propertyId = await seedProperty(token)
+
+        const response = await request(app)
+            .post("/api/meters")
+            .set("Authorization", `Bearer ${token}`)
+            .send({ ...validMeterBody, host: "10.0.0.5", propertyId })
+
+        expect(response.status).toBe(422)
+    })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -255,6 +271,22 @@ describe("PUT /api/meters/:id", () => {
             .send({ name: "X", protocol: "MQTT", host: "h", port: 1883, topic: "t" })
 
         expect(response.status).toBe(403)
+    })
+
+    // #10 — OWASP A01 (SSRF): PUT dispara `restart` da conexão de saída
+    // (meter.controller.ts) — segundo caminho igualmente aberto antes desta
+    // correção, hoje coberto pela mesma checagem do POST.
+    it("retorna 422 ao atualizar host para rede privada sem allowlist", async () => {
+        const token = await registerAndLogin()
+        const propertyId = await seedProperty(token)
+        const created = await request(app).post("/api/meters").set("Authorization", `Bearer ${token}`).send({ ...validMeterBody, propertyId })
+
+        const response = await request(app)
+            .put(`/api/meters/${created.body.data.id as string}`)
+            .set("Authorization", `Bearer ${token}`)
+            .send({ name: "X", protocol: "MQTT", host: "192.168.50.50", port: 1883, topic: "t" })
+
+        expect(response.status).toBe(422)
     })
 })
 

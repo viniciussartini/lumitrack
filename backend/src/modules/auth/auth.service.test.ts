@@ -283,6 +283,30 @@ describe("AuthService", () => {
             )
         })
 
+        // #10 — OWASP A04: reproduz o achado antes da correção — o token
+        // enviado por e-mail não pode aparecer em claro na coluna do banco.
+        // Mesmo padrão do teste de senha em user.service.test.ts:87-101.
+        it("deve armazenar o token como hash SHA-256, nunca em texto puro", async () => {
+            const { UserService } = await import("@/modules/user/user.service.js")
+            const userService = new UserService(userRepository)
+            await userService.createUser(validUser)
+
+            await authService.forgotPassword({ email: "joao@example.com" })
+
+            const rawToken = mockSendPasswordResetEmail.mock.calls[0]?.[1] as string
+
+            const reset = await prismaTest.passwordReset.findFirst({
+                where: { user: { email: "joao@example.com" } },
+            })
+
+            expect(reset?.token).toBeDefined()
+            // Hash SHA-256 em hex tem sempre 64 caracteres.
+            expect(reset?.token).toMatch(/^[0-9a-f]{64}$/)
+            expect(reset?.token).toBe(hashToken(rawToken))
+            // E jamais o valor puro que foi enviado no e-mail.
+            expect(reset?.token).not.toBe(rawToken)
+        })
+
         it("deve retornar sem erro para e-mail inexistente (user enumeration prevention)", async () => {
             // O serviço NUNCA deve lançar erro para e-mail não cadastrado.
             // Isso é crítico: se retornasse erro, um atacante poderia testar
@@ -342,9 +366,10 @@ describe("AuthService", () => {
                 newPassword: "NovaSenha@456",
             })
 
-            // O registro de reset deve estar marcado como usado
+            // O registro de reset deve estar marcado como usado — buscado
+            // pelo hash, já que a coluna nunca guarda o valor puro.
             const reset = await prismaTest.passwordReset.findFirst({
-                where: { token: resetToken },
+                where: { token: hashToken(resetToken) },
             })
             expect(reset?.usedAt).not.toBeNull()
 
@@ -390,6 +415,9 @@ describe("AuthService", () => {
             await userService.createUser(validUser)
 
             // Criamos manualmente um token já expirado (expiresAt no passado)
+            // — a coluna guarda o hash, exatamente como resetPassword grava
+            // de verdade; senão o teste passaria pelo motivo errado (token
+            // "não encontrado" em vez de "expirado").
             const expiredToken = "token-expirado-para-teste"
             const user = await prismaTest.user.findUnique({
                 where: { email: "joao@example.com" },
@@ -398,7 +426,7 @@ describe("AuthService", () => {
             await prismaTest.passwordReset.create({
                 data: {
                     userId: user!.id,
-                    token: expiredToken,
+                    token: hashToken(expiredToken),
                     expiresAt: new Date(Date.now() - 1000), // 1 segundo no passado
                 },
             })
@@ -498,6 +526,69 @@ describe("AuthService", () => {
 
                 const user = await prismaTest.user.findUnique({ where: { id: userId } })
                 expect(user?.mfaEnabled).toBe(false)
+            })
+
+            // #10 — OWASP A07: reinscrever o segundo fator dá o mesmo
+            // resultado prático de desabilitá-lo (expulsa o dono legítimo),
+            // mas não exigia nada além de uma sessão válida — diferente de
+            // `disableMfa`, que já exige senha+código. Este é o teste que
+            // reproduz o bug e falha se o step-up for removido (DoD do
+            // 05-security-standards.md).
+            it("recusa reinscrição com BadRequestError quando o MFA já está habilitado (step-up)", async () => {
+                const userId = await createUserAndGetId()
+                const { secret: oldSecret } = await enableMfaForUser(userId)
+
+                // Um segundo secret válido (gerado do zero, como um
+                // atacante com sessão roubada faria) — mesmo com um código
+                // TOTP correto para ELE, a reinscrição direta é recusada.
+                const { secret: newSecret } = await authService.setupMfa(validUser.email)
+                const newCode = await generate({ secret: newSecret })
+
+                await expect(
+                    authService.verifyMfaSetup(userId, { secret: newSecret, code: newCode }),
+                ).rejects.toThrow(BadRequestError)
+
+                // O fator antigo continua intacto — nada foi sobrescrito.
+                const user = await prismaTest.user.findUnique({ where: { id: userId } })
+                expect(user?.mfaEnabled).toBe(true)
+                const oldCode = await generate({ secret: oldSecret })
+                const loginResult = await authService.login({
+                    email: validUser.email,
+                    password: validUser.password,
+                    channel: "WEB",
+                })
+                if (!loginResult.mfaRequired) throw new Error("esperava mfaRequired:true")
+                const session = await authService.completeMfaLogin({
+                    mfaToken: loginResult.mfaToken,
+                    code: oldCode,
+                })
+                expect(session.token).toBeTruthy()
+            })
+
+            // Purga de backup codes (#10 — A07): reinscrever via o caminho
+            // correto (disable → setup) não pode deixar os códigos do lote
+            // anterior utilizáveis.
+            it("purga os backup codes do lote anterior ao reinscrever via disable → setup", async () => {
+                const userId = await createUserAndGetId()
+                const { secret, backupCodes: oldBackupCodes } = await enableMfaForUser(userId)
+                const disableCode = await generate({ secret })
+
+                await authService.disableMfa(userId, { password: validUser.password, code: disableCode })
+                await enableMfaForUser(userId) // reinscreve — novo secret, novos backup codes
+
+                const loginResult = await authService.login({
+                    email: validUser.email,
+                    password: validUser.password,
+                    channel: "WEB",
+                })
+                if (!loginResult.mfaRequired) throw new Error("esperava mfaRequired:true")
+
+                await expect(
+                    authService.completeMfaLogin({
+                        mfaToken: loginResult.mfaToken,
+                        code: oldBackupCodes[0]!,
+                    }),
+                ).rejects.toThrow(UnauthorizedError)
             })
         })
 

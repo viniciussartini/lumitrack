@@ -217,7 +217,7 @@ model RefreshToken {
 model PasswordReset {
   id        String    @id @default(uuid())
   userId    String
-  token     String    @unique
+  token     String    @unique // hash SHA-256 do valor opaco — nunca o valor puro (#10, mesmo padrão de AuthToken/RefreshToken)
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())

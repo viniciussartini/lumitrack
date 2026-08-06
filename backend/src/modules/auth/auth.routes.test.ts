@@ -5,6 +5,7 @@ import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
 import { hashToken } from "@/shared/crypto/hashToken.js"
+import { generateBlindIndex } from "@/shared/crypto/blindIndex.js"
 import { env } from "@/config/env.js"
 import { generate } from "otplib"
 
@@ -373,9 +374,13 @@ describe("Audit log — login/logout", () => {
         const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "LOGIN" } })
         expect(logs).toHaveLength(1)
         expect(logs[0]).toMatchObject({ action: "LOGIN", outcome: "FAILURE", userId: null })
-        expect((logs[0]?.metadata as { attemptedEmail?: string } | null)?.attemptedEmail).toBe(
-            validUser.email,
-        )
+
+        const metadata = logs[0]?.metadata as { attemptedEmailHash?: string } | null
+        // Blind index, não o e-mail em claro (#10 — A09/LGPD Art. 6º III/VII):
+        // preserva a correlação de tentativas contra o mesmo alvo sem reter
+        // o dado pessoal em si.
+        expect(metadata?.attemptedEmailHash).toBe(generateBlindIndex(validUser.email))
+        expect(JSON.stringify(metadata)).not.toContain(validUser.email)
     })
 
     it("NÃO registra LOGIN para corpo malformado (422 — não é uma tentativa de login real)", async () => {
@@ -475,17 +480,30 @@ describe("POST /api/auth/forgot-password", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("POST /api/auth/reset-password", () => {
+    // #10 — OWASP A04: o token puro só existe no e-mail — a coluna do banco
+    // guarda o hash (ver teste de regressão abaixo). Captura via o mock de
+    // e-mail, exatamente o que o usuário de verdade recebe e cola no
+    // formulário de reset.
     async function getResetToken(): Promise<string> {
         await request(app).post("/api/users").send(validUser)
         await request(app).post("/api/auth/forgot-password").send({ email: validUser.email })
+
+        const call = mockSendPasswordResetEmail.mock.calls.at(-1) as [string, string]
+        return call[1]
+    }
+
+    it("armazena o token como hash SHA-256, nunca o valor enviado por e-mail", async () => {
+        const resetToken = await getResetToken()
 
         const reset = await prismaHttpTest.passwordReset.findFirst({
             where: { user: { email: validUser.email } },
             orderBy: { createdAt: "desc" },
         })
 
-        return reset!.token
-    }
+        expect(reset?.token).toMatch(/^[0-9a-f]{64}$/)
+        expect(reset?.token).toBe(hashToken(resetToken))
+        expect(reset?.token).not.toBe(resetToken)
+    })
 
     it("deve retornar 200 e permitir login com a nova senha após reset", async () => {
         const resetToken = await getResetToken()
@@ -541,6 +559,76 @@ describe("POST /api/auth/reset-password", () => {
         })
 
         expect(response.status).toBe(422)
+    })
+
+    // #10 — OWASP A07: o cenário-alvo do "esqueci minha senha" é recuperar
+    // uma conta comprometida — antes desta correção, o reset não revogava
+    // nenhuma sessão existente, então um atacante com Bearer/cookie ativo
+    // sobrevivia à "recuperação" da vítima. Este é o teste que reproduz o
+    // bug e falha se a revogação for removida (DoD do
+    // 05-security-standards.md).
+    describe("revogação de sessões existentes (A07)", () => {
+        // Pede um novo reset para um e-mail já registrado — diferente de
+        // getResetToken(), não tenta recriar o usuário.
+        async function requestResetToken(email: string): Promise<string> {
+            await request(app).post("/api/auth/forgot-password").send({ email })
+            const call = mockSendPasswordResetEmail.mock.calls.at(-1) as [string, string]
+            return call[1]
+        }
+
+        it("MOBILE: Bearer emitido antes do reset deixa de funcionar (401)", async () => {
+            await request(app).post("/api/users").send(validUser)
+            const loginRes = await request(app).post("/api/auth/login").send({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "MOBILE",
+            })
+            const oldToken = loginRes.body.data.token as string
+
+            const resetToken = await requestResetToken(validUser.email)
+            await request(app).post("/api/auth/reset-password").send({
+                token: resetToken,
+                newPassword: "NovaSenha@456",
+            })
+
+            const response = await request(app)
+                .get("/api/auth/me")
+                .set("Authorization", `Bearer ${oldToken}`)
+
+            expect(response.status).toBe(401)
+        })
+
+        it("WEB: sessão e refresh token emitidos antes do reset deixam de funcionar (401)", async () => {
+            await request(app).post("/api/users").send(validUser)
+            const agent = request.agent(app)
+            const loginRes = await agent.post("/api/auth/login").send({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "WEB",
+            })
+            const oldRefreshValue = extractCookieValue(loginRes, env.REFRESH_COOKIE_NAME)
+            const oldRefreshCsrfValue = extractCookieValue(loginRes, env.REFRESH_CSRF_COOKIE_NAME)
+
+            const resetToken = await requestResetToken(validUser.email)
+            await request(app).post("/api/auth/reset-password").send({
+                token: resetToken,
+                newPassword: "NovaSenha@456",
+            })
+
+            // Sessão antiga (cookie ainda no agent) não funciona mais.
+            const meResponse = await agent.get("/api/auth/me")
+            expect(meResponse.status).toBe(401)
+
+            // Refresh token antigo também não funciona mais.
+            const refreshResponse = await request(app)
+                .post("/api/auth/refresh")
+                .set("Cookie", [
+                    `${env.REFRESH_COOKIE_NAME}=${oldRefreshValue}`,
+                    `${env.REFRESH_CSRF_COOKIE_NAME}=${oldRefreshCsrfValue}`,
+                ])
+                .set(env.REFRESH_CSRF_HEADER_NAME, oldRefreshCsrfValue)
+            expect(refreshResponse.status).toBe(401)
+        })
     })
 })
 
@@ -636,6 +724,27 @@ describe("MFA", { timeout: 15000 }, () => {
                 .send({ secret, code: "000000" })
 
             expect(response.status).toBe(401)
+        })
+
+        // #10 — OWASP A07: reinscrever o segundo fator dá o mesmo resultado
+        // prático de desabilitá-lo, mas não exigia nada além de uma sessão
+        // válida — diferente de /mfa/disable, que já exige senha+código.
+        it("retorna 400 ao tentar reinscrever quando o MFA já está habilitado (step-up)", async () => {
+            const token = await registerAndLoginMobile()
+            await enableMfaViaHttp(token)
+
+            const setupRes = await request(app)
+                .post("/api/auth/mfa/setup")
+                .set("Authorization", `Bearer ${token}`)
+            const { secret } = setupRes.body.data as { secret: string }
+            const code = await generate({ secret })
+
+            const response = await request(app)
+                .post("/api/auth/mfa/verify-setup")
+                .set("Authorization", `Bearer ${token}`)
+                .send({ secret, code })
+
+            expect(response.status).toBe(400)
         })
     })
 
