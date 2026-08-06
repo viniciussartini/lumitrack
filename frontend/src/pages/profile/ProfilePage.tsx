@@ -70,7 +70,7 @@ export const ProfilePage = () => {
     }
 
     return (
-        <div className="flex max-w-[920px] flex-col gap-6">
+        <div className="flex flex-col gap-6">
             <div className="blueprint p-[26px]">
                 <i className="corner tl" />
                 <i className="corner tr" />

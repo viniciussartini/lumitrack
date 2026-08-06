@@ -607,29 +607,34 @@ const LandingFooter = () => (
                 <p className="text-text/62 mt-3.5 max-w-[34ch] text-[13px] leading-[1.55]">
                     Monitoramento de energia elétrica para pessoas físicas e jurídicas do Brasil.
                 </p>
-                {/* Sem equivalente no handoff (LumiTrack Landing.dc.html não
-                    tem logo do GitHub) — acréscimo pedido pelo usuário
-                    (2026-08-04), ver CHANGELOG. Ícone sem texto: aria-label
-                    dá o nome acessível. */}
-                <a
-                    href={GITHUB_REPO_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Ver o repositório do LumiTrack no GitHub (abre em nova aba)"
-                    className="text-text/55 hover:text-accent mt-3.5 inline-flex"
-                >
-                    <GitHubIcon className="h-[18px] w-[18px]" />
-                </a>
-                {/* Canal de comunicação com o titular (LGPD Art. 18, issue
-                    #155) — precisa estar visível pra quem ainda não tem
-                    conta, não só dentro do app autenticado. */}
-                <a
-                    href={`mailto:${PRIVACY_CONTACT_EMAIL}`}
-                    className="text-text/55 hover:text-accent mt-3.5 inline-flex items-center gap-1.5 text-[12.5px]"
-                >
-                    <Mail className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" />
-                    {PRIVACY_CONTACT_EMAIL}
-                </a>
+                {/* flex-col + gap — sem isso os dois links (ambos inline-flex,
+                    sem texto entre eles no JSX) renderizam colados lado a
+                    lado na mesma linha em vez de empilhados. */}
+                <div className="mt-3.5 flex flex-col items-start gap-2.5">
+                    {/* Sem equivalente no handoff (LumiTrack Landing.dc.html
+                        não tem logo do GitHub) — acréscimo pedido pelo
+                        usuário (2026-08-04), ver CHANGELOG. Ícone sem texto:
+                        aria-label dá o nome acessível. */}
+                    <a
+                        href={GITHUB_REPO_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Ver o repositório do LumiTrack no GitHub (abre em nova aba)"
+                        className="text-text/55 hover:text-accent inline-flex"
+                    >
+                        <GitHubIcon className="h-[18px] w-[18px]" />
+                    </a>
+                    {/* Canal de comunicação com o titular (LGPD Art. 18, issue
+                        #155) — precisa estar visível pra quem ainda não tem
+                        conta, não só dentro do app autenticado. */}
+                    <a
+                        href={`mailto:${PRIVACY_CONTACT_EMAIL}`}
+                        className="text-text/55 hover:text-accent inline-flex items-center gap-1.5 text-[12.5px]"
+                    >
+                        <Mail className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" />
+                        {PRIVACY_CONTACT_EMAIL}
+                    </a>
+                </div>
             </div>
             {FOOTER_COLUMNS.map((column) => (
                 <div key={column.title}>

@@ -19,13 +19,13 @@ import { PRIVACY_CONTACT_EMAIL } from "@/config/privacy"
 // reproduziria o mesmo bug de dois `<h1>` corrigido em #136.
 export const AboutPage = () => (
     <div className="flex flex-col gap-8">
-        <article className="lt-legal max-w-[760px]">
+        <article className="lt-legal">
             <ReactMarkdown components={industryMarkdownComponents} remarkPlugins={[remarkGfm]}>
                 {aboutMarkdown}
             </ReactMarkdown>
         </article>
 
-        <div className="blueprint flex max-w-[760px] flex-wrap items-center justify-between gap-4 p-[26px]">
+        <div className="blueprint flex flex-wrap items-center justify-between gap-4 p-[26px]">
             <i className="corner tl" />
             <i className="corner tr" />
             <i className="corner bl" />
@@ -55,7 +55,7 @@ export const AboutPage = () => (
             dentro do shell autenticado, não só no rodapé público; "Sobre o
             projeto" é o destino institucional já estabelecido (Fase 6), sem
             precisar inventar um rodapé novo no AppShell. */}
-        <div className="blueprint flex max-w-[760px] flex-wrap items-center justify-between gap-4 p-[26px]">
+        <div className="blueprint flex flex-wrap items-center justify-between gap-4 p-[26px]">
             <i className="corner tl" />
             <i className="corner tr" />
             <i className="corner bl" />
