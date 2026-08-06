@@ -225,6 +225,78 @@ describe("MeterService", () => {
                 }),
             ).rejects.toThrow(ValidationError)
         })
+
+        // #10 — OWASP A01 (SSRF): antes desta correção, qualquer host/port era
+        // aceito sem checagem — este é o teste que reproduz o bug e falha se o
+        // controle for removido (DoD do 05-security-standards.md).
+        describe("proteção SSRF (allowlist de destino)", () => {
+            it("lança ValidationError ao apontar para rede privada (RFC1918) sem allowlist", async () => {
+                const { user, property } = await setupUserAndProperty()
+
+                await expect(
+                    meterService.create(user.id, {
+                        ...validMeterMqtt,
+                        host: "10.0.0.5",
+                        targetType: "PROPERTY",
+                        propertyId: property.id,
+                    }),
+                ).rejects.toThrow(ValidationError)
+            })
+
+            it("lança ValidationError ao apontar para o endereço de metadata de cloud", async () => {
+                const { user, property } = await setupUserAndProperty()
+
+                await expect(
+                    meterService.create(user.id, {
+                        ...validMeterMqtt,
+                        host: "169.254.169.254",
+                        targetType: "PROPERTY",
+                        propertyId: property.id,
+                    }),
+                ).rejects.toThrow(ValidationError)
+            })
+
+            it("lança ValidationError para porta da denylist (ex.: 22/SSH), mesmo com host público", async () => {
+                const { user, property } = await setupUserAndProperty()
+
+                await expect(
+                    meterService.create(user.id, {
+                        ...validMeterMqtt,
+                        host: "1.1.1.1",
+                        port: 22,
+                        targetType: "PROPERTY",
+                        propertyId: property.id,
+                    }),
+                ).rejects.toThrow(ValidationError)
+            })
+
+            it("permite host público de fato alcançável na internet", async () => {
+                const { user, property } = await setupUserAndProperty()
+
+                const meter = await meterService.create(user.id, {
+                    ...validMeterMqtt,
+                    host: "1.1.1.1",
+                    targetType: "PROPERTY",
+                    propertyId: property.id,
+                })
+
+                expect(meter.host).toBe("1.1.1.1")
+            })
+
+            it("não valida destino para protocolo serial (sem host/port) — MODBUS_RTU", async () => {
+                const { user, property } = await setupUserAndProperty()
+
+                const meter = await meterService.create(user.id, {
+                    name: "Medidor serial",
+                    protocol: "MODBUS_RTU",
+                    address: "/dev/ttyUSB0",
+                    targetType: "PROPERTY",
+                    propertyId: property.id,
+                })
+
+                expect(meter.address).toBe("/dev/ttyUSB0")
+            })
+        })
     })
 
     describe("findByTargetQuery", () => {
@@ -321,6 +393,25 @@ describe("MeterService", () => {
             await expect(
                 meterService.update(meter.id, userB.id, { ...validMeterMqtt }),
             ).rejects.toThrow(ForbiddenError)
+        })
+
+        // #10 — OWASP A01 (SSRF): `PUT /api/meters/:id` dispara `restart` da
+        // conexão (meter.controller.ts) — segundo caminho igualmente aberto
+        // antes desta correção, hoje coberto pela mesma checagem do create.
+        it("lança ValidationError ao atualizar host para rede privada sem allowlist", async () => {
+            const { user, property } = await setupUserAndProperty()
+            const meter = await meterService.create(user.id, {
+                ...validMeterMqtt,
+                targetType: "PROPERTY",
+                propertyId: property.id,
+            })
+
+            await expect(
+                meterService.update(meter.id, user.id, {
+                    ...validMeterMqtt,
+                    host: "192.168.50.50",
+                }),
+            ).rejects.toThrow(ValidationError)
         })
     })
 

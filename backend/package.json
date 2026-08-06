@@ -37,6 +37,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "helmet": "^8.1.0",
+    "ipaddr.js": "^1.9.1",
     "jsmodbus": "^4.0.10",
     "jsonwebtoken": "^9.0.3",
     "mqtt": "^5.15.0",

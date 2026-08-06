@@ -7,6 +7,14 @@ export default defineConfig({
         environment: "node",
         env: {
             NODE_ENV: "test",   // Garante que o código saiba que está em ambiente de teste
+
+            // Allowlist SSRF (#10 — shared/security/outboundHost.ts) só para os
+            // hostnames fictícios já usados como fixture nos testes de medidor
+            // (meter.service.test.ts/meter.routes.test.ts) — sem isso, o
+            // deny-by-default de loopback/RFC1918 quebraria esses testes, que não
+            // são sobre SSRF. Os cenários que testam a recusa em si usam hosts
+            // fora desta lista de propósito.
+            IOT_ALLOWED_HOSTS: "localhost,novo-host,h,127.0.0.1/32,::1/128",
         },
 
         maxWorkers: 1,           // Força testes a rodarem em série para evitar conflitos no banco de dados compartilhado. O cleanDatabase() apaga tudo antes de cada teste, mas se rodarem em paralelo, podem interferir um no outro.

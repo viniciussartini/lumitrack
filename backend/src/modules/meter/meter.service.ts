@@ -1,13 +1,15 @@
 import { z } from "zod"
 import { TargetType } from "@/generated/prisma/client.js"
 import { createMeterSchema, updateMeterSchema, byTargetQuerySchema } from "@/modules/meter/meter.schema.js"
-import type { CreateMeterInput } from "@/modules/meter/meter.schema.js"
+import type { CreateMeterInput, UpdateMeterInput } from "@/modules/meter/meter.schema.js"
 import type { MeterRepository, MeterResponse } from "@/modules/meter/meter.repository.js"
 import type { PropertyRepository } from "@/modules/property/property.repository.js"
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import { paginationQuerySchema, type Paginated } from "@/shared/pagination.js"
+import { checkOutboundHost } from "@/shared/security/outboundHost.js"
+import { env } from "@/config/env.js"
 
 export class MeterService {
     constructor(
@@ -77,12 +79,30 @@ export class MeterService {
         if (ownerId !== userId) throw new ForbiddenError("Acesso negado")
     }
 
+    // Proteção SSRF (#10 — OWASP A01): só os protocolos de rede (MQTT,
+    // MODBUS_TCP, ETHERNET_IP, PROFINET) têm host/port — os seriais
+    // (MODBUS_RTU, PROFIBUS, RS232, RS485) usam `address` e não abrem
+    // socket de rede, então não passam por aqui. Recusa **antes de
+    // persistir** — o controller dispara a conexão de saída logo após
+    // create/update (inclusive no `restart` do update), então validar só
+    // no adaptador de protocolo seria tarde demais.
+    private async assertOutboundHostAllowed(input: CreateMeterInput | UpdateMeterInput): Promise<void> {
+        if (input.host === undefined || input.port === undefined) return
+
+        const result = await checkOutboundHost(input.host, input.port, env.IOT_ALLOWED_HOSTS)
+        if (!result.allowed) {
+            throw new ValidationError(result.reason ?? "Destino de conexão não permitido")
+        }
+    }
+
     async create(userId: string, input: unknown): Promise<MeterResponse> {
         const parsed = createMeterSchema.safeParse(input)
         if (!parsed.success) {
             const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
+
+        await this.assertOutboundHostAllowed(parsed.data)
 
         const targetId = this.extractTargetId(parsed.data)
         const ownerId = await this.resolveTargetOwnerId(parsed.data.targetType, targetId)
@@ -137,6 +157,8 @@ export class MeterService {
             const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
+
+        await this.assertOutboundHostAllowed(parsed.data)
 
         return this.meterRepository.update(id, parsed.data)
     }
