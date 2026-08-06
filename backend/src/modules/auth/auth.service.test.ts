@@ -283,6 +283,30 @@ describe("AuthService", () => {
             )
         })
 
+        // #10 — OWASP A04: reproduz o achado antes da correção — o token
+        // enviado por e-mail não pode aparecer em claro na coluna do banco.
+        // Mesmo padrão do teste de senha em user.service.test.ts:87-101.
+        it("deve armazenar o token como hash SHA-256, nunca em texto puro", async () => {
+            const { UserService } = await import("@/modules/user/user.service.js")
+            const userService = new UserService(userRepository)
+            await userService.createUser(validUser)
+
+            await authService.forgotPassword({ email: "joao@example.com" })
+
+            const rawToken = mockSendPasswordResetEmail.mock.calls[0]?.[1] as string
+
+            const reset = await prismaTest.passwordReset.findFirst({
+                where: { user: { email: "joao@example.com" } },
+            })
+
+            expect(reset?.token).toBeDefined()
+            // Hash SHA-256 em hex tem sempre 64 caracteres.
+            expect(reset?.token).toMatch(/^[0-9a-f]{64}$/)
+            expect(reset?.token).toBe(hashToken(rawToken))
+            // E jamais o valor puro que foi enviado no e-mail.
+            expect(reset?.token).not.toBe(rawToken)
+        })
+
         it("deve retornar sem erro para e-mail inexistente (user enumeration prevention)", async () => {
             // O serviço NUNCA deve lançar erro para e-mail não cadastrado.
             // Isso é crítico: se retornasse erro, um atacante poderia testar
@@ -342,9 +366,10 @@ describe("AuthService", () => {
                 newPassword: "NovaSenha@456",
             })
 
-            // O registro de reset deve estar marcado como usado
+            // O registro de reset deve estar marcado como usado — buscado
+            // pelo hash, já que a coluna nunca guarda o valor puro.
             const reset = await prismaTest.passwordReset.findFirst({
-                where: { token: resetToken },
+                where: { token: hashToken(resetToken) },
             })
             expect(reset?.usedAt).not.toBeNull()
 
@@ -390,6 +415,9 @@ describe("AuthService", () => {
             await userService.createUser(validUser)
 
             // Criamos manualmente um token já expirado (expiresAt no passado)
+            // — a coluna guarda o hash, exatamente como resetPassword grava
+            // de verdade; senão o teste passaria pelo motivo errado (token
+            // "não encontrado" em vez de "expirado").
             const expiredToken = "token-expirado-para-teste"
             const user = await prismaTest.user.findUnique({
                 where: { email: "joao@example.com" },
@@ -398,7 +426,7 @@ describe("AuthService", () => {
             await prismaTest.passwordReset.create({
                 data: {
                     userId: user!.id,
-                    token: expiredToken,
+                    token: hashToken(expiredToken),
                     expiresAt: new Date(Date.now() - 1000), // 1 segundo no passado
                 },
             })

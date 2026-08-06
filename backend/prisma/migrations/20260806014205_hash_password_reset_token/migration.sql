@@ -1,0 +1,12 @@
+-- #10 (OWASP A04) — password_resets.token passa a guardar hash SHA-256 do
+-- valor opaco, nunca mais o valor puro (mesmo padrão já usado por
+-- auth_tokens.token e refresh_tokens.token). Nenhuma mudança de coluna: o
+-- tipo já era TEXT, o que muda é o VALOR gravado pela aplicação a partir
+-- deste deploy.
+--
+-- Resets pendentes existentes foram gerados com o valor puro — depois deste
+-- deploy, uma busca por hash nunca vai bater com eles (não são
+-- recuperáveis, e não devem ser: continuariam sendo o texto puro do token
+-- de recuperação de conta em repouso). Removidos em vez de deixados como
+-- lixo órfão na tabela.
+DELETE FROM "password_resets" WHERE "usedAt" IS NULL;

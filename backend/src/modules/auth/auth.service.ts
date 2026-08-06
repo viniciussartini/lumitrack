@@ -238,9 +238,13 @@ export class AuthService {
         const resetToken = randomUUID()
         const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRES_MS)
 
+        // Só o hash é persistido — mesmo padrão já usado para AuthToken/
+        // RefreshToken (#10, A04): em caso de vazamento do dump do banco, o
+        // hash não permite reconstruir um token de reset válido. O valor
+        // puro sai apenas no e-mail, nunca é gravado em lugar nenhum.
         await this.authRepository.createPasswordReset({
             userId: user.id,
-            token: resetToken,
+            token: hashToken(resetToken),
             expiresAt,
         })
 
@@ -259,7 +263,7 @@ export class AuthService {
 
         const { token, newPassword } = parsed.data
 
-        const reset = await this.authRepository.findPasswordReset(token)
+        const reset = await this.authRepository.findPasswordReset(hashToken(token))
 
         if (!reset) {
             throw new BadRequestError("Token de redefinição inválido ou expirado")

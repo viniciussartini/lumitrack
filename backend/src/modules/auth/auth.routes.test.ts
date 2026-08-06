@@ -480,17 +480,30 @@ describe("POST /api/auth/forgot-password", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("POST /api/auth/reset-password", () => {
+    // #10 — OWASP A04: o token puro só existe no e-mail — a coluna do banco
+    // guarda o hash (ver teste de regressão abaixo). Captura via o mock de
+    // e-mail, exatamente o que o usuário de verdade recebe e cola no
+    // formulário de reset.
     async function getResetToken(): Promise<string> {
         await request(app).post("/api/users").send(validUser)
         await request(app).post("/api/auth/forgot-password").send({ email: validUser.email })
+
+        const call = mockSendPasswordResetEmail.mock.calls.at(-1) as [string, string]
+        return call[1]
+    }
+
+    it("armazena o token como hash SHA-256, nunca o valor enviado por e-mail", async () => {
+        const resetToken = await getResetToken()
 
         const reset = await prismaHttpTest.passwordReset.findFirst({
             where: { user: { email: validUser.email } },
             orderBy: { createdAt: "desc" },
         })
 
-        return reset!.token
-    }
+        expect(reset?.token).toMatch(/^[0-9a-f]{64}$/)
+        expect(reset?.token).toBe(hashToken(resetToken))
+        expect(reset?.token).not.toBe(resetToken)
+    })
 
     it("deve retornar 200 e permitir login com a nova senha após reset", async () => {
         const resetToken = await getResetToken()
