@@ -188,7 +188,7 @@ endereço).
 |---|---|---|
 | 6.1 | `meter_readings`/`alert_trigger_events` sem prazo de retenção — crescem indefinidamente, mantendo o perfil comportamental completo do titular por tempo indeterminado. | Fase 14 do roadmap ("Conformidade P1: retenção, DSAR, consentimento e documentos") — decisão de prazo com apoio jurídico, informada pela recomendação da seção 3.3 deste RIPD. |
 | 6.2 | `Meter.extra` (configuração de conexão do dispositivo) pode conter a senha do medidor em texto claro no JSON. | Fase 13 do roadmap ("Endurecimento de segurança (P1)") já lista "cifra de `Meter.extra.password` + omissão do `MeterResponse`" como item planejado. |
-| 6.3 | Nenhuma decisão de hospedagem tomada — se o banco/backup for hospedado fora do Brasil/UE sem SCC, o risco de exposição a jurisdição estrangeira se soma ao risco comportamental deste tratamento. | Issue #158 (mesma Fase 11) — decisão de hospedagem sob a lente da LGPD + DPAs/SCCs. |
+| 6.3 | ~~Nenhuma decisão de hospedagem tomada — risco de exposição a jurisdição estrangeira somado ao risco comportamental.~~ **Tratado.** | **Resolvido pela ADR-0008** (issue #158): hospedagem própria em São Paulo, banco na mesma VM, sem operador estrangeiro — o dado comportamental avaliado neste RIPD não sai do Brasil. Risco remanescente **muda de natureza**: passa de jurisdicional para operacional (ponto único de falha, backup manual via `pg_dump`, ausência de redundância) — ver "Consequências negativas" da ADR-0008. |
 | 6.4 | Base legal específica desta operação (hoje "execução de contrato", registrada no ROPA) ainda não passou por revisão jurídica formal. | Fase 14 do roadmap — atribuição de base legal por operação, com revisão jurídica (mesma ressalva já registrada em `ROPA.md`). |
 | 6.5 | Sem DSAR (Data Subject Access Request) completo — a exportação hoje existente (`GET /api/users/me/data-export`) precisa ser conferida quanto a incluir o histórico de `meter_readings`/`alert_trigger_events` por inteiro, não só um resumo. | Fase 14 do roadmap lista "export DSAR completo (consumo agregado, medidores, disparos)" como item planejado — não verificado neste RIPD por estar fora do seu escopo (avaliação de impacto, não auditoria de export). |
 
@@ -202,8 +202,9 @@ Este RIPD deve ser revisado sempre que houver mudança material no modelo
 de dados ou no fluxo de tratamento avaliado aqui — no mínimo: alteração da
 granularidade de coleta ou retenção de `MeterReading`, novo campo pessoal
 adicionado à cadeia `MeterReading → ... → User`, mudança de finalidade do
-tratamento de alertas, ou decisão de hospedagem (issue #158, que muda a
-resposta da seção 6.3). A revisão mais próxima e certa é a implementação
+tratamento de alertas, ou mudança na topologia de hospedagem decidida pela
+ADR-0008 (a revisão de 2026-08-06 já incorporou essa decisão em 6.3).
+A revisão mais próxima e certa é a implementação
 da recomendação da seção 3.3 na Fase 14 — nesse momento, este documento
 deve ser atualizado para refletir o desenho final adotado (não deixá-lo
 descrevendo um estado já superado).

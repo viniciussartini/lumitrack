@@ -3,6 +3,7 @@ import request from "supertest"
 import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
+import { CURRENT_CONSENT_VERSION } from "@/shared/legal/consentVersion.js"
 
 // Nota: generateTestToken foi REMOVIDO propositalmente.
 // O novo middleware authenticate consulta o banco para verificar se o token
@@ -89,7 +90,11 @@ describe("POST /api/users", () => {
         expect(response.status).toBe(201)
         expect(response.body.data.consentedAt).not.toBeNull()
         expect(new Date(response.body.data.consentedAt).getTime()).toBeLessThanOrEqual(Date.now())
-        expect(response.body.data.consentVersion).toBe("1.0")
+        // Comparado com a constante, não com um literal: o que importa é que
+        // a versão VIGENTE foi registrada. Fixar "1.0" aqui fazia o teste
+        // quebrar a cada publicação de nova versão dos documentos legais
+        // (aconteceu na #158, que subiu para 1.1 ao reescrever o § 4).
+        expect(response.body.data.consentVersion).toBe(CURRENT_CONSENT_VERSION)
     })
 
     it("deve retornar 422 quando acceptedTerms nao for enviado", async () => {

@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-06 · Fase atual: 11 (Fases 1–10 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148 e issue #127)
+> Última atualização: 2026-08-06 · Fase atual: 12 (Fases 1–11 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154 e issue #127)
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das quatro auditorias de 2026-08-05** (segurança, conformidade, qualidade, desempenho) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
@@ -19,8 +19,8 @@
 | 8 | Bandeira tarifária a partir da fonte oficial (spike → ADR → integração condicional) | **Concluída** (#142–#143, épico #134, PR #146) |
 | 9 | Migração ethernet-ip v1→v2 no backend (dívida técnica) | **Concluída** (#127, PR ainda não aberto) |
 | 10 | Bloqueadores de segurança — log, SSRF, ciclo de vida de sessão, MFA | **Concluída** (#149–#153, épico #148) |
-| 11 | Bloqueadores de conformidade LGPD — canal do titular, ROPA, RIPD, transferência internacional | Planejada — **fase atual**, detalhe abaixo |
-| 12 | Travas mecânicas de qualidade + correções sem trade-off | Planejada — detalhe abaixo |
+| 11 | Bloqueadores de conformidade LGPD — canal do titular, ROPA, RIPD, transferência internacional | **Concluída** (#155–#158, épico #154) |
+| 12 | Travas mecânicas de qualidade + correções sem trade-off | Planejada — **fase atual**, detalhe abaixo |
 | 13 | Endurecimento de segurança (P1) — perímetro, credenciais, lacunas de teste | Planejada — objetivo abaixo |
 | 14 | Conformidade P1 — retenção, DSAR, consentimento e documentos legais | Planejada — objetivo abaixo |
 | 15 | Desempenho — instrumentação, índices e eliminação dos multiplicadores | Planejada — objetivo abaixo |
@@ -545,6 +545,17 @@ Cada linha abaixo é **um item de trabalho**, não quatro — auditorias diferen
   - ADR registrando a decisão (vincula arquitetura e conformidade ao mesmo tempo).
 - **Depende de:** a decisão de hospedagem — **hoje em aberto no `07`**. Nasce `status: aguardando-decisão` + `status: precisa-adr`.
 - **Risco/observações:** o timing é o ponto. Hoje o aviso de privacidade declara que não há transferência internacional, e isso é verdade — o app não está hospedado. **A declaração vira factualmente falsa no dia do deploy**, se ele for para Vercel/Railway/Neon/Sentry ou qualquer SMTP norte-americano. O período de graça da Res. 19/2024 encerrou em agosto/2025. Por isso o item entra numa fase P0 mesmo bloqueado: o custo de decidir errado é contratual e público, e a hora de decidir é antes, não depois.
+
+**Fechamento (2026-08-06):** entregue nas 4 sub-issues planejadas (#155 canal do titular, #156 ROPA, #157 RIPD, #158 transferência internacional), épico #154, branch `feat/154-bloqueadores-conformidade-lgpd`. Nenhuma sub-issue ficou bloqueada — inclusive a #158, que nasceu `status: aguardando-decisão` e teve a decisão tomada dentro da própria fase.
+
+- **#155 — canal do titular:** endereço de privacidade configurável por deploy (`VITE_PRIVACY_CONTACT_EMAIL`, placeholder documentado), publicado no rodapé da Landing, em "Sobre o projeto" e no Perfil, que ganhou o bloco "Exercer meus direitos" mapeando os 9 incisos do Art. 18 entre autoatendidos e "pelo canal". As três referências vagas do `privacy-policy.md` viraram o endereço literal. Procedimento interno em `.claude/docs/PROCEDIMENTO_DIREITOS_TITULAR.md` (prazo de 30 dias, dobro do pequeno porte).
+- **#156 — ROPA:** `.claude/docs/ROPA.md` com 7 operações levantadas do schema real, não genéricas. Manutenção acrescentada ao Definition of Done da skill `nova-feature`, para o documento não nascer desatualizado.
+- **#157 — RIPD:** `.claude/docs/RIPD.md`. A pergunta central ("por que minuto, e não 15 min?") foi respondida por requisito, não por conveniência: RF10/RF11 justificam a **coleta** por minuto, mas RF12 — a única leitura de histórico — nunca consulta granularidade mais fina que hora (`granularitySchema = z.enum(["hour","day","month","year"])`). Logo, a **retenção** indefinida por minuto não tem lastro em nenhum RF. Recomendação concreta (60–90 dias + compactação horária) entregue como insumo obrigatório da política de retenção da Fase 14.
+- **#158 — hospedagem e transferência internacional:** **ADR-0008** — tudo numa VM Oracle Cloud Always Free em **São Paulo** (backend, frontend estático, PostgreSQL e o iot-simulator co-locados, broker MQTT em `127.0.0.1`), **sem nenhum operador estrangeiro**. Resultado: as SCCs da Res. 19/2024 não se aplicam por inexistência do fato gerador, e não há DPA a assinar (Art. 39) — exatamente a mitigação que esta fase recomendava ("elimina o problema em vez de contratá-lo"). O item "Hospedagem e infra de produção" saiu do `07`. `privacy-policy.md` § 4 reescrito com a tabela de processamento nominal e `CURRENT_CONSENT_VERSION` incrementada para 1.1.
+
+**Dívida deixada explicitamente — a premissa da ADR-0008 ainda não tem controle.** A conclusão de conformidade de #158 vale **enquanto o ambiente público não tratar dado pessoal real**, o que exige o cadastro público fechado (só contas de demonstração sobre o seed sintético). Esse controle é item da **Fase 13** e ainda não existe: até lá, a ADR-0008 não autoriza o deploy público. Os demais gates de go-live (credenciais demo fora do bundle, perímetro do simulador, CSP, redirect HTTPS, `pg_dump` agendado, rotação de chaves) estão listados na própria ADR e majoritariamente já alocados na Fase 13.
+
+**Estado final:** backend `lint`/`build`/`test` limpos (129/129 arquivos · 1547/1547 testes); frontend idem (70/70 · 610/610); `.claude/log/CHANGELOG.md` com uma entrada por sub-issue. Um erro factual do ROPA (#156) foi encontrado e corrigido durante a #157 — o endereço de `properties` **é** cifrado em repouso, ao contrário do que o documento afirmava; registrado no changelog por ser exatamente o risco que a #156 advertia.
 
 ## Fase 12 — Travas mecânicas de qualidade + correções sem trade-off
 
