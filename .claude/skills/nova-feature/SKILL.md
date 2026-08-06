@@ -34,6 +34,7 @@ Para features que cruzam módulos ou tocam auth/dados sensíveis, use **plan mod
 
 - type-check (zero `any`), lint, format, testes e dependency-cruiser passam.
 - Controles de segurança aplicáveis cobertos por teste.
+- **ROPA:** se a feature introduz uma tabela nova com dado pessoal, ou muda finalidade/retenção/operador de uma operação já registrada, atualize `.claude/docs/ROPA.md` no mesmo PR — um ROPA desatualizado é pior que a ausência dele.
 
 ## Ao concluir
 
