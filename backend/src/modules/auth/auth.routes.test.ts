@@ -5,6 +5,7 @@ import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
 import { hashToken } from "@/shared/crypto/hashToken.js"
+import { generateBlindIndex } from "@/shared/crypto/blindIndex.js"
 import { env } from "@/config/env.js"
 import { generate } from "otplib"
 
@@ -373,9 +374,13 @@ describe("Audit log — login/logout", () => {
         const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "LOGIN" } })
         expect(logs).toHaveLength(1)
         expect(logs[0]).toMatchObject({ action: "LOGIN", outcome: "FAILURE", userId: null })
-        expect((logs[0]?.metadata as { attemptedEmail?: string } | null)?.attemptedEmail).toBe(
-            validUser.email,
-        )
+
+        const metadata = logs[0]?.metadata as { attemptedEmailHash?: string } | null
+        // Blind index, não o e-mail em claro (#10 — A09/LGPD Art. 6º III/VII):
+        // preserva a correlação de tentativas contra o mesmo alvo sem reter
+        // o dado pessoal em si.
+        expect(metadata?.attemptedEmailHash).toBe(generateBlindIndex(validUser.email))
+        expect(JSON.stringify(metadata)).not.toContain(validUser.email)
     })
 
     it("NÃO registra LOGIN para corpo malformado (422 — não é uma tentativa de login real)", async () => {

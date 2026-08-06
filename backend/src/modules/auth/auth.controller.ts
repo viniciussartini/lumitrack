@@ -6,6 +6,7 @@ import type { AuditService } from "@/shared/audit/audit.service.js"
 import { getRequestContext } from "@/shared/audit/requestContext.js"
 import { UnauthorizedError } from "@/shared/errors/AppError.js"
 import { env } from "@/config/env.js"
+import { generateBlindIndex } from "@/shared/crypto/blindIndex.js"
 import { parseJwtExpiry } from "@/shared/time/parseJwtExpiry.js"
 import {
     generateCsrfToken,
@@ -63,7 +64,12 @@ export class AuthController {
                     outcome: "FAILURE",
                     resourceType: "User",
                     metadata: {
-                        attemptedEmail: typeof attemptedEmail === "string" ? attemptedEmail : null,
+                        // Blind index (não o e-mail em claro — #10, A09/LGPD
+                        // Art. 6º III/VII): preserva a correlação entre
+                        // tentativas contra o mesmo alvo, inclusive de quem
+                        // não é titular, sem reter o dado pessoal em si.
+                        attemptedEmailHash:
+                            typeof attemptedEmail === "string" ? generateBlindIndex(attemptedEmail) : null,
                     },
                     ...getRequestContext(req),
                 })

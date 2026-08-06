@@ -3,6 +3,7 @@ import cors from "cors"
 import helmet from "helmet"
 import cookieParser from "cookie-parser"
 import { pinoHttp } from "pino-http"
+import type { Logger } from "pino"
 import { env } from "@/config/env.js"
 import { logger } from "@/shared/logger/logger.js"
 import { createErrorHandler } from "@/shared/middlewares/errorHandler.js"
@@ -41,6 +42,10 @@ export interface AppDependencies {
     notificationStore?: NotificationStore
     globalRateLimiter?: RequestHandler
     authRateLimiter?: RequestHandler
+    // Injeção só usada em teste — permite capturar o stream do pino com
+    // `level` habilitado (o logger singleton fica "silent" em NODE_ENV=test)
+    // para asserção de não-vazamento de dado sensível (#10 — RNF05).
+    logger?: Logger
 }
 
 export function createApp(deps: AppDependencies = {}) {
@@ -52,6 +57,7 @@ export function createApp(deps: AppDependencies = {}) {
     const notificationStore = deps.notificationStore ?? new NotificationStore()
     const globalRateLimiter = deps.globalRateLimiter ?? createGlobalRateLimiter()
     const authRateLimiter = deps.authRateLimiter ?? createAuthRateLimiter()
+    const appLogger = deps.logger ?? logger
 
     const app = express()
 
@@ -107,7 +113,7 @@ export function createApp(deps: AppDependencies = {}) {
     // ignorado porque é pollado com frequência por load balancer/monitoramento
     // e só geraria ruído.
     app.use(pinoHttp({
-        logger,
+        logger: appLogger,
         autoLogging: { ignore: (req) => req.url === "/health" },
         customLogLevel(_req, res, err) {
             if (err || res.statusCode >= 500) return "error"
