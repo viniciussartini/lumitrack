@@ -3,7 +3,7 @@
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
 > Última atualização: 2026-08-05 · Fase atual: 10 (Fases 1–9 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134 e issue #127)
 >
-> Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das quatro auditorias de 2026-08-05** (segurança, conformidade, qualidade, desempenho) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado.
+> Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das quatro auditorias de 2026-08-05** (segurança, conformidade, qualidade, desempenho) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
 ## Visão geral das fases
 
@@ -27,6 +27,10 @@
 | 16 | Worker IoT — robustez, estrutura e cobertura | Planejada — objetivo abaixo |
 | 17 | Frontend — tempo real e bundle | Planejada — objetivo abaixo |
 | 18 | Design system, cobertura de testes e polimento | Planejada — objetivo abaixo |
+| 19 | Grupo A — fundação tarifária (subgrupos, modalidades, postos, demanda) + Horária Verde | Planejada — detalhe abaixo |
+| 20 | Grupo A — Horária Azul, ultrapassagem de demanda e energia reativa excedente | Planejada — objetivo abaixo |
+| 21 | Mercado Livre de Energia (ACL) | Planejada — objetivo abaixo |
+| 22 | Tarifa Branca (Grupo B) — reaproveita a fundação de postos tarifários | Planejada — objetivo abaixo |
 
 ## Fase 1 — Fundação Industry + Autenticação
 
@@ -633,11 +637,130 @@ Cobre: React Compiler habilitado (o código já é compiler-clean por lint e vá
 
 Cobre: **decisão de token primeiro** — mapear no `@theme` a escala tipográfica e de espaçamento que o protótipo de fato usa (os 143 valores arbitrários não são descuido: o tema mapeia cor/fonte/raio/sombra mas não a escala, então cada tela recorre ao colchete) e promover o verde `#3f8f52` a token, com `/design-sync` de volta; depois a limpeza mecânica — tokens pré-Industry em ~16 arquivos, `.lt-live-dot` no lugar da animação inline replicada 10×, ramo morto do `UserMenu` (cuja **suíte de testes valida exclusivamente o ramo morto**), `LiveKpiCard` adotado nas 3 páginas que o copiaram, decisão única sobre `Blueprint` vs. cantos manuais, e lint anti-regressão. Mais: namespace próprio de `queryKey` para "último bucket" (elimina o `pageSize: 3` mágico que hoje evita uma colisão que **já causou bug real**); cobertura de Alertas (RF14–RF16, hoje sem nenhum teste, único mecanismo que avisa o usuário sobre consumo anômalo), do SSE client e do CRUD de Medidor; `parseOrThrow` eliminando as 31 repetições; drift de documentação viva (`10`, `03`, `04`, `README`); e o restante do polimento (Q-25 a Q-37, B-04, B-07, B-08).
 
+---
+
+## Grupo A, Mercado Livre e Tarifa Branca (Fases 19–22)
+
+> **Origem:** `.claude/docs/O-Sistema-Eletrico-Brasileiro.md` (documento de referência do domínio) + pedido do usuário em 2026-08-05.
+>
+> **O tamanho real do gap.** Hoje o domínio é **exclusivamente Grupo B monômio**, e o próprio schema registra isso (`schema.prisma:86-93`: *"Grupo A (alta/média tensão, tarifa binômia) fica para uma fase futura"*). O `TariffService` calcula `kwhBilled × (tusd + te)` com **uma tarifa única, sem posto tarifário e sem demanda**; o `EnergyDistributor` guarda a tarifa como **duas colunas planas** (`tusdPerKwh`, `tePerKwh`).
+>
+> O que o Grupo A exige e **não existe em nenhuma camada**: subgrupos A1–AS · modalidade tarifária · demanda contratada (1 valor na Verde, 2 na Azul) · postos tarifários com calendário de feriados · demanda medida (máximo das médias de 15 min) · ultrapassagem · energia reativa excedente. E o catálogo de tarifas precisa deixar de ser duas colunas na distribuidora para virar uma tabela por (subgrupo × modalidade × posto).
+>
+> **Esta é a maior expansão de domínio desde o MVP** — a primeira que muda a fórmula central do produto (FNC003) em vez de acrescentar tela ou integração.
+
+### Ponto de validação obrigatório antes de escrever cálculo
+
+O documento de referência afirma, na linha 316, que no Mercado Livre *"a bandeira não se aplica à TE (que é negociada bilateralmente), mas se aplica à TUSD"*.
+
+**Isso destoa do mecanismo** e não deve ser implementado sem confirmação: a bandeira tarifária existe para recompor o custo de **compra de energia** da distribuidora — custo que o consumidor ACL não tem, porque compra bilateralmente — e a TUSD é encargo de **fio**, não de energia. As duas leituras possíveis (bandeira sobre a TUSD × bandeira não aplicável ao ACL) produzem contas diferentes.
+
+Tratado como item de spike na Fase 21, validado contra a REN vigente e registrado em ADR **antes** de qualquer linha de cálculo. Uma tarifa errada é pior que uma tarifa tardia — o produto inteiro se apoia na credibilidade desse número.
+
+### Pré-requisito comum: requisitos e design
+
+- **`02-requisitos.md` precisa de RFs novos.** O RF13 atual descreve **só** o Grupo B ("TUSD + TE decompostos, tributos por dentro, bandeira, CIP, piso de disponibilidade") e a FNC003 idem. Grupo A binômio, ACL e Branca são comportamento novo, não refinamento — cada fase abre com a atualização do `02`, senão o roadmap passa a referenciar requisitos que não existem.
+- **Nenhuma tela destas fases tem handoff de design.** O bundle `2026-07-31-lumitrack-completo` não cobre cadastro de Grupo A, detalhamento de conta binômia, gestão de contrato ACL nem comparação ACR × ACL. Aplica-se a **regra de ausência** do `10-design-system.md` — decidir na chegada de cada fase entre aguardar handoff ou versão provisória com `TODO(design)`. Precedente do projeto: a página "Sobre o projeto" (Fase 6) foi versão provisória por decisão explícita do usuário.
+
+## Fase 19 — Grupo A: fundação tarifária + Horária Verde (A4)
+
+> **Estratégia de fatiamento (decisão do usuário, 2026-08-05):** a fundação é construída **validada por uma modalidade só** — Verde no A4, o subgrupo mais comum do Grupo A, com 1 demanda contratada. Azul (2 demandas), ultrapassagem e ERE ficam para a Fase 20, reaproveitando uma fundação já exercitada por dado real em vez de projetada no vazio.
+>
+> É o mesmo raciocínio que a Fase 1 aplicou aos componentes Industry, e que a correção registrada lá ensinou: **cria-se a abstração quando um segundo consumidor real pede a mesma API**, não especulativamente. Aqui a fundação nasce com um consumidor real (Verde) e ganha o segundo (Azul) na fase seguinte.
+
+### Modelo de dados: grupo, subgrupo, classe e catálogo de tarifas
+
+- **Comportamento:** nenhum diretamente — é a mudança estrutural que habilita todo o resto. Ao final, uma propriedade pode ser cadastrada como Grupo A com subgrupo e modalidade, e o catálogo de tarifas comporta valores por posto e por demanda.
+- **Cobre:** RF08 (catálogo de distribuidoras, ampliado) e habilita os RFs novos de tarifação binômia.
+- **Priority:** P0 · **Size:** L
+- **Critérios de aceite:**
+  - **ADR registrando a decisão de modelagem** — é mudança estrutural de domínio, exigida pelo `03-arquitetura.md`. Ponto central: hoje `BillingClass` **conflita dois conceitos ortogonais** (subgrupo B1/B2/B3 **e** classe de uso). O documento de referência os separa explicitamente: subgrupo é definido por **tensão de fornecimento**, classe de uso é transversal aos grupos (residencial, industrial, comercial, rural, poder público...). A ADR decide se viram `TariffGroup` + `TariffSubgroup` + `ConsumerClass` ou outra forma.
+  - Catálogo de tarifas migra de **duas colunas planas** em `EnergyDistributor` (`tusdPerKwh`/`tePerKwh`) para tabela própria por (distribuidora × subgrupo × modalidade × posto), com tarifa de **energia** (TUSD + TE) e de **demanda** (TUSD demanda). Migração preserva os dados de Grupo B existentes sem perda.
+  - `02-requisitos.md` atualizado com os RFs novos antes da implementação começar.
+  - Seed do catálogo cobre pelo menos uma distribuidora real de Grupo A com valores de fonte citada.
+  - Testes do `TariffService` para Grupo B **continuam verdes sem alteração** — a refatoração do catálogo não pode mudar o resultado de nenhuma conta existente. Este é o critério que protege o que já funciona.
+- **Depende de:** —
+- **Risco/observações:** **alto — é o item de maior risco estrutural do roadmap inteiro.** Mexe no modelo de dados que sustenta o cálculo de custo (RF13) de todos os usuários atuais. A mitigação é o critério acima: os testes de Grupo B são o contrato de regressão, e a migração deve ser reversível. Fazer **depois** da Fase 12 não é acaso — as travas de complexidade e o `dependency-cruiser` instalados lá passam a valer justamente para o código mais complexo do projeto.
+
+### Postos tarifários: janelas horárias e calendário de feriados
+
+- **Comportamento:** o consumo passa a ser classificado em ponta, intermediário e fora de ponta conforme o horário e o dia — com fins de semana e **feriados** contando integralmente como fora de ponta.
+- **Cobre:** RF12 (agregação de consumo, ampliada por posto).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Janela de ponta configurável **por distribuidora** — o documento registra que é tipicamente 18h–21h "mas varia em alguns locais e estado"; hardcodar 18h–21h seria errado para parte do catálogo.
+  - **Calendário de feriados nacionais**, incluindo os **móveis** (Carnaval, Sexta-Feira Santa e Corpus Christi derivam da Páscoa) — não é uma lista fixa de datas, é cálculo. Feriado é fora de ponta o dia inteiro.
+  - Agregação por posto no `consumption.repository.ts`, que hoje faz só `date_trunc` — o bucketing passa a considerar a janela horária, mantendo a agregação em SQL (não em JS), como o laudo de desempenho registra ser o padrão correto já estabelecido.
+  - Testes cobrindo as bordas que quebram implementações ingênuas: virada de dia dentro da ponta, feriado móvel, fim de semana, e o dia de mudança de horário caso o horário de verão volte (hoje descontinuado desde 2019 — registrar a premissa no código).
+- **Depende de:** modelo de dados (item anterior).
+- **Risco/observações:** médio. O feriado móvel é a armadilha clássica: uma lista fixa de datas funciona por um ano e silenciosamente erra no seguinte, cobrando ponta num feriado. Como o erro é de **cobrança**, ele mina a confiança no produto inteiro.
+
+### Demanda medida a partir das leituras IoT
+
+- **Comportamento:** o usuário vê a demanda medida do mês (kW) derivada das próprias leituras do medidor, por posto tarifário — sem precisar informar nada.
+- **Cobre:** RF10/RF11 (ingestão e tempo real, ampliados) e habilita a tarifação binômia.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Demanda = **maior potência média medida em intervalos de 15 min** (definição do glossário do documento de referência). Derivável do que já existe: `MeterReading` guarda `avgPowerW` por minuto, então a janela de 15 min é a média de 15 registros e a demanda do período é o máximo dessas janelas.
+  - Demanda apurada **por posto** (na Verde há 1 demanda contratada, mas a medição por posto já é necessária para a Azul da Fase 20 e para a análise de ultrapassagem).
+  - Rollup incremental no mesmo padrão do `MinuteRollupScheduler` já existente — **não** recalcular varrendo `meter_readings` a cada consulta (o laudo de desempenho já registra essa tabela como a maior do sistema, com agregações que a varrem inteira).
+  - Teste cobrindo janelas incompletas (medidor que ficou offline parte do intervalo) — o modo de falha a evitar é uma janela de 3 minutos virar "demanda" e inflar a conta.
+- **Depende de:** postos tarifários.
+- **Risco/observações:** médio-alto — é o **diferencial do produto** (medição própria em vez de dado informado), e é onde a precisão importa mais: a demanda define a maior parcela da conta de um consumidor A4 e, na Fase 20, a multa de ultrapassagem de 3×. Uma janela mal apurada vira erro de centenas de reais.
+
+### Tarifação binômia Horária Verde (A4)
+
+- **Comportamento:** um consumidor A4 na modalidade Verde vê a conta calculada corretamente: demanda contratada + consumo por posto + bandeira + tributos por dentro + CIP, com a decomposição completa.
+- **Cobre:** RF13 (ampliado para binômio) — **RF novo** a registrar no `02`.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - `Property` ganha demanda contratada (kW) para Grupo A, validada como obrigatória por modalidade.
+  - `TariffService` ganha o caminho binômio, seguindo a fórmula do documento de referência: `[demanda contratada × TUSD demanda] + [consumo por posto × (TUSD energia + TE energia) do posto] + [bandeira × consumo total] + tributos por dentro + CIP`.
+  - **Bandeira incide sobre o consumo medido, nunca sobre a demanda** — regra explícita do documento (linha 313).
+  - **Piso de disponibilidade não se aplica ao Grupo A** — é regra de Grupo B (REN 1.000/2021 art. 291); no Grupo A o papel equivalente é da demanda contratada. O `calculateForProperty` atual aplica o piso incondicionalmente e passa a ramificar por grupo.
+  - Decomposição completa no retorno, nunca só o total — mesma regra que a FNC003 já impõe hoje, para a UI poder detalhar.
+  - Teste reproduzindo o **Exemplo 6** do documento de referência (metalúrgica A4 Verde em Joinville, 200 kW contratados, 28.800 kWh, ICMS SC 17%, total R$ 22.464,75) — um caso end-to-end com número conferível de fonte externa vale mais que dez asserções sintéticas.
+- **Depende de:** demanda medida; postos tarifários; modelo de dados.
+- **Risco/observações:** médio — a fórmula é conhecida e o exemplo de referência dá um oráculo de teste. O risco é de **ramificação**: o `TariffService` passa a ter dois caminhos (monômio B, binômio A) e o pior resultado possível é um `if` espalhado que degrada o melhor arquivo do repositório — o laudo de qualidade registra o `TariffService` como *"o melhor arquivo do repositório"* (domínio puro, zero número mágico, regras nomeadas com a norma de origem). Preservar essa qualidade é critério, não bônus.
+
+### UI: cadastro Grupo A e detalhamento da conta binômia
+
+- **Comportamento:** o usuário cadastra uma propriedade de Grupo A (subgrupo, modalidade, demanda contratada) e vê a conta detalhada com a separação por posto tarifário e a parcela de demanda.
+- **Cobre:** os RFs novos, na camada de apresentação.
+- **Priority:** P1 · **Size:** L
+- **Critérios de aceite:**
+  - Formulário de propriedade ramifica por grupo: Grupo B mantém exatamente os campos de hoje; Grupo A acrescenta subgrupo, modalidade e demanda contratada, com validação por modalidade.
+  - Detalhamento da conta mostra as parcelas do binômio separadas (demanda × consumo por posto), não um total agregado — a decomposição é o valor do produto para um consumidor A4, que precisa saber **onde** gastou.
+  - Gráfico de consumo passa a distinguir os postos.
+  - **Sem handoff de design** — decidir na execução entre aguardar export do Claude Design ou versão provisória com `TODO(design)`, seguindo a regra de ausência do `10`.
+  - Nenhuma tela de Grupo B sofre regressão visual ou funcional.
+- **Depende de:** tarifação binômia Verde.
+- **Risco/observações:** médio-alto. É o item **mais afetado pela ausência de design** de todo o roadmap: não é uma tela institucional como "Sobre o projeto", é a superfície onde o usuário confere dinheiro. Uma versão provisória aqui carrega mais risco de retrabalho — vale considerar produzir o handoff antes desta fase chegar, e é o motivo de ela ser o último item da fase (o backend fecha e entrega valor mesmo se a UI esperar).
+
+## Fases 20–22 (objetivo — serão detalhadas ao chegar)
+
+### Fase 20 — Grupo A: Azul, ultrapassagem e energia reativa excedente
+
+Completa o Grupo A sobre a fundação da Fase 19. Cobre: **modalidade Horária Azul** (2 demandas contratadas — ponta e fora de ponta — e 4 tarifas distintas; obrigatória para A1/A2/A3 e para demanda ≥ 300 kW); **ultrapassagem de demanda** (tolerância de 5%, acima disso `(medida − contratada) × 3 × tarifa`, aplicada **antes** dos tributos); **energia reativa excedente** (FP mínimo 0,92, indutivo medido entre 6h–24h e capacitivo entre 0h–6h, cobrado em R$/kVArh) — viável porque `MeterReading` já persiste `avgPowerFactor` por minuto. Oráculo de teste disponível: **Exemplo 7** do documento de referência (frigorífico A4 Azul em Cuiabá, FP 0,91, total R$ 101.496,36). A **Convencional Binômia** entra aqui como decisão de escopo: está em extinção gradual segundo o documento e restrita a A3a/A4/AS com demanda < 300 kW — avaliar na chegada se vale implementar ou registrar como adiada com justificativa.
+
+### Fase 21 — Mercado Livre de Energia (ACL)
+
+Abre com o **spike de validação da incidência de bandeira no ACL** (ver "Ponto de validação obrigatório" acima) e as regras de elegibilidade de migração, fechando em ADR antes de qualquer cálculo. Depois: `Property` passa a distinguir **ACR (cativo) × ACL (livre)**; contrato de energia com preço da TE negociado e vigência; cálculo ACL (TUSD da distribuidora + TE contratada, em vez da TE do catálogo); e a **comparação ACR × ACL** — "vale a pena migrar?" — que é o maior valor de produto da fase, porque responde com o consumo real do próprio usuário em vez de estimativa. Elegibilidade a registrar: A1/A2/A3 sempre; A3a/A4/AS desde jan/2024 sem restrição de demanda; pequenos consumidores e residências a partir de jan/2028 (proposta) — este último é premissa datada, revisar na chegada.
+
+### Fase 22 — Tarifa Branca (Grupo B)
+
+Reaproveita integralmente a fundação de postos tarifários da Fase 19 — é por isso que entra depois dela e não antes. Cobre: modalidade Branca para B1 e B3 voluntariamente (**vedada** a baixa renda, B4 e a quem recebe outros descontos); três postos nos dias úteis com fins de semana e feriados integralmente fora de ponta; e a particularidade que uma implementação ingênua erra — o **custo de disponibilidade na Branca é calculado com a tarifa Convencional**, não com as horárias (REN 1.098/2024). Oráculo de teste: **Exemplo 3** do documento de referência (casa trifásica em BH, 450 kWh distribuídos em três postos, total R$ 359,55), incluindo o contraexemplo documentado de quando a Branca fica **mais cara** que a Convencional — que é exatamente o alerta que o produto precisa dar ao usuário antes de ele aderir. Contexto de urgência: a ANEEL propôs em nov/2025 tornar a Branca automática para consumidores BT acima de 1 MWh/mês em 2026 e acima de 600 kWh/mês em 2027.
+
 ## Fases seguintes (menos detalhadas — serão refinadas ao chegar)
 
-Nenhuma Fase 19 definida. Itens novos exigem novos requisitos ou achados equivalentes.
+Nenhuma Fase 23 definida. Itens novos exigem novos requisitos ou achados equivalentes.
 
-Candidato conhecido, ainda sem fase: um handoff de design para "Sobre o projeto" (Fase 6), que substituiria a versão provisória e fecharia o `TODO(design)` — depende de um export novo do Claude Design, não de decisão de engenharia.
+Candidatos conhecidos, ainda sem fase:
+
+- **Handoff de design para "Sobre o projeto"** (Fase 6) — substituiria a versão provisória e fecharia o `TODO(design)`. Depende de um export novo do Claude Design, não de decisão de engenharia.
+- **Handoff de design para as telas de Grupo A / ACL** (Fases 19 e 21) — mesma natureza, mas com impacto maior: é a superfície onde o usuário confere dinheiro.
+- **Geração Distribuída (solar fotovoltaica)** — o documento de referência cobre o tema (REN 482/2012, REN 1.059/2023, Lei 14.300/2022, Fio B crescente até 2029, custo de disponibilidade não abatível por crédito). Não foi pedido e não entra especulativamente, mas é a expansão de domínio mais provável depois desta.
+- **Tarifa Social e Desconto Social** (Lei 15.235/2025) — subclasses de baixa renda com gratuidade até 80 kWh e isenção de CDE até 120 kWh. Idem: coberto pelo documento, não pedido, não antecipado.
 
 ## RFs/telas adiados do MVP (com justificativa)
 
@@ -673,3 +796,14 @@ Candidato conhecido, ainda sem fase: um handoff de design para "Sobre o projeto"
 - **Instrumentação antes de otimização (Fase 15):** o `06:36` é explícito ("meça antes de otimizar") e hoje não existe instrumental (`07` — observabilidade em aberto). Metade dos achados de desempenho está marcada **[MEDIR ANTES]** pelo próprio laudo: com poucas centenas de linhas o planner escolhe seq scan de qualquer jeito e o índice não muda nada. Os achados que **não** precisam de medição (são erros, não trade-offs) foram puxados para a Fase 12.
 - **Design system e cobertura por último (18), apesar de serem 17 achados:** são os de menor risco operacional — nenhum deles quebra em produção nem viola obrigação legal. E o maior deles (143 valores arbitrários de Tailwind) é uma **decisão de token**, não implementação: o tema mapeia cor/fonte/raio/sombra mas não a escala tipográfica/espacial, então cada tela recorre ao colchete. Fazer a limpeza antes de mapear a escala geraria só `eslint-disable`.
 - **Fases 13–18 propositalmente não detalhadas:** planejamento just-in-time. Cada uma lista os achados que cobre para rastreabilidade — **nenhum dos ~95 achados distintos ficou fora do roadmap** — mas o detalhamento em critérios de aceite só acontece quando a fase chegar, porque o que se aprende nas anteriores muda as seguintes (a Fase 6 é o precedente: o achado que a originou só apareceu depois de 5 fases executadas).
+
+### Grupo A, Mercado Livre e Tarifa Branca (Fases 19–22, planejadas em 2026-08-05)
+
+- **Depois de toda a remediação das auditorias** (decisão do usuário, 2026-08-05): as Fases 10–18 vêm antes. O argumento decisivo não é "arrumar a casa primeiro" em abstrato — é que a Fase 12 instala as travas mecânicas (complexidade, `dependency-cruiser`, tipagem) que passam a valer justamente para o **código mais complexo do projeto**, escrito nas Fases 19–22. Instalar a trava depois de escrever a tarifação binômia seria pagar a refatoração duas vezes, e o Crítico de log da Fase 10 vaza sessão em produção enquanto isso.
+- **Fundação validada por uma modalidade só (Verde/A4) antes de Azul:** é a mesma lição que a Fase 1 registrou por escrito — *"cria-se o primitivo quando um segundo consumidor real pedir a mesma API, não especulativamente"*. Ali o plano previa 7 primitivos React e só 1 se justificou. Aqui, projetar a fundação para as três modalidades de uma vez repetiria o erro no lugar mais caro possível: o modelo de dados tarifário. Verde é o consumidor real que valida; Azul é o segundo, e é ele que prova se a abstração está certa.
+- **Modelo de dados antes de tudo, com ADR:** é o único ponto do bloco onde a regra de fatiamento vertical cede — pela mesma razão da Fundação da Fase 1. O catálogo de tarifas precisa deixar de ser duas colunas planas antes que qualquer cálculo binômio exista, e isso toca o caminho de custo (RF13) de **todos os usuários atuais**. Os testes de Grupo B são o contrato de regressão que protege quem já usa o produto.
+- **Demanda medida antes da tarifação binômia:** a conta de um A4 é dominada pela parcela de demanda; calcular a tarifa antes de saber apurar a demanda seria construir sobre um número que ainda não existe. E é o item de maior valor de produto do bloco — a demanda derivada das próprias leituras é o que diferencia o LumiTrack de uma planilha.
+- **UI por último dentro da Fase 19:** o backend fecha e entrega valor mesmo se a UI esperar, e é o item mais afetado pela **ausência de handoff de design**. Diferente de "Sobre o projeto" (Fase 6), aqui não é tela institucional: é a superfície onde o usuário confere dinheiro, e uma versão provisória carrega risco real de retrabalho. Deixar por último preserva a opção de produzir o handoff antes de a fase chegar.
+- **ACL (21) depois de completar o Grupo A (20), não antes:** tecnicamente o ACL depende só da fundação da Fase 19, e poderia ser puxado para frente se a prioridade for valor de produto — a comparação "vale a pena migrar?" é a funcionalidade mais vendável do bloco. Mantive depois porque um consumidor ACL **continua pagando** ultrapassagem e ERE no lado da TUSD: entregar ACL antes da Fase 20 produziria uma conta de mercado livre incompleta, que é pior que nenhuma.
+- **Branca (22) depois da fundação, não junto:** ela reaproveita a infraestrutura de postos tarifários integralmente, e por isso não justifica antecipação — mas é a fase de maior alcance do bloco em número de usuários (Grupo B é a maioria absoluta do produto). Se a proposta da ANEEL de nov/2025 avançar (Branca automática acima de 1 MWh/mês em 2026), ela ganha urgência regulatória e deve ser repriorizada.
+- **Validar a incidência de bandeira no ACL antes de calcular:** o documento de referência afirma que a bandeira se aplica à TUSD no mercado livre, o que destoa do mecanismo (bandeira recompõe custo de compra de energia; TUSD é encargo de fio). Spike + ADR antes de qualquer linha de cálculo — mesma disciplina de risco/incerteza primeiro que a Fase 8 aplicou à fonte oficial da bandeira, e pelo mesmo motivo: uma tarifa errada custa mais que uma tarifa tardia.
