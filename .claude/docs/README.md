@@ -33,6 +33,7 @@ Artefatos de governança LGPD produzidos pela remediação da Fase 11
 |---|---|
 | `PROCEDIMENTO_DIREITOS_TITULAR.md` | Procedimento de atendimento aos direitos do titular (LGPD Art. 18): canal, prazo (30 dias — regime de pequeno porte), passo a passo e o que um fork comercial precisa sanar antes de operar com titulares reais. Issue #155. |
 | `ROPA.md` | Registro das operações de tratamento (LGPD Art. 37): uma linha por operação identificável no schema (finalidade, dados, base legal, retenção, operadores, transferência internacional, segurança) + tabela de operadores (Art. 39). Issue #156 — mantido pela skill `nova-feature` a cada operação nova. |
+| `RIPD.md` | Relatório de impacto da medição contínua (LGPD Art. 38): necessidade/proporcionalidade da granularidade por minuto, riscos aos titulares, salvaguardas verificadas e riscos residuais com plano de tratamento. Issue #157 — reavaliar a cada mudança material do modelo de dados avaliado. |
 
 ## Roadmap
 

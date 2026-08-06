@@ -51,12 +51,12 @@ Uma linha por operação identificável no schema (`backend/prisma/schema.prisma
 | Tabelas | `properties` (`areas`/`devices` não têm campo de PII estruturado — só nome/descrição livres definidos pelo usuário). |
 | Finalidade | Vincular o consumo de energia ao imóvel monitorado; base para cálculo de tarifa (classe de faturamento, distribuidora). |
 | Titulares | Usuários donos da propriedade. |
-| Categorias de dados | Endereço, cidade, estado, CEP (campos opcionais, texto claro). |
+| Categorias de dados | Endereço, cidade, estado, CEP (campos opcionais — cifrados em repouso, ver "Medidas de segurança"). |
 | Base legal (Art. 7º) | Execução de contrato (V). |
 | Retenção | Enquanto a conta/propriedade existir; removida em cascata (`onDelete: Cascade`) na exclusão do usuário. Sem prazo de purga independente — não é uma das 4 entidades cobertas pelo `RetentionService`. |
 | Operadores | Nenhum. |
 | Transferência internacional | Nenhuma hoje. |
-| Medidas de segurança | Controle de acesso por posse (ownership) em toda rota. **Gap identificado, não corrigido nesta issue:** endereço não é cifrado em repouso hoje, diferente de CPF/CNPJ — registrar para avaliação em fase de segurança/conformidade futura se a exposição for considerada relevante. |
+| Medidas de segurança | Controle de acesso por posse (ownership) em toda rota. `address`/`city`/`state`/`zipCode` cifrados em repouso com AES-256-GCM e chave própria (`ADDRESS_ENCRYPTION_KEY`, `shared/crypto/addressEncryption.ts`) — segregada da chave de CPF/CNPJ, mesmo padrão de compartimentalização de risco. Sem blind index (endereço não tem constraint de unicidade nem é usado como filtro de busca — adicionar um seria complexidade sem benefício). |
 
 ### 3. Medição e consumo
 
