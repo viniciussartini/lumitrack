@@ -322,7 +322,7 @@ const LandingFeatures = () => (
                         <feature.icon className="h-[18px] w-[18px]" strokeWidth={1.5} aria-hidden="true" />
                     </div>
                     <h3 className="font-heading text-[19px] uppercase">{feature.title}</h3>
-                    <p className="text-text/76 mt-2.5 text-sm leading-[1.5]">{feature.description}</p>
+                    <p className="text-text/76 mt-2.5 text-sm leading-normal">{feature.description}</p>
                 </Blueprint>
             ))}
         </div>
@@ -378,7 +378,7 @@ const LandingFlags = () => (
                     <div className={`h-1.5 ${flag.barClass}`} />
                     <div className="p-[22px]">
                         <h4 className={`font-heading text-lg uppercase ${flag.colorClass}`}>{flag.name}</h4>
-                        <p className="text-text/74 mt-2 text-[13.5px] leading-[1.5]">{flag.description}</p>
+                        <p className="text-text/74 mt-2 text-[13.5px] leading-normal">{flag.description}</p>
                         <div className={`font-heading mt-3.5 text-[22px] font-semibold font-features-['tnum'_1] ${flag.colorClass}`}>
                             {flag.value}
                         </div>
