@@ -24,6 +24,15 @@ Exemplo: `2026-08-15-seguranca-audit.md`.
 
 Um laudo é um **plano de avaliação** (achados + recomendações), não uma correção. A correção de cada achado é executada à parte pelas skills `refatoracao`, `correcao-bugs` ou `nova-feature`.
 
+## Documentos de conformidade (kit)
+
+Artefatos de governança LGPD produzidos pela remediação da Fase 11
+(`roadmap.md`, épico #154) — versionados como os demais documentos do kit.
+
+| Arquivo | O que é |
+|---|---|
+| `PROCEDIMENTO_DIREITOS_TITULAR.md` | Procedimento de atendimento aos direitos do titular (LGPD Art. 18): canal, prazo (30 dias — regime de pequeno porte), passo a passo e o que um fork comercial precisa sanar antes de operar com titulares reais. Issue #155. |
+
 ## Roadmap
 
 `roadmap.md` — documento vivo mantido pela skill `planejar-roadmap` (fases em fatias verticais, P0/P1/P2, XS–XL). Ainda não criado.

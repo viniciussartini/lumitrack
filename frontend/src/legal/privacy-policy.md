@@ -14,7 +14,7 @@ com os termos abaixo.
 
 O LumiTrack é o controlador dos dados pessoais tratados na plataforma.
 Dúvidas, solicitações ou exercício de direitos podem ser enviados para o
-e-mail de contato do encarregado (DPO) informado no rodapé da plataforma.
+canal de privacidade: **{{PRIVACY_CONTACT_EMAIL}}**.
 
 > Aviso: este é um documento-modelo gerado como parte de uma auditoria de
 > segurança e conformidade. Antes do uso em produção com usuários reais, os
@@ -80,7 +80,9 @@ Você pode, a qualquer momento:
 
 Você pode exercer os direitos de acesso, retificação e eliminação
 diretamente na plataforma, na área de configurações da sua conta. Para os
-demais direitos, entre em contato pelo e-mail do encarregado (DPO).
+demais direitos, entre em contato pelo canal de privacidade:
+**{{PRIVACY_CONTACT_EMAIL}}**. Respondemos em até 30 dias (prazo em dobro
+do regime de agente de pequeno porte).
 
 ## 7. Retenção e eliminação dos dados
 
@@ -98,5 +100,4 @@ nesta página, e poderemos solicitar um novo aceite quando isso ocorrer.
 ## 9. Contato
 
 Em caso de dúvidas sobre esta Política ou sobre o tratamento dos seus dados
-pessoais, entre em contato com o encarregado de proteção de dados (DPO) do
-LumiTrack pelo e-mail informado na plataforma.
+pessoais, entre em contato pelo canal de privacidade: **{{PRIVACY_CONTACT_EMAIL}}**.

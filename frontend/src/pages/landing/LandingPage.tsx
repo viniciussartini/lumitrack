@@ -1,10 +1,11 @@
 import { Link } from "react-router"
-import { BarChart3, Flag, TrendingUp, Zap } from "lucide-react"
+import { BarChart3, Flag, Mail, TrendingUp, Zap } from "lucide-react"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { Button } from "@/components/ui/Button"
 import { Tag } from "@/components/ui/Tag"
 import { useLiveTicker } from "@/hooks/useLiveTicker"
 import { GITHUB_REPO_URL, GitHubIcon } from "@/components/ui/GitHubIcon"
+import { PRIVACY_CONTACT_EMAIL } from "@/config/privacy"
 import { useTariffFlag } from "@/hooks/queries/useTariffFlag"
 import {
     TARIFF_FLAG_BORDER_CLASS,
@@ -618,6 +619,16 @@ const LandingFooter = () => (
                     className="text-text/55 hover:text-accent mt-3.5 inline-flex"
                 >
                     <GitHubIcon className="h-[18px] w-[18px]" />
+                </a>
+                {/* Canal de comunicação com o titular (LGPD Art. 18, issue
+                    #155) — precisa estar visível pra quem ainda não tem
+                    conta, não só dentro do app autenticado. */}
+                <a
+                    href={`mailto:${PRIVACY_CONTACT_EMAIL}`}
+                    className="text-text/55 hover:text-accent mt-3.5 inline-flex items-center gap-1.5 text-[12.5px]"
+                >
+                    <Mail className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" />
+                    {PRIVACY_CONTACT_EMAIL}
                 </a>
             </div>
             {FOOTER_COLUMNS.map((column) => (
