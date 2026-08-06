@@ -527,6 +527,69 @@ describe("AuthService", () => {
                 const user = await prismaTest.user.findUnique({ where: { id: userId } })
                 expect(user?.mfaEnabled).toBe(false)
             })
+
+            // #10 — OWASP A07: reinscrever o segundo fator dá o mesmo
+            // resultado prático de desabilitá-lo (expulsa o dono legítimo),
+            // mas não exigia nada além de uma sessão válida — diferente de
+            // `disableMfa`, que já exige senha+código. Este é o teste que
+            // reproduz o bug e falha se o step-up for removido (DoD do
+            // 05-security-standards.md).
+            it("recusa reinscrição com BadRequestError quando o MFA já está habilitado (step-up)", async () => {
+                const userId = await createUserAndGetId()
+                const { secret: oldSecret } = await enableMfaForUser(userId)
+
+                // Um segundo secret válido (gerado do zero, como um
+                // atacante com sessão roubada faria) — mesmo com um código
+                // TOTP correto para ELE, a reinscrição direta é recusada.
+                const { secret: newSecret } = await authService.setupMfa(validUser.email)
+                const newCode = await generate({ secret: newSecret })
+
+                await expect(
+                    authService.verifyMfaSetup(userId, { secret: newSecret, code: newCode }),
+                ).rejects.toThrow(BadRequestError)
+
+                // O fator antigo continua intacto — nada foi sobrescrito.
+                const user = await prismaTest.user.findUnique({ where: { id: userId } })
+                expect(user?.mfaEnabled).toBe(true)
+                const oldCode = await generate({ secret: oldSecret })
+                const loginResult = await authService.login({
+                    email: validUser.email,
+                    password: validUser.password,
+                    channel: "WEB",
+                })
+                if (!loginResult.mfaRequired) throw new Error("esperava mfaRequired:true")
+                const session = await authService.completeMfaLogin({
+                    mfaToken: loginResult.mfaToken,
+                    code: oldCode,
+                })
+                expect(session.token).toBeTruthy()
+            })
+
+            // Purga de backup codes (#10 — A07): reinscrever via o caminho
+            // correto (disable → setup) não pode deixar os códigos do lote
+            // anterior utilizáveis.
+            it("purga os backup codes do lote anterior ao reinscrever via disable → setup", async () => {
+                const userId = await createUserAndGetId()
+                const { secret, backupCodes: oldBackupCodes } = await enableMfaForUser(userId)
+                const disableCode = await generate({ secret })
+
+                await authService.disableMfa(userId, { password: validUser.password, code: disableCode })
+                await enableMfaForUser(userId) // reinscreve — novo secret, novos backup codes
+
+                const loginResult = await authService.login({
+                    email: validUser.email,
+                    password: validUser.password,
+                    channel: "WEB",
+                })
+                if (!loginResult.mfaRequired) throw new Error("esperava mfaRequired:true")
+
+                await expect(
+                    authService.completeMfaLogin({
+                        mfaToken: loginResult.mfaToken,
+                        code: oldBackupCodes[0]!,
+                    }),
+                ).rejects.toThrow(UnauthorizedError)
+            })
         })
 
         describe("login com MFA habilitado", () => {

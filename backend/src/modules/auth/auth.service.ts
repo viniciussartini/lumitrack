@@ -161,6 +161,21 @@ export class AuthService {
 
         const { secret, code } = parsed.data
 
+        // Step-up (#10 — A07): reinscrever o segundo fator de uma conta que
+        // já tem MFA dá o mesmo resultado prático de desabilitá-lo — com o
+        // bônus de expulsar o dono legítimo (`createBackupCodes` purga os
+        // códigos antigos) — mas, ao contrário de `disableMfa`, não exigia
+        // nada além de uma sessão válida. Recusa e obriga o caminho já
+        // hardened `disable` → `setup`, em vez de duplicar a exigência de
+        // senha+código aqui. Primeira inscrição (sem MFA) não passa por
+        // aqui — não há fator vigente para provar.
+        const user = await this.authRepository.findUserByIdWithPassword(userId)
+        if (user?.mfaEnabled) {
+            throw new BadRequestError(
+                "MFA já está habilitado nesta conta — desabilite o fator atual antes de configurar um novo",
+            )
+        }
+
         if (!(await verifyTotpCode(secret, code))) {
             throw new UnauthorizedError("Código inválido")
         }

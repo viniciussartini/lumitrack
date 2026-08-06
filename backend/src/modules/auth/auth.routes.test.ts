@@ -725,6 +725,27 @@ describe("MFA", { timeout: 15000 }, () => {
 
             expect(response.status).toBe(401)
         })
+
+        // #10 — OWASP A07: reinscrever o segundo fator dá o mesmo resultado
+        // prático de desabilitá-lo, mas não exigia nada além de uma sessão
+        // válida — diferente de /mfa/disable, que já exige senha+código.
+        it("retorna 400 ao tentar reinscrever quando o MFA já está habilitado (step-up)", async () => {
+            const token = await registerAndLoginMobile()
+            await enableMfaViaHttp(token)
+
+            const setupRes = await request(app)
+                .post("/api/auth/mfa/setup")
+                .set("Authorization", `Bearer ${token}`)
+            const { secret } = setupRes.body.data as { secret: string }
+            const code = await generate({ secret })
+
+            const response = await request(app)
+                .post("/api/auth/mfa/verify-setup")
+                .set("Authorization", `Bearer ${token}`)
+                .send({ secret, code })
+
+            expect(response.status).toBe(400)
+        })
     })
 
     describe("login com MFA habilitado → POST /api/auth/login/mfa", () => {

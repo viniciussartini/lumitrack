@@ -191,11 +191,18 @@ export class AuthRepository {
 
     // `codeHashes` já vêm hasheados (bcrypt, mesmo padrão da senha) — o
     // código em texto claro nunca é persistido, só devolvido ao cliente
-    // uma única vez na resposta do setup.
+    // uma única vez na resposta do setup. Apaga qualquer lote anterior antes
+    // de criar o novo (#10 — A07): defesa em profundidade — o método fica
+    // seguro por si só contra códigos órfãos de uma configuração anterior,
+    // independente de o caminho até aqui já ter passado ou não por
+    // `disableMfa` (que também purga, mas não é o único chamador possível).
     async createBackupCodes(userId: string, codeHashes: string[]): Promise<void> {
-        await this.prisma.mfaBackupCode.createMany({
-            data: codeHashes.map((codeHash) => ({ userId, codeHash })),
-        })
+        await this.prisma.$transaction([
+            this.prisma.mfaBackupCode.deleteMany({ where: { userId } }),
+            this.prisma.mfaBackupCode.createMany({
+                data: codeHashes.map((codeHash) => ({ userId, codeHash })),
+            }),
+        ])
     }
 
     // Backup codes são hasheados com salt aleatório (bcrypt) — não há como
