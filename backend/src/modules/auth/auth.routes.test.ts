@@ -560,6 +560,76 @@ describe("POST /api/auth/reset-password", () => {
 
         expect(response.status).toBe(422)
     })
+
+    // #10 — OWASP A07: o cenário-alvo do "esqueci minha senha" é recuperar
+    // uma conta comprometida — antes desta correção, o reset não revogava
+    // nenhuma sessão existente, então um atacante com Bearer/cookie ativo
+    // sobrevivia à "recuperação" da vítima. Este é o teste que reproduz o
+    // bug e falha se a revogação for removida (DoD do
+    // 05-security-standards.md).
+    describe("revogação de sessões existentes (A07)", () => {
+        // Pede um novo reset para um e-mail já registrado — diferente de
+        // getResetToken(), não tenta recriar o usuário.
+        async function requestResetToken(email: string): Promise<string> {
+            await request(app).post("/api/auth/forgot-password").send({ email })
+            const call = mockSendPasswordResetEmail.mock.calls.at(-1) as [string, string]
+            return call[1]
+        }
+
+        it("MOBILE: Bearer emitido antes do reset deixa de funcionar (401)", async () => {
+            await request(app).post("/api/users").send(validUser)
+            const loginRes = await request(app).post("/api/auth/login").send({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "MOBILE",
+            })
+            const oldToken = loginRes.body.data.token as string
+
+            const resetToken = await requestResetToken(validUser.email)
+            await request(app).post("/api/auth/reset-password").send({
+                token: resetToken,
+                newPassword: "NovaSenha@456",
+            })
+
+            const response = await request(app)
+                .get("/api/auth/me")
+                .set("Authorization", `Bearer ${oldToken}`)
+
+            expect(response.status).toBe(401)
+        })
+
+        it("WEB: sessão e refresh token emitidos antes do reset deixam de funcionar (401)", async () => {
+            await request(app).post("/api/users").send(validUser)
+            const agent = request.agent(app)
+            const loginRes = await agent.post("/api/auth/login").send({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "WEB",
+            })
+            const oldRefreshValue = extractCookieValue(loginRes, env.REFRESH_COOKIE_NAME)
+            const oldRefreshCsrfValue = extractCookieValue(loginRes, env.REFRESH_CSRF_COOKIE_NAME)
+
+            const resetToken = await requestResetToken(validUser.email)
+            await request(app).post("/api/auth/reset-password").send({
+                token: resetToken,
+                newPassword: "NovaSenha@456",
+            })
+
+            // Sessão antiga (cookie ainda no agent) não funciona mais.
+            const meResponse = await agent.get("/api/auth/me")
+            expect(meResponse.status).toBe(401)
+
+            // Refresh token antigo também não funciona mais.
+            const refreshResponse = await request(app)
+                .post("/api/auth/refresh")
+                .set("Cookie", [
+                    `${env.REFRESH_COOKIE_NAME}=${oldRefreshValue}`,
+                    `${env.REFRESH_CSRF_COOKIE_NAME}=${oldRefreshCsrfValue}`,
+                ])
+                .set(env.REFRESH_CSRF_HEADER_NAME, oldRefreshCsrfValue)
+            expect(refreshResponse.status).toBe(401)
+        })
+    })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────

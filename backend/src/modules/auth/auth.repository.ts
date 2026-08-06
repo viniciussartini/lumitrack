@@ -68,11 +68,36 @@ export class AuthRepository {
         })
     }
 
-    async markPasswordResetAsUsed(id: string): Promise<void> {
-        await this.prisma.passwordReset.update({
-            where: { id },
-            data: { usedAt: new Date() },
-        })
+    // #10 — A07: troca a senha, marca o reset como usado e revoga TODAS as
+    // sessões (AuthToken) e refresh tokens do usuário, tudo na mesma
+    // transação — o cenário-alvo do "esqueci minha senha" é recuperar uma
+    // conta comprometida; se a revogação fosse uma chamada separada que
+    // pudesse falhar independente da troca de senha, o atacante poderia
+    // sobreviver ao reset com uma sessão ainda válida.
+    async resetPasswordAndRevokeSessions(params: {
+        userId: string
+        resetId: string
+        hashedPassword: string
+    }): Promise<void> {
+        const now = new Date()
+        await this.prisma.$transaction([
+            this.prisma.user.update({
+                where: { id: params.userId },
+                data: { password: params.hashedPassword },
+            }),
+            this.prisma.passwordReset.update({
+                where: { id: params.resetId },
+                data: { usedAt: now },
+            }),
+            this.prisma.authToken.updateMany({
+                where: { userId: params.userId, revokedAt: null },
+                data: { revokedAt: now },
+            }),
+            this.prisma.refreshToken.updateMany({
+                where: { userId: params.userId, revokedAt: null },
+                data: { revokedAt: now },
+            }),
+        ])
     }
 
     // #10 — Retenção e expurgo (Art. 15/16 LGPD): tokens que já não servem
@@ -137,13 +162,6 @@ export class AuthRepository {
                 mfaEnabled: true,
                 mfaSecret: true,
             },
-        })
-    }
-
-    async updateUserPassword(userId: string, hashedPassword: string): Promise<void> {
-        await this.prisma.user.update({
-            where: { id: userId },
-            data: { password: hashedPassword },
         })
     }
 

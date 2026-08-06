@@ -279,10 +279,15 @@ export class AuthService {
 
         const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
 
-        await Promise.all([
-            this.authRepository.updateUserPassword(reset.userId, hashedPassword),
-            this.authRepository.markPasswordResetAsUsed(reset.id),
-        ])
+        // #10 — A07: o cenário-alvo do "esqueci minha senha" é recuperar uma
+        // conta comprometida — revoga toda sessão (AuthToken) e refresh
+        // token existente na mesma transação da troca de senha, para que um
+        // atacante não sobreviva ao reset com uma sessão ainda válida.
+        await this.authRepository.resetPasswordAndRevokeSessions({
+            userId: reset.userId,
+            resetId: reset.id,
+            hashedPassword,
+        })
     }
 
     async logout(sessionToken: string, rawRefreshToken?: string): Promise<void> {
