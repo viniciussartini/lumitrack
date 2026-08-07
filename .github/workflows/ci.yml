@@ -198,6 +198,74 @@ jobs:
           DATABASE_URL="$DATABASE_HTTP_TEST_URL" npx prisma migrate deploy
       - run: npm test
 
+  # iot-simulator/ é um workspace npm próprio (server + ui) — 03-arquitetura.md
+  # o trata como o terceiro pacote independente do monorepo, mas até aqui
+  # nenhum job rodava os 15 arquivos de teste dele nem auditava suas
+  # dependências (broker MQTT `aedes` + servidor Express expostos sem gate).
+  iot-simulator-lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: iot-simulator
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: iot-simulator/package-lock.json
+      - run: npm ci
+      - run: npm run lint -w server -w ui
+      - run: npm run format:check -w server -w ui
+
+  iot-simulator-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: iot-simulator
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: iot-simulator/package-lock.json
+      - run: npm ci
+      - run: npm run build -w server -w ui
+
+  iot-simulator-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: iot-simulator
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: iot-simulator/package-lock.json
+      - run: npm ci
+      - run: npm test -w server -w ui
+
+  iot-simulator-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: iot-simulator
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: iot-simulator/package-lock.json
+      - run: npm ci
+      - run: npm audit --audit-level=high -w server -w ui
+      - name: Relatório completo (não bloqueante)
+        if: always()
+        run: npm audit -w server -w ui || true
+
   e2e:
     runs-on: ubuntu-latest
     needs: [backend-test, frontend-test]
