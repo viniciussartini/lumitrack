@@ -1,0 +1,58 @@
+title = "gitleaks — LumiTrack"
+
+# #163 — job `secret-scan` bloqueante no CI (.github/workflows/ci.yml).
+# Herda o ruleset padrão do gitleaks e só adiciona o que é específico deste
+# repositório: uma regra nova para um achado real conhecido (credenciais de
+# demo) e um allowlist específico e comentado por achado — nunca uma regra
+# desligada ou um allowlist genérico (ver risco/observações da issue #163).
+
+[extend]
+useDefault = true
+
+# ─────────────────────────────────────────────────────────────────────────
+# Achado real, não silenciado — só documentado (critério de aceite da #163)
+# ─────────────────────────────────────────────────────────────────────────
+# `frontend/src/config/demoUsers.ts` versiona e-mail/senha de 2 contas de
+# demonstração; `LoginPage.tsx` as importa estaticamente, então ficam no
+# bundle mesmo com VITE_DEMO_MODE desligado. O ruleset padrão do gitleaks
+# NÃO pega isso (senha legível, sem o formato de chave que `generic-api-key`
+# espera) — regra própria para que o achado apareça na varredura em vez de
+# ficar invisível, exatamente o que a issue pede.
+[[rules]]
+id = "lumitrack-demo-credentials"
+description = "Credencial fixa de conta de demonstração (frontend/src/config/demoUsers.ts)"
+regex = '''DemoLumi@2026'''
+tags = ["demo", "known-finding"]
+
+[allowlist]
+regexes = [
+  # A regra acima existe só para o achado aparecer — a correção de verdade
+  # (rotacionar, ou parar de versionar) é da Fase 13 do roadmap
+  # (.claude/docs/roadmap.md), fora do escopo desta issue de enforcement.
+  '''DemoLumi@2026''',
+
+  # .github/workflows/ci.yml — valores fixos e descartáveis usados só para
+  # satisfazer a validação de env.ts em CI (backend-test e e2e), nunca
+  # usados para cifrar dado real. Comentário no próprio ci.yml já avisa:
+  # "Nenhum destes valores é um segredo real".
+  '''a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2''',
+  '''f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9''',
+  '''6fd4bad67bbdb0573f391bffdc1f0b3e710203034d07ace29e71bb1f49c835f4''',
+  '''25e6454d84f1a7348ee8a2410b6a244814e719d0fafb1cf30e54aa40ada5657d''',
+
+  # backend/README.md — exemplo de resposta da API na documentação. Token
+  # truncado (termina em "..."), e o trecho antes do primeiro "." é só o
+  # header padrão de um JWT (`{"alg":"HS256","typ":"JWT"}` em base64), não
+  # um token assinado real.
+  '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.\.\.''',
+]
+paths = [
+  # backend/.env.example — por definição todo valor aqui é placeholder
+  # ("troque-por-..."), nunca um segredo real.
+  '''^backend/\.env\.example$''',
+
+  # backend/src/shared/crypto/mfaEncryption.test.ts — strings base32
+  # arbitrárias usadas só como entrada de teste do round-trip de
+  # cifra/decifra do secret de TOTP; nunca associadas a uma conta real.
+  '''^backend/src/shared/crypto/mfaEncryption\.test\.ts$''',
+]

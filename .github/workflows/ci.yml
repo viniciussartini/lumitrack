@@ -13,8 +13,26 @@ on:
 
 env:
   NODE_VERSION: "24"
+  GITLEAKS_VERSION: "8.30.1"
 
 jobs:
+  # #163 — gate de segurança (OWASP A03, supply chain): um segredo
+  # commitado passa a quebrar o CI. Escaneia o histórico completo (não só o
+  # diff do PR) porque os achados já triados (.gitleaks.toml) precisam
+  # continuar allowlistados em toda execução, não só na primeira. Imagem
+  # oficial do gitleaks, versão fixa — sem Action de terceiro no
+  # Marketplace, mesmo padrão do resto do `ci.yml` (só `actions/*` oficiais).
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: |
+          docker run --rm -v "$PWD:/repo" -w /repo \
+            "zricethezav/gitleaks:v${{ env.GITLEAKS_VERSION }}" \
+            detect --source /repo --no-banner --redact
+
   frontend-lint:
     runs-on: ubuntu-latest
     defaults:
