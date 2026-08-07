@@ -1,5 +1,19 @@
-import { describe, it, expect } from "vitest"
-import { EthernetIpConnection } from "@/modules/iot/iot-worker/protocols/ModbusTcpConnection.js"
+import { describe, it, expect, vi } from "vitest"
+import {
+    EthernetIpConnection,
+    Rs232Connection,
+    Rs485Connection,
+} from "@/modules/iot/iot-worker/protocols/ModbusTcpConnection.js"
+
+// `_handleSerialData` é privado — chamado diretamente pelo teste (em vez de
+// mockar `serialport` para disparar um "data" real) porque é o mesmo
+// método que o listener real invoca, e o resto deste arquivo testa contra
+// comportamento real, não módulos mockados (ver describe de cima).
+interface SerialDataHarness {
+    _handleSerialData(chunk: Buffer): void
+    buffer: string
+    onData(handler: (data: Record<string, unknown>) => void): void
+}
 
 // Estes testes usam o import("ethernet-ip") real (não mockado) — é
 // justamente a lacuna que deixou o CI verde no PR #51 (bump 1.2.5→2.0.0):
@@ -39,5 +53,64 @@ describe("EthernetIpConnection", () => {
         })
 
         await expect(connection.disconnect()).resolves.toBeUndefined()
+    })
+})
+
+// #164 — Rs485Connection fazia `buffer.split("")` (decompunha em
+// caracteres individuais) em vez de `split("\n")`: dataHandler era chamado
+// uma vez por byte recebido, JSON.parse de um único caractere sempre
+// falhava, e nenhuma leitura RS-485 era jamais decodificada. Mesmo bug de
+// classe também coberto para o Rs232Connection (correto hoje, mas sem
+// teste de regressão nenhum protocolo serial tinha antes desta issue).
+describe.each([
+    [
+        "Rs485Connection",
+        () => new Rs485Connection({ meterId: "meter-rs485-test", address: "/dev/ttyUSB0" }),
+    ],
+    [
+        "Rs232Connection",
+        () => new Rs232Connection({ meterId: "meter-rs232-test", address: "/dev/ttyUSB0" }),
+    ],
+] as const)("%s — montagem de linhas a partir de chunks parciais", (_name, makeConnection) => {
+    it("dois chunks parciais que juntos formam uma linha JSON disparam UMA única chamada de dataHandler, com o objeto já parseado", () => {
+        const connection = makeConnection() as unknown as SerialDataHarness
+        const dataHandler = vi.fn()
+        connection.onData(dataHandler)
+
+        // A linha `{"value":42}\n` chega partida no meio do payload JSON —
+        // cenário real de leitura serial em baixa velocidade.
+        connection._handleSerialData(Buffer.from('{"val'))
+        expect(dataHandler).not.toHaveBeenCalled()
+
+        connection._handleSerialData(Buffer.from('ue":42}\n'))
+
+        expect(dataHandler).toHaveBeenCalledTimes(1)
+        expect(dataHandler).toHaveBeenCalledWith({ value: 42 })
+    })
+
+    it("múltiplas linhas no mesmo chunk disparam uma chamada de dataHandler por linha, na ordem", () => {
+        const connection = makeConnection() as unknown as SerialDataHarness
+        const dataHandler = vi.fn()
+        connection.onData(dataHandler)
+
+        connection._handleSerialData(Buffer.from('{"seq":1}\n{"seq":2}\n{"seq":3}\n'))
+
+        expect(dataHandler).toHaveBeenCalledTimes(3)
+        expect(dataHandler).toHaveBeenNthCalledWith(1, { seq: 1 })
+        expect(dataHandler).toHaveBeenNthCalledWith(2, { seq: 2 })
+        expect(dataHandler).toHaveBeenNthCalledWith(3, { seq: 3 })
+    })
+
+    it("buffer que excede o teto sem encontrar \\n é descartado, em vez de crescer sem limite", () => {
+        const connection = makeConnection() as unknown as SerialDataHarness
+        const dataHandler = vi.fn()
+        connection.onData(dataHandler)
+
+        // Chunk maior que o teto (64 KB), sem nenhum terminador de linha —
+        // um dispositivo que nunca fecha linha.
+        connection._handleSerialData(Buffer.alloc(64 * 1024 + 1, "a"))
+
+        expect(connection.buffer).toBe("")
+        expect(dataHandler).not.toHaveBeenCalled()
     })
 })

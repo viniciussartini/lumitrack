@@ -1,6 +1,14 @@
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
 import { logger } from "@/shared/logger/logger.js"
 
+// Teto do buffer de linhas serial (RS-232/RS-485, #164) — um dispositivo que
+// nunca envie "\n" faria `this.buffer` crescer sem limite a cada chunk
+// recebido, vetor de exaustão de memória. Ao estourar, o buffer acumulado
+// (sem terminador válido até aqui) é descartado — perder um fragmento de um
+// dispositivo que nunca fecha linha é preferível a reter memória
+// indefinidamente por ele.
+const SERIAL_LINE_BUFFER_MAX_BYTES = 64 * 1024
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ModbusTcpConnection
 //
@@ -602,26 +610,46 @@ export class Rs232Connection implements IConnection {
 
         // RS-232 e ponto-a-ponto orientado a eventos — o dispositivo envia
         // dados quando tem algo a reportar, sem precisar ser interrogado.
-        // Acumulamos fragmentos no buffer e processamos linhas completas ().
+        // Acumulamos fragmentos no buffer e processamos linhas completas
+        // (extraído em `_handleSerialData` para ser testável sem depender
+        // de um SerialPort real ou mockado — #164).
         serialPort.on("data", (chunk: Buffer) => {
-            this.buffer += chunk.toString()
-            const lines = this.buffer.split("\n")
-            this.buffer = lines.pop() ?? ""
-            for (const line of lines) {
-                const trimmed = line.trim()
-
-                if (!trimmed || !this.dataHandler) {
-                    continue
-                }
-
-                try {
-                    const parsed = JSON.parse(trimmed) as Record<string, unknown>
-                    this.dataHandler(parsed)
-                } catch {
-                    this.dataHandler({ raw: trimmed, timestamp: new Date().toISOString() })
-                }
-            }
+            this._handleSerialData(chunk)
         })
+    }
+
+    // Exposto como método (não inline) para ser chamado diretamente pelo
+    // teste — casar com o "data" de um SerialPort real exigiria mockar o
+    // pacote `serialport`, fora do padrão de teste já usado neste arquivo
+    // (ModbusTcpConnection.test.ts testa contra comportamento real).
+    private _handleSerialData(chunk: Buffer): void {
+        this.buffer += chunk.toString()
+
+        if (this.buffer.length > SERIAL_LINE_BUFFER_MAX_BYTES) {
+            logger.error(
+                { module: "RS232", meterId: this.meterId, bufferLength: this.buffer.length },
+                "Buffer serial excedeu o teto sem encontrar terminador de linha — descartado",
+            )
+            this.buffer = ""
+            return
+        }
+
+        const lines = this.buffer.split("\n")
+        this.buffer = lines.pop() ?? ""
+        for (const line of lines) {
+            const trimmed = line.trim()
+
+            if (!trimmed || !this.dataHandler) {
+                continue
+            }
+
+            try {
+                const parsed = JSON.parse(trimmed) as Record<string, unknown>
+                this.dataHandler(parsed)
+            } catch {
+                this.dataHandler({ raw: trimmed, timestamp: new Date().toISOString() })
+            }
+        }
     }
 
     async disconnect(): Promise<void> {
@@ -711,30 +739,48 @@ export class Rs485Connection implements IConnection {
         })
 
         // RS-485 multipoint — dispositivos enviam dados de forma assincrona.
-        // O mesmo padrao de buffer de linhas que o Rs232Connection.
+        // O mesmo padrao de buffer de linhas que o Rs232Connection (extraído
+        // em `_handleSerialData` pelo mesmo motivo de testabilidade — #164).
         serialPort.on("data", (chunk: Buffer) => {
-            this.buffer += chunk.toString()
-            const lines = this.buffer.split("")
-            this.buffer = lines.pop() ?? ""
-            for (const line of lines) {
-                const trimmed = line.trim()
-
-                if (!trimmed || !this.dataHandler) {
-                    continue
-                }
-
-                try {
-                    const parsed = JSON.parse(trimmed) as Record<string, unknown>
-                    this.dataHandler(parsed)
-                } catch {
-                    this.dataHandler({
-                        raw: trimmed,
-                        port: this.config.address,
-                        timestamp: new Date().toISOString(),
-                    })
-                }
-            }
+            this._handleSerialData(chunk)
         })
+    }
+
+    private _handleSerialData(chunk: Buffer): void {
+        this.buffer += chunk.toString()
+
+        if (this.buffer.length > SERIAL_LINE_BUFFER_MAX_BYTES) {
+            logger.error(
+                { module: "RS485", meterId: this.meterId, bufferLength: this.buffer.length },
+                "Buffer serial excedeu o teto sem encontrar terminador de linha — descartado",
+            )
+            this.buffer = ""
+            return
+        }
+
+        // #164 — era `split("")` (decompunha em caracteres individuais, uma
+        // chamada de dataHandler por byte recebido, JSON.parse sempre
+        // falhando). Uma linha por elemento, igual ao Rs232Connection.
+        const lines = this.buffer.split("\n")
+        this.buffer = lines.pop() ?? ""
+        for (const line of lines) {
+            const trimmed = line.trim()
+
+            if (!trimmed || !this.dataHandler) {
+                continue
+            }
+
+            try {
+                const parsed = JSON.parse(trimmed) as Record<string, unknown>
+                this.dataHandler(parsed)
+            } catch {
+                this.dataHandler({
+                    raw: trimmed,
+                    port: this.config.address,
+                    timestamp: new Date().toISOString(),
+                })
+            }
+        }
     }
 
     async disconnect(): Promise<void> {
