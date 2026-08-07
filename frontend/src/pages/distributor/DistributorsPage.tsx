@@ -37,7 +37,8 @@ export const DistribuidorsPage = () => {
     const states = [ALL_STATES, ...Array.from(new Set(distributors.map((d) => d.state))).sort()]
 
     const filtered = distributors.filter(
-        (d) => (selectedState === ALL_STATES || d.state === selectedState) && matchesQuery(d, query),
+        (d) =>
+            (selectedState === ALL_STATES || d.state === selectedState) && matchesQuery(d, query),
     )
 
     const hasNoDistributors = !isLoading && !isError && distributors.length === 0
@@ -48,8 +49,8 @@ export const DistribuidorsPage = () => {
         <div className="flex flex-col gap-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
                 <p className="text-muted m-0 max-w-[70ch] text-sm">
-                    Catálogo de distribuidoras disponíveis para vincular às propriedades. Tarifação do
-                    Grupo B: <span className="text-accent-700 font-semibold">TUSD + TE</span> com
+                    Catálogo de distribuidoras disponíveis para vincular às propriedades. Tarifação
+                    do Grupo B: <span className="text-accent-700 font-semibold">TUSD + TE</span> com
                     tributos por dentro.
                 </p>
                 <div className="relative flex shrink-0 items-center">
@@ -92,9 +93,7 @@ export const DistribuidorsPage = () => {
             {!isLoading && isError && (
                 <ErrorState
                     message={
-                        error instanceof Error
-                            ? error.message
-                            : "Erro ao carregar distribuidoras"
+                        error instanceof Error ? error.message : "Erro ao carregar distribuidoras"
                     }
                     onRetry={() => refetch()}
                 />

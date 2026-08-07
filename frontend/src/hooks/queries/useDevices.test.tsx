@@ -29,9 +29,7 @@ const mockDevice: Device = {
 
 const wrapper = (queryClient: QueryClient) => {
     return ({ children }: { children: ReactNode }) => (
-        <QueryClientProvider client={queryClient}>
-            {children}
-        </QueryClientProvider>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     )
 }
 
@@ -90,15 +88,12 @@ describe("useDevices", () => {
     })
 
     it("propaga erros do service", async () => {
-        vi.mocked(deviceService.list).mockRejectedValue(
-            new Error("Falha ao listar dispositivos"),
-        )
+        vi.mocked(deviceService.list).mockRejectedValue(new Error("Falha ao listar dispositivos"))
         const queryClient = createTestQueryClient()
 
-        const { result } = renderHook(
-            () => useDevices("prop-1", "area-1"),
-            { wrapper: wrapper(queryClient) },
-        )
+        const { result } = renderHook(() => useDevices("prop-1", "area-1"), {
+            wrapper: wrapper(queryClient),
+        })
 
         await waitFor(() => expect(result.current.isError).toBe(true))
         expect(result.current.error).toBeInstanceOf(Error)
@@ -110,17 +105,12 @@ describe("useDevice", () => {
         vi.mocked(deviceService.getById).mockResolvedValue(mockDevice)
         const queryClient = createTestQueryClient()
 
-        const { result } = renderHook(
-            () => useDevice("prop-1", "area-1", "device-1"),
-            { wrapper: wrapper(queryClient) },
-        )
+        const { result } = renderHook(() => useDevice("prop-1", "area-1", "device-1"), {
+            wrapper: wrapper(queryClient),
+        })
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
-        expect(deviceService.getById).toHaveBeenCalledWith(
-            "prop-1",
-            "area-1",
-            "device-1",
-        )
+        expect(deviceService.getById).toHaveBeenCalledWith("prop-1", "area-1", "device-1")
         expect(result.current.data).toEqual(mockDevice)
     })
 

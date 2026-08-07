@@ -29,11 +29,15 @@ export const RecoverySteps = ({ current }: RecoveryStepsProps) => {
             {STEPS.map((step, i) => {
                 const status = i === currentIndex ? "active" : i < currentIndex ? "done" : "idle"
                 return (
-                    <li key={step.key} className="flex items-center gap-[13px] text-sm text-[#e6ecf2]/88">
+                    <li
+                        key={step.key}
+                        className="flex items-center gap-[13px] text-sm text-[#e6ecf2]/88"
+                    >
                         <span
                             className={cn(
                                 "lt-step",
-                                status === "active" && "text-status-highlight border-status-highlight",
+                                status === "active" &&
+                                    "text-status-highlight border-status-highlight",
                                 status === "done" && "border-[#8fd0a0] text-[#8fd0a0]",
                                 status === "idle" && "border-white/34 text-white/34",
                             )}

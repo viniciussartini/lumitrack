@@ -46,7 +46,9 @@ async function main() {
             select: { id: true, address: true, city: true, state: true, zipCode: true },
         })
 
-        console.log(`Encontradas ${properties.length} propriedade(s) com campos de endereço preenchidos.`)
+        console.log(
+            `Encontradas ${properties.length} propriedade(s) com campos de endereço preenchidos.`,
+        )
 
         let updated = 0
         let skipped = 0
@@ -57,7 +59,12 @@ async function main() {
             const stateNeedsEncryption = property.state && needsEncryption(property.state)
             const zipCodeNeedsEncryption = property.zipCode && needsEncryption(property.zipCode)
 
-            if (!addressNeedsEncryption && !cityNeedsEncryption && !stateNeedsEncryption && !zipCodeNeedsEncryption) {
+            if (
+                !addressNeedsEncryption &&
+                !cityNeedsEncryption &&
+                !stateNeedsEncryption &&
+                !zipCodeNeedsEncryption
+            ) {
                 skipped++
                 continue
             }
@@ -76,7 +83,9 @@ async function main() {
             console.log(`Propriedade ${property.id}: criptografada.`)
         }
 
-        console.log(`\nBackfill concluído. Atualizadas: ${updated}. Já cifradas (skip): ${skipped}.`)
+        console.log(
+            `\nBackfill concluído. Atualizadas: ${updated}. Já cifradas (skip): ${skipped}.`,
+        )
     } finally {
         await prisma.$disconnect()
     }

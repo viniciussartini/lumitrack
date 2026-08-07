@@ -87,7 +87,10 @@ export const LegalDocumentPage = ({ title, markdown }: LegalDocumentPageProps) =
                     </aside>
 
                     <article className="lt-legal min-w-0">
-                        <ReactMarkdown components={industryMarkdownComponents} remarkPlugins={[remarkGfm]}>
+                        <ReactMarkdown
+                            components={industryMarkdownComponents}
+                            remarkPlugins={[remarkGfm]}
+                        >
                             {markdown}
                         </ReactMarkdown>
                     </article>

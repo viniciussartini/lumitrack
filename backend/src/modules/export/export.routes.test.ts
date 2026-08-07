@@ -60,13 +60,16 @@ async function setupWithProperty(user = validUser) {
 
 // ─── Setup e Teardown ─────────────────────────────────────────────────────────
 
-beforeEach(async () => { await cleanHttpDatabase() })
-afterAll(async () => { await prismaHttpTest.$disconnect() })
+beforeEach(async () => {
+    await cleanHttpDatabase()
+})
+afterAll(async () => {
+    await prismaHttpTest.$disconnect()
+})
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("GET /api/users/me/data-export", () => {
-
     it("retorna 401 sem token", async () => {
         const response = await request(app).get("/api/users/me/data-export")
         expect(response.status).toBe(401)

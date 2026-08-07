@@ -35,10 +35,7 @@ export const PropertiesPage = () => {
     const isLoading = propertiesQuery.isLoading || distributorsQuery.isLoading
     const isError = propertiesQuery.isError || distributorsQuery.isError
 
-    const errorMessage = pickErrorMessage(
-        propertiesQuery.error,
-        distributorsQuery.error,
-    )
+    const errorMessage = pickErrorMessage(propertiesQuery.error, distributorsQuery.error)
 
     const handleRetry = () => {
         if (propertiesQuery.isError) propertiesQuery.refetch()
@@ -66,9 +63,7 @@ export const PropertiesPage = () => {
             {/* Conteúdo principal */}
             {isLoading && <PropertyListSkeleton />}
 
-            {!isLoading && isError && (
-                <ErrorState message={errorMessage} onRetry={handleRetry} />
-            )}
+            {!isLoading && isError && <ErrorState message={errorMessage} onRetry={handleRetry} />}
 
             {hasNoProperties && (
                 <EmptyState
@@ -124,9 +119,7 @@ export const PropertiesPage = () => {
 
 // Helpers
 
-const buildDistributorMap = (
-    distributors: Distributor[],
-): Map<string, string> => {
+const buildDistributorMap = (distributors: Distributor[]): Map<string, string> => {
     const map = new Map<string, string>()
     distributors.forEach((d) => map.set(d.id, d.name))
     return map
@@ -136,10 +129,7 @@ const buildDistributorMap = (
  * Escolhe a mensagem de erro mais relevante.
  * Prioridade: erro de properties > erro de distributors.
  */
-const pickErrorMessage = (
-    propertiesError: unknown,
-    distributorsError: unknown,
-): string => {
+const pickErrorMessage = (propertiesError: unknown, distributorsError: unknown): string => {
     if (propertiesError instanceof Error) return propertiesError.message
     if (distributorsError instanceof Error) return distributorsError.message
     return "Erro ao carregar propriedades"

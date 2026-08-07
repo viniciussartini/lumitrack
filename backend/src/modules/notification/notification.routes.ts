@@ -3,7 +3,10 @@ import { NotificationController } from "@/modules/notification/notification.cont
 import { NotificationService } from "@/modules/notification/notification.service.js"
 import type { NotificationStore } from "@/shared/notifications/notification-store.js"
 
-export function notificationRoutes(authenticate: RequestHandler, notificationStore: NotificationStore): Router {
+export function notificationRoutes(
+    authenticate: RequestHandler,
+    notificationStore: NotificationStore,
+): Router {
     const router = Router()
 
     const notificationService = new NotificationService(notificationStore)

@@ -127,7 +127,12 @@ describe("POST /api/properties", () => {
         const response = await request(app)
             .post("/api/properties")
             .set("Authorization", `Bearer ${token}`)
-            .send({ ...validPropertyBody, distributorId: dist.id, billingClass: "B3", publicLightingFeeBrl: 25.5 })
+            .send({
+                ...validPropertyBody,
+                distributorId: dist.id,
+                billingClass: "B3",
+                publicLightingFeeBrl: 25.5,
+            })
 
         expect(response.status).toBe(201)
         expect(response.body.data.billingClass).toBe("B3")
@@ -311,8 +316,9 @@ describe("GET /api/properties/:id", () => {
     })
 
     it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .get("/api/properties/00000000-0000-0000-0000-000000000000")
+        const response = await request(app).get(
+            "/api/properties/00000000-0000-0000-0000-000000000000",
+        )
         expect(response.status).toBe(401)
     })
 })
@@ -459,8 +465,9 @@ describe("DELETE /api/properties/:id", () => {
     })
 
     it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .delete("/api/properties/00000000-0000-0000-0000-000000000000")
+        const response = await request(app).delete(
+            "/api/properties/00000000-0000-0000-0000-000000000000",
+        )
         expect(response.status).toBe(401)
     })
 })
@@ -475,7 +482,9 @@ describe("Audit log", () => {
         const dist = await createDistributor()
         const property = await createProperty(token, dist.id)
 
-        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "PROPERTY_CREATE" } })
+        const logs = await prismaHttpTest.auditLog.findMany({
+            where: { action: "PROPERTY_CREATE" },
+        })
         expect(logs).toHaveLength(1)
         expect(logs[0]).toMatchObject({
             outcome: "SUCCESS",
@@ -495,7 +504,9 @@ describe("Audit log", () => {
             .set("Authorization", `Bearer ${token}`)
             .send({ address: "Avenida Nova, 456" })
 
-        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "PROPERTY_UPDATE" } })
+        const logs = await prismaHttpTest.auditLog.findMany({
+            where: { action: "PROPERTY_UPDATE" },
+        })
         expect(logs).toHaveLength(1)
         expect((logs[0]?.metadata as { fields?: string[] } | null)?.fields).toEqual(["address"])
     })
@@ -509,9 +520,16 @@ describe("Audit log", () => {
             .delete(`/api/properties/${property.id}`)
             .set("Authorization", `Bearer ${token}`)
 
-        const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "PROPERTY_DELETE" } })
+        const logs = await prismaHttpTest.auditLog.findMany({
+            where: { action: "PROPERTY_DELETE" },
+        })
         expect(logs).toHaveLength(1)
-        expect(logs[0]).toMatchObject({ outcome: "SUCCESS", resourceType: "Property", resourceId: property.id, userId })
+        expect(logs[0]).toMatchObject({
+            outcome: "SUCCESS",
+            resourceType: "Property",
+            resourceId: property.id,
+            userId,
+        })
     })
 
     it("registra ACCESS_DENIED ao tentar deletar propriedade de outro usuário (403)", async () => {
@@ -526,7 +544,11 @@ describe("Audit log", () => {
 
         const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "ACCESS_DENIED" } })
         expect(logs).toHaveLength(1)
-        expect(logs[0]).toMatchObject({ outcome: "FAILURE", userId: userIdB, resourceType: "properties" })
+        expect(logs[0]).toMatchObject({
+            outcome: "FAILURE",
+            userId: userIdB,
+            resourceType: "properties",
+        })
     })
 })
 
@@ -579,12 +601,15 @@ describe("Criptografia do endereço em repouso", () => {
         const { token } = await registerAndLogin()
         const dist = await createDistributor()
 
-        await request(app)
-            .post("/api/properties")
-            .set("Authorization", `Bearer ${token}`)
-            .send({ name: "Galpão Sem Endereço", distributorId: dist.id, electricalSystem: "TRIPHASIC" })
+        await request(app).post("/api/properties").set("Authorization", `Bearer ${token}`).send({
+            name: "Galpão Sem Endereço",
+            distributorId: dist.id,
+            electricalSystem: "TRIPHASIC",
+        })
 
-        const properties = await prismaHttpTest.property.findMany({ where: { name: "Galpão Sem Endereço" } })
+        const properties = await prismaHttpTest.property.findMany({
+            where: { name: "Galpão Sem Endereço" },
+        })
         expect(properties[0]?.address).toBeNull()
         expect(properties[0]?.city).toBeNull()
         expect(properties[0]?.state).toBeNull()

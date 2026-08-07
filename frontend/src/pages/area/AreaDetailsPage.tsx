@@ -1,14 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import { useQueries } from "@tanstack/react-query"
-import {
-    AlertCircle,
-    ArrowLeft,
-    Cpu,
-    LayoutGrid,
-    Pencil,
-    Plus,
-} from "lucide-react"
+import { AlertCircle, ArrowLeft, Cpu, LayoutGrid, Pencil, Plus } from "lucide-react"
 import { useArea } from "@/hooks/queries/useAreas"
 import { useProperty } from "@/hooks/queries/useProperties"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
@@ -67,13 +60,7 @@ export const AreaDetailsPage = () => {
     // + useRealtime (SSE) pra leitura ao vivo.
     const meterQuery = useMeterByTarget("AREA", areaId)
     const hasMeter = Boolean(meterQuery.data)
-    const monthlyQuery = useConsumption(
-        "AREA",
-        hasMeter ? areaId : undefined,
-        "month",
-        1,
-        3,
-    )
+    const monthlyQuery = useConsumption("AREA", hasMeter ? areaId : undefined, "month", 1, 3)
     const { readingsByMeterId } = useRealtime()
     // Estado (não Date.now() direto) pra recalcular a "idade" da leitura
     // periodicamente sem violar a regra de pureza de render — mesmo padrão
@@ -114,8 +101,7 @@ export const AreaDetailsPage = () => {
     const property = propertyQuery.data
     const meter = meterQuery.data
     const reading = meter ? readingsByMeterId[meter.id] : undefined
-    const isReadingStale =
-        !reading || now - new Date(reading.receivedAt).getTime() > 10_000
+    const isReadingStale = !reading || now - new Date(reading.receivedAt).getTime() > 10_000
     const monthlyBucket = latestBucket(monthlyQuery.data?.items ?? [])
 
     const handleAfterDelete = () => {
@@ -151,7 +137,7 @@ export const AreaDetailsPage = () => {
                         />
                         Potência agora
                     </div>
-                    <div className="font-heading mt-2.5 text-[30px] leading-none font-semibold font-features-['tnum'_1]">
+                    <div className="font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold">
                         {!isReadingStale && reading ? (
                             formatPowerKw(reading.powerW)
                         ) : (
@@ -436,7 +422,11 @@ const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
                                 {comparisonUnit === "kwh" ? "kWh" : "R$"})
                             </span>
                         </div>
-                        <div role="group" aria-label="Unidade de comparação" className="flex gap-1.5">
+                        <div
+                            role="group"
+                            aria-label="Unidade de comparação"
+                            className="flex gap-1.5"
+                        >
                             <button
                                 type="button"
                                 className="lt-selbtn"
@@ -486,11 +476,7 @@ const DevicesSkeleton = () => (
 )
 
 const DetailsSkeleton = () => (
-    <div
-        className="blueprint h-72 p-6"
-        aria-busy="true"
-        aria-label="Carregando dados da área"
-    >
+    <div className="blueprint h-72 p-6" aria-busy="true" aria-label="Carregando dados da área">
         <div className="bg-divider h-8 w-1/3 animate-pulse" />
         <div className="bg-divider mt-4 h-4 w-1/2 animate-pulse" />
     </div>

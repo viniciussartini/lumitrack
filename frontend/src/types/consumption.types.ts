@@ -20,12 +20,7 @@ export const GRANULARITY_LABELS: Record<Granularity, string> = {
 export const DETAILS_GRANULARITIES: readonly Granularity[] = ["hour", "day"]
 
 /** Granularidades disponíveis na página /relatorios — os 4 níveis. */
-export const REPORT_GRANULARITIES: readonly Granularity[] = [
-    "hour",
-    "day",
-    "month",
-    "year",
-]
+export const REPORT_GRANULARITIES: readonly Granularity[] = ["hour", "day", "month", "year"]
 
 /** Um bucket agregado de consumo — item de `GET /api/consumption`. */
 export interface ConsumptionBucket {

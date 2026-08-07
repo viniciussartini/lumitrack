@@ -82,7 +82,11 @@ describe("AuditRepository.findMany", () => {
     })
 
     it("filtra por intervalo de datas (from/to)", async () => {
-        const old = await auditRepository.create({ userId: null, action: "LOGIN", outcome: "SUCCESS" })
+        const old = await auditRepository.create({
+            userId: null,
+            action: "LOGIN",
+            outcome: "SUCCESS",
+        })
         void old
         await prismaTest.auditLog.updateMany({
             data: { createdAt: new Date("2020-01-01T00:00:00Z") },

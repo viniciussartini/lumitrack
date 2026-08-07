@@ -68,8 +68,10 @@ function isValidPayload(raw: Record<string, unknown>): raw is RawReadingPayload 
         isFiniteNonNegative(voltage) &&
         isFiniteNonNegative(current) &&
         isFiniteNonNegative(powerW) &&
-        typeof powerFactor === "number" && Number.isFinite(powerFactor) &&
-        powerFactor >= 0 && powerFactor <= 1
+        typeof powerFactor === "number" &&
+        Number.isFinite(powerFactor) &&
+        powerFactor >= 0 &&
+        powerFactor <= 1
     )
 }
 
@@ -137,7 +139,14 @@ export class IoTDataProcessor {
             log.debug({ meterId, deviceTimestamp, receivedAt }, "Leitura recebida")
         }
 
-        const sample: MeterReadingSample = { meterId, voltage, current, powerW, powerFactor, receivedAt }
+        const sample: MeterReadingSample = {
+            meterId,
+            voltage,
+            current,
+            powerW,
+            powerFactor,
+            receivedAt,
+        }
 
         // Iterar sobre um Set é seguro mesmo se um listener for removido
         // durante a iteração — o Set cria um snapshot estável.
@@ -159,8 +168,12 @@ export class IoTDataProcessor {
      */
     addSampleListener(listener: SampleListener): () => void {
         this.listeners.add(listener)
-        return () => { this.listeners.delete(listener) }
+        return () => {
+            this.listeners.delete(listener)
+        }
     }
 
-    activeListenerCount(): number { return this.listeners.size }
+    activeListenerCount(): number {
+        return this.listeners.size
+    }
 }

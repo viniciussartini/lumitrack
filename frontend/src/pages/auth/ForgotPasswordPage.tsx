@@ -10,10 +10,7 @@ import { AUTH_LAYOUT_GRID_CLASS, BrandPanel } from "@/components/auth/BrandPanel
 import { RecoverySteps } from "@/components/auth/RecoverySteps"
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
-import {
-    forgotPasswordSchema,
-    type ForgotPasswordFormData,
-} from "@/schemas/forgotPassword.schema"
+import { forgotPasswordSchema, type ForgotPasswordFormData } from "@/schemas/forgotPassword.schema"
 
 /**
  * /esqueci-senha — passos 1 e 2 do fluxo de recuperação de senha
@@ -68,7 +65,8 @@ export const ForgotPasswordPage = () => {
                                 Esqueceu a senha?
                             </h2>
                             <p className="text-muted mt-3 text-[14.5px] leading-normal">
-                                Informe o e-mail da sua conta. Enviaremos um link para você criar uma nova senha.
+                                Informe o e-mail da sua conta. Enviaremos um link para você criar
+                                uma nova senha.
                             </p>
 
                             <div className="mt-[26px]">
@@ -83,7 +81,10 @@ export const ForgotPasswordPage = () => {
                             </div>
 
                             {serverError && (
-                                <div role="alert" className="bg-status-danger/10 text-status-danger mt-4 px-3 py-2 text-sm">
+                                <div
+                                    role="alert"
+                                    className="bg-status-danger/10 text-status-danger mt-4 px-3 py-2 text-sm"
+                                >
                                     {serverError}
                                 </div>
                             )}
@@ -104,15 +105,22 @@ export const ForgotPasswordPage = () => {
                     ) : (
                         <Blueprint className="px-[30px] py-[34px] text-center">
                             <div className="border-accent mx-auto flex h-[52px] w-[52px] items-center justify-center border-[1.5px]">
-                                <Mail className="text-accent h-[26px] w-[26px]" strokeWidth={1.5} aria-hidden="true" />
+                                <Mail
+                                    className="text-accent h-[26px] w-[26px]"
+                                    strokeWidth={1.5}
+                                    aria-hidden="true"
+                                />
                             </div>
                             <h2 className="font-heading mt-5 text-[26px] leading-[1.05] font-semibold uppercase">
                                 Link enviado
                             </h2>
                             <p className="text-muted mt-3 text-[14.5px] leading-[1.55]">
                                 Se houver uma conta associada a{" "}
-                                <strong className="text-text">{sentTo || getValues("email") || "seu e-mail"}</strong>,
-                                você receberá um e-mail com o link para redefinir sua senha. O link expira em 1 hora.
+                                <strong className="text-text">
+                                    {sentTo || getValues("email") || "seu e-mail"}
+                                </strong>
+                                , você receberá um e-mail com o link para redefinir sua senha. O
+                                link expira em 1 hora.
                             </p>
                             <Button
                                 type="button"
@@ -123,7 +131,8 @@ export const ForgotPasswordPage = () => {
                                 Reenviar para outro e-mail
                             </Button>
                             <p className="text-muted mt-5 text-[12.5px] leading-normal">
-                                Não recebeu? Verifique a caixa de spam ou aguarde alguns minutos antes de reenviar.
+                                Não recebeu? Verifique a caixa de spam ou aguarde alguns minutos
+                                antes de reenviar.
                             </p>
                         </Blueprint>
                     )}

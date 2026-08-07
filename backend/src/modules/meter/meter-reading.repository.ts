@@ -48,7 +48,8 @@ export class MeterReadingRepository {
         const totalSeconds = existing.secondsCovered + snapshot.secondsCovered
         const weighted = (existingAvg: number, newAvg: number): number =>
             totalSeconds > 0
-                ? (existingAvg * existing.secondsCovered + newAvg * snapshot.secondsCovered) / totalSeconds
+                ? (existingAvg * existing.secondsCovered + newAvg * snapshot.secondsCovered) /
+                  totalSeconds
                 : newAvg
 
         await this.prisma.meterReading.update({

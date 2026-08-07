@@ -21,14 +21,24 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                     id={selectId}
                     ref={ref}
                     aria-invalid={hasError}
-                    aria-describedby={hasError ? `${selectId}-error` : helperText ? `${selectId}-helper` : undefined}
+                    aria-describedby={
+                        hasError
+                            ? `${selectId}-error`
+                            : helperText
+                              ? `${selectId}-helper`
+                              : undefined
+                    }
                     className={cn("sim-input", hasError && "border-status-danger")}
                     {...rest}
                 >
                     {children}
                 </select>
                 {hasError ? (
-                    <span id={`${selectId}-error`} role="alert" className="text-status-danger mt-1.5 block text-xs">
+                    <span
+                        id={`${selectId}-error`}
+                        role="alert"
+                        className="text-status-danger mt-1.5 block text-xs"
+                    >
                         {error}
                     </span>
                 ) : helperText ? (

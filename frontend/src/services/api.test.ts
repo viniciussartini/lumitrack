@@ -17,7 +17,9 @@ import { api } from "@/services/api"
 // do axios.create().
 const requestInterceptor = (
     api.interceptors.request as unknown as {
-        handlers: { fulfilled: (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig }[]
+        handlers: {
+            fulfilled: (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig
+        }[]
     }
 ).handlers[0]!.fulfilled
 
@@ -113,7 +115,9 @@ describe("api — interceptor de response (401)", () => {
 
         await expect(
             responseRejectedInterceptor(
-                make401Error("/api/properties", { _isRetry: true } as unknown as Partial<InternalAxiosRequestConfig>),
+                make401Error("/api/properties", {
+                    _isRetry: true,
+                } as unknown as Partial<InternalAxiosRequestConfig>),
             ),
         ).rejects.toBeDefined()
 

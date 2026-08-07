@@ -11,10 +11,7 @@ interface AllProvidersProps {
     initialEntries?: string[]
 }
 
-export const AllProviders = ({
-    children,
-    initialEntries = ["/"],
-}: AllProvidersProps) => (
+export const AllProviders = ({ children, initialEntries = ["/"] }: AllProvidersProps) => (
     <MemoryRouter initialEntries={initialEntries}>
         <ThemeProvider>
             <AuthProvider>{children}</AuthProvider>

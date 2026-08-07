@@ -2,11 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { areaService } from "@/services/area.service"
 import { queryKeys } from "@/lib/queryClient"
-import type {
-    Area,
-    CreateAreaInput,
-    UpdateAreaInput,
-} from "@/types/area.types"
+import type { Area, CreateAreaInput, UpdateAreaInput } from "@/types/area.types"
 
 /**
  * Mutations de Área.
@@ -36,8 +32,7 @@ export const useCreateArea = () => {
     const queryClient = useQueryClient()
 
     return useMutation<Area, Error, CreateAreaVariables>({
-        mutationFn: ({ propertyId, input }) =>
-            areaService.create(propertyId, input),
+        mutationFn: ({ propertyId, input }) => areaService.create(propertyId, input),
         onSuccess: (created) => {
             queryClient.invalidateQueries({
                 queryKey: [...queryKeys.areas.all, "list", created.propertyId],
@@ -86,8 +81,7 @@ export const useDeleteArea = () => {
     const queryClient = useQueryClient()
 
     return useMutation<void, Error, DeleteAreaVariables>({
-        mutationFn: ({ propertyId, areaId }) =>
-            areaService.delete(propertyId, areaId),
+        mutationFn: ({ propertyId, areaId }) => areaService.delete(propertyId, areaId),
         onSuccess: (_, { propertyId, areaId }) => {
             queryClient.invalidateQueries({
                 queryKey: [...queryKeys.areas.all, "list", propertyId],

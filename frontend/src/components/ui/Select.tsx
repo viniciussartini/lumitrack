@@ -34,8 +34,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                         hasError
                             ? `${selectId}-error`
                             : helperText
-                                ? `${selectId}-helper`
-                                : undefined
+                              ? `${selectId}-helper`
+                              : undefined
                     }
                     className={cn(
                         "input lt-input w-full",
@@ -47,7 +47,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
                     {children}
                 </select>
                 {hasError ? (
-                    <span id={`${selectId}-error`} role="alert" className="text-status-danger text-xs">
+                    <span
+                        id={`${selectId}-error`}
+                        role="alert"
+                        className="text-status-danger text-xs"
+                    >
                         {error}
                     </span>
                 ) : helperText ? (

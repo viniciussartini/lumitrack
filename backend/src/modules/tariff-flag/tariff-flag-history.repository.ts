@@ -1,4 +1,9 @@
-import { PrismaClient, Prisma, TariffFlag, TariffFlagChangeSource } from "@/generated/prisma/client.js"
+import {
+    PrismaClient,
+    Prisma,
+    TariffFlag,
+    TariffFlagChangeSource,
+} from "@/generated/prisma/client.js"
 import type { TariffFlagConfigResponse } from "@/modules/tariff-flag/tariff-flag.repository.js"
 
 // Snapshot dos 4 valores por 100kWh, sem o `currentFlag`/`updatedAt` — é o

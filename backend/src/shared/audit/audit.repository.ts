@@ -1,9 +1,7 @@
 import { PrismaClient, Prisma } from "@/generated/prisma/client.js"
 import type { AuditAction, AuditEntryInput, AuditOutcome } from "@/shared/audit/audit.types.js"
 
-type PrismaAuditLog = NonNullable<
-    Awaited<ReturnType<PrismaClient["auditLog"]["findUnique"]>>
->
+type PrismaAuditLog = NonNullable<Awaited<ReturnType<PrismaClient["auditLog"]["findUnique"]>>>
 
 export type AuditLogResponse = PrismaAuditLog
 

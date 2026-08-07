@@ -24,10 +24,7 @@ const computeEffectiveTariffPerKwh = (distributor: Distributor): number => {
  * Sem link de edição/menu — o catálogo é seedado, sem CRUD pelo usuário.
  */
 export const DistributorCard = ({ distributor }: DistributorCardProps) => (
-    <div
-        className="blueprint flex flex-col p-0"
-        data-testid={`distributor-card-${distributor.id}`}
-    >
+    <div className="blueprint flex flex-col p-0" data-testid={`distributor-card-${distributor.id}`}>
         <i className="corner tl" />
         <i className="corner tr" />
         <i className="corner bl" />
@@ -55,7 +52,12 @@ export const DistributorCard = ({ distributor }: DistributorCardProps) => (
                 <div className="font-heading text-muted text-[10px] font-semibold tracking-[.07em] uppercase">
                     TUSD
                 </div>
-                <div className={cn("font-heading mt-1.5 text-[19px] font-semibold", "font-features-['tnum'_1]")}>
+                <div
+                    className={cn(
+                        "font-heading mt-1.5 text-[19px] font-semibold",
+                        "font-features-['tnum'_1]",
+                    )}
+                >
                     {formatKwhPrice(distributor.tusdPerKwh)}
                 </div>
             </div>
@@ -63,7 +65,12 @@ export const DistributorCard = ({ distributor }: DistributorCardProps) => (
                 <div className="font-heading text-muted text-[10px] font-semibold tracking-[.07em] uppercase">
                     TE
                 </div>
-                <div className={cn("font-heading mt-1.5 text-[19px] font-semibold", "font-features-['tnum'_1]")}>
+                <div
+                    className={cn(
+                        "font-heading mt-1.5 text-[19px] font-semibold",
+                        "font-features-['tnum'_1]",
+                    )}
+                >
                     {formatKwhPrice(distributor.tePerKwh)}
                 </div>
             </div>

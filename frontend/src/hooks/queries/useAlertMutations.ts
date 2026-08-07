@@ -2,11 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { alertService } from "@/services/alert.service"
 import { queryKeys } from "@/lib/queryClient"
-import type {
-    AlertWithStatus,
-    CreateAlertInput,
-    UpdateAlertInput,
-} from "@/types/alert.types"
+import type { AlertWithStatus, CreateAlertInput, UpdateAlertInput } from "@/types/alert.types"
 
 /**
  * Mutations de Alerta (Fase 5 — contrato flat, vinculado a um `meterId`).
@@ -62,9 +58,7 @@ export const usePatchAlertEnabled = () => {
         mutationFn: ({ id, enabled }) => alertService.patchEnabled(id, enabled),
         onSuccess: (updated) => {
             queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all })
-            toast.success(
-                updated.enabled ? "Alerta habilitado" : "Alerta desabilitado",
-            )
+            toast.success(updated.enabled ? "Alerta habilitado" : "Alerta desabilitado")
         },
     })
 }

@@ -6,12 +6,12 @@ import { z } from "zod"
 // não deve virar 0 silenciosamente).
 const brDecimalStringSchema = z
     .string()
-    .regex(/^\d+,\d{2}$/, { message: "Valor decimal fora do formato esperado (\"18,85\")" })
+    .regex(/^\d+,\d{2}$/, { message: 'Valor decimal fora do formato esperado ("18,85")' })
     .transform((value) => Number(value.replace(",", ".")))
 
 const isoDateStringSchema = z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}/, { message: "Data fora do formato esperado (\"YYYY-MM-DD\")" })
+    .regex(/^\d{4}-\d{2}-\d{2}/, { message: 'Data fora do formato esperado ("YYYY-MM-DD")' })
 
 // Recurso "Bandeira Tarifária - Acionamento" (resource_id
 // 0591b8f6-fe54-437b-b72b-1aa2efd46e42) — só usamos `NomBandeiraAcionada`

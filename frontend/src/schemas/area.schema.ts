@@ -31,10 +31,7 @@ export const areaFormSchema = z.object({
         .max(200, "Nome muito longo (máx. 200 caracteres)"),
 
     description: emptyToUndefined.pipe(
-        z
-            .string()
-            .max(1000, "Descrição muito longa (máx. 1000 caracteres)")
-            .optional(),
+        z.string().max(1000, "Descrição muito longa (máx. 1000 caracteres)").optional(),
     ),
 })
 

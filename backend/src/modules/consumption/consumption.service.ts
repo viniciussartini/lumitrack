@@ -1,12 +1,21 @@
 import { z } from "zod"
-import { listConsumptionQuerySchema, type Granularity } from "@/modules/consumption/consumption.schema.js"
+import {
+    listConsumptionQuerySchema,
+    type Granularity,
+} from "@/modules/consumption/consumption.schema.js"
 import type { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
 import type { MeterRepository } from "@/modules/meter/meter.repository.js"
-import type { PropertyRepository, PropertyResponse } from "@/modules/property/property.repository.js"
+import type {
+    PropertyRepository,
+    PropertyResponse,
+} from "@/modules/property/property.repository.js"
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
 import type { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
-import { resolveFlagPer100Kwh, type TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
+import {
+    resolveFlagPer100Kwh,
+    type TariffFlagRepository,
+} from "@/modules/tariff-flag/tariff-flag.repository.js"
 import { TariffService } from "@/shared/tariff/tariff.service.js"
 import { toSkipTake, type Paginated } from "@/shared/pagination.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
@@ -19,7 +28,9 @@ export type ConsumptionBucketResponse = {
     avgPowerW: number
 }
 
-export type ConsumptionListResponse = Paginated<ConsumptionBucketResponse> & { granularity: Granularity }
+export type ConsumptionListResponse = Paginated<ConsumptionBucketResponse> & {
+    granularity: Granularity
+}
 
 // Consumo agregado — somente leitura, via MeterReading (Fase 3.3). Resolve o
 // medidor vinculado ao alvo diretamente (sem rollup de subárvore): agregar
@@ -40,7 +51,10 @@ export class ConsumptionService {
     // Resolve a propriedade raiz do alvo (ela mesma, ou subindo até ela) —
     // é dela que vêm a distribuidora, o sistema elétrico e a CIP usados na
     // tarifação, independente de o medidor estar em PROPERTY/AREA/DEVICE.
-    private async resolveRootProperty(targetType: TargetType, targetId: string): Promise<PropertyResponse> {
+    private async resolveRootProperty(
+        targetType: TargetType,
+        targetId: string,
+    ): Promise<PropertyResponse> {
         if (targetType === "PROPERTY") {
             const property = await this.propertyRepository.findById(targetId)
             if (!property) throw new NotFoundError("Propriedade não encontrada")
@@ -126,7 +140,10 @@ export class ConsumptionService {
                 }).totalBrl
 
                 const key = row.yearBucket.getTime()
-                yearlyPropertyCostByBucketMs.set(key, (yearlyPropertyCostByBucketMs.get(key) ?? 0) + monthCost)
+                yearlyPropertyCostByBucketMs.set(
+                    key,
+                    (yearlyPropertyCostByBucketMs.get(key) ?? 0) + monthCost,
+                )
             }
         }
 

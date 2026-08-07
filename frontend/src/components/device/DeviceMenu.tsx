@@ -60,12 +60,7 @@ interface DeviceMenuProps {
  *   confirmar (não há endpoint de contagem que justifique tornar o aviso
  *   condicional).
  */
-export const DeviceMenu = ({
-    device,
-    showEdit = true,
-    onEdit,
-    onAfterDelete,
-}: DeviceMenuProps) => {
+export const DeviceMenu = ({ device, showEdit = true, onEdit, onAfterDelete }: DeviceMenuProps) => {
     const { propertyId } = useParams<{ propertyId: string }>()
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const [isConfirmOpen, setIsConfirmOpen] = useState(false)
@@ -115,7 +110,7 @@ export const DeviceMenu = ({
         <>
             <div
                 ref={containerRef}
-                className="absolute right-2 top-2 z-10"
+                className="absolute top-2 right-2 z-10"
                 onClick={(e) => e.stopPropagation()}
             >
                 <button
@@ -128,7 +123,7 @@ export const DeviceMenu = ({
                         "flex h-8 w-8 items-center justify-center rounded-md",
                         "text-slate-500 hover:bg-slate-100 hover:text-slate-700",
                         "dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200",
-                        "focus:outline-none focus:ring-2 focus:ring-brand-500",
+                        "focus:ring-brand-500 focus:ring-2 focus:outline-none",
                     )}
                 >
                     <MoreVertical className="h-4 w-4" aria-hidden="true" />
@@ -138,7 +133,7 @@ export const DeviceMenu = ({
                     <div
                         role="menu"
                         className={cn(
-                            "absolute right-0 top-full z-20 mt-1 w-40 overflow-hidden rounded-md border bg-white shadow-lg",
+                            "absolute top-full right-0 z-20 mt-1 w-40 overflow-hidden rounded-md border bg-white shadow-lg",
                             "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
                         )}
                     >
@@ -157,10 +152,7 @@ export const DeviceMenu = ({
                                     "dark:text-slate-200 dark:hover:bg-slate-800",
                                 )}
                             >
-                                <Pencil
-                                    className="h-4 w-4"
-                                    aria-hidden="true"
-                                />
+                                <Pencil className="h-4 w-4" aria-hidden="true" />
                                 Editar
                             </button>
                         )}
@@ -174,10 +166,7 @@ export const DeviceMenu = ({
                                 "dark:text-red-400 dark:hover:bg-red-950/50",
                             )}
                         >
-                            <Trash2
-                                className="h-4 w-4"
-                                aria-hidden="true"
-                            />
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
                             Excluir
                         </button>
                     </div>

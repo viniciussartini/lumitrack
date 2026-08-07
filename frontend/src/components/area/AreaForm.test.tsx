@@ -58,17 +58,13 @@ describe("AreaForm — modo criação", () => {
     it("usa label de submit customizado quando passado", () => {
         renderForm({ submitLabel: "Criar área" })
 
-        expect(
-            screen.getByRole("button", { name: /criar área/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /criar área/i })).toBeInTheDocument()
     })
 
     it("usa label 'Salvar' por default", () => {
         renderForm()
 
-        expect(
-            screen.getByRole("button", { name: /salvar/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /salvar/i })).toBeInTheDocument()
     })
 })
 
@@ -81,9 +77,7 @@ describe("AreaForm — modo edição", () => {
         renderForm({ initialData: mockArea })
 
         expect(screen.getByLabelText(/nome da área/i)).toHaveValue("Sala")
-        expect(screen.getByLabelText(/descrição/i)).toHaveValue(
-            "Área principal de convivência",
-        )
+        expect(screen.getByLabelText(/descrição/i)).toHaveValue("Área principal de convivência")
     })
 
     it("converte description=null em string vazia sem quebrar", () => {
@@ -105,9 +99,7 @@ describe("AreaForm — validação", () => {
 
         await user.click(screen.getByRole("button", { name: /salvar/i }))
 
-        expect(
-            await screen.findByText(/nome é obrigatório/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/nome é obrigatório/i)).toBeInTheDocument()
         expect(onSubmit).not.toHaveBeenCalled()
     })
 
@@ -123,9 +115,7 @@ describe("AreaForm — validação", () => {
         await user.paste(longName)
         await user.tab() // dispara onBlur
 
-        expect(
-            await screen.findByText(/nome muito longo/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/nome muito longo/i)).toBeInTheDocument()
     })
 
     it("rejeita descrição com mais de 1000 caracteres", async () => {
@@ -141,9 +131,7 @@ describe("AreaForm — validação", () => {
         await user.paste(longDescription)
         await user.tab()
 
-        expect(
-            await screen.findByText(/descrição muito longa/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/descrição muito longa/i)).toBeInTheDocument()
     })
 })
 
@@ -174,10 +162,7 @@ describe("AreaForm — submit", () => {
         renderForm({ onSubmit })
 
         await user.type(screen.getByLabelText(/nome da área/i), "Sala")
-        await user.type(
-            screen.getByLabelText(/descrição/i),
-            "Área de convivência",
-        )
+        await user.type(screen.getByLabelText(/descrição/i), "Área de convivência")
         await user.click(screen.getByRole("button", { name: /salvar/i }))
 
         await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))

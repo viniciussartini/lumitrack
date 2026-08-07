@@ -49,9 +49,7 @@ export const AlertsPage = () => {
         { kind: "create" } | { kind: "edit"; alert: AlertWithStatus } | null
     >(null)
 
-    const [selectedAlertId, setSelectedAlertId] = useState<string | undefined>(
-        undefined,
-    )
+    const [selectedAlertId, setSelectedAlertId] = useState<string | undefined>(undefined)
     const [eventsPage, setEventsPage] = useState(1)
 
     const alerts = alertsQuery.data?.items ?? []
@@ -64,9 +62,7 @@ export const AlertsPage = () => {
     const activeAlertsCount = allAlertsQuery.isLoading
         ? ("—" as const)
         : (allAlertsQuery.data?.items ?? []).filter((a) => a.enabled).length
-    const firingCount = firingQuery.isLoading
-        ? ("—" as const)
-        : (firingQuery.data ?? []).length
+    const firingCount = firingQuery.isLoading ? ("—" as const) : (firingQuery.data ?? []).length
 
     const handleSelectAlertForHistory = (id: string) => {
         setSelectedAlertId(id)
@@ -77,10 +73,10 @@ export const AlertsPage = () => {
         <div className="flex flex-col gap-8">
             <div className="flex flex-wrap items-start justify-between gap-4">
                 <p className="text-muted m-0 max-w-[78ch] text-sm leading-relaxed">
-                    Monitore faixas de potência dos seus medidores e veja o histórico de
-                    disparos. Um alerta abre um episódio quando a potência sai da faixa{" "}
-                    <span className="font-mono">referência ± tolerância</span> e o fecha
-                    quando retorna ao normal.
+                    Monitore faixas de potência dos seus medidores e veja o histórico de disparos.
+                    Um alerta abre um episódio quando a potência sai da faixa{" "}
+                    <span className="font-mono">referência ± tolerância</span> e o fecha quando
+                    retorna ao normal.
                 </p>
                 <Button
                     type="button"
@@ -249,7 +245,7 @@ const KpiCard = ({ label, value, highlight }: KpiCardProps) => (
         </div>
         <div
             className={cn(
-                "font-heading mt-2.5 text-[30px] leading-none font-semibold font-features-['tnum'_1]",
+                "font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold",
                 highlight && "text-status-warning",
             )}
         >
@@ -272,10 +268,7 @@ interface ErrorStateProps {
 }
 
 const ErrorState = ({ message }: ErrorStateProps) => (
-    <div
-        role="alert"
-        className="border-status-danger/40 flex items-start gap-3 border p-4"
-    >
+    <div role="alert" className="border-status-danger/40 flex items-start gap-3 border p-4">
         <AlertCircle className="text-status-danger h-5 w-5 shrink-0" aria-hidden="true" />
         <p className="text-status-danger/85 text-sm">{message}</p>
     </div>

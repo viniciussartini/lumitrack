@@ -1,8 +1,5 @@
 import { api } from "@/services/api"
-import type {
-    AlertTriggerEvent,
-    ListAlertEventParams,
-} from "@/types/alert-event.types"
+import type { AlertTriggerEvent, ListAlertEventParams } from "@/types/alert-event.types"
 import type { Paginated } from "@/types/pagination.types"
 
 interface ApiEnvelope<T> {
@@ -16,13 +13,10 @@ interface ApiEnvelope<T> {
  * mesmo padrão de `consumption`/`meters`.
  */
 export const alertEventService = {
-    list: async (
-        params: ListAlertEventParams,
-    ): Promise<Paginated<AlertTriggerEvent>> => {
-        const { data } = await api.get<ApiEnvelope<Paginated<AlertTriggerEvent>>>(
-            "/alert-events",
-            { params },
-        )
+    list: async (params: ListAlertEventParams): Promise<Paginated<AlertTriggerEvent>> => {
+        const { data } = await api.get<ApiEnvelope<Paginated<AlertTriggerEvent>>>("/alert-events", {
+            params,
+        })
         return data.data
     },
 }

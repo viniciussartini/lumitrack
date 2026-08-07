@@ -15,8 +15,7 @@ vi.mock("@/services/auth.service", () => ({
 }))
 
 vi.mock("@/services/api", () => ({
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 beforeEach(() => {
@@ -61,10 +60,7 @@ describe("ForgotPasswordPage — fluxo de sucesso", () => {
         const user = userEvent.setup()
         renderWithProviders(<ForgotPasswordPage />)
 
-        await user.type(
-            await screen.findByLabelText(/e-mail cadastrado/i),
-            "joao@example.com",
-        )
+        await user.type(await screen.findByLabelText(/e-mail cadastrado/i), "joao@example.com")
         await user.click(screen.getByRole("button", { name: /enviar link/i }))
 
         expect(await screen.findByRole("heading", { name: /link enviado/i })).toBeInTheDocument()
@@ -78,10 +74,7 @@ describe("ForgotPasswordPage — fluxo de sucesso", () => {
         const user = userEvent.setup()
         renderWithProviders(<ForgotPasswordPage />)
 
-        await user.type(
-            await screen.findByLabelText(/e-mail cadastrado/i),
-            "joao@example.com",
-        )
+        await user.type(await screen.findByLabelText(/e-mail cadastrado/i), "joao@example.com")
         await user.click(screen.getByRole("button", { name: /enviar link/i }))
 
         await screen.findByRole("heading", { name: /link enviado/i })
@@ -100,14 +93,9 @@ describe("ForgotPasswordPage — erro do servidor", () => {
         const user = userEvent.setup()
         renderWithProviders(<ForgotPasswordPage />)
 
-        await user.type(
-            await screen.findByLabelText(/e-mail cadastrado/i),
-            "joao@example.com",
-        )
+        await user.type(await screen.findByLabelText(/e-mail cadastrado/i), "joao@example.com")
         await user.click(screen.getByRole("button", { name: /enviar link/i }))
 
-        expect(
-            await screen.findByText(/erro ao processar solicitação/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/erro ao processar solicitação/i)).toBeInTheDocument()
     })
 })

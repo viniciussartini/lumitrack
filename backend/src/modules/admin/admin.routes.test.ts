@@ -39,13 +39,16 @@ async function promoteToAdmin(email: string) {
 
 // ─── Setup e Teardown ─────────────────────────────────────────────────────────
 
-beforeEach(async () => { await cleanHttpDatabase() })
-afterAll(async () => { await prismaHttpTest.$disconnect() })
+beforeEach(async () => {
+    await cleanHttpDatabase()
+})
+afterAll(async () => {
+    await prismaHttpTest.$disconnect()
+})
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("GET /api/admin/audit-logs", () => {
-
     it("retorna 401 sem token", async () => {
         const response = await request(app).get("/api/admin/audit-logs")
         expect(response.status).toBe(401)
@@ -122,11 +125,11 @@ describe("GET /api/admin/audit-logs", () => {
         const token = await registerAndLogin()
         await promoteToAdmin(validUser.email)
 
-        await request(app)
-            .get("/api/admin/audit-logs")
-            .set("Authorization", `Bearer ${token}`)
+        await request(app).get("/api/admin/audit-logs").set("Authorization", `Bearer ${token}`)
 
-        const adminUser = await prismaHttpTest.user.findUniqueOrThrow({ where: { email: validUser.email } })
+        const adminUser = await prismaHttpTest.user.findUniqueOrThrow({
+            where: { email: validUser.email },
+        })
         // O controller registra este audit log DEPOIS de enviar a resposta
         // (decisão de latência) — a escrita corre em paralelo ao fim do
         // request acima, sem ordem garantida (#113).

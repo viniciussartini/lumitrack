@@ -1,4 +1,8 @@
-import type { AuditRepository, AuditLogFilters, PaginatedAuditLogs } from "@/shared/audit/audit.repository.js"
+import type {
+    AuditRepository,
+    AuditLogFilters,
+    PaginatedAuditLogs,
+} from "@/shared/audit/audit.repository.js"
 import type { AuditLogQuery } from "@/modules/admin/admin.schema.js"
 
 export class AdminService {

@@ -125,10 +125,7 @@ export class AuthRepository {
     async deleteExpiredPasswordResets(threshold: Date): Promise<number> {
         const result = await this.prisma.passwordReset.deleteMany({
             where: {
-                OR: [
-                    { usedAt: { lt: threshold } },
-                    { usedAt: null, expiresAt: { lt: threshold } },
-                ],
+                OR: [{ usedAt: { lt: threshold } }, { usedAt: null, expiresAt: { lt: threshold } }],
             },
         })
         return result.count

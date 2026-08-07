@@ -35,10 +35,9 @@ describe("deviceService.list", () => {
 
         const result = await deviceService.list("prop-1", "area-1")
 
-        expect(api.get).toHaveBeenCalledWith(
-            "/properties/prop-1/areas/area-1/devices",
-            { params: {} },
-        )
+        expect(api.get).toHaveBeenCalledWith("/properties/prop-1/areas/area-1/devices", {
+            params: {},
+        })
         expect(result).toEqual([mockDevice])
     })
 
@@ -55,9 +54,7 @@ describe("deviceService.list", () => {
     it("propaga erros do axios", async () => {
         vi.mocked(api.get).mockRejectedValue(new Error("Network down"))
 
-        await expect(
-            deviceService.list("prop-1", "area-1"),
-        ).rejects.toThrow("Network down")
+        await expect(deviceService.list("prop-1", "area-1")).rejects.toThrow("Network down")
     })
 })
 
@@ -69,9 +66,7 @@ describe("deviceService.getById", () => {
 
         const result = await deviceService.getById("prop-1", "area-1", "device-1")
 
-        expect(api.get).toHaveBeenCalledWith(
-            "/properties/prop-1/areas/area-1/devices/device-1",
-        )
+        expect(api.get).toHaveBeenCalledWith("/properties/prop-1/areas/area-1/devices/device-1")
         expect(result).toEqual(mockDevice)
     })
 })
@@ -90,10 +85,7 @@ describe("deviceService.create", () => {
         }
         const result = await deviceService.create("prop-1", "area-1", input)
 
-        expect(api.post).toHaveBeenCalledWith(
-            "/properties/prop-1/areas/area-1/devices",
-            input,
-        )
+        expect(api.post).toHaveBeenCalledWith("/properties/prop-1/areas/area-1/devices", input)
         expect(result).toEqual(mockDevice)
     })
 
@@ -104,10 +96,9 @@ describe("deviceService.create", () => {
 
         await deviceService.create("prop-1", "area-1", { name: "Lâmpada" })
 
-        expect(api.post).toHaveBeenCalledWith(
-            "/properties/prop-1/areas/area-1/devices",
-            { name: "Lâmpada" },
-        )
+        expect(api.post).toHaveBeenCalledWith("/properties/prop-1/areas/area-1/devices", {
+            name: "Lâmpada",
+        })
     })
 })
 
@@ -118,12 +109,7 @@ describe("deviceService.update", () => {
         })
 
         const input = { name: "Ar-condicionado renovado", powerWatts: 1500 }
-        const result = await deviceService.update(
-            "prop-1",
-            "area-1",
-            "device-1",
-            input,
-        )
+        const result = await deviceService.update("prop-1", "area-1", "device-1", input)
 
         expect(api.put).toHaveBeenCalledWith(
             "/properties/prop-1/areas/area-1/devices/device-1",
@@ -139,16 +125,12 @@ describe("deviceService.delete", () => {
 
         await deviceService.delete("prop-1", "area-1", "device-1")
 
-        expect(api.delete).toHaveBeenCalledWith(
-            "/properties/prop-1/areas/area-1/devices/device-1",
-        )
+        expect(api.delete).toHaveBeenCalledWith("/properties/prop-1/areas/area-1/devices/device-1")
     })
 
     it("propaga erros do axios", async () => {
         vi.mocked(api.delete).mockRejectedValue(new Error("403"))
 
-        await expect(
-            deviceService.delete("prop-1", "area-1", "device-1"),
-        ).rejects.toThrow("403")
+        await expect(deviceService.delete("prop-1", "area-1", "device-1")).rejects.toThrow("403")
     })
 })

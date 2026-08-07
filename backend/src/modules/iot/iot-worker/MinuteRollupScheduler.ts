@@ -100,7 +100,11 @@ export class MinuteRollupScheduler {
 
             if (result.status === "rejected") {
                 log.error(
-                    { meterId: snapshot.meterId, minuteStart: snapshot.minuteStart, err: result.reason },
+                    {
+                        meterId: snapshot.meterId,
+                        minuteStart: snapshot.minuteStart,
+                        err: result.reason,
+                    },
                     "Falha ao persistir — devolvendo ao buffer",
                 )
                 // Reinsere no buffer para tentar novamente no próximo flush,

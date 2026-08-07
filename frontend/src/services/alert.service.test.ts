@@ -1,11 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import { alertService } from "@/services/alert.service"
 import { api } from "@/services/api"
-import type {
-    AlertWithStatus,
-    CreateAlertInput,
-    UpdateAlertInput,
-} from "@/types/alert.types"
+import type { AlertWithStatus, CreateAlertInput, UpdateAlertInput } from "@/types/alert.types"
 
 vi.mock("@/services/api", () => ({
     api: {
@@ -41,7 +37,10 @@ beforeEach(() => {
 describe("alertService.list", () => {
     it("faz GET em /alerts com os params de paginação", async () => {
         vi.mocked(api.get).mockResolvedValue({
-            data: { status: "success", data: { items: [mockAlert], total: 1, page: 1, pageSize: 10 } },
+            data: {
+                status: "success",
+                data: { items: [mockAlert], total: 1, page: 1, pageSize: 10 },
+            },
         })
 
         const result = await alertService.list({ page: 1, pageSize: 10 })

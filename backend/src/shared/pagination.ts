@@ -20,7 +20,11 @@ export type Paginated<T> = {
 
 // Helper de resposta — usado pelos repositories depois de rodar a query
 // paginada (skip/take) + a contagem total.
-export function toPaginated<T>(items: T[], total: number, pagination: PaginationQuery): Paginated<T> {
+export function toPaginated<T>(
+    items: T[],
+    total: number,
+    pagination: PaginationQuery,
+): Paginated<T> {
     return {
         items,
         total,

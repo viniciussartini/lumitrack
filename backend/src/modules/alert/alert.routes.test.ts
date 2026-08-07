@@ -40,7 +40,9 @@ const validAlertBody = {
 async function registerAndLogin(user = validUser) {
     await request(app).post("/api/users").send(user)
     const loginRes = await request(app).post("/api/auth/login").send({
-        email: user.email, password: user.password, channel: "MOBILE",
+        email: user.email,
+        password: user.password,
+        channel: "MOBILE",
     })
     return loginRes.body.data.token as string
 }
@@ -58,12 +60,28 @@ async function setupUserWithMeter(user = validUser) {
     const meterRes = await request(app)
         .post("/api/meters")
         .set("Authorization", `Bearer ${token}`)
-        .send({ name: "Medidor", targetType: "PROPERTY", propertyId: propRes.body.data.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "t" })
+        .send({
+            name: "Medidor",
+            targetType: "PROPERTY",
+            propertyId: propRes.body.data.id,
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "t",
+        })
 
-    return { token, propertyId: propRes.body.data.id as string, meterId: meterRes.body.data.id as string }
+    return {
+        token,
+        propertyId: propRes.body.data.id as string,
+        meterId: meterRes.body.data.id as string,
+    }
 }
 
-async function createAlert(token: string, meterId: string, body: Record<string, unknown> = validAlertBody) {
+async function createAlert(
+    token: string,
+    meterId: string,
+    body: Record<string, unknown> = validAlertBody,
+) {
     const res = await request(app)
         .post("/api/alerts")
         .set("Authorization", `Bearer ${token}`)
@@ -71,8 +89,12 @@ async function createAlert(token: string, meterId: string, body: Record<string, 
     return res.body.data as { id: string }
 }
 
-beforeEach(async () => { await cleanHttpDatabase() })
-afterAll(async () => { await prismaHttpTest.$disconnect() })
+beforeEach(async () => {
+    await cleanHttpDatabase()
+})
+afterAll(async () => {
+    await prismaHttpTest.$disconnect()
+})
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/alerts
@@ -153,7 +175,9 @@ describe("GET /api/alerts", () => {
     it("deve retornar 200 com envelope paginado vazio", async () => {
         const token = await registerAndLogin()
 
-        const response = await request(app).get("/api/alerts").set("Authorization", `Bearer ${token}`)
+        const response = await request(app)
+            .get("/api/alerts")
+            .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(200)
         expect(response.body.data.items).toEqual([])
@@ -164,13 +188,17 @@ describe("GET /api/alerts", () => {
         const { token, meterId, propertyId } = await setupUserWithMeter()
         await createAlert(token, meterId)
 
-        const response = await request(app).get("/api/alerts").set("Authorization", `Bearer ${token}`)
+        const response = await request(app)
+            .get("/api/alerts")
+            .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(200)
         expect(response.body.data.items).toHaveLength(1)
         expect(response.body.data.items[0].status).toBe("normal")
         expect(response.body.data.items[0].target).toEqual({
-            type: "PROPERTY", name: "Casa", path: `/propriedades/${propertyId}`,
+            type: "PROPERTY",
+            name: "Casa",
+            path: `/propriedades/${propertyId}`,
         })
     })
 
@@ -180,7 +208,9 @@ describe("GET /api/alerts", () => {
         await createAlert(tokenA, meterIdA)
         await createAlert(tokenB, meterIdB, { ...validAlertBody, name: "Alerta B" })
 
-        const response = await request(app).get("/api/alerts").set("Authorization", `Bearer ${tokenA}`)
+        const response = await request(app)
+            .get("/api/alerts")
+            .set("Authorization", `Bearer ${tokenA}`)
 
         expect(response.body.data.items).toHaveLength(1)
         expect(response.body.data.items[0].name).toBe("Pico de potência")
@@ -200,7 +230,9 @@ describe("GET /api/alerts/firing", () => {
     it("deve retornar 200 com lista vazia quando não há evaluator configurado", async () => {
         const token = await registerAndLogin()
 
-        const response = await request(app).get("/api/alerts/firing").set("Authorization", `Bearer ${token}`)
+        const response = await request(app)
+            .get("/api/alerts/firing")
+            .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(200)
         expect(response.body.data).toEqual([])
@@ -221,7 +253,9 @@ describe("GET /api/alerts/:id", () => {
         const { token, meterId } = await setupUserWithMeter()
         const alert = await createAlert(token, meterId)
 
-        const response = await request(app).get(`/api/alerts/${alert.id}`).set("Authorization", `Bearer ${token}`)
+        const response = await request(app)
+            .get(`/api/alerts/${alert.id}`)
+            .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(200)
         expect(response.body.data.id).toBe(alert.id)
@@ -242,7 +276,9 @@ describe("GET /api/alerts/:id", () => {
         const alert = await createAlert(tokenA, meterId)
         const tokenB = await registerAndLogin(anotherUser)
 
-        const response = await request(app).get(`/api/alerts/${alert.id}`).set("Authorization", `Bearer ${tokenB}`)
+        const response = await request(app)
+            .get(`/api/alerts/${alert.id}`)
+            .set("Authorization", `Bearer ${tokenB}`)
 
         expect(response.status).toBe(403)
     })
@@ -357,10 +393,14 @@ describe("DELETE /api/alerts/:id", () => {
         const { token, meterId } = await setupUserWithMeter()
         const alert = await createAlert(token, meterId)
 
-        const response = await request(app).delete(`/api/alerts/${alert.id}`).set("Authorization", `Bearer ${token}`)
+        const response = await request(app)
+            .delete(`/api/alerts/${alert.id}`)
+            .set("Authorization", `Bearer ${token}`)
         expect(response.status).toBe(204)
 
-        const getResponse = await request(app).get(`/api/alerts/${alert.id}`).set("Authorization", `Bearer ${token}`)
+        const getResponse = await request(app)
+            .get(`/api/alerts/${alert.id}`)
+            .set("Authorization", `Bearer ${token}`)
         expect(getResponse.status).toBe(404)
     })
 
@@ -369,7 +409,9 @@ describe("DELETE /api/alerts/:id", () => {
         const alert = await createAlert(tokenA, meterId)
         const tokenB = await registerAndLogin(anotherUser)
 
-        const response = await request(app).delete(`/api/alerts/${alert.id}`).set("Authorization", `Bearer ${tokenB}`)
+        const response = await request(app)
+            .delete(`/api/alerts/${alert.id}`)
+            .set("Authorization", `Bearer ${tokenB}`)
         expect(response.status).toBe(403)
     })
 
@@ -384,7 +426,9 @@ describe("DELETE /api/alerts/:id", () => {
     })
 
     it("deve retornar 401 sem token", async () => {
-        const response = await request(app).delete("/api/alerts/00000000-0000-0000-0000-000000000000")
+        const response = await request(app).delete(
+            "/api/alerts/00000000-0000-0000-0000-000000000000",
+        )
         expect(response.status).toBe(401)
     })
 })

@@ -2,14 +2,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useNavigate } from "react-router"
-import {
-    Download,
-    Mail,
-    Pencil,
-    ShieldCheck,
-    ShieldOff,
-    Trash2,
-} from "lucide-react"
+import { Download, Mail, Pencil, ShieldCheck, ShieldOff, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import { useUpdateUser, useDeleteUser } from "@/hooks/queries/useUserMutations"
@@ -161,9 +154,7 @@ const AccountSummaryCard = ({ user }: { user: User }) => {
             <i className="corner br" />
 
             <div className="border-divider border-b px-5 py-4">
-                <span className="font-heading text-[17px] font-semibold uppercase">
-                    Conta
-                </span>
+                <span className="font-heading text-[17px] font-semibold uppercase">Conta</span>
             </div>
 
             <div className="divide-divider grid grid-cols-1 divide-y sm:grid-cols-3 sm:divide-x sm:divide-y-0">
@@ -171,10 +162,7 @@ const AccountSummaryCard = ({ user }: { user: User }) => {
                     <div className="font-heading text-muted text-[10px] font-semibold tracking-[.07em] uppercase">
                         Membro desde
                     </div>
-                    <div
-                        className="mt-2 text-[14.5px]"
-                        style={{ fontFeatureSettings: "'tnum' 1" }}
-                    >
+                    <div className="mt-2 text-[14.5px]" style={{ fontFeatureSettings: "'tnum' 1" }}>
                         {formatDate(user.createdAt)}
                     </div>
                 </div>
@@ -182,10 +170,7 @@ const AccountSummaryCard = ({ user }: { user: User }) => {
                     <div className="font-heading text-muted text-[10px] font-semibold tracking-[.07em] uppercase">
                         Propriedades
                     </div>
-                    <div
-                        className="mt-2 text-[14.5px]"
-                        style={{ fontFeatureSettings: "'tnum' 1" }}
-                    >
+                    <div className="mt-2 text-[14.5px]" style={{ fontFeatureSettings: "'tnum' 1" }}>
                         {propertiesCount !== undefined
                             ? `${propertiesCount} vinculada${propertiesCount === 1 ? "" : "s"}`
                             : "—"}
@@ -235,7 +220,11 @@ const DATA_SUBJECT_RIGHTS: DataSubjectRight[] = [
         note: "nome, sobrenome, razão social e e-mail — CPF/CNPJ só pelo canal",
     },
     { label: "Anonimização, bloqueio ou eliminação de dados desnecessários", selfService: false },
-    { label: "Portabilidade a outro fornecedor de serviço", selfService: true, note: "exportação em JSON" },
+    {
+        label: "Portabilidade a outro fornecedor de serviço",
+        selfService: true,
+        note: "exportação em JSON",
+    },
     {
         label: "Eliminação dos dados tratados com base no consentimento",
         selfService: true,
@@ -243,7 +232,10 @@ const DATA_SUBJECT_RIGHTS: DataSubjectRight[] = [
     },
     { label: "Informação sobre com quem os dados são compartilhados", selfService: false },
     { label: "Revogação do consentimento", selfService: false },
-    { label: "Revisão de decisões tomadas unicamente por tratamento automatizado", selfService: false },
+    {
+        label: "Revisão de decisões tomadas unicamente por tratamento automatizado",
+        selfService: false,
+    },
 ]
 
 const PrivacyDataCard = ({ userId }: { userId: string }) => {
@@ -281,8 +273,8 @@ const PrivacyDataCard = ({ userId }: { userId: string }) => {
                 <div className="text-sm font-semibold">Exercer meus direitos</div>
                 <p className="text-muted mt-0.5 text-[12.5px]">
                     Direitos do Art. 18 da LGPD. Os já autoatendidos estão marcados abaixo; os
-                    demais são atendidos pelo canal de privacidade em até 30 dias (prazo em dobro
-                    do regime de agente de pequeno porte).
+                    demais são atendidos pelo canal de privacidade em até 30 dias (prazo em dobro do
+                    regime de agente de pequeno porte).
                 </p>
                 <a
                     href={`mailto:${PRIVACY_CONTACT_EMAIL}`}
@@ -369,17 +361,28 @@ const ProfileReadView = ({ user }: { user: User }) => {
                 <>
                     <ProfileField label="Nome" value={user.firstName ?? "—"} />
                     <ProfileField label="Sobrenome" value={user.lastName ?? "—"} />
-                    <ProfileField label="CPF" value={user.cpf ? maskCpf(user.cpf) : "—"} tabularNums />
+                    <ProfileField
+                        label="CPF"
+                        value={user.cpf ? maskCpf(user.cpf) : "—"}
+                        tabularNums
+                    />
                 </>
             ) : (
                 <>
                     <ProfileField label="Razão social" value={user.companyName ?? "—"} />
                     <ProfileField label="Nome fantasia" value={user.tradeName ?? "—"} />
-                    <ProfileField label="CNPJ" value={user.cnpj ? maskCnpj(user.cnpj) : "—"} tabularNums />
+                    <ProfileField
+                        label="CNPJ"
+                        value={user.cnpj ? maskCnpj(user.cnpj) : "—"}
+                        tabularNums
+                    />
                 </>
             )}
             <ProfileField label="E-mail" value={user.email} />
-            <ProfileField label="Tipo de conta" value={isIndividual ? "Pessoa Física" : "Pessoa Jurídica"} />
+            <ProfileField
+                label="Tipo de conta"
+                value={isIndividual ? "Pessoa Física" : "Pessoa Jurídica"}
+            />
         </div>
     )
 }
@@ -411,7 +414,12 @@ interface IndividualProfileFormProps {
     isSaving: boolean
 }
 
-const IndividualProfileForm = ({ user, onCancel, onSave, isSaving }: IndividualProfileFormProps) => {
+const IndividualProfileForm = ({
+    user,
+    onCancel,
+    onSave,
+    isSaving,
+}: IndividualProfileFormProps) => {
     const {
         register,
         handleSubmit,
@@ -438,9 +446,18 @@ const IndividualProfileForm = ({ user, onCancel, onSave, isSaving }: IndividualP
         >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Input label="Nome" error={errors.firstName?.message} {...register("firstName")} />
-                <Input label="Sobrenome" error={errors.lastName?.message} {...register("lastName")} />
+                <Input
+                    label="Sobrenome"
+                    error={errors.lastName?.message}
+                    {...register("lastName")}
+                />
             </div>
-            <Input label="E-mail" type="email" error={errors.email?.message} {...register("email")} />
+            <Input
+                label="E-mail"
+                type="email"
+                error={errors.email?.message}
+                {...register("email")}
+            />
             <div>
                 <Input
                     label="CPF"
@@ -454,7 +471,12 @@ const IndividualProfileForm = ({ user, onCancel, onSave, isSaving }: IndividualP
                 </p>
             </div>
             <div className="border-divider flex justify-end gap-3 border-t pt-4">
-                <Button type="button" variant="secondary" onClick={onCancel} disabled={isSubmitting || isSaving}>
+                <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={onCancel}
+                    disabled={isSubmitting || isSaving}
+                >
                     Cancelar
                 </Button>
                 <Button type="submit" isLoading={isSubmitting || isSaving}>
@@ -497,9 +519,22 @@ const CompanyProfileForm = ({ user, onCancel, onSave, isSaving }: CompanyProfile
             noValidate
             className="flex flex-col gap-4 px-5 pt-1 pb-5"
         >
-            <Input label="Razão social" error={errors.companyName?.message} {...register("companyName")} />
-            <Input label="Nome fantasia" error={errors.tradeName?.message} {...register("tradeName")} />
-            <Input label="E-mail" type="email" error={errors.email?.message} {...register("email")} />
+            <Input
+                label="Razão social"
+                error={errors.companyName?.message}
+                {...register("companyName")}
+            />
+            <Input
+                label="Nome fantasia"
+                error={errors.tradeName?.message}
+                {...register("tradeName")}
+            />
+            <Input
+                label="E-mail"
+                type="email"
+                error={errors.email?.message}
+                {...register("email")}
+            />
             <div>
                 <Input
                     label="CNPJ"
@@ -513,7 +548,12 @@ const CompanyProfileForm = ({ user, onCancel, onSave, isSaving }: CompanyProfile
                 </p>
             </div>
             <div className="border-divider flex justify-end gap-3 border-t pt-4">
-                <Button type="button" variant="secondary" onClick={onCancel} disabled={isSubmitting || isSaving}>
+                <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={onCancel}
+                    disabled={isSubmitting || isSaving}
+                >
                     Cancelar
                 </Button>
                 <Button type="submit" isLoading={isSubmitting || isSaving}>

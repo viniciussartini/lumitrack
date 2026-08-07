@@ -1,13 +1,18 @@
-import { PrismaClient, type ElectricalSystemType, type BillingClass } from "@/generated/prisma/client.js"
-import type { CreatePropertyInput, UpdatePropertyInput } from "@/modules/property/property.schema.js"
+import {
+    PrismaClient,
+    type ElectricalSystemType,
+    type BillingClass,
+} from "@/generated/prisma/client.js"
+import type {
+    CreatePropertyInput,
+    UpdatePropertyInput,
+} from "@/modules/property/property.schema.js"
 import { encryptAddress, decryptAddress } from "@/shared/crypto/addressEncryption.js"
 import { toSkipTake, type Paginated, type PaginationQuery } from "@/shared/pagination.js"
 
 // Tipo inferido diretamente do Prisma — se o schema mudar e o client
 // for regenerado, esse tipo se atualiza automaticamente.
-type PrismaProperty = NonNullable<
-    Awaited<ReturnType<PrismaClient["property"]["findUnique"]>>
->
+type PrismaProperty = NonNullable<Awaited<ReturnType<PrismaClient["property"]["findUnique"]>>>
 
 // publicLightingFeeBrl é Decimal no Prisma — convertido para number aqui no
 // repository, mesmo padrão usado por Distributor/TariffFlagConfig.
@@ -46,7 +51,10 @@ export class PropertyRepository {
         return properties.map(toPropertyResponse)
     }
 
-    async findAllByUserPaginated(userId: string, pagination: PaginationQuery): Promise<Paginated<PropertyResponse>> {
+    async findAllByUserPaginated(
+        userId: string,
+        pagination: PaginationQuery,
+    ): Promise<Paginated<PropertyResponse>> {
         const { skip, take } = toSkipTake(pagination)
 
         const [properties, total] = await Promise.all([

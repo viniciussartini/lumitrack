@@ -49,11 +49,13 @@ function drawCover(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
     doc.text(`Gerado em: ${payload.generatedAt.toLocaleString("pt-BR")}`)
     doc.moveDown(1)
 
-    doc.fontSize(8.5).fillColor(BRAND.mutedColor).text(
-        "Documento gerado em atendimento ao direito de acesso do titular " +
-            "(Art. 18 da Lei nº 13.709/2018 — LGPD). Para a lista completa e " +
-            "detalhada de todos os dados, consulte a exportação em formato JSON.",
-    )
+    doc.fontSize(8.5)
+        .fillColor(BRAND.mutedColor)
+        .text(
+            "Documento gerado em atendimento ao direito de acesso do titular " +
+                "(Art. 18 da Lei nº 13.709/2018 — LGPD). Para a lista completa e " +
+                "detalhada de todos os dados, consulte a exportação em formato JSON.",
+        )
 
     doc.fillColor(BRAND.textColor).font("Helvetica")
 }
@@ -97,9 +99,11 @@ function drawPropertiesSection(doc: PDFKit.PDFDocument, payload: DataExportPaylo
         doc.font("Helvetica-Bold").text(property.name)
         doc.font("Helvetica")
         doc.text(
-            `Endereço: ${[property.address, property.city, property.state, property.zipCode]
-                .filter(Boolean)
-                .join(", ") || "—"}`,
+            `Endereço: ${
+                [property.address, property.city, property.state, property.zipCode]
+                    .filter(Boolean)
+                    .join(", ") || "—"
+            }`,
         )
         doc.text(
             `Distribuidora: ${distributor ? `${distributor.name} (CNPJ ${distributor.cnpj})` : "—"}`,
@@ -125,12 +129,16 @@ function drawAreasAndDevicesSection(doc: PDFKit.PDFDocument, payload: DataExport
     }
 
     for (const area of payload.areas) {
-        doc.font("Helvetica-Bold").text(`${area.name} (${propertyNameById.get(area.propertyId) ?? "—"})`)
+        doc.font("Helvetica-Bold").text(
+            `${area.name} (${propertyNameById.get(area.propertyId) ?? "—"})`,
+        )
         doc.font("Helvetica")
 
         const devices = devicesByArea.get(area.id) ?? []
         if (devices.length === 0) {
-            doc.fillColor(BRAND.mutedColor).text("Nenhum dispositivo cadastrado.").fillColor(BRAND.textColor)
+            doc.fillColor(BRAND.mutedColor)
+                .text("Nenhum dispositivo cadastrado.")
+                .fillColor(BRAND.textColor)
         } else {
             for (const device of devices) {
                 doc.text(
@@ -154,8 +162,8 @@ function drawAlertsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload):
 
     for (const alert of payload.alerts) {
         doc.text(
-            `• ${alert.name} — ${alert.referencePowerKw} kW ± ${alert.tolerancePercent}% — `
-                + (alert.enabled ? "habilitado" : "desabilitado"),
+            `• ${alert.name} — ${alert.referencePowerKw} kW ± ${alert.tolerancePercent}% — ` +
+                (alert.enabled ? "habilitado" : "desabilitado"),
         )
     }
 }
@@ -192,7 +200,10 @@ function drawFooterOnAllPages(doc: PDFKit.PDFDocument): void {
                 `${BRAND.appName} — página ${i + 1} de ${range.count}`,
                 doc.page.margins.left,
                 bottom,
-                { width: doc.page.width - doc.page.margins.left - doc.page.margins.right, align: "center" },
+                {
+                    width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+                    align: "center",
+                },
             )
     }
 }

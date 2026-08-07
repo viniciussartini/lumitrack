@@ -27,7 +27,10 @@ export const api = {
         request<NetworkSnapshot>("/networks", { method: "POST", body: JSON.stringify({ name }) }),
     deleteNetwork: (id: string) => request<void>(`/networks/${id}`, { method: "DELETE" }),
 
-    createDevice: (networkId: string, input: { name: string; topic: string; params?: Partial<DeviceParams> }) =>
+    createDevice: (
+        networkId: string,
+        input: { name: string; topic: string; params?: Partial<DeviceParams> },
+    ) =>
         request<VirtualDevice>(`/networks/${networkId}/devices`, {
             method: "POST",
             body: JSON.stringify(input),
@@ -39,12 +42,16 @@ export const api = {
     deleteDevice: (id: string) => request<void>(`/devices/${id}`, { method: "DELETE" }),
 
     setPower: (id: string, on: boolean) =>
-        request<VirtualDevice>(`/devices/${id}/power`, { method: "POST", body: JSON.stringify({ on }) }),
+        request<VirtualDevice>(`/devices/${id}/power`, {
+            method: "POST",
+            body: JSON.stringify({ on }),
+        }),
 
     triggerAnomaly: (id: string, multiplier: number, durationSeconds: number) =>
         request<VirtualDevice>(`/devices/${id}/anomaly`, {
             method: "POST",
             body: JSON.stringify({ multiplier, durationSeconds }),
         }),
-    clearAnomaly: (id: string) => request<VirtualDevice>(`/devices/${id}/anomaly`, { method: "DELETE" }),
+    clearAnomaly: (id: string) =>
+        request<VirtualDevice>(`/devices/${id}/anomaly`, { method: "DELETE" }),
 }

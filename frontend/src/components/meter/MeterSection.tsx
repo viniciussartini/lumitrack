@@ -53,9 +53,7 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
         <section className="flex flex-col gap-3" data-testid="meter-section">
             {!meter && (
                 <header className="flex items-center justify-between">
-                    <h2 className="font-heading text-lg font-semibold uppercase">
-                        Medidor
-                    </h2>
+                    <h2 className="font-heading text-lg font-semibold uppercase">Medidor</h2>
                     <Button
                         variant="secondary"
                         size="sm"
@@ -81,7 +79,10 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
                     role="alert"
                     className="border-status-danger/40 flex items-start gap-3 border p-4"
                 >
-                    <AlertCircle className="text-status-danger h-5 w-5 shrink-0" aria-hidden="true" />
+                    <AlertCircle
+                        className="text-status-danger h-5 w-5 shrink-0"
+                        aria-hidden="true"
+                    />
                     <p className="text-status-danger/85 text-sm">
                         {meterQuery.error instanceof Error
                             ? meterQuery.error.message
@@ -145,7 +146,8 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
                                 <p className="truncate text-[14.5px] font-semibold">{meter.name}</p>
                                 <p className="text-muted mt-[3px] text-[12.5px]">
                                     {METER_PROTOCOL_LABELS[meter.protocol]}
-                                    {meter.host && ` · ${meter.host}${meter.port ? `:${meter.port}` : ""}`}
+                                    {meter.host &&
+                                        ` · ${meter.host}${meter.port ? `:${meter.port}` : ""}`}
                                     {meter.topic && ` · ${meter.topic}`}
                                     {meter.address && ` · ${meter.address}`}
                                 </p>
@@ -220,7 +222,7 @@ const MeterStat = ({ label, value, className }: MeterStatProps) => (
         <div className="font-heading text-muted text-[10px] font-semibold tracking-[.07em] uppercase">
             {label}
         </div>
-        <div className="font-heading mt-[7px] text-xl font-semibold font-features-['tnum'_1]">
+        <div className="font-heading mt-[7px] font-features-['tnum'_1] text-xl font-semibold">
             {value}
         </div>
     </div>

@@ -2,7 +2,10 @@ import { createApp } from "@/app.js"
 import { env } from "@/config/env.js"
 import { logger } from "@/shared/logger/logger.js"
 import { prisma } from "@/shared/database/prisma.js"
-import { IoTConnectionManager, type MeterConnectionConfig } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
+import {
+    IoTConnectionManager,
+    type MeterConnectionConfig,
+} from "@/modules/iot/iot-worker/IoTConnectionManager.js"
 import { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import { MinuteRollupScheduler } from "@/modules/iot/iot-worker/MinuteRollupScheduler.js"
 import { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
@@ -61,13 +64,10 @@ const alertEvaluator = new AlertEvaluator(
  * fica para a agregação (Fase 3); alertas por potência são avaliados amostra
  * a amostra pelo AlertEvaluator (Fase 4), não mais no rollup.
  */
-const manager   = IoTConnectionManager.getInstance()
+const manager = IoTConnectionManager.getInstance()
 const processor = new IoTDataProcessor(manager)
 
-const scheduler = new MinuteRollupScheduler(
-    processor.buffer,
-    new MeterReadingRepository(prisma),
-)
+const scheduler = new MinuteRollupScheduler(processor.buffer, new MeterReadingRepository(prisma))
 
 // Registra o processor no manager ANTES de restaurar as conexões,
 // garantindo que nenhuma leitura seja perdida durante o boot.
@@ -166,12 +166,10 @@ async function restoreIoTConnections(): Promise<void> {
             extra: meter.extra as Record<string, unknown> | null,
         }))
 
-        const results = await Promise.allSettled(
-            configs.map((config) => manager.start(config)),
-        )
+        const results = await Promise.allSettled(configs.map((config) => manager.start(config)))
 
         const succeeded = results.filter((r) => r.status === "fulfilled").length
-        const failed    = results.filter((r) => r.status === "rejected").length
+        const failed = results.filter((r) => r.status === "rejected").length
 
         logger.info(`[Boot] Conexões restauradas: ${succeeded} ok, ${failed} falha(s).`)
     } catch (err) {
@@ -210,5 +208,9 @@ async function shutdown(signal: string): Promise<void> {
     })
 }
 
-process.on("SIGTERM", () => { void shutdown("SIGTERM") })
-process.on("SIGINT",  () => { void shutdown("SIGINT") })
+process.on("SIGTERM", () => {
+    void shutdown("SIGTERM")
+})
+process.on("SIGINT", () => {
+    void shutdown("SIGINT")
+})

@@ -12,7 +12,10 @@ import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
-import { createTestDistributor, createTestTariffFlagConfig } from "@/shared/test/distributorFixture.js"
+import {
+    createTestDistributor,
+    createTestTariffFlagConfig,
+} from "@/shared/test/distributorFixture.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 
 // ─── Instâncias ───────────────────────────────────────────────────────────────
@@ -21,23 +24,23 @@ import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/
 // validar a cadeia de posse e calcular o custo via TariffService (Fase 3 —
 // substituiu o antigo kwhPrice fixo da distribuidora).
 
-const userRepository        = new UserRepository(prismaTest)
-const userService           = new UserService(userRepository)
+const userRepository = new UserRepository(prismaTest)
+const userService = new UserService(userRepository)
 
 const distributorRepository = new DistributorRepository(prismaTest)
 
-const propertyRepository    = new PropertyRepository(prismaTest)
-const propertyService       = new PropertyService(propertyRepository, distributorRepository)
+const propertyRepository = new PropertyRepository(prismaTest)
+const propertyService = new PropertyService(propertyRepository, distributorRepository)
 
-const areaRepository        = new AreaRepository(prismaTest)
-const areaService           = new AreaService(areaRepository, propertyRepository)
+const areaRepository = new AreaRepository(prismaTest)
+const areaService = new AreaService(areaRepository, propertyRepository)
 
-const deviceRepository      = new DeviceRepository(prismaTest)
-const deviceService         = new DeviceService(deviceRepository, areaRepository, propertyRepository)
+const deviceRepository = new DeviceRepository(prismaTest)
+const deviceService = new DeviceService(deviceRepository, areaRepository, propertyRepository)
 
-const tariffFlagRepository  = new TariffFlagRepository(prismaTest)
+const tariffFlagRepository = new TariffFlagRepository(prismaTest)
 
-const simulationService     = new SimulationService(
+const simulationService = new SimulationService(
     propertyRepository,
     distributorRepository,
     areaRepository,
@@ -48,23 +51,23 @@ const simulationService     = new SimulationService(
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
 
 const validUserA = {
-    email:     "joao@example.com",
-    password:  "Senha@123",
-    userType:  "INDIVIDUAL" as const,
+    email: "joao@example.com",
+    password: "Senha@123",
+    userType: "INDIVIDUAL" as const,
     acceptedTerms: true,
     firstName: "João",
-    lastName:  "Silva",
-    cpf:       "529.982.247-25",
+    lastName: "Silva",
+    cpf: "529.982.247-25",
 }
 
 const validUserB = {
-    email:     "maria@example.com",
-    password:  "Senha@123",
-    userType:  "INDIVIDUAL" as const,
+    email: "maria@example.com",
+    password: "Senha@123",
+    userType: "INDIVIDUAL" as const,
     acceptedTerms: true,
     firstName: "Maria",
-    lastName:  "Santos",
-    cpf:       "310.037.856-38",
+    lastName: "Santos",
+    cpf: "310.037.856-38",
 }
 
 // tusdPerKwh=0.3 + tePerKwh=0.3 = 0.6 R$/kWh; tributos 27,25%
@@ -81,17 +84,17 @@ const RATE = 0.6 / (1 - 0.2725)
 // propriedade em MONTHLY/ANNUAL tem.
 
 async function setupAll(userInput = validUserA) {
-    const user        = await userService.createUser(userInput)
-    const distributor  = await createTestDistributor(prismaTest)
+    const user = await userService.createUser(userInput)
+    const distributor = await createTestDistributor(prismaTest)
     await createTestTariffFlagConfig(prismaTest)
-    const property    = await propertyService.create(user.id, {
-        name:             "Casa",
-        distributorId:    distributor.id,
+    const property = await propertyService.create(user.id, {
+        name: "Casa",
+        distributorId: distributor.id,
         electricalSystem: "TRIPHASIC", // piso de 100 kWh
     })
-    const area   = await areaService.create(property.id, user.id, { name: "Sala" })
+    const area = await areaService.create(property.id, user.id, { name: "Sala" })
     const device = await deviceService.create(area.id, property.id, user.id, {
-        name:       "Ar-condicionado",
+        name: "Ar-condicionado",
         powerWatts: 1000, // 1000W → 1 kWh por hora de uso
     })
     return { user, distributor, property, area, device }
@@ -99,15 +102,18 @@ async function setupAll(userInput = validUserA) {
 
 // ─── Setup e Teardown ─────────────────────────────────────────────────────────
 
-beforeEach(async () => { await cleanDatabase() })
-afterAll(async ()  => { await prismaTest.$disconnect() })
+beforeEach(async () => {
+    await cleanDatabase()
+})
+afterAll(async () => {
+    await prismaTest.$disconnect()
+})
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SUITE: SimulationService — target: PROPERTY
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("SimulationService — target: PROPERTY", () => {
-
     // ─── Modo KWH_DIRECT ─────────────────────────────────────────────────────
 
     describe("inputMode: KWH_DIRECT", () => {
@@ -115,9 +121,9 @@ describe("SimulationService — target: PROPERTY", () => {
             const { user, property } = await setupAll()
 
             const result = await simulationService.simulate(property.id, user.id, {
-                period:      "DAILY",
-                target:      { type: "PROPERTY" },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "PROPERTY" },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             })
 
@@ -135,9 +141,9 @@ describe("SimulationService — target: PROPERTY", () => {
             const { user, property } = await setupAll()
 
             const result = await simulationService.simulate(property.id, user.id, {
-                period:      "MONTHLY",
-                target:      { type: "PROPERTY" },
-                inputMode:   "KWH_DIRECT",
+                period: "MONTHLY",
+                target: { type: "PROPERTY" },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 300,
             })
 
@@ -152,9 +158,9 @@ describe("SimulationService — target: PROPERTY", () => {
             // 10 kWh/dia × 1 dia direto não é o caso aqui — kwhConsumed é o
             // total do mês em KWH_DIRECT; 50 kWh < piso de 100 (TRIPHASIC).
             const result = await simulationService.simulate(property.id, user.id, {
-                period:      "MONTHLY",
-                target:      { type: "PROPERTY" },
-                inputMode:   "KWH_DIRECT",
+                period: "MONTHLY",
+                target: { type: "PROPERTY" },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 50,
             })
 
@@ -166,9 +172,9 @@ describe("SimulationService — target: PROPERTY", () => {
             const { user, property } = await setupAll()
 
             const result = await simulationService.simulate(property.id, user.id, {
-                period:      "ANNUAL",
-                target:      { type: "PROPERTY" },
-                inputMode:   "KWH_DIRECT",
+                period: "ANNUAL",
+                target: { type: "PROPERTY" },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 3650,
             })
 
@@ -186,17 +192,17 @@ describe("SimulationService — target: PROPERTY", () => {
 
             // 2000W × 5h = 10 kWh/dia
             const result = await simulationService.simulate(property.id, user.id, {
-                period:          "DAILY",
-                target:          { type: "PROPERTY" },
-                inputMode:       "WATTS_HOURS",
-                powerWatts:      2000,
+                period: "DAILY",
+                target: { type: "PROPERTY" },
+                inputMode: "WATTS_HOURS",
+                powerWatts: 2000,
                 dailyUsageHours: 5,
             })
 
             expect(result.inputMode).toBe("WATTS_HOURS")
             expect(result.powerWatts).toBe(2000)
             expect(result.dailyUsageHours).toBe(5)
-            expect(result.kwhConsumed).toBeCloseTo(10)    // (2000/1000) × 5 × 1
+            expect(result.kwhConsumed).toBeCloseTo(10) // (2000/1000) × 5 × 1
             expect(result.costBrl).toBeCloseTo(10 * RATE, 6)
             expect(result.projectedDays).toBe(1)
         })
@@ -206,10 +212,10 @@ describe("SimulationService — target: PROPERTY", () => {
 
             // 1000W × 4h × 30 dias = 120 kWh
             const result = await simulationService.simulate(property.id, user.id, {
-                period:          "MONTHLY",
-                target:          { type: "PROPERTY" },
-                inputMode:       "WATTS_HOURS",
-                powerWatts:      1000,
+                period: "MONTHLY",
+                target: { type: "PROPERTY" },
+                inputMode: "WATTS_HOURS",
+                powerWatts: 1000,
                 dailyUsageHours: 4,
             })
 
@@ -224,10 +230,10 @@ describe("SimulationService — target: PROPERTY", () => {
             // 2000W × 2h × 365 dias = 1460 kWh — média mensal de ~121,7 kWh,
             // acima do piso de 100 (TRIPHASIC), então o piso não interfere.
             const result = await simulationService.simulate(property.id, user.id, {
-                period:          "ANNUAL",
-                target:          { type: "PROPERTY" },
-                inputMode:       "WATTS_HOURS",
-                powerWatts:      2000,
+                period: "ANNUAL",
+                target: { type: "PROPERTY" },
+                inputMode: "WATTS_HOURS",
+                powerWatts: 2000,
                 dailyUsageHours: 2,
             })
 
@@ -242,13 +248,13 @@ describe("SimulationService — target: PROPERTY", () => {
     describe("erros", () => {
         it("deve lançar ForbiddenError para property de outro usuário", async () => {
             const { property } = await setupAll(validUserA)
-            const userB        = await userService.createUser(validUserB)
+            const userB = await userService.createUser(validUserB)
 
             await expect(
                 simulationService.simulate(property.id, userB.id, {
-                    period:      "DAILY",
-                    target:      { type: "PROPERTY" },
-                    inputMode:   "KWH_DIRECT",
+                    period: "DAILY",
+                    target: { type: "PROPERTY" },
+                    inputMode: "KWH_DIRECT",
                     kwhConsumed: 10,
                 }),
             ).rejects.toThrow(ForbiddenError)
@@ -259,9 +265,9 @@ describe("SimulationService — target: PROPERTY", () => {
 
             await expect(
                 simulationService.simulate("00000000-0000-0000-0000-000000000000", user.id, {
-                    period:      "DAILY",
-                    target:      { type: "PROPERTY" },
-                    inputMode:   "KWH_DIRECT",
+                    period: "DAILY",
+                    target: { type: "PROPERTY" },
+                    inputMode: "KWH_DIRECT",
                     kwhConsumed: 10,
                 }),
             ).rejects.toThrow(NotFoundError)
@@ -272,9 +278,9 @@ describe("SimulationService — target: PROPERTY", () => {
 
             await expect(
                 simulationService.simulate(property.id, user.id, {
-                    period:      "DAILY",
-                    target:      { type: "PROPERTY" },
-                    inputMode:   "KWH_DIRECT",
+                    period: "DAILY",
+                    target: { type: "PROPERTY" },
+                    inputMode: "KWH_DIRECT",
                     kwhConsumed: -5,
                 }),
             ).rejects.toThrow(ValidationError)
@@ -285,10 +291,10 @@ describe("SimulationService — target: PROPERTY", () => {
 
             await expect(
                 simulationService.simulate(property.id, user.id, {
-                    period:          "DAILY",
-                    target:          { type: "PROPERTY" },
-                    inputMode:       "WATTS_HOURS",
-                    powerWatts:      1000,
+                    period: "DAILY",
+                    target: { type: "PROPERTY" },
+                    inputMode: "WATTS_HOURS",
+                    powerWatts: 1000,
                     dailyUsageHours: 25,
                 }),
             ).rejects.toThrow(ValidationError)
@@ -299,9 +305,9 @@ describe("SimulationService — target: PROPERTY", () => {
 
             await expect(
                 simulationService.simulate(property.id, user.id, {
-                    period:     "DAILY",
-                    target:     { type: "PROPERTY" },
-                    inputMode:  "WATTS_HOURS",
+                    period: "DAILY",
+                    target: { type: "PROPERTY" },
+                    inputMode: "WATTS_HOURS",
                     powerWatts: 1000,
                     // dailyUsageHours ausente
                 } as unknown),
@@ -315,14 +321,13 @@ describe("SimulationService — target: PROPERTY", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("SimulationService — target: AREA", () => {
-
     it("deve calcular simulação DAILY para area com kWh direto (sem piso/CIP)", async () => {
         const { user, property, area } = await setupAll()
 
         const result = await simulationService.simulate(property.id, user.id, {
-            period:      "DAILY",
-            target:      { type: "AREA", areaId: area.id },
-            inputMode:   "KWH_DIRECT",
+            period: "DAILY",
+            target: { type: "AREA", areaId: area.id },
+            inputMode: "KWH_DIRECT",
             kwhConsumed: 5,
         })
 
@@ -337,10 +342,10 @@ describe("SimulationService — target: AREA", () => {
         // 800W × 3h × 30 dias = 72 kWh — abaixo do piso de 100 kWh, mas o
         // piso não se aplica a AREA/DEVICE.
         const result = await simulationService.simulate(property.id, user.id, {
-            period:          "MONTHLY",
-            target:          { type: "AREA", areaId: area.id },
-            inputMode:       "WATTS_HOURS",
-            powerWatts:      800,
+            period: "MONTHLY",
+            target: { type: "AREA", areaId: area.id },
+            inputMode: "WATTS_HOURS",
+            powerWatts: 800,
             dailyUsageHours: 3,
         })
 
@@ -350,13 +355,13 @@ describe("SimulationService — target: AREA", () => {
 
     it("deve lançar ForbiddenError para area de outro usuário", async () => {
         const { property, area } = await setupAll(validUserA)
-        const userB              = await userService.createUser(validUserB)
+        const userB = await userService.createUser(validUserB)
 
         await expect(
             simulationService.simulate(property.id, userB.id, {
-                period:      "DAILY",
-                target:      { type: "AREA", areaId: area.id },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "AREA", areaId: area.id },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             }),
         ).rejects.toThrow(ForbiddenError)
@@ -367,9 +372,9 @@ describe("SimulationService — target: AREA", () => {
 
         await expect(
             simulationService.simulate(property.id, user.id, {
-                period:      "DAILY",
-                target:      { type: "AREA", areaId: "00000000-0000-0000-0000-000000000000" },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "AREA", areaId: "00000000-0000-0000-0000-000000000000" },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             }),
         ).rejects.toThrow(NotFoundError)
@@ -379,17 +384,17 @@ describe("SimulationService — target: AREA", () => {
         // Cenário: usuário tenta simular com área válida mas de outra propriedade sua.
         const { user, property, distributor } = await setupAll()
         const property2 = await propertyService.create(user.id, {
-            name:             "Escritório",
-            distributorId:    distributor.id,
+            name: "Escritório",
+            distributorId: distributor.id,
             electricalSystem: "TRIPHASIC",
         })
         const area2 = await areaService.create(property2.id, user.id, { name: "Sala 2" })
 
         await expect(
             simulationService.simulate(property.id, user.id, {
-                period:      "DAILY",
-                target:      { type: "AREA", areaId: area2.id },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "AREA", areaId: area2.id },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             }),
         ).rejects.toThrow(ForbiddenError)
@@ -401,16 +406,15 @@ describe("SimulationService — target: AREA", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("SimulationService — target: DEVICE", () => {
-
     // ─── Modo KWH_DIRECT ─────────────────────────────────────────────────────
 
     it("deve calcular simulação DAILY para device com kWh direto", async () => {
         const { user, property, area, device } = await setupAll()
 
         const result = await simulationService.simulate(property.id, user.id, {
-            period:      "DAILY",
-            target:      { type: "DEVICE", deviceId: device.id, areaId: area.id },
-            inputMode:   "KWH_DIRECT",
+            period: "DAILY",
+            target: { type: "DEVICE", deviceId: device.id, areaId: area.id },
+            inputMode: "KWH_DIRECT",
             kwhConsumed: 8,
         })
 
@@ -426,10 +430,10 @@ describe("SimulationService — target: DEVICE", () => {
 
         // 500W × 6h × 30 dias = 90 kWh
         const result = await simulationService.simulate(property.id, user.id, {
-            period:          "MONTHLY",
-            target:          { type: "DEVICE", deviceId: device.id, areaId: area.id },
-            inputMode:       "WATTS_HOURS",
-            powerWatts:      500,
+            period: "MONTHLY",
+            target: { type: "DEVICE", deviceId: device.id, areaId: area.id },
+            inputMode: "WATTS_HOURS",
+            powerWatts: 500,
             dailyUsageHours: 6,
         })
 
@@ -445,9 +449,9 @@ describe("SimulationService — target: DEVICE", () => {
         // device.powerWatts = 1000W (definido no helper setupAll)
 
         const result = await simulationService.simulate(property.id, user.id, {
-            period:          "DAILY",
-            target:          { type: "DEVICE", deviceId: device.id, areaId: area.id },
-            inputMode:       "WATTS_HOURS",
+            period: "DAILY",
+            target: { type: "DEVICE", deviceId: device.id, areaId: area.id },
+            inputMode: "WATTS_HOURS",
             // powerWatts omitido → service usa device.powerWatts = 1000
             dailyUsageHours: 8,
         })
@@ -465,9 +469,9 @@ describe("SimulationService — target: DEVICE", () => {
 
         await expect(
             simulationService.simulate(property.id, user.id, {
-                period:          "DAILY",
-                target:          { type: "DEVICE", deviceId: deviceSemWatts.id, areaId: area.id },
-                inputMode:       "WATTS_HOURS",
+                period: "DAILY",
+                target: { type: "DEVICE", deviceId: deviceSemWatts.id, areaId: area.id },
+                inputMode: "WATTS_HOURS",
                 dailyUsageHours: 8,
             }),
         ).rejects.toThrow(ValidationError)
@@ -475,13 +479,13 @@ describe("SimulationService — target: DEVICE", () => {
 
     it("deve lançar ForbiddenError para device de outro usuário", async () => {
         const { property, area, device } = await setupAll(validUserA)
-        const userB                      = await userService.createUser(validUserB)
+        const userB = await userService.createUser(validUserB)
 
         await expect(
             simulationService.simulate(property.id, userB.id, {
-                period:      "DAILY",
-                target:      { type: "DEVICE", deviceId: device.id, areaId: area.id },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "DEVICE", deviceId: device.id, areaId: area.id },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             }),
         ).rejects.toThrow(ForbiddenError)
@@ -492,9 +496,13 @@ describe("SimulationService — target: DEVICE", () => {
 
         await expect(
             simulationService.simulate(property.id, user.id, {
-                period:      "DAILY",
-                target:      { type: "DEVICE", deviceId: "00000000-0000-0000-0000-000000000000", areaId: area.id },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: {
+                    type: "DEVICE",
+                    deviceId: "00000000-0000-0000-0000-000000000000",
+                    areaId: area.id,
+                },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             }),
         ).rejects.toThrow(NotFoundError)
@@ -506,9 +514,9 @@ describe("SimulationService — target: DEVICE", () => {
 
         await expect(
             simulationService.simulate(property.id, user.id, {
-                period:      "DAILY",
-                target:      { type: "DEVICE", deviceId: device.id, areaId: area2.id },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "DEVICE", deviceId: device.id, areaId: area2.id },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             }),
         ).rejects.toThrow(ForbiddenError)

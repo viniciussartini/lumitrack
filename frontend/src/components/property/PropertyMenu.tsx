@@ -122,7 +122,7 @@ export const PropertyMenu = ({
                         role="menu"
                         aria-label="Ações"
                         className={cn(
-                            "absolute right-0 top-full z-10 mt-1 w-44",
+                            "absolute top-full right-0 z-10 mt-1 w-44",
                             "rounded-md border bg-white py-1 shadow-lg",
                             "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
                         )}

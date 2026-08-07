@@ -53,7 +53,9 @@ export const PasswordRequirements = ({ password }: PasswordRequirementsProps) =>
                         data-met={met}
                         className={cn(
                             "flex h-[14px] w-[14px] shrink-0 items-center justify-center border text-[9px] text-white",
-                            met ? "bg-status-success border-status-success" : "border-text/30 bg-transparent",
+                            met
+                                ? "bg-status-success border-status-success"
+                                : "border-text/30 bg-transparent",
                         )}
                     >
                         {met ? "✓" : ""}

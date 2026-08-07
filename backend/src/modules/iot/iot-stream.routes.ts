@@ -81,7 +81,9 @@ export function iotStreamRoutes(
 
         let userMeterIds = await resolveUserMeterIds(userId, prismaClient)
 
-        res.write(`event: connected\ndata: ${JSON.stringify({ meterCount: userMeterIds.size })}\n\n`)
+        res.write(
+            `event: connected\ndata: ${JSON.stringify({ meterCount: userMeterIds.size })}\n\n`,
+        )
 
         // ─── Listener de leituras IoT ─────────────────────────────────────────
         const readingUnsub = processor.addSampleListener((sample) => {

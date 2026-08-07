@@ -3,7 +3,10 @@ import request from "supertest"
 import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
-import { createTestDistributor, createTestTariffFlagConfig } from "@/shared/test/distributorFixture.js"
+import {
+    createTestDistributor,
+    createTestTariffFlagConfig,
+} from "@/shared/test/distributorFixture.js"
 
 const app = createApp({ prismaClient: prismaHttpTest })
 
@@ -51,7 +54,15 @@ async function setupPropertyWithMeter(user = validUser) {
     const meterRes = await request(app)
         .post("/api/meters")
         .set("Authorization", `Bearer ${token}`)
-        .send({ name: "Medidor", targetType: "PROPERTY", propertyId, protocol: "MQTT", host: "localhost", port: 1883, topic: "casa/medidor" })
+        .send({
+            name: "Medidor",
+            targetType: "PROPERTY",
+            propertyId,
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "casa/medidor",
+        })
     const meterId = meterRes.body.data.id as string
 
     await prismaHttpTest.meterReading.create({
@@ -71,12 +82,18 @@ async function setupPropertyWithMeter(user = validUser) {
     return { token, propertyId }
 }
 
-beforeEach(async () => { await cleanHttpDatabase() })
-afterAll(async () => { await prismaHttpTest.$disconnect() })
+beforeEach(async () => {
+    await cleanHttpDatabase()
+})
+afterAll(async () => {
+    await prismaHttpTest.$disconnect()
+})
 
 describe("GET /api/consumption", () => {
     it("retorna 401 sem token", async () => {
-        const response = await request(app).get("/api/consumption?targetType=PROPERTY&targetId=00000000-0000-0000-0000-000000000000&granularity=hour")
+        const response = await request(app).get(
+            "/api/consumption?targetType=PROPERTY&targetId=00000000-0000-0000-0000-000000000000&granularity=hour",
+        )
         expect(response.status).toBe(401)
     })
 
@@ -101,10 +118,16 @@ describe("GET /api/consumption", () => {
         const propRes = await request(app)
             .post("/api/properties")
             .set("Authorization", `Bearer ${token}`)
-            .send({ name: "Sem medidor", distributorId: distributor.id, electricalSystem: "MONOPHASIC" })
+            .send({
+                name: "Sem medidor",
+                distributorId: distributor.id,
+                electricalSystem: "MONOPHASIC",
+            })
 
         const response = await request(app)
-            .get(`/api/consumption?targetType=PROPERTY&targetId=${propRes.body.data.id}&granularity=hour`)
+            .get(
+                `/api/consumption?targetType=PROPERTY&targetId=${propRes.body.data.id}&granularity=hour`,
+            )
             .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(404)

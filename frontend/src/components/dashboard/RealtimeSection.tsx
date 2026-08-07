@@ -58,10 +58,7 @@ export const RealtimeSection = ({ propertyId, propertyName }: RealtimeSectionPro
 
     if (meterQuery.isError) {
         return (
-            <div
-                role="alert"
-                className="border-status-danger/40 flex items-start gap-3 border p-4"
-            >
+            <div role="alert" className="border-status-danger/40 flex items-start gap-3 border p-4">
                 <AlertCircle className="text-status-danger h-5 w-5 shrink-0" aria-hidden="true" />
                 <p className="text-status-danger/85 text-sm">
                     {meterQuery.error instanceof Error

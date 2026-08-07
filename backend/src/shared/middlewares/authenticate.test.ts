@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from "vitest"
 import type { Request, Response, NextFunction } from "express"
-import { createAuthenticateMiddleware, type AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
+import {
+    createAuthenticateMiddleware,
+    type AuthenticatedRequest,
+} from "@/shared/middlewares/authenticate.js"
 import { AuthService } from "@/modules/auth/auth.service.js"
 import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import { UserRepository } from "@/modules/user/user.repository.js"

@@ -82,12 +82,7 @@ const createTestQueryClient = () =>
 const renderRow = (props: Partial<Parameters<typeof DashboardKpiRow>[0]> = {}) => {
     const queryClient = createTestQueryClient()
     return render(
-        <DashboardKpiRow
-            propertyId="prop-1"
-            reading={undefined}
-            isStale={true}
-            {...props}
-        />,
+        <DashboardKpiRow propertyId="prop-1" reading={undefined} isStale={true} {...props} />,
         {
             wrapper: ({ children }) => (
                 <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>

@@ -9,7 +9,9 @@ export const envSchema = z.object({
     BROKER_PORT: z.coerce.number().default(1883),
     API_PORT: z.coerce.number().default(4100),
     CORS_ORIGIN: z.string().default("http://localhost:5180"),
-    LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+    LOG_LEVEL: z
+        .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
+        .default("info"),
 })
 
 const parsed = envSchema.safeParse(process.env)

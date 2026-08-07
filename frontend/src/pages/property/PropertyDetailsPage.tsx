@@ -1,15 +1,7 @@
 import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import { useQueries } from "@tanstack/react-query"
-import {
-    AlertCircle,
-    ArrowLeft,
-    Home,
-    LayoutGrid,
-    MapPin,
-    Pencil,
-    Plus,
-} from "lucide-react"
+import { AlertCircle, ArrowLeft, Home, LayoutGrid, MapPin, Pencil, Plus } from "lucide-react"
 import { useProperty } from "@/hooks/queries/useProperties"
 import { useDistributor, useDistributors } from "@/hooks/queries/useDistributors"
 import { useAreas } from "@/hooks/queries/useAreas"
@@ -110,9 +102,7 @@ export const PropertyDetailsPage = () => {
                 distributor={distributor}
                 isDistributorLoading={distributorQuery.isLoading}
                 distributors={distributorsQuery.data?.items ?? []}
-                onAfterDelete={() =>
-                    navigate("/propriedades", { replace: true })
-                }
+                onAfterDelete={() => navigate("/propriedades", { replace: true })}
             />
 
             {meter && (
@@ -129,7 +119,7 @@ export const PropertyDetailsPage = () => {
                         />
                         Potência agora
                     </div>
-                    <div className="font-heading mt-2.5 text-[30px] leading-none font-semibold font-features-['tnum'_1]">
+                    <div className="font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold">
                         {!isReadingStale && reading ? (
                             formatPowerKw(reading.powerW)
                         ) : (
@@ -232,9 +222,7 @@ const PropertyHeaderCard = ({
                     </Tag>
                     <Tag variant="outline">{BILLING_CLASS_LABELS[property.billingClass]}</Tag>
                     {property.publicLightingFeeBrl !== null && (
-                        <Tag variant="outline">
-                            CIP: {formatBrl(property.publicLightingFeeBrl)}
-                        </Tag>
+                        <Tag variant="outline">CIP: {formatBrl(property.publicLightingFeeBrl)}</Tag>
                     )}
                 </div>
             </div>
@@ -349,9 +337,7 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
                 <i className="corner br" />
 
                 <div className="border-divider flex items-center justify-between border-b px-5 py-4">
-                    <h2 className="font-heading text-[17px] font-semibold uppercase">
-                        Áreas
-                    </h2>
+                    <h2 className="font-heading text-[17px] font-semibold uppercase">Áreas</h2>
                     <Button
                         variant="secondary"
                         size="sm"
@@ -433,7 +419,11 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
                                 {comparisonUnit === "kwh" ? "kWh" : "R$"})
                             </span>
                         </div>
-                        <div role="group" aria-label="Unidade de comparação" className="flex gap-1.5">
+                        <div
+                            role="group"
+                            aria-label="Unidade de comparação"
+                            className="flex gap-1.5"
+                        >
                             <button
                                 type="button"
                                 className="lt-selbtn"

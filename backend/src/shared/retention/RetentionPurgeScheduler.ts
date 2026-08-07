@@ -23,9 +23,12 @@ export class RetentionPurgeScheduler {
     start(): void {
         void this.runOnce()
 
-        this.timer = setInterval(() => {
-            void this.runOnce()
-        }, 24 * 60 * 60 * 1000)
+        this.timer = setInterval(
+            () => {
+                void this.runOnce()
+            },
+            24 * 60 * 60 * 1000,
+        )
 
         log.info("Iniciado. Expurgo roda agora e a cada 24h.")
     }

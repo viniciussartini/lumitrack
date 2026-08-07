@@ -85,7 +85,9 @@ describe("DistributorService", () => {
         })
 
         it("deve lançar ValidationError para pageSize acima do teto (31)", async () => {
-            await expect(distributorService.findAll({ pageSize: 32 })).rejects.toThrow(ValidationError)
+            await expect(distributorService.findAll({ pageSize: 32 })).rejects.toThrow(
+                ValidationError,
+            )
         })
     })
 })

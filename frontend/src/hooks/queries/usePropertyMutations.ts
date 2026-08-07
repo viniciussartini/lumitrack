@@ -2,15 +2,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { propertyService } from "@/services/property.service"
 import { queryKeys } from "@/lib/queryClient"
-import type {
-    CreatePropertyInput,
-    Property,
-    UpdatePropertyInput,
-} from "@/types/property.types"
+import type { CreatePropertyInput, Property, UpdatePropertyInput } from "@/types/property.types"
 
 /**
  * Mutations de Propriedade.
- * 
+ *
  * Regras gerais para todas as mutations:
  *   - onSuccess invalida queries afetadas (lista e/ou detalhe)
  *   - Toast de sucesso é disparado AQUI, não na página

@@ -36,7 +36,11 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"])
 export function createAuthenticateMiddleware(prisma: PrismaClient) {
     const authRepository = new AuthRepository(prisma)
 
-    return async function authenticate(req: Request, _res: Response, next: NextFunction): Promise<void> {
+    return async function authenticate(
+        req: Request,
+        _res: Response,
+        next: NextFunction,
+    ): Promise<void> {
         try {
             // Header Authorization tem prioridade sobre o cookie — garante
             // que requisições MOBILE (que sempre mandam o header) nunca são
@@ -62,7 +66,10 @@ export function createAuthenticateMiddleware(prisma: PrismaClient) {
                 }
             }
 
-            const payload = jwt.verify(token, env.JWT_SECRET) as Omit<AuthenticatedRequest["user"], "role">
+            const payload = jwt.verify(token, env.JWT_SECRET) as Omit<
+                AuthenticatedRequest["user"],
+                "role"
+            >
             const storedToken = await authRepository.findActiveToken(hashToken(token))
 
             if (!storedToken) {

@@ -13,7 +13,10 @@ import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
-import { createTestDistributor, createTestTariffFlagConfig } from "@/shared/test/distributorFixture.js"
+import {
+    createTestDistributor,
+    createTestTariffFlagConfig,
+} from "@/shared/test/distributorFixture.js"
 import { ForbiddenError, NotFoundError } from "@/shared/errors/AppError.js"
 
 const meterRepository = new MeterRepository(prismaTest)
@@ -61,12 +64,25 @@ async function setupPropertyMeter() {
         electricalSystem: "TRIPHASIC", // piso de 100 kWh
     })
     const meter = await prismaTest.meter.create({
-        data: { name: "Medidor", targetType: "PROPERTY", propertyId: property.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "casa/medidor" },
+        data: {
+            name: "Medidor",
+            targetType: "PROPERTY",
+            propertyId: property.id,
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "casa/medidor",
+        },
     })
     return { user, property, meter }
 }
 
-async function insertReading(meterId: string, minuteStart: string, kwhConsumed: number, avgPowerW: number) {
+async function insertReading(
+    meterId: string,
+    minuteStart: string,
+    kwhConsumed: number,
+    avgPowerW: number,
+) {
     return prismaTest.meterReading.create({
         data: {
             meterId,
@@ -82,25 +98,38 @@ async function insertReading(meterId: string, minuteStart: string, kwhConsumed: 
     })
 }
 
-beforeEach(async () => { await cleanDatabase() })
-afterAll(async () => { await prismaTest.$disconnect() })
+beforeEach(async () => {
+    await cleanDatabase()
+})
+afterAll(async () => {
+    await prismaTest.$disconnect()
+})
 
 describe("ConsumptionService.list", () => {
     describe("validação de acesso", () => {
         it("lança NotFoundError quando o alvo não tem medidor vinculado", async () => {
             const user = await userService.createUser({
-                email: "semmedidor@example.com", password: "Senha@123", userType: "INDIVIDUAL",
-                acceptedTerms: true, firstName: "Sem", lastName: "Medidor", cpf: "310.037.856-38",
+                email: "semmedidor@example.com",
+                password: "Senha@123",
+                userType: "INDIVIDUAL",
+                acceptedTerms: true,
+                firstName: "Sem",
+                lastName: "Medidor",
+                cpf: "310.037.856-38",
             })
             const distributor = await createTestDistributor(prismaTest)
             await createTestTariffFlagConfig(prismaTest)
             const property = await propertyService.create(user.id, {
-                name: "Casa", distributorId: distributor.id, electricalSystem: "MONOPHASIC",
+                name: "Casa",
+                distributorId: distributor.id,
+                electricalSystem: "MONOPHASIC",
             })
 
             await expect(
                 consumptionService.list(user.id, {
-                    targetType: "PROPERTY", targetId: property.id, granularity: "hour",
+                    targetType: "PROPERTY",
+                    targetId: property.id,
+                    granularity: "hour",
                 }),
             ).rejects.toThrow(NotFoundError)
         })
@@ -108,13 +137,20 @@ describe("ConsumptionService.list", () => {
         it("lança ForbiddenError quando a propriedade pertence a outro usuário", async () => {
             const { property } = await setupPropertyMeter()
             const userB = await userService.createUser({
-                email: "outro@example.com", password: "Senha@123", userType: "INDIVIDUAL",
-                acceptedTerms: true, firstName: "Outro", lastName: "Usuário", cpf: "310.037.856-38",
+                email: "outro@example.com",
+                password: "Senha@123",
+                userType: "INDIVIDUAL",
+                acceptedTerms: true,
+                firstName: "Outro",
+                lastName: "Usuário",
+                cpf: "310.037.856-38",
             })
 
             await expect(
                 consumptionService.list(userB.id, {
-                    targetType: "PROPERTY", targetId: property.id, granularity: "hour",
+                    targetType: "PROPERTY",
+                    targetId: property.id,
+                    granularity: "hour",
                 }),
             ).rejects.toThrow(ForbiddenError)
         })
@@ -130,7 +166,8 @@ describe("ConsumptionService.list", () => {
             await insertReading(meter.id, "2026-01-15T14:10:00Z", 0.03, 1800)
 
             const result = await consumptionService.list(user.id, {
-                targetType: "PROPERTY", targetId: property.id,
+                targetType: "PROPERTY",
+                targetId: property.id,
                 granularity: "hour",
             })
 
@@ -154,7 +191,9 @@ describe("ConsumptionService.list", () => {
             await insertReading(meter.id, "2026-01-15T04:00:00Z", 0.07, 4200)
 
             const result = await consumptionService.list(user.id, {
-                targetType: "PROPERTY", targetId: property.id, granularity: "day",
+                targetType: "PROPERTY",
+                targetId: property.id,
+                granularity: "day",
             })
 
             expect(result.total).toBe(2)
@@ -169,7 +208,9 @@ describe("ConsumptionService.list", () => {
             await insertReading(meter.id, "2026-01-15T15:00:00Z", 40, 1000)
 
             const result = await consumptionService.list(user.id, {
-                targetType: "PROPERTY", targetId: property.id, granularity: "month",
+                targetType: "PROPERTY",
+                targetId: property.id,
+                granularity: "month",
             })
 
             expect(result.items).toHaveLength(1)
@@ -185,7 +226,9 @@ describe("ConsumptionService.list", () => {
             await insertReading(meter.id, "2026-02-15T15:00:00Z", 30, 1000)
 
             const result = await consumptionService.list(user.id, {
-                targetType: "PROPERTY", targetId: property.id, granularity: "year",
+                targetType: "PROPERTY",
+                targetId: property.id,
+                granularity: "year",
             })
 
             expect(result.items).toHaveLength(1)
@@ -200,13 +243,23 @@ describe("ConsumptionService.list", () => {
             const { user, property } = await setupPropertyMeter()
             const area = await areaService.create(property.id, user.id, { name: "Sala" })
             const areaMeter = await prismaTest.meter.create({
-                data: { name: "Medidor Área", targetType: "AREA", areaId: area.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "area/medidor" },
+                data: {
+                    name: "Medidor Área",
+                    targetType: "AREA",
+                    areaId: area.id,
+                    protocol: "MQTT",
+                    host: "localhost",
+                    port: 1883,
+                    topic: "area/medidor",
+                },
             })
 
             await insertReading(areaMeter.id, "2026-01-15T15:00:00Z", 40, 1000)
 
             const result = await consumptionService.list(user.id, {
-                targetType: "AREA", targetId: area.id, granularity: "month",
+                targetType: "AREA",
+                targetId: area.id,
+                granularity: "month",
             })
 
             expect(result.items[0]!.costBrl).toBeCloseTo(40 * RATE, 6)
@@ -222,7 +275,11 @@ describe("ConsumptionService.list", () => {
             await insertReading(meter.id, "2026-01-15T15:00:00Z", 0.01, 600)
 
             const result = await consumptionService.list(user.id, {
-                targetType: "PROPERTY", targetId: property.id, granularity: "hour", page: 1, pageSize: 2,
+                targetType: "PROPERTY",
+                targetId: property.id,
+                granularity: "hour",
+                page: 1,
+                pageSize: 2,
             })
 
             expect(result.items).toHaveLength(2)

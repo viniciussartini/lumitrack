@@ -7,9 +7,7 @@ describe("MfaCodeForm — validação client-side", () => {
     it("mostra erro quando o código está vazio", async () => {
         const user = userEvent.setup()
         const onSubmit = vi.fn()
-        render(
-            <MfaCodeForm description="desc" submitLabel="Verificar" onSubmit={onSubmit} />,
-        )
+        render(<MfaCodeForm description="desc" submitLabel="Verificar" onSubmit={onSubmit} />)
 
         await user.click(screen.getByRole("button", { name: /verificar/i }))
 
@@ -22,9 +20,7 @@ describe("MfaCodeForm — submit", () => {
     it("chama onSubmit com o código digitado", async () => {
         const user = userEvent.setup()
         const onSubmit = vi.fn().mockResolvedValue(undefined)
-        render(
-            <MfaCodeForm description="desc" submitLabel="Verificar" onSubmit={onSubmit} />,
-        )
+        render(<MfaCodeForm description="desc" submitLabel="Verificar" onSubmit={onSubmit} />)
 
         await user.type(screen.getByLabelText(/código de verificação/i), "123456")
         await user.click(screen.getByRole("button", { name: /verificar/i }))
@@ -35,9 +31,7 @@ describe("MfaCodeForm — submit", () => {
     it("exibe erro inline quando onSubmit rejeita", async () => {
         const user = userEvent.setup()
         const onSubmit = vi.fn().mockRejectedValue(new Error("Código inválido"))
-        render(
-            <MfaCodeForm description="desc" submitLabel="Verificar" onSubmit={onSubmit} />,
-        )
+        render(<MfaCodeForm description="desc" submitLabel="Verificar" onSubmit={onSubmit} />)
 
         await user.type(screen.getByLabelText(/código de verificação/i), "000000")
         await user.click(screen.getByRole("button", { name: /verificar/i }))

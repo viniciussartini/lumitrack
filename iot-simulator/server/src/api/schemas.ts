@@ -1,6 +1,11 @@
 import { z } from "zod"
 
-export const deviceProfileSchema = z.enum(["RESIDENTIAL_STEADY", "COMMERCIAL_HVAC", "INDUSTRIAL_MOTOR", "CUSTOM"])
+export const deviceProfileSchema = z.enum([
+    "RESIDENTIAL_STEADY",
+    "COMMERCIAL_HVAC",
+    "INDUSTRIAL_MOTOR",
+    "CUSTOM",
+])
 
 export const deviceParamsSchema = z.object({
     nominalVoltage: z.number().positive(),

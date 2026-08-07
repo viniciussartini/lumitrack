@@ -35,7 +35,7 @@ export class MqttConnection implements IConnection {
 
     constructor(config: MqttConnectionConfig) {
         this.meterId = config.meterId
-        this.config   = config
+        this.config = config
     }
 
     async connect(): Promise<void> {
@@ -81,7 +81,7 @@ export class MqttConnection implements IConnection {
                 if (!this.dataHandler) {
                     return
                 }
-                
+
                 try {
                     const parsed = JSON.parse(payload.toString()) as Record<string, unknown>
                     this.dataHandler(parsed)
@@ -98,12 +98,16 @@ export class MqttConnection implements IConnection {
         }
 
         const mqttClient = this.client as { end: (force: boolean, cb: () => void) => void }
-        await new Promise<void>((resolve) => { mqttClient.end(false, () => resolve()) })
+        await new Promise<void>((resolve) => {
+            mqttClient.end(false, () => resolve())
+        })
         this.connected = false
-        this.client    = null
+        this.client = null
     }
 
-    isConnected(): boolean { return this.connected }
+    isConnected(): boolean {
+        return this.connected
+    }
 
     onData(handler: (data: Record<string, unknown>) => void): void {
         this.dataHandler = handler

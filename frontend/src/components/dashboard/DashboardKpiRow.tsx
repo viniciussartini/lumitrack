@@ -47,10 +47,7 @@ export const DashboardKpiRow = ({ propertyId, reading, isStale }: DashboardKpiRo
     const tariffFlagQuery = useTariffFlag()
 
     const currentPowerKw = !isStale && reading ? reading.powerW / 1000 : null
-    const estimatedCostPerHour = computeEstimatedCostPerHour(
-        hourQuery.data?.items,
-        currentPowerKw,
-    )
+    const estimatedCostPerHour = computeEstimatedCostPerHour(hourQuery.data?.items, currentPowerKw)
 
     const todayBucket = findBucketForDate(dayQuery.data?.items ?? [], now)
     const yesterday = new Date(now)
@@ -58,12 +55,10 @@ export const DashboardKpiRow = ({ propertyId, reading, isStale }: DashboardKpiRo
     const yesterdayBucket = findBucketForDate(dayQuery.data?.items ?? [], yesterday)
     const todayKwh = todayBucket?.kwhConsumed ?? 0
     const yesterdayKwh = yesterdayBucket?.kwhConsumed ?? 0
-    const todayDelta = dayQuery.isSuccess
-        ? computeTodayDelta(todayKwh, yesterdayKwh)
-        : null
+    const todayDelta = dayQuery.isSuccess ? computeTodayDelta(todayKwh, yesterdayKwh) : null
 
-    const currentMonthBucket = monthQuery.data?.items.find(
-        (item) => sameMonth(new Date(item.bucketStart), now),
+    const currentMonthBucket = monthQuery.data?.items.find((item) =>
+        sameMonth(new Date(item.bucketStart), now),
     )
     const monthCostSoFar = currentMonthBucket?.costBrl ?? 0
     const totalDaysInMonth = daysInMonth(now)
@@ -93,7 +88,11 @@ export const DashboardKpiRow = ({ propertyId, reading, isStale }: DashboardKpiRo
                 value={dayQuery.isSuccess ? `${formatKwh(todayKwh)}kWh` : "—"}
                 subValue={
                     todayDelta !== null ? (
-                        <span className={todayDelta > 0 ? "text-status-danger" : "text-status-success"}>
+                        <span
+                            className={
+                                todayDelta > 0 ? "text-status-danger" : "text-status-success"
+                            }
+                        >
                             {signedPercentFormatter.format(todayDelta)} vs. ontem
                         </span>
                     ) : (
@@ -105,9 +104,7 @@ export const DashboardKpiRow = ({ propertyId, reading, isStale }: DashboardKpiRo
             <LiveKpiCard
                 label="Custo projetado · mês"
                 value={projectedMonthCost !== null ? formatBrl(projectedMonthCost) : "—"}
-                subValue={
-                    monthQuery.isSuccess ? `fechamento em ${daysToClose} dias` : "—"
-                }
+                subValue={monthQuery.isSuccess ? `fechamento em ${daysToClose} dias` : "—"}
             />
 
             <LiveKpiCard
@@ -116,7 +113,9 @@ export const DashboardKpiRow = ({ propertyId, reading, isStale }: DashboardKpiRo
                 subValue={
                     tariffFlag ? (
                         <span className={TARIFF_FLAG_TEXT_CLASS[tariffFlag.currentFlag]}>
-                            {formatFlagNote(tariffFlagPer100Kwh(tariffFlag, tariffFlag.currentFlag))}
+                            {formatFlagNote(
+                                tariffFlagPer100Kwh(tariffFlag, tariffFlag.currentFlag),
+                            )}
                         </span>
                     ) : (
                         "—"

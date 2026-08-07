@@ -35,17 +35,83 @@ interface DistributorSeed {
 // PA). ICMS conforme a UF (ver wiki do projeto:
 // https://github.com/viniciussartini/lumitrack/wiki/O-Sistema-Elétrico-Brasileiro).
 const DISTRIBUTORS: DistributorSeed[] = [
-    { name: "Enel Distribuição São Paulo", cnpj: "61.695.227/0001-93", state: "SP", icmsRate: 0.18, targetEffectiveTariff: 0.64 },
-    { name: "CPFL Paulista", cnpj: "33.050.196/0001-88", state: "SP", icmsRate: 0.18, targetEffectiveTariff: 0.7 },
-    { name: "Cemig Distribuição", cnpj: "06.981.180/0001-16", state: "MG", icmsRate: 0.18, targetEffectiveTariff: 0.71 },
-    { name: "Neoenergia Coelba", cnpj: "15.139.629/0001-94", state: "BA", icmsRate: 0.19, targetEffectiveTariff: 0.82 },
-    { name: "Celesc Distribuição", cnpj: "08.336.783/0001-90", state: "SC", icmsRate: 0.17, targetEffectiveTariff: 0.53 },
-    { name: "Light SESA", cnpj: "60.444.437/0001-46", state: "RJ", icmsRate: 0.18, targetEffectiveTariff: 0.78 },
-    { name: "Copel Distribuição", cnpj: "04.368.898/0001-06", state: "PR", icmsRate: 0.19, targetEffectiveTariff: 0.68 },
-    { name: "Neoenergia Pernambuco", cnpj: "10.835.932/0001-08", state: "PE", icmsRate: 0.18, targetEffectiveTariff: 0.77 },
-    { name: "Equatorial Pará", cnpj: "04.895.728/0001-80", state: "PA", icmsRate: 0.19, targetEffectiveTariff: 0.94 },
-    { name: "RGE Sul", cnpj: "02.016.440/0001-62", state: "RS", icmsRate: 0.17, targetEffectiveTariff: 0.72 },
-    { name: "Neoenergia Distribuição Brasília", cnpj: "07.522.669/0001-92", state: "DF", icmsRate: 0.18, targetEffectiveTariff: 0.69 },
+    {
+        name: "Enel Distribuição São Paulo",
+        cnpj: "61.695.227/0001-93",
+        state: "SP",
+        icmsRate: 0.18,
+        targetEffectiveTariff: 0.64,
+    },
+    {
+        name: "CPFL Paulista",
+        cnpj: "33.050.196/0001-88",
+        state: "SP",
+        icmsRate: 0.18,
+        targetEffectiveTariff: 0.7,
+    },
+    {
+        name: "Cemig Distribuição",
+        cnpj: "06.981.180/0001-16",
+        state: "MG",
+        icmsRate: 0.18,
+        targetEffectiveTariff: 0.71,
+    },
+    {
+        name: "Neoenergia Coelba",
+        cnpj: "15.139.629/0001-94",
+        state: "BA",
+        icmsRate: 0.19,
+        targetEffectiveTariff: 0.82,
+    },
+    {
+        name: "Celesc Distribuição",
+        cnpj: "08.336.783/0001-90",
+        state: "SC",
+        icmsRate: 0.17,
+        targetEffectiveTariff: 0.53,
+    },
+    {
+        name: "Light SESA",
+        cnpj: "60.444.437/0001-46",
+        state: "RJ",
+        icmsRate: 0.18,
+        targetEffectiveTariff: 0.78,
+    },
+    {
+        name: "Copel Distribuição",
+        cnpj: "04.368.898/0001-06",
+        state: "PR",
+        icmsRate: 0.19,
+        targetEffectiveTariff: 0.68,
+    },
+    {
+        name: "Neoenergia Pernambuco",
+        cnpj: "10.835.932/0001-08",
+        state: "PE",
+        icmsRate: 0.18,
+        targetEffectiveTariff: 0.77,
+    },
+    {
+        name: "Equatorial Pará",
+        cnpj: "04.895.728/0001-80",
+        state: "PA",
+        icmsRate: 0.19,
+        targetEffectiveTariff: 0.94,
+    },
+    {
+        name: "RGE Sul",
+        cnpj: "02.016.440/0001-62",
+        state: "RS",
+        icmsRate: 0.17,
+        targetEffectiveTariff: 0.72,
+    },
+    {
+        name: "Neoenergia Distribuição Brasília",
+        cnpj: "07.522.669/0001-92",
+        state: "DF",
+        icmsRate: 0.18,
+        targetEffectiveTariff: 0.69,
+    },
 ]
 
 // Arredonda para 6 casas decimais (precisão de Decimal(10,6)).
@@ -55,7 +121,10 @@ function round6(value: number): number {
 
 // Deriva (tusd, te) da tarifa efetiva-alvo, dividindo a base sem tributos
 // meio a meio entre as duas parcelas.
-function deriveTusdTe(targetEffectiveTariff: number, icmsRate: number): { tusd: number; te: number } {
+function deriveTusdTe(
+    targetEffectiveTariff: number,
+    icmsRate: number,
+): { tusd: number; te: number } {
     const base = targetEffectiveTariff * (1 - (icmsRate + PIS_RATE + COFINS_RATE))
     const half = round6(base / 2)
     return { tusd: half, te: half }

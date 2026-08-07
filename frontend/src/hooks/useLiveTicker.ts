@@ -24,7 +24,10 @@ export const useLiveTicker = (): UseLiveTickerResult => {
     useEffect(() => {
         const timer = setInterval(() => {
             setKwh((prev) =>
-                Math.max(LIVE_KWH_MIN, Math.min(LIVE_KWH_MAX, prev + (Math.random() - 0.46) * 0.18)),
+                Math.max(
+                    LIVE_KWH_MIN,
+                    Math.min(LIVE_KWH_MAX, prev + (Math.random() - 0.46) * 0.18),
+                ),
             )
         }, TICK_INTERVAL_MS)
         return () => clearInterval(timer)

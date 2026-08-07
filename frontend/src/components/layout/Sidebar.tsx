@@ -58,7 +58,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => (
         >
             {/* Cabeçalho da sidebar — logo + close (mobile only) */}
             <div
-                className="flex items-center justify-between gap-2.5 border-b px-[18px] pb-[18px] pt-[22px]"
+                className="flex items-center justify-between gap-2.5 border-b px-[18px] pt-[22px] pb-[18px]"
                 style={SIDEBAR_DIVIDER}
             >
                 <LumiTrackWordmark textClassName="text-[19px]" />
@@ -92,10 +92,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => (
             </nav>
 
             {/* Rodapé — identidade do usuário (trigger do UserMenu) + tema */}
-            <div
-                className="flex items-center gap-[11px] border-t p-3.5"
-                style={SIDEBAR_DIVIDER}
-            >
+            <div className="flex items-center gap-[11px] border-t p-3.5" style={SIDEBAR_DIVIDER}>
                 <div className="min-w-0 flex-1">
                     <UserMenu variant="sidebar" />
                 </div>

@@ -48,11 +48,7 @@ export const MfaCodeForm = ({
     }
 
     return (
-        <form
-            onSubmit={handleSubmit(handleFormSubmit)}
-            className="flex flex-col gap-4"
-            noValidate
-        >
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col gap-4" noValidate>
             <p className="text-muted text-sm">{description}</p>
 
             <Input
@@ -65,7 +61,10 @@ export const MfaCodeForm = ({
             />
 
             {serverError && (
-                <div role="alert" className="bg-status-danger/10 text-status-danger px-3 py-2 text-sm">
+                <div
+                    role="alert"
+                    className="bg-status-danger/10 text-status-danger px-3 py-2 text-sm"
+                >
                     {serverError}
                 </div>
             )}

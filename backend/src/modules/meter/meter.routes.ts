@@ -10,17 +10,19 @@ import { DeviceRepository } from "@/modules/device/device.repository.js"
 // Rota top-level: /api/meters — medidor é um recurso independente,
 // vinculável a Property, Area ou Device (não aninhado sob nenhum deles).
 // Montada diretamente no app.ts.
-export function meterRoutes(
-    authenticate: RequestHandler,
-    prismaClient: PrismaClient,
-): Router {
+export function meterRoutes(authenticate: RequestHandler, prismaClient: PrismaClient): Router {
     const router = Router()
 
     const meterRepository = new MeterRepository(prismaClient)
     const propertyRepository = new PropertyRepository(prismaClient)
     const areaRepository = new AreaRepository(prismaClient)
     const deviceRepository = new DeviceRepository(prismaClient)
-    const meterService = new MeterService(meterRepository, propertyRepository, areaRepository, deviceRepository)
+    const meterService = new MeterService(
+        meterRepository,
+        propertyRepository,
+        areaRepository,
+        deviceRepository,
+    )
     const controller = new MeterController(meterService)
 
     router.post("/", authenticate, (req, res, next) => controller.create(req, res, next))
@@ -28,7 +30,9 @@ export function meterRoutes(
 
     // "/by-target" precisa vir ANTES de "/:id" — senão o Express casaria
     // "by-target" como se fosse o valor do param :id.
-    router.get("/by-target", authenticate, (req, res, next) => controller.findByTarget(req, res, next))
+    router.get("/by-target", authenticate, (req, res, next) =>
+        controller.findByTarget(req, res, next),
+    )
 
     router.get("/:id", authenticate, (req, res, next) => controller.findById(req, res, next))
     router.put("/:id", authenticate, (req, res, next) => controller.update(req, res, next))

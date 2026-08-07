@@ -60,9 +60,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
 
             <div className="flex items-center gap-3">
                 {isConnected && (
-                    <span
-                        className="font-heading text-status-success inline-flex items-center gap-[7px] text-[11px] font-semibold tracking-[.07em] uppercase"
-                    >
+                    <span className="font-heading text-status-success inline-flex items-center gap-[7px] text-[11px] font-semibold tracking-[.07em] uppercase">
                         <span
                             aria-hidden="true"
                             className="bg-status-success inline-block h-2 w-2 rounded-full"

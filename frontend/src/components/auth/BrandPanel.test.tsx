@@ -23,6 +23,9 @@ describe("BrandPanel — rodapé", () => {
         expect(copyright.textContent).toContain("© 2026 LumiTrack")
         expect(credit.textContent).toContain("Magnific")
         expect(credit).toHaveClass("text-center")
-        expect(github).toHaveAttribute("aria-label", "Ver o repositório do LumiTrack no GitHub (abre em nova aba)")
+        expect(github).toHaveAttribute(
+            "aria-label",
+            "Ver o repositório do LumiTrack no GitHub (abre em nova aba)",
+        )
     })
 })

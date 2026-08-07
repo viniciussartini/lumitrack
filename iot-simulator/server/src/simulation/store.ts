@@ -49,7 +49,10 @@ export interface UpdateDeviceInput {
 // Necessário porque exactOptionalPropertyTypes impede um spread ingênuo de
 // `PartialDeviceParams` sobre `DeviceParams` (o compilador não sabe que os
 // valores `| undefined` do tipo nunca ocorrem de fato aqui).
-function mergeDefined<T extends object>(base: T, patch: { [K in keyof T]?: T[K] | undefined } | undefined): T {
+function mergeDefined<T extends object>(
+    base: T,
+    patch: { [K in keyof T]?: T[K] | undefined } | undefined,
+): T {
     const result = { ...base }
     if (!patch) return result
     for (const key of Object.keys(patch) as (keyof T)[]) {

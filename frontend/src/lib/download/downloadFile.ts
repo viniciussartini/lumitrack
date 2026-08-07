@@ -21,11 +21,7 @@
  *   blob URL é revogado no mesmo tick do click. setTimeout 0 espera
  *   o navegador iniciar o download antes de liberar o URL.
  */
-export const downloadFile = (
-    filename: string,
-    mimeType: string,
-    content: string,
-): void => {
+export const downloadFile = (filename: string, mimeType: string, content: string): void => {
     const blob = new Blob([content], { type: mimeType })
     const url = URL.createObjectURL(blob)
 

@@ -1,11 +1,17 @@
 import type { ITariffFlagSource } from "@/modules/tariff-flag/sync/ITariffFlagSource.js"
-import type { TariffFlagRepository, TariffFlagConfigResponse } from "@/modules/tariff-flag/tariff-flag.repository.js"
+import type {
+    TariffFlagRepository,
+    TariffFlagConfigResponse,
+} from "@/modules/tariff-flag/tariff-flag.repository.js"
 import type { TariffFlagHistoryRepository } from "@/modules/tariff-flag/tariff-flag-history.repository.js"
 import { logger } from "@/shared/logger/logger.js"
 
 const log = logger.child({ module: "TariffFlagSyncService" })
 
-function sameValues(current: TariffFlagConfigResponse, snapshot: Awaited<ReturnType<ITariffFlagSource["fetchCurrent"]>>): boolean {
+function sameValues(
+    current: TariffFlagConfigResponse,
+    snapshot: Awaited<ReturnType<ITariffFlagSource["fetchCurrent"]>>,
+): boolean {
     return (
         current.currentFlag === snapshot.flag &&
         current.greenPer100Kwh === snapshot.greenPer100Kwh &&
@@ -28,30 +34,45 @@ export class TariffFlagSyncService {
         private readonly tariffFlagHistoryRepository: TariffFlagHistoryRepository,
     ) {}
 
-    async syncOnce(): Promise<void> {
+    private async readCurrentConfig(): Promise<TariffFlagConfigResponse | null> {
         let current: TariffFlagConfigResponse | null
         try {
             current = await this.tariffFlagRepository.get()
         } catch (err) {
             log.error({ err }, "Falha ao ler a configuração vigente antes da sincronização")
-            return
+            return null
         }
 
         if (!current) {
-            log.error("Configuração de bandeira tarifária não encontrada — sincronização automática ignorada")
-            return
+            log.error(
+                "Configuração de bandeira tarifária não encontrada — sincronização automática ignorada",
+            )
+            return null
         }
+
+        return current
+    }
+
+    async syncOnce(): Promise<void> {
+        const current = await this.readCurrentConfig()
+        if (!current) return
 
         let snapshot
         try {
             snapshot = await this.source.fetchCurrent()
         } catch (err) {
-            log.error({ err }, "Falha ao obter a bandeira vigente da fonte oficial — mantendo o último valor conhecido")
+            log.error(
+                { err },
+                "Falha ao obter a bandeira vigente da fonte oficial — mantendo o último valor conhecido",
+            )
             return
         }
 
         if (sameValues(current, snapshot)) {
-            log.info({ flag: current.currentFlag }, "Bandeira vigente já está atualizada, nada a sincronizar")
+            log.info(
+                { flag: current.currentFlag },
+                "Bandeira vigente já está atualizada, nada a sincronizar",
+            )
             return
         }
 

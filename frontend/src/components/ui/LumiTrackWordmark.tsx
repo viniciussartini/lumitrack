@@ -33,7 +33,10 @@ export const LumiTrackWordmark = ({
     textClassName,
     variant = "dark",
 }: LumiTrackWordmarkProps) => (
-    <span data-testid="lumitrack-wordmark" className={cn("inline-flex items-center gap-2.5", className)}>
+    <span
+        data-testid="lumitrack-wordmark"
+        className={cn("inline-flex items-center gap-2.5", className)}
+    >
         <img
             src="/lumitrack-logo.svg"
             alt=""

@@ -62,7 +62,9 @@ describe("devicesRoutes", () => {
 
     it("PATCH /api/devices/:id atualiza name/topic/params", async () => {
         const { app, device } = await createTestAppWithDevice()
-        const res = await request(app).patch(`/api/devices/${device.id}`).send({ name: "Medidor Renomeado" })
+        const res = await request(app)
+            .patch(`/api/devices/${device.id}`)
+            .send({ name: "Medidor Renomeado" })
 
         expect(res.status).toBe(200)
         expect(res.body.name).toBe("Medidor Renomeado")

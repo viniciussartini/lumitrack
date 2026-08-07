@@ -26,13 +26,8 @@ export const PlaceholderPage = ({
                 "dark:border-slate-700 dark:bg-slate-900",
             )}
         >
-            <Icon
-                className="h-12 w-12 text-slate-400 dark:text-slate-600"
-                aria-hidden="true"
-            />
-            <p className="max-w-md text-sm text-slate-600 dark:text-slate-400">
-                {description}
-            </p>
+            <Icon className="h-12 w-12 text-slate-400 dark:text-slate-600" aria-hidden="true" />
+            <p className="max-w-md text-sm text-slate-600 dark:text-slate-400">{description}</p>
         </div>
     </div>
 )

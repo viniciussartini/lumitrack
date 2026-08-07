@@ -18,8 +18,7 @@ vi.mock("@/services/area.service", () => ({
 
 vi.mock("@/services/api", () => ({
     api: {},
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 vi.mock("sonner", () => ({
@@ -38,9 +37,7 @@ const mockArea: Area = {
     updatedAt: new Date().toISOString(),
 }
 
-const renderDialog = (
-    props: Partial<React.ComponentProps<typeof AreaFormDialog>> = {},
-) => {
+const renderDialog = (props: Partial<React.ComponentProps<typeof AreaFormDialog>> = {}) => {
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false, gcTime: 0 },
@@ -71,9 +68,7 @@ describe("AreaFormDialog — criar", () => {
     it("abre com o título 'Adicionar área'", () => {
         renderDialog()
 
-        expect(
-            screen.getByRole("dialog", { name: /adicionar área/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("dialog", { name: /adicionar área/i })).toBeInTheDocument()
     })
 
     it("cria a área e fecha o modal ao submeter", async () => {
@@ -99,9 +94,7 @@ describe("AreaFormDialog — editar", () => {
             mode: { kind: "edit", propertyId: "prop-1", area: mockArea },
         })
 
-        expect(
-            screen.getByRole("dialog", { name: /editar área/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("dialog", { name: /editar área/i })).toBeInTheDocument()
         expect(screen.getByLabelText(/nome da área/i)).toHaveValue("Sala")
     })
 

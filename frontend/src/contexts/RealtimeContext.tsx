@@ -1,10 +1,4 @@
-import {
-    createContext,
-    useContext,
-    useEffect,
-    useState,
-    type ReactNode,
-} from "react"
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
@@ -60,9 +54,7 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
     const { user, isAuthenticated } = useAuth()
     const queryClient = useQueryClient()
     const navigate = useNavigate()
-    const [readingsByMeterId, setReadingsByMeterId] = useState<
-        Record<string, ReadingPayload>
-    >({})
+    const [readingsByMeterId, setReadingsByMeterId] = useState<Record<string, ReadingPayload>>({})
     const [isConnected, setIsConnected] = useState(false)
 
     useEffect(() => {

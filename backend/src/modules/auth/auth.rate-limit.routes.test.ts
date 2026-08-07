@@ -66,7 +66,9 @@ describe("Rate limiting — endpoints de autenticação", () => {
 
         // Esgota o limite para um e-mail.
         for (let i = 0; i < 4; i++) {
-            await request(app).post("/api/auth/login").send({ ...base, email: "alvo-a@example.com" })
+            await request(app)
+                .post("/api/auth/login")
+                .send({ ...base, email: "alvo-a@example.com" })
         }
 
         // Outro e-mail ainda deve passar (chave IP+e-mail distinta) → 401, não 429.

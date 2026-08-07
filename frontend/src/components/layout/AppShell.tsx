@@ -58,10 +58,7 @@ export const AppShell = () => {
         <RealtimeProvider>
             <div className="bg-bg flex h-screen">
                 <div className="print-hide contents">
-                    <Sidebar
-                        isOpen={isSidebarOpen}
-                        onClose={() => setIsSidebarOpen(false)}
-                    />
+                    <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
                 </div>
 
                 <div className="flex flex-1 flex-col overflow-hidden">

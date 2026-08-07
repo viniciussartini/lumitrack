@@ -2,10 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { MoreHorizontal, Pencil, Power, PowerOff, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog"
-import {
-    useDeleteAlert,
-    usePatchAlertEnabled,
-} from "@/hooks/queries/useAlertMutations"
+import { useDeleteAlert, usePatchAlertEnabled } from "@/hooks/queries/useAlertMutations"
 import { extractErrorMessage } from "@/services/api"
 import { cn } from "@/lib/cn"
 import type { AlertWithStatus } from "@/types/alert.types"
@@ -31,10 +28,7 @@ export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
     useEffect(() => {
         if (!isMenuOpen) return
         const handler = (e: MouseEvent) => {
-            if (
-                containerRef.current &&
-                !containerRef.current.contains(e.target as Node)
-            ) {
+            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
                 setIsMenuOpen(false)
             }
         }
@@ -95,7 +89,7 @@ export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
                     "rounded-md p-1.5 text-slate-500 transition-colors",
                     "hover:bg-slate-100 hover:text-slate-700",
                     "dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
+                    "focus-visible:ring-brand-500 focus-visible:ring-2 focus-visible:outline-none",
                 )}
             >
                 <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
@@ -107,7 +101,7 @@ export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
                     aria-label={triggerAriaLabel}
                     data-testid={`alert-menu-${alert.id}`}
                     className={cn(
-                        "absolute right-0 top-full z-20 mt-1 w-52",
+                        "absolute top-full right-0 z-20 mt-1 w-52",
                         "overflow-hidden rounded-md border bg-white shadow-lg",
                         "border-slate-200 dark:border-slate-700 dark:bg-slate-800",
                     )}
@@ -119,7 +113,7 @@ export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
                             onClick={handleEditClick}
                             data-testid={`alert-menu-edit-${alert.id}`}
                             className={cn(
-                                "flex w-full items-center gap-2 px-3 py-2 text-sm text-left",
+                                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
                                 "text-slate-700 hover:bg-slate-50",
                                 "dark:text-slate-200 dark:hover:bg-slate-700",
                             )}
@@ -136,7 +130,7 @@ export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
                         disabled={patchEnabled.isPending}
                         data-testid={`alert-menu-toggle-enabled-${alert.id}`}
                         className={cn(
-                            "flex w-full items-center gap-2 px-3 py-2 text-sm text-left",
+                            "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
                             "text-slate-700 hover:bg-slate-50",
                             "dark:text-slate-200 dark:hover:bg-slate-700",
                             "disabled:cursor-not-allowed disabled:opacity-60",
@@ -161,7 +155,7 @@ export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
                         onClick={handleDeleteClick}
                         data-testid={`alert-menu-delete-${alert.id}`}
                         className={cn(
-                            "flex w-full items-center gap-2 px-3 py-2 text-sm text-left",
+                            "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
                             "text-red-600 hover:bg-red-50",
                             "dark:text-red-400 dark:hover:bg-red-950/30",
                         )}

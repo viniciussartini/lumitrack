@@ -88,10 +88,24 @@ async function setupFull(userInput = validUserA) {
     })
 
     const meter = await prismaTest.meter.create({
-        data: { name: "Medidor Casa", targetType: "PROPERTY", propertyId: property.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "casa/medidor" },
+        data: {
+            name: "Medidor Casa",
+            targetType: "PROPERTY",
+            propertyId: property.id,
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "casa/medidor",
+        },
     })
     await prismaTest.alert.create({
-        data: { userId: user.id, meterId: meter.id, name: "Pico de potência", referencePowerKw: 10, tolerancePercent: 2 },
+        data: {
+            userId: user.id,
+            meterId: meter.id,
+            name: "Pico de potência",
+            referencePowerKw: 10,
+            tolerancePercent: 2,
+        },
     })
 
     await auditRepository.create({
@@ -107,13 +121,16 @@ async function setupFull(userInput = validUserA) {
 
 // ─── Setup e Teardown ─────────────────────────────────────────────────────────
 
-beforeEach(async () => { await cleanDatabase() })
-afterAll(async () => { await prismaTest.$disconnect() })
+beforeEach(async () => {
+    await cleanDatabase()
+})
+afterAll(async () => {
+    await prismaTest.$disconnect()
+})
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("ExportService.generate", () => {
-
     it("agrega todos os dados pessoais do titular", async () => {
         const { user, distributor, property, area, device } = await setupFull()
 
@@ -176,8 +193,8 @@ describe("ExportService.generate", () => {
     })
 
     it("lança NotFoundError para userId inexistente", async () => {
-        await expect(exportService.generate("00000000-0000-0000-0000-000000000000")).rejects.toThrow(
-            NotFoundError,
-        )
+        await expect(
+            exportService.generate("00000000-0000-0000-0000-000000000000"),
+        ).rejects.toThrow(NotFoundError)
     })
 })

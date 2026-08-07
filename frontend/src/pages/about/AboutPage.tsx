@@ -75,10 +75,7 @@ export const AboutPage = () => (
                     .
                 </p>
             </div>
-            <a
-                href={`mailto:${PRIVACY_CONTACT_EMAIL}`}
-                className="btn btn-secondary"
-            >
+            <a href={`mailto:${PRIVACY_CONTACT_EMAIL}`} className="btn btn-secondary">
                 <Mail className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
                 {PRIVACY_CONTACT_EMAIL}
             </a>

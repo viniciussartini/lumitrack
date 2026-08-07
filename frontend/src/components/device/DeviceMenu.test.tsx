@@ -19,8 +19,7 @@ vi.mock("@/services/device.service", () => ({
 
 vi.mock("@/services/api", () => ({
     api: {},
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 vi.mock("sonner", () => ({
@@ -67,11 +66,7 @@ const renderMenu = ({
     })
     return render(
         <QueryClientProvider client={queryClient}>
-            <MemoryRouter
-                initialEntries={[
-                    "/propriedades/prop-1/areas/area-1/devices/device-1",
-                ]}
-            >
+            <MemoryRouter initialEntries={["/propriedades/prop-1/areas/area-1/devices/device-1"]}>
                 <Routes>
                     <Route
                         path="/propriedades/:propertyId/areas/:areaId/devices/:deviceId"
@@ -109,9 +104,7 @@ describe("DeviceMenu — abrir/fechar", () => {
         const user = userEvent.setup()
         renderMenu()
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Ar-condicionado/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Ar-condicionado/i }))
 
         expect(screen.getByRole("menu")).toBeInTheDocument()
     })
@@ -149,9 +142,7 @@ describe("DeviceMenu — item Editar", () => {
         const onEdit = vi.fn()
         renderMenu({ onEdit })
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Ar-condicionado/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Ar-condicionado/i }))
 
         const editItem = screen.getByRole("menuitem", { name: /editar/i })
         expect(editItem).toBeInTheDocument()
@@ -165,31 +156,21 @@ describe("DeviceMenu — item Editar", () => {
         const user = userEvent.setup()
         renderMenu()
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Ar-condicionado/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Ar-condicionado/i }))
 
-        expect(
-            screen.queryByRole("menuitem", { name: /editar/i }),
-        ).not.toBeInTheDocument()
+        expect(screen.queryByRole("menuitem", { name: /editar/i })).not.toBeInTheDocument()
     })
 
     it("não renderiza o item Editar quando showEdit=false", async () => {
         const user = userEvent.setup()
         renderMenu({ showEdit: false, onEdit: vi.fn() })
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Ar-condicionado/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Ar-condicionado/i }))
 
-        expect(
-            screen.queryByRole("menuitem", { name: /editar/i }),
-        ).not.toBeInTheDocument()
+        expect(screen.queryByRole("menuitem", { name: /editar/i })).not.toBeInTheDocument()
 
         // Ainda renderiza o item Excluir
-        expect(
-            screen.getByRole("menuitem", { name: /excluir/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("menuitem", { name: /excluir/i })).toBeInTheDocument()
     })
 })
 
@@ -202,23 +183,17 @@ describe("DeviceMenu — ConfirmDialog (cascade)", () => {
         const user = userEvent.setup()
         renderMenu()
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Ar-condicionado/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Ar-condicionado/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
 
-        expect(
-            screen.getByRole("heading", { name: /excluir dispositivo/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("heading", { name: /excluir dispositivo/i })).toBeInTheDocument()
     })
 
     it("texto do ConfirmDialog menciona registros de consumo, alertas E configurações IoT", async () => {
         const user = userEvent.setup()
         renderMenu()
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Ar-condicionado/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Ar-condicionado/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
 
         // Verifica os 3 elementos do cascade no aviso
@@ -233,9 +208,7 @@ describe("DeviceMenu — ConfirmDialog (cascade)", () => {
             device: { ...mockDevice, name: "Geladeira gourmet" },
         })
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Geladeira gourmet/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Geladeira gourmet/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
 
         // Procura pela frase exata do dialog (evita ambiguidade com aria-label)
@@ -255,18 +228,12 @@ describe("DeviceMenu — exclusão", () => {
         const user = userEvent.setup()
         renderMenu()
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Ar-condicionado/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Ar-condicionado/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
         await user.click(screen.getByRole("button", { name: /^excluir$/i }))
 
         await waitFor(() =>
-            expect(deviceService.delete).toHaveBeenCalledWith(
-                "prop-1",
-                "area-1",
-                "device-1",
-            ),
+            expect(deviceService.delete).toHaveBeenCalledWith("prop-1", "area-1", "device-1"),
         )
     })
 
@@ -276,9 +243,7 @@ describe("DeviceMenu — exclusão", () => {
         const user = userEvent.setup()
         renderMenu({ onAfterDelete })
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Ar-condicionado/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Ar-condicionado/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
         await user.click(screen.getByRole("button", { name: /^excluir$/i }))
 
@@ -291,15 +256,11 @@ describe("DeviceMenu — exclusão", () => {
         const user = userEvent.setup()
         renderMenu({ onAfterDelete })
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Ar-condicionado/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Ar-condicionado/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
         await user.click(screen.getByRole("button", { name: /^excluir$/i }))
 
-        await waitFor(() =>
-            expect(deviceService.delete).toHaveBeenCalled(),
-        )
+        await waitFor(() => expect(deviceService.delete).toHaveBeenCalled())
 
         expect(onAfterDelete).not.toHaveBeenCalled()
     })
@@ -309,18 +270,12 @@ describe("DeviceMenu — exclusão", () => {
         const user = userEvent.setup()
         renderMenu({ onAfterDelete: undefined })
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Ar-condicionado/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Ar-condicionado/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
         await user.click(screen.getByRole("button", { name: /^excluir$/i }))
 
         await waitFor(() =>
-            expect(deviceService.delete).toHaveBeenCalledWith(
-                "prop-1",
-                "area-1",
-                "device-1",
-            ),
+            expect(deviceService.delete).toHaveBeenCalledWith("prop-1", "area-1", "device-1"),
         )
     })
 })

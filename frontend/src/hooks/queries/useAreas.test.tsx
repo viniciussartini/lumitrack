@@ -27,9 +27,7 @@ const mockArea: Area = {
 
 const wrapper = (queryClient: QueryClient) => {
     return ({ children }: { children: ReactNode }) => (
-        <QueryClientProvider client={queryClient}>
-            {children}
-        </QueryClientProvider>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     )
 }
 
@@ -78,9 +76,7 @@ describe("useAreas", () => {
     })
 
     it("propaga erros do service", async () => {
-        vi.mocked(areaService.list).mockRejectedValue(
-            new Error("Falha ao listar áreas"),
-        )
+        vi.mocked(areaService.list).mockRejectedValue(new Error("Falha ao listar áreas"))
         const queryClient = createTestQueryClient()
 
         const { result } = renderHook(() => useAreas("prop-1"), {

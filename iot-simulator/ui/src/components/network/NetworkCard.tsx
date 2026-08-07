@@ -58,7 +58,12 @@ export function NetworkCard({ network }: NetworkCardProps) {
         e.preventDefault()
         if (!deviceName.trim() || !deviceTopic.trim()) return
         createDevice.mutate(
-            { networkId: network.id, name: deviceName.trim(), topic: deviceTopic.trim(), params: deviceParams },
+            {
+                networkId: network.id,
+                name: deviceName.trim(),
+                topic: deviceTopic.trim(),
+                params: deviceParams,
+            },
             { onSuccess: closeDeviceModal },
         )
     }
@@ -82,8 +87,12 @@ export function NetworkCard({ network }: NetworkCardProps) {
                         <ChevronDownIcon
                             className={`text-text/45 shrink-0 transition-transform ${open ? "" : "-rotate-90"}`}
                         />
-                        <span className="font-heading truncate text-lg font-semibold">{network.name}</span>
-                        <span className="text-text/52 shrink-0 text-[13px]">({deviceCountLabel})</span>
+                        <span className="font-heading truncate text-lg font-semibold">
+                            {network.name}
+                        </span>
+                        <span className="text-text/52 shrink-0 text-[13px]">
+                            ({deviceCountLabel})
+                        </span>
                     </div>
                     <Button
                         variant="ghost"
@@ -105,9 +114,15 @@ export function NetworkCard({ network }: NetworkCardProps) {
                             device={device}
                             onPowerToggle={(on) => setPower.mutate({ id: device.id, on })}
                             onDelete={() => deleteDevice.mutate(device.id)}
-                            onSaveParams={(params) => updateDevice.mutate({ id: device.id, patch: { params } })}
+                            onSaveParams={(params) =>
+                                updateDevice.mutate({ id: device.id, patch: { params } })
+                            }
                             onTriggerAnomaly={(multiplier, durationSeconds) =>
-                                triggerAnomaly.mutate({ id: device.id, multiplier, durationSeconds })
+                                triggerAnomaly.mutate({
+                                    id: device.id,
+                                    multiplier,
+                                    durationSeconds,
+                                })
                             }
                             onClearAnomaly={() => clearAnomaly.mutate(device.id)}
                             isPowerPending={setPower.isPending}
@@ -117,7 +132,9 @@ export function NetworkCard({ network }: NetworkCardProps) {
                     ))}
 
                     {network.devices.length === 0 && (
-                        <p className="text-text/55 px-0.5 text-[13px]">Nenhum dispositivo nesta rede ainda.</p>
+                        <p className="text-text/55 px-0.5 text-[13px]">
+                            Nenhum dispositivo nesta rede ainda.
+                        </p>
                     )}
 
                     <div className="border-divider border-t border-dashed pt-3.5">
@@ -145,7 +162,11 @@ export function NetworkCard({ network }: NetworkCardProps) {
                             <Button type="button" variant="ghost" onClick={closeDeviceModal}>
                                 Cancelar
                             </Button>
-                            <Button type="submit" variant="secondary" isLoading={createDevice.isPending}>
+                            <Button
+                                type="submit"
+                                variant="secondary"
+                                isLoading={createDevice.isPending}
+                            >
                                 Adicionar dispositivo
                             </Button>
                         </>
@@ -174,7 +195,10 @@ export function NetworkCard({ network }: NetworkCardProps) {
                                 Parâmetros iniciais
                             </span>
                             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                                <DeviceParamsFields params={deviceParams} onChange={setDeviceParams} />
+                                <DeviceParamsFields
+                                    params={deviceParams}
+                                    onChange={setDeviceParams}
+                                />
                             </div>
                             <Select
                                 label="Perfil"

@@ -1,10 +1,4 @@
-import {
-    createContext,
-    useContext,
-    useEffect,
-    useState,
-    type ReactNode,
-} from "react"
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
 import { authState } from "@/lib/authState"
@@ -62,7 +56,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             setIsLoading(false)
         }
         bootstrap()
-        return () => { cancelProactiveRefresh() }
+        return () => {
+            cancelProactiveRefresh()
+        }
     }, [])
 
     useEffect(() => {
@@ -90,9 +86,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
     }
 
-    const completeMfaLogin = async (
-        input: MfaLoginVerifyInput,
-    ): Promise<void> => {
+    const completeMfaLogin = async (input: MfaLoginVerifyInput): Promise<void> => {
         try {
             const fullUser = await authService.verifyMfaLogin(input)
             updateUser(fullUser)

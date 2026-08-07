@@ -11,7 +11,12 @@ import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
 // `auditService` para registrar acessos negados (403) sem instrumentar cada
 // um dos ~17 pontos do código que lançam `ForbiddenError` individualmente.
 export function createErrorHandler(auditService: AuditService): ErrorRequestHandler {
-    return async function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): Promise<void> {
+    return async function errorHandler(
+        err: unknown,
+        req: Request,
+        res: Response,
+        _next: NextFunction,
+    ): Promise<void> {
         // Erro de validação do Zod
         // Zod lança ZodError com um array de issues detalhadas.
         if (err instanceof ZodError) {

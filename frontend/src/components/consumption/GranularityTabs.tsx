@@ -12,11 +12,7 @@ interface GranularityTabsProps {
  * "Tudo": ao contrário do modelo antigo (registros manuais), consumo
  * agregado sempre tem uma granularidade ativa.
  */
-export const GranularityTabs = ({
-    granularities,
-    value,
-    onChange,
-}: GranularityTabsProps) => (
+export const GranularityTabs = ({ granularities, value, onChange }: GranularityTabsProps) => (
     <div
         role="tablist"
         aria-label="Granularidade do consumo"

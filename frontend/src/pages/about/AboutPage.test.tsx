@@ -10,9 +10,7 @@ describe("AboutPage", () => {
         expect(await screen.findByRole("heading", { name: /o que é/i })).toBeInTheDocument()
         expect(screen.getByRole("heading", { name: /o problema/i })).toBeInTheDocument()
         expect(screen.getByRole("heading", { name: /para quem é/i })).toBeInTheDocument()
-        expect(
-            screen.getByRole("heading", { name: /motivação e objetivos/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("heading", { name: /motivação e objetivos/i })).toBeInTheDocument()
     })
 
     it("não renderiza um h1 local — o título vem do Header contextual", async () => {
@@ -36,7 +34,9 @@ describe("AboutPage", () => {
     it("publica o canal de privacidade e linka para o Perfil", async () => {
         renderWithProviders(<AboutPage />)
 
-        const privacyLink = await screen.findByRole("link", { name: new RegExp(PRIVACY_CONTACT_EMAIL) })
+        const privacyLink = await screen.findByRole("link", {
+            name: new RegExp(PRIVACY_CONTACT_EMAIL),
+        })
         expect(privacyLink).toHaveAttribute("href", `mailto:${PRIVACY_CONTACT_EMAIL}`)
         expect(screen.getByRole("link", { name: "Perfil" })).toHaveAttribute("href", "/perfil")
     })

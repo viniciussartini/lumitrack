@@ -16,21 +16,28 @@ describe("api", () => {
 
         expect(fetch).toHaveBeenCalledWith(
             "/api/broker/info",
-            expect.objectContaining({ headers: expect.objectContaining({ "Content-Type": "application/json" }) }),
+            expect.objectContaining({
+                headers: expect.objectContaining({ "Content-Type": "application/json" }),
+            }),
         )
         expect(result).toEqual(mockResponse)
     })
 
     it("faz POST com method e body corretos", async () => {
         vi.mocked(fetch).mockResolvedValue(
-            new Response(JSON.stringify({ id: "1", name: "Casa Teste", devices: [] }), { status: 201 }),
+            new Response(JSON.stringify({ id: "1", name: "Casa Teste", devices: [] }), {
+                status: 201,
+            }),
         )
 
         await api.createNetwork("Casa Teste")
 
         expect(fetch).toHaveBeenCalledWith(
             "/api/networks",
-            expect.objectContaining({ method: "POST", body: JSON.stringify({ name: "Casa Teste" }) }),
+            expect.objectContaining({
+                method: "POST",
+                body: JSON.stringify({ name: "Casa Teste" }),
+            }),
         )
     })
 
@@ -44,7 +51,9 @@ describe("api", () => {
 
     it("lança Error com a mensagem do corpo quando a resposta não é ok", async () => {
         vi.mocked(fetch).mockResolvedValue(
-            new Response(JSON.stringify({ status: "error", message: "Rede não encontrada" }), { status: 404 }),
+            new Response(JSON.stringify({ status: "error", message: "Rede não encontrada" }), {
+                status: 404,
+            }),
         )
 
         await expect(api.deleteNetwork("id-inexistente")).rejects.toThrow("Rede não encontrada")

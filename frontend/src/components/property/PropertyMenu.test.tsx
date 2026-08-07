@@ -20,8 +20,7 @@ vi.mock("@/services/property.service", () => ({
 
 vi.mock("@/services/api", () => ({
     api: {},
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 vi.mock("sonner", () => ({
@@ -92,9 +91,7 @@ describe("PropertyMenu — abertura do menu", () => {
         const user = userEvent.setup()
         renderMenu()
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Casa Principal/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Casa Principal/i }))
 
         expect(screen.getByRole("menu")).toBeInTheDocument()
     })
@@ -124,22 +121,16 @@ describe("PropertyMenu — item Editar", () => {
         const user = userEvent.setup()
         renderMenu()
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Casa Principal/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Casa Principal/i }))
 
-        expect(
-            screen.getByRole("menuitem", { name: /editar/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("menuitem", { name: /editar/i })).toBeInTheDocument()
     })
 
     it("chama onEdit e fecha o menu ao clicar em Editar", async () => {
         const user = userEvent.setup()
         const { onEdit } = renderMenu()
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Casa Principal/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Casa Principal/i }))
         await user.click(screen.getByRole("menuitem", { name: /editar/i }))
 
         expect(onEdit).toHaveBeenCalledTimes(1)
@@ -150,17 +141,11 @@ describe("PropertyMenu — item Editar", () => {
         const user = userEvent.setup()
         renderMenu({ showEdit: false })
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Casa Principal/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Casa Principal/i }))
 
         // Confere que não há "Editar" — mas Excluir continua presente.
-        expect(
-            screen.queryByRole("menuitem", { name: /editar/i }),
-        ).not.toBeInTheDocument()
-        expect(
-            screen.getByRole("menuitem", { name: /excluir/i }),
-        ).toBeInTheDocument()
+        expect(screen.queryByRole("menuitem", { name: /editar/i })).not.toBeInTheDocument()
+        expect(screen.getByRole("menuitem", { name: /excluir/i })).toBeInTheDocument()
     })
 
     it("não mostra o item Editar quando onEdit não é passado (fail-safe)", async () => {
@@ -179,22 +164,16 @@ describe("PropertyMenu — item Editar", () => {
             </QueryClientProvider>,
         )
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Casa Principal/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Casa Principal/i }))
 
-        expect(
-            screen.queryByRole("menuitem", { name: /editar/i }),
-        ).not.toBeInTheDocument()
+        expect(screen.queryByRole("menuitem", { name: /editar/i })).not.toBeInTheDocument()
     })
 
     it("Editar aparece ANTES de Excluir na ordem do menu", async () => {
         const user = userEvent.setup()
         renderMenu()
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Casa Principal/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Casa Principal/i }))
 
         const items = screen.getAllByRole("menuitem")
         // Editar deve ser o primeiro item, Excluir o segundo
@@ -212,14 +191,10 @@ describe("PropertyMenu — exclusão", () => {
         const user = userEvent.setup()
         renderMenu()
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Casa Principal/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Casa Principal/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
 
-        expect(
-            screen.getByRole("heading", { name: /excluir propriedade/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("heading", { name: /excluir propriedade/i })).toBeInTheDocument()
         expect(
             screen.getByText(/tem certeza que deseja excluir "Casa Principal"/i),
         ).toBeInTheDocument()
@@ -231,9 +206,7 @@ describe("PropertyMenu — exclusão", () => {
         const user = userEvent.setup()
         renderMenu()
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Casa Principal/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Casa Principal/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
         await user.click(screen.getByRole("button", { name: "Excluir" }))
 
@@ -248,9 +221,7 @@ describe("PropertyMenu — exclusão", () => {
         const user = userEvent.setup()
         renderMenu()
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Casa Principal/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Casa Principal/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
         await user.click(screen.getByRole("button", { name: "Excluir" }))
 
@@ -266,9 +237,7 @@ describe("PropertyMenu — exclusão", () => {
         const user = userEvent.setup()
         renderMenu({ onAfterDelete })
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Casa Principal/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Casa Principal/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
         await user.click(screen.getByRole("button", { name: "Excluir" }))
 
@@ -278,17 +247,13 @@ describe("PropertyMenu — exclusão", () => {
     })
 
     it("NÃO chama onAfterDelete quando exclusão falha", async () => {
-        vi.mocked(propertyService.delete).mockRejectedValue(
-            new Error("Internal error"),
-        )
+        vi.mocked(propertyService.delete).mockRejectedValue(new Error("Internal error"))
         const onAfterDelete = vi.fn()
 
         const user = userEvent.setup()
         renderMenu({ onAfterDelete })
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Casa Principal/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Casa Principal/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
         await user.click(screen.getByRole("button", { name: "Excluir" }))
 
@@ -300,16 +265,12 @@ describe("PropertyMenu — exclusão", () => {
     })
 
     it("mostra toast de erro genérico quando o delete falha", async () => {
-        vi.mocked(propertyService.delete).mockRejectedValue(
-            new Error("Internal error"),
-        )
+        vi.mocked(propertyService.delete).mockRejectedValue(new Error("Internal error"))
 
         const user = userEvent.setup()
         renderMenu()
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Casa Principal/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Casa Principal/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
         await user.click(screen.getByRole("button", { name: "Excluir" }))
 
@@ -327,9 +288,7 @@ describe("PropertyMenu — exclusão", () => {
         const user = userEvent.setup()
         renderMenu()
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Casa Principal/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Casa Principal/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
 
         expect(screen.getByRole("dialog")).toBeInTheDocument()

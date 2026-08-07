@@ -74,13 +74,20 @@ export class ModbusTcpConnection implements IConnection {
 
             try {
                 const modbusClient = this.client as {
-                    readHoldingRegisters: (addr: number, count: number) => Promise<{
+                    readHoldingRegisters: (
+                        addr: number,
+                        count: number,
+                    ) => Promise<{
                         response: { body: { values: number[] } }
                     }>
                 }
                 const result = await modbusClient.readHoldingRegisters(registerAddress, 1)
-                const value  = result.response.body.values[0]
-                this.dataHandler({ register: this.config.address, value, timestamp: new Date().toISOString() })
+                const value = result.response.body.values[0]
+                this.dataHandler({
+                    register: this.config.address,
+                    value,
+                    timestamp: new Date().toISOString(),
+                })
             } catch (err) {
                 logger.error({ module: "ModbusTCP", meterId: this.meterId, err }, "Erro na leitura")
             }
@@ -104,7 +111,9 @@ export class ModbusTcpConnection implements IConnection {
         this.client = null
     }
 
-    isConnected(): boolean { return this.connected }
+    isConnected(): boolean {
+        return this.connected
+    }
 
     onData(handler: (data: Record<string, unknown>) => void): void {
         this.dataHandler = handler
@@ -122,8 +131,8 @@ export class ModbusTcpConnection implements IConnection {
 
 export interface ModbusRtuConnectionConfig {
     meterId: string
-    address: string   // caminho da porta serial, ex: "/dev/ttyUSB0" ou "COM3"
-    baudRate?: number   // (do campo extra) padrao 9600
+    address: string // caminho da porta serial, ex: "/dev/ttyUSB0" ou "COM3"
+    baudRate?: number // (do campo extra) padrao 9600
     pollingIntervalMs?: number
     unitId?: number
 }
@@ -140,7 +149,7 @@ export class ModbusRtuConnection implements IConnection {
 
     constructor(config: ModbusRtuConnectionConfig) {
         this.meterId = config.meterId
-        this.config   = config
+        this.config = config
     }
 
     async connect(): Promise<void> {
@@ -185,13 +194,20 @@ export class ModbusRtuConnection implements IConnection {
 
             try {
                 const modbusClient = this.client as {
-                    readHoldingRegisters: (addr: number, count: number) => Promise<{
+                    readHoldingRegisters: (
+                        addr: number,
+                        count: number,
+                    ) => Promise<{
                         response: { body: { values: number[] } }
                     }>
                 }
                 const result = await modbusClient.readHoldingRegisters(0, 1)
-                const value  = result.response.body.values[0]
-                this.dataHandler({ port: this.config.address, value, timestamp: new Date().toISOString() })
+                const value = result.response.body.values[0]
+                this.dataHandler({
+                    port: this.config.address,
+                    value,
+                    timestamp: new Date().toISOString(),
+                })
             } catch (err) {
                 logger.error({ module: "ModbusRTU", meterId: this.meterId, err }, "Erro na leitura")
             }
@@ -214,7 +230,9 @@ export class ModbusRtuConnection implements IConnection {
         this.client = null
     }
 
-    isConnected(): boolean { return this.connected }
+    isConnected(): boolean {
+        return this.connected
+    }
 
     onData(handler: (data: Record<string, unknown>) => void): void {
         this.dataHandler = handler
@@ -235,7 +253,7 @@ export interface EthernetIpConnectionConfig {
     meterId: string
     host: string
     port?: number
-    address?: string   // tag CIP a monitorar, ex: "Motor.Speed"
+    address?: string // tag CIP a monitorar, ex: "Motor.Speed"
     pollingIntervalMs?: number
 }
 
@@ -279,7 +297,10 @@ export class EthernetIpConnection implements IConnection {
                 const value = await this.plc.read(tag)
                 this.dataHandler({ tag, value, timestamp: new Date().toISOString() })
             } catch (err) {
-                logger.error({ module: "EthernetIP", meterId: this.meterId, err }, "Erro na leitura")
+                logger.error(
+                    { module: "EthernetIP", meterId: this.meterId, err },
+                    "Erro na leitura",
+                )
             }
         }, intervalMs)
     }
@@ -299,7 +320,9 @@ export class EthernetIpConnection implements IConnection {
         this.plc = null
     }
 
-    isConnected(): boolean { return this.connected }
+    isConnected(): boolean {
+        return this.connected
+    }
 
     onData(handler: (data: Record<string, unknown>) => void): void {
         this.dataHandler = handler
@@ -346,14 +369,20 @@ export class ProfibusConnection implements IConnection {
     async connect(): Promise<void> {
         throw new Error(
             `[ProfibusConnection] Protocolo PROFIBUS requer integracao com SDK nativo do fabricante. ` +
-            `Consulte a documentacao em src/modules/iot/iot-worker/protocols/ModbusTcpConnection.ts ` +
-            `para instrucoes de implementacao. Address configurado: ${this.config.address}`
+                `Consulte a documentacao em src/modules/iot/iot-worker/protocols/ModbusTcpConnection.ts ` +
+                `para instrucoes de implementacao. Address configurado: ${this.config.address}`,
         )
     }
 
-    async disconnect(): Promise<void> { /* noop — nunca conectou */ }
-    isConnected(): boolean { return this.connected }
-    onData(_handler: (data: Record<string, unknown>) => void): void { /* noop */ }
+    async disconnect(): Promise<void> {
+        /* noop — nunca conectou */
+    }
+    isConnected(): boolean {
+        return this.connected
+    }
+    onData(_handler: (data: Record<string, unknown>) => void): void {
+        /* noop */
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -370,10 +399,10 @@ export interface ProfinetConnectionConfig {
     meterId: string
     host: string
     port?: number
-    address?: string   // area de memoria, ex: "DB1" (Data Block 1)
+    address?: string // area de memoria, ex: "DB1" (Data Block 1)
     pollingIntervalMs?: number
-    rack?: number   // rack do PLC Siemens (padrao 0)
-    slot?: number   // slot da CPU (padrao 1)
+    rack?: number // rack do PLC Siemens (padrao 0)
+    slot?: number // slot da CPU (padrao 1)
 }
 
 export class ProfinetConnection implements IConnection {
@@ -396,12 +425,19 @@ export class ProfinetConnection implements IConnection {
         }
 
         const S7 = await import("node-snap7").catch(() => {
-            throw new Error(`[Profinet] Pacote "node-snap7" nao encontrado. Execute: npm install node-snap7`)
+            throw new Error(
+                `[Profinet] Pacote "node-snap7" nao encontrado. Execute: npm install node-snap7`,
+            )
         })
 
         this.client = new S7.S7Client()
         const client = this.client as {
-            ConnectTo: (host: string, rack: number, slot: number, cb: (err: Error | null) => void) => void
+            ConnectTo: (
+                host: string,
+                rack: number,
+                slot: number,
+                cb: (err: Error | null) => void,
+            ) => void
         }
 
         await new Promise<void>((resolve, reject) => {
@@ -409,7 +445,13 @@ export class ProfinetConnection implements IConnection {
                 this.config.host,
                 this.config.rack ?? 0,
                 this.config.slot ?? 1,
-                (err) => { if (err) reject(err); else { this.connected = true; resolve() } }
+                (err) => {
+                    if (err) reject(err)
+                    else {
+                        this.connected = true
+                        resolve()
+                    }
+                },
             )
         })
 
@@ -418,7 +460,7 @@ export class ProfinetConnection implements IConnection {
 
     private _startPolling(): void {
         const intervalMs = this.config.pollingIntervalMs ?? 5000
-        const dbNumber   = parseInt((this.config.address ?? "DB1").replace("DB", ""), 10) || 1
+        const dbNumber = parseInt((this.config.address ?? "DB1").replace("DB", ""), 10) || 1
 
         this.pollingTimer = setInterval(async () => {
             if (!this.dataHandler || !this.client) {
@@ -427,12 +469,24 @@ export class ProfinetConnection implements IConnection {
 
             try {
                 const client = this.client as {
-                    DBRead: (db: number, start: number, size: number, cb: (err: Error | null, data: Buffer) => void) => void
+                    DBRead: (
+                        db: number,
+                        start: number,
+                        size: number,
+                        cb: (err: Error | null, data: Buffer) => void,
+                    ) => void
                 }
                 const data = await new Promise<Buffer>((resolve, reject) => {
-                    client.DBRead(dbNumber, 0, 10, (err, buf) => { if (err) reject(err); else resolve(buf) })
+                    client.DBRead(dbNumber, 0, 10, (err, buf) => {
+                        if (err) reject(err)
+                        else resolve(buf)
+                    })
                 })
-                this.dataHandler({ db: dbNumber, data: Array.from(data), timestamp: new Date().toISOString() })
+                this.dataHandler({
+                    db: dbNumber,
+                    data: Array.from(data),
+                    timestamp: new Date().toISOString(),
+                })
             } catch (err) {
                 logger.error({ module: "Profinet", meterId: this.meterId, err }, "Erro na leitura")
             }
@@ -452,10 +506,12 @@ export class ProfinetConnection implements IConnection {
         const client = this.client as { Disconnect: () => void }
         client.Disconnect()
         this.connected = false
-        this.client    = null
+        this.client = null
     }
 
-    isConnected(): boolean { return this.connected }
+    isConnected(): boolean {
+        return this.connected
+    }
 
     onData(handler: (data: Record<string, unknown>) => void): void {
         this.dataHandler = handler
@@ -487,13 +543,13 @@ export class Rs232Connection implements IConnection {
 
     private port: unknown = null
     private connected = false
-    private buffer: string  = ""
+    private buffer: string = ""
     private dataHandler: ((data: Record<string, unknown>) => void) | null = null
     private readonly config: Rs232ConnectionConfig
 
     constructor(config: Rs232ConnectionConfig) {
         this.meterId = config.meterId
-        this.config   = config
+        this.config = config
     }
 
     async connect(): Promise<void> {
@@ -514,7 +570,13 @@ export class Rs232Connection implements IConnection {
         this.port = serialPort
 
         await new Promise<void>((resolve, reject) => {
-            serialPort.open((err) => { if (err) reject(err); else { this.connected = true; resolve() } })
+            serialPort.open((err) => {
+                if (err) reject(err)
+                else {
+                    this.connected = true
+                    resolve()
+                }
+            })
         })
 
         // RS-232 e ponto-a-ponto orientado a eventos — o dispositivo envia
@@ -522,8 +584,8 @@ export class Rs232Connection implements IConnection {
         // Acumulamos fragmentos no buffer e processamos linhas completas ().
         serialPort.on("data", (chunk: Buffer) => {
             this.buffer += chunk.toString()
-            const lines  = this.buffer.split("\n")
-            this.buffer  = lines.pop() ?? ""
+            const lines = this.buffer.split("\n")
+            this.buffer = lines.pop() ?? ""
             for (const line of lines) {
                 const trimmed = line.trim()
 
@@ -553,7 +615,9 @@ export class Rs232Connection implements IConnection {
         this.buffer = ""
     }
 
-    isConnected(): boolean { return this.connected }
+    isConnected(): boolean {
+        return this.connected
+    }
 
     onData(handler: (data: Record<string, unknown>) => void): void {
         this.dataHandler = handler
@@ -575,7 +639,7 @@ export class Rs232Connection implements IConnection {
 
 export interface Rs485ConnectionConfig {
     meterId: string
-    address: string   // porta serial, ex: "/dev/ttyUSB0" ou "COM3"
+    address: string // porta serial, ex: "/dev/ttyUSB0" ou "COM3"
     baudRate?: number
     dataBits?: 5 | 6 | 7 | 8
     stopBits?: 1 | 1.5 | 2
@@ -588,13 +652,13 @@ export class Rs485Connection implements IConnection {
 
     private port: unknown = null
     private connected = false
-    private buffer: string  = ""
+    private buffer: string = ""
     private dataHandler: ((data: Record<string, unknown>) => void) | null = null
     private readonly config: Rs485ConnectionConfig
 
     constructor(config: Rs485ConnectionConfig) {
         this.meterId = config.meterId
-        this.config   = config
+        this.config = config
     }
 
     async connect(): Promise<void> {
@@ -609,22 +673,28 @@ export class Rs485Connection implements IConnection {
             baudRate: this.config.baudRate ?? 9600,
             dataBits: this.config.dataBits ?? 8,
             stopBits: this.config.stopBits ?? 1,
-            parity: this.config.parity   ?? "none",
+            parity: this.config.parity ?? "none",
             autoOpen: false,
         })
 
         const serialPort = this.port as InstanceType<typeof SerialPort>
 
         await new Promise<void>((resolve, reject) => {
-            serialPort.open((err) => { if (err) reject(err); else { this.connected = true; resolve() } })
+            serialPort.open((err) => {
+                if (err) reject(err)
+                else {
+                    this.connected = true
+                    resolve()
+                }
+            })
         })
 
         // RS-485 multipoint — dispositivos enviam dados de forma assincrona.
         // O mesmo padrao de buffer de linhas que o Rs232Connection.
         serialPort.on("data", (chunk: Buffer) => {
             this.buffer += chunk.toString()
-            const lines  = this.buffer.split("")
-            this.buffer  = lines.pop() ?? ""
+            const lines = this.buffer.split("")
+            this.buffer = lines.pop() ?? ""
             for (const line of lines) {
                 const trimmed = line.trim()
 
@@ -636,7 +706,11 @@ export class Rs485Connection implements IConnection {
                     const parsed = JSON.parse(trimmed) as Record<string, unknown>
                     this.dataHandler(parsed)
                 } catch {
-                    this.dataHandler({ raw: trimmed, port: this.config.address, timestamp: new Date().toISOString() })
+                    this.dataHandler({
+                        raw: trimmed,
+                        port: this.config.address,
+                        timestamp: new Date().toISOString(),
+                    })
                 }
             }
         })
@@ -654,7 +728,9 @@ export class Rs485Connection implements IConnection {
         this.buffer = ""
     }
 
-    isConnected(): boolean { return this.connected }
+    isConnected(): boolean {
+        return this.connected
+    }
 
     onData(handler: (data: Record<string, unknown>) => void): void {
         this.dataHandler = handler

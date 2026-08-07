@@ -3,11 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Select } from "@/components/ui/Select"
-import {
-    meterFormSchema,
-    type MeterFormData,
-    type MeterFormInput,
-} from "@/schemas/meter.schema"
+import { meterFormSchema, type MeterFormData, type MeterFormInput } from "@/schemas/meter.schema"
 import {
     METER_PROTOCOL_LABELS,
     NETWORK_PROTOCOLS,
@@ -25,10 +21,7 @@ interface MeterFormProps {
     submitLabel?: string
 }
 
-const PROTOCOL_OPTIONS = Object.entries(METER_PROTOCOL_LABELS) as [
-    MeterProtocol,
-    string,
-][]
+const PROTOCOL_OPTIONS = Object.entries(METER_PROTOCOL_LABELS) as [MeterProtocol, string][]
 
 /**
  * Form de medidor — vale para criação (vinculado a um alvo, resolvido fora
@@ -54,21 +47,21 @@ export const MeterForm = ({
         mode: "onBlur",
         defaultValues: initialData
             ? {
-                name: initialData.name,
-                protocol: initialData.protocol,
-                host: initialData.host ?? "",
-                port: initialData.port ?? undefined,
-                topic: initialData.topic ?? "",
-                address: initialData.address ?? "",
-            }
+                  name: initialData.name,
+                  protocol: initialData.protocol,
+                  host: initialData.host ?? "",
+                  port: initialData.port ?? undefined,
+                  topic: initialData.topic ?? "",
+                  address: initialData.address ?? "",
+              }
             : {
-                name: "",
-                protocol: "MQTT",
-                host: "",
-                port: undefined,
-                topic: "",
-                address: "",
-            },
+                  name: "",
+                  protocol: "MQTT",
+                  host: "",
+                  port: undefined,
+                  topic: "",
+                  address: "",
+              },
     })
 
     const protocol = watch("protocol") as MeterProtocol
@@ -77,11 +70,7 @@ export const MeterForm = ({
     const needsAddress = SERIAL_PROTOCOLS.includes(protocol)
 
     return (
-        <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="flex flex-col gap-6"
-            noValidate
-        >
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6" noValidate>
             <Input
                 label="Nome do medidor"
                 placeholder="Medidor principal"
@@ -89,11 +78,7 @@ export const MeterForm = ({
                 {...register("name")}
             />
 
-            <Select
-                label="Protocolo"
-                error={errors.protocol?.message}
-                {...register("protocol")}
-            >
+            <Select label="Protocolo" error={errors.protocol?.message} {...register("protocol")}>
                 {PROTOCOL_OPTIONS.map(([value, label]) => (
                     <option key={value} value={value}>
                         {label}

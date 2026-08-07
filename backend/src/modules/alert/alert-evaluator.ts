@@ -105,7 +105,10 @@ export class AlertEvaluator {
                 // Um alerta com erro não deve impedir a avaliação dos demais
                 // nem derrubar o pipeline de ingestão (mesmo raciocínio do
                 // IoTDataProcessor: código de worker não propaga exceção).
-                logger.error({ module: "AlertEvaluator", alertId: alert.id, err }, "Erro ao avaliar alerta")
+                logger.error(
+                    { module: "AlertEvaluator", alertId: alert.id, err },
+                    "Erro ao avaliar alerta",
+                )
             }
         }
     }
@@ -118,7 +121,12 @@ export class AlertEvaluator {
         const result: FiringAlert[] = []
         for (const [alertId, state] of this.episodes) {
             if (state.firing && state.userId === userId) {
-                result.push({ alertId, meterId: state.meterId, alertName: state.alertName, startedAt: state.startedAt! })
+                result.push({
+                    alertId,
+                    meterId: state.meterId,
+                    alertName: state.alertName,
+                    startedAt: state.startedAt!,
+                })
             }
         }
         return result
@@ -134,9 +142,18 @@ export class AlertEvaluator {
         let state = this.episodes.get(alert.id)
         if (!state) {
             state = {
-                alertId: alert.id, userId: alert.userId, meterId: alert.meterId, alertName: alert.name,
-                outsideStreak: 0, insideStreak: 0, firing: false, startedAt: undefined,
-                minPowerW: powerW, maxPowerW: powerW, sumPowerW: 0, sampleCount: 0,
+                alertId: alert.id,
+                userId: alert.userId,
+                meterId: alert.meterId,
+                alertName: alert.name,
+                outsideStreak: 0,
+                insideStreak: 0,
+                firing: false,
+                startedAt: undefined,
+                minPowerW: powerW,
+                maxPowerW: powerW,
+                sumPowerW: 0,
+                sampleCount: 0,
             }
             this.episodes.set(alert.id, state)
         }
@@ -187,7 +204,10 @@ export class AlertEvaluator {
     // e SÓ ENTÃO cria a notificação — ordem exigida pelo plano (4.1).
     private async closeEpisode(state: EpisodeState, endedAt: Date): Promise<void> {
         const startedAt = state.startedAt!
-        const durationSeconds = Math.max(0, Math.round((endedAt.getTime() - startedAt.getTime()) / 1000))
+        const durationSeconds = Math.max(
+            0,
+            Math.round((endedAt.getTime() - startedAt.getTime()) / 1000),
+        )
         const avgPowerW = state.sumPowerW / state.sampleCount
 
         await this.alertTriggerEventRepository.create({

@@ -20,14 +20,18 @@ function toConnectionConfig(meter: MeterResponse): MeterConnectionConfig {
 // uma falha de conexão IoT não deve impedir a resposta HTTP. Import
 // dinâmico para não acoplar o módulo de negócio ao worker no nível de
 // módulo (mesmo padrão usado pelo antigo iot.controller.ts).
-function withConnectionManager(fn: (manager: {
-    start: (config: MeterConnectionConfig) => Promise<void>
-    restart: (config: MeterConnectionConfig) => Promise<void>
-    stop: (meterId: string) => Promise<void>
-}) => void): void {
-    void import("@/modules/iot/iot-worker/IoTConnectionManager.js").then(({ IoTConnectionManager }) => {
-        fn(IoTConnectionManager.getInstance())
-    })
+function withConnectionManager(
+    fn: (manager: {
+        start: (config: MeterConnectionConfig) => Promise<void>
+        restart: (config: MeterConnectionConfig) => Promise<void>
+        stop: (meterId: string) => Promise<void>
+    }) => void,
+): void {
+    void import("@/modules/iot/iot-worker/IoTConnectionManager.js").then(
+        ({ IoTConnectionManager }) => {
+            fn(IoTConnectionManager.getInstance())
+        },
+    )
 }
 
 export class MeterController {
@@ -39,7 +43,9 @@ export class MeterController {
             const { id: userId } = (req as AuthenticatedRequest).user
             const meter = await this.meterService.create(userId, req.body)
 
-            withConnectionManager((manager) => { void manager.start(toConnectionConfig(meter)) })
+            withConnectionManager((manager) => {
+                void manager.start(toConnectionConfig(meter))
+            })
 
             res.status(201).json({ status: "success", data: meter })
         } catch (error) {
@@ -91,7 +97,9 @@ export class MeterController {
             // Reinicia a conexão com os dados atualizados — se o protocolo ou
             // os parâmetros mudaram, a conexão antiga precisa cair e uma nova
             // subir com a config nova.
-            withConnectionManager((manager) => { void manager.restart(toConnectionConfig(meter)) })
+            withConnectionManager((manager) => {
+                void manager.restart(toConnectionConfig(meter))
+            })
 
             res.status(200).json({ status: "success", data: meter })
         } catch (error) {
@@ -106,7 +114,9 @@ export class MeterController {
             const { id: userId } = (req as AuthenticatedRequest).user
             await this.meterService.delete(id, userId)
 
-            withConnectionManager((manager) => { void manager.stop(id) })
+            withConnectionManager((manager) => {
+                void manager.stop(id)
+            })
 
             res.status(204).send()
         } catch (error) {

@@ -24,12 +24,7 @@ export const TARIFF_FLAG_LABELS: Record<TariffFlag, string> = {
 }
 
 /** Ordem de exibição na lista "Bandeiras tarifárias" (verde → mais severa). */
-export const TARIFF_FLAG_ORDER: readonly TariffFlag[] = [
-    "GREEN",
-    "YELLOW",
-    "RED_P1",
-    "RED_P2",
-]
+export const TARIFF_FLAG_ORDER: readonly TariffFlag[] = ["GREEN", "YELLOW", "RED_P1", "RED_P2"]
 
 /**
  * Tokens de cor JÁ existentes em `industry.css` (o design system já
@@ -82,10 +77,7 @@ export const TARIFF_FLAG_DARK_DOT_COLOR: Record<TariffFlag, string> = {
 }
 
 /** Valor de acréscimo (R$/100kWh) de cada bandeira, dado um config. */
-export const tariffFlagPer100Kwh = (
-    config: TariffFlagConfig,
-    flag: TariffFlag,
-): number => {
+export const tariffFlagPer100Kwh = (config: TariffFlagConfig, flag: TariffFlag): number => {
     switch (flag) {
         case "GREEN":
             return config.greenPer100Kwh

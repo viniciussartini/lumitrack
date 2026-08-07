@@ -25,18 +25,14 @@ describe("ThemeToggle — renderização", () => {
         storage.set(STORAGE_KEYS.THEME, "dark")
         renderToggle()
 
-        expect(
-            screen.getByRole("button", { name: /tema atual: escuro/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /tema atual: escuro/i })).toBeInTheDocument()
     })
 
     it("aria-label muda quando o tema é system", () => {
         storage.set(STORAGE_KEYS.THEME, "system")
         renderToggle()
 
-        expect(
-            screen.getByRole("button", { name: /tema atual: sistema/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /tema atual: sistema/i })).toBeInTheDocument()
     })
 })
 

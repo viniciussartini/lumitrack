@@ -1,15 +1,15 @@
 {
     "compilerOptions": {
-        "ignoreDeprecations": "5.0",   // silencia avisos de APIs obsoletas (ex: crypto.randomUUID) — "6.0" não é aceito pelo TypeScript 5.9.3 instalado (TS5103)
+        "ignoreDeprecations": "5.0", // silencia avisos de APIs obsoletas (ex: crypto.randomUUID) — "6.0" não é aceito pelo TypeScript 5.9.3 instalado (TS5103)
         /* --- Linguagem e ambiente --- */
         "target": "ES2022",
         "lib": ["ES2022"],
-        "module": "NodeNext",          // ES Modules para Node.js moderno
+        "module": "NodeNext", // ES Modules para Node.js moderno
         "moduleResolution": "NodeNext",
 
         /* --- Path aliases --- */
         "paths": {
-        "@/*": ["./src/*"]          // @/modules/user → src/modules/user
+            "@/*": ["./src/*"] // @/modules/user → src/modules/user
         },
 
         /* --- Output --- */

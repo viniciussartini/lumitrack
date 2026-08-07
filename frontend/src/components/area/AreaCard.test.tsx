@@ -20,8 +20,7 @@ vi.mock("@/services/area.service", () => ({
 
 vi.mock("@/services/api", () => ({
     api: {},
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 vi.mock("sonner", () => ({
@@ -60,25 +59,19 @@ describe("AreaCard — conteúdo principal", () => {
     it("renderiza o nome da área como heading", () => {
         renderCard()
 
-        expect(
-            screen.getByRole("heading", { level: 3, name: /sala/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("heading", { level: 3, name: /sala/i })).toBeInTheDocument()
     })
 
     it("renderiza a descrição quando presente", () => {
         renderCard()
 
-        expect(
-            screen.getByText(/área principal de convivência/i),
-        ).toBeInTheDocument()
+        expect(screen.getByText(/área principal de convivência/i)).toBeInTheDocument()
     })
 
     it("não renderiza descrição quando é null", () => {
         renderCard({ ...baseArea, description: null })
 
-        expect(
-            screen.queryByText(/área principal/i),
-        ).not.toBeInTheDocument()
+        expect(screen.queryByText(/área principal/i)).not.toBeInTheDocument()
     })
 })
 
@@ -88,10 +81,7 @@ describe("AreaCard — navegação", () => {
 
         const link = screen.getByTestId("area-card-area-1")
 
-        expect(link).toHaveAttribute(
-            "href",
-            "/propriedades/prop-1/areas/area-1",
-        )
+        expect(link).toHaveAttribute("href", "/propriedades/prop-1/areas/area-1")
     })
 
     it("usa o id correto no data-testid", () => {
@@ -105,10 +95,7 @@ describe("AreaCard — navegação", () => {
 
         const link = screen.getByTestId("area-card-area-1")
 
-        expect(link).toHaveAttribute(
-            "href",
-            "/propriedades/prop-9/areas/area-1",
-        )
+        expect(link).toHaveAttribute("href", "/propriedades/prop-9/areas/area-1")
     })
 })
 
@@ -117,8 +104,6 @@ describe("AreaCard — menu acoplado", () => {
         renderCard()
 
         // aria-label dinâmico — espelha o padrão do PropertyMenu
-        expect(
-            screen.getByRole("button", { name: /opções de Sala/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /opções de Sala/i })).toBeInTheDocument()
     })
 })

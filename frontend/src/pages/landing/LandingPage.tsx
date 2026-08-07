@@ -114,8 +114,8 @@ const LandingHero = () => (
                 ele vire <span className="text-accent">conta</span>.
             </h1>
             <p className="text-text/80 mt-[22px] max-w-[44ch] text-base leading-[1.55]">
-                O LumiTrack acompanha o consumo das suas unidades em tempo real, projeta o valor
-                da fatura e simula cenários para todos os grupos tarifários do sistema elétrico
+                O LumiTrack acompanha o consumo das suas unidades em tempo real, projeta o valor da
+                fatura e simula cenários para todos os grupos tarifários do sistema elétrico
                 brasileiro — do residencial B1 ao industrial de alta tensão.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
@@ -146,7 +146,10 @@ const LandingHero = () => (
     </section>
 )
 
-const numberFormatter = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const numberFormatter = new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+})
 
 /**
  * Painel "ao vivo" do hero — números variando via `useLiveTicker`
@@ -179,7 +182,7 @@ const LandingLivePanel = () => {
                     <div className="font-heading text-text/55 mb-2 text-[11px] font-semibold tracking-[.08em] uppercase">
                         Potência agora
                     </div>
-                    <div className="font-heading text-[44px] leading-[.9] font-semibold font-features-['tnum'_1]">
+                    <div className="font-heading font-features-['tnum'_1] text-[44px] leading-[.9] font-semibold">
                         {numberFormatter.format(kwh)}
                         <span className="text-text/55 ml-1 text-lg">kW</span>
                     </div>
@@ -188,7 +191,7 @@ const LandingLivePanel = () => {
                     <div className="font-heading text-text/55 mb-2 text-[11px] font-semibold tracking-[.08em] uppercase">
                         Custo projetado / h
                     </div>
-                    <div className="text-status-warning font-heading text-[44px] leading-[.9] font-semibold font-features-['tnum'_1]">
+                    <div className="text-status-warning font-heading font-features-['tnum'_1] text-[44px] leading-[.9] font-semibold">
                         <span className="mr-0.5 text-lg">R$</span>
                         {numberFormatter.format(cost)}
                     </div>
@@ -210,11 +213,16 @@ const LandingLivePanel = () => {
                             TARIFF_FLAG_BORDER_CLASS[tariffFlag.currentFlag],
                         )}
                     >
-                        <span className="h-2 w-2 rounded-full" style={{ background: "currentColor" }} />
+                        <span
+                            className="h-2 w-2 rounded-full"
+                            style={{ background: "currentColor" }}
+                        />
                         Bandeira {TARIFF_FLAG_LABELS[tariffFlag.currentFlag]}
                     </Tag>
-                    <span className="text-text/60 text-xs font-features-['tnum'_1]">
-                        {formatTariffFlagNote(tariffFlagPer100Kwh(tariffFlag, tariffFlag.currentFlag))}
+                    <span className="text-text/60 font-features-['tnum'_1] text-xs">
+                        {formatTariffFlagNote(
+                            tariffFlagPer100Kwh(tariffFlag, tariffFlag.currentFlag),
+                        )}
                     </span>
                 </div>
             )}
@@ -225,7 +233,12 @@ const LandingLivePanel = () => {
 /** Mesmo path/gradiente de `LumiTrack Landing.dc.html` — mock ilustrativo de
  * consumo, não dado real (sem sessão/medidor nesta página). */
 const LiveAreaChart = () => (
-    <svg viewBox="0 0 480 150" className="block w-full" preserveAspectRatio="none" aria-hidden="true">
+    <svg
+        viewBox="0 0 480 150"
+        className="block w-full"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+    >
         <defs>
             <linearGradient id="landing-live-chart-fill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0" stopColor="#5980a6" stopOpacity="0.28" />
@@ -266,8 +279,13 @@ const LandingMetrics = () => (
     <section className="mx-auto max-w-[1200px] px-5 py-2 sm:px-8">
         <Blueprint className="grid grid-cols-2 p-0 lg:grid-cols-4">
             {METRICS.map((metric, i) => (
-                <div key={metric.label} className={`p-6 ${i > 0 ? "border-divider border-t lg:border-t-0 lg:border-l" : ""}`}>
-                    <div className={`font-heading text-4xl leading-none font-semibold font-features-['tnum'_1] ${metric.accent}`}>
+                <div
+                    key={metric.label}
+                    className={`p-6 ${i > 0 ? "border-divider border-t lg:border-t-0 lg:border-l" : ""}`}
+                >
+                    <div
+                        className={`font-heading font-features-['tnum'_1] text-4xl leading-none font-semibold ${metric.accent}`}
+                    >
                         {metric.value}
                     </div>
                     <div className="text-text/65 mt-2 text-[13px]">{metric.label}</div>
@@ -295,7 +313,8 @@ const FEATURES = [
     {
         icon: BarChart3,
         title: "Comparação entre unidades",
-        description: "Coloque casa, loja e galpão lado a lado. Descubra qual unidade puxa o custo e por quê.",
+        description:
+            "Coloque casa, loja e galpão lado a lado. Descubra qual unidade puxa o custo e por quê.",
         colorClass: "border-accent text-accent",
     },
     {
@@ -319,10 +338,16 @@ const LandingFeatures = () => (
                     <div
                         className={`mb-4 flex h-[34px] w-[34px] items-center justify-center border-[1.5px] ${feature.colorClass}`}
                     >
-                        <feature.icon className="h-[18px] w-[18px]" strokeWidth={1.5} aria-hidden="true" />
+                        <feature.icon
+                            className="h-[18px] w-[18px]"
+                            strokeWidth={1.5}
+                            aria-hidden="true"
+                        />
                     </div>
                     <h3 className="font-heading text-[19px] uppercase">{feature.title}</h3>
-                    <p className="text-text/76 mt-2.5 text-sm leading-normal">{feature.description}</p>
+                    <p className="text-text/76 mt-2.5 text-sm leading-normal">
+                        {feature.description}
+                    </p>
                 </Blueprint>
             ))}
         </div>
@@ -340,21 +365,24 @@ const LandingFeatures = () => (
 const FLAGS = [
     {
         name: "Verde",
-        description: "Condições favoráveis de geração. Sem acréscimo na tarifa — a hora mais barata de consumir.",
+        description:
+            "Condições favoráveis de geração. Sem acréscimo na tarifa — a hora mais barata de consumir.",
         value: "+ R$ 0,00",
         colorClass: "text-status-success",
         barClass: "bg-status-success",
     },
     {
         name: "Amarela",
-        description: "Geração mais cara. Um acréscimo moderado por 100 kWh — hora de acompanhar de perto.",
+        description:
+            "Geração mais cara. Um acréscimo moderado por 100 kWh — hora de acompanhar de perto.",
         value: "+ R$ 1,88",
         colorClass: "text-status-warning",
         barClass: "bg-status-warning",
     },
     {
         name: "Vermelha",
-        description: "Geração no limite. O maior acréscimo por 100 kWh — deslocar consumo faz diferença real.",
+        description:
+            "Geração no limite. O maior acréscimo por 100 kWh — deslocar consumo faz diferença real.",
         value: "+ até R$ 7,87",
         colorClass: "text-status-danger",
         barClass: "bg-status-danger",
@@ -368,18 +396,23 @@ const LandingFlags = () => (
         </span>
         <hr className="border-divider mt-3.5 mb-3 border-t" />
         <p className="text-text/78 max-w-[60ch] text-base leading-[1.55]">
-            O sistema elétrico brasileiro sinaliza o custo de geração por cores. O LumiTrack
-            aplica o acréscimo certo ao seu consumo, para você saber o impacto no bolso em tempo
-            real.
+            O sistema elétrico brasileiro sinaliza o custo de geração por cores. O LumiTrack aplica
+            o acréscimo certo ao seu consumo, para você saber o impacto no bolso em tempo real.
         </p>
         <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-3">
             {FLAGS.map((flag) => (
                 <Blueprint key={flag.name} className="p-0">
                     <div className={`h-1.5 ${flag.barClass}`} />
                     <div className="p-[22px]">
-                        <h4 className={`font-heading text-lg uppercase ${flag.colorClass}`}>{flag.name}</h4>
-                        <p className="text-text/74 mt-2 text-[13.5px] leading-normal">{flag.description}</p>
-                        <div className={`font-heading mt-3.5 text-[22px] font-semibold font-features-['tnum'_1] ${flag.colorClass}`}>
+                        <h4 className={`font-heading text-lg uppercase ${flag.colorClass}`}>
+                            {flag.name}
+                        </h4>
+                        <p className="text-text/74 mt-2 text-[13.5px] leading-normal">
+                            {flag.description}
+                        </p>
+                        <div
+                            className={`font-heading mt-3.5 font-features-['tnum'_1] text-[22px] font-semibold ${flag.colorClass}`}
+                        >
                             {flag.value}
                         </div>
                     </div>
@@ -512,7 +545,9 @@ const LandingAudience = () => (
                 <Blueprint key={item.tagLabel} className="p-[30px]">
                     <Tag className={`font-semibold ${item.tagClass}`}>{item.tagLabel}</Tag>
                     <h3 className="font-heading mt-4 text-2xl uppercase">{item.title}</h3>
-                    <p className="text-text/78 mt-3 text-[14.5px] leading-[1.55]">{item.description}</p>
+                    <p className="text-text/78 mt-3 text-[14.5px] leading-[1.55]">
+                        {item.description}
+                    </p>
                 </Blueprint>
             ))}
         </div>
@@ -535,10 +570,19 @@ const LandingClose = () => (
                     sobre esse fundo, então não pode usar o token --color-text
                     (que inverte para claro no tema escuro). #1d1f20 é o valor
                     fixo que o próprio handoff usa para este botão específico. */}
-                <Button asChild size="lg" className="bg-status-highlight border-status-highlight text-[#1d1f20]">
+                <Button
+                    asChild
+                    size="lg"
+                    className="bg-status-highlight border-status-highlight text-[#1d1f20]"
+                >
                     <Link to="/registro">Criar conta</Link>
                 </Button>
-                <Button asChild variant="secondary" size="lg" className="border-white/40 bg-transparent text-white">
+                <Button
+                    asChild
+                    variant="secondary"
+                    size="lg"
+                    className="border-white/40 bg-transparent text-white"
+                >
                     <a href="#recursos">Ver como funciona</a>
                 </Button>
             </div>
@@ -593,7 +637,7 @@ const FOOTER_COLUMNS: FooterColumn[] = [
 
 const LandingFooter = () => (
     <footer className="border-divider border-t">
-        <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-8 px-5 py-11 sm:px-8 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
+        <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-8 px-5 py-11 sm:grid-cols-2 sm:px-8 lg:grid-cols-[2fr_1fr_1fr_1fr]">
             <div>
                 <span className="font-heading inline-flex items-center gap-2.5 text-lg font-semibold">
                     <img src="/lumitrack-logo.svg" alt="" className="block h-[27px] w-6" />
@@ -644,14 +688,20 @@ const LandingFooter = () => (
                     <div className="flex flex-col gap-2.5 text-[13.5px]">
                         {column.links.map((link) =>
                             link.href.startsWith("#") ? (
-                                <a key={link.label} href={link.href} className="text-accent hover:text-accent-700">
+                                <a
+                                    key={link.label}
+                                    href={link.href}
+                                    className="text-accent hover:text-accent-700"
+                                >
                                     {link.label}
                                 </a>
                             ) : (
                                 <Link
                                     key={link.label}
                                     to={link.href}
-                                    {...(link.newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                                    {...(link.newTab
+                                        ? { target: "_blank", rel: "noopener noreferrer" }
+                                        : {})}
                                     className="text-accent hover:text-accent-700"
                                 >
                                     {link.label}

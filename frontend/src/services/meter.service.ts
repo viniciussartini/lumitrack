@@ -1,9 +1,5 @@
 import { api } from "@/services/api"
-import type {
-    Meter,
-    CreateMeterInput,
-    UpdateMeterInput,
-} from "@/types/meter.types"
+import type { Meter, CreateMeterInput, UpdateMeterInput } from "@/types/meter.types"
 import type { TargetType } from "@/types/meter.types"
 import type { Paginated, PaginationParams } from "@/types/pagination.types"
 
@@ -20,22 +16,15 @@ interface ApiEnvelope<T> {
  */
 export const meterService = {
     list: async (params: PaginationParams = {}): Promise<Paginated<Meter>> => {
-        const { data } = await api.get<ApiEnvelope<Paginated<Meter>>>(
-            "/meters",
-            { params },
-        )
+        const { data } = await api.get<ApiEnvelope<Paginated<Meter>>>("/meters", { params })
         return data.data
     },
 
-    byTarget: async (
-        targetType: TargetType,
-        targetId: string,
-    ): Promise<Meter | null> => {
+    byTarget: async (targetType: TargetType, targetId: string): Promise<Meter | null> => {
         try {
-            const { data } = await api.get<ApiEnvelope<Meter>>(
-                "/meters/by-target",
-                { params: { targetType, targetId } },
-            )
+            const { data } = await api.get<ApiEnvelope<Meter>>("/meters/by-target", {
+                params: { targetType, targetId },
+            })
             return data.data
         } catch (error) {
             // 404 = alvo sem medidor vinculado — estado válido, não um erro.
@@ -43,8 +32,7 @@ export const meterService = {
                 error &&
                 typeof error === "object" &&
                 "response" in error &&
-                (error as { response?: { status?: number } }).response
-                    ?.status === 404
+                (error as { response?: { status?: number } }).response?.status === 404
             ) {
                 return null
             }
@@ -63,10 +51,7 @@ export const meterService = {
     },
 
     update: async (id: string, input: UpdateMeterInput): Promise<Meter> => {
-        const { data } = await api.put<ApiEnvelope<Meter>>(
-            `/meters/${id}`,
-            input,
-        )
+        const { data } = await api.put<ApiEnvelope<Meter>>(`/meters/${id}`, input)
         return data.data
     },
 

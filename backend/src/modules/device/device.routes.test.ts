@@ -187,7 +187,12 @@ describe("POST /api/properties/:propertyId/areas/:areaId/devices", () => {
 
     it("deve retornar 401 sem token", async () => {
         const response = await request(app)
-            .post(deviceUrl("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000001"))
+            .post(
+                deviceUrl(
+                    "00000000-0000-0000-0000-000000000000",
+                    "00000000-0000-0000-0000-000000000001",
+                ),
+            )
             .send(validDeviceBody)
 
         expect(response.status).toBe(401)
@@ -255,8 +260,12 @@ describe("GET /api/properties/:propertyId/areas/:areaId/devices", () => {
     })
 
     it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .get(deviceUrl("00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000001"))
+        const response = await request(app).get(
+            deviceUrl(
+                "00000000-0000-0000-0000-000000000000",
+                "00000000-0000-0000-0000-000000000001",
+            ),
+        )
 
         expect(response.status).toBe(401)
     })
@@ -301,12 +310,13 @@ describe("GET /api/properties/:propertyId/areas/:areaId/devices/:deviceId", () =
     })
 
     it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .get(deviceUrl(
+        const response = await request(app).get(
+            deviceUrl(
                 "00000000-0000-0000-0000-000000000000",
                 "00000000-0000-0000-0000-000000000001",
                 "00000000-0000-0000-0000-000000000002",
-            ))
+            ),
+        )
 
         expect(response.status).toBe(401)
     })
@@ -368,11 +378,13 @@ describe("PUT /api/properties/:propertyId/areas/:areaId/devices/:deviceId", () =
 
     it("deve retornar 401 sem token", async () => {
         const response = await request(app)
-            .put(deviceUrl(
-                "00000000-0000-0000-0000-000000000000",
-                "00000000-0000-0000-0000-000000000001",
-                "00000000-0000-0000-0000-000000000002",
-            ))
+            .put(
+                deviceUrl(
+                    "00000000-0000-0000-0000-000000000000",
+                    "00000000-0000-0000-0000-000000000001",
+                    "00000000-0000-0000-0000-000000000002",
+                ),
+            )
             .send({ name: "X" })
 
         expect(response.status).toBe(401)
@@ -423,12 +435,13 @@ describe("DELETE /api/properties/:propertyId/areas/:areaId/devices/:deviceId", (
     })
 
     it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .delete(deviceUrl(
+        const response = await request(app).delete(
+            deviceUrl(
                 "00000000-0000-0000-0000-000000000000",
                 "00000000-0000-0000-0000-000000000001",
                 "00000000-0000-0000-0000-000000000002",
-            ))
+            ),
+        )
 
         expect(response.status).toBe(401)
     })

@@ -60,8 +60,7 @@ vi.mock("@/services/distributor.service", () => ({
 
 vi.mock("@/services/api", () => ({
     api: {},
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 vi.mock("sonner", () => ({
@@ -128,14 +127,8 @@ const renderPage = () => {
         <QueryClientProvider client={queryClient}>
             <MemoryRouter initialEntries={["/propriedades/prop-1"]}>
                 <Routes>
-                    <Route
-                        path="/propriedades/:id"
-                        element={<PropertyDetailsPage />}
-                    />
-                    <Route
-                        path="/propriedades"
-                        element={<div>Lista de propriedades</div>}
-                    />
+                    <Route path="/propriedades/:id" element={<PropertyDetailsPage />} />
+                    <Route path="/propriedades" element={<div>Lista de propriedades</div>} />
                 </Routes>
             </MemoryRouter>
         </QueryClientProvider>,
@@ -147,9 +140,7 @@ beforeEach(() => {
     vi.mocked(meterService.byTarget).mockResolvedValue(null)
     // Catálogo completo de distribuidoras — usado pelo modal de edição
     // (PropertyFormDialog), carregado incondicionalmente pela página.
-    vi.mocked(distributorService.list).mockResolvedValue(
-        paginated([mockDistributor]),
-    )
+    vi.mocked(distributorService.list).mockResolvedValue(paginated([mockDistributor]))
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -159,30 +150,20 @@ beforeEach(() => {
 describe("PropertyDetailsPage — loading", () => {
     it("exibe skeleton enquanto a propriedade carrega", () => {
         // Promise nunca resolvida — fica em loading
-        vi.mocked(propertyService.getById).mockReturnValue(
-            new Promise(() => {}),
-        )
-        vi.mocked(distributorService.getById).mockReturnValue(
-            new Promise(() => {}),
-        )
+        vi.mocked(propertyService.getById).mockReturnValue(new Promise(() => {}))
+        vi.mocked(distributorService.getById).mockReturnValue(new Promise(() => {}))
 
         renderPage()
 
-        expect(
-            screen.getByLabelText(/carregando dados da propriedade/i),
-        ).toBeInTheDocument()
+        expect(screen.getByLabelText(/carregando dados da propriedade/i)).toBeInTheDocument()
     })
 
     it("renderiza link de voltar mesmo durante loading", () => {
-        vi.mocked(propertyService.getById).mockReturnValue(
-            new Promise(() => {}),
-        )
+        vi.mocked(propertyService.getById).mockReturnValue(new Promise(() => {}))
 
         renderPage()
 
-        expect(
-            screen.getByRole("link", { name: /voltar para propriedades/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("link", { name: /voltar para propriedades/i })).toBeInTheDocument()
     })
 })
 
@@ -199,15 +180,11 @@ describe("PropertyDetailsPage — erro", () => {
         renderPage()
 
         expect(await screen.findByRole("alert")).toBeInTheDocument()
-        expect(
-            screen.getByText(/propriedade não encontrada/i),
-        ).toBeInTheDocument()
+        expect(screen.getByText(/propriedade não encontrada/i)).toBeInTheDocument()
     })
 
     it("oferece link de volta no estado de erro", async () => {
-        vi.mocked(propertyService.getById).mockRejectedValue(
-            new Error("Forbidden"),
-        )
+        vi.mocked(propertyService.getById).mockRejectedValue(new Error("Forbidden"))
 
         renderPage()
 
@@ -228,9 +205,7 @@ describe("PropertyDetailsPage — erro", () => {
 describe("PropertyDetailsPage — header", () => {
     beforeEach(() => {
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-        vi.mocked(distributorService.getById).mockResolvedValue(
-            mockDistributor,
-        )
+        vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
         vi.mocked(areaService.list).mockResolvedValue(paginated([]))
     })
 
@@ -249,9 +224,7 @@ describe("PropertyDetailsPage — header", () => {
         renderPage()
 
         expect(
-            await screen.findByText(
-                "Rua das Flores, 100, Belo Horizonte/MG",
-            ),
+            await screen.findByText("Rua das Flores, 100, Belo Horizonte/MG"),
         ).toBeInTheDocument()
     })
 
@@ -280,14 +253,10 @@ describe("PropertyDetailsPage — header", () => {
         await user.click(menuTrigger)
 
         // Editar foi REMOVIDO do menu (já tem botão explícito no header)
-        expect(
-            screen.queryByRole("menuitem", { name: /editar/i }),
-        ).not.toBeInTheDocument()
+        expect(screen.queryByRole("menuitem", { name: /editar/i })).not.toBeInTheDocument()
 
         // Excluir continua presente
-        expect(
-            screen.getByRole("menuitem", { name: /excluir/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("menuitem", { name: /excluir/i })).toBeInTheDocument()
     })
 })
 
@@ -305,9 +274,7 @@ describe("PropertyDetailsPage — chips de distribuidora e faturamento", () => {
     it("renderiza nome da distribuidora vinculada", async () => {
         renderPage()
 
-        expect(
-            await screen.findByText(/CEMIG Distribuição S\.A\./i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/CEMIG Distribuição S\.A\./i)).toBeInTheDocument()
     })
 
     it("renderiza a tarifa TUSD formatada em BRL", async () => {
@@ -324,9 +291,7 @@ describe("PropertyDetailsPage — chips de distribuidora e faturamento", () => {
     })
 
     it("mostra fallback quando distribuidora não está disponível", async () => {
-        vi.mocked(distributorService.getById).mockRejectedValue(
-            new Error("Distribuidora removida"),
-        )
+        vi.mocked(distributorService.getById).mockRejectedValue(new Error("Distribuidora removida"))
 
         renderPage()
 
@@ -335,9 +300,7 @@ describe("PropertyDetailsPage — chips de distribuidora e faturamento", () => {
 
         // Mas onde estariam os chips, vemos o fallback
         await waitFor(() => {
-            expect(
-                screen.getByText(/distribuidora não disponível/i),
-            ).toBeInTheDocument()
+            expect(screen.getByText(/distribuidora não disponível/i)).toBeInTheDocument()
         })
     })
 })
@@ -356,17 +319,13 @@ describe("PropertyDetailsPage — seção de áreas (vazia)", () => {
     it("renderiza seção 'Áreas' como heading", async () => {
         renderPage()
 
-        expect(
-            await screen.findByRole("heading", { level: 2, name: /áreas/i }),
-        ).toBeInTheDocument()
+        expect(await screen.findByRole("heading", { level: 2, name: /áreas/i })).toBeInTheDocument()
     })
 
     it("renderiza EmptyState quando não há áreas", async () => {
         renderPage()
 
-        expect(
-            await screen.findByText(/nenhuma área cadastrada/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/nenhuma área cadastrada/i)).toBeInTheDocument()
     })
 
     it("abre o modal de criação ao clicar em 'Adicionar área'", async () => {
@@ -378,17 +337,13 @@ describe("PropertyDetailsPage — seção de áreas (vazia)", () => {
         })
         await user.click(addButton)
 
-        expect(
-            await screen.findByRole("dialog", { name: /adicionar área/i }),
-        ).toBeInTheDocument()
+        expect(await screen.findByRole("dialog", { name: /adicionar área/i })).toBeInTheDocument()
     })
 
     it("renderiza a marca 'Em breve' explicitamente", async () => {
         renderPage()
 
-        expect(
-            await screen.findByTestId("areas-coming-soon"),
-        ).toBeInTheDocument()
+        expect(await screen.findByTestId("areas-coming-soon")).toBeInTheDocument()
     })
 })
 
@@ -414,9 +369,7 @@ describe("PropertyDetailsPage — seção de áreas (com dados)", () => {
         expect(screen.getByText(/sala/i)).toBeInTheDocument()
         expect(screen.getByText(/cozinha/i)).toBeInTheDocument()
         // EmptyState não aparece
-        expect(
-            screen.queryByText(/nenhuma área cadastrada/i),
-        ).not.toBeInTheDocument()
+        expect(screen.queryByText(/nenhuma área cadastrada/i)).not.toBeInTheDocument()
     })
 
     it("card aponta para a página de detalhes da área", async () => {
@@ -426,10 +379,7 @@ describe("PropertyDetailsPage — seção de áreas (com dados)", () => {
 
         const card = await screen.findByTestId("area-card-area-1")
 
-        expect(card).toHaveAttribute(
-            "href",
-            "/propriedades/prop-1/areas/area-1",
-        )
+        expect(card).toHaveAttribute("href", "/propriedades/prop-1/areas/area-1")
     })
 })
 
@@ -437,9 +387,7 @@ describe("PropertyDetailsPage — seção de áreas (erro)", () => {
     it("renderiza alerta inline quando o fetch das áreas falha", async () => {
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
         vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
-        vi.mocked(areaService.list).mockRejectedValue(
-            new Error("Falha ao listar áreas"),
-        )
+        vi.mocked(areaService.list).mockRejectedValue(new Error("Falha ao listar áreas"))
 
         renderPage()
 
@@ -450,9 +398,7 @@ describe("PropertyDetailsPage — seção de áreas (erro)", () => {
         })
 
         // Alerta inline com a mensagem de erro.
-        expect(
-            await screen.findByText(/falha ao listar áreas/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/falha ao listar áreas/i)).toBeInTheDocument()
     })
 })
 

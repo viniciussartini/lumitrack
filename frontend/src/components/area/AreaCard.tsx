@@ -65,7 +65,7 @@ export const AreaCard = ({ area, monthlyConsumption }: AreaCardProps) => {
                 )}
 
                 {monthlyConsumption !== undefined && monthlyConsumption !== null && (
-                    <div className="font-heading text-[22px] leading-none font-semibold font-features-['tnum'_1]">
+                    <div className="font-heading font-features-['tnum'_1] text-[22px] leading-none font-semibold">
                         {formatKwh(monthlyConsumption.kwhConsumed)}
                         <span className="text-muted ml-[3px] text-[13px] font-normal normal-case">
                             kWh/mês

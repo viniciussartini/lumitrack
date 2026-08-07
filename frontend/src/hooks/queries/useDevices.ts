@@ -18,12 +18,7 @@ export const useDevices = (
     pageSize: number = DEFAULT_PAGE_SIZE,
 ) =>
     useQuery({
-        queryKey: queryKeys.devices.list(
-            propertyId ?? "",
-            areaId ?? "",
-            page,
-            pageSize,
-        ),
+        queryKey: queryKeys.devices.list(propertyId ?? "", areaId ?? "", page, pageSize),
         queryFn: () => deviceService.list(propertyId!, areaId!, { page, pageSize }),
         enabled: Boolean(propertyId && areaId),
     })
@@ -40,12 +35,7 @@ export const useDevice = (
     deviceId: string | undefined,
 ) =>
     useQuery<Device>({
-        queryKey: queryKeys.devices.detail(
-            propertyId ?? "",
-            areaId ?? "",
-            deviceId ?? "",
-        ),
-        queryFn: () =>
-            deviceService.getById(propertyId!, areaId!, deviceId!),
+        queryKey: queryKeys.devices.detail(propertyId ?? "", areaId ?? "", deviceId ?? ""),
+        queryFn: () => deviceService.getById(propertyId!, areaId!, deviceId!),
         enabled: Boolean(propertyId && areaId && deviceId),
     })

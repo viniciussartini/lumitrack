@@ -2,11 +2,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
-import {
-    areaFormSchema,
-    type AreaFormData,
-    type AreaFormInput,
-} from "@/schemas/area.schema"
+import { areaFormSchema, type AreaFormData, type AreaFormInput } from "@/schemas/area.schema"
 import type { Area } from "@/types/area.types"
 import { cn } from "@/lib/cn"
 
@@ -50,37 +46,26 @@ export const AreaForm = ({
         mode: "onBlur",
         defaultValues: initialData
             ? {
-                name: initialData.name,
-                // null → "" porque <input> não aceita null; o schema converte
-                // string vazia de volta pra undefined antes do submit
-                description: initialData.description ?? "",
-            }
+                  name: initialData.name,
+                  // null → "" porque <input> não aceita null; o schema converte
+                  // string vazia de volta pra undefined antes do submit
+                  description: initialData.description ?? "",
+              }
             : {
-                name: "",
-                description: "",
-            },
+                  name: "",
+                  description: "",
+              },
     })
 
     return (
-        <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="flex flex-col gap-6"
-            noValidate
-        >
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6" noValidate>
             <div className="flex flex-col gap-4">
-                <Input
-                    label="Nome da área"
-                    error={errors.name?.message}
-                    {...register("name")}
-                />
+                <Input label="Nome da área" error={errors.name?.message} {...register("name")} />
 
                 <div className="flex flex-col gap-1">
                     <label
                         htmlFor="description"
-                        className={cn(
-                            "text-sm font-medium",
-                            "text-slate-700 dark:text-slate-300",
-                        )}
+                        className={cn("text-sm font-medium", "text-slate-700 dark:text-slate-300")}
                     >
                         Descrição
                         <span className="ml-1 text-xs font-normal text-slate-500 dark:text-slate-400">
@@ -94,7 +79,7 @@ export const AreaForm = ({
                             "rounded-md border bg-white px-3 py-2 text-sm shadow-sm",
                             "border-slate-300 text-slate-900",
                             "placeholder:text-slate-400",
-                            "focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500",
+                            "focus:border-brand-500 focus:ring-brand-500 focus:ring-1 focus:outline-none",
                             "dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100",
                             "dark:placeholder:text-slate-500",
                             errors.description &&
@@ -104,10 +89,7 @@ export const AreaForm = ({
                         {...register("description")}
                     />
                     {errors.description?.message && (
-                        <p
-                            role="alert"
-                            className="text-xs text-red-600 dark:text-red-400"
-                        >
+                        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
                             {errors.description.message}
                         </p>
                     )}

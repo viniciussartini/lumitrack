@@ -58,12 +58,7 @@ interface AreaMenuProps {
  *   é a única chance do usuário ver o impacto antes de confirmar (não há
  *   endpoint de contagem que justifique tornar o aviso condicional).
  */
-export const AreaMenu = ({
-    area,
-    showEdit = true,
-    onEdit,
-    onAfterDelete,
-}: AreaMenuProps) => {
+export const AreaMenu = ({ area, showEdit = true, onEdit, onAfterDelete }: AreaMenuProps) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
     const [isConfirmOpen, setIsConfirmOpen] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
@@ -107,7 +102,7 @@ export const AreaMenu = ({
         <>
             <div
                 ref={containerRef}
-                className="absolute right-2 top-2 z-10"
+                className="absolute top-2 right-2 z-10"
                 onClick={(e) => e.stopPropagation()}
             >
                 <button
@@ -120,7 +115,7 @@ export const AreaMenu = ({
                         "flex h-8 w-8 items-center justify-center rounded-md",
                         "text-slate-500 hover:bg-slate-100 hover:text-slate-700",
                         "dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200",
-                        "focus:outline-none focus:ring-2 focus:ring-brand-500",
+                        "focus:ring-brand-500 focus:ring-2 focus:outline-none",
                     )}
                 >
                     <MoreVertical className="h-4 w-4" aria-hidden="true" />
@@ -130,7 +125,7 @@ export const AreaMenu = ({
                     <div
                         role="menu"
                         className={cn(
-                            "absolute right-0 top-full z-20 mt-1 w-40 overflow-hidden rounded-md border bg-white shadow-lg",
+                            "absolute top-full right-0 z-20 mt-1 w-40 overflow-hidden rounded-md border bg-white shadow-lg",
                             "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
                         )}
                     >

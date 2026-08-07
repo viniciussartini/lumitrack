@@ -27,10 +27,7 @@ export const useAreas = (
  * Ambos os params são obrigatórios pra disparar (nesse padrão de rotas
  * aninhadas, sem propertyId não tem como bater no endpoint correto).
  */
-export const useArea = (
-    propertyId: string | undefined,
-    areaId: string | undefined,
-) =>
+export const useArea = (propertyId: string | undefined, areaId: string | undefined) =>
     useQuery<Area>({
         queryKey: queryKeys.areas.detail(propertyId ?? "", areaId ?? ""),
         queryFn: () => areaService.getById(propertyId!, areaId!),

@@ -49,7 +49,7 @@ export const formatCnpj = (value: string): string => {
     if (digits.length <= 12) {
         return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`
     }
-    
+
     return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`
 }
 
@@ -68,8 +68,7 @@ export const maskCpf = (cpf: string): string => cpf.replace(/^\d{3}\.\d{3}/, "�
  *
  * Exemplo: maskCnpj("12.345.678/0001-00") → "••.•••.•••/0001-00"
  */
-export const maskCnpj = (cnpj: string): string =>
-    cnpj.replace(/^\d{2}\.\d{3}\.\d{3}/, "••.•••.•••")
+export const maskCnpj = (cnpj: string): string => cnpj.replace(/^\d{2}\.\d{3}\.\d{3}/, "••.•••.•••")
 
 /**
  * Formata um CEP no padrão 00000-000.

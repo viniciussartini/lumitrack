@@ -3,7 +3,9 @@ import { SimulationStore } from "@/simulation/store.js"
 import { SimulationEngine } from "@/simulation/simulationEngine.js"
 import type { InternalPublisher } from "@/mqtt/internalPublisher.js"
 
-function createFakePublisher(): InternalPublisher & { publish: ReturnType<typeof vi.fn<(topic: string, payload: unknown) => void>> } {
+function createFakePublisher(): InternalPublisher & {
+    publish: ReturnType<typeof vi.fn<(topic: string, payload: unknown) => void>>
+} {
     return {
         connect: vi.fn(async () => {}),
         disconnect: vi.fn(async () => {}),

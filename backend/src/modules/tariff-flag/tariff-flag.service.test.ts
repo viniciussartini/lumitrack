@@ -25,12 +25,21 @@ async function seedConfig() {
 
 async function seedAdmin() {
     return prismaTest.user.create({
-        data: { email: "admin@example.com", password: "hash", userType: "INDIVIDUAL", role: "ADMIN" },
+        data: {
+            email: "admin@example.com",
+            password: "hash",
+            userType: "INDIVIDUAL",
+            role: "ADMIN",
+        },
     })
 }
 
-beforeEach(async () => { await cleanDatabase() })
-afterAll(async () => { await prismaTest.$disconnect() })
+beforeEach(async () => {
+    await cleanDatabase()
+})
+afterAll(async () => {
+    await prismaTest.$disconnect()
+})
 
 describe("TariffFlagService", () => {
     describe("get", () => {

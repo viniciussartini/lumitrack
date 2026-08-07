@@ -18,7 +18,10 @@ export class SimulationEngine {
 
     startEngine(): void {
         if (this.anomalyScanTimer) return
-        this.anomalyScanTimer = setInterval(() => this.scanExpiredAnomalies(), ANOMALY_SCAN_INTERVAL_MS)
+        this.anomalyScanTimer = setInterval(
+            () => this.scanExpiredAnomalies(),
+            ANOMALY_SCAN_INTERVAL_MS,
+        )
     }
 
     stopEngine(): void {
@@ -54,8 +57,16 @@ export class SimulationEngine {
         this.runners.delete(deviceId)
     }
 
-    triggerAnomaly(deviceId: string, multiplier: number, durationSeconds: number): VirtualDevice | undefined {
-        const anomaly: AnomalyState = { active: true, multiplier, endsAt: Date.now() + durationSeconds * 1000 }
+    triggerAnomaly(
+        deviceId: string,
+        multiplier: number,
+        durationSeconds: number,
+    ): VirtualDevice | undefined {
+        const anomaly: AnomalyState = {
+            active: true,
+            multiplier,
+            endsAt: Date.now() + durationSeconds * 1000,
+        }
         return this.store.setAnomaly(deviceId, anomaly)
     }
 
@@ -67,7 +78,11 @@ export class SimulationEngine {
         const now = Date.now()
         for (const network of this.store.listNetworks()) {
             for (const device of network.devices.values()) {
-                if (device.anomaly.active && device.anomaly.endsAt !== null && now >= device.anomaly.endsAt) {
+                if (
+                    device.anomaly.active &&
+                    device.anomaly.endsAt !== null &&
+                    now >= device.anomaly.endsAt
+                ) {
                     this.store.clearAnomaly(device.id)
                 }
             }

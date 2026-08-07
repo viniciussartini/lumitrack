@@ -33,13 +33,7 @@ export const ConsumptionHistorySection = ({
     const meterQuery = useMeterByTarget("PROPERTY", propertyId)
     const hasMeter = Boolean(meterQuery.data)
 
-    const query = useConsumption(
-        "PROPERTY",
-        hasMeter ? propertyId : undefined,
-        "month",
-        1,
-        range,
-    )
+    const query = useConsumption("PROPERTY", hasMeter ? propertyId : undefined, "month", 1, range)
 
     const buckets = query.data?.items ?? []
 
@@ -78,7 +72,10 @@ export const ConsumptionHistorySection = ({
                         role="alert"
                         className="border-status-danger/40 flex items-start gap-3 border p-4"
                     >
-                        <AlertCircle className="text-status-danger h-5 w-5 shrink-0" aria-hidden="true" />
+                        <AlertCircle
+                            className="text-status-danger h-5 w-5 shrink-0"
+                            aria-hidden="true"
+                        />
                         <p className="text-status-danger/85 text-sm">
                             {query.error instanceof Error
                                 ? query.error.message

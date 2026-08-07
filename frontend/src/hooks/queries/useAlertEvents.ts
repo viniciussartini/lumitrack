@@ -13,7 +13,6 @@ export const useAlertEvents = (
 ) =>
     useQuery({
         queryKey: queryKeys.alertEvents.list(alertId ?? "", page, pageSize),
-        queryFn: () =>
-            alertEventService.list({ alertId: alertId!, page, pageSize }),
+        queryFn: () => alertEventService.list({ alertId: alertId!, page, pageSize }),
         enabled: Boolean(alertId),
     })

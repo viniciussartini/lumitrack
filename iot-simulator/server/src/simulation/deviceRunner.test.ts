@@ -7,7 +7,9 @@ function isFiniteNonNegative(value: number): boolean {
     return Number.isFinite(value) && value >= 0
 }
 
-function createFakePublisher(): InternalPublisher & { publish: ReturnType<typeof vi.fn<(topic: string, payload: unknown) => void>> } {
+function createFakePublisher(): InternalPublisher & {
+    publish: ReturnType<typeof vi.fn<(topic: string, payload: unknown) => void>>
+} {
     return {
         connect: vi.fn(async () => {}),
         disconnect: vi.fn(async () => {}),
@@ -40,7 +42,13 @@ describe("DeviceRunner", () => {
         expect(publisher.publish).toHaveBeenCalledTimes(3)
         const [topic, payload] = publisher.publish.mock.calls[0]! as [
             string,
-            { voltage: number; current: number; powerW: number; powerFactor: number; deviceTimestamp: string },
+            {
+                voltage: number
+                current: number
+                powerW: number
+                powerFactor: number
+                deviceTimestamp: string
+            },
         ]
         expect(topic).toBe("sim/dev1")
         expect(isFiniteNonNegative(payload.voltage)).toBe(true)

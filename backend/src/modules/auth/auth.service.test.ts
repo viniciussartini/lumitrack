@@ -68,7 +68,6 @@ afterAll(async () => {
 
 describe("AuthService", () => {
     describe("login", () => {
-
         it("deve retornar um token JWT ao fazer login com credenciais válidas (WEB)", async () => {
             // Arrange: criamos o usuário diretamente pelo repository (mais rápido que o service)
             const { UserService } = await import("@/modules/user/user.service.js")
@@ -228,9 +227,9 @@ describe("AuthService", () => {
         })
 
         it("deve lançar UnauthorizedError ao tentar fazer logout com token inexistente", async () => {
-            await expect(
-                authService.logout("token.inexistente.qualquer"),
-            ).rejects.toThrow(UnauthorizedError)
+            await expect(authService.logout("token.inexistente.qualquer")).rejects.toThrow(
+                UnauthorizedError,
+            )
         })
 
         it("deve lançar UnauthorizedError ao tentar revogar token já revogado", async () => {
@@ -573,7 +572,10 @@ describe("AuthService", () => {
                 const { secret, backupCodes: oldBackupCodes } = await enableMfaForUser(userId)
                 const disableCode = await generate({ secret })
 
-                await authService.disableMfa(userId, { password: validUser.password, code: disableCode })
+                await authService.disableMfa(userId, {
+                    password: validUser.password,
+                    code: disableCode,
+                })
                 await enableMfaForUser(userId) // reinscreve — novo secret, novos backup codes
 
                 const loginResult = await authService.login({
@@ -626,7 +628,12 @@ describe("AuthService", () => {
         })
 
         describe("completeMfaLogin", () => {
-            async function getMfaToken(): Promise<{ userId: string; mfaToken: string; secret: string; backupCodes: string[] }> {
+            async function getMfaToken(): Promise<{
+                userId: string
+                mfaToken: string
+                secret: string
+                backupCodes: string[]
+            }> {
                 const userId = await createUserAndGetId()
                 const { secret, backupCodes } = await enableMfaForUser(userId)
 
@@ -680,7 +687,10 @@ describe("AuthService", () => {
 
             it("lança UnauthorizedError para mfaToken inválido", async () => {
                 await expect(
-                    authService.completeMfaLogin({ mfaToken: "token.invalido.aqui", code: "123456" }),
+                    authService.completeMfaLogin({
+                        mfaToken: "token.invalido.aqui",
+                        code: "123456",
+                    }),
                 ).rejects.toThrow(UnauthorizedError)
             })
 
@@ -699,7 +709,10 @@ describe("AuthService", () => {
                 if (!secondLogin.mfaRequired) throw new Error("esperava mfaRequired:true")
 
                 await expect(
-                    authService.completeMfaLogin({ mfaToken: secondLogin.mfaToken, code: backupCode }),
+                    authService.completeMfaLogin({
+                        mfaToken: secondLogin.mfaToken,
+                        code: backupCode,
+                    }),
                 ).rejects.toThrow(UnauthorizedError)
             })
         })
@@ -716,7 +729,9 @@ describe("AuthService", () => {
                 expect(user?.mfaEnabled).toBe(false)
                 expect(user?.mfaSecret).toBeNull()
 
-                const remainingCodes = await prismaTest.mfaBackupCode.findMany({ where: { userId } })
+                const remainingCodes = await prismaTest.mfaBackupCode.findMany({
+                    where: { userId },
+                })
                 expect(remainingCodes).toHaveLength(0)
 
                 // Login deixa de exigir MFA
@@ -759,7 +774,10 @@ describe("AuthService", () => {
                 await enableMfaForUser(userId)
 
                 await expect(
-                    authService.disableMfa(userId, { password: validUser.password, code: "000000" }),
+                    authService.disableMfa(userId, {
+                        password: validUser.password,
+                        code: "000000",
+                    }),
                 ).rejects.toThrow(UnauthorizedError)
             })
 
@@ -767,7 +785,10 @@ describe("AuthService", () => {
                 const userId = await createUserAndGetId()
 
                 await expect(
-                    authService.disableMfa(userId, { password: validUser.password, code: "123456" }),
+                    authService.disableMfa(userId, {
+                        password: validUser.password,
+                        code: "123456",
+                    }),
                 ).rejects.toThrow(BadRequestError)
             })
         })

@@ -32,8 +32,10 @@ export const ComparisonBars = ({ rows, unit }: ComparisonBarsProps) => {
                     <div key={row.id} className="border-divider border-b py-3 last:border-b-0">
                         <div className="mb-[7px] flex items-baseline justify-between">
                             <span className="text-[13.5px]">{row.label}</span>
-                            <span className="font-heading text-[17px] font-semibold font-features-['tnum'_1]">
-                                {unit === "reais" ? formatCostBrl(value) : `${formatKwh(value)} kWh`}
+                            <span className="font-heading font-features-['tnum'_1] text-[17px] font-semibold">
+                                {unit === "reais"
+                                    ? formatCostBrl(value)
+                                    : `${formatKwh(value)} kWh`}
                             </span>
                         </div>
                         <div className="bg-divider h-2.5">

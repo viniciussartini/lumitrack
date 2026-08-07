@@ -7,8 +7,30 @@ describe("MinuteBuffer", () => {
             const buffer = new MinuteBuffer()
             const minute = new Date("2026-01-15T14:37:00.000Z")
 
-            buffer.add("meter-1", { energyKwh: 0.001, voltage: 220, current: 2, powerW: 440, powerFactor: 0.95, deltaSeconds: 1 }, new Date("2026-01-15T14:37:10.000Z"))
-            buffer.add("meter-1", { energyKwh: 0.002, voltage: 222, current: 3, powerW: 666, powerFactor: 0.9, deltaSeconds: 2 }, new Date("2026-01-15T14:37:12.000Z"))
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 1,
+                },
+                new Date("2026-01-15T14:37:10.000Z"),
+            )
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.002,
+                    voltage: 222,
+                    current: 3,
+                    powerW: 666,
+                    powerFactor: 0.9,
+                    deltaSeconds: 2,
+                },
+                new Date("2026-01-15T14:37:12.000Z"),
+            )
 
             const snapshots = buffer.drainCompletedBuckets(new Date("2026-01-15T14:38:00.000Z"))
 
@@ -28,8 +50,30 @@ describe("MinuteBuffer", () => {
             const buffer = new MinuteBuffer()
 
             // Primeira amostra do medidor: deltaSeconds=0 (sem histórico prévio).
-            buffer.add("meter-1", { energyKwh: 0, voltage: 999, current: 999, powerW: 999, powerFactor: 1, deltaSeconds: 0 }, new Date("2026-01-15T14:37:05.000Z"))
-            buffer.add("meter-1", { energyKwh: 0.001, voltage: 220, current: 2, powerW: 440, powerFactor: 0.95, deltaSeconds: 1 }, new Date("2026-01-15T14:37:06.000Z"))
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0,
+                    voltage: 999,
+                    current: 999,
+                    powerW: 999,
+                    powerFactor: 1,
+                    deltaSeconds: 0,
+                },
+                new Date("2026-01-15T14:37:05.000Z"),
+            )
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 1,
+                },
+                new Date("2026-01-15T14:37:06.000Z"),
+            )
 
             const snapshots = buffer.drainCompletedBuckets(new Date("2026-01-15T14:38:00.000Z"))
             const snap = snapshots[0]!
@@ -43,25 +87,66 @@ describe("MinuteBuffer", () => {
         it("separa amostras em baldes diferentes por minuto", () => {
             const buffer = new MinuteBuffer()
 
-            buffer.add("meter-1", { energyKwh: 0.001, voltage: 220, current: 2, powerW: 440, powerFactor: 0.95, deltaSeconds: 1 }, new Date("2026-01-15T14:37:59.000Z"))
-            buffer.add("meter-1", { energyKwh: 0.001, voltage: 220, current: 2, powerW: 440, powerFactor: 0.95, deltaSeconds: 1 }, new Date("2026-01-15T14:38:01.000Z"))
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 1,
+                },
+                new Date("2026-01-15T14:37:59.000Z"),
+            )
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 1,
+                },
+                new Date("2026-01-15T14:38:01.000Z"),
+            )
 
             const snapshots = buffer.drainCompletedBuckets(new Date("2026-01-15T14:39:00.000Z"))
 
             expect(snapshots).toHaveLength(2)
             const minutes = snapshots.map((s) => s.minuteStart.toISOString()).sort()
-            expect(minutes).toEqual([
-                "2026-01-15T14:37:00.000Z",
-                "2026-01-15T14:38:00.000Z",
-            ])
+            expect(minutes).toEqual(["2026-01-15T14:37:00.000Z", "2026-01-15T14:38:00.000Z"])
         })
 
         it("separa baldes por medidor", () => {
             const buffer = new MinuteBuffer()
             const at = new Date("2026-01-15T14:37:10.000Z")
 
-            buffer.add("meter-1", { energyKwh: 0.001, voltage: 220, current: 2, powerW: 440, powerFactor: 0.95, deltaSeconds: 1 }, at)
-            buffer.add("meter-2", { energyKwh: 0.002, voltage: 127, current: 1, powerW: 127, powerFactor: 0.9, deltaSeconds: 1 }, at)
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 1,
+                },
+                at,
+            )
+            buffer.add(
+                "meter-2",
+                {
+                    energyKwh: 0.002,
+                    voltage: 127,
+                    current: 1,
+                    powerW: 127,
+                    powerFactor: 0.9,
+                    deltaSeconds: 1,
+                },
+                at,
+            )
 
             const snapshots = buffer.drainCompletedBuckets(new Date("2026-01-15T14:38:00.000Z"))
             expect(snapshots).toHaveLength(2)
@@ -73,7 +158,18 @@ describe("MinuteBuffer", () => {
         it("não drena o balde do minuto em curso", () => {
             const buffer = new MinuteBuffer()
 
-            buffer.add("meter-1", { energyKwh: 0.001, voltage: 220, current: 2, powerW: 440, powerFactor: 0.95, deltaSeconds: 1 }, new Date("2026-01-15T14:37:30.000Z"))
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 1,
+                },
+                new Date("2026-01-15T14:37:30.000Z"),
+            )
 
             // "now" ainda está dentro do minuto 14:37 — o balde não deve drenar.
             const snapshots = buffer.drainCompletedBuckets(new Date("2026-01-15T14:37:45.000Z"))
@@ -82,7 +178,18 @@ describe("MinuteBuffer", () => {
 
         it("remove os baldes drenados do buffer (não drena duas vezes)", () => {
             const buffer = new MinuteBuffer()
-            buffer.add("meter-1", { energyKwh: 0.001, voltage: 220, current: 2, powerW: 440, powerFactor: 0.95, deltaSeconds: 1 }, new Date("2026-01-15T14:37:30.000Z"))
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 1,
+                },
+                new Date("2026-01-15T14:37:30.000Z"),
+            )
 
             const first = buffer.drainCompletedBuckets(new Date("2026-01-15T14:38:00.000Z"))
             const second = buffer.drainCompletedBuckets(new Date("2026-01-15T14:38:00.000Z"))
@@ -96,7 +203,18 @@ describe("MinuteBuffer", () => {
     describe("drainAll", () => {
         it("drena inclusive o balde do minuto em curso", () => {
             const buffer = new MinuteBuffer()
-            buffer.add("meter-1", { energyKwh: 0.001, voltage: 220, current: 2, powerW: 440, powerFactor: 0.95, deltaSeconds: 1 }, new Date("2026-01-15T14:37:30.000Z"))
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 1,
+                },
+                new Date("2026-01-15T14:37:30.000Z"),
+            )
 
             const snapshots = buffer.drainAll()
             expect(snapshots).toHaveLength(1)
@@ -145,7 +263,18 @@ describe("MinuteBuffer", () => {
                 sampleCount: 10,
                 secondsCovered: 10,
             })
-            buffer.add("meter-1", { energyKwh: 0.005, voltage: 220, current: 5, powerW: 1100, powerFactor: 0.9, deltaSeconds: 10 }, new Date("2026-01-15T14:37:20.000Z"))
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.005,
+                    voltage: 220,
+                    current: 5,
+                    powerW: 1100,
+                    powerFactor: 0.9,
+                    deltaSeconds: 10,
+                },
+                new Date("2026-01-15T14:37:20.000Z"),
+            )
 
             const snapshots = buffer.drainCompletedBuckets(new Date("2026-01-15T14:38:00.000Z"))
             const snap = snapshots[0]!
@@ -165,8 +294,30 @@ describe("MinuteBuffer", () => {
 
         it("retorna a leitura mais recente do medidor", () => {
             const buffer = new MinuteBuffer()
-            buffer.add("meter-1", { energyKwh: 0, voltage: 220, current: 1, powerW: 220, powerFactor: 1, deltaSeconds: 0 }, new Date("2026-01-15T14:37:00.000Z"))
-            buffer.add("meter-1", { energyKwh: 0, voltage: 225, current: 1, powerW: 225, powerFactor: 1, deltaSeconds: 1 }, new Date("2026-01-15T14:37:05.000Z"))
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0,
+                    voltage: 220,
+                    current: 1,
+                    powerW: 220,
+                    powerFactor: 1,
+                    deltaSeconds: 0,
+                },
+                new Date("2026-01-15T14:37:00.000Z"),
+            )
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0,
+                    voltage: 225,
+                    current: 1,
+                    powerW: 225,
+                    powerFactor: 1,
+                    deltaSeconds: 1,
+                },
+                new Date("2026-01-15T14:37:05.000Z"),
+            )
 
             const latest = buffer.getLatest("meter-1")
             expect(latest?.voltage).toBe(225)

@@ -1,11 +1,24 @@
 import { z } from "zod"
 import { simulationInputSchema } from "@/modules/simulation/simulation.schema.js"
-import type { SimulationInput, SimulationResult, SimulationTarget } from "@/modules/simulation/simulation.schema.js"
-import type { PropertyRepository, PropertyResponse } from "@/modules/property/property.repository.js"
-import type { DistributorRepository, DistributorResponse } from "@/modules/distributor/distributor.repository.js"
+import type {
+    SimulationInput,
+    SimulationResult,
+    SimulationTarget,
+} from "@/modules/simulation/simulation.schema.js"
+import type {
+    PropertyRepository,
+    PropertyResponse,
+} from "@/modules/property/property.repository.js"
+import type {
+    DistributorRepository,
+    DistributorResponse,
+} from "@/modules/distributor/distributor.repository.js"
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
-import { resolveFlagPer100Kwh, type TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
+import {
+    resolveFlagPer100Kwh,
+    type TariffFlagRepository,
+} from "@/modules/tariff-flag/tariff-flag.repository.js"
 import { TariffService } from "@/shared/tariff/tariff.service.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 
@@ -28,9 +41,7 @@ export class SimulationService {
     async simulate(propertyId: string, userId: string, input: unknown): Promise<SimulationResult> {
         const parsed = simulationInputSchema.safeParse(input)
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
@@ -53,7 +64,14 @@ export class SimulationService {
             throw new NotFoundError("Configuração de bandeira tarifária não encontrada")
         }
 
-        const costBrl = this.calculateCost(data.target, data.period, kwhConsumed, property, distributor, resolveFlagPer100Kwh(flagConfig))
+        const costBrl = this.calculateCost(
+            data.target,
+            data.period,
+            kwhConsumed,
+            property,
+            distributor,
+            resolveFlagPer100Kwh(flagConfig),
+        )
 
         return {
             period: data.period,
@@ -67,7 +85,10 @@ export class SimulationService {
         }
     }
 
-    private async validatePropertyOwnership(propertyId: string, userId: string): Promise<PropertyResponse> {
+    private async validatePropertyOwnership(
+        propertyId: string,
+        userId: string,
+    ): Promise<PropertyResponse> {
         const property = await this.propertyRepository.findById(propertyId)
 
         if (!property) {
@@ -144,7 +165,6 @@ export class SimulationService {
         }).totalBrl
     }
 
-
     // Valida a cadeia de posse conforme o tipo de target escolhido.
     //   area → property ✓
     //   device → area ✓
@@ -191,7 +211,6 @@ export class SimulationService {
         }
     }
 
-
     // Para modo WATTS_HOURS + target DEVICE:
     //   - Se o body informa powerWatts → usa o do body (simulação hipotética)
     //   - Se o body não informa → usa o powerWatts cadastrado no device
@@ -220,11 +239,8 @@ export class SimulationService {
             )
         }
 
-        throw new ValidationError(
-            "powerWatts é obrigatório para simulação em modo WATTS_HOURS",
-        )
+        throw new ValidationError("powerWatts é obrigatório para simulação em modo WATTS_HOURS")
     }
-
 
     // ─── Cálculo de kWh ───────────────────────────────────────────────────────
     // Modo KWH_DIRECT: kWh já informado → projeta para o período
@@ -233,7 +249,11 @@ export class SimulationService {
     // Modo WATTS_HOURS: calcula a partir de potência e uso diário
     //   Fórmula: (powerWatts / 1000) × dailyUsageHours × projectedDays
 
-    private calculateKwh(data: SimulationInput, effectivePowerWatts: number | null, projectedDays: number): number {
+    private calculateKwh(
+        data: SimulationInput,
+        effectivePowerWatts: number | null,
+        projectedDays: number,
+    ): number {
         if (data.inputMode === "KWH_DIRECT") {
             return data.kwhConsumed
         }

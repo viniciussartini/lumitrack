@@ -52,8 +52,7 @@ export interface LoginResponse {
 // o restante do app precise checar `mfaRequired` + presença de `mfaToken`
 // como campos soltos.
 export type LoginResult =
-    | { mfaRequired: true; mfaToken: string }
-    | { mfaRequired?: false; user: User }
+    { mfaRequired: true; mfaToken: string } | { mfaRequired?: false; user: User }
 
 // ─── MFA (TOTP) ─────────────────────────────────────────────────────────────
 

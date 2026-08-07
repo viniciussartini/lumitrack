@@ -4,11 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { ShieldCheck, ShieldOff, Copy, Check, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
-import {
-    useMfaSetup,
-    useMfaVerifySetup,
-    useMfaDisable,
-} from "@/hooks/queries/useMfaMutations"
+import { useMfaSetup, useMfaVerifySetup, useMfaDisable } from "@/hooks/queries/useMfaMutations"
 import { MfaCodeForm } from "@/components/auth/MfaCodeForm"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
@@ -118,7 +114,10 @@ export const SecurityPage = () => {
                                 : "Desativada — adicione uma camada extra de segurança exigindo um código do seu aplicativo autenticador a cada login."}
                         </p>
                     </div>
-                    <Tag variant={user.mfaEnabled ? "accent" : "neutral"} className="ml-auto shrink-0 font-semibold">
+                    <Tag
+                        variant={user.mfaEnabled ? "accent" : "neutral"}
+                        className="ml-auto shrink-0 font-semibold"
+                    >
                         {user.mfaEnabled ? "Ativado" : "Desativado"}
                     </Tag>
                 </div>
@@ -144,8 +143,8 @@ export const SecurityPage = () => {
                                 1. Escaneie o QR code
                             </h3>
                             <p className="text-muted mt-1 text-sm">
-                                Use um aplicativo autenticador (Google Authenticator, Authy
-                                etc.) para escanear o código abaixo.
+                                Use um aplicativo autenticador (Google Authenticator, Authy etc.)
+                                para escanear o código abaixo.
                             </p>
                             <img
                                 src={setupData.qrCodeDataUrl}
@@ -221,10 +220,9 @@ const BackupCodesReveal = ({ codes, onFinish }: BackupCodesRevealProps) => {
                 className="border-status-warning/40 bg-status-warning/10 text-status-warning flex items-start gap-2.5 border px-3.5 py-3 text-sm leading-relaxed"
             >
                 <AlertTriangle className="mt-0.5 h-[18px] w-[18px] shrink-0" aria-hidden="true" />
-                2FA ativado com sucesso. Guarde estes códigos de backup em um
-                lugar seguro — eles não serão exibidos novamente, e cada um
-                pode ser usado uma única vez para entrar caso você perca acesso
-                ao aplicativo autenticador.
+                2FA ativado com sucesso. Guarde estes códigos de backup em um lugar seguro — eles
+                não serão exibidos novamente, e cada um pode ser usado uma única vez para entrar
+                caso você perca acesso ao aplicativo autenticador.
             </div>
 
             <ul
@@ -289,14 +287,10 @@ const MfaDisableForm = ({ onSubmit, onCancel, isLoading }: MfaDisableFormProps) 
     }
 
     return (
-        <form
-            onSubmit={handleSubmit(handleFormSubmit)}
-            className="flex flex-col gap-4"
-            noValidate
-        >
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col gap-4" noValidate>
             <p className="text-muted text-[13.5px]">
-                Confirme sua senha e um código válido do aplicativo
-                autenticador (ou um código de backup) para desativar o 2FA.
+                Confirme sua senha e um código válido do aplicativo autenticador (ou um código de
+                backup) para desativar o 2FA.
             </p>
 
             <Input
@@ -316,7 +310,10 @@ const MfaDisableForm = ({ onSubmit, onCancel, isLoading }: MfaDisableFormProps) 
             />
 
             {serverError && (
-                <div role="alert" className="bg-status-danger/10 text-status-danger px-3 py-2 text-sm">
+                <div
+                    role="alert"
+                    className="bg-status-danger/10 text-status-danger px-3 py-2 text-sm"
+                >
                     {serverError}
                 </div>
             )}

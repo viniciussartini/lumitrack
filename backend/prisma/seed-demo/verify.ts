@@ -1,13 +1,22 @@
 import { prisma } from "@/shared/database/prisma.js"
 import { DEMO_PASSWORD, DEMO_COMMERCIAL_EMAIL, DEMO_RESIDENTIAL_EMAIL } from "./constants.js"
 
-export async function printSummary(residentialUserId: string, commercialUserId: string): Promise<void> {
+export async function printSummary(
+    residentialUserId: string,
+    commercialUserId: string,
+): Promise<void> {
     const meters = await prisma.meter.findMany({
         where: {
             OR: [
                 { property: { userId: { in: [residentialUserId, commercialUserId] } } },
                 { area: { property: { userId: { in: [residentialUserId, commercialUserId] } } } },
-                { device: { area: { property: { userId: { in: [residentialUserId, commercialUserId] } } } } },
+                {
+                    device: {
+                        area: {
+                            property: { userId: { in: [residentialUserId, commercialUserId] } },
+                        },
+                    },
+                },
             ],
         },
         select: { id: true, name: true, targetType: true, topic: true },
@@ -29,8 +38,8 @@ export async function printSummary(residentialUserId: string, commercialUserId: 
         const totalKwh = (_sum.kwhConsumed ?? 0).toFixed(1)
         const avgPowerW = (_avg.avgPowerW ?? 0).toFixed(0)
         console.log(
-            `  - [${meter.targetType}] ${meter.name} (tópico: ${meter.topic}) — `
-            + `${readingCount} leituras, ${totalKwh} kWh, ${avgPowerW}W médios`,
+            `  - [${meter.targetType}] ${meter.name} (tópico: ${meter.topic}) — ` +
+                `${readingCount} leituras, ${totalKwh} kWh, ${avgPowerW}W médios`,
         )
     }
 
@@ -43,8 +52,8 @@ export async function printSummary(residentialUserId: string, commercialUserId: 
     console.log(`\nEpisódios de anomalia gerados: ${events.length}`)
     for (const event of events) {
         console.log(
-            `  - ${event.alert.name}: ${event.startedAt.toISOString()} → ${event.durationSeconds}s, `
-            + `pico ${event.maxPowerW.toFixed(0)}W (média ${event.avgPowerW.toFixed(0)}W)`,
+            `  - ${event.alert.name}: ${event.startedAt.toISOString()} → ${event.durationSeconds}s, ` +
+                `pico ${event.maxPowerW.toFixed(0)}W (média ${event.avgPowerW.toFixed(0)}W)`,
         )
     }
 

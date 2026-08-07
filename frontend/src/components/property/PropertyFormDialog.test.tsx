@@ -19,8 +19,7 @@ vi.mock("@/services/property.service", () => ({
 
 vi.mock("@/services/api", () => ({
     api: {},
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 vi.mock("sonner", () => ({
@@ -60,9 +59,7 @@ const mockProperty: Property = {
     updatedAt: new Date().toISOString(),
 }
 
-const renderDialog = (
-    props: Partial<React.ComponentProps<typeof PropertyFormDialog>> = {},
-) => {
+const renderDialog = (props: Partial<React.ComponentProps<typeof PropertyFormDialog>> = {}) => {
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false, gcTime: 0 },
@@ -94,9 +91,7 @@ describe("PropertyFormDialog — criar", () => {
     it("abre com o título 'Adicionar propriedade'", () => {
         renderDialog()
 
-        expect(
-            screen.getByRole("dialog", { name: /adicionar propriedade/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("dialog", { name: /adicionar propriedade/i })).toBeInTheDocument()
     })
 
     it("cria a propriedade e fecha o modal ao submeter", async () => {
@@ -106,10 +101,7 @@ describe("PropertyFormDialog — criar", () => {
         const { onClose } = renderDialog()
 
         await user.type(screen.getByLabelText(/nome da propriedade/i), "Casa Nova")
-        await user.selectOptions(
-            screen.getByLabelText(/distribuidora vinculada/i),
-            "dist-1",
-        )
+        await user.selectOptions(screen.getByLabelText(/distribuidora vinculada/i), "dist-1")
         await user.click(screen.getByRole("button", { name: /criar propriedade/i }))
 
         expect(propertyService.create).toHaveBeenCalledWith(
@@ -123,12 +115,8 @@ describe("PropertyFormDialog — editar", () => {
     it("abre com o título 'Editar propriedade' e campos pré-preenchidos", () => {
         renderDialog({ mode: { kind: "edit", property: mockProperty } })
 
-        expect(
-            screen.getByRole("dialog", { name: /editar propriedade/i }),
-        ).toBeInTheDocument()
-        expect(screen.getByLabelText(/nome da propriedade/i)).toHaveValue(
-            "Casa Principal",
-        )
+        expect(screen.getByRole("dialog", { name: /editar propriedade/i })).toBeInTheDocument()
+        expect(screen.getByLabelText(/nome da propriedade/i)).toHaveValue("Casa Principal")
     })
 
     it("atualiza a propriedade e fecha o modal ao submeter", async () => {

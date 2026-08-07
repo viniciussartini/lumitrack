@@ -24,8 +24,7 @@ vi.mock("@/services/auth.service", () => ({
 }))
 
 vi.mock("@/services/api", () => ({
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 vi.mock("sonner", () => ({
@@ -136,9 +135,7 @@ describe("SecurityPage — fluxo de setup", () => {
 
         // Concluir volta ao estado idle
         await user.click(screen.getByRole("button", { name: /concluir/i }))
-        expect(
-            screen.queryByRole("button", { name: /concluir/i }),
-        ).not.toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /concluir/i })).not.toBeInTheDocument()
     })
 
     it("mostra toast de erro quando mfaSetup falha", async () => {

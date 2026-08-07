@@ -19,8 +19,7 @@ vi.mock("@/services/device.service", () => ({
 
 vi.mock("@/services/api", () => ({
     api: {},
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 vi.mock("sonner", () => ({
@@ -55,9 +54,7 @@ const renderCard = (device: Device = baseDevice) => {
     })
     return render(
         <QueryClientProvider client={queryClient}>
-            <MemoryRouter
-                initialEntries={["/propriedades/prop-1/areas/area-1"]}
-            >
+            <MemoryRouter initialEntries={["/propriedades/prop-1/areas/area-1"]}>
                 <Routes>
                     <Route
                         path="/propriedades/:propertyId/areas/:areaId"
@@ -84,9 +81,7 @@ describe("DeviceCard — conteúdo principal", () => {
     it("renderiza chip com marca + modelo concatenados", () => {
         renderCard()
 
-        expect(
-            screen.getByText(/daikin · split 12000 btu/i),
-        ).toBeInTheDocument()
+        expect(screen.getByText(/daikin · split 12000 btu/i)).toBeInTheDocument()
     })
 
     it("renderiza chip de potência quando informada", () => {
@@ -144,18 +139,13 @@ describe("DeviceCard — navegação", () => {
 
         const link = screen.getByTestId("device-card-device-1")
 
-        expect(link).toHaveAttribute(
-            "href",
-            "/propriedades/prop-1/areas/area-1/devices/device-1",
-        )
+        expect(link).toHaveAttribute("href", "/propriedades/prop-1/areas/area-1/devices/device-1")
     })
 
     it("usa o id correto no data-testid", () => {
         renderCard({ ...baseDevice, id: "outro-id" })
 
-        expect(
-            screen.getByTestId("device-card-outro-id"),
-        ).toBeInTheDocument()
+        expect(screen.getByTestId("device-card-outro-id")).toBeInTheDocument()
     })
 
     it("usa o areaId correto na URL (caso device pertença a outra área)", () => {
@@ -163,10 +153,7 @@ describe("DeviceCard — navegação", () => {
 
         const link = screen.getByTestId("device-card-device-1")
 
-        expect(link).toHaveAttribute(
-            "href",
-            "/propriedades/prop-1/areas/area-9/devices/device-1",
-        )
+        expect(link).toHaveAttribute("href", "/propriedades/prop-1/areas/area-9/devices/device-1")
     })
 })
 

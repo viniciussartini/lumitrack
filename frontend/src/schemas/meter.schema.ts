@@ -58,7 +58,8 @@ export const meterFormSchema = z
         { message: "Host é obrigatório para este protocolo", path: ["host"] },
     )
     .refine(
-        (data) => !NETWORK_PROTOCOLS.includes(data.protocol as MeterProtocol) || data.port !== undefined,
+        (data) =>
+            !NETWORK_PROTOCOLS.includes(data.protocol as MeterProtocol) || data.port !== undefined,
         { message: "Porta é obrigatória para este protocolo", path: ["port"] },
     )
     .refine(
@@ -66,7 +67,8 @@ export const meterFormSchema = z
         { message: "Tópico é obrigatório para MQTT", path: ["topic"] },
     )
     .refine(
-        (data) => !SERIAL_PROTOCOLS.includes(data.protocol as MeterProtocol) || Boolean(data.address),
+        (data) =>
+            !SERIAL_PROTOCOLS.includes(data.protocol as MeterProtocol) || Boolean(data.address),
         { message: "Endereço é obrigatório para este protocolo", path: ["address"] },
     )
 

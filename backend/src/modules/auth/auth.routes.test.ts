@@ -261,9 +261,7 @@ describe("CSRF (double-submit cookie)", () => {
     it("deve aceitar requisição mutável via cookie quando o header CSRF bate com o cookie", async () => {
         const { agent, csrfToken } = await registerAndLoginWeb()
 
-        const response = await agent
-            .post("/api/auth/logout")
-            .set(env.CSRF_HEADER_NAME, csrfToken)
+        const response = await agent.post("/api/auth/logout").set(env.CSRF_HEADER_NAME, csrfToken)
 
         expect(response.status).toBe(200)
     })
@@ -306,9 +304,7 @@ describe("POST /api/auth/logout", () => {
     it("MOBILE: deve rejeitar requisições autenticadas com token revogado após logout", async () => {
         const token = await registerAndLogin("MOBILE")
 
-        await request(app)
-            .post("/api/auth/logout")
-            .set("Authorization", `Bearer ${token}`)
+        await request(app).post("/api/auth/logout").set("Authorization", `Bearer ${token}`)
 
         const response = await request(app)
             .get("/api/auth/me")
@@ -320,9 +316,7 @@ describe("POST /api/auth/logout", () => {
     it("WEB: deve limpar os cookies de sessão e CSRF na resposta", async () => {
         const { agent, csrfToken } = await registerAndLoginWeb()
 
-        const response = await agent
-            .post("/api/auth/logout")
-            .set(env.CSRF_HEADER_NAME, csrfToken)
+        const response = await agent.post("/api/auth/logout").set(env.CSRF_HEADER_NAME, csrfToken)
 
         const sessionCookie = findSetCookieLine(response, env.AUTH_COOKIE_NAME)
         const csrfCookie = findSetCookieLine(response, env.CSRF_COOKIE_NAME)
@@ -397,7 +391,11 @@ describe("Audit log — login/logout", () => {
 
         const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "LOGOUT" } })
         expect(logs).toHaveLength(1)
-        expect(logs[0]).toMatchObject({ action: "LOGOUT", outcome: "SUCCESS", resourceType: "User" })
+        expect(logs[0]).toMatchObject({
+            action: "LOGOUT",
+            outcome: "SUCCESS",
+            resourceType: "User",
+        })
     })
 })
 
@@ -410,7 +408,9 @@ describe("Expiração de token", () => {
         const { loginRes } = await registerAndLoginWeb()
         const sessionToken = extractCookieValue(loginRes, env.AUTH_COOKIE_NAME)
 
-        const byRawToken = await prismaHttpTest.authToken.findUnique({ where: { token: sessionToken } })
+        const byRawToken = await prismaHttpTest.authToken.findUnique({
+            where: { token: sessionToken },
+        })
         expect(byRawToken).toBeNull()
 
         const byHash = await prismaHttpTest.authToken.findUnique({

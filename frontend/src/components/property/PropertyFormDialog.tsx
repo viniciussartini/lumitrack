@@ -132,11 +132,7 @@ export const PropertyFormDialog = ({
             {isCreatingWithoutCatalog && (
                 <div className="flex flex-col items-center gap-4 py-6 text-center">
                     <div className="border-divider flex h-14 w-14 items-center justify-center border">
-                        <Zap
-                            className="text-muted h-7 w-7"
-                            strokeWidth={1.5}
-                            aria-hidden="true"
-                        />
+                        <Zap className="text-muted h-7 w-7" strokeWidth={1.5} aria-hidden="true" />
                     </div>
                     <div className="flex flex-col gap-1">
                         <h3 className="text-lg">Catálogo de distribuidoras indisponível</h3>

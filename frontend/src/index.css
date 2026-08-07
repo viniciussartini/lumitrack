@@ -25,13 +25,13 @@
    deles. Remover tela a tela conforme cada fase migra seus consumidores;
    nenhum uso novo deve ser adicionado a partir daqui. */
 @theme {
-    --color-brand-50:  oklch(0.97 0.02 78);
-    --color-brand-500: oklch(0.80 0.18 78);
-    --color-brand-700: oklch(0.70 0.20 78);
+    --color-brand-50: oklch(0.97 0.02 78);
+    --color-brand-500: oklch(0.8 0.18 78);
+    --color-brand-700: oklch(0.7 0.2 78);
 
-    --color-energy:    oklch(0.78 0.18 85);   /* amarelo "energia" */
-    --color-alert:     oklch(0.65 0.22 25);   /* vermelho alerta */
-    --color-success:   oklch(0.68 0.18 145);  /* verde econômico */
+    --color-energy: oklch(0.78 0.18 85); /* amarelo "energia" */
+    --color-alert: oklch(0.65 0.22 25); /* vermelho alerta */
+    --color-success: oklch(0.68 0.18 145); /* verde econômico */
 }
 
 /* Mapeia os tokens do Industry (definidos em :root por industry.css) para
@@ -111,7 +111,11 @@
    fazendo páginas fora do AppShell (Login/Registro/Landing/legal) renderizarem
    branco/preto puro em vez do cinza claro (#f2f2f3) do Industry — achado ao
    corrigir a Landing (sub-issue #129, Fase 5). */
-html, body, #root { height: 100%; }
+html,
+body,
+#root {
+    height: 100%;
+}
 body {
     @apply antialiased;
 }
@@ -203,7 +207,7 @@ body {
         font-size: 18pt;
     }
 
-/* ── Dashboard cross-propriedades ───────────────────────────────────── */
+    /* ── Dashboard cross-propriedades ───────────────────────────────────── */
 
     /* Cards de KPI não quebram no meio (mesma regra dos report-summary-*) */
     [data-testid^="dashboard-summary-"] {

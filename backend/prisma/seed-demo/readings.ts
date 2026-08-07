@@ -76,7 +76,9 @@ async function generateReadingsForMeter(spec: MeterGenerationSpec): Promise<void
         minuteStart.getTime() <= SEED_WINDOW_END_UTC.getTime();
         minuteStart = new Date(minuteStart.getTime() + ONE_MINUTE_MS)
     ) {
-        const anomalyMultiplier = spec.anomaly ? anomalyMultiplierAt(spec.anomaly.meterKey, minuteStart) : 1
+        const anomalyMultiplier = spec.anomaly
+            ? anomalyMultiplierAt(spec.anomaly.meterKey, minuteStart)
+            : 1
         const reading = generateMinuteReading(spec.profile, minuteStart, rng, anomalyMultiplier)
 
         batch.push({

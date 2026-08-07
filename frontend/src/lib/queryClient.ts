@@ -51,53 +51,27 @@ export const queryKeys = {
         all: ["distributors"] as const,
         list: (page: number, pageSize: number) =>
             [...queryKeys.distributors.all, "list", page, pageSize] as const,
-        detail: (id: string) =>
-            [...queryKeys.distributors.all, "detail", id] as const,
+        detail: (id: string) => [...queryKeys.distributors.all, "detail", id] as const,
     },
     properties: {
         all: ["properties"] as const,
         list: (page: number, pageSize: number) =>
             [...queryKeys.properties.all, "list", page, pageSize] as const,
-        detail: (id: string) =>
-            [...queryKeys.properties.all, "detail", id] as const,
+        detail: (id: string) => [...queryKeys.properties.all, "detail", id] as const,
     },
     areas: {
         all: ["areas"] as const,
         list: (propertyId: string, page: number, pageSize: number) =>
-            [
-                ...queryKeys.areas.all,
-                "list",
-                propertyId,
-                page,
-                pageSize,
-            ] as const,
+            [...queryKeys.areas.all, "list", propertyId, page, pageSize] as const,
         detail: (propertyId: string, areaId: string) =>
             [...queryKeys.areas.all, "detail", propertyId, areaId] as const,
     },
     devices: {
         all: ["devices"] as const,
-        list: (
-            propertyId: string,
-            areaId: string,
-            page: number,
-            pageSize: number,
-        ) =>
-            [
-                ...queryKeys.devices.all,
-                "list",
-                propertyId,
-                areaId,
-                page,
-                pageSize,
-            ] as const,
+        list: (propertyId: string, areaId: string, page: number, pageSize: number) =>
+            [...queryKeys.devices.all, "list", propertyId, areaId, page, pageSize] as const,
         detail: (propertyId: string, areaId: string, deviceId: string) =>
-            [
-                ...queryKeys.devices.all,
-                "detail",
-                propertyId,
-                areaId,
-                deviceId,
-            ] as const,
+            [...queryKeys.devices.all, "detail", propertyId, areaId, deviceId] as const,
     },
     meters: {
         all: ["meters"] as const,
@@ -105,8 +79,7 @@ export const queryKeys = {
             [...queryKeys.meters.all, "list", page, pageSize] as const,
         byTarget: (targetType: string, targetId: string) =>
             [...queryKeys.meters.all, "by-target", targetType, targetId] as const,
-        detail: (id: string) =>
-            [...queryKeys.meters.all, "detail", id] as const,
+        detail: (id: string) => [...queryKeys.meters.all, "detail", id] as const,
     },
     consumption: {
         all: ["consumption"] as const,
@@ -132,19 +105,12 @@ export const queryKeys = {
         list: (page: number, pageSize: number) =>
             [...queryKeys.alerts.all, "list", page, pageSize] as const,
         firing: () => [...queryKeys.alerts.all, "firing"] as const,
-        detail: (id: string) =>
-            [...queryKeys.alerts.all, "detail", id] as const,
+        detail: (id: string) => [...queryKeys.alerts.all, "detail", id] as const,
     },
     alertEvents: {
         all: ["alertEvents"] as const,
         list: (alertId: string, page: number, pageSize: number) =>
-            [
-                ...queryKeys.alertEvents.all,
-                "list",
-                alertId,
-                page,
-                pageSize,
-            ] as const,
+            [...queryKeys.alertEvents.all, "list", alertId, page, pageSize] as const,
     },
     notifications: {
         all: ["notifications"] as const,

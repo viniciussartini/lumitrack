@@ -2,11 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { deviceService } from "@/services/device.service"
 import { queryKeys } from "@/lib/queryClient"
-import type {
-    Device,
-    CreateDeviceInput,
-    UpdateDeviceInput,
-} from "@/types/device.types"
+import type { Device, CreateDeviceInput, UpdateDeviceInput } from "@/types/device.types"
 
 /**
  * Mutations de Dispositivo.
@@ -70,11 +66,7 @@ export const useUpdateDevice = () => {
                 queryKey: [...queryKeys.devices.all, "list", propertyId, areaId],
             })
             queryClient.invalidateQueries({
-                queryKey: queryKeys.devices.detail(
-                    propertyId,
-                    areaId,
-                    updated.id,
-                ),
+                queryKey: queryKeys.devices.detail(propertyId, areaId, updated.id),
             })
             toast.success("Dispositivo atualizado", {
                 description: `${updated.name} foi atualizado.`,
@@ -101,11 +93,7 @@ export const useDeleteDevice = () => {
             })
             // Remove o detalhe do cache — não vai mais existir
             queryClient.removeQueries({
-                queryKey: queryKeys.devices.detail(
-                    propertyId,
-                    areaId,
-                    deviceId,
-                ),
+                queryKey: queryKeys.devices.detail(propertyId, areaId, deviceId),
             })
             toast.success("Dispositivo excluído")
         },

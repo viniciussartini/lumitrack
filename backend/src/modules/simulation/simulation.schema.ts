@@ -15,14 +15,14 @@ const propertyTargetSchema = z.object({
 })
 
 const areaTargetSchema = z.object({
-    type:   z.literal("AREA"),
+    type: z.literal("AREA"),
     areaId: z.uuid({ message: "areaId inválido" }),
 })
 
 const deviceTargetSchema = z.object({
-    type:     z.literal("DEVICE"),
+    type: z.literal("DEVICE"),
     deviceId: z.uuid({ message: "deviceId inválido" }),
-    areaId:   z.uuid({ message: "areaId inválido" }),
+    areaId: z.uuid({ message: "areaId inválido" }),
 })
 
 export const simulationTargetSchema = z.discriminatedUnion("type", [
@@ -39,19 +39,19 @@ export const simulationTargetSchema = z.discriminatedUnion("type", [
 //   se omitido, o service usará o powerWatts cadastrado no device.
 
 const kwhDirectSchema = z.object({
-    inputMode:    z.literal("KWH_DIRECT"),
-    kwhConsumed:  z
+    inputMode: z.literal("KWH_DIRECT"),
+    kwhConsumed: z
         .number({ error: "kwhConsumed deve ser um número" })
         .positive({ message: "kwhConsumed deve ser maior que zero" }),
     // Campos do modo B não se aplicam
-    powerWatts:      z.undefined().optional(),
+    powerWatts: z.undefined().optional(),
     dailyUsageHours: z.undefined().optional(),
 })
 
 const wattsHoursSchema = z.object({
-    inputMode:       z.literal("WATTS_HOURS"),
+    inputMode: z.literal("WATTS_HOURS"),
     // powerWatts é opcional — para DEVICE, o service pode usar o do cadastro
-    powerWatts:      z
+    powerWatts: z
         .number({ error: "powerWatts deve ser um número" })
         .positive({ message: "powerWatts deve ser maior que zero" })
         .optional(),
@@ -82,22 +82,22 @@ export const simulationInputSchema = z
 
 // ─── Tipos inferidos ──────────────────────────────────────────────────────────
 
-export type SimulationPeriod    = z.infer<typeof simulationPeriodSchema>
-export type SimulationTarget    = z.infer<typeof simulationTargetSchema>
+export type SimulationPeriod = z.infer<typeof simulationPeriodSchema>
+export type SimulationTarget = z.infer<typeof simulationTargetSchema>
 export type SimulationInputMode = z.infer<typeof simulationInputModeSchema>
-export type SimulationInput     = z.infer<typeof simulationInputSchema>
+export type SimulationInput = z.infer<typeof simulationInputSchema>
 
 // ─── Output ───────────────────────────────────────────────────────────────────
 // Tipo do resultado retornado pelo service — não é um schema Zod,
 // apenas um tipo TypeScript (sem necessidade de validação de saída).
 
 export type SimulationResult = {
-    period:          SimulationPeriod
-    target:          SimulationTarget
-    inputMode:       "KWH_DIRECT" | "WATTS_HOURS"
-    powerWatts:      number | null   // null se inputMode = KWH_DIRECT
-    dailyUsageHours: number | null   // null se inputMode = KWH_DIRECT
-    kwhConsumed:     number          // calculado ou informado
-    costBrl:         number          // via TariffService — energia + bandeira + tributos (e piso/CIP para PROPERTY em MONTHLY/ANNUAL)
-    projectedDays:   number          // 1 | 30 | 365
+    period: SimulationPeriod
+    target: SimulationTarget
+    inputMode: "KWH_DIRECT" | "WATTS_HOURS"
+    powerWatts: number | null // null se inputMode = KWH_DIRECT
+    dailyUsageHours: number | null // null se inputMode = KWH_DIRECT
+    kwhConsumed: number // calculado ou informado
+    costBrl: number // via TariffService — energia + bandeira + tributos (e piso/CIP para PROPERTY em MONTHLY/ANNUAL)
+    projectedDays: number // 1 | 30 | 365
 }

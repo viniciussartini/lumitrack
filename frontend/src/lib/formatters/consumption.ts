@@ -50,10 +50,7 @@ const powerFormatter = new Intl.NumberFormat("pt-BR", {
  * Capitaliza a primeira letra em `month`: Intl retorna "janeiro de 2025"
  * em pt-BR; "Janeiro" fica mais coeso visualmente em eixo/tabela.
  */
-export const formatBucketLabel = (
-    bucketStart: string,
-    granularity: Granularity,
-): string => {
+export const formatBucketLabel = (bucketStart: string, granularity: Granularity): string => {
     const date = new Date(bucketStart)
 
     switch (granularity) {
@@ -80,5 +77,4 @@ export const formatKwh = (kwh: number): string => kwhFormatter.format(kwh)
 export const formatCostBrl = (cost: number): string => brlFormatter.format(cost)
 
 /** Formata potência média do bucket, em W. */
-export const formatAvgPowerW = (powerW: number): string =>
-    `${powerFormatter.format(powerW)} W`
+export const formatAvgPowerW = (powerW: number): string => `${powerFormatter.format(powerW)} W`

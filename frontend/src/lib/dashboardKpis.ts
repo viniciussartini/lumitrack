@@ -34,10 +34,7 @@ export const findBucketForDate = (
  * Variação percentual de hoje em relação a ontem. `null` quando não dá pra
  * calcular (base zero) — não inventa um número (ex.: "+∞%" ou "0%" enganoso).
  */
-export const computeTodayDelta = (
-    todayKwh: number,
-    yesterdayKwh: number,
-): number | null => {
+export const computeTodayDelta = (todayKwh: number, yesterdayKwh: number): number | null => {
     if (yesterdayKwh === 0) return null
     return (todayKwh - yesterdayKwh) / yesterdayKwh
 }

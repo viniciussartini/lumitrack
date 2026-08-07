@@ -86,11 +86,7 @@ export const ConfirmDialog = ({
                             {cancelLabel}
                         </Button>
                     </Dialog.Close>
-                    <Button
-                        variant={variant}
-                        onClick={onConfirm}
-                        isLoading={isLoading}
-                    >
+                    <Button variant={variant} onClick={onConfirm} isLoading={isLoading}>
                         {confirmLabel}
                     </Button>
                 </div>

@@ -2,10 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { renderHook, waitFor } from "@testing-library/react"
 import type { ReactNode } from "react"
-import {
-    useDistributor,
-    useDistributors,
-} from "@/hooks/queries/useDistributors"
+import { useDistributor, useDistributors } from "@/hooks/queries/useDistributors"
 import { distributorService } from "@/services/distributor.service"
 import type { Distributor } from "@/types/distributor.types"
 
@@ -42,9 +39,7 @@ const createWrapper = () => {
         },
     })
     return ({ children }: { children: ReactNode }) => (
-        <QueryClientProvider client={queryClient}>
-            {children}
-        </QueryClientProvider>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     )
 }
 
@@ -76,9 +71,7 @@ describe("useDistributors", () => {
     })
 
     it("retorna isError quando a chamada falha", async () => {
-        vi.mocked(distributorService.list).mockRejectedValue(
-            new Error("Falha"),
-        )
+        vi.mocked(distributorService.list).mockRejectedValue(new Error("Falha"))
 
         const { result } = renderHook(() => useDistributors(), {
             wrapper: createWrapper(),

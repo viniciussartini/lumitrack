@@ -3,11 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Select } from "@/components/ui/Select"
-import {
-    alertFormSchema,
-    type AlertFormData,
-    type AlertFormInput,
-} from "@/schemas/alert.schema"
+import { alertFormSchema, type AlertFormData, type AlertFormInput } from "@/schemas/alert.schema"
 import type { AlertWithStatus } from "@/types/alert.types"
 import type { Meter } from "@/types/meter.types"
 
@@ -54,27 +50,23 @@ export const AlertForm = ({
         mode: "onBlur",
         defaultValues: initialData
             ? {
-                name: initialData.name,
-                meterId: initialData.meterId,
-                referencePowerKw: initialData.referencePowerKw,
-                tolerancePercent: initialData.tolerancePercent,
-                enabled: initialData.enabled,
-            }
+                  name: initialData.name,
+                  meterId: initialData.meterId,
+                  referencePowerKw: initialData.referencePowerKw,
+                  tolerancePercent: initialData.tolerancePercent,
+                  enabled: initialData.enabled,
+              }
             : {
-                name: "",
-                meterId: "",
-                referencePowerKw: undefined,
-                tolerancePercent: 10,
-                enabled: true,
-            },
+                  name: "",
+                  meterId: "",
+                  referencePowerKw: undefined,
+                  tolerancePercent: 10,
+                  enabled: true,
+              },
     })
 
     return (
-        <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="flex flex-col gap-4"
-            noValidate
-        >
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
             <Input
                 label="Nome do alerta"
                 placeholder="Ar-condicionado ligado demais"
@@ -151,11 +143,7 @@ export const AlertForm = ({
                 >
                     Cancelar
                 </Button>
-                <Button
-                    type="submit"
-                    isLoading={isSubmitting}
-                    data-testid="alert-form-submit"
-                >
+                <Button type="submit" isLoading={isSubmitting} data-testid="alert-form-submit">
                     {submitLabel}
                 </Button>
             </div>

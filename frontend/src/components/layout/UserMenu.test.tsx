@@ -20,8 +20,7 @@ vi.mock("@/services/auth.service", () => ({
 }))
 
 vi.mock("@/services/api", () => ({
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 const mockUserPF: User = {

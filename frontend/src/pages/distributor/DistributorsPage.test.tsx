@@ -90,24 +90,18 @@ describe("DistribuidorsPage — header", () => {
 
         renderPage()
 
-        expect(
-            screen.queryByRole("link", { name: /nova distribuidora/i }),
-        ).not.toBeInTheDocument()
+        expect(screen.queryByRole("link", { name: /nova distribuidora/i })).not.toBeInTheDocument()
     })
 })
 
 describe("DistribuidorsPage — loading", () => {
     it("exibe skeleton enquanto carrega", () => {
         // Promise nunca resolvida — fica em loading
-        vi.mocked(distributorService.list).mockReturnValue(
-            new Promise(() => {}),
-        )
+        vi.mocked(distributorService.list).mockReturnValue(new Promise(() => {}))
 
         renderPage()
 
-        expect(
-            screen.getByLabelText(/carregando distribuidoras/i),
-        ).toBeInTheDocument()
+        expect(screen.getByLabelText(/carregando distribuidoras/i)).toBeInTheDocument()
     })
 })
 
@@ -117,9 +111,7 @@ describe("DistribuidorsPage — vazio", () => {
 
         renderPage()
 
-        expect(
-            await screen.findByText(/catálogo indisponível/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/catálogo indisponível/i)).toBeInTheDocument()
     })
 })
 
@@ -131,9 +123,7 @@ describe("DistribuidorsPage — sucesso", () => {
 
         renderPage()
 
-        expect(
-            await screen.findByText("CEMIG Distribuição S.A."),
-        ).toBeInTheDocument()
+        expect(await screen.findByText("CEMIG Distribuição S.A.")).toBeInTheDocument()
         expect(screen.getByText("ENEL São Paulo")).toBeInTheDocument()
 
         const cards = screen
@@ -143,9 +133,7 @@ describe("DistribuidorsPage — sucesso", () => {
     })
 
     it("renderiza a tarifa TUSD/TE de cada distribuidora", async () => {
-        vi.mocked(distributorService.list).mockResolvedValue(
-            paginated([mockDistributor1]),
-        )
+        vi.mocked(distributorService.list).mockResolvedValue(paginated([mockDistributor1]))
 
         renderPage()
 
@@ -160,15 +148,11 @@ describe("DistribuidorsPage — sucesso", () => {
 
 describe("DistribuidorsPage — erro", () => {
     it("exibe mensagem de erro quando a query falha", async () => {
-        vi.mocked(distributorService.list).mockRejectedValue(
-            new Error("Erro de rede"),
-        )
+        vi.mocked(distributorService.list).mockRejectedValue(new Error("Erro de rede"))
 
         renderPage()
 
-        expect(
-            await screen.findByText(/não foi possível carregar/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/não foi possível carregar/i)).toBeInTheDocument()
         expect(screen.getByText(/erro de rede/i)).toBeInTheDocument()
     })
 

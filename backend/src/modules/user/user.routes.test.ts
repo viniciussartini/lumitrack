@@ -71,9 +71,7 @@ afterAll(async () => {
 
 describe("POST /api/users", () => {
     it("deve criar um usuario pessoa fisica e retornar 201", async () => {
-        const response = await request(app)
-            .post("/api/users")
-            .send(validIndividualBody)
+        const response = await request(app).post("/api/users").send(validIndividualBody)
 
         expect(response.status).toBe(201)
         expect(response.body.status).toBe("success")
@@ -83,9 +81,7 @@ describe("POST /api/users", () => {
     })
 
     it("deve registrar consentedAt e consentVersion ao criar o usuario (LGPD Art. 7º/8º)", async () => {
-        const response = await request(app)
-            .post("/api/users")
-            .send(validIndividualBody)
+        const response = await request(app).post("/api/users").send(validIndividualBody)
 
         expect(response.status).toBe(201)
         expect(response.body.data.consentedAt).not.toBeNull()
@@ -100,9 +96,7 @@ describe("POST /api/users", () => {
     it("deve retornar 422 quando acceptedTerms nao for enviado", async () => {
         const { acceptedTerms: _acceptedTerms, ...bodyWithoutConsent } = validIndividualBody
 
-        const response = await request(app)
-            .post("/api/users")
-            .send(bodyWithoutConsent)
+        const response = await request(app).post("/api/users").send(bodyWithoutConsent)
 
         expect(response.status).toBe(422)
         expect(response.body.status).toBe("error")
@@ -117,9 +111,7 @@ describe("POST /api/users", () => {
     })
 
     it("deve criar um usuario pessoa juridica e retornar 201", async () => {
-        const response = await request(app)
-            .post("/api/users")
-            .send(validCompanyBody)
+        const response = await request(app).post("/api/users").send(validCompanyBody)
 
         expect(response.status).toBe(201)
         expect(response.body.data.userType).toBe("COMPANY")
@@ -166,9 +158,7 @@ describe("POST /api/users", () => {
     it("deve retornar 422 quando pessoa fisica nao informar CPF", async () => {
         const { cpf: _cpf, ...bodyWithoutCpf } = validIndividualBody
 
-        const response = await request(app)
-            .post("/api/users")
-            .send(bodyWithoutCpf)
+        const response = await request(app).post("/api/users").send(bodyWithoutCpf)
 
         expect(response.status).toBe(422)
     })
@@ -192,9 +182,7 @@ describe("GET /api/users/:id", () => {
     })
 
     it("deve retornar 401 quando nao houver token", async () => {
-        const response = await request(app).get(
-            "/api/users/00000000-0000-0000-0000-000000000000",
-        )
+        const response = await request(app).get("/api/users/00000000-0000-0000-0000-000000000000")
 
         expect(response.status).toBe(401)
     })
@@ -297,9 +285,11 @@ describe("DELETE /api/users/:id", () => {
         // onDelete: Cascade remove o token junto com o usuario, resultando em 401 ao inves
         // de 404 se tentassemos usar o token antigo. O login testa o que realmente importa:
         // o usuario de fato deixou de existir no sistema.
-        const loginResponse = await request(app)
-            .post("/api/auth/login")
-            .send({ email: validIndividualBody.email, password: validIndividualBody.password, channel: "WEB" })
+        const loginResponse = await request(app).post("/api/auth/login").send({
+            email: validIndividualBody.email,
+            password: validIndividualBody.password,
+            channel: "WEB",
+        })
 
         expect(loginResponse.status).toBe(401)
     })
@@ -342,7 +332,11 @@ describe("Audit log", () => {
 
         const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "USER_UPDATE" } })
         expect(logs).toHaveLength(1)
-        expect(logs[0]).toMatchObject({ outcome: "SUCCESS", resourceType: "User", resourceId: userId })
+        expect(logs[0]).toMatchObject({
+            outcome: "SUCCESS",
+            resourceType: "User",
+            resourceId: userId,
+        })
         expect((logs[0]?.metadata as { fields?: string[] } | null)?.fields).toEqual(
             expect.arrayContaining(["firstName", "lastName"]),
         )
@@ -351,13 +345,16 @@ describe("Audit log", () => {
     it("registra USER_DELETE/SUCCESS com userId null (a conta já não existe)", async () => {
         const { userId, token } = await registerAndLogin()
 
-        await request(app)
-            .delete(`/api/users/${userId}`)
-            .set("Authorization", `Bearer ${token}`)
+        await request(app).delete(`/api/users/${userId}`).set("Authorization", `Bearer ${token}`)
 
         const logs = await prismaHttpTest.auditLog.findMany({ where: { action: "USER_DELETE" } })
         expect(logs).toHaveLength(1)
-        expect(logs[0]).toMatchObject({ outcome: "SUCCESS", resourceType: "User", resourceId: userId, userId: null })
+        expect(logs[0]).toMatchObject({
+            outcome: "SUCCESS",
+            resourceType: "User",
+            resourceId: userId,
+            userId: null,
+        })
     })
 
     it("registra ACCESS_DENIED ao tentar acessar perfil de outro usuário (403)", async () => {

@@ -89,14 +89,18 @@ afterAll(async () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("DeviceService", () => {
-
     // ─── create ───────────────────────────────────────────────────────────────
 
     describe("create", () => {
         it("deve criar um dispositivo com todos os campos", async () => {
             const { user, area } = await setupUserAndArea()
 
-            const device = await deviceService.create(area.id, area.propertyId, user.id, validDeviceInput)
+            const device = await deviceService.create(
+                area.id,
+                area.propertyId,
+                user.id,
+                validDeviceInput,
+            )
 
             expect(device.id).toBeDefined()
             expect(device.areaId).toBe(area.id)
@@ -179,9 +183,19 @@ describe("DeviceService", () => {
     describe("findById", () => {
         it("deve retornar o dispositivo quando o usuário é dono da área", async () => {
             const { user, area } = await setupUserAndArea()
-            const created = await deviceService.create(area.id, area.propertyId, user.id, validDeviceInput)
+            const created = await deviceService.create(
+                area.id,
+                area.propertyId,
+                user.id,
+                validDeviceInput,
+            )
 
-            const found = await deviceService.findById(created.id, area.id, area.propertyId, user.id)
+            const found = await deviceService.findById(
+                created.id,
+                area.id,
+                area.propertyId,
+                user.id,
+            )
 
             expect(found.id).toBe(created.id)
             expect(found.name).toBe("Ar-condicionado")
@@ -191,7 +205,12 @@ describe("DeviceService", () => {
             const { user, area } = await setupUserAndArea()
 
             await expect(
-                deviceService.findById("00000000-0000-0000-0000-000000000000", area.id, area.propertyId, user.id),
+                deviceService.findById(
+                    "00000000-0000-0000-0000-000000000000",
+                    area.id,
+                    area.propertyId,
+                    user.id,
+                ),
             ).rejects.toThrow(NotFoundError)
         })
 
@@ -214,7 +233,12 @@ describe("DeviceService", () => {
             // A verificação de pertencimento impede acesso cruzado entre áreas.
             const { user, property, area: areaA } = await setupUserAndArea()
             const areaB = await areaService.create(property.id, user.id, { name: "Quarto" })
-            const device = await deviceService.create(areaA.id, property.id, user.id, validDeviceInput)
+            const device = await deviceService.create(
+                areaA.id,
+                property.id,
+                user.id,
+                validDeviceInput,
+            )
 
             await expect(
                 deviceService.findById(device.id, areaB.id, property.id, user.id),
@@ -251,7 +275,9 @@ describe("DeviceService", () => {
             const { user, area } = await setupUserAndArea()
 
             await deviceService.create(area.id, area.propertyId, user.id, { name: "Ventilador" })
-            await deviceService.create(area.id, area.propertyId, user.id, { name: "Ar-condicionado" })
+            await deviceService.create(area.id, area.propertyId, user.id, {
+                name: "Ar-condicionado",
+            })
             await deviceService.create(area.id, area.propertyId, user.id, { name: "Lâmpada" })
 
             const result = await deviceService.findAll(area.id, area.propertyId, user.id, {})
@@ -268,7 +294,10 @@ describe("DeviceService", () => {
             await deviceService.create(area.id, area.propertyId, user.id, { name: "Dispositivo 2" })
             await deviceService.create(area.id, area.propertyId, user.id, { name: "Dispositivo 3" })
 
-            const result = await deviceService.findAll(area.id, area.propertyId, user.id, { page: 1, pageSize: 2 })
+            const result = await deviceService.findAll(area.id, area.propertyId, user.id, {
+                page: 1,
+                pageSize: 2,
+            })
 
             expect(result.items).toHaveLength(2)
             expect(result.total).toBe(3)
@@ -289,12 +318,23 @@ describe("DeviceService", () => {
     describe("update", () => {
         it("deve atualizar campos do dispositivo", async () => {
             const { user, area } = await setupUserAndArea()
-            const device = await deviceService.create(area.id, area.propertyId, user.id, validDeviceInput)
+            const device = await deviceService.create(
+                area.id,
+                area.propertyId,
+                user.id,
+                validDeviceInput,
+            )
 
-            const updated = await deviceService.update(device.id, area.id, area.propertyId, user.id, {
-                name: "Ar-condicionado Inverter",
-                powerWatts: 900,
-            })
+            const updated = await deviceService.update(
+                device.id,
+                area.id,
+                area.propertyId,
+                user.id,
+                {
+                    name: "Ar-condicionado Inverter",
+                    powerWatts: 900,
+                },
+            )
 
             expect(updated.name).toBe("Ar-condicionado Inverter")
             expect(updated.powerWatts).toBe(900)
@@ -305,7 +345,13 @@ describe("DeviceService", () => {
             const { user, area } = await setupUserAndArea()
 
             await expect(
-                deviceService.update("00000000-0000-0000-0000-000000000000", area.id, area.propertyId, user.id, { name: "X" }),
+                deviceService.update(
+                    "00000000-0000-0000-0000-000000000000",
+                    area.id,
+                    area.propertyId,
+                    user.id,
+                    { name: "X" },
+                ),
             ).rejects.toThrow(NotFoundError)
         })
 
@@ -314,16 +360,29 @@ describe("DeviceService", () => {
             const userB = await userService.createUser(validUserB)
 
             await expect(
-                deviceService.update("00000000-0000-0000-0000-000000000000", area.id, area.propertyId, userB.id, { name: "X" }),
+                deviceService.update(
+                    "00000000-0000-0000-0000-000000000000",
+                    area.id,
+                    area.propertyId,
+                    userB.id,
+                    { name: "X" },
+                ),
             ).rejects.toThrow(ForbiddenError)
         })
 
         it("deve lançar ValidationError para powerWatts negativo na atualização", async () => {
             const { user, area } = await setupUserAndArea()
-            const device = await deviceService.create(area.id, area.propertyId, user.id, validDeviceInput)
+            const device = await deviceService.create(
+                area.id,
+                area.propertyId,
+                user.id,
+                validDeviceInput,
+            )
 
             await expect(
-                deviceService.update(device.id, area.id, area.propertyId, user.id, { powerWatts: -50 }),
+                deviceService.update(device.id, area.id, area.propertyId, user.id, {
+                    powerWatts: -50,
+                }),
             ).rejects.toThrow(ValidationError)
         })
     })
@@ -333,7 +392,12 @@ describe("DeviceService", () => {
     describe("delete", () => {
         it("deve deletar um dispositivo existente", async () => {
             const { user, area } = await setupUserAndArea()
-            const device = await deviceService.create(area.id, area.propertyId, user.id, validDeviceInput)
+            const device = await deviceService.create(
+                area.id,
+                area.propertyId,
+                user.id,
+                validDeviceInput,
+            )
 
             await deviceService.delete(device.id, area.id, area.propertyId, user.id)
 
@@ -346,7 +410,12 @@ describe("DeviceService", () => {
             const { user, area } = await setupUserAndArea()
 
             await expect(
-                deviceService.delete("00000000-0000-0000-0000-000000000000", area.id, area.propertyId, user.id),
+                deviceService.delete(
+                    "00000000-0000-0000-0000-000000000000",
+                    area.id,
+                    area.propertyId,
+                    user.id,
+                ),
             ).rejects.toThrow(NotFoundError)
         })
 
@@ -355,16 +424,34 @@ describe("DeviceService", () => {
             const userB = await userService.createUser(validUserB)
 
             await expect(
-                deviceService.delete("00000000-0000-0000-0000-000000000000", area.id, area.propertyId, userB.id),
+                deviceService.delete(
+                    "00000000-0000-0000-0000-000000000000",
+                    area.id,
+                    area.propertyId,
+                    userB.id,
+                ),
             ).rejects.toThrow(ForbiddenError)
         })
 
         it("deve cascatear o delete para o medidor e leituras vinculadas ao dispositivo", async () => {
             const { user, area } = await setupUserAndArea()
-            const device = await deviceService.create(area.id, area.propertyId, user.id, validDeviceInput)
+            const device = await deviceService.create(
+                area.id,
+                area.propertyId,
+                user.id,
+                validDeviceInput,
+            )
 
             const meter = await prismaTest.meter.create({
-                data: { name: "Medidor", targetType: "DEVICE", deviceId: device.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "device/medidor" },
+                data: {
+                    name: "Medidor",
+                    targetType: "DEVICE",
+                    deviceId: device.id,
+                    protocol: "MQTT",
+                    host: "localhost",
+                    port: 1883,
+                    topic: "device/medidor",
+                },
             })
             const reading = await prismaTest.meterReading.create({
                 data: {
@@ -383,7 +470,9 @@ describe("DeviceService", () => {
             await deviceService.delete(device.id, area.id, area.propertyId, user.id)
 
             const meterAfter = await prismaTest.meter.findUnique({ where: { id: meter.id } })
-            const readingAfter = await prismaTest.meterReading.findUnique({ where: { id: reading.id } })
+            const readingAfter = await prismaTest.meterReading.findUnique({
+                where: { id: reading.id },
+            })
             expect(meterAfter).toBeNull()
             expect(readingAfter).toBeNull()
         })
@@ -394,7 +483,12 @@ describe("DeviceService", () => {
     describe("cascade: deletar área remove seus dispositivos", () => {
         it("deve remover os dispositivos automaticamente ao deletar a área", async () => {
             const { user, area } = await setupUserAndArea()
-            const device = await deviceService.create(area.id, area.propertyId, user.id, validDeviceInput)
+            const device = await deviceService.create(
+                area.id,
+                area.propertyId,
+                user.id,
+                validDeviceInput,
+            )
 
             await areaService.delete(area.id, area.propertyId, user.id)
 

@@ -44,15 +44,30 @@ function buildFakeEvaluator(firingAlertIds: Set<string> = new Set()) {
 
 async function setupUserAndMeter(email = "joao@example.com") {
     const user = await userService.createUser({
-        email, password: "Senha@123", userType: "INDIVIDUAL", acceptedTerms: true,
-        firstName: "João", lastName: "Silva", cpf: email === "joao@example.com" ? "529.982.247-25" : "310.037.856-38",
+        email,
+        password: "Senha@123",
+        userType: "INDIVIDUAL",
+        acceptedTerms: true,
+        firstName: "João",
+        lastName: "Silva",
+        cpf: email === "joao@example.com" ? "529.982.247-25" : "310.037.856-38",
     })
     const distributor = await createTestDistributor(prismaTest)
     const property = await propertyService.create(user.id, {
-        name: "Casa", distributorId: distributor.id, electricalSystem: "TRIPHASIC",
+        name: "Casa",
+        distributorId: distributor.id,
+        electricalSystem: "TRIPHASIC",
     })
     const meter = await prismaTest.meter.create({
-        data: { name: "Medidor", targetType: "PROPERTY", propertyId: property.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "t" },
+        data: {
+            name: "Medidor",
+            targetType: "PROPERTY",
+            propertyId: property.id,
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "t",
+        },
     })
     return { user, property, meter }
 }
@@ -63,8 +78,12 @@ const validAlertInput = {
     tolerancePercent: 2,
 }
 
-beforeEach(async () => { await cleanDatabase() })
-afterAll(async () => { await prismaTest.$disconnect() })
+beforeEach(async () => {
+    await cleanDatabase()
+})
+afterAll(async () => {
+    await prismaTest.$disconnect()
+})
 
 describe("AlertService", () => {
     describe("create", () => {
@@ -89,7 +108,11 @@ describe("AlertService", () => {
             const { evaluator } = buildFakeEvaluator()
             const service = new AlertService(alertRepository, meterTargetRepos, evaluator)
 
-            const alert = await service.create(user.id, { ...validAlertInput, meterId: meter.id, enabled: false })
+            const alert = await service.create(user.id, {
+                ...validAlertInput,
+                meterId: meter.id,
+                enabled: false,
+            })
 
             expect(alert.enabled).toBe(false)
         })
@@ -106,21 +129,34 @@ describe("AlertService", () => {
 
         it("lança NotFoundError para meterId inexistente", async () => {
             const user = await userService.createUser({
-                email: "joao@example.com", password: "Senha@123", userType: "INDIVIDUAL",
-                acceptedTerms: true, firstName: "João", lastName: "Silva", cpf: "529.982.247-25",
+                email: "joao@example.com",
+                password: "Senha@123",
+                userType: "INDIVIDUAL",
+                acceptedTerms: true,
+                firstName: "João",
+                lastName: "Silva",
+                cpf: "529.982.247-25",
             })
             const service = new AlertService(alertRepository, meterTargetRepos)
 
             await expect(
-                service.create(user.id, { ...validAlertInput, meterId: "00000000-0000-0000-0000-000000000000" }),
+                service.create(user.id, {
+                    ...validAlertInput,
+                    meterId: "00000000-0000-0000-0000-000000000000",
+                }),
             ).rejects.toThrow(NotFoundError)
         })
 
         it("lança ForbiddenError ao vincular medidor de outro usuário", async () => {
             const { meter } = await setupUserAndMeter("joao@example.com")
             const userB = await userService.createUser({
-                email: "maria@example.com", password: "Senha@123", userType: "INDIVIDUAL",
-                acceptedTerms: true, firstName: "Maria", lastName: "Santos", cpf: "310.037.856-38",
+                email: "maria@example.com",
+                password: "Senha@123",
+                userType: "INDIVIDUAL",
+                acceptedTerms: true,
+                firstName: "Maria",
+                lastName: "Santos",
+                cpf: "310.037.856-38",
             })
             const service = new AlertService(alertRepository, meterTargetRepos)
 
@@ -143,7 +179,11 @@ describe("AlertService", () => {
             const service = new AlertService(alertRepository, meterTargetRepos)
 
             await expect(
-                service.create(user.id, { ...validAlertInput, meterId: meter.id, referencePowerKw: 0 }),
+                service.create(user.id, {
+                    ...validAlertInput,
+                    meterId: meter.id,
+                    referencePowerKw: 0,
+                }),
             ).rejects.toThrow(ValidationError)
         })
 
@@ -152,7 +192,11 @@ describe("AlertService", () => {
             const service = new AlertService(alertRepository, meterTargetRepos)
 
             await expect(
-                service.create(user.id, { ...validAlertInput, meterId: meter.id, tolerancePercent: 101 }),
+                service.create(user.id, {
+                    ...validAlertInput,
+                    meterId: meter.id,
+                    tolerancePercent: 101,
+                }),
             ).rejects.toThrow(ValidationError)
         })
     })
@@ -168,13 +212,20 @@ describe("AlertService", () => {
             expect(result.total).toBe(1)
             expect(result.items[0]!.id).toBe(alert.id)
             expect(result.items[0]!.status).toBe("normal")
-            expect(result.items[0]!.target).toEqual({ type: "PROPERTY", name: "Casa", path: `/propriedades/${property.id}` })
+            expect(result.items[0]!.target).toEqual({
+                type: "PROPERTY",
+                name: "Casa",
+                path: `/propriedades/${property.id}`,
+            })
         })
 
         it("marca como firing quando o evaluator reporta o alerta em disparo", async () => {
             const { user, meter } = await setupUserAndMeter()
             const bareService = new AlertService(alertRepository, meterTargetRepos)
-            const alert = await bareService.create(user.id, { ...validAlertInput, meterId: meter.id })
+            const alert = await bareService.create(user.id, {
+                ...validAlertInput,
+                meterId: meter.id,
+            })
 
             const { evaluator } = buildFakeEvaluator(new Set([alert.id]))
             const service = new AlertService(alertRepository, meterTargetRepos, evaluator)
@@ -189,7 +240,11 @@ describe("AlertService", () => {
             const service = new AlertService(alertRepository, meterTargetRepos)
 
             await service.create(userA.id, { ...validAlertInput, meterId: meterA.id })
-            await service.create(userB.id, { ...validAlertInput, meterId: meterB.id, name: "Alerta B" })
+            await service.create(userB.id, {
+                ...validAlertInput,
+                meterId: meterB.id,
+                name: "Alerta B",
+            })
 
             const resultA = await service.findAll(userA.id, {})
             expect(resultA.items).toHaveLength(1)
@@ -200,7 +255,11 @@ describe("AlertService", () => {
             const { user, meter } = await setupUserAndMeter()
             const service = new AlertService(alertRepository, meterTargetRepos)
             for (let i = 0; i < 3; i++) {
-                await service.create(user.id, { ...validAlertInput, meterId: meter.id, name: `Alerta ${i}` })
+                await service.create(user.id, {
+                    ...validAlertInput,
+                    meterId: meter.id,
+                    name: `Alerta ${i}`,
+                })
             }
 
             const result = await service.findAll(user.id, { page: 1, pageSize: 2 })
@@ -212,10 +271,17 @@ describe("AlertService", () => {
     describe("findFiring", () => {
         it("delega para o evaluator.getFiringByUser", async () => {
             const user = await userService.createUser({
-                email: "joao@example.com", password: "Senha@123", userType: "INDIVIDUAL",
-                acceptedTerms: true, firstName: "João", lastName: "Silva", cpf: "529.982.247-25",
+                email: "joao@example.com",
+                password: "Senha@123",
+                userType: "INDIVIDUAL",
+                acceptedTerms: true,
+                firstName: "João",
+                lastName: "Silva",
+                cpf: "529.982.247-25",
             })
-            const fakeFiring: FiringAlert[] = [{ alertId: "a1", meterId: "m1", alertName: "X", startedAt: new Date() }]
+            const fakeFiring: FiringAlert[] = [
+                { alertId: "a1", meterId: "m1", alertName: "X", startedAt: new Date() },
+            ]
             const evaluator = { getFiringByUser: () => fakeFiring } as unknown as AlertEvaluator
             const service = new AlertService(alertRepository, meterTargetRepos, evaluator)
 
@@ -224,8 +290,13 @@ describe("AlertService", () => {
 
         it("retorna lista vazia quando não há evaluator configurado", async () => {
             const user = await userService.createUser({
-                email: "joao@example.com", password: "Senha@123", userType: "INDIVIDUAL",
-                acceptedTerms: true, firstName: "João", lastName: "Silva", cpf: "529.982.247-25",
+                email: "joao@example.com",
+                password: "Senha@123",
+                userType: "INDIVIDUAL",
+                acceptedTerms: true,
+                firstName: "João",
+                lastName: "Silva",
+                cpf: "529.982.247-25",
             })
             const service = new AlertService(alertRepository, meterTargetRepos)
 
@@ -269,7 +340,10 @@ describe("AlertService", () => {
             const service = new AlertService(alertRepository, meterTargetRepos, evaluator)
             const alert = await service.create(user.id, { ...validAlertInput, meterId: meter.id })
 
-            const updated = await service.update(alert.id, user.id, { name: "Renomeado", referencePowerKw: 15 })
+            const updated = await service.update(alert.id, user.id, {
+                name: "Renomeado",
+                referencePowerKw: 15,
+            })
 
             expect(updated.name).toBe("Renomeado")
             expect(updated.referencePowerKw).toBe(15)
@@ -291,7 +365,9 @@ describe("AlertService", () => {
             const service = new AlertService(alertRepository, meterTargetRepos)
             const alert = await service.create(userA.id, { ...validAlertInput, meterId: meterA.id })
 
-            await expect(service.update(alert.id, userB.id, { name: "X" })).rejects.toThrow(ForbiddenError)
+            await expect(service.update(alert.id, userB.id, { name: "X" })).rejects.toThrow(
+                ForbiddenError,
+            )
         })
 
         it("lança ValidationError para tolerancePercent negativo", async () => {
@@ -334,7 +410,9 @@ describe("AlertService", () => {
             const service = new AlertService(alertRepository, meterTargetRepos)
             const alert = await service.create(userA.id, { ...validAlertInput, meterId: meterA.id })
 
-            await expect(service.patchEnabled(alert.id, userB.id, { enabled: false })).rejects.toThrow(ForbiddenError)
+            await expect(
+                service.patchEnabled(alert.id, userB.id, { enabled: false }),
+            ).rejects.toThrow(ForbiddenError)
         })
     })
 

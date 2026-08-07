@@ -32,8 +32,7 @@ vi.mock("@/lib/sessionRefresh", () => ({
 }))
 
 vi.mock("@/services/api", () => ({
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 const mockUser: User = {
@@ -101,9 +100,7 @@ describe("AuthProvider — login", () => {
 
     it("propaga erro com mensagem amigável quando credenciais falham", async () => {
         vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
-        vi.mocked(authService.login).mockRejectedValue(
-            new Error("Credenciais inválidas"),
-        )
+        vi.mocked(authService.login).mockRejectedValue(new Error("Credenciais inválidas"))
 
         const { result } = renderHook(() => useAuth(), { wrapper })
         await waitFor(() => expect(result.current.isLoading).toBe(false))
@@ -165,9 +162,7 @@ describe("AuthProvider — completeMfaLogin", () => {
 
     it("propaga erro com mensagem amigável quando o código é inválido", async () => {
         vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
-        vi.mocked(authService.verifyMfaLogin).mockRejectedValue(
-            new Error("Código inválido"),
-        )
+        vi.mocked(authService.verifyMfaLogin).mockRejectedValue(new Error("Código inválido"))
 
         const { result } = renderHook(() => useAuth(), { wrapper })
         await waitFor(() => expect(result.current.isLoading).toBe(false))

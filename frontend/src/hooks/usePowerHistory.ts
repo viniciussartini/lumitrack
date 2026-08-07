@@ -27,9 +27,7 @@ const MAX_WINDOW_MS = 24 * 60 * 60 * 1000
  * recomendado para "ajustar estado a partir de uma prop que mudou" sem o
  * flash de um efeito rodando um render depois.
  */
-export const usePowerHistory = (
-    reading: ReadingPayload | undefined,
-): PowerHistoryPoint[] => {
+export const usePowerHistory = (reading: ReadingPayload | undefined): PowerHistoryPoint[] => {
     const [history, setHistory] = useState<PowerHistoryPoint[]>([])
     const [lastReceivedAt, setLastReceivedAt] = useState<string | undefined>(undefined)
 

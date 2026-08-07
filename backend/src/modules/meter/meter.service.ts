@@ -1,12 +1,21 @@
 import { z } from "zod"
 import { TargetType } from "@/generated/prisma/client.js"
-import { createMeterSchema, updateMeterSchema, byTargetQuerySchema } from "@/modules/meter/meter.schema.js"
+import {
+    createMeterSchema,
+    updateMeterSchema,
+    byTargetQuerySchema,
+} from "@/modules/meter/meter.schema.js"
 import type { CreateMeterInput, UpdateMeterInput } from "@/modules/meter/meter.schema.js"
 import type { MeterRepository, MeterResponse } from "@/modules/meter/meter.repository.js"
 import type { PropertyRepository } from "@/modules/property/property.repository.js"
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import {
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    ValidationError,
+} from "@/shared/errors/AppError.js"
 import { paginationQuerySchema, type Paginated } from "@/shared/pagination.js"
 import { checkOutboundHost } from "@/shared/security/outboundHost.js"
 import { env } from "@/config/env.js"
@@ -53,19 +62,25 @@ export class MeterService {
     // coerente com targetType foi informado (e nenhum outro).
     private extractTargetId(input: CreateMeterInput): string {
         if (input.targetType === "PROPERTY") {
-            if (!input.propertyId) throw new ValidationError("propertyId é obrigatório para targetType PROPERTY")
-            if (input.areaId || input.deviceId) throw new ValidationError("Informe apenas propertyId para targetType PROPERTY")
+            if (!input.propertyId)
+                throw new ValidationError("propertyId é obrigatório para targetType PROPERTY")
+            if (input.areaId || input.deviceId)
+                throw new ValidationError("Informe apenas propertyId para targetType PROPERTY")
             return input.propertyId
         }
 
         if (input.targetType === "AREA") {
-            if (!input.areaId) throw new ValidationError("areaId é obrigatório para targetType AREA")
-            if (input.propertyId || input.deviceId) throw new ValidationError("Informe apenas areaId para targetType AREA")
+            if (!input.areaId)
+                throw new ValidationError("areaId é obrigatório para targetType AREA")
+            if (input.propertyId || input.deviceId)
+                throw new ValidationError("Informe apenas areaId para targetType AREA")
             return input.areaId
         }
 
-        if (!input.deviceId) throw new ValidationError("deviceId é obrigatório para targetType DEVICE")
-        if (input.propertyId || input.areaId) throw new ValidationError("Informe apenas deviceId para targetType DEVICE")
+        if (!input.deviceId)
+            throw new ValidationError("deviceId é obrigatório para targetType DEVICE")
+        if (input.propertyId || input.areaId)
+            throw new ValidationError("Informe apenas deviceId para targetType DEVICE")
         return input.deviceId
     }
 
@@ -86,7 +101,9 @@ export class MeterService {
     // persistir** — o controller dispara a conexão de saída logo após
     // create/update (inclusive no `restart` do update), então validar só
     // no adaptador de protocolo seria tarde demais.
-    private async assertOutboundHostAllowed(input: CreateMeterInput | UpdateMeterInput): Promise<void> {
+    private async assertOutboundHostAllowed(
+        input: CreateMeterInput | UpdateMeterInput,
+    ): Promise<void> {
         if (input.host === undefined || input.port === undefined) return
 
         const result = await checkOutboundHost(input.host, input.port, env.IOT_ALLOWED_HOSTS)
@@ -132,10 +149,16 @@ export class MeterService {
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
-        const ownerId = await this.resolveTargetOwnerId(parsed.data.targetType, parsed.data.targetId)
+        const ownerId = await this.resolveTargetOwnerId(
+            parsed.data.targetType,
+            parsed.data.targetId,
+        )
         if (ownerId !== userId) throw new ForbiddenError("Acesso negado")
 
-        const meter = await this.meterRepository.findByTarget(parsed.data.targetType, parsed.data.targetId)
+        const meter = await this.meterRepository.findByTarget(
+            parsed.data.targetType,
+            parsed.data.targetId,
+        )
         if (!meter) throw new NotFoundError("Medidor não encontrado para este alvo")
 
         return meter

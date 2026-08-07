@@ -18,18 +18,11 @@ import {
     mfaSetupVerifySchema,
     mfaDisableSchema,
 } from "@/modules/auth/auth.schema.js"
-import {
-    UnauthorizedError,
-    BadRequestError,
-    ValidationError,
-} from "@/shared/errors/AppError.js"
+import { UnauthorizedError, BadRequestError, ValidationError } from "@/shared/errors/AppError.js"
 import type { StringValue } from "ms"
 
 // Tipo do EmailService
-export type SendPasswordResetEmailFn = (
-    email: string,
-    resetToken: string,
-) => Promise<void>
+export type SendPasswordResetEmailFn = (email: string, resetToken: string) => Promise<void>
 
 const BCRYPT_ROUNDS = 12
 
@@ -53,8 +46,7 @@ type SessionResult = {
     userId: string
 }
 type LoginResult =
-    | (SessionResult & { mfaRequired: false })
-    | { mfaRequired: true; mfaToken: string }
+    (SessionResult & { mfaRequired: false }) | { mfaRequired: true; mfaToken: string }
 
 export class AuthService {
     constructor(
@@ -66,9 +58,7 @@ export class AuthService {
         const parsed = loginSchema.safeParse(input)
 
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
@@ -76,9 +66,7 @@ export class AuthService {
 
         const user = await this.authRepository.findUserByEmailWithPassword(email)
 
-        const isValidPassword = user
-            ? await bcrypt.compare(password, user.password)
-            : false
+        const isValidPassword = user ? await bcrypt.compare(password, user.password) : false
 
         if (!user || !isValidPassword) {
             throw new UnauthorizedError("Credenciais inválidas")
@@ -104,9 +92,7 @@ export class AuthService {
         const parsed = mfaLoginVerifySchema.safeParse(input)
 
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
@@ -153,9 +139,7 @@ export class AuthService {
         const parsed = mfaSetupVerifySchema.safeParse(input)
 
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
@@ -198,9 +182,7 @@ export class AuthService {
         const parsed = mfaDisableSchema.safeParse(input)
 
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
@@ -228,9 +210,7 @@ export class AuthService {
         const parsed = forgotPasswordSchema.safeParse(input)
 
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
@@ -270,9 +250,7 @@ export class AuthService {
         const parsed = resetPasswordSchema.safeParse(input)
 
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
@@ -415,20 +393,17 @@ export class AuthService {
         })
 
         const refreshToken =
-            channel === "WEB"
-                ? await this.issueRefreshToken(userId, replacesRefreshTokenId)
-                : null
+            channel === "WEB" ? await this.issueRefreshToken(userId, replacesRefreshTokenId) : null
 
         return { token, refreshToken, channel, userId }
     }
 
     // Gera um token opaco de alta entropia, persiste apenas o hash.
-    private async issueRefreshToken(
-        userId: string,
-        replacesTokenId?: string,
-    ): Promise<string> {
+    private async issueRefreshToken(userId: string, replacesTokenId?: string): Promise<string> {
         const raw = randomBytes(32).toString("hex")
-        const expiresAt = new Date(Date.now() + parseJwtExpiry(env.JWT_REFRESH_EXPIRES_IN as StringValue))
+        const expiresAt = new Date(
+            Date.now() + parseJwtExpiry(env.JWT_REFRESH_EXPIRES_IN as StringValue),
+        )
         await this.authRepository.createRefreshToken({
             userId,
             token: hashToken(raw),

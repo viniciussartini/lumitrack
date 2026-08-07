@@ -45,13 +45,16 @@ processor.start()
 const app = createApp({ prismaClient: prismaHttpTest })
 const authenticate = createAuthenticateMiddleware(prismaHttpTest)
 const testStreamRouter = Router()
-testStreamRouter.use("/", iotStreamRoutes(
-    authenticate,
-    prismaHttpTest,
-    processor,
-    userEventHub,
-    200, // membershipRefreshIntervalMs curto, só para teste
-))
+testStreamRouter.use(
+    "/",
+    iotStreamRoutes(
+        authenticate,
+        prismaHttpTest,
+        processor,
+        userEventHub,
+        200, // membershipRefreshIntervalMs curto, só para teste
+    ),
+)
 app.use("/api/iot-test", testStreamRouter)
 
 // ─── Servidor TCP ─────────────────────────────────────────────────────────────
@@ -72,28 +75,30 @@ afterAll(async () => {
     await prismaHttpTest.$disconnect()
 })
 
-beforeEach(async () => { await cleanHttpDatabase() })
+beforeEach(async () => {
+    await cleanHttpDatabase()
+})
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
 
 const validUser = {
-    email:     "joao@example.com",
-    password:  "Senha@123",
-    userType:  "INDIVIDUAL",
+    email: "joao@example.com",
+    password: "Senha@123",
+    userType: "INDIVIDUAL",
     acceptedTerms: true,
     firstName: "João",
-    lastName:  "Silva",
-    cpf:       "529.982.247-25",
+    lastName: "Silva",
+    cpf: "529.982.247-25",
 }
 
 const anotherUser = {
-    email:     "maria@example.com",
-    password:  "Senha@123",
-    userType:  "INDIVIDUAL",
+    email: "maria@example.com",
+    password: "Senha@123",
+    userType: "INDIVIDUAL",
     acceptedTerms: true,
     firstName: "Maria",
-    lastName:  "Santos",
-    cpf:       "310.037.856-38",
+    lastName: "Santos",
+    cpf: "310.037.856-38",
 }
 
 // channel: "MOBILE" porque só precisamos de um Bearer token para autenticar
@@ -101,7 +106,9 @@ const anotherUser = {
 async function registerAndLogin(user = validUser): Promise<{ userId: string; token: string }> {
     const createRes = await request(app).post("/api/users").send(user)
     const res = await request(app).post("/api/auth/login").send({
-        email: user.email, password: user.password, channel: "MOBILE",
+        email: user.email,
+        password: user.password,
+        channel: "MOBILE",
     })
     return { userId: createRes.body.data.id as string, token: res.body.data.token as string }
 }
@@ -109,7 +116,9 @@ async function registerAndLogin(user = validUser): Promise<{ userId: string; tok
 let distributorSeq = 0
 
 // Property/EnergyDistributor criados direto via Prisma; medidor via API real.
-async function setupUserWithMeter(user = validUser): Promise<{ userId: string; token: string; meterId: string }> {
+async function setupUserWithMeter(
+    user = validUser,
+): Promise<{ userId: string; token: string; meterId: string }> {
     const { userId, token } = await registerAndLogin(user)
 
     distributorSeq += 1
@@ -155,32 +164,35 @@ async function setupUserWithMeter(user = validUser): Promise<{ userId: string; t
 
 function openSseStream(token: string): Promise<http.IncomingMessage> {
     return new Promise((resolve, reject) => {
-        const req = http.get({
-            hostname: "127.0.0.1",
-            port:     serverPort,
-            path:     "/api/iot-test/stream",
-            headers:  {
-                Authorization: `Bearer ${token}`,
-                Accept:        "text/event-stream",
+        const req = http.get(
+            {
+                hostname: "127.0.0.1",
+                port: serverPort,
+                path: "/api/iot-test/stream",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: "text/event-stream",
+                },
             },
-        }, resolve)
+            resolve,
+        )
         req.on("error", reject)
     })
 }
 
 function collectSseEvents(
-    stream:  http.IncomingMessage,
+    stream: http.IncomingMessage,
     options: {
-        maxWaitMs:       number
+        maxWaitMs: number
         stopAfterEvent?: string
-        onEvent?:        (event: string, data: unknown) => void
+        onEvent?: (event: string, data: unknown) => void
     },
 ): Promise<Array<{ event: string; data: unknown }>> {
     return new Promise((resolve) => {
         const events: Array<{ event: string; data: unknown }> = []
-        let buffer       = ""
+        let buffer = ""
         let currentEvent = ""
-        let done         = false
+        let done = false
 
         const finish = () => {
             if (done) return
@@ -212,7 +224,9 @@ function collectSseEvents(
                             finish()
                             return
                         }
-                    } catch { /* descarta dados malformados */ }
+                    } catch {
+                        /* descarta dados malformados */
+                    }
                     currentEvent = ""
                 }
             }
@@ -226,9 +240,11 @@ function collectSseEvents(
 }
 
 function simulateReading(meterId: string, payload: Record<string, unknown>): void {
-    ;(processor as unknown as {
-        process: (id: string, data: Record<string, unknown>) => void
-    }).process(meterId, payload)
+    ;(
+        processor as unknown as {
+            process: (id: string, data: Record<string, unknown>) => void
+        }
+    ).process(meterId, payload)
 }
 
 const validReadingPayload = { voltage: 220, current: 2, powerW: 440, powerFactor: 0.95 }
@@ -238,7 +254,6 @@ const validReadingPayload = { voltage: 220, current: 2, powerW: 440, powerFactor
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("GET /api/iot/stream", () => {
-
     it("deve retornar 401 sem token", async () => {
         const response = await request(app).get("/api/iot-test/stream")
         expect(response.status).toBe(401)
@@ -261,7 +276,7 @@ describe("GET /api/iot/stream", () => {
 
         const stream = await openSseStream(token)
         const events = await collectSseEvents(stream, {
-            maxWaitMs:      3000,
+            maxWaitMs: 3000,
             stopAfterEvent: "connected",
         })
 
@@ -279,9 +294,9 @@ describe("GET /api/iot/stream", () => {
 
         let connectedReceived = false
         const events = await collectSseEvents(stream, {
-            maxWaitMs:      3000,
+            maxWaitMs: 3000,
             stopAfterEvent: "reading",
-            onEvent:        (event) => {
+            onEvent: (event) => {
                 if (event === "connected" && !connectedReceived) {
                     connectedReceived = true
                     simulateReading(meterId, validReadingPayload)
@@ -307,7 +322,7 @@ describe("GET /api/iot/stream", () => {
         let connectedReceived = false
         const events = await collectSseEvents(stream, {
             maxWaitMs: 1000,
-            onEvent:   (event) => {
+            onEvent: (event) => {
                 if (event === "connected" && !connectedReceived) {
                     connectedReceived = true
                     simulateReading(meterIdA, validReadingPayload)
@@ -326,13 +341,17 @@ describe("GET /api/iot/stream", () => {
 
         let connectedReceived = false
         const events = await collectSseEvents(stream, {
-            maxWaitMs:      3000,
+            maxWaitMs: 3000,
             stopAfterEvent: "alert-firing",
-            onEvent:        (event) => {
+            onEvent: (event) => {
                 if (event === "connected" && !connectedReceived) {
                     connectedReceived = true
                     userEventHub.emit(userId, "alert-firing", {
-                        type: "start", alertId: "alert-1", alertName: "Pico", meterId: "meter-1", startedAt: new Date().toISOString(),
+                        type: "start",
+                        alertId: "alert-1",
+                        alertName: "Pico",
+                        meterId: "meter-1",
+                        startedAt: new Date().toISOString(),
                     })
                 }
             },
@@ -350,13 +369,15 @@ describe("GET /api/iot/stream", () => {
 
         let connectedReceived = false
         const events = await collectSseEvents(stream, {
-            maxWaitMs:      3000,
+            maxWaitMs: 3000,
             stopAfterEvent: "notification",
-            onEvent:        (event) => {
+            onEvent: (event) => {
                 if (event === "connected" && !connectedReceived) {
                     connectedReceived = true
                     userEventHub.emit(userId, "notification", {
-                        id: "n1", alertName: "Pico", message: "Alerta disparado",
+                        id: "n1",
+                        alertName: "Pico",
+                        message: "Alerta disparado",
                     })
                 }
             },
@@ -376,7 +397,7 @@ describe("GET /api/iot/stream", () => {
         let connectedReceived = false
         const events = await collectSseEvents(stream, {
             maxWaitMs: 1000,
-            onEvent:   (event) => {
+            onEvent: (event) => {
                 if (event === "connected" && !connectedReceived) {
                     connectedReceived = true
                     userEventHub.emit(userIdA, "alert-firing", { type: "start" })
@@ -397,9 +418,9 @@ describe("GET /api/iot/stream", () => {
         let meterIdCreated: string | undefined
 
         const events = await collectSseEvents(stream, {
-            maxWaitMs:      3000,
+            maxWaitMs: 3000,
             stopAfterEvent: "reading",
-            onEvent:        (event, data) => {
+            onEvent: (event, data) => {
                 if (event === "connected" && !connectedReceived) {
                     connectedReceived = true
                     expect((data as { meterCount: number }).meterCount).toBe(0)
@@ -411,15 +432,34 @@ describe("GET /api/iot/stream", () => {
                         distributorSeq += 1
                         const distributor = await prismaHttpTest.energyDistributor.create({
                             data: {
-                                name: "CEMIG", cnpj: `06.981.180/000${distributorSeq}-16`, state: "MG",
-                                tusdPerKwh: 0.3, tePerKwh: 0.3, icmsRate: 0.18, pisRate: 0.0165, cofinsRate: 0.076,
+                                name: "CEMIG",
+                                cnpj: `06.981.180/000${distributorSeq}-16`,
+                                state: "MG",
+                                tusdPerKwh: 0.3,
+                                tePerKwh: 0.3,
+                                icmsRate: 0.18,
+                                pisRate: 0.0165,
+                                cofinsRate: 0.076,
                             },
                         })
                         const property = await prismaHttpTest.property.create({
-                            data: { userId, distributorId: distributor.id, name: "Casa", electricalSystem: "MONOPHASIC" },
+                            data: {
+                                userId,
+                                distributorId: distributor.id,
+                                name: "Casa",
+                                electricalSystem: "MONOPHASIC",
+                            },
                         })
                         const meter = await prismaHttpTest.meter.create({
-                            data: { name: "Medidor Tardio", targetType: "PROPERTY", propertyId: property.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "t" },
+                            data: {
+                                name: "Medidor Tardio",
+                                targetType: "PROPERTY",
+                                propertyId: property.id,
+                                protocol: "MQTT",
+                                host: "localhost",
+                                port: 1883,
+                                topic: "t",
+                            },
                         })
                         meterIdCreated = meter.id
 

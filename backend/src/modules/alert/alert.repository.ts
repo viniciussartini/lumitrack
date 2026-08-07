@@ -2,9 +2,7 @@ import { PrismaClient } from "@/generated/prisma/client.js"
 import type { CreateAlertInput, UpdateAlertInput } from "@/modules/alert/alert.schema.js"
 import { toSkipTake, type Paginated, type PaginationQuery } from "@/shared/pagination.js"
 
-type PrismaAlert = NonNullable<
-    Awaited<ReturnType<PrismaClient["alert"]["findUnique"]>>
->
+type PrismaAlert = NonNullable<Awaited<ReturnType<PrismaClient["alert"]["findUnique"]>>>
 
 export type AlertResponse = PrismaAlert
 
@@ -15,7 +13,10 @@ export class AlertRepository {
         return this.prisma.alert.findUnique({ where: { id } })
     }
 
-    async findAllByUserPaginated(userId: string, pagination: PaginationQuery): Promise<Paginated<AlertResponse>> {
+    async findAllByUserPaginated(
+        userId: string,
+        pagination: PaginationQuery,
+    ): Promise<Paginated<AlertResponse>> {
         const { skip, take } = toSkipTake(pagination)
 
         const [items, total] = await Promise.all([

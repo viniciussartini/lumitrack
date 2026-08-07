@@ -97,7 +97,7 @@ function createConnection(config: MeterConnectionConfig): IConnection {
                 address: config.address!,
             }
             const pollingIntervalMs = extraField<number>(extra, "pollingIntervalMs")
-            const unitId            = extraField<number>(extra, "unitId")
+            const unitId = extraField<number>(extra, "unitId")
 
             if (pollingIntervalMs !== undefined) {
                 modbusTcpConfig.pollingIntervalMs = pollingIntervalMs
@@ -113,7 +113,7 @@ function createConnection(config: MeterConnectionConfig): IConnection {
         case "MODBUS_RTU": {
             const modbusRtuConfig: ConstructorParameters<typeof ModbusRtuConnection>[0] = {
                 meterId: config.meterId,
-                address:  config.address!,
+                address: config.address!,
             }
             const baudRate = extraField<number>(extra, "baudRate")
             const pollingIntervalMs = extraField<number>(extra, "pollingIntervalMs")
@@ -139,7 +139,7 @@ function createConnection(config: MeterConnectionConfig): IConnection {
                 meterId: config.meterId,
                 host: config.host!,
             }
-            const port = config.port   !== null ? config.port   : undefined
+            const port = config.port !== null ? config.port : undefined
             const address = config.address !== null ? config.address : undefined
             const pollingIntervalMs = extraField<number>(extra, "pollingIntervalMs")
 
@@ -182,7 +182,7 @@ function createConnection(config: MeterConnectionConfig): IConnection {
                 meterId: config.meterId,
                 host: config.host!,
             }
-            const port = config.port   !== null ? config.port   : undefined
+            const port = config.port !== null ? config.port : undefined
             const address = config.address !== null ? config.address : undefined
             const pollingIntervalMs = extraField<number>(extra, "pollingIntervalMs")
             const rack = extraField<number>(extra, "rack")
@@ -214,7 +214,7 @@ function createConnection(config: MeterConnectionConfig): IConnection {
         case "RS232": {
             const rs232Config: ConstructorParameters<typeof Rs232Connection>[0] = {
                 meterId: config.meterId,
-                address:  config.address!,
+                address: config.address!,
             }
             const baudRate = extraField<number>(extra, "baudRate")
             const pollingIntervalMs = extraField<number>(extra, "pollingIntervalMs")
@@ -233,7 +233,7 @@ function createConnection(config: MeterConnectionConfig): IConnection {
         case "RS485": {
             const rs485Config: ConstructorParameters<typeof Rs485Connection>[0] = {
                 meterId: config.meterId,
-                address:  config.address!,
+                address: config.address!,
             }
             const baudRate = extraField<number>(extra, "baudRate")
             const pollingIntervalMs = extraField<number>(extra, "pollingIntervalMs")
@@ -309,7 +309,9 @@ export class IoTConnectionManager {
         }
 
         const connection = createConnection(config)
-        connection.onData((data) => { this.dataHandler?.(config.meterId, data) })
+        connection.onData((data) => {
+            this.dataHandler?.(config.meterId, data)
+        })
 
         try {
             await connection.connect()
@@ -337,7 +339,9 @@ export class IoTConnectionManager {
         await this.start(config)
     }
 
-    activeCount(): number { return this.connections.size }
+    activeCount(): number {
+        return this.connections.size
+    }
 
     async stopAll(): Promise<void> {
         const meterIds = [...this.connections.keys()]

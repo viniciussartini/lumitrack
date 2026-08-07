@@ -16,8 +16,7 @@ vi.mock("@/services/auth.service", () => ({
 }))
 
 vi.mock("@/services/api", () => ({
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 // WarningBadge (useFiringAlerts) e NotificationDropdown (useNotifications)
@@ -92,21 +91,15 @@ describe("Header — renderização", () => {
     it("renderiza botão hamburger", () => {
         renderHeader()
 
-        expect(
-            screen.getByRole("button", { name: /abrir menu/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /abrir menu/i })).toBeInTheDocument()
     })
 
     it("não renderiza ThemeToggle nem UserMenu — passaram para a Sidebar (#135)", async () => {
         renderHeader()
         await screen.findByRole("heading", { level: 1 })
 
-        expect(
-            screen.queryByRole("button", { name: /tema atual/i }),
-        ).not.toBeInTheDocument()
-        expect(
-            screen.queryByRole("button", { name: /menu do usuário/i }),
-        ).not.toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /tema atual/i })).not.toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /menu do usuário/i })).not.toBeInTheDocument()
     })
 
     it("mostra a saudação com o nome do usuário no Painel", async () => {

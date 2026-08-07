@@ -19,7 +19,12 @@ function isFiniteNonNegative(value: number): boolean {
     return Number.isFinite(value) && value >= 0
 }
 
-function isValidPayload(sample: { voltage: number; current: number; powerW: number; powerFactor: number }): boolean {
+function isValidPayload(sample: {
+    voltage: number
+    current: number
+    powerW: number
+    powerFactor: number
+}): boolean {
     return (
         isFiniteNonNegative(sample.voltage) &&
         isFiniteNonNegative(sample.current) &&

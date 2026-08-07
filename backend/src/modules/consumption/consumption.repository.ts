@@ -55,7 +55,9 @@ export class ConsumptionRepository {
     ): Promise<ConsumptionBucket[]> {
         const unit = TRUNC_UNIT[granularity]
 
-        const rows = await this.prisma.$queryRaw<{ bucket: Date; kwh: number; avgpower: number | null }[]>(
+        const rows = await this.prisma.$queryRaw<
+            { bucket: Date; kwh: number; avgpower: number | null }[]
+        >(
             Prisma.sql`
                 SELECT
                     date_trunc(${unit}, ${localTsExpr()}) AS bucket,
@@ -107,10 +109,15 @@ export class ConsumptionRepository {
     // `yearBucketStarts` são exatamente os valores de `bucket` já retornados
     // por `findAggregated` com granularity="year" — comparação por
     // igualdade direta, sem reconverter fuso horário.
-    async findMonthlyKwhForYears(meterId: string, yearBucketStarts: Date[]): Promise<MonthlyKwhForYear[]> {
+    async findMonthlyKwhForYears(
+        meterId: string,
+        yearBucketStarts: Date[],
+    ): Promise<MonthlyKwhForYear[]> {
         if (yearBucketStarts.length === 0) return []
 
-        const rows = await this.prisma.$queryRaw<{ yearbucket: Date; monthbucket: Date; kwh: number }[]>(
+        const rows = await this.prisma.$queryRaw<
+            { yearbucket: Date; monthbucket: Date; kwh: number }[]
+        >(
             Prisma.sql`
                 SELECT
                     date_trunc('year', ${localTsExpr()}) AS yearbucket,
@@ -123,6 +130,10 @@ export class ConsumptionRepository {
             `,
         )
 
-        return rows.map((r) => ({ yearBucket: r.yearbucket, monthBucket: r.monthbucket, kwhConsumed: Number(r.kwh) }))
+        return rows.map((r) => ({
+            yearBucket: r.yearbucket,
+            monthBucket: r.monthbucket,
+            kwhConsumed: Number(r.kwh),
+        }))
     }
 }

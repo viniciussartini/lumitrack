@@ -57,7 +57,6 @@ afterAll(async () => {
 
 describe("UserService", () => {
     describe("createUser", () => {
-
         // ── Caminho feliz: pessoa física ─────────────────────────────────────────
 
         it("deve criar um usuário pessoa física com dados válidos", async () => {
@@ -107,8 +106,8 @@ describe("UserService", () => {
 
             await expect(
                 userService.createUser({
-                ...validIndividualInput,
-                cpf: "310.037.856-38", // CPF diferente, mas mesmo e-mail
+                    ...validIndividualInput,
+                    cpf: "310.037.856-38", // CPF diferente, mas mesmo e-mail
                 }),
             ).rejects.toThrow(ConflictError)
         })
@@ -118,8 +117,8 @@ describe("UserService", () => {
 
             await expect(
                 userService.createUser({
-                ...validIndividualInput,
-                email: "outro@example.com", // E-mail diferente, mas mesmo CPF
+                    ...validIndividualInput,
+                    email: "outro@example.com", // E-mail diferente, mas mesmo CPF
                 }),
             ).rejects.toThrow(ConflictError)
         })
@@ -129,8 +128,8 @@ describe("UserService", () => {
 
             await expect(
                 userService.createUser({
-                ...validCompanyInput,
-                email: "outro@empresa.com", // E-mail diferente, mas mesmo CNPJ
+                    ...validCompanyInput,
+                    email: "outro@empresa.com", // E-mail diferente, mas mesmo CNPJ
                 }),
             ).rejects.toThrow(ConflictError)
         })
@@ -138,15 +137,15 @@ describe("UserService", () => {
         // ── Validações de campos obrigatórios ────────────────────────────────────
 
         it("deve lançar ValidationError quando pessoa física não informar CPF", async () => {
-        await expect(
+            await expect(
                 userService.createUser({
-                email: "sem-cpf@example.com",
-                password: "Senha@123",
-                userType: "INDIVIDUAL" as const,
-                acceptedTerms: true,
-                firstName: "João",
-                lastName: "Silva",
-                // cpf ausente intencionalmente
+                    email: "sem-cpf@example.com",
+                    password: "Senha@123",
+                    userType: "INDIVIDUAL" as const,
+                    acceptedTerms: true,
+                    firstName: "João",
+                    lastName: "Silva",
+                    // cpf ausente intencionalmente
                 }),
             ).rejects.toThrow(ValidationError)
         })
@@ -154,12 +153,12 @@ describe("UserService", () => {
         it("deve lançar ValidationError quando pessoa jurídica não informar CNPJ", async () => {
             await expect(
                 userService.createUser({
-                email: "sem-cnpj@empresa.com",
-                password: "Senha@123",
-                userType: "COMPANY" as const,
-                acceptedTerms: true,
-                companyName: "Empresa Ltda",
-                // cnpj ausente intencionalmente
+                    email: "sem-cnpj@empresa.com",
+                    password: "Senha@123",
+                    userType: "COMPANY" as const,
+                    acceptedTerms: true,
+                    companyName: "Empresa Ltda",
+                    // cnpj ausente intencionalmente
                 }),
             ).rejects.toThrow(ValidationError)
         })
@@ -167,8 +166,8 @@ describe("UserService", () => {
         it("deve lançar ValidationError para e-mail com formato inválido", async () => {
             await expect(
                 userService.createUser({
-                ...validIndividualInput,
-                email: "email-invalido",
+                    ...validIndividualInput,
+                    email: "email-invalido",
                 }),
             ).rejects.toThrow(ValidationError)
         })
@@ -176,8 +175,8 @@ describe("UserService", () => {
         it("deve lançar ValidationError para senha fraca (menos de 8 caracteres)", async () => {
             await expect(
                 userService.createUser({
-                ...validIndividualInput,
-                password: "123",
+                    ...validIndividualInput,
+                    password: "123",
                 }),
             ).rejects.toThrow(ValidationError)
         })
@@ -226,7 +225,7 @@ describe("UserService", () => {
         it("deve lançar NotFoundError ao tentar atualizar usuário inexistente", async () => {
             await expect(
                 userService.updateUser("00000000-0000-0000-0000-000000000000", {
-                firstName: "Carlos",
+                    firstName: "Carlos",
                 }),
             ).rejects.toThrow(NotFoundError)
         })
@@ -240,7 +239,7 @@ describe("UserService", () => {
 
             await expect(
                 userService.updateUser(second.id, {
-                email: "joao@example.com", // e-mail já pertence ao primeiro usuário
+                    email: "joao@example.com", // e-mail já pertence ao primeiro usuário
                 }),
             ).rejects.toThrow(ConflictError)
         })
@@ -257,9 +256,7 @@ describe("UserService", () => {
             await userService.deleteUser(created.id)
 
             // Após deletar, findById deve lançar NotFoundError
-            await expect(
-                userService.findById(created.id),
-            ).rejects.toThrow(NotFoundError)
+            await expect(userService.findById(created.id)).rejects.toThrow(NotFoundError)
         })
 
         it("deve lançar NotFoundError ao tentar deletar usuário inexistente", async () => {

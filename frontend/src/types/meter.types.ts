@@ -92,7 +92,6 @@ export interface MeterConnectionInput {
     extra?: Record<string, unknown>
 }
 
-export type CreateMeterInput = MeterFormTarget &
-    MeterConnectionInput & { name: string }
+export type CreateMeterInput = MeterFormTarget & MeterConnectionInput & { name: string }
 
 export type UpdateMeterInput = MeterConnectionInput & { name: string }

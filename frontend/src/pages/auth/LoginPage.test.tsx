@@ -18,8 +18,7 @@ vi.mock("@/services/auth.service", () => ({
 }))
 
 vi.mock("@/services/api", () => ({
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 const mockTariffFlagConfig: TariffFlagConfig = {
@@ -164,9 +163,7 @@ describe("LoginPage — submit", () => {
     })
 
     it("exibe a mensagem de erro do servidor quando login falha", async () => {
-        vi.mocked(authService.login).mockRejectedValue(
-            new Error("Credenciais inválidas"),
-        )
+        vi.mocked(authService.login).mockRejectedValue(new Error("Credenciais inválidas"))
 
         const user = userEvent.setup()
         renderWithProviders(<LoginPage />)
@@ -207,9 +204,7 @@ describe("LoginPage — login de demonstração (VITE_DEMO_MODE)", () => {
         const residentialButton = await screen.findByRole("button", {
             name: /ver demo residencial/i,
         })
-        expect(
-            screen.getByRole("button", { name: /ver demo comercial/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /ver demo comercial/i })).toBeInTheDocument()
 
         await user.click(residentialButton)
 
@@ -223,16 +218,12 @@ describe("LoginPage — login de demonstração (VITE_DEMO_MODE)", () => {
 
     it("exibe a mesma mensagem de erro do login normal quando o demo falha", async () => {
         vi.stubEnv("VITE_DEMO_MODE", "true")
-        vi.mocked(authService.login).mockRejectedValue(
-            new Error("Credenciais inválidas"),
-        )
+        vi.mocked(authService.login).mockRejectedValue(new Error("Credenciais inválidas"))
 
         const user = userEvent.setup()
         renderWithProviders(<LoginPage />)
 
-        await user.click(
-            await screen.findByRole("button", { name: /ver demo comercial/i }),
-        )
+        await user.click(await screen.findByRole("button", { name: /ver demo comercial/i }))
 
         expect(await screen.findByText(/credenciais inválidas/i)).toBeInTheDocument()
     })
@@ -288,9 +279,7 @@ describe("LoginPage — MFA (segundo passo)", () => {
             mfaRequired: true,
             mfaToken: "mfa-token-123",
         })
-        vi.mocked(authService.verifyMfaLogin).mockRejectedValue(
-            new Error("Código inválido"),
-        )
+        vi.mocked(authService.verifyMfaLogin).mockRejectedValue(new Error("Código inválido"))
 
         const user = userEvent.setup()
         renderWithProviders(<LoginPage />)

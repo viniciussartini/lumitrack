@@ -25,8 +25,13 @@ function round(value: number, decimals: number): number {
     return Math.round(value * factor) / factor
 }
 
-export function generateSample(params: DeviceParams, anomaly: AnomalyState, tickIndex: number): ElectricalSample {
-    const wave = Math.sin((tickIndex / SIGNAL_PERIOD_TICKS) * 2 * Math.PI) * SIGNAL_AMPLITUDE_FRACTION
+export function generateSample(
+    params: DeviceParams,
+    anomaly: AnomalyState,
+    tickIndex: number,
+): ElectricalSample {
+    const wave =
+        Math.sin((tickIndex / SIGNAL_PERIOD_TICKS) * 2 * Math.PI) * SIGNAL_AMPLITUDE_FRACTION
     const anomalyMultiplier = anomaly.active ? anomaly.multiplier : 1
 
     const targetPowerW = params.nominalPowerW * (1 + wave) * anomalyMultiplier
@@ -39,7 +44,10 @@ export function generateSample(params: DeviceParams, anomaly: AnomalyState, tick
         params.nominalVoltage * voltageSag + gaussianNoise(params.nominalVoltage * 0.005),
     )
 
-    const powerFactor = Math.min(1, Math.max(MIN_POWER_FACTOR, params.powerFactorBase + gaussianNoise(0.01)))
+    const powerFactor = Math.min(
+        1,
+        Math.max(MIN_POWER_FACTOR, params.powerFactorBase + gaussianNoise(0.01)),
+    )
 
     const current = powerW / (voltage * powerFactor)
 

@@ -31,11 +31,11 @@ export const LiveKpiCard = ({ label, value, subValue, isLive = false }: LiveKpiC
             )}
             {label}
         </div>
-        <div className="font-heading mt-2.5 text-[30px] leading-none font-semibold font-features-['tnum'_1]">
+        <div className="font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold">
             {value}
         </div>
         {subValue !== undefined && (
-            <div className="text-muted mt-2 text-xs font-features-['tnum'_1]">{subValue}</div>
+            <div className="text-muted mt-2 font-features-['tnum'_1] text-xs">{subValue}</div>
         )}
     </div>
 )

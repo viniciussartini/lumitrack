@@ -3,9 +3,7 @@ import type { CreateAreaInput, UpdateAreaInput } from "@/modules/area/area.schem
 import { toSkipTake, type Paginated, type PaginationQuery } from "@/shared/pagination.js"
 
 // Tipo inferido diretamente do Prisma
-type PrismaArea = NonNullable<
-    Awaited<ReturnType<PrismaClient["area"]["findUnique"]>>
->
+type PrismaArea = NonNullable<Awaited<ReturnType<PrismaClient["area"]["findUnique"]>>>
 
 export type AreaResponse = PrismaArea
 
@@ -23,7 +21,10 @@ export class AreaRepository {
         })
     }
 
-    async findAllByPropertyPaginated(propertyId: string, pagination: PaginationQuery): Promise<Paginated<AreaResponse>> {
+    async findAllByPropertyPaginated(
+        propertyId: string,
+        pagination: PaginationQuery,
+    ): Promise<Paginated<AreaResponse>> {
         const { skip, take } = toSkipTake(pagination)
 
         const [areas, total] = await Promise.all([

@@ -43,7 +43,10 @@ export class DeviceRunner {
         }
 
         const sample = generateSample(device.params, device.anomaly, this.tickIndex++)
-        this.publisher.publish(device.topic, { ...sample, deviceTimestamp: new Date().toISOString() })
+        this.publisher.publish(device.topic, {
+            ...sample,
+            deviceTimestamp: new Date().toISOString(),
+        })
         this.store.recordSample(this.deviceId, sample, Date.now())
     }
 }

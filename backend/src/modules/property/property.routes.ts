@@ -32,10 +32,13 @@ export function propertyRoutes(
     router.use("/:propertyId/areas", areaRoutes(authenticate, prismaClient))
     router.use("/:propertyId/simulation", simulationRoutes(authenticate, prismaClient))
 
-    router.get("/:id", authenticate, (req, res, next) => propertyController.findById(req, res, next))
+    router.get("/:id", authenticate, (req, res, next) =>
+        propertyController.findById(req, res, next),
+    )
     router.put("/:id", authenticate, (req, res, next) => propertyController.update(req, res, next))
-    router.delete("/:id", authenticate, (req, res, next) => propertyController.delete(req, res, next))
-
+    router.delete("/:id", authenticate, (req, res, next) =>
+        propertyController.delete(req, res, next),
+    )
 
     return router
 }

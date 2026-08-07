@@ -18,8 +18,7 @@ vi.mock("@/services/auth.service", () => ({
 }))
 
 vi.mock("@/services/api", () => ({
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 // WarningBadge usa useFiringAlerts() → precisamos do alertService mockado
@@ -96,9 +95,7 @@ const renderShell = (initialEntry = "/dashboard") => {
                                     element={
                                         <div>
                                             <p>Conteúdo do Dashboard</p>
-                                            <Link to="/distribuidoras">
-                                                Ir para Distribuidoras
-                                            </Link>
+                                            <Link to="/distribuidoras">Ir para Distribuidoras</Link>
                                         </div>
                                     }
                                 />
@@ -119,9 +116,7 @@ describe("AppShell — renderização", () => {
     it("renderiza o conteúdo da rota filha (Outlet)", async () => {
         renderShell("/dashboard")
 
-        expect(
-            await screen.findByText("Conteúdo do Dashboard"),
-        ).toBeInTheDocument()
+        expect(await screen.findByText("Conteúdo do Dashboard")).toBeInTheDocument()
     })
 
     it("renderiza Sidebar e Header", async () => {
@@ -131,9 +126,7 @@ describe("AppShell — renderização", () => {
             screen.getByRole("complementary", { name: /navegação principal/i }),
         ).toBeInTheDocument()
 
-        expect(
-            screen.getByRole("button", { name: /abrir menu/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /abrir menu/i })).toBeInTheDocument()
     })
 })
 
@@ -190,14 +183,10 @@ describe("AppShell — drawer mobile", () => {
         renderShell("/dashboard")
 
         await user.click(screen.getByRole("button", { name: /abrir menu/i }))
-        await user.click(
-            screen.getByRole("link", { name: /ir para distribuidoras/i }),
-        )
+        await user.click(screen.getByRole("link", { name: /ir para distribuidoras/i }))
 
         await waitFor(() => {
-            expect(
-                screen.getByText("Conteúdo de Distribuidoras"),
-            ).toBeInTheDocument()
+            expect(screen.getByText("Conteúdo de Distribuidoras")).toBeInTheDocument()
         })
 
         const aside = screen.getByRole("complementary", {
