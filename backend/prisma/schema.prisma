@@ -186,7 +186,6 @@ model AuthToken {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([token])
   @@index([userId])
   @@map("auth_tokens")
 }
@@ -209,7 +208,6 @@ model RefreshToken {
   replacedByToken RefreshToken? @relation("RefreshTokenRotation", fields: [replacedByTokenId], references: [id], onDelete: SetNull)
   replacesToken   RefreshToken? @relation("RefreshTokenRotation")
 
-  @@index([token])
   @@index([userId])
   @@map("refresh_tokens")
 }
@@ -224,7 +222,6 @@ model PasswordReset {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([token])
   @@map("password_resets")
 }
 

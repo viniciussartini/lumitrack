@@ -21,8 +21,17 @@ import { QueryClient } from "@tanstack/react-query"
  *       REGRA DE OURO: mutations nunca retentam. Retentar um POST pode
  *       criar duplicatas. Falhou? O usuário decide se tenta de novo.
  *
- *   - refetchOnWindowFocus: true (default do TanStack)
- *       Volta da aba? Refetch silencioso para manter dados atualizados.
+ *   - refetchOnWindowFocus: false (decisão consciente, #165 — M-11)
+ *       O default do TanStack é `true`, mas aqui voltar à aba refaria
+ *       TODAS as queries montadas de uma vez — inclui o fan-out de
+ *       consumo do Painel (A-04: até 20 propriedades × ~8 queries no
+ *       backend cada, ~160 queries por refetch). Enquanto esse endpoint
+ *       não vira uma chamada em lote (Fase 15 do roadmap), `true`
+ *       amplificaria exatamente o custo que o laudo de desempenho já
+ *       sinalizou. Os dados que realmente precisam de frescor "ao vivo"
+ *       (potência, leituras) já chegam por SSE (RealtimeContext), não
+ *       por refetch do TanStack Query — revisitar quando A-04 for
+ *       resolvido, se fizer sentido.
  */
 export const queryClient = new QueryClient({
     defaultOptions: {
@@ -30,7 +39,7 @@ export const queryClient = new QueryClient({
             staleTime: 30 * 1000,
             gcTime: 5 * 60 * 1000,
             retry: 1,
-            refetchOnWindowFocus: true,
+            refetchOnWindowFocus: false,
         },
         mutations: {
             retry: 0,

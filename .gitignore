@@ -8,8 +8,11 @@ dist/
 .env
 !.env.example
 
-# Prisma
-prisma/migrations/
+# Nenhuma regra para backend/prisma/migrations/ aqui de propósito — as
+# migrations DEVEM ser versionadas (histórico de schema é parte do código).
+# Uma regra `prisma/migrations/` já existiu aqui, mas nunca casava de
+# verdade (ancorada na raiz do repo, não em backend/) — inócua por acidente,
+# não por intenção (#165).
 
 # Testes
 coverage/

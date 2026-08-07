@@ -11,6 +11,20 @@ export const envSchema = z
 
         DATABASE_URL: z.url({ message: "DATABASE_URL deve ser uma URL válida" }),
 
+        // Bancos usados só pela suíte de testes (shared/test/prisma-test.ts,
+        // prisma-http-test.ts) — a suíte APAGA os dados desses bancos a cada
+        // execução (ver .env.example). Opcionais aqui porque só fazem
+        // sentido em NODE_ENV=test; obrigatórias nesse caso pelo `.refine`
+        // abaixo, junto da checagem que impede apontarem para DATABASE_URL
+        // (#165 — o modo de falha de deixar isso passar batido é apagar o
+        // banco de desenvolvimento).
+        DATABASE_TEST_URL: z
+            .url({ message: "DATABASE_TEST_URL deve ser uma URL válida" })
+            .optional(),
+        DATABASE_HTTP_TEST_URL: z
+            .url({ message: "DATABASE_HTTP_TEST_URL deve ser uma URL válida" })
+            .optional(),
+
         JWT_SECRET: z.string().min(32, { message: "JWT_SECRET deve ter ao menos 32 caracteres" }),
         JWT_WEB_EXPIRES_IN: z.string().default("15m"),
         // Tokens MOBILE não tinham expiração por tempo (apenas revogação manual
@@ -115,6 +129,27 @@ export const envSchema = z
             "CORS_ORIGIN não pode ser '*' em produção (combinado com credentials: true, isso expõe a API a qualquer origem)",
         path: ["CORS_ORIGIN"],
     })
+    .refine((data) => data.NODE_ENV !== "test" || data.DATABASE_TEST_URL !== undefined, {
+        message: "DATABASE_TEST_URL é obrigatória quando NODE_ENV=test",
+        path: ["DATABASE_TEST_URL"],
+    })
+    .refine((data) => data.NODE_ENV !== "test" || data.DATABASE_HTTP_TEST_URL !== undefined, {
+        message: "DATABASE_HTTP_TEST_URL é obrigatória quando NODE_ENV=test",
+        path: ["DATABASE_HTTP_TEST_URL"],
+    })
+    .refine((data) => !data.DATABASE_TEST_URL || data.DATABASE_TEST_URL !== data.DATABASE_URL, {
+        message:
+            "DATABASE_TEST_URL não pode ser igual a DATABASE_URL — a suíte de testes apaga os dados desse banco",
+        path: ["DATABASE_TEST_URL"],
+    })
+    .refine(
+        (data) => !data.DATABASE_HTTP_TEST_URL || data.DATABASE_HTTP_TEST_URL !== data.DATABASE_URL,
+        {
+            message:
+                "DATABASE_HTTP_TEST_URL não pode ser igual a DATABASE_URL — a suíte de testes apaga os dados desse banco",
+            path: ["DATABASE_HTTP_TEST_URL"],
+        },
+    )
 
 const parsed = envSchema.safeParse(process.env)
 
