@@ -5,11 +5,21 @@ import tseslint from "typescript-eslint"
 export default tseslint.config(
     { ignores: ["dist", "coverage"] },
     {
+        // `recommendedTypeChecked` completo custa mais do que rende para um
+        // MVP solo (mesmo achado do backend em #162) — fallback que a
+        // própria issue previu: só as 2 regras tipadas de maior valor aqui.
         extends: [js.configs.recommended, ...tseslint.configs.recommended],
         files: ["**/*.ts"],
         languageOptions: {
             ecmaVersion: 2022,
             globals: globals.node,
+            parserOptions: {
+                // vitest.config.ts não está incluído no tsconfig.json (não é
+                // código de app) — sem isto, as 2 regras tipadas abaixo
+                // derrubam o parser nesse arquivo.
+                projectService: { allowDefaultProject: ["vitest.config.ts"] },
+                tsconfigRootDir: import.meta.dirname,
+            },
         },
         rules: {
             "@typescript-eslint/no-unused-vars": [
@@ -30,6 +40,8 @@ export default tseslint.config(
                 "error",
                 { max: 60, skipBlankLines: true, skipComments: true },
             ],
+            "@typescript-eslint/no-floating-promises": "error",
+            "@typescript-eslint/no-misused-promises": "error",
         },
     },
     {

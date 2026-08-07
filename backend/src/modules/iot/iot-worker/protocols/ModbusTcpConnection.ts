@@ -67,30 +67,39 @@ export class ModbusTcpConnection implements IConnection {
         const intervalMs = this.config.pollingIntervalMs ?? 5000
         const registerAddress = parseInt(this.config.address, 10)
 
-        this.pollingTimer = setInterval(async () => {
-            if (!this.dataHandler || !this.client) {
-                return
-            }
-
-            try {
-                const modbusClient = this.client as {
-                    readHoldingRegisters: (
-                        addr: number,
-                        count: number,
-                    ) => Promise<{
-                        response: { body: { values: number[] } }
-                    }>
+        this.pollingTimer = setInterval(() => {
+            // setInterval espera um callback () => void — o corpo é async por
+            // causa do await de leitura, então roda numa IIFE `void`ada. O
+            // try/catch abaixo já cobre 100% do corpo, então a promise nunca
+            // rejeita de verdade; isto só satisfaz o tipo (no-misused-promises).
+            void (async () => {
+                if (!this.dataHandler || !this.client) {
+                    return
                 }
-                const result = await modbusClient.readHoldingRegisters(registerAddress, 1)
-                const value = result.response.body.values[0]
-                this.dataHandler({
-                    register: this.config.address,
-                    value,
-                    timestamp: new Date().toISOString(),
-                })
-            } catch (err) {
-                logger.error({ module: "ModbusTCP", meterId: this.meterId, err }, "Erro na leitura")
-            }
+
+                try {
+                    const modbusClient = this.client as {
+                        readHoldingRegisters: (
+                            addr: number,
+                            count: number,
+                        ) => Promise<{
+                            response: { body: { values: number[] } }
+                        }>
+                    }
+                    const result = await modbusClient.readHoldingRegisters(registerAddress, 1)
+                    const value = result.response.body.values[0]
+                    this.dataHandler({
+                        register: this.config.address,
+                        value,
+                        timestamp: new Date().toISOString(),
+                    })
+                } catch (err) {
+                    logger.error(
+                        { module: "ModbusTCP", meterId: this.meterId, err },
+                        "Erro na leitura",
+                    )
+                }
+            })()
         }, intervalMs)
     }
 
@@ -187,30 +196,35 @@ export class ModbusRtuConnection implements IConnection {
     private _startPolling(): void {
         const intervalMs = this.config.pollingIntervalMs ?? 5000
 
-        this.pollingTimer = setInterval(async () => {
-            if (!this.dataHandler || !this.client) {
-                return
-            }
-
-            try {
-                const modbusClient = this.client as {
-                    readHoldingRegisters: (
-                        addr: number,
-                        count: number,
-                    ) => Promise<{
-                        response: { body: { values: number[] } }
-                    }>
+        this.pollingTimer = setInterval(() => {
+            void (async () => {
+                if (!this.dataHandler || !this.client) {
+                    return
                 }
-                const result = await modbusClient.readHoldingRegisters(0, 1)
-                const value = result.response.body.values[0]
-                this.dataHandler({
-                    port: this.config.address,
-                    value,
-                    timestamp: new Date().toISOString(),
-                })
-            } catch (err) {
-                logger.error({ module: "ModbusRTU", meterId: this.meterId, err }, "Erro na leitura")
-            }
+
+                try {
+                    const modbusClient = this.client as {
+                        readHoldingRegisters: (
+                            addr: number,
+                            count: number,
+                        ) => Promise<{
+                            response: { body: { values: number[] } }
+                        }>
+                    }
+                    const result = await modbusClient.readHoldingRegisters(0, 1)
+                    const value = result.response.body.values[0]
+                    this.dataHandler({
+                        port: this.config.address,
+                        value,
+                        timestamp: new Date().toISOString(),
+                    })
+                } catch (err) {
+                    logger.error(
+                        { module: "ModbusRTU", meterId: this.meterId, err },
+                        "Erro na leitura",
+                    )
+                }
+            })()
         }, intervalMs)
     }
 
@@ -288,20 +302,22 @@ export class EthernetIpConnection implements IConnection {
         const intervalMs = this.config.pollingIntervalMs ?? 5000
         const tag = this.config.address ?? "output"
 
-        this.pollingTimer = setInterval(async () => {
-            if (!this.dataHandler || !this.plc) {
-                return
-            }
+        this.pollingTimer = setInterval(() => {
+            void (async () => {
+                if (!this.dataHandler || !this.plc) {
+                    return
+                }
 
-            try {
-                const value = await this.plc.read(tag)
-                this.dataHandler({ tag, value, timestamp: new Date().toISOString() })
-            } catch (err) {
-                logger.error(
-                    { module: "EthernetIP", meterId: this.meterId, err },
-                    "Erro na leitura",
-                )
-            }
+                try {
+                    const value = await this.plc.read(tag)
+                    this.dataHandler({ tag, value, timestamp: new Date().toISOString() })
+                } catch (err) {
+                    logger.error(
+                        { module: "EthernetIP", meterId: this.meterId, err },
+                        "Erro na leitura",
+                    )
+                }
+            })()
         }, intervalMs)
     }
 
@@ -462,34 +478,39 @@ export class ProfinetConnection implements IConnection {
         const intervalMs = this.config.pollingIntervalMs ?? 5000
         const dbNumber = parseInt((this.config.address ?? "DB1").replace("DB", ""), 10) || 1
 
-        this.pollingTimer = setInterval(async () => {
-            if (!this.dataHandler || !this.client) {
-                return
-            }
-
-            try {
-                const client = this.client as {
-                    DBRead: (
-                        db: number,
-                        start: number,
-                        size: number,
-                        cb: (err: Error | null, data: Buffer) => void,
-                    ) => void
+        this.pollingTimer = setInterval(() => {
+            void (async () => {
+                if (!this.dataHandler || !this.client) {
+                    return
                 }
-                const data = await new Promise<Buffer>((resolve, reject) => {
-                    client.DBRead(dbNumber, 0, 10, (err, buf) => {
-                        if (err) reject(err)
-                        else resolve(buf)
+
+                try {
+                    const client = this.client as {
+                        DBRead: (
+                            db: number,
+                            start: number,
+                            size: number,
+                            cb: (err: Error | null, data: Buffer) => void,
+                        ) => void
+                    }
+                    const data = await new Promise<Buffer>((resolve, reject) => {
+                        client.DBRead(dbNumber, 0, 10, (err, buf) => {
+                            if (err) reject(err)
+                            else resolve(buf)
+                        })
                     })
-                })
-                this.dataHandler({
-                    db: dbNumber,
-                    data: Array.from(data),
-                    timestamp: new Date().toISOString(),
-                })
-            } catch (err) {
-                logger.error({ module: "Profinet", meterId: this.meterId, err }, "Erro na leitura")
-            }
+                    this.dataHandler({
+                        db: dbNumber,
+                        data: Array.from(data),
+                        timestamp: new Date().toISOString(),
+                    })
+                } catch (err) {
+                    logger.error(
+                        { module: "Profinet", meterId: this.meterId, err },
+                        "Erro na leitura",
+                    )
+                }
+            })()
         }, intervalMs)
     }
 

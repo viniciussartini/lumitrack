@@ -82,13 +82,13 @@ export const RegisterPage = () => {
 
         try {
             await registerUser(payload)
-            navigate("/dashboard", { replace: true })
+            void navigate("/dashboard", { replace: true })
         } catch (error) {
             const message = error instanceof Error ? error.message : "Erro ao criar conta"
 
             // Erro especial: registro ok mas auto-login falhou
             if (message === "POST_REGISTER_LOGIN_FAILED") {
-                navigate("/login", {
+                void navigate("/login", {
                     replace: true,
                     state: {
                         notice: "Conta criada com sucesso! Faça login para continuar.",
@@ -171,7 +171,7 @@ export const RegisterPage = () => {
                     </div>
 
                     <form
-                        onSubmit={handleSubmit(onSubmit)}
+                        onSubmit={(e) => void handleSubmit(onSubmit)(e)}
                         className="mt-5 flex flex-col gap-4"
                         noValidate
                     >

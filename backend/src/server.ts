@@ -117,19 +117,32 @@ tariffFlagSyncScheduler.start()
  */
 const app = createApp({ processor, userEventHub, alertEvaluator, notificationStore })
 
-const server = app.listen(env.PORT, async () => {
+const server = app.listen(env.PORT, () => {
     logger.info(`LumiTrack API rodando em http://localhost:${env.PORT}`)
     logger.info(`Ambiente: ${env.NODE_ENV}`)
     logger.info(`Health: http://localhost:${env.PORT}/health`)
 
-    // Carrega o cache de alertas habilitados ANTES de restaurar as conexões
-    // IoT — evita que as primeiras amostras recebidas passem sem avaliação.
-    await alertEvaluator.loadCache()
+    // app.listen espera um callback () => void — a inicialização pós-boot é
+    // async, então roda numa IIFE com catch explícito em vez de deixar a
+    // rejeição da promise do callback virar unhandledRejection silencioso
+    // (falhar fechado: um erro aqui derruba o processo, não passa batido).
+    void (async () => {
+        try {
+            // Carrega o cache de alertas habilitados ANTES de restaurar as
+            // conexões IoT — evita que as primeiras amostras recebidas
+            // passem sem avaliação.
+            await alertEvaluator.loadCache()
 
-    // Restaura as conexões IoT ativas do banco após o servidor estar escutando.
-    // Fazemos isso aqui (e não antes do listen) para garantir que o servidor
-    // já está pronto para receber requisições quando as primeiras leituras chegam.
-    await restoreIoTConnections()
+            // Restaura as conexões IoT ativas do banco após o servidor estar
+            // escutando. Fazemos isso aqui (e não antes do listen) para
+            // garantir que o servidor já está pronto para receber
+            // requisições quando as primeiras leituras chegam.
+            await restoreIoTConnections()
+        } catch (err) {
+            logger.error({ err }, "Falha ao inicializar cache de alertas ou restaurar conexões IoT")
+            process.exit(1)
+        }
+    })()
 })
 
 /**

@@ -19,7 +19,7 @@ export const useDeleteNotification = () => {
     return useMutation<void, Error, string>({
         mutationFn: (id) => notificationService.delete(id),
         onSuccess: () => {
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: queryKeys.notifications.all,
             })
         },
@@ -32,7 +32,7 @@ export const useDeleteAllNotifications = () => {
     return useMutation<void, Error, void>({
         mutationFn: () => notificationService.deleteAll(),
         onSuccess: () => {
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: queryKeys.notifications.all,
             })
         },

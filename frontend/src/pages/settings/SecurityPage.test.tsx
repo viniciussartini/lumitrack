@@ -117,6 +117,8 @@ describe("SecurityPage — fluxo de setup", () => {
             qrCodeDataUrl: "data:image/png;base64,xyz",
         })
         const backupCodes = Array.from({ length: 10 }, (_, i) => `CODE${i}-CODE${i}`)
+        const firstBackupCode = backupCodes[0]
+        if (!firstBackupCode) throw new Error("backupCodes deveria ter 10 elementos")
         vi.mocked(authService.mfaVerifySetup).mockResolvedValue({ backupCodes })
 
         const user = userEvent.setup()
@@ -130,7 +132,7 @@ describe("SecurityPage — fluxo de setup", () => {
             secret: "SECRET123",
             code: "123456",
         })
-        expect(await screen.findByText(backupCodes[0])).toBeInTheDocument()
+        expect(await screen.findByText(firstBackupCode)).toBeInTheDocument()
         expect(vi.mocked(toast.success)).toHaveBeenCalled()
 
         // Concluir volta ao estado idle

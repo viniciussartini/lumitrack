@@ -126,7 +126,7 @@ export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
                     <button
                         type="button"
                         role="menuitem"
-                        onClick={handleToggleEnabled}
+                        onClick={(e) => void handleToggleEnabled(e)}
                         disabled={patchEnabled.isPending}
                         data-testid={`alert-menu-toggle-enabled-${alert.id}`}
                         className={cn(
@@ -173,7 +173,7 @@ export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
                 description={`O alerta "${alert.name}" será excluído permanentemente. Essa ação não pode ser desfeita.`}
                 confirmLabel="Excluir"
                 isLoading={deleteMutation.isPending}
-                onConfirm={handleConfirmDelete}
+                onConfirm={() => void handleConfirmDelete()}
                 variant="danger"
             />
         </div>

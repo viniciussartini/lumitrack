@@ -19,6 +19,7 @@
         /* --- Qualidade e segurança --- */
         "strict": true,
         "noUncheckedIndexedAccess": true,
+        "noImplicitReturns": true,
         "noImplicitOverride": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true,

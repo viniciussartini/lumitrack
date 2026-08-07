@@ -21,7 +21,7 @@ export const useCreateProperty = () => {
     return useMutation<Property, Error, CreatePropertyInput>({
         mutationFn: (input) => propertyService.create(input),
         onSuccess: (created) => {
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: queryKeys.properties.all,
             })
             toast.success("Propriedade criada", {
@@ -43,10 +43,10 @@ export const useUpdateProperty = () => {
         mutationFn: ({ id, input }) => propertyService.update(id, input),
         onSuccess: (updated) => {
             // Invalida lista (ordem pode ter mudado) e o detalhe específico
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.properties.all, "list"],
             })
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: queryKeys.properties.detail(updated.id),
             })
             toast.success("Propriedade atualizada", {
@@ -73,7 +73,7 @@ export const useDeleteProperty = () => {
     return useMutation<void, Error, string>({
         mutationFn: (id) => propertyService.delete(id),
         onSuccess: (_, id) => {
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.properties.all, "list"],
             })
             // Remove o detalhe do cache — não vai existir mais

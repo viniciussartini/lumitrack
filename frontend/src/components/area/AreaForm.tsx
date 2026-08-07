@@ -58,7 +58,11 @@ export const AreaForm = ({
     })
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6" noValidate>
+        <form
+            onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+            className="flex flex-col gap-6"
+            noValidate
+        >
             <div className="flex flex-col gap-4">
                 <Input label="Nome da área" error={errors.name?.message} {...register("name")} />
 

@@ -58,7 +58,7 @@ export const DashboardPage = () => {
                             ? propertiesQuery.error.message
                             : "Erro ao carregar propriedades"
                     }
-                    onRetry={() => propertiesQuery.refetch()}
+                    onRetry={() => void propertiesQuery.refetch()}
                 />
             )}
 

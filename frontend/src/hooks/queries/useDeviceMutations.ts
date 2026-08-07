@@ -36,7 +36,7 @@ export const useCreateDevice = () => {
         mutationFn: ({ propertyId, areaId, input }) =>
             deviceService.create(propertyId, areaId, input),
         onSuccess: (created, { propertyId, areaId }) => {
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.devices.all, "list", propertyId, areaId],
             })
             toast.success("Dispositivo criado", {
@@ -62,10 +62,10 @@ export const useUpdateDevice = () => {
         onSuccess: (updated, { propertyId, areaId }) => {
             // Invalida lista (nome pode ter mudado, ordem pode ter mudado)
             // e o detalhe específico
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.devices.all, "list", propertyId, areaId],
             })
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: queryKeys.devices.detail(propertyId, areaId, updated.id),
             })
             toast.success("Dispositivo atualizado", {
@@ -88,7 +88,7 @@ export const useDeleteDevice = () => {
         mutationFn: ({ propertyId, areaId, deviceId }) =>
             deviceService.delete(propertyId, areaId, deviceId),
         onSuccess: (_, { propertyId, areaId, deviceId }) => {
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.devices.all, "list", propertyId, areaId],
             })
             // Remove o detalhe do cache — não vai mais existir

@@ -205,7 +205,7 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
                 description="Isso remove o medidor e todas as leituras associadas. Esta ação não pode ser desfeita."
                 confirmLabel="Remover"
                 isLoading={deleteMeter.isPending}
-                onConfirm={handleDelete}
+                onConfirm={() => void handleDelete()}
             />
         </section>
     )

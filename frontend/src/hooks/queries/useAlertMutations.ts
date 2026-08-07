@@ -19,7 +19,7 @@ export const useCreateAlert = () => {
     return useMutation<AlertWithStatus, Error, CreateAlertInput>({
         mutationFn: (input) => alertService.create(input),
         onSuccess: (created) => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all })
             toast.success("Alerta criado", {
                 description: `${created.name} está monitorando o medidor.`,
             })
@@ -38,7 +38,7 @@ export const useUpdateAlert = () => {
     return useMutation<AlertWithStatus, Error, UpdateAlertVariables>({
         mutationFn: ({ id, input }) => alertService.update(id, input),
         onSuccess: (updated) => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all })
             toast.success("Alerta atualizado", {
                 description: updated.name,
             })
@@ -57,7 +57,7 @@ export const usePatchAlertEnabled = () => {
     return useMutation<AlertWithStatus, Error, PatchAlertEnabledVariables>({
         mutationFn: ({ id, enabled }) => alertService.patchEnabled(id, enabled),
         onSuccess: (updated) => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all })
             toast.success(updated.enabled ? "Alerta habilitado" : "Alerta desabilitado")
         },
     })
@@ -69,7 +69,7 @@ export const useDeleteAlert = () => {
     return useMutation<void, Error, string>({
         mutationFn: (id) => alertService.delete(id),
         onSuccess: (_, id) => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.alerts.all })
             queryClient.removeQueries({ queryKey: queryKeys.alerts.detail(id) })
             toast.success("Alerta excluído")
         },

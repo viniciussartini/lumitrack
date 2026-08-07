@@ -44,7 +44,7 @@ export const NotificationDropdown = () => {
 
     const handleNavigate = (notification: Notification) => {
         setIsOpen(false)
-        navigate(notification.targetPath)
+        void navigate(notification.targetPath)
         deleteNotification.mutate(notification.id)
     }
 

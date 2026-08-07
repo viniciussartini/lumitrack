@@ -92,7 +92,11 @@ export const PropertyForm = ({
     })
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-8" noValidate>
+        <form
+            onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+            className="flex flex-col gap-8"
+            noValidate
+        >
             <Section title="Identificação">
                 <Input
                     label="Nome da propriedade"

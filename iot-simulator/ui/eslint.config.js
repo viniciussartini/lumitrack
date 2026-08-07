@@ -7,11 +7,18 @@ import tseslint from "typescript-eslint"
 export default tseslint.config(
     { ignores: ["dist"] },
     {
+        // `recommendedTypeChecked` completo custa mais do que rende para um
+        // MVP solo (mesmo achado do backend em #162) — fallback que a
+        // própria issue previu: só as 2 regras tipadas de maior valor aqui.
         extends: [js.configs.recommended, ...tseslint.configs.recommended],
         files: ["**/*.{ts,tsx}"],
         languageOptions: {
             ecmaVersion: 2022,
             globals: globals.browser,
+            parserOptions: {
+                projectService: true,
+                tsconfigRootDir: import.meta.dirname,
+            },
         },
         plugins: {
             "react-hooks": reactHooks,
@@ -30,6 +37,8 @@ export default tseslint.config(
                 "error",
                 { max: 60, skipBlankLines: true, skipComments: true },
             ],
+            "@typescript-eslint/no-floating-promises": "error",
+            "@typescript-eslint/no-misused-promises": "error",
         },
     },
     {

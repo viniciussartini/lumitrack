@@ -55,7 +55,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             if (currentUser) scheduleProactiveRefresh()
             setIsLoading(false)
         }
-        bootstrap()
+        void bootstrap()
         return () => {
             cancelProactiveRefresh()
         }
@@ -65,7 +65,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const handleUnauthorized = () => {
             cancelProactiveRefresh()
             updateUser(null)
-            navigate("/login", { replace: true })
+            void navigate("/login", { replace: true })
         }
         window.addEventListener("lumitrack:unauthorized", handleUnauthorized)
         return () => {

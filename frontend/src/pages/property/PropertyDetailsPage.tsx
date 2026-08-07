@@ -102,7 +102,7 @@ export const PropertyDetailsPage = () => {
                 distributor={distributor}
                 isDistributorLoading={distributorQuery.isLoading}
                 distributors={distributorsQuery.data?.items ?? []}
-                onAfterDelete={() => navigate("/propriedades", { replace: true })}
+                onAfterDelete={() => void navigate("/propriedades", { replace: true })}
             />
 
             {meter && (

@@ -108,14 +108,14 @@ export const ResetPasswordPage = () => {
                             <Button
                                 type="button"
                                 className="btn-block mt-6 min-h-[46px]"
-                                onClick={() => navigate("/login", { replace: true })}
+                                onClick={() => void navigate("/login", { replace: true })}
                             >
                                 Ir para o login
                             </Button>
                         </Blueprint>
                     ) : (
                         <form
-                            onSubmit={handleSubmit(onSubmit)}
+                            onSubmit={(e) => void handleSubmit(onSubmit)(e)}
                             className="flex flex-col gap-4"
                             noValidate
                         >

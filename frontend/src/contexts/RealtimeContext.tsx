@@ -76,10 +76,10 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
             },
 
             onAlertFiring: () => {
-                queryClient.invalidateQueries({
+                void queryClient.invalidateQueries({
                     queryKey: queryKeys.alerts.firing(),
                 })
-                queryClient.invalidateQueries({
+                void queryClient.invalidateQueries({
                     queryKey: queryKeys.alerts.all,
                 })
             },
@@ -94,7 +94,7 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
                     duration: 10_000,
                     action: {
                         label: "Ver",
-                        onClick: () => navigate(notification.targetPath),
+                        onClick: () => void navigate(notification.targetPath),
                     },
                 })
             },

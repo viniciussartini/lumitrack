@@ -66,7 +66,11 @@ export const AlertForm = ({
     })
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+        <form
+            onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+            className="flex flex-col gap-4"
+            noValidate
+        >
             <Input
                 label="Nome do alerta"
                 placeholder="Ar-condicionado ligado demais"

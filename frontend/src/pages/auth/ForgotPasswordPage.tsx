@@ -57,7 +57,7 @@ export const ForgotPasswordPage = () => {
             <main className="flex items-center justify-center p-7 lg:p-14">
                 <div className="w-full max-w-[400px]">
                     {step === "request" ? (
-                        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+                        <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} noValidate>
                             <span className="text-accent-700 font-heading block text-[13px] font-semibold tracking-[.09em] uppercase">
                                 Recuperação de senha
                             </span>

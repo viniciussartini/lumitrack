@@ -95,7 +95,7 @@ export const DistribuidorsPage = () => {
                     message={
                         error instanceof Error ? error.message : "Erro ao carregar distribuidoras"
                     }
-                    onRetry={() => refetch()}
+                    onRetry={() => void refetch()}
                 />
             )}
 

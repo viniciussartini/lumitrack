@@ -62,7 +62,7 @@ export const LoginPage = () => {
                 setMfaToken(result.mfaToken)
                 return
             }
-            navigate(redirectTo, { replace: true })
+            void navigate(redirectTo, { replace: true })
         } catch (error) {
             setServerError(error instanceof Error ? error.message : "Erro ao fazer login")
         }
@@ -71,7 +71,7 @@ export const LoginPage = () => {
     const handleMfaSubmit = async (code: string): Promise<void> => {
         if (!mfaToken) return
         await completeMfaLogin({ mfaToken, code })
-        navigate(redirectTo, { replace: true })
+        void navigate(redirectTo, { replace: true })
     }
 
     // Mesmo caminho do submit normal (login real, sem endpoint novo) — só
@@ -90,7 +90,7 @@ export const LoginPage = () => {
                 setMfaToken(result.mfaToken)
                 return
             }
-            navigate(redirectTo, { replace: true })
+            void navigate(redirectTo, { replace: true })
         } catch (error) {
             setServerError(error instanceof Error ? error.message : "Erro ao fazer login")
         } finally {
@@ -196,7 +196,7 @@ export const LoginPage = () => {
                             )}
 
                             <form
-                                onSubmit={handleSubmit(onSubmit)}
+                                onSubmit={(e) => void handleSubmit(onSubmit)(e)}
                                 className="mt-7 flex flex-col gap-4"
                                 noValidate
                             >
@@ -262,7 +262,9 @@ export const LoginPage = () => {
                                             type="button"
                                             variant="secondary"
                                             isLoading={isDemoLoading}
-                                            onClick={() => handleDemoLogin(DEMO_USERS.residential)}
+                                            onClick={() =>
+                                                void handleDemoLogin(DEMO_USERS.residential)
+                                            }
                                         >
                                             {DEMO_USERS.residential.label}
                                         </Button>
@@ -270,7 +272,9 @@ export const LoginPage = () => {
                                             type="button"
                                             variant="secondary"
                                             isLoading={isDemoLoading}
-                                            onClick={() => handleDemoLogin(DEMO_USERS.commercial)}
+                                            onClick={() =>
+                                                void handleDemoLogin(DEMO_USERS.commercial)
+                                            }
                                         >
                                             {DEMO_USERS.commercial.label}
                                         </Button>

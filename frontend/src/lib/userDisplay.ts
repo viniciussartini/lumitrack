@@ -23,7 +23,7 @@ export const getDisplayInfo = (user: User): UserDisplayInfo => {
         const first = user.firstName ?? ""
         const last = user.lastName ?? ""
         const name = `${first} ${last}`.trim() || user.email
-        const initials = (first[0] ?? "") + (last[0] ?? "") || user.email[0]
+        const initials = (first[0] ?? "") + (last[0] ?? "") || (user.email[0] ?? "?")
         return { name, initials: initials.toUpperCase() || "?", accountTypeLabel }
     }
 

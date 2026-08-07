@@ -34,7 +34,7 @@ export const useCreateArea = () => {
     return useMutation<Area, Error, CreateAreaVariables>({
         mutationFn: ({ propertyId, input }) => areaService.create(propertyId, input),
         onSuccess: (created) => {
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.areas.all, "list", created.propertyId],
             })
             toast.success("Área criada", {
@@ -59,10 +59,10 @@ export const useUpdateArea = () => {
         onSuccess: (updated) => {
             // Invalida lista (nome pode ter mudado, ordem pode ter mudado)
             // e o detalhe específico
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.areas.all, "list", updated.propertyId],
             })
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: queryKeys.areas.detail(updated.propertyId, updated.id),
             })
             toast.success("Área atualizada", {
@@ -83,7 +83,7 @@ export const useDeleteArea = () => {
     return useMutation<void, Error, DeleteAreaVariables>({
         mutationFn: ({ propertyId, areaId }) => areaService.delete(propertyId, areaId),
         onSuccess: (_, { propertyId, areaId }) => {
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.areas.all, "list", propertyId],
             })
             // Remove o detalhe do cache — não vai mais existir

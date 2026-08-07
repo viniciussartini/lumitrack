@@ -45,7 +45,7 @@ export const TariffFlagListCard = () => {
                             : "Não foi possível carregar as bandeiras tarifárias."}
                         <button
                             type="button"
-                            onClick={() => refetch()}
+                            onClick={() => void refetch()}
                             className="text-accent-700 ml-2 underline"
                         >
                             Tentar novamente

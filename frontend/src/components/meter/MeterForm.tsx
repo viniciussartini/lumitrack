@@ -70,7 +70,11 @@ export const MeterForm = ({
     const needsAddress = SERIAL_PROTOCOLS.includes(protocol)
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6" noValidate>
+        <form
+            onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+            className="flex flex-col gap-6"
+            noValidate
+        >
             <Input
                 label="Nome do medidor"
                 placeholder="Medidor principal"

@@ -5,11 +5,37 @@ import tseslint from "typescript-eslint"
 export default tseslint.config(
     { ignores: ["dist", "src/generated/prisma", "coverage"] },
     {
+        // `recommendedTypeChecked` completo (333 achados só no backend, em
+        // sua maioria `no-unsafe-*` sobre resposta de supertest/axios em
+        // teste) custa mais do que rende para um MVP solo — fallback que a
+        // própria issue #162 previu: só as 2 regras tipadas de maior valor
+        // aqui (handlers Express assíncronos, listeners de worker,
+        // schedulers, o padrão `void alertEvaluator.evaluate(...)`).
         extends: [js.configs.recommended, ...tseslint.configs.recommended],
         files: ["**/*.ts"],
         languageOptions: {
             ecmaVersion: 2022,
             globals: globals.node,
+            parserOptions: {
+                // `tsconfig.json` só cobre `src/**/*` (rootDir do build) —
+                // `vitest.config.ts` e os ~17 scripts de `prisma/`/`scripts/`
+                // (rodados ad hoc via tsx, nunca fizeram parte de nenhum
+                // projeto TS "de verdade") ficam de fora. Sem isto, as 2
+                // regras tipadas abaixo derrubam o parser nesses arquivos.
+                projectService: {
+                    allowDefaultProject: [
+                        "vitest.config.ts",
+                        "prisma.config.ts",
+                        "prisma/*.ts",
+                        "prisma/seed-demo/*.ts",
+                        "scripts/*.ts",
+                    ],
+                    // Acima do padrão (8) porque o match real é ~17 arquivos
+                    // de tooling/seed — nenhum é código de app quente.
+                    maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 25,
+                },
+                tsconfigRootDir: import.meta.dirname,
+            },
         },
         rules: {
             // Convenção já usada no projeto: prefixo `_` sinaliza "intencionalmente
@@ -33,6 +59,8 @@ export default tseslint.config(
                 "error",
                 { max: 60, skipBlankLines: true, skipComments: true },
             ],
+            "@typescript-eslint/no-floating-promises": "error",
+            "@typescript-eslint/no-misused-promises": "error",
         },
     },
     {

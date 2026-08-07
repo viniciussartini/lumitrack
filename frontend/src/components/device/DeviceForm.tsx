@@ -68,7 +68,11 @@ export const DeviceForm = ({
     })
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6" noValidate>
+        <form
+            onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+            className="flex flex-col gap-6"
+            noValidate
+        >
             <div className="flex flex-col gap-4">
                 <Input
                     label="Nome do dispositivo"

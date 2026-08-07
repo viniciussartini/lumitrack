@@ -38,8 +38,8 @@ export const PropertiesPage = () => {
     const errorMessage = pickErrorMessage(propertiesQuery.error, distributorsQuery.error)
 
     const handleRetry = () => {
-        if (propertiesQuery.isError) propertiesQuery.refetch()
-        if (distributorsQuery.isError) distributorsQuery.refetch()
+        if (propertiesQuery.isError) void propertiesQuery.refetch()
+        if (distributorsQuery.isError) void distributorsQuery.refetch()
     }
 
     const distributorMap = buildDistributorMap(distributorsQuery.data?.items ?? [])

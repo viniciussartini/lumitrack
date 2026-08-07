@@ -108,7 +108,7 @@ export const AreaDetailsPage = () => {
         // Após excluir, volta pra propriedade pai. replace evita que o
         // botão "voltar" do navegador traga de volta a página da área que
         // não existe mais.
-        navigate(`/propriedades/${propertyId}`, { replace: true })
+        void navigate(`/propriedades/${propertyId}`, { replace: true })
     }
 
     return (

@@ -48,7 +48,11 @@ export const MfaCodeForm = ({
     }
 
     return (
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col gap-4" noValidate>
+        <form
+            onSubmit={(e) => void handleSubmit(handleFormSubmit)(e)}
+            className="flex flex-col gap-4"
+            noValidate
+        >
             <p className="text-muted text-sm">{description}</p>
 
             <Input

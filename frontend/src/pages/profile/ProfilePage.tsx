@@ -248,7 +248,7 @@ const PrivacyDataCard = ({ userId }: { userId: string }) => {
         try {
             await deleteUser.mutateAsync(userId)
             await logout()
-            navigate("/login", { replace: true })
+            void navigate("/login", { replace: true })
         } catch (error) {
             toast.error("Não foi possível excluir a conta", {
                 description: extractErrorMessage(error),
@@ -346,7 +346,7 @@ const PrivacyDataCard = ({ userId }: { userId: string }) => {
                 confirmLabel="Excluir conta"
                 variant="danger"
                 isLoading={deleteUser.isPending}
-                onConfirm={handleDelete}
+                onConfirm={() => void handleDelete()}
             />
         </div>
     )
@@ -440,7 +440,7 @@ const IndividualProfileForm = ({
 
     return (
         <form
-            onSubmit={handleSubmit(handleFormSubmit)}
+            onSubmit={(e) => void handleSubmit(handleFormSubmit)(e)}
             noValidate
             className="flex flex-col gap-4 px-5 pt-1 pb-5"
         >
@@ -515,7 +515,7 @@ const CompanyProfileForm = ({ user, onCancel, onSave, isSaving }: CompanyProfile
 
     return (
         <form
-            onSubmit={handleSubmit(handleFormSubmit)}
+            onSubmit={(e) => void handleSubmit(handleFormSubmit)(e)}
             noValidate
             className="flex flex-col gap-4 px-5 pt-1 pb-5"
         >

@@ -102,7 +102,7 @@ export const DeviceDetailsPage = () => {
     const handleAfterDelete = () => {
         // Após excluir, volta pra área pai. replace evita que o botão
         // "voltar" do navegador traga de volta a página do device deletado.
-        navigate(`/propriedades/${propertyId}/areas/${areaId}`, {
+        void navigate(`/propriedades/${propertyId}/areas/${areaId}`, {
             replace: true,
         })
     }

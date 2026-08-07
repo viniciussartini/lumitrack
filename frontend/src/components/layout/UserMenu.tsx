@@ -48,7 +48,7 @@ export const UserMenu = ({ variant = "header" }: UserMenuProps) => {
     const handleLogout = async (): Promise<void> => {
         setIsOpen(false)
         await logout()
-        navigate("/login", { replace: true })
+        void navigate("/login", { replace: true })
     }
 
     if (!user) return null
@@ -136,7 +136,7 @@ export const UserMenu = ({ variant = "header" }: UserMenuProps) => {
                         role="menuitem"
                         onClick={() => {
                             setIsOpen(false)
-                            navigate("/perfil")
+                            void navigate("/perfil")
                         }}
                         className="lt-menu-item"
                     >
@@ -150,7 +150,7 @@ export const UserMenu = ({ variant = "header" }: UserMenuProps) => {
                         role="menuitem"
                         onClick={() => {
                             setIsOpen(false)
-                            navigate("/seguranca")
+                            void navigate("/seguranca")
                         }}
                         className="lt-menu-item"
                     >
@@ -162,7 +162,7 @@ export const UserMenu = ({ variant = "header" }: UserMenuProps) => {
                     <button
                         type="button"
                         role="menuitem"
-                        onClick={handleLogout}
+                        onClick={() => void handleLogout()}
                         className="lt-menu-item lt-menu-item-danger"
                     >
                         <LogOut className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />

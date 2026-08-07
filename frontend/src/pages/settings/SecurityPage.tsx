@@ -129,7 +129,10 @@ export const SecurityPage = () => {
                                 Desativar 2FA
                             </Button>
                         ) : (
-                            <Button onClick={handleStartSetup} isLoading={mfaSetup.isPending}>
+                            <Button
+                                onClick={() => void handleStartSetup()}
+                                isLoading={mfaSetup.isPending}
+                            >
                                 Ativar 2FA
                             </Button>
                         )}
@@ -247,7 +250,7 @@ const BackupCodesReveal = ({ codes, onFinish }: BackupCodesRevealProps) => {
                             <Copy className="h-4 w-4" aria-hidden="true" />
                         )
                     }
-                    onClick={handleCopy}
+                    onClick={() => void handleCopy()}
                 >
                     {copied ? "Copiado" : "Copiar códigos"}
                 </Button>
@@ -287,7 +290,11 @@ const MfaDisableForm = ({ onSubmit, onCancel, isLoading }: MfaDisableFormProps) 
     }
 
     return (
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col gap-4" noValidate>
+        <form
+            onSubmit={(e) => void handleSubmit(handleFormSubmit)(e)}
+            className="flex flex-col gap-4"
+            noValidate
+        >
             <p className="text-muted text-[13.5px]">
                 Confirme sua senha e um código válido do aplicativo autenticador (ou um código de
                 backup) para desativar o 2FA.
