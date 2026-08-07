@@ -26,6 +26,8 @@
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
 import { IoTProtocol } from "@/generated/prisma/client.js"
 import { logger } from "@/shared/logger/logger.js"
+import { checkOutboundHost } from "@/shared/security/outboundHost.js"
+import { env } from "@/config/env.js"
 
 const log = logger.child({ module: "IoTManager" })
 import { MqttConnection } from "@/modules/iot/iot-worker/protocols/MqttConnection.js"
@@ -267,9 +269,42 @@ export class IoTConnectionManager {
         this.dataHandler = handler
     }
 
+    // Revalida o destino (SSRF — #10/A01) imediatamente antes de conectar,
+    // não só na escrita (MeterService.assertOutboundHostAllowed). `start()`
+    // é o único funil por onde toda conexão real passa: criação, restart via
+    // update E restauração no boot do servidor (server.ts, um Meter por
+    // Meter já existente no banco, validado só uma vez — potencialmente dias
+    // ou meses atrás). Sem isso, um host cujo DNS aponte pra um endereço
+    // interno DEPOIS da validação original (DNS rebinding) reconecta sem
+    // checagem em todo restart do processo — a validação em `MeterService`
+    // sozinha cobre apenas o instante do create/update, não a vida útil da
+    // conexão. Resolve de novo aqui em vez de fixar (pin) o IP validado
+    // porque a issue original (#150) não pediu pinning e os 4 protocolos de
+    // rede (mqtt, net.Socket, ethernet-ip, node-snap7) não expõem um jeito
+    // uniforme de conectar por IP já resolvido sem reescrever cada adapter;
+    // revalidar a cada tentativa de conexão já reduz a janela de exploração
+    // de "indefinida" para o intervalo entre esta chamada e o connect() log
+    // abaixo — na prática, milissegundos.
+    private async assertOutboundHostAllowed(config: MeterConnectionConfig): Promise<boolean> {
+        if (config.host === null || config.port === null) return true
+
+        const result = await checkOutboundHost(config.host, config.port, env.IOT_ALLOWED_HOSTS)
+        if (!result.allowed) {
+            log.error(
+                { meterId: config.meterId, host: config.host, reason: result.reason },
+                "Conexão de saída recusada (SSRF)",
+            )
+        }
+        return result.allowed
+    }
+
     async start(config: MeterConnectionConfig): Promise<void> {
         if (this.connections.has(config.meterId)) {
             log.info({ meterId: config.meterId }, "Já está conectado. Ignorando.")
+            return
+        }
+
+        if (!(await this.assertOutboundHostAllowed(config))) {
             return
         }
 
