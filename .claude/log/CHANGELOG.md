@@ -1028,3 +1028,12 @@
 - **Arquivos principais:** `.github/workflows/ci.yml` (job `e2e`).
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** achado via execução real do CI na branch (run 31216868323, PR #169) — job `e2e` falhando com "Backend não respondeu a tempo." no passo "Iniciar backend em background". Nenhum outro job do `ci.yml` usa essas variáveis da mesma forma incorreta (o job de testes do backend já usa bancos `lumitrack_test`/`lumitrack_test_http` distintos de `DATABASE_URL`, como o refine exige).
+
+## [2026-08-07] fix: atualiza nanoid para corrigir vulnerabilidade alta (GHSA-2v37-7h3g-55p8) nos 3 pacotes
+
+- **Branch:** chore/159-travas-qualidade-correcoes-sem-trade-off
+- **Tipo:** fix
+- **O quê:** advisory nova (`nanoid <3.3.17`, "custom generators can loop indefinitely when size is zero") derrubou os 3 gates `npm audit --audit-level=high` do CI (`backend-audit`, `frontend-audit`, `iot-simulator-audit`) na PR #169 — não é regressão desta branch, é dependência transitiva (`vitest`/`vite` → `postcss` → `nanoid`) desatualizada no lockfile no momento em que a advisory foi publicada. `npm audit fix` resolveu dentro dos ranges já declarados em `package.json` (sem bump manual de versão): backend e iot-simulator só atualizaram `nanoid`; frontend também resolveu de quebra um `vite@8.1.5 invalid: "^8.2.0"` pré-existente no lockfile, subindo para `vite@8.2.0`.
+- **Arquivos principais:** `backend/package-lock.json`, `frontend/package-lock.json`, `iot-simulator/package-lock.json` — nenhum `package.json` mudou.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** `npm audit --audit-level=high` limpo nos 3 pacotes após o fix. `build` e `lint` re-verificados nos 3 (backend, frontend, iot-simulator server+ui) — limpos, nenhuma regressão pela troca de lockfile.
