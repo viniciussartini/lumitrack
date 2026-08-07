@@ -17,7 +17,7 @@ import {
 import { cn } from "@/lib/cn"
 
 /**
- * Landing pública (rota `/`) — sub-issue #129 do épico #128 (Fase 5).
+ * Landing pública (rota `/`) — Fase 5.
  * Layout conforme `LumiTrack Landing.dc.html`. Vive dentro de `PublicRoute`
  * (AppRouter.tsx): visitante não autenticado vê esta página; autenticado é
  * redirecionado para `/dashboard`, mesma regra já aplicada a /login e /registro.
@@ -155,7 +155,7 @@ const numberFormatter = new Intl.NumberFormat("pt-BR", {
  * Painel "ao vivo" do hero — números variando via `useLiveTicker`
  * (`hooks/useLiveTicker.ts`, compartilhado com o painel de marca do Login).
  * A bandeira, diferente do kW/custo, não é mock: vem de `GET /api/tariff-flag`
- * (leitura pública desde #143/ADR-0007) — enquanto carrega ou em erro, a
+ * (leitura pública desde ADR-0007) — enquanto carrega ou em erro, a
  * tag simplesmente não aparece (sem chutar uma bandeira que pode não ser a
  * real).
  */
@@ -593,7 +593,7 @@ const LandingClose = () => (
 interface FooterLink {
     href: string
     label: string
-    /** Páginas legais sempre abrem em aba nova (issue #141) — o
+    /** Páginas legais sempre abrem em aba nova — o
      * comportamento não pode depender de onde o link foi clicado (hoje só o
      * Registro abria assim). */
     newTab?: boolean

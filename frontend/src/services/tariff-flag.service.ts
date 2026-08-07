@@ -10,7 +10,7 @@ interface ApiEnvelope<T> {
  * Camada de acesso à bandeira tarifária vigente — config singleton, global
  * (não por usuário/propriedade). Leitura liberada a qualquer usuário
  * autenticado; atualização (`PUT`) é restrita a ADMIN e não tem UI nesta
- * fase (fora do escopo de #117).
+ * fase.
  */
 export const tariffFlagService = {
     get: async (): Promise<TariffFlagConfig> => {

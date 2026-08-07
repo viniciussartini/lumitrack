@@ -23,7 +23,7 @@ interface AreaMenuProps {
      * Callback que abre o modal de edição (AreaFormDialog, no card
      * chamador). O item "Editar" só é renderizado quando showEdit E onEdit
      * estão presentes — sem onEdit, o item some (fail-safe) em vez de virar
-     * link morto (antes de #98, apontava pra rota removida em #97).
+     * link morto apontando pra uma rota removida.
      */
     onEdit?: () => void
     /**

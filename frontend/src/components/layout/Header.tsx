@@ -15,7 +15,7 @@ interface HeaderProps {
 /**
  * Cabeçalho horizontal do app autenticado — LumiTrack Home.dc.html,
  * linhas 83-97. ThemeToggle e UserMenu saíram daqui para o rodapé da
- * Sidebar (#135); no lugar entrou o título contextual da página.
+ * Sidebar; no lugar entrou o título contextual da página.
  *
  * Layout (esquerda → direita):
  *   - Hamburger (só em mobile) + kicker/título da rota atual

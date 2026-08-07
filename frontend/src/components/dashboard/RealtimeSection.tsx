@@ -25,15 +25,15 @@ const WINDOW_LABELS: Record<RealtimeWindow, string> = {
 }
 
 /**
- * Bloco `isDashboard` do handoff — KPIs de topo (#116/#117), gráfico
- * "Consumo em tempo real" (#116) e card "Bandeiras tarifárias" (#117) da
+ * Bloco `isDashboard` do handoff — KPIs de topo, gráfico
+ * "Consumo em tempo real" e card "Bandeiras tarifárias" da
  * propriedade ativa.
  *
  * Usa só o medidor vinculado DIRETAMENTE à propriedade (não soma
  * Área/Dispositivo) — mesmo padrão já usado em `PropertyDetailsPage`, evita
  * a dupla contagem que o backend também evita deliberadamente em
  * `/api/consumption` (ver comentário em `consumption.service.ts`). Como
- * "Consumo hoje"/"Custo projetado" (#117) usam o mesmo `/api/consumption`
+ * "Consumo hoje"/"Custo projetado" usam o mesmo `/api/consumption`
  * do medidor direto, a seção inteira continua atrás do mesmo gate de
  * "propriedade tem medidor próprio" — inclusive "Bandeira vigente", que é
  * dado global e não dependeria disso, mas fica junto por coerência visual

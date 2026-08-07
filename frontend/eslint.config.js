@@ -8,8 +8,8 @@ export default tseslint.config(
     { ignores: ["dist", "playwright-report", "test-results"] },
     {
         // `recommendedTypeChecked` completo custa mais do que rende para um
-        // MVP solo (mesmo achado do backend em #162) — fallback que a
-        // própria issue previu: só as 2 regras tipadas de maior valor aqui.
+        // MVP solo (mesma decisão do backend) — fallback: só as 2 regras
+        // tipadas de maior valor aqui.
         extends: [js.configs.recommended, ...tseslint.configs.recommended],
         files: ["**/*.{ts,tsx}"],
         languageOptions: {
@@ -51,12 +51,11 @@ export default tseslint.config(
         },
     },
     {
-        // Débito pré-existente descoberto ao ligar a trava nesta issue
-        // (#160) — a auditoria de qualidade não catalogou complexidade de
-        // componente React (só backend: Q-04/Q-05, Q-30), então não há fase
-        // do roadmap que já cubra isto. Catalogado explicitamente aqui (não
-        // eslint-disable disperso) e rastreado em #168, em vez de reescrever
-        // ~46 arquivos fora do escopo desta issue de enforcement.
+        // Débito pré-existente descoberto ao ligar a trava — não havia
+        // catalogação prévia de complexidade de componente React (só
+        // backend), então não há fase do roadmap que já cubra isto.
+        // Catalogado explicitamente aqui (não eslint-disable disperso), em
+        // vez de reescrever ~46 arquivos fora do escopo deste enforcement.
         files: [
             "src/components/alert/AlertForm.tsx",
             "src/components/alert/AlertRowMenu.tsx",

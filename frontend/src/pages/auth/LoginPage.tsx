@@ -112,7 +112,7 @@ export const LoginPage = () => {
                     // compartilhado com a Landing) — número ilustrativo, não é
                     // dado real (não há sessão/medidor antes do login). Bandeira
                     // vem de GET /api/tariff-flag (leitura pública desde
-                    // #143/ADR-0007) — enquanto carrega ou em erro, o box
+                    // ADR-0007) — enquanto carrega ou em erro, o box
                     // simplesmente não aparece (sem chutar uma bandeira que
                     // pode não ser a real).
                     <div className="mt-7 flex flex-wrap gap-3.5">

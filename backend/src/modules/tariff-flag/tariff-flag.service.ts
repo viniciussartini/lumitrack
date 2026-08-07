@@ -24,7 +24,7 @@ export class TariffFlagService {
     }
 
     // actorUserId: admin autenticado responsável pela troca — gravado no
-    // histórico (#143) junto do config antes/depois. Nunca nulo aqui: só
+    // histórico junto do config antes/depois. Nunca nulo aqui: só
     // chega autenticado (requireRole("ADMIN") em tariff-flag.routes.ts).
     async update(input: unknown, actorUserId: string): Promise<TariffFlagConfigResponse> {
         const parsed = updateTariffFlagSchema.safeParse(input)

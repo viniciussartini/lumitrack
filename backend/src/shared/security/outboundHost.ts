@@ -90,7 +90,7 @@ export interface OutboundHostCheckResult {
 }
 
 // Ponto único de validação SSRF para destinos de saída de medidor —
-// aplicado no service, antes de persistir (#10 — A01). `resolveFn` é
+// aplicado no service, antes de persistir (A01). `resolveFn` é
 // injetável para tornar a resolução de hostname determinística em teste,
 // sem depender de DNS real (mesmo padrão de `resolveLogLevel`/
 // `resolveTransport` em `shared/logger/logger.ts`: função pura recebe o que

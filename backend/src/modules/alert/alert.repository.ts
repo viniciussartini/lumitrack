@@ -32,7 +32,7 @@ export class AlertRepository {
         return { items, total, page: pagination.page, pageSize: pagination.pageSize }
     }
 
-    // Sem paginação de propósito — usado só pela exportação LGPD (#09, Art.
+    // Sem paginação de propósito — usado só pela exportação LGPD (Art.
     // 18), que precisa de todos os alertas do titular de uma vez.
     async findAllByUser(userId: string): Promise<AlertResponse[]> {
         return this.prisma.alert.findMany({ where: { userId }, orderBy: { createdAt: "desc" } })

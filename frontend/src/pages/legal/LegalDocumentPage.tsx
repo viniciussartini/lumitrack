@@ -37,9 +37,9 @@ const extractHeadings = (markdown: string): Heading[] =>
  * pra rota irmã.
  *
  * `industryMarkdownComponents`/`slugify` são compartilhados com `AboutPage`
- * (#137) — extraídos daqui quando ela virou o 2º consumidor real.
+ * — extraídos daqui quando ela virou o 2º consumidor real.
  *
- * Sem link de volta no cabeçalho (issue #141): a página sempre abre em aba
+ * Sem link de volta no cabeçalho: a página sempre abre em aba
  * nova (`target="_blank"` no Registro e nos links do rodapé da Landing) —
  * "← Voltar ao cadastro" não tinha destino real; fechar a aba é a ação
  * natural. O handoff tem "← Voltar ao site" na nav — removido por decisão

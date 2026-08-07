@@ -33,13 +33,13 @@ const signedPercentFormatter = new Intl.NumberFormat("pt-BR", {
 /**
  * Grade de 4 KPIs do Painel — bloco `isDashboard` do handoff (linhas 159-186):
  * Potência agora (+ custo estimado ao vivo, mesmo card — corrige a divisão
- * em 2 cards de #116), Consumo hoje, Custo projetado do mês, Bandeira
- * vigente (#117).
+ * em 2 cards), Consumo hoje, Custo projetado do mês, Bandeira
+ * vigente.
  */
 export const DashboardKpiRow = ({ propertyId, reading, isStale }: DashboardKpiRowProps) => {
     const [now] = useState(() => new Date())
 
-    // "Potência agora" + custo estimado — mesma conta de #116 (tarifa
+    // "Potência agora" + custo estimado — mesma conta de RealtimeSection (tarifa
     // efetiva do bucket de hora mais recente com consumo, × potência atual).
     const hourQuery = useConsumption("PROPERTY", propertyId, "hour", 1, 3)
     const dayQuery = useConsumption("PROPERTY", propertyId, "day", 1, 5)
@@ -137,7 +137,7 @@ const formatFlagNote = (per100Kwh: number): string =>
  * Tarifa efetiva (R$/kWh) do bucket de hora mais recente com consumo real,
  * multiplicada pela potência atual. `null` quando não há leitura ao vivo ou
  * nenhum bucket com consumo ainda — nunca fabrica um número. Movido de
- * `RealtimeSection.tsx` (#116) junto com o card que consome este cálculo.
+ * `RealtimeSection.tsx` junto com o card que consome este cálculo.
  */
 const computeEstimatedCostPerHour = (
     items: ConsumptionBucket[] | undefined,

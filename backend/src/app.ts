@@ -44,7 +44,7 @@ export interface AppDependencies {
     authRateLimiter?: RequestHandler
     // Injeção só usada em teste — permite capturar o stream do pino com
     // `level` habilitado (o logger singleton fica "silent" em NODE_ENV=test)
-    // para asserção de não-vazamento de dado sensível (#10 — RNF05).
+    // para asserção de não-vazamento de dado sensível (RNF05).
     logger?: Logger
 }
 
@@ -113,7 +113,7 @@ export function createApp(deps: AppDependencies = {}) {
     // Necessário para o canal WEB ler o cookie de sessão/CSRF em `authenticate`.
     app.use(cookieParser())
 
-    // Log estruturado de requisição/resposta (#08 — A09). `/health` é
+    // Log estruturado de requisição/resposta (A09). `/health` é
     // ignorado porque é pollado com frequência por load balancer/monitoramento
     // e só geraria ruído.
     app.use(
@@ -140,7 +140,7 @@ export function createApp(deps: AppDependencies = {}) {
     // Rate limit estrito nos endpoints públicos de autenticação (brute force).
     // Aplicado após o parser de JSON para que a chave possa considerar o e-mail.
     // `app.use("/api/auth/login", ...)` é um mount point — por semântica de
-    // prefixo do Express, isso já cobre `/api/auth/login/mfa` também (#12),
+    // prefixo do Express, isso já cobre `/api/auth/login/mfa` também,
     // que é exatamente o alvo de brute force de um código TOTP de 6 dígitos
     // (baixa entropia, precisa do mesmo limiter estrito que a senha).
     app.use("/api/auth/login", authRateLimiter)

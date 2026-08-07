@@ -39,7 +39,7 @@ export class DeviceRepository {
         return { items: devices, total, page: pagination.page, pageSize: pagination.pageSize }
     }
 
-    // Usado pela exportação de dados do titular (#09) — filtro de relação
+    // Usado pela exportação de dados do titular — filtro de relação
     // aninhada de 2 níveis (Device → Area → Property → User).
     async findAllByUser(userId: string): Promise<DeviceResponse[]> {
         return this.prisma.device.findMany({

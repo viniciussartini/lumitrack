@@ -27,13 +27,13 @@ import type { UpdateUserInput, User } from "@/types/auth.types"
 
 /**
  * Perfil. LumiTrack Home.dc.html, `isProfile` (linhas 823-914): card de
- * identidade, "Dados pessoais" (leitura/edição, #118), "Conta" (resumo) e
- * "Privacidade & dados" (exportar/excluir, #120).
+ * identidade, "Dados pessoais" (leitura/edição), "Conta" (resumo) e
+ * "Privacidade & dados" (exportar/excluir).
  *
  * A linha "Política de Privacidade" (link + tag "Aceita") do mesmo card do
- * handoff fica de fora — fora dos critérios de aceite da #120, e o `User`
+ * handoff fica de fora — fora dos critérios de aceite, e o `User`
  * do frontend não tem `consentedAt`/`consentVersion` hoje (mesmo critério
- * "sem inventar dado" já aplicado em #116/#117/#118).
+ * "sem inventar dado" já aplicado nos demais KPIs/seções).
  *
  * Cobre PF e PJ (o handoff só mostra o mock PF) — um usuário `COMPANY`
  * também precisa ver/editar o próprio perfil, mesma ramificação por
@@ -203,14 +203,14 @@ interface DataSubjectRight {
     label: string
     /** `true` quando já dá pra exercer sem sair desta página (ou do fluxo de
      * exportação/exclusão abaixo); os demais passam pelo canal de
-     * privacidade (issue #155, épico #154 — Fase 11). */
+     * privacidade (Fase 11). */
     selfService: boolean
     note?: string
 }
 
 // LGPD Art. 18 — cada item mapeado ao que a plataforma já oferece hoje. Não
 // remover nem "resumir" itens: a lista completa é o próprio critério de
-// aceite da issue #155 (nenhum direito pode ficar sem canal de exercício).
+// aceite (nenhum direito pode ficar sem canal de exercício).
 const DATA_SUBJECT_RIGHTS: DataSubjectRight[] = [
     { label: "Confirmação da existência de tratamento", selfService: false },
     { label: "Acesso aos dados", selfService: true, note: "nesta página e via exportação" },

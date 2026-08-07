@@ -12,7 +12,7 @@ interface RealtimeContextValue {
     readingsByMeterId: Record<string, ReadingPayload>
     /**
      * Conexão SSE aberta agora? Consumido pelo badge "Dados ao vivo" do
-     * Header (issue #136) — decisão do usuário (2026-08-04): o badge só
+     * Header — decisão do usuário (2026-08-04): o badge só
      * existe quando isto é `true`; nunca fica pintado fixo, porque um
      * badge "ao vivo" com o stream caído mente sobre a frescura do dado.
      */

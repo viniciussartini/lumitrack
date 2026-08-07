@@ -12,7 +12,7 @@ export class AuditService {
     // logger estruturado para não passar despercebida.
     //
     // O logger de aplicação recebe só um resumo não-identificante — nunca a
-    // entrada inteira (#10 — A09 / LGPD Art. 6º III/VII): `metadata`,
+    // entrada inteira (A09 / LGPD Art. 6º III/VII): `metadata`,
     // `ipAddress` e `userAgent` são legítimos só na tabela `audit_logs`
     // (Art. 48), não num agregador de log de terceiro.
     async record(entry: AuditEntryInput): Promise<void> {

@@ -11,7 +11,7 @@ export type UserWithoutPassword = Omit<
 // cpf/cnpj ficam criptografados em repouso (AES-256-GCM — ver
 // shared/crypto/encryption.ts). Decifrar aqui, na borda do repository, é o
 // que permite que o resto da aplicação (service, controller, frontend)
-// continue lidando com o valor em texto claro exatamente como antes da #07.
+// continue lidando com o valor em texto claro exatamente como antes da criptografia.
 function decryptSensitiveFields<T extends { cpf: string | null; cnpj: string | null }>(user: T): T {
     return {
         ...user,

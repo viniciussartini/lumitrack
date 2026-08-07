@@ -10,9 +10,8 @@ export const GITHUB_REPO_URL = "https://github.com/viniciussartini/lumitrack"
  * trazer uma lib nova só por 1 ícone. Path do octocat mark (grade 16x16),
  * o mesmo usado em "ver no GitHub" por incontáveis projetos open source.
  *
- * Compartilhado entre "Sobre o projeto" (#137), a Landing e os painéis de
- * autenticação (Fase 7, issue "Logo do GitHub na Landing e nos painéis de
- * autenticação") — não duplicar.
+ * Compartilhado entre "Sobre o projeto", a Landing e os painéis de
+ * autenticação (Fase 7) — não duplicar.
  */
 export const GitHubIcon = (props: SVGProps<SVGSVGElement>) => (
     <svg

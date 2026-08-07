@@ -7,10 +7,10 @@ export default tseslint.config(
     {
         // `recommendedTypeChecked` completo (333 achados só no backend, em
         // sua maioria `no-unsafe-*` sobre resposta de supertest/axios em
-        // teste) custa mais do que rende para um MVP solo — fallback que a
-        // própria issue #162 previu: só as 2 regras tipadas de maior valor
-        // aqui (handlers Express assíncronos, listeners de worker,
-        // schedulers, o padrão `void alertEvaluator.evaluate(...)`).
+        // teste) custa mais do que rende para um MVP solo — fallback: só as
+        // 2 regras tipadas de maior valor aqui (handlers Express assíncronos,
+        // listeners de worker, schedulers, o padrão
+        // `void alertEvaluator.evaluate(...)`).
         extends: [js.configs.recommended, ...tseslint.configs.recommended],
         files: ["**/*.ts"],
         languageOptions: {
@@ -74,13 +74,12 @@ export default tseslint.config(
     },
     {
         // Violações pré-existentes na entrada da trava, catalogadas em vez de
-        // silenciadas (critério de aceite da #160). Cada uma tem endereçamento
-        // já previsto no roadmap ou foi reportada como achado novo em #160.
+        // silenciadas. Cada uma tem endereçamento já previsto no roadmap ou
+        // foi reportada como achado novo.
         files: ["src/modules/iot/iot-worker/IoTConnectionManager.ts"],
         rules: {
-            // `createConnection` — Q-04/Q-05 do laudo de qualidade, endereçado
-            // na Fase 16 (`.claude/docs/roadmap.md`), que já prevê schema Zod
-            // por protocolo eliminando este switch monolítico.
+            // `createConnection` — endereçado na Fase 16 (`.claude/docs/roadmap.md`),
+            // que já prevê schema Zod por protocolo eliminando este switch monolítico.
             complexity: "off",
             "max-lines-per-function": "off",
         },
@@ -88,7 +87,7 @@ export default tseslint.config(
     {
         files: ["src/modules/consumption/consumption.service.ts"],
         rules: {
-            // `list()` — Q-30 do laudo de qualidade, endereçado na Fase 18.
+            // `list()` — endereçado na Fase 18.
             "max-lines-per-function": "off",
         },
     },
@@ -101,11 +100,10 @@ export default tseslint.config(
             "scripts/backfill-address-encryption.ts",
         ],
         rules: {
-            // Achados novos ao ligar a trava nesta issue (#160), sem item de
-            // roadmap prévio — catalogados em vez de reescritos às pressas
-            // fora do escopo da issue (`authenticate.ts` é código de
-            // autenticação: risco de introduzir regressão de segurança sem o
-            // cuidado de uma issue dedicada). Rastreado em #168.
+            // Achados novos ao ligar a trava, sem item de roadmap prévio —
+            // catalogados em vez de reescritos às pressas fora de escopo
+            // (`authenticate.ts` é código de autenticação: risco de
+            // introduzir regressão de segurança sem o cuidado dedicado).
             complexity: "off",
             "max-lines-per-function": "off",
         },

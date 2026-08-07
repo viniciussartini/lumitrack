@@ -2,7 +2,7 @@
  * usado tanto pro `id` de cada `h2` renderizado a partir de markdown quanto
  * pro `href` de qualquer TOC que aponte pra ele (mesma função, nunca diverge).
  * Promovido de `LegalDocumentPage.tsx` quando `industryMarkdownComponents`
- * (#137) virou o 2º consumidor real.
+ * virou o 2º consumidor real.
  *
  * `\p{Mn}` (Unicode "Mark, Nonspacing") depois do NFD casa os acentos
  * decompostos ("á" → "a" + combining acute) — mais preciso que hardcodar o

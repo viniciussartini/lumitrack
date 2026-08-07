@@ -33,8 +33,8 @@ export const getDisplayInfo = (user: User): UserDisplayInfo => {
 }
 
 /**
- * Nome curto para a saudação "Olá, {nome}" do título do Painel (Header,
- * issue #136) — PF usa só o primeiro nome (o protótipo mostra "Olá,
+ * Nome curto para a saudação "Olá, {nome}" do título do Painel (Header) —
+ * PF usa só o primeiro nome (o protótipo mostra "Olá,
  * Marina", não o nome completo); PJ usa tradeName/companyName, igual
  * `getDisplayInfo`. `null` quando não há nome disponível (usuário só com
  * e-mail) — o chamador decide o fallback ("Olá!").

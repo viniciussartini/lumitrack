@@ -1,5 +1,5 @@
-// Identidade visual do LumiTrack para documentos gerados no backend (#09 —
-// exportação de dados em PDF). Cor extraída de frontend/public/favicon.svg
+// Identidade visual do LumiTrack para documentos gerados no backend
+// (exportação de dados em PDF). Cor extraída de frontend/public/favicon.svg
 // (stroke="#fcac00") — não há fonte de marca customizada no frontend (usa a
 // stack padrão do sistema), então o PDF usa as fontes embutidas do PDFKit.
 

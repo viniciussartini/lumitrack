@@ -27,8 +27,8 @@ import type { Property } from "@/types/property.types"
  *   2. Header em blueprint: nome + tags (propriedade avó, área pai,
  *      marca/modelo, potência) + ações (Editar dispositivo / ⋯)
  *   3. KPI "Potência agora" (só quando há medidor com leitura real — mesma
- *      decisão de #99/#100: Consumo hoje/Custo projetado ficam de fora por
- *      não terem dado/lógica real)
+ *      decisão de "sem inventar dado": Consumo hoje/Custo projetado ficam de
+ *      fora por não terem dado/lógica real)
  *   4. Seção de Medidor
  *   5. Seção de Consumo
  *

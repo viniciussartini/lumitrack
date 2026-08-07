@@ -16,7 +16,7 @@ export const envSchema = z
         // execução (ver .env.example). Opcionais aqui porque só fazem
         // sentido em NODE_ENV=test; obrigatórias nesse caso pelo `.refine`
         // abaixo, junto da checagem que impede apontarem para DATABASE_URL
-        // (#165 — o modo de falha de deixar isso passar batido é apagar o
+        // (o modo de falha de deixar isso passar batido é apagar o
         // banco de desenvolvimento).
         DATABASE_TEST_URL: z
             .url({ message: "DATABASE_TEST_URL deve ser uma URL válida" })
@@ -51,12 +51,12 @@ export const envSchema = z
         AUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().default(15 * 60 * 1000),
         AUTH_RATE_LIMIT_MAX: z.coerce.number().default(10),
 
-        // Cookies de sessão (canal WEB) — ver #06 da remediação OWASP/LGPD.
+        // Cookies de sessão (canal WEB).
         AUTH_COOKIE_NAME: z.string().default("lumitrack_session"),
         CSRF_COOKIE_NAME: z.string().default("lumitrack_csrf"),
         CSRF_HEADER_NAME: z.string().default("x-csrf-token"),
 
-        // Criptografia de CPF/CNPJ em repouso (#07 da remediação OWASP/LGPD).
+        // Criptografia de CPF/CNPJ em repouso.
         // Duas chaves separadas — nunca reutilizar a mesma chave para cifra e MAC.
         // Formato: 64 caracteres hex (32 bytes / 256 bits). Gerar com:
         //   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
@@ -67,12 +67,12 @@ export const envSchema = z
             message: "CPF_CNPJ_BLIND_INDEX_KEY deve ter 64 caracteres hexadecimais (32 bytes)",
         }),
 
-        // Logger estruturado (#08 da remediação OWASP/LGPD — A09).
+        // Logger estruturado (A09).
         LOG_LEVEL: z
             .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
             .default("info"),
 
-        // Retenção e expurgo de dados (#10 da remediação OWASP/LGPD — Art. 15/16).
+        // Retenção e expurgo de dados (Art. 15/16).
         // Tokens/resets já inativos (expirados/revogados/usados) e audit logs
         // antigos são removidos pelo RetentionPurgeScheduler após esses prazos.
         // AuditLog usa um prazo mais longo de propósito — equilíbrio entre o
@@ -82,7 +82,7 @@ export const envSchema = z
         DATA_RETENTION_PASSWORD_RESET_DAYS: z.coerce.number().default(30),
         DATA_RETENTION_AUDIT_LOG_DAYS: z.coerce.number().default(730), // ~2 anos
 
-        // MFA opcional via TOTP (#12 da remediação OWASP/LGPD — A06/A07).
+        // MFA opcional via TOTP (A06/A07).
         // Chave própria (separada de CPF_CNPJ_ENCRYPTION_KEY) para cifrar o
         // segredo TOTP em repouso — compartimentaliza o risco: o
         // comprometimento de uma chave não expõe a outra categoria de dado.
@@ -92,8 +92,8 @@ export const envSchema = z
             message: "MFA_SECRET_ENCRYPTION_KEY deve ter 64 caracteres hexadecimais (32 bytes)",
         }),
 
-        // Criptografia do endereço da propriedade em repouso (#15 da remediação
-        // OWASP/LGPD — A04/Art. 46). Chave própria (separada de
+        // Criptografia do endereço da propriedade em repouso (A04/Art. 46).
+        // Chave própria (separada de
         // CPF_CNPJ_ENCRYPTION_KEY e MFA_SECRET_ENCRYPTION_KEY) — endereço
         // geográfico é categoria de dado pessoal distinta dos outros campos
         // sensíveis; o comprometimento de uma chave não deve expor as demais.
@@ -105,7 +105,7 @@ export const envSchema = z
             message: "ADDRESS_ENCRYPTION_KEY deve ter 64 caracteres hexadecimais (32 bytes)",
         }),
 
-        // Refresh token da sessão WEB (#14 da remediação OWASP/LGPD — A06).
+        // Refresh token da sessão WEB (A06).
         // Canal MOBILE não usa refresh (token de 90 dias já cobre a UX).
         JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
         // Janela de graça após rotação — tolera corrida entre abas do mesmo browser.
@@ -115,8 +115,8 @@ export const envSchema = z
         REFRESH_CSRF_HEADER_NAME: z.string().default("x-refresh-csrf-token"),
         DATA_RETENTION_REFRESH_TOKEN_DAYS: z.coerce.number().default(30),
 
-        // Proteção SSRF nas conexões de saída do medidor (#10 da remediação
-        // OWASP/LGPD — A01). Loopback, link-local, RFC1918/ULA e multicast são
+        // Proteção SSRF nas conexões de saída do medidor (A01). Loopback,
+        // link-local, RFC1918/ULA e multicast são
         // negados por padrão (ver shared/security/outboundHost.ts) — esta lista
         // é o único jeito de liberar o caso legítimo de medidor em rede local.
         // Formato: hosts e/ou CIDRs separados por vírgula

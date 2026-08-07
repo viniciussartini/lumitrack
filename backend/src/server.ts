@@ -81,7 +81,7 @@ processor.addSampleListener((sample) => {
     void alertEvaluator.evaluate(sample.meterId, sample.powerW, sample.receivedAt)
 })
 
-// #10 — Retenção e expurgo de dados (Art. 15/16 LGPD): roda no boot e a
+// Retenção e expurgo de dados (Art. 15/16 LGPD): roda no boot e a
 // cada 24h, removendo tokens/resets já inativos e audit logs antigos
 // (períodos configuráveis via env.DATA_RETENTION_*).
 const retentionService = new RetentionService(
@@ -97,7 +97,7 @@ const retentionService = new RetentionService(
 const retentionScheduler = new RetentionPurgeScheduler(retentionService)
 retentionScheduler.start()
 
-// #143 — sincronização automática da bandeira tarifária vigente a partir
+// Sincronização automática da bandeira tarifária vigente a partir
 // da fonte oficial ANEEL (ver ADR-0007). Mesmo padrão do RetentionPurgeScheduler:
 // roda no boot e a cada 24h; falha da fonte nunca derruba o processo nem
 // altera o config vigente (falha fechada — mantém o último valor conhecido).

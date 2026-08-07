@@ -23,14 +23,14 @@ interface AlertFormProps {
  * de kWh acumulado). `meterId` é imutável: em edição viaja como campo
  * hidden com o valor original, sem exigir nova escolha do usuário.
  *
- * Sem `autoFocus` no primeiro campo (achado durante #107): o `Dialog.Content`
+ * Sem `autoFocus` no primeiro campo: o `Dialog.Content`
  * do Radix já move foco pro primeiro elemento focável ao abrir — competir
  * com um `autoFocus` HTML explícito faz o PRIMEIRO clique no botão de
  * submit, sem tocar em nenhum campo antes, disparar só a validação onBlur
  * do campo focado (não o submit real), escondendo os outros erros até um
  * segundo clique. Bug do padrão `FormDialog`, não só deste form —
  * `AreaForm`/`DeviceForm` tinham o mesmo `autoFocus` redundante, corrigido
- * junto na mesma branch (#111).
+ * junto na mesma branch.
  */
 export const AlertForm = ({
     initialData,

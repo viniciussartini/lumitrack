@@ -22,7 +22,7 @@ function sameValues(
 }
 
 /**
- * Orquestra a sincronização automática da bandeira vigente (#143, ADR-0007).
+ * Orquestra a sincronização automática da bandeira vigente (ADR-0007).
  * `syncOnce()` nunca lança — qualquer falha da fonte é capturada e logada,
  * e o config existente permanece intocado (falha fechada: mantém o último
  * valor conhecido, nunca zera nem adivinha).

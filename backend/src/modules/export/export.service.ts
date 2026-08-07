@@ -14,7 +14,7 @@ import type { AuditRepository, AuditLogResponse } from "@/shared/audit/audit.rep
 import { NotFoundError } from "@/shared/errors/AppError.js"
 
 // Payload agregado com todos os dados pessoais que o LumiTrack guarda sobre
-// o titular (#09 — Art. 18 LGPD).
+// o titular (Art. 18 LGPD).
 //
 // Reformulação IoT (Fase 2): o histórico de consumo (antigo
 // `consumptionRecords`, baseado em ConsumptionRecord) foi removido daqui —

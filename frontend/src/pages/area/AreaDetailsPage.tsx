@@ -34,8 +34,8 @@ import type { ConsumptionBucket } from "@/types/consumption.types"
  *   2. Header em blueprint: nome + descrição + tags (propriedade pai +
  *      kWh/mês da própria área) + ações (Editar área / ⋯)
  *   3. KPI "Potência agora" (só quando há medidor com leitura real — mesma
- *      decisão de #99: Consumo hoje/Custo projetado ficam de fora por não
- *      terem dado/lógica real)
+ *      decisão de "sem inventar dado": Consumo hoje/Custo projetado ficam de
+ *      fora por não terem dado/lógica real)
  *   4. Seção de Medidor
  *   5. Seção de Consumo (histórico real — ocupa o lugar do gráfico "ao vivo"
  *      bespoke do protótipo)

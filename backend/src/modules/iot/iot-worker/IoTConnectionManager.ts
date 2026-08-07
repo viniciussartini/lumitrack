@@ -269,7 +269,7 @@ export class IoTConnectionManager {
         this.dataHandler = handler
     }
 
-    // Revalida o destino (SSRF — #10/A01) imediatamente antes de conectar,
+    // Revalida o destino (SSRF — A01) imediatamente antes de conectar,
     // não só na escrita (MeterService.assertOutboundHostAllowed). `start()`
     // é o único funil por onde toda conexão real passa: criação, restart via
     // update E restauração no boot do servidor (server.ts, um Meter por
@@ -279,9 +279,8 @@ export class IoTConnectionManager {
     // checagem em todo restart do processo — a validação em `MeterService`
     // sozinha cobre apenas o instante do create/update, não a vida útil da
     // conexão. Resolve de novo aqui em vez de fixar (pin) o IP validado
-    // porque a issue original (#150) não pediu pinning e os 4 protocolos de
-    // rede (mqtt, net.Socket, ethernet-ip, node-snap7) não expõem um jeito
-    // uniforme de conectar por IP já resolvido sem reescrever cada adapter;
+    // porque os 4 protocolos de rede (mqtt, net.Socket, ethernet-ip, node-snap7)
+    // não expõem um jeito uniforme de conectar por IP já resolvido sem reescrever cada adapter;
     // revalidar a cada tentativa de conexão já reduz a janela de exploração
     // de "indefinida" para o intervalo entre esta chamada e o connect() log
     // abaixo — na prática, milissegundos.

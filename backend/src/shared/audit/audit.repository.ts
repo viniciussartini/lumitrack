@@ -5,7 +5,7 @@ type PrismaAuditLog = NonNullable<Awaited<ReturnType<PrismaClient["auditLog"]["f
 
 export type AuditLogResponse = PrismaAuditLog
 
-// Filtros do endpoint administrativo de consulta do audit log (#16 — A09/
+// Filtros do endpoint administrativo de consulta do audit log (A09/
 // Art. 48). Todos opcionais — nenhum filtro aplicado retorna tudo (paginado).
 export type AuditLogFilters = {
     userId?: string
@@ -42,7 +42,7 @@ export class AuditRepository {
         })
     }
 
-    // Usado pela exportação de dados do titular (#09 — Art. 18 LGPD): o
+    // Usado pela exportação de dados do titular (Art. 18 LGPD): o
     // próprio audit log é dado pessoal do titular, sobre ele.
     async findByUserId(userId: string): Promise<AuditLogResponse[]> {
         return this.prisma.auditLog.findMany({
@@ -51,7 +51,7 @@ export class AuditRepository {
         })
     }
 
-    // #10 — Retenção e expurgo (Art. 15/16 LGPD): mantém os registros por
+    // Retenção e expurgo (Art. 15/16 LGPD): mantém os registros por
     // DATA_RETENTION_AUDIT_LOG_DAYS (default ~2 anos) — equilíbrio entre o
     // Art. 48 (capacidade de reconstruir incidentes) e o princípio de
     // minimização do Art. 15/16 (não guardar dados além do necessário).
@@ -63,7 +63,7 @@ export class AuditRepository {
         return result.count
     }
 
-    // Endpoint administrativo de consulta do audit log (#16 — A09/Art. 48).
+    // Endpoint administrativo de consulta do audit log (A09/Art. 48).
     // Único ponto do repository com filtros arbitrários + paginação — os
     // demais métodos são consultas fixas (findByUserId) ou de manutenção
     // (deleteOlderThan).

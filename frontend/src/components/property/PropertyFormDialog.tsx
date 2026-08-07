@@ -41,8 +41,8 @@ interface PropertyFormDialogProps {
  * Toda propriedade precisa de uma distribuidora vinculada — sem nenhuma
  * cadastrada no catálogo, o form (modo "create") não renderiza; mostra um
  * guard orientando a cadastrar uma primeiro. Texto recuperado literalmente
- * da antiga `NewPropertyPage` (removida em #97, quando a criação virou
- * modal — o guard tinha ficado pra trás, achado durante #102). Não é o
+ * da antiga `NewPropertyPage` (removida quando a criação virou
+ * modal — o guard tinha ficado pra trás). Não é o
  * `EmptyState` genérico porque ele vem com o próprio frame `.blueprint` +
  * cantos — duplicaria a moldura do modal, que já é `.blueprint`.
  */

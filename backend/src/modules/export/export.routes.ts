@@ -34,7 +34,7 @@ export function exportRoutes(
     const exportController = new ExportController(exportService, auditService)
 
     // Sem :id na URL — userId vem sempre do middleware authenticate, igual
-    // ao precedente de GET /api/auth/me (#06). Elimina de raiz qualquer
+    // ao precedente de GET /api/auth/me. Elimina de raiz qualquer
     // risco de ownership incorreto.
     router.get("/me/data-export", authenticate, (req, res, next) =>
         exportController.export(req, res, next),

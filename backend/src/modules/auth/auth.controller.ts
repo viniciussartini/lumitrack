@@ -64,8 +64,7 @@ export class AuthController {
                     outcome: "FAILURE",
                     resourceType: "User",
                     metadata: {
-                        // Blind index (não o e-mail em claro — #10, A09/LGPD
-                        // Art. 6º III/VII): preserva a correlação entre
+                        // Blind index (não o e-mail em claro): preserva a correlação entre
                         // tentativas contra o mesmo alvo, inclusive de quem
                         // não é titular, sem reter o dado pessoal em si.
                         attemptedEmailHash:

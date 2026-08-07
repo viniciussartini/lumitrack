@@ -1,6 +1,6 @@
 /**
  * Canal de comunicação com o titular (LGPD Art. 18 §1º + Res. CD/ANPD
- * 2/2022, Art. 11) — issue #155, épico #154 (Fase 11). O regime de agente de
+ * 2/2022, Art. 11) — Fase 11. O regime de agente de
  * pequeno porte dispensa o encarregado (DPO), mas não este canal: sem ele,
  * os direitos do Art. 18 que não são autoatendidos na plataforma (ver
  * `ProfilePage`) ficam, na prática, inexercíveis.

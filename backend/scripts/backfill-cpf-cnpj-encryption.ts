@@ -3,11 +3,11 @@ import { prisma } from "@/shared/database/prisma.js"
 import { encrypt } from "@/shared/crypto/encryption.js"
 import { generateBlindIndex } from "@/shared/crypto/blindIndex.js"
 
-// Backfill único para a #07 (criptografia de CPF/CNPJ em repouso).
+// Backfill único para a criptografia de CPF/CNPJ em repouso.
 //
 // Roda contra o DATABASE_URL ativo no momento (ver backend/.env). Útil para
-// migrar dados que já existiam em texto claro ANTES da #07 — não é
-// necessário para os bancos de teste, que são truncados a cada execução da
+// migrar dados que já existiam em texto claro antes de a criptografia entrar
+// em vigor — não é necessário para os bancos de teste, que são truncados a cada execução da
 // suíte (cleanDatabase()/cleanHttpDatabase()), nem para registros novos
 // (já são criados criptografados pelo UserRepository).
 //

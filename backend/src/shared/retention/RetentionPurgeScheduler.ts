@@ -4,7 +4,7 @@ import { logger } from "@/shared/logger/logger.js"
 const log = logger.child({ module: "RetentionScheduler" })
 
 /**
- * #10 — Retenção e expurgo de dados (Art. 15/16 LGPD).
+ * Retenção e expurgo de dados (Art. 15/16 LGPD).
  *
  * Roda o expurgo uma vez imediatamente no boot (cobre o caso de o servidor
  * ter ficado fora do ar por mais de 24h, garantindo que o atraso não vire

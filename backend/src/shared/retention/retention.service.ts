@@ -4,7 +4,7 @@ import { logger } from "@/shared/logger/logger.js"
 
 const log = logger.child({ module: "RetentionService" })
 
-// #10 — Retenção e expurgo de dados (Art. 15/16 LGPD). Cada chave é o número
+// Retenção e expurgo de dados (Art. 15/16 LGPD). Cada chave é o número
 // de dias de retenção após o evento que torna o dado "inativo" (token
 // expirado/revogado, reset usado/expirado, log antigo) — depois disso, o
 // dado é removido. Vem de env.ts (DATA_RETENTION_*), nunca hardcoded aqui,

@@ -8,7 +8,7 @@ export default defineConfig({
         env: {
             NODE_ENV: "test", // Garante que o código saiba que está em ambiente de teste
 
-            // Allowlist SSRF (#10 — shared/security/outboundHost.ts) só para os
+            // Allowlist SSRF (shared/security/outboundHost.ts) só para os
             // hostnames fictícios já usados como fixture nos testes de medidor
             // (meter.service.test.ts/meter.routes.test.ts) — sem isso, o
             // deny-by-default de loopback/RFC1918 quebraria esses testes, que não

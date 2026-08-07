@@ -2,13 +2,13 @@ import "dotenv/config"
 import { prisma } from "@/shared/database/prisma.js"
 import { encryptAddress, decryptAddress } from "@/shared/crypto/addressEncryption.js"
 
-// Backfill único para a #15 (criptografia do endereço da propriedade em repouso).
+// Backfill único para a criptografia do endereço da propriedade em repouso.
 //
 // Roda contra o DATABASE_URL ativo no momento (ver backend/.env). Útil para
-// migrar dados que já existiam em texto claro ANTES da #15 — não é necessário
-// para os bancos de teste, que são truncados a cada execução da suíte
-// (cleanDatabase()/cleanHttpDatabase()), nem para registros novos (já criados
-// criptografados pelo PropertyRepository após a #15).
+// migrar dados que já existiam em texto claro antes de a criptografia entrar em
+// vigor — não é necessário para os bancos de teste, que são truncados a cada
+// execução da suíte (cleanDatabase()/cleanHttpDatabase()), nem para registros
+// novos (já criados criptografados pelo PropertyRepository).
 //
 // Idempotente via heurística try-decrypt: tenta decifrar cada campo; se
 // decryptAddress() retornar sem erro, o valor já está cifrado → skip.
@@ -16,7 +16,7 @@ import { encryptAddress, decryptAddress } from "@/shared/crypto/addressEncryptio
 // cifrar e atualizar. A verificação de auth tag torna falso-positivos
 // negligíveis (probabilidade 2^-128).
 //
-// Ao contrário do backfill de CPF/CNPJ (#07), não há blind index aqui
+// Ao contrário do backfill de CPF/CNPJ, não há blind index aqui
 // (endereço não tem constraint @unique e nunca é filtro de query) — a
 // idempotência usa o try-decrypt em vez de "WHERE blindIndex IS NULL".
 //

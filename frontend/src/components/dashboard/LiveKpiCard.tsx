@@ -12,8 +12,8 @@ interface LiveKpiCardProps {
 /**
  * Card de KPI do Painel (bloco `isDashboard` do handoff) — `.blueprint` +
  * label uppercase + valor grande + linha secundária opcional. Promovido de
- * dentro de `RealtimeSection.tsx` (#116) para ser reaproveitado também por
- * `DashboardKpiRow` (#117).
+ * dentro de `RealtimeSection.tsx` para ser reaproveitado também por
+ * `DashboardKpiRow`.
  */
 export const LiveKpiCard = ({ label, value, subValue, isLive = false }: LiveKpiCardProps) => (
     <div className="blueprint px-5 py-[18px]">

@@ -2,7 +2,7 @@ import pino from "pino"
 import { env } from "@/config/env.js"
 
 // Funções puras (recebem `nodeEnv`/`logLevel` por parâmetro) para serem
-// testáveis em isolamento — mesmo padrão de `csrf.ts` (#06): evita depender
+// testáveis em isolamento — mesmo padrão de `csrf.ts`: evita depender
 // do singleton `env` (e do `NODE_ENV=test` fixado globalmente pelo
 // vitest.config.ts) dentro da lógica que decide o comportamento do logger.
 
@@ -29,7 +29,7 @@ export function resolveTransport(nodeEnv: string): pino.TransportSingleOptions |
 
 const transport = resolveTransport(env.NODE_ENV)
 
-// Redação de dado sensível (#10 — A09 / LGPD Art. 6º III). `pino-http`
+// Redação de dado sensível (A09 / LGPD Art. 6º III). `pino-http`
 // anexa `req`/`res` inteiros (headers incluídos) a toda linha de log da
 // requisição — sem isso, cookie de sessão, refresh token e Bearer viajam
 // em texto claro para qualquer destino do logger. Os caminhos `audit.*`/

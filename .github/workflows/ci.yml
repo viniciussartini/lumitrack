@@ -302,9 +302,12 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
+      # DATABASE_TEST_URL/DATABASE_HTTP_TEST_URL não entram aqui: o backend
+      # sobe via `npm run dev` (NODE_ENV != test), que nunca as lê — só os
+      # fixtures do vitest (prisma-test.ts/prisma-http-test.ts) as consomem.
+      # `envSchema` rejeita explicitamente elas apontarem para o mesmo banco
+      # de DATABASE_URL; setá-las aqui = mesmo valor = falha no boot.
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lumitrack_e2e?schema=public
-      DATABASE_TEST_URL: postgresql://postgres:postgres@localhost:5432/lumitrack_e2e?schema=public
-      DATABASE_HTTP_TEST_URL: postgresql://postgres:postgres@localhost:5432/lumitrack_e2e?schema=public
       JWT_SECRET: ci-only-dummy-secret-nao-e-usado-em-producao-32chars
       CPF_CNPJ_ENCRYPTION_KEY: 6fd4bad67bbdb0573f391bffdc1f0b3e710203034d07ace29e71bb1f49c835f4
       CPF_CNPJ_BLIND_INDEX_KEY: 25e6454d84f1a7348ee8a2410b6a244814e719d0fafb1cf30e54aa40ada5657d

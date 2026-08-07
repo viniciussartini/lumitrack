@@ -3,7 +3,7 @@
 // próprios controllers) — a gravação no banco corre em paralelo ao envio da
 // resposta, sem ordem garantida entre as duas. Testes que checam esse audit
 // log logo após `request(app)...` resolver precisam esperar deterministicamente
-// em vez de assumir que a escrita já terminou (issue #113).
+// em vez de assumir que a escrita já terminou.
 export async function waitFor<T>(
     fn: () => Promise<T | null>,
     { timeoutMs = 1000, intervalMs = 20 }: { timeoutMs?: number; intervalMs?: number } = {},

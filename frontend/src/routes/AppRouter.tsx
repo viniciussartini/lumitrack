@@ -92,7 +92,7 @@ export const AppRouter = () => (
                 <Route path="/perfil" element={<ProfilePage />} />
                 <Route path="/seguranca" element={<SecurityPage />} />
 
-                {/* Institucional — sem RF, versão provisória sem handoff (#137). */}
+                {/* Institucional — sem RF, versão provisória sem handoff. */}
                 <Route path="/sobre" element={<AboutPage />} />
             </Route>
         </Route>

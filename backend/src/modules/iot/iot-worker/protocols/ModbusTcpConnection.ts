@@ -1,7 +1,7 @@
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
 import { logger } from "@/shared/logger/logger.js"
 
-// Teto do buffer de linhas serial (RS-232/RS-485, #164) — um dispositivo que
+// Teto do buffer de linhas serial (RS-232/RS-485) — um dispositivo que
 // nunca envie "\n" faria `this.buffer` crescer sem limite a cada chunk
 // recebido, vetor de exaustão de memória. Ao estourar, o buffer acumulado
 // (sem terminador válido até aqui) é descartado — perder um fragmento de um
@@ -612,7 +612,7 @@ export class Rs232Connection implements IConnection {
         // dados quando tem algo a reportar, sem precisar ser interrogado.
         // Acumulamos fragmentos no buffer e processamos linhas completas
         // (extraído em `_handleSerialData` para ser testável sem depender
-        // de um SerialPort real ou mockado — #164).
+        // de um SerialPort real ou mockado).
         serialPort.on("data", (chunk: Buffer) => {
             this._handleSerialData(chunk)
         })
@@ -740,7 +740,7 @@ export class Rs485Connection implements IConnection {
 
         // RS-485 multipoint — dispositivos enviam dados de forma assincrona.
         // O mesmo padrao de buffer de linhas que o Rs232Connection (extraído
-        // em `_handleSerialData` pelo mesmo motivo de testabilidade — #164).
+        // em `_handleSerialData` pelo mesmo motivo de testabilidade).
         serialPort.on("data", (chunk: Buffer) => {
             this._handleSerialData(chunk)
         })
@@ -758,7 +758,7 @@ export class Rs485Connection implements IConnection {
             return
         }
 
-        // #164 — era `split("")` (decompunha em caracteres individuais, uma
+        // Era `split("")` (decompunha em caracteres individuais, uma
         // chamada de dataHandler por byte recebido, JSON.parse sempre
         // falhando). Uma linha por elemento, igual ao Rs232Connection.
         const lines = this.buffer.split("\n")

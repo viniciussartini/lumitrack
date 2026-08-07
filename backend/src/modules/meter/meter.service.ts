@@ -94,7 +94,7 @@ export class MeterService {
         if (ownerId !== userId) throw new ForbiddenError("Acesso negado")
     }
 
-    // Proteção SSRF (#10 — OWASP A01): só os protocolos de rede (MQTT,
+    // Proteção SSRF (OWASP A01): só os protocolos de rede (MQTT,
     // MODBUS_TCP, ETHERNET_IP, PROFINET) têm host/port — os seriais
     // (MODBUS_RTU, PROFIBUS, RS232, RS485) usam `address` e não abrem
     // socket de rede, então não passam por aqui. Recusa **antes de

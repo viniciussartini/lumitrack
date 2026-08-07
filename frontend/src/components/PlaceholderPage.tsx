@@ -11,7 +11,7 @@ interface PlaceholderPageProps {
  * implementados, mas precisam aparecer na navegação.
  *
  * Mantém a sensação de app completo até a slice respectiva ser entregue.
- * Sem título próprio — o Header (#136) já mostra o título da rota; o único
+ * Sem título próprio — o Header já mostra o título da rota; o único
  * consumidor hoje (`SimulationPage`) não precisa repeti-lo aqui.
  */
 export const PlaceholderPage = ({

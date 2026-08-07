@@ -14,7 +14,7 @@ export interface AuthenticatedRequest extends Request {
         id: string
         email: string
         userType: string
-        // RBAC mínimo (#16) — sempre lida do banco a cada requisição (ver
+        // RBAC mínimo — sempre lida do banco a cada requisição (ver
         // abaixo), nunca um claim do JWT, para que promover/rebaixar um
         // admin tenha efeito imediato sem exigir novo login.
         role: Role

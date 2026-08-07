@@ -9,8 +9,8 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
     /**
      * Mostra um botão de olho para alternar type="password" ↔ "text".
      * Só tem efeito quando type="password" (ver auth.spec.ts / prototype
-     * LumiTrack Login.dc.html e Registro.dc.html — resolve a issue #2
-     * legada, "Input Senha" sem opção de mostrar/ocultar).
+     * LumiTrack Login.dc.html e Registro.dc.html — resolve o campo
+     * "Input Senha" sem opção de mostrar/ocultar).
      */
     revealable?: boolean
     /**

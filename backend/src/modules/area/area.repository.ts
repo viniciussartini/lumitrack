@@ -40,7 +40,7 @@ export class AreaRepository {
         return { items: areas, total, page: pagination.page, pageSize: pagination.pageSize }
     }
 
-    // Usado pela exportação de dados do titular (#09) — resolve direto via
+    // Usado pela exportação de dados do titular — resolve direto via
     // filtro de relação aninhada, sem precisar buscar as properties primeiro.
     async findAllByUser(userId: string): Promise<AreaResponse[]> {
         return this.prisma.area.findMany({

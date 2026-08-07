@@ -28,7 +28,7 @@ import type { AlertWithStatus } from "@/types/alert.types"
  * KPIs "Alertas ativos"/"Em disparo agora": o protótipo tem um 3º KPI
  * ("Disparos · últimos 30d") que ficou de fora — sem endpoint agregado por
  * período (`GET /api/alert-events` exige `alertId`), mesma regra de "sem
- * inventar dado" já aplicada nos KPIs omitidos de #99-#101.
+ * inventar dado" já aplicada nos demais KPIs omitidos.
  */
 export const AlertsPage = () => {
     const [page, setPage] = useState(1)

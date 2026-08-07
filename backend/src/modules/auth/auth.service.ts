@@ -29,7 +29,7 @@ const BCRYPT_ROUNDS = 12
 // Tempo de expiração do token de reset em milissegundos (1 hora)
 const PASSWORD_RESET_EXPIRES_MS = 60 * 60 * 1000
 
-// #12 — MFA opcional via TOTP (A06/A07)
+// MFA opcional via TOTP (A06/A07)
 // mfaToken é um JWT separado da sessão real — stateless (nunca persistido
 // em auth_tokens), de curta duração, com um claim `purpose` que o
 // distingue de um JWT de sessão de verdade (defesa em profundidade: mesmo
@@ -145,7 +145,7 @@ export class AuthService {
 
         const { secret, code } = parsed.data
 
-        // Step-up (#10 — A07): reinscrever o segundo fator de uma conta que
+        // Step-up (A07): reinscrever o segundo fator de uma conta que
         // já tem MFA dá o mesmo resultado prático de desabilitá-lo — com o
         // bônus de expulsar o dono legítimo (`createBackupCodes` purga os
         // códigos antigos) — mas, ao contrário de `disableMfa`, não exigia
@@ -234,7 +234,7 @@ export class AuthService {
         const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRES_MS)
 
         // Só o hash é persistido — mesmo padrão já usado para AuthToken/
-        // RefreshToken (#10, A04): em caso de vazamento do dump do banco, o
+        // RefreshToken (A04): em caso de vazamento do dump do banco, o
         // hash não permite reconstruir um token de reset válido. O valor
         // puro sai apenas no e-mail, nunca é gravado em lugar nenhum.
         await this.authRepository.createPasswordReset({
@@ -272,7 +272,7 @@ export class AuthService {
 
         const hashedPassword = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
 
-        // #10 — A07: o cenário-alvo do "esqueci minha senha" é recuperar uma
+        // A07: o cenário-alvo do "esqueci minha senha" é recuperar uma
         // conta comprometida — revoga toda sessão (AuthToken) e refresh
         // token existente na mesma transação da troca de senha, para que um
         // atacante não sobreviva ao reset com uma sessão ainda válida.

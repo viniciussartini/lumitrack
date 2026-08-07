@@ -4,7 +4,7 @@ import { logger } from "@/shared/logger/logger.js"
 const log = logger.child({ module: "TariffFlagSyncScheduler" })
 
 /**
- * #143 — sincronização automática da bandeira tarifária vigente (ADR-0007).
+ * Sincronização automática da bandeira tarifária vigente (ADR-0007).
  *
  * Mesmo padrão do `RetentionPurgeScheduler`: roda uma vez imediatamente no
  * boot e depois a cada 24h. A bandeira muda no máximo uma vez por mês, e a

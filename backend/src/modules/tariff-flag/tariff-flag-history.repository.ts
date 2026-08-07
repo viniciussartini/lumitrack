@@ -22,8 +22,7 @@ export interface TariffFlagHistoryEntry {
     changedByUserId: string | null
 }
 
-// Só grava — sem endpoint de leitura (não pedido pela issue #143; evita
-// escopo extra sem consumidor real).
+// Só grava — sem endpoint de leitura (evita escopo extra sem consumidor real).
 export class TariffFlagHistoryRepository {
     constructor(private readonly prisma: PrismaClient) {}
 

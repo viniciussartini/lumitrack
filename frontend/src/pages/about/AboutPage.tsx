@@ -14,9 +14,9 @@ import { PRIVACY_CONTACT_EMAIL } from "@/config/privacy"
 // (mesmo tratamento de `LegalDocumentPage`/LGPD: markdown canônico +
 // `.blueprint` pra destaque), sem inventar nada fora dele.
 //
-// Sem kicker/h1 local: a rota vive dentro do AppShell, e o Header (#136)
+// Sem kicker/h1 local: a rota vive dentro do AppShell, e o Header
 // já mostra o título contextual (`config/pageTitles.ts`) — duplicar aqui
-// reproduziria o mesmo bug de dois `<h1>` corrigido em #136.
+// reproduziria o mesmo bug de dois `<h1>` já corrigido no Header.
 export const AboutPage = () => (
     <div className="flex flex-col gap-8">
         <article className="lt-legal">

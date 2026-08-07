@@ -17,7 +17,7 @@ interface CookieOptions {
 // Recebe `nodeEnv` por parâmetro (em vez de ler `env.NODE_ENV` direto) para
 // permanecer testável em isolamento mesmo com o `NODE_ENV=test` fixado
 // globalmente pelo vitest.config.ts — mesmo padrão usado para `envSchema`
-// no hardening de CORS/HTTPS (#05).
+// no hardening de CORS/HTTPS.
 export function getAuthCookieOptions(nodeEnv: string, maxAgeMs: number): CookieOptions {
     return {
         httpOnly: true,
