@@ -1,6 +1,6 @@
 # Política de Privacidade do LumiTrack
 
-**Versão 1.0 — vigente desde 27/06/2026**
+**Versão 1.1 — vigente desde 06/08/2026**
 
 Esta Política de Privacidade descreve como o LumiTrack ("nós", "plataforma")
 coleta, utiliza, armazena e protege os dados pessoais dos seus usuários
@@ -14,7 +14,7 @@ com os termos abaixo.
 
 O LumiTrack é o controlador dos dados pessoais tratados na plataforma.
 Dúvidas, solicitações ou exercício de direitos podem ser enviados para o
-e-mail de contato do encarregado (DPO) informado no rodapé da plataforma.
+canal de privacidade: **{{PRIVACY_CONTACT_EMAIL}}**.
 
 > Aviso: este é um documento-modelo gerado como parte de uma auditoria de
 > segurança e conformidade. Antes do uso em produção com usuários reais, os
@@ -46,15 +46,33 @@ religiosa ou política, etc.).
 - **Cumprimento de obrigação legal/regulatória** (Art. 7º, II): quando
   aplicável, para fins fiscais ou de auditoria.
 
-## 4. Com quem compartilhamos seus dados
+## 4. Com quem compartilhamos seus dados e onde eles são processados
 
-- **Provedor de e-mail (SMTP)**: utilizado exclusivamente para o envio de
-  e-mails de recuperação de senha. O provedor atua como operador de dados
-  nos termos do Art. 39 da LGPD.
+**Não há operadores de dados.** Toda a infraestrutura do LumiTrack —
+aplicação, banco de dados e arquivos da interface — roda em um único
+servidor sob controle direto do controlador, na região **São Paulo, Brasil**
+(Oracle Cloud Infrastructure, `sa-saopaulo-1`). Nenhum terceiro recebe,
+armazena ou processa seus dados pessoais em nosso nome.
+
+| Componente | Onde é processado | País | Operador |
+|---|---|---|---|
+| Aplicação (API e interface) | Servidor próprio, Oracle Cloud | Brasil | Nenhum |
+| Banco de dados PostgreSQL | Mesmo servidor da aplicação | Brasil | Nenhum |
+
+- **Não realizamos transferência internacional de dados.** Todo o
+  tratamento ocorre em território brasileiro. Como não há transferência,
+  não se aplicam as Cláusulas-Padrão Contratuais da ANPD (Resolução
+  CD/ANPD nº 19/2024).
 - Não compartilhamos seus dados pessoais com terceiros para fins de
   publicidade, venda ou qualquer finalidade não descrita nesta Política.
-- Não realizamos transferência internacional de dados além do necessário
-  para o funcionamento do provedor de e-mail, quando aplicável.
+- Não utilizamos cookies de análise, rastreadores de terceiros ou
+  ferramentas de analytics.
+- **Envio de e-mail:** nenhum provedor de e-mail (SMTP) está contratado no
+  ambiente atual. Como consequência, a redefinição de senha por e-mail não
+  está operante. Caso um provedor venha a ser contratado, ele passará a ser
+  um operador nos termos do Art. 39 da LGPD, esta seção será atualizada com
+  o nome e o país de processamento, e uma nova versão desta Política será
+  publicada.
 
 ## 5. Como protegemos seus dados
 
@@ -65,6 +83,11 @@ religiosa ou política, etc.).
 - Limitação de tentativas (*rate limiting*) em endpoints de autenticação,
   para reduzir o risco de ataques de força bruta.
 - Tokens de sessão podem ser revogados a qualquer momento (logout).
+- CPF/CNPJ, endereço e o segredo de autenticação em duas etapas são
+  armazenados criptografados (AES-256-GCM), com chaves independentes entre
+  si — o comprometimento de uma não expõe as demais.
+- Infraestrutura hospedada exclusivamente no Brasil (ver seção 4), sem
+  acesso de terceiros.
 
 ## 6. Seus direitos como titular (Art. 18 da LGPD)
 
@@ -80,7 +103,9 @@ Você pode, a qualquer momento:
 
 Você pode exercer os direitos de acesso, retificação e eliminação
 diretamente na plataforma, na área de configurações da sua conta. Para os
-demais direitos, entre em contato pelo e-mail do encarregado (DPO).
+demais direitos, entre em contato pelo canal de privacidade:
+**{{PRIVACY_CONTACT_EMAIL}}**. Respondemos em até 30 dias (prazo em dobro
+do regime de agente de pequeno porte).
 
 ## 7. Retenção e eliminação dos dados
 
@@ -98,5 +123,4 @@ nesta página, e poderemos solicitar um novo aceite quando isso ocorrer.
 ## 9. Contato
 
 Em caso de dúvidas sobre esta Política ou sobre o tratamento dos seus dados
-pessoais, entre em contato com o encarregado de proteção de dados (DPO) do
-LumiTrack pelo e-mail informado na plataforma.
+pessoais, entre em contato pelo canal de privacidade: **{{PRIVACY_CONTACT_EMAIL}}**.

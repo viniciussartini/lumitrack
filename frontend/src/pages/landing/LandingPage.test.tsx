@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import { renderWithProviders, screen } from "@/tests/test-utils"
 import { LandingPage } from "@/pages/landing/LandingPage"
 import { useTariffFlag } from "@/hooks/queries/useTariffFlag"
+import { PRIVACY_CONTACT_EMAIL } from "@/config/privacy"
 import type { TariffFlagConfig } from "@/types/tariff-flag.types"
 
 const mockTariffFlagConfig: TariffFlagConfig = {
@@ -59,6 +60,15 @@ describe("LandingPage — rodapé", () => {
             const link = await screen.findAllByRole("link", { name })
             expect(link.at(-1)).not.toHaveAttribute("target")
         }
+    })
+
+    // Canal de comunicação com o titular (LGPD Art. 18, issue #155) —
+    // precisa estar visível a quem ainda não tem conta.
+    it("publica o canal de privacidade (mailto)", async () => {
+        renderWithProviders(<LandingPage />)
+
+        const privacyLink = await screen.findByRole("link", { name: PRIVACY_CONTACT_EMAIL })
+        expect(privacyLink).toHaveAttribute("href", `mailto:${PRIVACY_CONTACT_EMAIL}`)
     })
 })
 

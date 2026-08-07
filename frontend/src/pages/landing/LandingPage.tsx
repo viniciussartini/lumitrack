@@ -1,10 +1,11 @@
 import { Link } from "react-router"
-import { BarChart3, Flag, TrendingUp, Zap } from "lucide-react"
+import { BarChart3, Flag, Mail, TrendingUp, Zap } from "lucide-react"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { Button } from "@/components/ui/Button"
 import { Tag } from "@/components/ui/Tag"
 import { useLiveTicker } from "@/hooks/useLiveTicker"
 import { GITHUB_REPO_URL, GitHubIcon } from "@/components/ui/GitHubIcon"
+import { PRIVACY_CONTACT_EMAIL } from "@/config/privacy"
 import { useTariffFlag } from "@/hooks/queries/useTariffFlag"
 import {
     TARIFF_FLAG_BORDER_CLASS,
@@ -321,7 +322,7 @@ const LandingFeatures = () => (
                         <feature.icon className="h-[18px] w-[18px]" strokeWidth={1.5} aria-hidden="true" />
                     </div>
                     <h3 className="font-heading text-[19px] uppercase">{feature.title}</h3>
-                    <p className="text-text/76 mt-2.5 text-sm leading-[1.5]">{feature.description}</p>
+                    <p className="text-text/76 mt-2.5 text-sm leading-normal">{feature.description}</p>
                 </Blueprint>
             ))}
         </div>
@@ -377,7 +378,7 @@ const LandingFlags = () => (
                     <div className={`h-1.5 ${flag.barClass}`} />
                     <div className="p-[22px]">
                         <h4 className={`font-heading text-lg uppercase ${flag.colorClass}`}>{flag.name}</h4>
-                        <p className="text-text/74 mt-2 text-[13.5px] leading-[1.5]">{flag.description}</p>
+                        <p className="text-text/74 mt-2 text-[13.5px] leading-normal">{flag.description}</p>
                         <div className={`font-heading mt-3.5 text-[22px] font-semibold font-features-['tnum'_1] ${flag.colorClass}`}>
                             {flag.value}
                         </div>
@@ -606,19 +607,34 @@ const LandingFooter = () => (
                 <p className="text-text/62 mt-3.5 max-w-[34ch] text-[13px] leading-[1.55]">
                     Monitoramento de energia elétrica para pessoas físicas e jurídicas do Brasil.
                 </p>
-                {/* Sem equivalente no handoff (LumiTrack Landing.dc.html não
-                    tem logo do GitHub) — acréscimo pedido pelo usuário
-                    (2026-08-04), ver CHANGELOG. Ícone sem texto: aria-label
-                    dá o nome acessível. */}
-                <a
-                    href={GITHUB_REPO_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Ver o repositório do LumiTrack no GitHub (abre em nova aba)"
-                    className="text-text/55 hover:text-accent mt-3.5 inline-flex"
-                >
-                    <GitHubIcon className="h-[18px] w-[18px]" />
-                </a>
+                {/* flex-col + gap — sem isso os dois links (ambos inline-flex,
+                    sem texto entre eles no JSX) renderizam colados lado a
+                    lado na mesma linha em vez de empilhados. */}
+                <div className="mt-3.5 flex flex-col items-start gap-2.5">
+                    {/* Sem equivalente no handoff (LumiTrack Landing.dc.html
+                        não tem logo do GitHub) — acréscimo pedido pelo
+                        usuário (2026-08-04), ver CHANGELOG. Ícone sem texto:
+                        aria-label dá o nome acessível. */}
+                    <a
+                        href={GITHUB_REPO_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Ver o repositório do LumiTrack no GitHub (abre em nova aba)"
+                        className="text-text/55 hover:text-accent inline-flex"
+                    >
+                        <GitHubIcon className="h-[18px] w-[18px]" />
+                    </a>
+                    {/* Canal de comunicação com o titular (LGPD Art. 18, issue
+                        #155) — precisa estar visível pra quem ainda não tem
+                        conta, não só dentro do app autenticado. */}
+                    <a
+                        href={`mailto:${PRIVACY_CONTACT_EMAIL}`}
+                        className="text-text/55 hover:text-accent inline-flex items-center gap-1.5 text-[12.5px]"
+                    >
+                        <Mail className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" />
+                        {PRIVACY_CONTACT_EMAIL}
+                    </a>
+                </div>
             </div>
             {FOOTER_COLUMNS.map((column) => (
                 <div key={column.title}>

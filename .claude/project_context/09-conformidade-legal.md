@@ -42,7 +42,8 @@
 
 ## Operadores / DPA (Art. 39)
 
-- [ ] **Contrato de tratamento (DPA)** com cada operador: **Sentry, PostHog, Neon, Railway, Vercel**.
+- [x] **Contrato de tratamento (DPA)** com cada operador. **Estado atual: não há operador** — a ADR-0008 escolheu hospedagem própria (VM Oracle Cloud Always Free em São Paulo) com PostgreSQL na mesma máquina e sem provedor SMTP contratado, então o controlador é o único agente de tratamento. Inventário vivo na tabela de operadores de `.claude/docs/ROPA.md`.
+- [ ] **Ao adotar qualquer operador novo** (SMTP, APM, agregador de log, banco gerenciado, CDN): assinar DPA **antes** do primeiro byte de dado pessoal, acrescentar a linha no ROPA e reavaliar a seção abaixo. Requisitos técnicos mínimos a exigir em contrato: `.claude/docs/AUDITORIA_SEGURANCA.md` § 7.1.
 
 ## Notificação de incidente (Art. 48 + Res. 15/2024)
 
@@ -50,9 +51,10 @@
 - [ ] Manter **registro de incidentes por 5 anos** (mesmo os não comunicados, com a justificativa de não comunicar).
 - [ ] **Plano de resposta a incidentes** pronto — conecta com A09 (logging/alerting) e A10 (error handling) em `05`.
 
-## Transferência internacional (Art. 33-36 + Res. 19/2024) — CRÍTICO neste stack
+## Transferência internacional (Art. 33-36 + Res. 19/2024)
 
-- [ ] Provedores fora do Brasil (**Vercel, Railway, Neon, Sentry, PostHog** → tipicamente EUA) = transferência internacional de dados.
+- [x] **Estado atual: não se aplica** — a ADR-0008 hospeda tudo em São Paulo, sem provedor estrangeiro. Não há transferência internacional a cobrir, por inexistência do fato gerador (não por dispensa). Foi a aplicação da última regra desta lista: preferir região Brasil/UE **elimina** o problema em vez de contratá-lo.
+- [ ] Qualquer provedor fora do Brasil (hospedagem, banco, APM, agregador de log, SMTP, CDN) = transferência internacional de dados, e reabre todos os itens abaixo.
 - [ ] Sem decisão de adequação para os EUA → **incorporar as Cláusulas-Padrão Contratuais (SCCs) da ANPD** nos contratos com cada provedor (período de graça encerrado em ago/2025).
 - [ ] UE reconhecida como adequada (Res. 32/2026); EUA **não**.
 - [ ] Preferir, quando possível, **região de hospedagem no Brasil ou na UE** para reduzir exposição.

@@ -10,6 +10,7 @@ import { authService } from "@/services/auth.service"
 import { userService } from "@/services/user.service"
 import { propertyService } from "@/services/property.service"
 import { formatDate } from "@/lib/format"
+import { PRIVACY_CONTACT_EMAIL } from "@/config/privacy"
 import type { User } from "@/types/auth.types"
 import type { Paginated } from "@/types/pagination.types"
 import type { Property } from "@/types/property.types"
@@ -218,6 +219,28 @@ describe("ProfilePage — Conta", () => {
 
         expect(await screen.findByText("1 vinculada")).toBeInTheDocument()
         expect(screen.getByText("Desativado")).toBeInTheDocument()
+    })
+})
+
+describe("ProfilePage — Exercer meus direitos (Art. 18, issue #155)", () => {
+    it("publica o canal de privacidade", async () => {
+        renderPage(mockUserPF)
+
+        const privacyLink = await screen.findByRole("link", { name: new RegExp(PRIVACY_CONTACT_EMAIL) })
+        expect(privacyLink).toHaveAttribute("href", `mailto:${PRIVACY_CONTACT_EMAIL}`)
+    })
+
+    it("marca 'Acesso aos dados' como autoatendido e 'Revogação do consentimento' como pelo canal", async () => {
+        renderPage(mockUserPF)
+        await screen.findByRole("heading", { name: "João Silva" })
+
+        const accessRow = screen.getByText("Acesso aos dados").closest("li")
+        expect(accessRow).not.toBeNull()
+        expect(within(accessRow!).getByText("Autoatendido")).toBeInTheDocument()
+
+        const revocationRow = screen.getByText("Revogação do consentimento").closest("li")
+        expect(revocationRow).not.toBeNull()
+        expect(within(revocationRow!).getByText("Pelo canal")).toBeInTheDocument()
     })
 })
 

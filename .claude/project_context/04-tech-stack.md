@@ -11,7 +11,7 @@
 - **PDF/QR:** pdfkit (export DSAR), qrcode (setup de MFA).
 - **IoT:** mqtt, jsmodbus, ethernet-ip, node-snap7, serialport, profibus — um adaptador por protocolo em `backend/src/modules/iot/iot-worker/protocols/`.
 - **iot-simulator:** aedes (broker MQTT embutido), Express, mqtt — simula os mesmos protocolos para desenvolvimento sem hardware.
-- **Infra/deploy:** nenhuma decidida ainda — sem config de Vercel/Railway/Neon ou equivalente no repositório (ver `07`).
+- **Infra/deploy:** VM única na **Oracle Cloud Always Free, região São Paulo** — backend, frontend estático, PostgreSQL e o simulador IoT co-locados, sem operador estrangeiro (**ADR-0008**, decisão tomada como conformidade: elimina a transferência internacional em vez de contratar SCC). Nenhum artefato de deploy existe no repositório ainda — a ADR define a topologia e os gates de go-live, a automação é trabalho posterior.
 - **CI/CD:** GitHub Actions (`.github/workflows/ci.yml`) — lint, build, test e `npm audit --audit-level=high` para backend e frontend, mais suíte E2E; Dependabot semanal (`.github/dependabot.yml`).
 - **Testes:** Vitest + supertest (unit/integração, backend e frontend), Playwright (E2E, `frontend/tests/e2e/`).
 - **Observabilidade:** pino + pino-http (logs estruturados). Sem Sentry/APM, sem uptime monitor, sem analytics de produto configurados — ver `07`.

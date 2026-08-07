@@ -23,6 +23,7 @@ import { getDisplayInfo } from "@/lib/userDisplay"
 import { maskCpf, maskCnpj } from "@/lib/masks"
 import { formatDate } from "@/lib/format"
 import { cn } from "@/lib/cn"
+import { PRIVACY_CONTACT_EMAIL } from "@/config/privacy"
 import {
     individualProfileSchema,
     companyProfileSchema,
@@ -69,7 +70,7 @@ export const ProfilePage = () => {
     }
 
     return (
-        <div className="flex max-w-[920px] flex-col gap-6">
+        <div className="flex flex-col gap-6">
             <div className="blueprint p-[26px]">
                 <i className="corner tl" />
                 <i className="corner tr" />
@@ -213,6 +214,38 @@ const AccountSummaryCard = ({ user }: { user: User }) => {
     )
 }
 
+interface DataSubjectRight {
+    label: string
+    /** `true` quando já dá pra exercer sem sair desta página (ou do fluxo de
+     * exportação/exclusão abaixo); os demais passam pelo canal de
+     * privacidade (issue #155, épico #154 — Fase 11). */
+    selfService: boolean
+    note?: string
+}
+
+// LGPD Art. 18 — cada item mapeado ao que a plataforma já oferece hoje. Não
+// remover nem "resumir" itens: a lista completa é o próprio critério de
+// aceite da issue #155 (nenhum direito pode ficar sem canal de exercício).
+const DATA_SUBJECT_RIGHTS: DataSubjectRight[] = [
+    { label: "Confirmação da existência de tratamento", selfService: false },
+    { label: "Acesso aos dados", selfService: true, note: "nesta página e via exportação" },
+    {
+        label: "Correção de dados incompletos, inexatos ou desatualizados",
+        selfService: true,
+        note: "nome, sobrenome, razão social e e-mail — CPF/CNPJ só pelo canal",
+    },
+    { label: "Anonimização, bloqueio ou eliminação de dados desnecessários", selfService: false },
+    { label: "Portabilidade a outro fornecedor de serviço", selfService: true, note: "exportação em JSON" },
+    {
+        label: "Eliminação dos dados tratados com base no consentimento",
+        selfService: true,
+        note: "excluir conta, abaixo",
+    },
+    { label: "Informação sobre com quem os dados são compartilhados", selfService: false },
+    { label: "Revogação do consentimento", selfService: false },
+    { label: "Revisão de decisões tomadas unicamente por tratamento automatizado", selfService: false },
+]
+
 const PrivacyDataCard = ({ userId }: { userId: string }) => {
     const navigate = useNavigate()
     const { logout } = useAuth()
@@ -242,6 +275,38 @@ const PrivacyDataCard = ({ userId }: { userId: string }) => {
                 <span className="font-heading text-[17px] font-semibold uppercase">
                     Privacidade & dados
                 </span>
+            </div>
+
+            <div className="border-divider border-b px-5 pt-3.5 pb-4">
+                <div className="text-sm font-semibold">Exercer meus direitos</div>
+                <p className="text-muted mt-0.5 text-[12.5px]">
+                    Direitos do Art. 18 da LGPD. Os já autoatendidos estão marcados abaixo; os
+                    demais são atendidos pelo canal de privacidade em até 30 dias (prazo em dobro
+                    do regime de agente de pequeno porte).
+                </p>
+                <a
+                    href={`mailto:${PRIVACY_CONTACT_EMAIL}`}
+                    className="text-accent hover:text-accent-700 mt-2.5 inline-flex items-center gap-1.5 text-sm font-medium"
+                >
+                    <Mail className="h-3.5 w-3.5" aria-hidden="true" />
+                    {PRIVACY_CONTACT_EMAIL}
+                </a>
+                <ul className="mt-3 flex flex-col gap-2">
+                    {DATA_SUBJECT_RIGHTS.map((right) => (
+                        <li key={right.label} className="flex items-start justify-between gap-3">
+                            <span className="text-text/80 text-[12.5px] leading-[1.4]">
+                                {right.label}
+                                {right.note && <span className="text-muted"> — {right.note}</span>}
+                            </span>
+                            <Tag
+                                variant={right.selfService ? "accent" : "neutral"}
+                                className="shrink-0 text-[10px]"
+                            >
+                                {right.selfService ? "Autoatendido" : "Pelo canal"}
+                            </Tag>
+                        </li>
+                    ))}
+                </ul>
             </div>
 
             <div className="px-5 pt-1 pb-3">
