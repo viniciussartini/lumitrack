@@ -12,9 +12,7 @@ interface ApiEnvelope<T> {
  */
 export const notificationService = {
     list: async (): Promise<Notification[]> => {
-        const { data } = await api.get<ApiEnvelope<Notification[]>>(
-            "/notifications",
-        )
+        const { data } = await api.get<ApiEnvelope<Notification[]>>("/notifications")
         return data.data
     },
 

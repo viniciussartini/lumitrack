@@ -45,7 +45,9 @@ export function Dashboard() {
                             <span className="bg-linear-to-r from-[#8fb0d6] via-[#a9c6a2] to-[#e2ef8f] bg-clip-text text-transparent">
                                 Track
                             </span>{" "}
-                            <span className="text-[14px] font-semibold text-[#e6ecf2]/60">/ Simulador IoT</span>
+                            <span className="text-[14px] font-semibold text-[#e6ecf2]/60">
+                                / Simulador IoT
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -90,8 +92,9 @@ export function Dashboard() {
                         Redes e dispositivos virtuais
                     </h1>
                     <p className="text-text/72 mt-2.5 max-w-[70ch] text-[14.5px] leading-[1.55]">
-                        Crie redes, adicione medidores virtuais e ligue-os para publicar amostras elétricas no
-                        broker. Injete anomalias para produzir picos de potência visíveis no LumiTrack.
+                        Crie redes, adicione medidores virtuais e ligue-os para publicar amostras
+                        elétricas no broker. Injete anomalias para produzir picos de potência
+                        visíveis no LumiTrack.
                     </p>
                 </div>
 
@@ -142,7 +145,8 @@ export function Dashboard() {
 
                 {networks.length === 0 ? (
                     <p className="border-divider text-text/58 border border-dashed p-9 text-center text-sm">
-                        Nenhuma rede criada ainda. Crie uma rede acima para começar a simular dispositivos.
+                        Nenhuma rede criada ainda. Crie uma rede acima para começar a simular
+                        dispositivos.
                     </p>
                 ) : (
                     <div className="flex flex-col gap-4.5">
@@ -153,7 +157,8 @@ export function Dashboard() {
                 )}
 
                 <p className="text-text/48 mt-1.5 text-xs leading-normal">
-                    Ferramenta de desenvolvimento local · sem autenticação de rede · não exponha publicamente.
+                    Ferramenta de desenvolvimento local · sem autenticação de rede · não exponha
+                    publicamente.
                 </p>
             </div>
 
@@ -165,7 +170,11 @@ export function Dashboard() {
                     onSubmit={handleCreateNetwork}
                     footer={
                         <>
-                            <Button type="button" variant="ghost" onClick={() => setShowNetworkModal(false)}>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => setShowNetworkModal(false)}
+                            >
                                 Cancelar
                             </Button>
                             <Button type="submit" isLoading={createNetwork.isPending}>

@@ -29,12 +29,8 @@ describe("ConfirmDialog — renderização", () => {
             />,
         )
 
-        expect(
-            screen.getByRole("heading", { name: /excluir item/i }),
-        ).toBeInTheDocument()
-        expect(
-            screen.getByText(/esta ação não pode ser desfeita/i),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("heading", { name: /excluir item/i })).toBeInTheDocument()
+        expect(screen.getByText(/esta ação não pode ser desfeita/i)).toBeInTheDocument()
     })
 
     it("usa labels customizados", () => {
@@ -50,9 +46,7 @@ describe("ConfirmDialog — renderização", () => {
             />,
         )
 
-        expect(
-            screen.getByRole("button", { name: /excluir/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /excluir/i })).toBeInTheDocument()
         expect(screen.getByRole("button", { name: /voltar/i })).toBeInTheDocument()
     })
 })

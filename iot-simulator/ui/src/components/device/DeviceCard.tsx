@@ -32,6 +32,29 @@ function secondsAgo(timestampMs: number): number {
     return Math.max(0, Math.round((Date.now() - timestampMs) / 1000))
 }
 
+function PublishingStatus({
+    isPublishing,
+    lastPublishedAt,
+}: {
+    isPublishing: boolean
+    lastPublishedAt: number | null
+}) {
+    return (
+        <span className="text-text/70 inline-flex items-center gap-1.5 text-xs">
+            <span
+                className={`h-2 w-2 rounded-full ${isPublishing ? "bg-[#3f8f52]" : "bg-neutral-100"}`}
+                style={
+                    isPublishing ? { animation: "lt-pulse 1.6s ease-in-out infinite" } : undefined
+                }
+                aria-hidden="true"
+            />
+            {isPublishing && lastPublishedAt !== null
+                ? `publicando — há ${secondsAgo(lastPublishedAt)}s`
+                : "desligado"}
+        </span>
+    )
+}
+
 export function DeviceCard({
     device,
     onPowerToggle,
@@ -57,16 +80,10 @@ export function DeviceCard({
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-text/70 inline-flex items-center gap-1.5 text-xs">
-                        <span
-                            className={`h-2 w-2 rounded-full ${isPublishing ? "bg-[#3f8f52]" : "bg-neutral-100"}`}
-                            style={isPublishing ? { animation: "lt-pulse 1.6s ease-in-out infinite" } : undefined}
-                            aria-hidden="true"
-                        />
-                        {isPublishing && device.lastPublishedAt !== null
-                            ? `publicando — há ${secondsAgo(device.lastPublishedAt)}s`
-                            : "desligado"}
-                    </span>
+                    <PublishingStatus
+                        isPublishing={isPublishing}
+                        lastPublishedAt={device.lastPublishedAt}
+                    />
                     <Button
                         variant={device.poweredOn ? "secondary" : "primary"}
                         size="sm"
@@ -82,7 +99,11 @@ export function DeviceCard({
                 </div>
             </div>
 
-            <DeviceControls params={device.params} onSave={onSaveParams} isPending={isSavePending} />
+            <DeviceControls
+                params={device.params}
+                onSave={onSaveParams}
+                isPending={isSavePending}
+            />
 
             <AnomalyButton
                 anomaly={device.anomaly}

@@ -34,7 +34,10 @@ describe("createInternalPublisher — integração local com o broker embutido",
         })
 
         const received = await new Promise<string>((resolve, reject) => {
-            const timeout = setTimeout(() => reject(new Error("timeout esperando mensagem MQTT")), 3000)
+            const timeout = setTimeout(
+                () => reject(new Error("timeout esperando mensagem MQTT")),
+                3000,
+            )
             rawClient!.once("message", (_topic, message) => {
                 clearTimeout(timeout)
                 resolve(message.toString())

@@ -29,20 +29,33 @@ const repos = { meterRepository, propertyRepository, areaRepository, deviceRepos
 
 async function setupHierarchy() {
     const user = await userService.createUser({
-        email: "joao@example.com", password: "Senha@123", userType: "INDIVIDUAL",
-        acceptedTerms: true, firstName: "João", lastName: "Silva", cpf: "529.982.247-25",
+        email: "joao@example.com",
+        password: "Senha@123",
+        userType: "INDIVIDUAL",
+        acceptedTerms: true,
+        firstName: "João",
+        lastName: "Silva",
+        cpf: "529.982.247-25",
     })
     const distributor = await createTestDistributor(prismaTest)
     const property = await propertyService.create(user.id, {
-        name: "Casa Principal", distributorId: distributor.id, electricalSystem: "TRIPHASIC",
+        name: "Casa Principal",
+        distributorId: distributor.id,
+        electricalSystem: "TRIPHASIC",
     })
     const area = await areaService.create(property.id, user.id, { name: "Sala" })
-    const device = await deviceService.create(area.id, property.id, user.id, { name: "Ar-condicionado" })
+    const device = await deviceService.create(area.id, property.id, user.id, {
+        name: "Ar-condicionado",
+    })
     return { user, property, area, device }
 }
 
-beforeEach(async () => { await cleanDatabase() })
-afterAll(async () => { await prismaTest.$disconnect() })
+beforeEach(async () => {
+    await cleanDatabase()
+})
+afterAll(async () => {
+    await prismaTest.$disconnect()
+})
 
 describe("resolveMeterTarget", () => {
     it("retorna null para meterId inexistente", async () => {
@@ -52,7 +65,15 @@ describe("resolveMeterTarget", () => {
     it("resolve alvo PROPERTY", async () => {
         const { user, property } = await setupHierarchy()
         const meter = await prismaTest.meter.create({
-            data: { name: "Medidor", targetType: "PROPERTY", propertyId: property.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "t" },
+            data: {
+                name: "Medidor",
+                targetType: "PROPERTY",
+                propertyId: property.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "t",
+            },
         })
 
         const result = await resolveMeterTarget(repos, meter.id)
@@ -68,7 +89,15 @@ describe("resolveMeterTarget", () => {
     it("resolve alvo AREA", async () => {
         const { user, property, area } = await setupHierarchy()
         const meter = await prismaTest.meter.create({
-            data: { name: "Medidor", targetType: "AREA", areaId: area.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "t" },
+            data: {
+                name: "Medidor",
+                targetType: "AREA",
+                areaId: area.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "t",
+            },
         })
 
         const result = await resolveMeterTarget(repos, meter.id)
@@ -84,7 +113,15 @@ describe("resolveMeterTarget", () => {
     it("resolve alvo DEVICE", async () => {
         const { user, property, area, device } = await setupHierarchy()
         const meter = await prismaTest.meter.create({
-            data: { name: "Medidor", targetType: "DEVICE", deviceId: device.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "t" },
+            data: {
+                name: "Medidor",
+                targetType: "DEVICE",
+                deviceId: device.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "t",
+            },
         })
 
         const result = await resolveMeterTarget(repos, meter.id)

@@ -66,34 +66,34 @@ export const PropertyForm = ({
         mode: "onBlur",
         defaultValues: initialData
             ? {
-                distributorId: initialData.distributorId,
-                name: initialData.name,
-                // null → "" porque <input> não aceita null; o schema converte
-                // string vazia de volta pra undefined antes do submit.
-                address: initialData.address ?? "",
-                city: initialData.city ?? "",
-                state: initialData.state ?? "",
-                zipCode: initialData.zipCode ?? "",
-                electricalSystem: initialData.electricalSystem,
-                billingClass: initialData.billingClass,
-                publicLightingFeeBrl: initialData.publicLightingFeeBrl ?? undefined,
-            }
+                  distributorId: initialData.distributorId,
+                  name: initialData.name,
+                  // null → "" porque <input> não aceita null; o schema converte
+                  // string vazia de volta pra undefined antes do submit.
+                  address: initialData.address ?? "",
+                  city: initialData.city ?? "",
+                  state: initialData.state ?? "",
+                  zipCode: initialData.zipCode ?? "",
+                  electricalSystem: initialData.electricalSystem,
+                  billingClass: initialData.billingClass,
+                  publicLightingFeeBrl: initialData.publicLightingFeeBrl ?? undefined,
+              }
             : {
-                distributorId: "",
-                name: "",
-                address: "",
-                city: "",
-                state: "",
-                zipCode: "",
-                electricalSystem: "MONOPHASIC",
-                billingClass: "B1",
-                publicLightingFeeBrl: undefined,
-            },
+                  distributorId: "",
+                  name: "",
+                  address: "",
+                  city: "",
+                  state: "",
+                  zipCode: "",
+                  electricalSystem: "MONOPHASIC",
+                  billingClass: "B1",
+                  publicLightingFeeBrl: undefined,
+              },
     })
 
     return (
         <form
-            onSubmit={handleSubmit(onSubmit)}
+            onSubmit={(e) => void handleSubmit(onSubmit)(e)}
             className="flex flex-col gap-8"
             noValidate
         >
@@ -135,10 +135,7 @@ export const PropertyForm = ({
                         defaultValue={initialData?.electricalSystem ?? "MONOPHASIC"}
                     >
                         {(
-                            Object.entries(ELECTRICAL_SYSTEM_LABELS) as [
-                                ElectricalSystem,
-                                string,
-                            ][]
+                            Object.entries(ELECTRICAL_SYSTEM_LABELS) as [ElectricalSystem, string][]
                         ).map(([value, label]) => (
                             <option key={value} value={value}>
                                 {label}
@@ -152,16 +149,13 @@ export const PropertyForm = ({
                         {...register("billingClass")}
                         defaultValue={initialData?.billingClass ?? "B1"}
                     >
-                        {(
-                            Object.entries(BILLING_CLASS_LABELS) as [
-                                BillingClass,
-                                string,
-                            ][]
-                        ).map(([value, label]) => (
-                            <option key={value} value={value}>
-                                {label}
-                            </option>
-                        ))}
+                        {(Object.entries(BILLING_CLASS_LABELS) as [BillingClass, string][]).map(
+                            ([value, label]) => (
+                                <option key={value} value={value}>
+                                    {label}
+                                </option>
+                            ),
+                        )}
                     </Select>
                 </div>
 
@@ -176,10 +170,7 @@ export const PropertyForm = ({
                 />
             </Section>
 
-            <Section
-                title="Endereço"
-                description="Todos os campos de endereço são opcionais."
-            >
+            <Section title="Endereço" description="Todos os campos de endereço são opcionais.">
                 <div className="flex flex-col gap-4">
                     <Input
                         label="Logradouro"
@@ -258,18 +249,11 @@ interface SectionProps {
 const Section = ({ title, description, children }: SectionProps) => (
     <section className="flex flex-col gap-3">
         <header>
-            <h2
-                className={cn(
-                    "text-base font-semibold",
-                    "text-slate-900 dark:text-slate-100",
-                )}
-            >
+            <h2 className={cn("text-base font-semibold", "text-slate-900 dark:text-slate-100")}>
                 {title}
             </h2>
             {description && (
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                    {description}
-                </p>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{description}</p>
             )}
         </header>
         {children}

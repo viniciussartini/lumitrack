@@ -1,1 +1,6 @@
-/generated/prisma
+# Cliente Prisma gerado (`npm run db:generate`/`db:migrate`) — build artifact,
+# não código-fonte. A regra apontava para `backend/generated/prisma`, mas o
+# client é gerado em `src/generated/prisma` (ver tsconfig.json `rootDir`) —
+# nunca casava de verdade, e por isso os arquivos gerados foram commitados
+# por engano (#165 — corrigido e destrackeados no mesmo commit).
+/src/generated/prisma

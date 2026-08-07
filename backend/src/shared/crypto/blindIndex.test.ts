@@ -9,9 +9,7 @@ describe("generateBlindIndex", () => {
     })
 
     it("valores diferentes produzem índices diferentes", () => {
-        expect(generateBlindIndex("529.982.247-25")).not.toBe(
-            generateBlindIndex("310.037.856-38"),
-        )
+        expect(generateBlindIndex("529.982.247-25")).not.toBe(generateBlindIndex("310.037.856-38"))
     })
 
     it("retorna um hex de 64 caracteres (SHA-256)", () => {

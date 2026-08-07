@@ -28,7 +28,10 @@ export type TestDistributorOverrides = Partial<{
 // tusdPerKwh + tePerKwh = 0.6 e tributos ~27,25% (18% ICMS + 1,65% PIS +
 // 7,6% COFINS) → tarifa efetiva ≈ R$ 0,8244/kWh antes da bandeira, valores
 // redondos o suficiente para conferir cálculos nos testes.
-export async function createTestDistributor(prismaClient: PrismaClient, overrides: TestDistributorOverrides = {}) {
+export async function createTestDistributor(
+    prismaClient: PrismaClient,
+    overrides: TestDistributorOverrides = {},
+) {
     return prismaClient.energyDistributor.create({
         data: {
             name: overrides.name ?? "CEMIG Distribuição S.A.",

@@ -58,9 +58,7 @@ const createWrapper = () => {
         },
     })
     const wrapper = ({ children }: { children: ReactNode }) => (
-        <QueryClientProvider client={queryClient}>
-            {children}
-        </QueryClientProvider>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     )
     return { queryClient, wrapper }
 }
@@ -102,7 +100,11 @@ describe("useCreateProperty", () => {
 
         const { result } = renderHook(() => useCreateProperty(), { wrapper })
 
-        result.current.mutate({ distributorId: "dist-1", name: "X", electricalSystem: "MONOPHASIC" })
+        result.current.mutate({
+            distributorId: "dist-1",
+            name: "X",
+            electricalSystem: "MONOPHASIC",
+        })
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
@@ -117,7 +119,11 @@ describe("useCreateProperty", () => {
         const { wrapper } = createWrapper()
         const { result } = renderHook(() => useCreateProperty(), { wrapper })
 
-        result.current.mutate({ distributorId: "dist-1", name: "Casa Principal", electricalSystem: "MONOPHASIC" })
+        result.current.mutate({
+            distributorId: "dist-1",
+            name: "Casa Principal",
+            electricalSystem: "MONOPHASIC",
+        })
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
@@ -130,14 +136,16 @@ describe("useCreateProperty", () => {
     })
 
     it("propaga erros sem disparar toast — quem chama decide a mensagem", async () => {
-        vi.mocked(propertyService.create).mockRejectedValue(
-            new Error("ValidationError"),
-        )
+        vi.mocked(propertyService.create).mockRejectedValue(new Error("ValidationError"))
 
         const { wrapper } = createWrapper()
         const { result } = renderHook(() => useCreateProperty(), { wrapper })
 
-        result.current.mutate({ distributorId: "dist-1", name: "X", electricalSystem: "MONOPHASIC" })
+        result.current.mutate({
+            distributorId: "dist-1",
+            name: "X",
+            electricalSystem: "MONOPHASIC",
+        })
 
         await waitFor(() => expect(result.current.isError).toBe(true))
 
@@ -268,9 +276,7 @@ describe("useDeleteProperty", () => {
     })
 
     it("propaga erros sem disparar toast", async () => {
-        vi.mocked(propertyService.delete).mockRejectedValue(
-            new Error("Forbidden"),
-        )
+        vi.mocked(propertyService.delete).mockRejectedValue(new Error("Forbidden"))
 
         const { wrapper } = createWrapper()
         const { result } = renderHook(() => useDeleteProperty(), { wrapper })

@@ -1,5 +1,5 @@
 import { Calculator } from "lucide-react"
-import { PlaceholderPage } from "@/components/PlaceHolderPage"
+import { PlaceholderPage } from "@/components/PlaceholderPage"
 
 /**
  * Simulação — /simulacao (Fase 5, placeholder). O backend já reescreveu

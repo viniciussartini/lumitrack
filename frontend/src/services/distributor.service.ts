@@ -15,20 +15,15 @@ interface ApiEnvelope<T> {
  * usuário. `list` é paginada.
  */
 export const distributorService = {
-    list: async (
-        params: PaginationParams = {},
-    ): Promise<Paginated<Distributor>> => {
-        const { data } = await api.get<ApiEnvelope<Paginated<Distributor>>>(
-            "/distributors",
-            { params },
-        )
+    list: async (params: PaginationParams = {}): Promise<Paginated<Distributor>> => {
+        const { data } = await api.get<ApiEnvelope<Paginated<Distributor>>>("/distributors", {
+            params,
+        })
         return data.data
     },
 
     getById: async (id: string): Promise<Distributor> => {
-        const { data } = await api.get<ApiEnvelope<Distributor>>(
-            `/distributors/${id}`,
-        )
+        const { data } = await api.get<ApiEnvelope<Distributor>>(`/distributors/${id}`)
         return data.data
     },
 }

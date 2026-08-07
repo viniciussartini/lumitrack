@@ -2,7 +2,7 @@ import { Sun, Moon, Monitor } from "lucide-react"
 import { useTheme, type Theme } from "@/contexts/ThemeContext"
 import { cn } from "@/lib/cn"
 
-const THEME_ORDER: readonly Theme[] = ["light", "dark", "system"] as const
+const THEME_ORDER = ["light", "dark", "system"] as const satisfies readonly Theme[]
 
 const THEME_LABELS: Record<Theme, string> = {
     light: "claro",
@@ -12,7 +12,7 @@ const THEME_LABELS: Record<Theme, string> = {
 
 const nextTheme = (current: Theme): Theme => {
     const idx = THEME_ORDER.indexOf(current)
-    return THEME_ORDER[(idx + 1) % THEME_ORDER.length]
+    return THEME_ORDER[(idx + 1) % THEME_ORDER.length] ?? THEME_ORDER[0]
 }
 
 interface ThemeToggleProps {

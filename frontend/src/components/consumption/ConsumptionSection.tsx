@@ -21,9 +21,7 @@ interface PropertyConsumptionSectionProps {
     propertyId: string
 }
 
-export const PropertyConsumptionSection = ({
-    propertyId,
-}: PropertyConsumptionSectionProps) => (
+export const PropertyConsumptionSection = ({ propertyId }: PropertyConsumptionSectionProps) => (
     <ConsumptionSection targetType="PROPERTY" targetId={propertyId} />
 )
 
@@ -42,9 +40,7 @@ interface DeviceConsumptionSectionProps {
     deviceId: string
 }
 
-export const DeviceConsumptionSection = ({
-    deviceId,
-}: DeviceConsumptionSectionProps) => (
+export const DeviceConsumptionSection = ({ deviceId }: DeviceConsumptionSectionProps) => (
     <ConsumptionSection targetType="DEVICE" targetId={deviceId} />
 )
 
@@ -99,9 +95,7 @@ export const ConsumptionSection = ({
                 <i className="corner br" />
 
                 <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-                    <h2 className="font-heading text-[17px] font-semibold uppercase">
-                        Consumo
-                    </h2>
+                    <h2 className="font-heading text-[17px] font-semibold uppercase">Consumo</h2>
                     <GranularityTabs
                         granularities={granularities}
                         value={granularity}
@@ -125,7 +119,10 @@ export const ConsumptionSection = ({
                             role="alert"
                             className="border-status-danger/40 flex items-start gap-3 border p-4"
                         >
-                            <AlertCircle className="text-status-danger h-5 w-5 shrink-0" aria-hidden="true" />
+                            <AlertCircle
+                                className="text-status-danger h-5 w-5 shrink-0"
+                                aria-hidden="true"
+                            />
                             <p className="text-status-danger/85 text-sm">
                                 {query.error instanceof Error
                                     ? query.error.message

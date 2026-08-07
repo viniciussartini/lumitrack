@@ -6,7 +6,7 @@ import { slugify } from "@/lib/slugify"
 /**
  * Mapeia elementos markdown pros tokens Industry (`.blueprint`/`.lt-legal`/
  * `.table`), consistente com o restante do app. Extraído de
- * `LegalDocumentPage.tsx` quando `AboutPage` (#137) virou o 2º consumidor
+ * `LegalDocumentPage.tsx` quando `AboutPage` virou o 2º consumidor
  * real — mesmo critério de promoção já usado em `getDisplayInfo`/
  * `useLiveMeterReading`. Documentos que usam isto: `src/legal/*.md`
  * (Política de Privacidade, Termos de Uso) e `src/content/about.md`

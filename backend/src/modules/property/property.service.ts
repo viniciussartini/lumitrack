@@ -1,6 +1,9 @@
 import { z } from "zod"
 import { createPropertySchema, updatePropertySchema } from "@/modules/property/property.schema.js"
-import type { PropertyRepository, PropertyResponse } from "@/modules/property/property.repository.js"
+import type {
+    PropertyRepository,
+    PropertyResponse,
+} from "@/modules/property/property.repository.js"
 import type { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { NotFoundError, ForbiddenError, ValidationError } from "@/shared/errors/AppError.js"
 import { paginationQuerySchema, type Paginated } from "@/shared/pagination.js"
@@ -26,9 +29,7 @@ export class PropertyService {
         const parsed = createPropertySchema.safeParse(input)
 
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
@@ -57,9 +58,7 @@ export class PropertyService {
         const parsed = paginationQuerySchema.safeParse(query)
 
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
@@ -72,9 +71,7 @@ export class PropertyService {
         const parsed = updatePropertySchema.safeParse(input)
 
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 

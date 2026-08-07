@@ -64,12 +64,13 @@ export class AuthController {
                     outcome: "FAILURE",
                     resourceType: "User",
                     metadata: {
-                        // Blind index (não o e-mail em claro — #10, A09/LGPD
-                        // Art. 6º III/VII): preserva a correlação entre
+                        // Blind index (não o e-mail em claro): preserva a correlação entre
                         // tentativas contra o mesmo alvo, inclusive de quem
                         // não é titular, sem reter o dado pessoal em si.
                         attemptedEmailHash:
-                            typeof attemptedEmail === "string" ? generateBlindIndex(attemptedEmail) : null,
+                            typeof attemptedEmail === "string"
+                                ? generateBlindIndex(attemptedEmail)
+                                : null,
                     },
                     ...getRequestContext(req),
                 })
@@ -82,7 +83,8 @@ export class AuthController {
     // Segunda etapa do login quando a conta tem MFA habilitado.
     async verifyMfaLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const { token, refreshToken, channel, userId } = await this.authService.completeMfaLogin(req.body)
+            const { token, refreshToken, channel, userId } =
+                await this.authService.completeMfaLogin(req.body)
 
             await this.auditService.record({
                 userId,
@@ -144,7 +146,10 @@ export class AuthController {
                 res.clearCookie(env.AUTH_COOKIE_NAME, getAuthCookieOptions(env.NODE_ENV, 0))
                 res.clearCookie(env.CSRF_COOKIE_NAME, getCsrfCookieOptions(env.NODE_ENV, 0))
                 res.clearCookie(env.REFRESH_COOKIE_NAME, getRefreshCookieOptions(env.NODE_ENV, 0))
-                res.clearCookie(env.REFRESH_CSRF_COOKIE_NAME, getRefreshCsrfCookieOptions(env.NODE_ENV, 0))
+                res.clearCookie(
+                    env.REFRESH_CSRF_COOKIE_NAME,
+                    getRefreshCsrfCookieOptions(env.NODE_ENV, 0),
+                )
             }
 
             res.status(200).json({ status: "success", message: "Logout realizado com sucesso" })
@@ -211,7 +216,8 @@ export class AuthController {
 
             res.status(200).json({
                 status: "success",
-                message: "Se o e-mail estiver cadastrado, você receberá as instruções de redefinição.",
+                message:
+                    "Se o e-mail estiver cadastrado, você receberá as instruções de redefinição.",
             })
         } catch (error) {
             next(error)
@@ -299,7 +305,11 @@ export class AuthController {
             const sessionMaxAge = parseJwtExpiry(env.JWT_WEB_EXPIRES_IN)
             const refreshMaxAge = parseJwtExpiry(env.JWT_REFRESH_EXPIRES_IN)
 
-            res.cookie(env.AUTH_COOKIE_NAME, token, getAuthCookieOptions(env.NODE_ENV, sessionMaxAge))
+            res.cookie(
+                env.AUTH_COOKIE_NAME,
+                token,
+                getAuthCookieOptions(env.NODE_ENV, sessionMaxAge),
+            )
             res.cookie(
                 env.CSRF_COOKIE_NAME,
                 generateCsrfToken(),

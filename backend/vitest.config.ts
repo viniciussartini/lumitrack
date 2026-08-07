@@ -3,12 +3,12 @@ import { resolve } from "path"
 
 export default defineConfig({
     test: {
-        globals: true,          // describe, it, expect disponíveis sem import
+        globals: true, // describe, it, expect disponíveis sem import
         environment: "node",
         env: {
-            NODE_ENV: "test",   // Garante que o código saiba que está em ambiente de teste
+            NODE_ENV: "test", // Garante que o código saiba que está em ambiente de teste
 
-            // Allowlist SSRF (#10 — shared/security/outboundHost.ts) só para os
+            // Allowlist SSRF (shared/security/outboundHost.ts) só para os
             // hostnames fictícios já usados como fixture nos testes de medidor
             // (meter.service.test.ts/meter.routes.test.ts) — sem isso, o
             // deny-by-default de loopback/RFC1918 quebraria esses testes, que não
@@ -17,7 +17,7 @@ export default defineConfig({
             IOT_ALLOWED_HOSTS: "localhost,novo-host,h,127.0.0.1/32,::1/128",
         },
 
-        maxWorkers: 1,           // Força testes a rodarem em série para evitar conflitos no banco de dados compartilhado. O cleanDatabase() apaga tudo antes de cada teste, mas se rodarem em paralelo, podem interferir um no outro.
+        maxWorkers: 1, // Força testes a rodarem em série para evitar conflitos no banco de dados compartilhado. O cleanDatabase() apaga tudo antes de cada teste, mas se rodarem em paralelo, podem interferir um no outro.
 
         coverage: {
             provider: "v8",

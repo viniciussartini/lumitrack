@@ -23,7 +23,7 @@ export const ConsumptionTable = ({ buckets, granularity }: ConsumptionTableProps
     >
         <table className="w-full text-sm" data-testid="consumption-table">
             <thead className="bg-slate-50 dark:bg-slate-900/50">
-                <tr className="text-left text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <tr className="text-left text-xs tracking-wide text-slate-500 uppercase dark:text-slate-400">
                     <th scope="col" className="px-4 py-3 font-medium">
                         Período
                     </th>
@@ -48,7 +48,7 @@ export const ConsumptionTable = ({ buckets, granularity }: ConsumptionTableProps
                             "hover:bg-slate-50 dark:hover:bg-slate-900/50",
                         )}
                     >
-                        <td className="whitespace-nowrap px-4 py-3 text-slate-700 dark:text-slate-300">
+                        <td className="px-4 py-3 whitespace-nowrap text-slate-700 dark:text-slate-300">
                             {formatBucketLabel(bucket.bucketStart, granularity)}
                         </td>
                         <td className="px-4 py-3 text-right font-mono tabular-nums">
@@ -57,10 +57,10 @@ export const ConsumptionTable = ({ buckets, granularity }: ConsumptionTableProps
                                 kWh
                             </span>
                         </td>
-                        <td className="px-4 py-3 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
+                        <td className="px-4 py-3 text-right font-mono text-slate-700 tabular-nums dark:text-slate-300">
                             {formatCostBrl(bucket.costBrl)}
                         </td>
-                        <td className="px-4 py-3 text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
+                        <td className="px-4 py-3 text-right font-mono text-slate-700 tabular-nums dark:text-slate-300">
                             {formatAvgPowerW(bucket.avgPowerW)}
                         </td>
                     </tr>

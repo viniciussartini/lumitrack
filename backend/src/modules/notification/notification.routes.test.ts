@@ -9,19 +9,31 @@ const notificationStore = new NotificationStore()
 const app = createApp({ prismaClient: prismaHttpTest, notificationStore })
 
 const validUser = {
-    email: "joao@example.com", password: "Senha@123", userType: "INDIVIDUAL",
-    acceptedTerms: true, firstName: "João", lastName: "Silva", cpf: "529.982.247-25",
+    email: "joao@example.com",
+    password: "Senha@123",
+    userType: "INDIVIDUAL",
+    acceptedTerms: true,
+    firstName: "João",
+    lastName: "Silva",
+    cpf: "529.982.247-25",
 }
 
 const anotherUser = {
-    email: "maria@example.com", password: "Senha@123", userType: "INDIVIDUAL",
-    acceptedTerms: true, firstName: "Maria", lastName: "Santos", cpf: "310.037.856-38",
+    email: "maria@example.com",
+    password: "Senha@123",
+    userType: "INDIVIDUAL",
+    acceptedTerms: true,
+    firstName: "Maria",
+    lastName: "Santos",
+    cpf: "310.037.856-38",
 }
 
 async function registerAndLogin(user = validUser) {
     const createRes = await request(app).post("/api/users").send(user)
     const loginRes = await request(app).post("/api/auth/login").send({
-        email: user.email, password: user.password, channel: "MOBILE",
+        email: user.email,
+        password: user.password,
+        channel: "MOBILE",
     })
     return { userId: createRes.body.data.id as string, token: loginRes.body.data.token as string }
 }
@@ -33,12 +45,16 @@ function seedNotification(userId: string) {
         meterId: "meter-1",
         targetType: "PROPERTY",
         targetPath: "/propriedades/prop-1",
-        message: "Alerta \"Pico de potência\" foi disparado. Clique aqui para ver.",
+        message: 'Alerta "Pico de potência" foi disparado. Clique aqui para ver.',
     })
 }
 
-beforeEach(async () => { await cleanHttpDatabase() })
-afterAll(async () => { await prismaHttpTest.$disconnect() })
+beforeEach(async () => {
+    await cleanHttpDatabase()
+})
+afterAll(async () => {
+    await prismaHttpTest.$disconnect()
+})
 
 describe("GET /api/notifications", () => {
     it("deve retornar 401 sem token", async () => {
@@ -49,7 +65,9 @@ describe("GET /api/notifications", () => {
     it("deve retornar 200 com lista vazia quando não há notificações", async () => {
         const { token } = await registerAndLogin()
 
-        const response = await request(app).get("/api/notifications").set("Authorization", `Bearer ${token}`)
+        const response = await request(app)
+            .get("/api/notifications")
+            .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(200)
         expect(response.body.data).toEqual([])
@@ -59,7 +77,9 @@ describe("GET /api/notifications", () => {
         const { userId, token } = await registerAndLogin()
         seedNotification(userId)
 
-        const response = await request(app).get("/api/notifications").set("Authorization", `Bearer ${token}`)
+        const response = await request(app)
+            .get("/api/notifications")
+            .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(200)
         expect(response.body.data).toHaveLength(1)
@@ -71,7 +91,9 @@ describe("GET /api/notifications", () => {
         seedNotification(userIdA)
         const { token: tokenB } = await registerAndLogin(anotherUser)
 
-        const response = await request(app).get("/api/notifications").set("Authorization", `Bearer ${tokenB}`)
+        const response = await request(app)
+            .get("/api/notifications")
+            .set("Authorization", `Bearer ${tokenB}`)
 
         expect(response.body.data).toEqual([])
     })
@@ -125,7 +147,9 @@ describe("DELETE /api/notifications", () => {
         seedNotification(userId)
         seedNotification(userId)
 
-        const response = await request(app).delete("/api/notifications").set("Authorization", `Bearer ${token}`)
+        const response = await request(app)
+            .delete("/api/notifications")
+            .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(204)
         expect(notificationStore.findAllByUser(userId)).toEqual([])

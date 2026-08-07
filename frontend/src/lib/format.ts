@@ -43,8 +43,7 @@ export const formatPercent = (value: number | null | undefined): string => {
  * Formata uma tarifa em R$/kWh (TUSD, TE, etc.).
  * formatKwhPrice(0.75) → "R$ 0,75/kWh"
  */
-export const formatKwhPrice = (value: number): string =>
-    `${formatBrl(value)}/kWh`
+export const formatKwhPrice = (value: number): string => `${formatBrl(value)}/kWh`
 
 const electricalFormatter = new Intl.NumberFormat("pt-BR", {
     minimumFractionDigits: 2,
@@ -56,14 +55,11 @@ const electricalFormatter = new Intl.NumberFormat("pt-BR", {
  * SSE por medidor). Duas casas decimais, unidade colada ao número.
  * formatVoltageRms(220.4) → "220,40V"
  */
-export const formatVoltageRms = (value: number): string =>
-    `${electricalFormatter.format(value)}V`
+export const formatVoltageRms = (value: number): string => `${electricalFormatter.format(value)}V`
 
-export const formatCurrentRms = (value: number): string =>
-    `${electricalFormatter.format(value)}A`
+export const formatCurrentRms = (value: number): string => `${electricalFormatter.format(value)}A`
 
-export const formatPowerW = (value: number): string =>
-    `${electricalFormatter.format(value)}W`
+export const formatPowerW = (value: number): string => `${electricalFormatter.format(value)}W`
 
 /**
  * Potência em kW (não W) — usado nos KPIs "Potência agora" da hierarquia
@@ -88,5 +84,4 @@ const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" })
  * `formatDateTime` (formatters/alert.ts), que inclui hora.
  * formatDate("2025-03-12T14:30:00Z") → "12/03/2025"
  */
-export const formatDate = (value: string): string =>
-    dateFormatter.format(new Date(value))
+export const formatDate = (value: string): string => dateFormatter.format(new Date(value))

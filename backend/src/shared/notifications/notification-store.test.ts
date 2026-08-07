@@ -8,7 +8,7 @@ function makeInput(overrides: Partial<Parameters<NotificationStore["add"]>[1]> =
         meterId: "meter-1",
         targetType: "PROPERTY" as const,
         targetPath: "/propriedades/prop-1",
-        message: "Alerta \"Pico de potência\" foi disparado. Clique aqui para ver.",
+        message: 'Alerta "Pico de potência" foi disparado. Clique aqui para ver.',
         ...overrides,
     }
 }

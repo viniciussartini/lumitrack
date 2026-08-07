@@ -69,7 +69,7 @@ interface RealtimePowerChartProps {
  * cliente via `usePowerHistory`. Sem histórico anterior à abertura da
  * página — nasce vazio, cresce enquanto a página fica aberta.
  *
- * Sem frame `.blueprint` próprio (#117) — o card inteiro (header + gráfico)
+ * Sem frame `.blueprint` próprio — o card inteiro (header + gráfico)
  * é UM card só no handoff; o wrapper vive em `RealtimeSection`.
  */
 export const RealtimePowerChart = ({ history, timeWindow }: RealtimePowerChartProps) => {

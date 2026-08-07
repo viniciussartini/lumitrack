@@ -48,10 +48,10 @@ export const ReportsPage = () => {
     const target: { targetType: TargetType; targetId: string } | null = deviceId
         ? { targetType: "DEVICE", targetId: deviceId }
         : areaId
-        ? { targetType: "AREA", targetId: areaId }
-        : propertyId
-        ? { targetType: "PROPERTY", targetId: propertyId }
-        : null
+          ? { targetType: "AREA", targetId: areaId }
+          : propertyId
+            ? { targetType: "PROPERTY", targetId: propertyId }
+            : null
 
     return (
         <div className="flex flex-col gap-6">
@@ -62,7 +62,7 @@ export const ReportsPage = () => {
                 Selecione um alvo para ver o consumo agregado por hora, dia, mês ou ano.
             </p>
 
-            <div className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-3 dark:border-slate-800 dark:bg-slate-900">
                 <Select
                     label="Propriedade"
                     value={propertyId}

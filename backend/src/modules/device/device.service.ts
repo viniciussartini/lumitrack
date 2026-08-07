@@ -16,8 +16,10 @@ export class DeviceService {
         private readonly propertyRepository: PropertyRepository,
     ) {}
 
-    private async validateAreaOwnership(areaId: string, propertyId: string, userId: string
-
+    private async validateAreaOwnership(
+        areaId: string,
+        propertyId: string,
+        userId: string,
     ): Promise<void> {
         const property = await this.propertyRepository.findById(propertyId)
 
@@ -40,15 +42,16 @@ export class DeviceService {
         }
     }
 
-    async create(areaId: string, propertyId: string, userId: string, input: unknown
-
+    async create(
+        areaId: string,
+        propertyId: string,
+        userId: string,
+        input: unknown,
     ): Promise<DeviceResponse> {
         const parsed = createDeviceSchema.safeParse(input)
 
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
@@ -57,8 +60,11 @@ export class DeviceService {
         return this.deviceRepository.create(areaId, parsed.data)
     }
 
-    async findById(id: string, areaId: string, propertyId: string, userId: string
-
+    async findById(
+        id: string,
+        areaId: string,
+        propertyId: string,
+        userId: string,
     ): Promise<DeviceResponse> {
         await this.validateAreaOwnership(areaId, propertyId, userId)
 
@@ -75,42 +81,43 @@ export class DeviceService {
         return device
     }
 
-    async findAll(areaId: string, propertyId: string, userId: string, query: unknown
-
+    async findAll(
+        areaId: string,
+        propertyId: string,
+        userId: string,
+        query: unknown,
     ): Promise<Paginated<DeviceResponse>> {
         await this.validateAreaOwnership(areaId, propertyId, userId)
 
         const parsed = paginationQuerySchema.safeParse(query)
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
         return this.deviceRepository.findAllByAreaPaginated(areaId, parsed.data)
     }
 
-    async update(id: string, areaId: string, propertyId: string, userId: string, input: unknown
-
+    async update(
+        id: string,
+        areaId: string,
+        propertyId: string,
+        userId: string,
+        input: unknown,
     ): Promise<DeviceResponse> {
         await this.findById(id, areaId, propertyId, userId)
 
         const parsed = updateDeviceSchema.safeParse(input)
 
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
         return this.deviceRepository.update(id, parsed.data)
     }
 
-    async delete(id: string, areaId: string, propertyId: string, userId: string
-
-    ): Promise<void> {
+    async delete(id: string, areaId: string, propertyId: string, userId: string): Promise<void> {
         await this.findById(id, areaId, propertyId, userId)
         await this.deviceRepository.delete(id)
     }

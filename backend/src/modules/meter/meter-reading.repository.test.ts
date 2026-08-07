@@ -71,9 +71,15 @@ describe("MeterReadingRepository.upsertMinute", () => {
         const minuteStart = new Date("2026-01-15T14:37:00.000Z")
 
         await meterReadingRepository.upsertMinute({
-            meterId, minuteStart,
-            energyKwh: 0.01, avgVoltage: 220, avgCurrent: 5, avgPowerW: 1100, avgPowerFactor: 0.9,
-            sampleCount: 30, secondsCovered: 30,
+            meterId,
+            minuteStart,
+            energyKwh: 0.01,
+            avgVoltage: 220,
+            avgCurrent: 5,
+            avgPowerW: 1100,
+            avgPowerFactor: 0.9,
+            sampleCount: 30,
+            secondsCovered: 30,
         })
 
         const reading = await prismaTest.meterReading.findUniqueOrThrow({
@@ -91,16 +97,28 @@ describe("MeterReadingRepository.upsertMinute", () => {
 
         // Primeira metade do minuto: 30s, 30 amostras, 220V, 0.01 kWh.
         await meterReadingRepository.upsertMinute({
-            meterId, minuteStart,
-            energyKwh: 0.01, avgVoltage: 220, avgCurrent: 5, avgPowerW: 1100, avgPowerFactor: 0.9,
-            sampleCount: 30, secondsCovered: 30,
+            meterId,
+            minuteStart,
+            energyKwh: 0.01,
+            avgVoltage: 220,
+            avgCurrent: 5,
+            avgPowerW: 1100,
+            avgPowerFactor: 0.9,
+            sampleCount: 30,
+            secondsCovered: 30,
         })
 
         // Servidor reinicia — segunda metade do minuto: 30s, 30 amostras, 240V, 0.012 kWh.
         await meterReadingRepository.upsertMinute({
-            meterId, minuteStart,
-            energyKwh: 0.012, avgVoltage: 240, avgCurrent: 5, avgPowerW: 1200, avgPowerFactor: 0.9,
-            sampleCount: 30, secondsCovered: 30,
+            meterId,
+            minuteStart,
+            energyKwh: 0.012,
+            avgVoltage: 240,
+            avgCurrent: 5,
+            avgPowerW: 1200,
+            avgPowerFactor: 0.9,
+            sampleCount: 30,
+            secondsCovered: 30,
         })
 
         const reading = await prismaTest.meterReading.findUniqueOrThrow({
@@ -123,14 +141,26 @@ describe("MeterReadingRepository.upsertMinute", () => {
         const meterId = await setupMeter()
 
         await meterReadingRepository.upsertMinute({
-            meterId, minuteStart: new Date("2026-01-15T14:37:00.000Z"),
-            energyKwh: 0.01, avgVoltage: 220, avgCurrent: 5, avgPowerW: 1100, avgPowerFactor: 0.9,
-            sampleCount: 60, secondsCovered: 60,
+            meterId,
+            minuteStart: new Date("2026-01-15T14:37:00.000Z"),
+            energyKwh: 0.01,
+            avgVoltage: 220,
+            avgCurrent: 5,
+            avgPowerW: 1100,
+            avgPowerFactor: 0.9,
+            sampleCount: 60,
+            secondsCovered: 60,
         })
         await meterReadingRepository.upsertMinute({
-            meterId, minuteStart: new Date("2026-01-15T14:38:00.000Z"),
-            energyKwh: 0.02, avgVoltage: 220, avgCurrent: 5, avgPowerW: 1100, avgPowerFactor: 0.9,
-            sampleCount: 60, secondsCovered: 60,
+            meterId,
+            minuteStart: new Date("2026-01-15T14:38:00.000Z"),
+            energyKwh: 0.02,
+            avgVoltage: 220,
+            avgCurrent: 5,
+            avgPowerW: 1100,
+            avgPowerFactor: 0.9,
+            sampleCount: 60,
+            secondsCovered: 60,
         })
 
         const count = await prismaTest.meterReading.count({ where: { meterId } })

@@ -13,7 +13,10 @@ import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.reposito
 // Rota top-level: /api/consumption — consumo agregado via MeterReading,
 // somente leitura (Fase 3.3). Não aninhada sob property/area/device porque o
 // alvo é escolhido por query param (targetType/targetId), igual a /api/meters.
-export function consumptionRoutes(authenticate: RequestHandler, prismaClient: PrismaClient): Router {
+export function consumptionRoutes(
+    authenticate: RequestHandler,
+    prismaClient: PrismaClient,
+): Router {
     const router = Router()
 
     const consumptionRepository = new ConsumptionRepository(prismaClient)

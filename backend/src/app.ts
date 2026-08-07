@@ -44,7 +44,7 @@ export interface AppDependencies {
     authRateLimiter?: RequestHandler
     // Injeção só usada em teste — permite capturar o stream do pino com
     // `level` habilitado (o logger singleton fica "silent" em NODE_ENV=test)
-    // para asserção de não-vazamento de dado sensível (#10 — RNF05).
+    // para asserção de não-vazamento de dado sensível (RNF05).
     logger?: Logger
 }
 
@@ -78,28 +78,32 @@ export function createApp(deps: AppDependencies = {}) {
         })
     }
 
-    app.use(helmet({
-        // CSP padrão do Helmet é pensado para apps que servem HTML/JS/CSS.
-        // Este backend é uma API JSON pura (+ SSE) — nada deve ser carregado
-        // como documento sob esta origem, então negamos tudo explicitamente.
-        contentSecurityPolicy: {
-            directives: {
-                defaultSrc: ["'none'"],
-                frameAncestors: ["'none'"],
+    app.use(
+        helmet({
+            // CSP padrão do Helmet é pensado para apps que servem HTML/JS/CSS.
+            // Este backend é uma API JSON pura (+ SSE) — nada deve ser carregado
+            // como documento sob esta origem, então negamos tudo explicitamente.
+            contentSecurityPolicy: {
+                directives: {
+                    defaultSrc: ["'none'"],
+                    frameAncestors: ["'none'"],
+                },
             },
-        },
-        // HSTS explícito (1 ano, incluindo subdomínios) — força HTTPS em
-        // navegadores que já visitaram a API ao menos uma vez por HTTPS.
-        hsts: {
-            maxAge: 31536000,
-            includeSubDomains: true,
-            preload: true,
-        },
-    }))
-    app.use(cors({
-        origin: env.CORS_ORIGIN,
-        credentials: true,
-    }))
+            // HSTS explícito (1 ano, incluindo subdomínios) — força HTTPS em
+            // navegadores que já visitaram a API ao menos uma vez por HTTPS.
+            hsts: {
+                maxAge: 31536000,
+                includeSubDomains: true,
+                preload: true,
+            },
+        }),
+    )
+    app.use(
+        cors({
+            origin: env.CORS_ORIGIN,
+            credentials: true,
+        }),
+    )
 
     // Health check fica fora do rate limit (monitoramento / load balancer).
     app.get("/health", (_req, res) => {
@@ -109,18 +113,20 @@ export function createApp(deps: AppDependencies = {}) {
     // Necessário para o canal WEB ler o cookie de sessão/CSRF em `authenticate`.
     app.use(cookieParser())
 
-    // Log estruturado de requisição/resposta (#08 — A09). `/health` é
+    // Log estruturado de requisição/resposta (A09). `/health` é
     // ignorado porque é pollado com frequência por load balancer/monitoramento
     // e só geraria ruído.
-    app.use(pinoHttp({
-        logger: appLogger,
-        autoLogging: { ignore: (req) => req.url === "/health" },
-        customLogLevel(_req, res, err) {
-            if (err || res.statusCode >= 500) return "error"
-            if (res.statusCode >= 400) return "warn"
-            return "info"
-        },
-    }))
+    app.use(
+        pinoHttp({
+            logger: appLogger,
+            autoLogging: { ignore: (req) => req.url === "/health" },
+            customLogLevel(_req, res, err) {
+                if (err || res.statusCode >= 500) return "error"
+                if (res.statusCode >= 400) return "warn"
+                return "info"
+            },
+        }),
+    )
 
     // Rede de segurança global por IP para toda a API.
     app.use(globalRateLimiter)
@@ -134,7 +140,7 @@ export function createApp(deps: AppDependencies = {}) {
     // Rate limit estrito nos endpoints públicos de autenticação (brute force).
     // Aplicado após o parser de JSON para que a chave possa considerar o e-mail.
     // `app.use("/api/auth/login", ...)` é um mount point — por semântica de
-    // prefixo do Express, isso já cobre `/api/auth/login/mfa` também (#12),
+    // prefixo do Express, isso já cobre `/api/auth/login/mfa` também,
     // que é exatamente o alvo de brute force de um código TOTP de 6 dígitos
     // (baixa entropia, precisa do mesmo limiter estrito que a senha).
     app.use("/api/auth/login", authRateLimiter)
@@ -144,7 +150,10 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/users", exportRoutes(authenticate, prismaClient, auditService))
     app.use("/api/users", userRoutes(authenticate, prismaClient, auditService))
     app.use("/api/admin", adminRoutes(authenticate, prismaClient, auditService))
-    app.use("/api/auth", authRoutes(authenticate, prismaClient, sendPasswordResetEmail, auditService))
+    app.use(
+        "/api/auth",
+        authRoutes(authenticate, prismaClient, sendPasswordResetEmail, auditService),
+    )
     app.use("/api/distributors", distributorRoutes(authenticate, prismaClient))
     app.use("/api/tariff-flag", tariffFlagRoutes(authenticate, prismaClient))
     app.use("/api/properties", propertyRoutes(authenticate, prismaClient, auditService))

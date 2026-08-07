@@ -6,12 +6,7 @@ import { DeviceService } from "@/modules/device/device.service.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 
-
-export function deviceRoutes(
-    authenticate: RequestHandler,
-    prismaClient: PrismaClient,
-): Router {
-
+export function deviceRoutes(authenticate: RequestHandler, prismaClient: PrismaClient): Router {
     // Montado em area.routes.ts como:
     //   router.use("/:areaId/devices", deviceRoutes(authenticate, prismaClient))
     //

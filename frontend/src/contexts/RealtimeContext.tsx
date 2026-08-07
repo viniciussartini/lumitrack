@@ -1,10 +1,4 @@
-import {
-    createContext,
-    useContext,
-    useEffect,
-    useState,
-    type ReactNode,
-} from "react"
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
@@ -18,7 +12,7 @@ interface RealtimeContextValue {
     readingsByMeterId: Record<string, ReadingPayload>
     /**
      * Conexão SSE aberta agora? Consumido pelo badge "Dados ao vivo" do
-     * Header (issue #136) — decisão do usuário (2026-08-04): o badge só
+     * Header — decisão do usuário (2026-08-04): o badge só
      * existe quando isto é `true`; nunca fica pintado fixo, porque um
      * badge "ao vivo" com o stream caído mente sobre a frescura do dado.
      */
@@ -60,9 +54,7 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
     const { user, isAuthenticated } = useAuth()
     const queryClient = useQueryClient()
     const navigate = useNavigate()
-    const [readingsByMeterId, setReadingsByMeterId] = useState<
-        Record<string, ReadingPayload>
-    >({})
+    const [readingsByMeterId, setReadingsByMeterId] = useState<Record<string, ReadingPayload>>({})
     const [isConnected, setIsConnected] = useState(false)
 
     useEffect(() => {
@@ -84,10 +76,10 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
             },
 
             onAlertFiring: () => {
-                queryClient.invalidateQueries({
+                void queryClient.invalidateQueries({
                     queryKey: queryKeys.alerts.firing(),
                 })
-                queryClient.invalidateQueries({
+                void queryClient.invalidateQueries({
                     queryKey: queryKeys.alerts.all,
                 })
             },
@@ -102,7 +94,7 @@ export const RealtimeProvider = ({ children }: RealtimeProviderProps) => {
                     duration: 10_000,
                     action: {
                         label: "Ver",
-                        onClick: () => navigate(notification.targetPath),
+                        onClick: () => void navigate(notification.targetPath),
                     },
                 })
             },

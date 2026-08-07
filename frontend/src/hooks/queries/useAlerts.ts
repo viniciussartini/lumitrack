@@ -8,10 +8,7 @@ import { DEFAULT_PAGE_SIZE } from "@/types/pagination.types"
  * medidor (não mais aninhado sob property/area/device). Cada item já vem
  * com `status` ("firing"|"normal") e `target` resolvidos pelo backend.
  */
-export const useAlerts = (
-    page: number = 1,
-    pageSize: number = DEFAULT_PAGE_SIZE,
-) =>
+export const useAlerts = (page: number = 1, pageSize: number = DEFAULT_PAGE_SIZE) =>
     useQuery({
         queryKey: queryKeys.alerts.list(page, pageSize),
         queryFn: () => alertService.list({ page, pageSize }),

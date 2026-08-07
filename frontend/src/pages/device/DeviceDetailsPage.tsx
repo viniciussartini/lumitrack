@@ -27,8 +27,8 @@ import type { Property } from "@/types/property.types"
  *   2. Header em blueprint: nome + tags (propriedade avó, área pai,
  *      marca/modelo, potência) + ações (Editar dispositivo / ⋯)
  *   3. KPI "Potência agora" (só quando há medidor com leitura real — mesma
- *      decisão de #99/#100: Consumo hoje/Custo projetado ficam de fora por
- *      não terem dado/lógica real)
+ *      decisão de "sem inventar dado": Consumo hoje/Custo projetado ficam de
+ *      fora por não terem dado/lógica real)
  *   4. Seção de Medidor
  *   5. Seção de Consumo
  *
@@ -97,13 +97,12 @@ export const DeviceDetailsPage = () => {
     const property = propertyQuery.data
     const meter = meterQuery.data
     const reading = meter ? readingsByMeterId[meter.id] : undefined
-    const isReadingStale =
-        !reading || now - new Date(reading.receivedAt).getTime() > 10_000
+    const isReadingStale = !reading || now - new Date(reading.receivedAt).getTime() > 10_000
 
     const handleAfterDelete = () => {
         // Após excluir, volta pra área pai. replace evita que o botão
         // "voltar" do navegador traga de volta a página do device deletado.
-        navigate(`/propriedades/${propertyId}/areas/${areaId}`, {
+        void navigate(`/propriedades/${propertyId}/areas/${areaId}`, {
             replace: true,
         })
     }
@@ -135,7 +134,7 @@ export const DeviceDetailsPage = () => {
                         />
                         Potência agora
                     </div>
-                    <div className="font-heading mt-2.5 text-[30px] leading-none font-semibold font-features-['tnum'_1]">
+                    <div className="font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold">
                         {!isReadingStale && reading ? (
                             formatPowerKw(reading.powerW)
                         ) : (
@@ -165,8 +164,8 @@ const BackLink = ({ propertyId, areaId }: BackLinkProps) => {
         propertyId && areaId
             ? `/propriedades/${propertyId}/areas/${areaId}`
             : propertyId
-                ? `/propriedades/${propertyId}`
-                : "/propriedades"
+              ? `/propriedades/${propertyId}`
+              : "/propriedades"
 
     return (
         <Link
@@ -202,9 +201,7 @@ const DeviceHeaderCard = ({
     }>()
     const [isEditOpen, setIsEditOpen] = useState(false)
 
-    const brandModelLabel = [device.brand, device.model]
-        .filter(Boolean)
-        .join(" · ")
+    const brandModelLabel = [device.brand, device.model].filter(Boolean).join(" · ")
 
     return (
         <div className="blueprint p-[26px]">
@@ -240,9 +237,7 @@ const DeviceHeaderCard = ({
                     fallback="Área não disponível"
                 />
                 {brandModelLabel && <Tag variant="neutral">{brandModelLabel}</Tag>}
-                {device.powerWatts !== null && (
-                    <Tag variant="neutral">{device.powerWatts}W</Tag>
-                )}
+                {device.powerWatts !== null && <Tag variant="neutral">{device.powerWatts}W</Tag>}
             </div>
 
             <div className="mt-[22px] flex flex-wrap items-center gap-2">
@@ -324,8 +319,8 @@ const ErrorState = ({ propertyId, areaId, message }: ErrorStateProps) => {
         propertyId && areaId
             ? `/propriedades/${propertyId}/areas/${areaId}`
             : propertyId
-                ? `/propriedades/${propertyId}`
-                : "/propriedades"
+              ? `/propriedades/${propertyId}`
+              : "/propriedades"
 
     return (
         <div

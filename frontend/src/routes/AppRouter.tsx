@@ -24,11 +24,11 @@ import { AboutPage } from "@/pages/about/AboutPage"
 
 /**
  * Mapa de rotas
- * 
+ *
  * PublicRoute    → só para deslogados (login, registro, reset senha)
  * ProtectedRoute → só para logados (todo o resto da app)
- * 
- * @returns 
+ *
+ * @returns
  */
 
 export const AppRouter = () => (
@@ -57,7 +57,7 @@ export const AppRouter = () => (
         <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
-                
+
                 <Route path="/distribuidoras" element={<DistribuidorsPage />} />
 
                 {/* Criar/editar Propriedade/Área/Dispositivo acontece via modal
@@ -67,10 +67,16 @@ export const AppRouter = () => (
                 <Route path="/propriedades/:id" element={<PropertyDetailsPage />} />
 
                 {/* Áreas — rota aninhada espelha o padrão da API (/api/properties/:propertyId/areas/:areaId). */}
-                <Route path="/propriedades/:propertyId/areas/:areaId" element={<AreaDetailsPage />} />
+                <Route
+                    path="/propriedades/:propertyId/areas/:areaId"
+                    element={<AreaDetailsPage />}
+                />
 
                 {/*Dispositivos — rota aninhada em DOIS níveis. */}
-                <Route path="/propriedades/:propertyId/areas/:areaId/devices/:deviceId" element={<DeviceDetailsPage />} />
+                <Route
+                    path="/propriedades/:propertyId/areas/:areaId/devices/:deviceId"
+                    element={<DeviceDetailsPage />}
+                />
 
                 {/* Alertas — inbox global. */}
                 <Route path="/alertas" element={<AlertsPage />} />
@@ -86,9 +92,8 @@ export const AppRouter = () => (
                 <Route path="/perfil" element={<ProfilePage />} />
                 <Route path="/seguranca" element={<SecurityPage />} />
 
-                {/* Institucional — sem RF, versão provisória sem handoff (#137). */}
+                {/* Institucional — sem RF, versão provisória sem handoff. */}
                 <Route path="/sobre" element={<AboutPage />} />
-
             </Route>
         </Route>
 

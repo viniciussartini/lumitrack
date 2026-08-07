@@ -7,10 +7,7 @@ import type { Distributor } from "@/types/distributor.types"
 /**
  * Lista o catálogo de distribuidoras (paginado, somente leitura — Fase 3/5).
  */
-export const useDistributors = (
-    page: number = 1,
-    pageSize: number = DEFAULT_PAGE_SIZE,
-) =>
+export const useDistributors = (page: number = 1, pageSize: number = DEFAULT_PAGE_SIZE) =>
     useQuery({
         queryKey: queryKeys.distributors.list(page, pageSize),
         queryFn: () => distributorService.list({ page, pageSize }),

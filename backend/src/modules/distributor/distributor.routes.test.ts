@@ -124,8 +124,9 @@ describe("GET /api/distributors/:id", () => {
     })
 
     it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .get("/api/distributors/00000000-0000-0000-0000-000000000000")
+        const response = await request(app).get(
+            "/api/distributors/00000000-0000-0000-0000-000000000000",
+        )
 
         expect(response.status).toBe(401)
     })

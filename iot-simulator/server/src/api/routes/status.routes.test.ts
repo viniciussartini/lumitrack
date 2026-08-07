@@ -35,24 +35,28 @@ describe("statusRoutes — GET /api/status/stream", () => {
             })
         })
 
-        const { contentType, firstChunk } = await new Promise<{ contentType: string | undefined; firstChunk: string }>(
-            (resolve, reject) => {
-                let firstChunkReceived = false
+        const { contentType, firstChunk } = await new Promise<{
+            contentType: string | undefined
+            firstChunk: string
+        }>((resolve, reject) => {
+            let firstChunkReceived = false
 
-                const req = httpGet(`http://localhost:${port}/api/status/stream`, (res) => {
-                    res.once("data", (chunk: Buffer) => {
-                        firstChunkReceived = true
-                        resolve({ contentType: res.headers["content-type"], firstChunk: chunk.toString() })
-                        req.destroy()
+            const req = httpGet(`http://localhost:${port}/api/status/stream`, (res) => {
+                res.once("data", (chunk: Buffer) => {
+                    firstChunkReceived = true
+                    resolve({
+                        contentType: res.headers["content-type"],
+                        firstChunk: chunk.toString(),
                     })
+                    req.destroy()
                 })
-                req.once("error", (err) => {
-                    // A conexão é destruída propositalmente após o primeiro chunk —
-                    // ignora o ECONNRESET resultante disso.
-                    if (!firstChunkReceived) reject(err)
-                })
-            },
-        )
+            })
+            req.once("error", (err) => {
+                // A conexão é destruída propositalmente após o primeiro chunk —
+                // ignora o ECONNRESET resultante disso.
+                if (!firstChunkReceived) reject(err)
+            })
+        })
 
         expect(contentType).toContain("text/event-stream")
         expect(firstChunk).toContain("event: snapshot")

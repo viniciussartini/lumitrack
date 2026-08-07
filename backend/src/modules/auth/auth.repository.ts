@@ -2,7 +2,7 @@ import { PrismaClient, Role } from "@/generated/prisma/client.js"
 
 // Retornado pelo findActiveToken — usado tanto no middleware de autenticação
 // quanto no service de logout para verificar se o token é válido.
-// `user.role` (#16 — RBAC) é lido junto nesta mesma query — o middleware
+// `user.role` (RBAC) é lido junto nesta mesma query — o middleware
 // authenticate já fazia este lookup por requisição para validar o token;
 // alargar o select evita uma segunda query só para saber a role, e garante
 // que ela é sempre lida fresca do banco (nunca um claim do JWT).
@@ -68,7 +68,7 @@ export class AuthRepository {
         })
     }
 
-    // #10 — A07: troca a senha, marca o reset como usado e revoga TODAS as
+    // Troca a senha, marca o reset como usado e revoga TODAS as
     // sessões (AuthToken) e refresh tokens do usuário, tudo na mesma
     // transação — o cenário-alvo do "esqueci minha senha" é recuperar uma
     // conta comprometida; se a revogação fosse uma chamada separada que
@@ -100,13 +100,13 @@ export class AuthRepository {
         ])
     }
 
-    // #10 — Retenção e expurgo (Art. 15/16 LGPD): tokens que já não servem
+    // Retenção e expurgo (Art. 15/16 LGPD): tokens que já não servem
     // para nada (expirados ou revogados) ficam guardados por um período de
     // graça (DATA_RETENTION_AUTH_TOKEN_DAYS) só para alguma investigação
     // técnica pontual, depois são removidos. `threshold` é a data de corte
     // (now - retentionDays) — qualquer token cuja revogação/expiração seja
     // anterior a ela é candidato ao expurgo. Tokens nunca revogados E sem
-    // expiresAt (não deveria mais existir após a #04, mas defensivo) nunca
+    // expiresAt (defensivo — não deveria mais existir) nunca
     // são expurgados por este método.
     async deleteExpiredOrRevokedTokens(threshold: Date): Promise<number> {
         const result = await this.prisma.authToken.deleteMany({
@@ -125,10 +125,7 @@ export class AuthRepository {
     async deleteExpiredPasswordResets(threshold: Date): Promise<number> {
         const result = await this.prisma.passwordReset.deleteMany({
             where: {
-                OR: [
-                    { usedAt: { lt: threshold } },
-                    { usedAt: null, expiresAt: { lt: threshold } },
-                ],
+                OR: [{ usedAt: { lt: threshold } }, { usedAt: null, expiresAt: { lt: threshold } }],
             },
         })
         return result.count
@@ -148,7 +145,7 @@ export class AuthRepository {
         })
     }
 
-    // Usado pelo fluxo de desabilitar MFA (#12) — a requisição chega
+    // Usado pelo fluxo de desabilitar MFA — a requisição chega
     // autenticada (só tem o userId do JWT), precisa da senha hasheada para
     // re-confirmar antes de desligar o segundo fator.
     async findUserByIdWithPassword(userId: string) {
@@ -165,7 +162,7 @@ export class AuthRepository {
         })
     }
 
-    // ─── MFA (#12 — A06/A07) ────────────────────────────────────────────────
+    // ─── MFA ────────────────────────────────────────────────────────────────
 
     // `encryptedSecret` já vem cifrado (shared/crypto/mfaEncryption.ts) —
     // este repository nunca lida com o segredo em texto claro.
@@ -192,7 +189,7 @@ export class AuthRepository {
     // `codeHashes` já vêm hasheados (bcrypt, mesmo padrão da senha) — o
     // código em texto claro nunca é persistido, só devolvido ao cliente
     // uma única vez na resposta do setup. Apaga qualquer lote anterior antes
-    // de criar o novo (#10 — A07): defesa em profundidade — o método fica
+    // de criar o novo: defesa em profundidade — o método fica
     // seguro por si só contra códigos órfãos de uma configuração anterior,
     // independente de o caminho até aqui já ter passado ou não por
     // `disableMfa` (que também purga, mas não é o único chamador possível).
@@ -222,7 +219,7 @@ export class AuthRepository {
         })
     }
 
-    // ─── Refresh token (#14 — A06, canal WEB) ───────────────────────────────
+    // ─── Refresh token (canal WEB) ──────────────────────────────────────────
 
     // Persiste um novo refresh token e, atomicamente, revoga o token anterior
     // (quando `replacesTokenId` é fornecido) linkando a cadeia de rotação.

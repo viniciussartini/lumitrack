@@ -11,7 +11,11 @@ import { DEMO_USERS } from "@/config/demoUsers"
 import { AUTH_LAYOUT_GRID_CLASS, BrandPanel } from "@/components/auth/BrandPanel"
 import { useLiveTicker } from "@/hooks/useLiveTicker"
 import { useTariffFlag } from "@/hooks/queries/useTariffFlag"
-import { TARIFF_FLAG_DARK_DOT_COLOR, TARIFF_FLAG_DARK_TEXT_CLASS, TARIFF_FLAG_LABELS } from "@/types/tariff-flag.types"
+import {
+    TARIFF_FLAG_DARK_DOT_COLOR,
+    TARIFF_FLAG_DARK_TEXT_CLASS,
+    TARIFF_FLAG_LABELS,
+} from "@/types/tariff-flag.types"
 import { cn } from "@/lib/cn"
 
 interface LocationState {
@@ -19,7 +23,10 @@ interface LocationState {
     notice?: string
 }
 
-const numberFormatter = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const numberFormatter = new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+})
 
 export const LoginPage = () => {
     const navigate = useNavigate()
@@ -55,25 +62,26 @@ export const LoginPage = () => {
                 setMfaToken(result.mfaToken)
                 return
             }
-            navigate(redirectTo, { replace: true })
+            void navigate(redirectTo, { replace: true })
         } catch (error) {
-            setServerError(
-                error instanceof Error ? error.message : "Erro ao fazer login",
-            )
+            setServerError(error instanceof Error ? error.message : "Erro ao fazer login")
         }
     }
 
     const handleMfaSubmit = async (code: string): Promise<void> => {
         if (!mfaToken) return
         await completeMfaLogin({ mfaToken, code })
-        navigate(redirectTo, { replace: true })
+        void navigate(redirectTo, { replace: true })
     }
 
     // Mesmo caminho do submit normal (login real, sem endpoint novo) — só
     // troca as credenciais digitadas pelas fixas do seed de demonstração.
     const [isDemoLoading, setIsDemoLoading] = useState(false)
 
-    const handleDemoLogin = async (demoUser: { email: string; password: string }): Promise<void> => {
+    const handleDemoLogin = async (demoUser: {
+        email: string
+        password: string
+    }): Promise<void> => {
         setServerError(null)
         setIsDemoLoading(true)
         try {
@@ -82,11 +90,9 @@ export const LoginPage = () => {
                 setMfaToken(result.mfaToken)
                 return
             }
-            navigate(redirectTo, { replace: true })
+            void navigate(redirectTo, { replace: true })
         } catch (error) {
-            setServerError(
-                error instanceof Error ? error.message : "Erro ao fazer login",
-            )
+            setServerError(error instanceof Error ? error.message : "Erro ao fazer login")
         } finally {
             setIsDemoLoading(false)
         }
@@ -106,7 +112,7 @@ export const LoginPage = () => {
                     // compartilhado com a Landing) — número ilustrativo, não é
                     // dado real (não há sessão/medidor antes do login). Bandeira
                     // vem de GET /api/tariff-flag (leitura pública desde
-                    // #143/ADR-0007) — enquanto carrega ou em erro, o box
+                    // ADR-0007) — enquanto carrega ou em erro, o box
                     // simplesmente não aparece (sem chutar uma bandeira que
                     // pode não ser a real).
                     <div className="mt-7 flex flex-wrap gap-3.5">
@@ -120,7 +126,7 @@ export const LoginPage = () => {
                             </div>
                             <div
                                 data-testid="login-live-kwh"
-                                className="font-heading mt-2 text-[30px] leading-none font-semibold font-features-['tnum'_1]"
+                                className="font-heading mt-2 font-features-['tnum'_1] text-[30px] leading-none font-semibold"
                             >
                                 {numberFormatter.format(kwh)}
                                 <span className="ml-1 text-sm text-[#e6ecf2]/60">kW</span>
@@ -139,7 +145,10 @@ export const LoginPage = () => {
                                 >
                                     <span
                                         className="h-[9px] w-[9px] rounded-full"
-                                        style={{ background: TARIFF_FLAG_DARK_DOT_COLOR[tariffFlag.currentFlag] }}
+                                        style={{
+                                            background:
+                                                TARIFF_FLAG_DARK_DOT_COLOR[tariffFlag.currentFlag],
+                                        }}
                                     />
                                     {TARIFF_FLAG_LABELS[tariffFlag.currentFlag]}
                                 </div>
@@ -187,7 +196,7 @@ export const LoginPage = () => {
                             )}
 
                             <form
-                                onSubmit={handleSubmit(onSubmit)}
+                                onSubmit={(e) => void handleSubmit(onSubmit)(e)}
                                 className="mt-7 flex flex-col gap-4"
                                 noValidate
                             >
@@ -203,7 +212,10 @@ export const LoginPage = () => {
                                 <Input
                                     label="Senha"
                                     labelExtra={
-                                        <Link to="/esqueci-senha" className="text-accent-700 text-[12.5px]">
+                                        <Link
+                                            to="/esqueci-senha"
+                                            className="text-accent-700 text-[12.5px]"
+                                        >
                                             Esqueceu a senha?
                                         </Link>
                                     }
@@ -216,7 +228,10 @@ export const LoginPage = () => {
                                 />
 
                                 {serverError && (
-                                    <div role="alert" className="bg-status-danger/10 text-status-danger px-3 py-2 text-sm">
+                                    <div
+                                        role="alert"
+                                        className="bg-status-danger/10 text-status-danger px-3 py-2 text-sm"
+                                    >
                                         {serverError}
                                     </div>
                                 )}
@@ -247,7 +262,9 @@ export const LoginPage = () => {
                                             type="button"
                                             variant="secondary"
                                             isLoading={isDemoLoading}
-                                            onClick={() => handleDemoLogin(DEMO_USERS.residential)}
+                                            onClick={() =>
+                                                void handleDemoLogin(DEMO_USERS.residential)
+                                            }
                                         >
                                             {DEMO_USERS.residential.label}
                                         </Button>
@@ -255,7 +272,9 @@ export const LoginPage = () => {
                                             type="button"
                                             variant="secondary"
                                             isLoading={isDemoLoading}
-                                            onClick={() => handleDemoLogin(DEMO_USERS.commercial)}
+                                            onClick={() =>
+                                                void handleDemoLogin(DEMO_USERS.commercial)
+                                            }
                                         >
                                             {DEMO_USERS.commercial.label}
                                         </Button>

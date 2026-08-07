@@ -2,11 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { deviceService } from "@/services/device.service"
 import { queryKeys } from "@/lib/queryClient"
-import type {
-    Device,
-    CreateDeviceInput,
-    UpdateDeviceInput,
-} from "@/types/device.types"
+import type { Device, CreateDeviceInput, UpdateDeviceInput } from "@/types/device.types"
 
 /**
  * Mutations de Dispositivo.
@@ -40,7 +36,7 @@ export const useCreateDevice = () => {
         mutationFn: ({ propertyId, areaId, input }) =>
             deviceService.create(propertyId, areaId, input),
         onSuccess: (created, { propertyId, areaId }) => {
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.devices.all, "list", propertyId, areaId],
             })
             toast.success("Dispositivo criado", {
@@ -66,15 +62,11 @@ export const useUpdateDevice = () => {
         onSuccess: (updated, { propertyId, areaId }) => {
             // Invalida lista (nome pode ter mudado, ordem pode ter mudado)
             // e o detalhe específico
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.devices.all, "list", propertyId, areaId],
             })
-            queryClient.invalidateQueries({
-                queryKey: queryKeys.devices.detail(
-                    propertyId,
-                    areaId,
-                    updated.id,
-                ),
+            void queryClient.invalidateQueries({
+                queryKey: queryKeys.devices.detail(propertyId, areaId, updated.id),
             })
             toast.success("Dispositivo atualizado", {
                 description: `${updated.name} foi atualizado.`,
@@ -96,16 +88,12 @@ export const useDeleteDevice = () => {
         mutationFn: ({ propertyId, areaId, deviceId }) =>
             deviceService.delete(propertyId, areaId, deviceId),
         onSuccess: (_, { propertyId, areaId, deviceId }) => {
-            queryClient.invalidateQueries({
+            void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.devices.all, "list", propertyId, areaId],
             })
             // Remove o detalhe do cache — não vai mais existir
             queryClient.removeQueries({
-                queryKey: queryKeys.devices.detail(
-                    propertyId,
-                    areaId,
-                    deviceId,
-                ),
+                queryKey: queryKeys.devices.detail(propertyId, areaId, deviceId),
             })
             toast.success("Dispositivo excluído")
         },

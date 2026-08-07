@@ -27,7 +27,12 @@ function useSecondsRemaining(endsAt: number | null): number {
     return Math.max(0, Math.ceil((endsAt - now) / 1000))
 }
 
-export function AnomalyButton({ anomaly, onTrigger, onClear, isPending = false }: AnomalyButtonProps) {
+export function AnomalyButton({
+    anomaly,
+    onTrigger,
+    onClear,
+    isPending = false,
+}: AnomalyButtonProps) {
     const [multiplier, setMultiplier] = useState(DEFAULT_MULTIPLIER)
     const [durationSeconds, setDurationSeconds] = useState(DEFAULT_DURATION_SECONDS)
     const secondsRemaining = useSecondsRemaining(anomaly.active ? anomaly.endsAt : null)

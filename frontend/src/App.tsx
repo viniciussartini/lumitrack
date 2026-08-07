@@ -7,35 +7,26 @@ import { queryClient } from "./lib/queryClient"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 
 const ThemedToaster = () => {
-  const { resolvedTheme } = useTheme()
+    const { resolvedTheme } = useTheme()
 
-  return (
-    <Toaster
-      position="top-right"
-      richColors
-      closeButton
-      theme={resolvedTheme}
-    />
-  )
+    return <Toaster position="top-right" richColors closeButton theme={resolvedTheme} />
 }
 
 const App = () => {
+    return (
+        <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+                <AuthProvider>
+                    <AppRouter />
+                </AuthProvider>
+                <ThemedToaster />
+            </ThemeProvider>
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
-          <AppRouter />
-        </AuthProvider>
-        <ThemedToaster />
-      </ThemeProvider>
-
-      { import.meta.env.DEV && (
-        <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left"/>
-      )}
-      
-    </QueryClientProvider>
-  )
+            {import.meta.env.DEV && (
+                <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+            )}
+        </QueryClientProvider>
+    )
 }
 
 export default App

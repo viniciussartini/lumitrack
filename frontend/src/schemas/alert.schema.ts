@@ -33,10 +33,7 @@ export const alertFormSchema = z.object({
     ),
 
     tolerancePercent: requiredNumber("Informe um número válido").pipe(
-        z
-            .number()
-            .min(0, "Não pode ser negativo")
-            .max(100, "Não pode ultrapassar 100"),
+        z.number().min(0, "Não pode ser negativo").max(100, "Não pode ultrapassar 100"),
     ),
 
     enabled: z.boolean().default(true),

@@ -28,9 +28,7 @@ const createWrapper = () => {
         },
     })
     return ({ children }: { children: ReactNode }) => (
-        <QueryClientProvider client={queryClient}>
-            {children}
-        </QueryClientProvider>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     )
 }
 
@@ -48,10 +46,9 @@ describe("useConsumption", () => {
             granularity: "day",
         })
 
-        const { result } = renderHook(
-            () => useConsumption("PROPERTY", "prop-1", "day"),
-            { wrapper: createWrapper() },
-        )
+        const { result } = renderHook(() => useConsumption("PROPERTY", "prop-1", "day"), {
+            wrapper: createWrapper(),
+        })
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
@@ -74,10 +71,9 @@ describe("useConsumption", () => {
             granularity: "hour",
         })
 
-        renderHook(
-            () => useConsumption("DEVICE", "dev-1", "hour", 2, 5),
-            { wrapper: createWrapper() },
-        )
+        renderHook(() => useConsumption("DEVICE", "dev-1", "hour", 2, 5), {
+            wrapper: createWrapper(),
+        })
 
         await waitFor(() =>
             expect(consumptionService.list).toHaveBeenCalledWith({
@@ -101,10 +97,9 @@ describe("useConsumption", () => {
     it("propaga erro (ex: 404 alvo sem medidor)", async () => {
         vi.mocked(consumptionService.list).mockRejectedValue(new Error("404"))
 
-        const { result } = renderHook(
-            () => useConsumption("PROPERTY", "prop-1", "day"),
-            { wrapper: createWrapper() },
-        )
+        const { result } = renderHook(() => useConsumption("PROPERTY", "prop-1", "day"), {
+            wrapper: createWrapper(),
+        })
 
         await waitFor(() => expect(result.current.isError).toBe(true))
     })

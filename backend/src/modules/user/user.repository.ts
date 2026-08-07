@@ -11,10 +11,8 @@ export type UserWithoutPassword = Omit<
 // cpf/cnpj ficam criptografados em repouso (AES-256-GCM — ver
 // shared/crypto/encryption.ts). Decifrar aqui, na borda do repository, é o
 // que permite que o resto da aplicação (service, controller, frontend)
-// continue lidando com o valor em texto claro exatamente como antes da #07.
-function decryptSensitiveFields<T extends { cpf: string | null; cnpj: string | null }>(
-    user: T,
-): T {
+// continue lidando com o valor em texto claro exatamente como antes da criptografia.
+function decryptSensitiveFields<T extends { cpf: string | null; cnpj: string | null }>(user: T): T {
     return {
         ...user,
         cpf: user.cpf ? decrypt(user.cpf) : user.cpf,
@@ -35,9 +33,9 @@ const READ_OMIT = {
 } as const
 
 export class UserRepository {
-  // Injeção de dependência: o PrismaClient é recebido pelo construtor,
-  // não instanciado aqui dentro. Isso permite que os testes passem
-  // o prismaTest (banco de testes) sem nenhuma alteração no código.
+    // Injeção de dependência: o PrismaClient é recebido pelo construtor,
+    // não instanciado aqui dentro. Isso permite que os testes passem
+    // o prismaTest (banco de testes) sem nenhuma alteração no código.
     constructor(private readonly prisma: PrismaClient) {}
 
     async findByEmail(email: string): Promise<UserWithoutPassword | null> {

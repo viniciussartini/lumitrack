@@ -1,11 +1,4 @@
-import {
-    createContext,
-    useCallback,
-    useContext,
-    useEffect,
-    useState,
-    type ReactNode,
-} from "react"
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { storage, STORAGE_KEYS } from "@/lib/storage"
 
 export type Theme = "light" | "dark" | "system"
@@ -32,9 +25,7 @@ const getSystemTheme = (): ResolvedTheme => {
         return "light"
     } // SSR safety (defensivo)
 
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light"
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
 }
 
 /** Resolve um Theme em um ResolvedTheme (concretiza "system") */
@@ -113,8 +104,7 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
         // Toggle SEMPRE em escolha explícita.
         // Se está em "system", vira o oposto do que está atualmente resolvido.
         setThemeState((current) => {
-            const currentResolved =
-                current === "system" ? getSystemTheme() : current
+            const currentResolved = current === "system" ? getSystemTheme() : current
             return currentResolved === "dark" ? "light" : "dark"
         })
     }, [])
@@ -126,9 +116,7 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
         toggleTheme,
     }
 
-    return (
-        <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
-    )
+    return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }
 
 export const useTheme = (): ThemeContextValue => {

@@ -29,17 +29,34 @@ const userService = new UserService(userRepository)
 
 const meterTargetRepos = { meterRepository, propertyRepository, areaRepository, deviceRepository }
 
-async function setupMeterAndAlert(overrides: { referencePowerKw?: number; tolerancePercent?: number; enabled?: boolean } = {}) {
+async function setupMeterAndAlert(
+    overrides: { referencePowerKw?: number; tolerancePercent?: number; enabled?: boolean } = {},
+) {
     const user = await userService.createUser({
-        email: "joao@example.com", password: "Senha@123", userType: "INDIVIDUAL",
-        acceptedTerms: true, firstName: "João", lastName: "Silva", cpf: "529.982.247-25",
+        email: "joao@example.com",
+        password: "Senha@123",
+        userType: "INDIVIDUAL",
+        acceptedTerms: true,
+        firstName: "João",
+        lastName: "Silva",
+        cpf: "529.982.247-25",
     })
     const distributor = await createTestDistributor(prismaTest)
     const property = await propertyService.create(user.id, {
-        name: "Casa", distributorId: distributor.id, electricalSystem: "TRIPHASIC",
+        name: "Casa",
+        distributorId: distributor.id,
+        electricalSystem: "TRIPHASIC",
     })
     const meter = await prismaTest.meter.create({
-        data: { name: "Medidor", targetType: "PROPERTY", propertyId: property.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "t" },
+        data: {
+            name: "Medidor",
+            targetType: "PROPERTY",
+            propertyId: property.id,
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "t",
+        },
     })
     const alert = await prismaTest.alert.create({
         data: {
@@ -58,13 +75,21 @@ function buildEvaluator() {
     const userEventHub = new UserEventHub()
     const notificationStore = new NotificationStore()
     const evaluator = new AlertEvaluator(
-        alertRepository, alertTriggerEventRepository, meterTargetRepos, userEventHub, notificationStore,
+        alertRepository,
+        alertTriggerEventRepository,
+        meterTargetRepos,
+        userEventHub,
+        notificationStore,
     )
     return { evaluator, userEventHub, notificationStore }
 }
 
-beforeEach(async () => { await cleanDatabase() })
-afterAll(async () => { await prismaTest.$disconnect() })
+beforeEach(async () => {
+    await cleanDatabase()
+})
+afterAll(async () => {
+    await prismaTest.$disconnect()
+})
 
 describe("AlertEvaluator", () => {
     describe("loadCache", () => {
@@ -127,7 +152,13 @@ describe("AlertEvaluator", () => {
             expect(events).toHaveLength(1)
             expect(events[0]).toEqual({
                 event: "alert-firing",
-                payload: { type: "start", alertId: alert.id, alertName: "Pico de potência", meterId: meter.id, startedAt: at },
+                payload: {
+                    type: "start",
+                    alertId: alert.id,
+                    alertName: "Pico de potência",
+                    meterId: meter.id,
+                    startedAt: at,
+                },
             })
         })
 
@@ -181,7 +212,9 @@ describe("AlertEvaluator", () => {
 
             expect(evaluator.isFiring(alert.id)).toBe(false)
 
-            const persisted = await prismaTest.alertTriggerEvent.findFirstOrThrow({ where: { alertId: alert.id } })
+            const persisted = await prismaTest.alertTriggerEvent.findFirstOrThrow({
+                where: { alertId: alert.id },
+            })
             expect(persisted.startedAt).toEqual(startedAt)
             expect(persisted.endedAt).toEqual(endedAt)
             expect(persisted.durationSeconds).toBe(10)
@@ -190,14 +223,22 @@ describe("AlertEvaluator", () => {
             expect(persisted.sampleCount).toBe(6) // 1 (confirmação) + 5 (fechamento)
             expect(persisted.avgPowerW).toBeCloseTo((15000 + 10000 * 5) / 6, 6)
 
-            const endEvent = events.find((e) => e.event === "alert-firing" && (e.payload as { type: string }).type === "end")
+            const endEvent = events.find(
+                (e) => e.event === "alert-firing" && (e.payload as { type: string }).type === "end",
+            )
             expect(endEvent).toBeDefined()
 
             const notificationEvent = events.find((e) => e.event === "notification")
             expect(notificationEvent).toBeDefined()
-            const notification = notificationEvent!.payload as { alertName: string; targetPath: string; message: string }
+            const notification = notificationEvent!.payload as {
+                alertName: string
+                targetPath: string
+                message: string
+            }
             expect(notification.alertName).toBe("Pico de potência")
-            expect(notification.targetPath).toBe(`/propriedades/${(await prismaTest.property.findFirstOrThrow()).id}`)
+            expect(notification.targetPath).toBe(
+                `/propriedades/${(await prismaTest.property.findFirstOrThrow()).id}`,
+            )
             expect(notification.message).toContain("Pico de potência")
 
             expect(notificationStore.findAllByUser(user.id)).toHaveLength(1)
@@ -233,7 +274,9 @@ describe("AlertEvaluator", () => {
             await evaluator.invalidateMeter(meter.id)
 
             expect(evaluator.isFiring(alert.id)).toBe(false)
-            const persisted = await prismaTest.alertTriggerEvent.findFirst({ where: { alertId: alert.id } })
+            const persisted = await prismaTest.alertTriggerEvent.findFirst({
+                where: { alertId: alert.id },
+            })
             expect(persisted).not.toBeNull()
             expect(events.filter((e) => e.event === "notification")).toHaveLength(1)
         })
@@ -269,9 +312,19 @@ describe("AlertEvaluator", () => {
 
     describe("múltiplos alertas no mesmo medidor", () => {
         it("avalia cada alerta de forma independente", async () => {
-            const { user, meter } = await setupMeterAndAlert({ referencePowerKw: 10, tolerancePercent: 2 })
+            const { user, meter } = await setupMeterAndAlert({
+                referencePowerKw: 10,
+                tolerancePercent: 2,
+            })
             const secondAlert = await prismaTest.alert.create({
-                data: { userId: user.id, meterId: meter.id, name: "Alerta 2", referencePowerKw: 20, tolerancePercent: 5, enabled: true },
+                data: {
+                    userId: user.id,
+                    meterId: meter.id,
+                    name: "Alerta 2",
+                    referencePowerKw: 20,
+                    tolerancePercent: 5,
+                    enabled: true,
+                },
             })
             const { evaluator } = buildEvaluator()
             await evaluator.loadCache()
@@ -281,7 +334,9 @@ describe("AlertEvaluator", () => {
             // está fora da faixa do segundo. Usamos 20000W (dentro do 2º).
             for (let i = 0; i < 3; i++) await evaluator.evaluate(meter.id, 20000, new Date())
 
-            const firstAlertId = (await prismaTest.alert.findFirstOrThrow({ where: { name: "Pico de potência" } })).id
+            const firstAlertId = (
+                await prismaTest.alert.findFirstOrThrow({ where: { name: "Pico de potência" } })
+            ).id
             expect(evaluator.isFiring(firstAlertId)).toBe(true) // 20000 fora de [9800,10200]
             expect(evaluator.isFiring(secondAlert.id)).toBe(false) // 20000 dentro de [19000,21000]
         })

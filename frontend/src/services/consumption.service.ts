@@ -23,13 +23,10 @@ export type ConsumptionListResponse = Paginated<ConsumptionBucket> & {
  * bucket (hour/day/month/year) do medidor vinculado ao alvo.
  */
 export const consumptionService = {
-    list: async (
-        params: ListConsumptionParams,
-    ): Promise<ConsumptionListResponse> => {
-        const { data } = await api.get<ApiEnvelope<ConsumptionListResponse>>(
-            "/consumption",
-            { params },
-        )
+    list: async (params: ListConsumptionParams): Promise<ConsumptionListResponse> => {
+        const { data } = await api.get<ApiEnvelope<ConsumptionListResponse>>("/consumption", {
+            params,
+        })
         return data.data
     },
 }

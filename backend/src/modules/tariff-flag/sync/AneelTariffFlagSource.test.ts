@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
-import { AneelTariffFlagSource, TariffFlagSourceError } from "@/modules/tariff-flag/sync/AneelTariffFlagSource.js"
+import {
+    AneelTariffFlagSource,
+    TariffFlagSourceError,
+} from "@/modules/tariff-flag/sync/AneelTariffFlagSource.js"
 
 const ACIONAMENTO_RESOURCE_ID = "0591b8f6-fe54-437b-b72b-1aa2efd46e42"
 
@@ -22,12 +25,36 @@ const validAdicionalBody = {
     success: true,
     result: {
         records: [
-            { DatVigencia: "2022-07-01", NomBandeiraAcionada: "Amarela", VlrAdicionalBandeiraRSMWh: "29,89" },
-            { DatVigencia: "2022-07-01", NomBandeiraAcionada: "Vermelha P1", VlrAdicionalBandeiraRSMWh: "65,00" },
-            { DatVigencia: "2022-07-01", NomBandeiraAcionada: "Vermelha P2", VlrAdicionalBandeiraRSMWh: "97,95" },
-            { DatVigencia: "2024-04-01", NomBandeiraAcionada: "Amarela", VlrAdicionalBandeiraRSMWh: "18,85" },
-            { DatVigencia: "2024-04-01", NomBandeiraAcionada: "Vermelha P1", VlrAdicionalBandeiraRSMWh: "44,63" },
-            { DatVigencia: "2024-04-01", NomBandeiraAcionada: "Vermelha P2", VlrAdicionalBandeiraRSMWh: "78,77" },
+            {
+                DatVigencia: "2022-07-01",
+                NomBandeiraAcionada: "Amarela",
+                VlrAdicionalBandeiraRSMWh: "29,89",
+            },
+            {
+                DatVigencia: "2022-07-01",
+                NomBandeiraAcionada: "Vermelha P1",
+                VlrAdicionalBandeiraRSMWh: "65,00",
+            },
+            {
+                DatVigencia: "2022-07-01",
+                NomBandeiraAcionada: "Vermelha P2",
+                VlrAdicionalBandeiraRSMWh: "97,95",
+            },
+            {
+                DatVigencia: "2024-04-01",
+                NomBandeiraAcionada: "Amarela",
+                VlrAdicionalBandeiraRSMWh: "18,85",
+            },
+            {
+                DatVigencia: "2024-04-01",
+                NomBandeiraAcionada: "Vermelha P1",
+                VlrAdicionalBandeiraRSMWh: "44,63",
+            },
+            {
+                DatVigencia: "2024-04-01",
+                NomBandeiraAcionada: "Vermelha P2",
+                VlrAdicionalBandeiraRSMWh: "78,77",
+            },
         ],
     },
 }
@@ -96,7 +123,10 @@ describe("AneelTariffFlagSource.fetchCurrent — indisponibilidade", () => {
 
 describe("AneelTariffFlagSource.fetchCurrent — payload inválido", () => {
     it("lança TariffFlagSourceError quando o payload não bate com o schema esperado", async () => {
-        const fetchMock = vi.fn(async () => new Response(JSON.stringify({ success: true, result: {} }), { status: 200 }))
+        const fetchMock = vi.fn(
+            async () =>
+                new Response(JSON.stringify({ success: true, result: {} }), { status: 200 }),
+        )
         vi.stubGlobal("fetch", fetchMock)
 
         const source = new AneelTariffFlagSource()
@@ -114,7 +144,11 @@ describe("AneelTariffFlagSource.fetchCurrent — payload inválido", () => {
                         records: [
                             // Mesmo formato malformado observado na investigação do
                             // ADR-0007 (",00" em vez de "0,00").
-                            { DatVigencia: "2024-04-01", NomBandeiraAcionada: "Amarela", VlrAdicionalBandeiraRSMWh: ",00" },
+                            {
+                                DatVigencia: "2024-04-01",
+                                NomBandeiraAcionada: "Amarela",
+                                VlrAdicionalBandeiraRSMWh: ",00",
+                            },
                         ],
                     },
                 }),
@@ -135,7 +169,12 @@ describe("AneelTariffFlagSource.fetchCurrent — payload inválido", () => {
                     JSON.stringify({
                         success: true,
                         result: {
-                            records: [{ DatCompetencia: "2021-09-01", NomBandeiraAcionada: "Escassez Hídrica" }],
+                            records: [
+                                {
+                                    DatCompetencia: "2021-09-01",
+                                    NomBandeiraAcionada: "Escassez Hídrica",
+                                },
+                            ],
                         },
                     }),
                     { status: 200 },
@@ -158,7 +197,11 @@ describe("AneelTariffFlagSource.fetchCurrent — payload inválido", () => {
                     success: true,
                     result: {
                         records: [
-                            { DatVigencia: "2024-04-01", NomBandeiraAcionada: "Amarela", VlrAdicionalBandeiraRSMWh: "18,85" },
+                            {
+                                DatVigencia: "2024-04-01",
+                                NomBandeiraAcionada: "Amarela",
+                                VlrAdicionalBandeiraRSMWh: "18,85",
+                            },
                             // Faltam Vermelha P1 e Vermelha P2.
                         ],
                     },

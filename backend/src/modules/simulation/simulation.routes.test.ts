@@ -3,30 +3,33 @@ import request from "supertest"
 import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
-import { createTestDistributor, createTestTariffFlagConfig } from "@/shared/test/distributorFixture.js"
+import {
+    createTestDistributor,
+    createTestTariffFlagConfig,
+} from "@/shared/test/distributorFixture.js"
 
 const app = createApp({ prismaClient: prismaHttpTest })
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
 
 const validUser = {
-    email:     "joao@example.com",
-    password:  "Senha@123",
-    userType:  "INDIVIDUAL",
+    email: "joao@example.com",
+    password: "Senha@123",
+    userType: "INDIVIDUAL",
     acceptedTerms: true,
     firstName: "João",
-    lastName:  "Silva",
-    cpf:       "529.982.247-25",
+    lastName: "Silva",
+    cpf: "529.982.247-25",
 }
 
 const anotherUser = {
-    email:     "maria@example.com",
-    password:  "Senha@123",
-    userType:  "INDIVIDUAL",
+    email: "maria@example.com",
+    password: "Senha@123",
+    userType: "INDIVIDUAL",
     acceptedTerms: true,
     firstName: "Maria",
-    lastName:  "Santos",
-    cpf:       "310.037.856-38",
+    lastName: "Santos",
+    cpf: "310.037.856-38",
 }
 
 // tusdPerKwh=0.3 + tePerKwh=0.3 = 0.6 R$/kWh; tributos 27,25%; bandeira
@@ -40,9 +43,9 @@ const RATE = 0.6 / (1 - 0.2725)
 async function registerAndLogin(user = validUser) {
     await request(app).post("/api/users").send(user)
     const loginRes = await request(app).post("/api/auth/login").send({
-        email:    user.email,
+        email: user.email,
         password: user.password,
-        channel:  "MOBILE",
+        channel: "MOBILE",
     })
     return loginRes.body.data.token as string
 }
@@ -73,8 +76,8 @@ async function setupFull(user = validUser) {
     return {
         token,
         propertyId: propRes.body.data.id as string,
-        areaId:     areaRes.body.data.id as string,
-        deviceId:   deviceRes.body.data.id as string,
+        areaId: areaRes.body.data.id as string,
+        deviceId: deviceRes.body.data.id as string,
     }
 }
 
@@ -84,8 +87,12 @@ function simulationUrl(propertyId: string) {
 
 // ─── Setup e Teardown ─────────────────────────────────────────────────────────
 
-beforeEach(async () => { await cleanHttpDatabase() })
-afterAll(async ()  => { await prismaHttpTest.$disconnect() })
+beforeEach(async () => {
+    await cleanHttpDatabase()
+})
+afterAll(async () => {
+    await prismaHttpTest.$disconnect()
+})
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/properties/:propertyId/simulation — target: PROPERTY
@@ -99,9 +106,9 @@ describe("POST /api/properties/:propertyId/simulation — target: PROPERTY", () 
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${token}`)
             .send({
-                period:      "DAILY",
-                target:      { type: "PROPERTY" },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "PROPERTY" },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             })
 
@@ -123,10 +130,10 @@ describe("POST /api/properties/:propertyId/simulation — target: PROPERTY", () 
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${token}`)
             .send({
-                period:          "MONTHLY",
-                target:          { type: "PROPERTY" },
-                inputMode:       "WATTS_HOURS",
-                powerWatts:      1000,
+                period: "MONTHLY",
+                target: { type: "PROPERTY" },
+                inputMode: "WATTS_HOURS",
+                powerWatts: 1000,
                 dailyUsageHours: 4,
             })
 
@@ -146,10 +153,10 @@ describe("POST /api/properties/:propertyId/simulation — target: PROPERTY", () 
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${token}`)
             .send({
-                period:          "ANNUAL",
-                target:          { type: "PROPERTY" },
-                inputMode:       "WATTS_HOURS",
-                powerWatts:      2000,
+                period: "ANNUAL",
+                target: { type: "PROPERTY" },
+                inputMode: "WATTS_HOURS",
+                powerWatts: 2000,
                 dailyUsageHours: 2,
             })
 
@@ -161,16 +168,16 @@ describe("POST /api/properties/:propertyId/simulation — target: PROPERTY", () 
     })
 
     it("deve retornar 403 para property de outro usuário", async () => {
-        const { propertyId }  = await setupFull(validUser)
-        const tokenB          = await registerAndLogin(anotherUser)
+        const { propertyId } = await setupFull(validUser)
+        const tokenB = await registerAndLogin(anotherUser)
 
         const response = await request(app)
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${tokenB}`)
             .send({
-                period:      "DAILY",
-                target:      { type: "PROPERTY" },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "PROPERTY" },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             })
 
@@ -184,9 +191,9 @@ describe("POST /api/properties/:propertyId/simulation — target: PROPERTY", () 
             .post(simulationUrl("00000000-0000-0000-0000-000000000000"))
             .set("Authorization", `Bearer ${token}`)
             .send({
-                period:      "DAILY",
-                target:      { type: "PROPERTY" },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "PROPERTY" },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             })
 
@@ -200,9 +207,9 @@ describe("POST /api/properties/:propertyId/simulation — target: PROPERTY", () 
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${token}`)
             .send({
-                period:      "DAILY",
-                target:      { type: "PROPERTY" },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "PROPERTY" },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: -5,
             })
 
@@ -216,10 +223,10 @@ describe("POST /api/properties/:propertyId/simulation — target: PROPERTY", () 
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${token}`)
             .send({
-                period:          "DAILY",
-                target:          { type: "PROPERTY" },
-                inputMode:       "WATTS_HOURS",
-                powerWatts:      1000,
+                period: "DAILY",
+                target: { type: "PROPERTY" },
+                inputMode: "WATTS_HOURS",
+                powerWatts: 1000,
                 dailyUsageHours: 25,
             })
 
@@ -233,9 +240,9 @@ describe("POST /api/properties/:propertyId/simulation — target: PROPERTY", () 
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${token}`)
             .send({
-                period:      "WEEKLY",
-                target:      { type: "PROPERTY" },
-                inputMode:   "KWH_DIRECT",
+                period: "WEEKLY",
+                target: { type: "PROPERTY" },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             })
 
@@ -246,9 +253,9 @@ describe("POST /api/properties/:propertyId/simulation — target: PROPERTY", () 
         const response = await request(app)
             .post(simulationUrl("00000000-0000-0000-0000-000000000000"))
             .send({
-                period:      "DAILY",
-                target:      { type: "PROPERTY" },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "PROPERTY" },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             })
 
@@ -268,9 +275,9 @@ describe("POST /api/properties/:propertyId/simulation — target: AREA", () => {
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${token}`)
             .send({
-                period:      "DAILY",
-                target:      { type: "AREA", areaId },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "AREA", areaId },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 5,
             })
 
@@ -286,10 +293,10 @@ describe("POST /api/properties/:propertyId/simulation — target: AREA", () => {
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${token}`)
             .send({
-                period:          "MONTHLY",
-                target:          { type: "AREA", areaId },
-                inputMode:       "WATTS_HOURS",
-                powerWatts:      800,
+                period: "MONTHLY",
+                target: { type: "AREA", areaId },
+                inputMode: "WATTS_HOURS",
+                powerWatts: 800,
                 dailyUsageHours: 3,
             })
 
@@ -306,9 +313,9 @@ describe("POST /api/properties/:propertyId/simulation — target: AREA", () => {
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${token}`)
             .send({
-                period:      "DAILY",
-                target:      { type: "AREA", areaId: "00000000-0000-0000-0000-000000000000" },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "AREA", areaId: "00000000-0000-0000-0000-000000000000" },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             })
 
@@ -317,15 +324,15 @@ describe("POST /api/properties/:propertyId/simulation — target: AREA", () => {
 
     it("deve retornar 403 para área de outro usuário", async () => {
         const { propertyId, areaId } = await setupFull(validUser)
-        const tokenB                 = await registerAndLogin(anotherUser)
+        const tokenB = await registerAndLogin(anotherUser)
 
         const response = await request(app)
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${tokenB}`)
             .send({
-                period:      "DAILY",
-                target:      { type: "AREA", areaId },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "AREA", areaId },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             })
 
@@ -345,9 +352,9 @@ describe("POST /api/properties/:propertyId/simulation — target: DEVICE", () =>
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${token}`)
             .send({
-                period:      "DAILY",
-                target:      { type: "DEVICE", deviceId, areaId },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "DEVICE", deviceId, areaId },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 8,
             })
 
@@ -363,10 +370,10 @@ describe("POST /api/properties/:propertyId/simulation — target: DEVICE", () =>
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${token}`)
             .send({
-                period:          "MONTHLY",
-                target:          { type: "DEVICE", deviceId, areaId },
-                inputMode:       "WATTS_HOURS",
-                powerWatts:      500,
+                period: "MONTHLY",
+                target: { type: "DEVICE", deviceId, areaId },
+                inputMode: "WATTS_HOURS",
+                powerWatts: 500,
                 dailyUsageHours: 6,
             })
 
@@ -384,9 +391,9 @@ describe("POST /api/properties/:propertyId/simulation — target: DEVICE", () =>
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${token}`)
             .send({
-                period:          "DAILY",
-                target:          { type: "DEVICE", deviceId, areaId },
-                inputMode:       "WATTS_HOURS",
+                period: "DAILY",
+                target: { type: "DEVICE", deviceId, areaId },
+                inputMode: "WATTS_HOURS",
                 // powerWatts omitido → usa 1000W do cadastro
                 dailyUsageHours: 8,
             })
@@ -412,9 +419,9 @@ describe("POST /api/properties/:propertyId/simulation — target: DEVICE", () =>
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${token}`)
             .send({
-                period:          "DAILY",
-                target:          { type: "DEVICE", deviceId: deviceSemWattsId, areaId },
-                inputMode:       "WATTS_HOURS",
+                period: "DAILY",
+                target: { type: "DEVICE", deviceId: deviceSemWattsId, areaId },
+                inputMode: "WATTS_HOURS",
                 dailyUsageHours: 8,
             })
 
@@ -428,9 +435,13 @@ describe("POST /api/properties/:propertyId/simulation — target: DEVICE", () =>
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${token}`)
             .send({
-                period:      "DAILY",
-                target:      { type: "DEVICE", deviceId: "00000000-0000-0000-0000-000000000000", areaId },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: {
+                    type: "DEVICE",
+                    deviceId: "00000000-0000-0000-0000-000000000000",
+                    areaId,
+                },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             })
 
@@ -439,15 +450,15 @@ describe("POST /api/properties/:propertyId/simulation — target: DEVICE", () =>
 
     it("deve retornar 403 para device de outro usuário", async () => {
         const { propertyId, areaId, deviceId } = await setupFull(validUser)
-        const tokenB                           = await registerAndLogin(anotherUser)
+        const tokenB = await registerAndLogin(anotherUser)
 
         const response = await request(app)
             .post(simulationUrl(propertyId))
             .set("Authorization", `Bearer ${tokenB}`)
             .send({
-                period:      "DAILY",
-                target:      { type: "DEVICE", deviceId, areaId },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "DEVICE", deviceId, areaId },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             })
 
@@ -458,9 +469,9 @@ describe("POST /api/properties/:propertyId/simulation — target: DEVICE", () =>
         const response = await request(app)
             .post(simulationUrl("00000000-0000-0000-0000-000000000000"))
             .send({
-                period:      "DAILY",
-                target:      { type: "DEVICE", deviceId: "x", areaId: "y" },
-                inputMode:   "KWH_DIRECT",
+                period: "DAILY",
+                target: { type: "DEVICE", deviceId: "x", areaId: "y" },
+                inputMode: "KWH_DIRECT",
                 kwhConsumed: 10,
             })
 

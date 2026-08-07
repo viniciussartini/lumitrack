@@ -41,8 +41,8 @@ interface PropertyFormDialogProps {
  * Toda propriedade precisa de uma distribuidora vinculada — sem nenhuma
  * cadastrada no catálogo, o form (modo "create") não renderiza; mostra um
  * guard orientando a cadastrar uma primeiro. Texto recuperado literalmente
- * da antiga `NewPropertyPage` (removida em #97, quando a criação virou
- * modal — o guard tinha ficado pra trás, achado durante #102). Não é o
+ * da antiga `NewPropertyPage` (removida quando a criação virou
+ * modal — o guard tinha ficado pra trás). Não é o
  * `EmptyState` genérico porque ele vem com o próprio frame `.blueprint` +
  * cantos — duplicaria a moldura do modal, que já é `.blueprint`.
  */
@@ -132,11 +132,7 @@ export const PropertyFormDialog = ({
             {isCreatingWithoutCatalog && (
                 <div className="flex flex-col items-center gap-4 py-6 text-center">
                     <div className="border-divider flex h-14 w-14 items-center justify-center border">
-                        <Zap
-                            className="text-muted h-7 w-7"
-                            strokeWidth={1.5}
-                            aria-hidden="true"
-                        />
+                        <Zap className="text-muted h-7 w-7" strokeWidth={1.5} aria-hidden="true" />
                     </div>
                     <div className="flex flex-col gap-1">
                         <h3 className="text-lg">Catálogo de distribuidoras indisponível</h3>

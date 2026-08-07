@@ -31,11 +31,7 @@ describe("ensureFreshSession", () => {
         mockRefresh.mockResolvedValue(undefined)
 
         // N chamadas paralelas — só 1 POST deve acontecer.
-        await Promise.all([
-            ensureFreshSession(),
-            ensureFreshSession(),
-            ensureFreshSession(),
-        ])
+        await Promise.all([ensureFreshSession(), ensureFreshSession(), ensureFreshSession()])
 
         expect(mockRefresh).toHaveBeenCalledTimes(1)
     })

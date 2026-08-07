@@ -1,5 +1,8 @@
 import { TariffFlag } from "@/generated/prisma/client.js"
-import type { ITariffFlagSource, TariffFlagSnapshot } from "@/modules/tariff-flag/sync/ITariffFlagSource.js"
+import type {
+    ITariffFlagSource,
+    TariffFlagSnapshot,
+} from "@/modules/tariff-flag/sync/ITariffFlagSource.js"
 import {
     acionamentoResponseSchema,
     adicionalResponseSchema,
@@ -105,7 +108,8 @@ function mostRecentValue(records: AdicionalRecord[], nomBandeira: string): numbe
     const now = new Date().toISOString().slice(0, 10)
 
     const candidates = records.filter(
-        (record) => record.NomBandeiraAcionada === nomBandeira && record.DatVigencia.slice(0, 10) <= now,
+        (record) =>
+            record.NomBandeiraAcionada === nomBandeira && record.DatVigencia.slice(0, 10) <= now,
     )
 
     if (candidates.length === 0) {
@@ -114,7 +118,9 @@ function mostRecentValue(records: AdicionalRecord[], nomBandeira: string): numbe
         )
     }
 
-    const latest = candidates.reduce((max, record) => (record.DatVigencia > max.DatVigencia ? record : max))
+    const latest = candidates.reduce((max, record) =>
+        record.DatVigencia > max.DatVigencia ? record : max,
+    )
 
     // Fonte é R$/MWh; o schema usa R$/100kWh (1 MWh = 10 × 100kWh) —
     // verificado no ADR-0007 contra os valores já semeados em seed.ts.
@@ -142,7 +148,7 @@ export class AneelTariffFlagSource implements ITariffFlagSource {
         const acionamentoParsed = acionamentoResponseSchema.safeParse(acionamentoRaw)
         if (!acionamentoParsed.success) {
             throw new TariffFlagSourceError(
-                "Payload inesperado da ANEEL para o recurso \"Acionamento\"",
+                'Payload inesperado da ANEEL para o recurso "Acionamento"',
                 { cause: acionamentoParsed.error },
             )
         }
@@ -150,14 +156,14 @@ export class AneelTariffFlagSource implements ITariffFlagSource {
         const adicionalParsed = adicionalResponseSchema.safeParse(adicionalRaw)
         if (!adicionalParsed.success) {
             throw new TariffFlagSourceError(
-                "Payload inesperado da ANEEL para o recurso \"Adicional\"",
+                'Payload inesperado da ANEEL para o recurso "Adicional"',
                 { cause: adicionalParsed.error },
             )
         }
 
         const acionamentoRecords = acionamentoParsed.data.result.records
         if (acionamentoRecords.length === 0) {
-            throw new TariffFlagSourceError("Recurso \"Acionamento\" da ANEEL retornou vazio")
+            throw new TariffFlagSourceError('Recurso "Acionamento" da ANEEL retornou vazio')
         }
 
         const currentMonth = acionamentoRecords.reduce((max, record) =>

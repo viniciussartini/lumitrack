@@ -8,8 +8,7 @@ import ipaddr from "ipaddr.js"
 // coberto pela allowlist não deveria ficar alcançável nessas portas através
 // deste fluxo.
 const DENIED_PORTS = new Set([
-    22, 23, 25, 110, 143, 445, 465, 587, 993, 995,
-    1433, 1521, 2375, 2376, 3306, 3389, 5432, 5900,
+    22, 23, 25, 110, 143, 445, 465, 587, 993, 995, 1433, 1521, 2375, 2376, 3306, 3389, 5432, 5900,
     6379, 8500, 9200, 9300, 11211, 27017, 6443,
 ])
 
@@ -17,9 +16,7 @@ export function isPortAllowed(port: number): boolean {
     return Number.isInteger(port) && port >= 1 && port <= 65535 && !DENIED_PORTS.has(port)
 }
 
-export type AllowlistEntry =
-    | { kind: "host"; value: string }
-    | { kind: "cidr"; value: string }
+export type AllowlistEntry = { kind: "host"; value: string } | { kind: "cidr"; value: string }
 
 // IOT_ALLOWED_HOSTS: lista separada por vírgula de hostnames e/ou CIDRs
 // (ex.: "broker.local,192.168.0.0/16,10.0.5.20/32") — único jeito de um
@@ -93,7 +90,7 @@ export interface OutboundHostCheckResult {
 }
 
 // Ponto único de validação SSRF para destinos de saída de medidor —
-// aplicado no service, antes de persistir (#10 — A01). `resolveFn` é
+// aplicado no service, antes de persistir (A01). `resolveFn` é
 // injetável para tornar a resolução de hostname determinística em teste,
 // sem depender de DNS real (mesmo padrão de `resolveLogLevel`/
 // `resolveTransport` em `shared/logger/logger.ts`: função pura recebe o que

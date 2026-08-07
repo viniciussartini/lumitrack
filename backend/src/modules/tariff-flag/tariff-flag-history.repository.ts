@@ -1,4 +1,9 @@
-import { PrismaClient, Prisma, TariffFlag, TariffFlagChangeSource } from "@/generated/prisma/client.js"
+import {
+    PrismaClient,
+    Prisma,
+    TariffFlag,
+    TariffFlagChangeSource,
+} from "@/generated/prisma/client.js"
 import type { TariffFlagConfigResponse } from "@/modules/tariff-flag/tariff-flag.repository.js"
 
 // Snapshot dos 4 valores por 100kWh, sem o `currentFlag`/`updatedAt` — é o
@@ -17,8 +22,7 @@ export interface TariffFlagHistoryEntry {
     changedByUserId: string | null
 }
 
-// Só grava — sem endpoint de leitura (não pedido pela issue #143; evita
-// escopo extra sem consumidor real).
+// Só grava — sem endpoint de leitura (evita escopo extra sem consumidor real).
 export class TariffFlagHistoryRepository {
     constructor(private readonly prisma: PrismaClient) {}
 

@@ -23,7 +23,7 @@ export function CopyButton({ value, label }: CopyButtonProps) {
         <button
             type="button"
             className="sim-iconbtn"
-            onClick={handleCopy}
+            onClick={() => void handleCopy()}
             title={label}
             aria-label={label}
         >

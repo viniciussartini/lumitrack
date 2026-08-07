@@ -59,22 +59,13 @@ const optionalNonNegativeNumber = z
  *     distribuidora para a propriedade na Fase 1 da reformulação IoT.
  */
 export const propertyFormSchema = z.object({
-    distributorId: z
-        .string()
-        .min(1, { message: "Selecione uma distribuidora" }),
+    distributorId: z.string().min(1, { message: "Selecione uma distribuidora" }),
 
-    name: z
-        .string()
-        .min(1, "Nome é obrigatório")
-        .max(200, "Nome muito longo"),
+    name: z.string().min(1, "Nome é obrigatório").max(200, "Nome muito longo"),
 
-    address: emptyToUndefined.pipe(
-        z.string().max(500, "Endereço muito longo").optional(),
-    ),
+    address: emptyToUndefined.pipe(z.string().max(500, "Endereço muito longo").optional()),
 
-    city: emptyToUndefined.pipe(
-        z.string().max(100, "Cidade muito longa").optional(),
-    ),
+    city: emptyToUndefined.pipe(z.string().max(100, "Cidade muito longa").optional()),
 
     state: emptyToUndefined.pipe(
         z.enum(VALID_UFS, { message: "Selecione um estado válido" }).optional(),

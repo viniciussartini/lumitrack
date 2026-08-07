@@ -20,7 +20,7 @@ export function userRoutes(
     // Rotas públicas
     // Cadastro de novo usuário — não exige autenticação.
     router.post("/", (req, res, next) => userController.create(req, res, next))
-    
+
     // Rotas protegidas
     // O middleware `authenticate` é aplicado individualmente em cada rota protegida.
     router.get("/:id", authenticate, (req, res, next) => userController.findById(req, res, next))

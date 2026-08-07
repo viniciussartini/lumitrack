@@ -24,18 +24,39 @@ const userService = new UserService(userRepository)
 
 async function setupAlertWithEvents(eventCount = 0) {
     const user = await userService.createUser({
-        email: "joao@example.com", password: "Senha@123", userType: "INDIVIDUAL",
-        acceptedTerms: true, firstName: "João", lastName: "Silva", cpf: "529.982.247-25",
+        email: "joao@example.com",
+        password: "Senha@123",
+        userType: "INDIVIDUAL",
+        acceptedTerms: true,
+        firstName: "João",
+        lastName: "Silva",
+        cpf: "529.982.247-25",
     })
     const distributor = await createTestDistributor(prismaTest)
     const property = await propertyService.create(user.id, {
-        name: "Casa", distributorId: distributor.id, electricalSystem: "TRIPHASIC",
+        name: "Casa",
+        distributorId: distributor.id,
+        electricalSystem: "TRIPHASIC",
     })
     const meter = await prismaTest.meter.create({
-        data: { name: "Medidor", targetType: "PROPERTY", propertyId: property.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "t" },
+        data: {
+            name: "Medidor",
+            targetType: "PROPERTY",
+            propertyId: property.id,
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "t",
+        },
     })
     const alert = await prismaTest.alert.create({
-        data: { userId: user.id, meterId: meter.id, name: "Pico de potência", referencePowerKw: 10, tolerancePercent: 2 },
+        data: {
+            userId: user.id,
+            meterId: meter.id,
+            name: "Pico de potência",
+            referencePowerKw: 10,
+            tolerancePercent: 2,
+        },
     })
 
     for (let i = 0; i < eventCount; i++) {
@@ -45,7 +66,10 @@ async function setupAlertWithEvents(eventCount = 0) {
                 startedAt: new Date(Date.now() - (i + 1) * 60_000),
                 endedAt: new Date(Date.now() - i * 60_000),
                 durationSeconds: 60,
-                minPowerW: 9000, maxPowerW: 11000, avgPowerW: 10000, sampleCount: 10,
+                minPowerW: 9000,
+                maxPowerW: 11000,
+                avgPowerW: 10000,
+                sampleCount: 10,
             },
         })
     }
@@ -53,8 +77,12 @@ async function setupAlertWithEvents(eventCount = 0) {
     return { user, alert }
 }
 
-beforeEach(async () => { await cleanDatabase() })
-afterAll(async () => { await prismaTest.$disconnect() })
+beforeEach(async () => {
+    await cleanDatabase()
+})
+afterAll(async () => {
+    await prismaTest.$disconnect()
+})
 
 describe("AlertEventService.list", () => {
     it("retorna paginado o histórico de episódios de um alerta", async () => {
@@ -86,8 +114,13 @@ describe("AlertEventService.list", () => {
 
     it("lança NotFoundError para alertId inexistente", async () => {
         const user = await userService.createUser({
-            email: "joao@example.com", password: "Senha@123", userType: "INDIVIDUAL",
-            acceptedTerms: true, firstName: "João", lastName: "Silva", cpf: "529.982.247-25",
+            email: "joao@example.com",
+            password: "Senha@123",
+            userType: "INDIVIDUAL",
+            acceptedTerms: true,
+            firstName: "João",
+            lastName: "Silva",
+            cpf: "529.982.247-25",
         })
 
         await expect(
@@ -98,8 +131,13 @@ describe("AlertEventService.list", () => {
     it("lança ForbiddenError quando o alerta pertence a outro usuário", async () => {
         const { alert } = await setupAlertWithEvents(1)
         const userB = await userService.createUser({
-            email: "maria@example.com", password: "Senha@123", userType: "INDIVIDUAL",
-            acceptedTerms: true, firstName: "Maria", lastName: "Santos", cpf: "310.037.856-38",
+            email: "maria@example.com",
+            password: "Senha@123",
+            userType: "INDIVIDUAL",
+            acceptedTerms: true,
+            firstName: "Maria",
+            lastName: "Santos",
+            cpf: "310.037.856-38",
         })
 
         await expect(service.list(userB.id, { alertId: alert.id })).rejects.toThrow(ForbiddenError)
@@ -114,6 +152,8 @@ describe("AlertEventService.list", () => {
     it("lança ValidationError para alertId que não é UUID", async () => {
         const { user } = await setupAlertWithEvents(0)
 
-        await expect(service.list(user.id, { alertId: "nao-e-uuid" })).rejects.toThrow(ValidationError)
+        await expect(service.list(user.id, { alertId: "nao-e-uuid" })).rejects.toThrow(
+            ValidationError,
+        )
     })
 })

@@ -19,16 +19,46 @@ export interface AnomalyWindow {
 
 export const ANOMALY_WINDOWS: readonly AnomalyWindow[] = [
     // Residencial — pico noturno (chuveiro + forno elétrico simultâneos).
-    { meterKey: "residential", startUtc: new Date("2025-08-14T23:40:00.000Z"), durationMinutes: 5, multiplier: 2.4 },
-    { meterKey: "residential", startUtc: new Date("2026-03-03T00:10:00.000Z"), durationMinutes: 7, multiplier: 3.1 },
+    {
+        meterKey: "residential",
+        startUtc: new Date("2025-08-14T23:40:00.000Z"),
+        durationMinutes: 5,
+        multiplier: 2.4,
+    },
+    {
+        meterKey: "residential",
+        startUtc: new Date("2026-03-03T00:10:00.000Z"),
+        durationMinutes: 7,
+        multiplier: 3.1,
+    },
 
     // Comercial geral — pico em horário de expediente (equipamento extra ligado).
-    { meterKey: "commercialGeneral", startUtc: new Date("2025-10-08T18:20:00.000Z"), durationMinutes: 4, multiplier: 2.8 },
-    { meterKey: "commercialGeneral", startUtc: new Date("2026-05-19T14:05:00.000Z"), durationMinutes: 9, multiplier: 2.1 },
+    {
+        meterKey: "commercialGeneral",
+        startUtc: new Date("2025-10-08T18:20:00.000Z"),
+        durationMinutes: 4,
+        multiplier: 2.8,
+    },
+    {
+        meterKey: "commercialGeneral",
+        startUtc: new Date("2026-05-19T14:05:00.000Z"),
+        durationMinutes: 9,
+        multiplier: 2.1,
+    },
 
     // Forno — pico durante janela de produção (sobrecarga do elemento de aquecimento).
-    { meterKey: "oven", startUtc: new Date("2025-12-11T08:15:00.000Z"), durationMinutes: 6, multiplier: 3.5 },
-    { meterKey: "oven", startUtc: new Date("2026-06-24T17:40:00.000Z"), durationMinutes: 3, multiplier: 2.6 },
+    {
+        meterKey: "oven",
+        startUtc: new Date("2025-12-11T08:15:00.000Z"),
+        durationMinutes: 6,
+        multiplier: 3.5,
+    },
+    {
+        meterKey: "oven",
+        startUtc: new Date("2026-06-24T17:40:00.000Z"),
+        durationMinutes: 3,
+        multiplier: 2.6,
+    },
 ]
 
 /** Multiplicador de anomalia ativo no minuto informado para o medidor, ou 1 (sem anomalia). */

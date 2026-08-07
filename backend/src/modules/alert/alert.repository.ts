@@ -2,9 +2,7 @@ import { PrismaClient } from "@/generated/prisma/client.js"
 import type { CreateAlertInput, UpdateAlertInput } from "@/modules/alert/alert.schema.js"
 import { toSkipTake, type Paginated, type PaginationQuery } from "@/shared/pagination.js"
 
-type PrismaAlert = NonNullable<
-    Awaited<ReturnType<PrismaClient["alert"]["findUnique"]>>
->
+type PrismaAlert = NonNullable<Awaited<ReturnType<PrismaClient["alert"]["findUnique"]>>>
 
 export type AlertResponse = PrismaAlert
 
@@ -15,7 +13,10 @@ export class AlertRepository {
         return this.prisma.alert.findUnique({ where: { id } })
     }
 
-    async findAllByUserPaginated(userId: string, pagination: PaginationQuery): Promise<Paginated<AlertResponse>> {
+    async findAllByUserPaginated(
+        userId: string,
+        pagination: PaginationQuery,
+    ): Promise<Paginated<AlertResponse>> {
         const { skip, take } = toSkipTake(pagination)
 
         const [items, total] = await Promise.all([
@@ -31,7 +32,7 @@ export class AlertRepository {
         return { items, total, page: pagination.page, pageSize: pagination.pageSize }
     }
 
-    // Sem paginação de propósito — usado só pela exportação LGPD (#09, Art.
+    // Sem paginação de propósito — usado só pela exportação LGPD (Art.
     // 18), que precisa de todos os alertas do titular de uma vez.
     async findAllByUser(userId: string): Promise<AlertResponse[]> {
         return this.prisma.alert.findMany({ where: { userId }, orderBy: { createdAt: "desc" } })

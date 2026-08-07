@@ -17,9 +17,7 @@ interface UseLiveMeterReadingResult {
  * `PropertyDetailsPage`, que duplicavam a mesma lógica — 3º consumidor real
  * (`RealtimeSection`, Painel) justifica a extração.
  */
-export const useLiveMeterReading = (
-    meterId: string | undefined,
-): UseLiveMeterReadingResult => {
+export const useLiveMeterReading = (meterId: string | undefined): UseLiveMeterReadingResult => {
     const { readingsByMeterId } = useRealtime()
     const [now, setNow] = useState(() => Date.now())
 
@@ -32,8 +30,7 @@ export const useLiveMeterReading = (
     }, [])
 
     const reading = meterId ? readingsByMeterId[meterId] : undefined
-    const isStale =
-        !reading || now - new Date(reading.receivedAt).getTime() > STALE_THRESHOLD_MS
+    const isStale = !reading || now - new Date(reading.receivedAt).getTime() > STALE_THRESHOLD_MS
 
     return { reading, isStale }
 }

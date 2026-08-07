@@ -28,12 +28,13 @@ function toResponse(raw: PrismaTariffFlagConfig): TariffFlagConfigResponse {
 // Extrai o valor em R$/100kWh correspondente à bandeira vigente — usado por
 // qualquer service que precise custear consumo (ConsumptionService,
 // SimulationService), evitando duplicar o mapeamento enum → campo.
-const FLAG_FIELD: Record<TariffFlagConfigResponse["currentFlag"], keyof TariffFlagConfigResponse> = {
-    GREEN: "greenPer100Kwh",
-    YELLOW: "yellowPer100Kwh",
-    RED_P1: "redP1Per100Kwh",
-    RED_P2: "redP2Per100Kwh",
-}
+const FLAG_FIELD: Record<TariffFlagConfigResponse["currentFlag"], keyof TariffFlagConfigResponse> =
+    {
+        GREEN: "greenPer100Kwh",
+        YELLOW: "yellowPer100Kwh",
+        RED_P1: "redP1Per100Kwh",
+        RED_P2: "redP2Per100Kwh",
+    }
 
 export function resolveFlagPer100Kwh(config: TariffFlagConfigResponse): number {
     return config[FLAG_FIELD[config.currentFlag]] as number

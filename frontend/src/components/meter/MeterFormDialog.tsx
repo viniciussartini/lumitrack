@@ -7,8 +7,7 @@ import type { MeterFormData } from "@/schemas/meter.schema"
 import type { CreateMeterInput, Meter, TargetType, UpdateMeterInput } from "@/types/meter.types"
 
 type DialogMode =
-    | { kind: "create"; targetType: TargetType; targetId: string }
-    | { kind: "edit"; meter: Meter }
+    { kind: "create"; targetType: TargetType; targetId: string } | { kind: "edit"; meter: Meter }
 
 interface MeterFormDialogProps {
     isOpen: boolean
@@ -31,8 +30,8 @@ export const MeterFormDialog = ({ isOpen, onClose, mode }: MeterFormDialogProps)
                 mode.targetType === "PROPERTY"
                     ? { targetType: "PROPERTY" as const, propertyId: mode.targetId }
                     : mode.targetType === "AREA"
-                    ? { targetType: "AREA" as const, areaId: mode.targetId }
-                    : { targetType: "DEVICE" as const, deviceId: mode.targetId }
+                      ? { targetType: "AREA" as const, areaId: mode.targetId }
+                      : { targetType: "DEVICE" as const, deviceId: mode.targetId }
 
             const input: CreateMeterInput = {
                 ...targetField,

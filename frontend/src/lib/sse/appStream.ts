@@ -114,16 +114,12 @@ export const createAppStream = ({
         onopen: async (response) => {
             if (
                 response.ok &&
-                response.headers
-                    .get("content-type")
-                    ?.startsWith(EventStreamContentType)
+                response.headers.get("content-type")?.startsWith(EventStreamContentType)
             ) {
                 onOpen?.()
                 return
             }
-            throw new FatalStreamError(
-                `SSE failed to open: HTTP ${response.status}`,
-            )
+            throw new FatalStreamError(`SSE failed to open: HTTP ${response.status}`)
         },
 
         onmessage: (event: EventSourceMessage) => {

@@ -1,0 +1,14 @@
+{
+    "name": "lumitrack",
+    "private": true,
+    "version": "0.0.0",
+    "description": "Raiz do monorepo — só a tooling de git hooks (husky/lint-staged). backend/, frontend/ e iot-simulator/ continuam pacotes independentes (03-arquitetura.md); nenhuma dependência de runtime vive aqui.",
+    "type": "module",
+    "scripts": {
+        "prepare": "husky"
+    },
+    "devDependencies": {
+        "husky": "^9.1.7",
+        "lint-staged": "^16.2.6"
+    }
+}

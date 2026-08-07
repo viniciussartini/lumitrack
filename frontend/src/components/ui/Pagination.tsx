@@ -16,13 +16,7 @@ interface PaginationProps {
  * Não renderiza nada quando cabe tudo em uma página (totalPages <= 1) —
  * evita ocupar espaço com um controle sem função.
  */
-export const Pagination = ({
-    page,
-    pageSize,
-    total,
-    onPageChange,
-    className,
-}: PaginationProps) => {
+export const Pagination = ({ page, pageSize, total, onPageChange, className }: PaginationProps) => {
     const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
     if (totalPages <= 1) return null
@@ -36,8 +30,7 @@ export const Pagination = ({
             data-testid="pagination"
         >
             <span className="text-muted">
-                {total} {total === 1 ? "item" : "itens"} · página {page} de{" "}
-                {totalPages}
+                {total} {total === 1 ? "item" : "itens"} · página {page} de {totalPages}
             </span>
 
             <div className="flex items-center gap-1">

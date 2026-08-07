@@ -10,20 +10,20 @@ import { EmptyState } from "@/components/ui/EmptyState"
 import { Button } from "@/components/ui/Button"
 
 /**
- * Painel (`/dashboard`) — épico #114 (Fase 4), bloco `isDashboard` do
+ * Painel (`/dashboard`) — Fase 4, bloco `isDashboard` do
  * handoff (`LumiTrack Home.dc.html`, linhas 152-246). O seletor de
  * propriedade fica aqui dentro, não na topbar (o handoff não tem nenhum
- * seletor no header compartilhado) — #115. O kicker/título "Painel geral/
- * Olá, {nome}" saiu daqui para o Header (#136) — antes duplicava o mesmo
+ * seletor no header compartilhado). O kicker/título "Painel geral/
+ * Olá, {nome}" saiu daqui para o Header — antes duplicava o mesmo
  * texto que o Header passou a mostrar.
  *
- * KPIs (Potência agora, Consumo hoje, Custo projetado, Bandeira vigente —
- * #116/#117), gráfico de consumo em tempo real (#116) e card de bandeiras
- * tarifárias (#117) vivem em `RealtimeSection`, escopados à propriedade
+ * KPIs (Potência agora, Consumo hoje, Custo projetado, Bandeira vigente),
+ * gráfico de consumo em tempo real e card de bandeiras
+ * tarifárias vivem em `RealtimeSection`, escopados à propriedade
  * selecionada. Histórico de consumo mensal (`ConsumptionHistorySection`,
  * escopado à propriedade selecionada) e comparação entre propriedades
  * (`PropertyComparisonSection`, independente da seleção — compara todas)
- * são siblings de `RealtimeSection`, não aninhados nela — #119.
+ * são siblings de `RealtimeSection`, não aninhados nela.
  *
  * Cardinalidade assumida: pequena quantidade de propriedades por usuário
  * (sem paginação de UI no seletor) — mesmo precedente de
@@ -58,7 +58,7 @@ export const DashboardPage = () => {
                             ? propertiesQuery.error.message
                             : "Erro ao carregar propriedades"
                     }
-                    onRetry={() => propertiesQuery.refetch()}
+                    onRetry={() => void propertiesQuery.refetch()}
                 />
             )}
 

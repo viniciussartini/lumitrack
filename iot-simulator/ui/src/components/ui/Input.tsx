@@ -20,12 +20,18 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                     id={inputId}
                     ref={ref}
                     aria-invalid={hasError}
-                    aria-describedby={hasError ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined}
+                    aria-describedby={
+                        hasError ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined
+                    }
                     className={cn("sim-input", hasError && "border-status-danger")}
                     {...rest}
                 />
                 {hasError ? (
-                    <span id={`${inputId}-error`} role="alert" className="text-status-danger mt-1.5 block text-xs">
+                    <span
+                        id={`${inputId}-error`}
+                        role="alert"
+                        className="text-status-danger mt-1.5 block text-xs"
+                    >
                         {error}
                     </span>
                 ) : helperText ? (

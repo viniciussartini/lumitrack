@@ -1,5 +1,10 @@
 import { z } from "zod"
-import { createAlertSchema, updateAlertSchema, patchEnabledSchema, listAlertQuerySchema } from "@/modules/alert/alert.schema.js"
+import {
+    createAlertSchema,
+    updateAlertSchema,
+    patchEnabledSchema,
+    listAlertQuerySchema,
+} from "@/modules/alert/alert.schema.js"
 import type { AlertRepository, AlertResponse } from "@/modules/alert/alert.repository.js"
 import type { AlertEvaluator, FiringAlert } from "@/modules/alert/alert-evaluator.js"
 import { resolveMeterTarget, type MeterTargetRepos } from "@/modules/meter/meter-target.js"
@@ -42,7 +47,11 @@ export class AlertService {
             ...alert,
             status: this.alertEvaluator?.isFiring(alert.id) ? "firing" : "normal",
             target: targetInfo
-                ? { type: targetInfo.targetType, name: targetInfo.targetName, path: targetInfo.targetPath }
+                ? {
+                      type: targetInfo.targetType,
+                      name: targetInfo.targetName,
+                      path: targetInfo.targetPath,
+                  }
                 : null,
         }
     }
@@ -75,7 +84,9 @@ export class AlertService {
         }
 
         const result = await this.alertRepository.findAllByUserPaginated(userId, parsed.data)
-        const items = await Promise.all(result.items.map((alert) => this.withStatusAndTarget(alert)))
+        const items = await Promise.all(
+            result.items.map((alert) => this.withStatusAndTarget(alert)),
+        )
 
         return { items, total: result.total, page: result.page, pageSize: result.pageSize }
     }

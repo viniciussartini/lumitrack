@@ -2,7 +2,10 @@ import { describe, it, expect, beforeEach, afterAll } from "vitest"
 import { TariffFlagSyncService } from "@/modules/tariff-flag/sync/TariffFlagSyncService.js"
 import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
 import { TariffFlagHistoryRepository } from "@/modules/tariff-flag/tariff-flag-history.repository.js"
-import type { ITariffFlagSource, TariffFlagSnapshot } from "@/modules/tariff-flag/sync/ITariffFlagSource.js"
+import type {
+    ITariffFlagSource,
+    TariffFlagSnapshot,
+} from "@/modules/tariff-flag/sync/ITariffFlagSource.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 
@@ -10,7 +13,9 @@ const tariffFlagRepository = new TariffFlagRepository(prismaTest)
 const tariffFlagHistoryRepository = new TariffFlagHistoryRepository(prismaTest)
 
 class FakeSource implements ITariffFlagSource {
-    constructor(private readonly result: TariffFlagSnapshot | (() => Promise<TariffFlagSnapshot>)) {}
+    constructor(
+        private readonly result: TariffFlagSnapshot | (() => Promise<TariffFlagSnapshot>),
+    ) {}
 
     async fetchCurrent(): Promise<TariffFlagSnapshot> {
         if (typeof this.result === "function") return this.result()
@@ -35,8 +40,12 @@ async function seedConfig() {
     })
 }
 
-beforeEach(async () => { await cleanDatabase() })
-afterAll(async () => { await prismaTest.$disconnect() })
+beforeEach(async () => {
+    await cleanDatabase()
+})
+afterAll(async () => {
+    await prismaTest.$disconnect()
+})
 
 describe("TariffFlagSyncService.syncOnce", () => {
     it("atualiza o config e grava histórico quando a bandeira mudou", async () => {
@@ -48,7 +57,11 @@ describe("TariffFlagSyncService.syncOnce", () => {
             redP1Per100Kwh: 4.463,
             redP2Per100Kwh: 7.877,
         })
-        const service = new TariffFlagSyncService(source, tariffFlagRepository, tariffFlagHistoryRepository)
+        const service = new TariffFlagSyncService(
+            source,
+            tariffFlagRepository,
+            tariffFlagHistoryRepository,
+        )
 
         await service.syncOnce()
 
@@ -67,7 +80,11 @@ describe("TariffFlagSyncService.syncOnce", () => {
 
     it("mantém o config intocado e não grava histórico quando a fonte falha", async () => {
         await seedConfig()
-        const service = new TariffFlagSyncService(failingSource, tariffFlagRepository, tariffFlagHistoryRepository)
+        const service = new TariffFlagSyncService(
+            failingSource,
+            tariffFlagRepository,
+            tariffFlagHistoryRepository,
+        )
 
         await service.syncOnce()
 
@@ -88,7 +105,11 @@ describe("TariffFlagSyncService.syncOnce", () => {
             redP1Per100Kwh: 4.463,
             redP2Per100Kwh: 7.877,
         })
-        const service = new TariffFlagSyncService(source, tariffFlagRepository, tariffFlagHistoryRepository)
+        const service = new TariffFlagSyncService(
+            source,
+            tariffFlagRepository,
+            tariffFlagHistoryRepository,
+        )
 
         await service.syncOnce()
 
@@ -104,7 +125,11 @@ describe("TariffFlagSyncService.syncOnce", () => {
             redP1Per100Kwh: 4.463,
             redP2Per100Kwh: 7.877,
         })
-        const service = new TariffFlagSyncService(source, tariffFlagRepository, tariffFlagHistoryRepository)
+        const service = new TariffFlagSyncService(
+            source,
+            tariffFlagRepository,
+            tariffFlagHistoryRepository,
+        )
 
         await expect(service.syncOnce()).resolves.toBeUndefined()
     })

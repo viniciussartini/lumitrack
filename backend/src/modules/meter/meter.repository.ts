@@ -42,7 +42,9 @@ function toMeterResponse(raw: PrismaMeter): MeterResponse {
 
 // O Prisma 7 exige Prisma.JsonNull (não o null nativo do JS) para gravar nulo
 // num campo Json?. Para valores presentes, aceita qualquer InputJsonValue.
-function toJsonInput(value: Record<string, unknown> | undefined | null): Prisma.NullableJsonNullValueInput | Prisma.InputJsonValue {
+function toJsonInput(
+    value: Record<string, unknown> | undefined | null,
+): Prisma.NullableJsonNullValueInput | Prisma.InputJsonValue {
     if (value === null || value === undefined) return Prisma.JsonNull
     return value as Prisma.InputJsonValue
 }
@@ -65,9 +67,11 @@ export class MeterRepository {
 
     async findByTarget(targetType: TargetType, targetId: string): Promise<MeterResponse | null> {
         const where =
-            targetType === "PROPERTY" ? { propertyId: targetId } :
-            targetType === "AREA" ? { areaId: targetId } :
-            { deviceId: targetId }
+            targetType === "PROPERTY"
+                ? { propertyId: targetId }
+                : targetType === "AREA"
+                  ? { areaId: targetId }
+                  : { deviceId: targetId }
 
         const raw = await this.prisma.meter.findFirst({ where })
         return raw ? toMeterResponse(raw) : null
@@ -89,7 +93,10 @@ export class MeterRepository {
         return rows.map(toMeterResponse)
     }
 
-    async findAllByUserPaginated(userId: string, pagination: PaginationQuery): Promise<Paginated<MeterResponse>> {
+    async findAllByUserPaginated(
+        userId: string,
+        pagination: PaginationQuery,
+    ): Promise<Paginated<MeterResponse>> {
         const { skip, take } = toSkipTake(pagination)
         const where = {
             OR: [
@@ -104,7 +111,12 @@ export class MeterRepository {
             this.prisma.meter.count({ where }),
         ])
 
-        return { items: rows.map(toMeterResponse), total, page: pagination.page, pageSize: pagination.pageSize }
+        return {
+            items: rows.map(toMeterResponse),
+            total,
+            page: pagination.page,
+            pageSize: pagination.pageSize,
+        }
     }
 
     async create(input: CreateMeterInput): Promise<MeterResponse> {

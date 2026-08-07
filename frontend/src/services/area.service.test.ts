@@ -64,9 +64,7 @@ describe("areaService.getById", () => {
 
         const result = await areaService.getById("prop-1", "area-1")
 
-        expect(api.get).toHaveBeenCalledWith(
-            "/properties/prop-1/areas/area-1",
-        )
+        expect(api.get).toHaveBeenCalledWith("/properties/prop-1/areas/area-1")
         expect(result).toEqual(mockArea)
     })
 })
@@ -80,10 +78,7 @@ describe("areaService.create", () => {
         const input = { name: "Sala", description: "Área principal" }
         const result = await areaService.create("prop-1", input)
 
-        expect(api.post).toHaveBeenCalledWith(
-            "/properties/prop-1/areas",
-            input,
-        )
+        expect(api.post).toHaveBeenCalledWith("/properties/prop-1/areas", input)
         expect(result).toEqual(mockArea)
     })
 })
@@ -97,10 +92,7 @@ describe("areaService.update", () => {
         const input = { name: "Sala renovada" }
         const result = await areaService.update("prop-1", "area-1", input)
 
-        expect(api.put).toHaveBeenCalledWith(
-            "/properties/prop-1/areas/area-1",
-            input,
-        )
+        expect(api.put).toHaveBeenCalledWith("/properties/prop-1/areas/area-1", input)
         expect(result).toEqual(mockArea)
     })
 })
@@ -111,16 +103,12 @@ describe("areaService.delete", () => {
 
         await areaService.delete("prop-1", "area-1")
 
-        expect(api.delete).toHaveBeenCalledWith(
-            "/properties/prop-1/areas/area-1",
-        )
+        expect(api.delete).toHaveBeenCalledWith("/properties/prop-1/areas/area-1")
     })
 
     it("propaga erros do axios (ex: 404 cascade já apagou)", async () => {
         vi.mocked(api.delete).mockRejectedValue(new Error("Not found"))
 
-        await expect(
-            areaService.delete("prop-1", "area-1"),
-        ).rejects.toThrow("Not found")
+        await expect(areaService.delete("prop-1", "area-1")).rejects.toThrow("Not found")
     })
 })

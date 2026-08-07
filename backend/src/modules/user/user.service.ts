@@ -16,9 +16,7 @@ export class UserService {
         const parsed = createUserSchema.safeParse(input)
 
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
@@ -35,17 +33,17 @@ export class UserService {
         if (data.userType === "INDIVIDUAL" && data.cpf) {
             const existingCpf = await this.userRepository.findByCpf(data.cpf)
 
-                if (existingCpf) {
-                    throw new ConflictError("CPF já cadastrado")
-                }
+            if (existingCpf) {
+                throw new ConflictError("CPF já cadastrado")
+            }
         }
 
         if (data.userType === "COMPANY" && data.cnpj) {
             const existingCnpj = await this.userRepository.findByCnpj(data.cnpj)
 
-                if (existingCnpj) {
-                    throw new ConflictError("CNPJ já cadastrado")
-                }
+            if (existingCnpj) {
+                throw new ConflictError("CNPJ já cadastrado")
+            }
         }
 
         const hashedPassword = await bcrypt.hash(data.password, BCRYPT_ROUNDS)
@@ -78,9 +76,7 @@ export class UserService {
         const parsed = updateUserSchema.safeParse(input)
 
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 

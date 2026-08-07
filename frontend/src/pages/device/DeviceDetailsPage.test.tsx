@@ -62,8 +62,7 @@ vi.mock("@/services/property.service", () => ({
 
 vi.mock("@/services/api", () => ({
     api: {},
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 const mockDevice: Device = {
@@ -111,11 +110,7 @@ const renderPage = () => {
     })
     return render(
         <QueryClientProvider client={queryClient}>
-            <MemoryRouter
-                initialEntries={[
-                    "/propriedades/prop-1/areas/area-1/devices/device-1",
-                ]}
-            >
+            <MemoryRouter initialEntries={["/propriedades/prop-1/areas/area-1/devices/device-1"]}>
                 <Routes>
                     <Route
                         path="/propriedades/:propertyId/areas/:areaId/devices/:deviceId"
@@ -144,30 +139,22 @@ beforeEach(() => {
 
 describe("DeviceDetailsPage — loading", () => {
     it("renderiza skeleton enquanto o device carrega", () => {
-        vi.mocked(deviceService.getById).mockImplementation(
-            () => new Promise(() => {}),
-        )
+        vi.mocked(deviceService.getById).mockImplementation(() => new Promise(() => {}))
 
         renderPage()
 
         // link de breadcrumb aparece mesmo em loading
-        expect(
-            screen.getByRole("link", { name: /voltar para área/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("link", { name: /voltar para área/i })).toBeInTheDocument()
     })
 })
 
 describe("DeviceDetailsPage — erro no device", () => {
     it("renderiza ErrorState quando a query do device falha", async () => {
-        vi.mocked(deviceService.getById).mockRejectedValue(
-            new Error("Dispositivo não encontrado"),
-        )
+        vi.mocked(deviceService.getById).mockRejectedValue(new Error("Dispositivo não encontrado"))
 
         renderPage()
 
-        expect(
-            await screen.findByText(/dispositivo não encontrado/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/dispositivo não encontrado/i)).toBeInTheDocument()
     })
 })
 
@@ -224,36 +211,26 @@ describe("DeviceDetailsPage — header do device", () => {
 describe("DeviceDetailsPage — fallbacks de chips", () => {
     it("mostra fallback no chip da área quando a query falha", async () => {
         vi.mocked(deviceService.getById).mockResolvedValue(mockDevice)
-        vi.mocked(areaService.getById).mockRejectedValue(
-            new Error("Área removida"),
-        )
+        vi.mocked(areaService.getById).mockRejectedValue(new Error("Área removida"))
 
         renderPage()
 
         await screen.findByRole("heading", { level: 1 })
 
-        await waitFor(() =>
-            expect(
-                screen.getByText(/área não disponível/i),
-            ).toBeInTheDocument(),
-        )
+        await waitFor(() => expect(screen.getByText(/área não disponível/i)).toBeInTheDocument())
     })
 
     it("mostra fallback no chip da propriedade quando a query falha", async () => {
         vi.mocked(deviceService.getById).mockResolvedValue(mockDevice)
         vi.mocked(areaService.getById).mockResolvedValue(mockArea)
-        vi.mocked(propertyService.getById).mockRejectedValue(
-            new Error("Propriedade removida"),
-        )
+        vi.mocked(propertyService.getById).mockRejectedValue(new Error("Propriedade removida"))
 
         renderPage()
 
         await screen.findByRole("heading", { level: 1 })
 
         await waitFor(() =>
-            expect(
-                screen.getByText(/propriedade não disponível/i),
-            ).toBeInTheDocument(),
+            expect(screen.getByText(/propriedade não disponível/i)).toBeInTheDocument(),
         )
     })
 })
@@ -276,9 +253,7 @@ describe("DeviceDetailsPage — seções", () => {
             await screen.findByRole("heading", { level: 2, name: /^medidor$/i }),
         ).toBeInTheDocument()
 
-        expect(
-            await screen.findByText(/nenhum medidor vinculado/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/nenhum medidor vinculado/i)).toBeInTheDocument()
     })
 
     it("renderiza seção 'Consumo'", async () => {
@@ -296,10 +271,7 @@ describe("DeviceDetailsPage — seções", () => {
         renderPage()
 
         await waitFor(() => {
-            expect(meterService.byTarget).toHaveBeenCalledWith(
-                "DEVICE",
-                "device-1",
-            )
+            expect(meterService.byTarget).toHaveBeenCalledWith("DEVICE", "device-1")
         })
     })
 })
@@ -318,9 +290,7 @@ describe("DeviceDetailsPage — seção de consumo (integração)", () => {
     it("renderiza as abas de granularidade (Hora/Dia)", async () => {
         renderPage()
 
-        expect(
-            await screen.findByTestId("granularity-tabs"),
-        ).toBeInTheDocument()
+        expect(await screen.findByTestId("granularity-tabs")).toBeInTheDocument()
         expect(screen.getByTestId("granularity-tab-hour")).toBeInTheDocument()
         expect(screen.getByTestId("granularity-tab-day")).toBeInTheDocument()
     })
@@ -352,9 +322,6 @@ describe("DeviceDetailsPage — navegação", () => {
             name: /voltar para área/i,
         })
 
-        expect(backLink).toHaveAttribute(
-            "href",
-            "/propriedades/prop-1/areas/area-1",
-        )
+        expect(backLink).toHaveAttribute("href", "/propriedades/prop-1/areas/area-1")
     })
 })

@@ -11,11 +11,7 @@ interface PropertySelectorProps {
  * linhas 154-157 de `LumiTrack Home.dc.html`) — mesmo padrão de toggle
  * `.lt-selbtn` já usado em `GranularityTabs`, controlado pelo pai.
  */
-export const PropertySelector = ({
-    properties,
-    selectedId,
-    onChange,
-}: PropertySelectorProps) => (
+export const PropertySelector = ({ properties, selectedId, onChange }: PropertySelectorProps) => (
     <div className="flex flex-wrap items-center gap-[10px]">
         <span className="font-heading text-muted mr-1 text-[11px] font-semibold tracking-[.08em] uppercase">
             Propriedade

@@ -53,26 +53,23 @@ export const DeviceForm = ({
         mode: "onBlur",
         defaultValues: initialData
             ? {
-                name: initialData.name,
-                brand: initialData.brand ?? "",
-                model: initialData.model ?? "",
-                // null → "" pro <input type="number"> não dar warning
-                powerWatts:
-                    initialData.powerWatts !== null
-                        ? String(initialData.powerWatts)
-                        : "",
-            }
+                  name: initialData.name,
+                  brand: initialData.brand ?? "",
+                  model: initialData.model ?? "",
+                  // null → "" pro <input type="number"> não dar warning
+                  powerWatts: initialData.powerWatts !== null ? String(initialData.powerWatts) : "",
+              }
             : {
-                name: "",
-                brand: "",
-                model: "",
-                powerWatts: "",
-            },
+                  name: "",
+                  brand: "",
+                  model: "",
+                  powerWatts: "",
+              },
     })
 
     return (
         <form
-            onSubmit={handleSubmit(onSubmit)}
+            onSubmit={(e) => void handleSubmit(onSubmit)(e)}
             className="flex flex-col gap-6"
             noValidate
         >

@@ -13,8 +13,26 @@ on:
 
 env:
   NODE_VERSION: "24"
+  GITLEAKS_VERSION: "8.30.1"
 
 jobs:
+  # #163 — gate de segurança (OWASP A03, supply chain): um segredo
+  # commitado passa a quebrar o CI. Escaneia o histórico completo (não só o
+  # diff do PR) porque os achados já triados (.gitleaks.toml) precisam
+  # continuar allowlistados em toda execução, não só na primeira. Imagem
+  # oficial do gitleaks, versão fixa — sem Action de terceiro no
+  # Marketplace, mesmo padrão do resto do `ci.yml` (só `actions/*` oficiais).
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: |
+          docker run --rm -v "$PWD:/repo" -w /repo \
+            "zricethezav/gitleaks:v${{ env.GITLEAKS_VERSION }}" \
+            detect --source /repo --no-banner --redact
+
   frontend-lint:
     runs-on: ubuntu-latest
     defaults:
@@ -29,6 +47,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - run: npm run format:check
 
   frontend-build:
     runs-on: ubuntu-latest
@@ -96,6 +115,11 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - run: npm run format:check
+      # Fecha o gate que o PULL_REQUEST_TEMPLATE.md já declara obrigatório —
+      # ver .dependency-cruiser.cjs (regra única: domínio não importa
+      # framework/infra HTTP diretamente, 03-arquitetura.md).
+      - run: npm run depcruise
 
   backend-build:
     runs-on: ubuntu-latest
@@ -192,6 +216,74 @@ jobs:
           DATABASE_URL="$DATABASE_HTTP_TEST_URL" npx prisma migrate deploy
       - run: npm test
 
+  # iot-simulator/ é um workspace npm próprio (server + ui) — 03-arquitetura.md
+  # o trata como o terceiro pacote independente do monorepo, mas até aqui
+  # nenhum job rodava os 15 arquivos de teste dele nem auditava suas
+  # dependências (broker MQTT `aedes` + servidor Express expostos sem gate).
+  iot-simulator-lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: iot-simulator
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: iot-simulator/package-lock.json
+      - run: npm ci
+      - run: npm run lint -w server -w ui
+      - run: npm run format:check -w server -w ui
+
+  iot-simulator-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: iot-simulator
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: iot-simulator/package-lock.json
+      - run: npm ci
+      - run: npm run build -w server -w ui
+
+  iot-simulator-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: iot-simulator
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: iot-simulator/package-lock.json
+      - run: npm ci
+      - run: npm test -w server -w ui
+
+  iot-simulator-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: iot-simulator
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: iot-simulator/package-lock.json
+      - run: npm ci
+      - run: npm audit --audit-level=high -w server -w ui
+      - name: Relatório completo (não bloqueante)
+        if: always()
+        run: npm audit -w server -w ui || true
+
   e2e:
     runs-on: ubuntu-latest
     needs: [backend-test, frontend-test]
@@ -210,9 +302,12 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
+      # DATABASE_TEST_URL/DATABASE_HTTP_TEST_URL não entram aqui: o backend
+      # sobe via `npm run dev` (NODE_ENV != test), que nunca as lê — só os
+      # fixtures do vitest (prisma-test.ts/prisma-http-test.ts) as consomem.
+      # `envSchema` rejeita explicitamente elas apontarem para o mesmo banco
+      # de DATABASE_URL; setá-las aqui = mesmo valor = falha no boot.
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lumitrack_e2e?schema=public
-      DATABASE_TEST_URL: postgresql://postgres:postgres@localhost:5432/lumitrack_e2e?schema=public
-      DATABASE_HTTP_TEST_URL: postgresql://postgres:postgres@localhost:5432/lumitrack_e2e?schema=public
       JWT_SECRET: ci-only-dummy-secret-nao-e-usado-em-producao-32chars
       CPF_CNPJ_ENCRYPTION_KEY: 6fd4bad67bbdb0573f391bffdc1f0b3e710203034d07ace29e71bb1f49c835f4
       CPF_CNPJ_BLIND_INDEX_KEY: 25e6454d84f1a7348ee8a2410b6a244814e719d0fafb1cf30e54aa40ada5657d

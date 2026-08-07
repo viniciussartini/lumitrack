@@ -17,7 +17,9 @@ export function createBroker(): EmbeddedBroker {
     let server: Server | null = null
 
     aedes.on("client", (client) => log.debug({ clientId: client.id }, "Cliente MQTT conectado"))
-    aedes.on("clientDisconnect", (client) => log.debug({ clientId: client.id }, "Cliente MQTT desconectado"))
+    aedes.on("clientDisconnect", (client) =>
+        log.debug({ clientId: client.id }, "Cliente MQTT desconectado"),
+    )
 
     async function start(port: number): Promise<number> {
         // Aedes 1.x precisa de listen() explícito para inicializar sua
@@ -30,7 +32,8 @@ export function createBroker(): EmbeddedBroker {
             server!.once("error", reject)
             server!.listen(port, () => {
                 const address = server!.address()
-                const actualPort = typeof address === "object" && address !== null ? address.port : port
+                const actualPort =
+                    typeof address === "object" && address !== null ? address.port : port
                 resolve(actualPort)
             })
         })

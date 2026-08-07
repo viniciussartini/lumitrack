@@ -1,13 +1,5 @@
 import { useMemo } from "react"
-import {
-    Bar,
-    BarChart,
-    CartesianGrid,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from "recharts"
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { BarChart3 } from "lucide-react"
 import { cn } from "@/lib/cn"
 import { formatKwh, formatCostBrl, formatBucketLabel } from "@/lib/formatters/consumption"
@@ -61,21 +53,15 @@ const ChartTooltip = ({ active, payload }: ChartTooltipProps) => {
                 "border-slate-200 dark:border-slate-700 dark:bg-slate-900",
             )}
         >
-            <p className="font-medium text-slate-900 dark:text-slate-100">
-                {datum.label}
-            </p>
+            <p className="font-medium text-slate-900 dark:text-slate-100">{datum.label}</p>
             <div className="mt-1 flex flex-col gap-0.5">
                 <p className="text-slate-700 dark:text-slate-300">
-                    <span className="font-mono tabular-nums">
-                        {formatKwh(datum.kwh)}
-                    </span>{" "}
+                    <span className="font-mono tabular-nums">{formatKwh(datum.kwh)}</span>{" "}
                     <span className="text-slate-500">kWh</span>
                 </p>
                 <p className="text-slate-700 dark:text-slate-300">
                     <span className="text-slate-500">Custo:</span>{" "}
-                    <span className="font-mono tabular-nums">
-                        {formatCostBrl(datum.cost)}
-                    </span>
+                    <span className="font-mono tabular-nums">{formatCostBrl(datum.cost)}</span>
                 </p>
             </div>
         </div>
@@ -96,13 +82,11 @@ export const ConsumptionChart = ({
         () =>
             // O backend ordena DESC (mais recente primeiro) para paginação
             // natural; o gráfico lê melhor em ordem cronológica.
-            [...buckets]
-                .reverse()
-                .map((bucket) => ({
-                    label: formatBucketLabel(bucket.bucketStart, granularity),
-                    kwh: bucket.kwhConsumed,
-                    cost: bucket.costBrl,
-                })),
+            [...buckets].reverse().map((bucket) => ({
+                label: formatBucketLabel(bucket.bucketStart, granularity),
+                kwh: bucket.kwhConsumed,
+                cost: bucket.costBrl,
+            })),
         [buckets, granularity],
     )
 

@@ -16,9 +16,9 @@ describe("PasswordRequirements", () => {
     it("com senha vazia, todos os requisitos ficam não-atendidos", () => {
         render(<PasswordRequirements password="" />)
 
-        const icons = screen.getAllByRole("listitem").map(
-            (li) => li.querySelector("[data-met]")?.getAttribute("data-met"),
-        )
+        const icons = screen
+            .getAllByRole("listitem")
+            .map((li) => li.querySelector("[data-met]")?.getAttribute("data-met"))
 
         expect(icons).toEqual(["false", "false", "false", "false", "false"])
     })
@@ -26,8 +26,7 @@ describe("PasswordRequirements", () => {
     it("marca tamanho como atendido quando >= 8 caracteres", () => {
         render(<PasswordRequirements password="abcdefgh" />)
 
-        const tamanhoItem = screen.getByText(/pelo menos 8 caracteres/i)
-            .closest("li")!
+        const tamanhoItem = screen.getByText(/pelo menos 8 caracteres/i).closest("li")!
         const icon = tamanhoItem.querySelector("[data-met]")
         expect(icon).toHaveAttribute("data-met", "true")
     })
@@ -37,9 +36,7 @@ describe("PasswordRequirements", () => {
         render(<PasswordRequirements password="abcdefgh" />)
 
         const items = screen.getAllByRole("listitem")
-        const metFlags = items.map((li) =>
-            li.querySelector("[data-met]")?.getAttribute("data-met"),
-        )
+        const metFlags = items.map((li) => li.querySelector("[data-met]")?.getAttribute("data-met"))
 
         // Ordem: tamanho, maiúscula, minúscula, número, especial
         expect(metFlags).toEqual(["true", "false", "true", "false", "false"])
@@ -49,9 +46,7 @@ describe("PasswordRequirements", () => {
         render(<PasswordRequirements password="Senha@123" />)
 
         const items = screen.getAllByRole("listitem")
-        const metFlags = items.map((li) =>
-            li.querySelector("[data-met]")?.getAttribute("data-met"),
-        )
+        const metFlags = items.map((li) => li.querySelector("[data-met]")?.getAttribute("data-met"))
 
         expect(metFlags).toEqual(["true", "true", "true", "true", "true"])
     })

@@ -38,7 +38,10 @@ describe("generateMinuteReading — coerência física e validade", () => {
     ] as const)("%s: P = V·I·PF dentro de tolerância de arredondamento", (profile, at) => {
         const reading = generateMinuteReading(profile, at, createRng(7))
         if (reading.avgPowerW === 0) return
-        expect(reading.avgVoltage * reading.avgCurrent * reading.avgPowerFactor).toBeCloseTo(reading.avgPowerW, 5)
+        expect(reading.avgVoltage * reading.avgCurrent * reading.avgPowerFactor).toBeCloseTo(
+            reading.avgPowerW,
+            5,
+        )
     })
 
     it.each(["RESIDENTIAL", "COMMERCIAL_GENERAL", "SALES_AREA", "OVEN"] as const)(
@@ -76,7 +79,11 @@ describe("perfil RESIDENTIAL", () => {
 describe("perfil COMMERCIAL_GENERAL", () => {
     it("domingo (fechado) consome muito menos que horário comercial", () => {
         const closed = generateMinuteReading("COMMERCIAL_GENERAL", sundayNoon, createRng(1))
-        const open = generateMinuteReading("COMMERCIAL_GENERAL", wednesdayBusinessHour, createRng(1))
+        const open = generateMinuteReading(
+            "COMMERCIAL_GENERAL",
+            wednesdayBusinessHour,
+            createRng(1),
+        )
         expect(open.avgPowerW).toBeGreaterThan(closed.avgPowerW * 5)
     })
 })
@@ -93,7 +100,11 @@ describe("perfil OVEN", () => {
         let productionTotal = 0
         const samples = 30
         for (let i = 0; i < samples; i++) {
-            idleTotal += generateMinuteReading("OVEN", new Date(wednesdayOvenIdle.getTime() + i * 60_000), rng).avgPowerW
+            idleTotal += generateMinuteReading(
+                "OVEN",
+                new Date(wednesdayOvenIdle.getTime() + i * 60_000),
+                rng,
+            ).avgPowerW
             productionTotal += generateMinuteReading(
                 "OVEN",
                 new Date(wednesdayOvenProduction.getTime() + i * 60_000),

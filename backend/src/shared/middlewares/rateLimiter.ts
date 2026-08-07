@@ -20,9 +20,7 @@ const sharedOptions: Partial<Options> = {
 }
 
 // Limiter global moderado — rede de segurança por IP para toda a API.
-export function createGlobalRateLimiter(
-    overrides: Partial<Options> = {},
-): RateLimitRequestHandler {
+export function createGlobalRateLimiter(overrides: Partial<Options> = {}): RateLimitRequestHandler {
     return rateLimit({
         windowMs: env.RATE_LIMIT_WINDOW_MS,
         limit: env.RATE_LIMIT_MAX,
@@ -36,19 +34,14 @@ export function createGlobalRateLimiter(
 // Chave por IP + e-mail: mitiga brute force/credential stuffing contra um alvo
 // específico sem penalizar todo um IP compartilhado (NAT corporativo, etc.).
 // `ipKeyGenerator` normaliza o IP (inclusive IPv6) conforme exigido pela lib.
-export function createAuthRateLimiter(
-    overrides: Partial<Options> = {},
-): RateLimitRequestHandler {
+export function createAuthRateLimiter(overrides: Partial<Options> = {}): RateLimitRequestHandler {
     return rateLimit({
         windowMs: env.AUTH_RATE_LIMIT_WINDOW_MS,
         limit: env.AUTH_RATE_LIMIT_MAX,
         skip: skipInTest,
         keyGenerator: (req) => {
             const ip = ipKeyGenerator(req.ip ?? "")
-            const email =
-                typeof req.body?.email === "string"
-                    ? req.body.email.toLowerCase()
-                    : ""
+            const email = typeof req.body?.email === "string" ? req.body.email.toLowerCase() : ""
             return `${ip}:${email}`
         },
         ...sharedOptions,

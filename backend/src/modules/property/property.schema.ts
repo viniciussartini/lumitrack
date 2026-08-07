@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-// Validação de CEP 
+// Validação de CEP
 //   1. Formato 00000-000 (regex)
 //   2. Rejeitar sequências obviamente inválidas (00000-000, 11111-111, etc.)
 
@@ -16,9 +16,33 @@ function isValidCep(cep: string): boolean {
 // Lista completa das 26 estados + Distrito Federal.
 
 const VALID_UFS = [
-    "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO",
-    "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
-    "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+    "AC",
+    "AL",
+    "AP",
+    "AM",
+    "BA",
+    "CE",
+    "DF",
+    "ES",
+    "GO",
+    "MA",
+    "MT",
+    "MS",
+    "MG",
+    "PA",
+    "PB",
+    "PR",
+    "PE",
+    "PI",
+    "RJ",
+    "RN",
+    "RS",
+    "RO",
+    "RR",
+    "SC",
+    "SP",
+    "SE",
+    "TO",
 ] as const
 
 // Sistema elétrico da unidade consumidora — define o piso de disponibilidade
@@ -50,9 +74,7 @@ export const createPropertySchema = z.object({
 
     city: z.string().min(1).max(100).optional(),
 
-    state: z
-        .enum(VALID_UFS, { error: `Estado deve ser uma das siglas UF válidas` })
-        .optional(),
+    state: z.enum(VALID_UFS, { error: `Estado deve ser uma das siglas UF válidas` }).optional(),
 
     zipCode: z
         .string()

@@ -63,8 +63,7 @@ vi.mock("@/services/device.service", () => ({
 
 vi.mock("@/services/api", () => ({
     api: {},
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 vi.mock("sonner", () => ({
@@ -126,22 +125,14 @@ const renderPage = () => {
     })
     return render(
         <QueryClientProvider client={queryClient}>
-            <MemoryRouter
-                initialEntries={["/propriedades/prop-1/areas/area-1"]}
-            >
+            <MemoryRouter initialEntries={["/propriedades/prop-1/areas/area-1"]}>
                 <Routes>
                     <Route
                         path="/propriedades/:propertyId/areas/:areaId"
                         element={<AreaDetailsPage />}
                     />
-                    <Route
-                        path="/propriedades/:id"
-                        element={<div>Detalhes da propriedade</div>}
-                    />
-                    <Route
-                        path="/propriedades"
-                        element={<div>Lista de propriedades</div>}
-                    />
+                    <Route path="/propriedades/:id" element={<div>Detalhes da propriedade</div>} />
+                    <Route path="/propriedades" element={<div>Lista de propriedades</div>} />
                 </Routes>
             </MemoryRouter>
         </QueryClientProvider>,
@@ -165,9 +156,7 @@ describe("AreaDetailsPage — loading", () => {
         renderPage()
 
         expect(screen.queryByText(/sala/i)).not.toBeInTheDocument()
-        expect(
-            screen.getByRole("link", { name: /voltar para propriedade/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("link", { name: /voltar para propriedade/i })).toBeInTheDocument()
     })
 })
 
@@ -177,16 +166,12 @@ describe("AreaDetailsPage — loading", () => {
 
 describe("AreaDetailsPage — erro fatal (área)", () => {
     it("renderiza ErrorState quando o fetch da área falha", async () => {
-        vi.mocked(areaService.getById).mockRejectedValue(
-            new Error("Área não encontrada"),
-        )
+        vi.mocked(areaService.getById).mockRejectedValue(new Error("Área não encontrada"))
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
 
         renderPage()
 
-        expect(
-            await screen.findByText(/área não encontrada/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/área não encontrada/i)).toBeInTheDocument()
     })
 })
 
@@ -214,9 +199,7 @@ describe("AreaDetailsPage — header", () => {
     it("renderiza a descrição quando presente", async () => {
         renderPage()
 
-        expect(
-            await screen.findByText(/área principal de convivência/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/área principal de convivência/i)).toBeInTheDocument()
     })
 
     it("não renderiza descrição quando é null", async () => {
@@ -228,17 +211,13 @@ describe("AreaDetailsPage — header", () => {
         renderPage()
 
         await screen.findByRole("heading", { level: 1, name: /sala/i })
-        expect(
-            screen.queryByText(/área principal/i),
-        ).not.toBeInTheDocument()
+        expect(screen.queryByText(/área principal/i)).not.toBeInTheDocument()
     })
 
     it("renderiza chip com nome da propriedade pai", async () => {
         renderPage()
 
-        expect(
-            await screen.findByText(/casa principal/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/casa principal/i)).toBeInTheDocument()
     })
 })
 
@@ -261,9 +240,7 @@ describe("AreaDetailsPage — botão Editar área", () => {
         })
         await user.click(editButton)
 
-        expect(
-            await screen.findByRole("dialog", { name: /editar área/i }),
-        ).toBeInTheDocument()
+        expect(await screen.findByRole("dialog", { name: /editar área/i })).toBeInTheDocument()
     })
 })
 
@@ -282,9 +259,7 @@ describe("AreaDetailsPage — menu ⋯", () => {
 
         await screen.findByRole("heading", { level: 1, name: /sala/i })
 
-        expect(
-            screen.getByRole("button", { name: /opções de Sala/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /opções de Sala/i })).toBeInTheDocument()
     })
 
     it("menu NÃO mostra item 'Editar' (já existe botão dedicado no header)", async () => {
@@ -293,18 +268,12 @@ describe("AreaDetailsPage — menu ⋯", () => {
 
         await screen.findByRole("heading", { level: 1, name: /sala/i })
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Sala/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Sala/i }))
 
-        expect(
-            screen.queryByRole("menuitem", { name: /editar/i }),
-        ).not.toBeInTheDocument()
+        expect(screen.queryByRole("menuitem", { name: /editar/i })).not.toBeInTheDocument()
 
         // Mas mostra o item Excluir
-        expect(
-            screen.getByRole("menuitem", { name: /excluir/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("menuitem", { name: /excluir/i })).toBeInTheDocument()
     })
 
     it("após excluir, navega de volta para a propriedade pai", async () => {
@@ -314,15 +283,11 @@ describe("AreaDetailsPage — menu ⋯", () => {
 
         await screen.findByRole("heading", { level: 1, name: /sala/i })
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Sala/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Sala/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
         await user.click(screen.getByRole("button", { name: /^excluir$/i }))
 
-        expect(
-            await screen.findByText(/detalhes da propriedade/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/detalhes da propriedade/i)).toBeInTheDocument()
     })
 })
 
@@ -336,18 +301,14 @@ describe("AreaDetailsPage — chip da propriedade", () => {
     })
 
     it("mostra fallback quando a query da property falha", async () => {
-        vi.mocked(propertyService.getById).mockRejectedValue(
-            new Error("Propriedade removida"),
-        )
+        vi.mocked(propertyService.getById).mockRejectedValue(new Error("Propriedade removida"))
 
         renderPage()
 
         await screen.findByRole("heading", { level: 1, name: /sala/i })
 
         await waitFor(() =>
-            expect(
-                screen.getByText(/propriedade não disponível/i),
-            ).toBeInTheDocument(),
+            expect(screen.getByText(/propriedade não disponível/i)).toBeInTheDocument(),
         )
     })
 })
@@ -377,9 +338,7 @@ describe("AreaDetailsPage — seção de dispositivos (vazia)", () => {
     it("renderiza EmptyState quando não há dispositivos", async () => {
         renderPage()
 
-        expect(
-            await screen.findByText(/nenhum dispositivo cadastrado/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/nenhum dispositivo cadastrado/i)).toBeInTheDocument()
     })
 
     it("abre o modal de criação ao clicar em 'Adicionar dispositivo'", async () => {
@@ -399,9 +358,7 @@ describe("AreaDetailsPage — seção de dispositivos (vazia)", () => {
     it("renderiza a marca 'Em breve' explicitamente", async () => {
         renderPage()
 
-        expect(
-            await screen.findByTestId("devices-coming-soon"),
-        ).toBeInTheDocument()
+        expect(await screen.findByTestId("devices-coming-soon")).toBeInTheDocument()
     })
 })
 
@@ -419,17 +376,11 @@ describe("AreaDetailsPage — seção de dispositivos (com dados)", () => {
         renderPage()
 
         expect(await screen.findByTestId("devices-grid")).toBeInTheDocument()
-        expect(
-            screen.getByTestId("device-card-device-1"),
-        ).toBeInTheDocument()
-        expect(
-            screen.getByTestId("device-card-device-2"),
-        ).toBeInTheDocument()
+        expect(screen.getByTestId("device-card-device-1")).toBeInTheDocument()
+        expect(screen.getByTestId("device-card-device-2")).toBeInTheDocument()
         expect(screen.getByText(/ar-condicionado/i)).toBeInTheDocument()
         expect(screen.getByText(/^tv$/i)).toBeInTheDocument()
-        expect(
-            screen.queryByText(/nenhum dispositivo cadastrado/i),
-        ).not.toBeInTheDocument()
+        expect(screen.queryByText(/nenhum dispositivo cadastrado/i)).not.toBeInTheDocument()
     })
 
     it("card do dispositivo aponta para a página de detalhes do device", async () => {
@@ -439,10 +390,7 @@ describe("AreaDetailsPage — seção de dispositivos (com dados)", () => {
 
         const card = await screen.findByTestId("device-card-device-1")
 
-        expect(card).toHaveAttribute(
-            "href",
-            "/propriedades/prop-1/areas/area-1/devices/device-1",
-        )
+        expect(card).toHaveAttribute("href", "/propriedades/prop-1/areas/area-1/devices/device-1")
     })
 })
 
@@ -450,9 +398,7 @@ describe("AreaDetailsPage — seção de dispositivos (erro)", () => {
     it("renderiza alerta inline quando o fetch dos dispositivos falha", async () => {
         vi.mocked(areaService.getById).mockResolvedValue(mockArea)
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-        vi.mocked(deviceService.list).mockRejectedValue(
-            new Error("Falha ao listar dispositivos"),
-        )
+        vi.mocked(deviceService.list).mockRejectedValue(new Error("Falha ao listar dispositivos"))
 
         renderPage()
 
@@ -460,9 +406,7 @@ describe("AreaDetailsPage — seção de dispositivos (erro)", () => {
         await screen.findByRole("heading", { level: 1, name: /sala/i })
 
         // Alerta inline com a mensagem específica
-        expect(
-            await screen.findByText(/falha ao listar dispositivos/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/falha ao listar dispositivos/i)).toBeInTheDocument()
     })
 })
 

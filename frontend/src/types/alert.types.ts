@@ -55,6 +55,4 @@ export interface CreateAlertInput {
 }
 
 /** Input do form de edição — body do PUT /api/alerts/:id (meterId imutável) */
-export type UpdateAlertInput = Partial<
-    Omit<CreateAlertInput, "meterId">
->
+export type UpdateAlertInput = Partial<Omit<CreateAlertInput, "meterId">>

@@ -29,12 +29,18 @@ export class ExportController {
                 const pdfBuffer = await generateDataExportPdf(payload)
                 res.status(200)
                     .set("Content-Type", "application/pdf")
-                    .set("Content-Disposition", `attachment; filename="lumitrack-dados-${userId}.pdf"`)
+                    .set(
+                        "Content-Disposition",
+                        `attachment; filename="lumitrack-dados-${userId}.pdf"`,
+                    )
                     .send(pdfBuffer)
             } else {
                 res.status(200)
                     .set("Content-Type", "application/json")
-                    .set("Content-Disposition", `attachment; filename="lumitrack-dados-${userId}.json"`)
+                    .set(
+                        "Content-Disposition",
+                        `attachment; filename="lumitrack-dados-${userId}.json"`,
+                    )
                     .json({ status: "success", data: payload })
             }
 

@@ -33,7 +33,6 @@ function buildFakePayload(overrides: Partial<DataExportPayload> = {}): DataExpor
 }
 
 describe("generateDataExportPdf", () => {
-
     it("gera um Buffer com cabeçalho PDF válido para um payload vazio", async () => {
         const buffer = await generateDataExportPdf(buildFakePayload())
 
@@ -43,20 +42,64 @@ describe("generateDataExportPdf", () => {
 
     it("gera um PDF válido mesmo com seções preenchidas", async () => {
         const properties = [
-            { id: "prop-1", name: "Casa", address: "Rua A", city: "BH", state: "MG", zipCode: "30000-000", userId: "user-1", distributorId: "dist-1", createdAt: new Date(), updatedAt: new Date() },
+            {
+                id: "prop-1",
+                name: "Casa",
+                address: "Rua A",
+                city: "BH",
+                state: "MG",
+                zipCode: "30000-000",
+                userId: "user-1",
+                distributorId: "dist-1",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            },
         ] as unknown as PropertyResponse[]
 
         const buffer = await generateDataExportPdf(
             buildFakePayload({
                 properties,
                 distributors: [
-                    { id: "dist-1", name: "CEMIG", cnpj: "06.981.180/0001-16", state: "MG", tusdPerKwh: 0.3, tePerKwh: 0.3, icmsRate: 0.18, pisRate: 0.0165, cofinsRate: 0.076, createdAt: new Date(), updatedAt: new Date() },
+                    {
+                        id: "dist-1",
+                        name: "CEMIG",
+                        cnpj: "06.981.180/0001-16",
+                        state: "MG",
+                        tusdPerKwh: 0.3,
+                        tePerKwh: 0.3,
+                        icmsRate: 0.18,
+                        pisRate: 0.0165,
+                        cofinsRate: 0.076,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                    },
                 ],
                 alerts: [
-                    { id: "alert-1", userId: "user-1", meterId: "meter-1", name: "Pico de consumo", referencePowerKw: 10, tolerancePercent: 2, enabled: true, createdAt: new Date(), updatedAt: new Date() },
+                    {
+                        id: "alert-1",
+                        userId: "user-1",
+                        meterId: "meter-1",
+                        name: "Pico de consumo",
+                        referencePowerKw: 10,
+                        tolerancePercent: 2,
+                        enabled: true,
+                        createdAt: new Date(),
+                        updatedAt: new Date(),
+                    },
                 ] satisfies DataExportPayload["alerts"],
                 auditLogs: [
-                    { id: "audit-1", userId: "user-1", action: "LOGIN", outcome: "SUCCESS", resourceType: "User", resourceId: "user-1", ipAddress: "127.0.0.1", userAgent: "vitest", metadata: null, createdAt: new Date() },
+                    {
+                        id: "audit-1",
+                        userId: "user-1",
+                        action: "LOGIN",
+                        outcome: "SUCCESS",
+                        resourceType: "User",
+                        resourceId: "user-1",
+                        ipAddress: "127.0.0.1",
+                        userAgent: "vitest",
+                        metadata: null,
+                        createdAt: new Date(),
+                    },
                 ] as unknown as DataExportPayload["auditLogs"],
             }),
         )

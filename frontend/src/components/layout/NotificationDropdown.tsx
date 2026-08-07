@@ -1,10 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router"
 import { Bell, Check } from "lucide-react"
-import {
-    useDeleteNotification,
-    useNotifications,
-} from "@/hooks/queries/useNotifications"
+import { useDeleteNotification, useNotifications } from "@/hooks/queries/useNotifications"
 import { useClickOutside } from "@/lib/hooks/useClickOutside"
 import type { Notification } from "@/types/notification.types"
 
@@ -47,7 +44,7 @@ export const NotificationDropdown = () => {
 
     const handleNavigate = (notification: Notification) => {
         setIsOpen(false)
-        navigate(notification.targetPath)
+        void navigate(notification.targetPath)
         deleteNotification.mutate(notification.id)
     }
 
@@ -66,8 +63,8 @@ export const NotificationDropdown = () => {
                     count === 0
                         ? "Notificações — nenhuma pendente"
                         : count === 1
-                        ? "1 notificação"
-                        : `${count} notificações`
+                          ? "1 notificação"
+                          : `${count} notificações`
                 }
                 data-testid="notification-bell"
                 data-count={count}
@@ -87,7 +84,7 @@ export const NotificationDropdown = () => {
                     role="menu"
                     aria-label="Notificações"
                     data-testid="notification-dropdown"
-                    className="lt-menu right-0 top-full mt-1 w-80 max-h-96 overflow-y-auto"
+                    className="lt-menu top-full right-0 mt-1 max-h-96 w-80 overflow-y-auto"
                 >
                     {notifications.length === 0 ? (
                         <p className="text-muted px-4 py-6 text-center text-sm">
@@ -121,7 +118,11 @@ export const NotificationDropdown = () => {
                                     data-testid={`notification-dismiss-${notification.id}`}
                                     className="btn btn-ghost btn-icon my-1 mr-1 shrink-0"
                                 >
-                                    <Check className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                                    <Check
+                                        className="h-4 w-4"
+                                        strokeWidth={1.5}
+                                        aria-hidden="true"
+                                    />
                                 </button>
                             </div>
                         ))

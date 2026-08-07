@@ -1,9 +1,5 @@
 import { api } from "@/services/api"
-import type {
-    AlertWithStatus,
-    CreateAlertInput,
-    UpdateAlertInput,
-} from "@/types/alert.types"
+import type { AlertWithStatus, CreateAlertInput, UpdateAlertInput } from "@/types/alert.types"
 import type { Paginated, PaginationParams } from "@/types/pagination.types"
 
 interface ApiEnvelope<T> {
@@ -19,57 +15,37 @@ interface ApiEnvelope<T> {
  * property/area/device.
  */
 export const alertService = {
-    list: async (
-        params: PaginationParams = {},
-    ): Promise<Paginated<AlertWithStatus>> => {
-        const { data } = await api.get<ApiEnvelope<Paginated<AlertWithStatus>>>(
-            "/alerts",
-            { params },
-        )
+    list: async (params: PaginationParams = {}): Promise<Paginated<AlertWithStatus>> => {
+        const { data } = await api.get<ApiEnvelope<Paginated<AlertWithStatus>>>("/alerts", {
+            params,
+        })
         return data.data
     },
 
     firing: async (): Promise<AlertWithStatus[]> => {
-        const { data } = await api.get<ApiEnvelope<AlertWithStatus[]>>(
-            "/alerts/firing",
-        )
+        const { data } = await api.get<ApiEnvelope<AlertWithStatus[]>>("/alerts/firing")
         return data.data
     },
 
     getById: async (id: string): Promise<AlertWithStatus> => {
-        const { data } = await api.get<ApiEnvelope<AlertWithStatus>>(
-            `/alerts/${id}`,
-        )
+        const { data } = await api.get<ApiEnvelope<AlertWithStatus>>(`/alerts/${id}`)
         return data.data
     },
 
     create: async (input: CreateAlertInput): Promise<AlertWithStatus> => {
-        const { data } = await api.post<ApiEnvelope<AlertWithStatus>>(
-            "/alerts",
-            input,
-        )
+        const { data } = await api.post<ApiEnvelope<AlertWithStatus>>("/alerts", input)
         return data.data
     },
 
-    update: async (
-        id: string,
-        input: UpdateAlertInput,
-    ): Promise<AlertWithStatus> => {
-        const { data } = await api.put<ApiEnvelope<AlertWithStatus>>(
-            `/alerts/${id}`,
-            input,
-        )
+    update: async (id: string, input: UpdateAlertInput): Promise<AlertWithStatus> => {
+        const { data } = await api.put<ApiEnvelope<AlertWithStatus>>(`/alerts/${id}`, input)
         return data.data
     },
 
-    patchEnabled: async (
-        id: string,
-        enabled: boolean,
-    ): Promise<AlertWithStatus> => {
-        const { data } = await api.patch<ApiEnvelope<AlertWithStatus>>(
-            `/alerts/${id}/enabled`,
-            { enabled },
-        )
+    patchEnabled: async (id: string, enabled: boolean): Promise<AlertWithStatus> => {
+        const { data } = await api.patch<ApiEnvelope<AlertWithStatus>>(`/alerts/${id}/enabled`, {
+            enabled,
+        })
         return data.data
     },
 

@@ -40,7 +40,9 @@ export function alertRoutes(
 
     router.get("/:id", authenticate, (req, res, next) => controller.findById(req, res, next))
     router.put("/:id", authenticate, (req, res, next) => controller.update(req, res, next))
-    router.patch("/:id/enabled", authenticate, (req, res, next) => controller.patchEnabled(req, res, next))
+    router.patch("/:id/enabled", authenticate, (req, res, next) =>
+        controller.patchEnabled(req, res, next),
+    )
     router.delete("/:id", authenticate, (req, res, next) => controller.delete(req, res, next))
 
     return router

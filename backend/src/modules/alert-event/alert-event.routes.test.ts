@@ -8,19 +8,31 @@ import { createTestDistributor } from "@/shared/test/distributorFixture.js"
 const app = createApp({ prismaClient: prismaHttpTest })
 
 const validUser = {
-    email: "joao@example.com", password: "Senha@123", userType: "INDIVIDUAL",
-    acceptedTerms: true, firstName: "João", lastName: "Silva", cpf: "529.982.247-25",
+    email: "joao@example.com",
+    password: "Senha@123",
+    userType: "INDIVIDUAL",
+    acceptedTerms: true,
+    firstName: "João",
+    lastName: "Silva",
+    cpf: "529.982.247-25",
 }
 
 const anotherUser = {
-    email: "maria@example.com", password: "Senha@123", userType: "INDIVIDUAL",
-    acceptedTerms: true, firstName: "Maria", lastName: "Santos", cpf: "310.037.856-38",
+    email: "maria@example.com",
+    password: "Senha@123",
+    userType: "INDIVIDUAL",
+    acceptedTerms: true,
+    firstName: "Maria",
+    lastName: "Santos",
+    cpf: "310.037.856-38",
 }
 
 async function registerAndLogin(user = validUser) {
     await request(app).post("/api/users").send(user)
     const loginRes = await request(app).post("/api/auth/login").send({
-        email: user.email, password: user.password, channel: "MOBILE",
+        email: user.email,
+        password: user.password,
+        channel: "MOBILE",
     })
     return loginRes.body.data.token as string
 }
@@ -35,12 +47,25 @@ async function setupAlertWithEvent(token: string) {
     const meterRes = await request(app)
         .post("/api/meters")
         .set("Authorization", `Bearer ${token}`)
-        .send({ name: "Medidor", targetType: "PROPERTY", propertyId: propRes.body.data.id, protocol: "MQTT", host: "localhost", port: 1883, topic: "t" })
+        .send({
+            name: "Medidor",
+            targetType: "PROPERTY",
+            propertyId: propRes.body.data.id,
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "t",
+        })
 
     const alertRes = await request(app)
         .post("/api/alerts")
         .set("Authorization", `Bearer ${token}`)
-        .send({ name: "Pico de potência", meterId: meterRes.body.data.id, referencePowerKw: 10, tolerancePercent: 2 })
+        .send({
+            name: "Pico de potência",
+            meterId: meterRes.body.data.id,
+            referencePowerKw: 10,
+            tolerancePercent: 2,
+        })
 
     const alertId = alertRes.body.data.id as string
 
@@ -50,19 +75,28 @@ async function setupAlertWithEvent(token: string) {
             startedAt: new Date(Date.now() - 60_000),
             endedAt: new Date(),
             durationSeconds: 60,
-            minPowerW: 9000, maxPowerW: 11000, avgPowerW: 10000, sampleCount: 10,
+            minPowerW: 9000,
+            maxPowerW: 11000,
+            avgPowerW: 10000,
+            sampleCount: 10,
         },
     })
 
     return alertId
 }
 
-beforeEach(async () => { await cleanHttpDatabase() })
-afterAll(async () => { await prismaHttpTest.$disconnect() })
+beforeEach(async () => {
+    await cleanHttpDatabase()
+})
+afterAll(async () => {
+    await prismaHttpTest.$disconnect()
+})
 
 describe("GET /api/alert-events", () => {
     it("deve retornar 401 sem token", async () => {
-        const response = await request(app).get("/api/alert-events?alertId=00000000-0000-0000-0000-000000000000")
+        const response = await request(app).get(
+            "/api/alert-events?alertId=00000000-0000-0000-0000-000000000000",
+        )
         expect(response.status).toBe(401)
     })
 
@@ -83,7 +117,9 @@ describe("GET /api/alert-events", () => {
     it("deve retornar 422 quando alertId está ausente", async () => {
         const token = await registerAndLogin()
 
-        const response = await request(app).get("/api/alert-events").set("Authorization", `Bearer ${token}`)
+        const response = await request(app)
+            .get("/api/alert-events")
+            .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(422)
     })

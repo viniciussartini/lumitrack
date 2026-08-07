@@ -103,9 +103,7 @@ describe("RealtimeSection — sem medidor", () => {
 
         renderSection()
 
-        expect(
-            await screen.findByText(/não tem medidor vinculado/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/não tem medidor vinculado/i)).toBeInTheDocument()
         expect(screen.getByRole("link", { name: /ver propriedade/i })).toHaveAttribute(
             "href",
             "/propriedades/prop-1",

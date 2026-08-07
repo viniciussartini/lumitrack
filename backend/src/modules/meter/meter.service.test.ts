@@ -10,7 +10,12 @@ import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import {
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    ValidationError,
+} from "@/shared/errors/AppError.js"
 
 // ─── Instâncias ───────────────────────────────────────────────────────────────
 
@@ -23,7 +28,12 @@ const deviceService = new DeviceService(deviceRepository, areaRepository, proper
 const userRepository = new UserRepository(prismaTest)
 const userService = new UserService(userRepository)
 
-const meterService = new MeterService(meterRepository, propertyRepository, areaRepository, deviceRepository)
+const meterService = new MeterService(
+    meterRepository,
+    propertyRepository,
+    areaRepository,
+    deviceRepository,
+)
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
 //
@@ -83,7 +93,9 @@ async function setupUserAndProperty(email = "joao@example.com") {
 async function setupUserPropertyAreaDevice(email = "joao@example.com") {
     const { user, property } = await setupUserAndProperty(email)
     const area = await areaService.create(property.id, user.id, { name: "Sala" })
-    const device = await deviceService.create(area.id, property.id, user.id, { name: "Ar-condicionado" })
+    const device = await deviceService.create(area.id, property.id, user.id, {
+        name: "Ar-condicionado",
+    })
     return { user, property, area, device }
 }
 
@@ -320,7 +332,10 @@ describe("MeterService", () => {
             const { user, property } = await setupUserAndProperty()
 
             await expect(
-                meterService.findByTargetQuery(user.id, { targetType: "PROPERTY", targetId: property.id }),
+                meterService.findByTargetQuery(user.id, {
+                    targetType: "PROPERTY",
+                    targetId: property.id,
+                }),
             ).rejects.toThrow(NotFoundError)
         })
 
@@ -329,7 +344,10 @@ describe("MeterService", () => {
             const { user: userB } = await setupUserAndProperty("maria@example.com")
 
             await expect(
-                meterService.findByTargetQuery(userB.id, { targetType: "PROPERTY", targetId: property.id }),
+                meterService.findByTargetQuery(userB.id, {
+                    targetType: "PROPERTY",
+                    targetId: property.id,
+                }),
             ).rejects.toThrow(ForbiddenError)
         })
     })
@@ -338,9 +356,24 @@ describe("MeterService", () => {
         it("retorna todos os medidores do usuário, unindo os 3 níveis de alvo", async () => {
             const { user, property, area, device } = await setupUserPropertyAreaDevice()
 
-            await meterService.create(user.id, { ...validMeterMqtt, name: "M1", targetType: "PROPERTY", propertyId: property.id })
-            await meterService.create(user.id, { ...validMeterMqtt, name: "M2", targetType: "AREA", areaId: area.id })
-            await meterService.create(user.id, { ...validMeterMqtt, name: "M3", targetType: "DEVICE", deviceId: device.id })
+            await meterService.create(user.id, {
+                ...validMeterMqtt,
+                name: "M1",
+                targetType: "PROPERTY",
+                propertyId: property.id,
+            })
+            await meterService.create(user.id, {
+                ...validMeterMqtt,
+                name: "M2",
+                targetType: "AREA",
+                areaId: area.id,
+            })
+            await meterService.create(user.id, {
+                ...validMeterMqtt,
+                name: "M3",
+                targetType: "DEVICE",
+                deviceId: device.id,
+            })
 
             const result = await meterService.findAll(user.id, {})
             expect(result.items).toHaveLength(3)

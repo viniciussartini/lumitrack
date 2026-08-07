@@ -15,9 +15,9 @@ function isValidCpf(cpf: string): boolean {
 
     const calc = (len: number) => {
         const sum = digits
-        .slice(0, len)
-        .split("")
-        .reduce((acc, d, i) => acc + parseInt(d) * (len + 1 - i), 0)
+            .slice(0, len)
+            .split("")
+            .reduce((acc, d, i) => acc + parseInt(d) * (len + 1 - i), 0)
         const rem = (sum * 10) % 11
         return rem === 10 || rem === 11 ? 0 : rem
     }
@@ -34,8 +34,8 @@ function isValidCnpj(cnpj: string): boolean {
         let sum = 0
         let pos = len - 7
         for (let i = len; i >= 1; i--) {
-        sum += parseInt(digits[len - i]!) * pos--
-        if (pos < 2) pos = 9
+            sum += parseInt(digits[len - i]!) * pos--
+            if (pos < 2) pos = 9
         }
         const rem = sum % 11
         return rem < 2 ? 0 : 11 - rem
@@ -89,10 +89,7 @@ const companySchema = baseUserSchema.extend({
 // O discriminatedUnion usa o campo `userType` para decidir qual schema aplicar.
 // É mais eficiente e produz mensagens de erro mais claras do que um union simples,
 // porque o Zod não precisa tentar todos os schemas — ele vai direto ao certo.
-export const createUserSchema = z.discriminatedUnion("userType", [
-    individualSchema,
-    companySchema,
-])
+export const createUserSchema = z.discriminatedUnion("userType", [individualSchema, companySchema])
 
 // ─── Schema de atualização ────────────────────────────────────────────────────
 // Todos os campos são opcionais na atualização — o usuário pode atualizar

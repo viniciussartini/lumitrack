@@ -9,7 +9,7 @@
 - **Segurança:** helmet, `express-rate-limit`, bcryptjs, criptografia própria (AES-256-GCM + blind index HMAC-SHA256) para PII em repouso.
 - **E-mail:** nodemailer (recuperação de senha).
 - **PDF/QR:** pdfkit (export DSAR), qrcode (setup de MFA).
-- **IoT:** mqtt, jsmodbus, ethernet-ip, node-snap7, serialport, profibus — um adaptador por protocolo em `backend/src/modules/iot/iot-worker/protocols/`.
+- **IoT:** mqtt, jsmodbus, ethernet-ip, node-snap7, serialport — um adaptador por protocolo em `backend/src/modules/iot/iot-worker/protocols/`. PROFIBUS é **stub deliberado** (`ProfibusConnection`, sem dependência npm): não existe lib estável para PROFIBUS em Node.js — a integração real exige hardware dedicado (ex.: Procentec ProfiHub, Siemens CP 5711) com SDK nativo do fabricante; `connect()` lança um erro claro orientando os passos necessários (ver comentário da classe).
 - **iot-simulator:** aedes (broker MQTT embutido), Express, mqtt — simula os mesmos protocolos para desenvolvimento sem hardware.
 - **Infra/deploy:** VM única na **Oracle Cloud Always Free, região São Paulo** — backend, frontend estático, PostgreSQL e o simulador IoT co-locados, sem operador estrangeiro (**ADR-0008**, decisão tomada como conformidade: elimina a transferência internacional em vez de contratar SCC). Nenhum artefato de deploy existe no repositório ainda — a ADR define a topologia e os gates de go-live, a automação é trabalho posterior.
 - **CI/CD:** GitHub Actions (`.github/workflows/ci.yml`) — lint, build, test e `npm audit --audit-level=high` para backend e frontend, mais suíte E2E; Dependabot semanal (`.github/dependabot.yml`).

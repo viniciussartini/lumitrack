@@ -157,7 +157,12 @@ describe("checkOutboundHost", () => {
             return ["127.0.0.1"]
         }
 
-        const result = await checkOutboundHost("medidor-forjado.example", 1883, undefined, fakeResolve)
+        const result = await checkOutboundHost(
+            "medidor-forjado.example",
+            1883,
+            undefined,
+            fakeResolve,
+        )
         expect(result.allowed).toBe(false)
     })
 
@@ -182,7 +187,12 @@ describe("checkOutboundHost", () => {
             throw new Error("ENOTFOUND")
         }
 
-        const result = await checkOutboundHost("nao-existe.example", 1883, undefined, failingResolve)
+        const result = await checkOutboundHost(
+            "nao-existe.example",
+            1883,
+            undefined,
+            failingResolve,
+        )
         expect(result.allowed).toBe(false)
         expect(result.reason).toMatch(/Não foi possível resolver/)
     })

@@ -37,16 +37,12 @@ const setOsPrefersDark = (prefersDark: boolean): FakeMediaQueryList => {
         onchange: null,
         addListener: vi.fn(),
         removeListener: vi.fn(),
-        addEventListener: vi.fn(
-            (_: string, listener: (e: MediaQueryListEvent) => void) => {
-                listeners.add(listener)
-            },
-        ),
-        removeEventListener: vi.fn(
-            (_: string, listener: (e: MediaQueryListEvent) => void) => {
-                listeners.delete(listener)
-            },
-        ),
+        addEventListener: vi.fn((_: string, listener: (e: MediaQueryListEvent) => void) => {
+            listeners.add(listener)
+        }),
+        removeEventListener: vi.fn((_: string, listener: (e: MediaQueryListEvent) => void) => {
+            listeners.delete(listener)
+        }),
         dispatchEvent: vi.fn(),
         __triggerChange: (matches: boolean) => {
             const event = { matches } as MediaQueryListEvent

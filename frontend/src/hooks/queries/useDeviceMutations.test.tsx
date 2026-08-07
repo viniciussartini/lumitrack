@@ -48,9 +48,7 @@ const createWrapper = () => {
         },
     })
     const wrapper = ({ children }: { children: ReactNode }) => (
-        <QueryClientProvider client={queryClient}>
-            {children}
-        </QueryClientProvider>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     )
     return { queryClient, wrapper }
 }
@@ -84,11 +82,7 @@ describe("useCreateDevice", () => {
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-        expect(deviceService.create).toHaveBeenCalledWith(
-            "prop-1",
-            "area-1",
-            input,
-        )
+        expect(deviceService.create).toHaveBeenCalledWith("prop-1", "area-1", input)
         expect(result.current.data).toEqual(mockDevice)
     })
 
@@ -175,12 +169,9 @@ describe("useUpdateDevice", () => {
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-        expect(deviceService.update).toHaveBeenCalledWith(
-            "prop-1",
-            "area-1",
-            "device-1",
-            { name: "Ar renovado" },
-        )
+        expect(deviceService.update).toHaveBeenCalledWith("prop-1", "area-1", "device-1", {
+            name: "Ar renovado",
+        })
         expect(result.current.data).toEqual(updated)
     })
 
@@ -206,11 +197,7 @@ describe("useUpdateDevice", () => {
             queryKey: [...queryKeys.devices.all, "list", "prop-1", "area-1"],
         })
         expect(invalidateSpy).toHaveBeenCalledWith({
-            queryKey: queryKeys.devices.detail(
-                "prop-1",
-                "area-1",
-                "device-1",
-            ),
+            queryKey: queryKeys.devices.detail("prop-1", "area-1", "device-1"),
         })
     })
 
@@ -258,11 +245,7 @@ describe("useDeleteDevice", () => {
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-        expect(deviceService.delete).toHaveBeenCalledWith(
-            "prop-1",
-            "area-1",
-            "device-1",
-        )
+        expect(deviceService.delete).toHaveBeenCalledWith("prop-1", "area-1", "device-1")
     })
 
     it("invalida lista e remove detalhe do cache após sucesso", async () => {
@@ -286,11 +269,7 @@ describe("useDeleteDevice", () => {
             queryKey: [...queryKeys.devices.all, "list", "prop-1", "area-1"],
         })
         expect(removeSpy).toHaveBeenCalledWith({
-            queryKey: queryKeys.devices.detail(
-                "prop-1",
-                "area-1",
-                "device-1",
-            ),
+            queryKey: queryKeys.devices.detail("prop-1", "area-1", "device-1"),
         })
     })
 

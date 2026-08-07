@@ -45,7 +45,9 @@ const bucket = (month: string, kwh: number): ConsumptionBucket => ({
     avgPowerW: 500,
 })
 
-const paginated = (items: ConsumptionBucket[]): Paginated<ConsumptionBucket> & { granularity: Granularity } => ({
+const paginated = (
+    items: ConsumptionBucket[],
+): Paginated<ConsumptionBucket> & { granularity: Granularity } => ({
     items,
     total: items.length,
     page: 1,

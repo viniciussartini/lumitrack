@@ -37,7 +37,9 @@ const anotherUser = {
 async function registerAndLogin(user = validUser): Promise<string> {
     await request(app).post("/api/users").send(user)
     const res = await request(app).post("/api/auth/login").send({
-        email: user.email, password: user.password, channel: "MOBILE",
+        email: user.email,
+        password: user.password,
+        channel: "MOBILE",
     })
     return res.body.data.token as string
 }
@@ -45,7 +47,9 @@ async function registerAndLogin(user = validUser): Promise<string> {
 let distributorSeq = 0
 
 async function seedProperty(token: string): Promise<string> {
-    const email = JSON.parse(Buffer.from(token.split(".")[1]!, "base64url").toString()) as { email: string }
+    const email = JSON.parse(Buffer.from(token.split(".")[1]!, "base64url").toString()) as {
+        email: string
+    }
     const user = await prismaHttpTest.user.findUniqueOrThrow({ where: { email: email.email } })
 
     distributorSeq += 1
@@ -120,7 +124,14 @@ describe("POST /api/meters", () => {
         const response = await request(app)
             .post("/api/meters")
             .set("Authorization", `Bearer ${token}`)
-            .send({ name: "M", targetType: "PROPERTY", propertyId, protocol: "MQTT", host: "localhost", port: 1883 })
+            .send({
+                name: "M",
+                targetType: "PROPERTY",
+                propertyId,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+            })
 
         expect(response.status).toBe(422)
     })
@@ -153,7 +164,10 @@ describe("POST /api/meters", () => {
         const token = await registerAndLogin()
         const propertyId = await seedProperty(token)
 
-        await request(app).post("/api/meters").set("Authorization", `Bearer ${token}`).send({ ...validMeterBody, propertyId })
+        await request(app)
+            .post("/api/meters")
+            .set("Authorization", `Bearer ${token}`)
+            .send({ ...validMeterBody, propertyId })
 
         const response = await request(app)
             .post("/api/meters")
@@ -193,9 +207,14 @@ describe("GET /api/meters", () => {
     it("retorna a lista de medidores do usuário", async () => {
         const token = await registerAndLogin()
         const propertyId = await seedProperty(token)
-        await request(app).post("/api/meters").set("Authorization", `Bearer ${token}`).send({ ...validMeterBody, propertyId })
+        await request(app)
+            .post("/api/meters")
+            .set("Authorization", `Bearer ${token}`)
+            .send({ ...validMeterBody, propertyId })
 
-        const response = await request(app).get("/api/meters").set("Authorization", `Bearer ${token}`)
+        const response = await request(app)
+            .get("/api/meters")
+            .set("Authorization", `Bearer ${token}`)
 
         expect(response.status).toBe(200)
         expect(response.body.data.items).toHaveLength(1)
@@ -216,7 +235,10 @@ describe("GET /api/meters/by-target", () => {
     it("retorna o medidor vinculado ao alvo informado", async () => {
         const token = await registerAndLogin()
         const propertyId = await seedProperty(token)
-        const created = await request(app).post("/api/meters").set("Authorization", `Bearer ${token}`).send({ ...validMeterBody, propertyId })
+        const created = await request(app)
+            .post("/api/meters")
+            .set("Authorization", `Bearer ${token}`)
+            .send({ ...validMeterBody, propertyId })
 
         const response = await request(app)
             .get("/api/meters/by-target")
@@ -248,12 +270,21 @@ describe("PUT /api/meters/:id", () => {
     it("atualiza o medidor e retorna 200", async () => {
         const token = await registerAndLogin()
         const propertyId = await seedProperty(token)
-        const created = await request(app).post("/api/meters").set("Authorization", `Bearer ${token}`).send({ ...validMeterBody, propertyId })
+        const created = await request(app)
+            .post("/api/meters")
+            .set("Authorization", `Bearer ${token}`)
+            .send({ ...validMeterBody, propertyId })
 
         const response = await request(app)
             .put(`/api/meters/${created.body.data.id as string}`)
             .set("Authorization", `Bearer ${token}`)
-            .send({ name: "Renomeado", protocol: "MQTT", host: "novo-host", port: 1884, topic: "novo/topic" })
+            .send({
+                name: "Renomeado",
+                protocol: "MQTT",
+                host: "novo-host",
+                port: 1884,
+                topic: "novo/topic",
+            })
 
         expect(response.status).toBe(200)
         expect(response.body.data.name).toBe("Renomeado")
@@ -262,7 +293,10 @@ describe("PUT /api/meters/:id", () => {
     it("retorna 403 ao atualizar medidor de outro usuário", async () => {
         const tokenA = await registerAndLogin(validUser)
         const propertyId = await seedProperty(tokenA)
-        const created = await request(app).post("/api/meters").set("Authorization", `Bearer ${tokenA}`).send({ ...validMeterBody, propertyId })
+        const created = await request(app)
+            .post("/api/meters")
+            .set("Authorization", `Bearer ${tokenA}`)
+            .send({ ...validMeterBody, propertyId })
         const tokenB = await registerAndLogin(anotherUser)
 
         const response = await request(app)
@@ -279,7 +313,10 @@ describe("PUT /api/meters/:id", () => {
     it("retorna 422 ao atualizar host para rede privada sem allowlist", async () => {
         const token = await registerAndLogin()
         const propertyId = await seedProperty(token)
-        const created = await request(app).post("/api/meters").set("Authorization", `Bearer ${token}`).send({ ...validMeterBody, propertyId })
+        const created = await request(app)
+            .post("/api/meters")
+            .set("Authorization", `Bearer ${token}`)
+            .send({ ...validMeterBody, propertyId })
 
         const response = await request(app)
             .put(`/api/meters/${created.body.data.id as string}`)
@@ -298,7 +335,10 @@ describe("DELETE /api/meters/:id", () => {
     it("remove o medidor e retorna 204", async () => {
         const token = await registerAndLogin()
         const propertyId = await seedProperty(token)
-        const created = await request(app).post("/api/meters").set("Authorization", `Bearer ${token}`).send({ ...validMeterBody, propertyId })
+        const created = await request(app)
+            .post("/api/meters")
+            .set("Authorization", `Bearer ${token}`)
+            .send({ ...validMeterBody, propertyId })
 
         const response = await request(app)
             .delete(`/api/meters/${created.body.data.id as string}`)

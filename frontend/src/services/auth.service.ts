@@ -29,10 +29,10 @@ export const authService = {
      * O channel é fixo "WEB" — o app mobile usaria "MOBILE".
      */
     login: async (input: LoginInput): Promise<LoginResult> => {
-        const { data } = await api.post<ApiEnvelope<LoginResponse>>(
-            "/auth/login",
-            { ...input, channel: "WEB" },
-        )
+        const { data } = await api.post<ApiEnvelope<LoginResponse>>("/auth/login", {
+            ...input,
+            channel: "WEB",
+        })
 
         if (data.data.mfaRequired && data.data.mfaToken) {
             return { mfaRequired: true, mfaToken: data.data.mfaToken }
@@ -63,9 +63,7 @@ export const authService = {
      * code pronto (data URL PNG) para escanear no app autenticador.
      */
     mfaSetup: async (): Promise<MfaSetupResponse> => {
-        const { data } = await api.post<ApiEnvelope<MfaSetupResponse>>(
-            "/auth/mfa/setup",
-        )
+        const { data } = await api.post<ApiEnvelope<MfaSetupResponse>>("/auth/mfa/setup")
         return data.data
     },
 
@@ -75,9 +73,7 @@ export const authService = {
      * plano — única vez que ficam visíveis, nunca mais recuperáveis depois
      * (persistidos como hash).
      */
-    mfaVerifySetup: async (
-        input: MfaVerifySetupInput,
-    ): Promise<MfaVerifySetupResponse> => {
+    mfaVerifySetup: async (input: MfaVerifySetupInput): Promise<MfaVerifySetupResponse> => {
         const { data } = await api.post<ApiEnvelope<MfaVerifySetupResponse>>(
             "/auth/mfa/verify-setup",
             input,

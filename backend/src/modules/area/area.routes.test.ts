@@ -63,7 +63,11 @@ async function createProperty(token: string, distributorId: string) {
     return res.body.data as { id: string }
 }
 
-async function createArea(token: string, propertyId: string, body: Record<string, unknown> = validAreaBody) {
+async function createArea(
+    token: string,
+    propertyId: string,
+    body: Record<string, unknown> = validAreaBody,
+) {
     const res = await request(app)
         .post(`/api/properties/${propertyId}/areas`)
         .set("Authorization", `Bearer ${token}`)
@@ -246,8 +250,9 @@ describe("GET /api/properties/:propertyId/areas", () => {
     })
 
     it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .get("/api/properties/00000000-0000-0000-0000-000000000000/areas")
+        const response = await request(app).get(
+            "/api/properties/00000000-0000-0000-0000-000000000000/areas",
+        )
 
         expect(response.status).toBe(401)
     })
@@ -307,8 +312,9 @@ describe("GET /api/properties/:propertyId/areas/:areaId", () => {
     })
 
     it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .get("/api/properties/00000000-0000-0000-0000-000000000000/areas/00000000-0000-0000-0000-000000000000")
+        const response = await request(app).get(
+            "/api/properties/00000000-0000-0000-0000-000000000000/areas/00000000-0000-0000-0000-000000000000",
+        )
 
         expect(response.status).toBe(401)
     })
@@ -370,7 +376,9 @@ describe("PUT /api/properties/:propertyId/areas/:areaId", () => {
 
     it("deve retornar 401 sem token", async () => {
         const response = await request(app)
-            .put("/api/properties/00000000-0000-0000-0000-000000000000/areas/00000000-0000-0000-0000-000000000000")
+            .put(
+                "/api/properties/00000000-0000-0000-0000-000000000000/areas/00000000-0000-0000-0000-000000000000",
+            )
             .send({ name: "X" })
 
         expect(response.status).toBe(401)
@@ -421,8 +429,9 @@ describe("DELETE /api/properties/:propertyId/areas/:areaId", () => {
     })
 
     it("deve retornar 401 sem token", async () => {
-        const response = await request(app)
-            .delete("/api/properties/00000000-0000-0000-0000-000000000000/areas/00000000-0000-0000-0000-000000000000")
+        const response = await request(app).delete(
+            "/api/properties/00000000-0000-0000-0000-000000000000/areas/00000000-0000-0000-0000-000000000000",
+        )
 
         expect(response.status).toBe(401)
     })

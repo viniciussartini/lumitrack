@@ -16,8 +16,7 @@ vi.mock("@/services/auth.service", () => ({
 }))
 
 vi.mock("@/services/api", () => ({
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 const mockUser: User = {
@@ -114,7 +113,7 @@ describe("RegisterPage — máscaras", () => {
         const user = userEvent.setup()
         renderWithProviders(<RegisterPage />)
 
-        const cpfInput = await screen.findByLabelText(/cpf/i) as HTMLInputElement
+        const cpfInput = (await screen.findByLabelText(/cpf/i)) as HTMLInputElement
         await user.type(cpfInput, "52998224725")
 
         expect(cpfInput.value).toBe("529.982.247-25")
@@ -146,9 +145,7 @@ describe("RegisterPage — validação client-side", () => {
         await user.type(screen.getByLabelText(/confirmar senha/i), "Outra@456")
         await user.click(screen.getByRole("button", { name: /criar conta/i }))
 
-        expect(
-            await screen.findByText(/as senhas não coincidem/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/as senhas não coincidem/i)).toBeInTheDocument()
     })
 
     it("mostra erro para CPF inválido (dígito verificador errado)", async () => {
@@ -234,9 +231,7 @@ describe("RegisterPage — submit", () => {
     })
 
     it("exibe mensagem de erro do servidor (ex: email duplicado)", async () => {
-        vi.mocked(authService.register).mockRejectedValue(
-            new Error("E-mail já cadastrado"),
-        )
+        vi.mocked(authService.register).mockRejectedValue(new Error("E-mail já cadastrado"))
 
         const user = userEvent.setup()
         renderWithProviders(<RegisterPage />)
@@ -245,8 +240,6 @@ describe("RegisterPage — submit", () => {
         await fillIndividualForm(user)
         await user.click(screen.getByRole("button", { name: /criar conta/i }))
 
-        expect(
-            await screen.findByText(/e-mail já cadastrado/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/e-mail já cadastrado/i)).toBeInTheDocument()
     })
 })

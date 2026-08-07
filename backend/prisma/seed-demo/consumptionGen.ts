@@ -83,7 +83,8 @@ function residentialTargetPowerW(local: LocalParts): number {
 
     const weekendFactor = isWeekend(local.weekday) ? 1.25 : 1
     // Verão no hemisfério sul: pico em torno do dia 15 (15/jan).
-    const summerFactor = 1 + 0.15 * Math.max(0, Math.cos((2 * Math.PI * (local.dayOfYear - 15)) / 365))
+    const summerFactor =
+        1 + 0.15 * Math.max(0, Math.cos((2 * Math.PI * (local.dayOfYear - 15)) / 365))
 
     return (base + morningLobe + eveningLobe) * weekendFactor * summerFactor
 }
@@ -135,10 +136,14 @@ function ovenTargetPowerW(local: LocalParts): number {
 function targetPowerW(profile: MeterProfileKey, minuteStartUtc: Date): number {
     const local = localParts(minuteStartUtc)
     switch (profile) {
-        case "RESIDENTIAL": return residentialTargetPowerW(local)
-        case "COMMERCIAL_GENERAL": return commercialGeneralTargetPowerW(local)
-        case "SALES_AREA": return salesAreaTargetPowerW(local)
-        case "OVEN": return ovenTargetPowerW(local)
+        case "RESIDENTIAL":
+            return residentialTargetPowerW(local)
+        case "COMMERCIAL_GENERAL":
+            return commercialGeneralTargetPowerW(local)
+        case "SALES_AREA":
+            return salesAreaTargetPowerW(local)
+        case "OVEN":
+            return ovenTargetPowerW(local)
     }
 }
 

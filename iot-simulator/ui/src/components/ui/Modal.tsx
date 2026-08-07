@@ -21,7 +21,15 @@ interface ModalProps {
  * não é um Dialog genérico reutilizável fora desta tela, por isso vive em
  * `components/ui/` só como wrapper de estrutura, sem virar uma lib própria.
  */
-export const Modal = ({ eyebrow, title, onClose, onSubmit, children, footer, className }: ModalProps) => {
+export const Modal = ({
+    eyebrow,
+    title,
+    onClose,
+    onSubmit,
+    children,
+    footer,
+    className,
+}: ModalProps) => {
     useEffect(() => {
         const handleEscape = (e: KeyboardEvent) => {
             if (e.key === "Escape") onClose()
@@ -43,7 +51,9 @@ export const Modal = ({ eyebrow, title, onClose, onSubmit, children, footer, cla
                             <span className="font-heading text-accent-700 block text-[11px] font-semibold tracking-[.08em] uppercase">
                                 {eyebrow}
                             </span>
-                            <h2 className="font-heading mt-2 text-[22px] leading-[1.05] uppercase">{title}</h2>
+                            <h2 className="font-heading mt-2 text-[22px] leading-[1.05] uppercase">
+                                {title}
+                            </h2>
                         </div>
                         <button
                             type="button"

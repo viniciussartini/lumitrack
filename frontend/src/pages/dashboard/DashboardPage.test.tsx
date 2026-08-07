@@ -131,20 +131,17 @@ describe("DashboardPage — vazio", () => {
 
         renderPage()
 
-        expect(
-            await screen.findByText(/nenhuma propriedade cadastrada/i),
-        ).toBeInTheDocument()
-        expect(
-            screen.getByRole("link", { name: /cadastrar propriedade/i }),
-        ).toHaveAttribute("href", "/propriedades")
+        expect(await screen.findByText(/nenhuma propriedade cadastrada/i)).toBeInTheDocument()
+        expect(screen.getByRole("link", { name: /cadastrar propriedade/i })).toHaveAttribute(
+            "href",
+            "/propriedades",
+        )
     })
 })
 
 describe("DashboardPage — seletor de propriedade", () => {
     it("renderiza um botão por propriedade, com a primeira selecionada por padrão", async () => {
-        vi.mocked(propertyService.list).mockResolvedValue(
-            paginated([mockPropertyA, mockPropertyB]),
-        )
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([mockPropertyA, mockPropertyB]))
 
         renderPage()
 
@@ -156,9 +153,7 @@ describe("DashboardPage — seletor de propriedade", () => {
     })
 
     it("troca a seleção ao clicar e persiste em localStorage", async () => {
-        vi.mocked(propertyService.list).mockResolvedValue(
-            paginated([mockPropertyA, mockPropertyB]),
-        )
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([mockPropertyA, mockPropertyB]))
 
         renderPage()
 
@@ -176,9 +171,7 @@ describe("DashboardPage — seletor de propriedade", () => {
 
     it("nasce com a propriedade persistida em localStorage já selecionada", async () => {
         storage.set(STORAGE_KEYS.SELECTED_PROPERTY, "prop-b")
-        vi.mocked(propertyService.list).mockResolvedValue(
-            paginated([mockPropertyA, mockPropertyB]),
-        )
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([mockPropertyA, mockPropertyB]))
 
         renderPage()
 
@@ -188,9 +181,7 @@ describe("DashboardPage — seletor de propriedade", () => {
 
     it("cai para a primeira propriedade quando o id persistido não existe mais na lista", async () => {
         storage.set(STORAGE_KEYS.SELECTED_PROPERTY, "prop-orfao")
-        vi.mocked(propertyService.list).mockResolvedValue(
-            paginated([mockPropertyA, mockPropertyB]),
-        )
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([mockPropertyA, mockPropertyB]))
 
         renderPage()
 

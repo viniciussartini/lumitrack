@@ -44,8 +44,7 @@ vi.mock("@/services/property.service", () => ({
 }))
 
 vi.mock("@/services/api", () => ({
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 vi.mock("sonner", () => ({
@@ -226,7 +225,9 @@ describe("ProfilePage — Exercer meus direitos (Art. 18, issue #155)", () => {
     it("publica o canal de privacidade", async () => {
         renderPage(mockUserPF)
 
-        const privacyLink = await screen.findByRole("link", { name: new RegExp(PRIVACY_CONTACT_EMAIL) })
+        const privacyLink = await screen.findByRole("link", {
+            name: new RegExp(PRIVACY_CONTACT_EMAIL),
+        })
         expect(privacyLink).toHaveAttribute("href", `mailto:${PRIVACY_CONTACT_EMAIL}`)
     })
 

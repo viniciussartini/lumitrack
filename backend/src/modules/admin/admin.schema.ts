@@ -27,7 +27,7 @@ const auditOutcomeValues = ["SUCCESS", "FAILURE"] as const
 const isoDate = z.iso.datetime({ offset: true }).or(z.iso.date()).pipe(z.coerce.date())
 
 // Query params do endpoint administrativo de consulta do audit log
-// (#16 — A09/Art. 48). Todos os filtros são opcionais — sem nenhum, retorna
+// (A09/Art. 48). Todos os filtros são opcionais — sem nenhum, retorna
 // tudo, paginado.
 export const auditLogQuerySchema = z.object({
     userId: z.uuid({ message: "userId inválido" }).optional(),

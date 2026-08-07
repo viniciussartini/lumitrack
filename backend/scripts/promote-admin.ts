@@ -1,8 +1,8 @@
 import "dotenv/config"
 import { prisma } from "@/shared/database/prisma.js"
 
-// Promove um usuário a ADMIN por e-mail — parte da #16 (endpoint
-// administrativo de audit log), que depende de RBAC real existir. Não há UI
+// Promove um usuário a ADMIN por e-mail — necessário para o endpoint
+// administrativo de audit log, que depende de RBAC real existir. Não há UI
 // nem endpoint de gestão de usuários para conceder a primeira role ADMIN
 // (problema do ovo e da galinha), então isso é resolvido via script,
 // mesmo padrão dos scripts de backfill existentes.

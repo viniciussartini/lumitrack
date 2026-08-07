@@ -37,7 +37,11 @@ export function createApp({ store, engine }: AppDependencies): express.Express {
     // em cada rota (schema.parse() lançando ZodError incluso).
     app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
         if (err instanceof ZodError) {
-            res.status(422).json({ status: "error", message: "Dados inválidos", issues: z.flattenError(err).fieldErrors })
+            res.status(422).json({
+                status: "error",
+                message: "Dados inválidos",
+                issues: z.flattenError(err).fieldErrors,
+            })
             return
         }
         if (err instanceof NotFoundError) {

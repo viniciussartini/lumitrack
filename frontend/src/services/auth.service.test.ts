@@ -68,9 +68,7 @@ describe("authService.login", () => {
     })
 
     it("propaga o erro quando o backend retorna 401 (sem chamar /auth/me)", async () => {
-        vi.mocked(api.post).mockRejectedValueOnce(
-            new Error("Credenciais inválidas"),
-        )
+        vi.mocked(api.post).mockRejectedValueOnce(new Error("Credenciais inválidas"))
 
         await expect(
             authService.login({
@@ -265,17 +263,12 @@ describe("authService.register", () => {
 
         await authService.register(validIndividualInput)
 
-        expect(api.post).not.toHaveBeenCalledWith(
-            "/auth/login",
-            expect.anything(),
-        )
+        expect(api.post).not.toHaveBeenCalledWith("/auth/login", expect.anything())
         expect(api.get).not.toHaveBeenCalled()
     })
 
     it("propaga erro 409 (email duplicado)", async () => {
-        vi.mocked(api.post).mockRejectedValueOnce(
-            new Error("E-mail já cadastrado"),
-        )
+        vi.mocked(api.post).mockRejectedValueOnce(new Error("E-mail já cadastrado"))
 
         await expect(authService.register(validIndividualInput)).rejects.toThrow(
             "E-mail já cadastrado",
@@ -283,12 +276,8 @@ describe("authService.register", () => {
     })
 
     it("propaga erro 422 (validação)", async () => {
-        vi.mocked(api.post).mockRejectedValueOnce(
-            new Error("Dados inválidos"),
-        )
+        vi.mocked(api.post).mockRejectedValueOnce(new Error("Dados inválidos"))
 
-        await expect(authService.register(validIndividualInput)).rejects.toThrow(
-            "Dados inválidos",
-        )
+        await expect(authService.register(validIndividualInput)).rejects.toThrow("Dados inválidos")
     })
 })

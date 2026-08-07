@@ -7,8 +7,7 @@ import type { AreaFormData } from "@/schemas/area.schema"
 import type { Area, CreateAreaInput, UpdateAreaInput } from "@/types/area.types"
 
 type DialogMode =
-    | { kind: "create"; propertyId: string }
-    | { kind: "edit"; propertyId: string; area: Area }
+    { kind: "create"; propertyId: string } | { kind: "edit"; propertyId: string; area: Area }
 
 interface AreaFormDialogProps {
     isOpen: boolean

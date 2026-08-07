@@ -9,8 +9,8 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
     /**
      * Mostra um botão de olho para alternar type="password" ↔ "text".
      * Só tem efeito quando type="password" (ver auth.spec.ts / prototype
-     * LumiTrack Login.dc.html e Registro.dc.html — resolve a issue #2
-     * legada, "Input Senha" sem opção de mostrar/ocultar).
+     * LumiTrack Login.dc.html e Registro.dc.html — resolve o campo
+     * "Input Senha" sem opção de mostrar/ocultar).
      */
     revealable?: boolean
     /**
@@ -25,7 +25,10 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 // gerenciar o valor sem usar useState.
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-    ({ label, error, helperText, labelExtra, className, id, type, revealable = false, ...rest }, ref) => {
+    (
+        { label, error, helperText, labelExtra, className, id, type, revealable = false, ...rest },
+        ref,
+    ) => {
         const generatedId = useId()
         const inputId = id ?? generatedId
         const hasError = Boolean(error)
@@ -36,8 +39,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
         return (
             <div className="field">
-                {label && (
-                    labelExtra ? (
+                {label &&
+                    (labelExtra ? (
                         // .field > label (industry.css) exige filho DIRETO de
                         // .field — como o label some dentro deste wrapper
                         // flex, precisa repetir aqui o que a regra perderia:
@@ -51,8 +54,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                         </div>
                     ) : (
                         <label htmlFor={inputId}>{label}</label>
-                    )
-                )}
+                    ))}
                 <div className="relative flex items-center">
                     <input
                         id={inputId}
@@ -60,7 +62,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                         type={effectiveType}
                         aria-invalid={hasError}
                         aria-describedby={
-                            hasError ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined
+                            hasError
+                                ? `${inputId}-error`
+                                : helperText
+                                  ? `${inputId}-helper`
+                                  : undefined
                         }
                         className={cn(
                             "input lt-input w-full",
@@ -78,15 +84,27 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                             className="text-text/55 hover:text-text absolute right-1.5 inline-flex h-8 w-8 items-center justify-center border-0 bg-transparent"
                         >
                             {visible ? (
-                                <EyeOff className="h-[18px] w-[18px]" strokeWidth={1.5} aria-hidden="true" />
+                                <EyeOff
+                                    className="h-[18px] w-[18px]"
+                                    strokeWidth={1.5}
+                                    aria-hidden="true"
+                                />
                             ) : (
-                                <Eye className="h-[18px] w-[18px]" strokeWidth={1.5} aria-hidden="true" />
+                                <Eye
+                                    className="h-[18px] w-[18px]"
+                                    strokeWidth={1.5}
+                                    aria-hidden="true"
+                                />
                             )}
                         </button>
                     )}
                 </div>
                 {hasError ? (
-                    <span id={`${inputId}-error`} role="alert" className="text-status-danger text-xs">
+                    <span
+                        id={`${inputId}-error`}
+                        role="alert"
+                        className="text-status-danger text-xs"
+                    >
                         {error}
                     </span>
                 ) : helperText ? (

@@ -49,10 +49,9 @@ describe("Sidebar — renderização", () => {
     })
 
     it("marca o link da rota atual com aria-current='page'", () => {
-        renderWithProviders(
-            <Sidebar isOpen={false} onClose={vi.fn()} />,
-            { initialEntries: ["/distribuidoras"] },
-        )
+        renderWithProviders(<Sidebar isOpen={false} onClose={vi.fn()} />, {
+            initialEntries: ["/distribuidoras"],
+        })
 
         const activeLink = screen.getByRole("link", { name: /distribuidoras/i })
         expect(activeLink).toHaveAttribute("aria-current", "page")
@@ -67,9 +66,7 @@ describe("Sidebar — renderização", () => {
 
         expect(await screen.findByText("João Silva")).toBeInTheDocument()
         expect(screen.getByText("Pessoa Física")).toBeInTheDocument()
-        expect(
-            screen.getByRole("button", { name: /tema atual/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /tema atual/i })).toBeInTheDocument()
     })
 
     it("abre o menu do usuário ao clicar no bloco de identidade do rodapé", async () => {

@@ -8,7 +8,7 @@ import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 export async function cleanHttpDatabase(): Promise<void> {
     await prismaHttpTest.$transaction([
         // AuditLog e TariffFlagHistory usam onDelete: SetNull (não Cascade)
-        // — de propósito, pra sobreviver à exclusão da conta (#08, #143).
+        // — de propósito, pra sobreviver à exclusão da conta.
         // Por isso precisam ser limpos explicitamente, não seriam removidos
         // automaticamente pelo delete de User.
         prismaHttpTest.auditLog.deleteMany(),

@@ -11,8 +11,8 @@ const httpTestDatabaseUrl = process.env["DATABASE_HTTP_TEST_URL"]
 if (!httpTestDatabaseUrl) {
     throw new Error(
         "DATABASE_HTTP_TEST_URL não está definida no .env\n" +
-        "Crie o banco com: createdb lumitrack_test_http\n" +
-        'E adicione ao .env: DATABASE_HTTP_TEST_URL="postgresql://...lumitrack_test_http"',
+            "Crie o banco com: createdb lumitrack_test_http\n" +
+            'E adicione ao .env: DATABASE_HTTP_TEST_URL="postgresql://...lumitrack_test_http"',
     )
 }
 

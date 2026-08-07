@@ -22,8 +22,7 @@ vi.mock("@/services/property.service", () => ({
 
 vi.mock("@/services/api", () => ({
     api: {},
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 vi.mock("sonner", () => ({
@@ -65,10 +64,7 @@ const mockDistributors: Distributor[] = [
     },
 ]
 
-const renderCard = (
-    property: Property = baseProperty,
-    distributorName = "CEMIG Distribuição",
-) => {
+const renderCard = (property: Property = baseProperty, distributorName = "CEMIG Distribuição") => {
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false, gcTime: 0 },
@@ -100,17 +96,13 @@ describe("PropertyCard — conteúdo principal", () => {
     it("renderiza o nome da distribuidora", () => {
         renderCard(baseProperty, "CEMIG Distribuição S.A.")
 
-        expect(
-            screen.getByText(/cemig distribuição s\.a\./i),
-        ).toBeInTheDocument()
+        expect(screen.getByText(/cemig distribuição s\.a\./i)).toBeInTheDocument()
     })
 
     it("renderiza o endereço completo formatado", () => {
         renderCard()
 
-        expect(
-            screen.getByText("Rua das Flores, 100, Belo Horizonte/MG"),
-        ).toBeInTheDocument()
+        expect(screen.getByText("Rua das Flores, 100, Belo Horizonte/MG")).toBeInTheDocument()
     })
 })
 
@@ -185,18 +177,14 @@ describe("PropertyCard — menu de ações", () => {
         const user = userEvent.setup()
         renderCard()
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Casa Principal/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Casa Principal/i }))
         await user.click(screen.getByRole("menuitem", { name: /editar/i }))
 
         const dialog = await screen.findByRole("dialog", {
             name: /editar propriedade/i,
         })
         expect(dialog).toBeInTheDocument()
-        expect(screen.getByLabelText(/nome da propriedade/i)).toHaveValue(
-            "Casa Principal",
-        )
+        expect(screen.getByLabelText(/nome da propriedade/i)).toHaveValue("Casa Principal")
     })
 })
 

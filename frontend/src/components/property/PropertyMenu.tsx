@@ -23,7 +23,7 @@ interface PropertyMenuProps {
      * Callback que abre o modal de edição (PropertyFormDialog, no card
      * chamador). O item "Editar" só é renderizado quando showEdit E onEdit
      * estão presentes — sem onEdit, o item some (fail-safe) em vez de virar
-     * link morto (antes de #98, apontava pra rota removida em #97).
+     * link morto apontando pra uma rota removida.
      */
     onEdit?: () => void
     /**
@@ -122,7 +122,7 @@ export const PropertyMenu = ({
                         role="menu"
                         aria-label="Ações"
                         className={cn(
-                            "absolute right-0 top-full z-10 mt-1 w-44",
+                            "absolute top-full right-0 z-10 mt-1 w-44",
                             "rounded-md border bg-white py-1 shadow-lg",
                             "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
                         )}

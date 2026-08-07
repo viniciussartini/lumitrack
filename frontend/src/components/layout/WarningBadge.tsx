@@ -18,8 +18,8 @@ export const WarningBadge = () => {
         count === 0
             ? "Alerta de consumo — nenhum alerta em disparo agora"
             : count === 1
-                ? "1 alerta em disparo"
-                : `${count} alertas em disparo`
+              ? "1 alerta em disparo"
+              : `${count} alertas em disparo`
 
     return (
         <Link

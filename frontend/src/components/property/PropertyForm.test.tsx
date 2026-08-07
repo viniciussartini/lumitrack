@@ -42,9 +42,7 @@ const mockProperty: Property = {
     updatedAt: new Date().toISOString(),
 }
 
-const renderForm = (
-    props: Partial<React.ComponentProps<typeof PropertyForm>> = {},
-) =>
+const renderForm = (props: Partial<React.ComponentProps<typeof PropertyForm>> = {}) =>
     render(
         <PropertyForm
             distributors={[mockDistributor1, mockDistributor2]}
@@ -72,21 +70,15 @@ describe("PropertyForm — renderização", () => {
         expect(
             screen.getByRole("heading", { level: 2, name: /distribuidora/i }),
         ).toBeInTheDocument()
-        expect(
-            screen.getByRole("heading", { level: 2, name: /faturamento/i }),
-        ).toBeInTheDocument()
-        expect(
-            screen.getByRole("heading", { level: 2, name: /endereço/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("heading", { level: 2, name: /faturamento/i })).toBeInTheDocument()
+        expect(screen.getByRole("heading", { level: 2, name: /endereço/i })).toBeInTheDocument()
     })
 
     it("renderiza todos os campos do form", () => {
         renderForm()
 
         expect(screen.getByLabelText(/nome da propriedade/i)).toBeInTheDocument()
-        expect(
-            screen.getByLabelText(/distribuidora vinculada/i),
-        ).toBeInTheDocument()
+        expect(screen.getByLabelText(/distribuidora vinculada/i)).toBeInTheDocument()
         expect(screen.getByLabelText(/sistema elétrico/i)).toBeInTheDocument()
         expect(screen.getByLabelText(/classe de faturamento/i)).toBeInTheDocument()
         expect(screen.getByLabelText(/iluminação pública/i)).toBeInTheDocument()
@@ -102,17 +94,13 @@ describe("PropertyForm — renderização", () => {
         expect(
             screen.getByRole("option", { name: /cemig distribuição s\.a\./i }),
         ).toBeInTheDocument()
-        expect(
-            screen.getByRole("option", { name: /enel são paulo/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("option", { name: /enel são paulo/i })).toBeInTheDocument()
     })
 
     it("usa label de submit customizado quando passado", () => {
         renderForm({ submitLabel: "Criar propriedade" })
 
-        expect(
-            screen.getByRole("button", { name: /criar propriedade/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /criar propriedade/i })).toBeInTheDocument()
     })
 })
 
@@ -125,9 +113,7 @@ describe("PropertyForm — modo edição", () => {
         renderForm({ initialData: mockProperty })
 
         expect(screen.getByLabelText(/nome/i)).toHaveValue("Casa Principal")
-        expect(screen.getByLabelText(/logradouro/i)).toHaveValue(
-            "Rua das Flores, 100",
-        )
+        expect(screen.getByLabelText(/logradouro/i)).toHaveValue("Rua das Flores, 100")
         expect(screen.getByLabelText(/cep/i)).toHaveValue("30000-000")
         expect(screen.getByLabelText(/cidade/i)).toHaveValue("Belo Horizonte")
         expect(screen.getByLabelText(/sistema elétrico/i)).toHaveValue("TRIPHASIC")
@@ -163,9 +149,7 @@ describe("PropertyForm — validação", () => {
 
         await user.click(screen.getByRole("button", { name: /salvar/i }))
 
-        expect(
-            await screen.findByText(/nome é obrigatório/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/nome é obrigatório/i)).toBeInTheDocument()
         expect(onSubmit).not.toHaveBeenCalled()
     })
 
@@ -177,9 +161,7 @@ describe("PropertyForm — validação", () => {
         await user.type(screen.getByLabelText(/nome/i), "Casa")
         await user.click(screen.getByRole("button", { name: /salvar/i }))
 
-        expect(
-            await screen.findByText(/selecione uma distribuidora/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/selecione uma distribuidora/i)).toBeInTheDocument()
         expect(onSubmit).not.toHaveBeenCalled()
     })
 
@@ -192,9 +174,7 @@ describe("PropertyForm — validação", () => {
         await user.type(cepInput, "123") // 3 dígitos: sobrevive à máscara mas falha no regex 00000-000
         await user.tab() // dispara onBlur
 
-        expect(
-            await screen.findByText(/cep deve estar no formato/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/cep deve estar no formato/i)).toBeInTheDocument()
     })
 
     it("rejeita CEP com sequência repetida (00000-000)", async () => {
@@ -246,10 +226,7 @@ describe("PropertyForm — submit", () => {
         renderForm({ onSubmit })
 
         await user.type(screen.getByLabelText(/nome/i), "Casa Principal")
-        await user.selectOptions(
-            screen.getByLabelText(/distribuidora vinculada/i),
-            "dist-1",
-        )
+        await user.selectOptions(screen.getByLabelText(/distribuidora vinculada/i), "dist-1")
 
         await user.click(screen.getByRole("button", { name: /salvar/i }))
 
@@ -276,16 +253,10 @@ describe("PropertyForm — submit", () => {
         renderForm({ onSubmit })
 
         await user.type(screen.getByLabelText(/nome/i), "Casa Principal")
-        await user.selectOptions(
-            screen.getByLabelText(/distribuidora vinculada/i),
-            "dist-1",
-        )
+        await user.selectOptions(screen.getByLabelText(/distribuidora vinculada/i), "dist-1")
         await user.selectOptions(screen.getByLabelText(/sistema elétrico/i), "TRIPHASIC")
         await user.selectOptions(screen.getByLabelText(/classe de faturamento/i), "B2")
-        await user.type(
-            screen.getByLabelText(/logradouro/i),
-            "Rua das Flores, 100",
-        )
+        await user.type(screen.getByLabelText(/logradouro/i), "Rua das Flores, 100")
         await user.type(screen.getByLabelText(/cidade/i), "Belo Horizonte")
         await user.selectOptions(screen.getByLabelText(/uf/i), "MG")
         await user.type(screen.getByLabelText(/cep/i), "30000000")

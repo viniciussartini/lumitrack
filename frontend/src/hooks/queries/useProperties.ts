@@ -7,10 +7,7 @@ import type { Property } from "@/types/property.types"
 /**
  * Lista as propriedades do usuário autenticado (paginado — Fase 5).
  */
-export const useProperties = (
-    page: number = 1,
-    pageSize: number = DEFAULT_PAGE_SIZE,
-) =>
+export const useProperties = (page: number = 1, pageSize: number = DEFAULT_PAGE_SIZE) =>
     useQuery({
         queryKey: queryKeys.properties.list(page, pageSize),
         queryFn: () => propertyService.list({ page, pageSize }),

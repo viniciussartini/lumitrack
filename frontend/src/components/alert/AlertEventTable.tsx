@@ -1,8 +1,4 @@
-import {
-    formatDateTime,
-    formatDurationSeconds,
-    formatPowerW,
-} from "@/lib/formatters/alert"
+import { formatDateTime, formatDurationSeconds, formatPowerW } from "@/lib/formatters/alert"
 import { cn } from "@/lib/cn"
 import type { AlertTriggerEvent } from "@/types/alert-event.types"
 

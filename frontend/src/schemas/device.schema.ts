@@ -21,14 +21,12 @@ const emptyStringToUndefined = z
  *   - string que não parseia → NaN, que falha em z.number() depois
  *   - string que parseia → number
  */
-const optionalStringNumber = z
-    .union([z.string(), z.number(), z.undefined()])
-    .transform((val) => {
-        if (val === undefined || val === "") return undefined
-        if (typeof val === "number") return val
-        const n = Number(val)
-        return Number.isNaN(n) ? val : n
-    })
+const optionalStringNumber = z.union([z.string(), z.number(), z.undefined()]).transform((val) => {
+    if (val === undefined || val === "") return undefined
+    if (typeof val === "number") return val
+    const n = Number(val)
+    return Number.isNaN(n) ? val : n
+})
 
 /**
  * Schema do form de Dispositivo.
@@ -52,17 +50,11 @@ export const deviceFormSchema = z.object({
         .max(200, "Nome muito longo (máx. 200 caracteres)"),
 
     brand: emptyStringToUndefined.pipe(
-        z
-            .string()
-            .max(100, "Marca muito longa (máx. 100 caracteres)")
-            .optional(),
+        z.string().max(100, "Marca muito longa (máx. 100 caracteres)").optional(),
     ),
 
     model: emptyStringToUndefined.pipe(
-        z
-            .string()
-            .max(100, "Modelo muito longo (máx. 100 caracteres)")
-            .optional(),
+        z.string().max(100, "Modelo muito longo (máx. 100 caracteres)").optional(),
     ),
 
     powerWatts: optionalStringNumber.pipe(

@@ -46,30 +46,63 @@ function daysFromNow(days: number): Date {
 
 // ─── Setup e Teardown ─────────────────────────────────────────────────────────
 
-beforeEach(async () => { await cleanDatabase() })
-afterAll(async () => { await prismaTest.$disconnect() })
+beforeEach(async () => {
+    await cleanDatabase()
+})
+afterAll(async () => {
+    await prismaTest.$disconnect()
+})
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("RetentionService.purgeExpiredData", () => {
-
     it("expurga AuthToken revogado ou expirado há mais tempo que o período de retenção, preservando os demais", async () => {
         const user = await userService.createUser(validUser)
 
         await prismaTest.authToken.create({
-            data: { userId: user.id, token: "revoked-old", channel: "MOBILE", revokedAt: daysAgo(35), expiresAt: daysFromNow(60) },
+            data: {
+                userId: user.id,
+                token: "revoked-old",
+                channel: "MOBILE",
+                revokedAt: daysAgo(35),
+                expiresAt: daysFromNow(60),
+            },
         })
         await prismaTest.authToken.create({
-            data: { userId: user.id, token: "revoked-recent", channel: "MOBILE", revokedAt: daysAgo(5), expiresAt: daysFromNow(60) },
+            data: {
+                userId: user.id,
+                token: "revoked-recent",
+                channel: "MOBILE",
+                revokedAt: daysAgo(5),
+                expiresAt: daysFromNow(60),
+            },
         })
         await prismaTest.authToken.create({
-            data: { userId: user.id, token: "expired-old", channel: "MOBILE", revokedAt: null, expiresAt: daysAgo(35) },
+            data: {
+                userId: user.id,
+                token: "expired-old",
+                channel: "MOBILE",
+                revokedAt: null,
+                expiresAt: daysAgo(35),
+            },
         })
         await prismaTest.authToken.create({
-            data: { userId: user.id, token: "expired-recent", channel: "MOBILE", revokedAt: null, expiresAt: daysAgo(5) },
+            data: {
+                userId: user.id,
+                token: "expired-recent",
+                channel: "MOBILE",
+                revokedAt: null,
+                expiresAt: daysAgo(5),
+            },
         })
         await prismaTest.authToken.create({
-            data: { userId: user.id, token: "still-valid", channel: "MOBILE", revokedAt: null, expiresAt: daysFromNow(60) },
+            data: {
+                userId: user.id,
+                token: "still-valid",
+                channel: "MOBILE",
+                revokedAt: null,
+                expiresAt: daysFromNow(60),
+            },
         })
 
         const summary = await retentionService.purgeExpiredData()
@@ -86,10 +119,20 @@ describe("RetentionService.purgeExpiredData", () => {
         const user = await userService.createUser(validUser)
 
         await prismaTest.passwordReset.create({
-            data: { userId: user.id, token: "used-old", expiresAt: daysFromNow(1), usedAt: daysAgo(35) },
+            data: {
+                userId: user.id,
+                token: "used-old",
+                expiresAt: daysFromNow(1),
+                usedAt: daysAgo(35),
+            },
         })
         await prismaTest.passwordReset.create({
-            data: { userId: user.id, token: "used-recent", expiresAt: daysFromNow(1), usedAt: daysAgo(5) },
+            data: {
+                userId: user.id,
+                token: "used-recent",
+                expiresAt: daysFromNow(1),
+                usedAt: daysAgo(5),
+            },
         })
         await prismaTest.passwordReset.create({
             data: { userId: user.id, token: "expired-old", expiresAt: daysAgo(35), usedAt: null },
@@ -98,7 +141,12 @@ describe("RetentionService.purgeExpiredData", () => {
             data: { userId: user.id, token: "expired-recent", expiresAt: daysAgo(5), usedAt: null },
         })
         await prismaTest.passwordReset.create({
-            data: { userId: user.id, token: "still-valid", expiresAt: daysFromNow(1), usedAt: null },
+            data: {
+                userId: user.id,
+                token: "still-valid",
+                expiresAt: daysFromNow(1),
+                usedAt: null,
+            },
         })
 
         const summary = await retentionService.purgeExpiredData()
@@ -134,16 +182,36 @@ describe("RetentionService.purgeExpiredData", () => {
         const hash = (s: string) => createHash("sha256").update(s).digest("hex")
 
         await prismaTest.refreshToken.create({
-            data: { userId: user.id, token: hash("revoked-old"), expiresAt: daysFromNow(7), revokedAt: daysAgo(35) },
+            data: {
+                userId: user.id,
+                token: hash("revoked-old"),
+                expiresAt: daysFromNow(7),
+                revokedAt: daysAgo(35),
+            },
         })
         await prismaTest.refreshToken.create({
-            data: { userId: user.id, token: hash("revoked-recent"), expiresAt: daysFromNow(7), revokedAt: daysAgo(5) },
+            data: {
+                userId: user.id,
+                token: hash("revoked-recent"),
+                expiresAt: daysFromNow(7),
+                revokedAt: daysAgo(5),
+            },
         })
         await prismaTest.refreshToken.create({
-            data: { userId: user.id, token: hash("expired-old"), expiresAt: daysAgo(35), revokedAt: null },
+            data: {
+                userId: user.id,
+                token: hash("expired-old"),
+                expiresAt: daysAgo(35),
+                revokedAt: null,
+            },
         })
         await prismaTest.refreshToken.create({
-            data: { userId: user.id, token: hash("still-valid"), expiresAt: daysFromNow(7), revokedAt: null },
+            data: {
+                userId: user.id,
+                token: hash("still-valid"),
+                expiresAt: daysFromNow(7),
+                revokedAt: null,
+            },
         })
 
         const summary = await retentionService.purgeExpiredData()

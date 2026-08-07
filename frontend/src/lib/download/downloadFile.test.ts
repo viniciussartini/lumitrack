@@ -25,7 +25,9 @@ describe("downloadFile", () => {
         expect(createObjectURL).toHaveBeenCalledTimes(1)
 
         // mock.calls[0] é [Blob] — tipo conhecido pelo vi.fn<(blob: Blob) => string>
-        const [blob] = createObjectURL.mock.calls[0]
+        const call = createObjectURL.mock.calls[0]
+        if (!call) throw new Error("createObjectURL deveria ter sido chamado")
+        const [blob] = call
         expect(blob).toBeInstanceOf(Blob)
         expect(blob.type).toBe("text/csv;charset=utf-8")
     })

@@ -28,20 +28,17 @@ const POWER_W_FORMATTER = new Intl.NumberFormat("pt-BR", {
 })
 
 /** formatReferencePowerKw(10) → "10 kW" */
-export const formatReferencePowerKw = (value: number): string =>
-    `${KW_FORMATTER.format(value)} kW`
+export const formatReferencePowerKw = (value: number): string => `${KW_FORMATTER.format(value)} kW`
 
 /** formatTolerancePercent(2.5) → "±2,5%" */
 export const formatTolerancePercent = (value: number): string =>
     `±${PERCENT_FORMATTER.format(value)}%`
 
 /** formatPowerW(1050) → "1050 W" — usado no histórico de episódios. */
-export const formatPowerW = (value: number): string =>
-    `${POWER_W_FORMATTER.format(value)} W`
+export const formatPowerW = (value: number): string => `${POWER_W_FORMATTER.format(value)} W`
 
 /** formatDateTime("2025-11-15T14:30:00Z") → "15/11/2025, 11:30" (tz local) */
-export const formatDateTime = (value: string): string =>
-    DATE_TIME_FORMATTER.format(new Date(value))
+export const formatDateTime = (value: string): string => DATE_TIME_FORMATTER.format(new Date(value))
 
 /**
  * Formata duração em segundos como "Xh Ymin Zs" (omitindo unidades zeradas

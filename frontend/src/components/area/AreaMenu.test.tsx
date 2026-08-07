@@ -19,8 +19,7 @@ vi.mock("@/services/area.service", () => ({
 
 vi.mock("@/services/api", () => ({
     api: {},
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 vi.mock("sonner", () => ({
@@ -46,12 +45,7 @@ interface RenderOptions {
     onAfterDelete?: () => void
 }
 
-const renderMenu = ({
-    area = mockArea,
-    showEdit,
-    onEdit,
-    onAfterDelete,
-}: RenderOptions = {}) => {
+const renderMenu = ({ area = mockArea, showEdit, onEdit, onAfterDelete }: RenderOptions = {}) => {
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false, gcTime: 0 },
@@ -91,9 +85,7 @@ describe("AreaMenu — abrir/fechar", () => {
         const user = userEvent.setup()
         renderMenu()
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Sala/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Sala/i }))
 
         expect(screen.getByRole("menu")).toBeInTheDocument()
     })
@@ -147,9 +139,7 @@ describe("AreaMenu — item Editar", () => {
 
         await user.click(screen.getByRole("button", { name: /opções de Sala/i }))
 
-        expect(
-            screen.queryByRole("menuitem", { name: /editar/i }),
-        ).not.toBeInTheDocument()
+        expect(screen.queryByRole("menuitem", { name: /editar/i })).not.toBeInTheDocument()
     })
 
     it("não renderiza o item Editar quando showEdit=false", async () => {
@@ -158,14 +148,10 @@ describe("AreaMenu — item Editar", () => {
 
         await user.click(screen.getByRole("button", { name: /opções de Sala/i }))
 
-        expect(
-            screen.queryByRole("menuitem", { name: /editar/i }),
-        ).not.toBeInTheDocument()
+        expect(screen.queryByRole("menuitem", { name: /editar/i })).not.toBeInTheDocument()
 
         // Ainda renderiza o item Excluir
-        expect(
-            screen.getByRole("menuitem", { name: /excluir/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("menuitem", { name: /excluir/i })).toBeInTheDocument()
     })
 })
 
@@ -181,9 +167,7 @@ describe("AreaMenu — ConfirmDialog (cascade)", () => {
         await user.click(screen.getByRole("button", { name: /opções de Sala/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
 
-        expect(
-            screen.getByRole("heading", { name: /excluir área/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("heading", { name: /excluir área/i })).toBeInTheDocument()
     })
 
     it("texto do ConfirmDialog menciona dispositivos, registros de consumo E alertas", async () => {
@@ -203,9 +187,7 @@ describe("AreaMenu — ConfirmDialog (cascade)", () => {
         const user = userEvent.setup()
         renderMenu({ area: { ...mockArea, name: "Cozinha gourmet" } })
 
-        await user.click(
-            screen.getByRole("button", { name: /opções de Cozinha gourmet/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /opções de Cozinha gourmet/i }))
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
 
         // O nome aparece tanto no aria-label do botão quanto no texto do dialog.
@@ -230,9 +212,7 @@ describe("AreaMenu — exclusão", () => {
         await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
         await user.click(screen.getByRole("button", { name: /^excluir$/i }))
 
-        await waitFor(() =>
-            expect(areaService.delete).toHaveBeenCalledWith("prop-1", "area-1"),
-        )
+        await waitFor(() => expect(areaService.delete).toHaveBeenCalledWith("prop-1", "area-1"))
     })
 
     it("dispara onAfterDelete após exclusão bem-sucedida", async () => {
@@ -273,8 +253,6 @@ describe("AreaMenu — exclusão", () => {
         await user.click(screen.getByRole("button", { name: /^excluir$/i }))
 
         // Não deve lançar — o callback é opcional
-        await waitFor(() =>
-            expect(areaService.delete).toHaveBeenCalledWith("prop-1", "area-1"),
-        )
+        await waitFor(() => expect(areaService.delete).toHaveBeenCalledWith("prop-1", "area-1"))
     })
 })

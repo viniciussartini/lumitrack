@@ -17,7 +17,7 @@ export const useCreateMeter = () => {
     return useMutation<Meter, Error, CreateMeterInput>({
         mutationFn: (input) => meterService.create(input),
         onSuccess: (created) => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.meters.all })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.meters.all })
             toast.success("Medidor vinculado", {
                 description: `${created.name} foi configurado com sucesso.`,
             })
@@ -36,7 +36,7 @@ export const useUpdateMeter = () => {
     return useMutation<Meter, Error, UpdateMeterVariables>({
         mutationFn: ({ id, input }) => meterService.update(id, input),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.meters.all })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.meters.all })
             toast.success("Medidor atualizado")
         },
     })
@@ -48,7 +48,7 @@ export const useDeleteMeter = () => {
     return useMutation<void, Error, string>({
         mutationFn: (id) => meterService.delete(id),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.meters.all })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.meters.all })
             toast.success("Medidor removido")
         },
     })

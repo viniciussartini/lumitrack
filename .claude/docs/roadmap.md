@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-06 · Fase atual: 12 (Fases 1–11 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154 e issue #127)
+> Última atualização: 2026-08-07 · Fase atual: 13 (Fases 1–12 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159 e issue #127)
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das quatro auditorias de 2026-08-05** (segurança, conformidade, qualidade, desempenho) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
@@ -20,8 +20,8 @@
 | 9 | Migração ethernet-ip v1→v2 no backend (dívida técnica) | **Concluída** (#127, PR ainda não aberto) |
 | 10 | Bloqueadores de segurança — log, SSRF, ciclo de vida de sessão, MFA | **Concluída** (#149–#153, épico #148) |
 | 11 | Bloqueadores de conformidade LGPD — canal do titular, ROPA, RIPD, transferência internacional | **Concluída** (#155–#158, épico #154) |
-| 12 | Travas mecânicas de qualidade + correções sem trade-off | Planejada — **fase atual**, detalhe abaixo |
-| 13 | Endurecimento de segurança (P1) — perímetro, credenciais, lacunas de teste | Planejada — objetivo abaixo |
+| 12 | Travas mecânicas de qualidade + correções sem trade-off | **Concluída** (#160–#165, épico #159) |
+| 13 | Endurecimento de segurança (P1) — perímetro, credenciais, lacunas de teste | Planejada — **fase atual**, objetivo abaixo |
 | 14 | Conformidade P1 — retenção, DSAR, consentimento e documentos legais | Planejada — objetivo abaixo |
 | 15 | Desempenho — instrumentação, índices e eliminação dos multiplicadores | Planejada — objetivo abaixo |
 | 16 | Worker IoT — robustez, estrutura e cobertura | Planejada — objetivo abaixo |
@@ -629,6 +629,17 @@ Cada linha abaixo é **um item de trabalho**, não quatro — auditorias diferen
   - **`PlaceHolderPage.tsx`** renomeado para bater com o export (`PlaceholderPage`).
 - **Depende de:** —
 - **Risco/observações:** baixo por construção — o critério de entrada neste lote foi "é erro, não trade-off". Qualquer item que exija decisão saiu daqui e foi para a fase temática correspondente.
+
+**Fechamento (2026-08-07):** entregue nas 6 sub-issues planejadas (#160–#165), épico #159, branch `chore/159-travas-qualidade-correcoes-sem-trade-off`. **Fecha a Fase 12.** Nenhuma redução de escopo — as 6 issues fecharam exatamente como descritas nos laudos, com achados adicionais tratados dentro do próprio critério "sem trade-off" da fase (não geraram desvio):
+
+- **#160** — as 4 travas ausentes instaladas (ESLint com complexidade, `dependency-cruiser`, `husky`+`lint-staged`, Prettier em `backend/iot-simulator/`); violações pré-existentes catalogadas em overrides nomeados, não silenciadas — as sem fase prevista viraram a issue **#168**.
+- **#161** — `iot-simulator` ganhou os 4 jobs de CI que faltavam; uma vulnerabilidade alta real (`brace-expansion`) e a divergência de `@types/node` corrigidas no caminho.
+- **#162** — `noImplicitReturns`/`noUncheckedIndexedAccess` + lint tipado (`no-floating-promises`/`no-misused-promises`) nos 4 pacotes; 73 achados reais corrigidos, incluindo um risco de `unhandledRejection` silencioso no boot do servidor (`server.ts`).
+- **#163** — `secret-scan` (gitleaks) bloqueante no CI; 13 falsos positivos triados e allowlistados especificamente, e uma regra própria criada só para o achado real conhecido (credenciais de demo) aparecer na varredura em vez de ficar invisível.
+- **#164** — bug funcional confirmado: `Rs485Connection` nunca decodificava uma leitura sequer (`split("")` em vez de `split("\n")`); teste de regressão escrito primeiro, confirmado falhando contra o código original antes da correção.
+- **#165** — os 7 itens "sem trade-off": provider duplicado do TanStack Query removido (com decisão consciente e documentada sobre `refetchOnWindowFocus`), 3 índices redundantes removidos via migração reversível, dependência morta `profibus` removida, decorators especulativos removidos, `.gitignore` corrigido (e 24 arquivos do client Prisma gerado destrackeados — nunca deveriam ter sido versionados), `DATABASE_TEST_URL`/`DATABASE_HTTP_TEST_URL` entraram no fail-fast do `envSchema`, `PlaceHolderPage.tsx` renomeado.
+
+**Achado que expandiu o escopo, dentro do próprio critério da fase (#165):** o `.gitignore` de `backend/` nunca casava com o path real do client Prisma gerado (`src/generated/prisma`, não `backend/generated/prisma`) — por isso 24 arquivos de um build artifact estavam versionados por engano. Corrigir só o padrão do `.gitignore` teria sido cosmético sem também destrackear os arquivos já commitados; confirmado antes que `npm run db:migrate` (passo já documentado no README de setup) regenera o client via `prisma generate` como efeito colateral, então nenhuma instrução de onboarding precisou mudar.
 
 ## Fases 13–18 (objetivo — serão detalhadas ao chegar)
 

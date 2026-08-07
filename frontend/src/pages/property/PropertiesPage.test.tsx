@@ -2,12 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router"
-import {
-    render,
-    screen,
-    waitFor,
-    type RenderOptions,
-} from "@testing-library/react"
+import { render, screen, waitFor, type RenderOptions } from "@testing-library/react"
 import { PropertiesPage } from "@/pages/property/PropertiesPage"
 import { propertyService } from "@/services/property.service"
 import { distributorService } from "@/services/distributor.service"
@@ -115,23 +110,17 @@ describe("PropertiesPage — header", () => {
 
         renderPage()
 
-        expect(
-            await screen.findByRole("button", { name: /nova propriedade/i }),
-        ).toBeInTheDocument()
+        expect(await screen.findByRole("button", { name: /nova propriedade/i })).toBeInTheDocument()
     })
 
     it("abre o modal de criação ao clicar em 'Nova propriedade'", async () => {
         const user = userEvent.setup()
         vi.mocked(propertyService.list).mockResolvedValue(paginated([]))
-        vi.mocked(distributorService.list).mockResolvedValue(
-            paginated([mockDistributor]),
-        )
+        vi.mocked(distributorService.list).mockResolvedValue(paginated([mockDistributor]))
 
         renderPage()
 
-        await user.click(
-            await screen.findByRole("button", { name: /nova propriedade/i }),
-        )
+        await user.click(await screen.findByRole("button", { name: /nova propriedade/i }))
 
         expect(
             await screen.findByRole("dialog", { name: /adicionar propriedade/i }),
@@ -151,9 +140,7 @@ describe("PropertiesPage — loading", () => {
 
         renderPage()
 
-        expect(
-            screen.getByLabelText(/carregando propriedades/i),
-        ).toBeInTheDocument()
+        expect(screen.getByLabelText(/carregando propriedades/i)).toBeInTheDocument()
     })
 
     it("continua em loading se distributors ainda carrega mesmo com properties prontas", () => {
@@ -162,9 +149,7 @@ describe("PropertiesPage — loading", () => {
 
         renderPage()
 
-        expect(
-            screen.getByLabelText(/carregando propriedades/i),
-        ).toBeInTheDocument()
+        expect(screen.getByLabelText(/carregando propriedades/i)).toBeInTheDocument()
     })
 
     it("continua em loading se properties ainda carrega mesmo com distributors prontas", () => {
@@ -173,9 +158,7 @@ describe("PropertiesPage — loading", () => {
 
         renderPage()
 
-        expect(
-            screen.getByLabelText(/carregando propriedades/i),
-        ).toBeInTheDocument()
+        expect(screen.getByLabelText(/carregando propriedades/i)).toBeInTheDocument()
     })
 })
 
@@ -190,9 +173,7 @@ describe("PropertiesPage — empty state", () => {
 
         renderPage()
 
-        expect(
-            await screen.findByText(/nenhuma propriedade cadastrada/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/nenhuma propriedade cadastrada/i)).toBeInTheDocument()
         expect(
             screen.getByRole("button", {
                 name: /cadastrar primeira propriedade/i,
@@ -217,9 +198,7 @@ describe("PropertiesPage — empty state", () => {
 
 describe("PropertiesPage — sucesso", () => {
     it("renderiza um card por propriedade", async () => {
-        vi.mocked(propertyService.list).mockResolvedValue(
-            paginated([mockProperty1, mockProperty2]),
-        )
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([mockProperty1, mockProperty2]))
         vi.mocked(distributorService.list).mockResolvedValue(paginated([mockDistributor]))
 
         renderPage()
@@ -231,9 +210,7 @@ describe("PropertiesPage — sucesso", () => {
     })
 
     it("resolve o nome da distribuidora em cada card", async () => {
-        vi.mocked(propertyService.list).mockResolvedValue(
-            paginated([mockProperty1, mockProperty2]),
-        )
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([mockProperty1, mockProperty2]))
         vi.mocked(distributorService.list).mockResolvedValue(paginated([mockDistributor]))
 
         renderPage()
@@ -250,9 +227,7 @@ describe("PropertiesPage — sucesso", () => {
 
         renderPage()
 
-        expect(
-            await screen.findByText(/distribuidora removida/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/distribuidora removida/i)).toBeInTheDocument()
     })
 })
 
@@ -264,9 +239,7 @@ describe("PropertiesPage — erro", () => {
     it("exibe estado de erro com retry quando properties falha", async () => {
         const user = userEvent.setup()
 
-        vi.mocked(propertyService.list).mockRejectedValue(
-            new Error("Falhou geral"),
-        )
+        vi.mocked(propertyService.list).mockRejectedValue(new Error("Falhou geral"))
         vi.mocked(distributorService.list).mockResolvedValue(paginated([]))
 
         renderPage()
@@ -276,9 +249,7 @@ describe("PropertiesPage — erro", () => {
 
         // Retry chama list de novo
         vi.mocked(propertyService.list).mockResolvedValueOnce(paginated([]))
-        await user.click(
-            screen.getByRole("button", { name: /tentar novamente/i }),
-        )
+        await user.click(screen.getByRole("button", { name: /tentar novamente/i }))
 
         await waitFor(() => {
             expect(propertyService.list).toHaveBeenCalledTimes(2)
@@ -287,9 +258,7 @@ describe("PropertiesPage — erro", () => {
 
     it("exibe estado de erro quando distributors falha", async () => {
         vi.mocked(propertyService.list).mockResolvedValue(paginated([mockProperty1]))
-        vi.mocked(distributorService.list).mockRejectedValue(
-            new Error("API caiu"),
-        )
+        vi.mocked(distributorService.list).mockRejectedValue(new Error("API caiu"))
 
         renderPage()
 
@@ -298,20 +267,12 @@ describe("PropertiesPage — erro", () => {
     })
 
     it("prioriza mensagem de erro de properties sobre distributors", async () => {
-        vi.mocked(propertyService.list).mockRejectedValue(
-            new Error("Erro em properties"),
-        )
-        vi.mocked(distributorService.list).mockRejectedValue(
-            new Error("Erro em distributors"),
-        )
+        vi.mocked(propertyService.list).mockRejectedValue(new Error("Erro em properties"))
+        vi.mocked(distributorService.list).mockRejectedValue(new Error("Erro em distributors"))
 
         renderPage()
 
-        expect(
-            await screen.findByText(/erro em properties/i),
-        ).toBeInTheDocument()
-        expect(
-            screen.queryByText(/erro em distributors/i),
-        ).not.toBeInTheDocument()
+        expect(await screen.findByText(/erro em properties/i)).toBeInTheDocument()
+        expect(screen.queryByText(/erro em distributors/i)).not.toBeInTheDocument()
     })
 })

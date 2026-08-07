@@ -82,7 +82,6 @@ afterAll(async () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("AreaService", () => {
-
     // ─── create ───────────────────────────────────────────────────────────────
 
     describe("create", () => {
@@ -120,17 +119,17 @@ describe("AreaService", () => {
             const { property } = await setupUserAndProperty(validUserA)
             const userB = await userService.createUser(validUserB)
 
-            await expect(
-                areaService.create(property.id, userB.id, validAreaInput),
-            ).rejects.toThrow(ForbiddenError)
+            await expect(areaService.create(property.id, userB.id, validAreaInput)).rejects.toThrow(
+                ForbiddenError,
+            )
         })
 
         it("deve lançar ValidationError para nome vazio", async () => {
             const { user, property } = await setupUserAndProperty()
 
-            await expect(
-                areaService.create(property.id, user.id, { name: "" }),
-            ).rejects.toThrow(ValidationError)
+            await expect(areaService.create(property.id, user.id, { name: "" })).rejects.toThrow(
+                ValidationError,
+            )
         })
 
         it("deve lançar ValidationError para description acima do limite de 1000 caracteres", async () => {
@@ -180,7 +179,11 @@ describe("AreaService", () => {
             // Usuário tenta acessar uma área de outra propriedade sua.
             // Analogia: você tem dois apartamentos — não faz sentido buscar
             // o quarto do apt 101 usando o ID do apt 202.
-            const { user, property: propertyA, distributor } = await setupUserAndProperty(validUserA)
+            const {
+                user,
+                property: propertyA,
+                distributor,
+            } = await setupUserAndProperty(validUserA)
             const propertyB = await propertyService.create(user.id, {
                 name: "Escritório",
                 distributorId: distributor.id,
@@ -188,9 +191,9 @@ describe("AreaService", () => {
             })
             const area = await areaService.create(propertyA.id, user.id, validAreaInput)
 
-            await expect(
-                areaService.findById(area.id, propertyB.id, user.id),
-            ).rejects.toThrow(NotFoundError)
+            await expect(areaService.findById(area.id, propertyB.id, user.id)).rejects.toThrow(
+                NotFoundError,
+            )
         })
     })
 
@@ -207,7 +210,11 @@ describe("AreaService", () => {
         })
 
         it("deve retornar apenas as áreas da propriedade solicitada", async () => {
-            const { user, property: propertyA, distributor } = await setupUserAndProperty(validUserA)
+            const {
+                user,
+                property: propertyA,
+                distributor,
+            } = await setupUserAndProperty(validUserA)
             const propertyB = await propertyService.create(user.id, {
                 name: "Escritório",
                 distributorId: distributor.id,
@@ -254,9 +261,9 @@ describe("AreaService", () => {
             const { property } = await setupUserAndProperty(validUserA)
             const userB = await userService.createUser(validUserB)
 
-            await expect(
-                areaService.findAll(property.id, userB.id, {}),
-            ).rejects.toThrow(ForbiddenError)
+            await expect(areaService.findAll(property.id, userB.id, {})).rejects.toThrow(
+                ForbiddenError,
+            )
         })
 
         it("deve lançar NotFoundError ao listar áreas de propriedade inexistente", async () => {
@@ -288,7 +295,9 @@ describe("AreaService", () => {
             const { user, property } = await setupUserAndProperty()
 
             await expect(
-                areaService.update("00000000-0000-0000-0000-000000000000", property.id, user.id, { name: "X" }),
+                areaService.update("00000000-0000-0000-0000-000000000000", property.id, user.id, {
+                    name: "X",
+                }),
             ).rejects.toThrow(NotFoundError)
         })
 
@@ -297,7 +306,9 @@ describe("AreaService", () => {
             const userB = await userService.createUser(validUserB)
 
             await expect(
-                areaService.update("00000000-0000-0000-0000-000000000000", property.id, userB.id, { name: "X" }),
+                areaService.update("00000000-0000-0000-0000-000000000000", property.id, userB.id, {
+                    name: "X",
+                }),
             ).rejects.toThrow(ForbiddenError)
         })
 
@@ -320,9 +331,9 @@ describe("AreaService", () => {
 
             await areaService.delete(area.id, property.id, user.id)
 
-            await expect(
-                areaService.findById(area.id, property.id, user.id),
-            ).rejects.toThrow(NotFoundError)
+            await expect(areaService.findById(area.id, property.id, user.id)).rejects.toThrow(
+                NotFoundError,
+            )
         })
 
         it("deve lançar NotFoundError ao tentar deletar área inexistente", async () => {
@@ -352,14 +363,14 @@ describe("AreaService", () => {
             await propertyService.delete(property.id, user.id)
 
             // A propriedade sumiu — áreas não existem mais
-            await expect(
-                propertyService.findById(property.id, user.id),
-            ).rejects.toThrow(NotFoundError)
+            await expect(propertyService.findById(property.id, user.id)).rejects.toThrow(
+                NotFoundError,
+            )
 
             // Tentar listar as áreas da propriedade deletada retorna NotFoundError
-            await expect(
-                areaService.findAll(property.id, user.id, {}),
-            ).rejects.toThrow(NotFoundError)
+            await expect(areaService.findAll(property.id, user.id, {})).rejects.toThrow(
+                NotFoundError,
+            )
         })
     })
 })

@@ -1,9 +1,5 @@
 import { api } from "@/services/api"
-import type {
-    Device,
-    CreateDeviceInput,
-    UpdateDeviceInput,
-} from "@/types/device.types"
+import type { Device, CreateDeviceInput, UpdateDeviceInput } from "@/types/device.types"
 import type { Paginated, PaginationParams } from "@/types/pagination.types"
 
 interface ApiEnvelope<T> {
@@ -37,11 +33,7 @@ export const deviceService = {
         return data.data
     },
 
-    getById: async (
-        propertyId: string,
-        areaId: string,
-        id: string,
-    ): Promise<Device> => {
+    getById: async (propertyId: string, areaId: string, id: string): Promise<Device> => {
         const { data } = await api.get<ApiEnvelope<Device>>(
             `/properties/${propertyId}/areas/${areaId}/devices/${id}`,
         )
@@ -73,13 +65,7 @@ export const deviceService = {
         return data.data
     },
 
-    delete: async (
-        propertyId: string,
-        areaId: string,
-        id: string,
-    ): Promise<void> => {
-        await api.delete(
-            `/properties/${propertyId}/areas/${areaId}/devices/${id}`,
-        )
+    delete: async (propertyId: string, areaId: string, id: string): Promise<void> => {
+        await api.delete(`/properties/${propertyId}/areas/${areaId}/devices/${id}`)
     },
 }

@@ -17,11 +17,16 @@ export function tariffFlagRoutes(authenticate: RequestHandler, prismaClient: Pri
 
     const tariffFlagRepository = new TariffFlagRepository(prismaClient)
     const tariffFlagHistoryRepository = new TariffFlagHistoryRepository(prismaClient)
-    const tariffFlagService = new TariffFlagService(tariffFlagRepository, tariffFlagHistoryRepository)
+    const tariffFlagService = new TariffFlagService(
+        tariffFlagRepository,
+        tariffFlagHistoryRepository,
+    )
     const controller = new TariffFlagController(tariffFlagService)
 
     router.get("/", (req, res, next) => controller.get(req, res, next))
-    router.put("/", authenticate, requireRole("ADMIN"), (req, res, next) => controller.update(req, res, next))
+    router.put("/", authenticate, requireRole("ADMIN"), (req, res, next) =>
+        controller.update(req, res, next),
+    )
 
     return router
 }

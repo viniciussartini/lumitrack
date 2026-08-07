@@ -33,6 +33,21 @@ updates:
     commit-message:
       prefix: "chore"
 
+  - package-ecosystem: "npm"
+    directory: "/iot-simulator"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      # Workspace npm (server + ui) — um PR agrupado cobre os dois, mesmo
+      # critério minor/patch agrupado x major individual dos outros pacotes.
+      iot-simulator-dependencies:
+        update-types: ["minor", "patch"]
+    labels:
+      - "tipo: chore"
+    commit-message:
+      prefix: "chore"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

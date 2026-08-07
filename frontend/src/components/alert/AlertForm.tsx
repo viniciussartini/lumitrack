@@ -3,11 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Select } from "@/components/ui/Select"
-import {
-    alertFormSchema,
-    type AlertFormData,
-    type AlertFormInput,
-} from "@/schemas/alert.schema"
+import { alertFormSchema, type AlertFormData, type AlertFormInput } from "@/schemas/alert.schema"
 import type { AlertWithStatus } from "@/types/alert.types"
 import type { Meter } from "@/types/meter.types"
 
@@ -27,14 +23,14 @@ interface AlertFormProps {
  * de kWh acumulado). `meterId` é imutável: em edição viaja como campo
  * hidden com o valor original, sem exigir nova escolha do usuário.
  *
- * Sem `autoFocus` no primeiro campo (achado durante #107): o `Dialog.Content`
+ * Sem `autoFocus` no primeiro campo: o `Dialog.Content`
  * do Radix já move foco pro primeiro elemento focável ao abrir — competir
  * com um `autoFocus` HTML explícito faz o PRIMEIRO clique no botão de
  * submit, sem tocar em nenhum campo antes, disparar só a validação onBlur
  * do campo focado (não o submit real), escondendo os outros erros até um
  * segundo clique. Bug do padrão `FormDialog`, não só deste form —
  * `AreaForm`/`DeviceForm` tinham o mesmo `autoFocus` redundante, corrigido
- * junto na mesma branch (#111).
+ * junto na mesma branch.
  */
 export const AlertForm = ({
     initialData,
@@ -54,24 +50,24 @@ export const AlertForm = ({
         mode: "onBlur",
         defaultValues: initialData
             ? {
-                name: initialData.name,
-                meterId: initialData.meterId,
-                referencePowerKw: initialData.referencePowerKw,
-                tolerancePercent: initialData.tolerancePercent,
-                enabled: initialData.enabled,
-            }
+                  name: initialData.name,
+                  meterId: initialData.meterId,
+                  referencePowerKw: initialData.referencePowerKw,
+                  tolerancePercent: initialData.tolerancePercent,
+                  enabled: initialData.enabled,
+              }
             : {
-                name: "",
-                meterId: "",
-                referencePowerKw: undefined,
-                tolerancePercent: 10,
-                enabled: true,
-            },
+                  name: "",
+                  meterId: "",
+                  referencePowerKw: undefined,
+                  tolerancePercent: 10,
+                  enabled: true,
+              },
     })
 
     return (
         <form
-            onSubmit={handleSubmit(onSubmit)}
+            onSubmit={(e) => void handleSubmit(onSubmit)(e)}
             className="flex flex-col gap-4"
             noValidate
         >
@@ -151,11 +147,7 @@ export const AlertForm = ({
                 >
                     Cancelar
                 </Button>
-                <Button
-                    type="submit"
-                    isLoading={isSubmitting}
-                    data-testid="alert-form-submit"
-                >
+                <Button type="submit" isLoading={isSubmitting} data-testid="alert-form-submit">
                     {submitLabel}
                 </Button>
             </div>

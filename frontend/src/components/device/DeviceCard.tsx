@@ -38,9 +38,7 @@ export const DeviceCard = ({ device }: DeviceCardProps) => {
     const [isEditOpen, setIsEditOpen] = useState(false)
 
     // Concatena marca + modelo num chip único quando ao menos um existe
-    const brandModelLabel = [device.brand, device.model]
-        .filter(Boolean)
-        .join(" · ")
+    const brandModelLabel = [device.brand, device.model].filter(Boolean).join(" · ")
 
     return (
         <div className="relative">

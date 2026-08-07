@@ -7,11 +7,7 @@ import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 import { createTestDistributor } from "@/shared/test/distributorFixture.js"
-import {
-    ForbiddenError,
-    NotFoundError,
-    ValidationError,
-} from "@/shared/errors/AppError.js"
+import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import type { CreatePropertyInput } from "@/modules/property/property.schema.js"
 
 // ─── Instâncias ───────────────────────────────────────────────────────────────
@@ -80,7 +76,6 @@ afterAll(async () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("PropertyService", () => {
-
     // ─── create ───────────────────────────────────────────────────────────────
 
     describe("create", () => {
@@ -251,9 +246,9 @@ describe("PropertyService", () => {
                 distributorId: distributor.id,
             })
 
-            await expect(
-                propertyService.findById(property.id, userB.id),
-            ).rejects.toThrow(ForbiddenError)
+            await expect(propertyService.findById(property.id, userB.id)).rejects.toThrow(
+                ForbiddenError,
+            )
         })
     })
 
@@ -292,9 +287,21 @@ describe("PropertyService", () => {
         it("deve retornar propriedades ordenadas por nome", async () => {
             const { user, distributor } = await setupUserAndDistributor()
 
-            await propertyService.create(user.id, { name: "Escritório Centro", distributorId: distributor.id, electricalSystem: "TRIPHASIC" })
-            await propertyService.create(user.id, { name: "Apartamento", distributorId: distributor.id, electricalSystem: "MONOPHASIC" })
-            await propertyService.create(user.id, { name: "Galpão Industrial", distributorId: distributor.id, electricalSystem: "TRIPHASIC" })
+            await propertyService.create(user.id, {
+                name: "Escritório Centro",
+                distributorId: distributor.id,
+                electricalSystem: "TRIPHASIC",
+            })
+            await propertyService.create(user.id, {
+                name: "Apartamento",
+                distributorId: distributor.id,
+                electricalSystem: "MONOPHASIC",
+            })
+            await propertyService.create(user.id, {
+                name: "Galpão Industrial",
+                distributorId: distributor.id,
+                electricalSystem: "TRIPHASIC",
+            })
 
             const result = await propertyService.findAll(user.id, {})
 
@@ -306,7 +313,11 @@ describe("PropertyService", () => {
         it("deve paginar respeitando page e pageSize", async () => {
             const { user, distributor } = await setupUserAndDistributor()
             for (let i = 0; i < 3; i++) {
-                await propertyService.create(user.id, { name: `Prop ${i}`, distributorId: distributor.id, electricalSystem: "TRIPHASIC" })
+                await propertyService.create(user.id, {
+                    name: `Prop ${i}`,
+                    distributorId: distributor.id,
+                    electricalSystem: "TRIPHASIC",
+                })
             }
 
             const result = await propertyService.findAll(user.id, { page: 1, pageSize: 2 })
@@ -385,7 +396,9 @@ describe("PropertyService", () => {
             const user = await userService.createUser(validUserA)
 
             await expect(
-                propertyService.update("00000000-0000-0000-0000-000000000000", user.id, { name: "X" }),
+                propertyService.update("00000000-0000-0000-0000-000000000000", user.id, {
+                    name: "X",
+                }),
             ).rejects.toThrow(NotFoundError)
         })
 
@@ -430,9 +443,9 @@ describe("PropertyService", () => {
 
             await propertyService.delete(property.id, user.id)
 
-            await expect(
-                propertyService.findById(property.id, user.id),
-            ).rejects.toThrow(NotFoundError)
+            await expect(propertyService.findById(property.id, user.id)).rejects.toThrow(
+                NotFoundError,
+            )
         })
 
         it("deve lançar NotFoundError ao tentar deletar propriedade inexistente", async () => {
@@ -452,9 +465,9 @@ describe("PropertyService", () => {
                 distributorId: distributor.id,
             })
 
-            await expect(
-                propertyService.delete(property.id, userB.id),
-            ).rejects.toThrow(ForbiddenError)
+            await expect(propertyService.delete(property.id, userB.id)).rejects.toThrow(
+                ForbiddenError,
+            )
         })
     })
 })

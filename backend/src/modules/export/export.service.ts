@@ -1,6 +1,12 @@
 import type { UserRepository, UserWithoutPassword } from "@/modules/user/user.repository.js"
-import type { PropertyRepository, PropertyResponse } from "@/modules/property/property.repository.js"
-import type { DistributorRepository, DistributorResponse } from "@/modules/distributor/distributor.repository.js"
+import type {
+    PropertyRepository,
+    PropertyResponse,
+} from "@/modules/property/property.repository.js"
+import type {
+    DistributorRepository,
+    DistributorResponse,
+} from "@/modules/distributor/distributor.repository.js"
 import type { AlertRepository, AlertResponse } from "@/modules/alert/alert.repository.js"
 import type { AreaRepository, AreaResponse } from "@/modules/area/area.repository.js"
 import type { DeviceRepository, DeviceResponse } from "@/modules/device/device.repository.js"
@@ -8,7 +14,7 @@ import type { AuditRepository, AuditLogResponse } from "@/shared/audit/audit.rep
 import { NotFoundError } from "@/shared/errors/AppError.js"
 
 // Payload agregado com todos os dados pessoais que o LumiTrack guarda sobre
-// o titular (#09 — Art. 18 LGPD).
+// o titular (Art. 18 LGPD).
 //
 // Reformulação IoT (Fase 2): o histórico de consumo (antigo
 // `consumptionRecords`, baseado em ConsumptionRecord) foi removido daqui —
@@ -52,14 +58,13 @@ export class ExportService {
             throw new NotFoundError("Usuário não encontrado")
         }
 
-        const [properties, alerts, areas, devices, auditLogs] =
-            await Promise.all([
-                this.propertyRepository.findAllByUser(userId),
-                this.alertRepository.findAllByUser(userId),
-                this.areaRepository.findAllByUser(userId),
-                this.deviceRepository.findAllByUser(userId),
-                this.auditRepository.findByUserId(userId),
-            ])
+        const [properties, alerts, areas, devices, auditLogs] = await Promise.all([
+            this.propertyRepository.findAllByUser(userId),
+            this.alertRepository.findAllByUser(userId),
+            this.areaRepository.findAllByUser(userId),
+            this.deviceRepository.findAllByUser(userId),
+            this.auditRepository.findByUserId(userId),
+        ])
 
         const distributorIds = [...new Set(properties.map((p) => p.distributorId))]
         const distributors = await this.distributorRepository.findAllByIds(distributorIds)

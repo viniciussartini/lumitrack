@@ -57,10 +57,7 @@ export class UserEventHub {
             try {
                 listener(event, payload)
             } catch (err) {
-                logger.error(
-                    { module: "UserEventHub", userId, event, err },
-                    "Erro em listener SSE",
-                )
+                logger.error({ module: "UserEventHub", userId, event, err }, "Erro em listener SSE")
             }
         }
     }

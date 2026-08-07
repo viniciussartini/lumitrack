@@ -9,10 +9,7 @@ import { deviceRoutes } from "@/modules/device/device.routes.js"
 // As rotas de área são aninhadas dentro de /api/properties/:propertyId/areas.
 // O Express passa os parâmetros da rota pai (propertyId) quando usamos
 // mergeParams: true no router filho.
-export function areaRoutes(
-    authenticate: RequestHandler,
-    prismaClient: PrismaClient,
-): Router {
+export function areaRoutes(authenticate: RequestHandler, prismaClient: PrismaClient): Router {
     // mergeParams: true é obrigatório para que :propertyId da rota pai
     // fique disponível em req.params dentro deste router.
     const router = Router({ mergeParams: true })
@@ -31,9 +28,13 @@ export function areaRoutes(
     // sem nunca chegar ao router filho se /:areaId estivesse registrado primeiro.
     router.use("/:areaId/devices", deviceRoutes(authenticate, prismaClient))
 
-    router.get("/:areaId", authenticate, (req, res, next) => areaController.findById(req, res, next))
+    router.get("/:areaId", authenticate, (req, res, next) =>
+        areaController.findById(req, res, next),
+    )
     router.put("/:areaId", authenticate, (req, res, next) => areaController.update(req, res, next))
-    router.delete("/:areaId", authenticate, (req, res, next) => areaController.delete(req, res, next))
+    router.delete("/:areaId", authenticate, (req, res, next) =>
+        areaController.delete(req, res, next),
+    )
 
     return router
 }

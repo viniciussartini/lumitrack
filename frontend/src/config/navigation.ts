@@ -24,7 +24,7 @@ export interface NavItem {
  * A ordem aqui é a ordem de exibição, alinhada ao handoff (LumiTrack
  * Home.dc.html, linhas 1356-1364): Painel · Propriedades · Relatórios ·
  * Simulações · Alertas · Distribuidoras · Segurança. "Sobre o projeto"
- * (#137) entra por último — item institucional, sem handoff, fora do
+ * entra por último — item institucional, sem handoff, fora do
  * conjunto dos 7 itens funcionais do protótipo.
  *
  * Adicionar um novo módulo? Adicione aqui + crie a rota no AppRouter.

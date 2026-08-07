@@ -11,10 +11,7 @@ import { AUTH_LAYOUT_GRID_CLASS, BrandPanel } from "@/components/auth/BrandPanel
 import { RecoverySteps } from "@/components/auth/RecoverySteps"
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
-import {
-    resetPasswordSchema,
-    type ResetPasswordFormData,
-} from "@/schemas/resetPassword.schema"
+import { resetPasswordSchema, type ResetPasswordFormData } from "@/schemas/resetPassword.schema"
 
 /**
  * /reset-password?token=... — passo 3 de LumiTrack Recuperar Senha.dc.html.
@@ -70,7 +67,8 @@ export const ResetPasswordPage = () => {
                             Link inválido
                         </h2>
                         <p className="text-muted mt-3 text-[14.5px] leading-[1.55]">
-                            Este link de redefinição está incompleto ou já foi usado. Solicite um novo.
+                            Este link de redefinição está incompleto ou já foi usado. Solicite um
+                            novo.
                         </p>
                         <Button asChild className="btn-block mt-6 min-h-[46px]">
                             <Link to="/esqueci-senha">Solicitar novo link</Link>
@@ -94,24 +92,33 @@ export const ResetPasswordPage = () => {
                     {done ? (
                         <Blueprint className="px-[30px] py-[34px] text-center">
                             <div className="mx-auto flex h-[52px] w-[52px] items-center justify-center border-[1.5px] border-[#2f6f3f]">
-                                <Check className="h-[26px] w-[26px] text-[#2f6f3f]" strokeWidth={1.8} aria-hidden="true" />
+                                <Check
+                                    className="h-[26px] w-[26px] text-[#2f6f3f]"
+                                    strokeWidth={1.8}
+                                    aria-hidden="true"
+                                />
                             </div>
                             <h2 className="font-heading mt-5 text-[26px] leading-[1.05] font-semibold uppercase">
                                 Senha redefinida
                             </h2>
                             <p className="text-muted mt-3 text-[14.5px] leading-[1.55]">
-                                Sua senha foi atualizada com sucesso. Use a nova senha para entrar na sua conta.
+                                Sua senha foi atualizada com sucesso. Use a nova senha para entrar
+                                na sua conta.
                             </p>
                             <Button
                                 type="button"
                                 className="btn-block mt-6 min-h-[46px]"
-                                onClick={() => navigate("/login", { replace: true })}
+                                onClick={() => void navigate("/login", { replace: true })}
                             >
                                 Ir para o login
                             </Button>
                         </Blueprint>
                     ) : (
-                        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+                        <form
+                            onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+                            className="flex flex-col gap-4"
+                            noValidate
+                        >
                             <div>
                                 <span className="text-accent-700 font-heading block text-[13px] font-semibold tracking-[.09em] uppercase">
                                     Nova senha
@@ -120,7 +127,8 @@ export const ResetPasswordPage = () => {
                                     Defina sua senha
                                 </h2>
                                 <p className="text-muted mt-3 text-[14.5px] leading-normal">
-                                    Escolha uma nova senha para sua conta. Ela precisa atender aos requisitos abaixo.
+                                    Escolha uma nova senha para sua conta. Ela precisa atender aos
+                                    requisitos abaixo.
                                 </p>
                             </div>
 
@@ -148,7 +156,10 @@ export const ResetPasswordPage = () => {
                             />
 
                             {serverError && (
-                                <div role="alert" className="bg-status-danger/10 text-status-danger px-3 py-2 text-sm">
+                                <div
+                                    role="alert"
+                                    className="bg-status-danger/10 text-status-danger px-3 py-2 text-sm"
+                                >
                                     {serverError}
                                 </div>
                             )}

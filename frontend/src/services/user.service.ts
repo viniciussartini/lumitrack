@@ -8,7 +8,7 @@ interface ApiEnvelope<T> {
 
 /**
  * Camada de acesso a `PUT`/`DELETE /api/users/:id` — usadas pela edição
- * (ProfilePage, #118) e exclusão de conta (ProfilePage, #120). A leitura do
+ * (ProfilePage) e exclusão de conta (ProfilePage). A leitura do
  * usuário logado não passa por aqui: o `AuthContext` já a resolve via
  * `authService.getCurrentUser` (`/auth/me`).
  */

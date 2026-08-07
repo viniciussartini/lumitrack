@@ -9,11 +9,11 @@ import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
 
 function buildController(prismaClient: PrismaClient): SimulationController {
-    const propertyRepository    = new PropertyRepository(prismaClient)
+    const propertyRepository = new PropertyRepository(prismaClient)
     const distributorRepository = new DistributorRepository(prismaClient)
-    const areaRepository        = new AreaRepository(prismaClient)
-    const deviceRepository      = new DeviceRepository(prismaClient)
-    const tariffFlagRepository  = new TariffFlagRepository(prismaClient)
+    const areaRepository = new AreaRepository(prismaClient)
+    const deviceRepository = new DeviceRepository(prismaClient)
+    const tariffFlagRepository = new TariffFlagRepository(prismaClient)
 
     const simulationService = new SimulationService(
         propertyRepository,
@@ -31,11 +31,8 @@ function buildController(prismaClient: PrismaClient): SimulationController {
 //   router.use("/:propertyId/simulation", simulationRoutes(authenticate, prismaClient))
 //
 // mergeParams: true propaga :propertyId do router pai.
-export function simulationRoutes(
-    authenticate: RequestHandler,
-    prismaClient: PrismaClient,
-): Router {
-    const router     = Router({ mergeParams: true })
+export function simulationRoutes(authenticate: RequestHandler, prismaClient: PrismaClient): Router {
+    const router = Router({ mergeParams: true })
     const controller = buildController(prismaClient)
 
     router.post("/", authenticate, (req, res, next) => controller.simulate(req, res, next))

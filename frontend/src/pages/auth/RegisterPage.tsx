@@ -62,38 +62,36 @@ export const RegisterPage = () => {
         const payload: RegisterInput =
             data.userType === "INDIVIDUAL"
                 ? {
-                    userType: "INDIVIDUAL",
-                    email: data.email,
-                    password: data.password,
-                    firstName: data.firstName,
-                    lastName: data.lastName,
-                    cpf: data.cpf,
-                    acceptedTerms: true,
-                }
+                      userType: "INDIVIDUAL",
+                      email: data.email,
+                      password: data.password,
+                      firstName: data.firstName,
+                      lastName: data.lastName,
+                      cpf: data.cpf,
+                      acceptedTerms: true,
+                  }
                 : {
-                    userType: "COMPANY",
-                    email: data.email,
-                    password: data.password,
-                    companyName: data.companyName,
-                    cnpj: data.cnpj,
-                    tradeName: data.tradeName,
-                    acceptedTerms: true,
-                }
+                      userType: "COMPANY",
+                      email: data.email,
+                      password: data.password,
+                      companyName: data.companyName,
+                      cnpj: data.cnpj,
+                      tradeName: data.tradeName,
+                      acceptedTerms: true,
+                  }
 
         try {
             await registerUser(payload)
-            navigate("/dashboard", { replace: true })
+            void navigate("/dashboard", { replace: true })
         } catch (error) {
-            const message =
-                error instanceof Error ? error.message : "Erro ao criar conta"
+            const message = error instanceof Error ? error.message : "Erro ao criar conta"
 
             // Erro especial: registro ok mas auto-login falhou
             if (message === "POST_REGISTER_LOGIN_FAILED") {
-                navigate("/login", {
+                void navigate("/login", {
                     replace: true,
                     state: {
-                        notice:
-                            "Conta criada com sucesso! Faça login para continuar.",
+                        notice: "Conta criada com sucesso! Faça login para continuar.",
                     },
                 })
                 return
@@ -147,7 +145,11 @@ export const RegisterPage = () => {
                                 onClick={() => setValue("userType", "INDIVIDUAL")}
                                 className="lt-typebtn"
                             >
-                                <User className="h-[17px] w-[17px]" strokeWidth={1.5} aria-hidden="true" />
+                                <User
+                                    className="h-[17px] w-[17px]"
+                                    strokeWidth={1.5}
+                                    aria-hidden="true"
+                                />
                                 Pessoa Física
                             </button>
                             <button
@@ -158,14 +160,18 @@ export const RegisterPage = () => {
                                 onClick={() => setValue("userType", "COMPANY")}
                                 className="lt-typebtn"
                             >
-                                <Building2 className="h-[17px] w-[17px]" strokeWidth={1.5} aria-hidden="true" />
+                                <Building2
+                                    className="h-[17px] w-[17px]"
+                                    strokeWidth={1.5}
+                                    aria-hidden="true"
+                                />
                                 Pessoa Jurídica
                             </button>
                         </div>
                     </div>
 
                     <form
-                        onSubmit={handleSubmit(onSubmit)}
+                        onSubmit={(e) => void handleSubmit(onSubmit)(e)}
                         className="mt-5 flex flex-col gap-4"
                         noValidate
                     >
@@ -210,11 +216,7 @@ export const RegisterPage = () => {
                                     label="CPF"
                                     inputMode="numeric"
                                     placeholder="000.000.000-00"
-                                    error={
-                                        "cpf" in errors
-                                            ? errors.cpf?.message
-                                            : undefined
-                                    }
+                                    error={"cpf" in errors ? errors.cpf?.message : undefined}
                                     {...register("cpf", {
                                         onChange: (e) => {
                                             e.target.value = formatCpf(e.target.value)
@@ -255,11 +257,7 @@ export const RegisterPage = () => {
                                     label="CNPJ"
                                     inputMode="numeric"
                                     placeholder="00.000.000/0000-00"
-                                    error={
-                                        "cnpj" in errors
-                                            ? errors.cnpj?.message
-                                            : undefined
-                                    }
+                                    error={"cnpj" in errors ? errors.cnpj?.message : undefined}
                                     {...register("cnpj", {
                                         onChange: (e) => {
                                             e.target.value = formatCnpj(e.target.value)
@@ -306,7 +304,11 @@ export const RegisterPage = () => {
                                 />
                                 <span>
                                     Li e concordo com a{" "}
-                                    <Link to="/privacidade" target="_blank" className="text-accent-700">
+                                    <Link
+                                        to="/privacidade"
+                                        target="_blank"
+                                        className="text-accent-700"
+                                    >
                                         Política de Privacidade
                                     </Link>{" "}
                                     e os{" "}
@@ -324,7 +326,10 @@ export const RegisterPage = () => {
                         </div>
 
                         {serverError && (
-                            <div role="alert" className="bg-status-danger/10 text-status-danger px-3 py-2 text-sm">
+                            <div
+                                role="alert"
+                                className="bg-status-danger/10 text-status-danger px-3 py-2 text-sm"
+                            >
                                 {serverError}
                             </div>
                         )}

@@ -8,10 +8,7 @@ import type { TargetType } from "@/types/meter.types"
  * Lista os medidores do usuário autenticado (paginado).
  * Usada pelo seletor de medidor no form de criação de alerta.
  */
-export const useMeters = (
-    page: number = 1,
-    pageSize: number = DEFAULT_PAGE_SIZE,
-) =>
+export const useMeters = (page: number = 1, pageSize: number = DEFAULT_PAGE_SIZE) =>
     useQuery({
         queryKey: queryKeys.meters.list(page, pageSize),
         queryFn: () => meterService.list({ page, pageSize }),
@@ -22,10 +19,7 @@ export const useMeters = (
  * Retorna `null` (não erro) quando o alvo não tem medidor — é o estado
  * padrão de um alvo recém-criado, não uma falha.
  */
-export const useMeterByTarget = (
-    targetType: TargetType,
-    targetId: string | undefined,
-) =>
+export const useMeterByTarget = (targetType: TargetType, targetId: string | undefined) =>
     useQuery({
         queryKey: queryKeys.meters.byTarget(targetType, targetId ?? ""),
         queryFn: () => meterService.byTarget(targetType, targetId!),

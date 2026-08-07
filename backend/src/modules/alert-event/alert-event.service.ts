@@ -1,7 +1,10 @@
 import { z } from "zod"
 import { listAlertEventQuerySchema } from "@/modules/alert-event/alert-event.schema.js"
 import type { AlertRepository } from "@/modules/alert/alert.repository.js"
-import type { AlertTriggerEventRepository, AlertTriggerEventResponse } from "@/modules/alert/alert-trigger-event.repository.js"
+import type {
+    AlertTriggerEventRepository,
+    AlertTriggerEventResponse,
+} from "@/modules/alert/alert-trigger-event.repository.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import type { Paginated } from "@/shared/pagination.js"
 

@@ -19,10 +19,7 @@ interface RealtimeWindowToggleProps {
  * local acumulado no cliente (`usePowerHistory`), não é a `Granularity` de
  * `/api/consumption` (conceito diferente, mesmo que visualmente pareça).
  */
-export const RealtimeWindowToggle = ({
-    value,
-    onChange,
-}: RealtimeWindowToggleProps) => (
+export const RealtimeWindowToggle = ({ value, onChange }: RealtimeWindowToggleProps) => (
     <div
         role="tablist"
         aria-label="Janela do gráfico de consumo em tempo real"

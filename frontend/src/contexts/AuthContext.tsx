@@ -1,10 +1,4 @@
-import {
-    createContext,
-    useContext,
-    useEffect,
-    useState,
-    type ReactNode,
-} from "react"
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
 import { authState } from "@/lib/authState"
@@ -61,15 +55,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             if (currentUser) scheduleProactiveRefresh()
             setIsLoading(false)
         }
-        bootstrap()
-        return () => { cancelProactiveRefresh() }
+        void bootstrap()
+        return () => {
+            cancelProactiveRefresh()
+        }
     }, [])
 
     useEffect(() => {
         const handleUnauthorized = () => {
             cancelProactiveRefresh()
             updateUser(null)
-            navigate("/login", { replace: true })
+            void navigate("/login", { replace: true })
         }
         window.addEventListener("lumitrack:unauthorized", handleUnauthorized)
         return () => {
@@ -90,9 +86,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
     }
 
-    const completeMfaLogin = async (
-        input: MfaLoginVerifyInput,
-    ): Promise<void> => {
+    const completeMfaLogin = async (input: MfaLoginVerifyInput): Promise<void> => {
         try {
             const fullUser = await authService.verifyMfaLogin(input)
             updateUser(fullUser)

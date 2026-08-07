@@ -32,7 +32,9 @@ export function DeviceControls({ params, onSave, isPending = false }: DeviceCont
                 label="Perfil"
                 className="col-span-2"
                 value={form.profile}
-                onChange={(e) => setForm({ ...form, profile: e.target.value as DeviceParams["profile"] })}
+                onChange={(e) =>
+                    setForm({ ...form, profile: e.target.value as DeviceParams["profile"] })
+                }
             >
                 {DEVICE_PROFILES.map((profile) => (
                     <option key={profile} value={profile}>
@@ -41,7 +43,12 @@ export function DeviceControls({ params, onSave, isPending = false }: DeviceCont
                 ))}
             </Select>
             <div className="col-span-2 flex items-end">
-                <Button variant="secondary" size="sm" isLoading={isPending} onClick={() => onSave(form)}>
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    isLoading={isPending}
+                    onClick={() => onSave(form)}
+                >
                     Salvar parâmetros
                 </Button>
             </div>

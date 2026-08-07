@@ -43,8 +43,12 @@ async function seedConfig() {
     })
 }
 
-beforeEach(async () => { await cleanHttpDatabase() })
-afterAll(async () => { await prismaHttpTest.$disconnect() })
+beforeEach(async () => {
+    await cleanHttpDatabase()
+})
+afterAll(async () => {
+    await prismaHttpTest.$disconnect()
+})
 
 describe("GET /api/tariff-flag", () => {
     it("retorna 200 com a bandeira vigente sem token — leitura pública (Landing/Login sem sessão)", async () => {

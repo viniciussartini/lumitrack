@@ -4,7 +4,9 @@ import { MinuteBuffer } from "@/modules/iot/iot-worker/MinuteBuffer.js"
 import type { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
 
 function fakeRepository(): MeterReadingRepository {
-    return { upsertMinute: vi.fn().mockResolvedValue(undefined) } as unknown as MeterReadingRepository
+    return {
+        upsertMinute: vi.fn().mockResolvedValue(undefined),
+    } as unknown as MeterReadingRepository
 }
 
 describe("MinuteRollupScheduler", () => {
@@ -28,8 +30,30 @@ describe("MinuteRollupScheduler", () => {
             const repository = fakeRepository()
             const scheduler = new MinuteRollupScheduler(buffer, repository)
 
-            buffer.add("meter-1", { energyKwh: 0.001, voltage: 220, current: 2, powerW: 440, powerFactor: 0.95, deltaSeconds: 1 }, new Date("2026-01-15T14:37:30.000Z"))
-            buffer.add("meter-2", { energyKwh: 0.002, voltage: 127, current: 1, powerW: 127, powerFactor: 0.9, deltaSeconds: 1 }, new Date("2026-01-15T14:37:30.000Z"))
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 1,
+                },
+                new Date("2026-01-15T14:37:30.000Z"),
+            )
+            buffer.add(
+                "meter-2",
+                {
+                    energyKwh: 0.002,
+                    voltage: 127,
+                    current: 1,
+                    powerW: 127,
+                    powerFactor: 0.9,
+                    deltaSeconds: 1,
+                },
+                new Date("2026-01-15T14:37:30.000Z"),
+            )
 
             vi.useFakeTimers()
             vi.setSystemTime(new Date("2026-01-15T14:38:00.000Z"))
@@ -45,7 +69,14 @@ describe("MinuteRollupScheduler", () => {
 
             vi.useFakeTimers()
             vi.setSystemTime(new Date("2026-01-15T14:37:30.000Z"))
-            buffer.add("meter-1", { energyKwh: 0.001, voltage: 220, current: 2, powerW: 440, powerFactor: 0.95, deltaSeconds: 1 })
+            buffer.add("meter-1", {
+                energyKwh: 0.001,
+                voltage: 220,
+                current: 2,
+                powerW: 440,
+                powerFactor: 0.95,
+                deltaSeconds: 1,
+            })
 
             await scheduler.flush()
             vi.useRealTimers()
@@ -59,8 +90,30 @@ describe("MinuteRollupScheduler", () => {
             } as unknown as MeterReadingRepository
             const scheduler = new MinuteRollupScheduler(buffer, repository)
 
-            buffer.add("meter-1", { energyKwh: 0.001, voltage: 220, current: 2, powerW: 440, powerFactor: 0.95, deltaSeconds: 1 }, new Date("2026-01-15T14:37:30.000Z"))
-            buffer.add("meter-1", { energyKwh: 0.001, voltage: 220, current: 2, powerW: 440, powerFactor: 0.95, deltaSeconds: 1 }, new Date("2026-01-15T14:37:31.000Z"))
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 1,
+                },
+                new Date("2026-01-15T14:37:30.000Z"),
+            )
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 1,
+                },
+                new Date("2026-01-15T14:37:31.000Z"),
+            )
 
             vi.useFakeTimers()
             vi.setSystemTime(new Date("2026-01-15T14:38:00.000Z"))
@@ -82,7 +135,18 @@ describe("MinuteRollupScheduler", () => {
             const repository = fakeRepository()
             const scheduler = new MinuteRollupScheduler(buffer, repository)
 
-            buffer.add("meter-1", { energyKwh: 0.001, voltage: 220, current: 2, powerW: 440, powerFactor: 0.95, deltaSeconds: 1 }, new Date())
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 1,
+                },
+                new Date(),
+            )
 
             await scheduler.flushAll()
 

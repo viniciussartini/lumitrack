@@ -48,7 +48,7 @@ export const UserMenu = ({ variant = "header" }: UserMenuProps) => {
     const handleLogout = async (): Promise<void> => {
         setIsOpen(false)
         await logout()
-        navigate("/login", { replace: true })
+        void navigate("/login", { replace: true })
     }
 
     if (!user) return null
@@ -94,7 +94,7 @@ export const UserMenu = ({ variant = "header" }: UserMenuProps) => {
                         "text-sm text-slate-700 hover:bg-slate-100",
                         "dark:text-slate-200 dark:hover:bg-slate-800",
                         "transition-colors",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2",
+                        "focus-visible:ring-brand-500 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
                         "dark:focus-visible:ring-offset-slate-950",
                     )}
                 >
@@ -106,14 +106,9 @@ export const UserMenu = ({ variant = "header" }: UserMenuProps) => {
                         {initials}
                     </span>
                     {/* Nome — escondido em telas muito pequenas */}
-                    <span className="hidden max-w-35 truncate font-medium sm:inline">
-                        {name}
-                    </span>
+                    <span className="hidden max-w-35 truncate font-medium sm:inline">{name}</span>
                     <ChevronDown
-                        className={cn(
-                            "h-4 w-4 transition-transform",
-                            isOpen && "rotate-180",
-                        )}
+                        className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")}
                         aria-hidden="true"
                     />
                 </button>
@@ -126,9 +121,7 @@ export const UserMenu = ({ variant = "header" }: UserMenuProps) => {
                     aria-label="Opções do usuário"
                     className={cn(
                         "lt-menu w-56",
-                        variant === "sidebar"
-                            ? "bottom-full left-0 mb-2"
-                            : "right-0 top-full mt-1",
+                        variant === "sidebar" ? "bottom-full left-0 mb-2" : "top-full right-0 mt-1",
                     )}
                 >
                     {/* Header com email — não-clicável, contexto */}
@@ -143,7 +136,7 @@ export const UserMenu = ({ variant = "header" }: UserMenuProps) => {
                         role="menuitem"
                         onClick={() => {
                             setIsOpen(false)
-                            navigate("/perfil")
+                            void navigate("/perfil")
                         }}
                         className="lt-menu-item"
                     >
@@ -157,7 +150,7 @@ export const UserMenu = ({ variant = "header" }: UserMenuProps) => {
                         role="menuitem"
                         onClick={() => {
                             setIsOpen(false)
-                            navigate("/seguranca")
+                            void navigate("/seguranca")
                         }}
                         className="lt-menu-item"
                     >
@@ -169,7 +162,7 @@ export const UserMenu = ({ variant = "header" }: UserMenuProps) => {
                     <button
                         type="button"
                         role="menuitem"
-                        onClick={handleLogout}
+                        onClick={() => void handleLogout()}
                         className="lt-menu-item lt-menu-item-danger"
                     >
                         <LogOut className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />

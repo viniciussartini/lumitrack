@@ -1,9 +1,5 @@
 import { api } from "@/services/api"
-import type {
-    Area,
-    CreateAreaInput,
-    UpdateAreaInput,
-} from "@/types/area.types"
+import type { Area, CreateAreaInput, UpdateAreaInput } from "@/types/area.types"
 import type { Paginated, PaginationParams } from "@/types/pagination.types"
 
 interface ApiEnvelope<T> {
@@ -23,10 +19,7 @@ interface ApiEnvelope<T> {
  * { status, data } é desmembrado aqui.
  */
 export const areaService = {
-    list: async (
-        propertyId: string,
-        params: PaginationParams = {},
-    ): Promise<Paginated<Area>> => {
+    list: async (propertyId: string, params: PaginationParams = {}): Promise<Paginated<Area>> => {
         const { data } = await api.get<ApiEnvelope<Paginated<Area>>>(
             `/properties/${propertyId}/areas`,
             { params },
@@ -35,28 +28,16 @@ export const areaService = {
     },
 
     getById: async (propertyId: string, id: string): Promise<Area> => {
-        const { data } = await api.get<ApiEnvelope<Area>>(
-            `/properties/${propertyId}/areas/${id}`,
-        )
+        const { data } = await api.get<ApiEnvelope<Area>>(`/properties/${propertyId}/areas/${id}`)
         return data.data
     },
 
-    create: async (
-        propertyId: string,
-        input: CreateAreaInput,
-    ): Promise<Area> => {
-        const { data } = await api.post<ApiEnvelope<Area>>(
-            `/properties/${propertyId}/areas`,
-            input,
-        )
+    create: async (propertyId: string, input: CreateAreaInput): Promise<Area> => {
+        const { data } = await api.post<ApiEnvelope<Area>>(`/properties/${propertyId}/areas`, input)
         return data.data
     },
 
-    update: async (
-        propertyId: string,
-        id: string,
-        input: UpdateAreaInput,
-    ): Promise<Area> => {
+    update: async (propertyId: string, id: string, input: UpdateAreaInput): Promise<Area> => {
         const { data } = await api.put<ApiEnvelope<Area>>(
             `/properties/${propertyId}/areas/${id}`,
             input,

@@ -46,9 +46,7 @@ describe("DeviceForm — modo criação", () => {
     it("renderiza os 4 campos", () => {
         renderForm()
 
-        expect(
-            screen.getByLabelText(/nome do dispositivo/i),
-        ).toBeInTheDocument()
+        expect(screen.getByLabelText(/nome do dispositivo/i)).toBeInTheDocument()
         expect(screen.getByLabelText(/marca/i)).toBeInTheDocument()
         expect(screen.getByLabelText(/modelo/i)).toBeInTheDocument()
         expect(screen.getByLabelText(/potência \(w\)/i)).toBeInTheDocument()
@@ -69,25 +67,19 @@ describe("DeviceForm — modo criação", () => {
         renderForm()
 
         // O helper menciona pelo menos um exemplo conhecido
-        expect(
-            screen.getByText(/geladeira/i),
-        ).toBeInTheDocument()
+        expect(screen.getByText(/geladeira/i)).toBeInTheDocument()
     })
 
     it("usa label de submit customizado quando passado", () => {
         renderForm({ submitLabel: "Cadastrar dispositivo" })
 
-        expect(
-            screen.getByRole("button", { name: /cadastrar dispositivo/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /cadastrar dispositivo/i })).toBeInTheDocument()
     })
 
     it("usa label 'Salvar' por default", () => {
         renderForm()
 
-        expect(
-            screen.getByRole("button", { name: /salvar/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: /salvar/i })).toBeInTheDocument()
     })
 })
 
@@ -99,13 +91,9 @@ describe("DeviceForm — modo edição", () => {
     it("preenche todos os campos com os dados iniciais", () => {
         renderForm({ initialData: mockDevice })
 
-        expect(screen.getByLabelText(/nome do dispositivo/i)).toHaveValue(
-            "Ar-condicionado",
-        )
+        expect(screen.getByLabelText(/nome do dispositivo/i)).toHaveValue("Ar-condicionado")
         expect(screen.getByLabelText(/marca/i)).toHaveValue("Daikin")
-        expect(screen.getByLabelText(/modelo/i)).toHaveValue(
-            "Split 12000 BTU",
-        )
+        expect(screen.getByLabelText(/modelo/i)).toHaveValue("Split 12000 BTU")
         expect(screen.getByLabelText(/potência/i)).toHaveValue(1200)
     })
 
@@ -140,9 +128,7 @@ describe("DeviceForm — validação", () => {
 
         await user.click(screen.getByRole("button", { name: /salvar/i }))
 
-        expect(
-            await screen.findByText(/nome é obrigatório/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/nome é obrigatório/i)).toBeInTheDocument()
         expect(onSubmit).not.toHaveBeenCalled()
     })
 
@@ -151,16 +137,11 @@ describe("DeviceForm — validação", () => {
         const onSubmit = vi.fn()
         renderForm({ onSubmit })
 
-        await user.type(
-            screen.getByLabelText(/nome do dispositivo/i),
-            "Lâmpada",
-        )
+        await user.type(screen.getByLabelText(/nome do dispositivo/i), "Lâmpada")
         await user.type(screen.getByLabelText(/potência/i), "0")
         await user.tab()
 
-        expect(
-            await screen.findByText(/maior que zero/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/maior que zero/i)).toBeInTheDocument()
         expect(onSubmit).not.toHaveBeenCalled()
     })
 
@@ -169,10 +150,7 @@ describe("DeviceForm — validação", () => {
         const onSubmit = vi.fn()
         renderForm({ onSubmit })
 
-        await user.type(
-            screen.getByLabelText(/nome do dispositivo/i),
-            "Lâmpada",
-        )
+        await user.type(screen.getByLabelText(/nome do dispositivo/i), "Lâmpada")
 
         const longBrand = "a".repeat(101)
         const brandInput = screen.getByLabelText(/marca/i)
@@ -180,9 +158,7 @@ describe("DeviceForm — validação", () => {
         await user.paste(longBrand)
         await user.tab()
 
-        expect(
-            await screen.findByText(/marca muito longa/i),
-        ).toBeInTheDocument()
+        expect(await screen.findByText(/marca muito longa/i)).toBeInTheDocument()
     })
 })
 
@@ -196,10 +172,7 @@ describe("DeviceForm — submit", () => {
         const onSubmit = vi.fn().mockResolvedValue(undefined)
         renderForm({ onSubmit })
 
-        await user.type(
-            screen.getByLabelText(/nome do dispositivo/i),
-            "Lâmpada",
-        )
+        await user.type(screen.getByLabelText(/nome do dispositivo/i), "Lâmpada")
         await user.click(screen.getByRole("button", { name: /salvar/i }))
 
         await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
@@ -220,15 +193,9 @@ describe("DeviceForm — submit", () => {
         const onSubmit = vi.fn().mockResolvedValue(undefined)
         renderForm({ onSubmit })
 
-        await user.type(
-            screen.getByLabelText(/nome do dispositivo/i),
-            "Ar-condicionado",
-        )
+        await user.type(screen.getByLabelText(/nome do dispositivo/i), "Ar-condicionado")
         await user.type(screen.getByLabelText(/marca/i), "Daikin")
-        await user.type(
-            screen.getByLabelText(/modelo/i),
-            "Split 12000 BTU",
-        )
+        await user.type(screen.getByLabelText(/modelo/i), "Split 12000 BTU")
         await user.type(screen.getByLabelText(/potência/i), "1200")
         await user.click(screen.getByRole("button", { name: /salvar/i }))
 
@@ -250,10 +217,7 @@ describe("DeviceForm — submit", () => {
         const onSubmit = vi.fn().mockResolvedValue(undefined)
         renderForm({ onSubmit })
 
-        await user.type(
-            screen.getByLabelText(/nome do dispositivo/i),
-            "Lâmpada",
-        )
+        await user.type(screen.getByLabelText(/nome do dispositivo/i), "Lâmpada")
         await user.type(screen.getByLabelText(/potência/i), "60")
         await user.click(screen.getByRole("button", { name: /salvar/i }))
 

@@ -44,11 +44,7 @@ interface PropertyCardProps {
  * quando o elemento clicável precisa ser outra tag, replica-se o markup do
  * `Blueprint.tsx` em vez de aninhar o link dentro de um wrapper extra.
  */
-export const PropertyCard = ({
-    property,
-    distributorName,
-    distributors,
-}: PropertyCardProps) => {
+export const PropertyCard = ({ property, distributorName, distributors }: PropertyCardProps) => {
     const addressLine = formatAddress(property)
     const [isEditOpen, setIsEditOpen] = useState(false)
 
@@ -78,10 +74,7 @@ export const PropertyCard = ({
                         </h3>
                         {addressLine && (
                             <p className="text-muted mt-[5px] flex items-center gap-1.5 text-[12.5px]">
-                                <MapPin
-                                    className="h-3.5 w-3.5 shrink-0"
-                                    aria-hidden="true"
-                                />
+                                <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                                 <span className="truncate">{addressLine}</span>
                             </p>
                         )}
@@ -103,11 +96,8 @@ export const PropertyCard = ({
             </Link>
 
             {/* Menu sobreposto ao Link, no canto superior direito */}
-            <div className="absolute right-3 top-3">
-                <PropertyMenu
-                    property={property}
-                    onEdit={() => setIsEditOpen(true)}
-                />
+            <div className="absolute top-3 right-3">
+                <PropertyMenu property={property} onEdit={() => setIsEditOpen(true)} />
             </div>
 
             <PropertyFormDialog

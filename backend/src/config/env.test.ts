@@ -52,3 +52,80 @@ describe("envSchema — guard CORS_ORIGIN em produção (A02)", () => {
         expect(result.success).toBe(true)
     })
 })
+
+describe("envSchema — DATABASE_TEST_URL/DATABASE_HTTP_TEST_URL (#165)", () => {
+    it("rejeita NODE_ENV=test sem DATABASE_TEST_URL", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            NODE_ENV: "test",
+            DATABASE_HTTP_TEST_URL: "postgresql://user:pass@localhost:5432/db_test_http",
+        })
+
+        expect(result.success).toBe(false)
+        if (!result.success) {
+            const issue = result.error.issues.find((i) => i.path[0] === "DATABASE_TEST_URL")
+            expect(issue).toBeDefined()
+        }
+    })
+
+    it("rejeita NODE_ENV=test sem DATABASE_HTTP_TEST_URL", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            NODE_ENV: "test",
+            DATABASE_TEST_URL: "postgresql://user:pass@localhost:5432/db_test",
+        })
+
+        expect(result.success).toBe(false)
+        if (!result.success) {
+            const issue = result.error.issues.find((i) => i.path[0] === "DATABASE_HTTP_TEST_URL")
+            expect(issue).toBeDefined()
+        }
+    })
+
+    it("não exige DATABASE_TEST_URL/DATABASE_HTTP_TEST_URL fora de NODE_ENV=test", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, NODE_ENV: "production" })
+
+        expect(result.success).toBe(true)
+    })
+
+    it("rejeita DATABASE_TEST_URL igual a DATABASE_URL — apagaria o banco de desenvolvimento", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            NODE_ENV: "test",
+            DATABASE_TEST_URL: baseValidEnv.DATABASE_URL,
+            DATABASE_HTTP_TEST_URL: "postgresql://user:pass@localhost:5432/db_test_http",
+        })
+
+        expect(result.success).toBe(false)
+        if (!result.success) {
+            const issue = result.error.issues.find((i) => i.path[0] === "DATABASE_TEST_URL")
+            expect(issue?.message).toMatch(/não pode ser igual a DATABASE_URL/)
+        }
+    })
+
+    it("rejeita DATABASE_HTTP_TEST_URL igual a DATABASE_URL — apagaria o banco de desenvolvimento", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            NODE_ENV: "test",
+            DATABASE_TEST_URL: "postgresql://user:pass@localhost:5432/db_test",
+            DATABASE_HTTP_TEST_URL: baseValidEnv.DATABASE_URL,
+        })
+
+        expect(result.success).toBe(false)
+        if (!result.success) {
+            const issue = result.error.issues.find((i) => i.path[0] === "DATABASE_HTTP_TEST_URL")
+            expect(issue?.message).toMatch(/não pode ser igual a DATABASE_URL/)
+        }
+    })
+
+    it("aceita NODE_ENV=test com as duas URLs de teste distintas de DATABASE_URL", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            NODE_ENV: "test",
+            DATABASE_TEST_URL: "postgresql://user:pass@localhost:5432/db_test",
+            DATABASE_HTTP_TEST_URL: "postgresql://user:pass@localhost:5432/db_test_http",
+        })
+
+        expect(result.success).toBe(true)
+    })
+})

@@ -24,7 +24,7 @@ import { prismaTest } from "@/shared/test/prisma-test.js"
 export async function cleanDatabase(): Promise<void> {
     await prismaTest.$transaction([
         // AuditLog e TariffFlagHistory usam onDelete: SetNull (não Cascade)
-        // — de propósito, pra sobreviver à exclusão da conta (#08, #143).
+        // — de propósito, pra sobreviver à exclusão da conta.
         // Por isso precisam ser limpos explicitamente aqui, não seriam
         // removidos automaticamente pelo delete de User.
         prismaTest.auditLog.deleteMany(),

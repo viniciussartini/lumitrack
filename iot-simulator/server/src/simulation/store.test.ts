@@ -75,30 +75,61 @@ describe("SimulationStore — power, anomaly, samples", () => {
 
         store.setPower(device.id, true)
         expect(store.getDevice(device.id)?.poweredOn).toBe(true)
-        expect(listener).toHaveBeenCalledWith({ reason: "device-power", networkId: network.id, deviceId: device.id })
+        expect(listener).toHaveBeenCalledWith({
+            reason: "device-power",
+            networkId: network.id,
+            deviceId: device.id,
+        })
 
         store.setAnomaly(device.id, { active: true, multiplier: 3, endsAt: 12345 })
-        expect(store.getDevice(device.id)?.anomaly).toEqual({ active: true, multiplier: 3, endsAt: 12345 })
-        expect(listener).toHaveBeenCalledWith({ reason: "device-anomaly", networkId: network.id, deviceId: device.id })
+        expect(store.getDevice(device.id)?.anomaly).toEqual({
+            active: true,
+            multiplier: 3,
+            endsAt: 12345,
+        })
+        expect(listener).toHaveBeenCalledWith({
+            reason: "device-anomaly",
+            networkId: network.id,
+            deviceId: device.id,
+        })
 
         store.clearAnomaly(device.id)
         expect(store.getDevice(device.id)?.anomaly.active).toBe(false)
 
-        store.recordSample(device.id, { voltage: 220, current: 2, powerW: 440, powerFactor: 0.95 }, 1000)
+        store.recordSample(
+            device.id,
+            { voltage: 220, current: 2, powerW: 440, powerFactor: 0.95 },
+            1000,
+        )
         const updated = store.getDevice(device.id)!
-        expect(updated.lastSample).toEqual({ voltage: 220, current: 2, powerW: 440, powerFactor: 0.95 })
+        expect(updated.lastSample).toEqual({
+            voltage: 220,
+            current: 2,
+            powerW: 440,
+            powerFactor: 0.95,
+        })
         expect(updated.lastPublishedAt).toBe(1000)
         expect(updated.publishCount).toBe(1)
         expect(updated.connected).toBe(true)
-        expect(listener).toHaveBeenCalledWith({ reason: "device-sample", networkId: network.id, deviceId: device.id })
+        expect(listener).toHaveBeenCalledWith({
+            reason: "device-sample",
+            networkId: network.id,
+            deviceId: device.id,
+        })
     })
 
     it("setPower/setAnomaly/recordSample em device inexistente não lançam", () => {
         const store = new SimulationStore()
         expect(store.setPower("id-inexistente", true)).toBeUndefined()
-        expect(store.setAnomaly("id-inexistente", { active: true, multiplier: 2, endsAt: null })).toBeUndefined()
+        expect(
+            store.setAnomaly("id-inexistente", { active: true, multiplier: 2, endsAt: null }),
+        ).toBeUndefined()
         expect(() =>
-            store.recordSample("id-inexistente", { voltage: 1, current: 1, powerW: 1, powerFactor: 1 }, 0),
+            store.recordSample(
+                "id-inexistente",
+                { voltage: 1, current: 1, powerW: 1, powerFactor: 1 },
+                0,
+            ),
         ).not.toThrow()
     })
 })

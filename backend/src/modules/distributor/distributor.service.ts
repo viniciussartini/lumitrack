@@ -1,6 +1,9 @@
 import { z } from "zod"
 import { listDistributorQuerySchema } from "@/modules/distributor/distributor.schema.js"
-import type { DistributorRepository, DistributorResponse } from "@/modules/distributor/distributor.repository.js"
+import type {
+    DistributorRepository,
+    DistributorResponse,
+} from "@/modules/distributor/distributor.repository.js"
 import { NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import type { Paginated } from "@/shared/pagination.js"
 
@@ -24,9 +27,7 @@ export class DistributorService {
         const parsed = listDistributorQuerySchema.safeParse(query)
 
         if (!parsed.success) {
-            const firstError = Object.values(
-                z.flattenError(parsed.error).fieldErrors,
-            ).flat()[0]
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 

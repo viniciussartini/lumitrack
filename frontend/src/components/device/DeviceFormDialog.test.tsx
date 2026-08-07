@@ -18,8 +18,7 @@ vi.mock("@/services/device.service", () => ({
 
 vi.mock("@/services/api", () => ({
     api: {},
-    extractErrorMessage: (error: unknown) =>
-        error instanceof Error ? error.message : "Erro",
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
 }))
 
 vi.mock("sonner", () => ({
@@ -40,9 +39,7 @@ const mockDevice: Device = {
     updatedAt: new Date().toISOString(),
 }
 
-const renderDialog = (
-    props: Partial<React.ComponentProps<typeof DeviceFormDialog>> = {},
-) => {
+const renderDialog = (props: Partial<React.ComponentProps<typeof DeviceFormDialog>> = {}) => {
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false, gcTime: 0 },
@@ -73,9 +70,7 @@ describe("DeviceFormDialog — criar", () => {
     it("abre com o título 'Adicionar dispositivo'", () => {
         renderDialog()
 
-        expect(
-            screen.getByRole("dialog", { name: /adicionar dispositivo/i }),
-        ).toBeInTheDocument()
+        expect(screen.getByRole("dialog", { name: /adicionar dispositivo/i })).toBeInTheDocument()
     })
 
     it("cria o dispositivo e fecha o modal ao submeter", async () => {
@@ -107,12 +102,8 @@ describe("DeviceFormDialog — editar", () => {
             },
         })
 
-        expect(
-            screen.getByRole("dialog", { name: /editar dispositivo/i }),
-        ).toBeInTheDocument()
-        expect(screen.getByLabelText(/nome do dispositivo/i)).toHaveValue(
-            "Ar-condicionado",
-        )
+        expect(screen.getByRole("dialog", { name: /editar dispositivo/i })).toBeInTheDocument()
+        expect(screen.getByLabelText(/nome do dispositivo/i)).toHaveValue("Ar-condicionado")
     })
 
     it("atualiza o dispositivo e fecha o modal ao submeter", async () => {

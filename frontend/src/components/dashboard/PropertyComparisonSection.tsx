@@ -18,7 +18,7 @@ interface PropertyComparisonSectionProps {
  * bucket do mês corrente, 404 (sem medidor) vira `null` silenciosamente —
  * nunca erro, a propriedade só fica de fora da comparação.
  *
- * Independente da propriedade selecionada no seletor (#115) — compara TODAS
+ * Independente da propriedade selecionada no seletor — compara TODAS
  * as propriedades do usuário, já carregadas em `DashboardPage` (sem
  * re-fetch). O card inteiro some quando não há nenhuma linha pra comparar
  * (0 ou 1 propriedade com dado) — resolve sozinho o critério de aceite

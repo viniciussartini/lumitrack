@@ -22,8 +22,7 @@ describe("usePowerHistory", () => {
         const r1 = reading("2026-08-03T10:00:00.000Z", 1000)
 
         const { result, rerender } = renderHook(
-            ({ reading }: { reading: ReadingPayload | undefined }) =>
-                usePowerHistory(reading),
+            ({ reading }: { reading: ReadingPayload | undefined }) => usePowerHistory(reading),
             { initialProps: { reading: r1 } },
         )
 
@@ -52,8 +51,7 @@ describe("usePowerHistory", () => {
         const recent = reading("2026-08-03T01:00:00.000Z", 1500) // > 24h depois
 
         const { result, rerender } = renderHook(
-            ({ reading }: { reading: ReadingPayload | undefined }) =>
-                usePowerHistory(reading),
+            ({ reading }: { reading: ReadingPayload | undefined }) => usePowerHistory(reading),
             { initialProps: { reading: old } },
         )
         expect(result.current).toHaveLength(1)
