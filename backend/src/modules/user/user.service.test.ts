@@ -11,6 +11,7 @@ import {
     ValidationError,
 } from "@/shared/errors/AppError.js"
 import { DEMO_RESIDENTIAL_EMAIL } from "@/shared/config/demoAccounts.js"
+import { decrypt } from "@/shared/crypto/encryption.js"
 
 // Instanciamos as dependências reais — sem mocks.
 // O repository usa o prismaTest (banco lumitrack_test),
@@ -109,6 +110,37 @@ describe("UserService", () => {
             expect(userInDb?.password).toMatch(/^\$2[ab]\$/)
             // E jamais é a senha original
             expect(userInDb?.password).not.toBe("Senha@123")
+        })
+
+        // Issue #184 — o controle de cifra (A04/Art. 46) já existe em
+        // user.repository.ts desde a introdução de encryption.ts; faltava um
+        // teste que lesse a coluna direto e confirmasse que o valor em
+        // repouso não é o texto claro, mesmo padrão do teste acima para a
+        // senha (hash bcrypt).
+        it("armazena CPF cifrado em repouso, nunca em texto claro", async () => {
+            await userService.createUser(validIndividualInput)
+
+            const userInDb = await prismaTest.user.findUniqueOrThrow({
+                where: { email: "joao@example.com" },
+            })
+
+            expect(userInDb.cpf).toBeDefined()
+            expect(userInDb.cpf).not.toBe(validIndividualInput.cpf)
+            // Decifra de volta pro valor original — confirma que é um
+            // ciphertext válido do CPF certo, não só um valor diferente.
+            expect(decrypt(userInDb.cpf!)).toBe(validIndividualInput.cpf)
+        })
+
+        it("armazena CNPJ cifrado em repouso, nunca em texto claro", async () => {
+            await userService.createUser(validCompanyInput)
+
+            const userInDb = await prismaTest.user.findUniqueOrThrow({
+                where: { email: "contato@empresa.com" },
+            })
+
+            expect(userInDb.cnpj).toBeDefined()
+            expect(userInDb.cnpj).not.toBe(validCompanyInput.cnpj)
+            expect(decrypt(userInDb.cnpj!)).toBe(validCompanyInput.cnpj)
         })
 
         // ── Conflitos de unicidade ───────────────────────────────────────────────

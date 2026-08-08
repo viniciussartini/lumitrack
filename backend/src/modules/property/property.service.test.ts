@@ -9,6 +9,7 @@ import { cleanDatabase } from "@/shared/test/clean-database.js"
 import { createTestDistributor } from "@/shared/test/distributorFixture.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import type { CreatePropertyInput } from "@/modules/property/property.schema.js"
+import { decryptAddress } from "@/shared/crypto/addressEncryption.js"
 
 // ─── Instâncias ───────────────────────────────────────────────────────────────
 
@@ -97,6 +98,35 @@ describe("PropertyService", () => {
             expect(property.electricalSystem).toBe("TRIPHASIC")
             expect(property.billingClass).toBe("B1") // default
             expect(property.publicLightingFeeBrl).toBeNull()
+        })
+
+        // Issue #184 — o controle de cifra (A04/Art. 46) já existe em
+        // property.repository.ts desde a introdução de addressEncryption.ts;
+        // faltava um teste que lesse a coluna direto e confirmasse que o
+        // valor em repouso não é o texto claro (mesmo padrão já usado para o
+        // hash de senha em user.service.test.ts).
+        it("armazena address/city/state/zipCode cifrados em repouso, nunca em texto claro", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+            })
+
+            const raw = await prismaTest.property.findUniqueOrThrow({ where: { id: property.id } })
+
+            expect(raw.address).toBeDefined()
+            expect(raw.address).not.toBe(validPropertyInput.address)
+            expect(raw.city).not.toBe(validPropertyInput.city)
+            expect(raw.state).not.toBe(validPropertyInput.state)
+            expect(raw.zipCode).not.toBe(validPropertyInput.zipCode)
+
+            // E decifram de volta para o valor original — confirma que não é
+            // só lixo diferente, é um ciphertext válido do dado certo.
+            expect(decryptAddress(raw.address!)).toBe(validPropertyInput.address)
+            expect(decryptAddress(raw.city!)).toBe(validPropertyInput.city)
+            expect(decryptAddress(raw.state!)).toBe(validPropertyInput.state)
+            expect(decryptAddress(raw.zipCode!)).toBe(validPropertyInput.zipCode)
         })
 
         it("deve criar uma propriedade sem campos de endereço (todos opcionais)", async () => {

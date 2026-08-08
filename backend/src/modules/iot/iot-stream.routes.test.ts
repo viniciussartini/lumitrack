@@ -474,4 +474,66 @@ describe("GET /api/iot/stream", () => {
         expect(reading).toBeDefined()
         expect((reading!.data as { meterId: string }).meterId).toBe(meterIdCreated)
     })
+
+    // Issue #184 — a sessão que abriu o stream é revalidada no mesmo
+    // refresh periódico do conjunto de medidores (200ms no app de teste).
+    it("encerra o stream quando a sessão que o abriu é revogada (logout)", async () => {
+        const { token } = await setupUserWithMeter()
+
+        const stream = await openSseStream(token)
+        let connectedReceived = false
+        let streamClosed = false
+        stream.on("close", () => {
+            streamClosed = true
+        })
+
+        await collectSseEvents(stream, {
+            maxWaitMs: 4000,
+            onEvent: (event) => {
+                if (event === "connected" && !connectedReceived) {
+                    connectedReceived = true
+                    // Revoga a sessão de verdade via logout — mesmo AuthToken
+                    // usado para abrir o stream.
+                    void (async () => {
+                        await request(app)
+                            .post("/api/auth/logout")
+                            .set("Authorization", `Bearer ${token}`)
+                            .send()
+                    })()
+                }
+            },
+        })
+
+        expect(streamClosed).toBe(true)
+
+        // Confirma no banco que a sessão está mesmo revogada — não é só o
+        // stream que fechou por outro motivo.
+        const storedTokens = await prismaHttpTest.authToken.findMany({
+            where: { revokedAt: { not: null } },
+        })
+        expect(storedTokens.length).toBeGreaterThan(0)
+    })
+
+    it("mantém o stream aberto e continua entregando leituras enquanto a sessão segue válida", async () => {
+        const { token, meterId } = await setupUserWithMeter()
+
+        const stream = await openSseStream(token)
+
+        let connectedReceived = false
+        const events = await collectSseEvents(stream, {
+            // Maior que 1 ciclo do refresh periódico (200ms) — garante que a
+            // revalidação rodou ao menos uma vez sem derrubar a conexão.
+            maxWaitMs: 1500,
+            stopAfterEvent: "reading",
+            onEvent: (event) => {
+                if (event === "connected" && !connectedReceived) {
+                    connectedReceived = true
+                    setTimeout(() => simulateReading(meterId, validReadingPayload), 400)
+                }
+            },
+        })
+
+        const reading = events.find((e) => e.event === "reading")
+        expect(reading).toBeDefined()
+    })
 })
