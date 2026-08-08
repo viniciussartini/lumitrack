@@ -2,10 +2,7 @@ import { createApp } from "@/app.js"
 import { env } from "@/config/env.js"
 import { logger } from "@/shared/logger/logger.js"
 import { prisma } from "@/shared/database/prisma.js"
-import {
-    IoTConnectionManager,
-    type MeterConnectionConfig,
-} from "@/modules/iot/iot-worker/IoTConnectionManager.js"
+import { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
 import { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import { MinuteRollupScheduler } from "@/modules/iot/iot-worker/MinuteRollupScheduler.js"
 import { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
@@ -36,6 +33,10 @@ import { TariffFlagSyncScheduler } from "@/modules/tariff-flag/sync/TariffFlagSy
 const userEventHub = new UserEventHub()
 const notificationStore = new NotificationStore()
 
+// Compartilhado com restoreIoTConnections() abaixo — evita montar 2
+// instâncias do repository só para ler o mesmo Meter de lugares diferentes.
+const meterRepository = new MeterRepository(prisma)
+
 // AlertEvaluator (Fase 4) — avalia cada amostra elétrica contra os alertas
 // por faixa de potência habilitados do medidor (histerese por contagem de
 // amostras consecutivas). Registrado como listener do processor logo abaixo.
@@ -43,7 +44,7 @@ const alertEvaluator = new AlertEvaluator(
     new AlertRepository(prisma),
     new AlertTriggerEventRepository(prisma),
     {
-        meterRepository: new MeterRepository(prisma),
+        meterRepository,
         propertyRepository: new PropertyRepository(prisma),
         areaRepository: new AreaRepository(prisma),
         deviceRepository: new DeviceRepository(prisma),
@@ -157,27 +158,17 @@ const server = app.listen(env.PORT, () => {
  */
 async function restoreIoTConnections(): Promise<void> {
     try {
-        const meters = await prisma.meter.findMany()
+        // Já decifrado (issue #182 — extra.password de medidores MQTT é
+        // cifrado em repouso; findAllConnectionConfigs é o único caminho
+        // interno autorizado a devolver o valor em texto claro).
+        const configs = await meterRepository.findAllConnectionConfigs()
 
-        if (meters.length === 0) {
+        if (configs.length === 0) {
             logger.info("[Boot] Nenhum medidor encontrado. Nada a restaurar.")
             return
         }
 
-        logger.info(`[Boot] Restaurando ${meters.length} conexão(ões) IoT...`)
-
-        const configs: MeterConnectionConfig[] = meters.map((meter) => ({
-            meterId: meter.id,
-            protocol: meter.protocol,
-            host: meter.host,
-            port: meter.port,
-            topic: meter.topic,
-            address: meter.address,
-            // O campo `extra` retornado pelo Prisma é tipado como JsonValue;
-            // em runtime é sempre um objeto JSON ou null (controlado pelo Zod
-            // na escrita).
-            extra: meter.extra as Record<string, unknown> | null,
-        }))
+        logger.info(`[Boot] Restaurando ${configs.length} conexão(ões) IoT...`)
 
         const results = await Promise.allSettled(configs.map((config) => manager.start(config)))
 

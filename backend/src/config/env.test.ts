@@ -14,6 +14,7 @@ const baseValidEnv = {
     CPF_CNPJ_BLIND_INDEX_KEY: "b".repeat(64),
     MFA_SECRET_ENCRYPTION_KEY: "c".repeat(64),
     ADDRESS_ENCRYPTION_KEY: "d".repeat(64),
+    METER_CREDENTIAL_ENCRYPTION_KEY: "e".repeat(64),
 }
 
 describe("envSchema — guard CORS_ORIGIN em produção (A02)", () => {

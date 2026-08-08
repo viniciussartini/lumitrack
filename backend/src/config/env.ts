@@ -105,6 +105,16 @@ export const envSchema = z
             message: "ADDRESS_ENCRYPTION_KEY deve ter 64 caracteres hexadecimais (32 bytes)",
         }),
 
+        // Criptografia da credencial de protocolo do medidor em repouso
+        // (issue #182 — Meter.extra.password, ex.: senha MQTT). Chave própria
+        // (separada das 3 acima) — mesma compartimentalização de risco.
+        // Mesmo formato (64 caracteres hex / 32 bytes). Gerar com:
+        //   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+        METER_CREDENTIAL_ENCRYPTION_KEY: z.string().regex(/^[0-9a-f]{64}$/i, {
+            message:
+                "METER_CREDENTIAL_ENCRYPTION_KEY deve ter 64 caracteres hexadecimais (32 bytes)",
+        }),
+
         // Refresh token da sessão WEB (A06).
         // Canal MOBILE não usa refresh (token de 90 dias já cobre a UX).
         JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
