@@ -1147,3 +1147,13 @@
 - **Arquivos principais:** `backend/src/modules/iot/iot-stream.routes.ts` (+ `iot-stream.routes.test.ts`), `backend/src/app.security-headers.test.ts` (novo), `backend/src/modules/user/user.service.test.ts`, `backend/src/modules/property/property.service.test.ts`, `.claude/docs/roadmap.md` (fechamento da Fase 13).
 - **Decisões/ADRs:** nenhuma nova — os 3 achados são [BAIXA] do laudo de segurança, sem decisão de arquitetura envolvida.
 - **Notas:** backend — `lint`, `format:check`, `depcruise`, `build` e `test -- --run` limpos (72/72 arquivos · 884/884 testes, `dist/` limpo antes e depois da execução). **Fecha a Fase 13** (épico #185, 8 sub-issues #177–#184) — ver fechamento detalhado em `.claude/docs/roadmap.md`. Gates de go-live #1–#5 da ADR-0008 implementados; restam #6 (`pg_dump` agendado) e #7 (rotação de chaves), ambos operacionais no dia do deploy, fora do escopo de código desta fase.
+
+## [2026-08-08] fix: adiciona a dummy key de METER_CREDENTIAL_ENCRYPTION_KEY ao allowlist do gitleaks
+
+- **Branch:** fix/185-endurecimento-seguranca-p1
+- **Tipo:** fix
+- **O quê:** o job `secret-scan` (CI, `.github/workflows/ci.yml`) passou a falhar no PR #186 — `gitleaks` reportou 2 leaks. Causa: a issue #182 adicionou `METER_CREDENTIAL_ENCRYPTION_KEY` como env dummy nos jobs `backend-test` e `e2e` do `ci.yml` (2 ocorrências do mesmo valor fixo, mesmo padrão já usado para `CPF_CNPJ_ENCRYPTION_KEY`/`CPF_CNPJ_BLIND_INDEX_KEY`/`MFA_SECRET_ENCRYPTION_KEY`/`ADDRESS_ENCRYPTION_KEY`), mas essa string nova nunca foi incluída no `[allowlist].regexes` do `.gitleaks.toml` — as outras 4 já estavam. `gitleaks` detectou o valor via regra padrão de alta entropia (`generic-api-key`), como faria com qualquer uma das outras se não estivessem na allowlist.
+- **Correção:** uma linha adicionada ao `.gitleaks.toml`, mesmo padrão/comentário já documentado no arquivo — não é segredo real, é valor descartável fixo só para satisfazer `env.ts` em CI.
+- **Arquivos principais:** `.gitleaks.toml`.
+- **Decisões/ADRs:** nenhuma — correção de configuração de CI, sem decisão de arquitetura.
+- **Notas:** não é possível rodar `gitleaks` localmente (nem o binário nem `docker` disponíveis neste ambiente) para reverificar antes do push; a correção segue exatamente o padrão das 4 entradas irmãs já existentes e cobre as 2 ocorrências reportadas (mesma string, 2 linhas do `ci.yml`). Confirmar visualmente no próximo run do CI.
