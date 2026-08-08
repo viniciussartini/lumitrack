@@ -18,8 +18,8 @@ import { formatDate } from "@/lib/format"
 import { cn } from "@/lib/cn"
 import { PRIVACY_CONTACT_EMAIL } from "@/config/privacy"
 import {
-    individualProfileSchema,
-    companyProfileSchema,
+    makeIndividualProfileSchema,
+    makeCompanyProfileSchema,
     type IndividualProfileFormData,
     type CompanyProfileFormData,
 } from "@/schemas/profile.schema"
@@ -50,10 +50,22 @@ export const ProfilePage = () => {
     const { name, initials } = getDisplayInfo(user)
 
     const handleSave = async (input: UpdateUserInput): Promise<void> => {
+        // A resposta de PUT /api/users/:id continua trazendo o e-mail ANTIGO
+        // quando o e-mail muda (issue #178 — só efetiva após confirmação
+        // pelo novo endereço) — sem este aviso diferente, o usuário acharia
+        // que a troca já valeu, quando na verdade nada mudou ainda.
+        const isChangingEmail = Boolean(input.email && input.email !== user.email)
+
         try {
             await updateUser.mutateAsync({ id: user.id, input })
             await refreshUser()
-            toast.success("Perfil atualizado")
+            if (isChangingEmail) {
+                toast.success("Confirme o novo e-mail pelo link enviado ao novo endereço", {
+                    description: "Seu e-mail atual continua ativo até a confirmação.",
+                })
+            } else {
+                toast.success("Perfil atualizado")
+            }
             setIsEditing(false)
         } catch (error) {
             toast.error("Não foi possível salvar as alterações", {
@@ -423,9 +435,10 @@ const IndividualProfileForm = ({
     const {
         register,
         handleSubmit,
+        watch,
         formState: { errors, isSubmitting },
     } = useForm<IndividualProfileFormData>({
-        resolver: zodResolver(individualProfileSchema),
+        resolver: zodResolver(makeIndividualProfileSchema(user.email)),
         mode: "onBlur",
         defaultValues: {
             firstName: user.firstName ?? "",
@@ -433,6 +446,10 @@ const IndividualProfileForm = ({
             email: user.email,
         },
     })
+
+    // Senha atual só é pedida quando o e-mail muda de fato (issue #178) —
+    // trocar nome/sobrenome não exige reautenticação.
+    const isChangingEmail = watch("email") !== user.email
 
     const handleFormSubmit = async (data: IndividualProfileFormData): Promise<void> => {
         await onSave(data)
@@ -458,6 +475,16 @@ const IndividualProfileForm = ({
                 error={errors.email?.message}
                 {...register("email")}
             />
+            {isChangingEmail && (
+                <Input
+                    label="Senha atual"
+                    type="password"
+                    revealable
+                    autoComplete="current-password"
+                    error={errors.currentPassword?.message}
+                    {...register("currentPassword")}
+                />
+            )}
             <div>
                 <Input
                     label="CPF"
@@ -498,9 +525,10 @@ const CompanyProfileForm = ({ user, onCancel, onSave, isSaving }: CompanyProfile
     const {
         register,
         handleSubmit,
+        watch,
         formState: { errors, isSubmitting },
     } = useForm<CompanyProfileFormData>({
-        resolver: zodResolver(companyProfileSchema),
+        resolver: zodResolver(makeCompanyProfileSchema(user.email)),
         mode: "onBlur",
         defaultValues: {
             companyName: user.companyName ?? "",
@@ -508,6 +536,9 @@ const CompanyProfileForm = ({ user, onCancel, onSave, isSaving }: CompanyProfile
             email: user.email,
         },
     })
+
+    // Senha atual só é pedida quando o e-mail muda de fato (issue #178).
+    const isChangingEmail = watch("email") !== user.email
 
     const handleFormSubmit = async (data: CompanyProfileFormData): Promise<void> => {
         await onSave(data)
@@ -535,6 +566,16 @@ const CompanyProfileForm = ({ user, onCancel, onSave, isSaving }: CompanyProfile
                 error={errors.email?.message}
                 {...register("email")}
             />
+            {isChangingEmail && (
+                <Input
+                    label="Senha atual"
+                    type="password"
+                    revealable
+                    autoComplete="current-password"
+                    error={errors.currentPassword?.message}
+                    {...register("currentPassword")}
+                />
+            )}
             <div>
                 <Input
                     label="CNPJ"

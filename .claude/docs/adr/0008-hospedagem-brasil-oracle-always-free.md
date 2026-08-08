@@ -222,7 +222,21 @@ Antes de expor o ambiente publicamente, nesta ordem:
    o broker local sem afrouxar a proteção contra SSRF da issue #150.
 5. TLS com host canônico e redirect de HTTP, mais CSP do SPA (Fase 13 — os
    dois itens estavam explicitamente "ligados à decisão de hospedagem", que
-   é esta).
+   é esta). **Implementado na issue #183:** o redirect HTTP→HTTPS do backend
+   (`backend/src/app.ts` + `shared/security/httpsRedirect.ts`) usa um host
+   canônico fixo (`PUBLIC_API_ORIGIN`), nunca o header `Host` do cliente —
+   antes disso, o destino do 301 vinha direto de `req.headers.host`, um
+   open redirect via Host forjado; qualquer `Host` fora do canônico agora
+   recebe 400 antes de qualquer redirect. Falta só configurar
+   `PUBLIC_API_ORIGIN` com o domínio real no `.env` de produção no dia do
+   deploy (o default de `localhost` é bloqueado por validação quando
+   `NODE_ENV=production`). A CSP do SPA (`frontend/index.html`, `<meta
+   http-equiv="Content-Security-Policy">`) está em vigor — nota técnica:
+   `frame-ancestors`/`base-uri`/`object-src` não têm efeito quando entregues
+   via `<meta>` (só via header HTTP); se o reverse proxy de produção enviar
+   um header `Content-Security-Policy` próprio no dia do deploy, ele deve
+   incluir esses 3 para valerem de fato — o `<meta>` cobre o restante
+   (`script-src`/`style-src`/`img-src`/`connect-src`) sozinho.
 6. `pg_dump` agendado com retenção, e restauração testada ao menos uma vez.
-7. Rotacionar todas as chaves de `.env` (`JWT_SECRET`, as quatro chaves de
+7. Rotacionar todas as chaves de `.env` (`JWT_SECRET`, as cinco chaves de
    criptografia) para valores de produção — nunca os do `.env.example`.

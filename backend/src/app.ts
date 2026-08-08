@@ -9,12 +9,21 @@ import { logger } from "@/shared/logger/logger.js"
 import { createErrorHandler } from "@/shared/middlewares/errorHandler.js"
 import { createAuthenticateMiddleware } from "@/shared/middlewares/authenticate.js"
 import { createGlobalRateLimiter, createAuthRateLimiter } from "@/shared/middlewares/rateLimiter.js"
+import { decideHttpsRedirect } from "@/shared/security/httpsRedirect.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { AuditService } from "@/shared/audit/audit.service.js"
 import { PrismaClient } from "@/generated/prisma/client.js"
 import { prisma } from "@/shared/database/prisma.js"
 import type { SendPasswordResetEmailFn } from "@/modules/auth/auth.service.js"
-import { sendPasswordResetEmail as realSendPasswordResetEmail } from "@/modules/auth/email.service.js"
+import type {
+    SendEmailChangeConfirmationFn,
+    SendEmailChangedNoticeFn,
+} from "@/modules/auth/email-change.service.js"
+import {
+    sendPasswordResetEmail as realSendPasswordResetEmail,
+    sendEmailChangeConfirmation as realSendEmailChangeConfirmation,
+    sendEmailChangedNotice as realSendEmailChangedNotice,
+} from "@/modules/auth/email.service.js"
 import { userRoutes } from "@/modules/user/user.routes.js"
 import { exportRoutes } from "@/modules/export/export.routes.js"
 import { adminRoutes } from "@/modules/admin/admin.routes.js"
@@ -36,6 +45,8 @@ import { NotificationStore } from "./shared/notifications/notification-store.js"
 export interface AppDependencies {
     prismaClient?: PrismaClient
     sendPasswordResetEmail?: SendPasswordResetEmailFn
+    sendEmailChangeConfirmation?: SendEmailChangeConfirmationFn
+    sendEmailChangedNotice?: SendEmailChangedNoticeFn
     processor?: IoTDataProcessor
     userEventHub?: UserEventHub
     alertEvaluator?: AlertEvaluator
@@ -51,6 +62,9 @@ export interface AppDependencies {
 export function createApp(deps: AppDependencies = {}) {
     const prismaClient = deps.prismaClient ?? prisma
     const sendPasswordResetEmail = deps.sendPasswordResetEmail ?? realSendPasswordResetEmail
+    const sendEmailChangeConfirmation =
+        deps.sendEmailChangeConfirmation ?? realSendEmailChangeConfirmation
+    const sendEmailChangedNotice = deps.sendEmailChangedNotice ?? realSendEmailChangedNotice
     const processor = deps.processor
     const userEventHub = deps.userEventHub
     const alertEvaluator = deps.alertEvaluator
@@ -67,16 +81,38 @@ export function createApp(deps: AppDependencies = {}) {
         // (X-Forwarded-Proto/X-Forwarded-For) em vez do proxy — sem isso, o
         // rate limiter por IP trataria todos os clientes como um único IP.
         app.set("trust proxy", 1)
-
-        // Redireciona HTTP → HTTPS antes de qualquer outro middleware.
-        app.use((req, res, next) => {
-            if (!req.secure) {
-                res.redirect(301, `https://${req.headers.host}${req.originalUrl}`)
-                return
-            }
-            next()
-        })
     }
+
+    // Host canônico (issue #183) — recusa Host fora do domínio real (400) e
+    // redireciona HTTP → HTTPS usando SEMPRE esse valor fixo, nunca o header
+    // do cliente (evita open redirect via Host forjado). Decisão pura em
+    // shared/security/httpsRedirect.ts — no-op fora de produção.
+    const canonicalUrl = new URL(env.PUBLIC_API_ORIGIN)
+    const canonicalHost = canonicalUrl.host
+    const canonicalOrigin = canonicalUrl.origin
+
+    app.use((req, res, next) => {
+        const decision = decideHttpsRedirect({
+            nodeEnv: env.NODE_ENV,
+            requestHost: req.headers.host,
+            requestSecure: req.secure,
+            originalUrl: req.originalUrl,
+            canonicalHost,
+            canonicalOrigin,
+        })
+
+        if (decision.action === "reject") {
+            res.status(400).json({ status: "error", message: "Host não reconhecido" })
+            return
+        }
+
+        if (decision.action === "redirect") {
+            res.redirect(301, decision.location)
+            return
+        }
+
+        next()
+    })
 
     app.use(
         helmet({
@@ -144,15 +180,41 @@ export function createApp(deps: AppDependencies = {}) {
     // que é exatamente o alvo de brute force de um código TOTP de 6 dígitos
     // (baixa entropia, precisa do mesmo limiter estrito que a senha).
     app.use("/api/auth/login", authRateLimiter)
+    app.use("/api/auth/demo-login", authRateLimiter)
     app.use("/api/auth/forgot-password", authRateLimiter)
     app.use("/api/auth/reset-password", authRateLimiter)
+    // Efetiva troca de e-mail (issue #178) — endpoint público consumidor de
+    // token, mesma classe de abuso dos outros 4.
+    app.use("/api/auth/confirm-email-change", authRateLimiter)
+    // Cadastro público (issue #181) — mesmo alvo de abuso/enumeração dos
+    // endpoints acima. `app.post` (não `app.use`) porque "/api/users" é
+    // prefixo também de GET/PUT/DELETE /api/users/:id (autenticados, já
+    // cobertos pelo rate limit global) — `app.use` aplicaria o limiter
+    // estrito a esses também, o que não é o objetivo aqui.
+    app.post("/api/users", authRateLimiter)
 
     app.use("/api/users", exportRoutes(authenticate, prismaClient, auditService))
-    app.use("/api/users", userRoutes(authenticate, prismaClient, auditService))
+    app.use(
+        "/api/users",
+        userRoutes(
+            authenticate,
+            prismaClient,
+            sendEmailChangeConfirmation,
+            sendEmailChangedNotice,
+            auditService,
+        ),
+    )
     app.use("/api/admin", adminRoutes(authenticate, prismaClient, auditService))
     app.use(
         "/api/auth",
-        authRoutes(authenticate, prismaClient, sendPasswordResetEmail, auditService),
+        authRoutes(
+            authenticate,
+            prismaClient,
+            sendPasswordResetEmail,
+            sendEmailChangeConfirmation,
+            sendEmailChangedNotice,
+            auditService,
+        ),
     )
     app.use("/api/distributors", distributorRoutes(authenticate, prismaClient))
     app.use("/api/tariff-flag", tariffFlagRoutes(authenticate, prismaClient))

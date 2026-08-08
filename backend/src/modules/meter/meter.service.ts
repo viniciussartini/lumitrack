@@ -7,6 +7,7 @@ import {
 } from "@/modules/meter/meter.schema.js"
 import type { CreateMeterInput, UpdateMeterInput } from "@/modules/meter/meter.schema.js"
 import type { MeterRepository, MeterResponse } from "@/modules/meter/meter.repository.js"
+import type { MeterConnectionConfig } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
 import type { PropertyRepository } from "@/modules/property/property.repository.js"
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
@@ -189,5 +190,19 @@ export class MeterService {
     async delete(id: string, userId: string): Promise<void> {
         await this.findById(id, userId)
         await this.meterRepository.delete(id)
+    }
+
+    // Passagem fina para o worker IoT conectar de verdade (extra.password
+    // decifrado) — issue #182. Sem checagem de ownership adicional: só é
+    // chamado logo após create/update na mesma requisição (posse já
+    // validada) ou pelo boot do servidor (infraestrutura de processo, não
+    // uma rota HTTP). O controller não deve falar com MeterRepository
+    // diretamente, daí esta passagem existir em vez de expor o repository.
+    async getConnectionConfig(id: string): Promise<MeterConnectionConfig | null> {
+        return this.meterRepository.findConnectionConfigById(id)
+    }
+
+    async getAllConnectionConfigs(): Promise<MeterConnectionConfig[]> {
+        return this.meterRepository.findAllConnectionConfigs()
     }
 }

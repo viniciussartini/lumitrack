@@ -9,16 +9,26 @@ import { encryptMfaSecret, decryptMfaSecret } from "@/shared/crypto/mfaEncryptio
 import { generateTotpSecret, generateTotpUri, verifyTotpCode } from "@/shared/crypto/totp.js"
 import { generateQrCodeDataUrl } from "@/shared/crypto/qrcode.js"
 import { AuthRepository } from "@/modules/auth/auth.repository.js"
-import { DEMO_ACCOUNT_EMAILS } from "@/shared/config/demoAccounts.js"
+import {
+    DEMO_ACCOUNT_EMAILS,
+    DEMO_RESIDENTIAL_EMAIL,
+    DEMO_COMMERCIAL_EMAIL,
+} from "@/shared/config/demoAccounts.js"
 import {
     loginSchema,
+    demoLoginSchema,
     forgotPasswordSchema,
     resetPasswordSchema,
     mfaLoginVerifySchema,
     mfaSetupVerifySchema,
     mfaDisableSchema,
 } from "@/modules/auth/auth.schema.js"
-import { UnauthorizedError, BadRequestError, ValidationError } from "@/shared/errors/AppError.js"
+import {
+    UnauthorizedError,
+    BadRequestError,
+    ForbiddenError,
+    ValidationError,
+} from "@/shared/errors/AppError.js"
 import type { StringValue } from "ms"
 
 // Tipo do EmailService
@@ -49,9 +59,14 @@ type LoginResult =
     (SessionResult & { mfaRequired: false }) | { mfaRequired: true; mfaToken: string }
 
 export class AuthService {
+    // `demoLoginEnabled` é injetado (não lido de `env` direto no método) —
+    // mesmo padrão de DI usado em `UserService.registrationEnabled` (#177):
+    // deixa o guard testável sem mockar módulo. Default `false` preserva o
+    // comportamento de todo chamador existente.
     constructor(
         private readonly authRepository: AuthRepository,
         private readonly sendPasswordResetEmail: SendPasswordResetEmailFn,
+        private readonly demoLoginEnabled: boolean = false,
     ) {}
 
     async login(input: unknown): Promise<LoginResult> {
@@ -73,16 +88,55 @@ export class AuthService {
         }
 
         if (user.mfaEnabled) {
-            const mfaToken = jwt.sign(
-                { purpose: MFA_TOKEN_PURPOSE, userId: user.id, channel },
-                env.JWT_SECRET,
-                { expiresIn: MFA_TOKEN_EXPIRES_IN },
-            )
-            return { mfaRequired: true, mfaToken }
+            return { mfaRequired: true, mfaToken: this.issueMfaToken(user.id, channel) }
         }
 
         const session = await this.issueSessionToken(user.id, user.email, user.userType, channel)
         return { ...session, mfaRequired: false }
+    }
+
+    // Login de demonstração (issue #179): sem senha do cliente — o e-mail
+    // resolve internamente a partir do `profile` escolhido, nunca chega ao
+    // frontend. Gated por DEMO_LOGIN_ENABLED (falha fechada, antes de
+    // validar o payload) para o endpoint não existir funcionalmente em
+    // ambientes que não optaram por expor login de demonstração.
+    async demoLogin(input: unknown): Promise<LoginResult> {
+        if (!this.demoLoginEnabled) {
+            throw new ForbiddenError("Login de demonstração desabilitado neste ambiente")
+        }
+
+        const parsed = demoLoginSchema.safeParse(input)
+
+        if (!parsed.success) {
+            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
+            throw new ValidationError(firstError ?? "Dados inválidos")
+        }
+
+        const { profile, channel } = parsed.data
+        const email = profile === "residential" ? DEMO_RESIDENTIAL_EMAIL : DEMO_COMMERCIAL_EMAIL
+
+        const user = await this.authRepository.findUserByEmailWithPassword(email)
+
+        if (!user) {
+            throw new UnauthorizedError("Login de demonstração indisponível")
+        }
+
+        // Contas demo não podem ter MFA habilitado através da API (guard em
+        // verifyMfaSetup, issue #177) — este branch é mantido só por
+        // simetria/defesa em profundidade com login(), não porque é
+        // esperado ser exercitado.
+        if (user.mfaEnabled) {
+            return { mfaRequired: true, mfaToken: this.issueMfaToken(user.id, channel) }
+        }
+
+        const session = await this.issueSessionToken(user.id, user.email, user.userType, channel)
+        return { ...session, mfaRequired: false }
+    }
+
+    private issueMfaToken(userId: string, channel: "WEB" | "MOBILE"): string {
+        return jwt.sign({ purpose: MFA_TOKEN_PURPOSE, userId, channel }, env.JWT_SECRET, {
+            expiresIn: MFA_TOKEN_EXPIRES_IN,
+        })
     }
 
     // Completa o login depois que login() retornou mfaRequired:true — exige
@@ -145,6 +199,15 @@ export class AuthService {
 
         const { secret, code } = parsed.data
 
+        const user = await this.authRepository.findUserByIdWithPassword(userId)
+
+        // Contas de demonstração são somente leitura (ADR-0008 + achado de
+        // segurança "credenciais demo hardcoded") — sem isso, quem loga na
+        // conta demo pode habilitar MFA e sequestrá-la permanentemente.
+        if (user && DEMO_ACCOUNT_EMAILS.has(user.email)) {
+            throw new ForbiddenError("Conta de demonstração é somente leitura")
+        }
+
         // Step-up (A07): reinscrever o segundo fator de uma conta que
         // já tem MFA dá o mesmo resultado prático de desabilitá-lo — com o
         // bônus de expulsar o dono legítimo (`createBackupCodes` purga os
@@ -153,7 +216,6 @@ export class AuthService {
         // hardened `disable` → `setup`, em vez de duplicar a exigência de
         // senha+código aqui. Primeira inscrição (sem MFA) não passa por
         // aqui — não há fator vigente para provar.
-        const user = await this.authRepository.findUserByIdWithPassword(userId)
         if (user?.mfaEnabled) {
             throw new BadRequestError(
                 "MFA já está habilitado nesta conta — desabilite o fator atual antes de configurar um novo",
@@ -192,6 +254,12 @@ export class AuthService {
 
         if (!user || !user.mfaEnabled || !user.mfaSecret) {
             throw new BadRequestError("MFA não está habilitado para esta conta")
+        }
+
+        // Contas de demonstração são somente leitura — ver mesmo guard em
+        // verifyMfaSetup acima.
+        if (DEMO_ACCOUNT_EMAILS.has(user.email)) {
+            throw new ForbiddenError("Conta de demonstração é somente leitura")
         }
 
         const isValidPassword = await bcrypt.compare(password, user.password)

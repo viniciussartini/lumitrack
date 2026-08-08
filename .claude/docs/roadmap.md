@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-08 · Fase atual: 13 (Fases 1–12 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159 e issue #127)
+> Última atualização: 2026-08-08 · Fase atual: 14 (Fases 1–13 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185 e issue #127)
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das quatro auditorias de 2026-08-05** (segurança, conformidade, qualidade, desempenho) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
@@ -21,7 +21,7 @@
 | 10 | Bloqueadores de segurança — log, SSRF, ciclo de vida de sessão, MFA | **Concluída** (#149–#153, épico #148) |
 | 11 | Bloqueadores de conformidade LGPD — canal do titular, ROPA, RIPD, transferência internacional | **Concluída** (#155–#158, épico #154) |
 | 12 | Travas mecânicas de qualidade + correções sem trade-off | **Concluída** (#160–#165, épico #159) |
-| 13 | Endurecimento de segurança (P1) — cadastro público, credenciais, perímetro, CSP, lacunas de teste | Planejada — **fase atual**, 8 itens detalhados |
+| 13 | Endurecimento de segurança (P1) — cadastro público, credenciais, perímetro, CSP, lacunas de teste | **Concluída** (#177–#184, épico #185) |
 | 14 | Conformidade P1 — retenção, DSAR, consentimento e documentos legais | Planejada — objetivo abaixo |
 | 15 | Desempenho — instrumentação, índices e eliminação dos multiplicadores | Planejada — objetivo abaixo |
 | 16 | Worker IoT — robustez, estrutura e cobertura | Planejada — objetivo abaixo |
@@ -754,6 +754,19 @@ Cada linha abaixo é **um item de trabalho**, não quatro — auditorias diferen
   - Teste espelhando `user.service.test.ts:87-101` (que já valida o hash de senha lendo a coluna): criar usuário/propriedade via service, ler pelo `prismaTest`, assertar que `users.cpf`/`users.cnpj`/`properties.address` não contêm o valor em claro e decifram corretamente.
 - **Depende de:** —
 - **Risco/observações:** baixo — os dois achados de teste são cobertura pura (o controle já existe); a revalidação do SSE é o único código novo do item, pequeno e isolado.
+
+**Fechamento (2026-08-08):** entregue nas 8 sub-issues planejadas (#177–#184), épico #185, branch `fix/185-endurecimento-seguranca-p1`. **Fecha a Fase 13.** Nenhuma redução de escopo — as 8 issues fecharam exatamente como descritas no roadmap; dois itens tiveram escopo **ampliado** por decisão do usuário durante a execução, registrado em detalhe em cada entrada do `CHANGELOG.md`:
+
+- **#177** — cadastro público fechado (`REGISTRATION_ENABLED`) + contas demo somente-leitura, incluindo `deleteUser` (achado que expandiu o escopo original da issue, dentro do próprio critério "somente-leitura").
+- **#178** — reautenticação + verificação por e-mail + revogação de sessão na troca de e-mail; escopo ampliado para o frontend (campo de senha + página de confirmação) porque a issue original era só backend, mas `ProfilePage` já tinha um fluxo de troca de e-mail funcional sem senha nenhuma — sem o frontend, a tela quebraria no dia do deploy.
+- **#179** — credenciais demo fora do bundle: endpoint `POST /api/auth/demo-login` sem senha no cliente, opção mais forte que as duas listadas na issue original.
+- **#180** — perímetro mínimo do `iot-simulator`: token de API + credenciais MQTT + bind em `127.0.0.1`, com verificação ponta a ponta manual real (simulador → broker autenticado → consumidor).
+- **#181** — rate limiter dedicado em `POST /api/users` + mensagem de conflito genérica (CPF/CNPJ/e-mail).
+- **#182** — cifra de `Meter.extra.password` com chave própria + omissão do `MeterResponse`; achado que mudou o desenho do plano original: leitura pública (redigida) precisou ser separada de leitura de conexão (decifrada, uso interno do worker IoT), mesmo princípio já usado em `UserRepository` para senha de usuário.
+- **#183** — host canônico no redirect HTTPS (fecha um open redirect via Host forjado) + CSP do SPA, com verificação num browser real (Playwright headless) contra o build de produção.
+- **#184** — revalidação de sessão no SSE (sessão revogada por logout/reset de senha agora encerra o stream) + as 2 lacunas de cobertura de teste do laudo (cabeçalhos de segurança A02, cifra de CPF/CNPJ/endereço em repouso).
+
+Com a Fase 13 fechada, os gates de go-live #1–#5 da ADR-0008 estão implementados (fecho do cadastro público, credenciais fora do bundle, perímetro do simulador, `IOT_ALLOWED_HOSTS`, host canônico + CSP) — restam #6 (`pg_dump` agendado) e #7 (rotação de chaves), fora do escopo desta fase (operacionais, não código).
 
 ### Fase 14 — Conformidade P1: retenção, DSAR, consentimento e documentos (P1)
 

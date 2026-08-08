@@ -1,35 +1,26 @@
 import type { Request, Response, NextFunction } from "express"
 import type { MeterService } from "@/modules/meter/meter.service.js"
-import type { MeterResponse } from "@/modules/meter/meter.repository.js"
 import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
 import type { MeterConnectionConfig } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
-
-function toConnectionConfig(meter: MeterResponse): MeterConnectionConfig {
-    return {
-        meterId: meter.id,
-        protocol: meter.protocol,
-        host: meter.host,
-        port: meter.port,
-        topic: meter.topic,
-        address: meter.address,
-        extra: meter.extra,
-    }
-}
 
 // Dispara ações no IoTConnectionManager fora do ciclo request/response —
 // uma falha de conexão IoT não deve impedir a resposta HTTP. Import
 // dinâmico para não acoplar o módulo de negócio ao worker no nível de
-// módulo (mesmo padrão usado pelo antigo iot.controller.ts).
+// módulo (mesmo padrão usado pelo antigo iot.controller.ts). O callback
+// pode ser async (issue #182 — buscar a config de conexão decifrada é uma
+// chamada a mais ao banco) sem que este helper precise aguardá-lo: o
+// `.then(fn)` externo já não é esperado por ninguém, preservando o
+// fire-and-forget.
 function withConnectionManager(
     fn: (manager: {
         start: (config: MeterConnectionConfig) => Promise<void>
         restart: (config: MeterConnectionConfig) => Promise<void>
         stop: (meterId: string) => Promise<void>
-    }) => void,
+    }) => void | Promise<void>,
 ): void {
     void import("@/modules/iot/iot-worker/IoTConnectionManager.js").then(
         ({ IoTConnectionManager }) => {
-            fn(IoTConnectionManager.getInstance())
+            void fn(IoTConnectionManager.getInstance())
         },
     )
 }
@@ -43,8 +34,9 @@ export class MeterController {
             const { id: userId } = (req as AuthenticatedRequest).user
             const meter = await this.meterService.create(userId, req.body)
 
-            withConnectionManager((manager) => {
-                void manager.start(toConnectionConfig(meter))
+            withConnectionManager(async (manager) => {
+                const config = await this.meterService.getConnectionConfig(meter.id)
+                if (config) await manager.start(config)
             })
 
             res.status(201).json({ status: "success", data: meter })
@@ -97,8 +89,9 @@ export class MeterController {
             // Reinicia a conexão com os dados atualizados — se o protocolo ou
             // os parâmetros mudaram, a conexão antiga precisa cair e uma nova
             // subir com a config nova.
-            withConnectionManager((manager) => {
-                void manager.restart(toConnectionConfig(meter))
+            withConnectionManager(async (manager) => {
+                const config = await this.meterService.getConnectionConfig(meter.id)
+                if (config) await manager.restart(config)
             })
 
             res.status(200).json({ status: "success", data: meter })

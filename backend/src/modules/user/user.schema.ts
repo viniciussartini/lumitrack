@@ -95,8 +95,16 @@ export const createUserSchema = z.discriminatedUnion("userType", [individualSche
 // Todos os campos são opcionais na atualização — o usuário pode atualizar
 // apenas o que quiser. Omitimos `userType` porque não faz sentido mudar
 // de pessoa física para jurídica após o cadastro.
+// `currentPassword` NÃO é exigido aqui via `.refine()` — o form do
+// frontend reenvia `email` em todo submit (RHF sempre inclui campos
+// registrados), então um refine que exigisse a senha sempre que `email`
+// está presente bloquearia qualquer edição que não mexe no e-mail. A
+// obrigatoriedade real (só quando o e-mail muda de fato) é verificada em
+// UserService.updateUser, que já compara contra o valor atual do banco
+// (issue #178).
 export const updateUserSchema = z.object({
     email: z.email({ message: "E-mail inválido" }).optional(),
+    currentPassword: z.string().min(1, { message: "Senha atual é obrigatória" }).optional(),
     firstName: z.string().min(1).optional(),
     lastName: z.string().min(1).optional(),
     companyName: z.string().min(1).optional(),

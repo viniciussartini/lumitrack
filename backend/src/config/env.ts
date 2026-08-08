@@ -43,6 +43,15 @@ export const envSchema = z
 
         FRONTEND_URL: z.string().default("http://localhost:3000"),
 
+        // Host canônico do redirect HTTP→HTTPS em produção (issue #183) —
+        // NUNCA o `Host` do cliente (ver shared/security/httpsRedirect.ts):
+        // um Host forjado usado como destino do redirect é open redirect via
+        // Host header. Default de dev inofensivo; `.refine` abaixo barra o
+        // default em produção, mesmo padrão já usado para CORS_ORIGIN="*".
+        PUBLIC_API_ORIGIN: z
+            .url({ message: "PUBLIC_API_ORIGIN deve ser uma URL válida" })
+            .default("http://localhost:3333"),
+
         // Rate limiting — rede de segurança global por IP.
         RATE_LIMIT_WINDOW_MS: z.coerce.number().default(15 * 60 * 1000),
         RATE_LIMIT_MAX: z.coerce.number().default(1000),
@@ -105,6 +114,16 @@ export const envSchema = z
             message: "ADDRESS_ENCRYPTION_KEY deve ter 64 caracteres hexadecimais (32 bytes)",
         }),
 
+        // Criptografia da credencial de protocolo do medidor em repouso
+        // (issue #182 — Meter.extra.password, ex.: senha MQTT). Chave própria
+        // (separada das 3 acima) — mesma compartimentalização de risco.
+        // Mesmo formato (64 caracteres hex / 32 bytes). Gerar com:
+        //   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+        METER_CREDENTIAL_ENCRYPTION_KEY: z.string().regex(/^[0-9a-f]{64}$/i, {
+            message:
+                "METER_CREDENTIAL_ENCRYPTION_KEY deve ter 64 caracteres hexadecimais (32 bytes)",
+        }),
+
         // Refresh token da sessão WEB (A06).
         // Canal MOBILE não usa refresh (token de 90 dias já cobre a UX).
         JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
@@ -114,6 +133,27 @@ export const envSchema = z
         REFRESH_CSRF_COOKIE_NAME: z.string().default("lumitrack_refresh_csrf"),
         REFRESH_CSRF_HEADER_NAME: z.string().default("x-refresh-csrf-token"),
         DATA_RETENTION_REFRESH_TOKEN_DAYS: z.coerce.number().default(30),
+
+        // Cadastro público (A06/ADR-0008). Desligar em ambiente de demo
+        // pública: `POST /api/users` passa a recusar contas novas — é a
+        // premissa da ADR-0008 (hospedagem), que só garante ausência de
+        // transferência internacional enquanto o ambiente público não trata
+        // dado pessoal real. Default `true`: nenhum ambiente de
+        // desenvolvimento/produção normal perde a função sem opt-in explícito.
+        // `z.stringbool()` (não `z.coerce.boolean()`) de propósito — coerce
+        // faz `Boolean("false") === true`, o que tornaria impossível
+        // desligar a flag via env; stringbool interpreta a string "false".
+        REGISTRATION_ENABLED: z.stringbool().default(true),
+
+        // Login de demonstração sem senha no cliente (issue #179 — o
+        // frontend não embarca mais e-mail/senha das contas demo no
+        // bundle). `POST /api/auth/demo-login` só funciona com esta flag
+        // ligada — independente de REGISTRATION_ENABLED: o deploy público
+        // liga as duas (cadastro fechado + login demo aberto), mas
+        // dev/CI podem querer testar o botão de demo sem fechar o
+        // cadastro. Default `false`: o endpoint não existe funcionalmente
+        // em nenhum ambiente sem opt-in explícito.
+        DEMO_LOGIN_ENABLED: z.stringbool().default(false),
 
         // Proteção SSRF nas conexões de saída do medidor (A01). Loopback,
         // link-local, RFC1918/ULA e multicast são
@@ -129,6 +169,15 @@ export const envSchema = z
             "CORS_ORIGIN não pode ser '*' em produção (combinado com credentials: true, isso expõe a API a qualquer origem)",
         path: ["CORS_ORIGIN"],
     })
+    .refine(
+        (data) =>
+            !(data.NODE_ENV === "production" && data.PUBLIC_API_ORIGIN === "http://localhost:3333"),
+        {
+            message:
+                "PUBLIC_API_ORIGIN precisa ser configurado com o domínio real em produção — o default de localhost faria o redirect HTTPS e a checagem de Host apontarem para o lugar errado",
+            path: ["PUBLIC_API_ORIGIN"],
+        },
+    )
     .refine((data) => data.NODE_ENV !== "test" || data.DATABASE_TEST_URL !== undefined, {
         message: "DATABASE_TEST_URL é obrigatória quando NODE_ENV=test",
         path: ["DATABASE_TEST_URL"],

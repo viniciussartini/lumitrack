@@ -6,6 +6,7 @@ import { DistributorRepository } from "@/modules/distributor/distributor.reposit
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
 import { prisma } from "@/shared/database/prisma.js"
+import { encryptMeterCredential } from "@/shared/crypto/meterCredentialEncryption.js"
 
 const distributorRepository = new DistributorRepository(prisma)
 const propertyRepository = new PropertyRepository(prisma)
@@ -21,6 +22,20 @@ const deviceService = new DeviceService(deviceRepository, areaRepository, proper
 // virtual num desses medidores depois.
 const DEMO_METER_HOST = "localhost"
 const DEMO_METER_PORT = 1883
+
+// Credenciais do broker MQTT do iot-simulator (issue #180 — o broker passou
+// a exigir authenticate). Lidas do ambiente do processo de seed, com
+// fallback para os mesmos valores de exemplo do .env.example do simulador —
+// dado sintético de demonstração, não segredo de produção (mesmo espírito
+// do resto deste seed). `prisma.meter.create` é chamado direto (não via
+// MeterRepository) neste script, então a senha precisa ser cifrada aqui
+// mesmo, à mão — sem isso, ficaria em texto claro no banco (issue #182:
+// MeterRepository cifra automaticamente para todo o resto da aplicação,
+// mas esse caminho de escrita raw do seed passa batido por ele).
+const DEMO_METER_CREDENTIALS = {
+    username: process.env.SIMULATOR_BROKER_USERNAME ?? "sim-demo-user",
+    password: encryptMeterCredential(process.env.SIMULATOR_BROKER_PASSWORD ?? "sim-demo-pass"),
+}
 
 async function pickAnyDistributorId(): Promise<string> {
     const distributor = await prisma.energyDistributor.findFirst({ orderBy: { name: "asc" } })
@@ -57,6 +72,7 @@ export async function createResidentialTopology(userId: string) {
             host: DEMO_METER_HOST,
             port: DEMO_METER_PORT,
             topic: "lumitrack/demo/residencial/geral",
+            extra: DEMO_METER_CREDENTIALS,
         },
     })
 
@@ -87,6 +103,7 @@ export async function createCommercialTopology(userId: string) {
             host: DEMO_METER_HOST,
             port: DEMO_METER_PORT,
             topic: "lumitrack/demo/comercial/geral",
+            extra: DEMO_METER_CREDENTIALS,
         },
     })
 
@@ -102,6 +119,7 @@ export async function createCommercialTopology(userId: string) {
             host: DEMO_METER_HOST,
             port: DEMO_METER_PORT,
             topic: "lumitrack/demo/comercial/vendas",
+            extra: DEMO_METER_CREDENTIALS,
         },
     })
 
@@ -133,6 +151,7 @@ export async function createCommercialTopology(userId: string) {
             host: DEMO_METER_HOST,
             port: DEMO_METER_PORT,
             topic: "lumitrack/demo/comercial/forno",
+            extra: DEMO_METER_CREDENTIALS,
         },
     })
 

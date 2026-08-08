@@ -98,6 +98,60 @@ describe("authService.login", () => {
     })
 })
 
+// Issue #179: sem e-mail/senha no cliente — só o profile e o channel fixo.
+describe("authService.demoLogin", () => {
+    it("envia só profile + channel='WEB', sem nenhuma credencial", async () => {
+        vi.mocked(api.post).mockResolvedValueOnce({
+            data: { status: "success", data: {} },
+        })
+        vi.mocked(api.get).mockResolvedValueOnce({
+            data: { status: "success", data: mockUser },
+        })
+
+        await authService.demoLogin("residential")
+
+        expect(api.post).toHaveBeenCalledWith("/auth/demo-login", {
+            profile: "residential",
+            channel: "WEB",
+        })
+    })
+
+    it("busca o usuário completo via /auth/me após o login demo e o retorna", async () => {
+        vi.mocked(api.post).mockResolvedValueOnce({
+            data: { status: "success", data: {} },
+        })
+        vi.mocked(api.get).mockResolvedValueOnce({
+            data: { status: "success", data: mockUser },
+        })
+
+        const result = await authService.demoLogin("commercial")
+
+        expect(api.get).toHaveBeenCalledWith("/auth/me")
+        expect(result).toEqual({ user: mockUser })
+    })
+
+    it("propaga o erro quando o backend recusa (ex.: DEMO_LOGIN_ENABLED desligado)", async () => {
+        vi.mocked(api.post).mockRejectedValueOnce(new Error("Acesso negado"))
+
+        await expect(authService.demoLogin("residential")).rejects.toThrow("Acesso negado")
+        expect(api.get).not.toHaveBeenCalled()
+    })
+
+    it("retorna mfaRequired + mfaToken sem chamar /auth/me quando a conta demo tem MFA (defesa em profundidade)", async () => {
+        vi.mocked(api.post).mockResolvedValueOnce({
+            data: {
+                status: "success",
+                data: { mfaRequired: true, mfaToken: "mfa-token-demo" },
+            },
+        })
+
+        const result = await authService.demoLogin("residential")
+
+        expect(result).toEqual({ mfaRequired: true, mfaToken: "mfa-token-demo" })
+        expect(api.get).not.toHaveBeenCalled()
+    })
+})
+
 describe("authService.verifyMfaLogin", () => {
     it("envia mfaToken + code e busca o usuário completo via /auth/me", async () => {
         vi.mocked(api.post).mockResolvedValueOnce({
@@ -279,5 +333,28 @@ describe("authService.register", () => {
         vi.mocked(api.post).mockRejectedValueOnce(new Error("Dados inválidos"))
 
         await expect(authService.register(validIndividualInput)).rejects.toThrow("Dados inválidos")
+    })
+})
+
+// Issue #178: efetiva a troca de e-mail pedida em Perfil.
+describe("authService.confirmEmailChange", () => {
+    it("faz POST em /auth/confirm-email-change com o token", async () => {
+        vi.mocked(api.post).mockResolvedValueOnce({ data: { status: "success" } })
+
+        await authService.confirmEmailChange("token-de-confirmacao")
+
+        expect(api.post).toHaveBeenCalledWith("/auth/confirm-email-change", {
+            token: "token-de-confirmacao",
+        })
+    })
+
+    it("propaga erro quando o token é inválido/expirado/já usado", async () => {
+        vi.mocked(api.post).mockRejectedValueOnce(
+            new Error("Token de confirmação inválido ou expirado"),
+        )
+
+        await expect(authService.confirmEmailChange("token-ruim")).rejects.toThrow(
+            "Token de confirmação inválido ou expirado",
+        )
     })
 })

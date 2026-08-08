@@ -10,14 +10,24 @@ export interface InternalPublisher {
     isConnected(): boolean
 }
 
+export interface InternalPublisherCredentials {
+    username: string
+    password: string
+}
+
 // Cliente MQTT interno que publica no broker embutido, replicando o mesmo
 // padrão de conexão sem TLS usado por MqttConnection.ts no backend real.
-export function createInternalPublisher(brokerUrl: string): InternalPublisher {
+// Credenciais obrigatórias desde a issue #180 — o broker embutido passou a
+// exigir autenticação de todo cliente, inclusive deste publisher interno.
+export function createInternalPublisher(
+    brokerUrl: string,
+    { username, password }: InternalPublisherCredentials,
+): InternalPublisher {
     let client: MqttClient | null = null
     let connected = false
 
     async function connect(): Promise<void> {
-        client = mqtt.connect(brokerUrl, { reconnectPeriod: 1000 })
+        client = mqtt.connect(brokerUrl, { reconnectPeriod: 1000, username, password })
         await new Promise<void>((resolve, reject) => {
             client!.once("connect", () => {
                 connected = true

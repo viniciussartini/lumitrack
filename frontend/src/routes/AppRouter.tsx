@@ -5,6 +5,7 @@ import { LandingPage } from "@/pages/landing/LandingPage"
 import { LoginPage } from "@/pages/auth/LoginPage"
 import { ForgotPasswordPage } from "@/pages/auth/ForgotPasswordPage"
 import { ResetPasswordPage } from "@/pages/auth/ResetPasswordPage"
+import { ConfirmEmailChangePage } from "@/pages/auth/ConfirmEmailChangePage"
 import { DashboardPage } from "@/pages/dashboard/DashboardPage"
 import { AppShell } from "@/components/layout/AppShell"
 import { RegisterPage } from "@/pages/auth/RegisterPage"
@@ -37,6 +38,12 @@ export const AppRouter = () => (
             (precisam ser lidos antes do cadastro, e por usuários já logados). */}
         <Route path="/privacidade" element={<PrivacyPolicyPage />} />
         <Route path="/termos" element={<TermsOfUsePage />} />
+
+        {/* Confirmação de troca de e-mail (issue #178) — standalone de
+            propósito, fora de PublicRoute: um usuário já autenticado
+            também precisa conseguir confirmar (PublicRoute o mandaria
+            direto pra /dashboard antes de a chamada acontecer). */}
+        <Route path="/confirmar-email" element={<ConfirmEmailChangePage />} />
 
         {/* Rotas públicas — bloqueia acesso de quem já está logado. A raiz
             entra aqui (Fase 5, sub-issue #129): usuário já autenticado que

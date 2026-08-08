@@ -3,6 +3,8 @@ import mqtt, { type MqttClient } from "mqtt"
 import { createBroker, type EmbeddedBroker } from "@/broker/broker.js"
 import { createInternalPublisher } from "@/mqtt/internalPublisher.js"
 
+const credentials = { username: "sim-user", password: "sim-pass" }
+
 describe("createInternalPublisher — integração local com o broker embutido", () => {
     let broker: EmbeddedBroker | undefined
     let rawClient: MqttClient | undefined
@@ -15,17 +17,17 @@ describe("createInternalPublisher — integração local com o broker embutido",
     })
 
     it("publica um payload JSON que um segundo cliente MQTT recebe intacto", async () => {
-        broker = createBroker()
+        broker = createBroker(credentials)
         const port = await broker.start(0)
 
-        const publisher = createInternalPublisher(`mqtt://localhost:${port}`)
+        const publisher = createInternalPublisher(`mqtt://localhost:${port}`, credentials)
         await publisher.connect()
         expect(publisher.isConnected()).toBe(true)
 
         const topic = "lumitrack/sim/dev1"
         const payload = { voltage: 220, current: 2, powerW: 440, powerFactor: 0.95 }
 
-        rawClient = mqtt.connect(`mqtt://localhost:${port}`)
+        rawClient = mqtt.connect(`mqtt://localhost:${port}`, credentials)
         await new Promise<void>((resolve, reject) => {
             rawClient!.once("connect", () => {
                 rawClient!.subscribe(topic, (err) => (err ? reject(err) : resolve()))
@@ -52,7 +54,7 @@ describe("createInternalPublisher — integração local com o broker embutido",
     })
 
     it("publish() antes de connect() não lança — só é ignorado com warning", () => {
-        const publisher = createInternalPublisher("mqtt://localhost:1")
+        const publisher = createInternalPublisher("mqtt://localhost:1", credentials)
         expect(() => publisher.publish("t", { a: 1 })).not.toThrow()
     })
 })

@@ -54,6 +54,16 @@ export class UserRepository {
         return user && decryptSensitiveFields(user)
     }
 
+    // Usado só para verificar a senha atual antes de aceitar troca de
+    // e-mail (issue #178) — sem cpf/cnpj no select, então sem necessidade
+    // de decrypt.
+    async findByIdWithPassword(id: string): Promise<{ id: string; password: string } | null> {
+        return this.prisma.user.findUnique({
+            where: { id },
+            select: { id: true, password: true },
+        })
+    }
+
     // Recebe o CPF em texto claro (ex: vindo do form de cadastro) e busca
     // pelo blind index — não é possível buscar pela coluna `cpf` diretamente
     // porque ela guarda ciphertext com IV aleatório (nunca repete, mesmo

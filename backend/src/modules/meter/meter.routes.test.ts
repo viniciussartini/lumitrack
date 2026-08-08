@@ -117,6 +117,28 @@ describe("POST /api/meters", () => {
         expect(response.body.data.propertyId).toBe(propertyId)
     })
 
+    // Issue #182 — a senha nunca deve sair na resposta HTTP, cifrada ou não.
+    it("nunca devolve extra.password na resposta — expõe passwordSet: true", async () => {
+        const token = await registerAndLogin()
+        const propertyId = await seedProperty(token)
+
+        const response = await request(app)
+            .post("/api/meters")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                ...validMeterBody,
+                propertyId,
+                extra: { username: "user-mqtt", password: "senha-mqtt-super-secreta" },
+            })
+
+        expect(response.status).toBe(201)
+        expect(response.body.data.extra).not.toHaveProperty("password")
+        expect(response.body.data.extra).toMatchObject({
+            username: "user-mqtt",
+            passwordSet: true,
+        })
+    })
+
     it("retorna 422 para protocolo MQTT sem topic", async () => {
         const token = await registerAndLogin()
         const propertyId = await seedProperty(token)

@@ -13,6 +13,19 @@ export const loginSchema = z.object({
     }),
 })
 
+// ─── Demo login (issue #179) ───────────────────────────────────────────────────
+// Sem senha: o cliente escolhe só o `profile`, o backend resolve o e-mail
+// fixo internamente (shared/config/demoAccounts.ts) — nenhuma credencial
+// trafega nem existe no frontend.
+export const demoLoginSchema = z.object({
+    profile: z.enum(["residential", "commercial"], {
+        error: "profile deve ser residential ou commercial",
+    }),
+    channel: z.enum(["WEB", "MOBILE"], {
+        error: "channel deve ser WEB ou MOBILE",
+    }),
+})
+
 // ─── Logout ───────────────────────────────────────────────────────────────────
 // O logout não precisa de body — o token vem pelo header Authorization.
 // O schema aqui é apenas para formalizar o contrato (body vazio é válido).
@@ -31,6 +44,13 @@ export const forgotPasswordSchema = z.object({
 export const resetPasswordSchema = z.object({
     token: z.string().min(1, { message: "Token é obrigatório" }),
     newPassword: passwordSchema,
+})
+
+// ─── Confirmação de troca de e-mail (issue #178) ───────────────────────────────
+// O `token` é o UUID gerado por EmailChangeService.requestChange e enviado
+// ao NOVO endereço — confirmá-lo é o que efetiva a troca.
+export const confirmEmailChangeSchema = z.object({
+    token: z.string().min(1, { message: "Token é obrigatório" }),
 })
 
 // ─── MFA — login (segunda etapa) ───────────────────────────────────────────────

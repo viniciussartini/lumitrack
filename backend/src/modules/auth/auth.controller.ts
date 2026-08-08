@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express"
 import type { AuthService } from "@/modules/auth/auth.service.js"
+import type { EmailChangeService } from "@/modules/auth/email-change.service.js"
 import type { UserService } from "@/modules/user/user.service.js"
 import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
@@ -22,6 +23,7 @@ export class AuthController {
         private readonly authService: AuthService,
         private readonly userService: UserService,
         private readonly auditService: AuditService,
+        private readonly emailChangeService: EmailChangeService,
     ) {}
 
     // POST /api/auth/login — Público
@@ -75,6 +77,40 @@ export class AuthController {
                     ...getRequestContext(req),
                 })
             }
+            next(error)
+        }
+    }
+
+    // POST /api/auth/demo-login — Público (gated por DEMO_LOGIN_ENABLED).
+    // Sem senha no corpo — só `profile` + `channel` — então não há
+    // "tentativa de credencial" a auditar em caso de falha (o erro é
+    // sempre configuração do ambiente: flag desligada ou seed ausente).
+    async demoLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const result = await this.authService.demoLogin(req.body)
+
+            if (result.mfaRequired) {
+                res.status(200).json({
+                    status: "success",
+                    data: { mfaRequired: true, mfaToken: result.mfaToken },
+                })
+                return
+            }
+
+            const { token, refreshToken, channel, userId } = result
+
+            await this.auditService.record({
+                userId,
+                action: "LOGIN",
+                outcome: "SUCCESS",
+                resourceType: "User",
+                resourceId: userId,
+                metadata: { channel, demo: true },
+                ...getRequestContext(req),
+            })
+
+            this.respondWithSession(res, channel, token, refreshToken)
+        } catch (error) {
             next(error)
         }
     }
@@ -232,6 +268,30 @@ export class AuthController {
             res.status(200).json({
                 status: "success",
                 message: "Senha redefinida com sucesso",
+            })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    // POST /api/auth/confirm-email-change — Público (mas exige token válido)
+    async confirmEmailChange(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { userId } = await this.emailChangeService.confirmChange(req.body)
+
+            await this.auditService.record({
+                userId,
+                action: "USER_UPDATE",
+                outcome: "SUCCESS",
+                resourceType: "User",
+                resourceId: userId,
+                metadata: { fields: ["email"] },
+                ...getRequestContext(req),
+            })
+
+            res.status(200).json({
+                status: "success",
+                message: "E-mail atualizado com sucesso",
             })
         } catch (error) {
             next(error)

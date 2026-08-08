@@ -162,6 +162,7 @@ model User {
   tokens            AuthToken[]
   refreshTokens     RefreshToken[]
   passwordResets    PasswordReset[]
+  emailChanges      EmailChange[]
   alerts            Alert[]
   auditLogs         AuditLog[]
   mfaBackupCodes    MfaBackupCode[]
@@ -223,6 +224,25 @@ model PasswordReset {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("password_resets")
+}
+
+// Troca de e-mail com verificação (#178 — A07): o e-mail só é efetivado
+// quando o link enviado a `newEmail` é confirmado — mesmo padrão de token
+// hasheado + TTL curto de PasswordReset, com a coluna extra `newEmail`
+// (o alvo pendente da troca, não persistido em `User.email` até a
+// confirmação).
+model EmailChange {
+  id        String    @id @default(uuid())
+  userId    String
+  newEmail  String
+  token     String    @unique // hash SHA-256 do valor opaco — nunca o valor puro
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("email_changes")
 }
 
 // Códigos de backup do MFA (#12) — uso único, gerados em lote no momento do

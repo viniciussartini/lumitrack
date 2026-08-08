@@ -1,6 +1,7 @@
 import { api } from "@/services/api"
 import { getRefreshCsrfToken } from "@/lib/csrf"
 import type {
+    DemoProfile,
     LoginInput,
     LoginResponse,
     LoginResult,
@@ -31,6 +32,27 @@ export const authService = {
     login: async (input: LoginInput): Promise<LoginResult> => {
         const { data } = await api.post<ApiEnvelope<LoginResponse>>("/auth/login", {
             ...input,
+            channel: "WEB",
+        })
+
+        if (data.data.mfaRequired && data.data.mfaToken) {
+            return { mfaRequired: true, mfaToken: data.data.mfaToken }
+        }
+
+        const { data: meData } = await api.get<ApiEnvelope<User>>("/auth/me")
+        return { user: meData.data }
+    },
+
+    /**
+     * Login de demonstração (issue #179) — sem e-mail/senha no cliente, só
+     * o perfil escolhido. O backend resolve a conta demo internamente e
+     * gate por DEMO_LOGIN_ENABLED; se desligado, `api.post` rejeita com
+     * 403 e o erro propaga como qualquer outra falha de login. Mesma forma
+     * de resposta de `login()` (pode vir `mfaRequired`), tratada igual.
+     */
+    demoLogin: async (profile: DemoProfile): Promise<LoginResult> => {
+        const { data } = await api.post<ApiEnvelope<LoginResponse>>("/auth/demo-login", {
+            profile,
             channel: "WEB",
         })
 
@@ -165,5 +187,16 @@ export const authService = {
      */
     resetPassword: async (token: string, newPassword: string): Promise<void> => {
         await api.post("/auth/reset-password", { token, newPassword })
+    },
+
+    /**
+     * Efetiva a troca de e-mail pedida via PUT /users/:id (issue #178), a
+     * partir do token recebido no NOVO endereço (link gerado em
+     * backend/src/modules/auth/email.service.ts, válido por 1h). Todas as
+     * sessões do usuário são revogadas no backend quando isso acontece —
+     * inclusive a que estiver fazendo esta chamada, se houver.
+     */
+    confirmEmailChange: async (token: string): Promise<void> => {
+        await api.post("/auth/confirm-email-change", { token })
     },
 }

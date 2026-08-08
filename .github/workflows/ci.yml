@@ -193,6 +193,7 @@ jobs:
       CPF_CNPJ_BLIND_INDEX_KEY: 25e6454d84f1a7348ee8a2410b6a244814e719d0fafb1cf30e54aa40ada5657d
       MFA_SECRET_ENCRYPTION_KEY: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2
       ADDRESS_ENCRYPTION_KEY: f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9
+      METER_CREDENTIAL_ENCRYPTION_KEY: c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4
       SMTP_HOST: smtp.ci.invalid
       SMTP_USER: ci
       SMTP_PASS: ci
@@ -256,6 +257,12 @@ jobs:
     defaults:
       run:
         working-directory: iot-simulator
+    env:
+      # Nenhum destes valores é um segredo real — só para satisfazer a
+      # validação de env.ts do simulador neste ambiente de CI (issue #180).
+      SIMULATOR_API_TOKEN: ci-only-dummy-token-nao-usado-em-producao
+      BROKER_USERNAME: ci-dummy-user
+      BROKER_PASSWORD: ci-dummy-pass
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -313,6 +320,7 @@ jobs:
       CPF_CNPJ_BLIND_INDEX_KEY: 25e6454d84f1a7348ee8a2410b6a244814e719d0fafb1cf30e54aa40ada5657d
       MFA_SECRET_ENCRYPTION_KEY: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2
       ADDRESS_ENCRYPTION_KEY: f0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9
+      METER_CREDENTIAL_ENCRYPTION_KEY: c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4
       SMTP_HOST: smtp.ci.invalid
       SMTP_USER: ci
       SMTP_PASS: ci

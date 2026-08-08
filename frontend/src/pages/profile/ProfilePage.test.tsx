@@ -200,6 +200,82 @@ describe("ProfilePage — edição", () => {
     })
 })
 
+// Issue #178: troca de e-mail exige senha atual + é confirmada por e-mail,
+// não efetivada na hora.
+describe("ProfilePage — troca de e-mail", () => {
+    it("não mostra o campo de senha atual quando o e-mail não muda", async () => {
+        const user = userEvent.setup()
+        renderPage(mockUserPF)
+        await screen.findByRole("heading", { name: "João Silva" })
+
+        await user.click(screen.getByRole("button", { name: /editar/i }))
+
+        expect(screen.queryByLabelText(/senha atual/i)).not.toBeInTheDocument()
+    })
+
+    it("mostra o campo de senha atual assim que o e-mail é editado", async () => {
+        const user = userEvent.setup()
+        renderPage(mockUserPF)
+        await screen.findByRole("heading", { name: "João Silva" })
+
+        await user.click(screen.getByRole("button", { name: /editar/i }))
+        const emailInput = screen.getByLabelText("E-mail")
+        await user.clear(emailInput)
+        await user.type(emailInput, "novo@example.com")
+
+        expect(await screen.findByLabelText(/senha atual/i)).toBeInTheDocument()
+    })
+
+    it("bloqueia o envio (client-side) sem a senha atual quando o e-mail muda", async () => {
+        const user = userEvent.setup()
+        renderPage(mockUserPF)
+        await screen.findByRole("heading", { name: "João Silva" })
+
+        await user.click(screen.getByRole("button", { name: /editar/i }))
+        const emailInput = screen.getByLabelText("E-mail")
+        await user.clear(emailInput)
+        await user.type(emailInput, "novo@example.com")
+        await user.click(screen.getByRole("button", { name: /salvar alterações/i }))
+
+        expect(
+            await screen.findByText(/senha atual é obrigatória para alterar o e-mail/i),
+        ).toBeInTheDocument()
+        expect(userService.update).not.toHaveBeenCalled()
+    })
+
+    it("envia currentPassword junto quando o e-mail muda, e mostra o toast de confirmação pendente", async () => {
+        // A resposta continua trazendo o e-mail ANTIGO — a troca só vale
+        // após confirmação pelo novo endereço (issue #178).
+        vi.mocked(userService.update).mockResolvedValue(mockUserPF)
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUserPF)
+
+        const user = userEvent.setup()
+        renderPage(mockUserPF)
+        await screen.findByRole("heading", { name: "João Silva" })
+
+        await user.click(screen.getByRole("button", { name: /editar/i }))
+        const emailInput = screen.getByLabelText("E-mail")
+        await user.clear(emailInput)
+        await user.type(emailInput, "novo@example.com")
+        await user.type(await screen.findByLabelText(/senha atual/i), "Senha@123")
+        await user.click(screen.getByRole("button", { name: /salvar alterações/i }))
+
+        await waitFor(() => {
+            expect(userService.update).toHaveBeenCalledWith("user-123", {
+                firstName: "João",
+                lastName: "Silva",
+                email: "novo@example.com",
+                currentPassword: "Senha@123",
+            })
+        })
+
+        expect(toast.success).toHaveBeenCalledWith(
+            expect.stringMatching(/confirme o novo e-mail/i),
+            expect.anything(),
+        )
+    })
+})
+
 describe("ProfilePage — Conta", () => {
     it("mostra a data de entrada, a contagem de propriedades e 2FA ativado", async () => {
         vi.mocked(propertyService.list).mockResolvedValue(paginatedProperties(3))

@@ -24,6 +24,8 @@ import { PrismaClient } from "@/generated/prisma/client.js"
 import type { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
 import type { UserEventHub } from "@/shared/sse/user-event-hub.js"
+import { AuthRepository } from "@/modules/auth/auth.repository.js"
+import { hashToken } from "@/shared/crypto/hashToken.js"
 
 // Re-resolução periódica do conjunto de medidores do usuário dentro da
 // mesma conexão — corrige o snapshot inicial: um medidor criado (ou
@@ -51,6 +53,24 @@ async function resolveUserMeterIds(userId: string, prisma: PrismaClient): Promis
     return new Set(meters.map((m) => m.id))
 }
 
+// Issue #184 — SSE nunca passa pelo middleware `authenticate` de novo depois
+// do handshake inicial (a conexão fica aberta indefinidamente). Sem isso, um
+// stream aberto antes de um logout ou reset de senha continuava entregando
+// leituras/eventos indefinidamente, mesmo com a sessão já revogada. Mesma
+// checagem que `authenticate` faz por requisição (revokedAt/expiresAt),
+// aplicada aqui a cada refresh periódico em vez de a cada mensagem — SSE não
+// tem "requisição" recorrente para prender a checagem nela.
+async function isSessionStillValid(
+    authToken: string,
+    authRepository: AuthRepository,
+): Promise<boolean> {
+    const stored = await authRepository.findActiveToken(hashToken(authToken))
+    if (!stored) return false
+    if (stored.revokedAt !== null) return false
+    if (stored.expiresAt !== null && stored.expiresAt < new Date()) return false
+    return true
+}
+
 export function iotStreamRoutes(
     authenticate: RequestHandler,
     prismaClient: PrismaClient,
@@ -59,6 +79,7 @@ export function iotStreamRoutes(
     membershipRefreshIntervalMs: number = DEFAULT_MEMBERSHIP_REFRESH_INTERVAL_MS,
 ): Router {
     const router = Router()
+    const authRepository = new AuthRepository(prismaClient)
 
     /**
      * GET /api/iot/stream
@@ -71,6 +92,7 @@ export function iotStreamRoutes(
      */
     router.get("/stream", authenticate, async (req, res) => {
         const { id: userId } = (req as AuthenticatedRequest).user
+        const { authToken } = req as AuthenticatedRequest
 
         // Configura os headers SSE obrigatórios.
         res.setHeader("Content-Type", "text/event-stream")
@@ -100,12 +122,43 @@ export function iotStreamRoutes(
             res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
         })
 
-        // Re-resolve o conjunto de medidores periodicamente, sem exigir
-        // reconexão do cliente.
+        function cleanup(): void {
+            readingUnsub()
+            eventUnsub()
+            clearInterval(membershipRefresh)
+            clearInterval(keepAlive)
+        }
+
+        // Re-resolve o conjunto de medidores E revalida a sessão (issue #184)
+        // periodicamente, sem exigir reconexão do cliente. Sessão revogada
+        // (logout, reset de senha) ou expirada encerra a resposta — o
+        // cliente (EventSource ou equivalente) simplesmente vê a conexão
+        // terminar, coerente com a sessão não existir mais.
         const membershipRefresh = setInterval(() => {
-            void resolveUserMeterIds(userId, prismaClient).then((ids) => {
-                userMeterIds = ids
-            })
+            void (async () => {
+                // A conexão pode já ter fechado (cleanup() já rodou, limpando
+                // este interval) enquanto este tick estava em voo — um tick já
+                // disparado não é cancelado por clearInterval. Sem essa guarda,
+                // um erro aqui (ex.: pool de conexões já encerrado) vira uma
+                // promise rejeitada sem tratamento, que no Node derruba o
+                // processo inteiro — levando junto todo stream SSE aberto, não
+                // só este.
+                if (res.writableEnded) return
+                try {
+                    const sessionValid = await isSessionStillValid(authToken, authRepository)
+                    if (res.writableEnded) return
+                    if (!sessionValid) {
+                        cleanup()
+                        res.end()
+                        return
+                    }
+                    userMeterIds = await resolveUserMeterIds(userId, prismaClient)
+                } catch {
+                    // Falha transitória (rede, banco) durante a revalidação
+                    // periódica — a conexão segue aberta e tenta de novo no
+                    // próximo tick; não deve derrubar o processo nem o stream.
+                }
+            })()
         }, membershipRefreshIntervalMs)
 
         // Keep-alive: envia um comentário SSE a cada 30 segundos.
@@ -114,12 +167,7 @@ export function iotStreamRoutes(
         }, 30_000)
 
         // Cleanup ao desconectar.
-        req.on("close", () => {
-            readingUnsub()
-            eventUnsub()
-            clearInterval(membershipRefresh)
-            clearInterval(keepAlive)
-        })
+        req.on("close", cleanup)
     })
 
     return router

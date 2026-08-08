@@ -1,13 +1,20 @@
 import type { BrokerInfo, DeviceParams, NetworkSnapshot, VirtualDevice } from "@/types"
 
 // Cliente REST simples para a API de controle do simulador. Sem CSRF/cookies
-// (ferramenta local sem autenticação) — bem mais enxuto que frontend/src/services/api.ts.
+// (ferramenta local, único operador) — bem mais enxuto que frontend/src/services/api.ts.
+// Anexa sempre o token (issue #180): as rotas que não o exigem (broker/info,
+// status/stream) simplesmente o ignoram — mais simples que anexar por rota.
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-    const res = await fetch(`/api${path}`, {
-        ...init,
-        headers: { "Content-Type": "application/json", ...init?.headers },
-    })
+    const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...(init?.headers as Record<string, string> | undefined),
+    }
+    if (import.meta.env.VITE_SIMULATOR_API_TOKEN) {
+        headers["Authorization"] = `Bearer ${import.meta.env.VITE_SIMULATOR_API_TOKEN}`
+    }
+
+    const res = await fetch(`/api${path}`, { ...init, headers })
 
     if (!res.ok) {
         const body = await res.json().catch(() => null)

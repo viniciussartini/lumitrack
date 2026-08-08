@@ -1,6 +1,11 @@
 import { PrismaClient, TargetType, IoTProtocol, Prisma } from "@/generated/prisma/client.js"
 import type { CreateMeterInput, UpdateMeterInput } from "@/modules/meter/meter.schema.js"
 import { toSkipTake, type Paginated, type PaginationQuery } from "@/shared/pagination.js"
+import {
+    encryptMeterCredential,
+    decryptMeterCredential,
+} from "@/shared/crypto/meterCredentialEncryption.js"
+import type { MeterConnectionConfig } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
 
 export type MeterResponse = {
     id: string
@@ -21,6 +26,25 @@ export type MeterResponse = {
 
 type PrismaMeter = NonNullable<Awaited<ReturnType<PrismaClient["meter"]["findUnique"]>>>
 
+// Issue #182 — só MQTT carrega credencial (username/password) em `extra`; os
+// demais protocolos usam parâmetros de polling/endereçamento, nada sensível
+// (ver IoTConnectionManager.ts::createConnection). A resposta pública nunca
+// devolve o valor decifrado — só se a senha está definida (mesmo espírito de
+// `mfaEnabled` em UserRepository: o dado sensível em si nunca sai do módulo
+// que sabe decifrá-lo).
+function sanitizeExtraForResponse(
+    protocol: IoTProtocol,
+    extra: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+    if (protocol !== "MQTT" || !extra) return extra
+
+    // `passwordSet` sempre presente (true/false) para medidor MQTT, mesmo
+    // quando nenhuma senha nunca foi definida — mais informativo que omitir
+    // o campo, e reflete literalmente "expõe passwordSet: boolean".
+    const { password, ...rest } = extra
+    return { ...rest, passwordSet: typeof password === "string" && password.length > 0 }
+}
+
 function toMeterResponse(raw: PrismaMeter): MeterResponse {
     return {
         id: raw.id,
@@ -34,9 +58,48 @@ function toMeterResponse(raw: PrismaMeter): MeterResponse {
         port: raw.port,
         topic: raw.topic,
         address: raw.address,
-        extra: raw.extra as Record<string, unknown> | null,
+        extra: sanitizeExtraForResponse(raw.protocol, raw.extra as Record<string, unknown> | null),
         createdAt: raw.createdAt,
         updatedAt: raw.updatedAt,
+    }
+}
+
+// Cifra extra.password antes de persistir (só MQTT). Senha ausente/vazia não
+// é cifrada — normaliza para "sem senha" (evita mais tarde tentar decifrar
+// uma string vazia, que não é um ciphertext válido e lançaria).
+function encryptExtraForStorage(
+    protocol: IoTProtocol,
+    extra: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+    if (protocol !== "MQTT" || !extra) return extra
+
+    const { password, ...rest } = extra
+    if (typeof password !== "string" || password.length === 0) return rest
+
+    return { ...rest, password: encryptMeterCredential(password) }
+}
+
+// Decifra extra.password para uso interno do worker IoT (conexão real) —
+// nunca exposto via toMeterResponse/API. Mesma relação estrutural de
+// UserRepository.findByEmailWithPassword vs. findByEmail.
+function decryptExtraForConnection(
+    protocol: IoTProtocol,
+    extra: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+    if (protocol !== "MQTT" || !extra || typeof extra.password !== "string") return extra
+
+    return { ...extra, password: decryptMeterCredential(extra.password) }
+}
+
+function toConnectionConfig(raw: PrismaMeter): MeterConnectionConfig {
+    return {
+        meterId: raw.id,
+        protocol: raw.protocol,
+        host: raw.host,
+        port: raw.port,
+        topic: raw.topic,
+        address: raw.address,
+        extra: decryptExtraForConnection(raw.protocol, raw.extra as Record<string, unknown> | null),
     }
 }
 
@@ -132,7 +195,12 @@ export class MeterRepository {
                 port: extractField<number>(input, "port"),
                 topic: extractField<string>(input, "topic"),
                 address: extractField<string>(input, "address"),
-                extra: toJsonInput(extractField<Record<string, unknown>>(input, "extra")),
+                extra: toJsonInput(
+                    encryptExtraForStorage(
+                        input.protocol,
+                        extractField<Record<string, unknown>>(input, "extra"),
+                    ),
+                ),
             },
         })
         return toMeterResponse(raw)
@@ -148,7 +216,12 @@ export class MeterRepository {
                 port: extractField<number>(input, "port"),
                 topic: extractField<string>(input, "topic"),
                 address: extractField<string>(input, "address"),
-                extra: toJsonInput(extractField<Record<string, unknown>>(input, "extra")),
+                extra: toJsonInput(
+                    encryptExtraForStorage(
+                        input.protocol,
+                        extractField<Record<string, unknown>>(input, "extra"),
+                    ),
+                ),
             },
         })
         return toMeterResponse(raw)
@@ -156,5 +229,20 @@ export class MeterRepository {
 
     async delete(id: string): Promise<void> {
         await this.prisma.meter.delete({ where: { id } })
+    }
+
+    // Só para uso interno do worker IoT (conexão real) — extra.password vem
+    // decifrado. Nunca chamado a partir de uma rota HTTP diretamente (ver
+    // MeterService.getConnectionConfig/getAllConnectionConfigs).
+    async findConnectionConfigById(id: string): Promise<MeterConnectionConfig | null> {
+        const raw = await this.prisma.meter.findUnique({ where: { id } })
+        return raw ? toConnectionConfig(raw) : null
+    }
+
+    // Usado no boot do servidor (server.ts::restoreIoTConnections) para
+    // reconectar todos os medidores de uma vez.
+    async findAllConnectionConfigs(): Promise<MeterConnectionConfig[]> {
+        const rows = await this.prisma.meter.findMany()
+        return rows.map(toConnectionConfig)
     }
 }
