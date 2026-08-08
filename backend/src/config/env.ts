@@ -126,6 +126,16 @@ export const envSchema = z
         // desligar a flag via env; stringbool interpreta a string "false".
         REGISTRATION_ENABLED: z.stringbool().default(true),
 
+        // Login de demonstração sem senha no cliente (issue #179 — o
+        // frontend não embarca mais e-mail/senha das contas demo no
+        // bundle). `POST /api/auth/demo-login` só funciona com esta flag
+        // ligada — independente de REGISTRATION_ENABLED: o deploy público
+        // liga as duas (cadastro fechado + login demo aberto), mas
+        // dev/CI podem querer testar o botão de demo sem fechar o
+        // cadastro. Default `false`: o endpoint não existe funcionalmente
+        // em nenhum ambiente sem opt-in explícito.
+        DEMO_LOGIN_ENABLED: z.stringbool().default(false),
+
         // Proteção SSRF nas conexões de saída do medidor (A01). Loopback,
         // link-local, RFC1918/ULA e multicast são
         // negados por padrão (ver shared/security/outboundHost.ts) — esta lista

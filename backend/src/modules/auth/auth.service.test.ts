@@ -4,9 +4,14 @@ import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
-import { UnauthorizedError, BadRequestError, ForbiddenError } from "@/shared/errors/AppError.js"
+import {
+    UnauthorizedError,
+    BadRequestError,
+    ForbiddenError,
+    ValidationError,
+} from "@/shared/errors/AppError.js"
 import { hashToken } from "@/shared/crypto/hashToken.js"
-import { DEMO_RESIDENTIAL_EMAIL } from "@/shared/config/demoAccounts.js"
+import { DEMO_RESIDENTIAL_EMAIL, DEMO_COMMERCIAL_EMAIL } from "@/shared/config/demoAccounts.js"
 import { generate } from "otplib"
 
 // ─── Instâncias ───────────────────────────────────────────────────────────────
@@ -198,6 +203,109 @@ describe("AuthService", () => {
             }
 
             expect(errorMessageWrongEmail).toBe(errorMessageWrongPassword)
+        })
+    })
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUITE: demoLogin (issue #179 — login de demonstração sem senha no
+    // cliente, gated por DEMO_LOGIN_ENABLED injetado no construtor)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    describe("demoLogin", () => {
+        async function createDemoUsers(): Promise<void> {
+            const { UserService } = await import("@/modules/user/user.service.js")
+            const userService = new UserService(userRepository)
+            await userService.createUser({
+                ...validUser,
+                email: DEMO_RESIDENTIAL_EMAIL,
+                cpf: "912.345.678-73",
+            })
+            await userService.createUser({
+                email: DEMO_COMMERCIAL_EMAIL,
+                password: validUser.password,
+                userType: "COMPANY",
+                acceptedTerms: true,
+                companyName: "Empresa Demo",
+                cnpj: "11.222.333/0001-81",
+            })
+        }
+
+        it("lança ForbiddenError quando DEMO_LOGIN_ENABLED está desligado (default)", async () => {
+            await createDemoUsers()
+
+            // `authService` (instanciado no beforeEach) usa o default
+            // `demoLoginEnabled: false` — nenhum teste precisa mockar env.
+            await expect(
+                authService.demoLogin({ profile: "residential", channel: "WEB" }),
+            ).rejects.toThrow(ForbiddenError)
+        })
+
+        it("autentica a conta demo residencial sem exigir senha quando a flag está ligada", async () => {
+            await createDemoUsers()
+            const demoAuthService = new AuthService(
+                authRepository,
+                mockSendPasswordResetEmail,
+                true,
+            )
+
+            const result = await demoAuthService.demoLogin({
+                profile: "residential",
+                channel: "WEB",
+            })
+
+            if (result.mfaRequired) throw new Error("esperava mfaRequired:false")
+            expect(result.token).toBeDefined()
+            expect(result.token.split(".")).toHaveLength(3)
+
+            const storedToken = await prismaTest.authToken.findUnique({
+                where: { token: hashToken(result.token) },
+            })
+            expect(storedToken).not.toBeNull()
+
+            const user = await prismaTest.user.findUnique({ where: { id: result.userId } })
+            expect(user?.email).toBe(DEMO_RESIDENTIAL_EMAIL)
+        })
+
+        it("autentica a conta demo comercial sem exigir senha", async () => {
+            await createDemoUsers()
+            const demoAuthService = new AuthService(
+                authRepository,
+                mockSendPasswordResetEmail,
+                true,
+            )
+
+            const result = await demoAuthService.demoLogin({
+                profile: "commercial",
+                channel: "WEB",
+            })
+
+            if (result.mfaRequired) throw new Error("esperava mfaRequired:false")
+            const user = await prismaTest.user.findUnique({ where: { id: result.userId } })
+            expect(user?.email).toBe(DEMO_COMMERCIAL_EMAIL)
+        })
+
+        it("lança UnauthorizedError se a conta demo não existir (seed não rodou)", async () => {
+            const demoAuthService = new AuthService(
+                authRepository,
+                mockSendPasswordResetEmail,
+                true,
+            )
+
+            await expect(
+                demoAuthService.demoLogin({ profile: "residential", channel: "WEB" }),
+            ).rejects.toThrow(UnauthorizedError)
+        })
+
+        it("lança ValidationError para profile fora do enum", async () => {
+            const demoAuthService = new AuthService(
+                authRepository,
+                mockSendPasswordResetEmail,
+                true,
+            )
+
+            await expect(
+                demoAuthService.demoLogin({ profile: "admin", channel: "WEB" }),
+            ).rejects.toThrow(ValidationError)
         })
     })
 

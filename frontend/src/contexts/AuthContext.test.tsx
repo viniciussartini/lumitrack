@@ -18,6 +18,7 @@ vi.mock("react-router", async (importOriginal) => {
 vi.mock("@/services/auth.service", () => ({
     authService: {
         login: vi.fn(),
+        demoLogin: vi.fn(),
         verifyMfaLogin: vi.fn(),
         logout: vi.fn(),
         getCurrentUser: vi.fn(),
@@ -133,6 +134,43 @@ describe("AuthProvider — login", () => {
         })
 
         expect(loginResult).toEqual({ mfaRequired: true, mfaToken: "mfa-token-123" })
+        expect(result.current.isAuthenticated).toBe(false)
+    })
+})
+
+// Issue #179: mesmo contrato de login, sem credenciais — cobre só o que
+// difere (chamada a demoLogin em vez de login); os ramos de mfaRequired e
+// erro já são exercitados de forma equivalente acima.
+describe("AuthProvider — demoLogin", () => {
+    it("autentica o user em caso de sucesso", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
+        vi.mocked(authService.demoLogin).mockResolvedValue({ user: mockUser })
+
+        const { result } = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+        await act(async () => {
+            await result.current.demoLogin("residential")
+        })
+
+        expect(authService.demoLogin).toHaveBeenCalledWith("residential")
+        expect(result.current.isAuthenticated).toBe(true)
+        expect(result.current.user?.id).toBe("user-123")
+    })
+
+    it("propaga erro com mensagem amigável quando o backend recusa", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
+        vi.mocked(authService.demoLogin).mockRejectedValue(new Error("Acesso negado"))
+
+        const { result } = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+        await expect(
+            act(async () => {
+                await result.current.demoLogin("commercial")
+            }),
+        ).rejects.toThrow("Acesso negado")
+
         expect(result.current.isAuthenticated).toBe(false)
     })
 })

@@ -4,6 +4,7 @@ import { extractErrorMessage } from "@/services/api"
 import { authState } from "@/lib/authState"
 import { scheduleProactiveRefresh, cancelProactiveRefresh } from "@/lib/sessionRefresh"
 import type {
+    DemoProfile,
     LoginInput,
     LoginResult,
     MfaLoginVerifyInput,
@@ -22,6 +23,8 @@ interface AuthContextValue {
      * de sessão quando o login já está completo (sem MFA, ou seja).
      */
     login: (input: LoginInput) => Promise<LoginResult>
+    /** Login de demonstração (issue #179) — mesmo contrato de `login`, sem credenciais. */
+    demoLogin: (profile: DemoProfile) => Promise<LoginResult>
     /** Segundo passo do login quando a conta tem MFA habilitado. */
     completeMfaLogin: (input: MfaLoginVerifyInput) => Promise<void>
     logout: () => Promise<void>
@@ -86,6 +89,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
     }
 
+    const demoLogin = async (profile: DemoProfile): Promise<LoginResult> => {
+        try {
+            const result = await authService.demoLogin(profile)
+            if (!result.mfaRequired) {
+                updateUser(result.user)
+                scheduleProactiveRefresh()
+            }
+            return result
+        } catch (error) {
+            throw new Error(extractErrorMessage(error), { cause: error })
+        }
+    }
+
     const completeMfaLogin = async (input: MfaLoginVerifyInput): Promise<void> => {
         try {
             const fullUser = await authService.verifyMfaLogin(input)
@@ -136,6 +152,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         isLoading,
         isAuthenticated: user !== null,
         login,
+        demoLogin,
         completeMfaLogin,
         logout,
         register,

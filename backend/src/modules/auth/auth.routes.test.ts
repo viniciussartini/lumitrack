@@ -203,6 +203,49 @@ describe("POST /api/auth/login", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /api/auth/demo-login (issue #179)
+//
+// `app` (topo do arquivo) é criado com o `env` real do processo de teste —
+// DEMO_LOGIN_ENABLED não é setado em nenhum lugar do ambiente de teste
+// (vitest.config.ts/CI), então o valor efetivo aqui é o default: `false`.
+// Isso é exatamente o comportamento de qualquer deploy que não optou
+// explicitamente por expor login de demonstração — o teste comprova a
+// fiação real (rota → controller → service → guard) nesse estado, que é
+// o mesmo em que o endpoint chega em produção sem configuração adicional.
+// O comportamento com a flag ligada (sessão emitida sem senha) já está
+// coberto a fundo em auth.service.test.ts via injeção de dependência.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("POST /api/auth/demo-login", () => {
+    it("deve retornar 403 quando DEMO_LOGIN_ENABLED está desligado (default do ambiente de teste)", async () => {
+        const response = await request(app).post("/api/auth/demo-login").send({
+            profile: "residential",
+            channel: "WEB",
+        })
+
+        expect(response.status).toBe(403)
+        expect(response.body.status).toBe("error")
+    })
+
+    it("deve retornar 403 mesmo com profile/channel inválidos — o guard vem antes da validação", async () => {
+        const response = await request(app).post("/api/auth/demo-login").send({
+            profile: "admin",
+        })
+
+        expect(response.status).toBe(403)
+    })
+
+    it("não deve setar nenhum cookie de sessão quando recusado", async () => {
+        const response = await request(app).post("/api/auth/demo-login").send({
+            profile: "commercial",
+            channel: "WEB",
+        })
+
+        expect(response.headers["set-cookie"]).toBeUndefined()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/auth/me
 // ─────────────────────────────────────────────────────────────────────────────
 

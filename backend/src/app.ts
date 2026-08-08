@@ -144,6 +144,7 @@ export function createApp(deps: AppDependencies = {}) {
     // que é exatamente o alvo de brute force de um código TOTP de 6 dígitos
     // (baixa entropia, precisa do mesmo limiter estrito que a senha).
     app.use("/api/auth/login", authRateLimiter)
+    app.use("/api/auth/demo-login", authRateLimiter)
     app.use("/api/auth/forgot-password", authRateLimiter)
     app.use("/api/auth/reset-password", authRateLimiter)
 

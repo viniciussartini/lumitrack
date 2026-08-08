@@ -39,6 +39,11 @@ export interface LoginInput {
     password: string
 }
 
+// Login de demonstração (issue #179) — o cliente escolhe só o perfil, sem
+// nenhuma credencial: POST /auth/demo-login resolve o e-mail internamente
+// no backend (gated por DEMO_LOGIN_ENABLED).
+export type DemoProfile = "residential" | "commercial"
+
 // Resposta crua de POST /auth/login. Canal WEB: o JWT viaja só no cookie
 // httpOnly, nunca no body. Quando a conta tem MFA habilitado, o backend não
 // emite sessão ainda — retorna um mfaToken de curta duração (5min) que deve

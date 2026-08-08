@@ -11,6 +11,7 @@ import type { TariffFlagConfig } from "@/types/tariff-flag.types"
 vi.mock("@/services/auth.service", () => ({
     authService: {
         login: vi.fn(),
+        demoLogin: vi.fn(),
         verifyMfaLogin: vi.fn(),
         logout: vi.fn(),
         getCurrentUser: vi.fn(() => Promise.resolve(null)),
@@ -194,9 +195,9 @@ describe("LoginPage — login de demonstração (VITE_DEMO_MODE)", () => {
         ).not.toBeInTheDocument()
     })
 
-    it("mostra os dois botões de demo e loga com as credenciais fixas", async () => {
+    it("mostra os dois botões de demo e loga via POST /auth/demo-login sem enviar credencial", async () => {
         vi.stubEnv("VITE_DEMO_MODE", "true")
-        vi.mocked(authService.login).mockResolvedValue({ user: mockUser })
+        vi.mocked(authService.demoLogin).mockResolvedValue({ user: mockUser })
 
         const user = userEvent.setup()
         renderWithProviders(<LoginPage />)
@@ -209,16 +210,16 @@ describe("LoginPage — login de demonstração (VITE_DEMO_MODE)", () => {
         await user.click(residentialButton)
 
         await waitFor(() => {
-            expect(authService.login).toHaveBeenCalledWith({
-                email: "demo.residencial@lumitrack.dev",
-                password: "DemoLumi@2026",
-            })
+            expect(authService.demoLogin).toHaveBeenCalledWith("residential")
         })
+        // Nenhuma credencial em texto claro chega perto do authService — o
+        // único argumento é o profile (issue #179).
+        expect(authService.login).not.toHaveBeenCalled()
     })
 
     it("exibe a mesma mensagem de erro do login normal quando o demo falha", async () => {
         vi.stubEnv("VITE_DEMO_MODE", "true")
-        vi.mocked(authService.login).mockRejectedValue(new Error("Credenciais inválidas"))
+        vi.mocked(authService.demoLogin).mockRejectedValue(new Error("Credenciais inválidas"))
 
         const user = userEvent.setup()
         renderWithProviders(<LoginPage />)

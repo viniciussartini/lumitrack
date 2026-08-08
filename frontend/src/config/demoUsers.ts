@@ -1,16 +1,11 @@
-// Credenciais fixas dos usuários criados por `backend/prisma/seed-demo/constants.ts`
-// — mantidas em sincronia manualmente (não há import cross-projeto entre
-// frontend e backend). Usadas só pelos botões de "login de demonstração" da
-// LoginPage, atrás da flag `VITE_DEMO_MODE`.
-export const DEMO_USERS = {
-    residential: {
-        email: "demo.residencial@lumitrack.dev",
-        password: "DemoLumi@2026",
-        label: "Ver demo residencial",
-    },
-    commercial: {
-        email: "demo.comercial@lumitrack.dev",
-        password: "DemoLumi@2026",
-        label: "Ver demo comercial",
-    },
-} as const
+import type { DemoProfile } from "@/types/auth.types"
+
+// Só o rótulo do botão — nenhuma credencial aqui (issue #179). O login em
+// si vai para POST /auth/demo-login, que resolve o e-mail/senha da conta
+// demo inteiramente no backend, gated por DEMO_LOGIN_ENABLED. Antes desta
+// mudança, e-mail e senha ficavam em texto claro neste arquivo e eram
+// embarcados no bundle de produção mesmo com VITE_DEMO_MODE desligado.
+export const DEMO_PROFILE_LABELS: Record<DemoProfile, string> = {
+    residential: "Ver demo residencial",
+    commercial: "Ver demo comercial",
+}

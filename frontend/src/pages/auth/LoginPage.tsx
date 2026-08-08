@@ -7,7 +7,8 @@ import { loginSchema, type LoginFormData } from "@/schemas/auth.schema"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { MfaCodeForm } from "@/components/auth/MfaCodeForm"
-import { DEMO_USERS } from "@/config/demoUsers"
+import { DEMO_PROFILE_LABELS } from "@/config/demoUsers"
+import type { DemoProfile } from "@/types/auth.types"
 import { AUTH_LAYOUT_GRID_CLASS, BrandPanel } from "@/components/auth/BrandPanel"
 import { useLiveTicker } from "@/hooks/useLiveTicker"
 import { useTariffFlag } from "@/hooks/queries/useTariffFlag"
@@ -31,7 +32,7 @@ const numberFormatter = new Intl.NumberFormat("pt-BR", {
 export const LoginPage = () => {
     const navigate = useNavigate()
     const location = useLocation()
-    const { login, completeMfaLogin } = useAuth()
+    const { login, demoLogin, completeMfaLogin } = useAuth()
     const { kwh } = useLiveTicker()
     const { data: tariffFlag } = useTariffFlag()
     const isDemoModeEnabled = import.meta.env.VITE_DEMO_MODE === "true"
@@ -74,18 +75,15 @@ export const LoginPage = () => {
         void navigate(redirectTo, { replace: true })
     }
 
-    // Mesmo caminho do submit normal (login real, sem endpoint novo) — só
-    // troca as credenciais digitadas pelas fixas do seed de demonstração.
+    // POST /auth/demo-login (issue #179) — sem credencial no cliente, só o
+    // perfil escolhido; o backend resolve a conta demo internamente.
     const [isDemoLoading, setIsDemoLoading] = useState(false)
 
-    const handleDemoLogin = async (demoUser: {
-        email: string
-        password: string
-    }): Promise<void> => {
+    const handleDemoLogin = async (profile: DemoProfile): Promise<void> => {
         setServerError(null)
         setIsDemoLoading(true)
         try {
-            const result = await login({ email: demoUser.email, password: demoUser.password })
+            const result = await demoLogin(profile)
             if (result.mfaRequired) {
                 setMfaToken(result.mfaToken)
                 return
@@ -262,21 +260,17 @@ export const LoginPage = () => {
                                             type="button"
                                             variant="secondary"
                                             isLoading={isDemoLoading}
-                                            onClick={() =>
-                                                void handleDemoLogin(DEMO_USERS.residential)
-                                            }
+                                            onClick={() => void handleDemoLogin("residential")}
                                         >
-                                            {DEMO_USERS.residential.label}
+                                            {DEMO_PROFILE_LABELS.residential}
                                         </Button>
                                         <Button
                                             type="button"
                                             variant="secondary"
                                             isLoading={isDemoLoading}
-                                            onClick={() =>
-                                                void handleDemoLogin(DEMO_USERS.commercial)
-                                            }
+                                            onClick={() => void handleDemoLogin("commercial")}
                                         >
-                                            {DEMO_USERS.commercial.label}
+                                            {DEMO_PROFILE_LABELS.commercial}
                                         </Button>
                                     </div>
                                 </div>

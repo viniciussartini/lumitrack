@@ -1,6 +1,7 @@
 import { api } from "@/services/api"
 import { getRefreshCsrfToken } from "@/lib/csrf"
 import type {
+    DemoProfile,
     LoginInput,
     LoginResponse,
     LoginResult,
@@ -31,6 +32,27 @@ export const authService = {
     login: async (input: LoginInput): Promise<LoginResult> => {
         const { data } = await api.post<ApiEnvelope<LoginResponse>>("/auth/login", {
             ...input,
+            channel: "WEB",
+        })
+
+        if (data.data.mfaRequired && data.data.mfaToken) {
+            return { mfaRequired: true, mfaToken: data.data.mfaToken }
+        }
+
+        const { data: meData } = await api.get<ApiEnvelope<User>>("/auth/me")
+        return { user: meData.data }
+    },
+
+    /**
+     * Login de demonstração (issue #179) — sem e-mail/senha no cliente, só
+     * o perfil escolhido. O backend resolve a conta demo internamente e
+     * gate por DEMO_LOGIN_ENABLED; se desligado, `api.post` rejeita com
+     * 403 e o erro propaga como qualquer outra falha de login. Mesma forma
+     * de resposta de `login()` (pode vir `mfaRequired`), tratada igual.
+     */
+    demoLogin: async (profile: DemoProfile): Promise<LoginResult> => {
+        const { data } = await api.post<ApiEnvelope<LoginResponse>>("/auth/demo-login", {
+            profile,
             channel: "WEB",
         })
 

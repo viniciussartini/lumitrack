@@ -79,6 +79,40 @@ export class AuthController {
         }
     }
 
+    // POST /api/auth/demo-login — Público (gated por DEMO_LOGIN_ENABLED).
+    // Sem senha no corpo — só `profile` + `channel` — então não há
+    // "tentativa de credencial" a auditar em caso de falha (o erro é
+    // sempre configuração do ambiente: flag desligada ou seed ausente).
+    async demoLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const result = await this.authService.demoLogin(req.body)
+
+            if (result.mfaRequired) {
+                res.status(200).json({
+                    status: "success",
+                    data: { mfaRequired: true, mfaToken: result.mfaToken },
+                })
+                return
+            }
+
+            const { token, refreshToken, channel, userId } = result
+
+            await this.auditService.record({
+                userId,
+                action: "LOGIN",
+                outcome: "SUCCESS",
+                resourceType: "User",
+                resourceId: userId,
+                metadata: { channel, demo: true },
+                ...getRequestContext(req),
+            })
+
+            this.respondWithSession(res, channel, token, refreshToken)
+        } catch (error) {
+            next(error)
+        }
+    }
+
     // POST /api/auth/login/mfa — Público (mas exige mfaToken válido)
     // Segunda etapa do login quando a conta tem MFA habilitado.
     async verifyMfaLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
