@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-07 · Fase atual: 13 (Fases 1–12 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159 e issue #127)
+> Última atualização: 2026-08-08 · Fase atual: 13 (Fases 1–12 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159 e issue #127)
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das quatro auditorias de 2026-08-05** (segurança, conformidade, qualidade, desempenho) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
@@ -21,7 +21,7 @@
 | 10 | Bloqueadores de segurança — log, SSRF, ciclo de vida de sessão, MFA | **Concluída** (#149–#153, épico #148) |
 | 11 | Bloqueadores de conformidade LGPD — canal do titular, ROPA, RIPD, transferência internacional | **Concluída** (#155–#158, épico #154) |
 | 12 | Travas mecânicas de qualidade + correções sem trade-off | **Concluída** (#160–#165, épico #159) |
-| 13 | Endurecimento de segurança (P1) — perímetro, credenciais, lacunas de teste | Planejada — **fase atual**, objetivo abaixo |
+| 13 | Endurecimento de segurança (P1) — cadastro público, credenciais, perímetro, CSP, lacunas de teste | Planejada — **fase atual**, 8 itens detalhados |
 | 14 | Conformidade P1 — retenção, DSAR, consentimento e documentos legais | Planejada — objetivo abaixo |
 | 15 | Desempenho — instrumentação, índices e eliminação dos multiplicadores | Planejada — objetivo abaixo |
 | 16 | Worker IoT — robustez, estrutura e cobertura | Planejada — objetivo abaixo |
@@ -645,9 +645,115 @@ Cada linha abaixo é **um item de trabalho**, não quatro — auditorias diferen
 
 > Planejamento just-in-time, mesmo YAGNI do `06`: fase futura detalhada agora é reescrita antes de ser executada. Cada fase abaixo lista os achados que cobre, para rastreabilidade — **nenhum achado dos quatro laudos ficou fora do roadmap**.
 
-### Fase 13 — Endurecimento de segurança (P1)
+## Fase 13 — Endurecimento de segurança (P1)
 
-Gate: expor a demo pública. Cobre: troca de e-mail sem reautenticação/verificação/revogação (encadeia com o forgot-password numa tomada de conta completa a partir de sessão sequestrada); credenciais demo fora do bundle + contas demo read-only no servidor; perímetro mínimo do `iot-simulator` (token de API, `authenticate` no aedes, bind em `127.0.0.1`, helmet, rate limit); rate limiter dedicado em `POST /api/users` + mensagens de conflito genéricas (hoje o 409 distinguível é oráculo de enumeração de e-mail **e de CPF/CNPJ**); cifra de `Meter.extra.password` + omissão do `MeterResponse`; CSP do SPA e redirect HTTPS com host canônico (ambos ligados à decisão de hospedagem da Fase 11); e as 3 lacunas de teste do laudo (headers de A02, PII cifrada na coluna do banco, revalidação de sessão no SSE) — todas na classe "remover o controle passaria pela suíte inteira".
+> **Gate que esta fase destrava:** expor a demo pública. A **ADR-0008** (hospedagem, Fase 11) condicionou explicitamente a autorização do deploy público a este conjunto — a conclusão de "sem transferência internacional" só vale enquanto o ambiente público não tratar dado pessoal real, e o controle que garante isso ainda não existe.
+>
+> **Origem:** bloco "Antes de expor a demo pública (P1)" + parte de "Endurecimento contínuo (P2)" do laudo `2026-08-05-seguranca-audit.md` (itens 6–10, 12–14 da lista de próximos passos), mais o gate de go-live #1 (fechamento do cadastro público) e #5 (host canônico/CSP) da ADR-0008 — que a ADR liga explicitamente a esta fase.
+>
+> **Achado que a ADR-0008 torna P0 e o laudo de segurança sozinho não deixava explícito:** fechar o cadastro público (`POST /api/users`) é premissa distinta de deixar as 2 contas demo somente-leitura — sem isso, um visitante pode criar conta com dado pessoal real e a conclusão de conformidade da ADR-0008 cai no primeiro cadastro.
+
+### Fechamento do cadastro público + contas demo somente-leitura
+
+- **Comportamento:** com o ambiente de demo configurado, `POST /api/users` recusa criação de conta nova; as 2 contas de demonstração (`DEMO_ACCOUNT_EMAILS`, já existente em `shared/config/demoAccounts.ts`) ficam protegidas contra troca de e-mail, troca de senha e configuração/desativação de MFA.
+- **Cobre:** ADR-0008 (premissa de validade + gate de go-live #1); achado [MÉDIA] "Credenciais de demonstração hardcoded" (agravante de tomada de conta permanente da conta pública).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Env `REGISTRATION_ENABLED` (default `true`; `false` no deploy da demo pública) no `envSchema`, com `POST /api/users` respondendo 403 quando desligado.
+  - `UserService.update`, troca de senha autenticada (quando existir) e `verifyMfaSetup`/`disableMfa` recusam a operação com 403 quando `user.email` está em `DEMO_ACCOUNT_EMAILS` — reaproveitando o guard que `forgotPassword` já aplica (`auth.service.ts:229`), não duplicando a lista.
+  - Teste que falha se qualquer um dos guards for removido (registro real, troca de e-mail/senha/MFA numa conta demo).
+- **Depende de:** —
+- **Risco/observações:** baixo tecnicamente — é composição de guards sobre serviços já existentes. O risco é de esquecimento de superfície: qualquer novo endpoint mutável em `user`/`auth` precisa lembrar do guard de conta demo; vale um teste de integração que cubra os 3 fluxos juntos, não 3 arquivos isolados.
+
+### Reautenticação, verificação e revogação de sessão na troca de e-mail
+
+- **Comportamento:** trocar o e-mail da conta exige a senha atual, o novo endereço só passa a valer após confirmação por link, o endereço anterior recebe um aviso, e as sessões existentes são revogadas após a troca.
+- **Cobre:** [MÉDIA] "Troca de e-mail sem reautenticação, sem verificação, sem revogação de sessão" (`user.schema.ts:101-107`, `user.service.ts:89-97`) — hoje encadeia com o forgot-password numa tomada de conta completa a partir de sessão sequestrada.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - `updateUserSchema`/`UserService.update` exigem `currentPassword` quando `email` muda.
+  - Novo endereço só é gravado após confirmação (token de confirmação, mesmo padrão de `PasswordReset` — token hasheado, TTL curto); até lá o e-mail antigo continua ativo.
+  - E-mail de aviso disparado ao endereço **anterior** no início do fluxo (mesmo `MailerService` do forgot-password, mockável no teste como já é lá).
+  - Sessões (`AuthToken`/`RefreshToken`) revogadas quando a troca é efetivada.
+  - Teste de integração cobrindo o fluxo completo e o cenário de ataque (troca de e-mail → forgot-password no e-mail antigo continua funcionando; no novo, só após confirmação).
+- **Depende de:** —
+- **Risco/observações:** médio — é o item de maior superfície funcional nova da fase (fluxo de confirmação por e-mail não existe hoje para troca de e-mail, só para reset de senha). Reaproveitar ao máximo a infraestrutura de `PasswordReset`/`MailerService` em vez de criar um segundo mecanismo paralelo.
+
+### Credenciais demo fora do bundle do frontend
+
+- **Comportamento:** o bundle de produção do frontend não contém e-mail/senha das contas demo em texto claro, mesmo com `VITE_DEMO_MODE` desligado.
+- **Cobre:** [MÉDIA] "Credenciais de demonstração hardcoded no código-fonte e embarcadas no bundle" (`frontend/src/config/demoUsers.ts:5-16`, `LoginPage.tsx:10`); ADR-0008 gate de go-live #2.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:**
+  - `DEMO_USERS` deixa de ser importado estaticamente com a senha em claro em `LoginPage.tsx`.
+  - Substituído por um destes (decidir na execução, registrar a escolha): (a) endpoint `POST /api/auth/demo-login` gated por `REGISTRATION_ENABLED === false`/env de demo, sem senha no cliente; ou (b) variáveis `VITE_DEMO_EMAIL_*` injetadas só no build específico do ambiente de demo, nunca no build padrão.
+  - Build de produção padrão (sem env de demo) sem nenhuma credencial válida no bundle — conferir com `grep`/`strings` no artefato final, não só no código-fonte.
+- **Depende de:** Fechamento do cadastro público (mesmo `REGISTRATION_ENABLED`, se a opção (a) for escolhida).
+- **Risco/observações:** baixo — muda o transporte da credencial, não a existência das contas demo. Cuidado para não quebrar o botão "Entrar como demo" da Landing/Login, que é parte do valor de portfólio do produto.
+
+### Perímetro mínimo do `iot-simulator`
+
+- **Comportamento:** a API de controle do simulador e o broker MQTT deixam de aceitar qualquer cliente sem credencial, e passam a escutar por padrão só em localhost.
+- **Cobre:** [MÉDIA] "`iot-simulator` exposto sem autenticação, sem helmet e sem rate limit; broker MQTT anônimo em `0.0.0.0`" (`iot-simulator/server/src/api/app.ts:18-33`, `broker.ts:16-38`, `index.ts:11,21`); ADR-0008 gates de go-live #3/#4.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - `helmet` + rate limiter na API do simulador (`iot-simulator/server/src/api/app.ts`).
+  - Token estático obrigatório via header (`SIMULATOR_API_TOKEN` no env schema do simulador), validado em todas as rotas de `/api/networks` e `/api/devices`.
+  - Hook `authenticate`/`authorizePublish` no `Aedes` (usuário/senha via env).
+  - Bind default em `127.0.0.1` para a API e para o broker, host configurável por env para quem precisar expor deliberadamente.
+  - `IOT_ALLOWED_HOSTS=localhost` (ou `127.0.0.1/32`) documentado no `.env.example` do backend como o valor de produção — fecha o gate #4 da ADR-0008 sem afrouxar a allowlist SSRF da issue #150.
+  - README do `iot-simulator` atualizado: nunca expor fora de localhost.
+- **Depende de:** —
+- **Risco/observações:** médio — é o item com mais chance de quebrar o fluxo de demo se o token/porta não forem propagados corretamente para o backend que se conecta ao broker; testar a integração ponta a ponta (simulador → broker → backend → SSE) depois da mudança, não só os testes unitários do simulador.
+
+### Rate limiter dedicado em `POST /api/users` + mensagens de conflito genéricas
+
+- **Comportamento:** tentativas repetidas de cadastro público passam a ser limitadas por IP, e a resposta de conflito não revela se o e-mail, CPF ou CNPJ enviados já existem na base.
+- **Cobre:** [MÉDIA] "Cadastro público sem rate limit dedicado e com enumeração de contas por 409" (`user.routes.ts:22`, `user.service.ts:29-49`, `app.ts:134-136`).
+- **Priority:** P1 · **Size:** XS
+- **Critérios de aceite:**
+  - `authRateLimiter` (ou instância dedicada, mesma chave IP) aplicado a `POST /api/users`.
+  - Mensagens de conflito de CPF/CNPJ unificadas numa resposta genérica (sem distinguir qual documento colidiu) — mesmo padrão de minimização já aplicado ao `forgot-password`.
+  - Teste cobrindo 429 no limite e a mensagem genérica no conflito.
+- **Depende de:** —
+- **Risco/observações:** baixo — mesmo padrão de rate limiter já usado em `/login`/`/forgot-password`, só uma nova montagem de rota.
+
+### Cifra de `Meter.extra.password` + omissão do `MeterResponse`
+
+- **Comportamento:** a senha de credencial MQTT/protocolo informada no cadastro do medidor deixa de ser devolvida em texto claro pela API e passa a ser cifrada em repouso.
+- **Cobre:** [MÉDIA] "Credenciais MQTT do usuário armazenadas em texto claro no `extra` do medidor e devolvidas pela API" (`meter.schema.ts:26`, `meter.repository.ts:37,123,139`, `IoTConnectionManager.ts:76-86`).
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  - `extra` tipado explicitamente por protocolo (substituindo `z.record(z.string(), z.unknown())`).
+  - `extra.password` cifrado em repouso com uma chave dedicada (mesmo padrão AES-256-GCM já usado para CPF/CNPJ/endereço/TOTP — chave própria, não reaproveitada).
+  - `toMeterResponse` nunca devolve o valor decifrado — expõe `passwordSet: boolean` no lugar.
+  - Teste que lê a coluna do banco e assere ciphertext (mesmo padrão dos testes de cripto existentes) + teste de rota assertando ausência do campo na resposta.
+- **Depende de:** —
+- **Risco/observações:** baixo-médio — mudar o schema de `extra` é o ponto de atenção: qualquer medidor MQTT existente no seed/demo com `extra.password` em claro precisa de migração de dados, não só de schema.
+
+### CSP do SPA + redirect HTTPS com host canônico
+
+- **Comportamento:** o navegador aplica a Content-Security-Policy do LumiTrack ao abrir o app, e um `Host` forjado numa requisição HTTP não gera mais um redirect 301 para um domínio arbitrário.
+- **Cobre:** [MÉDIA] "SPA sem Content-Security-Policy" (`frontend/index.html:1-35`) e [MÉDIA] "Redirect HTTP→HTTPS usa `Host` do cliente sem validação" (`backend/src/app.ts:66-72`); ADR-0008 gate de go-live #5 (explicitamente ligado à decisão de hospedagem da Fase 11, já tomada).
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:**
+  - Redirect HTTP→HTTPS usa um host canônico de uma env fixa (ex.: `PUBLIC_API_ORIGIN`) em vez de `req.headers.host`; requisição com `Host` fora da allowlist responde 400.
+  - CSP definida em `frontend/index.html` via `<meta http-equiv="Content-Security-Policy">`: `default-src 'self'; script-src 'self' 'sha256-<hash do script anti-FOUC>'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'` (ajustar o hash ao script real de `index.html:8-29`).
+  - Decisão registrada junto da ADR-0008 (aditivo ou nota, não nova ADR — a decisão de hospedagem já está tomada, isto é a implementação dela).
+- **Depende de:** decisão de hospedagem — **já resolvida** (ADR-0008, Fase 11).
+- **Risco/observações:** baixo-médio — CSP quebrando silenciosamente uma dependência de runtime (ex. um script/estilo inline não previsto) é o modo de falha típico; testar build de produção completo no navegador antes de fechar o item, não só revisão de código.
+
+### Revalidação de sessão no SSE + lacunas de teste do laudo
+
+- **Comportamento:** um stream SSE aberto para de entregar dados assim que a sessão que o abriu é revogada (logout, reset de senha); os controles de segurança que hoje só existem "de fato" passam a ter teste que falha se forem removidos.
+- **Cobre:** [BAIXA] "Stream SSE não revalida a sessão" (`iot-stream.routes.ts:72-121` — implementação, não só teste); [BAIXA] "Nenhum teste cobre os controles de A02" (`app.ts:75-96`); [BAIXA] "Nenhum teste garante que CPF/CNPJ e endereço estão cifrados na coluna do banco" (`encryption.test.ts`, `addressEncryption.test.ts`, `user.repository.ts:96-112`).
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  - `iot-stream.routes.ts` revalida o token no mesmo intervalo do `membershipRefresh` (linha 103-107) — consulta `findActiveToken`/`revokedAt`/`expiresAt` e encerra a resposta quando a sessão deixou de ser válida.
+  - `app.security-headers.test.ts` novo: supertest assertando `content-security-policy`, `strict-transport-security`, `x-frame-options`/`frame-ancestors`, ausência de `x-powered-by`, e `Access-Control-Allow-Origin` para origem permitida vs. não permitida.
+  - Teste espelhando `user.service.test.ts:87-101` (que já valida o hash de senha lendo a coluna): criar usuário/propriedade via service, ler pelo `prismaTest`, assertar que `users.cpf`/`users.cnpj`/`properties.address` não contêm o valor em claro e decifram corretamente.
+- **Depende de:** —
+- **Risco/observações:** baixo — os dois achados de teste são cobertura pura (o controle já existe); a revalidação do SSE é o único código novo do item, pequeno e isolado.
 
 ### Fase 14 — Conformidade P1: retenção, DSAR, consentimento e documentos (P1)
 

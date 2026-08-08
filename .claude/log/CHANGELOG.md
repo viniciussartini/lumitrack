@@ -1037,3 +1037,14 @@
 - **Arquivos principais:** `backend/package-lock.json`, `frontend/package-lock.json`, `iot-simulator/package-lock.json` — nenhum `package.json` mudou.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** `npm audit --audit-level=high` limpo nos 3 pacotes após o fix. `build` e `lint` re-verificados nos 3 (backend, frontend, iot-simulator server+ui) — limpos, nenhuma regressão pela troca de lockfile.
+
+## [2026-08-08] docs: roadmap da Fase 13 (Endurecimento de segurança P1) + épico e sub-issues
+
+- **Branch:** main
+- **Tipo:** docs
+- **O quê:** `.claude/docs/roadmap.md` ganhou o detalhamento completo da Fase 13 (8 itens no formato Comportamento/Cobre/Priority/Size/Critérios de aceite/Depende de/Risco), substituindo o parágrafo-resumo que existia desde o planejamento das Fases 10–18. Tabela "Visão geral das fases" e cabeçalho de última atualização ajustados. Criado o épico #185 ("Fase 13 — Endurecimento de segurança") com 8 sub-issues nativas (#177–#184) via `gh issue create` + `gh issue edit --add-sub-issue`, após lote apresentado e aprovado pelo usuário (skill `criar-issues`, Modo 2 — fase atual do roadmap). Criada a branch `fix/185-endurecimento-seguranca-p1` para a implementação do épico (ainda não checked out — parte do fluxo de aprovação do usuário).
+- **Levantamento que embasou o detalhamento:** laudo `.claude/docs/2026-08-05-seguranca-audit.md` (blocos "Antes de expor a demo pública" e parte de "Endurecimento contínuo") cruzado com `.claude/docs/adr/0008-hospedagem-brasil-oracle-always-free.md`, cuja seção "Gates de go-live" liga explicitamente 2 dos seus 7 gates a esta fase.
+- **Achado que a ADR-0008 tornou explícito e o parágrafo-resumo anterior não deixava claro:** fechar o cadastro público (`REGISTRATION_ENABLED`) é premissa **distinta** de deixar as 2 contas demo somente-leitura — sem o primeiro, um visitante cria conta com dado pessoal real e a conclusão de "sem transferência internacional" da ADR-0008 cai no primeiro cadastro. Virou o item 1 da fase, à frente dos demais achados do laudo de segurança.
+- **Arquivos principais:** `.claude/docs/roadmap.md`. Nenhum código-fonte tocado — planejamento + issues, implementação fica pras 8 sub-issues.
+- **Decisões/ADRs:** nenhuma nova — a Fase 13 implementa 2 dos "Gates de go-live" já decididos pela ADR-0008 (Fase 11), não abre decisão nova.
+- **Notas:** issues #177–#184 vinculadas nativamente ao épico #185, confirmado via GraphQL (`subIssues`). `tipo: segurança` aplicado em todas as sub-issues (não `tipo: feature`) por serem originadas de achado de auditoria, seguindo a regra do `08-convencoes-git.md`. `prioridade:` das issues segue o Priority do roadmap (P0→crítica, P1→alta), mesmo mapeamento já usado nas Fases 10–12.
