@@ -4,6 +4,11 @@ import { env } from "@/config/env.js"
 import { AuthController } from "@/modules/auth/auth.controller.js"
 import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import { AuthService, type SendPasswordResetEmailFn } from "@/modules/auth/auth.service.js"
+import {
+    EmailChangeService,
+    type SendEmailChangeConfirmationFn,
+    type SendEmailChangedNoticeFn,
+} from "@/modules/auth/email-change.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { UserService } from "@/modules/user/user.service.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
@@ -12,6 +17,8 @@ export function authRoutes(
     authenticate: RequestHandler,
     prismaClient: PrismaClient,
     sendPasswordResetEmail: SendPasswordResetEmailFn,
+    sendEmailChangeConfirmation: SendEmailChangeConfirmationFn,
+    sendEmailChangedNotice: SendEmailChangedNoticeFn,
     auditService: AuditService,
 ): Router {
     const router = Router()
@@ -21,9 +28,19 @@ export function authRoutes(
         sendPasswordResetEmail,
         env.DEMO_LOGIN_ENABLED,
     )
+    const emailChangeService = new EmailChangeService(
+        authRepository,
+        sendEmailChangeConfirmation,
+        sendEmailChangedNotice,
+    )
     const userRepository = new UserRepository(prismaClient)
     const userService = new UserService(userRepository)
-    const authController = new AuthController(authService, userService, auditService)
+    const authController = new AuthController(
+        authService,
+        userService,
+        auditService,
+        emailChangeService,
+    )
 
     // Rotas públicas
     router.post("/login", (req, res, next) => authController.login(req, res, next))
@@ -41,6 +58,11 @@ export function authRoutes(
         authController.forgotPassword(req, res, next),
     )
     router.post("/reset-password", (req, res, next) => authController.resetPassword(req, res, next))
+    // Efetiva a troca de e-mail pedida via PUT /api/users/:id (issue #178) —
+    // pública, mas só aceita um token de confirmação válido.
+    router.post("/confirm-email-change", (req, res, next) =>
+        authController.confirmEmailChange(req, res, next),
+    )
 
     // Rotas protegidas — exigem autenticação
     router.get("/me", authenticate, (req, res, next) => authController.me(req, res, next))

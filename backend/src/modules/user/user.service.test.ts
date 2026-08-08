@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest"
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest"
 import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
@@ -7,6 +7,7 @@ import {
     ConflictError,
     ForbiddenError,
     NotFoundError,
+    UnauthorizedError,
     ValidationError,
 } from "@/shared/errors/AppError.js"
 import { DEMO_RESIDENTIAL_EMAIL } from "@/shared/config/demoAccounts.js"
@@ -279,6 +280,7 @@ describe("UserService", () => {
             await expect(
                 userService.updateUser(second.id, {
                     email: "joao@example.com", // e-mail já pertence ao primeiro usuário
+                    currentPassword: validCompanyInput.password,
                 }),
             ).rejects.toThrow(ConflictError)
         })
@@ -302,6 +304,115 @@ describe("UserService", () => {
 
             const stillOriginal = await userService.findById(demo.id)
             expect(stillOriginal.firstName).toBe(validIndividualInput.firstName)
+        })
+    })
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SUITE: updateUser — troca de e-mail (issue #178)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    describe("updateUser — troca de e-mail", () => {
+        it("deve lançar ValidationError quando o e-mail muda sem currentPassword", async () => {
+            const created = await userService.createUser(validIndividualInput)
+
+            await expect(
+                userService.updateUser(created.id, { email: "novo@example.com" }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("deve lançar UnauthorizedError para currentPassword incorreto", async () => {
+            const created = await userService.createUser(validIndividualInput)
+
+            await expect(
+                userService.updateUser(created.id, {
+                    email: "novo@example.com",
+                    currentPassword: "SenhaErrada@123",
+                }),
+            ).rejects.toThrow(UnauthorizedError)
+        })
+
+        it("com senha correta, chama requestEmailChange e NÃO persiste o e-mail imediatamente", async () => {
+            const mockRequestEmailChange = vi.fn().mockResolvedValue(undefined)
+            const serviceWithEmailChange = new UserService(
+                userRepository,
+                true,
+                mockRequestEmailChange,
+            )
+            const created = await serviceWithEmailChange.createUser(validIndividualInput)
+
+            const result = await serviceWithEmailChange.updateUser(created.id, {
+                email: "novo@example.com",
+                currentPassword: validIndividualInput.password,
+            })
+
+            expect(mockRequestEmailChange).toHaveBeenCalledWith({
+                userId: created.id,
+                oldEmail: "joao@example.com",
+                newEmail: "novo@example.com",
+            })
+            // O retorno ainda traz o e-mail ANTIGO — a troca só vale após
+            // confirmação pelo novo endereço.
+            expect(result.email).toBe("joao@example.com")
+
+            const fromDb = await serviceWithEmailChange.findById(created.id)
+            expect(fromDb.email).toBe("joao@example.com")
+        })
+
+        it("persiste outros campos junto, mesmo quando o e-mail está em transição", async () => {
+            const mockRequestEmailChange = vi.fn().mockResolvedValue(undefined)
+            const serviceWithEmailChange = new UserService(
+                userRepository,
+                true,
+                mockRequestEmailChange,
+            )
+            const created = await serviceWithEmailChange.createUser(validIndividualInput)
+
+            const result = await serviceWithEmailChange.updateUser(created.id, {
+                email: "novo@example.com",
+                currentPassword: validIndividualInput.password,
+                firstName: "Carlos",
+            })
+
+            expect(result.firstName).toBe("Carlos")
+            expect(result.email).toBe("joao@example.com")
+        })
+
+        it("deve lançar ConflictError se o e-mail alvo já existir — verificado depois da senha", async () => {
+            const mockRequestEmailChange = vi.fn().mockResolvedValue(undefined)
+            const serviceWithEmailChange = new UserService(
+                userRepository,
+                true,
+                mockRequestEmailChange,
+            )
+            await serviceWithEmailChange.createUser(validIndividualInput)
+            const second = await serviceWithEmailChange.createUser({
+                ...validCompanyInput,
+                email: "segundo@example.com",
+            })
+
+            await expect(
+                serviceWithEmailChange.updateUser(second.id, {
+                    email: "joao@example.com",
+                    currentPassword: validCompanyInput.password,
+                }),
+            ).rejects.toThrow(ConflictError)
+
+            // A senha foi validada antes do conflito ser checado — se o
+            // conflito fosse checado primeiro, essa chamada nunca aconteceria.
+            expect(mockRequestEmailChange).not.toHaveBeenCalled()
+        })
+
+        it("sem requestEmailChange injetado (default), falha fechado em vez de aceitar silenciosamente", async () => {
+            // userService (instanciado no beforeEach) usa o default —
+            // nenhum teste precisa mockar env ou módulo pra provar isso.
+            const created = await userService.createUser(validIndividualInput)
+
+            await expect(
+                userService.updateUser(created.id, {
+                    email: "novo@example.com",
+                    currentPassword: validIndividualInput.password,
+                }),
+            ).rejects.toThrow("requestEmailChange não foi configurado")
         })
     })
 

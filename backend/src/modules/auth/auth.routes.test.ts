@@ -9,15 +9,19 @@ import { generateBlindIndex } from "@/shared/crypto/blindIndex.js"
 import { env } from "@/config/env.js"
 import { generate } from "otplib"
 
-// O mock de e-mail é criado uma vez e injetado no app via createApp().
+// Os mocks de e-mail são criados uma vez e injetados no app via createApp().
 // Isso garante que nenhum e-mail real seja disparado durante os testes HTTP.
-// A função é um spy: além de não fazer nada, registra todas as chamadas —
-// útil se quisermos verificar que o e-mail foi "enviado" para o endereço certo.
+// As funções são spies: além de não fazerem nada, registram todas as
+// chamadas — útil para verificar que o e-mail foi "enviado" ao endereço certo.
 const mockSendPasswordResetEmail = vi.fn().mockResolvedValue(undefined)
+const mockSendEmailChangeConfirmation = vi.fn().mockResolvedValue(undefined)
+const mockSendEmailChangedNotice = vi.fn().mockResolvedValue(undefined)
 
 const app = createApp({
     prismaClient: prismaHttpTest,
     sendPasswordResetEmail: mockSendPasswordResetEmail,
+    sendEmailChangeConfirmation: mockSendEmailChangeConfirmation,
+    sendEmailChangedNotice: mockSendEmailChangedNotice,
 })
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
@@ -672,6 +676,103 @@ describe("POST /api/auth/reset-password", () => {
                 .set(env.REFRESH_CSRF_HEADER_NAME, oldRefreshCsrfValue)
             expect(refreshResponse.status).toBe(401)
         })
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/auth/confirm-email-change (issue #178)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("POST /api/auth/confirm-email-change", () => {
+    // Ponta a ponta real: registra, loga, pede a troca via PUT
+    // /api/users/:id (rota autenticada) e captura o token do mock de e-mail
+    // — exatamente o que o usuário de verdade recebe e clica.
+    async function requestEmailChangeAndGetToken(): Promise<{
+        token: string
+        userId: string
+        bearerToken: string
+    }> {
+        await request(app).post("/api/users").send(validUser)
+        const loginRes = await request(app).post("/api/auth/login").send({
+            email: validUser.email,
+            password: validUser.password,
+            channel: "MOBILE",
+        })
+        const bearerToken = loginRes.body.data.token as string
+
+        const meRes = await request(app)
+            .get("/api/auth/me")
+            .set("Authorization", `Bearer ${bearerToken}`)
+        const userId = meRes.body.data.id as string
+
+        await request(app)
+            .put(`/api/users/${userId}`)
+            .set("Authorization", `Bearer ${bearerToken}`)
+            .send({ email: "novo@example.com", currentPassword: validUser.password })
+
+        const call = mockSendEmailChangeConfirmation.mock.calls.at(-1) as [string, string]
+        return { token: call[1], userId, bearerToken }
+    }
+
+    it("token válido: 200 e o e-mail é atualizado no banco", async () => {
+        const { token, userId } = await requestEmailChangeAndGetToken()
+
+        const response = await request(app).post("/api/auth/confirm-email-change").send({ token })
+
+        expect(response.status).toBe(200)
+        const userInDb = await prismaHttpTest.user.findUnique({ where: { id: userId } })
+        expect(userInDb?.email).toBe("novo@example.com")
+    })
+
+    // A07: quem confirma a troca prova posse do novo endereço — uma sessão
+    // antiga (potencialmente sequestrada) não deve sobreviver a isso, mesmo
+    // padrão de resetPassword acima.
+    it("revoga a sessão emitida antes da confirmação", async () => {
+        const { token, bearerToken } = await requestEmailChangeAndGetToken()
+
+        await request(app).post("/api/auth/confirm-email-change").send({ token })
+
+        const meResponse = await request(app)
+            .get("/api/auth/me")
+            .set("Authorization", `Bearer ${bearerToken}`)
+        expect(meResponse.status).toBe(401)
+    })
+
+    it("depois de confirmado, login passa a funcionar com o novo e-mail", async () => {
+        const { token } = await requestEmailChangeAndGetToken()
+        await request(app).post("/api/auth/confirm-email-change").send({ token })
+
+        const loginResponse = await request(app).post("/api/auth/login").send({
+            email: "novo@example.com",
+            password: validUser.password,
+            channel: "MOBILE",
+        })
+
+        expect(loginResponse.status).toBe(200)
+        expect(loginResponse.body.data.token).toBeDefined()
+    })
+
+    it("deve retornar 400 para token inexistente", async () => {
+        const response = await request(app)
+            .post("/api/auth/confirm-email-change")
+            .send({ token: "token-que-nao-existe" })
+
+        expect(response.status).toBe(400)
+    })
+
+    it("deve retornar 400 ao tentar usar o mesmo token duas vezes", async () => {
+        const { token } = await requestEmailChangeAndGetToken()
+
+        await request(app).post("/api/auth/confirm-email-change").send({ token })
+        const response = await request(app).post("/api/auth/confirm-email-change").send({ token })
+
+        expect(response.status).toBe(400)
+    })
+
+    it("deve retornar 422 quando o corpo não tem token", async () => {
+        const response = await request(app).post("/api/auth/confirm-email-change").send({})
+
+        expect(response.status).toBe(422)
     })
 })
 

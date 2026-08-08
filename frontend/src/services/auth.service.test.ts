@@ -335,3 +335,26 @@ describe("authService.register", () => {
         await expect(authService.register(validIndividualInput)).rejects.toThrow("Dados inválidos")
     })
 })
+
+// Issue #178: efetiva a troca de e-mail pedida em Perfil.
+describe("authService.confirmEmailChange", () => {
+    it("faz POST em /auth/confirm-email-change com o token", async () => {
+        vi.mocked(api.post).mockResolvedValueOnce({ data: { status: "success" } })
+
+        await authService.confirmEmailChange("token-de-confirmacao")
+
+        expect(api.post).toHaveBeenCalledWith("/auth/confirm-email-change", {
+            token: "token-de-confirmacao",
+        })
+    })
+
+    it("propaga erro quando o token é inválido/expirado/já usado", async () => {
+        vi.mocked(api.post).mockRejectedValueOnce(
+            new Error("Token de confirmação inválido ou expirado"),
+        )
+
+        await expect(authService.confirmEmailChange("token-ruim")).rejects.toThrow(
+            "Token de confirmação inválido ou expirado",
+        )
+    })
+})

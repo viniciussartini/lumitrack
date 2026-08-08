@@ -100,6 +100,59 @@ export class AuthRepository {
         ])
     }
 
+    async createEmailChange(data: {
+        userId: string
+        newEmail: string
+        token: string
+        expiresAt: Date
+    }): Promise<void> {
+        await this.prisma.emailChange.create({ data })
+    }
+
+    async findEmailChange(token: string) {
+        return this.prisma.emailChange.findUnique({
+            where: { token },
+            select: {
+                id: true,
+                userId: true,
+                newEmail: true,
+                expiresAt: true,
+                usedAt: true,
+            },
+        })
+    }
+
+    // Mesmo raciocínio de resetPasswordAndRevokeSessions: efetiva o novo
+    // e-mail, marca o pedido como usado e revoga toda sessão do usuário,
+    // tudo na mesma transação — quem confirma a troca prova posse do novo
+    // endereço, e uma sessão antiga (potencialmente sequestrada) não deve
+    // sobreviver a isso.
+    async confirmEmailChangeAndRevokeSessions(params: {
+        userId: string
+        changeId: string
+        newEmail: string
+    }): Promise<void> {
+        const now = new Date()
+        await this.prisma.$transaction([
+            this.prisma.user.update({
+                where: { id: params.userId },
+                data: { email: params.newEmail },
+            }),
+            this.prisma.emailChange.update({
+                where: { id: params.changeId },
+                data: { usedAt: now },
+            }),
+            this.prisma.authToken.updateMany({
+                where: { userId: params.userId, revokedAt: null },
+                data: { revokedAt: now },
+            }),
+            this.prisma.refreshToken.updateMany({
+                where: { userId: params.userId, revokedAt: null },
+                data: { revokedAt: now },
+            }),
+        ])
+    }
+
     // Retenção e expurgo (Art. 15/16 LGPD): tokens que já não servem
     // para nada (expirados ou revogados) ficam guardados por um período de
     // graça (DATA_RETENTION_AUTH_TOKEN_DAYS) só para alguma investigação

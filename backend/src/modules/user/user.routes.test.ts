@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest"
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest"
 import request from "supertest"
 import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
@@ -12,7 +12,17 @@ import { CURRENT_CONSENT_VERSION } from "@/shared/legal/consentVersion.js"
 // Usar login real via POST /api/auth/login melhora a qualidade dos testes:
 // eles agora cobrem o fluxo completo de autenticacao, nao um atalho artificial.
 
-const app = createApp({ prismaClient: prismaHttpTest })
+// Mocks de e-mail (issue #178) — sem isso, PUT /api/users/:id com troca de
+// e-mail tentaria enviar e-mail de verdade via nodemailer (SMTP_HOST fake
+// do .env de dev) durante os testes HTTP.
+const mockSendEmailChangeConfirmation = vi.fn().mockResolvedValue(undefined)
+const mockSendEmailChangedNotice = vi.fn().mockResolvedValue(undefined)
+
+const app = createApp({
+    prismaClient: prismaHttpTest,
+    sendEmailChangeConfirmation: mockSendEmailChangeConfirmation,
+    sendEmailChangedNotice: mockSendEmailChangedNotice,
+})
 
 // --- Dados de apoio ---
 
@@ -59,6 +69,7 @@ async function registerAndLogin(body = validIndividualBody) {
 
 beforeEach(async () => {
     await cleanHttpDatabase()
+    vi.clearAllMocks()
 })
 
 afterAll(async () => {
@@ -259,9 +270,71 @@ describe("PUT /api/users/:id", () => {
         const response = await request(app)
             .put(`/api/users/${firstId}`)
             .set("Authorization", `Bearer ${token}`)
-            .send({ email: "segundo@example.com" })
+            .send({
+                email: "segundo@example.com",
+                currentPassword: validIndividualBody.password,
+            })
 
         expect(response.status).toBe(409)
+    })
+
+    // Issue #178: troca de e-mail exige senha atual + confirmação — não é
+    // mais efetivada na hora.
+    describe("troca de e-mail", () => {
+        it("deve retornar 422 quando o e-mail muda sem currentPassword", async () => {
+            const { userId, token } = await registerAndLogin()
+
+            const response = await request(app)
+                .put(`/api/users/${userId}`)
+                .set("Authorization", `Bearer ${token}`)
+                .send({ email: "novo@example.com" })
+
+            expect(response.status).toBe(422)
+        })
+
+        it("deve retornar 401 para currentPassword incorreto", async () => {
+            const { userId, token } = await registerAndLogin()
+
+            const response = await request(app)
+                .put(`/api/users/${userId}`)
+                .set("Authorization", `Bearer ${token}`)
+                .send({ email: "novo@example.com", currentPassword: "SenhaErrada@123" })
+
+            expect(response.status).toBe(401)
+        })
+
+        it("com senha correta: 200, e-mail no banco continua o antigo, e existe um pedido pendente", async () => {
+            const { userId, token } = await registerAndLogin()
+
+            const response = await request(app)
+                .put(`/api/users/${userId}`)
+                .set("Authorization", `Bearer ${token}`)
+                .send({
+                    email: "novo@example.com",
+                    currentPassword: validIndividualBody.password,
+                })
+
+            expect(response.status).toBe(200)
+            // A resposta não deve trazer o e-mail novo — só é efetivado após
+            // confirmação (POST /api/auth/confirm-email-change).
+            expect(response.body.data.email).toBe(validIndividualBody.email)
+
+            const userInDb = await prismaHttpTest.user.findUnique({ where: { id: userId } })
+            expect(userInDb?.email).toBe(validIndividualBody.email)
+
+            const pendingChange = await prismaHttpTest.emailChange.findFirst({
+                where: { userId, newEmail: "novo@example.com" },
+            })
+            expect(pendingChange).not.toBeNull()
+            expect(mockSendEmailChangeConfirmation).toHaveBeenCalledWith(
+                "novo@example.com",
+                expect.any(String),
+            )
+            expect(mockSendEmailChangedNotice).toHaveBeenCalledWith(
+                validIndividualBody.email,
+                "novo@example.com",
+            )
+        })
     })
 })
 

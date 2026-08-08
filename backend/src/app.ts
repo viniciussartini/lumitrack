@@ -14,7 +14,15 @@ import { AuditService } from "@/shared/audit/audit.service.js"
 import { PrismaClient } from "@/generated/prisma/client.js"
 import { prisma } from "@/shared/database/prisma.js"
 import type { SendPasswordResetEmailFn } from "@/modules/auth/auth.service.js"
-import { sendPasswordResetEmail as realSendPasswordResetEmail } from "@/modules/auth/email.service.js"
+import type {
+    SendEmailChangeConfirmationFn,
+    SendEmailChangedNoticeFn,
+} from "@/modules/auth/email-change.service.js"
+import {
+    sendPasswordResetEmail as realSendPasswordResetEmail,
+    sendEmailChangeConfirmation as realSendEmailChangeConfirmation,
+    sendEmailChangedNotice as realSendEmailChangedNotice,
+} from "@/modules/auth/email.service.js"
 import { userRoutes } from "@/modules/user/user.routes.js"
 import { exportRoutes } from "@/modules/export/export.routes.js"
 import { adminRoutes } from "@/modules/admin/admin.routes.js"
@@ -36,6 +44,8 @@ import { NotificationStore } from "./shared/notifications/notification-store.js"
 export interface AppDependencies {
     prismaClient?: PrismaClient
     sendPasswordResetEmail?: SendPasswordResetEmailFn
+    sendEmailChangeConfirmation?: SendEmailChangeConfirmationFn
+    sendEmailChangedNotice?: SendEmailChangedNoticeFn
     processor?: IoTDataProcessor
     userEventHub?: UserEventHub
     alertEvaluator?: AlertEvaluator
@@ -51,6 +61,9 @@ export interface AppDependencies {
 export function createApp(deps: AppDependencies = {}) {
     const prismaClient = deps.prismaClient ?? prisma
     const sendPasswordResetEmail = deps.sendPasswordResetEmail ?? realSendPasswordResetEmail
+    const sendEmailChangeConfirmation =
+        deps.sendEmailChangeConfirmation ?? realSendEmailChangeConfirmation
+    const sendEmailChangedNotice = deps.sendEmailChangedNotice ?? realSendEmailChangedNotice
     const processor = deps.processor
     const userEventHub = deps.userEventHub
     const alertEvaluator = deps.alertEvaluator
@@ -147,13 +160,32 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/auth/demo-login", authRateLimiter)
     app.use("/api/auth/forgot-password", authRateLimiter)
     app.use("/api/auth/reset-password", authRateLimiter)
+    // Efetiva troca de e-mail (issue #178) — endpoint público consumidor de
+    // token, mesma classe de abuso dos outros 4.
+    app.use("/api/auth/confirm-email-change", authRateLimiter)
 
     app.use("/api/users", exportRoutes(authenticate, prismaClient, auditService))
-    app.use("/api/users", userRoutes(authenticate, prismaClient, auditService))
+    app.use(
+        "/api/users",
+        userRoutes(
+            authenticate,
+            prismaClient,
+            sendEmailChangeConfirmation,
+            sendEmailChangedNotice,
+            auditService,
+        ),
+    )
     app.use("/api/admin", adminRoutes(authenticate, prismaClient, auditService))
     app.use(
         "/api/auth",
-        authRoutes(authenticate, prismaClient, sendPasswordResetEmail, auditService),
+        authRoutes(
+            authenticate,
+            prismaClient,
+            sendPasswordResetEmail,
+            sendEmailChangeConfirmation,
+            sendEmailChangedNotice,
+            auditService,
+        ),
     )
     app.use("/api/distributors", distributorRoutes(authenticate, prismaClient))
     app.use("/api/tariff-flag", tariffFlagRoutes(authenticate, prismaClient))

@@ -46,6 +46,13 @@ export const resetPasswordSchema = z.object({
     newPassword: passwordSchema,
 })
 
+// ─── Confirmação de troca de e-mail (issue #178) ───────────────────────────────
+// O `token` é o UUID gerado por EmailChangeService.requestChange e enviado
+// ao NOVO endereço — confirmá-lo é o que efetiva a troca.
+export const confirmEmailChangeSchema = z.object({
+    token: z.string().min(1, { message: "Token é obrigatório" }),
+})
+
 // ─── MFA — login (segunda etapa) ───────────────────────────────────────────────
 // Completa o login após `mfaRequired:true` — `mfaToken` é o JWT de curta
 // duração (5min) emitido por login() quando o usuário tem MFA habilitado;

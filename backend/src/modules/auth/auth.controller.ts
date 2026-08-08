@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express"
 import type { AuthService } from "@/modules/auth/auth.service.js"
+import type { EmailChangeService } from "@/modules/auth/email-change.service.js"
 import type { UserService } from "@/modules/user/user.service.js"
 import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
@@ -22,6 +23,7 @@ export class AuthController {
         private readonly authService: AuthService,
         private readonly userService: UserService,
         private readonly auditService: AuditService,
+        private readonly emailChangeService: EmailChangeService,
     ) {}
 
     // POST /api/auth/login — Público
@@ -266,6 +268,30 @@ export class AuthController {
             res.status(200).json({
                 status: "success",
                 message: "Senha redefinida com sucesso",
+            })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    // POST /api/auth/confirm-email-change — Público (mas exige token válido)
+    async confirmEmailChange(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { userId } = await this.emailChangeService.confirmChange(req.body)
+
+            await this.auditService.record({
+                userId,
+                action: "USER_UPDATE",
+                outcome: "SUCCESS",
+                resourceType: "User",
+                resourceId: userId,
+                metadata: { fields: ["email"] },
+                ...getRequestContext(req),
+            })
+
+            res.status(200).json({
+                status: "success",
+                message: "E-mail atualizado com sucesso",
             })
         } catch (error) {
             next(error)

@@ -6,6 +6,7 @@ import {
     ConflictError,
     ForbiddenError,
     NotFoundError,
+    UnauthorizedError,
     ValidationError,
 } from "@/shared/errors/AppError.js"
 import { CURRENT_CONSENT_VERSION } from "@/shared/legal/consentVersion.js"
@@ -15,6 +16,25 @@ import { DEMO_ACCOUNT_EMAILS } from "@/shared/config/demoAccounts.js"
 // 12 é um bom equilíbrio entre segurança e performance.
 const BCRYPT_ROUNDS = 12
 
+// Dispara o pedido de troca de e-mail (issue #178) — plano fino injetado no
+// construtor, mesma "tomada elétrica" que o resto do service já usa, para
+// UserService não importar EmailChangeService/AuthRepository (módulo
+// diferente) diretamente. Ver user.routes.ts para a instância real.
+export type RequestEmailChangeFn = (params: {
+    userId: string
+    oldEmail: string
+    newEmail: string
+}) => Promise<void>
+
+// Default falha fechado, não um no-op silencioso: se algum composition
+// root esquecer de conectar essa dependência, uma troca de e-mail real
+// bateria aqui e retornaria 200 sem nunca enviar e-mail nenhum — pior do
+// que simplesmente quebrar alto (CLAUDE.md: "falhar fechado"). Chamadores
+// que nunca trocam e-mail (a maioria dos testes) nunca alcançam este ramo.
+const throwRequestEmailChangeNotConfigured: RequestEmailChangeFn = async () => {
+    throw new Error("UserService: requestEmailChange não foi configurado")
+}
+
 export class UserService {
     // `registrationEnabled` é injetado (não lido de `env` direto aqui) para
     // o guard ficar testável sem mockar módulo — mesma "tomada elétrica"
@@ -23,6 +43,7 @@ export class UserService {
     constructor(
         private readonly userRepository: UserRepository,
         private readonly registrationEnabled: boolean = true,
+        private readonly requestEmailChange: RequestEmailChangeFn = throwRequestEmailChangeNotConfigured,
     ) {}
 
     async createUser(input: unknown) {
@@ -107,17 +128,39 @@ export class UserService {
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
-        const data = parsed.data
+        // `email`/`currentPassword` nunca vão para userRepository.update —
+        // o e-mail só é efetivado quando a troca é confirmada (issue #178),
+        // nunca diretamente aqui; os demais campos (nome etc.) persistem
+        // normalmente, tratado ou não o e-mail nesta chamada.
+        const { email, currentPassword, ...restData } = parsed.data
 
-        if (data.email && data.email !== existing.email) {
-            const emailConflict = await this.userRepository.findByEmail(data.email)
+        if (email && email !== existing.email) {
+            // Reautenticação (A07): sem isso, uma sessão sequestrada podia
+            // trocar o e-mail e, em seguida, disparar o forgot-password no
+            // endereço novo — cadeia completa de tomada de conta.
+            if (!currentPassword) {
+                throw new ValidationError("Senha atual é obrigatória para alterar o e-mail")
+            }
+
+            const withPassword = await this.userRepository.findByIdWithPassword(id)
+            const isValidPassword = withPassword
+                ? await bcrypt.compare(currentPassword, withPassword.password)
+                : false
+
+            if (!isValidPassword) {
+                throw new UnauthorizedError("Senha atual incorreta")
+            }
+
+            const emailConflict = await this.userRepository.findByEmail(email)
 
             if (emailConflict) {
                 throw new ConflictError("E-mail já cadastrado")
             }
+
+            await this.requestEmailChange({ userId: id, oldEmail: existing.email, newEmail: email })
         }
 
-        return this.userRepository.update(id, data)
+        return this.userRepository.update(id, restData)
     }
 
     async deleteUser(id: string): Promise<void> {

@@ -188,4 +188,15 @@ export const authService = {
     resetPassword: async (token: string, newPassword: string): Promise<void> => {
         await api.post("/auth/reset-password", { token, newPassword })
     },
+
+    /**
+     * Efetiva a troca de e-mail pedida via PUT /users/:id (issue #178), a
+     * partir do token recebido no NOVO endereço (link gerado em
+     * backend/src/modules/auth/email.service.ts, válido por 1h). Todas as
+     * sessões do usuário são revogadas no backend quando isso acontece —
+     * inclusive a que estiver fazendo esta chamada, se houver.
+     */
+    confirmEmailChange: async (token: string): Promise<void> => {
+        await api.post("/auth/confirm-email-change", { token })
+    },
 }
