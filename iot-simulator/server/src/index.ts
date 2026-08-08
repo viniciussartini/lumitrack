@@ -7,10 +7,15 @@ import { SimulationEngine } from "@/simulation/simulationEngine.js"
 import { createApp } from "@/api/app.js"
 
 async function main(): Promise<void> {
-    const broker = createBroker()
-    await broker.start(env.BROKER_PORT)
+    const credentials = { username: env.BROKER_USERNAME, password: env.BROKER_PASSWORD }
 
-    const publisher = createInternalPublisher(`mqtt://localhost:${env.BROKER_PORT}`)
+    const broker = createBroker(credentials)
+    await broker.start(env.BROKER_PORT, env.BROKER_HOST)
+
+    const publisher = createInternalPublisher(
+        `mqtt://${env.BROKER_HOST}:${env.BROKER_PORT}`,
+        credentials,
+    )
     await publisher.connect()
 
     const store = new SimulationStore()
@@ -18,9 +23,9 @@ async function main(): Promise<void> {
     engine.startEngine()
 
     const app = createApp({ store, engine })
-    const server = app.listen(env.API_PORT, () => {
-        logger.info(`API de controle em http://localhost:${env.API_PORT}`)
-        logger.info(`Broker MQTT embutido em mqtt://localhost:${env.BROKER_PORT}`)
+    const server = app.listen(env.API_PORT, env.API_HOST, () => {
+        logger.info(`API de controle em http://${env.API_HOST}:${env.API_PORT}`)
+        logger.info(`Broker MQTT embutido em mqtt://${env.BROKER_HOST}:${env.BROKER_PORT}`)
     })
 
     let shuttingDown = false

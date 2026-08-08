@@ -256,6 +256,12 @@ jobs:
     defaults:
       run:
         working-directory: iot-simulator
+    env:
+      # Nenhum destes valores é um segredo real — só para satisfazer a
+      # validação de env.ts do simulador neste ambiente de CI (issue #180).
+      SIMULATOR_API_TOKEN: ci-only-dummy-token-nao-usado-em-producao
+      BROKER_USERNAME: ci-dummy-user
+      BROKER_PASSWORD: ci-dummy-pass
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
