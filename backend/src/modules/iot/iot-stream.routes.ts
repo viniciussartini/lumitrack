@@ -136,13 +136,28 @@ export function iotStreamRoutes(
         // terminar, coerente com a sessão não existir mais.
         const membershipRefresh = setInterval(() => {
             void (async () => {
-                const sessionValid = await isSessionStillValid(authToken, authRepository)
-                if (!sessionValid) {
-                    cleanup()
-                    res.end()
-                    return
+                // A conexão pode já ter fechado (cleanup() já rodou, limpando
+                // este interval) enquanto este tick estava em voo — um tick já
+                // disparado não é cancelado por clearInterval. Sem essa guarda,
+                // um erro aqui (ex.: pool de conexões já encerrado) vira uma
+                // promise rejeitada sem tratamento, que no Node derruba o
+                // processo inteiro — levando junto todo stream SSE aberto, não
+                // só este.
+                if (res.writableEnded) return
+                try {
+                    const sessionValid = await isSessionStillValid(authToken, authRepository)
+                    if (res.writableEnded) return
+                    if (!sessionValid) {
+                        cleanup()
+                        res.end()
+                        return
+                    }
+                    userMeterIds = await resolveUserMeterIds(userId, prismaClient)
+                } catch {
+                    // Falha transitória (rede, banco) durante a revalidação
+                    // periódica — a conexão segue aberta e tenta de novo no
+                    // próximo tick; não deve derrubar o processo nem o stream.
                 }
-                userMeterIds = await resolveUserMeterIds(userId, prismaClient)
             })()
         }, membershipRefreshIntervalMs)
 

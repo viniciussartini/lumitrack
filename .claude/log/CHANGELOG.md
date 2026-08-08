@@ -1157,3 +1157,13 @@
 - **Arquivos principais:** `.gitleaks.toml`.
 - **Decisões/ADRs:** nenhuma — correção de configuração de CI, sem decisão de arquitetura.
 - **Notas:** não é possível rodar `gitleaks` localmente (nem o binário nem `docker` disponíveis neste ambiente) para reverificar antes do push; a correção segue exatamente o padrão das 4 entradas irmãs já existentes e cobre as 2 ocorrências reportadas (mesma string, 2 linhas do `ci.yml`). Confirmar visualmente no próximo run do CI.
+
+## [2026-08-08] fix: trata erro do refresh periódico do SSE para não derrubar o processo
+
+- **Branch:** fix/185-endurecimento-seguranca-p1
+- **Tipo:** fix
+- **O quê:** o job `backend-test` do CI (PR #186) falhou com "Vitest caught 1 unhandled error" / "Cannot use a pool after calling end on the pool", atribuído a `iot-stream.routes.test.ts`. Causa raiz em `iot-stream.routes.ts::membershipRefresh` (o `setInterval` de revalidação de sessão da issue #184): o corpo assíncrono do tick era um `void (async () => {...})()` sem `try/catch`. Um tick já disparado não é cancelado por `clearInterval` — se a conexão fechasse (`cleanup()`) enquanto um tick estava em voo e a query subjacente falhasse (no teste: pool do Prisma já encerrado pelo `afterAll`; em produção: qualquer blip transitório de rede/banco), a promise rejeitada ficava sem tratamento. Em Node moderno isso derruba o processo inteiro por padrão — um único erro passageiro nessa revalidação periódica levaria junto **todo** stream SSE aberto, não só o da conexão que falhou. Achado durante a investigação do CI, não coberto pelos critérios de aceite originais da #184.
+- **Correção:** guarda `res.writableEnded` antes e depois do `await` (evita trabalho desnecessário numa conexão já fechada) e `try/catch` em volta do corpo do tick — falha vira log silencioso (conexão segue aberta, tenta de novo no próximo tick) em vez de promise não tratada.
+- **Arquivos principais:** `backend/src/modules/iot/iot-stream.routes.ts`.
+- **Decisões/ADRs:** nenhuma — correção de robustez, sem decisão de arquitetura.
+- **Notas:** backend — `lint`, `format:check`, `depcruise`, `build` limpos; `test -- --run` com 882/884 (as 2 falhas restantes são de `auth.routes.test.ts::demo-login`, causadas por `DEMO_LOGIN_ENABLED=true` no `.env` local do ambiente de desenvolvimento vazando pro processo de teste via `dotenv/config`— `ci.yml` não declara essa variável, então usa o default `false` do schema; não é regressão desta mudança). `iot-stream.routes.test.ts` isolado: 11/11 verde, sem "Unhandled Errors".
