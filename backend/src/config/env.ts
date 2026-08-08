@@ -115,6 +115,17 @@ export const envSchema = z
         REFRESH_CSRF_HEADER_NAME: z.string().default("x-refresh-csrf-token"),
         DATA_RETENTION_REFRESH_TOKEN_DAYS: z.coerce.number().default(30),
 
+        // Cadastro público (A06/ADR-0008). Desligar em ambiente de demo
+        // pública: `POST /api/users` passa a recusar contas novas — é a
+        // premissa da ADR-0008 (hospedagem), que só garante ausência de
+        // transferência internacional enquanto o ambiente público não trata
+        // dado pessoal real. Default `true`: nenhum ambiente de
+        // desenvolvimento/produção normal perde a função sem opt-in explícito.
+        // `z.stringbool()` (não `z.coerce.boolean()`) de propósito — coerce
+        // faz `Boolean("false") === true`, o que tornaria impossível
+        // desligar a flag via env; stringbool interpreta a string "false".
+        REGISTRATION_ENABLED: z.stringbool().default(true),
+
         // Proteção SSRF nas conexões de saída do medidor (A01). Loopback,
         // link-local, RFC1918/ULA e multicast são
         // negados por padrão (ver shared/security/outboundHost.ts) — esta lista

@@ -18,7 +18,12 @@ import {
     mfaSetupVerifySchema,
     mfaDisableSchema,
 } from "@/modules/auth/auth.schema.js"
-import { UnauthorizedError, BadRequestError, ValidationError } from "@/shared/errors/AppError.js"
+import {
+    UnauthorizedError,
+    BadRequestError,
+    ForbiddenError,
+    ValidationError,
+} from "@/shared/errors/AppError.js"
 import type { StringValue } from "ms"
 
 // Tipo do EmailService
@@ -145,6 +150,15 @@ export class AuthService {
 
         const { secret, code } = parsed.data
 
+        const user = await this.authRepository.findUserByIdWithPassword(userId)
+
+        // Contas de demonstração são somente leitura (ADR-0008 + achado de
+        // segurança "credenciais demo hardcoded") — sem isso, quem loga na
+        // conta demo pode habilitar MFA e sequestrá-la permanentemente.
+        if (user && DEMO_ACCOUNT_EMAILS.has(user.email)) {
+            throw new ForbiddenError("Conta de demonstração é somente leitura")
+        }
+
         // Step-up (A07): reinscrever o segundo fator de uma conta que
         // já tem MFA dá o mesmo resultado prático de desabilitá-lo — com o
         // bônus de expulsar o dono legítimo (`createBackupCodes` purga os
@@ -153,7 +167,6 @@ export class AuthService {
         // hardened `disable` → `setup`, em vez de duplicar a exigência de
         // senha+código aqui. Primeira inscrição (sem MFA) não passa por
         // aqui — não há fator vigente para provar.
-        const user = await this.authRepository.findUserByIdWithPassword(userId)
         if (user?.mfaEnabled) {
             throw new BadRequestError(
                 "MFA já está habilitado nesta conta — desabilite o fator atual antes de configurar um novo",
@@ -192,6 +205,12 @@ export class AuthService {
 
         if (!user || !user.mfaEnabled || !user.mfaSecret) {
             throw new BadRequestError("MFA não está habilitado para esta conta")
+        }
+
+        // Contas de demonstração são somente leitura — ver mesmo guard em
+        // verifyMfaSetup acima.
+        if (DEMO_ACCOUNT_EMAILS.has(user.email)) {
+            throw new ForbiddenError("Conta de demonstração é somente leitura")
         }
 
         const isValidPassword = await bcrypt.compare(password, user.password)

@@ -4,7 +4,7 @@ import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
-import { UnauthorizedError, BadRequestError } from "@/shared/errors/AppError.js"
+import { UnauthorizedError, BadRequestError, ForbiddenError } from "@/shared/errors/AppError.js"
 import { hashToken } from "@/shared/crypto/hashToken.js"
 import { DEMO_RESIDENTIAL_EMAIL } from "@/shared/config/demoAccounts.js"
 import { generate } from "otplib"
@@ -467,6 +467,19 @@ describe("AuthService", () => {
             return user.id
         }
 
+        // Issue #177 (ADR-0008): conta de demonstração — usada pelos testes
+        // de somente-leitura em verifyMfaSetup/disableMfa abaixo.
+        async function createDemoUserAndGetId(): Promise<string> {
+            const { UserService } = await import("@/modules/user/user.service.js")
+            const userService = new UserService(userRepository)
+            const user = await userService.createUser({
+                ...validUser,
+                email: DEMO_RESIDENTIAL_EMAIL,
+                cpf: "912.345.678-73",
+            })
+            return user.id
+        }
+
         // Habilita o MFA de ponta a ponta (setup → verify) e devolve o
         // secret em texto claro + os backup codes — reaproveitado pelos
         // testes de login/disable, que precisam gerar códigos válidos.
@@ -525,6 +538,22 @@ describe("AuthService", () => {
 
                 const user = await prismaTest.user.findUnique({ where: { id: userId } })
                 expect(user?.mfaEnabled).toBe(false)
+            })
+
+            // Issue #177 (ADR-0008): sem este guard, uma sessão na conta
+            // demo pode habilitar MFA e sequestrá-la permanentemente.
+            it("lança ForbiddenError e não habilita MFA numa conta de demonstração", async () => {
+                const demoUserId = await createDemoUserAndGetId()
+                const { secret } = await authService.setupMfa(DEMO_RESIDENTIAL_EMAIL)
+                const code = await generate({ secret })
+
+                await expect(
+                    authService.verifyMfaSetup(demoUserId, { secret, code }),
+                ).rejects.toThrow(ForbiddenError)
+
+                const user = await prismaTest.user.findUnique({ where: { id: demoUserId } })
+                expect(user?.mfaEnabled).toBe(false)
+                expect(user?.mfaSecret).toBeNull()
             })
 
             // #10 — OWASP A07: reinscrever o segundo fator dá o mesmo
@@ -754,6 +783,25 @@ describe("AuthService", () => {
 
                 const user = await prismaTest.user.findUnique({ where: { id: userId } })
                 expect(user?.mfaEnabled).toBe(false)
+            })
+
+            // Issue #177 (ADR-0008): defesa em profundidade — mesmo que uma
+            // conta demo chegue com MFA habilitado por fora do fluxo normal
+            // (verifyMfaSetup já bloqueia a conta demo; isto simula um
+            // estado legado/manual), disableMfa continua recusando.
+            it("lança ForbiddenError ao tentar desabilitar MFA de uma conta de demonstração", async () => {
+                const demoUserId = await createDemoUserAndGetId()
+                const { secret } = await authService.setupMfa(DEMO_RESIDENTIAL_EMAIL)
+                const { encryptMfaSecret } = await import("@/shared/crypto/mfaEncryption.js")
+                await authRepository.setMfaSecret(demoUserId, encryptMfaSecret(secret))
+                const code = await generate({ secret })
+
+                await expect(
+                    authService.disableMfa(demoUserId, { password: validUser.password, code }),
+                ).rejects.toThrow(ForbiddenError)
+
+                const user = await prismaTest.user.findUnique({ where: { id: demoUserId } })
+                expect(user?.mfaEnabled).toBe(true)
             })
 
             it("lança UnauthorizedError para senha incorreta, sem desabilitar o MFA", async () => {

@@ -3,7 +3,13 @@ import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
-import { ConflictError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import {
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    ValidationError,
+} from "@/shared/errors/AppError.js"
+import { DEMO_RESIDENTIAL_EMAIL } from "@/shared/config/demoAccounts.js"
 
 // Instanciamos as dependências reais — sem mocks.
 // O repository usa o prismaTest (banco lumitrack_test),
@@ -35,6 +41,11 @@ const validCompanyInput = {
     companyName: "Empresa Ltda",
     cnpj: "11.222.333/0001-81", // CNPJ válido para testes
     tradeName: "Empresa",
+}
+
+const validDemoInput = {
+    ...validIndividualInput,
+    email: DEMO_RESIDENTIAL_EMAIL,
 }
 
 // ─── Setup e Teardown ─────────────────────────────────────────────────────────
@@ -183,6 +194,34 @@ describe("UserService", () => {
     })
 
     // ─────────────────────────────────────────────────────────────────────────
+    // SUITE: createUser — REGISTRATION_ENABLED (ADR-0008, issue #177)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    describe("createUser com cadastro público desabilitado", () => {
+        const userServiceRegistrationDisabled = new UserService(userRepository, false)
+
+        it("deve lançar ForbiddenError antes de validar o payload", async () => {
+            await expect(
+                userServiceRegistrationDisabled.createUser(validIndividualInput),
+            ).rejects.toThrow(ForbiddenError)
+        })
+
+        it("não deve persistir nenhum usuário quando a flag está desligada", async () => {
+            await expect(
+                userServiceRegistrationDisabled.createUser(validIndividualInput),
+            ).rejects.toThrow(ForbiddenError)
+
+            const created = await userRepository.findByEmail(validIndividualInput.email)
+            expect(created).toBeNull()
+        })
+
+        it("não afeta uma instância de UserService com a flag ligada (default)", async () => {
+            const user = await userService.createUser(validIndividualInput)
+            expect(user.id).toBeDefined()
+        })
+    })
+
+    // ─────────────────────────────────────────────────────────────────────────
     // SUITE: findById
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -243,6 +282,27 @@ describe("UserService", () => {
                 }),
             ).rejects.toThrow(ConflictError)
         })
+
+        // Issue #177 (ADR-0008): sem este guard, uma sessão na conta demo
+        // pode trocar o e-mail e sequestrá-la permanentemente.
+        it("deve lançar ForbiddenError ao tentar atualizar uma conta de demonstração", async () => {
+            const demo = await userService.createUser(validDemoInput)
+
+            await expect(
+                userService.updateUser(demo.id, { firstName: "Outro Nome" }),
+            ).rejects.toThrow(ForbiddenError)
+        })
+
+        it("não deve alterar nenhum campo da conta demo quando o guard recusa", async () => {
+            const demo = await userService.createUser(validDemoInput)
+
+            await expect(
+                userService.updateUser(demo.id, { firstName: "Outro Nome" }),
+            ).rejects.toThrow(ForbiddenError)
+
+            const stillOriginal = await userService.findById(demo.id)
+            expect(stillOriginal.firstName).toBe(validIndividualInput.firstName)
+        })
     })
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -263,6 +323,15 @@ describe("UserService", () => {
             await expect(
                 userService.deleteUser("00000000-0000-0000-0000-000000000000"),
             ).rejects.toThrow(NotFoundError)
+        })
+
+        it("deve lançar ForbiddenError ao tentar deletar uma conta de demonstração", async () => {
+            const demo = await userService.createUser(validDemoInput)
+
+            await expect(userService.deleteUser(demo.id)).rejects.toThrow(ForbiddenError)
+
+            // A conta continua existindo — a exclusão não pode ter passado batido.
+            await expect(userService.findById(demo.id)).resolves.toBeDefined()
         })
     })
 })

@@ -1,6 +1,7 @@
 import { Router } from "express"
 import type { RequestHandler } from "express"
 import { PrismaClient } from "@/generated/prisma/client.js"
+import { env } from "@/config/env.js"
 import { UserController } from "@/modules/user/user.controller.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { UserService } from "@/modules/user/user.service.js"
@@ -14,7 +15,7 @@ export function userRoutes(
     const router = Router()
 
     const userRepository = new UserRepository(prismaClient)
-    const userService = new UserService(userRepository)
+    const userService = new UserService(userRepository, env.REGISTRATION_ENABLED)
     const userController = new UserController(userService, auditService)
 
     // Rotas públicas
