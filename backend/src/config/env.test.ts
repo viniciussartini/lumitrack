@@ -15,6 +15,11 @@ const baseValidEnv = {
     MFA_SECRET_ENCRYPTION_KEY: "c".repeat(64),
     ADDRESS_ENCRYPTION_KEY: "d".repeat(64),
     METER_CREDENTIAL_ENCRYPTION_KEY: "e".repeat(64),
+    // Não-default de propósito — o default de localhost é rejeitado em
+    // produção pelo guard de PUBLIC_API_ORIGIN (ver describe abaixo), e a
+    // maioria dos testes deste arquivo usa NODE_ENV=production só para
+    // exercitar outro guard, não este.
+    PUBLIC_API_ORIGIN: "https://api.lumitrack.example",
 }
 
 describe("envSchema — guard CORS_ORIGIN em produção (A02)", () => {
@@ -51,6 +56,62 @@ describe("envSchema — guard CORS_ORIGIN em produção (A02)", () => {
         })
 
         expect(result.success).toBe(true)
+    })
+})
+
+describe("envSchema — guard PUBLIC_API_ORIGIN em produção (issue #183)", () => {
+    it("rejeita o default de localhost quando NODE_ENV=production", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            NODE_ENV: "production",
+            PUBLIC_API_ORIGIN: "http://localhost:3333",
+        })
+
+        expect(result.success).toBe(false)
+        if (!result.success) {
+            const issue = result.error.issues.find((i) => i.path[0] === "PUBLIC_API_ORIGIN")
+            expect(issue).toBeDefined()
+            expect(issue?.message).toMatch(/domínio real em produção/)
+        }
+    })
+
+    it("aceita um domínio real quando NODE_ENV=production", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            NODE_ENV: "production",
+            PUBLIC_API_ORIGIN: "https://api.lumitrack.com",
+        })
+
+        expect(result.success).toBe(true)
+    })
+
+    it("permite o default de localhost em development (guard só vale para produção)", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            NODE_ENV: "development",
+            PUBLIC_API_ORIGIN: "http://localhost:3333",
+        })
+
+        expect(result.success).toBe(true)
+    })
+
+    it("rejeita valor que não é uma URL", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            PUBLIC_API_ORIGIN: "não-e-uma-url",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("aplica o default de localhost quando ausente", () => {
+        const { PUBLIC_API_ORIGIN: _omit, ...rest } = baseValidEnv
+        const result = envSchema.safeParse(rest)
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.PUBLIC_API_ORIGIN).toBe("http://localhost:3333")
+        }
     })
 })
 

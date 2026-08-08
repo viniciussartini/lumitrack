@@ -2,6 +2,24 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      CSP do SPA (issue #183). O hash cobre só o script anti-FOUC abaixo,
+      byte a byte — Vite não transforma scripts inline não-module no build
+      (confirmado comparando index.html com dist/index.html), então o hash
+      não muda entre dev e produção. Se o conteúdo desse script mudar,
+      recalcule com:
+        node -e "const fs=require('fs'),c=require('crypto');
+        const m=fs.readFileSync('index.html','utf8').match(/<script>([\s\S]*?)<\/script>/);
+        console.log('sha256-'+c.createHash('sha256').update(m[1],'utf8').digest('base64'))"
+      `frame-ancestors`/`base-uri`/`object-src` não têm efeito via <meta>
+      (só via header HTTP) — mantidos aqui documentando a intenção; o
+      reverse proxy de produção (ADR-0008) deve enviar o header equivalente
+      quando configurado.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'sha256-+up+7C+rtXMLX83AFmz9GUqo6C3J6ptqB1rNLtcKJRM='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
+    />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LumiTrack</title>

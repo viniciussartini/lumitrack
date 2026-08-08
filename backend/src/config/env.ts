@@ -43,6 +43,15 @@ export const envSchema = z
 
         FRONTEND_URL: z.string().default("http://localhost:3000"),
 
+        // Host canônico do redirect HTTP→HTTPS em produção (issue #183) —
+        // NUNCA o `Host` do cliente (ver shared/security/httpsRedirect.ts):
+        // um Host forjado usado como destino do redirect é open redirect via
+        // Host header. Default de dev inofensivo; `.refine` abaixo barra o
+        // default em produção, mesmo padrão já usado para CORS_ORIGIN="*".
+        PUBLIC_API_ORIGIN: z
+            .url({ message: "PUBLIC_API_ORIGIN deve ser uma URL válida" })
+            .default("http://localhost:3333"),
+
         // Rate limiting — rede de segurança global por IP.
         RATE_LIMIT_WINDOW_MS: z.coerce.number().default(15 * 60 * 1000),
         RATE_LIMIT_MAX: z.coerce.number().default(1000),
@@ -160,6 +169,15 @@ export const envSchema = z
             "CORS_ORIGIN não pode ser '*' em produção (combinado com credentials: true, isso expõe a API a qualquer origem)",
         path: ["CORS_ORIGIN"],
     })
+    .refine(
+        (data) =>
+            !(data.NODE_ENV === "production" && data.PUBLIC_API_ORIGIN === "http://localhost:3333"),
+        {
+            message:
+                "PUBLIC_API_ORIGIN precisa ser configurado com o domínio real em produção — o default de localhost faria o redirect HTTPS e a checagem de Host apontarem para o lugar errado",
+            path: ["PUBLIC_API_ORIGIN"],
+        },
+    )
     .refine((data) => data.NODE_ENV !== "test" || data.DATABASE_TEST_URL !== undefined, {
         message: "DATABASE_TEST_URL é obrigatória quando NODE_ENV=test",
         path: ["DATABASE_TEST_URL"],

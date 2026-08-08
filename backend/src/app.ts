@@ -9,6 +9,7 @@ import { logger } from "@/shared/logger/logger.js"
 import { createErrorHandler } from "@/shared/middlewares/errorHandler.js"
 import { createAuthenticateMiddleware } from "@/shared/middlewares/authenticate.js"
 import { createGlobalRateLimiter, createAuthRateLimiter } from "@/shared/middlewares/rateLimiter.js"
+import { decideHttpsRedirect } from "@/shared/security/httpsRedirect.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { AuditService } from "@/shared/audit/audit.service.js"
 import { PrismaClient } from "@/generated/prisma/client.js"
@@ -80,16 +81,38 @@ export function createApp(deps: AppDependencies = {}) {
         // (X-Forwarded-Proto/X-Forwarded-For) em vez do proxy — sem isso, o
         // rate limiter por IP trataria todos os clientes como um único IP.
         app.set("trust proxy", 1)
-
-        // Redireciona HTTP → HTTPS antes de qualquer outro middleware.
-        app.use((req, res, next) => {
-            if (!req.secure) {
-                res.redirect(301, `https://${req.headers.host}${req.originalUrl}`)
-                return
-            }
-            next()
-        })
     }
+
+    // Host canônico (issue #183) — recusa Host fora do domínio real (400) e
+    // redireciona HTTP → HTTPS usando SEMPRE esse valor fixo, nunca o header
+    // do cliente (evita open redirect via Host forjado). Decisão pura em
+    // shared/security/httpsRedirect.ts — no-op fora de produção.
+    const canonicalUrl = new URL(env.PUBLIC_API_ORIGIN)
+    const canonicalHost = canonicalUrl.host
+    const canonicalOrigin = canonicalUrl.origin
+
+    app.use((req, res, next) => {
+        const decision = decideHttpsRedirect({
+            nodeEnv: env.NODE_ENV,
+            requestHost: req.headers.host,
+            requestSecure: req.secure,
+            originalUrl: req.originalUrl,
+            canonicalHost,
+            canonicalOrigin,
+        })
+
+        if (decision.action === "reject") {
+            res.status(400).json({ status: "error", message: "Host não reconhecido" })
+            return
+        }
+
+        if (decision.action === "redirect") {
+            res.redirect(301, decision.location)
+            return
+        }
+
+        next()
+    })
 
     app.use(
         helmet({
