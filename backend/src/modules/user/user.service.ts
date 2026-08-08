@@ -16,6 +16,14 @@ import { DEMO_ACCOUNT_EMAILS } from "@/shared/config/demoAccounts.js"
 // 12 é um bom equilíbrio entre segurança e performance.
 const BCRYPT_ROUNDS = 12
 
+// Issue #181 — mesma mensagem para os 3 conflitos de unicidade do cadastro
+// (e-mail/CPF/CNPJ), sem distinguir qual documento colidiu: mensagens
+// específicas ("CPF já cadastrado") permitem a um visitante sondar, um por
+// um, se um CPF/CNPJ/e-mail alheio já tem conta — minimização análoga à já
+// aplicada em forgotPassword (auth.service.ts), que nunca revela se o
+// e-mail existe.
+const REGISTRATION_CONFLICT_MESSAGE = "Já existe uma conta cadastrada com os dados informados"
+
 // Dispara o pedido de troca de e-mail (issue #178) — plano fino injetado no
 // construtor, mesma "tomada elétrica" que o resto do service já usa, para
 // UserService não importar EmailChangeService/AuthRepository (módulo
@@ -68,14 +76,14 @@ export class UserService {
         const existingEmail = await this.userRepository.findByEmail(data.email)
 
         if (existingEmail) {
-            throw new ConflictError("E-mail já cadastrado")
+            throw new ConflictError(REGISTRATION_CONFLICT_MESSAGE)
         }
 
         if (data.userType === "INDIVIDUAL" && data.cpf) {
             const existingCpf = await this.userRepository.findByCpf(data.cpf)
 
             if (existingCpf) {
-                throw new ConflictError("CPF já cadastrado")
+                throw new ConflictError(REGISTRATION_CONFLICT_MESSAGE)
             }
         }
 
@@ -83,7 +91,7 @@ export class UserService {
             const existingCnpj = await this.userRepository.findByCnpj(data.cnpj)
 
             if (existingCnpj) {
-                throw new ConflictError("CNPJ já cadastrado")
+                throw new ConflictError(REGISTRATION_CONFLICT_MESSAGE)
             }
         }
 

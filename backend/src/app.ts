@@ -163,6 +163,12 @@ export function createApp(deps: AppDependencies = {}) {
     // Efetiva troca de e-mail (issue #178) — endpoint público consumidor de
     // token, mesma classe de abuso dos outros 4.
     app.use("/api/auth/confirm-email-change", authRateLimiter)
+    // Cadastro público (issue #181) — mesmo alvo de abuso/enumeração dos
+    // endpoints acima. `app.post` (não `app.use`) porque "/api/users" é
+    // prefixo também de GET/PUT/DELETE /api/users/:id (autenticados, já
+    // cobertos pelo rate limit global) — `app.use` aplicaria o limiter
+    // estrito a esses também, o que não é o objetivo aqui.
+    app.post("/api/users", authRateLimiter)
 
     app.use("/api/users", exportRoutes(authenticate, prismaClient, auditService))
     app.use(

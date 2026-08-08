@@ -146,6 +146,41 @@ describe("UserService", () => {
             ).rejects.toThrow(ConflictError)
         })
 
+        // Issue #181 — a mensagem não pode distinguir qual dos 3 documentos
+        // colidiu, senão um visitante consegue sondar, um por um, se um
+        // e-mail/CPF/CNPJ específico já tem conta cadastrada.
+        it("deve usar a mesma mensagem genérica para os 3 conflitos de unicidade", async () => {
+            await userService.createUser(validIndividualInput)
+            await userService.createUser(validCompanyInput)
+
+            let emailMessage: string | undefined
+            let cpfMessage: string | undefined
+            let cnpjMessage: string | undefined
+
+            try {
+                await userService.createUser({ ...validIndividualInput, cpf: "310.037.856-38" })
+            } catch (e) {
+                if (e instanceof ConflictError) emailMessage = e.message
+            }
+            try {
+                await userService.createUser({
+                    ...validIndividualInput,
+                    email: "outro@example.com",
+                })
+            } catch (e) {
+                if (e instanceof ConflictError) cpfMessage = e.message
+            }
+            try {
+                await userService.createUser({ ...validCompanyInput, email: "outro@empresa.com" })
+            } catch (e) {
+                if (e instanceof ConflictError) cnpjMessage = e.message
+            }
+
+            expect(emailMessage).toBeDefined()
+            expect(emailMessage).toBe(cpfMessage)
+            expect(emailMessage).toBe(cnpjMessage)
+        })
+
         // ── Validações de campos obrigatórios ────────────────────────────────────
 
         it("deve lançar ValidationError quando pessoa física não informar CPF", async () => {

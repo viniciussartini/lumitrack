@@ -166,6 +166,23 @@ describe("POST /api/users", () => {
         expect(response.body.status).toBe("error")
     })
 
+    // Issue #181 — mensagem genérica: a resposta não deve indicar qual
+    // documento colidiu (e-mail x CPF), senão um visitante consegue sondar
+    // um CPF alheio específico por tentativa e erro via 409.
+    it("deve retornar a mesma mensagem genérica para conflito de e-mail e de CPF", async () => {
+        await request(app).post("/api/users").send(validIndividualBody)
+
+        const emailConflict = await request(app)
+            .post("/api/users")
+            .send({ ...validIndividualBody, cpf: "310.037.856-38" })
+        const cpfConflict = await request(app)
+            .post("/api/users")
+            .send({ ...validIndividualBody, email: "outro@example.com" })
+
+        expect(emailConflict.body.message).toBeDefined()
+        expect(emailConflict.body.message).toBe(cpfConflict.body.message)
+    })
+
     it("deve retornar 422 quando pessoa fisica nao informar CPF", async () => {
         const { cpf: _cpf, ...bodyWithoutCpf } = validIndividualBody
 

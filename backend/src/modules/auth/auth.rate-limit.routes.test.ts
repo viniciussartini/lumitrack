@@ -78,4 +78,52 @@ describe("Rate limiting — endpoints de autenticação", () => {
 
         expect(other.status).toBe(401)
     })
+
+    // Issue #181 — cadastro público (POST /api/users) ganhou o mesmo rate
+    // limit estrito dos endpoints de auth acima (abuso de criação em massa /
+    // enumeração de contas).
+    it("deve retornar 429 após exceder o limite de tentativas de cadastro", async () => {
+        const body = {
+            email: "bruteforce-cadastro@example.com",
+            password: "Senha@123",
+            userType: "INDIVIDUAL",
+            acceptedTerms: true,
+            firstName: "Ataque",
+            lastName: "Forca-Bruta",
+            cpf: "529.982.247-25",
+        }
+
+        // 3 tentativas dentro do limite — a 1ª cria a conta (201), as
+        // seguintes conflitam com o e-mail já usado (409). Nenhuma das duas
+        // é o que o teste avalia — o limite conta a requisição, não o status.
+        for (let i = 0; i < 3; i++) {
+            await request(app).post("/api/users").send(body)
+        }
+
+        const blocked = await request(app).post("/api/users").send(body)
+        expect(blocked.status).toBe(429)
+        expect(blocked.body.status).toBe("error")
+    })
+
+    // GET/PUT/DELETE /api/users/:id não devem herdar o limiter estrito — só
+    // POST /api/users (cadastro) é alvo dele (ver app.ts: app.post, não
+    // app.use, para não also aplicar sobre as rotas autenticadas).
+    it("não aplica o limiter estrito a GET /api/users/:id", async () => {
+        const created = await request(app).post("/api/users").send({
+            email: "nao-limitado@example.com",
+            password: "Senha@123",
+            userType: "INDIVIDUAL",
+            acceptedTerms: true,
+            firstName: "Sem",
+            lastName: "Limite",
+            cpf: "310.037.856-38",
+        })
+        const userId = created.body.data.id as string
+
+        // 5 requisições GET sem token — todas 401 (não autenticadas), nunca 429.
+        for (let i = 0; i < 5; i++) {
+            const res = await request(app).get(`/api/users/${userId}`)
+            expect(res.status).toBe(401)
+        }
+    })
 })
