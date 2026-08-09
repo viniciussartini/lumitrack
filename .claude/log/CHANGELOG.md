@@ -1219,3 +1219,28 @@
 - **Arquivos principais (no repositório separado `~/Development/lumitrack.wiki/`):** `Home.md`, `Contextualização.md`, `O-Sistema-Elétrico-Brasileiro.md` (todos modificados); `História-do-projeto.md`, `_Sidebar.md` (novos); `O Sistema Elétrico Brasileiro` (removido). Nenhum arquivo deste repositório principal foi alterado nesta issue.
 - **Decisões/ADRs:** nenhuma — reescrita de documentação, sem decisão de arquitetura.
 - **Notas:** fecha o Bloco B da Fase 13.5 nos itens de wiki e do documento de domínio (issues #200 e #201). O commit e o push do wiki **não foram feitos** — são do usuário, o guard-rail deste repositório principal não cobre o repositório do wiki. Confirmar as 7 checkboxes do critério de aceite da issue: arquivo editado no clone ✓, `Home.md` reescrita ✓, `História-do-projeto.md` nova ✓, `Contextualização.md` revisada ✓, `O-Sistema-Elétrico-Brasileiro.md` sincronizado ✓, `_Sidebar.md` novo ✓, duplicado removido ✓.
+
+## [2026-08-09] docs: README da raiz — Sobre, como participar e conformidade para forks
+
+- **Branch:** main
+- **Tipo:** docs
+- **O quê:** issue #196 (Fase 13.5, Bloco B — épico #187). O `README.md` da raiz tinha 21 linhas: uma seção "Sobre" com uma única frase apontando para o wiki, e um link morto (`mobile/README.md`, diretório inexistente). Reescrito para cumprir os 5 critérios de aceite da issue.
+- **Correção:**
+  - **Sobre** — resumo do produto, o que ele entrega hoje (Grupo B, ingestão IoT, tarifação decomposta, alertas, SSE, export PDF, simulador), stack, e um resumo do roadmap (Fases 1–13 concluídas, fase atual, planejadas — incluindo a expansão futura Grupo A/ACL/Tarifa Branca), terminando com o link do wiki.
+  - **Como participar** — duas vias: contribuir neste repositório (issues/PRs, apontando para os templates já existentes em `.github/`) ou fazer fork, com a exigência de preservar atribuição ao repositório e ao autor.
+  - **Conformidade para forks comerciais** — bloco com as duas obrigações reais: GPL-3.0 (copyleft forte, código modificado precisa ser publicado) e LGPD (fork que trata dado real de titular vira controlador — base legal, canal do titular, ROPA, DPA, SCC), apontando para a ADR-0008 como o precedente de como este projeto resolveu as mesmas obrigações para a demo pública, em vez de inventar orientação jurídica nova. Ressalva de "não é parecer jurídico" explícita, mesmo padrão do `09-conformidade-legal.md`.
+  - **Documentação** — backend, frontend, mobile (sem link, já que o diretório não existe — antes apontava para um `mobile/README.md` morto) e `iot-simulator` (criado na issue #199).
+  - Todos os 8 links do arquivo novo verificados como resolvendo para arquivo/diretório real antes do commit.
+- **Arquivos principais:** `README.md`.
+- **Decisões/ADRs:** nenhuma nova — o bloco de conformidade só referencia a ADR-0008 já existente.
+- **Notas:** não criado `CONTRIBUTING.md` — fora do escopo desta issue (só pede o `README.md`); a seção "Como participar" referencia os templates de issue/PR que já existem em `.github/` em vez de duplicar conteúdo.
+
+## [2026-08-09] docs: README raiz — natureza de portfólio e desenvolvimento assistido por IA
+
+- **Branch:** main
+- **Tipo:** docs
+- **O quê:** complemento pedido pelo usuário à issue #196, depois do primeiro commit dessa issue. Duas afirmações não estavam explícitas no README recém-reescrito: que o repositório é o portfólio pessoal do autor (não uma operação comercial), mas construído com o mesmo padrão de um sistema para produção real; e que o projeto foi construído com apoio de agentes de IA (Claude Code) através do kit de desenvolvimento `.claude/`, que é livre no repositório e pode ser usado, melhorado ou adaptado por colaboradores.
+- **Correção:** nova seção **"Sobre este repositório"**, entre "Sobre" e "Documentação" — primeiro parágrafo declara a natureza de portfólio e aponta as evidências concretas de padrão de produção já presentes no repositório (4 auditorias + 4 fases de remediação, ADR-0008, 15 jobs de CI, fase dedicada de infraestrutura de deploy) em vez de só afirmar sem lastro; segundo parágrafo declara o uso de agentes de IA na construção e aponta o kit `.claude/` como livre e reutilizável, linkando para `README-DO-KIT.md` (guia de onboarding do kit, já existente no repositório, nunca antes referenciado pelo README raiz).
+- **Arquivos principais:** `README.md`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** entrada em complemento à anterior (mesma issue #196) — CHANGELOG é append-only, a entrada original não foi reescrita.
