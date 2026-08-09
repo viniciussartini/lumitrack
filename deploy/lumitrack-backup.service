@@ -1,0 +1,10 @@
+[Unit]
+Description=Backup do PostgreSQL do LumiTrack (pg_dump via Docker Compose)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=lumitrack
+WorkingDirectory=/opt/lumitrack
+ExecStart=/opt/lumitrack/deploy/backup-postgres.sh

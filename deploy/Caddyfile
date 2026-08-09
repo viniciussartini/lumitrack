@@ -1,0 +1,33 @@
+# Caddyfile — reverse proxy + TLS do go-live (Fase 13.5 Bloco A, issue #190).
+# {$DOMAIN} vem da variável de ambiente DOMAIN (deploy/.env, repassada pelo
+# docker-compose.yml) — nunca hardcode o domínio real aqui.
+#
+# Caddy obtém e renova o certificado Let's Encrypt sozinho (HTTP-01/TLS-ALPN),
+# sem certbot nem cron adicional — a porta 80 precisa estar acessível
+# publicamente para o desafio ACME funcionar (já é o caso: ufw libera 80/443
+# em deploy/provision-vm.sh).
+
+{$DOMAIN} {
+    handle /api/* {
+        reverse_proxy backend:3333
+    }
+
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        file_server
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        # Superconjunto da CSP via <meta> de frontend/index.html — cobre só
+        # as 3 diretivas que uma <meta http-equiv="Content-Security-Policy">
+        # não tem efeito nenhum ao entregar (frame-ancestors, base-uri,
+        # object-src só valem via header HTTP; ver a nota técnica do gate #5
+        # de go-live na ADR-0008). script-src/style-src/img-src/connect-src
+        # continuam cobertos só pela <meta> — não duplicados aqui.
+        Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+        X-Content-Type-Options "nosniff"
+        -Server
+    }
+}

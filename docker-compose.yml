@@ -1,0 +1,95 @@
+# Orquestração de produção da Fase 13.5 (go-live) — ver .claude/docs/DEPLOY.md
+# para o passo a passo completo e .claude/docs/adr/0008-hospedagem-brasil-oracle-always-free.md
+# para a topologia e o racional de hospedagem (VM única, sem operador estrangeiro).
+#
+# Variáveis deste arquivo (${...}) vêm de deploy/.env (copiar de deploy/.env.example).
+# Os serviços de aplicação (backend, simulator) usam seus próprios .env
+# (backend/.env, iot-simulator/server/.env — copiados dos respectivos
+# .env.example) via env_file, nunca variáveis inline aqui.
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    env_file:
+      - deploy/.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Sem `ports:` — só a rede interna do compose alcança o Postgres.
+    # Backup roda via `docker compose exec postgres pg_dump` (deploy/backup-postgres.sh),
+    # nunca expondo 5432 ao host ou à internet.
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    stop_grace_period: 30s # folga para o graceful shutdown (flush do MinuteBuffer) em server.ts
+    env_file:
+      - backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3333/health',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    # Sem `ports:` publicado — só o Caddy fala com o backend (rede interna,
+    # `reverse_proxy backend:3333` no Caddyfile).
+
+  simulator:
+    build:
+      context: ./iot-simulator
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - iot-simulator/server/.env
+    # Compartilha o namespace de rede do container `backend` — preserva
+    # "localhost"/127.0.0.1 como o endereço já hardcoded em
+    # backend/prisma/seed-demo/topology.ts e no IOT_ALLOWED_HOSTS de
+    # backend/.env.example (ver nota na ADR-0008 e no DEPLOY.md). Consequência:
+    # a API do simulador (4100) e o broker MQTT (1883) não são alcançáveis
+    # nem do host, só de dentro do container `backend` — mais estrito que o
+    # antigo "bind 127.0.0.1".
+    network_mode: "service:backend"
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./frontend/dist:/srv:ro # build do frontend acontece fora do compose — ver DEPLOY.md
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    restart: unless-stopped
+    volumes:
+      - kuma_data:/app/data
+    ports:
+      # Só loopback do HOST — nunca 0.0.0.0. Acesso via túnel SSH
+      # (`ssh -L 3001:localhost:3001 <host>`), documentado no DEPLOY.md.
+      # Monitor interno aponta para http://backend:3333/health (DNS do compose).
+      - "127.0.0.1:3001:3001"
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
+  kuma_data:
