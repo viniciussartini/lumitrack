@@ -1,5 +1,9 @@
 # Um Panorama do Sistema Elétrico Brasileiro
 
+> **Verificado contra fontes oficiais em 2026-08-09** (ANEEL, Planalto, STF, Senado/Câmara, imprensa especializada — issue [#200](https://github.com/viniciussartini/lumitrack/issues/200), Fase 13.5). Confirmados nesta revisão: os quatro valores de bandeira tarifária (mesma fonte que a aplicação sincroniza automaticamente — ver `ADR-0007`), as datas e o mecanismo da Lei 15.235/2025 e da REN 1.147/2025, o status da proposta de Tarifa Branca automática, e a decisão do STF de março/2026 sobre o adicional de FECP no Rio de Janeiro (adicionada nesta revisão). O cronograma de transição PIS/COFINS→CBS estava impreciso e foi corrigido. A tabela "ICMS por estado" permanece **aproximada** — alíquotas estaduais mudam por decreto com frequência maior do que este documento é atualizado; trate como referência, não como fato, e confirme no quadro tarifário homologado da distribuidora antes de qualquer cálculo real.
+>
+> **Fonte de verdade:** este arquivo (`.claude/docs/O-Sistema-Eletrico-Brasileiro.md`). A cópia no wiki do projeto é sincronizada a partir daqui — ver `CLAUDE.md`.
+
 ## Como o setor elétrico brasileiro está organizado
 
 A energia elétrica que chega à tomada percorre quatro etapas, e a fatura mensal **paga, ao mesmo tempo, todas elas**:
@@ -124,8 +128,8 @@ A tarifa final paga por kWh tem **duas grandes parcelas**:
 
 Financia a infraestrutura: postes, cabos, transformadores, subestações.
 
-- **Parceça A:** custos das redes de transmissão (a distribuidora paga ao transmissor e repassa).
-- **Parceça B:** custos das redes de distribuição (próprios da concessionária).
+- **Parcela A:** custos das redes de transmissão (a distribuidora paga ao transmissor e repassa).
+- **Parcela B:** custos das redes de distribuição (próprios da concessionária).
 - **Encargos setoriais e perdas:** CDE, ESS, EER, perdas técnicas etc.
 
 ### TE — Tarifa de Energia
@@ -172,7 +176,7 @@ Conta = [Demanda contratada × TUSD demanda]
 | **Branca** | B1 e B3 voluntariamente. **Vedada** a baixa renda, B4 e quem recebe outros descontos. | Três postos tarifários nos dias úteis: **Ponta** (mais cara, 3 horas, tipicamente 18h–21h), **Intermediário** (1h antes + 1h depois da ponta, valor intermediário) e **Fora de Ponta** (demais horas, mais barata que a convencional). Fins de semana e feriados: tudo fora de ponta. |
 
 >[!IMPORTANT]
-> A ANEEL propôs em nov/2025 tornar a **Branca automática** para grandes consumidores de baixa tensão (>1 MWh/mês) a partir de 2026 e (>600 kWh/mês) em 2027.
+> **Verificado em 2026-08:** a proposta avançou para consulta pública formal (10/dez/2025 a 09/mar/2026) — migração automática obrigatória para quem consome ≥ 1 MWh/mês a partir de 2026 (~2,5 milhões de unidades, ~25% do consumo em baixa tensão) e ≥ 600 kWh/mês a partir de 2027; baixa renda, desconto social, iluminação pública e consumidores em pré-pagamento ficam isentos. Implementação prevista para o fim de 2026. Até esta verificação, **continua sendo proposta em consulta pública, não resolução normativa final** — confirme o status antes de tratar como regra vigente.
 
 ### Grupo A
 
@@ -255,8 +259,8 @@ Após o **STF (Tema 745, RE 714139)** decidir que ICMS sobre energia não pode s
 
 | Estado (exemplos) | Alíquota geral | ICMS energia | Observações |
 | --- | --- | --- | --- |
-| **SP** | 18% | 18% (faixas: até 200 kWh sem ICMS para residencial baixa renda) | RICMS-SP, art. 52 |
-| **RJ** | 20% + 2% FECP = 22% | 18% energia | Rio cobra FECP |
+| **SP** | 18% | 18% (faixas: até 200 kWh sem ICMS para residencial baixa renda) | RICMS-SP, art. 52 — confirmado nesta verificação |
+| **RJ** | 20% + 2% FECP = 22% (modal) | 18% + FECP específico sobre energia | Ver nota "Atualização RJ" abaixo — situação em mudança |
 | **MG** | 18% | 18% | |
 | **BA** | 19% (geral) | 19% (até 150 kWh baixa renda isento) | |
 | **PE** | 18% | 18% | |
@@ -266,10 +270,18 @@ Após o **STF (Tema 745, RE 714139)** decidir que ICMS sobre energia não pode s
 | **RS** | 17% | 17% | |
 | **GO** | 19% | 19% | |
 | **DF** | 18% | 18% | |
-| **AM** | 20% | 25% (questionado) | Subsídio federal compensa via CCC |
+| **AM** | ~20% (modal) | 25% (estável há ~20 anos) | Ver nota "Atualização AM" abaixo |
 
->[!IMPORTANT]
-> Vários estados aplicam **alíquotas progressivas por faixa de consumo** para residências (ex.: 12% até 90 ou 200 kWh, 18% acima).
+>[!NOTE]
+> Tabela **aproximada** (referência 2026-08) — só SP e as notas de RJ/AM abaixo foram checadas individualmente nesta verificação; os demais estados mantêm o valor herdado, não confirmado decreto a decreto. Confirme sempre no RICMS do estado ou no quadro tarifário homologado da distribuidora antes de um cálculo real.
+>
+> Vários estados também aplicam **alíquotas progressivas por faixa de consumo** para residências (ex.: 12% até 90 ou 200 kWh, 18% acima).
+
+### Atualizações desta verificação (RJ e AM)
+
+**RJ (verificado mar/2026):** a Lei estadual 10.253/2023 elevou o ICMS modal do RJ de 18% para 20% a partir de 2024 (+2% de FECP geral), mas a energia elétrica acima de 300 kWh/mês carrega um FECP **específico de 4%**, vigente até 2031 — maior que o FECP geral de 2% citado na tabela. Em março de 2026 o STF, na mesma lógica de essencialidade do Tema 745, declarou **inconstitucional** esse adicional de FECP sobre energia e telecomunicações; a cobrança segue temporariamente enquanto o estado ajusta a transição, sem prazo de encerramento definido até esta verificação. Trate como situação em mudança, não como definitiva — reconfirme antes de usar em qualquer cálculo.
+
+**AM (verificado 2026-08):** o ICMS de 25% sobre energia é cobrado há cerca de 20 anos, via substituição tributária sobre o PMPF (Resolução 0012/2019-GSEFAZ) — estável, não é um valor sob disputa como a tabela anterior sugeria com "(questionado)". A afirmação de que um "subsídio federal compensa via CCC" **não foi confirmada** nesta verificação: a CCC subsidia o custo de geração térmica a diesel dos sistemas isolados da Amazônia (ver seção "Sistemas isolados" abaixo), não o ICMS do estado como um todo — a maior parte do Amazonas, incluindo Manaus, é hoje atendida pelo SIN, não por sistema isolado. Tratar como **aproximado** até confirmação.
 
 ### Isenção de ICMS na baixa renda (varia por estado)
 
@@ -288,7 +300,11 @@ Muitos estados isentam ICMS para residencial baixa renda em faixas iniciais de c
 
 ### PIS/COFINS em 2026 — atenção à Reforma Tributária
 
-A Reforma Tributária (EC 132/2023 + LC 214/2025) substituirá PIS/COFINS pela **CBS (Contribuição sobre Bens e Serviços)** entre 2026 e 2032, em transição gradual. Em 2026 ambos coexistem.
+A Reforma Tributária (EC 132/2023 + LC 214/2025) substitui PIS/COFINS pela **CBS (Contribuição sobre Bens e Serviços)**. Cronograma corrigido nesta verificação (2026-08) — a versão anterior deste documento descrevia coexistência gradual "entre 2026 e 2032", o que não reflete a lei:
+
+- **2026 — ano-teste:** CBS cobrada a alíquota simbólica de 0,9% (IBS 0,1%), em paralelo com PIS/COFINS ainda em vigor às alíquotas nominais de sempre — o valor pago em CBS neste ano é compensável, não é carga tributária adicional real. É o cenário vigente nos exemplos práticos deste documento (mês de referência maio/2026).
+- **2027 — PIS e COFINS extintos.** A CBS passa a ter alíquota efetiva (~8,5%, com desconto de 0,1 p.p. em 2027–2028) e substitui de fato as duas contribuições.
+- **Até 2033** — janela de transição do **IBS** (a parte estadual/municipal da reforma, substituindo ICMS/ISS gradualmente), já sem relação com PIS/COFINS/CBS, extintos/substituídos desde 2027.
 
 ## Bandeiras tarifárias
 
@@ -300,6 +316,9 @@ Sistema criado pela ANEEL em 2015 para sinalizar **mensalmente** o custo de gera
 | 🟡 **Amarela** | R$ 1,885 / 100 kWh | Redução de chuvas, acionamento de algumas termelétricas. |
 | 🔴 **Vermelha P1** | R$ 4,463 / 100 kWh | Cenário hídrico desfavorável. |
 | 🔴 **Vermelha P2** | R$ 7,877 / 100 kWh | Cenário hídrico crítico, muitas termelétricas. |
+
+>[!NOTE]
+> **Verificado em 2026-08-09:** os quatro valores acima batem exatamente com a REH nº 3.306/2024 (vigente desde 2024-04-01, sem alteração até a data desta verificação) — a mesma fonte que a aplicação sincroniza automaticamente do Portal de Dados Abertos da ANEEL (ver `ADR-0007`).
 
 ### Como incide na conta?
 
@@ -316,11 +335,11 @@ Sistema criado pela ANEEL em 2015 para sinalizar **mensalmente** o custo de gera
 - **Mercado Livre:** bandeira não se aplica à TE (que é negociada bilateralmente), mas se aplica à TUSD.
 
 >[!NOTE]
->A ANEEL anúncia mensalmente, normalmente na **última sexta-feira útil** do mês anterior.
+>A ANEEL anuncia mensalmente, normalmente na **última sexta-feira útil** do mês anterior.
 
 ## Tarifa Social e Desconto Social (Lei 15.235/2025)
 
-A **Lei 15.235/2025 ("Luz do Povo")**, sancionada em outubro/2025 e regulamentada pela **REN 1.147/2025**, reformou os benefícios para baixa renda.
+A **Lei 15.235/2025 ("Luz do Povo")** — sancionada em 08/10/2025, mas com a gratuidade já em vigor desde 05/07/2025 por força da Medida Provisória 1.300/2025, que a lei converteu — e regulamentada pela **REN 1.147/2025** (aprovada pela ANEEL em 09/12/2025, em vigor desde 01/01/2026), reformou os benefícios para baixa renda. Datas confirmadas nesta verificação (2026-08).
 
 ### Tarifa Social de Energia Elétrica (TSEE) — vigente desde 05/jul/2025
 
