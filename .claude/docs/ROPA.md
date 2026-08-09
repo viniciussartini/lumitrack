@@ -142,19 +142,31 @@ log de admin, não repetido aqui para não duplicar o item 5).
 
 | Operador | Serviço | Dado tratado | País de processamento | DPA assinado | SCC (se fora BR/UE) | Data |
 |---|---|---|---|---|---|---|
-| *(nenhum)* | — | — | — | — | — | — |
+| Render | Hospedagem da aplicação (API + interface estática) | Registros de acesso (IP, data/hora, rota) | Estados Unidos | Não | **Não** | 2026-08-09 |
+| Neon | PostgreSQL gerenciado | Apenas dados sintéticos das contas de demonstração | Estados Unidos | Não | **Não** | 2026-08-09 |
 
-**A tabela está vazia por fato, não por omissão.** A decisão de hospedagem
-(**ADR-0008**, issue #158) escolheu uma VM própria na Oracle Cloud Always
-Free em **São Paulo**, com o **PostgreSQL na mesma máquina**, o **frontend
-estático servido pelo mesmo host** (sem CDN de borda) e **nenhum provedor
-SMTP contratado**. O controlador é, portanto, o único agente de tratamento —
-não há operador a quem contratar via DPA (Art. 39).
+**A tabela deixou de estar vazia em 2026-08-09** (**ADR-0010**). Até então, a
+ADR-0008 hospedava tudo numa VM própria em São Paulo e o controlador era o
+único agente de tratamento. O ambiente publicado passou a rodar em free tier
+fora do Brasil, com **escopo restrito a demonstração**.
 
-A Oracle Cloud é fornecedora de **infraestrutura sob controle direto do
-controlador** (IaaS, região brasileira), não uma operadora que trate dados
-por conta do LumiTrack — mesmo assim, a região Brasil elimina a discussão de
-transferência internacional na raiz.
+**O que isso significa, sem eufemismo:**
+
+- **Não há DPA nem SCC celebrados** com Render e Neon. Isso é uma lacuna
+  real, registrada como tal.
+- **O banco não contém dado pessoal de titular real:** o cadastro público
+  está fechado (`REGISTRATION_ENABLED=false`) e as duas contas existentes
+  são sintéticas (`backend/prisma/seed-demo/` — CPF/CNPJ nunca emitidos,
+  e-mails em domínio inexistente). Sem titular, não há dado pessoal, logo a
+  linha do Neon trata apenas dado fictício.
+- **A exposição real se limita aos registros de acesso de visitantes**
+  processados pelo Render — dado pessoal de pessoa real, tratado no
+  exterior, sem SCC. É o risco assumido da ADR-0010.
+
+**Gate que reabre esta tabela:** abrir o cadastro para usuários reais exige
+migrar a hospedagem para o Brasil **antes** (Caminho B de
+`.claude/docs/DEPLOY.md`, já implementado no repositório). Feita a migração,
+estas duas linhas saem e a tabela volta a ficar vazia por fato.
 
 **Gate obrigatório ao adotar qualquer operador novo** (SMTP, APM, agregador
 de log, banco gerenciado, CDN): DPA assinado **antes do primeiro byte de
@@ -193,14 +205,31 @@ nesta tabela (nunca deixar o "S/N" desatualizado).
 
 ## Transferência internacional e hospedagem — estado atual
 
-**Decidida (ADR-0008, issue #158): não há transferência internacional de
-dados pessoais**, e a afirmação continua verdadeira depois do deploy — que
-é justamente o ponto da decisão.
+**Revisada em 2026-08-09 (ADR-0010): passou a existir transferência
+internacional, restrita aos registros de acesso.**
 
-Topologia: uma única VM na **Oracle Cloud Always Free, região São Paulo**
-(`sa-saopaulo-1`), hospedando a aplicação, o **PostgreSQL na mesma máquina**
-e o frontend estático servido pelo mesmo host (sem CDN de borda, que
-processaria o IP do visitante no exterior). Nenhum provedor SMTP contratado.
+A decisão original (ADR-0008, issue #158) hospedava tudo em São Paulo e
+podia afirmar que não havia transferência internacional por inexistência do
+fato gerador. A demo pública foi para free tier fora do Brasil (Render +
+Neon), e a afirmação deixou de ser verdadeira.
+
+O que efetivamente atravessa a fronteira:
+
+- **Registros de acesso de visitantes** (IP, data/hora, rota) — dado
+  pessoal de pessoa real, tratado pelo Render nos Estados Unidos. **Sem
+  SCC celebrada.** É a exposição real, e é o risco assumido da ADR-0010.
+- **Dados das contas de demonstração** — sintéticos, sem titular. Não são
+  dado pessoal e, portanto, sua ida ao exterior não configura transferência
+  internacional de dado pessoal.
+
+Não há provedor SMTP contratado, então nenhum e-mail é entregue a pessoa
+real.
+
+**Condição que sustenta este quadro:** o cadastro público está fechado
+(`REGISTRATION_ENABLED=false`). Se for aberto, pessoas reais passam a
+inserir dado pessoal real num ambiente fora do Brasil e esta análise cai
+inteira — por isso a ADR-0010 registra o compromisso de migrar a
+hospedagem para o Brasil **antes** de qualquer operação com usuário real.
 
 Consequência jurídica: as SCCs da ANPD (Res. CD/ANPD 19/2024) **não se
 aplicam** — não por dispensa, mas por inexistência do fato gerador. Não há

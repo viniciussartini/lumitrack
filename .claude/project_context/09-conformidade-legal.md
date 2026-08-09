@@ -42,7 +42,7 @@
 
 ## Operadores / DPA (Art. 39)
 
-- [x] **Contrato de tratamento (DPA)** com cada operador. **Estado atual: não há operador** — a ADR-0008 escolheu hospedagem própria (VM Oracle Cloud Always Free em São Paulo) com PostgreSQL na mesma máquina e sem provedor SMTP contratado, então o controlador é o único agente de tratamento. Inventário vivo na tabela de operadores de `.claude/docs/ROPA.md`.
+- [ ] **Contrato de tratamento (DPA)** com cada operador. **Estado atual (ADR-0010): há dois operadores sem DPA** — Render (hospedagem) e Neon (banco), ambos nos EUA, na demo pública. **Lacuna reconhecida, não resolvida**: é aceita porque o ambiente é demonstração (cadastro fechado, apenas contas sintéticas) e some quando a hospedagem migrar para o Brasil. Inventário vivo na tabela de operadores de `.claude/docs/ROPA.md`. Nenhum provedor SMTP contratado.
 - [ ] **Ao adotar qualquer operador novo** (SMTP, APM, agregador de log, banco gerenciado, CDN): assinar DPA **antes** do primeiro byte de dado pessoal, acrescentar a linha no ROPA e reavaliar a seção abaixo. Requisitos técnicos mínimos a exigir em contrato: `.claude/docs/AUDITORIA_SEGURANCA.md` § 7.1.
 
 ## Notificação de incidente (Art. 48 + Res. 15/2024)
@@ -53,7 +53,7 @@
 
 ## Transferência internacional (Art. 33-36 + Res. 19/2024)
 
-- [x] **Estado atual: não se aplica** — a ADR-0008 hospeda tudo em São Paulo, sem provedor estrangeiro. Não há transferência internacional a cobrir, por inexistência do fato gerador (não por dispensa). Foi a aplicação da última regra desta lista: preferir região Brasil/UE **elimina** o problema em vez de contratá-lo.
+- [ ] **Estado atual (ADR-0010): aplica-se, de forma limitada e sem SCC.** A demo pública roda no Render (EUA) + Neon (EUA). O único dado pessoal que sai do Brasil são os **registros de acesso de visitantes** (IP, data/hora, rota) — as contas da aplicação são sintéticas e o cadastro está fechado, então não há dado de titular real no produto. **Não há SCC celebrada**: lacuna reconhecida e assumida como risco de ambiente de demonstração, não sanada. **Gate:** abrir cadastro para usuários reais exige migrar a hospedagem para o Brasil antes (Caminho B de `.claude/docs/DEPLOY.md`), o que restaura a situação da ADR-0008 — sem transferência, por inexistência do fato gerador.
 - [ ] Qualquer provedor fora do Brasil (hospedagem, banco, APM, agregador de log, SMTP, CDN) = transferência internacional de dados, e reabre todos os itens abaixo.
 - [ ] Sem decisão de adequação para os EUA → **incorporar as Cláusulas-Padrão Contratuais (SCCs) da ANPD** nos contratos com cada provedor (período de graça encerrado em ago/2025).
 - [ ] UE reconhecida como adequada (Res. 32/2026); EUA **não**.

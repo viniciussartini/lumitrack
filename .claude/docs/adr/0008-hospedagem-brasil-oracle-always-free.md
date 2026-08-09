@@ -1,9 +1,31 @@
 # ADR-0008 — Hospedagem no Brasil (Oracle Cloud Always Free), sem operador estrangeiro
 
 - **Data:** 2026-08-06
-- **Status:** aceita
+- **Status:** **parcialmente substituída pela [ADR-0010](0010-demo-publica-free-tier-render-neon.md)** (2026-08-09)
 - **Branch/Issue relacionada:** issue #158, épico #154 (Fase 11 do roadmap)
 - **Resolve:** o item "Hospedagem e infra de produção" de `.claude/project_context/07-decisoes-em-aberto.md`
+
+> **Leia antes de seguir esta ADR.** A ADR-0010 trocou o provedor da **demo
+> pública**: ela roda no **Render + Neon**, fora do Brasil, com escopo
+> restrito a demonstração (cadastro fechado, apenas contas sintéticas).
+> Motivo: a Oracle exige cartão de crédito mesmo no Always Free, e nenhum
+> free tier combina always-on + região Brasil + sem cartão.
+>
+> **A consequência de conformidade deste documento não vale para o ambiente
+> publicado hoje.** Passou a existir transferência internacional de registros
+> de acesso — a ADR-0010 registra o que mudou, o risco assumido e o
+> compromisso de migrar para o Brasil antes de qualquer operação com usuário
+> real.
+>
+> **Continua vigente e é fonte de verdade:** o levantamento de restrições
+> técnicas (por que serverless e scale-to-zero são inviáveis para este
+> backend), a topologia lógica, a **condição de validade** (cadastro público
+> fechado) e os **sete gates de go-live**. O stack descrito aqui permanece
+> implementado no repositório como o **Caminho B** de
+> `.claude/docs/DEPLOY.md` — é ele que executa a migração prometida.
+>
+> Uma informação abaixo ficou **desatualizada**: o Fly.io **não tem mais free
+> tier** (extinto em 2024) — não o siga como "alternativa recomendada".
 
 ## Contexto
 

@@ -4,6 +4,7 @@ import { createBroker } from "@/broker/broker.js"
 import { createInternalPublisher } from "@/mqtt/internalPublisher.js"
 import { SimulationStore } from "@/simulation/store.js"
 import { SimulationEngine } from "@/simulation/simulationEngine.js"
+import { bootstrapDemoDevices } from "@/simulation/demoBootstrap.js"
 import { createApp } from "@/api/app.js"
 
 async function main(): Promise<void> {
@@ -19,6 +20,18 @@ async function main(): Promise<void> {
     await publisher.connect()
 
     const store = new SimulationStore()
+
+    // Antes de ligar o motor, para que o primeiro tick já encontre os
+    // devices e o painel da demo tenha dado ao vivo o quanto antes.
+    if (env.DEMO_BOOTSTRAP_ENABLED) {
+        const result = bootstrapDemoDevices(store)
+        if (result) {
+            logger.info(
+                `[Bootstrap] Rede de demonstração criada com ${result.deviceIds.length} device(s) ligado(s).`,
+            )
+        }
+    }
+
     const engine = new SimulationEngine(store, publisher)
     engine.startEngine()
 

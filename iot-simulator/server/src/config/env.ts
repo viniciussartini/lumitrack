@@ -24,6 +24,16 @@ export const envSchema = z.object({
     // mesmo motivo do token acima.
     BROKER_USERNAME: z.string().min(1, { message: "BROKER_USERNAME é obrigatório" }),
     BROKER_PASSWORD: z.string().min(1, { message: "BROKER_PASSWORD é obrigatório" }),
+    // Cria no boot a rede "Demo" com os 4 devices que casam com os tópicos
+    // do seed de demonstração do backend (ver simulation/demoBootstrap.ts).
+    // Existe para a demo pública da ADR-0010: o host gratuito hiberna, e o
+    // store é em memória — sem isso, todo despertar deixaria o painel sem
+    // dado ao vivo. Default `false`: em desenvolvimento o operador cria as
+    // redes pela UI, e ninguém ganha devices fantasma sem pedir.
+    // `z.stringbool()` (não `z.coerce.boolean()`) pelo mesmo motivo do
+    // backend: coerce faz `Boolean("false") === true`, impossibilitando
+    // desligar a flag via env.
+    DEMO_BOOTSTRAP_ENABLED: z.stringbool().default(false),
 })
 
 const parsed = envSchema.safeParse(process.env)

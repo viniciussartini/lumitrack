@@ -1,6 +1,6 @@
 # Política de Privacidade do LumiTrack
 
-**Versão 1.1 — vigente desde 06/08/2026**
+**Versão 1.2 — vigente desde 09/08/2026**
 
 Esta Política de Privacidade descreve como o LumiTrack ("nós", "plataforma")
 coleta, utiliza, armazena e protege os dados pessoais dos seus usuários
@@ -48,22 +48,32 @@ religiosa ou política, etc.).
 
 ## 4. Com quem compartilhamos seus dados e onde eles são processados
 
-**Não há operadores de dados.** Toda a infraestrutura do LumiTrack —
-aplicação, banco de dados e arquivos da interface — roda em um único
-servidor sob controle direto do controlador, na região **São Paulo, Brasil**
-(Oracle Cloud Infrastructure, `sa-saopaulo-1`). Nenhum terceiro recebe,
-armazena ou processa seus dados pessoais em nosso nome.
+> **Este é um ambiente de demonstração.** O LumiTrack publicado é uma
+> demonstração de portfólio: o **cadastro de novos usuários está
+> desabilitado** e as únicas contas existentes são fictícias, criadas com
+> dados sintéticos (CPF/CNPJ matematicamente válidos porém nunca emitidos,
+> e-mails em domínio inexistente). Nenhum dado pessoal de pessoa real é
+> coletado ou armazenado pela aplicação.
 
-| Componente | Onde é processado | País | Operador |
+A infraestrutura que hospeda a demonstração fica **fora do Brasil**:
+
+| Componente | Operador | País | O que trata |
 |---|---|---|---|
-| Aplicação (API e interface) | Servidor próprio, Oracle Cloud | Brasil | Nenhum |
-| Banco de dados PostgreSQL | Mesmo servidor da aplicação | Brasil | Nenhum |
+| Aplicação (API e interface) | Render | Estados Unidos | Registros de acesso (IP, data/hora, rota) |
+| Banco de dados PostgreSQL | Neon | Estados Unidos | Apenas os dados sintéticos das contas de demonstração |
 
-- **Não realizamos transferência internacional de dados.** Todo o
-  tratamento ocorre em território brasileiro. Como não há transferência,
-  não se aplicam as Cláusulas-Padrão Contratuais da ANPD (Resolução
-  CD/ANPD nº 19/2024).
-- Não compartilhamos seus dados pessoais com terceiros para fins de
+- **Há transferência internacional de dados, limitada aos registros de
+  acesso.** Como a aplicação não possui usuários reais, o único dado
+  pessoal que sai do Brasil é o gerado pela sua própria visita — endereço
+  IP e registro de acesso, tratados pelos provedores de infraestrutura
+  acima. Não celebramos Cláusulas-Padrão Contratuais (Resolução CD/ANPD
+  nº 19/2024) com esses provedores, e informamos isso de forma transparente
+  em vez de omitir: é uma limitação assumida de um ambiente de
+  demonstração.
+- **Compromisso:** caso o LumiTrack passe a operar com usuários reais, a
+  infraestrutura será migrada para o **Brasil** antes da abertura do
+  cadastro, eliminando a transferência internacional.
+- Não compartilhamos dados pessoais com terceiros para fins de
   publicidade, venda ou qualquer finalidade não descrita nesta Política.
 - Não utilizamos cookies de análise, rastreadores de terceiros ou
   ferramentas de analytics.

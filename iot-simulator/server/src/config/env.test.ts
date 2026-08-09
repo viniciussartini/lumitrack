@@ -23,8 +23,21 @@ describe("envSchema", () => {
                 API_HOST: "127.0.0.1",
                 CORS_ORIGIN: "http://localhost:5180",
                 LOG_LEVEL: "info",
+                DEMO_BOOTSTRAP_ENABLED: false,
                 ...requiredEnv,
             })
+        }
+    })
+
+    // `z.stringbool()` em vez de `z.coerce.boolean()` — com coerce,
+    // `Boolean("false") === true` e a flag seria impossível de desligar
+    // via env, que é o único jeito de configurá-la.
+    it("interpreta DEMO_BOOTSTRAP_ENABLED='false' como false, não como truthy", () => {
+        const result = envSchema.safeParse({ ...requiredEnv, DEMO_BOOTSTRAP_ENABLED: "false" })
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DEMO_BOOTSTRAP_ENABLED).toBe(false)
         }
     })
 

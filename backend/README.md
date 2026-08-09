@@ -563,7 +563,7 @@ Checklist de `.env` de produção (documentado por completo no bloco final de [`
 | `JWT_SECRET` + as 5 chaves de criptografia | regeradas | Nunca reaproveitar os valores do `.env.example` |
 | `SMTP_*` | sandbox / não contratado | Consequência aceita: "esqueci minha senha" não é funcional na demo pública |
 
-Detalhes completos de topologia, backup e rotação: `.claude/docs/adr/0008-hospedagem-brasil-oracle-always-free.md` e a Fase 13.5 do roadmap.
+Procedimento completo de deploy (os dois caminhos: demo pública em free tier e self-hosted no Brasil), checklist de variáveis, backup e rotação: `.claude/docs/DEPLOY.md`. Decisões de hospedagem: `.claude/docs/adr/0010-demo-publica-free-tier-render-neon.md` (vigente) e `.claude/docs/adr/0008-hospedagem-brasil-oracle-always-free.md` (topologia e gates de go-live).
 
 ## Variáveis de ambiente
 

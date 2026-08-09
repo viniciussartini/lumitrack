@@ -1,14 +1,157 @@
 # DEPLOY.md — Go-live do LumiTrack
 
-> Fase 13.5 do roadmap (`.claude/docs/roadmap.md`), Bloco A. Fecha os gates operacionais #6 e #7 da [ADR-0008](adr/0008-hospedagem-brasil-oracle-always-free.md). Este documento é o procedimento reproduzível de deploy — se um passo daqui divergir do que o operador realmente fez, o documento está desatualizado, não o deploy.
+> Produzido pela Fase 13.5 do roadmap (`.claude/docs/roadmap.md`), Bloco A. Este documento é o procedimento reproduzível de deploy — se um passo daqui divergir do que o operador realmente fez, o documento está desatualizado, não o deploy.
+
+## Dois caminhos
+
+| | **Caminho A — demo pública** | **Caminho B — self-hosted** |
+|---|---|---|
+| **Situação** | **Vigente hoje** | Pronto, ainda não executado |
+| **Onde** | Render + Neon (EUA), free tier | Máquina única no Brasil |
+| **Decisão** | [ADR-0010](adr/0010-demo-publica-free-tier-render-neon.md) | [ADR-0008](adr/0008-hospedagem-brasil-oracle-always-free.md) + [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) |
+| **Artefatos** | `render.yaml`, `Dockerfile` (raiz), `deploy/demo-entrypoint.sh` | `docker-compose.yml`, `deploy/Caddyfile`, `deploy/provision-vm.sh`, scripts de backup |
+| **Para quê** | Demonstração de portfólio, sem usuário real | **Migração obrigatória antes de operar com usuário real** |
+
+O Caminho B não é legado nem alternativa hipotética: é o compromisso registrado na ADR-0010 e no `README.md`. Abrir o cadastro para pessoas reais exige migrar para ele **antes**, porque é ele que restaura a conclusão de conformidade da ADR-0008 (processamento no Brasil, sem operador estrangeiro).
+
+---
+
+# Caminho A — demo pública (Render + Neon)
 
 ## Topologia
 
-Tudo numa única VM Oracle Cloud Always Free, região São Paulo (`sa-saopaulo-1`), orquestrado via Docker Compose (`docker-compose.yml` na raiz do repositório):
+```text
+┌────────────────────────────────────────────────────────────┐
+│  Render — site estático `lumitrack` (não hiberna)          │
+│    /api/*  ──rewrite──► serviço `lumitrack-api`            │
+│    /*      ──► index.html (fallback da SPA)                │
+└────────────────────────────────────────────────────────────┘
+                              │
+┌────────────────────────────────────────────────────────────┐
+│  Render — web service `lumitrack-api` (Docker, hiberna)    │
+│    backend :$PORT  ◄── MQTT 1883 ──  iot-simulator         │
+│    (mesmo container — ver Dockerfile na raiz)              │
+└────────────────────────────────────────────────────────────┘
+                              │
+┌────────────────────────────────────────────────────────────┐
+│  Neon — PostgreSQL gerenciado (sslmode=require)            │
+└────────────────────────────────────────────────────────────┘
+```
+
+Três pontos do desenho são **forçados pela plataforma**, e mexer neles quebra a demo (racional completo na ADR-0010):
+
+1. **Backend e simulador no mesmo container.** O Render não oferece background worker gratuito e só expõe HTTPS — nunca TCP bruto. Como o backend fala MQTT com o simulador, dois serviços separados não conseguiriam se comunicar.
+2. **O rewrite `/api/*` é obrigatório.** O frontend chama a API por caminho relativo. O rewrite mantém tudo na mesma origem, preservando cookie `HttpOnly`, CSRF double-submit e a CSP sem nenhuma mudança de código.
+3. **O banco não é o do Render.** O PostgreSQL gratuito do Render expira 30 dias após a criação; o Neon não expira.
+
+## Pré-requisitos
+
+- Conta no [Render](https://render.com) e no [Neon](https://neon.com) — nenhuma das duas exige cartão de crédito.
+- Repositório no GitHub (o Render faz build a partir dele).
+- Nenhum domínio próprio é necessário: ambos os serviços ganham subdomínio `.onrender.com`.
+
+## Passo a passo
+
+### 1. Criar o banco no Neon
+
+Crie um projeto e copie a connection string. Ela precisa terminar com `?sslmode=require`.
+
+### 2. Aplicar as migrações e semear — da sua máquina
+
+O Neon é acessível pela internet, então migração e seed rodam localmente apontando para ele. Não há release hook a configurar no Render.
+
+```bash
+cd backend
+DATABASE_URL='<connection-string-do-neon>' npm run db:migrate:deploy
+DATABASE_URL='<connection-string-do-neon>' npm run db:seed        # catálogo de distribuidoras
+DATABASE_URL='<connection-string-do-neon>' \
+  SIMULATOR_BROKER_USERNAME='<mesmo-do-render>' \
+  SIMULATOR_BROKER_PASSWORD='<mesmo-do-render>' \
+  npm run db:seed:demo
+```
+
+> **Atenção ao volume.** O plano gratuito do Neon tem **0,5 GB**. O seed de demonstração, como está, gera 1 ano de leituras por minuto para 4 medidores (~2,1 milhões de linhas, **~650 MB**) e **não cabe**. Reduza a janela do seed antes de rodar contra o Neon. O `RetentionService` ainda não cobre `MeterReading` (item da Fase 14), então o crescimento das leituras ao vivo também precisa de acompanhamento manual.
+
+### 3. Criar os serviços no Render
+
+No painel do Render, escolha **Blueprint** e aponte para o repositório. Ele lê o `render.yaml` e cria os dois serviços, pedindo os valores marcados como `sync: false` (ver checklist abaixo).
+
+### 4. Ajustar o destino do rewrite
+
+Depois que o serviço `lumitrack-api` existir, copie a URL real dele e substitua no `render.yaml`:
+
+```yaml
+- type: rewrite
+  source: /api/*
+  destination: https://lumitrack-api.onrender.com/api/*   # ← a URL real
+```
+
+Blueprints do Render não interpolam URL de serviço em destino de rota, então este passo é manual. Commit + push aplica.
+
+### 5. Verificar
+
+Abra a URL do site estático. Ver a seção "Verificação ponta a ponta", abaixo.
+
+## Checklist de variáveis — Caminho A
+
+Definidas em `render.yaml` (não precisa fazer nada):
+
+| Variável | Valor | Por quê |
+|---|---|---|
+| `NODE_ENV` | `production` | Liga as validações fail-closed de `config/env.ts`. |
+| `REGISTRATION_ENABLED` | `false` | **A premissa de conformidade inteira da ADR-0010.** O default do código é `true`. |
+| `DEMO_LOGIN_ENABLED` | `true` | Mantém o botão de demonstração funcional com o cadastro fechado. |
+| `IOT_ALLOWED_HOSTS` | `127.0.0.1/32` | Simulador no mesmo container = loopback. Não afrouxa a proteção de SSRF. |
+| `DEMO_BOOTSTRAP_ENABLED` | `true` | Recria os devices do simulador a cada despertar — sem isso o painel acorda sem dado ao vivo. |
+| `API_HOST` / `BROKER_HOST` | `127.0.0.1` | A API de controle e o broker do simulador nunca saem do container. |
+
+Preenchidas por você no painel (`sync: false`):
+
+| Variável | Valor | Como gerar |
+|---|---|---|
+| `DATABASE_URL` | Connection string do Neon | Com `?sslmode=require`. |
+| `JWT_SECRET` | Valor novo | `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
+| `CPF_CNPJ_ENCRYPTION_KEY`, `CPF_CNPJ_BLIND_INDEX_KEY`, `MFA_SECRET_ENCRYPTION_KEY`, `ADDRESS_ENCRYPTION_KEY`, `METER_CREDENTIAL_ENCRYPTION_KEY` | 5 valores novos, **todos distintos** | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` — nunca reaproveite a mesma chave entre categorias de dado. |
+| `SIMULATOR_API_TOKEN`, `BROKER_USERNAME`, `BROKER_PASSWORD` | Valores novos | Precisam bater com o que você usou no `db:seed:demo` do passo 2. |
+| `CORS_ORIGIN`, `FRONTEND_URL` | URL do site estático | Ex.: `https://lumitrack.onrender.com`. |
+| `PUBLIC_API_ORIGIN` | **Ver abaixo** | O host que o backend de fato recebe. |
+
+### O erro mais provável no primeiro deploy: `PUBLIC_API_ORIGIN`
+
+`shared/security/httpsRedirect.ts` recusa com **400** qualquer requisição cujo `Host` não seja exatamente `PUBLIC_API_ORIGIN` (proteção contra open redirect via `Host` forjado, issue #183). Atrás do rewrite do Render, o `Host` que chega ao backend pode ser o do próprio serviço da API **ou** o do site estático, dependendo de como a plataforma encaminha.
+
+- **Sintoma:** *toda* requisição à API responde 400, e o frontend não sai da tela de carregamento.
+- **Diagnóstico:** nos logs do serviço `lumitrack-api`, veja qual `Host` chegou.
+- **Correção:** ajuste `PUBLIC_API_ORIGIN` para esse host, com `https://` e sem barra final.
+
+## Verificação ponta a ponta
+
+- [ ] A interface carrega instantaneamente (site estático não hiberna).
+- [ ] O login de demonstração entra (a primeira tentativa pode levar ~60–90s — é o cold start da API).
+- [ ] O painel mostra potência ao vivo nos 4 medidores, via SSE.
+- [ ] `POST /api/users` responde **403** (cadastro fechado — gate #1).
+- [ ] Provocar uma anomalia num device do simulador dispara alerta e notificação.
+- [ ] Nenhuma conexão de saída bloqueada pelo guard de SSRF.
+
+## Limites do free tier a acompanhar
+
+- **750 horas-instância/mês** no Render, compartilhadas pela conta inteira — um segundo serviço gratuito concorre pela mesma cota.
+- **Hibernação após 15 min** sem tráfego, com cold start de ~60–90s. Comportamento esperado, não incidente.
+- **0,5 GB no Neon** — ver o aviso de volume do passo 2.
+
+---
+
+# Caminho B — self-hosted (migração para o Brasil)
+
+> **Quando usar:** antes de qualquer operação com usuário real. É este caminho que restaura a conclusão de conformidade da ADR-0008 — processamento exclusivamente no Brasil, sem operador estrangeiro, sem transferência internacional.
+
+## Topologia
+
+Tudo numa única máquina, orquestrado via Docker Compose (`docker-compose.yml` na raiz):
 
 ```text
 ┌──────────────────────────────────────────────────────────────────┐
-│  VM Ubuntu 24.04 — Oracle Cloud Always Free, São Paulo            │
+│  VM Ubuntu 24.04 — datacenter no Brasil                           │
 │                                                                    │
 │   caddy (80/443, TLS automático) ── publicado no host             │
 │     ├── /api/*  → backend:3333                                    │
@@ -24,15 +167,15 @@ Tudo numa única VM Oracle Cloud Always Free, região São Paulo (`sa-saopaulo-1
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-Ver [ADR-0008](adr/0008-hospedagem-brasil-oracle-always-free.md) para o racional completo (por que VM única, por que sem operador estrangeiro) e [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a escolha do Uptime Kuma.
+Ver [ADR-0008](adr/0008-hospedagem-brasil-oracle-always-free.md) para o racional (por que máquina única, por que sem operador estrangeiro) e [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a escolha do Uptime Kuma.
 
 ## Pré-requisitos
 
-- VM Oracle Cloud Always Free criada (Ubuntu 24.04, shape Ampere A1 — ou o fallback x86 documentado na ADR-0008 se a capacidade ARM não estiver disponível em São Paulo).
+- VM Ubuntu 24.04 com datacenter no Brasil, acesso root por SSH e portas 80/443 liberáveis.
 - Domínio real apontando (registro A/AAAA) para o IP público da VM.
-- Chave SSH configurada no provisionamento da instância (nunca senha).
+- Chave SSH configurada (nunca senha).
 
-## Passo a passo — deploy do zero
+## Passo a passo
 
 ### 1. Provisionar o runtime da VM
 
@@ -53,17 +196,17 @@ cd /opt/lumitrack
 
 ### 3. Configurar as variáveis de ambiente
 
-Copie e edite **cada** `.env.example` — ver o checklist completo na seção abaixo antes de prosseguir:
-
 ```bash
 cp backend/.env.example backend/.env
 cp iot-simulator/server/.env.example iot-simulator/server/.env
 cp deploy/.env.example deploy/.env
 ```
 
+Ver o checklist abaixo antes de prosseguir.
+
 ### 4. Build do frontend
 
-O frontend é servido como arquivo estático pelo Caddy (bind mount) — não tem container próprio, então o build acontece fora do compose:
+O frontend é servido como arquivo estático pelo Caddy (bind mount) — não tem container próprio:
 
 ```bash
 cd frontend && npm ci && npm run build && cd ..
@@ -84,7 +227,7 @@ docker compose run --rm backend npm run db:migrate:deploy
 docker compose up -d
 docker compose ps # todos os serviços "healthy"/"running"
 curl -I https://<seu-dominio>/ # frontend estático respondendo via Caddy
-docker compose exec backend curl -sf http://localhost:3333/health # /health não é proxiado publicamente (só /api/* é) — checagem interna
+docker compose exec backend curl -sf http://localhost:3333/health # /health não é proxiado publicamente
 ```
 
 ### 7. Popular a demonstração
@@ -96,39 +239,39 @@ docker compose exec backend npm run db:seed:demo
 
 ### 8. Observabilidade
 
-Acesse o Uptime Kuma via túnel SSH (`ssh -L 3001:localhost:3001 usuario@<ip-da-vm>`, depois `http://localhost:3001` no navegador local), crie o monitor HTTP apontando para `http://backend:3333/health` (dentro da rede do compose — o Kuma já está nela) e configure a notificação (Telegram recomendado). Ver [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para o racional e a limitação aceita (não detecta a VM inteira fora do ar).
+Acesse o Uptime Kuma via túnel SSH (`ssh -L 3001:localhost:3001 usuario@<ip-da-vm>`, depois `http://localhost:3001` no navegador local), crie o monitor HTTP apontando para `http://backend:3333/health` e configure a notificação (Telegram recomendado). Ver [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a limitação aceita (não detecta a VM inteira fora do ar).
 
-### 9. Verificação ponta a ponta (critério de aceite da issue #193)
+### 9. Verificação ponta a ponta
 
 - [ ] Login com conta de demonstração funciona (`POST /api/auth/demo-login`).
 - [ ] O painel mostra potência ao vivo nos 4 medidores, via SSE.
-- [ ] Provocar uma anomalia num device do simulador (`POST /api/devices/:id/anomaly`) dispara um alerta e gera notificação no LumiTrack.
-- [ ] Nenhuma conexão de saída bloqueada pelo guard de SSRF (`IOT_ALLOWED_HOSTS` cobre o caso legítimo — ver checklist abaixo).
+- [ ] Provocar uma anomalia num device do simulador dispara alerta e notificação.
+- [ ] Nenhuma conexão de saída bloqueada pelo guard de SSRF.
 - [ ] `psql` a partir de fora da VM é recusado.
 - [ ] Certificado TLS válido, `http://` redireciona para `https://`, `Host` forjado recebe 400.
+- [ ] **Documentos legais atualizados para o cenário brasileiro:** `frontend/src/legal/privacy-policy.md` § 4 (volta a declarar processamento exclusivamente no Brasil, sem operadores), tabela de operadores de `.claude/docs/ROPA.md` (volta a ficar vazia) e `.claude/project_context/09-conformidade-legal.md`. Incrementar `CURRENT_CONSENT_VERSION` (`backend/src/shared/legal/consentVersion.ts`) **em sincronia** com a versão declarada no cabeçalho da Política — se divergirem, o usuário aceita um texto e o sistema grava outro.
 
-## Checklist de `.env` de produção (issue #191)
-
-Todas as variáveis que **mudam de valor** entre desenvolvimento e produção — o resto do `.env.example` já serve como está.
+## Checklist de `.env` de produção — Caminho B
 
 | Variável | Onde | Produção | Por quê |
 |---|---|---|---|
-| `NODE_ENV` | `backend/.env` | `production` | Liga as validações fail-closed de `config/env.ts` (`CORS_ORIGIN`/`PUBLIC_API_ORIGIN` não podem ficar no default). |
-| `DATABASE_URL` | `backend/.env` | `postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@postgres:5432/<POSTGRES_DB>?schema=public` | Host é `postgres` (nome do serviço no compose), nunca `localhost` — só funciona dentro da rede do Docker Compose. Usuário/senha devem bater com `deploy/.env`. |
-| `JWT_SECRET` | `backend/.env` | Novo valor gerado | Gate de go-live #7. **Nunca** o valor de exemplo do `.env.example`. Gerar com `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`. |
-| `CPF_CNPJ_ENCRYPTION_KEY`, `CPF_CNPJ_BLIND_INDEX_KEY`, `MFA_SECRET_ENCRYPTION_KEY`, `ADDRESS_ENCRYPTION_KEY`, `METER_CREDENTIAL_ENCRYPTION_KEY` | `backend/.env` | 5 valores novos, todos distintos entre si | Gate de go-live #7. Gerar cada um com `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` — nunca reaproveitar a mesma chave entre categorias de dado (compartimentalização, ver comentários do próprio `.env.example`). |
-| `CORS_ORIGIN` | `backend/.env` | `https://<seu-dominio>` | Nunca `*` em produção — bloqueado por validação, mas o valor default de dev (`localhost:3000`) também quebraria o app real. |
+| `NODE_ENV` | `backend/.env` | `production` | Liga as validações fail-closed de `config/env.ts`. |
+| `DATABASE_URL` | `backend/.env` | `postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@postgres:5432/<POSTGRES_DB>?schema=public` | Host é `postgres` (nome do serviço no compose), nunca `localhost`. Credenciais devem bater com `deploy/.env`. |
+| `JWT_SECRET` | `backend/.env` | Novo valor gerado | Gate de go-live #7. `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`. |
+| `CPF_CNPJ_ENCRYPTION_KEY`, `CPF_CNPJ_BLIND_INDEX_KEY`, `MFA_SECRET_ENCRYPTION_KEY`, `ADDRESS_ENCRYPTION_KEY`, `METER_CREDENTIAL_ENCRYPTION_KEY` | `backend/.env` | 5 valores novos, todos distintos | Gate de go-live #7. `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` — nunca reaproveitar a mesma chave entre categorias de dado. |
+| `CORS_ORIGIN` | `backend/.env` | `https://<seu-dominio>` | Nunca `*` em produção. |
 | `PUBLIC_API_ORIGIN` | `backend/.env` | `https://<seu-dominio>` | Gate de go-live #5 — host canônico do redirect HTTPS e da checagem de `Host` forjado. |
-| `FRONTEND_URL` | `backend/.env` | `https://<seu-dominio>` | Compõe o link de e-mails transacionais (mesmo que SMTP fique em sandbox na demo pública). |
-| `REGISTRATION_ENABLED` | `backend/.env` | `false` | **Gate de go-live #1 — premissa de validade inteira da ADR-0008.** Default do código é `true`; subir sem trocar derruba a conclusão de conformidade no primeiro cadastro real. Maior consequência, menor esforço da fase inteira. |
+| `FRONTEND_URL` | `backend/.env` | `https://<seu-dominio>` | Compõe o link de e-mails transacionais. |
+| `REGISTRATION_ENABLED` | `backend/.env` | `false` enquanto for demonstração | Default do código é `true`. Ao abrir para usuários reais, este caminho é o pré-requisito. |
 | `DEMO_LOGIN_ENABLED` | `backend/.env` | `true` | Mantém o botão de demo funcional com o cadastro fechado. |
-| `IOT_ALLOWED_HOSTS` | `backend/.env` | `127.0.0.1/32` | O simulador compartilha o namespace de rede do container `backend` (`network_mode: service:backend`) — do ponto de vista do backend, o broker MQTT do simulador está em loopback, exatamente como no ambiente local. Não afrouxa a proteção de SSRF da issue #150. |
-| `SMTP_*` | `backend/.env` | Deixar em sandbox (valores de exemplo) | Nenhum provedor contratado (ADR-0008) — "esqueci minha senha" não é funcional na demo pública, consequência aceita. |
-| `SIMULATOR_API_TOKEN`, `BROKER_USERNAME`, `BROKER_PASSWORD` | `iot-simulator/server/.env` | Valores novos gerados | Mesmo padrão de rotação — nunca os valores de exemplo. Devem bater com `SIMULATOR_BROKER_USERNAME`/`SIMULATOR_BROKER_PASSWORD` usados pelo `db:seed:demo` do backend (variável de ambiente do processo de seed, não um `.env` versionado). |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `deploy/.env` | Valores novos gerados | Devem bater com o host/credenciais dentro de `DATABASE_URL` acima. |
-| `DOMAIN` | `deploy/.env` | Domínio real | Repassado ao Caddy para o certificado Let's Encrypt — precisa bater com `PUBLIC_API_ORIGIN`/`CORS_ORIGIN`/`FRONTEND_URL`. |
+| `IOT_ALLOWED_HOSTS` | `backend/.env` | `127.0.0.1/32` | O simulador compartilha o namespace de rede do container `backend` — o broker está em loopback. |
+| `SMTP_*` | `backend/.env` | Sandbox, salvo se contratar provedor | Sem provedor, "esqueci minha senha" não é funcional. Contratar um cria um **operador** (DPA no ROPA). |
+| `SIMULATOR_API_TOKEN`, `BROKER_USERNAME`, `BROKER_PASSWORD` | `iot-simulator/server/.env` | Valores novos gerados | Devem bater com `SIMULATOR_BROKER_USERNAME`/`SIMULATOR_BROKER_PASSWORD` do `db:seed:demo`. |
+| `DEMO_BOOTSTRAP_ENABLED` | `iot-simulator/server/.env` | `false` | Aqui o serviço não hiberna; os devices são criados uma vez por `deploy/seed-simulator-devices.sh`. |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `deploy/.env` | Valores novos gerados | Devem bater com `DATABASE_URL`. |
+| `DOMAIN` | `deploy/.env` | Domínio real | Repassado ao Caddy para o certificado Let's Encrypt. |
 
-## Backup e restauração testada (issue #192)
+## Backup e restauração testada
 
 **Automático:** `deploy/lumitrack-backup.timer` roda `deploy/backup-postgres.sh` diariamente (`pg_dump` comprimido, retenção de 14 dias por padrão). Instalar:
 
@@ -166,6 +309,8 @@ git checkout <sha-anterior>
 docker compose build backend simulator
 docker compose up -d
 ```
+
+No Caminho A, o rollback é o botão de *rollback* do próprio Render (reimplanta o deploy anterior) — a mesma ressalva sobre migrações forward-only continua valendo.
 
 ## Troubleshooting
 

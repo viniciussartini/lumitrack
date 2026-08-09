@@ -401,4 +401,5 @@ No CI (`.github/workflows/ci.yml`), o `iot-simulator` tem os mesmos 4 jobs bloqu
 - [`server/README.md`](server/) — guia rápido específico do processo `server` (subconjunto deste documento, mantido por conveniência de quem só abre aquele diretório).
 - [`.claude/docs/roadmap.md`](../.claude/docs/roadmap.md) — Fase 13.5 (documentação pública) e o histórico de fases que endureceram este pacote (Fase 10, issue #161: gates de CI; Fase 13, issue #180: perímetro).
 - [`.claude/docs/adr/0008-hospedagem-brasil-oracle-always-free.md`](../.claude/docs/adr/0008-hospedagem-brasil-oracle-always-free.md) — por que o simulador roda co-locado com o backend em produção, com o broker preso a `127.0.0.1`.
+- [`.claude/docs/adr/0010-demo-publica-free-tier-render-neon.md`](../.claude/docs/adr/0010-demo-publica-free-tier-render-neon.md) — na demo pública o simulador roda **no mesmo container** do backend (o provedor não expõe TCP bruto entre serviços) e recria seus devices no boot via `DEMO_BOOTSTRAP_ENABLED`.
 - [`.claude/docs/2026-08-05-seguranca-audit.md`](../.claude/docs/2026-08-05-seguranca-audit.md) — achado de origem do endurecimento de perímetro (issue #180).

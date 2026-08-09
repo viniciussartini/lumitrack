@@ -1,0 +1,102 @@
+# Blueprint da demo pública (ADR-0010) — Render.
+# Passo a passo completo, incluindo o que precisa ser preenchido à mão:
+# .claude/docs/DEPLOY.md, "Caminho A".
+#
+# Banco de dados NÃO é declarado aqui de propósito: o PostgreSQL gratuito do
+# Render expira 30 dias após a criação. A demo usa Neon (gratuito, sem
+# expiração), configurado por DATABASE_URL.
+
+services:
+    # ─── API + simulador IoT (mesmo container — ver Dockerfile na raiz) ───────
+    - type: web
+      name: lumitrack-api
+      runtime: docker
+      dockerfilePath: ./Dockerfile
+      dockerContext: .
+      plan: free
+      region: oregon
+      healthCheckPath: /health
+      envVars:
+          - key: NODE_ENV
+            value: production
+
+          # Valores fixos da demo — a razão de cada um está no checklist de
+          # .claude/docs/DEPLOY.md e nos comentários de backend/.env.example.
+          - key: REGISTRATION_ENABLED
+            value: "false" # premissa de conformidade da ADR-0010 — nunca ligar aqui
+          - key: DEMO_LOGIN_ENABLED
+            value: "true"
+          - key: IOT_ALLOWED_HOSTS
+            value: 127.0.0.1/32 # simulador no mesmo container = loopback
+          - key: DEMO_BOOTSTRAP_ENABLED
+            value: "true" # recria os devices do simulador a cada despertar
+          - key: API_HOST
+            value: 127.0.0.1 # API de controle do simulador nunca sai do container
+          - key: BROKER_HOST
+            value: 127.0.0.1
+
+          # Segredos e URLs — preenchidos no painel do Render, nunca aqui.
+          # `sync: false` faz o Render pedir o valor na criação do blueprint
+          # e não sobrescrevê-lo em deploys seguintes.
+          - key: DATABASE_URL
+            sync: false # Neon, com ?sslmode=require
+          - key: JWT_SECRET
+            sync: false
+          - key: CPF_CNPJ_ENCRYPTION_KEY
+            sync: false
+          - key: CPF_CNPJ_BLIND_INDEX_KEY
+            sync: false
+          - key: MFA_SECRET_ENCRYPTION_KEY
+            sync: false
+          - key: ADDRESS_ENCRYPTION_KEY
+            sync: false
+          - key: METER_CREDENTIAL_ENCRYPTION_KEY
+            sync: false
+          - key: SIMULATOR_API_TOKEN
+            sync: false
+          - key: BROKER_USERNAME
+            sync: false
+          - key: BROKER_PASSWORD
+            sync: false
+
+          # Precisam do domínio final do site estático (ou do próprio serviço,
+          # no caso de PUBLIC_API_ORIGIN) — ver a nota sobre o rewrite abaixo
+          # e a seção de troubleshooting do DEPLOY.md.
+          - key: CORS_ORIGIN
+            sync: false
+          - key: FRONTEND_URL
+            sync: false
+          - key: PUBLIC_API_ORIGIN
+            sync: false
+
+    # ─── SPA estática ────────────────────────────────────────────────────────
+    # Sites estáticos do Render não hibernam — a interface carrega instantânea
+    # mesmo com a API dormindo, e só os dados esperam o cold start.
+    - type: web
+      name: lumitrack
+      runtime: static
+      plan: free
+      buildCommand: cd frontend && npm ci && npm run build
+      staticPublishPath: frontend/dist
+      routes:
+          # ATENÇÃO — esta é a peça central do desenho, e a única que precisa
+          # ser editada à mão depois do primeiro deploy: troque o destino pela
+          # URL real do serviço `lumitrack-api` (blueprints do Render não
+          # interpolam URL de serviço em destino de rota).
+          #
+          # O frontend chama a API por caminho relativo (`/api` em
+          # services/api.ts, `/api/iot/stream` em lib/sse/appStream.ts). Este
+          # rewrite mantém tudo na mesma origem do ponto de vista do browser,
+          # o que preserva sem alteração nenhuma: cookie de sessão HttpOnly,
+          # CSRF double-submit e a diretiva `connect-src 'self'` da CSP.
+          # Servir a API em outro domínio exigiria SameSite=None e reescreveria
+          # o modelo de sessão inteiro.
+          - type: rewrite
+            source: /api/*
+            destination: https://lumitrack-api.onrender.com/api/*
+
+          # Fallback da SPA — precisa vir DEPOIS da regra de /api (a primeira
+          # correspondência vence).
+          - type: rewrite
+            source: /*
+            destination: /index.html
