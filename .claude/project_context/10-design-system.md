@@ -27,20 +27,20 @@
 | Recuperar senha | `LumiTrack Recuperar Senha.dc.html` | `pages/auth/ForgotPasswordPage.tsx`, `pages/auth/ResetPasswordPage.tsx` |
 | LGPD / privacidade | `LumiTrack LGPD.dc.html` | `pages/legal/` |
 | App logado (dashboard, propriedades, alertas, distribuidoras, perfil, segurança/MFA, modais) | `LumiTrack Home.dc.html` | `pages/dashboard/`, `pages/property/`, `pages/alert/`, `pages/distributor/`, `pages/profile/`, `pages/settings/` |
-| Chrome do app logado (sidebar, topbar) | `LumiTrack Home.dc.html` (linhas 61–148) | `components/layout/` — **ainda não migrado**, ver aviso abaixo |
-| Login do simulador IoT | `LumiTrack IoT Login.dc.html` | — (não existe ainda) |
+| Chrome do app logado (sidebar, topbar) | `LumiTrack Home.dc.html` (linhas 61–148) | `components/layout/` — migrado na Fase 6 (#135, #136) |
+| Login do simulador IoT | `LumiTrack IoT Login.dc.html` | — (não existe ainda; desde a Fase 13/#180 o perímetro do simulador é protegido por token estático, então uma tela de login é decisão de UX, não lacuna de segurança) |
 | Dashboard do simulador IoT | `LumiTrack IoT Simulator.dc.html` | `iot-simulator/ui/` |
 
-> Telas do código **sem** handoff no bundle: `pages/report/` (Relatórios), `pages/simulation/` (Simulações, hoje placeholder) e "Sobre o projeto" (`/sobre`, Fase 6) — as três caem na **regra de ausência** abaixo. As duas primeiras estão registradas como adiadas no `.claude/docs/roadmap.md`; a terceira é implementada como versão provisória marcada com `TODO(design)`.
+> Telas do código **sem** handoff no bundle: `pages/report/` (Relatórios), `pages/simulation/` (Simulações, hoje placeholder) e "Sobre o projeto" (`/sobre`) — as três caem na **regra de ausência** abaixo. As duas primeiras estão registradas como adiadas no `.claude/docs/roadmap.md`; a terceira foi entregue na Fase 6 como versão provisória, marcada com `TODO(design)` e aguardando um export dedicado.
 
 - O `README.md` do bundle é a especificação: mapa de telas, tokens, vocabulário de classes (`.lt-*`), estado mínimo e comportamento esperado.
 - `design-system/styles.css` é a **fonte única** de tokens e classes do Industry.
 - Os `.dc.html` são protótipos autocontidos (markup = layout, `renderVals()` = dados mock, `<style>` = tokens locais) — **referência de design, não código de produção para copiar**. A implementação recria em React seguindo os padrões do codebase.
 - Para abrir: `npx serve .claude/design/2026-07-31-lumitrack-completo/design`.
 
-> **Estado da migração (atualizado em 2026-08-04):** a migração do frontend para o Industry foi **concluída nas Fases 1–5** do `.claude/docs/roadmap.md` — o tema anterior (âmbar/slate, dark mode por classe `.dark`) não existe mais nas telas; o dark mode é por `data-theme` e os tokens vêm de `frontend/src/styles/industry.css`. A decisão deixou de ser um item em aberto do `07` (ver ADR-0005 e ADR-0006). Trabalho de UI em tela já migrada segue o bundle direto, sem perguntar antes.
+> **Estado da migração (atualizado em 2026-08-09):** a migração do frontend para o Industry está **concluída** — telas nas Fases 1–5, chrome do app autenticado (Sidebar, Header, AppShell) na Fase 6 e consistência das telas públicas na Fase 7. O tema anterior (âmbar/slate, dark mode por classe `.dark`) não existe mais; o dark mode é por `data-theme` e os tokens vêm de `frontend/src/styles/industry.css`. A decisão deixou de ser um item em aberto do `07` (ver ADR-0005 e ADR-0006). Trabalho de UI em tela já migrada segue o bundle direto, sem perguntar antes.
 >
-> **Divergência conhecida que resta:** `components/layout/Sidebar.tsx` e `Header.tsx` (mais o `bg-slate-50` de `AppShell.tsx`) ainda usam os tokens pré-Industry — é o chrome em volta do conteúdo já migrado, visível em toda tela autenticada. Endereçado na **Fase 6** (issues #135 e #136). Até fechar, evite reproduzir os tokens antigos desses arquivos em código novo.
+> **Dívida remanescente (Fase 18, não é divergência de tela):** o `@theme` mapeia cor, fonte, raio e sombra, mas **não** a escala tipográfica e de espaçamento que o protótipo de fato usa — por isso as telas recorrem a ~143 valores arbitrários entre colchetes. Isso é decisão de token pendente, não improviso de layout; enquanto não for resolvida, seguir o valor do bundle e não inventar um da própria cabeça. Restam também tokens pré-Industry em ~16 arquivos periféricos.
 
 ## Tokens
 

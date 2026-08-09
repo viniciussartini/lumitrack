@@ -3,7 +3,7 @@
 > Pergunte antes de assumir qualquer um destes. Ao decidir: registre um ADR em `.claude/docs/adr/` (template `0000-template.md`) e **remova/atualize o item aqui** — este arquivo só contém o que ainda está em aberto.
 
 - **Provedor(es) OAuth:** quais? (Google, GitHub, ...). Hoje só existe login por e-mail/senha (+ MFA opcional).
-- **Observabilidade de produção:** rastreamento de erro/APM (ex.: Sentry) e monitor de uptime — hoje só há logging estruturado (pino) local/CI. **Restrição nova (ADR-0008):** adotar um APM/agregador de log estrangeiro reintroduziria a transferência internacional que a decisão de hospedagem eliminou — a escolha precisa considerar região Brasil/UE ou solução auto-hospedada, senão volta a exigir SCC.
+- **Observabilidade de produção:** rastreamento de erro/APM (ex.: Sentry) e monitor de uptime — hoje só há logging estruturado (pino) local/CI. **Restrição (ADR-0008):** adotar um APM/agregador de log estrangeiro reintroduziria a transferência internacional que a decisão de hospedagem eliminou — a escolha precisa considerar região Brasil/UE ou solução auto-hospedada, senão volta a exigir SCC. **Urgência (2026-08-09):** deixou de ser decisão de médio prazo — a Fase 13.5 põe o sistema no ar numa VM sem monitoramento nenhum, então ou a decisão entra na fase (item P1, com ADR), ou subir sem observabilidade é risco assumido de forma explícita.
 - **App mobile:** `README.md` da raiz linka `mobile/README.md`, que não existe — escopo e stack do mobile (se houver) ainda não decididos.
 - **Lockout de conta:** bloquear login após N tentativas falhas consecutivas — hoje a única defesa é o rate limiter por IP+e-mail (gap conhecido, ver ADR-0003).
 

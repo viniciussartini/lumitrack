@@ -60,7 +60,7 @@ Todo módulo em `backend/src/modules/<nome>/` segue a mesma cadeia de camadas:
 
 ### `shared/` — infraestrutura transversal
 
-`backend/src/shared/` concentra o que não pertence a nenhum módulo de domínio: `crypto` (AES-256-GCM, blind index, TOTP, hash de token), `audit` (trilha OWASP A09/Art. 46), `sse` (`UserEventHub`), `notifications`, `tariff` (`TariffService`), `retention` (expurgo agendado), `middlewares` (`authenticate`, `requireRole`, rate limiters, error handler), `security` (CSRF), `logger` (pino), `database` (client Prisma singleton), `pdf` (export DSAR), `legal` (versão de consentimento).
+`backend/src/shared/` concentra o que não pertence a nenhum módulo de domínio: `crypto` (AES-256-GCM para endereço, PII, segredo MFA e credencial de medidor; blind index, TOTP, hash de token, QR code), `audit` (trilha OWASP A09/Art. 46), `sse` (`UserEventHub`), `notifications`, `tariff` (`TariffService`), `retention` (expurgo agendado), `middlewares` (`authenticate`, `requireRole`, rate limiters, error handler), `security` (CSRF, guard de SSRF em conexões de saída via `outboundHost`, redirect HTTPS com host canônico via `httpsRedirect`), `logger` (pino), `database` (client Prisma singleton), `pdf` (export DSAR), `legal` (versão de consentimento), `time`, `validation` e `pagination`.
 
 ### Integrações externas
 
@@ -78,3 +78,7 @@ Toda autorização é por posse de recurso, resolvida bottom-up: `MeterReading/A
 - `adr/0002-token-storage-cookie-httponly.md` — cookie `HttpOnly` (WEB) / Bearer (MOBILE).
 - `adr/0003-mfa-totp-opcional.md` — MFA opcional via TOTP + backup codes.
 - `adr/0004-monolito-modular-por-dominio.md` — monólito modular por domínio, DI via `createApp(deps)`.
+- `adr/0005-industry-como-design-system.md` — Industry como design system do produto.
+- `adr/0006-migracao-incremental-por-fase.md` — migração incremental para o Industry, por fase do roadmap.
+- `adr/0007-bandeira-tarifaria-fonte-oficial-aneel.md` — bandeira tarifária sincronizada da fonte oficial da ANEEL.
+- `adr/0008-hospedagem-brasil-oracle-always-free.md` — VM única na Oracle Cloud Always Free em São Paulo, sem operador estrangeiro. Tomada como decisão de **conformidade**, não só técnica: elimina a transferência internacional em vez de contratá-la. Tem uma **condição de validade** (cadastro público fechado) e uma lista de **gates de go-live** — leia antes de publicar o ambiente.

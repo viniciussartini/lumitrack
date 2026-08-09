@@ -63,9 +63,10 @@
 
 - [ ] Guarda de **registros de acesso a aplicações por 6 meses** (Art. 15) — equilibrar com a minimização da LGPD (não logar PII desnecessária).
 
-## Cookies / Analytics (PostHog)
+## Cookies / Analytics
 
-- [ ] Banner/consentimento para cookies não essenciais; PostHog (analytics) com base legal/consentimento conforme o caso.
+- **Estado atual: não há analytics.** Os únicos cookies são os essenciais de sessão (`AUTH_COOKIE_NAME`, `CSRF_COOKIE_NAME` e os equivalentes de refresh) — estritamente necessários ao funcionamento, portanto sem exigência de consentimento prévio.
+- [ ] **Ao adotar qualquer analytics ou cookie não essencial:** banner de consentimento granular e revogável, base legal definida por finalidade, e a linha correspondente no ROPA. Vale a mesma trava de região da ADR-0008 registrada em `05` — ferramenta estrangeira reabre a transferência internacional.
 
 ## Definition of Done — Conformidade
 

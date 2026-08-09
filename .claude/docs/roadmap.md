@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-08 · Fase atual: 14 (Fases 1–13 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185 e issue #127)
+> Última atualização: 2026-08-09 · Fase atual: 13.5 (Fases 1–13 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185 e issue #127)
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das quatro auditorias de 2026-08-05** (segurança, conformidade, qualidade, desempenho) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
@@ -22,6 +22,7 @@
 | 11 | Bloqueadores de conformidade LGPD — canal do titular, ROPA, RIPD, transferência internacional | **Concluída** (#155–#158, épico #154) |
 | 12 | Travas mecânicas de qualidade + correções sem trade-off | **Concluída** (#160–#165, épico #159) |
 | 13 | Endurecimento de segurança (P1) — cadastro público, credenciais, perímetro, CSP, lacunas de teste | **Concluída** (#177–#184, épico #185) |
+| 13.5 | Primeiro deploy — infraestrutura de go-live + documentação pública | **Atual** — detalhe abaixo |
 | 14 | Conformidade P1 — retenção, DSAR, consentimento e documentos legais | Planejada — objetivo abaixo |
 | 15 | Desempenho — instrumentação, índices e eliminação dos multiplicadores | Planejada — objetivo abaixo |
 | 16 | Worker IoT — robustez, estrutura e cobertura | Planejada — objetivo abaixo |
@@ -766,7 +767,160 @@ Cada linha abaixo é **um item de trabalho**, não quatro — auditorias diferen
 - **#183** — host canônico no redirect HTTPS (fecha um open redirect via Host forjado) + CSP do SPA, com verificação num browser real (Playwright headless) contra o build de produção.
 - **#184** — revalidação de sessão no SSE (sessão revogada por logout/reset de senha agora encerra o stream) + as 2 lacunas de cobertura de teste do laudo (cabeçalhos de segurança A02, cifra de CPF/CNPJ/endereço em repouso).
 
-Com a Fase 13 fechada, os gates de go-live #1–#5 da ADR-0008 estão implementados (fecho do cadastro público, credenciais fora do bundle, perímetro do simulador, `IOT_ALLOWED_HOSTS`, host canônico + CSP) — restam #6 (`pg_dump` agendado) e #7 (rotação de chaves), fora do escopo desta fase (operacionais, não código).
+Com a Fase 13 fechada, os gates de go-live #1–#5 da ADR-0008 estão implementados (fecho do cadastro público, credenciais fora do bundle, perímetro do simulador, `IOT_ALLOWED_HOSTS`, host canônico + CSP) — restam #6 (`pg_dump` agendado) e #7 (rotação de chaves), fora do escopo desta fase (operacionais, não código). São eles que abrem a **Fase 13.5**, abaixo.
+
+---
+
+## Fase 13.5 — Primeiro deploy (go-live)
+
+> **Por que 13.5 e não 14:** inserir como Fase 14 obrigaria a renumerar 14→15 até 22→23, invalidando as referências a "Fase 14" e "Fases 19–22" que já existem nos milestones do GitHub, nos quatro laudos de auditoria e no `CHANGELOG.md`. O número fracionário custa uma linha de estranheza e preserva todas as referências externas.
+>
+> **Trade-off declarado — esta fase não é fatiada verticalmente.** Ela não atravessa banco → API → UI porque não entrega comportamento novo nenhum: o que ela entrega é **o produto que já existe, acessível**. É o segundo ponto do roadmap onde a regra cede a uma dependência inescapável (o primeiro foi "Fundação de tokens", na Fase 1, já registrado nas justificativas de sequenciamento). Nenhum RF novo.
+>
+> **Gate que esta fase fecha:** go-live #6 e #7 da ADR-0008 — os únicos que a Fase 13 não podia fechar, porque são operacionais e não de código.
+>
+> **Dois blocos independentes.** O Bloco A (infraestrutura) e o Bloco B (documentação pública) não dependem um do outro e podem avançar em paralelo — B não espera a VM existir. Mas os dois pertencem ao mesmo marco: publicar o sistema com um wiki que descreve um projeto acadêmico em ASP.NET seria pior do que não ter wiki.
+
+### Bloco A — Infraestrutura de go-live
+
+#### Provisionamento da VM e do runtime
+
+- **Comportamento:** existe um ambiente de produção capaz de rodar o sistema — VM Oracle Cloud Always Free em São Paulo (`sa-saopaulo-1`), Node 24, PostgreSQL 16 co-locado, usuário de serviço sem privilégio.
+- **Cobre:** ADR-0008 (topologia decidida).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:** SSH aceita apenas chave, nunca senha; firewall e security list expõem somente 80 e 443; `psql` a partir de fora da VM é recusado; o broker MQTT do simulador escuta em `127.0.0.1` e não responde do exterior.
+- **Depende de:** —
+- **Risco/observações:** é o item de maior risco da fase e o único que pode falhar por motivo externo. Há relatos consistentes de indisponibilidade de capacidade ARM (Ampere A1) em São Paulo para contas Always Free. Fallback já documentado na ADR-0008: 2 VMs x86 micro (possivelmente separando banco e aplicação) ou, se nem isso, Fly.io na região GRU — a conclusão de conformidade não muda, porque GRU também é São Paulo.
+
+#### Publicação com processo supervisionado
+
+- **Comportamento:** o backend roda como serviço gerenciado, reinicia sozinho após falha ou reboot, e as migrações são aplicadas por um caminho próprio de produção.
+- **Cobre:** ADR-0008 (backend always-on é premissa: sem isso os três schedulers param e o `MinuteBuffer` se perde).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:** unidade `systemd` com `enable` — reboot da VM traz backend, banco e simulador de volta sem intervenção; **SIGTERM é respeitado e o graceful shutdown roda o flush do `MinuteBuffer`**, de modo que `systemctl restart` não perde leitura já ingerida; script novo `db:migrate:deploy` (`prisma migrate deploy`) no `backend/package.json`, já que hoje só existe `migrate dev`; `/health` responde 200.
+- **Depende de:** Provisionamento da VM.
+- **Risco/observações:** matar o processo abruptamente perde as leituras do minuto corrente ainda não persistidas — o flush no shutdown não é refinamento, é requisito.
+
+#### Reverse proxy, TLS e host canônico
+
+- **Comportamento:** o sistema responde por HTTPS num domínio real, com o SPA e a API atrás do mesmo proxy.
+- **Cobre:** gate de go-live #5 da ADR-0008 (a metade de configuração; a de código saiu na #183).
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** certificado Let's Encrypt válido e renovação automática verificada; `http://` responde 301 para o host canônico; requisição com `Host` forjado recebe 400; `curl -I` mostra HSTS e um header `Content-Security-Policy` **do proxy** contendo `frame-ancestors`, `base-uri` e `object-src` — as três diretivas que a CSP via `<meta>` do `frontend/index.html` não consegue entregar, conforme a nota técnica da própria ADR-0008.
+- **Depende de:** Publicação com processo supervisionado.
+- **Risco/observações:** a CSP passa a existir em dois lugares (meta e header). O header do proxy precisa ser superconjunto coerente do `<meta>`, senão o SPA quebra por diretiva mais restritiva.
+
+#### Checklist de `.env` de produção e rotação de chaves
+
+- **Comportamento:** o ambiente sobe com configuração de produção deliberada, não com defaults de desenvolvimento.
+- **Cobre:** gate de go-live #7 da ADR-0008; premissa de validade da ADR (cadastro fechado).
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** `REGISTRATION_ENABLED=false`, `DEMO_LOGIN_ENABLED=true`, `IOT_ALLOWED_HOSTS=127.0.0.1/32`, `CORS_ORIGIN` e `PUBLIC_API_ORIGIN` com o domínio real; `JWT_SECRET` e as **cinco** chaves de cifra geradas novas, nenhuma delas vinda do `.env.example`; `POST /api/users` responde 403 em produção; `POST /api/auth/demo-login` funciona; o checklist fica versionado no `DEPLOY.md`.
+- **Depende de:** Provisionamento da VM.
+- **Risco/observações:** `REGISTRATION_ENABLED` tem default `true` — subir sem trocá-lo derruba a conclusão de conformidade inteira da ADR-0008 no primeiro cadastro de uma pessoa real. É o item da fase com maior consequência e menor esforço.
+
+#### Backup do PostgreSQL com restauração testada
+
+- **Comportamento:** existe um backup automático do banco e uma restauração que já foi provada funcionar.
+- **Cobre:** gate de go-live #6 da ADR-0008.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** `pg_dump` agendado (timer do `systemd` ou cron) com política de retenção definida; **restauração executada ao menos uma vez num banco descartável, reproduzindo os dados** — a ADR exige o teste, não só o dump; procedimento no `DEPLOY.md`.
+- **Depende de:** Provisionamento da VM.
+- **Risco/observações:** a VM não tem backup gerenciado. Backup não testado é backup que não existe.
+
+#### Seed de demonstração e verificação ponta a ponta em produção
+
+- **Comportamento:** a demo pública funciona de verdade — alguém entra pela conta de demonstração e vê dado vivo.
+- **Cobre:** RF02, RF09–RF16 (verificação, não implementação).
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** `db:seed:demo` executado; simulador co-locado publicando; login demo entra; o painel mostra potência ao vivo via SSE; um alerta dispara e gera notificação; nenhuma conexão de saída bloqueada pelo guard de SSRF.
+- **Depende de:** Checklist de `.env`; Reverse proxy.
+- **Risco/observações:** é a verificação que fecha a fase — se algo do endurecimento da Fase 13 quebrou o caminho feliz, aparece aqui.
+
+#### Observabilidade mínima de produção
+
+- **Comportamento:** a queda do sistema gera alerta em algum canal que o mantenedor de fato lê.
+- **Cobre:** item "Observabilidade de produção" de `07-decisoes-em-aberto.md`.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:** monitor de uptime externo apontando para `/health`; alerta chegando; a escolha da ferramenta registrada em **ADR-0009**.
+- **Depende de:** Reverse proxy.
+- **Risco/observações:** decisão restrita antes de ser técnica — a ADR-0008 barra APM/agregador estrangeiro, que reintroduziria a transferência internacional. A ferramenta precisa ser região Brasil/UE ou auto-hospedada. **Item cortável:** subir sem observabilidade é aceitável para portfólio, desde que seja risco assumido explicitamente e não esquecimento.
+
+#### Documentação de operação (`DEPLOY.md`)
+
+- **Comportamento:** o deploy é reproduzível por escrito, não por memória.
+- **Cobre:** custo "ops manual" aceito na ADR-0008.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:** `.claude/docs/DEPLOY.md` com topologia real, comandos de deploy e rollback, o checklist de `.env` e o procedimento de restauração de backup; `04-tech-stack.md` deixa de afirmar que nenhum artefato de deploy existe.
+- **Depende de:** todos os itens anteriores do Bloco A.
+- **Risco/observações:** —
+
+### Bloco B — Documentação pública
+
+> Independe do Bloco A. Pode avançar enquanto a VM é provisionada.
+
+#### `README.md` da raiz
+
+- **Comportamento:** quem chega ao repositório entende o que é o projeto, o que ele faz, para onde vai e como participar — sem precisar abrir o wiki.
+- **Cobre:** —
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** seção **Sobre** com resumo, funcionalidades e roadmap resumido, terminando com o link do wiki; subseção **Como participar** cobrindo as duas vias (contribuir aqui ou criar fork) com a atribuição exigida ao repositório e ao autor; bloco de conformidade para fork comercial com as duas obrigações reais — **GPL-3.0** (copyleft forte: o fork permanece aberto sob GPL-3.0, com código modificado publicado e atribuição preservada) e **LGPD** (o fork que abrir cadastro real vira controlador e assume base legal por operação, canal do titular, ROPA, DPA com cada operador e SCC se hospedar fora do Brasil — apontando para a ADR-0008, que já mapeia esse limite, em vez de inventar orientação jurídica); seção **Documentação** logo após, com backend, frontend, mobile e `iot-simulator`; **nenhum link quebrado** — hoje `mobile/README.md` é link morto.
+- **Depende de:** —
+- **Risco/observações:** o bloco de conformidade descreve obrigações legais, não dá parecer — mesma ressalva que o `09` já carrega.
+
+#### `README.md` do backend
+
+- **Comportamento:** o pacote é compreensível ponta a ponta por quem nunca o viu.
+- **Cobre:** —
+- **Priority:** P0 · **Size:** L
+- **Critérios de aceite:** cobre os 16 módulos, a cadeia `routes → controller → service → repository`, todos os endpoints (incluindo `demo-login` e a confirmação de troca de e-mail, da Fase 13), as cinco chaves de cifra e as variáveis novas (`REGISTRATION_ENABLED`, `DEMO_LOGIN_ENABLED`, `IOT_ALLOWED_HOSTS`, `PUBLIC_API_ORIGIN`), setup local e de produção. **Diagramas em mermaid:** arquitetura em camadas, ERD do schema Prisma, sequência da ingestão IoT (FNC001), ciclo de vida de um alerta (FNC002), fluxo de autenticação com refresh rotacionado e MFA, e o pipeline de CI. Nenhuma afirmação contradiz o código.
+- **Depende de:** —
+- **Risco/observações:** são 1.767 linhas existentes — o risco é drift silencioso, não falta de conteúdo. Reconciliar contra o código, não reescrever por cima.
+
+#### `README.md` do frontend
+
+- **Comportamento:** idem, para o SPA.
+- **Cobre:** —
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:** migração Industry registrada como concluída (Fases 1–7), páginas novas (`ConfirmEmailChangePage`, "Sobre o projeto"), CSP do `index.html`, variáveis `VITE_*` reais, estratégia de testes. **Diagramas em mermaid:** árvore de rotas com guardas de autenticação, fluxo de dados TanStack Query ↔ API, ciclo do SSE no cliente (conexão, reconexão, consumo) e hierarquia de contextos.
+- **Depende de:** —
+- **Risco/observações:** —
+
+#### `README.md` do `iot-simulator` (novo)
+
+- **Comportamento:** o simulador deixa de ser a única parte do monorepo sem porta de entrada documentada.
+- **Cobre:** —
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:** arquivo criado na raiz do pacote (hoje só existe `server/README.md`, com 44 linhas); cobre o workspace `server` + `ui`, o token de API e as credenciais MQTT introduzidos pela #180, o bind em `127.0.0.1`, como rodar e como plugar no backend. **Diagramas em mermaid:** topologia simulador → broker `aedes` → backend, e sequência de uma publicação até a leitura aparecer no painel.
+- **Depende de:** —
+- **Risco/observações:** é o pacote que um avaliador de portfólio mais provavelmente tenta rodar primeiro, e hoje é o menos documentado.
+
+#### Verificação do `O-Sistema-Eletrico-Brasileiro.md`
+
+- **Comportamento:** o documento de referência do domínio deixa de carregar valores regulatórios não verificados.
+- **Cobre:** insumo das Fases 19–22 (é o oráculo dos cálculos de Grupo A, ACL e Branca).
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:** valores conferidos contra fonte oficial (ANEEL, Planalto) — bandeiras vigentes, ICMS por estado, Lei 15.235/2025 e REN 1.147/2025, transição PIS/COFINS→CBS, e se a proposta ANEEL de nov/2025 sobre Tarifa Branca automática virou norma; cruzamento com a bandeira que a aplicação já sincroniza da fonte oficial (ADR-0007); correção de `Parceça`→`Parcela` (2 ocorrências) e `anúncia`→`anuncia`; **valor não confirmável vira "aproximado, referência {data}", nunca fato**. A aritmética dos 7 exemplos práticos já foi conferida e fecha.
+- **Depende de:** —
+- **Risco/observações:** o documento existe em dois lugares (`.claude/docs/` e o wiki). A partir daqui, **a cópia em `.claude/docs/` é a fonte de verdade** e a do wiki é cópia sincronizada — registrado no `CLAUDE.md`.
+
+#### Wiki completo
+
+- **Comportamento:** o wiki descreve o produto que existe hoje.
+- **Cobre:** —
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:** editado direto no clone em `~/Development/lumitrack.wiki/` (repositório git separado; commit e push são do usuário). `Home.md` reescrita a partir do produto atual; **`História-do-projeto.md` nova**, recebendo íntegra a origem acadêmica (PUC-MG, equipe de seis, orientação, stack ASP.NET original e a virada para desenvolvimento solo) — preserva o crédito sem que a primeira tela descreva um projeto que não existe mais; `Contextualização.md` revisada; `O-Sistema-Elétrico-Brasileiro.md` sincronizado com a fonte de verdade; `_Sidebar.md` novo. Remoção do arquivo duplicado `O Sistema Elétrico Brasileiro` (sem extensão, 34.944 bytes, idêntico ao `.md`). **Nenhuma afirmação do wiki contradiz o código** — hoje contradiz em cinco pontos: histórico de consumo inserido manualmente, distribuidora com `kwhPrice` único (é TUSD+TE decomposto), alerta por threshold de kWh (é faixa de potência kW ± tolerância%), rollup horário (é por minuto) e token mobile sem expiração (são 90 dias).
+- **Depende de:** Verificação do `O-Sistema-Eletrico-Brasileiro.md` (para sincronizar já corrigido).
+- **Risco/observações:** o drift do wiki é anterior à reformulação IoT inteira — é reescrita, não revisão.
+
+#### Metadados do repositório no GitHub
+
+- **Comportamento:** quem encontra o repositório pela busca vê a descrição certa e o link da demo.
+- **Cobre:** —
+- **Priority:** P1 · **Size:** XS
+- **Critérios de aceite:** descrição atualizada (hoje: *"Projeto do 2º período do curso de Análise e Desenvolvimento de Sistemas - PUC-MG"*) e campo *homepage* preenchido com a URL da demo.
+- **Depende de:** Reverse proxy (para existir URL).
+- **Risco/observações:** —
 
 ### Fase 14 — Conformidade P1: retenção, DSAR, consentimento e documentos (P1)
 
@@ -958,3 +1112,13 @@ Candidatos conhecidos, ainda sem fase:
 - **ACL (21) depois de completar o Grupo A (20), não antes:** tecnicamente o ACL depende só da fundação da Fase 19, e poderia ser puxado para frente se a prioridade for valor de produto — a comparação "vale a pena migrar?" é a funcionalidade mais vendável do bloco. Mantive depois porque um consumidor ACL **continua pagando** ultrapassagem e ERE no lado da TUSD: entregar ACL antes da Fase 20 produziria uma conta de mercado livre incompleta, que é pior que nenhuma.
 - **Branca (22) depois da fundação, não junto:** ela reaproveita a infraestrutura de postos tarifários integralmente, e por isso não justifica antecipação — mas é a fase de maior alcance do bloco em número de usuários (Grupo B é a maioria absoluta do produto). Se a proposta da ANEEL de nov/2025 avançar (Branca automática acima de 1 MWh/mês em 2026), ela ganha urgência regulatória e deve ser repriorizada.
 - **Validar a incidência de bandeira no ACL antes de calcular:** o documento de referência afirma que a bandeira se aplica à TUSD no mercado livre, o que destoa do mecanismo (bandeira recompõe custo de compra de energia; TUSD é encargo de fio). Spike + ADR antes de qualquer linha de cálculo — mesma disciplina de risco/incerteza primeiro que a Fase 8 aplicou à fonte oficial da bandeira, e pelo mesmo motivo: uma tarifa errada custa mais que uma tarifa tardia.
+
+### Replanejamento de 2026-08-09 (inserção da Fase 13.5)
+
+**O que mudou:** uma fase nova entre a 13 e a 14. Nenhuma fase existente foi alterada, removida ou renumerada.
+
+- **Por que ela não existia antes:** o planejamento de 2026-08-05 tratou o deploy como consequência automática da Fase 13 — "fechados os gates, é só subir". A revisão de 2026-08-09 mostrou que não: os gates #1–#5 da ADR-0008 são de código e fecharam na Fase 13, mas **#6 (backup testado) e #7 (rotação de chaves) são operacionais e não tinham dono em fase nenhuma**. Some-se a isso que o repositório não tem um único artefato de deploy — nem Dockerfile, nem unidade `systemd`, nem config de proxy, nem `migrate deploy`. Trabalho real sem lugar no plano é trabalho que não acontece.
+- **Por que 13.5 e não 14:** renumerar 14→15 … 22→23 quebraria as referências a "Fase 14" e "Fases 19–22" já gravadas nos milestones do GitHub, nos quatro laudos de auditoria e no `CHANGELOG.md`. O custo de um número fracionário é cosmético; o de referências apontando para a fase errada, não.
+- **Por que a documentação pública entrou na mesma fase (Bloco B), e não numa fase própria:** os dois blocos fecham o mesmo marco e nenhum faz sentido publicado sem o outro. O wiki descreve hoje o projeto acadêmico original em ASP.NET, e cinco afirmações dele contradizem o código atual — publicar o sistema mantendo isso no ar seria pior do que não ter wiki. Os blocos são independentes entre si e podem correr em paralelo; o marco espera os dois.
+- **Consequência para a Fase 15:** a instrumentação de desempenho passa a ter onde medir. Medir gargalo em ambiente local, com dado de seed, era o ponto fraco reconhecido daquela fase — com o sistema no ar e o simulador publicando de forma contínua, a medição passa a valer alguma coisa.
+- **Decisão que a fase força:** observabilidade de produção sai de `07-decisoes-em-aberto.md` como item de médio prazo e vira escolha imediata — ou entra como ADR-0009 dentro da fase, ou subir sem monitoramento passa a ser risco assumido de forma explícita, não esquecimento.

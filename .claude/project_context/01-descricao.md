@@ -44,9 +44,11 @@ Um **Medidor** se vincula a exatamente um alvo — Propriedade, Área **ou** Apa
 - **Alertas por faixa de potência** — dispara quando a potência ativa sai de `referência ± tolerância%`, com anti-flapping por amostras consecutivas; cada episódio vira um evento histórico com duração e estatísticas.
 - **Tempo real** — leituras, disparos de alerta e notificações entregues ao navegador via SSE.
 - **Relatórios** e exportação de dados pessoais em PDF (portabilidade, Art. 18 LGPD).
-- **Segurança e conformidade** — MFA opcional (TOTP), RBAC mínimo, trilha de auditoria, criptografia de PII em repouso, consentimento versionado e expurgo automático por retenção. Auditoria OWASP Top 10:2025 + LGPD concluída, sem achados acima de 🟢 Baixo (ver `.claude/docs/AUDITORIA_SEGURANCA.md`).
+- **Segurança e conformidade** — MFA opcional (TOTP) com step-up na re-inscrição, RBAC mínimo, trilha de auditoria com redação de PII, criptografia de PII em repouso, guard de SSRF nas conexões de saída, consentimento versionado e expurgo automático por retenção. Quatro auditorias completas em 2026-08-05 (OWASP Top 10:2025, LGPD, qualidade e desempenho) e quatro fases dedicadas a remediá-las (10 a 13): os achados 🔴 Crítico e 🟠 Alto estão fechados, e nenhum achado acima de 🟢 Baixo permanece aberto. Laudos em `.claude/docs/2026-08-05-*-audit.md` (o `AUDITORIA_SEGURANCA.md` é o documento histórico anterior, preservado para rastreabilidade).
 - **Simulador de dispositivos IoT** (`iot-simulator/`) e seed de demonstração, para operar o produto ponta a ponta sem hardware físico.
 
 ## Estágio
 
-Projeto **solo, maduro e em evolução** — não é greenfield. O backend tem 16 módulos de domínio, a suíte de testes cobre unidade, integração HTTP e E2E (Playwright), e o CI roda 9 jobs com gates de lint, build, teste e `npm audit`. As decisões estruturais já estão tomadas e registradas em `.claude/docs/adr/`; o que permanece em aberto está em `07-decisoes-em-aberto.md`.
+Projeto **solo, maduro e em evolução** — não é greenfield. O backend tem 16 módulos de domínio, a suíte de testes cobre unidade, integração HTTP e E2E (Playwright), e o CI roda 15 jobs com gates de lint, build, teste, `npm audit` e secret scanning (gitleaks) para os três pacotes. As decisões estruturais já estão tomadas e registradas em `.claude/docs/adr/` (8 ADRs); o que permanece em aberto está em `07-decisoes-em-aberto.md`.
+
+As Fases 1–13 do `.claude/docs/roadmap.md` estão concluídas. O produto está **no gate de go-live**: o código exigido pela ADR-0008 para expor o ambiente publicamente está pronto (gates #1–#5), e o que falta é infraestrutura e operação — provisionamento, backup testado e rotação de chaves de produção (Fase 13.5). Nenhum artefato de deploy existe no repositório ainda.
