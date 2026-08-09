@@ -1264,3 +1264,13 @@
 - **Arquivos principais:** `frontend/README.md`.
 - **Decisões/ADRs:** nenhuma — documentação.
 - **Notas:** 4 diagramas mermaid exigidos pela issue — árvore de rotas com guardas, hierarquia de contexts, fluxo de dados TanStack Query ↔ API (incluindo o caminho de retry em 401), ciclo do SSE no cliente (conexão, os 4 eventos, reconexão automática da biblioteca vs. erro fatal que a interrompe, desmontagem). Mesmo problema de link-fragment do backend se repetiu na seção 3 (travessão + seta no título) — corrigido da mesma forma, título ajustado para vírgula. Todos os 21 caminhos de arquivo referenciados no documento confirmados existentes no disco antes de fechar. Achado documentado sem alarde: o export de `DistributorsPage` tem um typo de longa data (`DistribuidorsPage`) — mencionado internamente pelo agente de exploração, não elevado a destaque no README por não ser relevante para quem só consome a documentação.
+
+## [2026-08-09] chore: descrição do repositório no GitHub atualizada; homepage pendente do deploy
+
+- **Branch:** main
+- **Tipo:** chore
+- **O quê:** issue #202 (Fase 13.5, Bloco B — épico #187), parcialmente concluída. A descrição do repositório ainda era "Projeto do 2º período do curso de Análise e Desenvolvimento de Sistemas - PUC-MG" — resíduo da origem acadêmica, sem relação com o produto atual. Atualizada via `gh api` (ação administrativa e pública, confirmada com o usuário antes de executar) para um resumo do produto real, consistente com o README raiz.
+- **Correção:** não aplicável — metadado do GitHub, não código.
+- **Arquivos principais:** — (nenhum arquivo do repositório; metadado do GitHub via API).
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** o segundo critério de aceite da issue (campo *homepage* com a URL da demo) **não foi cumprido** — a própria issue declara a dependência explícita de #190 (reverse proxy, TLS e host canônico), item do Bloco A ainda não executado nesta fase. Preencher *homepage* agora exigiria inventar uma URL que não existe. Comentário deixado na issue #202 do GitHub explicando o bloqueio; issue mantida aberta até o deploy real acontecer.
