@@ -65,8 +65,8 @@ export async function createDemoCommercialUser() {
         password: DEMO_PASSWORD,
         userType: "COMPANY",
         acceptedTerms: true,
-        companyName: "Padaria Demo LTDA",
-        tradeName: "Padaria Demo",
+        companyName: "Metalúrgica Demo LTDA",
+        tradeName: "Metalúrgica Demo",
         cnpj: DEMO_CNPJ,
     })
 }

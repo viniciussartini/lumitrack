@@ -622,7 +622,7 @@ São **6 segredos obrigatórios sem default** (`JWT_SECRET` + as 5 chaves de cri
 
 ### Fora do schema de validação (lidas só pelo seed de demo)
 
-`SIMULATOR_BROKER_USERNAME` / `SIMULATOR_BROKER_PASSWORD` — credenciais do broker MQTT do `iot-simulator`, usadas por `npm run db:seed:demo` para popular `extra.username`/`extra.password` dos 4 medidores de demonstração. Sem elas, o seed usa os valores de exemplo do `iot-simulator/server/.env.example`.
+`SIMULATOR_BROKER_USERNAME` / `SIMULATOR_BROKER_PASSWORD` — credenciais do broker MQTT do `iot-simulator`, usadas por `npm run db:seed:demo` para popular `extra.username`/`extra.password` dos 11 medidores de demonstração. Sem elas, o seed usa os valores de exemplo do `iot-simulator/server/.env.example`.
 
 ## Scripts npm
 
@@ -797,7 +797,7 @@ backend/
 │   ├── schema.prisma
 │   ├── migrations/
 │   ├── seed.ts               # dados base (distribuidoras reais)
-│   └── seed-demo.ts          # 2 contas de demonstração + 4 medidores MQTT
+│   └── seed-demo.ts          # 2 contas de demonstração + 11 medidores MQTT (sem histórico)
 ├── scripts/
 │   ├── backfill-cpf-cnpj-encryption.ts
 │   ├── backfill-address-encryption.ts

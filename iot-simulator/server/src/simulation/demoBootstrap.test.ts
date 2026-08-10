@@ -41,9 +41,16 @@ describe("bootstrapDemoDevices", () => {
     it("publica exatamente nos tópicos dos medidores do seed de demonstração", () => {
         expect(DEMO_DEVICES.map((device) => device.topic)).toEqual([
             "lumitrack/demo/residencial/geral",
+            "lumitrack/demo/residencial/sala",
+            "lumitrack/demo/residencial/cozinha",
+            "lumitrack/demo/residencial/quarto-casal",
+            "lumitrack/demo/residencial/banheiro",
+            "lumitrack/demo/residencial/area-servico",
             "lumitrack/demo/comercial/geral",
-            "lumitrack/demo/comercial/vendas",
-            "lumitrack/demo/comercial/forno",
+            "lumitrack/demo/comercial/administrativo",
+            "lumitrack/demo/comercial/torno-cnc",
+            "lumitrack/demo/comercial/solda",
+            "lumitrack/demo/comercial/compressor",
         ])
     })
 

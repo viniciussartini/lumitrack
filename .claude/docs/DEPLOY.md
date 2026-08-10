@@ -70,7 +70,7 @@ DATABASE_URL='<connection-string-do-neon>' \
   npm run db:seed:demo
 ```
 
-> **Atenção ao volume.** O plano gratuito do Neon tem **0,5 GB**. O seed de demonstração, como está, gera 1 ano de leituras por minuto para 4 medidores (~2,1 milhões de linhas, **~650 MB**) e **não cabe**. Reduza a janela do seed antes de rodar contra o Neon. O `RetentionService` ainda não cobre `MeterReading` (item da Fase 14), então o crescimento das leituras ao vivo também precisa de acompanhamento manual.
+> **Sobre o volume no Neon (0,5 GB no plano gratuito):** o seed de demonstração **não gera histórico** — cria só a topologia (11 medidores, submedição por cômodo/equipamento) e os alertas, já configurados. Todo `MeterReading` nasce da ingestão IoT real a partir do deploy. Isso resolve na origem o estouro de volume que um seed com bulk insert causaria; o que resta acompanhar é o **crescimento das leituras ao vivo** ao longo do tempo — o `RetentionService` ainda não cobre `MeterReading` (item da Fase 14), então vale revisar o volume periodicamente.
 
 ### 3. Criar os serviços no Render
 
@@ -128,7 +128,7 @@ Preenchidas por você no painel (`sync: false`):
 
 - [ ] A interface carrega instantaneamente (site estático não hiberna).
 - [ ] O login de demonstração entra (a primeira tentativa pode levar ~60–90s — é o cold start da API).
-- [ ] O painel mostra potência ao vivo nos 4 medidores, via SSE.
+- [ ] O painel mostra potência ao vivo nos 11 medidores, via SSE.
 - [ ] `POST /api/users` responde **403** (cadastro fechado — gate #1).
 - [ ] Provocar uma anomalia num device do simulador dispara alerta e notificação.
 - [ ] Nenhuma conexão de saída bloqueada pelo guard de SSRF.
@@ -244,7 +244,7 @@ Acesse o Uptime Kuma via túnel SSH (`ssh -L 3001:localhost:3001 usuario@<ip-da-
 ### 9. Verificação ponta a ponta
 
 - [ ] Login com conta de demonstração funciona (`POST /api/auth/demo-login`).
-- [ ] O painel mostra potência ao vivo nos 4 medidores, via SSE.
+- [ ] O painel mostra potência ao vivo nos 11 medidores, via SSE.
 - [ ] Provocar uma anomalia num device do simulador dispara alerta e notificação.
 - [ ] Nenhuma conexão de saída bloqueada pelo guard de SSRF.
 - [ ] `psql` a partir de fora da VM é recusado.

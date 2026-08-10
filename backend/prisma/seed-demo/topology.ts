@@ -37,6 +37,25 @@ const DEMO_METER_CREDENTIALS = {
     password: encryptMeterCredential(process.env.SIMULATOR_BROKER_PASSWORD ?? "sim-demo-pass"),
 }
 
+type MeterTarget =
+    | { targetType: "PROPERTY"; propertyId: string }
+    | { targetType: "AREA"; areaId: string }
+    | { targetType: "DEVICE"; deviceId: string }
+
+async function createDemoMeter(name: string, topic: string, target: MeterTarget) {
+    return prisma.meter.create({
+        data: {
+            name,
+            protocol: "MQTT",
+            host: DEMO_METER_HOST,
+            port: DEMO_METER_PORT,
+            topic,
+            extra: DEMO_METER_CREDENTIALS,
+            ...target,
+        },
+    })
+}
+
 async function pickAnyDistributorId(): Promise<string> {
     const distributor = await prisma.energyDistributor.findFirst({ orderBy: { name: "asc" } })
 
@@ -48,6 +67,57 @@ async function pickAnyDistributorId(): Promise<string> {
 
     return distributor.id
 }
+
+// Config de alerta (referencePowerKw/tolerancePercent) fica junto da
+// definição do medidor de propósito — createDemoAlerts (alerts.ts) só
+// itera a lista, sem precisar conhecer a topologia de novo.
+export interface MeteredPoint {
+    meterId: string
+    meterName: string
+    referencePowerKw: number
+    tolerancePercent: number
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Residencial — "Casa Demo": submedição por cômodo (1 medidor por disjuntor),
+// além do medidor geral (relógio de entrada da concessionária) que mantém o
+// Painel funcional — RealtimeSection.tsx só mostra KPIs/potência ao vivo
+// quando a PROPRIEDADE tem medidor vinculado diretamente a ela.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface RoomSpec {
+    name: string
+    topicSuffix: string
+    referencePowerKw: number
+    tolerancePercent: number
+}
+
+// Referências calibradas pelo padrão de carga típico de cada cômodo — o
+// chuveiro elétrico é o pico mais previsível de uma casa brasileira
+// (potência nominal quase constante), por isso tolerância menor; cômodos com
+// carga mais variável (cozinha, área de serviço) ganham tolerância maior.
+const ROOM_SPECS: readonly RoomSpec[] = [
+    { name: "Sala de Estar", topicSuffix: "sala", referencePowerKw: 1.2, tolerancePercent: 30 },
+    { name: "Cozinha", topicSuffix: "cozinha", referencePowerKw: 2.5, tolerancePercent: 25 },
+    {
+        name: "Quarto Casal",
+        topicSuffix: "quarto-casal",
+        referencePowerKw: 1.0,
+        tolerancePercent: 30,
+    },
+    {
+        name: "Banheiro — Chuveiro Elétrico",
+        topicSuffix: "banheiro",
+        referencePowerKw: 5.5,
+        tolerancePercent: 15,
+    },
+    {
+        name: "Área de Serviço",
+        topicSuffix: "area-servico",
+        referencePowerKw: 1.5,
+        tolerancePercent: 25,
+    },
+]
 
 export async function createResidentialTopology(userId: string) {
     const distributorId = await pickAnyDistributorId()
@@ -63,103 +133,153 @@ export async function createResidentialTopology(userId: string) {
         billingClass: "B1",
     })
 
-    const generalMeter = await prisma.meter.create({
-        data: {
-            name: "Medidor Geral",
-            targetType: "PROPERTY",
-            propertyId: property.id,
-            protocol: "MQTT",
-            host: DEMO_METER_HOST,
-            port: DEMO_METER_PORT,
-            topic: "lumitrack/demo/residencial/geral",
-            extra: DEMO_METER_CREDENTIALS,
-        },
-    })
+    const generalMeter = await createDemoMeter(
+        "Medidor Geral",
+        "lumitrack/demo/residencial/geral",
+        { targetType: "PROPERTY", propertyId: property.id },
+    )
 
-    return { property, meters: { general: generalMeter } }
+    const rooms: MeteredPoint[] = []
+
+    for (const spec of ROOM_SPECS) {
+        const area = await areaService.create(property.id, userId, { name: spec.name })
+        const meter = await createDemoMeter(
+            spec.name,
+            `lumitrack/demo/residencial/${spec.topicSuffix}`,
+            { targetType: "AREA", areaId: area.id },
+        )
+
+        rooms.push({
+            meterId: meter.id,
+            meterName: spec.name,
+            referencePowerKw: spec.referencePowerKw,
+            tolerancePercent: spec.tolerancePercent,
+        })
+    }
+
+    return { property, meters: { general: generalMeter, rooms } }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Comercial — "Metalúrgica Demo": pequena indústria de pequeno porte, não
+// mais padaria. 4 áreas: Administrativo (medidor de área) + 3 áreas de
+// processo produtivo, cada uma com medidor no equipamento específico —
+// mesma lógica de submedição do residencial, adaptada a chão de fábrica.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ProductionAreaSpec {
+    areaName: string
+    deviceName: string
+    brand: string
+    model: string
+    powerWatts: number
+    topicSuffix: string
+    referencePowerKw: number
+    tolerancePercent: number
+}
+
+const PRODUCTION_AREA_SPECS: readonly ProductionAreaSpec[] = [
+    {
+        areaName: "Corte e Usinagem",
+        deviceName: "Torno CNC",
+        brand: "Romi",
+        model: "GL 240",
+        powerWatts: 7500,
+        topicSuffix: "torno-cnc",
+        referencePowerKw: 6,
+        tolerancePercent: 20,
+    },
+    {
+        areaName: "Solda",
+        deviceName: "Máquina de Solda MIG/MAG",
+        brand: "ESAB",
+        model: "Powertec 305S",
+        powerWatts: 5000,
+        topicSuffix: "solda",
+        referencePowerKw: 4.5,
+        tolerancePercent: 20,
+    },
+    {
+        areaName: "Compressão e Acabamento",
+        deviceName: "Compressor de Ar Industrial",
+        brand: "Schulz",
+        model: "MSV 20 Max",
+        powerWatts: 11000,
+        topicSuffix: "compressor",
+        referencePowerKw: 9,
+        tolerancePercent: 15,
+    },
+]
+
+const ADMIN_SPEC = { referencePowerKw: 3, tolerancePercent: 25 } as const
+const GENERAL_SPEC = { referencePowerKw: 25, tolerancePercent: 20 } as const
 
 export async function createCommercialTopology(userId: string) {
     const distributorId = await pickAnyDistributorId()
 
     const property = await propertyService.create(userId, {
         distributorId,
-        name: "Padaria Demo",
-        address: "Av. Comercial, 900",
-        city: "São Paulo",
+        name: "Metalúrgica Demo",
+        address: "Rua dos Metalúrgicos, 1200",
+        city: "São Bernardo do Campo",
         state: "SP",
-        zipCode: "01310-100",
+        zipCode: "09710-000",
         electricalSystem: "TRIPHASIC",
         billingClass: "B3",
         publicLightingFeeBrl: 42.5,
     })
 
-    const generalMeter = await prisma.meter.create({
-        data: {
-            name: "Medidor Geral",
-            targetType: "PROPERTY",
-            propertyId: property.id,
-            protocol: "MQTT",
-            host: DEMO_METER_HOST,
-            port: DEMO_METER_PORT,
-            topic: "lumitrack/demo/comercial/geral",
-            extra: DEMO_METER_CREDENTIALS,
-        },
+    const generalMeter = await createDemoMeter("Medidor Geral", "lumitrack/demo/comercial/geral", {
+        targetType: "PROPERTY",
+        propertyId: property.id,
     })
 
-    const salesArea = await areaService.create(property.id, userId, { name: "Área de Vendas" })
-    const kitchenArea = await areaService.create(property.id, userId, { name: "Produção/Cozinha" })
+    const adminArea = await areaService.create(property.id, userId, { name: "Administrativo" })
+    const adminMeter = await createDemoMeter(
+        "Medidor Administrativo",
+        "lumitrack/demo/comercial/administrativo",
+        { targetType: "AREA", areaId: adminArea.id },
+    )
 
-    const salesAreaMeter = await prisma.meter.create({
-        data: {
-            name: "Medidor Área de Vendas",
-            targetType: "AREA",
-            areaId: salesArea.id,
-            protocol: "MQTT",
-            host: DEMO_METER_HOST,
-            port: DEMO_METER_PORT,
-            topic: "lumitrack/demo/comercial/vendas",
-            extra: DEMO_METER_CREDENTIALS,
-        },
-    })
+    const production: MeteredPoint[] = []
 
-    const oven = await deviceService.create(kitchenArea.id, property.id, userId, {
-        name: "Forno Industrial",
-        brand: "ProBake",
-        model: "PB-3000",
-        powerWatts: 5000,
-    })
-    const freezer = await deviceService.create(kitchenArea.id, property.id, userId, {
-        name: "Câmara Fria",
-        brand: "FrostTech",
-        model: "FT-900",
-        powerWatts: 1200,
-    })
-    const airConditioner = await deviceService.create(salesArea.id, property.id, userId, {
-        name: "Ar-condicionado",
-        brand: "ClimaMax",
-        model: "CM-24",
-        powerWatts: 2200,
-    })
+    for (const spec of PRODUCTION_AREA_SPECS) {
+        const area = await areaService.create(property.id, userId, { name: spec.areaName })
+        const device = await deviceService.create(area.id, property.id, userId, {
+            name: spec.deviceName,
+            brand: spec.brand,
+            model: spec.model,
+            powerWatts: spec.powerWatts,
+        })
+        const meter = await createDemoMeter(
+            spec.deviceName,
+            `lumitrack/demo/comercial/${spec.topicSuffix}`,
+            { targetType: "DEVICE", deviceId: device.id },
+        )
 
-    const ovenMeter = await prisma.meter.create({
-        data: {
-            name: "Medidor Forno",
-            targetType: "DEVICE",
-            deviceId: oven.id,
-            protocol: "MQTT",
-            host: DEMO_METER_HOST,
-            port: DEMO_METER_PORT,
-            topic: "lumitrack/demo/comercial/forno",
-            extra: DEMO_METER_CREDENTIALS,
-        },
-    })
-
-    return {
-        property,
-        salesArea,
-        kitchenArea,
-        devices: { oven, freezer, airConditioner },
-        meters: { general: generalMeter, salesArea: salesAreaMeter, oven: ovenMeter },
+        production.push({
+            meterId: meter.id,
+            meterName: spec.deviceName,
+            referencePowerKw: spec.referencePowerKw,
+            tolerancePercent: spec.tolerancePercent,
+        })
     }
+
+    const meters: MeteredPoint[] = [
+        {
+            meterId: generalMeter.id,
+            meterName: "Medidor Geral",
+            referencePowerKw: GENERAL_SPEC.referencePowerKw,
+            tolerancePercent: GENERAL_SPEC.tolerancePercent,
+        },
+        {
+            meterId: adminMeter.id,
+            meterName: "Medidor Administrativo",
+            referencePowerKw: ADMIN_SPEC.referencePowerKw,
+            tolerancePercent: ADMIN_SPEC.tolerancePercent,
+        },
+        ...production,
+    ]
+
+    return { property, meters }
 }

@@ -1,46 +1,32 @@
 import { AlertRepository } from "@/modules/alert/alert.repository.js"
 import { prisma } from "@/shared/database/prisma.js"
-import type { AnomalyMeterKey } from "./anomalies.js"
+import type { MeteredPoint } from "./topology.js"
 
 const alertRepository = new AlertRepository(prisma)
 
-export type DemoAlertMap = Record<AnomalyMeterKey, string> // meterKey → alertId
+// Um alerta por medidor informado, com a referência/tolerância que a própria
+// topologia já carrega (ver MeteredPoint em topology.ts) — sem histórico
+// gerado (ver seed-demo.ts), então não há AlertTriggerEvent a semear aqui;
+// só a configuração, pronta para disparar quando a ingestão IoT real chegar.
+async function createAlertsFor(userId: string, meters: readonly MeteredPoint[]): Promise<void> {
+    for (const meter of meters) {
+        await alertRepository.create(userId, {
+            name: `Pico de consumo — ${meter.meterName}`,
+            meterId: meter.meterId,
+            referencePowerKw: meter.referencePowerKw,
+            tolerancePercent: meter.tolerancePercent,
+        })
+    }
+}
 
-// 3 alertas (1 residencial, 2 comercial) com faixa de referência calibrada
-// para o pico normal de cada perfil de carga (ver consumptionGen.ts) — os 6
-// episódios de anomalia (anomalies.ts) usam multiplicadores de 2.1x-3.5x,
-// bem acima da faixa de tolerância normal.
+// Residencial: alerta em todos os cômodos (não no medidor geral). Comercial:
+// alerta em todos os medidores, incluindo o geral.
 export async function createDemoAlerts(
     residentialUserId: string,
-    residentialMeterId: string,
+    residentialRoomMeters: readonly MeteredPoint[],
     commercialUserId: string,
-    commercialGeneralMeterId: string,
-    ovenMeterId: string,
-): Promise<DemoAlertMap> {
-    const residentialAlert = await alertRepository.create(residentialUserId, {
-        name: "Pico de consumo residencial",
-        meterId: residentialMeterId,
-        referencePowerKw: 4,
-        tolerancePercent: 25,
-    })
-
-    const commercialGeneralAlert = await alertRepository.create(commercialUserId, {
-        name: "Pico de consumo geral",
-        meterId: commercialGeneralMeterId,
-        referencePowerKw: 11,
-        tolerancePercent: 20,
-    })
-
-    const ovenAlert = await alertRepository.create(commercialUserId, {
-        name: "Pico de consumo do forno",
-        meterId: ovenMeterId,
-        referencePowerKw: 5,
-        tolerancePercent: 15,
-    })
-
-    return {
-        residential: residentialAlert.id,
-        commercialGeneral: commercialGeneralAlert.id,
-        oven: ovenAlert.id,
-    }
+    commercialMeters: readonly MeteredPoint[],
+): Promise<void> {
+    await createAlertsFor(residentialUserId, residentialRoomMeters)
+    await createAlertsFor(commercialUserId, commercialMeters)
 }

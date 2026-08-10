@@ -17,68 +17,147 @@ import type { NewDeviceInput, SimulationStore } from "@/simulation/store.js"
 export const DEMO_NETWORK_NAME = "Demo"
 
 /**
- * Os tópicos abaixo casam 1:1 com os 4 medidores MQTT de
- * `backend/prisma/seed-demo/topology.ts`. Se um lado mudar, o outro precisa
- * mudar junto — sem isso o backend assina um tópico em que ninguém publica,
- * e o sintoma é um painel silencioso sem nenhum erro visível.
+ * Os 11 tópicos abaixo casam 1:1 com os 11 medidores MQTT de
+ * `backend/prisma/seed-demo/topology.ts` (submedição por cômodo na Casa
+ * Demo, por área/equipamento na Metalúrgica Demo, além do medidor geral de
+ * cada propriedade). Se um lado mudar, o outro precisa mudar junto — sem
+ * isso o backend assina um tópico em que ninguém publica, e o sintoma é um
+ * painel silencioso sem nenhum erro visível.
  *
- * As constantes elétricas espelham `PROFILE_DEFAULTS` de
- * `backend/prisma/seed-demo/consumptionGen.ts`, para o dado ao vivo ser
- * contínuo com o histórico já semeado em vez de destoar dele.
+ * `nominalPowerW` é a potência típica de operação de cada ponto — calibrada
+ * abaixo da `referencePowerKw` do alerta correspondente (ver topology.ts),
+ * com folga para a variação normal (±5% de senoide + ruído gaussiano) não
+ * disparar alerta sozinha. O medidor geral de cada propriedade não tem
+ * alerta configurado (residencial) ou usa a referência mais alta (comercial)
+ * — não é a soma literal dos submedidores, é o relógio de entrada da
+ * concessionária, com sinal próprio.
  *
- * Atenção à unidade: no seed, `noiseAmplitudePercent` é **fração** (0.04);
- * aqui é **percentual** (`z.number().min(0).max(100)`, usado como
+ * Atenção à unidade: `noiseAmplitudePercent` aqui é **percentual**
+ * (`z.number().min(0).max(100)`, usado como
  * `nominalPowerW * (noiseAmplitudePercent / 100)` em `signalGenerator.ts`).
- * Por isso 0.04 vira 4.
- *
- * `nominalPowerW` é uma escolha de valor plausível de meio de dia: o
- * simulador não modela curva por hora (o `profile` é metadado; o sinal é
- * `nominalPowerW` ± 5% de senoide + ruído), enquanto o seed modela. Qualquer
- * constante é um meio-termo — estes valores ficam próximos do que o perfil
- * correspondente do seed produz durante o horário comercial.
  */
 export const DEMO_DEVICES: readonly NewDeviceInput[] = [
+    // ── Casa Demo (residencial) ──────────────────────────────────────────
     {
         name: "Medidor Geral — Casa Demo",
         topic: "lumitrack/demo/residencial/geral",
         params: {
             profile: "RESIDENTIAL_STEADY",
             nominalVoltage: 220,
-            nominalPowerW: 450,
+            nominalPowerW: 3500,
             powerFactorBase: 0.92,
             noiseAmplitudePercent: 4,
         },
     },
     {
-        name: "Medidor Geral — Padaria Demo",
-        topic: "lumitrack/demo/comercial/geral",
+        name: "Sala de Estar",
+        topic: "lumitrack/demo/residencial/sala",
         params: {
-            profile: "COMMERCIAL_HVAC",
-            nominalVoltage: 380,
-            nominalPowerW: 6000,
-            powerFactorBase: 0.9,
-            noiseAmplitudePercent: 4,
-        },
-    },
-    {
-        name: "Medidor Área de Vendas",
-        topic: "lumitrack/demo/comercial/vendas",
-        params: {
-            profile: "COMMERCIAL_HVAC",
-            nominalVoltage: 380,
-            nominalPowerW: 1200,
-            powerFactorBase: 0.87,
+            profile: "RESIDENTIAL_STEADY",
+            nominalVoltage: 220,
+            nominalPowerW: 900,
+            powerFactorBase: 0.93,
             noiseAmplitudePercent: 5,
         },
     },
     {
-        name: "Medidor Forno Industrial",
-        topic: "lumitrack/demo/comercial/forno",
+        name: "Cozinha",
+        topic: "lumitrack/demo/residencial/cozinha",
+        params: {
+            profile: "RESIDENTIAL_STEADY",
+            nominalVoltage: 220,
+            nominalPowerW: 1900,
+            powerFactorBase: 0.9,
+            noiseAmplitudePercent: 6,
+        },
+    },
+    {
+        name: "Quarto Casal",
+        topic: "lumitrack/demo/residencial/quarto-casal",
+        params: {
+            profile: "RESIDENTIAL_STEADY",
+            nominalVoltage: 220,
+            nominalPowerW: 750,
+            powerFactorBase: 0.93,
+            noiseAmplitudePercent: 5,
+        },
+    },
+    {
+        name: "Banheiro — Chuveiro Elétrico",
+        topic: "lumitrack/demo/residencial/banheiro",
+        params: {
+            profile: "RESIDENTIAL_STEADY",
+            nominalVoltage: 220,
+            nominalPowerW: 4800,
+            powerFactorBase: 0.98,
+            noiseAmplitudePercent: 2,
+        },
+    },
+    {
+        name: "Área de Serviço",
+        topic: "lumitrack/demo/residencial/area-servico",
+        params: {
+            profile: "RESIDENTIAL_STEADY",
+            nominalVoltage: 220,
+            nominalPowerW: 1100,
+            powerFactorBase: 0.88,
+            noiseAmplitudePercent: 6,
+        },
+    },
+
+    // ── Metalúrgica Demo (comercial/industrial) ──────────────────────────
+    {
+        name: "Medidor Geral — Metalúrgica Demo",
+        topic: "lumitrack/demo/comercial/geral",
         params: {
             profile: "INDUSTRIAL_MOTOR",
             nominalVoltage: 380,
-            nominalPowerW: 2500,
-            powerFactorBase: 0.97,
+            nominalPowerW: 19000,
+            powerFactorBase: 0.88,
+            noiseAmplitudePercent: 5,
+        },
+    },
+    {
+        name: "Administrativo",
+        topic: "lumitrack/demo/comercial/administrativo",
+        params: {
+            profile: "COMMERCIAL_HVAC",
+            nominalVoltage: 380,
+            nominalPowerW: 2200,
+            powerFactorBase: 0.92,
+            noiseAmplitudePercent: 5,
+        },
+    },
+    {
+        name: "Torno CNC",
+        topic: "lumitrack/demo/comercial/torno-cnc",
+        params: {
+            profile: "INDUSTRIAL_MOTOR",
+            nominalVoltage: 380,
+            nominalPowerW: 4800,
+            powerFactorBase: 0.85,
+            noiseAmplitudePercent: 4,
+        },
+    },
+    {
+        name: "Máquina de Solda MIG/MAG",
+        topic: "lumitrack/demo/comercial/solda",
+        params: {
+            profile: "INDUSTRIAL_MOTOR",
+            nominalVoltage: 380,
+            nominalPowerW: 3600,
+            powerFactorBase: 0.8,
+            noiseAmplitudePercent: 8,
+        },
+    },
+    {
+        name: "Compressor de Ar Industrial",
+        topic: "lumitrack/demo/comercial/compressor",
+        params: {
+            profile: "INDUSTRIAL_MOTOR",
+            nominalVoltage: 380,
+            nominalPowerW: 7800,
+            powerFactorBase: 0.86,
             noiseAmplitudePercent: 3,
         },
     },
@@ -90,7 +169,7 @@ export interface DemoBootstrapResult {
 }
 
 /**
- * Cria a rede de demonstração com os 4 devices ligados.
+ * Cria a rede de demonstração com todos os devices ligados.
  *
  * Idempotente por nome de rede: se uma rede "Demo" já existe, não faz nada e
  * devolve `null`. O store nasce vazio a cada processo, então na prática isso
