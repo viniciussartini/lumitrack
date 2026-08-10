@@ -115,6 +115,12 @@ services:
           # logo abaixo — se um mudar, o outro muda junto.
           - key: VITE_SSE_URL
             value: https://lumitrack-api.onrender.com/api/iot/stream
+          # O CSP do próprio HTML (index.html) tem connect-src 'self' —
+          # sem essa origem aqui, o navegador bloqueia a conexão do
+          # VITE_SSE_URL acima antes mesmo de CORS entrar em jogo. Mesma
+          # origem do VITE_SSE_URL (sem o path).
+          - key: VITE_CSP_CONNECT_EXTRA
+            value: https://lumitrack-api.onrender.com
       routes:
           # ATENÇÃO — esta é a peça central do desenho, e a única que precisa
           # ser editada à mão depois do primeiro deploy: troque o destino pela

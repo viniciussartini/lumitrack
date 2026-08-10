@@ -3,6 +3,13 @@ import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 import path from "node:path"
 
+// index.html usa %VITE_CSP_CONNECT_EXTRA% no connect-src do CSP (ver
+// comentário no próprio arquivo). Vite só substitui %VAR% quando a
+// variável está definida — mesmo vazia; sem isso aqui, um build sem essa
+// variável (dev, self-hosted) deixaria o placeholder literal no CSP
+// gerado. Só a demo do Render (render.yaml) define um valor de verdade.
+process.env.VITE_CSP_CONNECT_EXTRA ??= ""
+
 export default defineConfig({
     plugins: [react(), tailwindcss()],
     resolve: {

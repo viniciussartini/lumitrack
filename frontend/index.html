@@ -15,10 +15,19 @@
       (só via header HTTP) — mantidos aqui documentando a intenção; o
       reverse proxy de produção (ADR-0008) deve enviar o header equivalente
       quando configurado.
+
+      %VITE_CSP_CONNECT_EXTRA% em connect-src — vazio por padrão (dev,
+      self-hosted). Só a demo pública do Render (ADR-0010) define essa
+      variável de build, com a origem da API (lumitrack-api.onrender.com):
+      o stream SSE precisa ir cross-origin direto na API (o rewrite /api/*
+      não sustenta conexão de longa duração), e sem isso aqui o próprio
+      CSP bloqueia a tentativa no navegador antes mesmo de CORS entrar em
+      jogo. Substituição via %ENV% é recurso nativo do Vite (loadEnv),
+      igual em dev server e build.
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'sha256-+up+7C+rtXMLX83AFmz9GUqo6C3J6ptqB1rNLtcKJRM='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
+      content="default-src 'self'; script-src 'self' 'sha256-+up+7C+rtXMLX83AFmz9GUqo6C3J6ptqB1rNLtcKJRM='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' %VITE_CSP_CONNECT_EXTRA%; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
