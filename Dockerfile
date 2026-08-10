@@ -29,6 +29,11 @@ COPY backend/package.json backend/package-lock.json ./
 RUN npm ci
 
 COPY backend/ ./
+# prisma.config.ts resolve a datasource via env("DATABASE_URL") — `generate`
+# nunca chega a conectar no banco, mas o loader do config falha se a
+# variável não existir. Valor descartável, só existe neste estágio de build
+# (Render injeta o DATABASE_URL real, do Neon, em runtime).
+ENV DATABASE_URL="postgresql://user:password@localhost:5432/db?schema=public"
 RUN npx prisma generate
 RUN npm run build
 

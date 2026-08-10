@@ -20,6 +20,10 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+# prisma.config.ts resolve a datasource via env("DATABASE_URL") — `generate`
+# nunca chega a conectar no banco, mas o loader do config falha se a
+# variável não existir. Valor descartável, só existe neste estágio de build.
+ENV DATABASE_URL="postgresql://user:password@localhost:5432/db?schema=public"
 RUN npx prisma generate
 RUN npm run build
 
