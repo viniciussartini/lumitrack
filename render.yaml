@@ -27,7 +27,15 @@ services:
           - key: DEMO_LOGIN_ENABLED
             value: "true"
           - key: IOT_ALLOWED_HOSTS
-            value: 127.0.0.1/32 # simulador no mesmo container = loopback
+            # "localhost" precisa entrar como hostname (não só o CIDR do IP)
+            # — dentro do container ele resolve para 127.0.0.1 E ::1
+            # (dual-stack), e o guard de SSRF nega o host inteiro se
+            # qualquer endereço resolvido não estiver coberto pela
+            # allowlist (shared/security/outboundHost.ts). O medidor do
+            # seed aponta para "localhost" (DEMO_METER_HOST), não para o IP
+            # literal, então a entrada de hostname evita a resolução DNS
+            # (e o IPv6 loopback não coberto) por completo.
+            value: localhost,127.0.0.1/32
           - key: DEMO_BOOTSTRAP_ENABLED
             value: "true" # recria os devices do simulador a cada despertar
           - key: API_HOST
