@@ -132,6 +132,14 @@ Preenchidas por você no painel (`sync: false`):
 - **Diagnóstico:** nos logs do serviço `lumitrack-api`, veja qual `Host` chegou.
 - **Correção:** ajuste `PUBLIC_API_ORIGIN` para esse host, com `https://` e sem barra final.
 
+### O painel abre, mas a potência ao vivo nunca aparece (SSE travado)
+
+O rewrite `/api/*` do site estático **não sustenta conexão de longa duração** — ele foi desenhado para redirecionar página, não para proxiar streaming. O stream SSE (`GET /api/iot/stream`) trava sem nunca entregar dado quando passa por ele, mesmo com o backend funcionando perfeitamente.
+
+- **Sintoma:** login funciona, o resto da API responde normal, mas "Potência agora"/"Sem leitura recente" nunca atualiza. No DevTools → Network, a requisição para `/api/iot/stream` fica pendente com "Provisional headers are shown" (o browser nunca recebe resposta real).
+- **Diagnóstico:** teste a API **direto**, sem passar pelo rewrite: `curl -N -H "Cookie: lumitrack_session=<valor-do-cookie>" https://lumitrack-api.onrender.com/api/iot/stream`. Se aparecer `event: connected` e depois `: keep-alive` a cada 30s, a API está certa — o problema é só o rewrite.
+- **Correção:** já resolvido no repositório (ADR-0010) — `VITE_SSE_URL` no `render.yaml` aponta o frontend direto para a origem da API só para essa chamada, cross-origin. Isso exigiu `sameSite: "none"` no cookie de sessão em produção (`shared/security/csrf.ts`); se você mudar o nome do serviço da API no Render, precisa atualizar `VITE_SSE_URL` junto com o destino do rewrite (item 4 do passo a passo).
+
 ## Verificação ponta a ponta
 
 - [ ] A interface carrega instantaneamente (site estático não hiberna).

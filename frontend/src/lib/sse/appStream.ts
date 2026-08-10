@@ -8,8 +8,16 @@ import type { Notification } from "@/types/notification.types"
 /**
  * URL do endpoint SSE do backend — `iot-stream.routes.ts` montado em
  * `/api/iot`, rota `GET /stream`.
+ *
+ * Caminho relativo por padrão (self-hosted/dev — mesma origem via Caddy ou
+ * dev server). Na demo pública do Render (ADR-0010), VITE_SSE_URL aponta
+ * para a origem absoluta do serviço da API: o rewrite `/api/*` do site
+ * estático não sustenta conexão de longa duração (SSE trava sem nunca
+ * entregar dado), então essa única chamada precisa ir cross-origin direto
+ * na API — cookie de sessão em produção usa sameSite:"none" exatamente
+ * para permitir isso (shared/security/csrf.ts).
  */
-const SSE_URL = "/api/iot/stream"
+const SSE_URL = import.meta.env.VITE_SSE_URL || "/api/iot/stream"
 
 /**
  * Contrato de eventos (Fase 4/5 — ver backend/src/modules/iot/iot-stream.routes.ts):

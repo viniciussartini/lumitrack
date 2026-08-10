@@ -108,6 +108,13 @@ services:
           # independentes, sem fonte de verdade compartilhada).
           - key: VITE_DEMO_MODE
             value: "true"
+          # O rewrite /api/* abaixo não sustenta conexão de longa duração
+          # (SSE trava sem entregar dado através dele) — só essa chamada
+          # aponta direto pra origem real da API, cross-origin. Precisa
+          # bater com o mesmo valor usado em "destination" no rewrite
+          # logo abaixo — se um mudar, o outro muda junto.
+          - key: VITE_SSE_URL
+            value: https://lumitrack-api.onrender.com/api/iot/stream
       routes:
           # ATENÇÃO — esta é a peça central do desenho, e a única que precisa
           # ser editada à mão depois do primeiro deploy: troque o destino pela
