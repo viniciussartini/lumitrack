@@ -92,6 +92,14 @@ services:
       runtime: static
       buildCommand: cd frontend && npm ci && npm run build
       staticPublishPath: frontend/dist
+      envVars:
+          # Vite resolve import.meta.env.VITE_* em BUILD time, não em
+          # runtime — sem isso aqui, o botão de login de demonstração
+          # (frontend/src/pages/auth/LoginPage.tsx) nunca aparece, mesmo com
+          # DEMO_LOGIN_ENABLED=true no backend (são duas flags
+          # independentes, sem fonte de verdade compartilhada).
+          - key: VITE_DEMO_MODE
+            value: "true"
       routes:
           # ATENÇÃO — esta é a peça central do desenho, e a única que precisa
           # ser editada à mão depois do primeiro deploy: troque o destino pela

@@ -65,11 +65,18 @@ cd backend
 DATABASE_URL='<connection-string-do-neon>' npm run db:migrate:deploy
 DATABASE_URL='<connection-string-do-neon>' npm run db:seed        # catálogo de distribuidoras
 DATABASE_URL='<connection-string-do-neon>' \
-  SIMULATOR_BROKER_USERNAME='<mesmo-do-render>' \
-  SIMULATOR_BROKER_PASSWORD='<mesmo-do-render>' \
+  CPF_CNPJ_ENCRYPTION_KEY='<mesmo-do-render>' \
+  CPF_CNPJ_BLIND_INDEX_KEY='<mesmo-do-render>' \
+  MFA_SECRET_ENCRYPTION_KEY='<mesmo-do-render>' \
+  ADDRESS_ENCRYPTION_KEY='<mesmo-do-render>' \
+  METER_CREDENTIAL_ENCRYPTION_KEY='<mesmo-do-render>' \
+  SIMULATOR_BROKER_USERNAME='<mesmo-do-render, BROKER_USERNAME>' \
+  SIMULATOR_BROKER_PASSWORD='<mesmo-do-render, BROKER_PASSWORD>' \
   npm run db:seed:demo
 ```
 
+> **As 5 chaves de cifra têm que ser EXATAMENTE as mesmas do painel do Render.** O seed roda da sua máquina, mas grava no mesmo banco (Neon) que o backend em produção lê depois. Se as chaves não baterem, tudo que foi cifrado no seed (CPF/CNPJ, endereço, credencial do medidor) fica ilegível em runtime — `AES-256-GCM` falha com `Unsupported state or unable to authenticate data` (tag de autenticação não bate), não com uma mensagem óbvia de "chave errada". Gere as chaves **uma vez**, salve-as no Render primeiro, e só então rode o seed reaproveitando os mesmos valores — nunca o contrário.
+>
 > **Sobre o volume no Neon (0,5 GB no plano gratuito):** o seed de demonstração **não gera histórico** — cria só a topologia (11 medidores, submedição por cômodo/equipamento) e os alertas, já configurados. Todo `MeterReading` nasce da ingestão IoT real a partir do deploy. Isso resolve na origem o estouro de volume que um seed com bulk insert causaria; o que resta acompanhar é o **crescimento das leituras ao vivo** ao longo do tempo — o `RetentionService` ainda não cobre `MeterReading` (item da Fase 14), então vale revisar o volume periodicamente.
 
 ### 3. Criar os serviços no Render
