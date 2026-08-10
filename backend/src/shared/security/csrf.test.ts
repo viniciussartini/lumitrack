@@ -20,22 +20,21 @@ describe("generateCsrfToken", () => {
 })
 
 describe("getAuthCookieOptions", () => {
-    it("secure:true e sameSite:none quando nodeEnv é production", () => {
+    it("secure:true quando nodeEnv é production", () => {
         const options = getAuthCookieOptions("production", 900_000)
         expect(options).toEqual({
             httpOnly: true,
             secure: true,
-            sameSite: "none",
+            sameSite: "lax",
             path: "/",
             maxAge: 900_000,
         })
     })
 
-    it("secure:false e sameSite:lax quando nodeEnv é development", () => {
+    it("secure:false quando nodeEnv é development", () => {
         const options = getAuthCookieOptions("development", 900_000)
         expect(options.secure).toBe(false)
         expect(options.httpOnly).toBe(true)
-        expect(options.sameSite).toBe("lax")
     })
 
     it("secure:false quando nodeEnv é test", () => {
@@ -58,7 +57,7 @@ describe("getRefreshCookieOptions", () => {
         expect(options).toEqual({
             httpOnly: true,
             secure: true,
-            sameSite: "none",
+            sameSite: "lax",
             path: "/api/auth",
             maxAge: 604_800_000,
         })

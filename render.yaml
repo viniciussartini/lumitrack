@@ -128,12 +128,17 @@ services:
           # interpolam URL de serviço em destino de rota).
           #
           # O frontend chama a API por caminho relativo (`/api` em
-          # services/api.ts, `/api/iot/stream` em lib/sse/appStream.ts). Este
-          # rewrite mantém tudo na mesma origem do ponto de vista do browser,
-          # o que preserva sem alteração nenhuma: cookie de sessão HttpOnly,
-          # CSRF double-submit e a diretiva `connect-src 'self'` da CSP.
-          # Servir a API em outro domínio exigiria SameSite=None e reescreveria
-          # o modelo de sessão inteiro.
+          # services/api.ts). Este rewrite mantém tudo na mesma origem do
+          # ponto de vista do browser, o que preserva sem alteração nenhuma:
+          # cookie de sessão HttpOnly e CSRF double-submit.
+          #
+          # Exceção: o stream SSE (VITE_SSE_URL acima) vai direto pra API,
+          # cross-origin — o rewrite não sustenta conexão de longa duração.
+          # Isso NÃO exigiu enfraquecer o cookie de sessão (SameSite continua
+          # "lax" em todo lugar): a chamada cross-origin se autentica por um
+          # ticket de uso único (POST /api/iot/stream-ticket, same-origin,
+          # trocado pela conexão via query string), não por cookie — ver
+          # ADR-0010 e backend/src/modules/iot/sse-ticket.service.ts.
           - type: rewrite
             source: /api/*
             destination: https://lumitrack-api.onrender.com/api/*

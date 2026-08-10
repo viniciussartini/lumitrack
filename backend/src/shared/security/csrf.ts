@@ -9,7 +9,7 @@ export function generateCsrfToken(): string {
 interface CookieOptions {
     httpOnly: boolean
     secure: boolean
-    sameSite: "lax" | "none"
+    sameSite: "lax"
     path: string
     maxAge: number
 }
@@ -18,21 +18,11 @@ interface CookieOptions {
 // permanecer testável em isolamento mesmo com o `NODE_ENV=test` fixado
 // globalmente pelo vitest.config.ts — mesmo padrão usado para `envSchema`
 // no hardening de CORS/HTTPS.
-//
-// sameSite:"none" em produção (issue do rewrite de site estático do Render —
-// ver ADR-0010): o stream SSE (GET /api/iot/stream) precisa ser chamado
-// cross-origin direto na API, porque o rewrite do site estático não sustenta
-// conexão de longa duração. "none" exige secure:true (só true em produção,
-// nunca ambos discordantes) e é seguro aqui porque (a) CSRF só é avaliado
-// para métodos não-seguros (authenticate.ts) — SSE é GET — e (b) toda
-// requisição que muda estado continua exigindo o double-submit CSRF, que
-// "none" não enfraquece. Fora de produção continua "lax" (não há cross-origin
-// nenhum a suportar).
 export function getAuthCookieOptions(nodeEnv: string, maxAgeMs: number): CookieOptions {
     return {
         httpOnly: true,
         secure: nodeEnv === "production",
-        sameSite: nodeEnv === "production" ? "none" : "lax",
+        sameSite: "lax",
         path: "/",
         maxAge: maxAgeMs,
     }
@@ -56,7 +46,7 @@ export function getRefreshCookieOptions(nodeEnv: string, maxAgeMs: number): Cook
     return {
         httpOnly: true,
         secure: nodeEnv === "production",
-        sameSite: nodeEnv === "production" ? "none" : "lax",
+        sameSite: "lax",
         path: "/api/auth",
         maxAge: maxAgeMs,
     }

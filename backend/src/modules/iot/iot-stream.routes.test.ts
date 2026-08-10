@@ -180,6 +180,23 @@ function openSseStream(token: string): Promise<http.IncomingMessage> {
     })
 }
 
+// Sem Authorization — só o `?ticket=` na query, o mesmo caminho que a demo
+// do Render usa cross-origin (cookie não existe nesse cenário).
+function openSseStreamWithTicket(ticket: string): Promise<http.IncomingMessage> {
+    return new Promise((resolve, reject) => {
+        const req = http.get(
+            {
+                hostname: "127.0.0.1",
+                port: serverPort,
+                path: `/api/iot-test/stream?ticket=${encodeURIComponent(ticket)}`,
+                headers: { Accept: "text/event-stream" },
+            },
+            resolve,
+        )
+        req.on("error", reject)
+    })
+}
+
 function collectSseEvents(
     stream: http.IncomingMessage,
     options: {
@@ -535,5 +552,86 @@ describe("GET /api/iot/stream", () => {
 
         const reading = events.find((e) => e.event === "reading")
         expect(reading).toBeDefined()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUITE: POST /api/iot/stream-ticket + GET /api/iot/stream?ticket=...
+//
+// Caminho usado quando o stream precisa ser aberto cross-origin (demo do
+// Render, ADR-0010) — cookie de sessão não atravessa domínio, então o
+// cliente troca um ticket de uso único (emitido same-origin) pela conexão.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("POST /api/iot/stream-ticket", () => {
+    it("deve retornar 401 sem autenticação", async () => {
+        const response = await request(app).post("/api/iot-test/stream-ticket")
+        expect(response.status).toBe(401)
+    })
+
+    it("deve emitir um ticket com token válido", async () => {
+        const { token } = await setupUserWithMeter()
+
+        const response = await request(app)
+            .post("/api/iot-test/stream-ticket")
+            .set("Authorization", `Bearer ${token}`)
+            .send()
+
+        expect(response.status).toBe(201)
+        expect(typeof response.body.data.ticket).toBe("string")
+        expect((response.body.data.ticket as string).length).toBeGreaterThan(0)
+    })
+})
+
+describe("GET /api/iot/stream com ?ticket=", () => {
+    it("deve retornar 401 com ticket inexistente", async () => {
+        const stream = await openSseStreamWithTicket("ticket-que-nao-existe")
+        expect(stream.statusCode).toBe(401)
+    })
+
+    it("deve conectar e receber eventos com um ticket válido", async () => {
+        const { token, meterId } = await setupUserWithMeter()
+
+        const ticketRes = await request(app)
+            .post("/api/iot-test/stream-ticket")
+            .set("Authorization", `Bearer ${token}`)
+            .send()
+        const ticket = ticketRes.body.data.ticket as string
+
+        const stream = await openSseStreamWithTicket(ticket)
+        expect(stream.statusCode).toBe(200)
+
+        let connectedReceived = false
+        const events = await collectSseEvents(stream, {
+            maxWaitMs: 3000,
+            stopAfterEvent: "reading",
+            onEvent: (event) => {
+                if (event === "connected" && !connectedReceived) {
+                    connectedReceived = true
+                    simulateReading(meterId, validReadingPayload)
+                }
+            },
+        })
+
+        const reading = events.find((e) => e.event === "reading")
+        expect(reading).toBeDefined()
+        expect((reading!.data as { meterId: string }).meterId).toBe(meterId)
+    })
+
+    it("não deve permitir reusar o mesmo ticket duas vezes", async () => {
+        const { token } = await setupUserWithMeter()
+
+        const ticketRes = await request(app)
+            .post("/api/iot-test/stream-ticket")
+            .set("Authorization", `Bearer ${token}`)
+            .send()
+        const ticket = ticketRes.body.data.ticket as string
+
+        const first = await openSseStreamWithTicket(ticket)
+        expect(first.statusCode).toBe(200)
+        first.destroy()
+
+        const second = await openSseStreamWithTicket(ticket)
+        expect(second.statusCode).toBe(401)
     })
 })
