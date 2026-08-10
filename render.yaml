@@ -59,6 +59,21 @@ services:
           - key: BROKER_PASSWORD
             sync: false
 
+          # Obrigatórias no schema (config/env.ts) mesmo sem provedor real de
+          # e-mail contratado — sem elas o backend recusa subir. A demo não
+          # testa "esqueci minha senha" no checklist de verificação, então
+          # qualquer valor placeholder satisfaz a validação; só vira
+          # funcional de verdade se você contratar um provedor SMTP (o que
+          # cria um operador — atualizar o ROPA nesse caso).
+          - key: SMTP_HOST
+            sync: false
+          - key: SMTP_USER
+            sync: false
+          - key: SMTP_PASS
+            sync: false
+          - key: SMTP_FROM
+            sync: false
+
           # Precisam do domínio final do site estático (ou do próprio serviço,
           # no caso de PUBLIC_API_ORIGIN) — ver a nota sobre o rewrite abaixo
           # e a seção de troubleshooting do DEPLOY.md.

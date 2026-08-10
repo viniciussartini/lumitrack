@@ -115,6 +115,7 @@ Preenchidas por você no painel (`sync: false`):
 | `SIMULATOR_API_TOKEN`, `BROKER_USERNAME`, `BROKER_PASSWORD` | Valores novos | Precisam bater com o que você usou no `db:seed:demo` do passo 2. |
 | `CORS_ORIGIN`, `FRONTEND_URL` | URL do site estático | Ex.: `https://lumitrack.onrender.com`. |
 | `PUBLIC_API_ORIGIN` | **Ver abaixo** | O host que o backend de fato recebe. |
+| `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Qualquer placeholder | Obrigatórias no schema (`config/env.ts`), sem default — o backend recusa subir sem elas. A demo não exercita "esqueci minha senha" no checklist abaixo, então qualquer valor satisfaz a validação; só funciona de verdade se você contratar um provedor SMTP real (o que cria um operador — atualizar o ROPA nesse caso). |
 
 ### O erro mais provável no primeiro deploy: `PUBLIC_API_ORIGIN`
 
