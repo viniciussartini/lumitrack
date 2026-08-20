@@ -207,6 +207,15 @@ export class MeterRepository {
     }
 
     async update(id: string, input: UpdateMeterInput): Promise<MeterResponse> {
+        // `extra` é opcional no schema de update (updateMeterSchema, MQTT
+        // inclusive) para não forçar reenvio da senha em toda edição — a
+        // resposta pública nunca devolve a senha em claro (sanitizeExtraForResponse),
+        // então um formulário de edição legitimamente não tem como reenviá-la.
+        // Se a chave nem veio no payload, a credencial existente não deve ser
+        // tocada; `extractField` trataria "ausente" e "null explícito" da
+        // mesma forma (apagando a coluna), então o `in` é checado aqui, antes
+        // dele, para os dois casos terem efeitos diferentes.
+        const extraProvided = "extra" in input
         const raw = await this.prisma.meter.update({
             where: { id },
             data: {
@@ -216,12 +225,14 @@ export class MeterRepository {
                 port: extractField<number>(input, "port"),
                 topic: extractField<string>(input, "topic"),
                 address: extractField<string>(input, "address"),
-                extra: toJsonInput(
-                    encryptExtraForStorage(
-                        input.protocol,
-                        extractField<Record<string, unknown>>(input, "extra"),
+                ...(extraProvided && {
+                    extra: toJsonInput(
+                        encryptExtraForStorage(
+                            input.protocol,
+                            extractField<Record<string, unknown>>(input, "extra"),
+                        ),
                     ),
-                ),
+                }),
             },
         })
         return toMeterResponse(raw)

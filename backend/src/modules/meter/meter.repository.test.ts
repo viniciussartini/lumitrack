@@ -223,4 +223,36 @@ describe("MeterRepository — cifra da credencial MQTT", () => {
         const config = await meterRepository.findConnectionConfigById(meter.id)
         expect((config?.extra as Record<string, unknown>).password).toBe(plaintext)
     })
+
+    it("update sem `extra` no payload preserva a credencial existente (não apaga)", async () => {
+        const { property } = await setupUserAndProperty()
+        const plaintext = "senha-mqtt-super-secreta"
+
+        const meter = await meterRepository.create({
+            name: "Medidor Geral",
+            targetType: "PROPERTY",
+            propertyId: property.id,
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "lumitrack/teste",
+            extra: { username: "user-mqtt", password: plaintext },
+        })
+
+        // Payload sem a chave `extra` — cenário real de um PUT que só muda
+        // nome/host/port/topic (o schema de update permite `extra` ausente,
+        // updateMeterSchema.ts:187, para não forçar reenvio da senha em toda
+        // edição).
+        await meterRepository.update(meter.id, {
+            name: "Medidor Geral (renomeado)",
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "lumitrack/teste",
+        })
+
+        const config = await meterRepository.findConnectionConfigById(meter.id)
+        expect((config?.extra as Record<string, unknown>).username).toBe("user-mqtt")
+        expect((config?.extra as Record<string, unknown>).password).toBe(plaintext)
+    })
 })

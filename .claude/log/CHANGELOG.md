@@ -1356,3 +1356,13 @@
 - **Arquivos principais:** `backend/package.json`, `backend/package-lock.json`.
 - **Decisões/ADRs:** nenhuma — correção de dependência, sem mudança de stack decidido.
 - **Notas:** `npm run db:generate`/`build`/`lint`/`test -- --run` todos limpos após o override.
+
+## [2026-08-20] fix: PUT /api/meters/:id sem `extra` apagava a credencial MQTT existente
+
+- **Branch:** main
+- **Tipo:** fix
+- **O quê:** achado investigando por que 1 dos 11 medidores da demo do Render parava de conectar no broker MQTT ("Connection refused: Not authorized") enquanto os outros 10, com a mesma credencial, conectavam normalmente — o `extra` desse medidor estava `NULL` no banco (Neon), sem usuário nem senha. Causa raiz em `MeterRepository.update()` (`meter.repository.ts`): `extra` é opcional em `updateMeterSchema` (MQTT inclusive, propositalmente — a resposta pública nunca devolve a senha em claro, então um formulário de edição não tem como reenviá-la). Um `PUT /api/meters/:id` que só muda nome/host/port/topic, sem reenviar `extra`, chegava ao repositório com a chave `extra` **ausente** do payload — `extractField()` trata "ausente" e "presente mas null" da mesma forma, então o método regravava a coluna inteira com `null`, apagando a credencial existente silenciosamente, sem erro nenhum.
+- **Correção:** `MeterRepository.update()` só inclui `extra` no `data` do `prisma.meter.update` quando a chave está de fato presente no payload (`"extra" in input`); ausência preserva a credencial já armazenada. Envio explícito de `extra: {}` continua limpando a credencial de propósito — só a omissão passou a ser tratada como "não mexer".
+- **Arquivos principais:** `backend/src/modules/meter/meter.repository.ts`, `backend/src/modules/meter/meter.repository.test.ts` (novo teste de regressão).
+- **Decisões/ADRs:** nenhuma — bug de implementação, não uma decisão nova.
+- **Notas:** teste de regressão reproduziu o `null` exato observado em produção antes da correção. `lint`/`format:check`/`tsc -b`/suíte completa (141 arquivos, 1730 testes) limpos após o fix. Correção do dado em si (restaurar a credencial desse medidor específico no Neon) feita à parte, via SQL — fora do escopo deste commit de código.
