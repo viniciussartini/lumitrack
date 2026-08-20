@@ -3,6 +3,7 @@ import {
     EventStreamContentType,
     type EventSourceMessage,
 } from "@microsoft/fetch-event-source"
+import { getCsrfToken } from "@/lib/csrf"
 import type { Notification } from "@/types/notification.types"
 
 /**
@@ -34,10 +35,16 @@ function isCrossOrigin(url: string): boolean {
 }
 
 async function fetchTicketUrl(signal: AbortSignal): Promise<string> {
+    // POST não é método seguro — o authenticate do backend exige o header
+    // CSRF (double-submit) mesmo com cookie válido. services/api.ts faz o
+    // mesmo via interceptor do axios; aqui é fetch puro, então replica à
+    // mão (mesmo cookie/header, ver lib/csrf.ts).
+    const csrfToken = getCsrfToken()
     const response = await fetch(SSE_TICKET_URL, {
         method: "POST",
         credentials: "include",
         signal,
+        headers: csrfToken ? { "X-CSRF-Token": csrfToken } : undefined,
     })
     if (!response.ok) {
         throw new Error(`Falha ao obter ticket do stream: HTTP ${response.status}`)
