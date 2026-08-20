@@ -1376,3 +1376,12 @@
 - **Arquivos principais:** `iot-simulator/server/src/index.ts`, `iot-simulator/server/src/simulation/demoBootstrap.ts`, `iot-simulator/server/src/simulation/demoBootstrap.test.ts` (2 testes novos — um reproduz o bug exato, o outro confirma a correção via `publisher.publish` chamado).
 - **Decisões/ADRs:** nenhuma — bug de implementação (ordem de boot + caminho de ativação errado), não uma decisão nova.
 - **Notas:** `lint`/`format:check`/`tsc -b`/`build`/suíte completa (14 arquivos, 81 testes) do `iot-simulator/server` limpos. Não corrige o medidor residencial com `extra: null` (bug separado, já corrigido em `meter.repository.ts` + `UPDATE` manual no Neon) — os dois bugs coexistiam e ambos impediam dado ao vivo, por razões diferentes.
+
+## [2026-08-20] docs: roadmap atualizado — Fase 13.5 concluída (épico #187)
+
+- **Branch:** main
+- **Tipo:** docs
+- **O quê:** ciclo de atualização do roadmap ao fim da Fase 13.5 (`planejar-roadmap`) — visão geral marcada **Concluída** (épico #187, 15 sub-issues), nota de fechamento na seção detalhada da fase (pivot Render+Neon/ADR-0010 registrado, item "Metadados do repositório" com a issue #202 fechada), e "Fase atual" no cabeçalho ajustado para "nenhuma — corrigindo bugs encontrados no uso real da demo pública antes de abrir a Fase 14". Fechamento também documenta, em lista, os 5 bugs pós-deploy corrigidos nesta mesma sessão (SSE cross-origin/ticket/CSRF, `IOT_ALLOWED_HOSTS` IPv6, `deepmerge-ts`, `MeterRepository.update()` apagando credencial, bootstrap do simulador nunca chamando `engine.powerOn`) — cada um já tem sua própria entrada anterior neste CHANGELOG; a lista aqui é só o resumo de fechamento de fase.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma — só reflete decisões já registradas (ADR-0010).
+- **Notas:** Fase 14 não foi detalhada/aberta ainda — a combinação com o usuário foi corrigir os bugs de pós-deploy primeiro.

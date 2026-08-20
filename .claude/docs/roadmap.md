@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-09 · Fase atual: 13.5 (Fases 1–13 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185 e issue #127)
+> Última atualização: 2026-08-20 · Fases 1–13.5 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187 e issue #127. Fase atual: nenhuma — corrigindo bugs encontrados no uso real da demo pública antes de abrir a Fase 14.
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das quatro auditorias de 2026-08-05** (segurança, conformidade, qualidade, desempenho) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
@@ -22,7 +22,7 @@
 | 11 | Bloqueadores de conformidade LGPD — canal do titular, ROPA, RIPD, transferência internacional | **Concluída** (#155–#158, épico #154) |
 | 12 | Travas mecânicas de qualidade + correções sem trade-off | **Concluída** (#160–#165, épico #159) |
 | 13 | Endurecimento de segurança (P1) — cadastro público, credenciais, perímetro, CSP, lacunas de teste | **Concluída** (#177–#184, épico #185) |
-| 13.5 | Primeiro deploy — infraestrutura de go-live + documentação pública | **Atual** — detalhe abaixo |
+| 13.5 | Primeiro deploy — infraestrutura de go-live + documentação pública | **Concluída** (épico #187) |
 | 14 | Conformidade P1 — retenção, DSAR, consentimento e documentos legais | Planejada — objetivo abaixo |
 | 15 | Desempenho — instrumentação, índices e eliminação dos multiplicadores | Planejada — objetivo abaixo |
 | 16 | Worker IoT — robustez, estrutura e cobertura | Planejada — objetivo abaixo |
@@ -922,6 +922,16 @@ Com a Fase 13 fechada, os gates de go-live #1–#5 da ADR-0008 estão implementa
 - **Critérios de aceite:** descrição atualizada (hoje: *"Projeto do 2º período do curso de Análise e Desenvolvimento de Sistemas - PUC-MG"*) e campo *homepage* preenchido com a URL da demo.
 - **Depende de:** Reverse proxy (para existir URL).
 - **Risco/observações:** —
+
+**Fechamento (2026-08-20):** épico #187, 15 sub-issues fechadas. **Fecha a Fase 13.5.** A infraestrutura de go-live saiu como planejada no Bloco A/B, com uma mudança de rota já registrada na ADR-0010: em vez do Caminho B (VM Oracle Cloud) desta seção, o primeiro go-live foi o Caminho A (Render + Neon, free tier gerenciado) — a VM Oracle continua o alvo de conformidade plena (ADR-0008) e migra numa fase futura, fora deste roadmap por ora. Última sub-issue, #202 (metadados do repositório): descrição já estava correta, homepage definida como `https://lumitrack.onrender.com`.
+
+Depois do fechamento, o uso real da demo pública expôs bugs que nenhuma auditoria estática ou suíte de teste local pegou — todos corrigidos antes de abrir a Fase 14, fora do escopo de qualquer fase (correção de defeito, não roadmap):
+
+- SSE cross-origin do painel (ticket de uso único — o rewrite do Render não sustenta streaming; depois um header CSRF faltando no fetch do ticket).
+- `IOT_ALLOWED_HOSTS` sem cobrir o IPv6 loopback (`localhost` resolve dual-stack).
+- `deepmerge-ts` — vulnerabilidade alta transitiva do Prisma, via `overrides` no `package.json`.
+- `MeterRepository.update()` apagava `extra` (credencial MQTT) quando o payload não reenviava o campo — formulário de edição do medidor nunca reenvia senha, então todo `PUT` sem isso destruía a credencial em silêncio.
+- Bootstrap do `iot-simulator` marcava os devices da demo como ligados só no `SimulationStore`, sem nunca chamar `engine.powerOn()` — nenhum `DeviceRunner` rodava, então nenhum device publicava dado nenhum, em todo boot, desde sempre (causa raiz de "painel sem consumo em tempo real").
 
 ### Fase 14 — Conformidade P1: retenção, DSAR, consentimento e documentos (P1)
 
