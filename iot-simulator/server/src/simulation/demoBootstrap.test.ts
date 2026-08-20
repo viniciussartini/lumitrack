@@ -1,10 +1,24 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi } from "vitest"
 import { SimulationStore } from "@/simulation/store.js"
+import { SimulationEngine } from "@/simulation/simulationEngine.js"
+import type { InternalPublisher } from "@/mqtt/internalPublisher.js"
 import {
     DEMO_DEVICES,
     DEMO_NETWORK_NAME,
     bootstrapDemoDevices,
+    startDemoDevices,
 } from "@/simulation/demoBootstrap.js"
+
+function createFakePublisher(): InternalPublisher & {
+    publish: ReturnType<typeof vi.fn<(topic: string, payload: unknown) => void>>
+} {
+    return {
+        connect: vi.fn(async () => {}),
+        disconnect: vi.fn(async () => {}),
+        publish: vi.fn<(topic: string, payload: unknown) => void>(),
+        isConnected: () => true,
+    }
+}
 
 describe("bootstrapDemoDevices", () => {
     it("cria a rede de demonstração com todos os devices ligados", () => {
@@ -63,5 +77,45 @@ describe("bootstrapDemoDevices", () => {
         expect(second).toBeNull()
         expect(store.listNetworks()).toHaveLength(1)
         expect(store.snapshot()[0]!.devices).toHaveLength(DEMO_DEVICES.length)
+    })
+
+    // Bug real observado na demo pública: bootstrapDemoDevices marca
+    // poweredOn:true direto no store, mas só engine.powerOn (via
+    // startDemoDevices) de fato inicia o DeviceRunner que publica. Sem essa
+    // chamada, nenhum device publica nada — painel sempre sem leitura ao
+    // vivo, mesmo com poweredOn:true e a conexão MQTT do backend certa.
+    it("sem startDemoDevices, poweredOn:true no store não publica nada", () => {
+        vi.useFakeTimers()
+        try {
+            const store = new SimulationStore()
+            const publisher = createFakePublisher()
+            // Engine construído mas nunca usado — reproduz o bug de
+            // propósito: bootstrapDemoDevices sozinho não chama powerOn.
+            new SimulationEngine(store, publisher)
+            bootstrapDemoDevices(store)
+
+            vi.advanceTimersByTime(2000)
+
+            expect(publisher.publish).not.toHaveBeenCalled()
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
+    it("startDemoDevices liga o motor de fato — cada device publica periodicamente", () => {
+        vi.useFakeTimers()
+        try {
+            const store = new SimulationStore()
+            const publisher = createFakePublisher()
+            const engine = new SimulationEngine(store, publisher)
+            const result = bootstrapDemoDevices(store)!
+
+            startDemoDevices(engine, result)
+            vi.advanceTimersByTime(1000)
+
+            expect(publisher.publish).toHaveBeenCalledTimes(DEMO_DEVICES.length)
+        } finally {
+            vi.useRealTimers()
+        }
     })
 })

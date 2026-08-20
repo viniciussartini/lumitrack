@@ -1,4 +1,5 @@
 import type { NewDeviceInput, SimulationStore } from "@/simulation/store.js"
+import type { SimulationEngine } from "@/simulation/simulationEngine.js"
 
 /**
  * Bootstrap dos dispositivos da demonstração pública (ADR-0010).
@@ -198,4 +199,19 @@ export function bootstrapDemoDevices(store: SimulationStore): DemoBootstrapResul
     }
 
     return { networkId: network.id, deviceIds }
+}
+
+/**
+ * Liga de fato os devices do bootstrap, via `engine.powerOn` — é esse
+ * caminho (não `store.setPower`, usado acima) que cria e inicia o
+ * `DeviceRunner` de cada device, o `setInterval` que de fato publica no
+ * broker a cada ~1s (deviceRunner.ts). Sem chamar isto, um device fica
+ * marcado `poweredOn: true` nos dados mas nunca publica nada — sintoma
+ * observado na demo pública: painel sempre sem leitura, em todo boot,
+ * mesmo com a conexão MQTT do backend certa.
+ */
+export function startDemoDevices(engine: SimulationEngine, result: DemoBootstrapResult): void {
+    for (const deviceId of result.deviceIds) {
+        engine.powerOn(deviceId)
+    }
 }
