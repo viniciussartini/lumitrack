@@ -1,0 +1,31 @@
+name: Keep-alive da demo
+
+# Mantém o serviço lumitrack-api do Render acordado. O free tier hiberna
+# após 15 min sem tráfego, com cold start de ~60-90s no despertar seguinte
+# (ADR-0010, DEPLOY.md) — aceitável operacionalmente, mas ruim pra quem
+# encontra a demo pela primeira vez (ex.: recrutador avaliando o portfólio)
+# e cai bem nesse intervalo. Ping em /health a cada 10 min fica dentro da
+# janela de 15 min com folga pra atraso de agendamento do GitHub Actions
+# (cron não é garantido no minuto exato). /health é público, sem auth, e
+# excluído do log de acesso (app.ts) — não gera ruído.
+#
+# GitHub desativa workflows agendados automaticamente após 60 dias sem
+# nenhum commit no repositório — não é um problema aqui (repo ativo), mas é
+# a razão de scheduled workflows não serem "garantidos para sempre".
+
+on:
+    schedule:
+        - cron: "*/10 * * * *"
+    workflow_dispatch: {}
+
+jobs:
+    ping:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Ping /health
+              run: |
+                  status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://lumitrack-api.onrender.com/health)
+                  echo "status=$status"
+                  if [ "$status" != "200" ]; then
+                    echo "::warning::lumitrack-api respondeu $status em /health (pode ser cold start em andamento)"
+                  fi

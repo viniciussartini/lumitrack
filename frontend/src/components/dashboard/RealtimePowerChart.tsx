@@ -11,11 +11,7 @@ import {
 import { Activity } from "lucide-react"
 import type { PowerHistoryPoint } from "@/hooks/usePowerHistory"
 import type { RealtimeWindow } from "@/components/dashboard/RealtimeWindowToggle"
-
-const WINDOW_MS: Record<RealtimeWindow, number> = {
-    "1h": 60 * 60 * 1000,
-    "24h": 24 * 60 * 60 * 1000,
-}
+import { aggregateCompletedPowerBuckets } from "@/lib/realtimePowerBuckets"
 
 const timeFormatter = new Intl.DateTimeFormat("pt-BR", {
     hour: "2-digit",
@@ -65,28 +61,25 @@ interface RealtimePowerChartProps {
 /**
  * Gráfico de "Consumo em tempo real" (bloco `isDashboard` do handoff) —
  * `LineChart`, não `BarChart` (diferente de `ConsumptionChart`, que plota
- * buckets fixos vindos da API): aqui é uma série contínua acumulada no
- * cliente via `usePowerHistory`. Sem histórico anterior à abertura da
- * página — nasce vazio, cresce enquanto a página fica aberta.
+ * buckets fixos vindos da API): aqui os pontos brutos acumulados no cliente
+ * via `usePowerHistory` (~1/s) são agregados em baldes alinhados ao
+ * relógio local — minuto a minuto em "1h", hora a hora em "24h", nunca
+ * segundo a segundo (ver `aggregateCompletedPowerBuckets`). Sem histórico
+ * anterior à abertura da página — nasce vazio, cresce enquanto a página
+ * fica aberta.
  *
  * Sem frame `.blueprint` próprio — o card inteiro (header + gráfico)
  * é UM card só no handoff; o wrapper vive em `RealtimeSection`.
  */
 export const RealtimePowerChart = ({ history, timeWindow }: RealtimePowerChartProps) => {
-    const data: ChartDatum[] = useMemo(() => {
-        // Corta em relação ao ponto mais recente do próprio buffer (não
-        // `Date.now()`, impuro/proibido em render pelo compilador do React)
-        // — na prática equivalente, já que o buffer só recebe pontos ao
-        // vivo via SSE.
-        const latestT = history.at(-1)?.t ?? 0
-        const cutoff = latestT - WINDOW_MS[timeWindow]
-        return history
-            .filter((point) => point.t >= cutoff)
-            .map((point) => ({
-                label: timeFormatter.format(point.t),
-                kw: point.kw,
-            }))
-    }, [history, timeWindow])
+    const data: ChartDatum[] = useMemo(
+        () =>
+            aggregateCompletedPowerBuckets(history, timeWindow).map((bucket) => ({
+                label: timeFormatter.format(bucket.bucketStart),
+                kw: bucket.kw,
+            })),
+        [history, timeWindow],
+    )
 
     if (data.length === 0) {
         return (

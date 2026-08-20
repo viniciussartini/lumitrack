@@ -165,7 +165,11 @@ describe("RealtimeSection — com medidor", () => {
         })
 
         renderSection()
-        await screen.findByTestId("realtime-power-chart")
+        // Uma única leitura "agora" cai sempre no balde em curso (minuto/hora
+        // ainda não fechado) — aggregateCompletedPowerBuckets a omite de
+        // propósito, então o card mostra o estado vazio, não o gráfico. O
+        // teste aqui é sobre o toggle/subtítulo, não sobre ter dado agregado.
+        await screen.findByTestId("realtime-power-chart-empty")
 
         const btn24h = screen.getByTestId("realtime-window-24h")
         expect(btn24h).toHaveAttribute("aria-selected", "false")

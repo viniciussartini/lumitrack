@@ -1385,3 +1385,23 @@
 - **Arquivos principais:** `.claude/docs/roadmap.md`.
 - **Decisões/ADRs:** nenhuma — só reflete decisões já registradas (ADR-0010).
 - **Notas:** Fase 14 não foi detalhada/aberta ainda — a combinação com o usuário foi corrigir os bugs de pós-deploy primeiro.
+
+## [2026-08-20] fix: gráfico "Consumo em tempo real" plotava ponto a ponto (~1/s) em vez de agregar por minuto/hora
+
+- **Branch:** main
+- **Tipo:** fix
+- **O quê:** achado no uso real da demo — o gráfico de potência ao vivo do Painel (`RealtimePowerChart.tsx`) plotava cada leitura SSE bruta (o simulador publica ~1/s), numa janela deslizante (últimos 60 min / 24h a partir do ponto mais recente). Comportamento esperado, descrito pelo usuário com dois exemplos: em "última hora", o gráfico deve mostrar o **agregado por minuto**, alinhado ao relógio (do minuto 00 da hora corrente até o último minuto já fechado — ex.: às 19:45, mostra 19:00–19:44; o balde de 19:45 só aparece às 19:46, quando o minuto termina de fato). Em "24 horas", o mesmo por hora, alinhado ao dia corrente. Não é janela deslizante — reinicia a cada hora/dia, e o balde em curso nunca aparece (seu agregado ainda não "fechou").
+- **Correção:** nova função pura `aggregateCompletedPowerBuckets` (`frontend/src/lib/realtimePowerBuckets.ts`) — agrupa o buffer bruto de `usePowerHistory` em baldes de 1 minuto ("1h") ou 1 hora ("24h"), alinhados ao relógio local, calcula a média de potência por balde (mesmo conceito do `avgPowerW` do `MinuteBuffer` do backend, só que client-side — não existe endpoint de granularidade menor que hora nem histórico no SSE) e omite o balde em curso e baldes sem nenhuma amostra (não vira zero). `RealtimePowerChart.tsx` passou a usar essa função no lugar do filtro de janela deslizante anterior.
+- **Arquivos principais:** `frontend/src/lib/realtimePowerBuckets.ts` (novo), `frontend/src/lib/realtimePowerBuckets.test.ts` (novo, 7 testes), `frontend/src/components/dashboard/RealtimePowerChart.tsx`, `frontend/src/components/dashboard/RealtimeSection.test.tsx` (ajuste: um teste esperava o gráfico com dado a partir de uma única leitura "agora" — com a correção, uma leitura isolada cai sempre no balde em curso e o estado correto passou a ser o vazio; o teste não era sobre isso, é sobre o toggle de janela).
+- **Decisões/ADRs:** nenhuma — bug de comportamento (agregação errada), não uma decisão nova.
+- **Notas:** `lint`/`format:check`/`tsc -b`/`build`/suíte completa (72 arquivos, 634 testes) do `frontend` limpos.
+
+## [2026-08-20] chore: workflow de keep-alive pra evitar hibernação da demo no Render
+
+- **Branch:** main
+- **Tipo:** chore
+- **O quê:** o serviço `lumitrack-api` (free tier do Render) hiberna após 15 min sem tráfego, com cold start de ~60-90s no despertar seguinte — aceitável operacionalmente (documentado no `DEPLOY.md`), mas prejudica a primeira impressão de quem acessa a demo do portfólio sem aviso.
+- **Correção:** novo workflow `.github/workflows/keep-alive.yml` — `schedule` (cron `*/10 * * * *`, a cada 10 min, dentro da janela de 15 min com folga pro agendamento do GitHub Actions não ser garantido no minuto exato) fazendo `curl` em `GET https://lumitrack-api.onrender.com/health` (público, sem auth, já excluído do log de acesso do backend). Não falha o job em resposta != 200 (só `::warning::`) — evita notificação de e-mail por um blip transitório de cold start; a tentativa seguinte (10 min depois) resolve sozinha. `workflow_dispatch` incluído pra disparo manual/teste.
+- **Arquivos principais:** `.github/workflows/keep-alive.yml` (novo).
+- **Decisões/ADRs:** nenhuma — não muda a arquitetura, só adiciona tráfego sintético de manutenção; a hibernação continua sendo o comportamento documentado do free tier, isso só a evita na prática enquanto o repositório tiver atividade (GitHub desativa workflow agendado após 60 dias sem commit).
+- **Notas:** sem teste automatizado (workflow de CI, não código de app) — verificação é rodar `workflow_dispatch` manualmente uma vez após o push e conferir o log do step.
