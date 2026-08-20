@@ -1346,3 +1346,13 @@
 - **Arquivos principais:** `frontend/src/lib/sse/appStream.ts`.
 - **Decisões/ADRs:** nenhuma — bug de implementação da correção anterior, não uma decisão nova.
 - **Notas:** verificado com o build real no Render (deploy do usuário, bundle `index-8WPwg004.js` → confirmação pendente do próximo teste). Local: `frontend` `lint`/`format:check`/`build`/testes (71/627) limpos.
+
+## [2026-08-20] fix: vulnerabilidade alta em deepmerge-ts (dependência transitiva do Prisma) via override de npm
+
+- **Branch:** main
+- **Tipo:** fix
+- **O quê:** `backend-audit` (CI, `npm audit --audit-level=high`) começou a falhar: `deepmerge-ts@7.1.5` (GHSA-ggr8-5vv4-36mx, stack exhaustion ao mesclar grafos recursivos) é dependência transitiva fixada por `@prisma/config@7.9.1`, por sua vez trazida pelo `prisma@7.9.1` já em uso. Não é regressão de nenhum commit recente do backend — é um advisory novo/recém-sinalizado numa dependência de build-time do Prisma CLI (não código de runtime da aplicação). `npm audit fix --force` sugeria downgrade para `prisma@6.12.0` — mudança de stack (04-tech-stack.md), fora de cogitação sem decisão/ADR.
+- **Correção:** `overrides.deepmerge-ts: "^8.0.0"` em `backend/package.json` — força a versão corrigida (8.0.1) na árvore de dependências independente do pin exato do `@prisma/config`. `npm audit` volta a reportar 0 vulnerabilidades; `prisma generate`, build e suíte completa (141 arquivos, 1728 testes) permanecem verdes.
+- **Arquivos principais:** `backend/package.json`, `backend/package-lock.json`.
+- **Decisões/ADRs:** nenhuma — correção de dependência, sem mudança de stack decidido.
+- **Notas:** `npm run db:generate`/`build`/`lint`/`test -- --run` todos limpos após o override.
