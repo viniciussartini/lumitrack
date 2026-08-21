@@ -5,17 +5,24 @@ name: Keep-alive da demo
 # (ADR-0010, DEPLOY.md) — aceitável operacionalmente, mas ruim pra quem
 # encontra a demo pela primeira vez (ex.: recrutador avaliando o portfólio)
 # e cai bem nesse intervalo. Ping em /health a cada 10 min fica dentro da
-# janela de 15 min com folga pra atraso de agendamento do GitHub Actions
-# (cron não é garantido no minuto exato). /health é público, sem auth, e
-# excluído do log de acesso (app.ts) — não gera ruído.
+# janela de 15 min com folga. /health é público, sem auth, e excluído do
+# log de acesso (app.ts) — não gera ruído.
 #
 # GitHub desativa workflows agendados automaticamente após 60 dias sem
 # nenhum commit no repositório — não é um problema aqui (repo ativo), mas é
 # a razão de scheduled workflows não serem "garantidos para sempre".
+#
+# `cron` do GitHub Actions é melhor-esforço, não garantido — sob carga, o
+# disparo pode atrasar ou ser descartado por completo, não só atrasar
+# (issue #222). Minutos redondos (`*/10` = :00, :10, :20...) concorrem com
+# um volume bem maior de workflows agendados no mesmo instante do que
+# minutos deslocados; por isso o cron abaixo evita minutos redondos. Isso
+# reduz a chance de descarte, não a elimina — não há garantia de SLA do
+# GitHub pra scheduled workflows, deslocar o minuto é mitigação, não fix.
 
 on:
     schedule:
-        - cron: "*/10 * * * *"
+        - cron: "7,17,27,37,47,57 * * * *"
     workflow_dispatch: {}
 
 jobs:
