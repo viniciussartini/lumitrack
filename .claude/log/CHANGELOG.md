@@ -1439,3 +1439,14 @@
 - **Arquivos principais:** `frontend/src/components/auth/BrandPanel.tsx`, `frontend/src/components/auth/BrandPanel.test.tsx` (novo teste: asserção estrutural das classes que fixam a altura — jsdom não computa layout/grid real, então o teste é sobre a presença das classes CSS responsáveis pelo comportamento, não a altura renderizada em si).
 - **Decisões/ADRs:** nenhuma — bug de layout (stretch indevido do grid), não uma decisão nova.
 - **Notas:** `lint`/`format:check`/`tsc -b`/`build`/suíte completa (72 arquivos, 637 testes) do `frontend` limpos; suíte das 5 páginas de autenticação (48 testes) roda sem regressão.
+
+## [2026-08-21] fix: sessão web (inclusive demo) passa de 15 min para 1h
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** fix
+- **O quê:** issue #215 — a sessão do login de demonstração expirava rápido demais (15 min) para alguém explorando a demo pública com calma. `JWT_WEB_EXPIRES_IN` (default `15m` no schema de `env.ts`) não é definida no `render.yaml` (nenhum `envVar` lá para essa chave) — o default do código é o que efetivamente vale em produção, não um valor teórico.
+- **Decisão (perguntada ao usuário, não assumida):** a constante hoje é a duração de **toda** sessão web, sem distinção entre conta demo e conta real. Optou-se por (a) aumentar `JWT_WEB_EXPIRES_IN` globalmente para 1h, em vez de (b) introduzir uma duração específica só para demo — mais simples, e hoje o cadastro público está fechado (ADR-0008), então na prática só contas demo logam via web; sem efeito colateral real agora. Revisitar se o cadastro reabrir.
+- **Correção:** default de `JWT_WEB_EXPIRES_IN` em `backend/src/config/env.ts` (`15m` → `1h`); `frontend/src/lib/sessionRefresh.ts` (`SESSION_DURATION_MS`, usado só para agendar o refresh proativo em 80% do TTL — 15 min → 1h, refresh proativo passa de ~12min para ~48min). `.env.example` e os dois `README.md` (backend/frontend) atualizados para não divergir do novo default.
+- **Arquivos principais:** `backend/src/config/env.ts`, `backend/src/config/env.test.ts` (novo teste: default aplicado é `1h`), `backend/.env.example`, `backend/README.md`, `frontend/src/lib/sessionRefresh.ts`, `frontend/src/lib/sessionRefresh.test.ts` (constantes/comentários atualizados para 1h), `frontend/README.md`.
+- **Decisões/ADRs:** nenhuma nova (a decisão de escopo acima foi uma escolha de implementação dentro da issue, não uma decisão arquitetural — não entra em `07-decisoes-em-aberto.md`/ADR).
+- **Notas:** backend (74 arquivos, suíte completa) e frontend (72 arquivos, 638 testes) verificados — `lint`/`format:check`/`tsc -b`/`depcruise` (backend) e `lint`/`tsc -b`/`build` (frontend) limpos. Efeito em produção: como o Render não define `JWT_WEB_EXPIRES_IN`, este fix já é suficiente sem precisar de mudança no `render.yaml` nem no dashboard do Render.

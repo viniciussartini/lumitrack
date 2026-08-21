@@ -1,11 +1,12 @@
 import { authService } from "@/services/auth.service"
 
-// Duração da sessão WEB sincronizada com JWT_WEB_EXPIRES_IN do backend (15 min).
+// Duração da sessão WEB sincronizada com JWT_WEB_EXPIRES_IN do backend (1h,
+// issue #215 — sessão de demo expirava rápido demais em 15 min).
 // Deve ser atualizado manualmente caso a env var do backend mude — gap
 // documentado: sem endpoint de descoberta dinâmica neste ciclo.
-const SESSION_DURATION_MS = 15 * 60 * 1000
+const SESSION_DURATION_MS = 60 * 60 * 1000
 
-// Renova em 80% da vida do JWT (~12 min) para folga antes da expiração.
+// Renova em 80% da vida do JWT (~48 min) para folga antes da expiração.
 const PROACTIVE_REFRESH_AT_MS = SESSION_DURATION_MS * 0.8
 
 let refreshTimer: ReturnType<typeof setTimeout> | null = null
