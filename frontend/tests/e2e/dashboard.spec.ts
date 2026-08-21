@@ -89,6 +89,19 @@ test.describe("Painel — visão em tempo real (#116)", () => {
     test("propriedade com medidor recebe leitura ao vivo e mostra Potência agora", async ({
         page,
     }) => {
+        // Relógio da PÁGINA congelado (page.clock, mesmo padrão de
+        // realtime.spec.ts) — sem isso, o bucket abaixo é calculado com
+        // `Date.now()` real no processo do teste (Node, não afetado por
+        // page.clock) e comparado contra a hora corrente real da app no
+        // browser; se o teste rodasse no primeiro minuto de uma hora, "1
+        // minuto atrás" cairia na hora ANTERIOR e seria corretamente
+        // excluído pela janela "hora corrente" de buildDenseWindowBuckets —
+        // gráfico ficaria vazio de forma intermitente, dependendo só de
+        // quando o CI por acaso executasse o teste. CLOCK_TIME fixo, longe
+        // de qualquer fronteira de hora, elimina essa dependência.
+        const CLOCK_TIME = "2026-07-17T12:30:00.000Z"
+        await page.clock.install({ time: new Date(CLOCK_TIME) })
+
         await setupDashboard(page)
         await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
             fulfillJson(route, PROPERTY_METER),
@@ -100,7 +113,9 @@ test.describe("Painel — visão em tempo real (#116)", () => {
         // findAggregated): dígitos de SP "mascarados" como UTC.
         await page.route(/\/api\/meter-readings(\?.*)?$/, (route) => {
             const SAO_PAULO_UTC_OFFSET_MS = 3 * 60 * 60 * 1000
-            const maskedBucketStart = new Date(Date.now() - 60_000 - SAO_PAULO_UTC_OFFSET_MS)
+            const maskedBucketStart = new Date(
+                new Date(CLOCK_TIME).getTime() - 60_000 - SAO_PAULO_UTC_OFFSET_MS,
+            )
             maskedBucketStart.setUTCSeconds(0, 0)
             return fulfillJson(route, {
                 items: [{ bucketStart: maskedBucketStart.toISOString(), avgPowerW: 900 }],
@@ -116,7 +131,7 @@ test.describe("Painel — visão em tempo real (#116)", () => {
                 current: 5,
                 powerW: 950,
                 powerFactor: 0.95,
-                receivedAt: new Date().toISOString(),
+                receivedAt: CLOCK_TIME,
             })
         await mockSseStream(page, streamBody)
 

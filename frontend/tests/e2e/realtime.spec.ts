@@ -46,9 +46,7 @@ const sseEvent = (event: string, data: unknown) =>
 const mockSseStream = async (page: Page, initialBody: string) => {
     let alreadyConnected = false
     await page.route("**/api/iot/stream", (route) => {
-        const body = alreadyConnected
-            ? sseEvent("connected", { meterCount: 1 })
-            : initialBody
+        const body = alreadyConnected ? sseEvent("connected", { meterCount: 1 }) : initialBody
         alreadyConnected = true
         return route.fulfill({
             status: 200,
@@ -61,7 +59,12 @@ const mockSseStream = async (page: Page, initialBody: string) => {
 /** Medidor de nível PROPERTY (METER_1 é DEVICE por fixture — o mock não
  * precisa manter a consistência do alvo, só o `id` bater com o `meterId`
  * do evento `reading`). */
-const PROPERTY_METER = { ...METER_1, targetType: "PROPERTY" as const, propertyId: PROP_1.id, deviceId: null }
+const PROPERTY_METER = {
+    ...METER_1,
+    targetType: "PROPERTY" as const,
+    propertyId: PROP_1.id,
+    deviceId: null,
+}
 
 const setupAuthAndProperty = async (page: Page) => {
     await mockAppShellBackground(page)
@@ -70,9 +73,7 @@ const setupAuthAndProperty = async (page: Page) => {
     await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
         fulfillPaginated(route, [DIST_CEMIG]),
     )
-    await page.route("**/api/distributors/dist-cemig", (route) =>
-        fulfillJson(route, DIST_CEMIG),
-    )
+    await page.route("**/api/distributors/dist-cemig", (route) => fulfillJson(route, DIST_CEMIG))
     await page.route(/\/api\/properties(\?.*)?$/, (route) => {
         if (route.request().method() === "GET") {
             return fulfillPaginated(route, [PROP_1])
@@ -88,11 +89,14 @@ const setupAuthAndProperty = async (page: Page) => {
     await page.route(/\/api\/properties\/prop-1\/areas(\?.*)?$/, (route) =>
         fulfillPaginated(route, []),
     )
-    await page.route(/\/api\/consumption(\?.*)?$/, (route) =>
-        fulfillPaginated(route, []),
-    )
+    await page.route(/\/api\/consumption(\?.*)?$/, (route) => fulfillPaginated(route, []))
     await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
         fulfillJson(route, PROPERTY_METER),
+    )
+    // Card "Consumo em tempo real" (issue #211) — monta na mesma página
+    // sempre que há medidor, como PROPERTY_METER acima sempre garante.
+    await page.route(/\/api\/meter-readings(\?.*)?$/, (route) =>
+        fulfillJson(route, { items: [], granularity: "minute" }),
     )
 }
 
@@ -147,14 +151,10 @@ test.describe("SSE — RealtimeContext (reading, alert-firing, notification)", (
         await expect(page.getByText(/sem leitura recente/i)).toBeVisible()
     })
 
-    test("sem alertas em disparo, o WarningBadge fica visível sem contador", async ({
-        page,
-    }) => {
+    test("sem alertas em disparo, o WarningBadge fica visível sem contador", async ({ page }) => {
         await setupAuthAndProperty(page)
         await mockSseStream(page, sseEvent("connected", { meterCount: 1 }))
-        await page.route(/\/api\/alerts\/firing(\?.*)?$/, (route) =>
-            fulfillJson(route, []),
-        )
+        await page.route(/\/api\/alerts\/firing(\?.*)?$/, (route) => fulfillJson(route, []))
 
         await page.goto("/propriedades/prop-1")
         await hideDevTools(page)
@@ -170,9 +170,7 @@ test.describe("SSE — RealtimeContext (reading, alert-firing, notification)", (
         await expect(page.getByTestId("warning-badge-count")).toHaveCount(0)
     })
 
-    test("alert-firing dispara o WarningBadge com a contagem certa", async ({
-        page,
-    }) => {
+    test("alert-firing dispara o WarningBadge com a contagem certa", async ({ page }) => {
         await setupAuthAndProperty(page)
 
         const streamBody =
@@ -225,10 +223,7 @@ test.describe("SSE — RealtimeContext (reading, alert-firing, notification)", (
         const badge = page.getByTestId("warning-badge")
         await expect(badge).toBeVisible()
         await expect(badge).toHaveAttribute("data-count", "1")
-        await expect(badge).toHaveAttribute(
-            "aria-label",
-            /1 alerta em disparo/i,
-        )
+        await expect(badge).toHaveAttribute("aria-label", /1 alerta em disparo/i)
     })
 
     test("notification dispara toast, atualiza o contador do sino e pode ser descartada", async ({
@@ -248,8 +243,7 @@ test.describe("SSE — RealtimeContext (reading, alert-firing, notification)", (
         }
 
         const streamBody =
-            sseEvent("connected", { meterCount: 1 }) +
-            sseEvent("notification", notification)
+            sseEvent("connected", { meterCount: 1 }) + sseEvent("notification", notification)
 
         // Estado mutável usado por QUALQUER GET a partir de agora — não só a
         // hidratação inicial. `refetchOnWindowFocus: true` (queryClient)
@@ -317,26 +311,20 @@ test.describe("SSE — RealtimeContext (reading, alert-firing, notification)", (
         // Sino com contador
         const bell = page.getByTestId("notification-bell")
         await expect(bell).toHaveAttribute("data-count", "1")
-        await expect(page.getByTestId("notification-bell-count")).toHaveText(
-            "1",
-        )
+        await expect(page.getByTestId("notification-bell-count")).toHaveText("1")
 
         // Abre o dropdown e vê o item
         await bell.click()
         await expect(page.getByTestId("notification-dropdown")).toBeVisible()
-        await expect(
-            page.getByTestId(`notification-item-${notification.id}`),
-        ).toContainText(notification.message)
+        await expect(page.getByTestId(`notification-item-${notification.id}`)).toContainText(
+            notification.message,
+        )
 
         // Descarta ("marcar como lida" = excluir) — o mesmo handler de GET
         // já reflete `notifications` atualizado na invalidação que segue.
-        await page
-            .getByTestId(`notification-dismiss-${notification.id}`)
-            .click()
+        await page.getByTestId(`notification-dismiss-${notification.id}`).click()
 
         await expect(bell).toHaveAttribute("data-count", "0")
-        await expect(page.getByTestId("notification-bell-count")).toHaveCount(
-            0,
-        )
+        await expect(page.getByTestId("notification-bell-count")).toHaveCount(0)
     })
 })
