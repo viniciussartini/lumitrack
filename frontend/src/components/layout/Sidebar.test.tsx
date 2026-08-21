@@ -48,6 +48,15 @@ describe("Sidebar — renderização", () => {
         })
     })
 
+    // Issue #216: "Segurança" duplicado — já existe no menu do usuário
+    // (UserMenu.tsx, role="menuitem", não "link"), não precisa também estar
+    // na navegação principal da sidebar.
+    it("não tem link para /seguranca na navegação — já existe no menu do usuário", () => {
+        renderWithProviders(<Sidebar isOpen={false} onClose={vi.fn()} />)
+
+        expect(screen.queryByRole("link", { name: /segurança/i })).not.toBeInTheDocument()
+    })
+
     it("marca o link da rota atual com aria-current='page'", () => {
         renderWithProviders(<Sidebar isOpen={false} onClose={vi.fn()} />, {
             initialEntries: ["/distribuidoras"],

@@ -1461,3 +1461,13 @@
 - **Arquivos principais:** `.github/workflows/keep-alive.yml`.
 - **Decisões/ADRs:** nenhuma — ajuste de configuração de CI, não uma decisão arquitetural.
 - **Notas:** sem teste automatizado (workflow de CI, não código de app; YAML validado com parser Python). Diferente da #221 (que trata o job **falhando** quando dispara durante cold start real) — esta é sobre o agendamento em si não disparando, causa independente.
+
+## [2026-08-21] fix: remove "Segurança" duplicado do sidebar — já existe no menu do usuário
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** fix
+- **O quê:** issue #216 — o item "Segurança" aparecia duas vezes: no sidebar principal (`navigation.ts`) e no menu suspenso do perfil (`UserMenu.tsx`), ambos levando para `/seguranca`.
+- **Correção:** removida a entrada `/seguranca` de `NAV_ITEMS` (`navigation.ts`) — `Sidebar.tsx` renderiza a lista direto dessa constante, sem outra mudança necessária lá. Import não usado do ícone `Shield` removido junto. Rota `/seguranca` e o item do `UserMenu` (já existente) permanecem intactos — só a duplicata no sidebar sai.
+- **Arquivos principais:** `frontend/src/config/navigation.ts`, `frontend/src/components/layout/Sidebar.test.tsx` (novo teste: nenhum link "Segurança" na navegação — captura a duplicação como regressão, independente do conteúdo futuro de `NAV_ITEMS`).
+- **Decisões/ADRs:** nenhuma — remoção de UI duplicada, comportamento incorreto (redundância) virando o esperado (item único, no lugar certo).
+- **Notas:** `lint`/`format:check`/`tsc -b`/`build`/suíte completa (72 arquivos, 638 testes) do `frontend` limpos.
