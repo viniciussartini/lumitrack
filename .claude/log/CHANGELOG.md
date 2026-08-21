@@ -1419,3 +1419,13 @@
   - Ajustados: `RealtimeSection.tsx`, `PropertyDetailsPage.tsx`, `AreaDetailsPage.tsx`, `DeviceDetailsPage.tsx` (uso do novo `RealtimeChartCard`); `RealtimeSection.test.tsx`, `dashboard.spec.ts` (mock do novo endpoint).
 - **Decisões/ADRs:** nenhuma — implementação de issue já registrada, sem decisão arquitetural nova.
 - **Notas:** o ajuste do e2e `dashboard.spec.ts` resolve a parte "e2e" da issue #221 (asserção que dependia do comportamento antigo) — a parte "keep-alive" da #221 continua em aberto, sem relação com esta mudança. Verificação: backend (73 arquivos, 884 testes — a inflação anterior pra ~1760 era duplicação por um `dist/` obsoleto, limpo nesta sessão), frontend (72 arquivos, 635 testes) e e2e completo (51 testes, `CI=true` — mesmo caminho de build de produção que o CI real usa) todos verdes.
+
+## [2026-08-21] fix: ícone do GitHub na página inicial passa a viver no rodapé, como em Login/Registro
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** fix
+- **O quê:** issue #213 — o ícone/link do GitHub da página inicial (`LandingPage.tsx`) vivia num bloco à parte, empilhado com o link de e-mail de privacidade dentro da coluna de marca, em vez de na barra de crédito do rodapé (`© ... · Feito no Brasil` / "Logo desenhada por Magnific") — divergindo do padrão já usado em Login/Registro (`BrandPanel.tsx`, rodapé `grid-cols-[1fr_auto_1fr]`), tanto na posição quanto no tamanho (18px vs. 16px).
+- **Correção:** movido o link do GitHub para dentro da barra de crédito do rodapé da Landing, como 3ª coluna de uma grade `grid-cols-[1fr_auto_1fr]` (mesmo padrão de `BrandPanel.tsx`), com o ícone em 16px (`h-4 w-4`, igual ao `BrandPanel`) em vez de 18px. O link de e-mail de privacidade permanece na coluna de marca, sem mudança de comportamento.
+- **Arquivos principais:** `frontend/src/pages/landing/LandingPage.tsx`, `frontend/src/pages/landing/LandingPage.test.tsx` (novo teste: o link do GitHub é filho da barra de crédito, `data-testid="landing-footer-credit"`).
+- **Decisões/ADRs:** nenhuma — bug de consistência visual, não uma decisão nova.
+- **Notas:** `lint`/`format:check`/`tsc -b`/`build`/suíte completa (72 arquivos, 636 testes) do `frontend` limpos.
