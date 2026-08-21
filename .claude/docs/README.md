@@ -35,9 +35,10 @@ Artefatos de governança LGPD produzidos pela remediação da Fase 11
 | `ROPA.md` | Registro das operações de tratamento (LGPD Art. 37): uma linha por operação identificável no schema (finalidade, dados, base legal, retenção, operadores, transferência internacional, segurança) + tabela de operadores (Art. 39). Issue #156 — mantido pela skill `nova-feature` a cada operação nova. |
 | `RIPD.md` | Relatório de impacto da medição contínua (LGPD Art. 38): necessidade/proporcionalidade da granularidade por minuto, riscos aos titulares, salvaguardas verificadas e riscos residuais com plano de tratamento. Issue #157 — reavaliar a cada mudança material do modelo de dados avaliado. |
 
-## Roadmap
+## Roadmap e onboarding
 
-`roadmap.md` — documento vivo mantido pela skill `planejar-roadmap` (fases em fatias verticais, P0/P1/P2, XS–XL). Ainda não criado.
+- `roadmap.md` — documento vivo mantido pela skill `planejar-roadmap`: fases em fatias verticais, P0/P1/P2, XS–XL, agrupadas em **entregas (milestones)**.
+- `onboarding.md` — guia de entrada no projeto, gerado pela skill `onboarding` (setup verificado, ordem de leitura do contexto, mapa dos módulos, armadilhas e primeira tarefa). **Ainda não gerado.**
 
 ## ADRs (`adr/`)
 
@@ -49,6 +50,11 @@ Decisões arquiteturais relevantes, numeradas sequencialmente a partir do templa
 | `0002-token-storage-cookie-httponly.md` | Cookie `HttpOnly` no canal WEB, Bearer no MOBILE |
 | `0003-mfa-totp-opcional.md` | MFA opcional via TOTP + backup codes |
 | `0004-monolito-modular-por-dominio.md` | Monólito modular por domínio, DI via `createApp(deps)` |
-| `0005-industry-como-design-system.md` | Industry como design system (migração do frontend pendente) |
+| `0005-industry-como-design-system.md` | Industry como design system do produto |
+| `0006-migracao-incremental-por-fase.md` | Migração para o Industry incremental, por fase do roadmap |
+| `0007-bandeira-tarifaria-fonte-oficial-aneel.md` | Bandeira tarifária sincronizada da fonte oficial da ANEEL |
+| `0008-hospedagem-brasil-oracle-always-free.md` | Hospedagem no Brasil, máquina única, sem operador estrangeiro (Caminho B) |
+| `0009-observabilidade-uptime-kuma-autohospedado.md` | Uptime Kuma auto-hospedado (Caminho B) |
+| `0010-demo-publica-free-tier-render-neon.md` | Demo pública em Render + Neon, escopo restrito a demonstração (Caminho A) |
 
 Um ADR nunca é apagado — se a decisão mudar, crie um novo e marque o antigo como "substituída por". Se a decisão resolve um item de `../project_context/07-decisoes-em-aberto.md`, atualize aquele arquivo.

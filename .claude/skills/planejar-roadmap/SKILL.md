@@ -1,6 +1,8 @@
 ---
 name: planejar-roadmap
 description: Cria ou atualiza o roadmap de implementação do projeto a partir dos requisitos e do contexto, produzindo .claude/docs/roadmap.md com fases, prioridades (P0/P1/P2) e tamanhos (XS–XL). Use SEMPRE que o usuário pedir "planeja a implementação", "monta o roadmap", "o que construir primeiro", "prioriza as features", "planejamento do MVP" ou, após concluir uma fase, "atualiza o roadmap". Produz o documento para aprovação — NÃO cria issues (isso é o Modo 3 da skill criar-issues) nem implementa nada.
+model: opus
+effort: max
 ---
 
 # Skill: Planejar Roadmap de Implementação
@@ -22,6 +24,7 @@ Transforma os requisitos em um **plano de implementação ordenado** — o docum
   2. *Risco/incerteza primeiro* — itens que podem invalidar o design (integração incerta, decisão do `07`) entram cedo, enquanto mudar é barato.
   3. *Valor para o MVP* — o caminho crítico do usuário antes dos nice-to-have.
 - **Dependência de design:** item com UI tem como pré-condição o **handoff pronto no Claude Design** (`.claude/design/` — ver `10-design-system.md`). Registre em "Depende de:"; se o design ainda não existe, sinalize no item ("aguardando design") para o usuário produzi-lo antes da fase chegar — evita fase P0 travada.
+- **Milestone (entrega):** agrupe as fases em **entregas reconhecíveis** (`MVP`, `Beta fechado`, `v1 pública`) — uma milestone pode cobrir várias fases, e não há nível hierárquico novo. Cada fase declara a que entrega pertence; a milestone fecha quando a última fase dela conclui. Ver `08-convencoes-git.md`. Quem cria a milestone e atribui as issues é a `criar-issues`.
 - **Rastreabilidade:** cada item referencia os RFs/FNCs do `02` que cobre. Todo RF do MVP deve aparecer em alguma fase (ou ser explicitamente adiado, com justificativa).
 - **Sem estimativas de calendário.** Use as convenções do GitHub Projects:
   - **Priority:** `P0` (crítico p/ MVP, bloqueia o resto) · `P1` (importante, próximo) · `P2` (desejável, depois).
@@ -36,9 +39,10 @@ Transforma os requisitos em um **plano de implementação ordenado** — o docum
 > Última atualização: {DATA} · Fase atual: {N}
 
 ## Visão geral das fases
-| Fase | Objetivo (comportamento entregue) | Status |
+| Fase | Entrega (milestone) | Objetivo (comportamento entregue) | Status |
 
 ## Fase 1 — {objetivo}
+**Entrega (milestone):** `{MVP | Beta fechado | ...}`
 ### {item vertical}
 - **Comportamento:** o que o usuário consegue fazer ao final.
 - **Cobre:** RF01, FNC002...
@@ -60,7 +64,7 @@ Apresente o roadmap como **proposta para aprovação** — inclua os trade-offs 
 
 ## Ciclo de atualização (fase concluída)
 
-1. Marque a fase como concluída na visão geral (cruze com o `CHANGELOG.md` e as issues fechadas).
+1. Marque a fase como concluída na visão geral (cruze com o `CHANGELOG.md` e as issues fechadas). Se foi a **última fase da entrega**, lembre o usuário de fechar a milestone no GitHub.
 2. Detalhe a próxima fase (promova de objetivo para itens completos), reavaliando prioridades com o que se aprendeu.
 3. Registre o que mudou em relação ao plano anterior (e por quê) — o histórico de replanejamento é aprendizado.
 

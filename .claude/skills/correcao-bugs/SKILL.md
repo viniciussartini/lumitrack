@@ -1,6 +1,8 @@
 ---
 name: correcao-bugs
 description: Corrige bugs e erros no código existente — comportamento incorreto, exceções, stack traces, resultados errados. Use SEMPRE que o usuário relatar "tem um bug", "está dando erro", "não funciona", "comportamento errado", "exceção", "corrigir", "fix" ou descrever algo que deveria funcionar e não funciona. Diferente de refatoracao: aqui o objetivo é MUDAR o comportamento (de errado para certo). Reproduz, escreve teste que falha, corrige a causa-raiz e garante ausência de regressão.
+model: sonnet
+effort: high
 ---
 
 # Skill: Correção de Bugs

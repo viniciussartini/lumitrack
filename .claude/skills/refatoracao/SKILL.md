@@ -1,6 +1,8 @@
 ---
 name: refatoracao
 description: Refatora código existente preservando o comportamento, aplicando SOLID e clean code. Use SEMPRE que o usuário pedir para "refatorar", "limpar", "melhorar a estrutura", "reduzir complexidade", "extrair", "renomear" ou eliminar code smell em código que já existe, sem mudar o que ele faz. Caracteriza com testes antes, aplica os padrões e verifica que fronteiras de módulo e comportamento foram preservados. Não usar para adicionar funcionalidade nova (use nova-feature).
+model: sonnet
+effort: high
 ---
 
 # Skill: Refatoração de Código
