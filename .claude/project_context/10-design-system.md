@@ -2,18 +2,44 @@
 
 > Fonte única de verdade da **interface**. A UI/UX deste projeto é definida no **Claude Design**; o código implementa a especificação — **nunca improvisa layout** quando existe design para a tela. Decisão registrada em `.claude/docs/adr/0001-claude-design-fonte-de-verdade-ui.md`.
 
-## Regra central
+## Fonte de design do projeto
+
+- **Ferramenta:** **Claude Design** (ADR-0001). A entrevista de fonte de design do `scaffold-projeto` não se aplica — a decisão já está tomada.
+- **Localização das entregas:** `.claude/design/{YYYY-MM-DD}-<escopo>/`, um diretório por export.
+- **Autoridade sobre tokens:** os design tokens do handoff bundle têm autoridade sobre o tema Tailwind/shadcn. O design system do produto é o **Industry** (ADR-0005); `design-system/styles.css` do bundle é a fonte única de tokens e classes.
+
+## Regras universais (independem da ferramenta)
+
+**Especificação, não sugestão**
 
 - Todo trabalho de UI parte de um **handoff bundle** do Claude Design (spec de componentes legível por máquina + design tokens + hierarquia de layout + assets).
 - O bundle é **especificação**, não sugestão: componentes, hierarquia, espaçamentos e tokens do bundle têm autoridade sobre qualquer default de shadcn/Tailwind ou preferência estética do agente.
-- Integração bidirecional com o Claude Code: handoff (design → código) e `/design-sync` (código → design). Manter as duas pontas sincronizadas evita drift visual — mesmo princípio do drift de documentação (`06`).
+- Quando existe design para a tela, **não se improvisa layout** — nem "melhorando", nem simplificando.
+
+**Tokens são contrato**
+
+- Os **design tokens do bundle são a autoridade** sobre `tailwind.config` e o tema shadcn/ui: cores, tipografia, espaçamento, raio, sombras.
+- **Proibido hardcodar** cor, espaçamento ou tipografia fora da escala de tokens (ex.: `#3B82F6`, `mt-[13px]`). Se o design pede um valor que não existe na escala, isso é uma decisão de token — atualizar o tema (e refletir no Claude Design via `/design-sync`), não driblar inline.
+- Mudança de token é mudança de design system: registrar no changelog e, se relevante, comunicar de volta ao Claude Design.
+
+**Versionamento**
+
+- A entrega de design é versionada junto do código, com data no nome; as anteriores são histórico (mesma lógica append-only do changelog).
+- Assets referenciados são copiados para o projeto conforme a convenção de assets do frontend — nunca referenciados de caminho externo.
+
+**Sincronização nos dois sentidos**
+
+Integração bidirecional com o Claude Code: handoff (design → código) e `/design-sync` (código → design). Componente ou token criado no código precisa voltar para a ferramenta de design; caso contrário, o próximo design nasce desalinhado com o que existe. Drift de design é drift de documentação (`06`) — mesma doença.
+
+**Acessibilidade é requisito, não refinamento**
+
+Alvo **WCAG 2.2 AA**: contraste, foco visível, navegação por teclado, rótulo associado a campo, `alt` significativo, ordem de leitura, `aria-live` em conteúdo dinâmico. Design que não especifica estados de foco e erro está incompleto — vale a regra de divergência.
 
 ## Localização e convenção dos bundles
 
 - Bundles vivem em **`.claude/design/`**, um diretório por export: `.claude/design/{YYYY-MM-DD}-<escopo>/`. O escopo de um export do Claude Design pode ser **uma tela, um fluxo ou o produto inteiro** — nomeie o diretório pelo que ele de fato cobre (`...-login/`, `...-onboarding/`, `...-lumitrack-completo/`).
 - **A estrutura interna do export é preservada como veio** — não reorganize nem renomeie arquivos dentro do bundle. Os protótipos referenciam `_ds/`, `support.js` e `uploads/` por caminho relativo; mexer na árvore quebra o rendering.
-- Ao receber um novo bundle, o diretório antigo **não é apagado** — os anteriores são histórico (mesma lógica append-only do changelog). "O mais recente é o vigente" vale **por tela**, não por diretório: um export amplo posterior não invalida automaticamente o bundle mais recente de uma tela específica. Em caso de dúvida sobre qual bundle rege uma tela, consulte "Bundle vigente" abaixo.
-- Assets referenciados pelo bundle são copiados para o projeto conforme a convenção de assets do frontend — nunca referenciados de caminho externo.
+- Ao receber um novo bundle, o diretório antigo **não é apagado** — os anteriores são histórico. "O mais recente é o vigente" vale **por tela**, não por diretório: um export amplo posterior não invalida automaticamente o bundle mais recente de uma tela específica. Em caso de dúvida sobre qual bundle rege uma tela, consulte "Bundle vigente" abaixo.
 
 ## Bundle vigente
 
@@ -42,19 +68,14 @@
 >
 > **Dívida remanescente (Fase 18, não é divergência de tela):** o `@theme` mapeia cor, fonte, raio e sombra, mas **não** a escala tipográfica e de espaçamento que o protótipo de fato usa — por isso as telas recorrem a ~143 valores arbitrários entre colchetes. Isso é decisão de token pendente, não improviso de layout; enquanto não for resolvida, seguir o valor do bundle e não inventar um da própria cabeça. Restam também tokens pré-Industry em ~16 arquivos periféricos.
 
-## Tokens
-
-- Os **design tokens do bundle são a autoridade** sobre `tailwind.config` e o tema shadcn/ui: cores, tipografia, espaçamento, raio, sombras.
-- **Proibido hardcodar** cor, espaçamento ou tipografia fora da escala de tokens (ex.: `#3B82F6`, `mt-[13px]`). Se o design pede um valor que não existe na escala, isso é uma decisão de token — atualizar o tema (e refletir no Claude Design via `/design-sync`), não driblar inline.
-- Mudança de token é mudança de design system: registrar no changelog e, se relevante, comunicar de volta ao Claude Design.
-
 ## Regra de divergência (pergunte antes de assumir — mesma do `07`)
 
 Se o bundle conflitar com um padrão do kit, **pare e pergunte** — não "corrija" o design silenciosamente nem viole o padrão. Conflitos típicos:
 
 - **Acessibilidade/segurança:** contraste insuficiente, campo de senha sem `autocomplete` adequado, dado sensível exposto na UI (interseção com `05` e `09`).
 - **Componente fora do stack:** o design implica biblioteca que não está no `04` (ex.: um chart) — decisão de stack, não de implementação.
-- **Comportamento não especificado:** o design mostra o happy path mas não estados de erro/vazio/carregando — proponha os estados seguindo o padrão visual do bundle e explicite a suposição.
+- **Comportamento não especificado:** o design mostra o happy path mas não estados de erro/vazio/carregando/offline/permissão negada — proponha os estados seguindo o padrão visual do bundle e explicite a suposição.
+- **Responsividade não definida:** quais breakpoints o design cobre e o que acontece fora deles.
 
 ## Regra de ausência
 

@@ -1,5 +1,15 @@
 # 01 — Descrição do Projeto
 
+## Modo de trabalho
+
+**Modo:** `solo`.
+
+> Regras marcadas com **`[EQUIPE]`** ao longo dos context files só se aplicam no modo `equipe`. Todo o resto vale nos dois modos.
+>
+> **No modo solo, o agente `revisao-codigo` substitui a revisão por pares** — é o controle que compensa a ausência de um segundo par de olhos, e por isso deixa de ser opcional antes do merge.
+>
+> **Mudou de solo para equipe?** Siga o passo a passo "Migrar de solo para equipe" do `README-DO-KIT.md` — ele cobre a ordem correta (fechar o que estava aberto antes de abrir o acesso): rotação de segredos, branch protection, CODEOWNERS, auditorias, onboarding e offboarding.
+
 ## O que é
 
 **LumiTrack** é uma plataforma web de monitoramento de consumo de energia elétrica. Ela coleta leituras de **medidores IoT** em tempo real (tensão, corrente, potência, fator de potência) e as traduz em duas grandezas que o usuário entende: **consumo em kWh** e **custo em reais**, calculado com a tarifação real do **Grupo B da ANEEL** (REN 1.000/2021) — não com uma média estimada.

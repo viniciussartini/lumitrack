@@ -2,7 +2,9 @@
 
 Um diretório por export: `{YYYY-MM-DD}-<escopo>/`. O escopo pode ser uma tela, um fluxo ou o produto inteiro — nomeie pelo que o export de fato cobre. A estrutura interna de cada bundle é preservada como veio (os protótipos dependem de caminhos relativos).
 
-Fluxo: Claude Design → **Export → Handoff to Claude Code → Send to local coding agent** → salvar aqui. Regras completas em `../project_context/10-design-system.md`.
+Fluxo: Claude Design → **Export → Handoff to Claude Code → Send to local coding agent** → salvar aqui.
+
+Regras completas (tokens como contrato, divergência, ausência, acessibilidade WCAG 2.2 AA e sincronização nos dois sentidos) em `../project_context/10-design-system.md`.
 
 ## Bundles
 

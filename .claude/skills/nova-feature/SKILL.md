@@ -1,6 +1,8 @@
 ---
 name: nova-feature
 description: Constrói uma feature ou módulo novo na aplicação garantindo que ele siga os mesmos paradigmas do projeto. Use SEMPRE que o usuário pedir para "criar uma feature", "implementar um módulo", "adicionar funcionalidade", "construir o endpoint/tela de X" num projeto já existente. Garante monólito modular, controles OWASP, SOLID/clean code, validação Zod na borda, testes na pirâmide e registro no changelog. Não usar para o setup inicial (use scaffold-projeto) nem para mexer só em código já existente sem nova funcionalidade (use refatoracao).
+model: sonnet
+effort: high
 ---
 
 # Skill: Construir Nova Feature
@@ -10,9 +12,9 @@ Implementa uma feature nova **com os mesmos padrões** do resto do projeto — n
 ## Antes de começar — leia o contexto
 
 1. `.claude/project_context/03-arquitetura.md` — em qual módulo a feature entra; respeitar fronteiras.
-2. `.claude/project_context/05-security-standards.md`, `06-code-quality-standards.md` e `09-conformidade-legal.md` — controles obrigatórios.
+2. `.claude/project_context/05-security-standards.md`, `06-code-quality-standards.md` e `09-conformidade-legal.md` — controles obrigatórios. **Se a feature tocar migração, pipeline, ambiente ou segredo:** também `11-seguranca-infraestrutura.md`. **Consulte `12-seguranca-por-tecnologia.md`** nas seções do stack envolvido na feature.
 3. `.claude/project_context/02-requisitos.md` — o RF/FNC que esta feature atende.
-4. **Se a feature tem UI:** `.claude/project_context/10-design-system.md` e o handoff bundle da tela em `.claude/design/`.
+4. **Se a feature tem UI:** `.claude/project_context/10-design-system.md` (fonte de design declarada + regras) e o handoff bundle da tela em `.claude/design/`.
 
 ## Modo de trabalho
 
@@ -21,7 +23,7 @@ Para features que cruzam módulos ou tocam auth/dados sensíveis, use **plan mod
 ## Checklist de implementação
 
 - **Estrutura:** código no módulo de domínio correto; sem importar infra no domínio (DIP).
-- **Design (se há UI):** localizar o handoff bundle vigente em `.claude/design/` e implementar **a partir da spec** (componentes, hierarquia, tokens) — sem improvisar layout. Bundle ausente ou em conflito com padrões do kit → seguir as regras de ausência/divergência do `10-design-system.md` (perguntar, não assumir). Após criar componente reutilizável novo, lembrar o usuário de rodar `/design-sync`.
+- **Design (se há UI):** localizar o handoff bundle vigente em `.claude/design/` e implementar **a partir da spec** (componentes, hierarquia, tokens) — sem improvisar layout. Bundle ausente ou em conflito com padrões do kit → seguir as regras de ausência/divergência do `10-design-system.md` (perguntar, não assumir). Componente reutilizável novo → lembrar o usuário de sincronizar de volta com o Claude Design.
 - **Validação:** schema Zod na borda (reaproveitar schema compartilhado FE/BE quando aplicável).
 - **Acesso (A01):** authz server-side + checagem de ownership.
 - **Injection (A05):** queries via Prisma parametrizadas.

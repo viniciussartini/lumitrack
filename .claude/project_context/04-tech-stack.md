@@ -1,6 +1,10 @@
 # 04 — Tech Stack
 
 > Tratar como **decidido**, salvo os itens de `07-decisoes-em-aberto.md`. Reflete o que está de fato em `package.json` — não um plano.
+>
+> A entrevista de stack da skill `scaffold-projeto` (Fase 0, Bloco B) **não se aplica** aqui: o projeto não é greenfield e a stack já está em produção. Mudança de camada é decisão nova — exige ADR, não entrevista.
+>
+> **Segurança da stack:** as armadilhas específicas de cada tecnologia listada abaixo estão em `12-seguranca-por-tecnologia.md` — consulte as seções correspondentes (React, Express, Prisma, PostgreSQL, JWT, MFA/TOTP, hash de senha, containers, e-mail transacional) ao mexer na camada, em vez de ler o catálogo inteiro.
 
 - **Frontend:** React 19 + TypeScript, Vite 8, Tailwind 4 (`@tailwindcss/vite`) + componentes próprios em `components/ui/` (Radix primitives por baixo) + Lucide, TanStack Query + Context API (sem Zustand), React Router (react-router 8, não `react-router-dom`), React Hook Form + `@hookform/resolvers`, Zod, date-fns, recharts (gráficos), sonner (toasts), axios, `@microsoft/fetch-event-source` (cliente SSE).
 - **Backend:** Node.js 24, Express 5, TypeScript, Prisma 7 (client custom gerado em `backend/src/generated/prisma`), Zod.
@@ -17,3 +21,19 @@
 - **Observabilidade:** pino + pino-http (logs estruturados). No **Caminho B** (self-hosted), monitor de uptime **Uptime Kuma auto-hospedado** (`ADR-0009`, container do `docker-compose.yml`, painel só acessível via túnel SSH) monitorando `/health`. No **Caminho A** (demo no Render) o Kuma não é usado — vale o health check nativo da plataforma (`healthCheckPath: /health` no `render.yaml`), já que hibernação por inatividade é comportamento esperado ali, não incidente. Sem Sentry/APM nem analytics de produto.
 
 > **Oportunidade concretizada:** `frontend/src/schemas/` já espelha parte dos schemas Zod do backend (auth, area, device, meter, property, alert) — mas não há geração/compartilhamento automático entre os dois pacotes; cada lado mantém o seu.
+
+## Decisões registradas
+
+ADRs que fixam escolhas de stack e infraestrutura (contexto completo em `.claude/docs/adr/`):
+
+| ADR | Camada | Decisão |
+|---|---|---|
+| `0002` | Auth | Cookie `HttpOnly` no canal WEB, Bearer no MOBILE |
+| `0003` | Auth | MFA opcional via TOTP + backup codes |
+| `0004` | Backend | Monólito modular por domínio, DI via `createApp(deps)` |
+| `0005` | Frontend | Industry como design system do produto |
+| `0006` | Frontend | Migração para o Industry incremental, por fase do roadmap |
+| `0007` | Domínio | Bandeira tarifária sincronizada da fonte oficial da ANEEL |
+| `0008` | Infra | Hospedagem no Brasil, máquina única, sem operador estrangeiro (Caminho B) |
+| `0009` | Observabilidade | Uptime Kuma auto-hospedado (Caminho B) |
+| `0010` | Infra | Demo pública em Render + Neon, escopo restrito a demonstração (Caminho A) |
