@@ -17,6 +17,7 @@ import { AreaCard } from "@/components/area/AreaCard"
 import { PropertyConsumptionSection } from "@/components/consumption/ConsumptionSection"
 import { ComparisonBars } from "@/components/consumption/ComparisonBars"
 import { MeterSection } from "@/components/meter/MeterSection"
+import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
 import { consumptionService } from "@/services/consumption.service"
 import { queryKeys } from "@/lib/queryClient"
 import { formatPowerKw, formatKwhPrice, formatBrl } from "@/lib/format"
@@ -127,6 +128,16 @@ export const PropertyDetailsPage = () => {
                         )}
                     </div>
                 </div>
+            )}
+
+            {meter && (
+                <RealtimeChartCard
+                    targetType="PROPERTY"
+                    targetId={property.id}
+                    meterId={meter.id}
+                    title="Consumo em tempo real"
+                    subtitle={property.name}
+                />
             )}
 
             <MeterSection targetType="PROPERTY" targetId={property.id} />

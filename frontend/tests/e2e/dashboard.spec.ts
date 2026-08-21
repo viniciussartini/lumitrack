@@ -24,7 +24,12 @@ const sseEvent = (event: string, data: unknown) =>
 /** Medidor de nível PROPERTY vinculado diretamente a PROP_1 (ver nota de
  * design de #116: KPIs usam só o medidor direto da propriedade, sem somar
  * Área/Dispositivo). */
-const PROPERTY_METER = { ...METER_1, targetType: "PROPERTY" as const, propertyId: PROP_1.id, deviceId: null }
+const PROPERTY_METER = {
+    ...METER_1,
+    targetType: "PROPERTY" as const,
+    propertyId: PROP_1.id,
+    deviceId: null,
+}
 
 const TARIFF_FLAG = {
     currentFlag: "YELLOW" as const,
@@ -43,9 +48,7 @@ const TARIFF_FLAG = {
 const mockSseStream = async (page: Page, initialBody: string) => {
     let alreadyConnected = false
     await page.route("**/api/iot/stream", (route) => {
-        const body = alreadyConnected
-            ? sseEvent("connected", { meterCount: 1 })
-            : initialBody
+        const body = alreadyConnected ? sseEvent("connected", { meterCount: 1 }) : initialBody
         alreadyConnected = true
         return route.fulfill({
             status: 200,
@@ -68,12 +71,14 @@ const setupDashboard = async (page: Page) => {
         }
         return route.continue()
     })
-    await page.route(/\/api\/consumption(\?.*)?$/, (route) =>
-        fulfillPaginated(route, []),
+    await page.route(/\/api\/consumption(\?.*)?$/, (route) => fulfillPaginated(route, []))
+    // Default vazio — o gráfico "Consumo em tempo real" (issue #211) busca
+    // /api/meter-readings sempre que há medidor; testes que não olham pro
+    // conteúdo do gráfico não precisam sobrescrever isto.
+    await page.route(/\/api\/meter-readings(\?.*)?$/, (route) =>
+        fulfillJson(route, { items: [], granularity: "minute" }),
     )
-    await page.route(/\/api\/tariff-flag(\?.*)?$/, (route) =>
-        fulfillJson(route, TARIFF_FLAG),
-    )
+    await page.route(/\/api\/tariff-flag(\?.*)?$/, (route) => fulfillJson(route, TARIFF_FLAG))
 }
 
 test.describe("Painel — visão em tempo real (#116)", () => {
@@ -88,6 +93,20 @@ test.describe("Painel — visão em tempo real (#116)", () => {
         await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
             fulfillJson(route, PROPERTY_METER),
         )
+        // Um balde no minuto anterior ao atual — já "fechado", então
+        // buildDenseWindowBuckets o inclui no gráfico (issue #211: o balde
+        // em curso nunca aparece, só os já persistidos). bucketStart segue
+        // a mesma convenção do backend real (meter-reading.repository.ts::
+        // findAggregated): dígitos de SP "mascarados" como UTC.
+        await page.route(/\/api\/meter-readings(\?.*)?$/, (route) => {
+            const SAO_PAULO_UTC_OFFSET_MS = 3 * 60 * 60 * 1000
+            const maskedBucketStart = new Date(Date.now() - 60_000 - SAO_PAULO_UTC_OFFSET_MS)
+            maskedBucketStart.setUTCSeconds(0, 0)
+            return fulfillJson(route, {
+                items: [{ bucketStart: maskedBucketStart.toISOString(), avgPowerW: 900 }],
+                granularity: "minute",
+            })
+        })
 
         const streamBody =
             sseEvent("connected", { meterCount: 1 }) +
@@ -107,6 +126,8 @@ test.describe("Painel — visão em tempo real (#116)", () => {
         await expect(page.getByTestId("property-selector")).toBeVisible()
         // Card único "Potência agora" + custo estimado (#117 corrige a
         // divisão em 2 cards de #116 — handoff é 1 card com 2 linhas).
+        // "Potência agora" vem do SSE (ao vivo); o gráfico vem do banco
+        // (issue #211) — as duas fontes são independentes de propósito.
         await expect(page.getByText("0,95kW")).toBeVisible()
         await expect(page.getByTestId("realtime-power-chart")).toBeVisible()
     })
@@ -123,7 +144,12 @@ test.describe("Painel — visão em tempo real (#116)", () => {
             const granularity = url.searchParams.get("granularity")
             if (granularity === "day") {
                 return fulfillPaginated(route, [
-                    { bucketStart: new Date().toISOString(), kwhConsumed: 12, costBrl: 9.6, avgPowerW: 500 },
+                    {
+                        bucketStart: new Date().toISOString(),
+                        kwhConsumed: 12,
+                        costBrl: 9.6,
+                        avgPowerW: 500,
+                    },
                 ])
             }
             return fulfillPaginated(route, [])
@@ -160,17 +186,14 @@ test.describe("Painel — visão em tempo real (#116)", () => {
         await page.goto("/dashboard")
         await hideDevTools(page)
 
-        await expect(
-            page.getByText(/não tem medidor vinculado/i),
-        ).toBeVisible()
-        await expect(
-            page.getByRole("link", { name: /ver propriedade/i }),
-        ).toHaveAttribute("href", `/propriedades/${PROP_1.id}`)
+        await expect(page.getByText(/não tem medidor vinculado/i)).toBeVisible()
+        await expect(page.getByRole("link", { name: /ver propriedade/i })).toHaveAttribute(
+            "href",
+            `/propriedades/${PROP_1.id}`,
+        )
     })
 
-    test("troca a janela do gráfico entre 'Última hora' e '24 horas'", async ({
-        page,
-    }) => {
+    test("troca a janela do gráfico entre 'Última hora' e '24 horas'", async ({ page }) => {
         await setupDashboard(page)
         await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
             fulfillJson(route, PROPERTY_METER),
@@ -195,9 +218,7 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
         await context.clearCookies()
     })
 
-    test("mostra o histórico de consumo mensal e alterna entre 6 e 12 meses", async ({
-        page,
-    }) => {
+    test("mostra o histórico de consumo mensal e alterna entre 6 e 12 meses", async ({ page }) => {
         await setupDashboard(page)
         await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
             fulfillJson(route, PROPERTY_METER),
@@ -235,9 +256,7 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
         await expect(page.getByTestId("history-range-6")).toHaveAttribute("aria-selected", "false")
     })
 
-    test("compara consumo entre propriedades e alterna entre kWh e R$", async ({
-        page,
-    }) => {
+    test("compara consumo entre propriedades e alterna entre kWh e R$", async ({ page }) => {
         // setupDashboard registra só PROP_1 — sobrescrevemos /api/properties
         // depois (last-registered-wins, ver comentário de mockAppShellBackground)
         // para exercitar N propriedades.
@@ -259,7 +278,12 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
             const targetId = url.searchParams.get("targetId")
             const kwh = targetId === PROP_1.id ? 120 : 60
             return fulfillPaginated(route, [
-                { bucketStart: new Date().toISOString(), kwhConsumed: kwh, costBrl: kwh * 0.8, avgPowerW: 500 },
+                {
+                    bucketStart: new Date().toISOString(),
+                    kwhConsumed: kwh,
+                    costBrl: kwh * 0.8,
+                    avgPowerW: 500,
+                },
             ])
         })
         await mockSseStream(page, sseEvent("connected", { meterCount: 1 }))
@@ -289,7 +313,12 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
             const url = new URL(route.request().url())
             if (url.searchParams.get("granularity") === "month") {
                 return fulfillPaginated(route, [
-                    { bucketStart: new Date().toISOString(), kwhConsumed: 30, costBrl: 24, avgPowerW: 500 },
+                    {
+                        bucketStart: new Date().toISOString(),
+                        kwhConsumed: 30,
+                        costBrl: 24,
+                        avgPowerW: 500,
+                    },
                 ])
             }
             return fulfillPaginated(route, [])
@@ -300,6 +329,8 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
         await hideDevTools(page)
 
         await expect(page.getByTestId("property-comparison-section")).toBeVisible()
-        await expect(page.getByTestId("property-comparison-section").getByText(PROP_1.name)).toBeVisible()
+        await expect(
+            page.getByTestId("property-comparison-section").getByText(PROP_1.name),
+        ).toBeVisible()
     })
 })

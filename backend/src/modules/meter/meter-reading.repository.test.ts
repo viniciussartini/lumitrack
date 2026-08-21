@@ -167,3 +167,120 @@ describe("MeterReadingRepository.upsertMinute", () => {
         expect(count).toBe(2)
     })
 })
+
+describe("MeterReadingRepository.findAggregated", () => {
+    it("granularidade minute: um balde por minuto, avgPowerW igual ao da linha crua", async () => {
+        const meterId = await setupMeter()
+        const minuteStart = new Date("2026-01-15T14:37:00.000Z")
+
+        await meterReadingRepository.upsertMinute({
+            meterId,
+            minuteStart,
+            energyKwh: 0.01,
+            avgVoltage: 220,
+            avgCurrent: 5,
+            avgPowerW: 1100,
+            avgPowerFactor: 0.9,
+            sampleCount: 60,
+            secondsCovered: 60,
+        })
+
+        const buckets = await meterReadingRepository.findAggregated(
+            meterId,
+            "minute",
+            new Date("2026-01-15T14:00:00.000Z"),
+            new Date("2026-01-15T15:00:00.000Z"),
+        )
+
+        expect(buckets).toHaveLength(1)
+        expect(buckets[0]!.avgPowerW).toBeCloseTo(1100)
+    })
+
+    it("granularidade hour: agrega minutos da mesma hora, ponderado por secondsCovered", async () => {
+        const meterId = await setupMeter()
+
+        // Dois minutos dentro de 14h (UTC), pesos iguais (60s cada) — média simples.
+        await meterReadingRepository.upsertMinute({
+            meterId,
+            minuteStart: new Date("2026-01-15T14:10:00.000Z"),
+            energyKwh: 0.01,
+            avgVoltage: 220,
+            avgCurrent: 5,
+            avgPowerW: 1000,
+            avgPowerFactor: 0.9,
+            sampleCount: 60,
+            secondsCovered: 60,
+        })
+        await meterReadingRepository.upsertMinute({
+            meterId,
+            minuteStart: new Date("2026-01-15T14:20:00.000Z"),
+            energyKwh: 0.01,
+            avgVoltage: 220,
+            avgCurrent: 5,
+            avgPowerW: 2000,
+            avgPowerFactor: 0.9,
+            sampleCount: 60,
+            secondsCovered: 60,
+        })
+        // Minuto de outra hora — não deve entrar no balde das 14h.
+        await meterReadingRepository.upsertMinute({
+            meterId,
+            minuteStart: new Date("2026-01-15T15:05:00.000Z"),
+            energyKwh: 0.05,
+            avgVoltage: 220,
+            avgCurrent: 5,
+            avgPowerW: 9999,
+            avgPowerFactor: 0.9,
+            sampleCount: 60,
+            secondsCovered: 60,
+        })
+
+        const buckets = await meterReadingRepository.findAggregated(
+            meterId,
+            "hour",
+            new Date("2026-01-15T14:00:00.000Z"),
+            new Date("2026-01-15T15:00:00.000Z"),
+        )
+
+        expect(buckets).toHaveLength(1)
+        expect(buckets[0]!.avgPowerW).toBeCloseTo(1500) // (1000*60 + 2000*60) / 120
+    })
+
+    it("respeita from/to — leituras fora da janela não aparecem", async () => {
+        const meterId = await setupMeter()
+
+        await meterReadingRepository.upsertMinute({
+            meterId,
+            minuteStart: new Date("2026-01-15T10:00:00.000Z"),
+            energyKwh: 0.01,
+            avgVoltage: 220,
+            avgCurrent: 5,
+            avgPowerW: 500,
+            avgPowerFactor: 0.9,
+            sampleCount: 60,
+            secondsCovered: 60,
+        })
+
+        const buckets = await meterReadingRepository.findAggregated(
+            meterId,
+            "minute",
+            new Date("2026-01-15T14:00:00.000Z"),
+            new Date("2026-01-15T15:00:00.000Z"),
+        )
+
+        expect(buckets).toHaveLength(0)
+    })
+
+    it("sem nenhuma leitura no medidor, devolve array vazio", async () => {
+        const meterId = await setupMeter()
+
+        const buckets = await meterReadingRepository.findAggregated(
+            meterId,
+            "hour",
+            new Date("2026-01-15T00:00:00.000Z"),
+            new Date("2026-01-16T00:00:00.000Z"),
+        )
+
+        expect(buckets).toEqual([])
+    })
+})
