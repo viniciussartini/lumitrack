@@ -6,6 +6,7 @@ import { render, screen, waitFor } from "@testing-library/react"
 import { RealtimeSection } from "@/components/dashboard/RealtimeSection"
 import { meterService } from "@/services/meter.service"
 import { consumptionService } from "@/services/consumption.service"
+import { meterReadingService } from "@/services/meterReading.service"
 import { tariffFlagService } from "@/services/tariff-flag.service"
 import { useRealtime } from "@/contexts/RealtimeContext"
 import type { Meter } from "@/types/meter.types"
@@ -14,8 +15,9 @@ import type { Granularity } from "@/types/consumption.types"
 import type { ReadingPayload } from "@/lib/sse/appStream"
 
 // Deep dive nos KPIs/bandeira: DashboardKpiRow.test.tsx e
-// TariffFlagListCard.test.tsx. Aqui só a orquestração (gate de medidor,
-// composição dos filhos, toggle do gráfico).
+// TariffFlagListCard.test.tsx. Deep dive no gráfico em si:
+// RealtimeChartCard.test.tsx. Aqui só a orquestração (gate de medidor,
+// composição dos filhos).
 
 vi.mock("@/services/meter.service", () => ({
     meterService: {
@@ -27,6 +29,10 @@ vi.mock("@/services/meter.service", () => ({
 
 vi.mock("@/services/consumption.service", () => ({
     consumptionService: { list: vi.fn() },
+}))
+
+vi.mock("@/services/meterReading.service", () => ({
+    meterReadingService: { list: vi.fn() },
 }))
 
 vi.mock("@/services/tariff-flag.service", () => ({
@@ -94,6 +100,7 @@ beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(useRealtime).mockReturnValue({ readingsByMeterId: {}, isConnected: false })
     vi.mocked(consumptionService.list).mockResolvedValue(paginatedConsumption())
+    vi.mocked(meterReadingService.list).mockResolvedValue({ items: [], granularity: "minute" })
     vi.mocked(tariffFlagService.get).mockReturnValue(new Promise(() => {})) // não resolve — não é o foco destes testes
 })
 
@@ -143,6 +150,9 @@ describe("RealtimeSection — com medidor", () => {
         expect(screen.getByTestId("tariff-flag-list-card")).toBeInTheDocument()
         expect(screen.getByText("Consumo em tempo real")).toBeInTheDocument()
         expect(screen.getByText(/Casa · última hora/)).toBeInTheDocument()
+        expect(meterReadingService.list).toHaveBeenCalledWith(
+            expect.objectContaining({ targetType: "PROPERTY", targetId: "prop-1" }),
+        )
     })
 
     it("mostra o KPI 'Potência agora' quando uma leitura chega", async () => {
@@ -159,17 +169,9 @@ describe("RealtimeSection — com medidor", () => {
 
     it("troca a janela do gráfico via toggle e atualiza o subtítulo", async () => {
         vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
-        vi.mocked(useRealtime).mockReturnValue({
-            readingsByMeterId: { "meter-1": mockReading(1000) },
-            isConnected: false,
-        })
 
         renderSection()
-        // Uma única leitura "agora" cai sempre no balde em curso (minuto/hora
-        // ainda não fechado) — aggregateCompletedPowerBuckets a omite de
-        // propósito, então o card mostra o estado vazio, não o gráfico. O
-        // teste aqui é sobre o toggle/subtítulo, não sobre ter dado agregado.
-        await screen.findByTestId("realtime-power-chart-empty")
+        await screen.findByText("Consumo em tempo real")
 
         const btn24h = screen.getByTestId("realtime-window-24h")
         expect(btn24h).toHaveAttribute("aria-selected", "false")
@@ -181,5 +183,10 @@ describe("RealtimeSection — com medidor", () => {
             expect(btn24h).toHaveAttribute("aria-selected", "true")
         })
         expect(screen.getByText(/Casa · 24 horas/)).toBeInTheDocument()
+        await waitFor(() => {
+            expect(meterReadingService.list).toHaveBeenCalledWith(
+                expect.objectContaining({ granularity: "hour" }),
+            )
+        })
     })
 })

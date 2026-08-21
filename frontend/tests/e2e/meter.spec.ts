@@ -38,9 +38,7 @@ const setupAuthAndProperty = async (page: Page) => {
     await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
         fulfillPaginated(route, [DIST_CEMIG]),
     )
-    await page.route("**/api/distributors/dist-cemig", (route) =>
-        fulfillJson(route, DIST_CEMIG),
-    )
+    await page.route("**/api/distributors/dist-cemig", (route) => fulfillJson(route, DIST_CEMIG))
     await page.route(/\/api\/properties(\?.*)?$/, (route) => {
         if (route.request().method() === "GET") {
             return fulfillPaginated(route, [PROP_1])
@@ -58,8 +56,11 @@ const setupAuthAndProperty = async (page: Page) => {
     )
     // ConsumptionSection também monta na mesma página e usa /api/consumption
     // assim que houver medidor — precisa de mock pra não vazar.
-    await page.route(/\/api\/consumption(\?.*)?$/, (route) =>
-        fulfillPaginated(route, []),
+    await page.route(/\/api\/consumption(\?.*)?$/, (route) => fulfillPaginated(route, []))
+    // Mesma lógica pro card "Consumo em tempo real" (issue #211) —
+    // /api/meter-readings assim que houver medidor.
+    await page.route(/\/api\/meter-readings(\?.*)?$/, (route) =>
+        fulfillJson(route, { items: [], granularity: "minute" }),
     )
 }
 
@@ -79,9 +80,7 @@ test.describe("Medidor (MeterSection)", () => {
         await page.goto("/propriedades/prop-1")
         await hideDevTools(page)
 
-        await expect(
-            page.getByRole("heading", { level: 2, name: /^medidor$/i }),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { level: 2, name: /^medidor$/i })).toBeVisible()
         await expect(page.getByTestId("meter-section-create")).toBeVisible()
         await expect(page.getByText(/nenhum medidor vinculado/i)).toBeVisible()
         // Sem medidor, o card inteiro (conexão + leitura em tempo real) nem
@@ -89,9 +88,7 @@ test.describe("Medidor (MeterSection)", () => {
         await expect(page.getByTestId("meter-connection-card")).toHaveCount(0)
     })
 
-    test("vincula, edita e remove um medidor MQTT (ciclo completo)", async ({
-        page,
-    }) => {
+    test("vincula, edita e remove um medidor MQTT (ciclo completo)", async ({ page }) => {
         await setupAuthAndProperty(page)
 
         let meter: Meter | null = null
@@ -160,9 +157,7 @@ test.describe("Medidor (MeterSection)", () => {
         await page.getByLabel(/porta/i).fill("1883")
         await page.getByLabel(/tópico mqtt/i).fill("lumitrack/geral")
 
-        await page
-            .getByRole("button", { name: /vincular medidor/i })
-            .click()
+        await page.getByRole("button", { name: /vincular medidor/i }).click()
 
         await expect(createDialog).not.toBeVisible()
         const card = page.getByTestId("meter-connection-card")
@@ -187,18 +182,14 @@ test.describe("Medidor (MeterSection)", () => {
         await expect(page.getByLabel(/^host$/i)).toHaveValue("192.168.0.10")
 
         await page.getByLabel(/^host$/i).fill("192.168.0.20")
-        await page
-            .getByRole("button", { name: /salvar alterações/i })
-            .click()
+        await page.getByRole("button", { name: /salvar alterações/i }).click()
 
         await expect(editDialog).not.toBeVisible()
         await expect(card).toContainText(/192\.168\.0\.20:1883/)
 
         // ─── 3. Remover ─────────────────────────────────────────────────────
         await page.getByRole("button", { name: /remover medidor/i }).click()
-        await expect(
-            page.getByRole("heading", { name: /^remover medidor$/i }),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { name: /^remover medidor$/i })).toBeVisible()
         await page.getByRole("button", { name: /^remover$/i }).click()
 
         await expect(page.getByText(/nenhum medidor vinculado/i)).toBeVisible()
@@ -244,12 +235,8 @@ test.describe("Medidor (MeterSection)", () => {
         // Submit sem preencher o campo exigido pelo protocolo atual (serial)
         // dispara a validação condicional do schema.
         await page.getByLabel(/nome do medidor/i).fill("Medidor Serial")
-        await page
-            .getByRole("button", { name: /vincular medidor/i })
-            .click()
-        await expect(
-            page.getByText(/endereço é obrigatório para este protocolo/i),
-        ).toBeVisible()
+        await page.getByRole("button", { name: /vincular medidor/i }).click()
+        await expect(page.getByText(/endereço é obrigatório para este protocolo/i)).toBeVisible()
         await expect(dialog).toBeVisible()
     })
 })

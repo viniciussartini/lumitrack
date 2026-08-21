@@ -590,7 +590,7 @@ São **6 segredos obrigatórios sem default** (`JWT_SECRET` + as 5 chaves de cri
 | --- | --- | --- |
 | `NODE_ENV` | `development` | `development \| production \| test` |
 | `PORT` | `3333` | Porta HTTP |
-| `JWT_WEB_EXPIRES_IN` | `15m` | TTL da sessão Web |
+| `JWT_WEB_EXPIRES_IN` | `1h` | TTL da sessão Web |
 | `MOBILE_TOKEN_EXPIRES_IN` | `90d` | TTL do token Mobile (sempre expira, sem refresh) |
 | `JWT_REFRESH_EXPIRES_IN` | `7d` | TTL do refresh token Web |
 | `REFRESH_TOKEN_GRACE_PERIOD_MS` | `5000` | Janela de tolerância pós-rotação (corrida entre abas) |

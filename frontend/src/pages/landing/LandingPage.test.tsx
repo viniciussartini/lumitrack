@@ -41,6 +41,20 @@ describe("LandingPage — rodapé", () => {
         expect(repoLink).toHaveAttribute("rel", "noopener noreferrer")
     })
 
+    // Issue #213: o ícone do GitHub vivia num bloco à parte (misturado com o
+    // link de e-mail), fora do rodapé de crédito — inconsistente com
+    // BrandPanel.tsx (Login/Registro), onde ele é a 3ª coluna da barra
+    // "© ... · Logo desenhada por Magnific".
+    it("mostra o ícone do GitHub na barra de crédito do rodapé, mesmo padrão do BrandPanel", async () => {
+        renderWithProviders(<LandingPage />)
+
+        const creditBar = await screen.findByTestId("landing-footer-credit")
+        const repoLink = await screen.findByRole("link", {
+            name: /ver o repositório do lumitrack no github/i,
+        })
+        expect(creditBar).toContainElement(repoLink)
+    })
+
     it("abre os links legais (Termos, Política de Privacidade, LGPD) em aba nova", async () => {
         renderWithProviders(<LandingPage />)
 

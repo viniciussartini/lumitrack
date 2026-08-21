@@ -12,6 +12,7 @@ import { DeviceMenu } from "@/components/device/DeviceMenu"
 import { DeviceFormDialog } from "@/components/device/DeviceFormDialog"
 import { DeviceConsumptionSection } from "@/components/consumption/ConsumptionSection"
 import { MeterSection } from "@/components/meter/MeterSection"
+import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
 import { formatPowerKw } from "@/lib/format"
 import type { Device } from "@/types/device.types"
 import type { Area } from "@/types/area.types"
@@ -142,6 +143,16 @@ export const DeviceDetailsPage = () => {
                         )}
                     </div>
                 </div>
+            )}
+
+            {meter && (
+                <RealtimeChartCard
+                    targetType="DEVICE"
+                    targetId={deviceId!}
+                    meterId={meter.id}
+                    title="Consumo em tempo real"
+                    subtitle={device.name}
+                />
             )}
 
             <MeterSection targetType="DEVICE" targetId={deviceId!} />

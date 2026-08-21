@@ -132,6 +132,33 @@ describe("ProfilePage — modo leitura", () => {
 })
 
 describe("ProfilePage — edição", () => {
+    // Issue #219: "Editar" passou a abrir um modal (FormDialog), não mais
+    // trocar o conteúdo do card inline.
+    it("abre um modal (dialog) ao clicar em Editar, com o formulário dentro", async () => {
+        const user = userEvent.setup()
+        renderPage(mockUserPF)
+        await screen.findByRole("heading", { name: "João Silva" })
+
+        await user.click(screen.getByRole("button", { name: /editar/i }))
+
+        const dialog = await screen.findByRole("dialog", { name: /editar perfil/i })
+        expect(within(dialog).getByLabelText("Nome")).toBeInTheDocument()
+    })
+
+    // Critério de aceite: ProfileReadView permanece a view padrão da
+    // página, sem alternância de estado inline — os dados em modo leitura
+    // continuam visíveis por trás do modal, não somem quando ele abre.
+    it("mantém os dados em modo leitura visíveis por trás do modal", async () => {
+        const user = userEvent.setup()
+        renderPage(mockUserPF)
+        await screen.findByRole("heading", { name: "João Silva" })
+
+        await user.click(screen.getByRole("button", { name: /editar/i }))
+        await screen.findByRole("dialog", { name: /editar perfil/i })
+
+        expect(screen.getByText("•••.•••.247-25")).toBeInTheDocument()
+    })
+
     it("Cancelar volta ao modo leitura sem salvar", async () => {
         const user = userEvent.setup()
         renderPage(mockUserPF)

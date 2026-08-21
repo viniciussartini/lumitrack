@@ -1405,3 +1405,132 @@
 - **Arquivos principais:** `.github/workflows/keep-alive.yml` (novo).
 - **Decisões/ADRs:** nenhuma — não muda a arquitetura, só adiciona tráfego sintético de manutenção; a hibernação continua sendo o comportamento documentado do free tier, isso só a evita na prática enquanto o repositório tiver atividade (GitHub desativa workflow agendado após 60 dias sem commit).
 - **Notas:** sem teste automatizado (workflow de CI, não código de app) — verificação é rodar `workflow_dispatch` manualmente uma vez após o push e conferir o log do step.
+
+## [2026-08-21] feat: gráfico "Consumo em tempo real" busca histórico do banco (Dashboard + Propriedade/Área/Dispositivo)
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** feature
+- **O quê:** issue #211 — o gráfico "Consumo em tempo real" nascia vazio a cada carregamento de página, só acumulando o que chegava via SSE dali em diante (`usePowerHistory.ts`, removido). Agora busca o histórico já persistido em `MeterReading` via novo endpoint `GET /api/meter-readings` (granularidade minute/hour, sem custo/tarifa — diferente de `/api/consumption`, que é billing). Minuto/hora sem registro fica **zerado** (não omitido, mudança de comportamento pedida na issue). O mesmo gráfico, que só existia no Dashboard, passou a existir também em Propriedade, Área e Dispositivo (escopo completo confirmado com o usuário).
+- **Detalhe técnico não-óbvio:** o backend agrega `MeterReading` em America/Sao_Paulo via `date_trunc` sobre uma expressão de dupla conversão de fuso (`localTsExpr()`), que devolve os dígitos de SP "mascarados" como UTC (ex.: leitura às 14:10 UTC=11:10 SP vira bucket `...T11:00:00.000Z` — o "11" é hora de SP, o "Z" é só rótulo). O frontend precisou replicar esse mesmo "espaço mascarado" (`toMaskedEpoch`/`fromMaskedEpoch`, deslocamento fixo de 3h — Brasil não tem mais horário de verão desde 2019) pra alinhar os buckets do backend com os computados no cliente; sem isso, os buckets nunca bateriam e o gráfico ficaria sempre zerado, silenciosamente. Verificado empiricamente contra o Postgres de teste antes de implementar.
+- **Arquivos principais:**
+  - Backend (novo): `meter-reading.schema.ts`, `.service.ts`, `.controller.ts`, `.routes.ts` (módulo `meter`, ao lado do `meter-reading.repository.ts` já existente); `shared/database/timeBucket.ts` (extraído de `consumption.repository.ts`, agora compartilhado) e `shared/targetResolution.ts` (extraído do método privado `resolveRootProperty` de `ConsumptionService`, agora compartilhado — refactor mecânico, comportamento idêntico).
+  - Frontend (novo): `lib/realtimePowerBuckets.ts` (reescrito — `buildDenseWindowBuckets`/`startOfSaoPauloPeriod`, zero-fill em vez de omissão), `services/meterReading.service.ts`, `hooks/queries/useMeterReadingHistory.ts`, `components/realtime/` (novo — `RealtimeChartCard.tsx`, `RealtimePowerChart.tsx` e `RealtimeWindowToggle.tsx` movidos de `components/dashboard/`).
+  - Removido: `hooks/usePowerHistory.ts` (código morto após a migração).
+  - Ajustados: `RealtimeSection.tsx`, `PropertyDetailsPage.tsx`, `AreaDetailsPage.tsx`, `DeviceDetailsPage.tsx` (uso do novo `RealtimeChartCard`); `RealtimeSection.test.tsx`, `dashboard.spec.ts` (mock do novo endpoint).
+- **Decisões/ADRs:** nenhuma — implementação de issue já registrada, sem decisão arquitetural nova.
+- **Notas:** o ajuste do e2e `dashboard.spec.ts` resolve a parte "e2e" da issue #221 (asserção que dependia do comportamento antigo) — a parte "keep-alive" da #221 continua em aberto, sem relação com esta mudança. Verificação: backend (73 arquivos, 884 testes — a inflação anterior pra ~1760 era duplicação por um `dist/` obsoleto, limpo nesta sessão), frontend (72 arquivos, 635 testes) e e2e completo (51 testes, `CI=true` — mesmo caminho de build de produção que o CI real usa) todos verdes.
+
+## [2026-08-21] fix: ícone do GitHub na página inicial passa a viver no rodapé, como em Login/Registro
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** fix
+- **O quê:** issue #213 — o ícone/link do GitHub da página inicial (`LandingPage.tsx`) vivia num bloco à parte, empilhado com o link de e-mail de privacidade dentro da coluna de marca, em vez de na barra de crédito do rodapé (`© ... · Feito no Brasil` / "Logo desenhada por Magnific") — divergindo do padrão já usado em Login/Registro (`BrandPanel.tsx`, rodapé `grid-cols-[1fr_auto_1fr]`), tanto na posição quanto no tamanho (18px vs. 16px).
+- **Correção:** movido o link do GitHub para dentro da barra de crédito do rodapé da Landing, como 3ª coluna de uma grade `grid-cols-[1fr_auto_1fr]` (mesmo padrão de `BrandPanel.tsx`), com o ícone em 16px (`h-4 w-4`, igual ao `BrandPanel`) em vez de 18px. O link de e-mail de privacidade permanece na coluna de marca, sem mudança de comportamento.
+- **Arquivos principais:** `frontend/src/pages/landing/LandingPage.tsx`, `frontend/src/pages/landing/LandingPage.test.tsx` (novo teste: o link do GitHub é filho da barra de crédito, `data-testid="landing-footer-credit"`).
+- **Decisões/ADRs:** nenhuma — bug de consistência visual, não uma decisão nova.
+- **Notas:** `lint`/`format:check`/`tsc -b`/`build`/suíte completa (72 arquivos, 636 testes) do `frontend` limpos.
+
+## [2026-08-21] fix: painel esquerdo das telas de autenticação para de "pular" de altura ao trocar de formulário
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** fix
+- **O quê:** issue #214 — no Registro, ao trocar entre Pessoa Física e Pessoa Jurídica, o painel esquerdo (`BrandPanel`) mudava de altura junto com o formulário à direita (PJ tem mais campos que PF), gerando um salto visual perceptível nos dois lados. Causa: `BrandPanel` é filho de `AUTH_LAYOUT_GRID_CLASS` (`grid`, sem `align-items` explícito → `stretch` padrão), então sua altura sempre foi a da linha do grid — determinada pelo conteúdo mais alto entre as duas colunas, e não pelo próprio conteúdo do painel.
+- **Correção:** `BrandPanel.tsx` (`<aside>`) ganhou `lg:self-start lg:h-screen lg:sticky lg:top-0` — sai do stretch padrão do grid e passa a ter altura fixa na viewport, independente da coluna irmã; `sticky top-0` mantém essa altura fixa visível durante o scroll, caso o formulário fique mais alto que a tela. Como `BrandPanel` é compartilhado por Login/Registro/Recuperar Senha/Redefinir Senha/Confirmar troca de e-mail (`AUTH_LAYOUT_GRID_CLASS`), a correção vale para as 5 telas, não só o Registro.
+- **Arquivos principais:** `frontend/src/components/auth/BrandPanel.tsx`, `frontend/src/components/auth/BrandPanel.test.tsx` (novo teste: asserção estrutural das classes que fixam a altura — jsdom não computa layout/grid real, então o teste é sobre a presença das classes CSS responsáveis pelo comportamento, não a altura renderizada em si).
+- **Decisões/ADRs:** nenhuma — bug de layout (stretch indevido do grid), não uma decisão nova.
+- **Notas:** `lint`/`format:check`/`tsc -b`/`build`/suíte completa (72 arquivos, 637 testes) do `frontend` limpos; suíte das 5 páginas de autenticação (48 testes) roda sem regressão.
+
+## [2026-08-21] fix: sessão web (inclusive demo) passa de 15 min para 1h
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** fix
+- **O quê:** issue #215 — a sessão do login de demonstração expirava rápido demais (15 min) para alguém explorando a demo pública com calma. `JWT_WEB_EXPIRES_IN` (default `15m` no schema de `env.ts`) não é definida no `render.yaml` (nenhum `envVar` lá para essa chave) — o default do código é o que efetivamente vale em produção, não um valor teórico.
+- **Decisão (perguntada ao usuário, não assumida):** a constante hoje é a duração de **toda** sessão web, sem distinção entre conta demo e conta real. Optou-se por (a) aumentar `JWT_WEB_EXPIRES_IN` globalmente para 1h, em vez de (b) introduzir uma duração específica só para demo — mais simples, e hoje o cadastro público está fechado (ADR-0008), então na prática só contas demo logam via web; sem efeito colateral real agora. Revisitar se o cadastro reabrir.
+- **Correção:** default de `JWT_WEB_EXPIRES_IN` em `backend/src/config/env.ts` (`15m` → `1h`); `frontend/src/lib/sessionRefresh.ts` (`SESSION_DURATION_MS`, usado só para agendar o refresh proativo em 80% do TTL — 15 min → 1h, refresh proativo passa de ~12min para ~48min). `.env.example` e os dois `README.md` (backend/frontend) atualizados para não divergir do novo default.
+- **Arquivos principais:** `backend/src/config/env.ts`, `backend/src/config/env.test.ts` (novo teste: default aplicado é `1h`), `backend/.env.example`, `backend/README.md`, `frontend/src/lib/sessionRefresh.ts`, `frontend/src/lib/sessionRefresh.test.ts` (constantes/comentários atualizados para 1h), `frontend/README.md`.
+- **Decisões/ADRs:** nenhuma nova (a decisão de escopo acima foi uma escolha de implementação dentro da issue, não uma decisão arquitetural — não entra em `07-decisoes-em-aberto.md`/ADR).
+- **Notas:** backend (73 arquivos, 885 testes) e frontend (72 arquivos, 637 testes) verificados — `lint`/`format:check`/`tsc -b`/`depcruise` (backend) e `lint`/`tsc -b`/`build` (frontend) limpos. Efeito em produção: como o Render não define `JWT_WEB_EXPIRES_IN`, este fix já é suficiente sem precisar de mudança no `render.yaml` nem no dashboard do Render.
+
+## [2026-08-21] fix: cron do keep-alive deslocado pra minutos não-redondos, evita colisão com a fila do GitHub Actions
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** fix
+- **O quê:** issue #222 — o workflow de keep-alive (`*/10 * * * *`) parou de disparar de 10 em 10 min como configurado. Histórico real (`gh run list`): 23:34 → 23:53 (19 min) → 00:28 (35 min) → nada por 79+ min. Config conferida (workflow `active`, Actions habilitado, arquivo no branch default) e sem incidente ativo no GitHub Actions (githubstatus.com) — descartadas as causas óbvias.
+- **Causa raiz (mais provável, comportamento documentado do GitHub Actions, não empiricamente provável de fora):** agendamento `cron` é melhor-esforço — sob carga, o disparo pode atrasar ou ser **descartado por completo**. Minutos redondos (`*/10` cai exatamente em `:00, :10, :20...`) concorrem com um volume muito maior de workflows agendados no mesmo instante do que minutos deslocados, piorando a chance de descarte.
+- **Correção:** cron alterado de `*/10 * * * *` para `7,17,27,37,47,57 * * * *` — mesma cadência de ~10 min, mas nos minutos `:07, :17, :27...`, fora dos horários redondos mais concorridos. **Mitigação, não garantia** — documentado honestamente no comentário do workflow: não existe SLA do GitHub Actions para scheduled workflows, isso reduz a chance de descarte, não a elimina.
+- **Arquivos principais:** `.github/workflows/keep-alive.yml`.
+- **Decisões/ADRs:** nenhuma — ajuste de configuração de CI, não uma decisão arquitetural.
+- **Notas:** sem teste automatizado (workflow de CI, não código de app; YAML validado com parser Python). Diferente da #221 (que trata o job **falhando** quando dispara durante cold start real) — esta é sobre o agendamento em si não disparando, causa independente.
+
+## [2026-08-21] fix: remove "Segurança" duplicado do sidebar — já existe no menu do usuário
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** fix
+- **O quê:** issue #216 — o item "Segurança" aparecia duas vezes: no sidebar principal (`navigation.ts`) e no menu suspenso do perfil (`UserMenu.tsx`), ambos levando para `/seguranca`.
+- **Correção:** removida a entrada `/seguranca` de `NAV_ITEMS` (`navigation.ts`) — `Sidebar.tsx` renderiza a lista direto dessa constante, sem outra mudança necessária lá. Import não usado do ícone `Shield` removido junto. Rota `/seguranca` e o item do `UserMenu` (já existente) permanecem intactos — só a duplicata no sidebar sai.
+- **Arquivos principais:** `frontend/src/config/navigation.ts`, `frontend/src/components/layout/Sidebar.test.tsx` (novo teste: nenhum link "Segurança" na navegação — captura a duplicação como regressão, independente do conteúdo futuro de `NAV_ITEMS`).
+- **Decisões/ADRs:** nenhuma — remoção de UI duplicada, comportamento incorreto (redundância) virando o esperado (item único, no lugar certo).
+- **Notas:** `lint`/`format:check`/`tsc -b`/`build`/suíte completa (72 arquivos, 638 testes) do `frontend` limpos.
+
+## [2026-08-21] fix: remove texto "Em breve" órfão do estado vazio de dispositivos em Detalhe da Área
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** fix
+- **O quê:** issue #217 — `AreaDetailsPage.tsx` mostrava "Em breve" (`data-testid="devices-coming-soon"`) abaixo do `EmptyState` de dispositivos, sinalizando uma funcionalidade que já existe (cadastrar dispositivo já está implementado e funcional na própria página) — mensagem órfã de um estágio anterior da feature.
+- **Correção:** removido o `<p data-testid="devices-coming-soon">Em breve</p>` e o `<>` que só existia para agrupá-lo com o `EmptyState` — agora o bloco condicional renderiza só o `EmptyState`, sem wrapper supérfluo.
+- **Arquivos principais:** `frontend/src/pages/area/AreaDetailsPage.tsx`, `frontend/src/pages/area/AreaDetailsPage.test.tsx` (teste que antes afirmava a presença de "Em breve" invertido para afirmar sua ausência — a asserção antiga descrevia o comportamento errado como esperado).
+- **Decisões/ADRs:** nenhuma — texto desatualizado descrevendo estado incorreto, não uma decisão nova. Escopo restrito à página de Área (issue não menciona o `areas-coming-soon` equivalente em `PropertyDetailsPage.tsx`, que fica de fora desta mudança).
+- **Notas:** `lint`/`format:check`/`tsc -b`/`build`/suíte completa (72 arquivos, 638 testes) do `frontend` limpos.
+
+## [2026-08-21] fix: fundo transparente do modal de confirmação deixava o texto ilegível/sobreposto
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** fix
+- **O quê:** issue #218 — o modal de confirmação de exclusão de conta (`ConfirmDialog`) estava com a estilização quebrada: texto da descrição sobrepondo o título e os botões, ilegível. Investigado visualmente (screenshot via Playwright, `.dialog` de dentro pra fora) — o `<div class="dialog">` renderiza com `background: transparent`, então o conteúdo da própria página por trás do backdrop semi-transparente (`.dialog-backdrop`, 50% opaco, sem blur) vaza através do modal e colide visualmente com o texto dele. Mais visível aqui por causa da descrição mais longa (3 linhas) e do conteúdo denso atrás (lista de direitos LGPD), mas o bug é do componente base — afeta **todos** os `ConfirmDialog` do app (exclusão de propriedade/área/dispositivo/medidor/alerta), não só o de excluir conta, como a issue supôs.
+- **Causa raiz:** `frontend/src/styles/industry.css`, regra "blueprint frame" (`.card, .dialog { background: transparent; border: 1px solid var(--color-divider); }`) — pensada para `.card` (painel que fica sobre o canvas normal da página, onde transparência faz sentido), aplicada também a `.dialog` (que flutua sobre um backdrop translúcido cobrindo conteúdo arbitrário, onde transparência quebra a legibilidade). **Confirmado que o bug está no próprio bundle do Claude Design** (`.claude/design/2026-07-31-lumitrack-completo/design-system/styles.css` tem a mesma regra) — não é drift do projeto.
+- **Decisão (perguntada ao usuário, per `10-design-system.md` § divergência — bug de legibilidade no bundle, não "corrigir o design silenciosamente"):** corrigir na cópia do projeto (`industry.css`), divergindo deliberadamente do bundle nesse ponto, em vez de restringir a correção só à instância do `ConfirmDialog.tsx` (que deixaria o bug latente pra qualquer uso futuro da classe `.dialog`). Recomendação: levar essa correção de volta ao Claude Design (handoff novo ou nota manual), pra o bundle não ficar desatualizado em relação ao código.
+- **Correção:** `.dialog` sai da regra de fundo transparente compartilhada com `.card`; mantém o fundo sólido `var(--color-surface)` já definido antes na cascata (linha ~535) e ganha a borda hairline do "blueprint frame" numa regra própria.
+- **Arquivos principais:** `frontend/src/styles/industry.css`, `frontend/tests/e2e/profile.spec.ts` (novo teste: `getComputedStyle` do `.dialog` não pode ser `rgba(0, 0, 0, 0)` — regressão de CSS real, não testável em unit test porque jsdom não computa estilo de stylesheet externo).
+- **Notas:** `lint`/`format:check`/`tsc -b`/`build`/suíte unit completa (72 arquivos, 638 testes) e suíte e2e completa (51 testes, `CI=true`) do `frontend` limpos — o e2e completo confirma que a mudança de CSS compartilhado não quebrou nenhum outro `ConfirmDialog`/`FormDialog` do app.
+
+## [2026-08-21] feat: "Editar perfil" abre como modal (FormDialog), em vez de alternar estado inline
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** feature
+- **O quê:** issue #219 — "Editar" no card "Dados pessoais" do Perfil trocava o conteúdo do próprio card entre `ProfileReadView` e o formulário (`IndividualProfileForm`/`CompanyProfileForm`) via estado `isEditing`. Passa a abrir um `FormDialog` (mesmo padrão já usado por Propriedade/Área/Dispositivo/Medidor) — a casca muda, a lógica de validação/submit dos formulários não.
+- **Divergência deliberada do protótipo:** `LumiTrack Home.dc.html` (`profIsEditing`) especifica a troca inline, não um modal — a issue pede explicitamente o padrão de modal do resto do app em vez do padrão desta tela específica no bundle. Diferente da #218 (bug de legibilidade no próprio bundle, exigiu parar e perguntar), aqui a divergência já era o pedido explícito da issue desde o início — sem necessidade de nova pergunta.
+- **Correção:** `ProfilePage.tsx` — botão "Editar" sempre visível (não mais condicionado a `!isEditing`); `ProfileReadView` sempre renderizada (não alterna mais); `IndividualProfileForm`/`CompanyProfileForm` passam a ser `children` de um `FormDialog` (`open={isEditing}`, `onOpenChange={setIsEditing}`, `kicker="Perfil"`, `title="Editar perfil"`) — mesmo mecanismo do Radix que já garante que o form só monta quando o modal abre (reseta pros dados atuais do usuário a cada abertura), usado sem alteração alguma nos padrões de `PropertyFormDialog`/`AreaFormDialog`/`DeviceFormDialog`.
+- **Arquivos principais:** `frontend/src/pages/profile/ProfilePage.tsx`, `frontend/src/pages/profile/ProfilePage.test.tsx` (2 testes novos, test-first: modal abre com o formulário dentro; dados em modo leitura continuam visíveis por trás do modal — confirmados falhando contra a implementação antiga antes do fix, depois passando).
+- **Decisões/ADRs:** nenhuma — decisão de UI já registrada nos critérios de aceite da própria issue, não uma decisão nova em aberto.
+- **Notas:** `lint`/`format:check`/`tsc -b`/`build`/suíte unit completa (72 arquivos, 640 testes) e suíte e2e completa (51 testes, `CI=true`) do `frontend` limpos — os 4 testes e2e/18 testes unit pré-existentes de Perfil passaram sem alteração (consultas por role/label eram agnósticas à casca página-vs-modal).
+
+## [2026-08-21] fix: keep-alive não falha mais alto quando o curl estoura timeout num cold start real
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** fix
+- **O quê:** issue #221 (incluída no épico #212) — dois bugs independentes, regressão do commit `7c1bef0`. A parte do e2e (`dashboard.spec.ts:111`) já tinha sido corrigida como efeito colateral da implementação de #211 (mesma sessão). Restava a parte do keep-alive: `.github/workflows/keep-alive.yml` fazia `curl --max-time 30 ...` e quando o Render está em cold start real (>30s), o curl estoura o timeout com exit code 28. Os steps do GitHub Actions rodam em `bash -eo pipefail` por padrão — esse erro do curl abortava o step **antes** da lógica `if [ "$status" != "200" ]` (desenhada pra só emitir `::warning::`, nunca falhar) chegar a rodar, contradizendo o próprio objetivo do commit original.
+- **Reproduzido localmente antes do fix:** script do step extraído do YAML, rodado via `bash --noprofile --norc -eo pipefail` (mesmo modo de execução do GitHub Actions) contra um `curl` falso simulando `exit 28` sem stdout — o script antigo aborta com exit 28, sem nunca imprimir `status=` nem o aviso. Com o fix, o mesmo script imprime `status=timeout`, emite o aviso e sai com código 0. Casos normais (200, 503 sem timeout) confirmados inalterados.
+- **Correção:** `status=$(curl ...) || true` blinda a atribuição contra o exit code do curl (sem abortar o step); `status="${status:-timeout}"` cobre o caso de curl não escrever nada em stdout antes de falhar no timeout.
+- **Arquivos principais:** `.github/workflows/keep-alive.yml`.
+- **Decisões/ADRs:** nenhuma — bug de comportamento (job falhava onde deveria só avisar), não uma decisão nova.
+- **Notas:** sem teste automatizado no repo (workflow de CI, não código de app) — verificação feita via reprodução local do script `bash -eo pipefail` com `curl` falso simulando timeout/200/503 (ver acima). Fecha as duas partes da #221 — a issue estava incluída no épico #212 (adicionada como sub-issue nesta sessão) mas não é achado de uso da aplicação, é regressão de CI.
+
+## [2026-08-21] fix: e2e do Dashboard dependia de o teste não rodar no primeiro minuto de uma hora
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** fix
+- **O quê:** CI (job `e2e`) falhou de forma determinística (3/3 tentativas, mesma linha) em `dashboard.spec.ts:132` (`Painel — visão em tempo real (#116) › propriedade com medidor recebe leitura ao vivo e mostra Potência agora`) — `realtime-power-chart` nunca ficava visível. Causa raiz: o mock de `/api/meter-readings` calculava `bucketStart` como `Date.now() - 60_000` (1 min atrás) usando o relógio **real** do processo Node do teste — se o teste executasse dentro do primeiro minuto de uma hora (janela de ~1/60 do tempo), "1 minuto atrás" cai na hora **anterior**, e `buildDenseWindowBuckets` corretamente a exclui da janela "hora corrente" (issue #211, comportamento pretendido) — o gráfico fica vazio de forma intermitente, dependendo só de quando o CI por acaso executa o teste. As outras 15 falhas do mesmo run (`consumption.spec.ts`, `meter.spec.ts`, `realtime.spec.ts`) mostravam ponto de falha **diferente a cada retry** — assinatura de flakiness por contenção de recursos do runner, não bug determinístico; confirmado por 51/51 e 102/102 (chromium+firefox) locais limpos no mesmo modo de execução do CI antes desta mudança.
+- **Correção:** `dashboard.spec.ts` — `page.clock.install({ time: new Date(CLOCK_TIME) })` (mesmo padrão já usado em `realtime.spec.ts`) com `CLOCK_TIME` fixo, longe de qualquer fronteira de hora; o mock de `/api/meter-readings` e o `receivedAt` do evento SSE passam a derivar de `CLOCK_TIME`, não de `Date.now()`/`new Date()` reais — elimina a dependência do relógio de parede por completo, não só reduz a chance de bater na janela ruim. Fechada de propósito, como prevenção (não confirmada como causa raiz desta corrida específica, mas é uma lacuna real introduzida por #211): `/api/meter-readings` passa a ter um mock default em `consumption.spec.ts`/`meter.spec.ts`/`realtime.spec.ts` (as três visitam `/propriedades/prop-1`, que desde #211 também busca esse endpoint — sem mock, a chamada vaza pro proxy do Vite, que não tem backend atrás em specs de UI pura).
+- **Arquivos principais:** `frontend/tests/e2e/dashboard.spec.ts`, `frontend/tests/e2e/consumption.spec.ts`, `frontend/tests/e2e/meter.spec.ts`, `frontend/tests/e2e/realtime.spec.ts`.
+- **Decisões/ADRs:** nenhuma — bug de teste dependente de tempo real, não uma decisão nova.
+- **Notas:** `prettier`/`tsc -b` limpos; suíte e2e completa rodada localmente nos dois projetos do CI (chromium + firefox, `CI=true`) — 102/102 verdes; suíte unit (72 arquivos, 640 testes) sem regressão.
+
+## [2026-08-21] refactor: reduz a oscilação das leituras dos medidores da demo (achado de uso real)
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** refactor
+- **O quê:** achado de uso real (sem issue própria) — as leituras ao vivo dos 11 medidores da demo pública oscilavam muito visivelmente a cada tick (~1/s), sem transmitir sensação de medição real. Causa: `signalGenerator.ts` aplica ruído gaussiano **independente a cada tick** (sem correlação entre leituras consecutivas — `gaussianNoise(nominalPowerW × noiseAmplitudePercent / 100)`), e os 11 devices de `demoBootstrap.ts` usavam `noiseAmplitudePercent` entre 2% e 8% (média ~4,9%) — alto o bastante pra saltos perceptíveis segundo a segundo no KPI "Potência agora".
+- **Correção:** `noiseAmplitudePercent` reduzido em todos os 11 devices de `demoBootstrap.ts` (valores novos: 1–4%, aproximadamente metade dos originais), mantendo a ordem relativa de variabilidade entre perfis — cargas resistivas puras (chuveiro elétrico, compressor) mais estáveis que motores/solda industrial, que têm variação real maior. `DEFAULT_DEVICE_PARAMS.noiseAmplitudePercent` (`types.ts`, usado como fallback do store) também reduzido de 2 para 1, por consistência. Sem mudança na fórmula do gerador de sinal nem na onda de fundo (`SIGNAL_AMPLITUDE_FRACTION`, drift lento de 5 min — não é a fonte da oscilação percebida, só o ruído por tick).
+- **Arquivos principais:** `iot-simulator/server/src/simulation/demoBootstrap.ts`, `iot-simulator/server/src/simulation/demoBootstrap.test.ts` (novo teste: `noiseAmplitudePercent` de todo device da demo ≤ 4% — confirmado falhando contra os valores antigos, congela o teto pra uma mudança futura não reintroduzir o problema sem reconsideração deliberada), `iot-simulator/server/src/simulation/types.ts`, `iot-simulator/README.md` (doc do default atualizada).
+- **Decisões/ADRs:** nenhuma — ajuste de constantes de simulação, não uma decisão arquitetural. Fora de escopo (deliberado): o default de `noiseAmplitudePercent` da UI local do simulador (`NetworkCard.tsx`, ferramenta de desenvolvimento, não a demo pública) não foi tocado.
+- **Notas:** `format:check`/`lint`/`tsc`/`build`/suíte completa (14 arquivos, 82 testes) do `iot-simulator/server` limpos.

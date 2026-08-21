@@ -41,9 +41,7 @@ const setupAuthAndProperty = async (page: Page) => {
     await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
         fulfillPaginated(route, [DIST_CEMIG]),
     )
-    await page.route("**/api/distributors/dist-cemig", (route) =>
-        fulfillJson(route, DIST_CEMIG),
-    )
+    await page.route("**/api/distributors/dist-cemig", (route) => fulfillJson(route, DIST_CEMIG))
     await page.route(/\/api\/properties(\?.*)?$/, (route) => {
         if (route.request().method() === "GET") {
             return fulfillPaginated(route, [PROP_1])
@@ -58,6 +56,13 @@ const setupAuthAndProperty = async (page: Page) => {
     })
     await page.route(/\/api\/properties\/prop-1\/areas(\?.*)?$/, (route) =>
         fulfillPaginated(route, []),
+    )
+    // Default vazio — o card "Consumo em tempo real" (issue #211) busca
+    // /api/meter-readings sempre que há medidor; testes deste arquivo não
+    // olham pro conteúdo desse card, mas a rota precisa de resposta (senão
+    // cai no proxy do Vite pro backend real, que não está rodando aqui).
+    await page.route(/\/api\/meter-readings(\?.*)?$/, (route) =>
+        fulfillJson(route, { items: [], granularity: "minute" }),
     )
 }
 
@@ -83,13 +88,9 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
         await page.goto("/propriedades/prop-1")
         await hideDevTools(page)
 
-        await expect(
-            page.getByRole("heading", { level: 2, name: /^consumo$/i }),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { level: 2, name: /^consumo$/i })).toBeVisible()
         await expect(page.getByText(/sem consumo para exibir/i)).toBeVisible()
-        await expect(
-            page.getByText(/configure um medidor na seção acima/i),
-        ).toBeVisible()
+        await expect(page.getByText(/configure um medidor na seção acima/i)).toBeVisible()
         await expect(page.getByTestId("consumption-table")).toHaveCount(0)
         await expect(page.getByTestId("consumption-chart")).toHaveCount(0)
 
@@ -100,9 +101,7 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
         page,
     }) => {
         await setupAuthAndProperty(page)
-        await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
-            fulfillJson(route, METER_1),
-        )
+        await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) => fulfillJson(route, METER_1))
 
         await page.route(/\/api\/consumption(\?.*)?$/, (route) => {
             const url = new URL(route.request().url())
@@ -111,8 +110,8 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
                 granularity === "hour"
                     ? [BUCKET_HOUR_1, BUCKET_HOUR_2]
                     : granularity === "day"
-                        ? [BUCKET_DAY_1, BUCKET_DAY_2]
-                        : []
+                      ? [BUCKET_DAY_1, BUCKET_DAY_2]
+                      : []
             return fulfillJson(route, {
                 items,
                 total: items.length,
@@ -130,12 +129,8 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
             "aria-selected",
             "true",
         )
-        await expect(
-            page.getByTestId(`consumption-row-${BUCKET_HOUR_1.bucketStart}`),
-        ).toBeVisible()
-        await expect(
-            page.getByTestId(`consumption-row-${BUCKET_HOUR_2.bucketStart}`),
-        ).toBeVisible()
+        await expect(page.getByTestId(`consumption-row-${BUCKET_HOUR_1.bucketStart}`)).toBeVisible()
+        await expect(page.getByTestId(`consumption-row-${BUCKET_HOUR_2.bucketStart}`)).toBeVisible()
         await expect(page.getByTestId("consumption-chart")).toBeVisible()
 
         await page.getByTestId("granularity-tab-day").click()
@@ -144,50 +139,34 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
             "aria-selected",
             "true",
         )
-        await expect(
-            page.getByTestId(`consumption-row-${BUCKET_DAY_1.bucketStart}`),
-        ).toBeVisible()
-        await expect(
-            page.getByTestId(`consumption-row-${BUCKET_DAY_2.bucketStart}`),
-        ).toBeVisible()
+        await expect(page.getByTestId(`consumption-row-${BUCKET_DAY_1.bucketStart}`)).toBeVisible()
+        await expect(page.getByTestId(`consumption-row-${BUCKET_DAY_2.bucketStart}`)).toBeVisible()
         // As linhas de "Hora" somem — prova que a query mudou de fato, não
         // só que a tabela ganhou linhas novas por cima das antigas.
-        await expect(
-            page.getByTestId(`consumption-row-${BUCKET_HOUR_1.bucketStart}`),
-        ).toHaveCount(0)
+        await expect(page.getByTestId(`consumption-row-${BUCKET_HOUR_1.bucketStart}`)).toHaveCount(
+            0,
+        )
     })
 
     test("mostra EmptyState 'Sem leituras neste período' quando a granularidade não tem buckets", async ({
         page,
     }) => {
         await setupAuthAndProperty(page)
-        await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
-            fulfillJson(route, METER_1),
-        )
-        await page.route(/\/api\/consumption(\?.*)?$/, (route) =>
-            fulfillPaginated(route, []),
-        )
+        await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) => fulfillJson(route, METER_1))
+        await page.route(/\/api\/consumption(\?.*)?$/, (route) => fulfillPaginated(route, []))
 
         await page.goto("/propriedades/prop-1")
         await hideDevTools(page)
 
-        await expect(
-            page.getByText(/sem leituras neste período/i),
-        ).toBeVisible()
-        await expect(
-            page.getByText(/ainda não há consumo agregado/i),
-        ).toBeVisible()
+        await expect(page.getByText(/sem leituras neste período/i)).toBeVisible()
+        await expect(page.getByText(/ainda não há consumo agregado/i)).toBeVisible()
         await expect(page.getByTestId("consumption-table")).toHaveCount(0)
         await expect(page.getByTestId("consumption-chart")).toHaveCount(0)
     })
 
-    test("pagina a tabela de consumo dentro da mesma granularidade", async ({
-        page,
-    }) => {
+    test("pagina a tabela de consumo dentro da mesma granularidade", async ({ page }) => {
         await setupAuthAndProperty(page)
-        await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
-            fulfillJson(route, METER_1),
-        )
+        await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) => fulfillJson(route, METER_1))
 
         await page.route(/\/api\/consumption(\?.*)?$/, (route) => {
             const url = new URL(route.request().url())
@@ -205,23 +184,15 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
         await page.goto("/propriedades/prop-1")
         await hideDevTools(page)
 
-        await expect(
-            page.getByTestId(`consumption-row-${BUCKET_HOUR_1.bucketStart}`),
-        ).toBeVisible()
-        await expect(page.getByTestId("pagination")).toContainText(
-            /11 itens · página 1 de 2/i,
-        )
+        await expect(page.getByTestId(`consumption-row-${BUCKET_HOUR_1.bucketStart}`)).toBeVisible()
+        await expect(page.getByTestId("pagination")).toContainText(/11 itens · página 1 de 2/i)
 
         await page.getByTestId("pagination-next").click()
 
-        await expect(
-            page.getByTestId(`consumption-row-${BUCKET_HOUR_2.bucketStart}`),
-        ).toBeVisible()
-        await expect(
-            page.getByTestId(`consumption-row-${BUCKET_HOUR_1.bucketStart}`),
-        ).toHaveCount(0)
-        await expect(page.getByTestId("pagination")).toContainText(
-            /11 itens · página 2 de 2/i,
+        await expect(page.getByTestId(`consumption-row-${BUCKET_HOUR_2.bucketStart}`)).toBeVisible()
+        await expect(page.getByTestId(`consumption-row-${BUCKET_HOUR_1.bucketStart}`)).toHaveCount(
+            0,
         )
+        await expect(page.getByTestId("pagination")).toContainText(/11 itens · página 2 de 2/i)
     })
 })

@@ -52,20 +52,20 @@ describe("ensureFreshSession", () => {
     })
 })
 
-// SESSION_DURATION_MS = 15 min → PROACTIVE = 80% = 720_000 ms (12 min)
-const PROACTIVE_MS = 15 * 60 * 1000 * 0.8
+// SESSION_DURATION_MS = 1h (issue #215) → PROACTIVE = 80% = 2_880_000 ms (48 min)
+const PROACTIVE_MS = 60 * 60 * 1000 * 0.8
 
 describe("scheduleProactiveRefresh / cancelProactiveRefresh", () => {
-    it("dispara refresh em ~80% do tempo de sessão (12 min de 15 min)", async () => {
+    it("dispara refresh em ~80% do tempo de sessão (48 min de 1h)", async () => {
         mockRefresh.mockResolvedValue(undefined)
 
         scheduleProactiveRefresh()
 
-        // Antes de 12 min, nada deve ter acontecido.
+        // Antes de 48 min, nada deve ter acontecido.
         await vi.advanceTimersByTimeAsync(PROACTIVE_MS - 1)
         expect(mockRefresh).not.toHaveBeenCalled()
 
-        // Exatamente em 12 min, o refresh deve disparar.
+        // Exatamente em 48 min, o refresh deve disparar.
         await vi.advanceTimersByTimeAsync(1)
         expect(mockRefresh).toHaveBeenCalledTimes(1)
 

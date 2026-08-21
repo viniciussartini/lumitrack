@@ -26,7 +26,9 @@ export const envSchema = z
             .optional(),
 
         JWT_SECRET: z.string().min(32, { message: "JWT_SECRET deve ter ao menos 32 caracteres" }),
-        JWT_WEB_EXPIRES_IN: z.string().default("15m"),
+        // Render não define esta env var (fora do render.yaml, ver #215) —
+        // o default abaixo é o que efetivamente vale em produção.
+        JWT_WEB_EXPIRES_IN: z.string().default("1h"),
         // Tokens MOBILE não tinham expiração por tempo (apenas revogação manual
         // via logout) — um token vazado tinha validade indefinida. Agora expiram
         // após um período mais longo que o WEB, adequado a sessões mobile.

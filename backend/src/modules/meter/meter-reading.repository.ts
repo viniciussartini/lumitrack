@@ -1,5 +1,17 @@
-import { PrismaClient } from "@/generated/prisma/client.js"
+import { Prisma, PrismaClient } from "@/generated/prisma/client.js"
 import type { MinuteBucketSnapshot } from "@/modules/iot/iot-worker/MinuteBuffer.js"
+import type { MeterReadingGranularity } from "@/modules/meter/meter-reading.schema.js"
+import { localTsExpr, rangeFilter } from "@/shared/database/timeBucket.js"
+
+const TRUNC_UNIT: Record<MeterReadingGranularity, string> = {
+    minute: "minute",
+    hour: "hour",
+}
+
+export type MeterReadingBucket = {
+    bucketStart: Date
+    avgPowerW: number
+}
 
 // Persistência das leituras minuto a minuto (MeterReading). Deliberadamente
 // simples: ao contrário do antigo HourlyRollupScheduler, não resolve
@@ -64,5 +76,39 @@ export class MeterReadingRepository {
                 secondsCovered: totalSeconds,
             },
         })
+    }
+
+    /**
+     * Agrega leituras por minuto/hora numa janela — usada pelo gráfico "ao
+     * vivo" (issue #211), não pelo faturamento (isso é `ConsumptionRepository`).
+     * `avgPowerW` ponderado por `secondsCovered`, mesma receita de
+     * `ConsumptionRepository.findAggregated` — sem soma de kWh nem
+     * paginação, só a grandeza que o gráfico plota.
+     */
+    async findAggregated(
+        meterId: string,
+        granularity: MeterReadingGranularity,
+        from: Date,
+        to: Date,
+    ): Promise<MeterReadingBucket[]> {
+        const unit = TRUNC_UNIT[granularity]
+
+        const rows = await this.prisma.$queryRaw<{ bucket: Date; avgpower: number | null }[]>(
+            Prisma.sql`
+                SELECT
+                    date_trunc(${unit}, ${localTsExpr()}) AS bucket,
+                    SUM("avgPowerW" * "secondsCovered") / NULLIF(SUM("secondsCovered"), 0) AS avgpower
+                FROM "meter_readings"
+                WHERE "meterId" = ${meterId}
+                ${rangeFilter(from, to)}
+                GROUP BY bucket
+                ORDER BY bucket ASC
+            `,
+        )
+
+        return rows.map((r) => ({
+            bucketStart: r.bucket,
+            avgPowerW: Number(r.avgpower ?? 0),
+        }))
     }
 }

@@ -115,6 +115,17 @@ describe("envSchema — guard PUBLIC_API_ORIGIN em produção (issue #183)", () 
     })
 })
 
+describe("envSchema — JWT_WEB_EXPIRES_IN (issue #215)", () => {
+    it("aplica default de 1h quando ausente — Render não define esta env var, então o default é o que vale em produção", () => {
+        const result = envSchema.safeParse(baseValidEnv)
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.JWT_WEB_EXPIRES_IN).toBe("1h")
+        }
+    })
+})
+
 describe("envSchema — DATABASE_TEST_URL/DATABASE_HTTP_TEST_URL (#165)", () => {
     it("rejeita NODE_ENV=test sem DATABASE_TEST_URL", () => {
         const result = envSchema.safeParse({
