@@ -31,9 +31,17 @@ interface BrandPanelProps {
  * (10-design-system.md § comportamento não especificado); a alternativa
  * óbvia é o formulário ocupar a tela inteira, que é o que resta ao
  * esconder este painel.
+ *
+ * `lg:self-start lg:h-screen lg:sticky lg:top-0` (issue #214): sem isso,
+ * a altura do painel é a da linha do grid (`AUTH_LAYOUT_GRID_CLASS`,
+ * `align-items: stretch` padrão), que muda com o conteúdo da coluna
+ * irmã — visível no Registro ao trocar Pessoa Física/Jurídica (o
+ * formulário PJ é mais alto). Tirar o painel do stretch e fixar sua
+ * altura na viewport resolve o salto; `sticky` mantém a fixação visível
+ * durante o scroll, caso a coluna irmã fique mais alta que a tela.
  */
 export const BrandPanel = ({ eyebrow, headline, description, extra }: BrandPanelProps) => (
-    <aside className="bg-accent-900 relative hidden flex-col justify-between overflow-hidden p-8 text-[#e6ecf2] lg:flex lg:p-14">
+    <aside className="bg-accent-900 relative hidden flex-col justify-between overflow-hidden p-8 text-[#e6ecf2] lg:sticky lg:top-0 lg:flex lg:h-screen lg:self-start lg:p-14">
         <svg
             viewBox="0 0 400 400"
             preserveAspectRatio="none"

@@ -1429,3 +1429,13 @@
 - **Arquivos principais:** `frontend/src/pages/landing/LandingPage.tsx`, `frontend/src/pages/landing/LandingPage.test.tsx` (novo teste: o link do GitHub é filho da barra de crédito, `data-testid="landing-footer-credit"`).
 - **Decisões/ADRs:** nenhuma — bug de consistência visual, não uma decisão nova.
 - **Notas:** `lint`/`format:check`/`tsc -b`/`build`/suíte completa (72 arquivos, 636 testes) do `frontend` limpos.
+
+## [2026-08-21] fix: painel esquerdo das telas de autenticação para de "pular" de altura ao trocar de formulário
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** fix
+- **O quê:** issue #214 — no Registro, ao trocar entre Pessoa Física e Pessoa Jurídica, o painel esquerdo (`BrandPanel`) mudava de altura junto com o formulário à direita (PJ tem mais campos que PF), gerando um salto visual perceptível nos dois lados. Causa: `BrandPanel` é filho de `AUTH_LAYOUT_GRID_CLASS` (`grid`, sem `align-items` explícito → `stretch` padrão), então sua altura sempre foi a da linha do grid — determinada pelo conteúdo mais alto entre as duas colunas, e não pelo próprio conteúdo do painel.
+- **Correção:** `BrandPanel.tsx` (`<aside>`) ganhou `lg:self-start lg:h-screen lg:sticky lg:top-0` — sai do stretch padrão do grid e passa a ter altura fixa na viewport, independente da coluna irmã; `sticky top-0` mantém essa altura fixa visível durante o scroll, caso o formulário fique mais alto que a tela. Como `BrandPanel` é compartilhado por Login/Registro/Recuperar Senha/Redefinir Senha/Confirmar troca de e-mail (`AUTH_LAYOUT_GRID_CLASS`), a correção vale para as 5 telas, não só o Registro.
+- **Arquivos principais:** `frontend/src/components/auth/BrandPanel.tsx`, `frontend/src/components/auth/BrandPanel.test.tsx` (novo teste: asserção estrutural das classes que fixam a altura — jsdom não computa layout/grid real, então o teste é sobre a presença das classes CSS responsáveis pelo comportamento, não a altura renderizada em si).
+- **Decisões/ADRs:** nenhuma — bug de layout (stretch indevido do grid), não uma decisão nova.
+- **Notas:** `lint`/`format:check`/`tsc -b`/`build`/suíte completa (72 arquivos, 637 testes) do `frontend` limpos; suíte das 5 páginas de autenticação (48 testes) roda sem regressão.
