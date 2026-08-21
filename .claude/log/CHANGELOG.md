@@ -1503,3 +1503,14 @@
 - **Arquivos principais:** `frontend/src/pages/profile/ProfilePage.tsx`, `frontend/src/pages/profile/ProfilePage.test.tsx` (2 testes novos, test-first: modal abre com o formulário dentro; dados em modo leitura continuam visíveis por trás do modal — confirmados falhando contra a implementação antiga antes do fix, depois passando).
 - **Decisões/ADRs:** nenhuma — decisão de UI já registrada nos critérios de aceite da própria issue, não uma decisão nova em aberto.
 - **Notas:** `lint`/`format:check`/`tsc -b`/`build`/suíte unit completa (72 arquivos, 640 testes) e suíte e2e completa (51 testes, `CI=true`) do `frontend` limpos — os 4 testes e2e/18 testes unit pré-existentes de Perfil passaram sem alteração (consultas por role/label eram agnósticas à casca página-vs-modal).
+
+## [2026-08-21] fix: keep-alive não falha mais alto quando o curl estoura timeout num cold start real
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** fix
+- **O quê:** issue #221 (incluída no épico #212) — dois bugs independentes, regressão do commit `7c1bef0`. A parte do e2e (`dashboard.spec.ts:111`) já tinha sido corrigida como efeito colateral da implementação de #211 (mesma sessão). Restava a parte do keep-alive: `.github/workflows/keep-alive.yml` fazia `curl --max-time 30 ...` e quando o Render está em cold start real (>30s), o curl estoura o timeout com exit code 28. Os steps do GitHub Actions rodam em `bash -eo pipefail` por padrão — esse erro do curl abortava o step **antes** da lógica `if [ "$status" != "200" ]` (desenhada pra só emitir `::warning::`, nunca falhar) chegar a rodar, contradizendo o próprio objetivo do commit original.
+- **Reproduzido localmente antes do fix:** script do step extraído do YAML, rodado via `bash --noprofile --norc -eo pipefail` (mesmo modo de execução do GitHub Actions) contra um `curl` falso simulando `exit 28` sem stdout — o script antigo aborta com exit 28, sem nunca imprimir `status=` nem o aviso. Com o fix, o mesmo script imprime `status=timeout`, emite o aviso e sai com código 0. Casos normais (200, 503 sem timeout) confirmados inalterados.
+- **Correção:** `status=$(curl ...) || true` blinda a atribuição contra o exit code do curl (sem abortar o step); `status="${status:-timeout}"` cobre o caso de curl não escrever nada em stdout antes de falhar no timeout.
+- **Arquivos principais:** `.github/workflows/keep-alive.yml`.
+- **Decisões/ADRs:** nenhuma — bug de comportamento (job falhava onde deveria só avisar), não uma decisão nova.
+- **Notas:** sem teste automatizado no repo (workflow de CI, não código de app) — verificação feita via reprodução local do script `bash -eo pipefail` com `curl` falso simulando timeout/200/503 (ver acima). Fecha as duas partes da #221 — a issue estava incluída no épico #212 (adicionada como sub-issue nesta sessão) mas não é achado de uso da aplicação, é regressão de CI.

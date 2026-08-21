@@ -29,9 +29,16 @@ jobs:
     ping:
         runs-on: ubuntu-latest
         steps:
+            # `run:` roda em `bash -eo pipefail` por padrão — sem o `|| true`
+            # abaixo, um curl que estoura --max-time (cold start real, exit 28)
+            # aborta o step ANTES da linha `if` rodar, e o job falha "alto" em
+            # vez de só avisar (issue #221). `|| true` blinda a atribuição;
+            # `${status:-timeout}` cobre o caso de curl não escrever nada em
+            # stdout antes de falhar (timeout raramente escreve algo via -w).
             - name: Ping /health
               run: |
-                  status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://lumitrack-api.onrender.com/health)
+                  status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://lumitrack-api.onrender.com/health) || true
+                  status="${status:-timeout}"
                   echo "status=$status"
                   if [ "$status" != "200" ]; then
                     echo "::warning::lumitrack-api respondeu $status em /health (pode ser cold start em andamento)"
