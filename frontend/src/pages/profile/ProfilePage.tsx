@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Tag } from "@/components/ui/Tag"
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog"
+import { FormDialog } from "@/components/ui/FormDialog"
 import { extractErrorMessage } from "@/services/api"
 import { getDisplayInfo } from "@/lib/userDisplay"
 import { maskCpf, maskCnpj } from "@/lib/masks"
@@ -38,6 +39,13 @@ import type { UpdateUserInput, User } from "@/types/auth.types"
  * Cobre PF e PJ (o handoff só mostra o mock PF) — um usuário `COMPANY`
  * também precisa ver/editar o próprio perfil, mesma ramificação por
  * `userType` já usada em RegisterPage/registerSchema.
+ *
+ * "Editar" abre `FormDialog` (issue #219) — diverge de propósito do
+ * protótipo (`LumiTrack Home.dc.html`, `profIsEditing`), que troca o
+ * conteúdo do card inline; escolha deliberada de manter o mesmo padrão de
+ * modal já usado por Propriedade/Área/Dispositivo/Medidor, em vez de um
+ * comportamento de edição só desta tela. `ProfileReadView` fica sempre
+ * visível por trás — não alterna mais com o form.
  */
 export const ProfilePage = () => {
     const { user, refreshUser } = useAuth()
@@ -114,22 +122,27 @@ export const ProfilePage = () => {
                     <span className="font-heading text-[17px] font-semibold uppercase">
                         Dados pessoais
                     </span>
-                    {!isEditing && (
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            leftIcon={<Pencil className="h-3.5 w-3.5" aria-hidden="true" />}
-                            onClick={() => setIsEditing(true)}
-                        >
-                            Editar
-                        </Button>
-                    )}
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        leftIcon={<Pencil className="h-3.5 w-3.5" aria-hidden="true" />}
+                        onClick={() => setIsEditing(true)}
+                    >
+                        Editar
+                    </Button>
                 </div>
 
-                {!isEditing ? (
-                    <ProfileReadView user={user} />
-                ) : isIndividual ? (
+                <ProfileReadView user={user} />
+            </div>
+
+            <FormDialog
+                open={isEditing}
+                onOpenChange={setIsEditing}
+                kicker="Perfil"
+                title="Editar perfil"
+            >
+                {isIndividual ? (
                     <IndividualProfileForm
                         user={user}
                         onCancel={() => setIsEditing(false)}
@@ -144,7 +157,7 @@ export const ProfilePage = () => {
                         isSaving={updateUser.isPending}
                     />
                 )}
-            </div>
+            </FormDialog>
 
             <AccountSummaryCard user={user} />
             <PrivacyDataCard userId={user.id} />
