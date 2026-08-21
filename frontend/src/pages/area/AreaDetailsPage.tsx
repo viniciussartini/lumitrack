@@ -388,19 +388,11 @@ const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
                     )}
 
                     {devicesQuery.isSuccess && devices.length === 0 && (
-                        <>
-                            <EmptyState
-                                icon={Cpu}
-                                title="Nenhum dispositivo cadastrado"
-                                description="Cadastre os dispositivos desta área para monitorar o consumo individual de cada equipamento."
-                            />
-                            <p
-                                className="text-muted mt-3 text-center text-xs italic"
-                                data-testid="devices-coming-soon"
-                            >
-                                Em breve
-                            </p>
-                        </>
+                        <EmptyState
+                            icon={Cpu}
+                            title="Nenhum dispositivo cadastrado"
+                            description="Cadastre os dispositivos desta área para monitorar o consumo individual de cada equipamento."
+                        />
                     )}
 
                     {devicesQuery.isSuccess && devices.length > 0 && (

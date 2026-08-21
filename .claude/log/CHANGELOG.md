@@ -1471,3 +1471,13 @@
 - **Arquivos principais:** `frontend/src/config/navigation.ts`, `frontend/src/components/layout/Sidebar.test.tsx` (novo teste: nenhum link "Segurança" na navegação — captura a duplicação como regressão, independente do conteúdo futuro de `NAV_ITEMS`).
 - **Decisões/ADRs:** nenhuma — remoção de UI duplicada, comportamento incorreto (redundância) virando o esperado (item único, no lugar certo).
 - **Notas:** `lint`/`format:check`/`tsc -b`/`build`/suíte completa (72 arquivos, 638 testes) do `frontend` limpos.
+
+## [2026-08-21] fix: remove texto "Em breve" órfão do estado vazio de dispositivos em Detalhe da Área
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** fix
+- **O quê:** issue #217 — `AreaDetailsPage.tsx` mostrava "Em breve" (`data-testid="devices-coming-soon"`) abaixo do `EmptyState` de dispositivos, sinalizando uma funcionalidade que já existe (cadastrar dispositivo já está implementado e funcional na própria página) — mensagem órfã de um estágio anterior da feature.
+- **Correção:** removido o `<p data-testid="devices-coming-soon">Em breve</p>` e o `<>` que só existia para agrupá-lo com o `EmptyState` — agora o bloco condicional renderiza só o `EmptyState`, sem wrapper supérfluo.
+- **Arquivos principais:** `frontend/src/pages/area/AreaDetailsPage.tsx`, `frontend/src/pages/area/AreaDetailsPage.test.tsx` (teste que antes afirmava a presença de "Em breve" invertido para afirmar sua ausência — a asserção antiga descrevia o comportamento errado como esperado).
+- **Decisões/ADRs:** nenhuma — texto desatualizado descrevendo estado incorreto, não uma decisão nova. Escopo restrito à página de Área (issue não menciona o `areas-coming-soon` equivalente em `PropertyDetailsPage.tsx`, que fica de fora desta mudança).
+- **Notas:** `lint`/`format:check`/`tsc -b`/`build`/suíte completa (72 arquivos, 638 testes) do `frontend` limpos.
