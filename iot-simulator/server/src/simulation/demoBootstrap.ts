@@ -36,6 +36,14 @@ export const DEMO_NETWORK_NAME = "Demo"
  * Atenção à unidade: `noiseAmplitudePercent` aqui é **percentual**
  * (`z.number().min(0).max(100)`, usado como
  * `nominalPowerW * (noiseAmplitudePercent / 100)` em `signalGenerator.ts`).
+ *
+ * Valores calibrados para uma leitura ao vivo mais estável (achado de uso
+ * real, sem issue própria — ruído gaussiano é independente a cada tick,
+ * sem correlação entre leituras consecutivas; nos valores originais
+ * (2–8%) o "Potência agora" oscilava visivelmente segundo a segundo,
+ * sem transmitir sensação de medição real). Mantida a ordem relativa de
+ * variabilidade entre perfis — cargas resistivas puras (chuveiro) mais
+ * estáveis que motores/solda industrial.
  */
 export const DEMO_DEVICES: readonly NewDeviceInput[] = [
     // ── Casa Demo (residencial) ──────────────────────────────────────────
@@ -47,7 +55,7 @@ export const DEMO_DEVICES: readonly NewDeviceInput[] = [
             nominalVoltage: 220,
             nominalPowerW: 3500,
             powerFactorBase: 0.92,
-            noiseAmplitudePercent: 4,
+            noiseAmplitudePercent: 2,
         },
     },
     {
@@ -58,7 +66,7 @@ export const DEMO_DEVICES: readonly NewDeviceInput[] = [
             nominalVoltage: 220,
             nominalPowerW: 900,
             powerFactorBase: 0.93,
-            noiseAmplitudePercent: 5,
+            noiseAmplitudePercent: 2,
         },
     },
     {
@@ -69,7 +77,7 @@ export const DEMO_DEVICES: readonly NewDeviceInput[] = [
             nominalVoltage: 220,
             nominalPowerW: 1900,
             powerFactorBase: 0.9,
-            noiseAmplitudePercent: 6,
+            noiseAmplitudePercent: 3,
         },
     },
     {
@@ -80,7 +88,7 @@ export const DEMO_DEVICES: readonly NewDeviceInput[] = [
             nominalVoltage: 220,
             nominalPowerW: 750,
             powerFactorBase: 0.93,
-            noiseAmplitudePercent: 5,
+            noiseAmplitudePercent: 2,
         },
     },
     {
@@ -91,7 +99,7 @@ export const DEMO_DEVICES: readonly NewDeviceInput[] = [
             nominalVoltage: 220,
             nominalPowerW: 4800,
             powerFactorBase: 0.98,
-            noiseAmplitudePercent: 2,
+            noiseAmplitudePercent: 1,
         },
     },
     {
@@ -102,7 +110,7 @@ export const DEMO_DEVICES: readonly NewDeviceInput[] = [
             nominalVoltage: 220,
             nominalPowerW: 1100,
             powerFactorBase: 0.88,
-            noiseAmplitudePercent: 6,
+            noiseAmplitudePercent: 3,
         },
     },
 
@@ -115,7 +123,7 @@ export const DEMO_DEVICES: readonly NewDeviceInput[] = [
             nominalVoltage: 380,
             nominalPowerW: 19000,
             powerFactorBase: 0.88,
-            noiseAmplitudePercent: 5,
+            noiseAmplitudePercent: 2,
         },
     },
     {
@@ -126,7 +134,7 @@ export const DEMO_DEVICES: readonly NewDeviceInput[] = [
             nominalVoltage: 380,
             nominalPowerW: 2200,
             powerFactorBase: 0.92,
-            noiseAmplitudePercent: 5,
+            noiseAmplitudePercent: 2,
         },
     },
     {
@@ -137,7 +145,7 @@ export const DEMO_DEVICES: readonly NewDeviceInput[] = [
             nominalVoltage: 380,
             nominalPowerW: 4800,
             powerFactorBase: 0.85,
-            noiseAmplitudePercent: 4,
+            noiseAmplitudePercent: 2,
         },
     },
     {
@@ -148,7 +156,7 @@ export const DEMO_DEVICES: readonly NewDeviceInput[] = [
             nominalVoltage: 380,
             nominalPowerW: 3600,
             powerFactorBase: 0.8,
-            noiseAmplitudePercent: 8,
+            noiseAmplitudePercent: 4,
         },
     },
     {
@@ -159,7 +167,7 @@ export const DEMO_DEVICES: readonly NewDeviceInput[] = [
             nominalVoltage: 380,
             nominalPowerW: 7800,
             powerFactorBase: 0.86,
-            noiseAmplitudePercent: 3,
+            noiseAmplitudePercent: 1,
         },
     },
 ]

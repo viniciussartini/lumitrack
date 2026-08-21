@@ -1524,3 +1524,13 @@
 - **Arquivos principais:** `frontend/tests/e2e/dashboard.spec.ts`, `frontend/tests/e2e/consumption.spec.ts`, `frontend/tests/e2e/meter.spec.ts`, `frontend/tests/e2e/realtime.spec.ts`.
 - **Decisões/ADRs:** nenhuma — bug de teste dependente de tempo real, não uma decisão nova.
 - **Notas:** `prettier`/`tsc -b` limpos; suíte e2e completa rodada localmente nos dois projetos do CI (chromium + firefox, `CI=true`) — 102/102 verdes; suíte unit (72 arquivos, 640 testes) sem regressão.
+
+## [2026-08-21] refactor: reduz a oscilação das leituras dos medidores da demo (achado de uso real)
+
+- **Branch:** fix/bugs-pos-deploy
+- **Tipo:** refactor
+- **O quê:** achado de uso real (sem issue própria) — as leituras ao vivo dos 11 medidores da demo pública oscilavam muito visivelmente a cada tick (~1/s), sem transmitir sensação de medição real. Causa: `signalGenerator.ts` aplica ruído gaussiano **independente a cada tick** (sem correlação entre leituras consecutivas — `gaussianNoise(nominalPowerW × noiseAmplitudePercent / 100)`), e os 11 devices de `demoBootstrap.ts` usavam `noiseAmplitudePercent` entre 2% e 8% (média ~4,9%) — alto o bastante pra saltos perceptíveis segundo a segundo no KPI "Potência agora".
+- **Correção:** `noiseAmplitudePercent` reduzido em todos os 11 devices de `demoBootstrap.ts` (valores novos: 1–4%, aproximadamente metade dos originais), mantendo a ordem relativa de variabilidade entre perfis — cargas resistivas puras (chuveiro elétrico, compressor) mais estáveis que motores/solda industrial, que têm variação real maior. `DEFAULT_DEVICE_PARAMS.noiseAmplitudePercent` (`types.ts`, usado como fallback do store) também reduzido de 2 para 1, por consistência. Sem mudança na fórmula do gerador de sinal nem na onda de fundo (`SIGNAL_AMPLITUDE_FRACTION`, drift lento de 5 min — não é a fonte da oscilação percebida, só o ruído por tick).
+- **Arquivos principais:** `iot-simulator/server/src/simulation/demoBootstrap.ts`, `iot-simulator/server/src/simulation/demoBootstrap.test.ts` (novo teste: `noiseAmplitudePercent` de todo device da demo ≤ 4% — confirmado falhando contra os valores antigos, congela o teto pra uma mudança futura não reintroduzir o problema sem reconsideração deliberada), `iot-simulator/server/src/simulation/types.ts`, `iot-simulator/README.md` (doc do default atualizada).
+- **Decisões/ADRs:** nenhuma — ajuste de constantes de simulação, não uma decisão arquitetural. Fora de escopo (deliberado): o default de `noiseAmplitudePercent` da UI local do simulador (`NetworkCard.tsx`, ferramenta de desenvolvimento, não a demo pública) não foi tocado.
+- **Notas:** `format:check`/`lint`/`tsc`/`build`/suíte completa (14 arquivos, 82 testes) do `iot-simulator/server` limpos.

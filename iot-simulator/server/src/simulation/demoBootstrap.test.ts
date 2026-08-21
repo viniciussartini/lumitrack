@@ -68,6 +68,23 @@ describe("bootstrapDemoDevices", () => {
         ])
     })
 
+    // Achado de uso real (sem issue própria): com noiseAmplitudePercent
+    // até 8%, o "Potência agora" oscilava visivelmente a cada tick (o
+    // ruído gaussiano de signalGenerator.ts não é correlacionado entre
+    // leituras consecutivas), sem transmitir sensação de medição real.
+    // Teto reduzido pra manter a leitura ao vivo mais estável — congela o
+    // limite aqui pra uma mudança futura não reintroduzir o problema sem
+    // reconsideração deliberada.
+    it("mantém noiseAmplitudePercent baixo o suficiente pra uma leitura ao vivo estável (≤ 4%)", () => {
+        for (const spec of DEMO_DEVICES) {
+            expect(spec.params, `${spec.name} (${spec.topic}) sem params`).toBeDefined()
+            expect(
+                spec.params!.noiseAmplitudePercent,
+                `${spec.name} (${spec.topic}) com noiseAmplitudePercent muito alto`,
+            ).toBeLessThanOrEqual(4)
+        }
+    })
+
     it("é idempotente — a segunda chamada não duplica devices no mesmo tópico", () => {
         const store = new SimulationStore()
 
