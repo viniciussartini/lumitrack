@@ -27,9 +27,7 @@ test.describe("Perfil — visualizar e editar dados pessoais (#118)", () => {
     test("mostra os dados em modo leitura", async ({ page }) => {
         await mockAppShellBackground(page)
         await setupAuth(page)
-        await page.route(/\/api\/properties(\?.*)?$/, (route) =>
-            fulfillPaginated(route, [PROP_1]),
-        )
+        await page.route(/\/api\/properties(\?.*)?$/, (route) => fulfillPaginated(route, [PROP_1]))
 
         await page.goto("/perfil")
         await hideDevTools(page)
@@ -42,15 +40,11 @@ test.describe("Perfil — visualizar e editar dados pessoais (#118)", () => {
     test("edita nome/sobrenome e reflete a mudança no menu do usuário", async ({ page }) => {
         await mockAppShellBackground(page)
         await setupAuth(page)
-        await page.route(/\/api\/properties(\?.*)?$/, (route) =>
-            fulfillPaginated(route, [PROP_1]),
-        )
+        await page.route(/\/api\/properties(\?.*)?$/, (route) => fulfillPaginated(route, [PROP_1]))
 
         const updatedUser = { ...FAKE_USER, firstName: "Joana" }
         await page.route(/\/api\/users\/.*$/, (route) =>
-            route.request().method() === "PUT"
-                ? fulfillJson(route, updatedUser)
-                : route.fallback(),
+            route.request().method() === "PUT" ? fulfillJson(route, updatedUser) : route.fallback(),
         )
 
         await page.goto("/perfil")
@@ -100,10 +94,7 @@ test.describe("Perfil — Conta e Privacidade & dados (#120)", () => {
         await expect(page.getByText("Desativado")).toBeVisible()
 
         const exportLink = page.getByRole("link", { name: /exportar/i })
-        await expect(exportLink).toHaveAttribute(
-            "href",
-            "/api/users/me/data-export?format=json",
-        )
+        await expect(exportLink).toHaveAttribute("href", "/api/users/me/data-export?format=json")
     })
 
     test("exclui a conta: confirma no dialog, chama DELETE e redireciona pro login", async ({
@@ -111,9 +102,7 @@ test.describe("Perfil — Conta e Privacidade & dados (#120)", () => {
     }) => {
         await mockAppShellBackground(page)
         await setupAuth(page)
-        await page.route(/\/api\/properties(\?.*)?$/, (route) =>
-            fulfillPaginated(route, [PROP_1]),
-        )
+        await page.route(/\/api\/properties(\?.*)?$/, (route) => fulfillPaginated(route, [PROP_1]))
         await page.route(/\/api\/users\/.*$/, (route) =>
             route.request().method() === "DELETE"
                 ? route.fulfill({ status: 204 })
@@ -134,6 +123,16 @@ test.describe("Perfil — Conta e Privacidade & dados (#120)", () => {
 
         const dialog = page.getByRole("dialog")
         await expect(dialog).toBeVisible()
+
+        // Issue #218: fundo do .dialog era transparent (herdado da regra
+        // "blueprint frame" pensada pra .card, não pra um modal flutuando
+        // sobre .dialog-backdrop) — o texto da página por trás vazava e
+        // sobrepunha visualmente o próprio texto do dialog. Regressão real
+        // de CSS, não testável em unit test (jsdom não computa estilo de
+        // stylesheet externo) — só via computed style num browser real.
+        const backgroundColor = await dialog.evaluate((el) => getComputedStyle(el).backgroundColor)
+        expect(backgroundColor).not.toBe("rgba(0, 0, 0, 0)")
+
         await dialog.getByRole("button", { name: /excluir conta/i }).click()
 
         await expect(page).toHaveURL(/\/login/)
