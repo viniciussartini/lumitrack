@@ -35,6 +35,7 @@ import { alertRoutes } from "./modules/alert/alert.routes.js"
 import { alertEventRoutes } from "./modules/alert-event/alert-event.routes.js"
 import { notificationRoutes } from "./modules/notification/notification.routes.js"
 import { meterRoutes } from "./modules/meter/meter.routes.js"
+import { meterReadingRoutes } from "./modules/meter/meter-reading.routes.js"
 import { consumptionRoutes } from "./modules/consumption/consumption.routes.js"
 import { IoTDataProcessor } from "./modules/iot/iot-worker/IoTDataProcessor.js"
 import { iotStreamRoutes } from "./modules/iot/iot-stream.routes.js"
@@ -223,6 +224,7 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/alert-events", alertEventRoutes(authenticate, prismaClient))
     app.use("/api/notifications", notificationRoutes(authenticate, notificationStore))
     app.use("/api/meters", meterRoutes(authenticate, prismaClient))
+    app.use("/api/meter-readings", meterReadingRoutes(authenticate, prismaClient))
     app.use("/api/consumption", consumptionRoutes(authenticate, prismaClient))
 
     if (processor && userEventHub) {

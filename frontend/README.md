@@ -71,7 +71,7 @@ frontend/
 │   │   ├── storage.ts                      # abstração sobre localStorage (theme, propriedade selecionada)
 │   │   ├── csrf.ts                          # lê os cookies lumitrack_csrf / lumitrack_refresh_csrf
 │   │   ├── authState.ts                     # flag em memória (hasSession) — cookie httpOnly é ilegível por JS
-│   │   ├── sessionRefresh.ts                # refresh proativo aos 80% do TTL da sessão (~12min de 15min)
+│   │   ├── sessionRefresh.ts                # refresh proativo aos 80% do TTL da sessão (~48min de 1h)
 │   │   └── sse/appStream.ts                  # transporte SSE de baixo nível
 │   ├── pages/
 │   │   ├── landing/  auth/  dashboard/  property/  area/  device/
@@ -205,7 +205,7 @@ sequenceDiagram
     end
 ```
 
-Query keys centralizadas em `lib/queryClient.ts` — cada domínio (`properties`, `areas`, `devices`, `meters`, `alerts`, `notifications`, `tariffFlag`, ...) expõe `all`/`list(...)`/`detail(...)`, evitando string mágica espalhada pelos hooks. Refresh também dispara **proativamente** (não só reativo a 401): aos 80% do TTL da sessão (~12min de uma sessão de 15min — valor mantido manualmente em sincronia com `JWT_WEB_EXPIRES_IN` do backend, sem endpoint de descoberta).
+Query keys centralizadas em `lib/queryClient.ts` — cada domínio (`properties`, `areas`, `devices`, `meters`, `alerts`, `notifications`, `tariffFlag`, ...) expõe `all`/`list(...)`/`detail(...)`, evitando string mágica espalhada pelos hooks. Refresh também dispara **proativamente** (não só reativo a 401): aos 80% do TTL da sessão (~48min de uma sessão de 1h — valor mantido manualmente em sincronia com `JWT_WEB_EXPIRES_IN` do backend, sem endpoint de descoberta).
 
 ### 4. Ciclo do SSE no cliente
 

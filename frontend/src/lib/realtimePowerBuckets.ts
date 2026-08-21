@@ -1,12 +1,29 @@
-import type { PowerHistoryPoint } from "@/hooks/usePowerHistory"
-import type { RealtimeWindow } from "@/components/dashboard/RealtimeWindowToggle"
+import type { RealtimeWindow } from "@/components/realtime/RealtimeWindowToggle"
 
 const MINUTE_MS = 60_000
 const HOUR_MS = 60 * MINUTE_MS
 
-export interface PowerBucket {
-    bucketStart: number
-    kw: number
+// Brasil aboliu o horário de verão em 2019 — America/Sao_Paulo é UTC-3 fixo,
+// sem variação sazonal. Um deslocamento constante é seguro (não precisa de
+// Intl/tzdata pra isso).
+const SAO_PAULO_UTC_OFFSET_MS = 3 * 60 * 60 * 1000
+
+// O backend (`meter-reading.repository.ts::findAggregated`, via `localTsExpr()`)
+// agrega em America/Sao_Paulo mas devolve o resultado com os dígitos de SP
+// "rotulados" como UTC (`AT TIME ZONE` dupla, depois lido como se fosse UTC) —
+// ex.: uma leitura às 14:10 UTC (11:10 SP) vira o balde
+// "2026-01-15T11:00:00.000Z": a hora "11" é a hora de SP, o "Z" é só rótulo.
+// Pra alinhar os baldes do backend com os baldes computados aqui (que usam o
+// epoch verdadeiro de "agora"), as duas pontas operam no mesmo "espaço
+// mascarado" — depois de gerar os baldes, o `bucketStart` devolvido é
+// desmascarado de volta pro epoch real, pra continuar funcionando com
+// `Intl.DateTimeFormat` local (RealtimePowerChart) sem mudança nenhuma lá.
+function toMaskedEpoch(trueEpochMs: number): number {
+    return trueEpochMs - SAO_PAULO_UTC_OFFSET_MS
+}
+
+function fromMaskedEpoch(maskedEpochMs: number): number {
+    return maskedEpochMs + SAO_PAULO_UTC_OFFSET_MS
 }
 
 function floorToStep(t: number, stepMs: number): number {
@@ -14,8 +31,38 @@ function floorToStep(t: number, stepMs: number): number {
 }
 
 /**
- * Agrega o buffer bruto de leituras SSE (`usePowerHistory`, ~1 ponto/s) em
- * baldes alinhados ao relógio local — não é janela deslizante:
+ * Início do período (hora corrente pra "1h", dia corrente pra "24h") em
+ * horário de São Paulo, devolvido como epoch verdadeiro — usado pelo hook
+ * de busca (`useMeterReadingHistory`) para montar o `from` da requisição a
+ * `/api/meter-readings`. Independente do fuso configurado no navegador de
+ * quem acessa (não usa `Date.setHours` local — só o deslocamento fixo de SP).
+ */
+export function startOfSaoPauloPeriod(now: number, window: RealtimeWindow): number {
+    const periodStart = new Date(toMaskedEpoch(now))
+    if (window === "1h") {
+        periodStart.setUTCMinutes(0, 0, 0)
+    } else {
+        periodStart.setUTCHours(0, 0, 0, 0)
+    }
+    return fromMaskedEpoch(periodStart.getTime())
+}
+
+export interface SparsePowerBucket {
+    /** Epoch verdadeiro (`new Date(iso).getTime()` da resposta da API — já
+     * no "espaço mascarado" descrito acima, sem conversão adicional aqui). */
+    bucketStart: number
+    avgPowerW: number
+}
+
+export interface PowerBucket {
+    /** Epoch verdadeiro (desmascarado) — pronto pra `new Date(...)`/`Intl`. */
+    bucketStart: number
+    kw: number
+}
+
+/**
+ * Monta a série densa que o gráfico "Consumo em tempo real" plota, alinhada
+ * ao relógio local — não é janela deslizante:
  *
  *   "1h" → baldes de 1 minuto, do minuto 00 da hora corrente até o último
  *          minuto já fechado. Ex.: agora 19:45, mostra 19:00–19:44; o
@@ -24,54 +71,39 @@ function floorToStep(t: number, stepMs: number): number {
  *           fechada. Ex.: agora 19:xx, mostra 0h–18h; a hora 19 só aparece
  *           quando o relógio vira 20h.
  *
- * O balde em curso nunca aparece — seu agregado não está "fechado" ainda.
- * Baldes sem nenhuma amostra são omitidos (não viram zero), para não
- * desenhar uma queda falsa onde só falta dado (ex.: logo após abrir a
- * página, com o buffer ainda vazio pra boa parte do período).
+ * O balde em curso nunca aparece — seu agregado ainda não existe no banco
+ * (só minutos/horas já fechados são persistidos). Balde sem nenhuma leitura
+ * vira `kw: 0` (zerado, não omitido — issue #211: ausência de dado é
+ * consumo zero, não "sem informação").
  *
- * "Agora" é aproximado pelo timestamp da leitura mais recente do buffer
- * (não `Date.now()` — proibido no corpo de render pelo compilador do
- * React), mesmo padrão já usado por `RealtimePowerChart` antes desta
- * função existir.
+ * `now` é sempre o epoch verdadeiro de quando os dados foram buscados
+ * (`Date.now()` no `queryFn` do hook, nunca no corpo de render).
  */
-export function aggregateCompletedPowerBuckets(
-    history: readonly PowerHistoryPoint[],
+export function buildDenseWindowBuckets(
+    sparseBuckets: readonly SparsePowerBucket[],
     window: RealtimeWindow,
+    now: number,
 ): PowerBucket[] {
-    if (history.length === 0) return []
-
-    const latestT = history[history.length - 1]!.t
     const stepMs = window === "1h" ? MINUTE_MS : HOUR_MS
+    const maskedNow = toMaskedEpoch(now)
 
-    const periodStart = new Date(latestT)
-    if (window === "1h") {
-        periodStart.setMinutes(0, 0, 0)
-    } else {
-        periodStart.setHours(0, 0, 0, 0)
-    }
-    const periodStartMs = periodStart.getTime()
-    const currentBucketStart = floorToStep(latestT, stepMs)
+    const periodStartMasked = toMaskedEpoch(startOfSaoPauloPeriod(now, window))
+    const currentBucketStartMasked = floorToStep(maskedNow, stepMs)
 
-    const sums = new Map<number, { sum: number; count: number }>()
-    for (const point of history) {
-        if (point.t < periodStartMs || point.t >= currentBucketStart) continue
-
-        const bucketStart = floorToStep(point.t, stepMs)
-        const entry = sums.get(bucketStart)
-        if (entry) {
-            entry.sum += point.kw
-            entry.count += 1
-        } else {
-            sums.set(bucketStart, { sum: point.kw, count: 1 })
-        }
+    const avgPowerWByStart = new Map<number, number>()
+    for (const bucket of sparseBuckets) {
+        if (
+            bucket.bucketStart < periodStartMasked ||
+            bucket.bucketStart >= currentBucketStartMasked
+        )
+            continue
+        avgPowerWByStart.set(bucket.bucketStart, bucket.avgPowerW)
     }
 
     const buckets: PowerBucket[] = []
-    for (let t = periodStartMs; t < currentBucketStart; t += stepMs) {
-        const entry = sums.get(t)
-        if (entry) {
-            buckets.push({ bucketStart: t, kw: entry.sum / entry.count })
-        }
+    for (let tMasked = periodStartMasked; tMasked < currentBucketStartMasked; tMasked += stepMs) {
+        const avgPowerW = avgPowerWByStart.get(tMasked) ?? 0
+        buckets.push({ bucketStart: fromMaskedEpoch(tMasked), kw: avgPowerW / 1000 })
     }
     return buckets
 }

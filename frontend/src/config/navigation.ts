@@ -5,7 +5,6 @@ import {
     ChartNoAxesColumn,
     Bell,
     Zap,
-    Shield,
     Info,
     type LucideIcon,
 } from "lucide-react"
@@ -23,9 +22,13 @@ export interface NavItem {
  * Itens da sidebar — fonte única de verdade.
  * A ordem aqui é a ordem de exibição, alinhada ao handoff (LumiTrack
  * Home.dc.html, linhas 1356-1364): Painel · Propriedades · Relatórios ·
- * Simulações · Alertas · Distribuidoras · Segurança. "Sobre o projeto"
- * entra por último — item institucional, sem handoff, fora do
- * conjunto dos 7 itens funcionais do protótipo.
+ * Simulações · Alertas · Distribuidoras. "Sobre o projeto" entra por
+ * último — item institucional, sem handoff, fora do conjunto dos itens
+ * funcionais do protótipo.
+ *
+ * "Segurança" não está aqui de propósito (issue #216) — vive só no menu
+ * do usuário (`UserMenu.tsx`), não duplicado também na navegação
+ * principal.
  *
  * Adicionar um novo módulo? Adicione aqui + crie a rota no AppRouter.
  */
@@ -59,11 +62,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
         to: "/distribuidoras",
         label: "Distribuidoras",
         icon: Zap,
-    },
-    {
-        to: "/seguranca",
-        label: "Segurança",
-        icon: Shield,
     },
     {
         to: "/sobre",

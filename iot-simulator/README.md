@@ -197,7 +197,7 @@ DeviceParams {
   nominalVoltage: number        // V — default 220
   nominalPowerW: number         // W — default 1000
   powerFactorBase: number       // 0–1 — default 0.95
-  noiseAmplitudePercent: number // 0–100 — default 2
+  noiseAmplitudePercent: number // 0–100 — default 1
   profile: "RESIDENTIAL_STEADY" | "COMMERCIAL_HVAC" | "INDUSTRIAL_MOTOR" | "CUSTOM"
 }
 ```

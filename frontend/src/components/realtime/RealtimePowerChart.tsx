@@ -9,9 +9,7 @@ import {
     YAxis,
 } from "recharts"
 import { Activity } from "lucide-react"
-import type { PowerHistoryPoint } from "@/hooks/usePowerHistory"
-import type { RealtimeWindow } from "@/components/dashboard/RealtimeWindowToggle"
-import { aggregateCompletedPowerBuckets } from "@/lib/realtimePowerBuckets"
+import type { PowerBucket } from "@/lib/realtimePowerBuckets"
 
 const timeFormatter = new Intl.DateTimeFormat("pt-BR", {
     hour: "2-digit",
@@ -54,31 +52,29 @@ const ChartTooltip = ({ active, payload }: ChartTooltipProps) => {
 }
 
 interface RealtimePowerChartProps {
-    history: PowerHistoryPoint[]
-    timeWindow: RealtimeWindow
+    buckets: PowerBucket[]
 }
 
 /**
- * Gráfico de "Consumo em tempo real" (bloco `isDashboard` do handoff) —
+ * Gráfico de "Consumo em tempo real" (bloco `isDashboard` do handoff,
+ * também usado em Propriedade/Área/Dispositivo via `RealtimeChartCard`) —
  * `LineChart`, não `BarChart` (diferente de `ConsumptionChart`, que plota
- * buckets fixos vindos da API): aqui os pontos brutos acumulados no cliente
- * via `usePowerHistory` (~1/s) são agregados em baldes alinhados ao
- * relógio local — minuto a minuto em "1h", hora a hora em "24h", nunca
- * segundo a segundo (ver `aggregateCompletedPowerBuckets`). Sem histórico
- * anterior à abertura da página — nasce vazio, cresce enquanto a página
- * fica aberta.
+ * buckets de billing vindos de `/api/consumption`): aqui os baldes já vêm
+ * densos e zero-preenchidos de `buildDenseWindowBuckets` (issue #211,
+ * `/api/meter-readings`) — este componente só formata e desenha, sem
+ * agregação nenhuma própria.
  *
  * Sem frame `.blueprint` próprio — o card inteiro (header + gráfico)
- * é UM card só no handoff; o wrapper vive em `RealtimeSection`.
+ * é UM card só no handoff; o wrapper vive em `RealtimeChartCard`.
  */
-export const RealtimePowerChart = ({ history, timeWindow }: RealtimePowerChartProps) => {
+export const RealtimePowerChart = ({ buckets }: RealtimePowerChartProps) => {
     const data: ChartDatum[] = useMemo(
         () =>
-            aggregateCompletedPowerBuckets(history, timeWindow).map((bucket) => ({
+            buckets.map((bucket) => ({
                 label: timeFormatter.format(bucket.bucketStart),
                 kw: bucket.kw,
             })),
-        [history, timeWindow],
+        [buckets],
     )
 
     if (data.length === 0) {

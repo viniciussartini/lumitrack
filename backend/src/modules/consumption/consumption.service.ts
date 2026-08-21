@@ -5,10 +5,7 @@ import {
 } from "@/modules/consumption/consumption.schema.js"
 import type { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
 import type { MeterRepository } from "@/modules/meter/meter.repository.js"
-import type {
-    PropertyRepository,
-    PropertyResponse,
-} from "@/modules/property/property.repository.js"
+import type { PropertyRepository } from "@/modules/property/property.repository.js"
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
 import type { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
@@ -19,7 +16,7 @@ import {
 import { TariffService } from "@/shared/tariff/tariff.service.js"
 import { toSkipTake, type Paginated } from "@/shared/pagination.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
-import type { TargetType } from "@/generated/prisma/client.js"
+import { resolveRootProperty } from "@/shared/targetResolution.js"
 
 export type ConsumptionBucketResponse = {
     bucketStart: Date
@@ -48,36 +45,6 @@ export class ConsumptionService {
         private readonly tariffService: TariffService = new TariffService(),
     ) {}
 
-    // Resolve a propriedade raiz do alvo (ela mesma, ou subindo até ela) —
-    // é dela que vêm a distribuidora, o sistema elétrico e a CIP usados na
-    // tarifação, independente de o medidor estar em PROPERTY/AREA/DEVICE.
-    private async resolveRootProperty(
-        targetType: TargetType,
-        targetId: string,
-    ): Promise<PropertyResponse> {
-        if (targetType === "PROPERTY") {
-            const property = await this.propertyRepository.findById(targetId)
-            if (!property) throw new NotFoundError("Propriedade não encontrada")
-            return property
-        }
-
-        if (targetType === "AREA") {
-            const area = await this.areaRepository.findById(targetId)
-            if (!area) throw new NotFoundError("Área não encontrada")
-            const property = await this.propertyRepository.findById(area.propertyId)
-            if (!property) throw new NotFoundError("Propriedade não encontrada")
-            return property
-        }
-
-        const device = await this.deviceRepository.findById(targetId)
-        if (!device) throw new NotFoundError("Dispositivo não encontrado")
-        const area = await this.areaRepository.findById(device.areaId)
-        if (!area) throw new NotFoundError("Área não encontrada")
-        const property = await this.propertyRepository.findById(area.propertyId)
-        if (!property) throw new NotFoundError("Propriedade não encontrada")
-        return property
-    }
-
     async list(userId: string, query: unknown): Promise<ConsumptionListResponse> {
         const parsed = listConsumptionQuerySchema.safeParse(query)
         if (!parsed.success) {
@@ -87,7 +54,11 @@ export class ConsumptionService {
 
         const { targetType, targetId, granularity, from, to, ...pagination } = parsed.data
 
-        const property = await this.resolveRootProperty(targetType, targetId)
+        const property = await resolveRootProperty(targetType, targetId, {
+            propertyRepository: this.propertyRepository,
+            areaRepository: this.areaRepository,
+            deviceRepository: this.deviceRepository,
+        })
         if (property.userId !== userId) {
             throw new ForbiddenError("Acesso negado")
         }

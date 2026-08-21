@@ -108,6 +108,16 @@ export const queryKeys = {
                 pageSize,
             ] as const,
     },
+    meterReadings: {
+        all: ["meterReadings"] as const,
+        // Chaveado por alvo+window (mesmo padrão de `consumption.list`), não
+        // por from/to — o hook recalcula from/to a cada fetch
+        // (refetchInterval), então incluir esses valores na key faria o
+        // TanStack Query tratar cada tick como uma query nova em vez de
+        // refetch da mesma.
+        history: (targetType: string, targetId: string, window: string) =>
+            [...queryKeys.meterReadings.all, "history", targetType, targetId, window] as const,
+    },
     alerts: {
         all: ["alerts"] as const,
         list: (page: number, pageSize: number) =>

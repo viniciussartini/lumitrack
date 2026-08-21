@@ -13,10 +13,11 @@ interface RealtimeWindowToggleProps {
 }
 
 /**
- * Toggle da janela do gráfico de consumo em tempo real (bloco `isDashboard`
- * do handoff) — mesmo padrão `.lt-selbtn` de `GranularityTabs`, mas
- * deliberadamente um componente à parte: a janela aqui corta um buffer
- * local acumulado no cliente (`usePowerHistory`), não é a `Granularity` de
+ * Toggle da janela do gráfico "Consumo em tempo real" (bloco `isDashboard`
+ * do handoff, também usado em Propriedade/Área/Dispositivo — `RealtimeChartCard`)
+ * — mesmo padrão `.lt-selbtn` de `GranularityTabs`, mas deliberadamente um
+ * componente à parte: a janela aqui é a agregação minuto/hora de
+ * `/api/meter-readings` (issue #211), não a `Granularity` de
  * `/api/consumption` (conceito diferente, mesmo que visualmente pareça).
  */
 export const RealtimeWindowToggle = ({ value, onChange }: RealtimeWindowToggleProps) => (

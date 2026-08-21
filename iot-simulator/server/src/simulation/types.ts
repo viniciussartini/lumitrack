@@ -53,7 +53,7 @@ export const DEFAULT_DEVICE_PARAMS: DeviceParams = {
     nominalVoltage: 220,
     nominalPowerW: 1000,
     powerFactorBase: 0.95,
-    noiseAmplitudePercent: 2,
+    noiseAmplitudePercent: 1,
     profile: "RESIDENTIAL_STEADY",
 }
 

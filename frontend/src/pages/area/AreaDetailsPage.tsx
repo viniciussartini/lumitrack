@@ -18,6 +18,7 @@ import { DeviceCard } from "@/components/device/DeviceCard"
 import { AreaConsumptionSection } from "@/components/consumption/ConsumptionSection"
 import { ComparisonBars } from "@/components/consumption/ComparisonBars"
 import { MeterSection } from "@/components/meter/MeterSection"
+import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
 import { consumptionService } from "@/services/consumption.service"
 import { queryKeys } from "@/lib/queryClient"
 import { formatPowerKw } from "@/lib/format"
@@ -145,6 +146,16 @@ export const AreaDetailsPage = () => {
                         )}
                     </div>
                 </div>
+            )}
+
+            {meter && (
+                <RealtimeChartCard
+                    targetType="AREA"
+                    targetId={areaId!}
+                    meterId={meter.id}
+                    title="Consumo em tempo real"
+                    subtitle={area.name}
+                />
             )}
 
             <MeterSection targetType="AREA" targetId={areaId!} />
@@ -377,19 +388,11 @@ const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
                     )}
 
                     {devicesQuery.isSuccess && devices.length === 0 && (
-                        <>
-                            <EmptyState
-                                icon={Cpu}
-                                title="Nenhum dispositivo cadastrado"
-                                description="Cadastre os dispositivos desta área para monitorar o consumo individual de cada equipamento."
-                            />
-                            <p
-                                className="text-muted mt-3 text-center text-xs italic"
-                                data-testid="devices-coming-soon"
-                            >
-                                Em breve
-                            </p>
-                        </>
+                        <EmptyState
+                            icon={Cpu}
+                            title="Nenhum dispositivo cadastrado"
+                            description="Cadastre os dispositivos desta área para monitorar o consumo individual de cada equipamento."
+                        />
                     )}
 
                     {devicesQuery.isSuccess && devices.length > 0 && (

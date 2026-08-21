@@ -31,4 +31,18 @@ describe("BrandPanel — rodapé", () => {
             "Ver o repositório do LumiTrack no GitHub (abre em nova aba)",
         )
     })
+
+    // Issue #214: sem isso, o painel esquerdo é um item de grid comum —
+    // sua altura é a altura da linha do grid, que muda conforme o
+    // conteúdo da coluna direita (ex.: Registro trocando Pessoa
+    // Física/Jurídica). `self-start` tira o painel do stretch padrão do
+    // grid e `h-screen` fixa sua altura na viewport, independente do
+    // irmão; `sticky top-0` mantém essa altura fixa visível durante o
+    // scroll se a coluna direita for mais alta que a tela.
+    it("fixa a altura do painel na viewport, independente do conteúdo da coluna irmã", () => {
+        renderWithProviders(<BrandPanel eyebrow="Acesso" headline="Título" />)
+
+        const panel = screen.getByTestId("brand-panel-footer").closest("aside")
+        expect(panel).toHaveClass("lg:sticky", "lg:top-0", "lg:h-screen", "lg:self-start")
+    })
 })
