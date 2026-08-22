@@ -38,6 +38,9 @@ export async function printSummary(
         "Nenhuma leitura foi gerada — o histórico nasce da ingestão IoT real, a partir do deploy.",
     )
 
+    // Saída de desenvolvimento (console local ou log de CI/deploy) — nunca
+    // persistida em arquivo. Com DEMO_PASSWORD sem default fixo
+    // (constants.ts), este é o único lugar onde a senha gerada aparece.
     console.log("\nCredenciais de login:")
     console.log(`  Residencial: ${DEMO_RESIDENTIAL_EMAIL} / ${DEMO_PASSWORD}`)
     console.log(`  Comercial:   ${DEMO_COMMERCIAL_EMAIL} / ${DEMO_PASSWORD}`)

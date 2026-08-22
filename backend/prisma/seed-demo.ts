@@ -16,7 +16,8 @@ import "dotenv/config"
 // assim que o simulador publicar dado de verdade.
 //
 // Este script NUNCA deve rodar contra produção real — os documentos
-// (CPF/CNPJ) são 100% sintéticos e a senha é fixa e pública neste arquivo.
+// (CPF/CNPJ) são 100% sintéticos e a senha é gerada (ou configurada via
+// DEMO_SEED_PASSWORD) a cada execução — nunca versionada em código.
 import { prisma } from "@/shared/database/prisma.js"
 import { DEMO_ACCOUNT_EMAILS } from "@/shared/config/demoAccounts.js"
 import { createDemoAlerts } from "./seed-demo/alerts.js"

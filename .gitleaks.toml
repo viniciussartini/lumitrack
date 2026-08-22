@@ -1,36 +1,17 @@
 title = "gitleaks — LumiTrack"
 
-# #163 — job `secret-scan` bloqueante no CI (.github/workflows/ci.yml).
-# Herda o ruleset padrão do gitleaks e só adiciona o que é específico deste
-# repositório: uma regra nova para um achado real conhecido (credenciais de
-# demo) e um allowlist específico e comentado por achado — nunca uma regra
-# desligada ou um allowlist genérico (ver risco/observações da issue #163).
+# Job `secret-scan` bloqueante no CI (.github/workflows/ci.yml). Herda o
+# ruleset padrão do gitleaks e só adiciona um allowlist específico e
+# comentado por achado — nunca uma regra desligada ou um allowlist
+# genérico. Objetivo declarado: o allowlist não ter nenhuma entrada de
+# credencial real, só falso-positivo comprovado (valor de teste, exemplo
+# truncado de documentação).
 
 [extend]
 useDefault = true
 
-# ─────────────────────────────────────────────────────────────────────────
-# Achado real, não silenciado — só documentado (critério de aceite da #163)
-# ─────────────────────────────────────────────────────────────────────────
-# `frontend/src/config/demoUsers.ts` versiona e-mail/senha de 2 contas de
-# demonstração; `LoginPage.tsx` as importa estaticamente, então ficam no
-# bundle mesmo com VITE_DEMO_MODE desligado. O ruleset padrão do gitleaks
-# NÃO pega isso (senha legível, sem o formato de chave que `generic-api-key`
-# espera) — regra própria para que o achado apareça na varredura em vez de
-# ficar invisível, exatamente o que a issue pede.
-[[rules]]
-id = "lumitrack-demo-credentials"
-description = "Credencial fixa de conta de demonstração (frontend/src/config/demoUsers.ts)"
-regex = '''DemoLumi@2026'''
-tags = ["demo", "known-finding"]
-
 [allowlist]
 regexes = [
-  # A regra acima existe só para o achado aparecer — a correção de verdade
-  # (rotacionar, ou parar de versionar) é da Fase 13 do roadmap
-  # (.claude/docs/roadmap.md), fora do escopo desta issue de enforcement.
-  '''DemoLumi@2026''',
-
   # .github/workflows/ci.yml — valores fixos e descartáveis usados só para
   # satisfazer a validação de env.ts em CI (backend-test e e2e), nunca
   # usados para cifrar dado real. Comentário no próprio ci.yml já avisa:
