@@ -8,17 +8,21 @@
 ## ⚠️ Este repositório é um projeto de portfólio
 
 O LumiTrack, neste repositório, **não opera com titulares reais** — não há
-encarregado, não há endereço de e-mail monitorado de fato, e o canal descrito
-abaixo usa um **placeholder** (`VITE_PRIVACY_CONTACT_EMAIL`, ver
-`frontend/.env.example`). Este documento existe para deixar **pronto** o que
-um fork comercial precisa **sanar antes do go-live**, não para descrever uma
-operação em curso.
+encarregado, e o cadastro público continua fechado (`REGISTRATION_ENABLED=false`),
+só contas de demonstração sintéticas. A partir da Fase 13.6, o canal descrito
+abaixo deixou de ser um placeholder em produção: `VITE_PRIVACY_CONTACT_EMAIL`
+é um endereço de fato monitorado (ver `render.yaml`), porque a demo pública já
+trata dado de visitante real (IP, user-agent) mesmo sem nenhum cadastro — o
+placeholder permanece só como default local em `frontend/.env.example`. Este
+documento existe para deixar **pronto** o que um fork comercial precisa
+**sanar antes do go-live**, não para descrever uma operação em curso.
 
 **Antes de operar com titulares reais**, quem herdar este código precisa, no
 mínimo:
 
-1. Definir um endereço de e-mail de fato monitorado e configurá-lo em
-   `VITE_PRIVACY_CONTACT_EMAIL` no ambiente de produção.
+1. Confirmar que o endereço monitorado em `VITE_PRIVACY_CONTACT_EMAIL`
+   (produção) ainda é o que o fork pretende usar — troque se for operar sob
+   outro domínio/marca.
 2. Nomear quem responde por este procedimento (o regime de pequeno porte
    dispensa o encarregado formal, mas não a existência de um responsável de
    fato).
@@ -31,10 +35,11 @@ mínimo:
 
 ## Canal
 
-- **Endereço:** o valor configurado em `VITE_PRIVACY_CONTACT_EMAIL`
-  (`frontend/.env.example`), publicado no rodapé da Landing, no shell
-  autenticado (página "Sobre o projeto") e no card "Privacidade & dados" do
-  Perfil.
+- **Endereço:** o valor configurado em `VITE_PRIVACY_CONTACT_EMAIL` — em
+  produção, no bloco do site estático de `render.yaml`; localmente, o
+  placeholder de `frontend/.env.example` — publicado no rodapé da Landing,
+  no shell autenticado (página "Sobre o projeto") e no card "Privacidade &
+  dados" do Perfil.
 - **Também referenciado em:** `frontend/src/legal/privacy-policy.md` (§ 1,
   § 6 e § 9), via placeholder `{{PRIVACY_CONTACT_EMAIL}}` substituído em
   tempo de build por `PrivacyPolicyPage.tsx`.

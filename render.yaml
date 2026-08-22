@@ -121,6 +121,13 @@ services:
           # origem do VITE_SSE_URL (sem o path).
           - key: VITE_CSP_CONNECT_EXTRA
             value: https://lumitrack-api.onrender.com
+          # Canal de comunicação com o titular (LGPD Art. 18 §1º + Res.
+          # CD/ANPD 2/2022, Art. 11) — sem esta variável o build publica o
+          # placeholder de frontend/src/config/privacy.ts como canal
+          # oficial. Domínio ainda não decidido entre lumitrack.com.br e
+          # lumitrack.app.br — troque junto com o registro definitivo.
+          - key: VITE_PRIVACY_CONTACT_EMAIL
+            value: contato@lumitrack.com.br
       routes:
           # ATENÇÃO — esta é a peça central do desenho, e a única que precisa
           # ser editada à mão depois do primeiro deploy: troque o destino pela
