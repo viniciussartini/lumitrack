@@ -31,9 +31,7 @@ import type { AlertTriggerEvent } from "../../src/types/alert-event.types"
 const setupAuthAndMeters = async (page: Page) => {
     await mockAppShellBackground(page)
     await setupAuth(page)
-    await page.route(/\/api\/meters(\?.*)?$/, (route) =>
-        fulfillPaginated(route, [METER_1]),
-    )
+    await page.route(/\/api\/meters(\?.*)?$/, (route) => fulfillPaginated(route, [METER_1]))
 }
 
 const makeAlert = (overrides: Partial<AlertWithStatus> = {}): AlertWithStatus => ({
@@ -46,9 +44,7 @@ test.describe("Inbox de alertas (/alertas)", () => {
         await context.clearCookies()
     })
 
-    test("cria, edita, alterna habilitado e exclui um alerta", async ({
-        page,
-    }) => {
+    test("cria, edita, alterna habilitado e exclui um alerta", async ({ page }) => {
         await setupAuthAndMeters(page)
 
         // Estado da "DB" simulada — começa vazio, evolui ao longo do teste.
@@ -120,32 +116,22 @@ test.describe("Inbox de alertas (/alertas)", () => {
             return route.continue()
         })
 
-        await page.route(/\/api\/alert-events(\?.*)?$/, (route) =>
-            fulfillPaginated(route, []),
-        )
+        await page.route(/\/api\/alert-events(\?.*)?$/, (route) => fulfillPaginated(route, []))
 
         // ─── 1. Lista vazia inicialmente ─────────────────────────────────────
         await page.goto("/alertas")
         await hideDevTools(page)
 
-        await expect(
-            page.getByRole("heading", { name: /^alertas$/i, level: 1 }),
-        ).toBeVisible()
-        await expect(
-            page.getByText(/nenhum alerta configurado/i),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { name: /^alertas$/i, level: 1 })).toBeVisible()
+        await expect(page.getByText(/nenhum alerta configurado/i)).toBeVisible()
 
         // ─── 2. Criar novo alerta ─────────────────────────────────────────────
         await page.getByTestId("alerts-page-create-button").click()
         const createDialog = page.getByRole("dialog", { name: /^criar alerta$/i })
         await expect(createDialog).toBeVisible()
 
-        await page
-            .getByTestId("alert-form-name")
-            .fill("Geladeira fora da faixa")
-        await page
-            .getByTestId("alert-form-meterId")
-            .selectOption(METER_1.id)
+        await page.getByTestId("alert-form-name").fill("Geladeira fora da faixa")
+        await page.getByTestId("alert-form-meterId").selectOption(METER_1.id)
         await page.getByTestId("alert-form-referencePowerKw").fill("10")
         await page.getByTestId("alert-form-tolerancePercent").fill("2")
         // "enabled" já vem marcado por default — não mexe.
@@ -160,9 +146,7 @@ test.describe("Inbox de alertas (/alertas)", () => {
         await expect(row).toContainText(/10 kW/)
         await expect(row).toContainText(/±2%/)
         await expect(row).toContainText(/sim/i)
-        await expect(
-            page.getByTestId("alert-status-badge-alert-1"),
-        ).toContainText(/normal/i)
+        await expect(page.getByTestId("alert-status-badge-alert-1")).toContainText(/normal/i)
 
         // ─── 3. Editar via menu ⋯ (meterId vira campo oculto, imutável) ───────
         await page.getByTestId("alert-menu-trigger-alert-1").click()
@@ -177,47 +161,33 @@ test.describe("Inbox de alertas (/alertas)", () => {
         await page.getByTestId("alert-form-submit").click()
 
         await expect(editDialog).not.toBeVisible()
-        await expect(page.getByTestId("alert-row-alert-1")).toContainText(
-            /12 kW/,
-        )
+        await expect(page.getByTestId("alert-row-alert-1")).toContainText(/12 kW/)
 
         // ─── 4. Desabilitar via menu ⋯ (sem passar pelo form) ─────────────────
         await page.getByTestId("alert-menu-trigger-alert-1").click()
         await page.getByTestId("alert-menu-toggle-enabled-alert-1").click()
 
-        await expect(page.getByTestId("alert-row-alert-1")).toContainText(
-            /não/i,
-        )
+        await expect(page.getByTestId("alert-row-alert-1")).toContainText(/não/i)
 
         // Menu reabre já mostrando "Habilitar" (estado invertido)
         await page.getByTestId("alert-menu-trigger-alert-1").click()
-        await expect(
-            page.getByTestId("alert-menu-toggle-enabled-alert-1"),
-        ).toContainText(/habilitar/i)
+        await expect(page.getByTestId("alert-menu-toggle-enabled-alert-1")).toContainText(
+            /habilitar/i,
+        )
         // Fecha clicando fora — o menu usa um listener de "mousedown" no
         // documento, não fecha com Escape (sem handler de teclado).
-        await page
-            .getByRole("heading", { name: /^alertas$/i, level: 1 })
-            .click()
-        await expect(
-            page.getByTestId("alert-menu-toggle-enabled-alert-1"),
-        ).not.toBeVisible()
+        await page.getByRole("heading", { name: /^alertas$/i, level: 1 }).click()
+        await expect(page.getByTestId("alert-menu-toggle-enabled-alert-1")).not.toBeVisible()
 
         // ─── 5. Excluir via menu ⋯ ─────────────────────────────────────────────
         await page.getByTestId("alert-menu-trigger-alert-1").click()
         await page.getByTestId("alert-menu-delete-alert-1").click()
 
-        await expect(
-            page.getByRole("heading", { name: /excluir alerta\?/i }),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { name: /excluir alerta\?/i })).toBeVisible()
         await page.getByRole("button", { name: "Excluir" }).click()
 
-        await expect(
-            page.getByText(/nenhum alerta configurado/i),
-        ).toBeVisible()
-        await expect(
-            page.getByTestId("alert-row-alert-1"),
-        ).not.toBeVisible()
+        await expect(page.getByText(/nenhum alerta configurado/i)).toBeVisible()
+        await expect(page.getByTestId("alert-row-alert-1")).not.toBeVisible()
     })
 
     test("mostra status firing/normal e o histórico de disparos do alerta selecionado", async ({
@@ -242,8 +212,7 @@ test.describe("Inbox de alertas (/alertas)", () => {
         await page.route(/\/api\/alert-events(\?.*)?$/, (route) => {
             const url = new URL(route.request().url())
             const alertId = url.searchParams.get("alertId")
-            const events: AlertTriggerEvent[] =
-                alertId === "alert-1" ? [ALERT_EVENT_1] : []
+            const events: AlertTriggerEvent[] = alertId === "alert-1" ? [ALERT_EVENT_1] : []
             return fulfillPaginated(route, events)
         })
 
@@ -261,24 +230,16 @@ test.describe("Inbox de alertas (/alertas)", () => {
 
         // Histórico pré-seleciona o primeiro alerta da lista (alert-1)
         await expect(page.getByTestId("alert-event-row-event-1")).toBeVisible()
-        await expect(
-            page.getByTestId("alert-event-row-event-1"),
-        ).toContainText(/geladeira fora da faixa/i)
-        await expect(
-            page.getByTestId("alert-event-row-event-1"),
-        ).toContainText(/5min/)
+        await expect(page.getByTestId("alert-event-row-event-1")).toContainText(
+            /geladeira fora da faixa/i,
+        )
+        await expect(page.getByTestId("alert-event-row-event-1")).toContainText(/5min/)
 
         // Troca a seleção — alert-2 não tem episódios, EmptyState aparece
-        await page
-            .getByTestId("alert-events-select")
-            .selectOption("alert-2")
+        await page.getByTestId("alert-events-select").selectOption("alert-2")
 
-        await expect(
-            page.getByText(/nenhum episódio registrado/i),
-        ).toBeVisible()
-        await expect(
-            page.getByTestId("alert-event-row-event-1"),
-        ).not.toBeVisible()
+        await expect(page.getByText(/nenhum episódio registrado/i)).toBeVisible()
+        await expect(page.getByTestId("alert-event-row-event-1")).not.toBeVisible()
     })
 
     test("pagina a listagem de alertas", async ({ page }) => {
@@ -297,19 +258,14 @@ test.describe("Inbox de alertas (/alertas)", () => {
             const url = new URL(route.request().url())
             const requestedPage = Number(url.searchParams.get("page") ?? "1")
             const pageSize = 10
-            const items = allAlerts.slice(
-                (requestedPage - 1) * pageSize,
-                requestedPage * pageSize,
-            )
+            const items = allAlerts.slice((requestedPage - 1) * pageSize, requestedPage * pageSize)
             return fulfillPaginated(route, items, {
                 page: requestedPage,
                 pageSize,
                 total: allAlerts.length,
             })
         })
-        await page.route(/\/api\/alert-events(\?.*)?$/, (route) =>
-            fulfillPaginated(route, []),
-        )
+        await page.route(/\/api\/alert-events(\?.*)?$/, (route) => fulfillPaginated(route, []))
 
         await page.goto("/alertas")
         await hideDevTools(page)
@@ -317,23 +273,17 @@ test.describe("Inbox de alertas (/alertas)", () => {
         await expect(page.getByTestId("alert-row-alert-1")).toBeVisible()
         await expect(page.getByTestId("alert-row-alert-10")).toBeVisible()
         await expect(page.getByTestId("alert-row-alert-11")).toHaveCount(0)
-        await expect(page.getByTestId("pagination")).toContainText(
-            /12 itens · página 1 de 2/i,
-        )
+        await expect(page.getByTestId("pagination")).toContainText(/12 itens · página 1 de 2/i)
 
         await page.getByTestId("pagination-next").click()
 
         await expect(page.getByTestId("alert-row-alert-11")).toBeVisible()
         await expect(page.getByTestId("alert-row-alert-12")).toBeVisible()
         await expect(page.getByTestId("alert-row-alert-1")).toHaveCount(0)
-        await expect(page.getByTestId("pagination")).toContainText(
-            /12 itens · página 2 de 2/i,
-        )
+        await expect(page.getByTestId("pagination")).toContainText(/12 itens · página 2 de 2/i)
     })
 
-    test("validação client-side bloqueia submit com campos inválidos", async ({
-        page,
-    }) => {
+    test("validação client-side bloqueia submit com campos inválidos", async ({ page }) => {
         await setupAuthAndMeters(page)
         await page.route(/\/api\/alerts(\?.*)?$/, (route) => {
             if (route.request().method() === "GET") {
@@ -355,9 +305,7 @@ test.describe("Inbox de alertas (/alertas)", () => {
 
         await expect(page.getByText(/nome é obrigatório/i)).toBeVisible()
         await expect(page.getByText(/selecione um medidor/i)).toBeVisible()
-        await expect(
-            page.getByText(/informe um número válido/i),
-        ).toBeVisible()
+        await expect(page.getByText(/informe um número válido/i)).toBeVisible()
 
         // Preenche nome/medidor, mas com valores fora da faixa aceita
         await page.getByTestId("alert-form-name").fill("Teste")
@@ -366,14 +314,43 @@ test.describe("Inbox de alertas (/alertas)", () => {
         await page.getByTestId("alert-form-tolerancePercent").fill("150")
         await page.getByTestId("alert-form-submit").click()
 
-        await expect(
-            page.getByText(/deve ser maior que zero/i),
-        ).toBeVisible()
-        await expect(
-            page.getByText(/não pode ultrapassar 100/i),
-        ).toBeVisible()
+        await expect(page.getByText(/deve ser maior que zero/i)).toBeVisible()
+        await expect(page.getByText(/não pode ultrapassar 100/i)).toBeVisible()
 
         // Continua no dialog — não navegou nem chamou POST
         await expect(dialog).toBeVisible()
+    })
+
+    test("a descrição do topo ocupa a largura disponível, sem vão vazio antes do botão (issue #232)", async ({
+        page,
+    }) => {
+        await setupAuthAndMeters(page)
+        await page.route(/\/api\/alerts(\?.*)?$/, (route) => {
+            if (route.request().method() === "GET") {
+                return fulfillPaginated(route, [])
+            }
+            return route.continue()
+        })
+
+        await page.goto("/alertas")
+        await hideDevTools(page)
+
+        const description = page.getByTestId("alerts-page-description")
+        const createButton = page.getByTestId("alerts-page-create-button")
+        await expect(description).toBeVisible()
+        await expect(createButton).toBeVisible()
+
+        const descriptionBox = await description.boundingBox()
+        const buttonBox = await createButton.boundingBox()
+        if (!descriptionBox || !buttonBox) {
+            throw new Error("boundingBox indisponível pra descrição ou botão")
+        }
+
+        // Sem `flex-1` (bug original), o `max-w-[78ch]` já satura o parágrafo
+        // bem antes do espaço disponível, deixando um vão vazio de centenas
+        // de px entre o texto e o botão "Criar alerta" — jsdom não teria
+        // layout real pra flagar isso, só um browser de verdade.
+        const gap = buttonBox.x - (descriptionBox.x + descriptionBox.width)
+        expect(gap).toBeLessThan(60)
     })
 })

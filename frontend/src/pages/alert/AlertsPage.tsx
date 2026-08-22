@@ -72,7 +72,10 @@ export const AlertsPage = () => {
     return (
         <div className="flex flex-col gap-8">
             <div className="flex flex-wrap items-start justify-between gap-4">
-                <p className="text-muted m-0 max-w-[78ch] text-sm leading-relaxed">
+                <p
+                    className="text-muted m-0 flex-1 text-sm leading-relaxed"
+                    data-testid="alerts-page-description"
+                >
                     Monitore faixas de potência dos seus medidores e veja o histórico de disparos.
                     Um alerta abre um episódio quando a potência sai da faixa{" "}
                     <span className="font-mono">referência ± tolerância</span> e o fecha quando
