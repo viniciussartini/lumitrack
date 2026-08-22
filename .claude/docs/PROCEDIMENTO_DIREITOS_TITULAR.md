@@ -10,12 +10,17 @@
 O LumiTrack, neste repositório, **não opera com titulares reais** — não há
 encarregado, e o cadastro público continua fechado (`REGISTRATION_ENABLED=false`),
 só contas de demonstração sintéticas. A partir da Fase 13.6, o canal descrito
-abaixo deixou de ser um placeholder em produção: `VITE_PRIVACY_CONTACT_EMAIL`
-é um endereço de fato monitorado (ver `render.yaml`), porque a demo pública já
-trata dado de visitante real (IP, user-agent) mesmo sem nenhum cadastro — o
-placeholder permanece só como default local em `frontend/.env.example`. Este
-documento existe para deixar **pronto** o que um fork comercial precisa
-**sanar antes do go-live**, não para descrever uma operação em curso.
+abaixo deixou de ser o placeholder de portfólio (`privacidade@seu-dominio.com.br`)
+em produção — mas **ainda não está funcional de fato**: `VITE_PRIVACY_CONTACT_EMAIL`
+(ver `render.yaml`) já aponta para o endereço definitivo
+(`contato@lumitrack.com.br`), só que o domínio `lumitrack.com.br` ainda não
+foi registrado (dependência bloqueante da Fase 13.7). Até o registro, uma
+solicitação enviada para esse endereço não chega a lugar nenhum — pendência
+conhecida e assumida, não um estado seguro. Isso importa desde já porque a
+demo pública já trata dado de visitante real (IP, user-agent) mesmo sem
+nenhum cadastro. Este documento existe para deixar **pronto** o que um fork
+comercial precisa **sanar antes do go-live**, não para descrever uma
+operação em curso.
 
 **Antes de operar com titulares reais**, quem herdar este código precisa, no
 mínimo:
@@ -39,7 +44,9 @@ mínimo:
   produção, no bloco do site estático de `render.yaml`; localmente, o
   placeholder de `frontend/.env.example` — publicado no rodapé da Landing,
   no shell autenticado (página "Sobre o projeto") e no card "Privacidade &
-  dados" do Perfil.
+  dados" do Perfil. **Pendência aberta:** o endereço de produção depende do
+  registro do domínio `lumitrack.com.br` (Fase 13.7) — até lá, não é um
+  canal funcional, apesar de já estar publicado.
 - **Também referenciado em:** `frontend/src/legal/privacy-policy.md` (§ 1,
   § 6 e § 9), via placeholder `{{PRIVACY_CONTACT_EMAIL}}` substituído em
   tempo de build por `PrivacyPolicyPage.tsx`.

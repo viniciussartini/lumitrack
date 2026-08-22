@@ -356,23 +356,27 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now lumitrack-backup.timer
 ```
 
-**Restauração testada (obrigatória ao menos uma vez — um backup nunca restaurado não é um backup — registrar em `deploy/BACKUP-RESTORE-LOG.md` a cada execução, nunca apagar entradas antigas):**
+**Restauração testada (obrigatória ao menos uma vez — um backup nunca restaurado não é um backup — registrar em `deploy/BACKUP-RESTORE-LOG.md` a cada execução, nunca apagar entradas antigas). Roda inteira na SUA máquina, nunca na VM — a chave privada não pode chegar perto do host que ela protege:**
 
 ```bash
-# 1. Banco descartável, isolado do de produção
-docker run --rm -d --name lumitrack-restore-test \
-    -e POSTGRES_PASSWORD=teste -e POSTGRES_DB=restore_test postgres:16
+# 1. Trazer o dump cifrado da VM para a sua máquina (só o .age — nada de chave)
+scp usuario@<ip-da-vm>:/opt/lumitrack/backups/lumitrack-<timestamp>.sql.gz.age .
 
-# 2. Decifrar (chave PRIVADA, trazida de fora da VM só para este teste) e restaurar o dump mais recente
-age -d -i backup-key.txt /opt/lumitrack/backups/lumitrack-<timestamp>.sql.gz.age | \
+# 2. Banco descartável, isolado do de produção — na sua máquina
+docker run --rm -d --name lumitrack-restore-test \
+    -e POSTGRES_PASSWORD=teste -e POSTGRES_DB=restore_test -p 127.0.0.1:5433:5432 postgres:16
+
+# 3. Decifrar (chave PRIVADA, já na sua máquina — nunca copiada para a VM) e restaurar
+age -d -i backup-key.txt lumitrack-<timestamp>.sql.gz.age | \
     gunzip | \
     docker exec -i lumitrack-restore-test psql -U postgres -d restore_test
 
-# 3. Conferir que os dados vieram (exemplo: contagem de usuários)
+# 4. Conferir que os dados vieram (exemplo: contagem de usuários)
 docker exec lumitrack-restore-test psql -U postgres -d restore_test -c 'SELECT count(*) FROM "users";'
 
-# 4. Descartar
+# 5. Descartar — o container E o dump baixado (o .age já cumpriu o papel)
 docker rm -f lumitrack-restore-test
+rm lumitrack-<timestamp>.sql.gz.age
 ```
 
 ## Rollback

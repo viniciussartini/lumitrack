@@ -1,6 +1,6 @@
 # Política de Privacidade do LumiTrack
 
-**Versão 1.2 — vigente desde 09/08/2026**
+**Versão 1.3 — vigente desde 22/08/2026**
 
 Esta Política de Privacidade descreve como o LumiTrack ("nós", "plataforma")
 coleta, utiliza, armazena e protege os dados pessoais dos seus usuários

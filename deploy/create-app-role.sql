@@ -36,12 +36,23 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO lumitrack
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO lumitrack_app;
 
 -- Aplica automaticamente às tabelas/sequências que uma migração futura
--- criar, sem precisar reexecutar este script depois de cada deploy — os
--- privilégios default são do papel que está criando o objeto (quem roda
--- `prisma migrate deploy`, sempre o usuário administrativo).
+-- criar, sem precisar reexecutar este script depois de cada deploy — sem
+-- "FOR ROLE", os privilégios default valem para o papel que EXECUTA este
+-- comando agora (quem está rodando este script). Pressupõe que esse é
+-- sempre o mesmo papel que roda `prisma migrate deploy` depois — verdade
+-- nos dois usos documentados acima (Compose: POSTGRES_USER nos dois;
+-- Neon: a connection string administrativa nos dois). Se um dia a
+-- migração em Neon passar a rodar por outro papel administrativo (ex.:
+-- criado direto no console), repita este script como esse papel, ou
+-- adicione "FOR ROLE <papel-de-migração>" explícito abaixo.
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO lumitrack_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
     GRANT USAGE, SELECT ON SEQUENCES TO lumitrack_app;
 
 REVOKE CREATE ON SCHEMA public FROM lumitrack_app;
+-- Defensivo, não redundante: no PostgreSQL 15+ o schema `public` já nasce
+-- sem CREATE para PUBLIC, mas plataformas gerenciadas (Neon incluído)
+-- historicamente criam o banco a partir de um template que pode manter o
+-- comportamento pré-15 — não depender disso por omissão.
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
