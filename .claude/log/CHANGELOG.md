@@ -1671,3 +1671,14 @@
 - **Arquivos principais:** `.github/workflows/ci.yml`.
 - **Decisões/ADRs:** nenhuma.
 - **Verificação:** YAML validado sintaticamente (`python3 -c "import yaml; yaml.safe_load(...)"`) e a ausência de `permissions:` por job confirmada programaticamente. Não é possível rodar o workflow do GitHub Actions localmente — o critério de aceite "CI continua passando normalmente" será confirmado pela própria execução do CI nesta branch/PR, não localmente.
+
+## [2026-08-22] fix: histórico de consumo do painel abre na opção Mensal
+
+- **Branch:** epic/238-melhorias-consumo-tempo-real
+- **Tipo:** fix
+- **O quê:** issue #239 (sub-issue do épico #238). O card "Histórico de consumo" do painel abria na aba "6 meses", apesar de "Mensal" (issue #230) ser a aba mais recente e mais à esquerda no toggle — o usuário precisava clicar manualmente toda vez que abria o painel.
+- **Correção:** `ConsumptionHistorySection.tsx`, `useState<HistoryRange>(6)` → `useState<HistoryRange>("month")`. Subtítulo e granularidade da query já eram derivados de `range`, então a mudança de estado inicial bastou — sem lógica nova.
+- **Arquivos principais:** `frontend/src/components/dashboard/ConsumptionHistorySection.tsx`, `frontend/src/components/dashboard/ConsumptionHistorySection.test.tsx`, `frontend/tests/e2e/dashboard.spec.ts`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas de teste:** teste novo (`abre com a aba Mensal já selecionada`) escrito e confirmado **falhando** contra o código antigo antes da correção. 3 testes pré-existentes assumiam implicitamente o default antigo (não clicavam em nenhuma aba antes de verificar o comportamento de 6/12 meses) — ajustados para clicar explicitamente em "6 meses"/"12 meses" antes de exercitar esse caminho, sem perder cobertura. E2e do painel também assumia `history-range-6` selecionado por padrão — ajustado, e o mock de `/api/consumption` ganhou um branch para `granularity=day` (a visão Mensal), que antes só existia implicitamente vazio.
+- **Verificação:** frontend 705 testes / e2e 96 verdes — mesma linha de base pré-existente das 8 falhas de `dashboard.spec.ts`/`realtime.spec.ts`. `tsc`, `lint` e `prettier` limpos. Backend não foi tocado.

@@ -18,7 +18,7 @@ const MONTHLY_HISTORY_PAGE_SIZE = 31
 
 /**
  * "Histórico de consumo" — bloco `isDashboard` do handoff (seção HISTORY),
- * gráfico com toggle 6 meses / 12 meses / **Mensal** (issue #230), sem
+ * gráfico com toggle **Mensal** (padrão) / 6 meses / 12 meses, sem
  * tabela/paginação (o handoff só tem o chart).
  *
  * "Mensal" muda de grandeza, não só de intervalo: em vez de "os últimos N
@@ -40,7 +40,7 @@ export const ConsumptionHistorySection = ({
     propertyId,
     propertyName,
 }: ConsumptionHistorySectionProps) => {
-    const [range, setRange] = useState<HistoryRange>(6)
+    const [range, setRange] = useState<HistoryRange>("month")
     const isMonthly = range === "month"
 
     const meterQuery = useMeterByTarget("PROPERTY", propertyId)
