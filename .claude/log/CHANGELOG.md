@@ -1785,3 +1785,11 @@
 - **O quê:** `render.yaml` (site estático) passa a definir `VITE_PRIVACY_CONTACT_EMAIL=contato@lumitrack.com.br` — sem isso o build publicava o placeholder `privacidade@seu-dominio.com.br` de `frontend/src/config/privacy.ts` como canal oficial (LGPD Art. 18 §1º), mesmo com o cadastro público fechado: a demo trata dado de visitante real (IP, user-agent) desde a Fase 13.5, e é esse titular — não o usuário cadastrado — que o achado cobre. Trava mecânica nova: teste que falha se a variável estiver ausente do bloco do site estático ou igual ao placeholder, para o erro não voltar sem barulho num deploy futuro.
 - **Arquivos principais:** `render.yaml`, `frontend/src/config/privacy.test.ts` (novo), `.claude/docs/PROCEDIMENTO_DIREITOS_TITULAR.md` (corrige a premissa "não há endereço monitorado de fato", desatualizada pela própria correção).
 - **Notas:** domínio ainda não registrado (`lumitrack.com.br` vs. `.app.br`, ver Fase 13.7) — endereço documentado como provisório no comentário do `render.yaml`, a trocar junto do registro definitivo. Issue #244 (Fase 13.6), implementada na branch conjunta das 6 issues da fase — PR único ao final.
+
+## [2026-08-22] fix: aviso de privacidade sem autocontradição + reaceite (#245)
+
+- **Branch:** fix/244-249-correcoes-criticas-pos-go-live
+- **Tipo:** fix
+- **O quê:** `frontend/src/legal/privacy-policy.md` § 5 afirmava "Infraestrutura hospedada exclusivamente no Brasil", contradizendo a § 4 do mesmo documento (que já descrevia corretamente Render+Neon, EUA). Corrigido para referenciar a § 4 sem reafirmar um local errado. `CURRENT_CONSENT_VERSION` incrementada de `1.2` para `1.3` (`backend/src/shared/legal/consentVersion.ts`), registrando a mudança material no documento — a comparação que dispara reaceite automático é escopo da Fase 14, ainda não implementada.
+- **Arquivos principais:** `frontend/src/legal/privacy-policy.md`, `backend/src/shared/legal/consentVersion.ts`, `frontend/src/legal/privacy-policy.test.ts` (novo), `backend/src/shared/legal/consentVersion.test.ts` (novo).
+- **Notas:** issue #245 (Fase 13.6), mesma branch conjunta da #244 — PR único ao final.
