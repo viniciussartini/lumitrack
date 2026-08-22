@@ -1,15 +1,23 @@
 import { Prisma, PrismaClient } from "@/generated/prisma/client.js"
-import type { Granularity } from "@/modules/consumption/consumption.schema.js"
+import type { BucketOrder, Granularity } from "@/modules/consumption/consumption.schema.js"
 import { localTsExpr, rangeFilter } from "@/shared/database/timeBucket.js"
 
 // Whitelist explícita do argumento de date_trunc — o valor já vem validado
 // pelo zod (enum fechado), mas mapear em vez de interpolar a string do
 // usuário direto é uma segunda camada de defesa (SQL raw + input externo).
 const TRUNC_UNIT: Record<Granularity, string> = {
+    minute: "minute",
     hour: "hour",
     day: "day",
     month: "month",
     year: "year",
+}
+
+// Mesma defesa do TRUNC_UNIT: `ORDER BY` não aceita parâmetro vinculado, então
+// a direção entra como SQL literal — e só a partir deste mapa fechado.
+const ORDER_DIRECTION: Record<BucketOrder, Prisma.Sql> = {
+    asc: Prisma.sql`ASC`,
+    desc: Prisma.sql`DESC`,
 }
 
 export type ConsumptionBucket = {
@@ -24,17 +32,26 @@ export type MonthlyKwhForYear = {
     kwhConsumed: number
 }
 
+/**
+ * Recorte comum das duas agregações: qual medidor, que bucket, que janela.
+ * `from`/`to` são explicitamente `Date | undefined` (e não opcionais) porque
+ * a janela sempre vem do schema, com ou sem valor — `exactOptionalPropertyTypes`
+ * distingue "chave ausente" de "chave com undefined".
+ */
+export type BucketQuery = {
+    meterId: string
+    granularity: Granularity
+    from: Date | undefined
+    to: Date | undefined
+}
+
 export class ConsumptionRepository {
     constructor(private readonly prisma: PrismaClient) {}
 
     async findAggregated(
-        meterId: string,
-        granularity: Granularity,
-        from: Date | undefined,
-        to: Date | undefined,
-        skip: number,
-        take: number,
+        query: BucketQuery & { order: BucketOrder; skip: number; take: number },
     ): Promise<ConsumptionBucket[]> {
+        const { meterId, granularity, from, to, order, skip, take } = query
         const unit = TRUNC_UNIT[granularity]
 
         const rows = await this.prisma.$queryRaw<
@@ -49,7 +66,7 @@ export class ConsumptionRepository {
                 WHERE "meterId" = ${meterId}
                 ${rangeFilter(from, to)}
                 GROUP BY bucket
-                ORDER BY bucket DESC
+                ORDER BY bucket ${ORDER_DIRECTION[order]}
                 LIMIT ${take} OFFSET ${skip}
             `,
         )
@@ -61,12 +78,8 @@ export class ConsumptionRepository {
         }))
     }
 
-    async countBuckets(
-        meterId: string,
-        granularity: Granularity,
-        from: Date | undefined,
-        to: Date | undefined,
-    ): Promise<number> {
+    async countBuckets(query: BucketQuery): Promise<number> {
+        const { meterId, granularity, from, to } = query
         const unit = TRUNC_UNIT[granularity]
 
         const rows = await this.prisma.$queryRaw<{ count: bigint | number }[]>(

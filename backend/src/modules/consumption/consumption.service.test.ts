@@ -181,6 +181,66 @@ describe("ConsumptionService.list", () => {
         })
     })
 
+    describe("granularidade minute — janela de uma hora, bucket por minuto", () => {
+        it("devolve um bucket por minuto e ignora leituras fora da janela from/to", async () => {
+            const { user, meter, property } = await setupPropertyMeter()
+
+            // Janela = hora 10 em SP (13:00Z–14:00Z).
+            await insertReading(meter.id, "2026-01-15T13:05:00Z", 0.01, 600)
+            await insertReading(meter.id, "2026-01-15T13:06:00Z", 0.02, 1200)
+            await insertReading(meter.id, "2026-01-15T13:59:00Z", 0.03, 1800)
+            // Fora da janela — hora seguinte.
+            await insertReading(meter.id, "2026-01-15T14:10:00Z", 0.09, 5400)
+
+            const result = await consumptionService.list(user.id, {
+                targetType: "PROPERTY",
+                targetId: property.id,
+                granularity: "minute",
+                from: "2026-01-15T13:00:00Z",
+                to: "2026-01-15T14:00:00Z",
+                order: "asc",
+            })
+
+            expect(result.total).toBe(3)
+            expect(result.items.map((item) => item.kwhConsumed)).toEqual([0.01, 0.02, 0.03])
+        })
+    })
+
+    describe("ordenação dos buckets", () => {
+        it("order=asc devolve em ordem cronológica crescente", async () => {
+            const { user, meter, property } = await setupPropertyMeter()
+
+            await insertReading(meter.id, "2026-01-15T13:00:00Z", 0.01, 600)
+            await insertReading(meter.id, "2026-01-15T14:00:00Z", 0.02, 600)
+            await insertReading(meter.id, "2026-01-15T15:00:00Z", 0.03, 600)
+
+            const result = await consumptionService.list(user.id, {
+                targetType: "PROPERTY",
+                targetId: property.id,
+                granularity: "hour",
+                order: "asc",
+            })
+
+            expect(result.items.map((item) => item.kwhConsumed)).toEqual([0.01, 0.02, 0.03])
+        })
+
+        it("sem order explícito mantém o mais recente primeiro (DESC)", async () => {
+            const { user, meter, property } = await setupPropertyMeter()
+
+            await insertReading(meter.id, "2026-01-15T13:00:00Z", 0.01, 600)
+            await insertReading(meter.id, "2026-01-15T14:00:00Z", 0.02, 600)
+            await insertReading(meter.id, "2026-01-15T15:00:00Z", 0.03, 600)
+
+            const result = await consumptionService.list(user.id, {
+                targetType: "PROPERTY",
+                targetId: property.id,
+                granularity: "hour",
+            })
+
+            expect(result.items.map((item) => item.kwhConsumed)).toEqual([0.03, 0.02, 0.01])
+        })
+    })
+
     describe("granularidade day — virada de dia em America/Sao_Paulo", () => {
         it("separa leituras do mesmo dia UTC em dias SP diferentes", async () => {
             const { user, meter, property } = await setupPropertyMeter()

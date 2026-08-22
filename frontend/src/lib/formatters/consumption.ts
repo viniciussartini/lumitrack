@@ -1,4 +1,4 @@
-import type { Granularity } from "@/types/consumption.types"
+import type { BucketSize } from "@/types/consumption.types"
 
 const hourFormatter = new Intl.DateTimeFormat("pt-BR", {
     hour: "2-digit",
@@ -39,21 +39,27 @@ const powerFormatter = new Intl.NumberFormat("pt-BR", {
 })
 
 /**
- * Formata `bucketStart` adaptando o nível de precisão à granularidade.
+ * Formata `bucketStart` adaptando o nível de precisão ao tamanho do bucket
+ * (não à granularidade escolhida na UI — ver `lib/consumptionWindow.ts`).
  *
- * Cada granularidade representa uma janela diferente:
- *   hour  → "15/01 14:00" (hh:00–hh:59)
- *   day   → "15/01/2025" (0h–24h)
- *   month → "Janeiro de 2025"
- *   year  → "2025"
+ * Cada bucket cobre um intervalo diferente:
+ *   minute → "15/01 14:03" (o minuto cheio)
+ *   hour   → "15/01 14:00" (hh:00–hh:59)
+ *   day    → "15/01/2025" (0h–24h)
+ *   month  → "Janeiro de 2025"
+ *   year   → "2025"
+ *
+ * Minuto e hora compartilham o formato: dentro de uma mesma tabela todos os
+ * buckets têm o mesmo tamanho, então não há ambiguidade a desfazer.
  *
  * Capitaliza a primeira letra em `month`: Intl retorna "janeiro de 2025"
  * em pt-BR; "Janeiro" fica mais coeso visualmente em eixo/tabela.
  */
-export const formatBucketLabel = (bucketStart: string, granularity: Granularity): string => {
+export const formatBucketLabel = (bucketStart: string, bucketSize: BucketSize): string => {
     const date = new Date(bucketStart)
 
-    switch (granularity) {
+    switch (bucketSize) {
+        case "minute":
         case "hour":
             return `${dayMonthYearFormatter.format(date).slice(0, 5)} ${hourFormatter.format(date)}`
         case "day":

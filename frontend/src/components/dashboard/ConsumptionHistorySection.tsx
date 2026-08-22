@@ -35,7 +35,9 @@ export const ConsumptionHistorySection = ({
 
     const query = useConsumption("PROPERTY", hasMeter ? propertyId : undefined, "month", 1, range)
 
-    const buckets = query.data?.items ?? []
+    // Consulta sem janela: o backend devolve os `range` meses mais recentes,
+    // do mais novo para o mais antigo. O gráfico lê em ordem cronológica.
+    const buckets = [...(query.data?.items ?? [])].reverse()
 
     return (
         <div className="blueprint p-0" data-testid="consumption-history-section">
@@ -87,7 +89,7 @@ export const ConsumptionHistorySection = ({
                 {hasMeter && query.isSuccess && (
                     <ConsumptionChart
                         buckets={buckets}
-                        granularity="month"
+                        bucketSize="month"
                         isRefetching={query.isFetching}
                     />
                 )}

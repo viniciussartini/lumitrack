@@ -91,12 +91,16 @@ export const queryKeys = {
     },
     consumption: {
         all: ["consumption"] as const,
+        // `window` distingue consultas de janela (tabela/gráfico de consumo,
+        // que pedem from/to/order) das consultas "últimos N buckets" dos KPIs
+        // — mesmo alvo e mesmo bucket, resultados diferentes.
         list: (
             targetType: string,
             targetId: string,
             granularity: string,
             page: number,
             pageSize: number,
+            window: string = "all",
         ) =>
             [
                 ...queryKeys.consumption.all,
@@ -106,6 +110,7 @@ export const queryKeys = {
                 granularity,
                 page,
                 pageSize,
+                window,
             ] as const,
     },
     meterReadings: {

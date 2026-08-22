@@ -177,9 +177,25 @@ export const ALERT_EVENT_1: AlertTriggerEvent = {
  *
  * A chave de linha na tabela é o `bucketStart` (ISO do início do bucket), não
  * um id: o bucket é o resultado de um `date_trunc`, não uma entidade.
- * `BUCKET_HOUR_*` são horas cheias; `BUCKET_DAY_*`, dias — coerentes com a
- * granularidade que o spec pedir.
+ * `BUCKET_MINUTE_*` são minutos cheios; `BUCKET_HOUR_*`, horas;
+ * `BUCKET_DAY_*`, dias — coerentes com o bucket que o spec pedir. Lembrando
+ * que a granularidade escolhida na UI é a janela, e o bucket é o nível
+ * abaixo dela: a aba "Hora" pede `granularity=minute`.
  */
+export const BUCKET_MINUTE_1: ConsumptionBucket = {
+    bucketStart: "2026-07-15T10:03:00.000Z",
+    kwhConsumed: 0.02,
+    costBrl: 0.017,
+    avgPowerW: 1240.5,
+}
+
+export const BUCKET_MINUTE_2: ConsumptionBucket = {
+    bucketStart: "2026-07-15T10:04:00.000Z",
+    kwhConsumed: 0.03,
+    costBrl: 0.026,
+    avgPowerW: 1810.2,
+}
+
 export const BUCKET_HOUR_1: ConsumptionBucket = {
     bucketStart: "2026-07-15T10:00:00.000Z",
     kwhConsumed: 1.24,

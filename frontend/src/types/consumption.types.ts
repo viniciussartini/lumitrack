@@ -9,6 +9,17 @@ import type { TargetType } from "@/types/meter.types"
  */
 export type Granularity = "hour" | "day" | "month" | "year"
 
+/**
+ * Tamanho do bucket agregado pela API (parâmetro `granularity` de
+ * `GET /api/consumption`) — um nível abaixo da granularidade escolhida na UI,
+ * que é a janela consultada. A tradução entre os dois vive em
+ * `lib/consumptionWindow.ts`.
+ */
+export type BucketSize = "minute" | Granularity
+
+/** Ordem cronológica dos buckets devolvidos pela API. */
+export type BucketOrder = "asc" | "desc"
+
 export const GRANULARITY_LABELS: Record<Granularity, string> = {
     hour: "Hora",
     day: "Dia",
@@ -34,7 +45,13 @@ export interface ConsumptionBucket {
 export interface ListConsumptionParams {
     targetType: TargetType
     targetId: string
-    granularity: Granularity
+    granularity: BucketSize
+    /** Início da janela (inclusivo). Ausente = sem recorte. */
+    from?: Date
+    /** Fim da janela (exclusivo). Ausente = sem recorte. */
+    to?: Date
+    /** Default do backend: `desc` (mais recente primeiro). */
+    order?: BucketOrder
     page?: number
     pageSize?: number
 }

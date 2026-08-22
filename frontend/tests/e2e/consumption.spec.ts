@@ -4,10 +4,10 @@ import { fulfillError, fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
 import {
-    BUCKET_DAY_1,
-    BUCKET_DAY_2,
     BUCKET_HOUR_1,
     BUCKET_HOUR_2,
+    BUCKET_MINUTE_1,
+    BUCKET_MINUTE_2,
     DIST_CEMIG,
     METER_1,
     PROP_1,
@@ -97,20 +97,28 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
         expect(consumptionCalled).toBe(false)
     })
 
-    test("troca de granularidade (Hora → Dia) re-consulta com o granularity correto", async ({
+    test("troca de granularidade (Hora → Dia) desce um nível de bucket e recorta a janela", async ({
         page,
     }) => {
         await setupAuthAndProperty(page)
         await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) => fulfillJson(route, METER_1))
 
+        const requests: { granularity: string | null; from: string | null; to: string | null }[] =
+            []
+
         await page.route(/\/api\/consumption(\?.*)?$/, (route) => {
             const url = new URL(route.request().url())
             const granularity = url.searchParams.get("granularity")
+            requests.push({
+                granularity,
+                from: url.searchParams.get("from"),
+                to: url.searchParams.get("to"),
+            })
             const items =
-                granularity === "hour"
-                    ? [BUCKET_HOUR_1, BUCKET_HOUR_2]
-                    : granularity === "day"
-                      ? [BUCKET_DAY_1, BUCKET_DAY_2]
+                granularity === "minute"
+                    ? [BUCKET_MINUTE_1, BUCKET_MINUTE_2]
+                    : granularity === "hour"
+                      ? [BUCKET_HOUR_1, BUCKET_HOUR_2]
                       : []
             return fulfillJson(route, {
                 items,
@@ -125,12 +133,17 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
         await hideDevTools(page)
 
         // Hora é a granularidade default (primeiro item de DETAILS_GRANULARITIES)
+        // e pede buckets de MINUTO da hora corrente — a issue #226.
         await expect(page.getByTestId("granularity-tab-hour")).toHaveAttribute(
             "aria-selected",
             "true",
         )
-        await expect(page.getByTestId(`consumption-row-${BUCKET_HOUR_1.bucketStart}`)).toBeVisible()
-        await expect(page.getByTestId(`consumption-row-${BUCKET_HOUR_2.bucketStart}`)).toBeVisible()
+        await expect(
+            page.getByTestId(`consumption-row-${BUCKET_MINUTE_1.bucketStart}`),
+        ).toBeVisible()
+        await expect(
+            page.getByTestId(`consumption-row-${BUCKET_MINUTE_2.bucketStart}`),
+        ).toBeVisible()
         await expect(page.getByTestId("consumption-chart")).toBeVisible()
 
         await page.getByTestId("granularity-tab-day").click()
@@ -139,12 +152,30 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
             "aria-selected",
             "true",
         )
-        await expect(page.getByTestId(`consumption-row-${BUCKET_DAY_1.bucketStart}`)).toBeVisible()
-        await expect(page.getByTestId(`consumption-row-${BUCKET_DAY_2.bucketStart}`)).toBeVisible()
-        // As linhas de "Hora" somem — prova que a query mudou de fato, não
+        // Dia → buckets de HORA.
+        await expect(page.getByTestId(`consumption-row-${BUCKET_HOUR_1.bucketStart}`)).toBeVisible()
+        await expect(page.getByTestId(`consumption-row-${BUCKET_HOUR_2.bucketStart}`)).toBeVisible()
+        // As linhas de minuto somem — prova que a query mudou de fato, não
         // só que a tabela ganhou linhas novas por cima das antigas.
-        await expect(page.getByTestId(`consumption-row-${BUCKET_HOUR_1.bucketStart}`)).toHaveCount(
-            0,
+        await expect(
+            page.getByTestId(`consumption-row-${BUCKET_MINUTE_1.bucketStart}`),
+        ).toHaveCount(0)
+
+        // Toda consulta recorta uma janela fechada, e a janela da aba Dia
+        // contém a da aba Hora.
+        const minuteRequest = requests.find((r) => r.granularity === "minute")!
+        const hourRequest = requests.find((r) => r.granularity === "hour")!
+
+        for (const request of [minuteRequest, hourRequest]) {
+            expect(request.from).toBeTruthy()
+            expect(request.to).toBeTruthy()
+            expect(new Date(request.from!).getTime()).toBeLessThan(new Date(request.to!).getTime())
+        }
+        expect(new Date(hourRequest.from!).getTime()).toBeLessThanOrEqual(
+            new Date(minuteRequest.from!).getTime(),
+        )
+        expect(new Date(hourRequest.to!).getTime()).toBeGreaterThanOrEqual(
+            new Date(minuteRequest.to!).getTime(),
         )
     })
 
@@ -171,28 +202,32 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
         await page.route(/\/api\/consumption(\?.*)?$/, (route) => {
             const url = new URL(route.request().url())
             const requestedPage = Number(url.searchParams.get("page") ?? "1")
-            const items = requestedPage === 1 ? [BUCKET_HOUR_1] : [BUCKET_HOUR_2]
+            const items = requestedPage === 1 ? [BUCKET_MINUTE_1] : [BUCKET_MINUTE_2]
             return fulfillJson(route, {
                 items,
                 total: 11,
                 page: requestedPage,
                 pageSize: 10,
-                granularity: "hour",
+                granularity: "minute",
             })
         })
 
         await page.goto("/propriedades/prop-1")
         await hideDevTools(page)
 
-        await expect(page.getByTestId(`consumption-row-${BUCKET_HOUR_1.bucketStart}`)).toBeVisible()
+        await expect(
+            page.getByTestId(`consumption-row-${BUCKET_MINUTE_1.bucketStart}`),
+        ).toBeVisible()
         await expect(page.getByTestId("pagination")).toContainText(/11 itens · página 1 de 2/i)
 
         await page.getByTestId("pagination-next").click()
 
-        await expect(page.getByTestId(`consumption-row-${BUCKET_HOUR_2.bucketStart}`)).toBeVisible()
-        await expect(page.getByTestId(`consumption-row-${BUCKET_HOUR_1.bucketStart}`)).toHaveCount(
-            0,
-        )
+        await expect(
+            page.getByTestId(`consumption-row-${BUCKET_MINUTE_2.bucketStart}`),
+        ).toBeVisible()
+        await expect(
+            page.getByTestId(`consumption-row-${BUCKET_MINUTE_1.bucketStart}`),
+        ).toHaveCount(0)
         await expect(page.getByTestId("pagination")).toContainText(/11 itens · página 2 de 2/i)
     })
 })

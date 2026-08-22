@@ -3,11 +3,11 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { BarChart3 } from "lucide-react"
 import { cn } from "@/lib/cn"
 import { formatKwh, formatCostBrl, formatBucketLabel } from "@/lib/formatters/consumption"
-import type { ConsumptionBucket, Granularity } from "@/types/consumption.types"
+import type { BucketSize, ConsumptionBucket } from "@/types/consumption.types"
 
 interface ConsumptionChartProps {
     buckets: ConsumptionBucket[]
-    granularity: Granularity
+    bucketSize: BucketSize
     isRefetching?: boolean
 }
 
@@ -72,22 +72,23 @@ const ChartTooltip = ({ active, payload }: ChartTooltipProps) => {
  * Gráfico de consumo agregado — recharts BarChart, mesmo padrão visual do
  * antigo `ReportChart`, adaptado ao bucket `{bucketStart, kwhConsumed, costBrl}`
  * retornado por `GET /api/consumption`.
+ *
+ * Plota na ordem recebida: quem consulta uma janela já pede `order: "asc"`, e
+ * quem pede "os últimos N buckets" (DESC) inverte antes de passar.
  */
 export const ConsumptionChart = ({
     buckets,
-    granularity,
+    bucketSize,
     isRefetching = false,
 }: ConsumptionChartProps) => {
     const data: ChartDatum[] = useMemo(
         () =>
-            // O backend ordena DESC (mais recente primeiro) para paginação
-            // natural; o gráfico lê melhor em ordem cronológica.
-            [...buckets].reverse().map((bucket) => ({
-                label: formatBucketLabel(bucket.bucketStart, granularity),
+            buckets.map((bucket) => ({
+                label: formatBucketLabel(bucket.bucketStart, bucketSize),
                 kwh: bucket.kwhConsumed,
                 cost: bucket.costBrl,
             })),
-        [buckets, granularity],
+        [buckets, bucketSize],
     )
 
     if (buckets.length === 0) {
