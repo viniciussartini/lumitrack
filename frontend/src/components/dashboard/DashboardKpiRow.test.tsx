@@ -52,6 +52,18 @@ const yesterdaySpBucket = spDayBucketStart(
     new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1),
 )
 
+/**
+ * bucketStart de MÊS no formato REAL que o backend produz (issue #234):
+ * mesma codificação de `spDayBucketStart`, mas sempre no dia 1 — é como
+ * `date_trunc('month', ...)` trunca no backend.
+ */
+const spMonthBucketStart = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    return `${year}-${month}-01T00:00:00.000Z`
+}
+const currentMonthSpBucket = spMonthBucketStart(now)
+
 const paginated = <T,>(items: T[]): Paginated<T> & { granularity: Granularity } => ({
     items,
     total: items.length,
@@ -204,6 +216,30 @@ describe("DashboardKpiRow — Custo projetado do mês", () => {
         ).toBeInTheDocument()
         expect(
             await screen.findByText(new RegExp(`fechamento em ${expectedDaysToClose} dias`)),
+        ).toBeInTheDocument()
+    })
+
+    it("acha o bucket do mês mesmo com a codificação real de dia 1 meia-noite SP (issue #234)", async () => {
+        // Fixture de meio-dia local (teste acima) nunca cruza fronteira de
+        // mês em fuso nenhum — mascarava a mesma classe de bug já
+        // confirmada na #233. Dia 1 meia-noite SP naive-como-UTC é a
+        // codificação real que o backend produz pra bucket de mês.
+        const costSoFar = 30
+        mockConsumptionByGranularity({
+            month: [bucket(currentMonthSpBucket, 40, costSoFar)],
+        })
+
+        const dayOfMonth = now.getDate()
+        const totalDays = daysInMonth(now)
+        const expectedProjection = computeMonthProjection(costSoFar, dayOfMonth, totalDays)
+
+        renderRow()
+
+        const expectedProjectionText = formatBrl(expectedProjection).replace(/\s/g, " ")
+        expect(
+            await screen.findByText(
+                (content) => content.replace(/\s/g, " ") === expectedProjectionText,
+            ),
         ).toBeInTheDocument()
     })
 })

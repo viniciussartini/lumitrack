@@ -59,6 +59,49 @@ export const findBucketForDate = (
 }
 
 /**
+ * "YYYY-MM" a partir de um `bucketStart` de MÊS devolvido pelo backend.
+ *
+ * Mesma codificação problemática de `bucketDateKey`, só que truncada no dia
+ * 1: o backend grava o bucket de mês como timestamp NAIVE de meia-noite SP
+ * do dia 1, decodificado pelo driver como se já fosse UTC. Getters UTC
+ * desfazem essa codificação sem aplicar conversão nova — getters locais
+ * (America/Sao_Paulo, UTC-3) empurrariam o dia 1 meia-noite pro dia 31 do
+ * mês anterior às 21h, e `getMonth()` devolveria o mês errado pra **todo**
+ * bucket de mês, não um caso de borda raro (issue #234, mesma classe da
+ * #233 — confirmado com teste antes de corrigir).
+ */
+export const bucketMonthKey = (bucketStart: string): string => {
+    const date = new Date(bucketStart)
+    const year = date.getUTCFullYear()
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0")
+    return `${year}-${month}`
+}
+
+/**
+ * "YYYY-MM" a partir do calendário LOCAL — mesmo propósito de
+ * `toLocalDateKey`, só que por mês. Usada só para instantes reais (`now`).
+ */
+export const toLocalMonthKey = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    return `${year}-${month}`
+}
+
+/**
+ * Busca o bucket de MÊS que bate com o mês de `date` — mesma lógica de
+ * `findBucketForDate`, um nível de granularidade acima: `date` é decodificado
+ * via `toLocalMonthKey` (instante real), os itens via `bucketMonthKey`
+ * (codificação do backend).
+ */
+export const findBucketForMonth = (
+    items: ConsumptionBucket[],
+    date: Date,
+): ConsumptionBucket | undefined => {
+    const key = toLocalMonthKey(date)
+    return items.find((item) => bucketMonthKey(item.bucketStart) === key)
+}
+
+/**
  * Variação percentual de hoje em relação a ontem. `null` quando não dá pra
  * calcular (base zero) — não inventa um número (ex.: "+∞%" ou "0%" enganoso).
  */

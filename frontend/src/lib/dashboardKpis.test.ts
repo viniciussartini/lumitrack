@@ -3,6 +3,9 @@ import {
     toLocalDateKey,
     bucketDateKey,
     findBucketForDate,
+    toLocalMonthKey,
+    bucketMonthKey,
+    findBucketForMonth,
     computeTodayDelta,
     daysInMonth,
     computeMonthProjection,
@@ -94,6 +97,38 @@ describe("findBucketForDate", () => {
 
     it("retorna undefined para lista vazia", () => {
         expect(findBucketForDate([], new Date())).toBeUndefined()
+    })
+})
+
+describe("bucketMonthKey", () => {
+    it("lê o mês via getters UTC — desfaz a codificação naive-como-UTC do backend", () => {
+        // Dia 1 de agosto, meia-noite SP, exatamente como o backend produz
+        // pra bucket de mês (date_trunc('month', ...)).
+        expect(bucketMonthKey("2026-08-01T00:00:00.000Z")).toBe("2026-08")
+    })
+
+    it("não teria batido com getters locais em fuso SP — é a mesma classe de bug da #233 (issue #234)", () => {
+        // Reproduz o cálculo que `toLocalMonthKey` (getters LOCAIS) faria em
+        // vez de `bucketMonthKey`: o dia 1 meia-noite SP vira dia 31 do mês
+        // anterior às 21h em horário local — mês errado.
+        const wrongKeyViaLocalGetters = toLocalMonthKey(new Date("2026-08-01T00:00:00.000Z"))
+        expect(wrongKeyViaLocalGetters).not.toBe("2026-08")
+        expect(bucketMonthKey("2026-08-01T00:00:00.000Z")).toBe("2026-08")
+    })
+})
+
+describe("findBucketForMonth", () => {
+    it("acha o bucket do MÊS CORRENTE mesmo com a codificação real de dia 1 meia-noite SP (issue #234)", () => {
+        // Fixture de meio-dia (local ou UTC) nunca cruza fronteira de mês em
+        // fuso nenhum — mascarava o bug, igual ao caso de dia da #233.
+        const now = new Date(2026, 7, 21) // 21 de agosto de 2026, local
+        const items = [bucket("2026-08-01T00:00:00.000Z", 120)]
+
+        expect(findBucketForMonth(items, now)?.kwhConsumed).toBe(120)
+    })
+
+    it("retorna undefined para lista vazia", () => {
+        expect(findBucketForMonth([], new Date())).toBeUndefined()
     })
 })
 
