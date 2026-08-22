@@ -27,6 +27,13 @@ export const GRANULARITY_LABELS: Record<Granularity, string> = {
     year: "Ano",
 }
 
+/**
+ * Itens por página da tabela de consumo — maior que o `DEFAULT_PAGE_SIZE` das
+ * demais listagens porque um bucket é uma linha de série temporal, não uma
+ * entidade: a janela de uma hora tem até 60 deles. Teto do backend: 31.
+ */
+export const CONSUMPTION_PAGE_SIZE = 30
+
 /** Granularidades disponíveis nas details pages (Property/Area/Device). */
 export const DETAILS_GRANULARITIES: readonly Granularity[] = ["hour", "day"]
 

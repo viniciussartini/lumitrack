@@ -199,8 +199,11 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
         await setupAuthAndProperty(page)
         await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) => fulfillJson(route, METER_1))
 
+        let requestedPageSize: string | null = null
+
         await page.route(/\/api\/consumption(\?.*)?$/, (route) => {
             const url = new URL(route.request().url())
+            requestedPageSize = url.searchParams.get("pageSize")
             const requestedPage = Number(url.searchParams.get("page") ?? "1")
             const items = requestedPage === 1 ? [BUCKET_MINUTE_1] : [BUCKET_MINUTE_2]
             return fulfillJson(route, {
@@ -214,6 +217,9 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
 
         await page.goto("/propriedades/prop-1")
         await hideDevTools(page)
+
+        // 30 registros por página (issue #227) — o teto do backend é 31.
+        await expect.poll(() => requestedPageSize).toBe("30")
 
         await expect(
             page.getByTestId(`consumption-row-${BUCKET_MINUTE_1.bucketStart}`),
@@ -229,5 +235,14 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
             page.getByTestId(`consumption-row-${BUCKET_MINUTE_1.bucketStart}`),
         ).toHaveCount(0)
         await expect(page.getByTestId("pagination")).toContainText(/11 itens · página 2 de 2/i)
+
+        // Volta pelo número da página, não pelo "anterior" — é o controle novo
+        // da issue #227 exercitado na tela real.
+        await page.getByTestId("pagination-page-1").click()
+
+        await expect(
+            page.getByTestId(`consumption-row-${BUCKET_MINUTE_1.bucketStart}`),
+        ).toBeVisible()
+        await expect(page.getByTestId("pagination-page-1")).toHaveAttribute("aria-current", "page")
     })
 })

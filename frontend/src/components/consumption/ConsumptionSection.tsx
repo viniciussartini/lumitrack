@@ -8,8 +8,11 @@ import { ConsumptionTable } from "@/components/consumption/ConsumptionTable"
 import { useConsumption } from "@/hooks/queries/useConsumption"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
 import { resolveConsumptionWindow } from "@/lib/consumptionWindow"
-import { DEFAULT_PAGE_SIZE } from "@/types/pagination.types"
-import { DETAILS_GRANULARITIES, type Granularity } from "@/types/consumption.types"
+import {
+    CONSUMPTION_PAGE_SIZE,
+    DETAILS_GRANULARITIES,
+    type Granularity,
+} from "@/types/consumption.types"
 import type { TargetType } from "@/types/meter.types"
 
 // Wrappers "smart" — mesmo padrão de 3 por target usado no resto do app
@@ -82,7 +85,7 @@ export const ConsumptionSection = ({
         hasMeter ? targetId : undefined,
         consumptionWindow.bucketSize,
         page,
-        DEFAULT_PAGE_SIZE,
+        CONSUMPTION_PAGE_SIZE,
         // asc: a paginação percorre a janela do começo para o fim (19:00 na
         // primeira página, não na última).
         { from: consumptionWindow.from, to: consumptionWindow.to, order: "asc" },
