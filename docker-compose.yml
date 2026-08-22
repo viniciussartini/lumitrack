@@ -15,6 +15,10 @@ services:
       - deploy/.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Roda uma única vez, no primeiro boot com volume vazio — cria o
+      # papel de runtime sem DDL (deploy/create-app-role.sql). Reprovisionar
+      # do zero (ex.: volume novo) recria a role automaticamente.
+      - ./deploy/create-app-role.sql:/docker-entrypoint-initdb.d/10-create-app-role.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s

@@ -54,17 +54,36 @@ Três pontos do desenho são **forçados pela plataforma**, e mexer neles quebra
 
 ### 1. Criar o banco no Neon
 
-Crie um projeto e copie a connection string. Ela precisa terminar com `?sslmode=require`.
+Crie um projeto e copie a connection string. Ela precisa terminar com `?sslmode=require`. Essa é a connection string **administrativa** — só para migração e provisionamento (próximo passo), nunca para o runtime do backend.
 
-### 2. Aplicar as migrações e semear — da sua máquina
+### 2. Criar o papel de runtime (sem DDL)
 
-O Neon é acessível pela internet, então migração e seed rodam localmente apontando para ele. Não há release hook a configurar no Render.
+O usuário do passo anterior é superusuário do projeto Neon — capaz de `CREATE`/`DROP`. Antes de apontar o Render para o banco, crie um papel separado, só com DML (defesa em profundidade, OWASP A04):
+
+```bash
+LUMITRACK_APP_PASSWORD='<senha-nova-gerada-aleatoriamente>' \
+  psql '<connection-string-administrativa-do-neon>' -f deploy/create-app-role.sql
+```
+
+Monte a connection string de runtime trocando usuário/senha na mesma string do Neon: `postgresql://lumitrack_app:<LUMITRACK_APP_PASSWORD>@<mesmo-host-do-neon>/<mesmo-banco>?sslmode=require`. É essa — não a administrativa do passo 1 — que vai no `DATABASE_URL` do painel do Render (passo 4).
+
+**Verificação (deve falhar):**
+
+```bash
+psql 'postgresql://lumitrack_app:<LUMITRACK_APP_PASSWORD>@<mesmo-host-do-neon>/<mesmo-banco>?sslmode=require' \
+  -c 'CREATE TABLE regression_check (x int);'
+# esperado: ERROR: permission denied for schema public
+```
+
+### 3. Aplicar as migrações e semear — da sua máquina
+
+O Neon é acessível pela internet, então migração e seed rodam localmente apontando para ele. Não há release hook a configurar no Render. **Sempre com a connection string administrativa do passo 1** — o papel `lumitrack_app` não tem `CREATE`, migração falharia com ele.
 
 ```bash
 cd backend
-DATABASE_URL='<connection-string-do-neon>' npm run db:migrate:deploy
-DATABASE_URL='<connection-string-do-neon>' npm run db:seed        # catálogo de distribuidoras
-DATABASE_URL='<connection-string-do-neon>' \
+DATABASE_URL='<connection-string-administrativa-do-neon>' npm run db:migrate:deploy
+DATABASE_URL='<connection-string-administrativa-do-neon>' npm run db:seed        # catálogo de distribuidoras
+DATABASE_URL='<connection-string-administrativa-do-neon>' \
   CPF_CNPJ_ENCRYPTION_KEY='<mesmo-do-render>' \
   CPF_CNPJ_BLIND_INDEX_KEY='<mesmo-do-render>' \
   MFA_SECRET_ENCRYPTION_KEY='<mesmo-do-render>' \
@@ -79,11 +98,11 @@ DATABASE_URL='<connection-string-do-neon>' \
 >
 > **Sobre o volume no Neon (0,5 GB no plano gratuito):** o seed de demonstração **não gera histórico** — cria só a topologia (11 medidores, submedição por cômodo/equipamento) e os alertas, já configurados. Todo `MeterReading` nasce da ingestão IoT real a partir do deploy. Isso resolve na origem o estouro de volume que um seed com bulk insert causaria; o que resta acompanhar é o **crescimento das leituras ao vivo** ao longo do tempo — o `RetentionService` ainda não cobre `MeterReading` (item da Fase 14), então vale revisar o volume periodicamente.
 
-### 3. Criar os serviços no Render
+### 4. Criar os serviços no Render
 
-No painel do Render, escolha **Blueprint** e aponte para o repositório. Ele lê o `render.yaml` e cria os dois serviços, pedindo os valores marcados como `sync: false` (ver checklist abaixo).
+No painel do Render, escolha **Blueprint** e aponte para o repositório. Ele lê o `render.yaml` e cria os dois serviços, pedindo os valores marcados como `sync: false` (ver checklist abaixo) — **`DATABASE_URL` aqui é a connection string de `lumitrack_app` do passo 2, não a administrativa.**
 
-### 4. Ajustar o destino do rewrite
+### 5. Ajustar o destino do rewrite
 
 Depois que o serviço `lumitrack-api` existir, copie a URL real dele e substitua no `render.yaml`:
 
@@ -95,7 +114,7 @@ Depois que o serviço `lumitrack-api` existir, copie a URL real dele e substitua
 
 Blueprints do Render não interpolam URL de serviço em destino de rota, então este passo é manual. Commit + push aplica.
 
-### 5. Verificar
+### 6. Verificar
 
 Abra a URL do site estático. Ver a seção "Verificação ponta a ponta", abaixo.
 
@@ -116,10 +135,10 @@ Preenchidas por você no painel (`sync: false`):
 
 | Variável | Valor | Como gerar |
 |---|---|---|
-| `DATABASE_URL` | Connection string do Neon | Com `?sslmode=require`. |
+| `DATABASE_URL` | Connection string de `lumitrack_app` (passo 2), **não** a administrativa | Com `?sslmode=require`. |
 | `JWT_SECRET` | Valor novo | `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
 | `CPF_CNPJ_ENCRYPTION_KEY`, `CPF_CNPJ_BLIND_INDEX_KEY`, `MFA_SECRET_ENCRYPTION_KEY`, `ADDRESS_ENCRYPTION_KEY`, `METER_CREDENTIAL_ENCRYPTION_KEY` | 5 valores novos, **todos distintos** | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` — nunca reaproveite a mesma chave entre categorias de dado. |
-| `SIMULATOR_API_TOKEN`, `BROKER_USERNAME`, `BROKER_PASSWORD` | Valores novos | Precisam bater com o que você usou no `db:seed:demo` do passo 2. |
+| `SIMULATOR_API_TOKEN`, `BROKER_USERNAME`, `BROKER_PASSWORD` | Valores novos | Precisam bater com o que você usou no `db:seed:demo` do passo 3. |
 | `CORS_ORIGIN`, `FRONTEND_URL` | URL do site estático | Ex.: `https://lumitrack.onrender.com`. |
 | `PUBLIC_API_ORIGIN` | **Ver abaixo** | O host que o backend de fato recebe. |
 | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Qualquer placeholder | Obrigatórias no schema (`config/env.ts`), sem default — o backend recusa subir sem elas. A demo não exercita "esqueci minha senha" no checklist abaixo, então qualquer valor satisfaz a validação; só funciona de verdade se você contratar um provedor SMTP real (o que cria um operador — atualizar o ROPA nesse caso). |
@@ -142,7 +161,7 @@ O rewrite `/api/*` do site estático **não sustenta conexão de longa duração
   1. **CSP do próprio `index.html`** (`connect-src 'self'`) bloqueia a conexão no navegador antes mesmo de CORS entrar em jogo (erro no console: "Refused to connect because it violates the document's Content Security Policy"). `VITE_CSP_CONNECT_EXTRA` (`render.yaml`) libera a origem da API especificamente.
   2. **Cookie de sessão nunca atravessa domínio** (a conexão passa a responder 401): o cookie foi definido pelo navegador para o domínio do site estático, não para o da API — `SameSite` não resolve isso (é o `Domain` do cookie, que nunca inclui o outro serviço; `Domain=.onrender.com` é rejeitado por ser sufixo público). A correção **não** é enfraquecer o cookie — é não depender dele nessa chamada: `POST /api/iot/stream-ticket` autentica normalmente (cookie, mesma origem, via rewrite) e emite um ticket de uso único de 30s; o SSE troca esse ticket pela conexão via query string (`?ticket=...`), sem cookie nenhum. Todo cookie da aplicação continua `sameSite: "lax"`, sem exceção.
 
-  Se você mudar o nome do serviço da API no Render, atualize as **duas** referências junto: `VITE_SSE_URL` e `VITE_CSP_CONNECT_EXTRA` (o destino do rewrite, item 4 do passo a passo, é o terceiro lugar de sempre).
+  Se você mudar o nome do serviço da API no Render, atualize as **duas** referências junto: `VITE_SSE_URL` e `VITE_CSP_CONNECT_EXTRA` (o destino do rewrite, item 5 do passo a passo, é o terceiro lugar de sempre).
 
 ## Verificação ponta a ponta
 
@@ -157,7 +176,7 @@ O rewrite `/api/*` do site estático **não sustenta conexão de longa duração
 
 - **750 horas-instância/mês** no Render, compartilhadas pela conta inteira — um segundo serviço gratuito concorre pela mesma cota.
 - **Hibernação após 15 min** sem tráfego, com cold start de ~60–90s. Comportamento esperado, não incidente.
-- **0,5 GB no Neon** — ver o aviso de volume do passo 2.
+- **0,5 GB no Neon** — ver o aviso de volume do passo 3.
 
 ## Keep-alive (evitar hibernação)
 
@@ -250,9 +269,21 @@ cd frontend && npm ci && npm run build && cd ..
 
 ### 5. Subir o banco e aplicar as migrações
 
+Subir o `postgres` já cria o papel de runtime sem DDL automaticamente (primeiro boot, `deploy/create-app-role.sql` — ver `docker-compose.yml`). A migração, porém, **precisa do usuário administrativo** — o `DATABASE_URL` de `backend/.env` (o de runtime, `lumitrack_app`) não tem `CREATE`:
+
 ```bash
 docker compose up -d postgres
-docker compose run --rm backend npm run db:migrate:deploy
+set -a && source deploy/.env && set +a
+docker compose run --rm \
+  -e DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public" \
+  backend npm run db:migrate:deploy
+```
+
+**Verificação (deve falhar):**
+
+```bash
+docker compose exec postgres psql -U lumitrack_app -d "$POSTGRES_DB" -c 'CREATE TABLE regression_check (x int);'
+# esperado: ERROR: permission denied for schema public
 ```
 
 ### 6. Subir o stack completo
@@ -290,7 +321,7 @@ Acesse o Uptime Kuma via túnel SSH (`ssh -L 3001:localhost:3001 usuario@<ip-da-
 | Variável | Onde | Produção | Por quê |
 |---|---|---|---|
 | `NODE_ENV` | `backend/.env` | `production` | Liga as validações fail-closed de `config/env.ts`. |
-| `DATABASE_URL` | `backend/.env` | `postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@postgres:5432/<POSTGRES_DB>?schema=public` | Host é `postgres` (nome do serviço no compose), nunca `localhost`. Credenciais devem bater com `deploy/.env`. |
+| `DATABASE_URL` | `backend/.env` | `postgresql://lumitrack_app:<LUMITRACK_APP_PASSWORD>@postgres:5432/<POSTGRES_DB>?schema=public` | Host é `postgres` (nome do serviço no compose), nunca `localhost`. Usuário `lumitrack_app` (sem DDL, criado automaticamente por `deploy/create-app-role.sql` no primeiro boot) — **não** `POSTGRES_USER`, que fica só para migração (passo 5). Senha deve bater com `LUMITRACK_APP_PASSWORD` de `deploy/.env`. |
 | `JWT_SECRET` | `backend/.env` | Novo valor gerado | Gate de go-live #7. `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`. |
 | `CPF_CNPJ_ENCRYPTION_KEY`, `CPF_CNPJ_BLIND_INDEX_KEY`, `MFA_SECRET_ENCRYPTION_KEY`, `ADDRESS_ENCRYPTION_KEY`, `METER_CREDENTIAL_ENCRYPTION_KEY` | `backend/.env` | 5 valores novos, todos distintos | Gate de go-live #7. `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` — nunca reaproveitar a mesma chave entre categorias de dado. |
 | `CORS_ORIGIN` | `backend/.env` | `https://<seu-dominio>` | Nunca `*` em produção. |
@@ -302,7 +333,8 @@ Acesse o Uptime Kuma via túnel SSH (`ssh -L 3001:localhost:3001 usuario@<ip-da-
 | `SMTP_*` | `backend/.env` | Sandbox, salvo se contratar provedor | Sem provedor, "esqueci minha senha" não é funcional. Contratar um cria um **operador** (DPA no ROPA). |
 | `SIMULATOR_API_TOKEN`, `BROKER_USERNAME`, `BROKER_PASSWORD` | `iot-simulator/server/.env` | Valores novos gerados | Devem bater com `SIMULATOR_BROKER_USERNAME`/`SIMULATOR_BROKER_PASSWORD` do `db:seed:demo`. |
 | `DEMO_BOOTSTRAP_ENABLED` | `iot-simulator/server/.env` | `false` | Aqui o serviço não hiberna; os devices são criados uma vez por `deploy/seed-simulator-devices.sh`. |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `deploy/.env` | Valores novos gerados | Devem bater com `DATABASE_URL`. |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `deploy/.env` | Valores novos gerados | Usuário administrativo — só para migração (passo 5), nunca para `DATABASE_URL` do backend. |
+| `LUMITRACK_APP_PASSWORD` | `deploy/.env` | Valor novo gerado, distinto de `POSTGRES_PASSWORD` | Senha do papel de runtime sem DDL. Deve bater com o `DATABASE_URL` acima. |
 | `DOMAIN` | `deploy/.env` | Domínio real | Repassado ao Caddy para o certificado Let's Encrypt. |
 
 ## Backup e restauração testada
