@@ -159,6 +159,20 @@ O rewrite `/api/*` do site estático **não sustenta conexão de longa duração
 - **Hibernação após 15 min** sem tráfego, com cold start de ~60–90s. Comportamento esperado, não incidente.
 - **0,5 GB no Neon** — ver o aviso de volume do passo 2.
 
+## Keep-alive (evitar hibernação)
+
+**Decisão:** [ADR-0011](adr/0011-keep-alive-monitor-externo-uptimerobot.md) — dois mecanismos independentes de ping em `/health`, o suficiente para reduzir (não eliminar) a chance de a demo hibernar entre visitas.
+
+1. **UptimeRobot** (primário) — a cada 5 min. Configuração manual, fora do repositório:
+   - Criar conta gratuita em [uptimerobot.com](https://uptimerobot.com), sem cartão.
+   - Novo monitor **HTTP(s)**, URL `https://lumitrack-api.onrender.com/health`, intervalo **5 minutos**.
+   - Alerta por e-mail (ou Telegram) para o autor quando o monitor detectar `down`.
+2. **`.github/workflows/keep-alive.yml`** (redundância) — a cada 10 min, cron deslocado para minutos não-redondos. Já implementado; nenhuma ação manual.
+
+`/health` é público, sem autenticação, e **excluído do log de acesso** (`backend/src/app.ts`, `autoLogging.ignore`) — nenhum dos dois mecanismos processa dado pessoal, então esta decisão não abre a tabela de operadores do `ROPA.md` (ver ADR-0011 para o raciocínio completo).
+
+**Limite conhecido:** `schedule` do GitHub Actions é melhor-esforço — pode atrasar ou descartar disparos sob carga (issue #222). A redundância reduz o impacto; não garante zero gap. Se gaps grandes continuarem incomodando na prática, a correção definitiva é o upgrade pago do Render (Starter, ~US$ 7/mês) — não adotado por falta de necessidade demonstrada.
+
 ---
 
 # Caminho B — self-hosted (migração para o Brasil)
