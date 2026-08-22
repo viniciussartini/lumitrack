@@ -1735,3 +1735,45 @@
 - **Arquivos principais:** `frontend/src/hooks/queries/useMeterReadingHistory.ts`, `frontend/src/hooks/queries/useMeterReadingHistory.test.tsx`, `frontend/src/components/consumption/ConsumptionSection.test.tsx`, `frontend/src/components/dashboard/ConsumptionHistorySection.test.tsx`, `frontend/src/components/dashboard/RealtimeSection.test.tsx`, `frontend/src/components/realtime/RealtimeChartCard.tsx`, `frontend/src/components/realtime/RealtimeChartCard.test.tsx`, `frontend/src/styles/industry.css`, `frontend/tests/e2e/device.spec.ts`.
 - **Decisões/ADRs:** nenhuma.
 - **Verificação:** frontend 711 testes (2 novos) / e2e 96 verdes — mesma linha de base pré-existente. `tsc`, `lint` e `prettier` limpos. Backend não foi tocado.
+
+## [2026-08-22] audit-seguranca: auditoria de segurança pós-deploy (projeto inteiro)
+
+- **Branch:** epic/225-correcoes-pos-deploy-2
+- **Tipo:** audit-seguranca
+- **O quê:** varredura completa (aplicação + infraestrutura de deploy) contra `05-security-standards.md` e `11-seguranca-infraestrutura.md`, motivada pelo volume de mudanças recentes voltadas a go-live. 27 achados (0 Crítico, 2 Alto, 12 Médio, 13 Baixo). Os 24 achados do laudo de 2026-08-05 estão, em sua maioria esmagadora, remediados; o centro de gravidade deste ciclo migrou para infraestrutura de deploy e endurecimento fino de auth (ASVS L3).
+- **Achados de maior severidade:** usuário de runtime do banco é o mesmo superusuário que roda as migrações (sem separação DML-only); backup do PostgreSQL sem cifra em repouso e sem registro de restauração testada.
+- **Relatório:** `.claude/docs/2026-08-22-seguranca-audit.md`.
+- **Notas:** próximos passos sugeridos no laudo, agrupados por bloco (bloqueantes de go-live, endurecimento de auth ASVS L3, higiene de pipeline, dívida de demonstração).
+
+## [2026-08-22] audit-qualidade: auditoria de qualidade de código pós-deploy (projeto inteiro)
+
+- **Branch:** epic/225-correcoes-pos-deploy-2
+- **Tipo:** audit-qualidade
+- **O quê:** varredura completa contra `06-code-quality-standards.md`, `03-arquitetura.md` e `10-design-system.md`. 38 achados (7 Alta, 16 Média, 15 Baixa). Nenhum over-engineering encontrado; o risco concentra-se em comentário de rastreabilidade sistêmico (~310 ocorrências em 192 arquivos), travas mecânicas parcialmente decorativas (complexidade desligada em 54 arquivos, `eslint-plugin-jsdoc` nunca instalado, pre-commit sem type-check) e drift de documentação viva pós-deploy (ADR-0011 não indexada, contagens desatualizadas em `03`/`04`/`10`).
+- **Relatório:** `.claude/docs/2026-08-22-qualidade-audit.md`.
+- **Notas:** achados de drift de documentação são edição de texto barata e recomendados como prioridade imediata; o comentário de rastreabilidade é recomendado como épico dedicado (não cabe num PR de feature).
+
+## [2026-08-22] audit-desempenho: auditoria de desempenho pós-deploy (projeto inteiro)
+
+- **Branch:** epic/225-correcoes-pos-deploy-2
+- **Tipo:** audit-desempenho
+- **O quê:** varredura completa (backend/dados, frontend/render, IoT, infraestrutura). 31 achados (6 Alto, 13 Médio, 12 Baixo). Seis achados do laudo de 2026-08-05 resolvidos (buffer de potência O(n²), `split("")` do RS-485, provider duplicado do TanStack Query, entre outros). O que não mudou — índices de FK ausentes, N+1 de `/api/alerts`, fan-out de `/api/consumption`, `meter_readings` sem retenção — passou de risco teórico a custo diário com o keep-alive (ADR-0011) mantendo a demo acordada 24/7. Achado novo: nenhuma compressão HTTP em nenhum dos dois caminhos de deploy.
+- **Relatório:** `.claude/docs/2026-08-22-desempenho-audit.md`.
+- **Notas:** laudo lista explicitamente o que precisa de medição antes de otimizar (`06-code-quality-standards.md`) e o que não precisa (config ausente/erro, não trade-off). Ordem de ataque sugerida na seção 7 do relatório.
+
+## [2026-08-22] audit-conformidade: auditoria de conformidade LGPD pós-deploy (projeto inteiro)
+
+- **Branch:** epic/225-correcoes-pos-deploy-2
+- **Tipo:** audit-conformidade
+- **O quê:** varredura completa contra `09-conformidade-legal.md` (LGPD + ANPD + Marco Civil). 22 achados (3 Crítico, 8 Alto, 6 Médio, 5 Baixo). A camada técnica (cifra por categoria, blind index, redação de PII em log, trilha de auditoria) segue forte; o que mudou é a topologia — Render+Neon nos EUA — sem a governança documental (ROPA, RIPD, aviso de privacidade) acompanhar por inteiro. Dois achados críticos confirmam que a premissa "sem dado pessoal de pessoa real" da ADR-0010 é hoje falsa: IP de visitante persistido no Neon por 730 dias, e contas de demonstração aceitam gravação de dado real em `Property` (endereço/CEP) sem trava.
+- **Relatório:** `.claude/docs/2026-08-22-conformidade-audit.md`.
+- **Notas:** laudo explícito que não é parecer jurídico; achados Críticos e Altos precisam de validação por advogado/encarregado antes de qualquer operação com titulares reais. Próximos passos agrupados em blocos (corrigir produção, realinhar governança, reduzir exposição, Fase 14 do roadmap).
+
+## [2026-08-22] docs: roadmap atualizado — fase atual 13.6, nova Fase 13.7 (separação de ambientes)
+
+- **Branch:** main
+- **Tipo:** docs
+- **O quê:** replanejamento do roadmap incorporando os 118 achados dos quatro laudos de auditoria pós-deploy de 2026-08-22 (seção "Sobreposição adicional") e a decisão do usuário de separar produção (VPS Hostinger, São Paulo) de staging/integração (Render+Neon). Duas fases novas inseridas — **13.6** (correções críticas pós-go-live: canal do titular, aviso de privacidade autocontraditório, trava de somente-leitura das contas demo estendida a toda escrita de domínio, separação de privilégio do usuário de runtime do banco, backup cifrado — fase atual, detalhada por completo) e **13.7** (provisionamento da VPS + fluxo de branches `main`/`staging`, também detalhada por completo) — e uma terceira entre as Fases 15 e 16 — **15.5** (enforcement de qualidade ausente + épico de comentários de rastreabilidade, ~310 ocorrências em 192 arquivos). As Fases 14, 15, 16 e 18 (antes só um parágrafo-objetivo, baseadas no laudo de 2026-08-05) foram revisadas com evidência concreta de arquivo:linha do laudo de 2026-08-22, sem mudança de escopo material — a maioria dos achados novos confirma o que já estava planejado.
+- **Arquivos principais:** `.claude/docs/roadmap.md`, `.claude/docs/adr/0012-separacao-producao-vps-staging-render-neon.md` (novo), `.claude/project_context/08-convencoes-git.md` (seção "Ambientes e branches principais", nova), `.claude/project_context/07-decisoes-em-aberto.md`.
+- **Decisões/ADRs:** **ADR-0012** — produção migra para VPS Hostinger KVM 4 (Ubuntu 24.04, São Paulo), retomando a conclusão de conformidade da ADR-0008 (sem operador estrangeiro); Render+Neon é rebaixado a staging/integração, com a ADR-0010 permanecendo vigente para esse ambiente (continua público, por decisão do usuário — a exposição residual documentada lá não desaparece, é por isso que a Fase 13.6 continua necessária mesmo com a separação).
+- **Notas:** domínio (`lumitrack.com.br` ou `.app.br`) ainda não registrado — é a única dependência externa bloqueante da Fase 13.7. Fluxo de branches novo (`feat/fix/epic` → `staging` → `main`) atualiza a convenção "Base: sempre main" do `08-convencoes-git.md` para "Base: staging, salvo a promoção". Ordem final do roadmap: 13.6 → 13.7 → 14 → 15 → 15.5 → 16 → 17 → 18 → 19–22.

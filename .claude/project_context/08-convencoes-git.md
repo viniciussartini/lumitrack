@@ -4,6 +4,22 @@
 >
 > **Fora de escopo:** versão de release (SemVer, tags `vX.Y.Z`). O projeto é um web app com deploy contínuo — não há artefato consumido por terceiros, então numeração de versão não comunica nada a ninguém e cairia na trava YAGNI do `06`. Se um dia houver app mobile, API pública ou biblioteca, esta seção ganha a convenção de release.
 
+## Ambientes e branches principais
+
+**Duas branches de longa duração, cada uma servindo um ambiente** (ADR-0012):
+
+| Branch | Ambiente | Papel |
+|---|---|---|
+| `main` | VPS Hostinger, São Paulo (Caminho B do `DEPLOY.md`) | Produção — estável, testado e consolidado, acessível ao público. |
+| `staging` | Render + Neon (Caminho A do `DEPLOY.md`) | Testes e integração — recebe o merge de toda branch de implementação para validação online antes da promoção. Continua público. |
+
+**Fluxo:** `feat/fix/epic/{N}-...` → PR → `staging` → validado online → PR → `main`.
+
+- **Base padrão de PR passa a ser `staging`**, não `main` — a skill `preparar-pr` usa `staging` salvo indicação em contrário.
+- **O PR de promoção `staging`→`main`** é diferente de um PR de feature: não fecha issue própria (as issues já fecharam nos commits das branches que entraram em `staging`), e o checklist do `PULL_REQUEST_TEMPLATE.md` foca em "o que já foi validado no staging" em vez de critérios de aceite de uma issue específica.
+- **`main` e `staging` são ambas protegidas** contra push direto — toda entrada, nos dois casos, passa por PR.
+- **CI roda em PR para as duas** — `ci.yml` não fica restrito a `main`.
+
 ## Nomes de branch
 
 Formato: `<tipo>/<descricao-em-kebab-case>` — o `<tipo>` espelha os tipos de commit e as labels `tipo:`.

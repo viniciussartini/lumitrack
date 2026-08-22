@@ -1,9 +1,9 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-20 · Fases 1–13.5 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187 e issue #127. Fase atual: nenhuma — corrigindo bugs encontrados no uso real da demo pública antes de abrir a Fase 14.
+> Última atualização: 2026-08-22 · Fases 1–13.5 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187 e issue #127. Fase atual: **13.6** (correções críticas pós-go-live) — planejada, detalhe abaixo.
 >
-> Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das quatro auditorias de 2026-08-05** (segurança, conformidade, qualidade, desempenho) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
+> Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das auditorias** — as quatro de 2026-08-05 e, a partir da Fase 13.6, as quatro de 2026-08-22 (pós-deploy) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **A Fase 13.7 separa os ambientes:** VPS Hostinger (São Paulo) vira produção real (branch `main`), Render+Neon é rebaixado a staging/integração (branch `staging`) — ver **ADR-0012**. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
 ## Visão geral das fases
 
@@ -23,11 +23,14 @@
 | 12 | Travas mecânicas de qualidade + correções sem trade-off | **Concluída** (#160–#165, épico #159) |
 | 13 | Endurecimento de segurança (P1) — cadastro público, credenciais, perímetro, CSP, lacunas de teste | **Concluída** (#177–#184, épico #185) |
 | 13.5 | Primeiro deploy — infraestrutura de go-live + documentação pública | **Concluída** (épico #187) |
-| 14 | Conformidade P1 — retenção, DSAR, consentimento e documentos legais | Planejada — objetivo abaixo |
-| 15 | Desempenho — instrumentação, índices e eliminação dos multiplicadores | Planejada — objetivo abaixo |
-| 16 | Worker IoT — robustez, estrutura e cobertura | Planejada — objetivo abaixo |
+| **13.6** | **Correções críticas pós-go-live** — canal do titular, aviso de privacidade, contas demo, privilégio de banco, backup | **Planejada — fase atual, detalhe abaixo** |
+| **13.7** | **Separação de ambientes** — VPS Hostinger (produção) + Render/Neon (staging) | **Planejada — detalhe abaixo** |
+| 14 | Conformidade P1 — governança (ROPA/RIPD), retenção, DSAR, consentimento e documentos legais | Planejada — objetivo revisado abaixo |
+| 15 | Desempenho — instrumentação, índices, multiplicadores, compressão e pool de conexões | Planejada — objetivo revisado abaixo |
+| **15.5** | **Enforcement de qualidade + comentários de rastreabilidade** | **Planejada — objetivo abaixo** |
+| 16 | Worker IoT — robustez, estrutura e cobertura | Planejada — objetivo revisado abaixo |
 | 17 | Frontend — tempo real e bundle | Planejada — objetivo abaixo |
-| 18 | Design system, cobertura de testes e polimento | Planejada — objetivo abaixo |
+| 18 | Design system, cobertura de testes e polimento | Planejada — objetivo revisado abaixo |
 | 19 | Grupo A — fundação tarifária (subgrupos, modalidades, postos, demanda) + Horária Verde | Planejada — detalhe abaixo |
 | 20 | Grupo A — Horária Azul, ultrapassagem de demanda e energia reativa excedente | Planejada — objetivo abaixo |
 | 21 | Mercado Livre de Energia (ACL) | Planejada — objetivo abaixo |
@@ -421,6 +424,24 @@ Cada linha abaixo é **um item de trabalho**, não quatro — auditorias diferen
 | Credenciais demo no bundle | MÉDIA | BAIXO | — | — |
 | Export DSAR incompleto / sem limite | — | ALTO | — | M-12 (Médio) |
 | Drift de documentação viva | — | BAIXO | Q-21/22/23/35 | — |
+
+### Sobreposição adicional — laudos de 2026-08-22 (pós-deploy)
+
+Segunda rodada, feita **depois** do go-live da Fase 13.5 — por isso encontra uma classe de achado que a rodada de 2026-08-05 não podia prever: gates que a ADR-0008/ADR-0010 condicionavam ao deploy e que não fecharam de fato. Deram origem à Fase 13.6 (urgente) e, por decisão do usuário no mesmo replanejamento, à Fase 13.7 (separação de ambientes).
+
+| Item | Segurança | Conformidade | Qualidade | Desempenho |
+|---|---|---|---|---|
+| Keep-alive (ADR-0011) mantém a demo 24/7, sem retenção de `meter_readings` | — | Alto (IP de visitante retido 730d) | Q-29 (drift: ADR-0011 não indexada) | A-04 (Alto) |
+| Contas demo sem trava em escrita de domínio | — | **Crítico** | — | — |
+| Canal do titular / aviso de privacidade autocontraditório | — | **Crítico** ×2 | — | — |
+| Usuário de runtime do banco = superusuário/migrador | Alto | — | — | — |
+| Backup sem cifra, sem restauração testada | Alto | — | — | — |
+| `ModbusTcpConnection.ts` — 7 protocolos, 1 arquivo | — | — | Q-07 (Alto) | (contexto de M-05/M-06) |
+| MQTT `reconnectPeriod: 0` | — | — | — | M-13 (Novo) |
+| Travas de complexidade desligadas / `eslint-plugin-jsdoc` nunca instalado | — | — | Q-04, Q-06 (Alto) | — |
+| Comentário de rastreabilidade sistêmico (~310 ocorrências) | — | — | Q-01 (Alto) | — |
+| Compressão HTTP ausente | — | — | — | A-05 (Novo) |
+| DEMO_PASSWORD no código-fonte | Média | Baixo | — | — |
 
 ## Fase 10 — Bloqueadores de segurança
 
@@ -933,25 +954,175 @@ Depois do fechamento, o uso real da demo pública expôs bugs que nenhuma audito
 - `MeterRepository.update()` apagava `extra` (credencial MQTT) quando o payload não reenviava o campo — formulário de edição do medidor nunca reenvia senha, então todo `PUT` sem isso destruía a credencial em silêncio.
 - Bootstrap do `iot-simulator` marcava os devices da demo como ligados só no `SimulationStore`, sem nunca chamar `engine.powerOn()` — nenhum `DeviceRunner` rodava, então nenhum device publicava dado nenhum, em todo boot, desde sempre (causa raiz de "painel sem consumo em tempo real").
 
-### Fase 14 — Conformidade P1: retenção, DSAR, consentimento e documentos (P1)
+## Fase 13.6 — Correções críticas pós-go-live
 
-Cobre: retenção de `MeterReading`/`AlertTriggerEvent`/`MfaBackupCode`/`TariffFlagHistory` + política de conta inativa (hoje o `RetentionService` cobre só 4 entidades de credencial — **o dado de maior risco do produto é o único sem prazo**); export DSAR completo (consumo agregado, medidores, disparos) + PDF na UI + limite de janela do audit log; base legal por operação, aceites separados (Termos ≠ Política) e reaceite via `consentVersion` (o campo existe e nunca foi comparado); aviso de privacidade complementado (cookies, prazos reais, decisões automatizadas do Art. 20, idade mínima do Art. 14) e revisão jurídica; `RUNBOOK_INCIDENTES.md` corrigido (3 dias úteis dobrados, canal correto da ANPD, registro de 5 anos incluindo incidentes **não** comunicados); guarda de registros de acesso (Marco Civil Art. 15); TLS obrigatório no SMTP em produção.
+> **Origem:** os quatro laudos de **2026-08-22** (pós-deploy) em `.claude/docs/` — `2026-08-22-seguranca-audit.md` (27 achados), `2026-08-22-conformidade-audit.md` (22), `2026-08-22-qualidade-audit.md` (38) e `2026-08-22-desempenho-audit.md` (31). Ver a tabela de sobreposição adicional logo abaixo da tabela de 2026-08-05.
+>
+> **Gate que esta fase fecha:** a demo pública já está no ar tratando dado de visitante real (IP, user-agent) desde a Fase 13.5 — os gates que a ADR-0008/ADR-0010 condicionavam ao deploy não fecharam de fato. Diferente das Fases 10/11/13 (que bloquearam o deploy *antes* de acontecer), aqui o deploy já ocorreu — a urgência é fechar a lacuna, não represar o lançamento. Continua necessária mesmo com a separação de ambientes da Fase 13.7: o Render permanece público como staging.
 
-### Fase 15 — Desempenho: instrumentação, índices e multiplicadores (P1)
+### Canal de comunicação com o titular, de fato funcional em produção
 
-**Instrumentação primeiro** — o `06:36` exige medir antes de otimizar, e hoje não há APM nem tracing (`07`). `pg_stat_statements` + `EXPLAIN (ANALYZE, BUFFERS)`, `prisma.$on('query')` contando queries por requisição, React DevTools Profiler, `rollup-plugin-visualizer` para baseline. Só então: índices de FK (`Property.userId`, `Area.propertyId`, `Device.areaId`, `Alert.userId`, `Property.distributorId` — o Prisma **não** cria índice de FK no PostgreSQL); cache in-process de bandeira e distribuidoras + `staleTime` no frontend; N+1 do `AlertService.findAll` (até 124 queries numa página de 31 alertas, reinvalidado a cada evento SSE de alerta) + endpoint de stats; endpoint batch de consumo (o Painel com 20 propriedades custa ~160 queries, 40 delas `GROUP BY` sobre a maior tabela); teto de `pageSize` maior para `/api/consumption`; `countBuckets` com `COUNT(*) OVER ()`.
+- **Comportamento:** o endereço de privacidade exibido em produção (Landing, Perfil, Política) resolve para um e-mail real, monitorado — não para o placeholder `privacidade@seu-dominio.com.br` que o build atual publica.
+- **Cobre:** Res. CD/ANPD 2/2022 Art. 11; LGPD Art. 18 §1º. Reabre o mesmo achado que a issue #155 (Fase 11) já havia fechado no código — a falha é de configuração de deploy, não de implementação.
+- **Priority:** P0 · **Size:** XS
+- **Critérios de aceite:** `VITE_PRIVACY_CONTACT_EMAIL` definida no `render.yaml` com um endereço real, redeploy do site estático confirmado; teste (build-time ou smoke test pós-deploy) que falhe se o valor publicado for igual ao placeholder — trava mecânica, não checklist manual.
+- **Depende de:** o endereço real a usar.
+- **Risco/observações:** baixíssimo esforço, mesma classificação do laudo de 2026-08-05 sobre o item original: "melhor relação custo/risco removido de todo o roadmap".
+
+### Aviso de privacidade sem autocontradição + reaceite
+
+- **Comportamento:** a Política de Privacidade publicada não afirma duas coisas incompatíveis sobre onde os dados ficam hospedados.
+- **Cobre:** LGPD Art. 6º VI, Art. 9º. `privacy-policy.md` § 5 ainda tem o bullet "Infraestrutura hospedada exclusivamente no Brasil" sobrevivente da versão 1.1, três parágrafos depois do § 4 dizer corretamente que a demo está nos EUA (Render/Neon).
+- **Priority:** P0 · **Size:** XS
+- **Critérios de aceite:** § 5 corrigido; `CURRENT_CONSENT_VERSION` incrementada para `1.3`.
+- **Depende de:** —
+- **Risco/observações:** baixo — edição de texto + 1 constante. O risco é reputacional/legal por continuar publicado errado, não técnico.
+
+### Trava de somente-leitura das contas demo estendida a toda escrita de domínio
+
+- **Comportamento:** nenhum visitante consegue gravar dado pessoal real via conta demo — hoje a trava cobre só a entidade `User` (troca de e-mail/senha/MFA); `Property.address/city/state/zipCode` e as demais entidades de domínio ficam abertas para qualquer visitante escrever.
+- **Cobre:** LGPD Art. 33-35, Art. 46, Art. 6º VII — é a premissa que sustenta a conclusão de conformidade inteira da ADR-0010 ("nenhum dado pessoal de pessoa real é armazenado"), hoje falsa na prática.
+- **Priority:** P0 · **Size:** S/M
+- **Critérios de aceite:** guard central (`req.user.isDemo`, aplicado uma vez no `authenticate` ou num middleware dedicado às rotas de mutação) cobrindo `property`/`area`/`device`/`meter`/`alert` — não um `if` replicado por service; teste de integração cobrindo pelo menos a escrita de `Property.address` pela conta demo, que hoje passa e não deveria.
+- **Depende de:** —
+- **Risco/observações:** médio — é o item de maior superfície da fase. Decidir na execução entre "somente-leitura total" (mais simples) e "permite campos sem PII, bloqueia os com PII" (mais fiel ao valor de portfólio de deixar a demo brincável).
+
+### Privilégio do usuário de runtime do banco
+
+- **Comportamento:** o usuário que a aplicação usa em produção não consegue executar DDL (`CREATE`, `DROP`) — hoje ele é o mesmo superusuário que roda as migrações.
+- **Cobre:** OWASP A04/defesa em profundidade; DoD de `11-seguranca-infraestrutura.md` ("usuário de runtime do banco não consegue executar DDL").
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** papel `lumitrack_app` no Neon com `SELECT/INSERT/UPDATE/DELETE` + `USAGE` na sequência, sem `CREATE`, sem ownership; `DATABASE_URL` de runtime (Render) aponta pra ele; `DATABASE_URL` de migração continua no usuário administrativo; teste negativo (`CREATE TABLE t(x int)` deve falhar com o usuário de runtime), documentado no `DEPLOY.md`.
+- **Depende de:** —
+- **Risco/observações:** baixo-médio — mudança de infraestrutura, não de código; testar em ambiente descartável antes de aplicar no Neon de produção. O mesmo padrão entra **já correto** no provisionamento da VPS (Fase 13.7), sem precisar de correção lá.
+
+### Backup cifrado + restauração testada
+
+- **Comportamento:** existe um backup que, se vazado, não expõe e-mail/nome/hash de senha/IP em texto claro; e existe um registro de que já foi restaurado com sucesso ao menos uma vez.
+- **Cobre:** LGPD Art. 16, Art. 46; DoD de `11-seguranca-infraestrutura.md` ("restauração de backup testada, com data registrada").
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** `pg_dump | gzip | age -r <chave-pública>` (ou `gpg --encrypt`) no pipe de `deploy/backup-postgres.sh`, chave privada fora da VM; `deploy/BACKUP-RESTORE-LOG.md` novo com a data do primeiro teste de restauração.
+- **Depende de:** —
+- **Risco/observações:** baixo — script já existe, é inserir um passo no pipe. Mesmo script (já cifrado) reaproveitado tal e qual na Fase 13.7 para o backup da VPS.
+
+### Housekeeping em lote (P1, dentro da mesma branch)
+
+Itens de custo trivial, empacotados por já estarem tocando os mesmos arquivos/contexto — não justificam item próprio:
+
+- `DEMO_PASSWORD` sai do código-fonte para env var sem default (fecha a regra + o allowlist correspondente no `.gitleaks.toml`).
+- Drift de documentação viva encontrado pela auditoria de qualidade (Q-29 a Q-36): indexar ADR-0011 (e, ao concluir esta fase, ADR-0012) em `03`/`04`/`07`/`.claude/docs/README.md`; corrigir "15 jobs" → 14; corrigir "um adaptador por protocolo"; listar as 4 feature flags (não 1); acrescentar ANEEL/UptimeRobot em "integrações externas"; remover a pendência já resolvida do `07`; completar os inventários de `shared/`.
+
+**Não detalhada como fechamento porque ainda não foi executada** — segue como a fase atual do roadmap até a implementação.
+
+## Fase 13.7 — Separação de ambientes: VPS Hostinger (produção) + Render/Neon (staging)
+
+> **Origem:** decisão do usuário, 2026-08-22 — VPS Hostinger KVM 4 (Ubuntu 24.04, São Paulo) contratada para hospedar a produção real; o ambiente Render+Neon atual é rebaixado a staging/integração, mantendo-se público. Registrada em **ADR-0012**, que retoma a conclusão de conformidade da ADR-0008 (sem operador estrangeiro, sem transferência internacional) para o ambiente de produção — a região São Paulo confirma isso — e mantém a ADR-0010 vigente com o escopo redefinido para o staging.
+>
+> **Gate que esta fase fecha:** existe um ambiente de produção brasileiro, sob controle próprio, servindo a branch `main`. Reaproveita quase integralmente os artefatos já versionados e nunca executados de verdade (`docker-compose.yml`, `deploy/Caddyfile`, `deploy/provision-vm.sh`, `deploy/backup-postgres.sh` — o Caminho B do `DEPLOY.md`) — a fase é executar e adaptar de Oracle-específico para Hostinger genérico, e plugar o fluxo de branches novo.
+>
+> **Assunção a confirmar na execução:** a VPS herda a mesma postura de hoje (cadastro fechado, contas sintéticas) até haver decisão explícita de abrir cadastro real.
+>
+> **Fluxo de branches (novo — atualiza `08-convencoes-git.md`):** `feat/fix/epic` → PR → `staging` (deploy automático no Render) → validação online → PR → `main` (deploy na VPS).
+
+### Domínio, DNS e acesso SSH
+
+- **Comportamento:** `lumitrack.com.br` (ou `.app.br`) resolve para o IP da VPS; acesso remoto só por chave SSH, nunca senha.
+- **Priority:** P0 · **Size:** XS
+- **Critérios de aceite:** domínio registrado (registro.br); registro `A` (e `AAAA` se houver IPv6) apontando pro IP da VPS; usuário não-root com sudo criado; autenticação por senha desabilitada no `sshd_config`; `ufw` liberando só 22/80/443.
+- **Depende de:** —
+- **Risco/observações:** baixo, mas é a única dependência **externa** de todo o resto — sem DNS resolvendo, o Caddy não consegue emitir certificado Let's Encrypt (desafio HTTP-01 precisa do domínio já apontando).
+
+### Provisionamento do sistema base + Docker
+
+- **Comportamento:** a VPS tem Docker/Docker Compose, atualizações de segurança automáticas, e nada além de 22/80/443 exposto.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** `deploy/provision-vm.sh` revisado e executado (hoje escrito pensando em Oracle Cloud — remover qualquer passo específico da Oracle); Docker Engine + Compose plugin instalados; `unattended-upgrades` ativo; swap avaliado (2-4 GB como rede de segurança para Postgres+Node+simulador+Caddy simultâneos, mesmo com os 16 GB de RAM da KVM 4).
+- **Depende de:** Domínio/SSH.
+- **Risco/observações:** baixo — a VPS paga tem folga de recurso que a Oracle Always Free nunca teve; o script original foi desenhado sob restrição de 1 OCPU/6GB, aqui sobra margem.
+
+### PostgreSQL com separação de privilégio desde o início
+
+- **Comportamento:** o Postgres roda na própria VPS (container do `docker-compose.yml`), e a aplicação nunca se conecta como superusuário.
+- **Cobre:** o mesmo achado ALTO de segurança da Fase 13.6 (usuário de runtime = superusuário) — aqui a lição já entra corrigida na fundação, não como remendo.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** dois papéis desde a primeira subida — `lumitrack` (administrativo, roda `prisma migrate deploy`) e `lumitrack_app` (runtime, sem `CREATE`, só DML) — `DATABASE_URL` do backend em produção aponta pro segundo; teste negativo de DDL documentado no `DEPLOY.md`.
+- **Depende de:** Provisionamento do sistema base.
+- **Risco/observações:** baixo — mais fácil fazer certo agora (banco vazio) do que migrar depois.
+
+### Reverse proxy, TLS e host canônico
+
+- **Comportamento:** `https://lumitrack.com.br` responde com certificado válido, renovado automaticamente; HTTP redireciona pra HTTPS; nenhum `Host` forjado passa.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** `deploy/Caddyfile` ajustado pro domínio real (renovação automática via Let's Encrypt); `PUBLIC_API_ORIGIN=https://lumitrack.com.br` no `.env` de produção; header `Content-Security-Policy` do Caddy incluindo `frame-ancestors`/`base-uri`/`object-src` (as 3 diretivas que a tag `<meta>` do SPA não cobre); `curl -I` confirma HSTS.
+- **Depende de:** Domínio/DNS resolvendo; PostgreSQL provisionado.
+
+### `.env` de produção e paridade com os controles críticos da Fase 13.6
+
+- **Comportamento:** a VPS sobe com a mesma postura de segurança/conformidade que a Fase 13.6 fixou no Render — não uma versão nova a auditar do zero.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** `REGISTRATION_ENABLED=false`, `DEMO_LOGIN_ENABLED=true`, `VITE_PRIVACY_CONTACT_EMAIL` real, trava de somente-leitura das contas demo (já existe no código desde a 13.6, é só configuração), `IOT_ALLOWED_HOSTS=127.0.0.1/32`; **cinco chaves de cifra geradas novas** — nunca as do Neon/Render; `CORS_ORIGIN`/`PUBLIC_API_ORIGIN` com o domínio real.
+- **Depende de:** Reverse proxy; separação de privilégio do banco.
+- **Risco/observações:** reaproveitar chave de outro ambiente é o erro mais caro e mais fácil de cometer aqui — checklist explícito no `DEPLOY.md`.
+
+### Backup cifrado, testado, desde o primeiro dia
+
+- **Comportamento:** existe backup automático do Postgres da VPS, cifrado, com uma restauração já comprovada.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** `deploy/backup-postgres.sh` (já existe, já cifrado desde a Fase 13.6) + timer `systemd` agendado; restauração testada uma vez num banco descartável; `deploy/BACKUP-RESTORE-LOG.md` com a data.
+- **Depende de:** PostgreSQL provisionado.
+
+### Seed e verificação ponta a ponta
+
+- **Comportamento:** a produção funciona de verdade — login demo entra, painel mostra potência ao vivo, alerta dispara.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** `db:seed:demo` executado; simulador co-locado publicando; SSE funcionando através do Caddy — aqui não deveria ter o problema de rewrite que o Render teve (é reverse proxy de verdade, não static-site rewrite), mas testar explicitamente.
+- **Depende de:** `.env` de produção; reverse proxy.
+
+### Branch `staging` e replumbing de CI/CD
+
+- **Comportamento:** o fluxo de duas branches funciona ponta a ponta — PR de feature vai pra `staging`, valida no Render, promove pra `main`, sobe na VPS.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Branch `staging` criada a partir de `main`, protegida contra push direto (mesma regra de `main`).
+  - Render reconfigurado: branch de auto-deploy passa de `main` para `staging`.
+  - `ci.yml` roda em PR para `staging` **e** para `main`.
+  - `08-convencoes-git.md` atualizado: "Base: `staging`, salvo o PR de promoção `staging`→`main`".
+  - Deploy em `main` → VPS: **manual no início** (`git pull && docker compose up -d --build` via SSH, documentado passo a passo no `DEPLOY.md`) — automação via GitHub Actions com SSH fica registrada como item futuro (P2), não bloqueia esta fase.
+- **Depende de:** VPS funcionando ponta a ponta (itens anteriores).
+- **Risco/observações:** baixo tecnicamente, mas muda o hábito de trabalho — vale um teste real (uma branch de feature pequena passando pelo fluxo completo) antes de considerar a fase fechada.
+
+### Documentação
+
+- **Comportamento:** `DEPLOY.md`, `04-tech-stack.md` e `03-arquitetura.md` descrevem o par de ambientes real, não mais "Caminho A vigente / Caminho B futuro".
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:** `DEPLOY.md` reescrito com a VPS como produção; `04-tech-stack.md` com os dois ambientes e suas URLs; `07-decisoes-em-aberto.md` recebe a ADR-0012 na lista de resolvidas.
+- **Depende de:** todos os itens anteriores.
+
+### Fase 14 — Conformidade P1: governança, retenção, DSAR e consentimento (P1)
+
+Cobre o escopo original (retenção de `MeterReading`/`AlertTriggerEvent`/`MfaBackupCode`/`TariffFlagHistory` + política de conta inativa; export DSAR completo — consumo agregado, medidores, disparos — + PDF na UI + limite de janela do audit log; base legal por operação, aceites separados e reaceite via `consentVersion`; `RUNBOOK_INCIDENTES.md` corrigido; guarda de registros de acesso; TLS obrigatório no SMTP), **revisado com evidência concreta do laudo de 2026-08-22**: **ROPA reescrito** — hoje autocontraditório (as 7 operações afirmam "sem operador, sem transferência internacional" enquanto a tabela de operadores da mesma página lista Render/Neon nos EUA); acrescentar `email_changes`, backups e os serviços avaliados sem dado pessoal (ANEEL, UptimeRobot). **RIPD reavaliado** — risco 6.2 (credencial de medidor em claro) fechar, já corrigido; risco 6.3 (transferência internacional) reabrir com a natureza correta. **Adesão aos DPAs de autoatendimento** de Render/Neon **e** avaliação de manter ou não o Neon como staging de longo prazo, agora que a produção real está na VPS (issue #236 do épico #238 — retenção de `MeterReading` — já criada, entra aqui). Aviso de privacidade completado (cookies, prazos reais, Art. 20, Art. 14) — a autocontradição do § 5 já foi corrigida na Fase 13.6, isto é o restante.
+
+### Fase 15 — Desempenho: instrumentação, índices, multiplicadores e infraestrutura (P1)
+
+Escopo original preservado (instrumentação primeiro — `pg_stat_statements`, `EXPLAIN`, `prisma.$on('query')`, React DevTools Profiler, `rollup-plugin-visualizer` — só então índices de FK, cache in-process de bandeira/distribuidoras, N+1 do `AlertService.findAll`, endpoint batch de consumo, `countBuckets` com `COUNT(*) OVER ()`), acrescido pelo laudo de 2026-08-22 de dois achados "zero risco, uma linha", isentos de medição prévia pelo próprio laudo: **compressão HTTP** (nem `compression` no Express nem `encode` no Caddy — bundle e JSON trafegam crus nos dois ambientes) e **pool de conexões do Prisma/pg sem configuração explícita** (`max`/`connectionTimeoutMillis` nunca definidos, com 3 consumidores concorrentes já confirmados no código). A retenção de `meter_readings` é a mesma migração do item de retenção da Fase 14 — coordenar para não duplicar a alteração de schema.
+
+### Fase 15.5 — Enforcement de qualidade + comentários de rastreabilidade (P1)
+
+> Mesmo raciocínio que já colocou a Fase 12 antes das Fases 16–18: fechar a lacuna entre o que os padrões declaram enforçado e o que a ferramenta de fato verifica, **antes** que mais código complexo (Fase 16, Fases 19–22) se acumule por trás de travas que não travam.
+
+Cobre: decisões de enforcement do laudo de qualidade de 2026-08-22 — instalar `eslint-plugin-jsdoc` (ou corrigir o `06` para não afirmar que existe); `complexity`/`max-lines-per-function` hoje desligadas em 54 arquivos (~metade do frontend) — trocar por teto decrescente com prazo em vez de `off` puro; `dependency-cruiser` com a regra de ciclo que o `03` já promete, ausente no backend e inexistente no frontend; decidir sobre type-check no pre-commit; ADR sobre o padrão real de acesso cross-módulo (service → repository de outro módulo). **Comentário de rastreabilidade** — ~310 ocorrências (issue/PR/Fase N) em 192 arquivos, violando a regra inegociável do `06`/`CLAUDE.md`; épico próprio (o laudo recomenda), quebrado por diretório/pacote na execução. Teste de `resolveRootProperty` (primitiva central de autorização de posse, hoje sem cobertura dedicada).
 
 ### Fase 16 — Worker IoT: robustez, estrutura e cobertura (P2)
 
-Cobre: quebrar `ModbusTcpConnection.ts` (662 linhas, 7 classes de protocolos distintos, com o stub de PROFIBUS instruindo a consultar documentação no próprio arquivo) em um arquivo por adaptador + `serialLineParser.ts` compartilhado; schema Zod por protocolo em `createConnection`, eliminando os **22 non-null assertions** sobre dados do banco e os ~120 linhas de boilerplate de uma vez; polling com guarda de reentrância, timeout, backoff e reconexão nos 4 adaptadores (`setInterval` hoje não espera a promise anterior); mapeamento de payload dos adaptadores não-MQTT (**hoje 100% das leituras Modbus/EtherNet-IP/PROFINET são descartadas** — só MQTT funciona ponta a ponta); tetos plausíveis no payload IoT via Zod; SSE com serialização única e backpressure; `upsertMinute` em `INSERT ... ON CONFLICT`; cobertura dos 6 adaptadores sem teste + da fábrica.
+Cobre o escopo original (quebrar `ModbusTcpConnection.ts` em um arquivo por adaptador + `serialLineParser.ts` compartilhado; schema Zod por protocolo eliminando os non-null assertions; polling com reentrância/timeout/backoff/reconexão; mapeamento de payload dos adaptadores não-MQTT; tetos plausíveis no payload IoT; SSE com serialização única e backpressure; `upsertMinute` em `INSERT ... ON CONFLICT`; cobertura dos 6 adaptadores), acrescido do achado novo de 2026-08-22: **MQTT com `reconnectPeriod: 0`** — desabilita reconexão automática, contradizendo o próprio comentário do `demo-entrypoint.sh` que promete reconexão; modo de falha mais caro de diagnosticar (painel que parece funcionar mas nunca mais atualiza). E o simulador: coalescer notificações de snapshot (hoje O(D²×C) materializações/segundo).
 
 ### Fase 17 — Frontend: tempo real e bundle (P2)
 
-Cobre: React Compiler habilitado (o código já é compiler-clean por lint e vários comentários citam o compilador — **colhe zero benefício dele hoje**) + separação do `RealtimeContext` em conexão/leituras; buffer de potência circular com downsampling (hoje O(n) por amostra sobre até 86.400 pontos, com o `useMemo` do gráfico nunca acertando); `useLiveMeterReading` sem render a cada 2 s; code-splitting por rota + `manualChunks` isolando `recharts` e a stack markdown (hoje `/login` baixa as duas dependências mais pesadas do projeto).
+Cobre: React Compiler habilitado (o código já é compiler-clean por lint e vários comentários citam o compilador — **colhe zero benefício dele hoje**) + separação do `RealtimeContext` em conexão/leituras; buffer de potência circular com downsampling (hoje O(n) por amostra sobre até 86.400 pontos, com o `useMemo` do gráfico nunca acertando); `useLiveMeterReading` sem render a cada 2 s; code-splitting por rota + `manualChunks` isolando `recharts` e a stack markdown (hoje `/login` baixa as duas dependências mais pesadas do projeto). Achados de 2026-08-22 confirmam este escopo sem item novo.
 
 ### Fase 18 — Design system, cobertura e polimento (P2)
 
-Cobre: **decisão de token primeiro** — mapear no `@theme` a escala tipográfica e de espaçamento que o protótipo de fato usa (os 143 valores arbitrários não são descuido: o tema mapeia cor/fonte/raio/sombra mas não a escala, então cada tela recorre ao colchete) e promover o verde `#3f8f52` a token, com `/design-sync` de volta; depois a limpeza mecânica — tokens pré-Industry em ~16 arquivos, `.lt-live-dot` no lugar da animação inline replicada 10×, ramo morto do `UserMenu` (cuja **suíte de testes valida exclusivamente o ramo morto**), `LiveKpiCard` adotado nas 3 páginas que o copiaram, decisão única sobre `Blueprint` vs. cantos manuais, e lint anti-regressão. Mais: namespace próprio de `queryKey` para "último bucket" (elimina o `pageSize: 3` mágico que hoje evita uma colisão que **já causou bug real**); cobertura de Alertas (RF14–RF16, hoje sem nenhum teste, único mecanismo que avisa o usuário sobre consumo anômalo), do SSE client e do CRUD de Medidor; `parseOrThrow` eliminando as 31 repetições; drift de documentação viva (`10`, `03`, `04`, `README`); e o restante do polimento (Q-25 a Q-37, B-04, B-07, B-08).
+Cobre: **decisão de token primeiro** — mapear no `@theme` a escala tipográfica e de espaçamento que o protótipo de fato usa (**291 valores arbitrários em 44 arquivos**, medição de 2026-08-22 — dobrou desde a nota de 2026-08-09) e promover o verde `#3f8f52` a token, com `/design-sync` de volta; **cor hardcodada como achado distinto do débito de espaçamento** — 54 ocorrências de hex em 17 arquivos, incluindo o mapa de cores de bandeira tarifária inteiramente arbitrário; depois a limpeza mecânica — tokens pré-Industry em ~16 arquivos, `.lt-live-dot` no lugar da animação inline replicada 10×, ramo morto do `UserMenu`, `LiveKpiCard` adotado nas 3 páginas que o copiaram, decisão única sobre `Blueprint` vs. cantos manuais, e lint anti-regressão. Mais: namespace próprio de `queryKey` para "último bucket"; cobertura de Alertas, do SSE client e do CRUD de Medidor; `parseOrThrow` eliminando as 31 repetições; drift de documentação viva restante; e o restante do polimento.
 
 ---
 
@@ -1133,3 +1304,13 @@ Candidatos conhecidos, ainda sem fase:
 - **Por que a documentação pública entrou na mesma fase (Bloco B), e não numa fase própria:** os dois blocos fecham o mesmo marco e nenhum faz sentido publicado sem o outro. O wiki descreve hoje o projeto acadêmico original em ASP.NET, e cinco afirmações dele contradizem o código atual — publicar o sistema mantendo isso no ar seria pior do que não ter wiki. Os blocos são independentes entre si e podem correr em paralelo; o marco espera os dois.
 - **Consequência para a Fase 15:** a instrumentação de desempenho passa a ter onde medir. Medir gargalo em ambiente local, com dado de seed, era o ponto fraco reconhecido daquela fase — com o sistema no ar e o simulador publicando de forma contínua, a medição passa a valer alguma coisa.
 - **Decisão que a fase força:** observabilidade de produção sai de `07-decisoes-em-aberto.md` como item de médio prazo e vira escolha imediata — ou entra como ADR-0009 dentro da fase, ou subir sem monitoramento passa a ser risco assumido de forma explícita, não esquecimento.
+
+### Replanejamento de 2026-08-22 (Fases 13.6, 13.7, 15.5; revisão de 14/15/16/18)
+
+**O que mudou:** duas fases novas inseridas antes da 14 (13.6 e 13.7) e uma nova entre a 15 e a 16 (15.5); as Fases 14, 15, 16 e 18 tiveram o objetivo revisado com evidência dos quatro laudos de auditoria de 2026-08-22 (pós-deploy). Nenhuma fase existente foi removida ou renumerada — mesmo princípio já usado na inserção da Fase 13.5.
+
+- **13.6 antes de 13.7:** os dois são independentes entre si, mas 13.6 corrige uma exposição que já está ativa no ambiente público **hoje**, com esforço pequeno (a maioria dos itens é XS/S); 13.7 é um projeto de infraestrutura maior (provisionar VPS, DNS, TLS, novo fluxo de branches). Corrigir o que já está exposto antes de construir o próximo ambiente é a mesma lógica que já ordenou a Fase 10 (segurança, executável agora) antes da 11 (parte documental/dependente de decisão) — o item mais rápido de fechar não espera o mais lento.
+- **13.7 não elimina a necessidade da 13.6:** o usuário decidiu manter o Render+Neon público como staging (não restrito). Os achados críticos de conformidade da 13.6 continuam valendo lá enquanto ele for alcançável por visitante real — a separação de ambientes muda o *rótulo* do ambiente (produção → staging), não a exposição.
+- **13.7 aplica a lição da 13.6 na fundação, não como remendo:** a separação de privilégio do usuário do banco e a cifra do backup entram *desde a primeira subida* da VPS, porque o banco nasce vazio — mais barato do que a correção equivalente no Neon (Fase 13.6), que precisa lidar com um ambiente já em produção.
+- **15.5 entre 15 e 16, não dentro da 18:** mesmo raciocínio que já colocou a Fase 12 antes das Fases 16–18 — as decisões de enforcement (JSDoc, complexidade, dependency-cruiser, padrão de acesso cross-módulo) vão apontar exatamente o que refatorar no split do `ModbusTcpConnection.ts` (Fase 16); instalar a trava depois paga o trabalho duas vezes. O comentário de rastreabilidade (~310 ocorrências) entra na mesma fase por ser a mesma categoria de achado — lacuna entre padrão declarado e padrão enforçado — mesmo sendo P1 e não bloqueante: fechar antes das Fases 19–22 evita que o volume de comentários a limpar cresça junto com a maior expansão de domínio do roadmap.
+- **14, 15, 16 e 18 revisados, não substituídos:** os quatro laudos de 2026-08-22 confirmaram o escopo já planejado em 2026-08-05 na quase totalidade dos itens (mesma causa raiz, evidência mais concreta) — a revisão troca a generalidade da rodada anterior por arquivo:linha e acrescenta só os achados genuinamente novos (compressão HTTP, pool de conexões, bug do `reconnectPeriod`, contagens atualizadas de design system). Não há motivo para reescrever o que já estava certo.
