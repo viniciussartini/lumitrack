@@ -6,7 +6,7 @@ import { consumptionService } from "@/services/consumption.service"
 import { tariffFlagService } from "@/services/tariff-flag.service"
 import { computeMonthProjection, daysInMonth } from "@/lib/dashboardKpis"
 import { formatBrl } from "@/lib/format"
-import type { ConsumptionBucket, Granularity } from "@/types/consumption.types"
+import type { BucketSize, ConsumptionBucket, Granularity } from "@/types/consumption.types"
 import type { Paginated } from "@/types/pagination.types"
 import type { TariffFlagConfig } from "@/types/tariff-flag.types"
 import type { ReadingPayload } from "@/lib/sse/appStream"
@@ -19,15 +19,52 @@ vi.mock("@/services/tariff-flag.service", () => ({
     tariffFlagService: { get: vi.fn() },
 }))
 
+// Fuso fixado em America/Sao_Paulo pra todo o processo de teste via
+// `test.env.TZ` (vite.config.ts) — as constantes de data abaixo (que leem
+// `now` via getters locais) dependem de um offset não-zero em relação a UTC
+// pra reproduzir os bugs de dupla conversão de fuso ao decodificar datas
+// vindas do backend.
+
 // Datas relativas ao "agora" real do processo (sem fake timers — `findByText`/
 // `waitFor` do testing-library dependem de timers reais para o polling
-// assíncrono). Meio-dia local evita qualquer ambiguidade de fuso na
-// comparação `toLocalDateKey` (mesmos componentes locais usados pelo
-// componente).
+// assíncrono).
 const now = new Date()
-const todayNoon = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0)
-const yesterdayNoon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12, 0, 0)
+// Bucket de MÊS: fixture de meio-dia local, só pra testar a matemática da
+// projeção (`computeMonthProjection`) isolada da decodificação do bucket —
+// a decodificação em si (`findBucketForMonth`) já tem cobertura própria com
+// a codificação real do backend logo abaixo (`currentMonthSpBucket`, #234).
 const firstOfMonthNoon = new Date(now.getFullYear(), now.getMonth(), 1, 12, 0, 0)
+
+/**
+ * bucketStart de DIA no formato REAL que o backend produz (issue #233):
+ * timestamp naive de meia-noite SP, cujos dígitos o driver decodifica como
+ * se já fossem UTC — não meio-dia local convertido de verdade via
+ * `.toISOString()`. Os componentes de data vêm do próprio `date` local
+ * (mesmos que `DashboardKpiRow` calcularia via `now.getDate()`), então o
+ * teste fica determinístico em qualquer fuso do processo que o roda.
+ */
+const spDayBucketStart = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}T00:00:00.000Z`
+}
+const todaySpBucket = spDayBucketStart(now)
+const yesterdaySpBucket = spDayBucketStart(
+    new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1),
+)
+
+/**
+ * bucketStart de MÊS no formato REAL que o backend produz (issue #234):
+ * mesma codificação de `spDayBucketStart`, mas sempre no dia 1 — é como
+ * `date_trunc('month', ...)` trunca no backend.
+ */
+const spMonthBucketStart = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    return `${year}-${month}-01T00:00:00.000Z`
+}
+const currentMonthSpBucket = spMonthBucketStart(now)
 
 const paginated = <T,>(items: T[]): Paginated<T> & { granularity: Granularity } => ({
     items,
@@ -62,9 +99,16 @@ const mockReading = (powerW: number): ReadingPayload => ({
     receivedAt: now.toISOString(),
 })
 
-/** Devolve dado diferente por granularidade — cada KPI busca uma. */
+/**
+ * Devolve dado diferente por granularidade — cada KPI busca uma.
+ *
+ * `BucketSize` (não `Granularity`): `consumptionService.list` aceita
+ * "minute" também — `Record<Granularity, ...>` não tem essa chave e
+ * `responses[params.granularity]` quebrava o `tsc` (pré-existente, achado
+ * ao tocar este arquivo pela issue #233, sem relação com o bug de fuso).
+ */
 const mockConsumptionByGranularity = (
-    responses: Partial<Record<Granularity, ConsumptionBucket[]>>,
+    responses: Partial<Record<BucketSize, ConsumptionBucket[]>>,
 ) => {
     vi.mocked(consumptionService.list).mockImplementation(async (params) =>
         paginated(responses[params.granularity] ?? []),
@@ -119,10 +163,7 @@ describe("DashboardKpiRow — Potência agora / custo estimado", () => {
 describe("DashboardKpiRow — Consumo hoje", () => {
     it("mostra o delta vs. ontem quando os dois buckets existem", async () => {
         mockConsumptionByGranularity({
-            day: [
-                bucket(todayNoon.toISOString(), 12, 9.6),
-                bucket(yesterdayNoon.toISOString(), 10, 8),
-            ],
+            day: [bucket(todaySpBucket, 12, 9.6), bucket(yesterdaySpBucket, 10, 8)],
         })
 
         renderRow()
@@ -134,7 +175,7 @@ describe("DashboardKpiRow — Consumo hoje", () => {
 
     it("não mostra delta quando não há bucket de ontem", async () => {
         mockConsumptionByGranularity({
-            day: [bucket(todayNoon.toISOString(), 5, 4)],
+            day: [bucket(todaySpBucket, 5, 4)],
         })
 
         renderRow()
@@ -177,6 +218,30 @@ describe("DashboardKpiRow — Custo projetado do mês", () => {
         ).toBeInTheDocument()
         expect(
             await screen.findByText(new RegExp(`fechamento em ${expectedDaysToClose} dias`)),
+        ).toBeInTheDocument()
+    })
+
+    it("acha o bucket do mês mesmo com a codificação real de dia 1 meia-noite SP (issue #234)", async () => {
+        // Fixture de meio-dia local (teste acima) nunca cruza fronteira de
+        // mês em fuso nenhum — mascarava a mesma classe de bug já
+        // confirmada na #233. Dia 1 meia-noite SP naive-como-UTC é a
+        // codificação real que o backend produz pra bucket de mês.
+        const costSoFar = 30
+        mockConsumptionByGranularity({
+            month: [bucket(currentMonthSpBucket, 40, costSoFar)],
+        })
+
+        const dayOfMonth = now.getDate()
+        const totalDays = daysInMonth(now)
+        const expectedProjection = computeMonthProjection(costSoFar, dayOfMonth, totalDays)
+
+        renderRow()
+
+        const expectedProjectionText = formatBrl(expectedProjection).replace(/\s/g, " ")
+        expect(
+            await screen.findByText(
+                (content) => content.replace(/\s/g, " ") === expectedProjectionText,
+            ),
         ).toBeInTheDocument()
     })
 })

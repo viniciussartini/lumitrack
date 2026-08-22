@@ -5,16 +5,28 @@ import { HistoryRangeToggle, type HistoryRange } from "@/components/dashboard/Hi
 import { ConsumptionChart } from "@/components/consumption/ConsumptionChart"
 import { useConsumption } from "@/hooks/queries/useConsumption"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
+import { resolveMonthlyHistoryWindow } from "@/lib/consumptionWindow"
 
 interface ConsumptionHistorySectionProps {
     propertyId: string
     propertyName: string
 }
 
+// Teto do backend (`paginationQuerySchema`, pageSize máx. 31) — cobre o
+// pior caso de "todos os dias de um mês de 31 dias".
+const MONTHLY_HISTORY_PAGE_SIZE = 31
+
 /**
  * "Histórico de consumo" — bloco `isDashboard` do handoff (seção HISTORY),
- * gráfico mensal (kWh) com toggle 6/12 meses, sem tabela/paginação (o
- * handoff só tem o chart).
+ * gráfico com toggle 6 meses / 12 meses / **Mensal** (issue #230), sem
+ * tabela/paginação (o handoff só tem o chart).
+ *
+ * "Mensal" muda de grandeza, não só de intervalo: em vez de "os últimos N
+ * buckets de mês" (sem janela, ordem `desc` do backend), pede o consumo
+ * **por dia** dentro do mês corrente, do dia 1 até ontem — janela explícita
+ * (`resolveMonthlyHistoryWindow`), ordem `asc`. O dia de hoje fica de fora
+ * de propósito: está incompleto, e uma barra baixa só por o dia mal ter
+ * começado distorceria a leitura do gráfico.
  *
  * Gate de medidor PRÓPRIO — mesmo padrão independente de `ConsumptionSection`
  * (`useMeterByTarget` → `hasMeter` → só então dispara `useConsumption`), não
@@ -29,13 +41,31 @@ export const ConsumptionHistorySection = ({
     propertyName,
 }: ConsumptionHistorySectionProps) => {
     const [range, setRange] = useState<HistoryRange>(6)
+    const isMonthly = range === "month"
 
     const meterQuery = useMeterByTarget("PROPERTY", propertyId)
     const hasMeter = Boolean(meterQuery.data)
 
-    const query = useConsumption("PROPERTY", hasMeter ? propertyId : undefined, "month", 1, range)
+    // Sem `useMemo`: cálculo trivial (aritmética de Date), e recalcular a
+    // cada render mantém o "hoje" sempre correto — inclusive se o painel
+    // ficar aberto passando da meia-noite.
+    const monthlyWindow = resolveMonthlyHistoryWindow()
 
-    const buckets = query.data?.items ?? []
+    const query = useConsumption(
+        "PROPERTY",
+        hasMeter ? propertyId : undefined,
+        range === "month" ? "day" : "month",
+        1,
+        range === "month" ? MONTHLY_HISTORY_PAGE_SIZE : range,
+        range === "month"
+            ? { from: monthlyWindow.from, to: monthlyWindow.to, order: "asc" }
+            : undefined,
+    )
+
+    // Sem janela (6/12 meses): o backend devolve os mais recentes primeiro,
+    // invertido aqui pro gráfico ler em ordem cronológica. Com janela
+    // (Mensal): já pedimos `order: "asc"`, sem precisar inverter.
+    const buckets = isMonthly ? (query.data?.items ?? []) : [...(query.data?.items ?? [])].reverse()
 
     return (
         <div className="blueprint p-0" data-testid="consumption-history-section">
@@ -50,7 +80,8 @@ export const ConsumptionHistorySection = ({
                         Histórico de consumo
                     </span>
                     <span className="text-muted mt-[3px] block text-[12.5px]">
-                        {propertyName} · consumo mensal (kWh)
+                        {propertyName} · consumo {isMonthly ? "diário do mês corrente" : "mensal"}{" "}
+                        (kWh)
                     </span>
                 </div>
                 <HistoryRangeToggle value={range} onChange={setRange} />
@@ -87,7 +118,7 @@ export const ConsumptionHistorySection = ({
                 {hasMeter && query.isSuccess && (
                     <ConsumptionChart
                         buckets={buckets}
-                        granularity="month"
+                        bucketSize={isMonthly ? "day" : "month"}
                         isRefetching={query.isFetching}
                     />
                 )}

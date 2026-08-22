@@ -5,18 +5,21 @@ import {
     formatCostBrl,
     formatKwh,
 } from "@/lib/formatters/consumption"
-import type { ConsumptionBucket, Granularity } from "@/types/consumption.types"
+import type { BucketSize, ConsumptionBucket } from "@/types/consumption.types"
 
 interface ConsumptionTableProps {
     buckets: ConsumptionBucket[]
-    granularity: Granularity
+    bucketSize: BucketSize
 }
 
 /**
  * Tabela de consumo agregado — somente leitura (Fase 5, substitui o antigo
  * CRUD manual). Colunas: Período | kWh | Custo | Potência média.
+ *
+ * Renderiza na ordem recebida — quem consulta é que define se a janela vem
+ * cronológica (`order: "asc"`) ou do mais recente para o mais antigo.
  */
-export const ConsumptionTable = ({ buckets, granularity }: ConsumptionTableProps) => (
+export const ConsumptionTable = ({ buckets, bucketSize }: ConsumptionTableProps) => (
     <div
         className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800"
         data-testid="consumption-table-wrapper"
@@ -49,7 +52,7 @@ export const ConsumptionTable = ({ buckets, granularity }: ConsumptionTableProps
                         )}
                     >
                         <td className="px-4 py-3 whitespace-nowrap text-slate-700 dark:text-slate-300">
-                            {formatBucketLabel(bucket.bucketStart, granularity)}
+                            {formatBucketLabel(bucket.bucketStart, bucketSize)}
                         </td>
                         <td className="px-4 py-3 text-right font-mono tabular-nums">
                             {formatKwh(bucket.kwhConsumed)}

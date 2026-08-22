@@ -9,6 +9,7 @@ import {
     computeTodayDelta,
     daysInMonth,
     findBucketForDate,
+    findBucketForMonth,
 } from "@/lib/dashboardKpis"
 import {
     TARIFF_FLAG_LABELS,
@@ -57,9 +58,7 @@ export const DashboardKpiRow = ({ propertyId, reading, isStale }: DashboardKpiRo
     const yesterdayKwh = yesterdayBucket?.kwhConsumed ?? 0
     const todayDelta = dayQuery.isSuccess ? computeTodayDelta(todayKwh, yesterdayKwh) : null
 
-    const currentMonthBucket = monthQuery.data?.items.find((item) =>
-        sameMonth(new Date(item.bucketStart), now),
-    )
+    const currentMonthBucket = findBucketForMonth(monthQuery.data?.items ?? [], now)
     const monthCostSoFar = currentMonthBucket?.costBrl ?? 0
     const totalDaysInMonth = daysInMonth(now)
     const dayOfMonth = now.getDate()
@@ -125,9 +124,6 @@ export const DashboardKpiRow = ({ propertyId, reading, isStale }: DashboardKpiRo
         </div>
     )
 }
-
-const sameMonth = (a: Date, b: Date): boolean =>
-    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()
 
 /** "sem acréscimo" (bandeira verde, tipicamente 0) ou "+ R$ X / 100 kWh". */
 const formatFlagNote = (per100Kwh: number): string =>

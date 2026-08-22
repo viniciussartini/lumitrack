@@ -112,6 +112,22 @@ de minuto individual**. A única razão pela qual ela continua existindo
 indefinidamente hoje é a ausência de um passo de compactação — não uma
 necessidade funcional.
 
+> **Atualização — premissa mudou, conclusão pendente de reavaliação.** A
+> issue #226 (épico #225) adicionou `"minute"` ao `granularitySchema` e a UI
+> passou a consultar histórico por minuto na janela da hora corrente (aba
+> "Hora" do painel de consumo). A frase acima — "nenhuma granularidade mais
+> fina que hora é exposta por nenhuma funcionalidade do produto" — não é
+> mais verdadeira: RF12 agora é servido, em parte, por uma consulta que
+> **lê** a granularidade de minuto diretamente, não só a agrega
+> internamente. Isso não derruba a recomendação de retenção limitada do
+> §3.3 por si só — mas o fundamento mudou de "o dado de minuto nunca é
+> consultado" para "o dado de minuto é consultado numa janela curta (a hora
+> corrente)", o que é um argumento diferente e mais forte para um prazo de
+> retenção curto, não mais fraco. A reavaliação em si — se o prazo
+> sugerido (60–90 dias) continua adequado, e se a exposição por minuto na
+> UI muda algum outro risco do §4 — fica para a Fase 14, junto com o resto
+> desta recomendação; não é feita aqui.
+
 ### 3.3 Conclusão e recomendação (condiciona a Fase 14)
 
 **A granularidade de minuto não se justifica para retenção além do

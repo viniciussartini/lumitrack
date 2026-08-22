@@ -86,6 +86,37 @@ describe("useConsumption", () => {
         )
     })
 
+    it("repassa a janela (from/to/order) quando um range é informado", async () => {
+        vi.mocked(consumptionService.list).mockResolvedValue({
+            items: [],
+            total: 0,
+            page: 1,
+            pageSize: 10,
+            granularity: "minute",
+        })
+
+        const from = new Date(2026, 7, 21, 19, 0)
+        const to = new Date(2026, 7, 21, 20, 0)
+
+        renderHook(
+            () => useConsumption("PROPERTY", "prop-1", "minute", 1, 10, { from, to, order: "asc" }),
+            { wrapper: createWrapper() },
+        )
+
+        await waitFor(() =>
+            expect(consumptionService.list).toHaveBeenCalledWith({
+                targetType: "PROPERTY",
+                targetId: "prop-1",
+                granularity: "minute",
+                page: 1,
+                pageSize: 10,
+                from,
+                to,
+                order: "asc",
+            }),
+        )
+    })
+
     it("não dispara a query quando targetId é undefined", () => {
         renderHook(() => useConsumption("AREA", undefined, "day"), {
             wrapper: createWrapper(),

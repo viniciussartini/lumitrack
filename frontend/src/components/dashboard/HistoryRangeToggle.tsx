@@ -1,11 +1,14 @@
-export type HistoryRange = 6 | 12
+export type HistoryRange = "month" | 6 | 12
 
 const RANGE_LABELS: Record<HistoryRange, string> = {
+    month: "Mensal",
     6: "6 meses",
     12: "12 meses",
 }
 
-const RANGES: readonly HistoryRange[] = [6, 12]
+// Do mais granular pro mais amplo — mesmo sentido de leitura das abas de
+// granularidade de consumo (hora → dia → mês → ano).
+const RANGES: readonly HistoryRange[] = ["month", 6, 12]
 
 interface HistoryRangeToggleProps {
     value: HistoryRange
@@ -15,9 +18,13 @@ interface HistoryRangeToggleProps {
 /**
  * Toggle do período do histórico de consumo (bloco `isDashboard` do
  * handoff) — mesmo padrão `.lt-selbtn`/`role="tablist"` de `GranularityTabs`
- * (troca de "visão" do consumo), mas controla `pageSize` de `useConsumption`
- * a granularidade `month` fixa — não é uma troca de granularidade, é
- * quantos meses trazer.
+ * (troca de "visão" do consumo).
+ *
+ * "6 meses"/"12 meses" controlam `pageSize` de `useConsumption` com
+ * granularidade `month` fixa (sem janela — "os últimos N buckets").
+ * "Mensal" (issue #230) muda de granularidade: consumo consolidado por
+ * DIA dentro do mês corrente, do dia 1 até ontem — outra grandeza, não um
+ * terceiro valor na mesma escala de meses.
  */
 export const HistoryRangeToggle = ({ value, onChange }: HistoryRangeToggleProps) => (
     <div

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { AlertCircle, LineChart } from "lucide-react"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Pagination } from "@/components/ui/Pagination"
@@ -7,8 +7,12 @@ import { ConsumptionChart } from "@/components/consumption/ConsumptionChart"
 import { ConsumptionTable } from "@/components/consumption/ConsumptionTable"
 import { useConsumption } from "@/hooks/queries/useConsumption"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
-import { DEFAULT_PAGE_SIZE } from "@/types/pagination.types"
-import { DETAILS_GRANULARITIES, type Granularity } from "@/types/consumption.types"
+import { resolveConsumptionWindow } from "@/lib/consumptionWindow"
+import {
+    CONSUMPTION_PAGE_SIZE,
+    DETAILS_GRANULARITIES,
+    type Granularity,
+} from "@/types/consumption.types"
 import type { TargetType } from "@/types/meter.types"
 
 // Wrappers "smart" — mesmo padrão de 3 por target usado no resto do app
@@ -68,15 +72,23 @@ export const ConsumptionSection = ({
     const meterQuery = useMeterByTarget(targetType, targetId)
     const hasMeter = Boolean(meterQuery.data)
 
+    // A granularidade escolhida é a janela; o bucket é o nível abaixo dela
+    // (Hora → minuto a minuto, Dia → hora a hora). Fixada por granularidade
+    // para não recriar a query key a cada render — trocar de aba recalcula.
+    const consumptionWindow = useMemo(() => resolveConsumptionWindow(granularity), [granularity])
+
     // Só dispara a query quando já sabemos que há medidor — evita uma
     // chamada fadada ao 404 "sem medidor" enquanto o meterQuery ainda
     // não resolveu (ou resolveu para null).
     const query = useConsumption(
         targetType,
         hasMeter ? targetId : undefined,
-        granularity,
+        consumptionWindow.bucketSize,
         page,
-        DEFAULT_PAGE_SIZE,
+        CONSUMPTION_PAGE_SIZE,
+        // asc: a paginação percorre a janela do começo para o fim (19:00 na
+        // primeira página, não na última).
+        { from: consumptionWindow.from, to: consumptionWindow.to, order: "asc" },
     )
 
     const handleGranularityChange = (next: Granularity) => {
@@ -135,7 +147,7 @@ export const ConsumptionSection = ({
                         <EmptyState
                             icon={LineChart}
                             title="Sem leituras neste período"
-                            description="Ainda não há consumo agregado para a granularidade selecionada."
+                            description="Ainda não há consumo agregado para o período selecionado."
                         />
                     )}
 
@@ -143,10 +155,13 @@ export const ConsumptionSection = ({
                         <div className="flex flex-col gap-4">
                             <ConsumptionChart
                                 buckets={buckets}
-                                granularity={granularity}
+                                bucketSize={consumptionWindow.bucketSize}
                                 isRefetching={query.isFetching}
                             />
-                            <ConsumptionTable buckets={buckets} granularity={granularity} />
+                            <ConsumptionTable
+                                buckets={buckets}
+                                bucketSize={consumptionWindow.bucketSize}
+                            />
                             <Pagination
                                 page={query.data!.page}
                                 pageSize={query.data!.pageSize}

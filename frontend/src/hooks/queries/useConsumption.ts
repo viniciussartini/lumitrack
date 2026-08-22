@@ -2,11 +2,24 @@ import { useQuery } from "@tanstack/react-query"
 import { consumptionService } from "@/services/consumption.service"
 import { queryKeys } from "@/lib/queryClient"
 import { DEFAULT_PAGE_SIZE } from "@/types/pagination.types"
-import type { Granularity } from "@/types/consumption.types"
+import type { BucketOrder, BucketSize } from "@/types/consumption.types"
 import type { TargetType } from "@/types/meter.types"
+
+/** Janela consultada — vem de `resolveConsumptionWindow` (lib/consumptionWindow). */
+export interface ConsumptionRange {
+    from: Date
+    to: Date
+    /** Default do backend: `desc`. Listagens de janela pedem `asc`. */
+    order?: BucketOrder
+}
 
 /**
  * Consumo agregado de um alvo (Fase 5 — substitui `useConsumptionBy*`).
+ *
+ * `bucketSize` é o tamanho do bucket, não a granularidade escolhida na UI:
+ * quem traduz uma na outra é `resolveConsumptionWindow`, e o resultado dessa
+ * tradução entra aqui como `range`. Sem `range`, a chamada é "os últimos N
+ * buckets" (KPIs e comparação do painel), com a ordem `desc` do backend.
  *
  * `enabled: Boolean(targetId)` evita disparar a query quando o param de rota
  * ainda não chegou. O 404 "alvo sem medidor" propaga como erro normal do
@@ -15,25 +28,29 @@ import type { TargetType } from "@/types/meter.types"
 export const useConsumption = (
     targetType: TargetType,
     targetId: string | undefined,
-    granularity: Granularity,
+    bucketSize: BucketSize,
     page: number = 1,
     pageSize: number = DEFAULT_PAGE_SIZE,
+    range?: ConsumptionRange,
 ) =>
     useQuery({
         queryKey: queryKeys.consumption.list(
             targetType,
             targetId ?? "",
-            granularity,
+            bucketSize,
             page,
             pageSize,
+            range &&
+                `${range.from.toISOString()}|${range.to.toISOString()}|${range.order ?? "desc"}`,
         ),
         queryFn: () =>
             consumptionService.list({
                 targetType,
                 targetId: targetId!,
-                granularity,
+                granularity: bucketSize,
                 page,
                 pageSize,
+                ...range,
             }),
         enabled: Boolean(targetId),
     })

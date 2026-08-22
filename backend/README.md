@@ -750,7 +750,9 @@ Vinculado a exatamente um alvo (`targetType: PROPERTY|AREA|DEVICE` + o respectiv
 
 | Método | Rota | Query |
 | --- | --- | --- |
-| GET | `/` | `targetType`, `targetId` (obrigatórios), `granularity: hour\|day\|month\|year` (obrigatório), `from`/`to` opcionais, paginação (máx. 31 por página) |
+| GET | `/` | `targetType`, `targetId` (obrigatórios), `granularity: minute\|hour\|day\|month\|year` (obrigatório), `from`/`to` opcionais, `order: asc\|desc` (default `desc`), paginação (máx. 31 por página) |
+
+`granularity` é o **tamanho do bucket**, não a janela consultada — quem recorta a janela é `from`/`to`. A UI monta o par: a aba "Hora" pede `granularity=minute` dentro da hora corrente, a aba "Dia" pede `granularity=hour` dentro do dia. `order=asc` pagina do começo da janela para o fim; `desc` (default) serve as consultas do tipo "os últimos N buckets".
 
 ### Alertas — `/api/alerts` e histórico — `/api/alert-events`
 

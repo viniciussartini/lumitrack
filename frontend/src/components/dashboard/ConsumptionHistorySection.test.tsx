@@ -5,9 +5,35 @@ import { render, screen, waitFor } from "@testing-library/react"
 import { ConsumptionHistorySection } from "@/components/dashboard/ConsumptionHistorySection"
 import { meterService } from "@/services/meter.service"
 import { consumptionService } from "@/services/consumption.service"
+import { resolveMonthlyHistoryWindow } from "@/lib/consumptionWindow"
 import type { Meter } from "@/types/meter.types"
 import type { Paginated } from "@/types/pagination.types"
-import type { ConsumptionBucket, Granularity } from "@/types/consumption.types"
+import type { BucketSize, ConsumptionBucket, Granularity } from "@/types/consumption.types"
+
+// `ConsumptionChart` usa `ResponsiveContainer` do recharts, que não mede
+// largura real em jsdom (container fica 0×0) — o SVG não renderiza nenhum
+// rótulo, então testes deste arquivo não conseguem inspecionar o que o
+// chart desenha. O mock expõe só o que este componente É RESPONSÁVEL por
+// decidir (quais buckets, em que ordem, com que bucketSize) — a formatação
+// do rótulo em si já é coberta por `lib/formatters/consumption.test.ts`, e
+// o desenho do gráfico é responsabilidade do próprio `ConsumptionChart`.
+vi.mock("@/components/consumption/ConsumptionChart", () => ({
+    ConsumptionChart: ({
+        buckets,
+        bucketSize,
+    }: {
+        buckets: ConsumptionBucket[]
+        bucketSize: BucketSize
+    }) => (
+        <div data-testid="consumption-chart" data-bucket-size={bucketSize}>
+            {buckets.map((b) => (
+                <span key={b.bucketStart} data-testid="chart-bucket">
+                    {b.bucketStart}
+                </span>
+            ))}
+        </div>
+    ),
+}))
 
 vi.mock("@/services/meter.service", () => ({
     meterService: {
@@ -146,5 +172,107 @@ describe("ConsumptionHistorySection — com medidor", () => {
             )
         })
         expect(screen.getByTestId("history-range-12")).toHaveAttribute("aria-selected", "true")
+    })
+})
+
+describe("ConsumptionHistorySection — Mensal (issue #230)", () => {
+    it("troca pra granularity=day, pageSize=31 e envia a janela do dia 1 até ontem, order=asc", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+        vi.mocked(consumptionService.list).mockResolvedValue(paginated([]))
+
+        renderSection()
+        await screen.findByTestId("history-range-toggle")
+
+        // Janela real (não mockamos o relógio — ver nota no mock de
+        // ConsumptionChart acima sobre por que fake timers ficam de fora
+        // deste arquivo): a matemática de `from`/`to` já está coberta,
+        // fixada em datas determinísticas, em `consumptionWindow.test.ts`.
+        // Aqui o que importa é que o componente REPASSA o resultado dela.
+        const expectedWindow = resolveMonthlyHistoryWindow()
+
+        const user = userEvent.setup()
+        await user.click(screen.getByTestId("history-range-month"))
+
+        await waitFor(() => {
+            expect(consumptionService.list).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    granularity: "day",
+                    page: 1,
+                    pageSize: 31,
+                    from: expectedWindow.from,
+                    to: expectedWindow.to,
+                    order: "asc",
+                }),
+            )
+        })
+        expect(screen.getByTestId("history-range-month")).toHaveAttribute("aria-selected", "true")
+    })
+
+    it("passa os buckets ao gráfico na ordem recebida da API, sem inverter (a API já devolve asc)", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+        vi.mocked(consumptionService.list).mockResolvedValue(
+            paginated([
+                bucket("2026-08-01T00:00:00.000Z", 10),
+                bucket("2026-08-02T00:00:00.000Z", 20),
+            ]),
+        )
+
+        renderSection("prop-1", "Casa")
+        await screen.findByTestId("history-range-toggle")
+
+        const user = userEvent.setup()
+        await user.click(screen.getByTestId("history-range-month"))
+
+        const chart = await screen.findByTestId("consumption-chart")
+        expect(chart).toHaveAttribute("data-bucket-size", "day")
+        const order = (await screen.findAllByTestId("chart-bucket")).map((el) => el.textContent)
+        expect(order).toEqual(["2026-08-01T00:00:00.000Z", "2026-08-02T00:00:00.000Z"])
+    })
+
+    it("6/12 meses continuam invertendo (a API devolve desc, o gráfico lê cronológico)", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+        vi.mocked(consumptionService.list).mockResolvedValue(
+            paginated([
+                bucket("2026-08-01T00:00:00.000Z", 10),
+                bucket("2026-07-01T00:00:00.000Z", 20),
+            ]),
+        )
+
+        renderSection()
+
+        const chart = await screen.findByTestId("consumption-chart")
+        expect(chart).toHaveAttribute("data-bucket-size", "month")
+        const order = (await screen.findAllByTestId("chart-bucket")).map((el) => el.textContent)
+        expect(order).toEqual(["2026-07-01T00:00:00.000Z", "2026-08-01T00:00:00.000Z"])
+    })
+
+    it("atualiza o subtítulo pra refletir a visão diária", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+        vi.mocked(consumptionService.list).mockResolvedValue(paginated([]))
+
+        renderSection("prop-1", "Casa")
+        await screen.findByTestId("history-range-toggle")
+
+        const user = userEvent.setup()
+        await user.click(screen.getByTestId("history-range-month"))
+
+        expect(
+            await screen.findByText(/Casa · consumo diário do mês corrente \(kWh\)/),
+        ).toBeInTheDocument()
+    })
+
+    it("janela sem dias fechados ainda (ex.: dia 1 do mês) não é tratada como erro", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+        vi.mocked(consumptionService.list).mockResolvedValue(paginated([]))
+
+        renderSection()
+        await screen.findByTestId("history-range-toggle")
+
+        const user = userEvent.setup()
+        await user.click(screen.getByTestId("history-range-month"))
+
+        expect(await screen.findByTestId("consumption-chart")).toBeInTheDocument()
+        expect(screen.queryAllByTestId("chart-bucket")).toHaveLength(0)
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument()
     })
 })

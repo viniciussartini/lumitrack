@@ -52,7 +52,7 @@ export class ConsumptionService {
             throw new ValidationError(firstError ?? "Dados inválidos")
         }
 
-        const { targetType, targetId, granularity, from, to, ...pagination } = parsed.data
+        const { targetType, targetId, granularity, from, to, order, ...pagination } = parsed.data
 
         const property = await resolveRootProperty(targetType, targetId, {
             propertyRepository: this.propertyRepository,
@@ -81,9 +81,11 @@ export class ConsumptionService {
 
         const { skip, take } = toSkipTake(pagination)
 
+        const bucketQuery = { meterId: meter.id, granularity, from, to }
+
         const [buckets, total] = await Promise.all([
-            this.consumptionRepository.findAggregated(meter.id, granularity, from, to, skip, take),
-            this.consumptionRepository.countBuckets(meter.id, granularity, from, to),
+            this.consumptionRepository.findAggregated({ ...bucketQuery, order, skip, take }),
+            this.consumptionRepository.countBuckets(bucketQuery),
         ])
 
         // Granularidade "year" + alvo PROPERTY: o piso de disponibilidade é
@@ -136,9 +138,9 @@ export class ConsumptionService {
                     flagPer100Kwh,
                 }).totalBrl
             } else {
-                // hour/day (qualquer alvo) e month/year (AREA/DEVICE): sem
-                // piso nem CIP — apenas energia + bandeira + tributos sobre
-                // o consumo real do bucket.
+                // minute/hour/day (qualquer alvo) e month/year (AREA/DEVICE):
+                // sem piso nem CIP — apenas energia + bandeira + tributos
+                // sobre o consumo real do bucket.
                 costBrl = this.tariffService.calculateForSubTarget({
                     kwhConsumed: bucket.kwhConsumed,
                     tusdPerKwh: distributor.tusdPerKwh,
