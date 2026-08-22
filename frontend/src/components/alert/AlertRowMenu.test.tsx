@@ -166,3 +166,78 @@ describe("AlertRowMenu — comportamento (sem regressão)", () => {
         expect(screen.queryByTestId("alert-menu-edit-alert-1")).not.toBeInTheDocument()
     })
 })
+
+describe("AlertRowMenu — acessibilidade por teclado (achado na revisão do PR #235)", () => {
+    it("ao abrir, move o foco pro primeiro item — o portal tira o menu do fluxo de Tab do trigger", async () => {
+        const onEdit = vi.fn()
+        const user = userEvent.setup()
+        renderInsideScrollableAncestor(onEdit)
+
+        await user.click(screen.getByTestId("alert-menu-trigger-alert-1"))
+        const editItem = await screen.findByTestId("alert-menu-edit-alert-1")
+
+        expect(editItem).toHaveFocus()
+    })
+
+    it("Escape fecha o menu e devolve o foco ao trigger", async () => {
+        const user = userEvent.setup()
+        renderInsideScrollableAncestor()
+
+        const trigger = screen.getByTestId("alert-menu-trigger-alert-1")
+        await user.click(trigger)
+        await screen.findByTestId("alert-menu-alert-1")
+
+        await user.keyboard("{Escape}")
+
+        expect(screen.queryByTestId("alert-menu-alert-1")).not.toBeInTheDocument()
+        expect(trigger).toHaveFocus()
+    })
+
+    it("inverte pra cima quando o menu estouraria a viewport embaixo do trigger", async () => {
+        const user = userEvent.setup()
+        renderInsideScrollableAncestor()
+
+        vi.spyOn(window, "innerHeight", "get").mockReturnValue(800)
+        const originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect
+        vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+            this: HTMLElement,
+        ) {
+            if (this.getAttribute("data-testid") === "alert-menu-trigger-alert-1") {
+                return {
+                    top: 700,
+                    bottom: 720,
+                    left: 200,
+                    right: 240,
+                    width: 40,
+                    height: 20,
+                    x: 200,
+                    y: 700,
+                    toJSON: () => ({}),
+                }
+            }
+            if (this.getAttribute("role") === "menu") {
+                // Alto o bastante pra estourar `innerHeight` (800) partindo
+                // de `top: 724` (bottom do trigger + 4).
+                return {
+                    top: 724,
+                    bottom: 900,
+                    left: 100,
+                    right: 300,
+                    width: 200,
+                    height: 176,
+                    x: 100,
+                    y: 724,
+                    toJSON: () => ({}),
+                }
+            }
+            return originalGetBoundingClientRect.call(this)
+        })
+
+        await user.click(screen.getByTestId("alert-menu-trigger-alert-1"))
+
+        const menu = await screen.findByTestId("alert-menu-alert-1")
+        // 800 (innerHeight) - 700 (topo do trigger) + 4 = 104.
+        expect(menu.style.bottom).toBe("104px")
+        expect(menu.style.top).toBe("")
+    })
+})

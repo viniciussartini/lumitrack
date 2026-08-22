@@ -44,6 +44,14 @@ export default defineConfig({
         environment: "jsdom",
         setupFiles: "./src/tests/setup.ts",
         css: true,
+        // Fixo pra todo o processo de teste, ANTES de qualquer módulo ser
+        // importado — mutar `process.env.TZ` dentro de um arquivo de teste
+        // roda tarde demais (hoisting de import) e vaza pros arquivos
+        // seguintes no mesmo worker. Sem isso, testes que dependem de um
+        // fuso com offset não-zero (decodificação de datas vindas do
+        // backend vs. instantes locais) passariam de fato só por acaso,
+        // dependendo de qual arquivo o worker carrega primeiro.
+        env: { TZ: "America/Sao_Paulo" },
         exclude: ["**/node_modules/**", "**/tests/e2e/**"],
         coverage: {
             provider: "v8",

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router"
 import { Bell, Check } from "lucide-react"
+import { toast } from "sonner"
 import {
     useDeleteAllNotifications,
     useDeleteNotification,
     useNotifications,
 } from "@/hooks/queries/useNotifications"
 import { useClickOutside } from "@/lib/hooks/useClickOutside"
+import { extractErrorMessage } from "@/services/api"
 import type { Notification } from "@/types/notification.types"
 
 const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
@@ -62,7 +64,16 @@ export const NotificationDropdown = () => {
     }
 
     const handleMarkAllRead = () => {
-        deleteAllNotifications.mutate()
+        // Ação em lote: falhar silenciosamente aqui é mais confuso do que no
+        // dismiss individual — o usuário não sabe se marcou 0, algumas ou
+        // todas as notificações.
+        deleteAllNotifications.mutate(undefined, {
+            onError: (error) => {
+                toast.error("Erro ao marcar notificações como lidas", {
+                    description: extractErrorMessage(error),
+                })
+            },
+        })
     }
 
     return (
@@ -99,7 +110,14 @@ export const NotificationDropdown = () => {
                     data-testid="notification-dropdown"
                     className="lt-menu top-full right-0 mt-1 flex max-h-96 w-80 flex-col overflow-y-auto"
                 >
-                    <div className="border-divider flex items-center justify-between gap-2.5 border-b px-4 py-3.5">
+                    {/* `role="presentation"`: filho direto de `role="menu"` que não é
+                        `menuitem`/`group`/`separator` — sem isso, a estrutura ARIA
+                        esperada de um menu fica inconsistente. Os itens abaixo
+                        continuam `<button>` sem `role="menuitem"`. */}
+                    <div
+                        role="presentation"
+                        className="border-divider flex items-center justify-between gap-2.5 border-b px-4 py-3.5"
+                    >
                         <span className="font-heading text-[15px] font-semibold uppercase">
                             Notificações
                         </span>

@@ -32,6 +32,11 @@ on:
         - cron: "7,17,27,37,47,57 * * * *"
     workflow_dispatch: {}
 
+# Mínimo do 11-seguranca-infraestrutura.md (P0) — o job só faz um `curl`
+# público, sem tocar o repositório.
+permissions:
+    contents: read
+
 jobs:
     ping:
         runs-on: ubuntu-latest

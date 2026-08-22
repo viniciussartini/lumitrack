@@ -4,7 +4,7 @@ import { paginationQuerySchema } from "@/shared/pagination.js"
 
 // Tamanho do bucket de agregação — NÃO é a janela consultada. Quem escolhe a
 // janela é o par `from`/`to`: a UI pede, por exemplo, bucket de minuto dentro
-// da janela de uma hora (ver `lib/consumption/window.ts` no frontend).
+// da janela de uma hora (ver `lib/consumptionWindow.ts` no frontend).
 export const granularitySchema = z.enum(["minute", "hour", "day", "month", "year"])
 export type Granularity = z.infer<typeof granularitySchema>
 

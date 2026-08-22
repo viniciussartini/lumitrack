@@ -73,7 +73,7 @@ export const AlertsPage = () => {
         <div className="flex flex-col gap-8">
             <div className="flex flex-wrap items-start justify-between gap-4">
                 <p
-                    className="text-muted m-0 flex-1 text-sm leading-relaxed"
+                    className="text-muted m-0 max-w-[110ch] flex-1 text-sm leading-relaxed"
                     data-testid="alerts-page-description"
                 >
                     Monitore faixas de potência dos seus medidores e veja o histórico de disparos.

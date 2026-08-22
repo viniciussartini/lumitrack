@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest"
+import { describe, it, expect } from "vitest"
 import {
     toLocalDateKey,
     bucketDateKey,
@@ -12,18 +12,11 @@ import {
 } from "@/lib/dashboardKpis"
 import type { ConsumptionBucket } from "@/types/consumption.types"
 
-// O bug da #233 só se manifesta com um fuso de OFFSET NÃO-ZERO em relação a
-// UTC (América/Sao_Paulo, -3h) — fixar o fuso do processo torna os testes
-// abaixo determinísticos independente de onde rodam (a máquina de dev já
-// está em America/Sao_Paulo, mas o runner de CI roda em UTC por padrão, o
-// que mascararia justamente o bug que estes testes existem pra pegar).
-const ORIGINAL_TZ = process.env.TZ
-beforeAll(() => {
-    process.env.TZ = "America/Sao_Paulo"
-})
-afterAll(() => {
-    process.env.TZ = ORIGINAL_TZ
-})
+// Fuso fixado em America/Sao_Paulo pra todo o processo de teste via
+// `test.env.TZ` (vite.config.ts) — os testes abaixo dependem de um offset
+// não-zero em relação a UTC pra reproduzir o bug de dupla conversão ao
+// decodificar datas vindas do backend (sem isso, mascarariam o bug de novo
+// se rodados num runner em UTC, como o CI por padrão).
 
 const bucket = (bucketStart: string, kwhConsumed: number): ConsumptionBucket => ({
     bucketStart,

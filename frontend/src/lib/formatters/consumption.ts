@@ -1,23 +1,38 @@
 import type { BucketSize } from "@/types/consumption.types"
 
+// `timeZone: "UTC"` nos quatro formatadores abaixo: o backend serializa
+// `bucketStart` como `Date` (vira ISO com sufixo `Z` via `res.json()`), mas
+// os dígitos já são o horário de parede de São Paulo (`AT TIME ZONE` duplo
+// em `timeBucket.ts`) — não um instante UTC de verdade (mesma codificação
+// documentada em `bucketDateKey`/`bucketMonthKey`, `lib/dashboardKpis.ts`).
+// Sem declarar o fuso, `Intl.DateTimeFormat` usa o fuso LOCAL do browser: em
+// America/Sao_Paulo (UTC-3), isso aplicaria um segundo deslocamento sobre um
+// valor que já não é um instante UTC de verdade, deslocando hora/dia/mês/ano
+// do rótulo exibido. `timeZone: "UTC"` lê os dígitos como estão, sem aplicar
+// conversão nova — o análogo destes formatadores aos getters UTC de
+// `bucketDateKey`.
 const hourFormatter = new Intl.DateTimeFormat("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "UTC",
 })
 
 const dayMonthYearFormatter = new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    timeZone: "UTC",
 })
 
 const monthYearFormatter = new Intl.DateTimeFormat("pt-BR", {
     month: "long",
     year: "numeric",
+    timeZone: "UTC",
 })
 
 const yearFormatter = new Intl.DateTimeFormat("pt-BR", {
     year: "numeric",
+    timeZone: "UTC",
 })
 
 const brlFormatter = new Intl.NumberFormat("pt-BR", {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { MoreHorizontal, Pencil, Power, PowerOff, Trash2 } from "lucide-react"
 import { toast } from "sonner"
@@ -14,7 +14,11 @@ interface AlertRowMenuProps {
 }
 
 interface MenuPosition {
-    top: number
+    // Só um dos dois (nunca ambos): `top` na abertura normal (abaixo do
+    // trigger), `bottom` quando `useLayoutEffect` detecta que o menu
+    // estouraria a viewport e inverte pra cima.
+    top?: number
+    bottom?: number
     right: number
 }
 
@@ -33,9 +37,16 @@ interface MenuPosition {
  * aplicada como `position: fixed` inline (specificidade de `style` vence
  * o `position: absolute` de `.lt-menu` sem depender de ordem de cascata).
  *
- * Sem reposicionamento contínuo (sem floating-ui): a posição é medida uma
- * vez, na abertura, e o menu fecha ao rolar — mais simples que manter a
- * âncora sincronizada, e rolar enquanto o menu está aberto já é raro.
+ * Sem reposicionamento contínuo (sem floating-ui): a posição é medida na
+ * abertura (embaixo do trigger) e corrigida uma única vez, depois do
+ * primeiro layout, se estourar a viewport (inverte pra cima) — o menu
+ * fecha ao rolar, então não precisa acompanhar a âncora depois disso.
+ *
+ * Acessibilidade por teclado: o portal tira o menu do fluxo de `Tab` a
+ * partir do trigger (foi pro fim do `document.body`), então a abertura move
+ * o foco pro primeiro item explicitamente, e `Escape` fecha o menu e devolve
+ * o foco ao trigger — sem isso, as três únicas ações de manutenção de um
+ * alerta (editar/habilitar/excluir) ficariam alcançáveis só por mouse.
  */
 export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -75,18 +86,47 @@ export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
         }
     }, [isMenuOpen])
 
+    // Depois do primeiro layout do menu portalado: move o foco pro primeiro
+    // item (o portal tirou o menu do fluxo de Tab do trigger) e, se o menu
+    // estourar a viewport embaixo, inverte pra cima — `useLayoutEffect` roda
+    // antes do paint, então a correção de posição não pisca na tela.
+    useLayoutEffect(() => {
+        if (!isMenuOpen || !menuRef.current || !triggerRef.current) return
+
+        const menuRect = menuRef.current.getBoundingClientRect()
+        if (menuRect.bottom > window.innerHeight) {
+            const triggerRect = triggerRef.current.getBoundingClientRect()
+            setPosition((prev) =>
+                prev
+                    ? { bottom: window.innerHeight - triggerRect.top + 4, right: prev.right }
+                    : prev,
+            )
+        }
+
+        menuRef.current.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
+    }, [isMenuOpen])
+
     const handleTriggerClick = (e: React.MouseEvent) => {
         e.stopPropagation()
-        setIsMenuOpen((prev) => {
-            const next = !prev
-            if (next) {
-                const rect = triggerRef.current?.getBoundingClientRect()
-                if (rect) {
-                    setPosition({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
-                }
-            }
-            return next
+        if (isMenuOpen) {
+            setIsMenuOpen(false)
+            return
+        }
+        // Medido ANTES de abrir, fora do updater de `setIsMenuOpen` — um
+        // updater precisa ser puro (o React pode reinvocá-lo em StrictMode
+        // ou em renderização concorrente); ler o DOM ali dentro funcionava
+        // por ser idempotente, mas é uma armadilha que não vale guardar.
+        const rect = triggerRef.current?.getBoundingClientRect()
+        if (!rect) return
+        // `clientWidth`, não `innerWidth`: `innerWidth` inclui a barra de
+        // rolagem vertical, que não faz parte do bloco contentor de um
+        // `position: fixed` — com scrollbar clássica, `innerWidth` deixava o
+        // menu ~15px à esquerda do esperado.
+        setPosition({
+            top: rect.bottom + 4,
+            right: document.documentElement.clientWidth - rect.right,
         })
+        setIsMenuOpen(true)
     }
 
     const handleToggleEnabled = async (e: React.MouseEvent) => {
@@ -124,6 +164,13 @@ export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
         }
     }
 
+    const handleMenuKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key !== "Escape") return
+        e.stopPropagation()
+        setIsMenuOpen(false)
+        triggerRef.current?.focus()
+    }
+
     const triggerAriaLabel = `Opções do alerta ${alert.name}`
 
     return (
@@ -154,7 +201,13 @@ export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
                         role="menu"
                         aria-label={triggerAriaLabel}
                         data-testid={`alert-menu-${alert.id}`}
-                        style={{ position: "fixed", top: position.top, right: position.right }}
+                        onKeyDown={handleMenuKeyDown}
+                        style={{
+                            position: "fixed",
+                            top: position.top,
+                            bottom: position.bottom,
+                            right: position.right,
+                        }}
                         className="lt-menu w-52 overflow-hidden"
                     >
                         {onEdit && (

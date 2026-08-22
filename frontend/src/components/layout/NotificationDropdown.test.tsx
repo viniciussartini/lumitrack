@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import userEvent from "@testing-library/user-event"
-import { renderWithProviders, screen } from "@/tests/test-utils"
+import { toast } from "sonner"
+import { renderWithProviders, screen, waitFor } from "@/tests/test-utils"
 import { NotificationDropdown } from "@/components/layout/NotificationDropdown"
 import { notificationService } from "@/services/notification.service"
 import { authService } from "@/services/auth.service"
@@ -21,6 +22,18 @@ vi.mock("@/services/auth.service", () => ({
         login: vi.fn(),
         logout: vi.fn(),
         getCurrentUser: vi.fn(),
+    },
+}))
+
+vi.mock("@/services/api", () => ({
+    api: {},
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
+}))
+
+vi.mock("sonner", () => ({
+    toast: {
+        success: vi.fn(),
+        error: vi.fn(),
     },
 }))
 
@@ -146,5 +159,21 @@ describe("NotificationDropdown — marcar todas como lidas", () => {
         const action = screen.getByRole("button", { name: /marcar todas como lidas/i })
         action.focus()
         expect(action).toHaveFocus()
+    })
+
+    it("mostra toast de erro quando a chamada falha — ação em lote não pode falhar em silêncio", async () => {
+        vi.mocked(notificationService.deleteAll).mockRejectedValue(new Error("Internal error"))
+        const user = await openDropdown([NOTIFICATION_1])
+
+        await user.click(screen.getByRole("button", { name: /marcar todas como lidas/i }))
+
+        await waitFor(() => {
+            expect(toast.error).toHaveBeenCalledWith(
+                "Erro ao marcar notificações como lidas",
+                expect.objectContaining({ description: expect.stringContaining("Internal error") }),
+            )
+        })
+        // A lista continua visível — a mutation falhou, não invalidou o cache.
+        expect(screen.getByText(NOTIFICATION_1.message)).toBeInTheDocument()
     })
 })

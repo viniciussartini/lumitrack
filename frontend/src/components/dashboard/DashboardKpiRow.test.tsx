@@ -19,18 +19,20 @@ vi.mock("@/services/tariff-flag.service", () => ({
     tariffFlagService: { get: vi.fn() },
 }))
 
-// O bug da #233 só se manifesta com um fuso de OFFSET NÃO-ZERO em relação a
-// UTC — fixado ANTES das constantes de data abaixo (que leem `now` via
-// getters locais) pra ficar determinístico independente de onde os testes
-// rodam (CI roda em UTC por padrão, o que mascararia o bug).
-process.env.TZ = "America/Sao_Paulo"
+// Fuso fixado em America/Sao_Paulo pra todo o processo de teste via
+// `test.env.TZ` (vite.config.ts) — as constantes de data abaixo (que leem
+// `now` via getters locais) dependem de um offset não-zero em relação a UTC
+// pra reproduzir os bugs de dupla conversão de fuso ao decodificar datas
+// vindas do backend.
 
 // Datas relativas ao "agora" real do processo (sem fake timers — `findByText`/
 // `waitFor` do testing-library dependem de timers reais para o polling
 // assíncrono).
 const now = new Date()
-// Bucket de MÊS: fixture de meio-dia local (não é o bug desta issue — ver
-// nota abaixo sobre `sameMonth`/"Custo projetado").
+// Bucket de MÊS: fixture de meio-dia local, só pra testar a matemática da
+// projeção (`computeMonthProjection`) isolada da decodificação do bucket —
+// a decodificação em si (`findBucketForMonth`) já tem cobertura própria com
+// a codificação real do backend logo abaixo (`currentMonthSpBucket`, #234).
 const firstOfMonthNoon = new Date(now.getFullYear(), now.getMonth(), 1, 12, 0, 0)
 
 /**
