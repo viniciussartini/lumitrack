@@ -71,3 +71,29 @@ export const resolveConsumptionWindow = (
             }
     }
 }
+
+export interface MonthlyHistoryWindow {
+    bucketSize: "day"
+    from: Date
+    to: Date
+}
+
+/**
+ * Janela do histórico "Mensal" do painel (issue #230) — do dia 1 do mês
+ * corrente até ONTEM, inclusive. Diferente de `resolveConsumptionWindow`
+ * (que sempre inclui o instante corrente, ainda em andamento), esta janela
+ * exclui **de propósito** o dia de hoje: ele está incompleto, e uma barra
+ * baixa só porque o dia mal começou distorceria a leitura do gráfico.
+ *
+ * `to` é exclusivo, então cai no início de hoje — o dia de hoje nunca entra
+ * no filtro `minuteStart < to` do backend.
+ *
+ * Mês recém-começado (dia 1, nenhum dia anterior fechado): `from` e `to`
+ * coincidem, a API devolve zero buckets, e o `ConsumptionChart` mostra o
+ * estado vazio que já existe — não é tratado como erro.
+ */
+export const resolveMonthlyHistoryWindow = (now: Date = new Date()): MonthlyHistoryWindow => ({
+    bucketSize: "day",
+    from: new Date(now.getFullYear(), now.getMonth(), 1),
+    to: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+})

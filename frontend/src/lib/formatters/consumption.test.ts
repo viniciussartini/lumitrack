@@ -14,8 +14,8 @@ describe("formatBucketLabel", () => {
         expect(formatBucketLabel("2026-08-21T19:00:00", "hour")).toBe("21/08 19:00")
     })
 
-    it("bucket de dia mostra a data completa", () => {
-        expect(formatBucketLabel(BUCKET, "day")).toBe("21/08/2026")
+    it("bucket de dia mostra dia e mês, sem ano — janela nunca cruza mês (issue #230)", () => {
+        expect(formatBucketLabel(BUCKET, "day")).toBe("21/08")
     })
 
     it("bucket de mês mostra o mês por extenso, capitalizado", () => {

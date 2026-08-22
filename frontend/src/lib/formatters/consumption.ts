@@ -45,12 +45,15 @@ const powerFormatter = new Intl.NumberFormat("pt-BR", {
  * Cada bucket cobre um intervalo diferente:
  *   minute → "15/01 14:03" (o minuto cheio)
  *   hour   → "15/01 14:00" (hh:00–hh:59)
- *   day    → "15/01/2025" (0h–24h)
+ *   day    → "15/01" (0h–24h, sem ano)
  *   month  → "Janeiro de 2025"
  *   year   → "2025"
  *
- * Minuto e hora compartilham o formato: dentro de uma mesma tabela todos os
- * buckets têm o mesmo tamanho, então não há ambiguidade a desfazer.
+ * Minuto e hora compartilham o formato; `day` omite o ano pelo mesmo
+ * motivo: um bucket de dia, em todo consumidor deste formatador, é sempre
+ * um dia dentro do mês corrente (`resolveConsumptionWindow`/
+ * `resolveMonthlyHistoryWindow`, lib/consumptionWindow.ts) — nunca uma
+ * listagem cruzando meses ou anos, então o ano nunca desambigua nada.
  *
  * Capitaliza a primeira letra em `month`: Intl retorna "janeiro de 2025"
  * em pt-BR; "Janeiro" fica mais coeso visualmente em eixo/tabela.
@@ -63,7 +66,7 @@ export const formatBucketLabel = (bucketStart: string, bucketSize: BucketSize): 
         case "hour":
             return `${dayMonthYearFormatter.format(date).slice(0, 5)} ${hourFormatter.format(date)}`
         case "day":
-            return dayMonthYearFormatter.format(date)
+            return dayMonthYearFormatter.format(date).slice(0, 5)
         case "month": {
             const formatted = monthYearFormatter.format(date)
             return formatted.charAt(0).toUpperCase() + formatted.slice(1)

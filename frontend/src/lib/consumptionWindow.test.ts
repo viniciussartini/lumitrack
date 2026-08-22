@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { resolveConsumptionWindow } from "@/lib/consumptionWindow"
+import { resolveConsumptionWindow, resolveMonthlyHistoryWindow } from "@/lib/consumptionWindow"
 
 // 21/08/2026 às 19:45 — o mesmo instante do relato da issue #226.
 const NOW = new Date(2026, 7, 21, 19, 45, 30)
@@ -49,5 +49,39 @@ describe("resolveConsumptionWindow", () => {
 
         expect(from).toEqual(new Date(2026, 11, 1, 0, 0, 0, 0))
         expect(to).toEqual(new Date(2027, 0, 1, 0, 0, 0, 0))
+    })
+})
+
+describe("resolveMonthlyHistoryWindow", () => {
+    it("do dia 1 do mês até ONTEM, inclusive — hoje fica de fora por estar incompleto", () => {
+        const { bucketSize, from, to } = resolveMonthlyHistoryWindow(NOW)
+
+        expect(bucketSize).toBe("day")
+        expect(from).toEqual(new Date(2026, 7, 1, 0, 0, 0, 0))
+        // `to` exclusivo: dia 21 (hoje) fica de fora, dia 20 (ontem) é o
+        // último incluído.
+        expect(to).toEqual(new Date(2026, 7, 21, 0, 0, 0, 0))
+    })
+
+    it("mês com poucos dias decorridos mostra só os dias fechados", () => {
+        const { from, to } = resolveMonthlyHistoryWindow(new Date(2026, 7, 3, 10, 0))
+
+        expect(from).toEqual(new Date(2026, 7, 1, 0, 0, 0, 0))
+        expect(to).toEqual(new Date(2026, 7, 3, 0, 0, 0, 0))
+    })
+
+    it("dia 1 do mês: janela vazia (nenhum dia fechado ainda)", () => {
+        const { from, to } = resolveMonthlyHistoryWindow(new Date(2026, 8, 1, 9, 0))
+
+        expect(from).toEqual(new Date(2026, 8, 1, 0, 0, 0, 0))
+        expect(to).toEqual(new Date(2026, 8, 1, 0, 0, 0, 0))
+        expect(from.getTime()).toBe(to.getTime())
+    })
+
+    it("vira o ano quando o mês corrente é janeiro", () => {
+        const { from, to } = resolveMonthlyHistoryWindow(new Date(2027, 0, 15, 12, 0))
+
+        expect(from).toEqual(new Date(2027, 0, 1, 0, 0, 0, 0))
+        expect(to).toEqual(new Date(2027, 0, 15, 0, 0, 0, 0))
     })
 })
