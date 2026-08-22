@@ -1694,3 +1694,16 @@
 - **Decisões/ADRs:** nenhuma.
 - **Fora do escopo desta issue:** mover a visão de 24h pro histórico de consumo — não implementado, só registrado como observação na issue original.
 - **Verificação:** frontend 703 testes (removidos os testes do caminho "24h", 2 novos confirmando a ausência do toggle) / e2e 96 verdes — mesma linha de base pré-existente. `tsc`, `lint` e `prettier` limpos. Backend não foi tocado.
+
+## [2026-08-22] feature: seção de consumo vira "Histórico de consumo" com legenda por granularidade
+
+- **Branch:** epic/238-melhorias-consumo-tempo-real
+- **Tipo:** feature
+- **O quê:** issue #241 (sub-issue do épico #238). A seção de consumo em Propriedade/Área/Dispositivo se chamava só "Consumo", sem indicar o que estava sendo mostrado (a janela muda conforme a aba Hora/Dia selecionada).
+- **Correção:** `ConsumptionSection.tsx` (componente presencial único, compartilhado pelas 3 páginas via os wrappers `PropertyConsumptionSection`/`AreaConsumptionSection`/`DeviceConsumptionSection`) — título vira "Histórico de consumo", com uma legenda abaixo (mesmo padrão visual de `ConsumptionHistorySection.tsx`) descrevendo a janela ativa. Nova `CONSUMPTION_WINDOW_DESCRIPTION` em `lib/consumptionWindow.ts`, ao lado de `BUCKET_BY_GRANULARITY` (mesma tradução janela/bucket, em texto).
+- **Achado durante a implementação — escopo maior que o pedido na issue, por necessidade:** `ConsumptionSection` também é usada em `/relatorios` (`ReportsPage.tsx`) com as 4 granularidades (`REPORT_GRANULARITIES`), não só Hora/Dia das details pages. A issue só pedia legenda pra Hora/Dia — escrita para as 4 (`hour`/`day`/`month`/`year`), já que é o mesmo componente e uma legenda só-Hora/Dia deixaria `/relatorios` com texto ausente ao selecionar Mês/Ano.
+- **Ausência de handoff, não divergência:** `.claude/design/` não cobre esta seção nas páginas de detalhe (só o dashboard tem handoff Industry completo; `/relatorios` já tem uma nota própria no código dizendo que está "sem handoff Industry ainda") — seguido o padrão visual já em produção em `ConsumptionHistorySection.tsx`, sem inventar layout novo.
+- **Arquivos principais:** `frontend/src/components/consumption/ConsumptionSection.tsx`, `frontend/src/components/consumption/ConsumptionSection.test.tsx` (novo — não havia teste de componente pra este arquivo, só cobertura e2e), `frontend/src/lib/consumptionWindow.ts`, `frontend/src/pages/{property,area,device}/*DetailsPage.test.tsx`, `frontend/tests/e2e/{consumption,device}.spec.ts`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas de teste:** teste de componente novo escrito primeiro e confirmado **falhando** contra o código antigo (`git stash` nos 2 arquivos de produção) antes da correção. 6 testes pré-existentes (3 arquivos `*DetailsPage.test.tsx`) e 2 e2e (`consumption.spec.ts`, `device.spec.ts`) buscavam o heading antigo (`/^consumo$/i`) — ajustados pro texto novo.
+- **Verificação:** frontend 706 testes (3 novos) / e2e 96 verdes — mesma linha de base pré-existente. `tsc`, `lint` e `prettier` limpos. Backend não foi tocado.
