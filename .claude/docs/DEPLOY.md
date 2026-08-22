@@ -336,10 +336,19 @@ Acesse o Uptime Kuma via túnel SSH (`ssh -L 3001:localhost:3001 usuario@<ip-da-
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `deploy/.env` | Valores novos gerados | Usuário administrativo — só para migração (passo 5), nunca para `DATABASE_URL` do backend. |
 | `LUMITRACK_APP_PASSWORD` | `deploy/.env` | Valor novo gerado, distinto de `POSTGRES_PASSWORD` | Senha do papel de runtime sem DDL. Deve bater com o `DATABASE_URL` acima. |
 | `DOMAIN` | `deploy/.env` | Domínio real | Repassado ao Caddy para o certificado Let's Encrypt. |
+| `BACKUP_ENCRYPTION_PUBLIC_KEY` | `deploy/.env` | Chave pública `age1...` gerada fora da VM | `age-keygen -o backup-key.txt` **na sua máquina**, nunca na VM — guarde a chave privada fora do repositório. Ver "Backup e restauração testada" abaixo. |
 
 ## Backup e restauração testada
 
-**Automático:** `deploy/lumitrack-backup.timer` roda `deploy/backup-postgres.sh` diariamente (`pg_dump` comprimido, retenção de 14 dias por padrão). Instalar:
+**Chave de cifra (gerar UMA VEZ, fora da VM, antes do primeiro backup):**
+
+```bash
+age-keygen -o backup-key.txt   # roda na SUA máquina, não na VM
+```
+
+Copie a linha `Public key: age1...` para `BACKUP_ENCRYPTION_PUBLIC_KEY` em `deploy/.env`. Guarde `backup-key.txt` (a chave **privada**) em local seguro fora do repositório e fora da VM — sem ela, os backups são irrecuperáveis, inclusive por você. `deploy/provision-vm.sh` já instala o pacote `age` na VM (só precisa dele para cifrar; nunca da chave privada para decifrar).
+
+**Automático:** `deploy/lumitrack-backup.timer` roda `deploy/backup-postgres.sh` diariamente (`pg_dump | gzip | age -r <chave-pública>`, retenção de 14 dias por padrão). O script recusa rodar (`exit 1`) se `BACKUP_ENCRYPTION_PUBLIC_KEY` não estiver definida — nunca grava um dump em texto claro por omissão. Instalar:
 
 ```bash
 sudo cp deploy/lumitrack-backup.service deploy/lumitrack-backup.timer /etc/systemd/system/
@@ -347,19 +356,20 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now lumitrack-backup.timer
 ```
 
-**Restauração testada (obrigatória ao menos uma vez — um backup nunca restaurado não é um backup):**
+**Restauração testada (obrigatória ao menos uma vez — um backup nunca restaurado não é um backup — registrar em `deploy/BACKUP-RESTORE-LOG.md` a cada execução, nunca apagar entradas antigas):**
 
 ```bash
 # 1. Banco descartável, isolado do de produção
 docker run --rm -d --name lumitrack-restore-test \
     -e POSTGRES_PASSWORD=teste -e POSTGRES_DB=restore_test postgres:16
 
-# 2. Restaurar o dump mais recente
-gunzip -c /opt/lumitrack/backups/lumitrack-<timestamp>.sql.gz | \
+# 2. Decifrar (chave PRIVADA, trazida de fora da VM só para este teste) e restaurar o dump mais recente
+age -d -i backup-key.txt /opt/lumitrack/backups/lumitrack-<timestamp>.sql.gz.age | \
+    gunzip | \
     docker exec -i lumitrack-restore-test psql -U postgres -d restore_test
 
 # 3. Conferir que os dados vieram (exemplo: contagem de usuários)
-docker exec lumitrack-restore-test psql -U postgres -d restore_test -c 'SELECT count(*) FROM "User";'
+docker exec lumitrack-restore-test psql -U postgres -d restore_test -c 'SELECT count(*) FROM "users";'
 
 # 4. Descartar
 docker rm -f lumitrack-restore-test
