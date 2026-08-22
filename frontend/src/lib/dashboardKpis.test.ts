@@ -1,6 +1,7 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, beforeAll, afterAll } from "vitest"
 import {
     toLocalDateKey,
+    bucketDateKey,
     findBucketForDate,
     computeTodayDelta,
     daysInMonth,
@@ -8,12 +9,34 @@ import {
 } from "@/lib/dashboardKpis"
 import type { ConsumptionBucket } from "@/types/consumption.types"
 
+// O bug da #233 só se manifesta com um fuso de OFFSET NÃO-ZERO em relação a
+// UTC (América/Sao_Paulo, -3h) — fixar o fuso do processo torna os testes
+// abaixo determinísticos independente de onde rodam (a máquina de dev já
+// está em America/Sao_Paulo, mas o runner de CI roda em UTC por padrão, o
+// que mascararia justamente o bug que estes testes existem pra pegar).
+const ORIGINAL_TZ = process.env.TZ
+beforeAll(() => {
+    process.env.TZ = "America/Sao_Paulo"
+})
+afterAll(() => {
+    process.env.TZ = ORIGINAL_TZ
+})
+
 const bucket = (bucketStart: string, kwhConsumed: number): ConsumptionBucket => ({
     bucketStart,
     kwhConsumed,
     costBrl: kwhConsumed * 0.8,
     avgPowerW: 500,
 })
+
+/**
+ * bucketStart no formato REAL que o backend produz pra bucket de dia
+ * (issue #233): timestamp naive de meia-noite SP, cujos dígitos o driver
+ * decodifica como se já fossem UTC — não um instante UTC de verdade. É
+ * diferente (de propósito) de `new Date(...).toISOString()`, que aplicaria
+ * a conversão de fuso real.
+ */
+const spDayBucketStart = (isoDate: string): string => `${isoDate}T00:00:00.000Z`
 
 describe("toLocalDateKey", () => {
     it("formata a data local como YYYY-MM-DD", () => {
@@ -27,17 +50,46 @@ describe("toLocalDateKey", () => {
     })
 })
 
+describe("bucketDateKey", () => {
+    it("lê a data via getters UTC — desfaz a codificação naive-como-UTC do backend", () => {
+        // Meia-noite de SP do dia 21, exatamente como o backend produz
+        // (timeBucket.ts): não é um instante UTC de verdade, é o dia 21 com
+        // os dígitos etiquetados como Z.
+        expect(bucketDateKey("2026-08-21T00:00:00.000Z")).toBe("2026-08-21")
+    })
+
+    it("não teria batido com getters locais em fuso SP — é exatamente o bug da #233", () => {
+        // Reproduz o cálculo que `toLocalDateKey` (getters LOCAIS) faria em
+        // vez de `bucketDateKey`, comprovando que usar o decodificador
+        // errado aqui devolveria o dia 20, não o 21.
+        const wrongKeyViaLocalGetters = toLocalDateKey(new Date("2026-08-21T00:00:00.000Z"))
+        expect(wrongKeyViaLocalGetters).not.toBe("2026-08-21")
+        expect(bucketDateKey("2026-08-21T00:00:00.000Z")).toBe("2026-08-21")
+    })
+})
+
 describe("findBucketForDate", () => {
     it("acha o bucket pela data, não pela posição", () => {
         const items = [
-            bucket("2026-08-01T12:00:00.000Z", 5), // mais recente, mas NÃO é hoje
-            bucket("2026-07-31T12:00:00.000Z", 3),
+            bucket(spDayBucketStart("2026-08-01"), 5), // mais recente, mas NÃO é hoje
+            bucket(spDayBucketStart("2026-07-31"), 3),
         ]
         const today = new Date(2026, 7, 3) // hoje é dia 3 — nenhum bucket bate
         expect(findBucketForDate(items, today)).toBeUndefined()
 
         const yesterday = new Date(2026, 6, 31)
         expect(findBucketForDate(items, yesterday)?.kwhConsumed).toBe(3)
+    })
+
+    it("acha o bucket de HOJE mesmo com a codificação real de meia-noite SP (issue #233)", () => {
+        // Fixture de meio-dia UTC (como o teste antigo usava) nunca cruza
+        // fronteira de dia em fuso nenhum — mascarava o bug. Meia-noite SP
+        // naive-como-UTC é o caso real que quebrava: sem `bucketDateKey`,
+        // `findBucketForDate` nunca achava o bucket de hoje.
+        const today = new Date(2026, 7, 21) // 21 de agosto de 2026, local
+        const items = [bucket(spDayBucketStart("2026-08-21"), 12.5)]
+
+        expect(findBucketForDate(items, today)?.kwhConsumed).toBe(12.5)
     })
 
     it("retorna undefined para lista vazia", () => {

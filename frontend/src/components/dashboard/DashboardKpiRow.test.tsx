@@ -6,7 +6,7 @@ import { consumptionService } from "@/services/consumption.service"
 import { tariffFlagService } from "@/services/tariff-flag.service"
 import { computeMonthProjection, daysInMonth } from "@/lib/dashboardKpis"
 import { formatBrl } from "@/lib/format"
-import type { ConsumptionBucket, Granularity } from "@/types/consumption.types"
+import type { BucketSize, ConsumptionBucket, Granularity } from "@/types/consumption.types"
 import type { Paginated } from "@/types/pagination.types"
 import type { TariffFlagConfig } from "@/types/tariff-flag.types"
 import type { ReadingPayload } from "@/lib/sse/appStream"
@@ -19,15 +19,38 @@ vi.mock("@/services/tariff-flag.service", () => ({
     tariffFlagService: { get: vi.fn() },
 }))
 
+// O bug da #233 só se manifesta com um fuso de OFFSET NÃO-ZERO em relação a
+// UTC — fixado ANTES das constantes de data abaixo (que leem `now` via
+// getters locais) pra ficar determinístico independente de onde os testes
+// rodam (CI roda em UTC por padrão, o que mascararia o bug).
+process.env.TZ = "America/Sao_Paulo"
+
 // Datas relativas ao "agora" real do processo (sem fake timers — `findByText`/
 // `waitFor` do testing-library dependem de timers reais para o polling
-// assíncrono). Meio-dia local evita qualquer ambiguidade de fuso na
-// comparação `toLocalDateKey` (mesmos componentes locais usados pelo
-// componente).
+// assíncrono).
 const now = new Date()
-const todayNoon = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0)
-const yesterdayNoon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12, 0, 0)
+// Bucket de MÊS: fixture de meio-dia local (não é o bug desta issue — ver
+// nota abaixo sobre `sameMonth`/"Custo projetado").
 const firstOfMonthNoon = new Date(now.getFullYear(), now.getMonth(), 1, 12, 0, 0)
+
+/**
+ * bucketStart de DIA no formato REAL que o backend produz (issue #233):
+ * timestamp naive de meia-noite SP, cujos dígitos o driver decodifica como
+ * se já fossem UTC — não meio-dia local convertido de verdade via
+ * `.toISOString()`. Os componentes de data vêm do próprio `date` local
+ * (mesmos que `DashboardKpiRow` calcularia via `now.getDate()`), então o
+ * teste fica determinístico em qualquer fuso do processo que o roda.
+ */
+const spDayBucketStart = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}T00:00:00.000Z`
+}
+const todaySpBucket = spDayBucketStart(now)
+const yesterdaySpBucket = spDayBucketStart(
+    new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1),
+)
 
 const paginated = <T,>(items: T[]): Paginated<T> & { granularity: Granularity } => ({
     items,
@@ -62,9 +85,16 @@ const mockReading = (powerW: number): ReadingPayload => ({
     receivedAt: now.toISOString(),
 })
 
-/** Devolve dado diferente por granularidade — cada KPI busca uma. */
+/**
+ * Devolve dado diferente por granularidade — cada KPI busca uma.
+ *
+ * `BucketSize` (não `Granularity`): `consumptionService.list` aceita
+ * "minute" também — `Record<Granularity, ...>` não tem essa chave e
+ * `responses[params.granularity]` quebrava o `tsc` (pré-existente, achado
+ * ao tocar este arquivo pela issue #233, sem relação com o bug de fuso).
+ */
 const mockConsumptionByGranularity = (
-    responses: Partial<Record<Granularity, ConsumptionBucket[]>>,
+    responses: Partial<Record<BucketSize, ConsumptionBucket[]>>,
 ) => {
     vi.mocked(consumptionService.list).mockImplementation(async (params) =>
         paginated(responses[params.granularity] ?? []),
@@ -119,10 +149,7 @@ describe("DashboardKpiRow — Potência agora / custo estimado", () => {
 describe("DashboardKpiRow — Consumo hoje", () => {
     it("mostra o delta vs. ontem quando os dois buckets existem", async () => {
         mockConsumptionByGranularity({
-            day: [
-                bucket(todayNoon.toISOString(), 12, 9.6),
-                bucket(yesterdayNoon.toISOString(), 10, 8),
-            ],
+            day: [bucket(todaySpBucket, 12, 9.6), bucket(yesterdaySpBucket, 10, 8)],
         })
 
         renderRow()
@@ -134,7 +161,7 @@ describe("DashboardKpiRow — Consumo hoje", () => {
 
     it("não mostra delta quando não há bucket de ontem", async () => {
         mockConsumptionByGranularity({
-            day: [bucket(todayNoon.toISOString(), 5, 4)],
+            day: [bucket(todaySpBucket, 5, 4)],
         })
 
         renderRow()
