@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router"
 import { Bell, Check } from "lucide-react"
-import { useDeleteNotification, useNotifications } from "@/hooks/queries/useNotifications"
+import {
+    useDeleteAllNotifications,
+    useDeleteNotification,
+    useNotifications,
+} from "@/hooks/queries/useNotifications"
 import { useClickOutside } from "@/lib/hooks/useClickOutside"
 import type { Notification } from "@/types/notification.types"
 
@@ -16,14 +20,19 @@ const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
  * Sino de notificações — evolução do antigo `AlertBellBadge` (Fase 5).
  * Notificações são efêmeras (backend, `NotificationStore`): "lida" = excluída.
  *
- * Duas formas de "consumir" uma notificação:
+ * Três formas de "consumir" uma notificação:
  *   - Clicar no corpo → navega para `targetPath` (o medidor/alerta que
  *     disparou) e a exclui.
  *   - Clicar no ícone de check → só exclui (marca como lida), sem navegar.
+ *   - "Marcar todas como lidas" (cabeçalho, spec do handoff — LumiTrack
+ *     Home.dc.html, bloco NOTIFICATIONS DROPDOWN) → exclui todas de uma vez.
+ *     Oculto sem notificações — divergência deliberada do protótipo (que
+ *     mostra o botão mesmo vazio): a ação não faz sentido sem alvo.
  */
 export const NotificationDropdown = () => {
     const { data: notifications = [] } = useNotifications()
     const deleteNotification = useDeleteNotification()
+    const deleteAllNotifications = useDeleteAllNotifications()
     const navigate = useNavigate()
     const [isOpen, setIsOpen] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
@@ -50,6 +59,10 @@ export const NotificationDropdown = () => {
 
     const handleDismiss = (id: string) => {
         deleteNotification.mutate(id)
+    }
+
+    const handleMarkAllRead = () => {
+        deleteAllNotifications.mutate()
     }
 
     return (
@@ -84,8 +97,24 @@ export const NotificationDropdown = () => {
                     role="menu"
                     aria-label="Notificações"
                     data-testid="notification-dropdown"
-                    className="lt-menu top-full right-0 mt-1 max-h-96 w-80 overflow-y-auto"
+                    className="lt-menu top-full right-0 mt-1 flex max-h-96 w-80 flex-col overflow-y-auto"
                 >
+                    <div className="border-divider flex items-center justify-between gap-2.5 border-b px-4 py-3.5">
+                        <span className="font-heading text-[15px] font-semibold uppercase">
+                            Notificações
+                        </span>
+                        {count > 0 && (
+                            <button
+                                type="button"
+                                onClick={handleMarkAllRead}
+                                data-testid="notification-mark-all-read"
+                                className="text-accent-700 cursor-pointer border-0 bg-transparent p-0 text-xs hover:underline"
+                            >
+                                Marcar todas como lidas
+                            </button>
+                        )}
+                    </div>
+
                     {notifications.length === 0 ? (
                         <p className="text-muted px-4 py-6 text-center text-sm">
                             Nenhuma notificação
