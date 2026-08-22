@@ -166,7 +166,7 @@ describe("RealtimeSection — com medidor", () => {
         expect(await screen.findByText("1,50kW")).toBeInTheDocument()
     })
 
-    it("não mostra o toggle de janela — só resta a última hora (issue #240)", async () => {
+    it("não mostra o toggle de janela — só resta a última hora", async () => {
         vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
 
         renderSection()

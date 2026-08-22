@@ -145,8 +145,8 @@ describe("ConsumptionHistorySection — com medidor", () => {
         renderSection("prop-1", "Casa")
 
         expect(await screen.findByTestId("consumption-chart")).toBeInTheDocument()
-        // Padrão é Mensal (issue #239) — subtítulo diário, não "consumo mensal"
-        // (esse texto é coberto abaixo, ao trocar pra 6/12 meses).
+        // Padrão é Mensal — subtítulo diário, não "consumo mensal" (esse
+        // texto é coberto abaixo, ao trocar pra 6/12 meses).
         expect(
             screen.getByText(/Casa · consumo diário do mês corrente \(kWh\)/),
         ).toBeInTheDocument()
@@ -181,7 +181,7 @@ describe("ConsumptionHistorySection — com medidor", () => {
     })
 })
 
-describe("ConsumptionHistorySection — Mensal como padrão (issue #239)", () => {
+describe("ConsumptionHistorySection — Mensal como padrão", () => {
     it("abre com a aba Mensal já selecionada, sem precisar clicar", async () => {
         vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
         vi.mocked(consumptionService.list).mockResolvedValue(paginated([]))
@@ -264,8 +264,8 @@ describe("ConsumptionHistorySection — Mensal (issue #230)", () => {
         renderSection()
         await screen.findByTestId("history-range-toggle")
 
-        // Padrão é Mensal (issue #239) — sai dele pra exercitar o caminho
-        // 6/12 meses, que é quem inverte a ordem.
+        // Padrão é Mensal — sai dele pra exercitar o caminho 6/12 meses, que
+        // é quem inverte a ordem.
         const user = userEvent.setup()
         await user.click(screen.getByTestId("history-range-6"))
 

@@ -57,7 +57,7 @@ describe("RealtimeChartCard", () => {
         expect(screen.getByText(/Sala · última hora/)).toBeInTheDocument()
     })
 
-    it("não mostra mais o toggle de janela — só resta uma opção (issue #240)", async () => {
+    it("não mostra mais o toggle de janela — só resta uma opção", async () => {
         vi.mocked(meterReadingService.list).mockResolvedValue({ items: [], granularity: "minute" })
 
         renderCard()

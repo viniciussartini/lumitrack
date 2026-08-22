@@ -747,7 +747,7 @@ textarea.input {
     animation: lt-rise 0.2s ease-out;
 }
 
-/* Toggle de opção única (Hora/24h, kWh/R$, granularidade de consumo) —
+/* Toggle de opção única (kWh/R$, granularidade de consumo) —
    LumiTrack Home.dc.html, <style> local do protótipo. Usado por
    GranularityTabs.tsx e pelos toggles kWh/R$ de PropertyDetailsPage.tsx. */
 .lt-selbtn {

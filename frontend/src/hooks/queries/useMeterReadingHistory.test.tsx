@@ -38,9 +38,12 @@ afterEach(() => {
     vi.restoreAllMocks()
 })
 
-describe("useMeterReadingHistory — retenção na virada de hora (issue #242)", () => {
+describe("useMeterReadingHistory — retenção na virada de hora", () => {
     it("mantém os últimos baldes não vazios quando a virada de hora devolve vazio", async () => {
-        vi.spyOn(Date, "now").mockReturnValue(trueEpoch(19, 30, 10))
+        // Fetch a 30s da virada — o mesmo espaçamento do `refetchInterval`
+        // real, não um salto arbitrário: é essa janela curta que o limite de
+        // retenção precisa continuar cobrindo.
+        vi.spyOn(Date, "now").mockReturnValue(trueEpoch(19, 59, 30))
         vi.mocked(meterReadingService.list).mockResolvedValue({
             items: [{ bucketStart: maskedIso(19, 0), avgPowerW: 1000 }],
             granularity: "minute",
@@ -58,7 +61,7 @@ describe("useMeterReadingHistory — retenção na virada de hora (issue #242)",
 
         // Vira a hora: primeiro minuto do novo período, nenhum ainda fechado
         // — `buildDenseWindowBuckets` devolve `[]` pra qualquer alvo aqui,
-        // não só pra quem nunca teve leitura (raiz da issue #242).
+        // não só pra quem nunca teve leitura.
         vi.spyOn(Date, "now").mockReturnValue(trueEpoch(20, 0, 5))
         vi.mocked(meterReadingService.list).mockResolvedValue({
             items: [],
@@ -94,6 +97,37 @@ describe("useMeterReadingHistory — retenção na virada de hora (issue #242)",
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
         expect(result.current.data).toEqual([])
+    })
+
+    it("para de reter depois de ~2 minutos sem virada resolvida (retorno de segundo plano tardio)", async () => {
+        vi.spyOn(Date, "now").mockReturnValue(trueEpoch(18, 45, 0))
+        vi.mocked(meterReadingService.list).mockResolvedValue({
+            items: [{ bucketStart: maskedIso(18, 0), avgPowerW: 1000 }],
+            granularity: "minute",
+        })
+
+        const { result } = renderHook(
+            () => useMeterReadingHistory("PROPERTY", "prop-1", "meter-1"),
+            { wrapper: createWrapper() },
+        )
+
+        await waitFor(() => expect(result.current.data?.length).toBeGreaterThan(0))
+
+        // Aba volta de segundo plano mais de 1h depois (sem `refetchInterval`
+        // rodando enquanto estava em background), bem no primeiro minuto de
+        // uma hora nova (a única janela em que `buildDenseWindowBuckets`
+        // devolve `[]` de propósito) — sem o limite de idade, o retido de
+        // 18:45 continuaria sendo servido como se fosse dado da hora
+        // corrente.
+        vi.spyOn(Date, "now").mockReturnValue(trueEpoch(20, 0, 30))
+        vi.mocked(meterReadingService.list).mockResolvedValue({
+            items: [],
+            granularity: "minute",
+        })
+
+        await result.current.refetch()
+
+        await waitFor(() => expect(result.current.data).toEqual([]))
     })
 
     it("troca de alvo não herda os baldes retidos do alvo anterior", async () => {

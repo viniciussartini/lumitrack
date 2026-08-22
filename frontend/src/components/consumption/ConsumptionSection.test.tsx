@@ -7,7 +7,11 @@ import { meterService } from "@/services/meter.service"
 import { consumptionService } from "@/services/consumption.service"
 import type { Meter } from "@/types/meter.types"
 import type { Paginated } from "@/types/pagination.types"
-import type { ConsumptionBucket, Granularity } from "@/types/consumption.types"
+import {
+    REPORT_GRANULARITIES,
+    type ConsumptionBucket,
+    type Granularity,
+} from "@/types/consumption.types"
 
 vi.mock("@/services/meter.service", () => ({
     meterService: {
@@ -56,13 +60,20 @@ const createTestQueryClient = () =>
         },
     })
 
-const renderSection = () => {
+const renderSection = (granularities?: readonly Granularity[]) => {
     const queryClient = createTestQueryClient()
-    return render(<ConsumptionSection targetType="PROPERTY" targetId="prop-1" />, {
-        wrapper: ({ children }) => (
-            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-        ),
-    })
+    return render(
+        <ConsumptionSection
+            targetType="PROPERTY"
+            targetId="prop-1"
+            granularities={granularities}
+        />,
+        {
+            wrapper: ({ children }) => (
+                <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+            ),
+        },
+    )
 }
 
 beforeEach(() => {
@@ -71,7 +82,7 @@ beforeEach(() => {
     vi.mocked(consumptionService.list).mockResolvedValue(paginated([]))
 })
 
-describe("ConsumptionSection — título e legenda (issue #241)", () => {
+describe("ConsumptionSection — título e legenda", () => {
     it('título passa a ser "Histórico de consumo"', async () => {
         renderSection()
 
@@ -97,5 +108,17 @@ describe("ConsumptionSection — título e legenda (issue #241)", () => {
         expect(
             screen.queryByText("Consumo da hora corrente, minuto a minuto"),
         ).not.toBeInTheDocument()
+    })
+
+    it("legenda cobre Mês e Ano — únicas granularidades extras usadas em /relatorios", async () => {
+        renderSection(REPORT_GRANULARITIES)
+        await screen.findByTestId("granularity-tabs")
+
+        const user = userEvent.setup()
+        await user.click(screen.getByTestId("granularity-tab-month"))
+        expect(await screen.findByText("Consumo do mês corrente, dia a dia")).toBeInTheDocument()
+
+        await user.click(screen.getByTestId("granularity-tab-year"))
+        expect(await screen.findByText("Consumo do ano corrente, mês a mês")).toBeInTheDocument()
     })
 })

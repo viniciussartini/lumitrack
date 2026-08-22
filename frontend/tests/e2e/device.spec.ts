@@ -300,7 +300,7 @@ test.describe("Fluxo CRUD de dispositivos", () => {
 
         // Os 3 elementos do cascade aparecem no aviso — escopo ao dialog
         // pra evitar strict mode violation (a página tem headings "Medidor"
-        // e "Consumo" fora do dialog)
+        // e "Histórico de consumo" fora do dialog)
         const confirmDialog = page.getByRole("dialog")
         await expect(confirmDialog.getByText(/registros de consumo/i)).toBeVisible()
         await expect(confirmDialog.getByText(/alertas/i)).toBeVisible()

@@ -12,8 +12,8 @@ interface RealtimeChartCardProps {
 
 /**
  * Card "Consumo em tempo real" (bloco `isDashboard` do handoff) — extraído
- * de `RealtimeSection` (issue #211) pra ser reutilizável também em
- * Propriedade/Área/Dispositivo, não só no Dashboard. Busca o histórico via
+ * de `RealtimeSection` pra ser reutilizável também em Propriedade/Área/
+ * Dispositivo, não só no Dashboard. Busca o histórico via
  * `useMeterReadingHistory` (persistido em `MeterReading`, não o buffer de
  * SSE do navegador) — nasce com dado real, não vazio a cada acesso à página.
  *
