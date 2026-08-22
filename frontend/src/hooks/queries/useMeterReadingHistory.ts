@@ -1,3 +1,4 @@
+import { useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { meterReadingService } from "@/services/meterReading.service"
 import { queryKeys } from "@/lib/queryClient"
@@ -27,15 +28,29 @@ const REFETCH_INTERVAL_MS = 30_000
  * targetType/targetId, igual `/api/consumption`) — só faz parte do gate de
  * `enabled`, pra não disparar a busca antes de o chamador confirmar que o
  * alvo tem medidor vinculado.
+ *
+ * Retém o último resultado não vazio: no primeiro minuto de cada hora,
+ * `buildDenseWindowBuckets` devolve `[]` de propósito (a hora nova ainda não
+ * fechou nenhum minuto) — sem isso, o gráfico piscava pro estado "Aguardando
+ * leituras" por até ~1 min a cada virada de hora, mesmo com dado recente
+ * disponível. O retido é escopado por alvo (chave `targetType:targetId`,
+ * num `Map` guardado num `ref`) — sem isso, trocar de propriedade/área/
+ * dispositivo no meio da virada de hora herdaria os baldes do alvo anterior
+ * por engano. Leitura e escrita do `ref` ficam só dentro do `queryFn`
+ * (nunca no corpo síncrono do hook) — tocar `.current` durante o render é
+ * proibido pelas regras do React Compiler.
  */
 export const useMeterReadingHistory = (
     targetType: TargetType,
     targetId: string | undefined,
     meterId: string | undefined,
-) =>
-    useQuery({
+) => {
+    const retainedByTarget = useRef(new Map<string, PowerBucket[]>())
+
+    return useQuery({
         queryKey: queryKeys.meterReadings.history(targetType, targetId ?? ""),
         queryFn: async (): Promise<PowerBucket[]> => {
+            const targetKey = `${targetType}:${targetId}`
             const now = Date.now()
             const from = startOfSaoPauloPeriod(now)
 
@@ -52,8 +67,14 @@ export const useMeterReadingHistory = (
                 avgPowerW: item.avgPowerW,
             }))
 
-            return buildDenseWindowBuckets(sparseBuckets, now)
+            const buckets = buildDenseWindowBuckets(sparseBuckets, now)
+            if (buckets.length > 0) {
+                retainedByTarget.current.set(targetKey, buckets)
+                return buckets
+            }
+            return retainedByTarget.current.get(targetKey) ?? []
         },
         enabled: Boolean(targetId) && Boolean(meterId),
         refetchInterval: REFETCH_INTERVAL_MS,
     })
+}
