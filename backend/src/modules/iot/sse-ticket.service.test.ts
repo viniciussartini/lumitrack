@@ -6,6 +6,7 @@ const payload: StreamTicketPayload = {
     email: "joao@example.com",
     userType: "INDIVIDUAL",
     role: "USER",
+    isDemo: false,
     authToken: "token-abc",
 }
 

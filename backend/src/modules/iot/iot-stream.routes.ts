@@ -100,6 +100,7 @@ function createStreamAuthMiddleware(
             email: resolved.email,
             userType: resolved.userType,
             role: resolved.role,
+            isDemo: resolved.isDemo,
         }
         authenticatedReq.authToken = resolved.authToken
         authenticatedReq.authSource = "header" // bearer-like: token explícito, não cookie do browser
@@ -216,10 +217,17 @@ export function iotStreamRoutes(
      * Autenticado normalmente (cookie/CSRF, mesma origem via rewrite).
      */
     router.post("/stream-ticket", authenticate, (req, res) => {
-        const { id, email, userType, role } = (req as AuthenticatedRequest).user
+        const { id, email, userType, role, isDemo } = (req as AuthenticatedRequest).user
         const { authToken } = req as AuthenticatedRequest
 
-        const ticket = ticketService.issue({ userId: id, email, userType, role, authToken })
+        const ticket = ticketService.issue({
+            userId: id,
+            email,
+            userType,
+            role,
+            isDemo,
+            authToken,
+        })
         res.status(201).json({ status: "success", data: { ticket } })
     })
 

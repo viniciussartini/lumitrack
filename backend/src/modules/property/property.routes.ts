@@ -7,6 +7,7 @@ import { DistributorRepository } from "@/modules/distributor/distributor.reposit
 import { areaRoutes } from "@/modules/area/area.routes.js"
 import { simulationRoutes } from "@/modules/simulation/simulation.routes.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
+import { blockDemoWrite } from "@/shared/middlewares/blockDemoWrite.js"
 
 export function propertyRoutes(
     authenticate: RequestHandler,
@@ -23,7 +24,9 @@ export function propertyRoutes(
     const propertyController = new PropertyController(propertyService, auditService)
 
     // Rotas protegidas
-    router.post("/", authenticate, (req, res, next) => propertyController.create(req, res, next))
+    router.post("/", authenticate, blockDemoWrite, (req, res, next) =>
+        propertyController.create(req, res, next),
+    )
     router.get("/", authenticate, (req, res, next) => propertyController.findAll(req, res, next))
 
     // Rotas aninhadas ANTES das rotas /:id — ordem crítica no Express.
@@ -35,8 +38,10 @@ export function propertyRoutes(
     router.get("/:id", authenticate, (req, res, next) =>
         propertyController.findById(req, res, next),
     )
-    router.put("/:id", authenticate, (req, res, next) => propertyController.update(req, res, next))
-    router.delete("/:id", authenticate, (req, res, next) =>
+    router.put("/:id", authenticate, blockDemoWrite, (req, res, next) =>
+        propertyController.update(req, res, next),
+    )
+    router.delete("/:id", authenticate, blockDemoWrite, (req, res, next) =>
         propertyController.delete(req, res, next),
     )
 

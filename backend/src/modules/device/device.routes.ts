@@ -5,6 +5,7 @@ import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DeviceService } from "@/modules/device/device.service.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
+import { blockDemoWrite } from "@/shared/middlewares/blockDemoWrite.js"
 
 export function deviceRoutes(authenticate: RequestHandler, prismaClient: PrismaClient): Router {
     // Montado em area.routes.ts como:
@@ -25,11 +26,17 @@ export function deviceRoutes(authenticate: RequestHandler, prismaClient: PrismaC
     const deviceService = new DeviceService(deviceRepository, areaRepository, propertyRepository)
     const deviceController = new DeviceController(deviceService)
 
-    router.post("/", authenticate, (req, res, next) => deviceController.create(req, res, next))
+    router.post("/", authenticate, blockDemoWrite, (req, res, next) =>
+        deviceController.create(req, res, next),
+    )
     router.get("/", authenticate, (req, res, next) => deviceController.findAll(req, res, next))
     router.get("/:id", authenticate, (req, res, next) => deviceController.findById(req, res, next))
-    router.put("/:id", authenticate, (req, res, next) => deviceController.update(req, res, next))
-    router.delete("/:id", authenticate, (req, res, next) => deviceController.delete(req, res, next))
+    router.put("/:id", authenticate, blockDemoWrite, (req, res, next) =>
+        deviceController.update(req, res, next),
+    )
+    router.delete("/:id", authenticate, blockDemoWrite, (req, res, next) =>
+        deviceController.delete(req, res, next),
+    )
 
     return router
 }

@@ -4,6 +4,8 @@ import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
 import { createTestDistributor } from "@/shared/test/distributorFixture.js"
+import { DEMO_RESIDENTIAL_EMAIL } from "@/shared/config/demoAccounts.js"
+import { encryptAddress, decryptAddress } from "@/shared/crypto/addressEncryption.js"
 
 const app = createApp({ prismaClient: prismaHttpTest })
 
@@ -102,6 +104,19 @@ describe("POST /api/properties", () => {
         expect(response.body.data.distributorId).toBe(dist.id)
         expect(response.body.data.electricalSystem).toBe("TRIPHASIC")
         expect(response.body.data.billingClass).toBe("B1")
+    })
+
+    it("deve retornar 403 ao tentar criar propriedade com conta demo (issue #246)", async () => {
+        const { token } = await registerAndLogin({ ...validUser, email: DEMO_RESIDENTIAL_EMAIL })
+        const dist = await createDistributor()
+
+        const response = await request(app)
+            .post("/api/properties")
+            .set("Authorization", `Bearer ${token}`)
+            .send({ ...validPropertyBody, distributorId: dist.id })
+
+        expect(response.status).toBe(403)
+        expect(response.body.message).toBe("Conta de demonstração é somente leitura")
     })
 
     it("deve criar uma propriedade sem campos de endereço e retornar 201", async () => {
@@ -415,6 +430,38 @@ describe("PUT /api/properties/:id", () => {
             .put("/api/properties/00000000-0000-0000-0000-000000000000")
             .send({ name: "X" })
         expect(response.status).toBe(401)
+    })
+
+    it("deve retornar 403 ao tentar escrever Property.address com conta demo (issue #246)", async () => {
+        const { userId, token } = await registerAndLogin({
+            ...validUser,
+            email: DEMO_RESIDENTIAL_EMAIL,
+        })
+        const dist = await createDistributor()
+        // POST está bloqueado para conta demo (teste acima) — a propriedade
+        // precisa existir de antemão, inserida direto via Prisma (não é o
+        // que está sob teste aqui: o que importa é que o PUT seja recusado
+        // mesmo sobre uma propriedade que a própria conta demo já possui).
+        const property = await prismaHttpTest.property.create({
+            data: {
+                userId,
+                distributorId: dist.id,
+                name: "Casa da Demo",
+                address: encryptAddress("Endereço original"),
+                electricalSystem: "TRIPHASIC",
+            },
+        })
+
+        const response = await request(app)
+            .put(`/api/properties/${property.id}`)
+            .set("Authorization", `Bearer ${token}`)
+            .send({ address: "Endereço forjado pelo visitante" })
+
+        expect(response.status).toBe(403)
+        expect(response.body.message).toBe("Conta de demonstração é somente leitura")
+
+        const unchanged = await prismaHttpTest.property.findUnique({ where: { id: property.id } })
+        expect(decryptAddress(unchanged!.address!)).toBe("Endereço original")
     })
 })
 

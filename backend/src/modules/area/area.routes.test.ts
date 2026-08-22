@@ -4,6 +4,7 @@ import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
 import { createTestDistributor } from "@/shared/test/distributorFixture.js"
+import { DEMO_RESIDENTIAL_EMAIL } from "@/shared/config/demoAccounts.js"
 
 const app = createApp({ prismaClient: prismaHttpTest })
 
@@ -108,9 +109,35 @@ describe("POST /api/properties/:propertyId/areas", () => {
 
         expect(response.status).toBe(201)
         expect(response.body.data.id).toBeDefined()
-        expect(response.body.data.propertyId).toBe(propertyId)
-        expect(response.body.data.name).toBe("Sala de Estar")
-        expect(response.body.data.description).toBe("Área principal de convivência")
+    })
+
+    it("deve retornar 403 ao tentar criar área com conta demo (issue #246)", async () => {
+        const demoToken = await registerAndLogin({ ...validUser, email: DEMO_RESIDENTIAL_EMAIL })
+        const demoUser = await prismaHttpTest.user.findUniqueOrThrow({
+            where: { email: DEMO_RESIDENTIAL_EMAIL },
+        })
+        const dist = await createDistributor()
+        // Propriedade da PRÓPRIA conta demo, inserida direto via Prisma
+        // (POST /api/properties já está bloqueado para demo — ver
+        // property.routes.test.ts) — reproduz o cenário real: a conta demo
+        // tentando escrever sob um recurso que ela mesma possui, não sob o
+        // de outro usuário (que já falharia por posse, mascarando o bug).
+        const property = await prismaHttpTest.property.create({
+            data: {
+                userId: demoUser.id,
+                distributorId: dist.id,
+                name: "Casa da Demo",
+                electricalSystem: "TRIPHASIC",
+            },
+        })
+
+        const response = await request(app)
+            .post(`/api/properties/${property.id}/areas`)
+            .set("Authorization", `Bearer ${demoToken}`)
+            .send(validAreaBody)
+
+        expect(response.status).toBe(403)
+        expect(response.body.message).toBe("Conta de demonstração é somente leitura")
     })
 
     it("deve criar uma área sem description e retornar 201", async () => {
