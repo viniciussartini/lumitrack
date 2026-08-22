@@ -68,7 +68,7 @@ ADR registra **decisão pontual**; ninguém entende o sistema lendo doze ADRs em
 - **Estilo arquitetural:** **monólito modular** por domínio (ADR-0004).
 - **Módulos de domínio:** 16 módulos em `backend/src/modules/` (lista abaixo, em "Padrão de módulo").
 - **Comunicação entre módulos:** síncrona por interface (service → service), com o repositório como único ponto de acesso ao banco de cada módulo. O único caminho assíncrono é a ingestão IoT (amostra → buffer → rollup) e a entrega ao navegador via SSE (`UserEventHub`).
-- **Cross-cutting:** tudo em `backend/src/shared/` (detalhado abaixo) — auth/authz em `middlewares`, erro no error handler central, log em `logger` (pino), config por ambiente com fail-fast no boot, auditoria em `audit`. Sem i18n e sem feature flags além de `REGISTRATION_ENABLED`.
+- **Cross-cutting:** tudo em `backend/src/shared/` (detalhado abaixo) — auth/authz em `middlewares`, erro no error handler central, log em `logger` (pino), config por ambiente com fail-fast no boot, auditoria em `audit`. Sem i18n. Quatro feature flags, sem fonte de verdade compartilhada entre elas: `REGISTRATION_ENABLED` e `DEMO_LOGIN_ENABLED` (`backend/src/config/env.ts`), `DEMO_BOOTSTRAP_ENABLED` (`iot-simulator/server/src/config/env.ts`) e `VITE_DEMO_MODE` (build do frontend, `LoginPage.tsx`) — esta última é independente de `DEMO_LOGIN_ENABLED` (`render.yaml` documenta a armadilha: as duas precisam ser ligadas juntas manualmente).
 - **Fronteira transacional:** atômico dentro de um agregado (usuário + consentimento, medidor + alvo); eventual entre amostra ingerida e leitura por minuto persistida (`MinuteRollupScheduler`) e entre episódio de alerta e notificação.
 - **Forma da aplicação:** SPA (`frontend/`) + API separada (`backend/`), mais o worker de ingestão IoT no mesmo processo do backend.
 - **Integrações externas:** SMTP (nodemailer) e os sete protocolos IoT (ver abaixo).
@@ -106,12 +106,14 @@ Todo módulo em `backend/src/modules/<nome>/` segue a mesma cadeia de camadas:
 
 ### `shared/` — infraestrutura transversal
 
-`backend/src/shared/` concentra o que não pertence a nenhum módulo de domínio: `crypto` (AES-256-GCM para endereço, PII, segredo MFA e credencial de medidor; blind index, TOTP, hash de token, QR code), `audit` (trilha OWASP A09/Art. 46), `sse` (`UserEventHub`), `notifications`, `tariff` (`TariffService`), `retention` (expurgo agendado), `middlewares` (`authenticate`, `requireRole`, rate limiters, error handler), `security` (CSRF, guard de SSRF em conexões de saída via `outboundHost`, redirect HTTPS com host canônico via `httpsRedirect`), `logger` (pino), `database` (client Prisma singleton), `pdf` (export DSAR), `legal` (versão de consentimento), `time`, `validation` e `pagination`.
+`backend/src/shared/` concentra o que não pertence a nenhum módulo de domínio: `crypto` (AES-256-GCM para endereço, PII, segredo MFA e credencial de medidor; blind index, TOTP, hash de token, QR code), `audit` (trilha OWASP A09/Art. 46), `sse` (`UserEventHub`), `notifications`, `tariff` (`TariffService`), `retention` (expurgo agendado), `middlewares` (`authenticate`, `requireRole`, `blockDemoWrite`, rate limiters, error handler), `security` (CSRF, guard de SSRF em conexões de saída via `outboundHost`, redirect HTTPS com host canônico via `httpsRedirect`), `logger` (pino), `database` (client Prisma singleton, `timeBucket.ts` — decodificação de bucket agregado, mesma classe de bug já corrigida duas vezes em consumo/dashboard), `errors` (`AppError.ts` — base de todo tratamento de erro, capturado centralmente no error handler), `targetResolution.ts` (resolução de posse — o ponto central de autorização por recurso, ver "Posse e autorização" abaixo), `pdf` (export DSAR), `legal` (versão de consentimento), `time`, `validation`, `pagination` e `test` (fixtures e clientes Prisma dedicados aos testes de integração).
 
 ### Integrações externas
 
 - **SMTP** (nodemailer) — recuperação de senha.
 - **Protocolos IoT** — MQTT, Modbus TCP/RTU, EtherNet/IP, Profibus, PROFINET, RS232, RS485 (adaptadores em `modules/iot/iot-worker/protocols/`).
+- **API de Dados Abertos da ANEEL** (`AneelTariffFlagSource.ts`) — a única chamada de saída não-IoT do backend: `fetch` para `https://dadosabertos.aneel.gov.br` no boot e a cada 24h, com schema de anti-corrupção próprio (ADR-0007). Relevante para quem mexer em SSRF/allowlist de saída.
+- **UptimeRobot** (ADR-0011) — integração externa de *entrada*: monitor de terceiro fazendo polling do `/health`.
 - Nenhuma integração de pagamento, mapa ou terceiro de observability (Sentry/APM) está implementada — ver `07-decisoes-em-aberto.md`.
 
 ### Posse e autorização
@@ -130,3 +132,5 @@ Toda autorização é por posse de recurso, resolvida bottom-up: `MeterReading/A
 - `adr/0008-hospedagem-brasil-oracle-always-free.md` — hospedagem numa máquina única no Brasil, sem operador estrangeiro. Tomada como decisão de **conformidade**, não só técnica. **Provedor e conclusão de conformidade substituídos pela ADR-0010**; continuam vigentes as restrições técnicas (por que serverless/scale-to-zero são inviáveis), a **condição de validade** (cadastro público fechado) e os **gates de go-live**.
 - `adr/0009-observabilidade-uptime-kuma-autohospedado.md` — monitor de uptime auto-hospedado, para o caminho self-hosted.
 - `adr/0010-demo-publica-free-tier-render-neon.md` — a demo pública roda em **Render + Neon**, fora do Brasil, com **escopo restrito a demonstração** (cadastro fechado, só contas sintéticas). Registra a transferência internacional que passou a existir (registros de acesso, sem SCC), o risco assumido e o **compromisso de migrar para o Brasil** antes de qualquer operação com usuário real.
+- `adr/0011-keep-alive-monitor-externo-uptimerobot.md` — keep-alive da demo via UptimeRobot (monitor externo), aceitando o custo de não detectar a VM/serviço inteiro fora do ar.
+- `adr/0012-separacao-producao-vps-staging-render-neon.md` — produção migra para VPS Hostinger em São Paulo (branch `main`, retoma a conclusão de conformidade da ADR-0008); Render+Neon é rebaixado a staging/integração (branch `staging`, ADR-0010 continua vigente para esse ambiente).

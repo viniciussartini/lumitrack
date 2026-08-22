@@ -38,6 +38,9 @@ else
     echo "Docker já instalado — pulando."
 fi
 
+echo "==> Instalando age (cifra do backup, deploy/backup-postgres.sh)..."
+apt-get install -y age
+
 echo "==> Criando usuário de serviço sem privilégio (lumitrack)..."
 if ! id lumitrack >/dev/null 2>&1; then
     useradd --system --create-home --shell /usr/sbin/nologin lumitrack

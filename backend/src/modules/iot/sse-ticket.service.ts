@@ -6,6 +6,7 @@ export interface StreamTicketPayload {
     email: string
     userType: string
     role: Role
+    isDemo: boolean
     authToken: string
 }
 

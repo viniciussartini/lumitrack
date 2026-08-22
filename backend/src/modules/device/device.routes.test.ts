@@ -4,6 +4,7 @@ import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
 import { createTestDistributor } from "@/shared/test/distributorFixture.js"
+import { DEMO_RESIDENTIAL_EMAIL } from "@/shared/config/demoAccounts.js"
 
 const app = createApp({ prismaClient: prismaHttpTest })
 
@@ -118,6 +119,37 @@ describe("POST /api/properties/:propertyId/areas/:areaId/devices", () => {
         expect(response.body.data.name).toBe("Ar-condicionado")
         expect(response.body.data.brand).toBe("Daikin")
         expect(response.body.data.powerWatts).toBe(1200)
+    })
+
+    it("deve retornar 403 ao tentar criar dispositivo com conta demo (issue #246)", async () => {
+        const demoToken = await registerAndLogin({ ...validUser, email: DEMO_RESIDENTIAL_EMAIL })
+        const demoUser = await prismaHttpTest.user.findUniqueOrThrow({
+            where: { email: DEMO_RESIDENTIAL_EMAIL },
+        })
+        const dist = await createTestDistributor(prismaHttpTest)
+        // Property e Area da PRÓPRIA conta demo, inseridas direto via Prisma
+        // (POST /api/properties e /areas já estão bloqueados para demo) —
+        // reproduz o cenário real: a conta demo tentando escrever sob um
+        // recurso que ela mesma possui.
+        const property = await prismaHttpTest.property.create({
+            data: {
+                userId: demoUser.id,
+                distributorId: dist.id,
+                name: "Casa da Demo",
+                electricalSystem: "TRIPHASIC",
+            },
+        })
+        const area = await prismaHttpTest.area.create({
+            data: { propertyId: property.id, name: "Sala da Demo" },
+        })
+
+        const response = await request(app)
+            .post(deviceUrl(property.id, area.id))
+            .set("Authorization", `Bearer ${demoToken}`)
+            .send(validDeviceBody)
+
+        expect(response.status).toBe(403)
+        expect(response.body.message).toBe("Conta de demonstração é somente leitura")
     })
 
     it("deve criar um dispositivo apenas com o nome e retornar 201", async () => {

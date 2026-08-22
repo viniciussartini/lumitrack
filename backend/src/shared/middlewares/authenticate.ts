@@ -6,6 +6,7 @@ import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import { PrismaClient, Role } from "@/generated/prisma/client.js"
 import { hashToken } from "@/shared/crypto/hashToken.js"
 import { validateCsrf } from "@/shared/security/csrf.js"
+import { DEMO_ACCOUNT_EMAILS } from "@/shared/config/demoAccounts.js"
 
 // Extendemos o tipo Request do Express para incluir o usuário autenticado.
 // Isso evita usar `any` e mantém a tipagem segura em todos os controllers.
@@ -18,6 +19,12 @@ export interface AuthenticatedRequest extends Request {
         // abaixo), nunca um claim do JWT, para que promover/rebaixar um
         // admin tenha efeito imediato sem exigir novo login.
         role: Role
+        // Computado uma vez aqui a partir do e-mail (já disponível no JWT,
+        // sem query extra) — guard central de escrita para conta demo, ver
+        // `blockDemoWrite`. Não é um campo do usuário no banco: contas demo
+        // são identificadas por e-mail fixo (`DEMO_ACCOUNT_EMAILS`), não por
+        // uma coluna.
+        isDemo: boolean
     }
     // De onde o token foi extraído nesta requisição — usado para decidir se
     // a checagem de CSRF se aplica (só faz sentido para "cookie", já que
@@ -68,7 +75,7 @@ export function createAuthenticateMiddleware(prisma: PrismaClient) {
 
             const payload = jwt.verify(token, env.JWT_SECRET) as Omit<
                 AuthenticatedRequest["user"],
-                "role"
+                "role" | "isDemo"
             >
             const storedToken = await authRepository.findActiveToken(hashToken(token))
 
@@ -102,7 +109,11 @@ export function createAuthenticateMiddleware(prisma: PrismaClient) {
             const authenticatedReq = req as AuthenticatedRequest
             // `role` sempre vem do banco (storedToken.user.role), nunca do
             // payload do JWT — garante efeito imediato de promoção/rebaixamento.
-            authenticatedReq.user = { ...payload, role: storedToken.user.role }
+            authenticatedReq.user = {
+                ...payload,
+                role: storedToken.user.role,
+                isDemo: DEMO_ACCOUNT_EMAILS.has(payload.email),
+            }
             authenticatedReq.authSource = authSource
             authenticatedReq.authToken = token
             next()

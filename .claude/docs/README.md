@@ -15,6 +15,7 @@ Mantiveram os nomes originais — são citados por caminho em código, CI e entr
 | `PLANO_SIMULADOR_IOT_E_SEED_DEMO.md` | Plano do simulador de dispositivos e do seed de demonstração. |
 | `PLANO_E2E_POS_REFORMULACAO_IOT.md` | Plano de reformulação da suíte Playwright pós-rework. |
 | `LOG_IMPLEMENTACAO_IOT.md` · `LOG_SIMULADOR_IOT.md` · `LOG_E2E_POS_REFORMULACAO_IOT.md` | Logs de execução dos planos acima. |
+| `O-Sistema-Eletrico-Brasileiro.md` | Referência do sistema elétrico brasileiro (tarifação, grupos, bandeiras) para a expansão de domínio das Fases 19–22. **Fonte de verdade** — existe também na wiki do projeto (repositório git separado), sincronizada manualmente; ao alterar um, alterar o outro no mesmo trabalho (ver `CLAUDE.md`). |
 
 ## Laudos de auditoria (kit)
 
@@ -39,6 +40,7 @@ Artefatos de governança LGPD produzidos pela remediação da Fase 11
 
 - `roadmap.md` — documento vivo mantido pela skill `planejar-roadmap`: fases em fatias verticais, P0/P1/P2, XS–XL, agrupadas em **entregas (milestones)**.
 - `onboarding.md` — guia de entrada no projeto, gerado pela skill `onboarding` (setup verificado, ordem de leitura do contexto, mapa dos módulos, armadilhas e primeira tarefa). **Ainda não gerado.**
+- `DEPLOY.md` — procedimento de go-live: os dois caminhos de deploy (Render+Neon e self-hosted/VPS), checklist de `.env` de produção e restauração de backup testada. Produzido pela Fase 13.5 do roadmap; referenciado por `04-tech-stack.md`, `render.yaml`, `Dockerfile` e pela ADR-0011.
 
 ## ADRs (`adr/`)
 
@@ -56,5 +58,7 @@ Decisões arquiteturais relevantes, numeradas sequencialmente a partir do templa
 | `0008-hospedagem-brasil-oracle-always-free.md` | Hospedagem no Brasil, máquina única, sem operador estrangeiro (Caminho B) |
 | `0009-observabilidade-uptime-kuma-autohospedado.md` | Uptime Kuma auto-hospedado (Caminho B) |
 | `0010-demo-publica-free-tier-render-neon.md` | Demo pública em Render + Neon, escopo restrito a demonstração (Caminho A) |
+| `0011-keep-alive-monitor-externo-uptimerobot.md` | Keep-alive da demo via UptimeRobot (monitor externo) |
+| `0012-separacao-producao-vps-staging-render-neon.md` | Separação de ambientes — produção na VPS Hostinger (`main`), Render+Neon rebaixado a staging (`staging`) |
 
 Um ADR nunca é apagado — se a decisão mudar, crie um novo e marque o antigo como "substituída por". Se a decisão resolve um item de `../project_context/07-decisoes-em-aberto.md`, atualize aquele arquivo.

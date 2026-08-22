@@ -1,6 +1,6 @@
 # Política de Privacidade do LumiTrack
 
-**Versão 1.2 — vigente desde 09/08/2026**
+**Versão 1.3 — vigente desde 22/08/2026**
 
 Esta Política de Privacidade descreve como o LumiTrack ("nós", "plataforma")
 coleta, utiliza, armazena e protege os dados pessoais dos seus usuários
@@ -96,8 +96,9 @@ A infraestrutura que hospeda a demonstração fica **fora do Brasil**:
 - CPF/CNPJ, endereço e o segredo de autenticação em duas etapas são
   armazenados criptografados (AES-256-GCM), com chaves independentes entre
   si — o comprometimento de uma não expõe as demais.
-- Infraestrutura hospedada exclusivamente no Brasil (ver seção 4), sem
-  acesso de terceiros.
+- Infraestrutura hospedada por provedores de nuvem especializados — ver
+  seção 4 para o país de cada componente —, sem acesso de terceiros além
+  desses provedores.
 
 ## 6. Seus direitos como titular (Art. 18 da LGPD)
 

@@ -39,6 +39,18 @@ export async function printSummary(
     )
 
     console.log("\nCredenciais de login:")
-    console.log(`  Residencial: ${DEMO_RESIDENTIAL_EMAIL} / ${DEMO_PASSWORD}`)
-    console.log(`  Comercial:   ${DEMO_COMMERCIAL_EMAIL} / ${DEMO_PASSWORD}`)
+    if (process.env["DEMO_SEED_PASSWORD"]) {
+        // O operador já definiu a senha (é o valor de DEMO_SEED_PASSWORD) —
+        // reimprimi-la aqui só duplicaria a exposição num log de CI/deploy
+        // sem necessidade nenhuma.
+        console.log(`  Residencial: ${DEMO_RESIDENTIAL_EMAIL}`)
+        console.log(`  Comercial:   ${DEMO_COMMERCIAL_EMAIL}`)
+        console.log("  (senha: a definida em DEMO_SEED_PASSWORD)")
+    } else {
+        // Saída de desenvolvimento (console local ou log de CI/deploy) —
+        // nunca persistida em arquivo. Com DEMO_PASSWORD gerada
+        // (constants.ts), este é o único lugar onde ela aparece.
+        console.log(`  Residencial: ${DEMO_RESIDENTIAL_EMAIL} / ${DEMO_PASSWORD}`)
+        console.log(`  Comercial:   ${DEMO_COMMERCIAL_EMAIL} / ${DEMO_PASSWORD}`)
+    }
 }

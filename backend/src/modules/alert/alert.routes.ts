@@ -8,6 +8,7 @@ import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
 import type { AlertEvaluator } from "@/modules/alert/alert-evaluator.js"
+import { blockDemoWrite } from "@/shared/middlewares/blockDemoWrite.js"
 
 // Rota top-level: /api/alerts — alerta é um recurso independente vinculado a
 // um medidor (via meterId no corpo da criação), não mais aninhado sob
@@ -31,7 +32,9 @@ export function alertRoutes(
     const alertService = new AlertService(alertRepository, meterTargetRepos, alertEvaluator)
     const controller = new AlertController(alertService)
 
-    router.post("/", authenticate, (req, res, next) => controller.create(req, res, next))
+    router.post("/", authenticate, blockDemoWrite, (req, res, next) =>
+        controller.create(req, res, next),
+    )
     router.get("/", authenticate, (req, res, next) => controller.findAll(req, res, next))
 
     // "/firing" precisa vir ANTES de "/:id" — senão o Express casaria
@@ -39,11 +42,15 @@ export function alertRoutes(
     router.get("/firing", authenticate, (req, res, next) => controller.findFiring(req, res, next))
 
     router.get("/:id", authenticate, (req, res, next) => controller.findById(req, res, next))
-    router.put("/:id", authenticate, (req, res, next) => controller.update(req, res, next))
-    router.patch("/:id/enabled", authenticate, (req, res, next) =>
+    router.put("/:id", authenticate, blockDemoWrite, (req, res, next) =>
+        controller.update(req, res, next),
+    )
+    router.patch("/:id/enabled", authenticate, blockDemoWrite, (req, res, next) =>
         controller.patchEnabled(req, res, next),
     )
-    router.delete("/:id", authenticate, (req, res, next) => controller.delete(req, res, next))
+    router.delete("/:id", authenticate, blockDemoWrite, (req, res, next) =>
+        controller.delete(req, res, next),
+    )
 
     return router
 }

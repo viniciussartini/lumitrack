@@ -3,6 +3,7 @@ import request from "supertest"
 import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
+import { DEMO_RESIDENTIAL_EMAIL } from "@/shared/config/demoAccounts.js"
 
 const app = createApp({ prismaClient: prismaHttpTest })
 
@@ -115,6 +116,23 @@ describe("POST /api/meters", () => {
         expect(response.body.data.id).toBeDefined()
         expect(response.body.data.targetType).toBe("PROPERTY")
         expect(response.body.data.propertyId).toBe(propertyId)
+    })
+
+    it("deve retornar 403 ao tentar criar medidor com conta demo (issue #246)", async () => {
+        const demoToken = await registerAndLogin({ ...validUser, email: DEMO_RESIDENTIAL_EMAIL })
+        // Propriedade da PRÓPRIA conta demo — seedProperty resolve o dono
+        // pelo e-mail do token (linha 50 acima), então basta passar o token
+        // demo. Reproduz o cenário real: a conta demo escrevendo sob um
+        // recurso que ela mesma possui.
+        const propertyId = await seedProperty(demoToken)
+
+        const response = await request(app)
+            .post("/api/meters")
+            .set("Authorization", `Bearer ${demoToken}`)
+            .send({ ...validMeterBody, propertyId })
+
+        expect(response.status).toBe(403)
+        expect(response.body.message).toBe("Conta de demonstração é somente leitura")
     })
 
     // Issue #182 — a senha nunca deve sair na resposta HTTP, cifrada ou não.

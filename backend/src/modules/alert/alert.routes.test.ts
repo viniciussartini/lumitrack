@@ -4,6 +4,7 @@ import { createApp } from "@/app.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
 import { createTestDistributor } from "@/shared/test/distributorFixture.js"
+import { DEMO_RESIDENTIAL_EMAIL } from "@/shared/config/demoAccounts.js"
 
 const app = createApp({ prismaClient: prismaHttpTest })
 
@@ -119,6 +120,45 @@ describe("POST /api/alerts", () => {
     it("deve retornar 401 sem token", async () => {
         const response = await request(app).post("/api/alerts").send(validAlertBody)
         expect(response.status).toBe(401)
+    })
+
+    it("deve retornar 403 ao tentar criar alerta com conta demo (issue #246)", async () => {
+        const demoToken = await registerAndLogin({ ...validUser, email: DEMO_RESIDENTIAL_EMAIL })
+        const demoUser = await prismaHttpTest.user.findUniqueOrThrow({
+            where: { email: DEMO_RESIDENTIAL_EMAIL },
+        })
+        const dist = await createTestDistributor(prismaHttpTest)
+        // Property e Meter da PRÓPRIA conta demo, inseridos direto via
+        // Prisma (POST /api/properties e /api/meters já estão bloqueados
+        // para demo) — reproduz o cenário real: a conta demo tentando
+        // escrever sob um recurso que ela mesma possui.
+        const property = await prismaHttpTest.property.create({
+            data: {
+                userId: demoUser.id,
+                distributorId: dist.id,
+                name: "Casa da Demo",
+                electricalSystem: "TRIPHASIC",
+            },
+        })
+        const meter = await prismaHttpTest.meter.create({
+            data: {
+                name: "Medidor da Demo",
+                targetType: "PROPERTY",
+                propertyId: property.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "t",
+            },
+        })
+
+        const response = await request(app)
+            .post("/api/alerts")
+            .set("Authorization", `Bearer ${demoToken}`)
+            .send({ ...validAlertBody, meterId: meter.id })
+
+        expect(response.status).toBe(403)
+        expect(response.body.message).toBe("Conta de demonstração é somente leitura")
     })
 
     it("deve retornar 404 para meterId inexistente", async () => {
