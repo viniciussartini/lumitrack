@@ -11,6 +11,14 @@ on:
   push:
     branches: [main]
 
+# Mínimo do 11-seguranca-infraestrutura.md (P0) — nenhum job deste workflow
+# escreve no repositório, comenta em PR ou precisa de qualquer escopo além
+# de ler o código (checkout, npm/docker, upload-artifact — este último usa
+# o ACTIONS_RUNTIME_TOKEN injetado automaticamente, não o GITHUB_TOKEN, e
+# não precisa de permissão extra aqui).
+permissions:
+  contents: read
+
 env:
   NODE_VERSION: "24"
   GITLEAKS_VERSION: "8.30.1"

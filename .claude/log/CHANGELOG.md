@@ -1660,3 +1660,14 @@
 - **Nota sobre comentários:** ao escrever as correções, várias já citavam número de issue/PR nos comentários de código — contra a regra de "proibido comentário de rastreabilidade" do `06-code-quality-standards.md`. Corrigido nos arquivos desta entrada antes de finalizar (a substância técnica do comentário foi preservada, só a etiqueta de rastreabilidade removida). Comentários equivalentes em commits já publicados de issues anteriores deste épico (#233/#234/#231) não foram retroativamente reescritos — mudar histórico já publicado é fora do escopo desta correção; fica como oportunidade de limpeza cosmética futura, não bloqueante.
 - **Verificação:** frontend 704 testes (6 novos) / e2e 96 verdes — mesma linha de base pré-existente. `tsc`, `lint` e `prettier` limpos (frontend e backend). Backend: lint e `tsc` limpos (mudança de comentário apenas).
 - **Issues abertas como follow-up (fora do escopo desta correção):** #236 (reavaliação da política de retenção da Fase 14, agora com a premissa correta) e #237 (`ci.yml` sem `permissions:` — mesma lacuna do `keep-alive.yml`, mas em arquivo fora do diff do PR #235).
+
+## [2026-08-22] fix: ci.yml ganha permissions: mínimo (P0 do 11-seguranca-infraestrutura.md)
+
+- **Branch:** epic/238-melhorias-consumo-tempo-real
+- **Tipo:** fix
+- **O quê:** issue #237 (sub-issue do épico #238, `tipo: segurança`). `ci.yml` não declarava `permissions:`, deixando o `GITHUB_TOKEN` de cada job com o escopo default (amplo) do repositório — item **P0** do `11-seguranca-infraestrutura.md`. Achado na revisão de código do PR #235, corrigido em `keep-alive.yml` naquele PR, mas `ci.yml` ficou fora daquele diff.
+- **Revisão de cada um dos 14 jobs** (critério de aceite explícito da issue, não assumido): nenhum publica pacote, comenta em PR, cria check run ou escreve no repositório — todos só fazem `actions/checkout`, `npm ci`/`npm run <script>` locais, um scan do `gitleaks` via Docker, ou `actions/upload-artifact` (job `e2e`, só em caso de falha). `upload-artifact` usa o `ACTIONS_RUNTIME_TOKEN` injetado automaticamente pelo runner, não o `GITHUB_TOKEN` — não precisa de permissão extra no `permissions:`. Conclusão: `contents: read` no nível do workflow é suficiente para os 14 jobs; nenhum precisou de elevação por job.
+- **Correção:** `permissions:\n  contents: read` adicionado no topo de `ci.yml`, mesmo padrão já aplicado a `keep-alive.yml` no PR #235.
+- **Arquivos principais:** `.github/workflows/ci.yml`.
+- **Decisões/ADRs:** nenhuma.
+- **Verificação:** YAML validado sintaticamente (`python3 -c "import yaml; yaml.safe_load(...)"`) e a ausência de `permissions:` por job confirmada programaticamente. Não é possível rodar o workflow do GitHub Actions localmente — o critério de aceite "CI continua passando normalmente" será confirmado pela própria execução do CI nesta branch/PR, não localmente.
