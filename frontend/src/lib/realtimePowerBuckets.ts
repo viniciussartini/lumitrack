@@ -1,7 +1,4 @@
-import type { RealtimeWindow } from "@/components/realtime/RealtimeWindowToggle"
-
 const MINUTE_MS = 60_000
-const HOUR_MS = 60 * MINUTE_MS
 
 // Brasil aboliu o horário de verão em 2019 — America/Sao_Paulo é UTC-3 fixo,
 // sem variação sazonal. Um deslocamento constante é seguro (não precisa de
@@ -31,19 +28,15 @@ function floorToStep(t: number, stepMs: number): number {
 }
 
 /**
- * Início do período (hora corrente pra "1h", dia corrente pra "24h") em
- * horário de São Paulo, devolvido como epoch verdadeiro — usado pelo hook
- * de busca (`useMeterReadingHistory`) para montar o `from` da requisição a
- * `/api/meter-readings`. Independente do fuso configurado no navegador de
- * quem acessa (não usa `Date.setHours` local — só o deslocamento fixo de SP).
+ * Início da hora corrente em horário de São Paulo, devolvido como epoch
+ * verdadeiro — usado pelo hook de busca (`useMeterReadingHistory`) para
+ * montar o `from` da requisição a `/api/meter-readings`. Independente do
+ * fuso configurado no navegador de quem acessa (não usa `Date.setHours`
+ * local — só o deslocamento fixo de SP).
  */
-export function startOfSaoPauloPeriod(now: number, window: RealtimeWindow): number {
+export function startOfSaoPauloPeriod(now: number): number {
     const periodStart = new Date(toMaskedEpoch(now))
-    if (window === "1h") {
-        periodStart.setUTCMinutes(0, 0, 0)
-    } else {
-        periodStart.setUTCHours(0, 0, 0, 0)
-    }
+    periodStart.setUTCMinutes(0, 0, 0)
     return fromMaskedEpoch(periodStart.getTime())
 }
 
@@ -62,32 +55,27 @@ export interface PowerBucket {
 
 /**
  * Monta a série densa que o gráfico "Consumo em tempo real" plota, alinhada
- * ao relógio local — não é janela deslizante:
- *
- *   "1h" → baldes de 1 minuto, do minuto 00 da hora corrente até o último
- *          minuto já fechado. Ex.: agora 19:45, mostra 19:00–19:44; o
- *          balde de 19:45 só aparece quando o relógio vira 19:46.
- *   "24h" → baldes de 1 hora, de 0h do dia corrente até a última hora já
- *           fechada. Ex.: agora 19:xx, mostra 0h–18h; a hora 19 só aparece
- *           quando o relógio vira 20h.
+ * ao relógio local — não é janela deslizante: baldes de 1 minuto, do minuto
+ * 00 da hora corrente até o último minuto já fechado. Ex.: agora 19:45,
+ * mostra 19:00–19:44; o balde de 19:45 só aparece quando o relógio vira
+ * 19:46.
  *
  * O balde em curso nunca aparece — seu agregado ainda não existe no banco
- * (só minutos/horas já fechados são persistidos). Balde sem nenhuma leitura
- * vira `kw: 0` (zerado, não omitido — issue #211: ausência de dado é
- * consumo zero, não "sem informação").
+ * (só minutos já fechados são persistidos). Balde sem nenhuma leitura vira
+ * `kw: 0` (zerado, não omitido — issue #211: ausência de dado é consumo
+ * zero, não "sem informação").
  *
  * `now` é sempre o epoch verdadeiro de quando os dados foram buscados
  * (`Date.now()` no `queryFn` do hook, nunca no corpo de render).
  */
 export function buildDenseWindowBuckets(
     sparseBuckets: readonly SparsePowerBucket[],
-    window: RealtimeWindow,
     now: number,
 ): PowerBucket[] {
-    const stepMs = window === "1h" ? MINUTE_MS : HOUR_MS
+    const stepMs = MINUTE_MS
     const maskedNow = toMaskedEpoch(now)
 
-    const periodStartMasked = toMaskedEpoch(startOfSaoPauloPeriod(now, window))
+    const periodStartMasked = toMaskedEpoch(startOfSaoPauloPeriod(now))
     const currentBucketStartMasked = floorToStep(maskedNow, stepMs)
 
     const avgPowerWByStart = new Map<number, number>()

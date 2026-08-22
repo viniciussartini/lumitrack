@@ -21,7 +21,7 @@ const sparse = (h: number, m: number, avgPowerW: number): SparsePowerBucket => (
 
 describe("buildDenseWindowBuckets", () => {
     it("sem nenhum balde esparso, devolve o período inteiro zerado (não vazio)", () => {
-        const buckets = buildDenseWindowBuckets([], "1h", trueEpoch(19, 45, 10))
+        const buckets = buildDenseWindowBuckets([], trueEpoch(19, 45, 10))
 
         expect(buckets).toHaveLength(45) // 19:00..19:44
         expect(buckets.every((b) => b.kw === 0)).toBe(true)
@@ -29,10 +29,10 @@ describe("buildDenseWindowBuckets", () => {
         expect(buckets[44]!.bucketStart).toBe(trueEpoch(19, 44))
     })
 
-    it("1h: agrega por minuto dentro da hora corrente, sem o minuto em curso", () => {
+    it("agrega por minuto dentro da hora corrente, sem o minuto em curso", () => {
         const sparseBuckets = Array.from({ length: 45 }, (_, m) => sparse(19, m, (m + 1) * 1000))
 
-        const buckets = buildDenseWindowBuckets(sparseBuckets, "1h", trueEpoch(19, 45, 10))
+        const buckets = buildDenseWindowBuckets(sparseBuckets, trueEpoch(19, 45, 10))
 
         expect(buckets).toHaveLength(45)
         expect(buckets[0]).toEqual({ bucketStart: trueEpoch(19, 0), kw: 1 })
@@ -40,11 +40,11 @@ describe("buildDenseWindowBuckets", () => {
         expect(buckets.some((b) => b.bucketStart === trueEpoch(19, 45))).toBe(false)
     })
 
-    it("1h: minuto sem leitura fica zerado (kw: 0), não é omitido", () => {
+    it("minuto sem leitura fica zerado (kw: 0), não é omitido", () => {
         // Só os minutos 19:00 e 19:02 têm dado — 19:01 fica no meio, sem nada.
         const sparseBuckets = [sparse(19, 0, 500), sparse(19, 2, 700)]
 
-        const buckets = buildDenseWindowBuckets(sparseBuckets, "1h", trueEpoch(19, 3, 0))
+        const buckets = buildDenseWindowBuckets(sparseBuckets, trueEpoch(19, 3, 0))
 
         expect(buckets).toHaveLength(3)
         expect(buckets[0]).toEqual({ bucketStart: trueEpoch(19, 0), kw: 0.5 })
@@ -52,10 +52,10 @@ describe("buildDenseWindowBuckets", () => {
         expect(buckets[2]).toEqual({ bucketStart: trueEpoch(19, 2), kw: 0.7 })
     })
 
-    it("1h: quando o relógio vira 19:46, o balde de 19:45 passa a aparecer", () => {
+    it("quando o relógio vira 19:46, o balde de 19:45 passa a aparecer", () => {
         const sparseBuckets = [sparse(19, 44, 45000), sparse(19, 45, 46000)]
 
-        const buckets = buildDenseWindowBuckets(sparseBuckets, "1h", trueEpoch(19, 46, 5))
+        const buckets = buildDenseWindowBuckets(sparseBuckets, trueEpoch(19, 46, 5))
 
         expect(buckets).toHaveLength(46) // 19:00..19:45
         expect(buckets[44]).toEqual({ bucketStart: trueEpoch(19, 44), kw: 45 })
@@ -64,35 +64,13 @@ describe("buildDenseWindowBuckets", () => {
         expect(buckets.some((b) => b.bucketStart === trueEpoch(19, 46))).toBe(false)
     })
 
-    it("1h: baldes de horas anteriores não entram — reinicia a cada hora, não é janela deslizante", () => {
+    it("baldes de horas anteriores não entram — reinicia a cada hora, não é janela deslizante", () => {
         const sparseBuckets = [sparse(18, 30, 100000), sparse(19, 0, 1000)]
 
-        const buckets = buildDenseWindowBuckets(sparseBuckets, "1h", trueEpoch(19, 30, 5))
+        const buckets = buildDenseWindowBuckets(sparseBuckets, trueEpoch(19, 30, 5))
 
         expect(buckets).toHaveLength(30)
         expect(buckets[0]).toEqual({ bucketStart: trueEpoch(19, 0), kw: 1 })
         expect(buckets.slice(1).every((b) => b.kw === 0)).toBe(true)
-    })
-
-    it("24h: agrega por hora dentro do dia corrente, sem a hora em curso, zerando horas sem dado", () => {
-        const sparseBuckets = [sparse(0, 0, 10000), sparse(18, 0, 30000)]
-
-        const buckets = buildDenseWindowBuckets(sparseBuckets, "24h", trueEpoch(19, 10))
-
-        expect(buckets).toHaveLength(19) // 0h..18h
-        expect(buckets[0]).toEqual({ bucketStart: trueEpoch(0, 0), kw: 10 })
-        expect(buckets[18]).toEqual({ bucketStart: trueEpoch(18, 0), kw: 30 })
-        // horas 1..17 sem dado ficam zeradas
-        expect(buckets.slice(1, 18).every((b) => b.kw === 0)).toBe(true)
-    })
-
-    it("24h: quando o relógio vira 20h, a hora 19 passa a aparecer", () => {
-        const sparseBuckets = [sparse(18, 0, 30000), sparse(19, 0, 40000)]
-
-        const buckets = buildDenseWindowBuckets(sparseBuckets, "24h", trueEpoch(20, 1))
-
-        expect(buckets[18]).toEqual({ bucketStart: trueEpoch(18, 0), kw: 30 })
-        expect(buckets[19]).toEqual({ bucketStart: trueEpoch(19, 0), kw: 40 })
-        expect(buckets).toHaveLength(20)
     })
 })

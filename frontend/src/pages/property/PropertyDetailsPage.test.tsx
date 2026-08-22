@@ -430,7 +430,7 @@ describe("PropertyDetailsPage — seção de medidor/consumo (integração)", ()
         expect(
             await screen.findByRole("heading", {
                 level: 2,
-                name: /^consumo$/i,
+                name: /^histórico de consumo$/i,
             }),
         ).toBeInTheDocument()
     })
@@ -446,7 +446,7 @@ describe("PropertyDetailsPage — seção de medidor/consumo (integração)", ()
     it("sem medidor vinculado, não chama /api/consumption", async () => {
         renderPage()
 
-        await screen.findByRole("heading", { level: 2, name: /^consumo$/i })
+        await screen.findByRole("heading", { level: 2, name: /^histórico de consumo$/i })
 
         expect(consumptionService.list).not.toHaveBeenCalled()
     })

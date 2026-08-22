@@ -88,7 +88,9 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
         await page.goto("/propriedades/prop-1")
         await hideDevTools(page)
 
-        await expect(page.getByRole("heading", { level: 2, name: /^consumo$/i })).toBeVisible()
+        await expect(
+            page.getByRole("heading", { level: 2, name: /^histórico de consumo$/i }),
+        ).toBeVisible()
         await expect(page.getByText(/sem consumo para exibir/i)).toBeVisible()
         await expect(page.getByText(/configure um medidor na seção acima/i)).toBeVisible()
         await expect(page.getByTestId("consumption-table")).toHaveCount(0)

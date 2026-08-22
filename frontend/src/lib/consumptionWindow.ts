@@ -13,6 +13,18 @@ const BUCKET_BY_GRANULARITY: Record<Granularity, BucketSize> = {
     year: "month",
 }
 
+/**
+ * Legenda da janela ativa, por granularidade — mesma tradução janela/bucket
+ * de `BUCKET_BY_GRANULARITY` acima, em texto pro usuário (`ConsumptionSection`,
+ * exibida abaixo do título "Histórico de consumo").
+ */
+export const CONSUMPTION_WINDOW_DESCRIPTION: Record<Granularity, string> = {
+    hour: "Consumo da hora corrente, minuto a minuto",
+    day: "Consumo do dia corrente, hora a hora",
+    month: "Consumo do mês corrente, dia a dia",
+    year: "Consumo do ano corrente, mês a mês",
+}
+
 export interface ConsumptionWindow {
     /** Valor do parâmetro `granularity` de `GET /api/consumption`. */
     bucketSize: BucketSize

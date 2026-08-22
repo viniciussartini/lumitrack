@@ -208,7 +208,7 @@ test.describe("Painel — visão em tempo real (#116)", () => {
         )
     })
 
-    test("troca a janela do gráfico entre 'Última hora' e '24 horas'", async ({ page }) => {
+    test("gráfico de tempo real não tem mais opção de janela (issue #240)", async ({ page }) => {
         await setupDashboard(page)
         await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
             fulfillJson(route, PROPERTY_METER),
@@ -218,13 +218,10 @@ test.describe("Painel — visão em tempo real (#116)", () => {
         await page.goto("/dashboard")
         await hideDevTools(page)
 
-        const btn1h = page.getByTestId("realtime-window-1h")
-        const btn24h = page.getByTestId("realtime-window-24h")
-        await expect(btn1h).toHaveAttribute("aria-selected", "true")
-
-        await btn24h.click()
-        await expect(btn24h).toHaveAttribute("aria-selected", "true")
-        await expect(btn1h).toHaveAttribute("aria-selected", "false")
+        await expect(page.getByText("Consumo em tempo real")).toBeVisible()
+        await expect(page.getByTestId("realtime-window-toggle")).toHaveCount(0)
+        await expect(page.getByTestId("realtime-window-24h")).toHaveCount(0)
+        await expect(page.getByText(/última hora/i)).toBeVisible()
     })
 })
 
@@ -233,14 +230,17 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
         await context.clearCookies()
     })
 
-    test("mostra o histórico de consumo mensal e alterna entre 6 e 12 meses", async ({ page }) => {
+    test("histórico de consumo abre em Mensal e alterna entre 6 e 12 meses (issue #239)", async ({
+        page,
+    }) => {
         await setupDashboard(page)
         await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
             fulfillJson(route, PROPERTY_METER),
         )
         await page.route(/\/api\/consumption(\?.*)?$/, (route) => {
             const url = new URL(route.request().url())
-            if (url.searchParams.get("granularity") === "month") {
+            const granularity = url.searchParams.get("granularity")
+            if (granularity === "month") {
                 const pageSize = Number(url.searchParams.get("pageSize"))
                 return fulfillPaginated(
                     route,
@@ -253,6 +253,28 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
                     { pageSize },
                 )
             }
+            if (granularity === "day") {
+                // Bucket da visão Mensal (issue #239, padrão default) — dia 1
+                // e 2 do mês corrente, dentro da janela que o componente pede.
+                return fulfillPaginated(
+                    route,
+                    [
+                        {
+                            bucketStart: new Date(2026, 0, 1).toISOString(),
+                            kwhConsumed: 10,
+                            costBrl: 8,
+                            avgPowerW: 500,
+                        },
+                        {
+                            bucketStart: new Date(2026, 0, 2).toISOString(),
+                            kwhConsumed: 12,
+                            costBrl: 9.6,
+                            avgPowerW: 500,
+                        },
+                    ],
+                    { pageSize: 31 },
+                )
+            }
             return fulfillPaginated(route, [])
         })
         await mockSseStream(page, sseEvent("connected", { meterCount: 1 }))
@@ -262,8 +284,20 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
 
         const history = page.getByTestId("consumption-history-section")
         await expect(history).toBeVisible()
+        // Padrão é Mensal (issue #239).
         await expect(history.getByTestId("consumption-chart")).toBeVisible()
+        await expect(page.getByTestId("history-range-month")).toHaveAttribute(
+            "aria-selected",
+            "true",
+        )
+
+        await page.getByTestId("history-range-6").click()
+
         await expect(page.getByTestId("history-range-6")).toHaveAttribute("aria-selected", "true")
+        await expect(page.getByTestId("history-range-month")).toHaveAttribute(
+            "aria-selected",
+            "false",
+        )
 
         await page.getByTestId("history-range-12").click()
 

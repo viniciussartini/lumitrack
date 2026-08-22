@@ -53,9 +53,7 @@ const setupAuthPropertyAndArea = async (page: Page) => {
     await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
         fulfillPaginated(route, [DIST_CEMIG]),
     )
-    await page.route("**/api/distributors/dist-cemig", (route) =>
-        fulfillJson(route, DIST_CEMIG),
-    )
+    await page.route("**/api/distributors/dist-cemig", (route) => fulfillJson(route, DIST_CEMIG))
     // Propriedade e área fixas — não editamos nem deletamos nesta spec.
     await page.route(/\/api\/properties(\?.*)?$/, (route) => {
         if (route.request().method() === "GET") {
@@ -98,9 +96,7 @@ const setupAuthPropertyAndArea = async (page: Page) => {
     // interceptor global de "unauthorized" → redirect pra /login no meio do
     // teste → "element was detached from the DOM" em qualquer click
     // seguinte; ver `support/appShell.ts`).
-    await page.route(/\/api\/consumption(\?.*)?$/, (route) =>
-        fulfillPaginated(route, []),
-    )
+    await page.route(/\/api\/consumption(\?.*)?$/, (route) => fulfillPaginated(route, []))
 }
 
 /**
@@ -119,82 +115,73 @@ const setupAuthPropertyAndArea = async (page: Page) => {
  *   `.../areas/area-1/devices/*` casa qualquer :deviceId (com 1 segmento
  *   depois). Os dois NÃO conflitam — registramos a lista primeiro.
  */
-const setupDevicesRoutes = async (
-    page: Page,
-    state: { devices: DeviceSeed[]; nextId: number },
-) => {
+const setupDevicesRoutes = async (page: Page, state: { devices: DeviceSeed[]; nextId: number }) => {
     // Lista e criação. Regex (não glob): useDevices sempre envia
     // ?page=&pageSize= mesmo nos defaults — um glob sem tratar a query
     // string não casa a URL real e a requisição vaza pro backend (502).
-    await page.route(
-        /\/api\/properties\/prop-1\/areas\/area-1\/devices(\?.*)?$/,
-        async (route) => {
-            const method = route.request().method()
+    await page.route(/\/api\/properties\/prop-1\/areas\/area-1\/devices(\?.*)?$/, async (route) => {
+        const method = route.request().method()
 
-            if (method === "GET") {
-                return fulfillPaginated(route, state.devices)
+        if (method === "GET") {
+            return fulfillPaginated(route, state.devices)
+        }
+
+        if (method === "POST") {
+            const body = JSON.parse(route.request().postData() ?? "{}")
+            const created: DeviceSeed = {
+                id: `device-${state.nextId++}`,
+                areaId: "area-1",
+                name: body.name,
+                brand: body.brand ?? null,
+                model: body.model ?? null,
+                powerWatts: body.powerWatts ?? null,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
             }
+            state.devices.push(created)
+            return fulfillJson(route, created, 201)
+        }
 
-            if (method === "POST") {
-                const body = JSON.parse(route.request().postData() ?? "{}")
-                const created: DeviceSeed = {
-                    id: `device-${state.nextId++}`,
-                    areaId: "area-1",
-                    name: body.name,
-                    brand: body.brand ?? null,
-                    model: body.model ?? null,
-                    powerWatts: body.powerWatts ?? null,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                }
-                state.devices.push(created)
-                return fulfillJson(route, created, 201)
-            }
-
-            return route.continue()
-        },
-    )
+        return route.continue()
+    })
 
     // Detalhe, atualização e remoção (qualquer :deviceId)
-    await page.route(
-        "**/api/properties/prop-1/areas/area-1/devices/*",
-        async (route) => {
-            const method = route.request().method()
-            const url = new URL(route.request().url())
-            const deviceId = url.pathname.split("/").pop()!
+    await page.route("**/api/properties/prop-1/areas/area-1/devices/*", async (route) => {
+        const method = route.request().method()
+        const url = new URL(route.request().url())
+        const deviceId = url.pathname.split("/").pop()!
 
-            const index = state.devices.findIndex((d) => d.id === deviceId)
+        const index = state.devices.findIndex((d) => d.id === deviceId)
 
-            if (method === "GET") {
-                if (index === -1) {
-                    return fulfillError(route, "Dispositivo não encontrado", 404)
-                }
-                return fulfillJson(route, state.devices[index])
+        if (method === "GET") {
+            if (index === -1) {
+                return fulfillError(route, "Dispositivo não encontrado", 404)
             }
+            return fulfillJson(route, state.devices[index])
+        }
 
-            if (method === "PUT") {
-                if (index === -1) {
-                    return route.fulfill({ status: 404 })
-                }
-                const body = JSON.parse(route.request().postData() ?? "{}")
-                state.devices[index] = {
-                    ...state.devices[index]!,
-                    ...body,
-                    updatedAt: new Date().toISOString(),
-                }
-                return fulfillJson(route, state.devices[index])
+        if (method === "PUT") {
+            if (index === -1) {
+                return route.fulfill({ status: 404 })
             }
-
-            if (method === "DELETE") {
-                if (index !== -1) {
-                    state.devices.splice(index, 1)
-                }
-                return route.fulfill({ status: 204 })
+            const body = JSON.parse(route.request().postData() ?? "{}")
+            state.devices[index] = {
+                ...state.devices[index]!,
+                ...body,
+                updatedAt: new Date().toISOString(),
             }
+            return fulfillJson(route, state.devices[index])
+        }
 
-            return route.continue()
-        },
-    )
+        if (method === "DELETE") {
+            if (index !== -1) {
+                state.devices.splice(index, 1)
+            }
+            return route.fulfill({ status: 204 })
+        }
+
+        return route.continue()
+    })
 }
 
 test.describe("Fluxo CRUD de dispositivos", () => {
@@ -216,17 +203,11 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         await page.goto("/propriedades/prop-1/areas/area-1")
         await hideDevTools(page)
 
-        await expect(
-            page.getByRole("heading", { level: 1, name: /^cozinha$/i }),
-        ).toBeVisible()
-        await expect(
-            page.getByText(/nenhum dispositivo cadastrado/i),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { level: 1, name: /^cozinha$/i })).toBeVisible()
+        await expect(page.getByText(/nenhum dispositivo cadastrado/i)).toBeVisible()
 
         // ─── 2. Criar novo dispositivo (via modal, sem navegação) ────────────
-        await page
-            .getByRole("button", { name: /adicionar dispositivo/i })
-            .click()
+        await page.getByRole("button", { name: /adicionar dispositivo/i }).click()
         const createDialog = page.getByRole("dialog", {
             name: /adicionar dispositivo/i,
         })
@@ -235,22 +216,16 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         // Helper text de potência típica visível dentro do modal
         await expect(page.getByText(/geladeira/i)).toBeVisible()
 
-        await page
-            .getByLabel(/nome do dispositivo/i)
-            .fill("Ar-condicionado")
+        await page.getByLabel(/nome do dispositivo/i).fill("Ar-condicionado")
         await page.getByLabel(/marca/i).fill("Daikin")
         await page.getByLabel(/modelo/i).fill("Split 12000 BTU")
         await page.getByLabel(/potência/i).fill("1200")
 
-        await page
-            .getByRole("button", { name: /criar dispositivo/i })
-            .click()
+        await page.getByRole("button", { name: /criar dispositivo/i }).click()
 
         // Modal fecha, sem navegação — o card aparece na mesma AreaDetailsPage
         await expect(createDialog).not.toBeVisible()
-        await expect(page).toHaveURL(
-            /\/propriedades\/prop-1\/areas\/area-1$/,
-        )
+        await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1$/)
         await expect(page.getByTestId("device-card-device-1")).toBeVisible()
         await expect(
             page.getByRole("heading", { level: 3, name: /ar-condicionado/i }),
@@ -258,15 +233,11 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         // Chip de potência aparece no card
         await expect(page.getByText(/1200W/i).first()).toBeVisible()
         // EmptyState não aparece mais
-        await expect(
-            page.getByText(/nenhum dispositivo cadastrado/i),
-        ).not.toBeVisible()
+        await expect(page.getByText(/nenhum dispositivo cadastrado/i)).not.toBeVisible()
 
         // ─── 3. Click no card → DeviceDetailsPage ────────────────────────────
         await page.getByTestId("device-card-device-1").click()
-        await expect(page).toHaveURL(
-            /\/propriedades\/prop-1\/areas\/area-1\/devices\/device-1$/,
-        )
+        await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1\/devices\/device-1$/)
 
         // Header tem nome + chips
         await expect(
@@ -277,32 +248,24 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         await expect(page.getByText(/casa principal/i)).toBeVisible()
         await expect(page.getByText(/^cozinha$/i)).toBeVisible()
         // Tag de metadados (marca + modelo)
-        await expect(
-            page.getByText(/daikin · split 12000 btu/i),
-        ).toBeVisible()
+        await expect(page.getByText(/daikin · split 12000 btu/i)).toBeVisible()
 
         // Seções reais (Medidor + Consumo) — não há mais placeholders de
         // Alertas/Integração IoT: viraram /alertas e MeterSection de verdade.
+        await expect(page.getByRole("heading", { level: 2, name: /^medidor$/i })).toBeVisible()
         await expect(
-            page.getByRole("heading", { level: 2, name: /^medidor$/i }),
-        ).toBeVisible()
-        await expect(
-            page.getByRole("heading", { level: 2, name: /^consumo$/i }),
+            page.getByRole("heading", { level: 2, name: /^histórico de consumo$/i }),
         ).toBeVisible()
 
         // ─── 4. Editar via botão do header (modal, sem navegar) ──────────────
-        await page
-            .getByRole("button", { name: /editar dispositivo/i })
-            .click()
+        await page.getByRole("button", { name: /editar dispositivo/i }).click()
         const editDialog = page.getByRole("dialog", {
             name: /editar dispositivo/i,
         })
         await expect(editDialog).toBeVisible()
 
         // Form pré-preenchido
-        await expect(page.getByLabel(/nome do dispositivo/i)).toHaveValue(
-            "Ar-condicionado",
-        )
+        await expect(page.getByLabel(/nome do dispositivo/i)).toHaveValue("Ar-condicionado")
         await expect(page.getByLabel(/marca/i)).toHaveValue("Daikin")
         await expect(page.getByLabel(/potência/i)).toHaveValue("1200")
 
@@ -311,15 +274,11 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         await nameInput.fill("Ar-condicionado renovado")
         await page.getByLabel(/potência/i).fill("1500")
 
-        await page
-            .getByRole("button", { name: /salvar dispositivo/i })
-            .click()
+        await page.getByRole("button", { name: /salvar dispositivo/i }).click()
 
         // Modal fecha, permanece na mesma DeviceDetailsPage com as mudanças
         await expect(editDialog).not.toBeVisible()
-        await expect(page).toHaveURL(
-            /\/propriedades\/prop-1\/areas\/area-1\/devices\/device-1$/,
-        )
+        await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1\/devices\/device-1$/)
         await expect(
             page.getByRole("heading", {
                 level: 1,
@@ -337,36 +296,22 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         await page.getByRole("menuitem", { name: /excluir/i }).click()
 
         // ConfirmDialog abre com aviso de cascade explícito
-        await expect(
-            page.getByRole("heading", { name: /excluir dispositivo/i }),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { name: /excluir dispositivo/i })).toBeVisible()
 
         // Os 3 elementos do cascade aparecem no aviso — escopo ao dialog
         // pra evitar strict mode violation (a página tem headings "Medidor"
-        // e "Consumo" fora do dialog)
+        // e "Histórico de consumo" fora do dialog)
         const confirmDialog = page.getByRole("dialog")
-        await expect(
-            confirmDialog.getByText(/registros de consumo/i),
-        ).toBeVisible()
-        await expect(
-            confirmDialog.getByText(/alertas/i),
-        ).toBeVisible()
-        await expect(
-            confirmDialog.getByText(/integração iot/i),
-        ).toBeVisible()
+        await expect(confirmDialog.getByText(/registros de consumo/i)).toBeVisible()
+        await expect(confirmDialog.getByText(/alertas/i)).toBeVisible()
+        await expect(confirmDialog.getByText(/integração iot/i)).toBeVisible()
 
         await page.getByRole("button", { name: "Excluir" }).click()
 
         // Volta pra AreaDetailsPage com EmptyState restaurado
-        await expect(page).toHaveURL(
-            /\/propriedades\/prop-1\/areas\/area-1$/,
-        )
-        await expect(
-            page.getByText(/nenhum dispositivo cadastrado/i),
-        ).toBeVisible()
-        await expect(
-            page.getByTestId("device-card-device-1"),
-        ).not.toBeVisible()
+        await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1$/)
+        await expect(page.getByText(/nenhum dispositivo cadastrado/i)).toBeVisible()
+        await expect(page.getByTestId("device-card-device-1")).not.toBeVisible()
     })
 
     test("edita e exclui um dispositivo via menu ⋯ do card, sem sair da AreaDetailsPage", async ({
@@ -385,31 +330,23 @@ test.describe("Fluxo CRUD de dispositivos", () => {
 
         // Confirma o card visível
         await expect(page.getByTestId("device-card-device-1")).toBeVisible()
-        await expect(
-            page.getByRole("heading", { level: 3, name: /geladeira/i }),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { level: 3, name: /geladeira/i })).toBeVisible()
 
         // ─── 1. Editar via menu ⋯ do card — modal local, nunca navega ────────
-        await page
-            .getByRole("button", { name: /opções de Geladeira/i })
-            .click()
+        await page.getByRole("button", { name: /opções de Geladeira/i }).click()
         await page.getByRole("menuitem", { name: /editar/i }).click()
 
         const editDialog = page.getByRole("dialog", {
             name: /editar dispositivo/i,
         })
         await expect(editDialog).toBeVisible()
-        await page
-            .getByLabel(/nome do dispositivo/i)
-            .fill("Geladeira gourmet")
+        await page.getByLabel(/nome do dispositivo/i).fill("Geladeira gourmet")
         await page.getByRole("button", { name: /salvar dispositivo/i }).click()
 
         // Modal fecha, card atualizado na mesma grid — sem navegação
         // (DeviceCard nunca sai de AreaDetailsPage pra editar)
         await expect(editDialog).not.toBeVisible()
-        await expect(page).toHaveURL(
-            /\/propriedades\/prop-1\/areas\/area-1$/,
-        )
+        await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1$/)
         await expect(
             page.getByRole("heading", {
                 level: 3,
@@ -418,28 +355,18 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         ).toBeVisible()
 
         // ─── 2. Excluir via menu ⋯ do card ───────────────────────────────────
-        await page
-            .getByRole("button", { name: /opções de Geladeira gourmet/i })
-            .click()
+        await page.getByRole("button", { name: /opções de Geladeira gourmet/i }).click()
         await page.getByRole("menuitem", { name: /excluir/i }).click()
 
         // ConfirmDialog abre na própria AreaDetailsPage (não navegamos)
-        await expect(
-            page.getByRole("heading", { name: /excluir dispositivo/i }),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { name: /excluir dispositivo/i })).toBeVisible()
 
         await page.getByRole("button", { name: "Excluir" }).click()
 
         // Permanece na AreaDetailsPage, EmptyState restaurado
-        await expect(page).toHaveURL(
-            /\/propriedades\/prop-1\/areas\/area-1$/,
-        )
-        await expect(
-            page.getByText(/nenhum dispositivo cadastrado/i),
-        ).toBeVisible()
-        await expect(
-            page.getByTestId("device-card-device-1"),
-        ).not.toBeVisible()
+        await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1$/)
+        await expect(page.getByText(/nenhum dispositivo cadastrado/i)).toBeVisible()
+        await expect(page.getByTestId("device-card-device-1")).not.toBeVisible()
     })
 
     test("validação client-side bloqueia submit com nome vazio e potência inválida", async ({
@@ -455,18 +382,14 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         await page.goto("/propriedades/prop-1/areas/area-1")
         await hideDevTools(page)
 
-        await page
-            .getByRole("button", { name: /adicionar dispositivo/i })
-            .click()
+        await page.getByRole("button", { name: /adicionar dispositivo/i }).click()
         const createDialog = page.getByRole("dialog", {
             name: /adicionar dispositivo/i,
         })
         await expect(createDialog).toBeVisible()
 
         // Click direto no submit sem preencher
-        await page
-            .getByRole("button", { name: /criar dispositivo/i })
-            .click()
+        await page.getByRole("button", { name: /criar dispositivo/i }).click()
 
         // Mensagem de erro do schema aparece
         await expect(page.getByText(/nome é obrigatório/i)).toBeVisible()
@@ -478,9 +401,7 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         // sem blur manual — regressão do bug #111: sem esse fluxo, o clique
         // só validava o campo com autoFocus, escondendo o erro de "nome".
         await page.getByLabel(/potência/i).fill("0")
-        await page
-            .getByRole("button", { name: /criar dispositivo/i })
-            .click()
+        await page.getByRole("button", { name: /criar dispositivo/i }).click()
 
         await expect(page.getByText(/nome é obrigatório/i)).toBeVisible()
         await expect(page.getByText(/maior que zero/i)).toBeVisible()

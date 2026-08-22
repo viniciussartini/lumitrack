@@ -7,7 +7,7 @@ import { ConsumptionChart } from "@/components/consumption/ConsumptionChart"
 import { ConsumptionTable } from "@/components/consumption/ConsumptionTable"
 import { useConsumption } from "@/hooks/queries/useConsumption"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
-import { resolveConsumptionWindow } from "@/lib/consumptionWindow"
+import { CONSUMPTION_WINDOW_DESCRIPTION, resolveConsumptionWindow } from "@/lib/consumptionWindow"
 import {
     CONSUMPTION_PAGE_SIZE,
     DETAILS_GRANULARITIES,
@@ -107,7 +107,14 @@ export const ConsumptionSection = ({
                 <i className="corner br" />
 
                 <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-                    <h2 className="font-heading text-[17px] font-semibold uppercase">Consumo</h2>
+                    <div>
+                        <h2 className="font-heading text-[17px] font-semibold uppercase">
+                            Histórico de consumo
+                        </h2>
+                        <span className="text-muted mt-[3px] block text-[12.5px]">
+                            {CONSUMPTION_WINDOW_DESCRIPTION[granularity]}
+                        </span>
+                    </div>
                     <GranularityTabs
                         granularities={granularities}
                         value={granularity}

@@ -1,16 +1,6 @@
-import { useState } from "react"
-import {
-    RealtimeWindowToggle,
-    type RealtimeWindow,
-} from "@/components/realtime/RealtimeWindowToggle"
 import { RealtimePowerChart } from "@/components/realtime/RealtimePowerChart"
 import { useMeterReadingHistory } from "@/hooks/queries/useMeterReadingHistory"
 import type { TargetType } from "@/types/meter.types"
-
-const WINDOW_LABELS: Record<RealtimeWindow, string> = {
-    "1h": "última hora",
-    "24h": "24 horas",
-}
 
 interface RealtimeChartCardProps {
     targetType: TargetType
@@ -22,10 +12,15 @@ interface RealtimeChartCardProps {
 
 /**
  * Card "Consumo em tempo real" (bloco `isDashboard` do handoff) — extraído
- * de `RealtimeSection` (issue #211) pra ser reutilizável também em
- * Propriedade/Área/Dispositivo, não só no Dashboard. Busca o histórico via
+ * de `RealtimeSection` pra ser reutilizável também em Propriedade/Área/
+ * Dispositivo, não só no Dashboard. Busca o histórico via
  * `useMeterReadingHistory` (persistido em `MeterReading`, não o buffer de
  * SSE do navegador) — nasce com dado real, não vazio a cada acesso à página.
+ *
+ * Sempre mostra a última hora — o card tinha um toggle pra alternar com uma
+ * janela de 24h, removido por decisão de produto (divergência deliberada do
+ * handoff, que ainda mostra as duas opções): sem a segunda opção, o toggle
+ * não tinha mais função, só ocupava espaço.
  *
  * Sem estado de erro dedicado: falha na busca cai no mesmo estado vazio de
  * "Aguardando leituras" do `RealtimePowerChart` — é um card complementar,
@@ -38,8 +33,7 @@ export const RealtimeChartCard = ({
     title,
     subtitle,
 }: RealtimeChartCardProps) => {
-    const [timeWindow, setTimeWindow] = useState<RealtimeWindow>("1h")
-    const historyQuery = useMeterReadingHistory(targetType, targetId, meterId, timeWindow)
+    const historyQuery = useMeterReadingHistory(targetType, targetId, meterId)
     const buckets = historyQuery.data ?? []
 
     return (
@@ -54,11 +48,10 @@ export const RealtimeChartCard = ({
                         {title}
                     </span>
                     <span className="text-muted mt-0.5 block text-xs">
-                        {subtitle} · {WINDOW_LABELS[timeWindow]}
+                        {subtitle} · última hora
                     </span>
                 </div>
                 <div className="flex items-center gap-3.5">
-                    <RealtimeWindowToggle value={timeWindow} onChange={setTimeWindow} />
                     <span className="font-heading inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[.07em] text-[#3f8f52] uppercase">
                         <span
                             className="h-2 w-2 rounded-full bg-[#3f8f52]"

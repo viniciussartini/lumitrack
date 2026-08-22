@@ -140,30 +140,36 @@ describe("ConsumptionHistorySection — carregando/erro", () => {
 describe("ConsumptionHistorySection — com medidor", () => {
     it("mostra o gráfico e o subtítulo com o nome da propriedade", async () => {
         vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
-        vi.mocked(consumptionService.list).mockResolvedValue(
-            paginated([bucket("2026-07-01T00:00:00.000Z", 120)]),
-        )
+        vi.mocked(consumptionService.list).mockResolvedValue(paginated([]))
 
         renderSection("prop-1", "Casa")
 
         expect(await screen.findByTestId("consumption-chart")).toBeInTheDocument()
-        expect(screen.getByText(/Casa · consumo mensal \(kWh\)/)).toBeInTheDocument()
+        // Padrão é Mensal — subtítulo diário, não "consumo mensal" (esse
+        // texto é coberto abaixo, ao trocar pra 6/12 meses).
+        expect(
+            screen.getByText(/Casa · consumo diário do mês corrente \(kWh\)/),
+        ).toBeInTheDocument()
     })
 
-    it("busca 6 meses por padrão e troca pra 12 meses via toggle", async () => {
+    it("troca pra 6 e 12 meses via toggle", async () => {
         vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
         vi.mocked(consumptionService.list).mockResolvedValue(paginated([]))
 
-        renderSection()
+        renderSection("prop-1", "Casa")
         await screen.findByTestId("history-range-toggle")
+
+        const user = userEvent.setup()
+        await user.click(screen.getByTestId("history-range-6"))
 
         await waitFor(() => {
             expect(consumptionService.list).toHaveBeenCalledWith(
                 expect.objectContaining({ granularity: "month", page: 1, pageSize: 6 }),
             )
         })
+        expect(screen.getByTestId("history-range-6")).toHaveAttribute("aria-selected", "true")
+        expect(screen.getByText(/Casa · consumo mensal \(kWh\)/)).toBeInTheDocument()
 
-        const user = userEvent.setup()
         await user.click(screen.getByTestId("history-range-12"))
 
         await waitFor(() => {
@@ -172,6 +178,23 @@ describe("ConsumptionHistorySection — com medidor", () => {
             )
         })
         expect(screen.getByTestId("history-range-12")).toHaveAttribute("aria-selected", "true")
+    })
+})
+
+describe("ConsumptionHistorySection — Mensal como padrão", () => {
+    it("abre com a aba Mensal já selecionada, sem precisar clicar", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+        vi.mocked(consumptionService.list).mockResolvedValue(paginated([]))
+
+        renderSection()
+        await screen.findByTestId("history-range-toggle")
+
+        expect(screen.getByTestId("history-range-month")).toHaveAttribute("aria-selected", "true")
+        await waitFor(() => {
+            expect(consumptionService.list).toHaveBeenCalledWith(
+                expect.objectContaining({ granularity: "day", page: 1, pageSize: 31 }),
+            )
+        })
     })
 })
 
@@ -239,6 +262,12 @@ describe("ConsumptionHistorySection — Mensal (issue #230)", () => {
         )
 
         renderSection()
+        await screen.findByTestId("history-range-toggle")
+
+        // Padrão é Mensal — sai dele pra exercitar o caminho 6/12 meses, que
+        // é quem inverte a ordem.
+        const user = userEvent.setup()
+        await user.click(screen.getByTestId("history-range-6"))
 
         const chart = await screen.findByTestId("consumption-chart")
         expect(chart).toHaveAttribute("data-bucket-size", "month")
