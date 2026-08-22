@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
-import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router"
 import { render, screen, waitFor } from "@testing-library/react"
@@ -167,25 +166,18 @@ describe("RealtimeSection — com medidor", () => {
         expect(await screen.findByText("1,50kW")).toBeInTheDocument()
     })
 
-    it("troca a janela do gráfico via toggle e atualiza o subtítulo", async () => {
+    it("não mostra o toggle de janela — só resta a última hora (issue #240)", async () => {
         vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
 
         renderSection()
         await screen.findByText("Consumo em tempo real")
 
-        const btn24h = screen.getByTestId("realtime-window-24h")
-        expect(btn24h).toHaveAttribute("aria-selected", "false")
-
-        const user = userEvent.setup()
-        await user.click(btn24h)
-
-        await waitFor(() => {
-            expect(btn24h).toHaveAttribute("aria-selected", "true")
-        })
-        expect(screen.getByText(/Casa · 24 horas/)).toBeInTheDocument()
+        expect(screen.queryByTestId("realtime-window-toggle")).not.toBeInTheDocument()
+        expect(screen.queryByTestId("realtime-window-24h")).not.toBeInTheDocument()
+        expect(screen.getByText(/Casa · última hora/)).toBeInTheDocument()
         await waitFor(() => {
             expect(meterReadingService.list).toHaveBeenCalledWith(
-                expect.objectContaining({ granularity: "hour" }),
+                expect.objectContaining({ granularity: "minute" }),
             )
         })
     })

@@ -208,7 +208,7 @@ test.describe("Painel — visão em tempo real (#116)", () => {
         )
     })
 
-    test("troca a janela do gráfico entre 'Última hora' e '24 horas'", async ({ page }) => {
+    test("gráfico de tempo real não tem mais opção de janela (issue #240)", async ({ page }) => {
         await setupDashboard(page)
         await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
             fulfillJson(route, PROPERTY_METER),
@@ -218,13 +218,10 @@ test.describe("Painel — visão em tempo real (#116)", () => {
         await page.goto("/dashboard")
         await hideDevTools(page)
 
-        const btn1h = page.getByTestId("realtime-window-1h")
-        const btn24h = page.getByTestId("realtime-window-24h")
-        await expect(btn1h).toHaveAttribute("aria-selected", "true")
-
-        await btn24h.click()
-        await expect(btn24h).toHaveAttribute("aria-selected", "true")
-        await expect(btn1h).toHaveAttribute("aria-selected", "false")
+        await expect(page.getByText("Consumo em tempo real")).toBeVisible()
+        await expect(page.getByTestId("realtime-window-toggle")).toHaveCount(0)
+        await expect(page.getByTestId("realtime-window-24h")).toHaveCount(0)
+        await expect(page.getByText(/última hora/i)).toBeVisible()
     })
 })
 

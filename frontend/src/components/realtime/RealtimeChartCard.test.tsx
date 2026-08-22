@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
-import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@testing-library/react"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
@@ -40,7 +39,7 @@ beforeEach(() => {
 })
 
 describe("RealtimeChartCard", () => {
-    it("busca o histórico com o alvo certo e mostra o subtítulo com a janela padrão (1h)", async () => {
+    it("busca o histórico com o alvo certo e mostra o subtítulo com a última hora", async () => {
         vi.mocked(meterReadingService.list).mockResolvedValue({ items: [], granularity: "minute" })
 
         renderCard()
@@ -56,6 +55,16 @@ describe("RealtimeChartCard", () => {
         })
         expect(screen.getByText("Consumo em tempo real")).toBeInTheDocument()
         expect(screen.getByText(/Sala · última hora/)).toBeInTheDocument()
+    })
+
+    it("não mostra mais o toggle de janela — só resta uma opção (issue #240)", async () => {
+        vi.mocked(meterReadingService.list).mockResolvedValue({ items: [], granularity: "minute" })
+
+        renderCard()
+        await waitFor(() => expect(meterReadingService.list).toHaveBeenCalled())
+
+        expect(screen.queryByTestId("realtime-window-toggle")).not.toBeInTheDocument()
+        expect(screen.queryByTestId("realtime-window-24h")).not.toBeInTheDocument()
     })
 
     it("não busca nada sem meterId (alvo ainda sem medidor confirmado)", () => {
@@ -91,22 +100,5 @@ describe("RealtimeChartCard", () => {
         renderCard()
 
         expect(await screen.findByTestId("realtime-power-chart")).toBeInTheDocument()
-    })
-
-    it("troca pra 24h via toggle e refaz a busca com granularidade hour", async () => {
-        vi.mocked(meterReadingService.list).mockResolvedValue({ items: [], granularity: "minute" })
-
-        renderCard()
-        await waitFor(() => expect(meterReadingService.list).toHaveBeenCalled())
-
-        const user = userEvent.setup()
-        await user.click(screen.getByTestId("realtime-window-24h"))
-
-        await waitFor(() => {
-            expect(meterReadingService.list).toHaveBeenCalledWith(
-                expect.objectContaining({ granularity: "hour" }),
-            )
-        })
-        expect(screen.getByText(/Sala · 24 horas/)).toBeInTheDocument()
     })
 })

@@ -6,15 +6,9 @@ import {
     startOfSaoPauloPeriod,
     type PowerBucket,
 } from "@/lib/realtimePowerBuckets"
-import type { RealtimeWindow } from "@/components/realtime/RealtimeWindowToggle"
 import type { TargetType } from "@/types/meter.types"
 
 const REFETCH_INTERVAL_MS = 30_000
-
-const GRANULARITY_BY_WINDOW: Record<RealtimeWindow, "minute" | "hour"> = {
-    "1h": "minute",
-    "24h": "hour",
-}
 
 /**
  * Histórico do gráfico "Consumo em tempo real" (issue #211) — busca
@@ -22,8 +16,12 @@ const GRANULARITY_BY_WINDOW: Record<RealtimeWindow, "minute" | "hour"> = {
  * navegador) e monta a série densa/zero-preenchida via
  * `buildDenseWindowBuckets`. `Date.now()` é lícito aqui dentro do `queryFn`
  * (não é corpo de render); `refetchInterval` é quem mantém o gráfico
- * atualizado quando um novo minuto/hora fecha — não depende do SSE pra
- * saber que há dado novo.
+ * atualizado quando um novo minuto fecha — não depende do SSE pra saber que
+ * há dado novo.
+ *
+ * Sempre a hora corrente, granularidade de minuto — a janela era
+ * configurável (1h/24h), mas a opção de 24h foi removida, então não sobra
+ * nada pra alternar.
  *
  * `meterId` não entra na chamada (a API resolve o medidor por
  * targetType/targetId, igual `/api/consumption`) — só faz parte do gate de
@@ -34,18 +32,17 @@ export const useMeterReadingHistory = (
     targetType: TargetType,
     targetId: string | undefined,
     meterId: string | undefined,
-    window: RealtimeWindow,
 ) =>
     useQuery({
-        queryKey: queryKeys.meterReadings.history(targetType, targetId ?? "", window),
+        queryKey: queryKeys.meterReadings.history(targetType, targetId ?? ""),
         queryFn: async (): Promise<PowerBucket[]> => {
             const now = Date.now()
-            const from = startOfSaoPauloPeriod(now, window)
+            const from = startOfSaoPauloPeriod(now)
 
             const { items } = await meterReadingService.list({
                 targetType,
                 targetId: targetId!,
-                granularity: GRANULARITY_BY_WINDOW[window],
+                granularity: "minute",
                 from: new Date(from).toISOString(),
                 to: new Date(now).toISOString(),
             })
@@ -55,7 +52,7 @@ export const useMeterReadingHistory = (
                 avgPowerW: item.avgPowerW,
             }))
 
-            return buildDenseWindowBuckets(sparseBuckets, window, now)
+            return buildDenseWindowBuckets(sparseBuckets, now)
         },
         enabled: Boolean(targetId) && Boolean(meterId),
         refetchInterval: REFETCH_INTERVAL_MS,
