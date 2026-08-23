@@ -23,8 +23,9 @@
 | 12 | Travas mecânicas de qualidade + correções sem trade-off | **Concluída** (#160–#165, épico #159) |
 | 13 | Endurecimento de segurança (P1) — cadastro público, credenciais, perímetro, CSP, lacunas de teste | **Concluída** (#177–#184, épico #185) |
 | 13.5 | Primeiro deploy — infraestrutura de go-live + documentação pública | **Concluída** (épico #187) |
-| **13.6** | **Correções críticas pós-go-live** — canal do titular, aviso de privacidade, contas demo, privilégio de banco, backup | **Planejada — fase atual, detalhe abaixo** |
-| **13.7** | **Separação de ambientes** — VPS Hostinger (produção) + Render/Neon (staging) | **Planejada — detalhe abaixo** |
+| 13.6 | Correções críticas pós-go-live — canal do titular, aviso de privacidade, contas demo, privilégio de banco, backup | **Concluída** (PR #250) |
+| 13.7 | Separação de ambientes — VPS Hostinger (produção) + Render/Neon (staging) | **Concluída** (branch `feat/fase-13-7-separacao-ambientes`) |
+| **14** | **Conformidade P1** — governança (ROPA/RIPD), retenção, DSAR, consentimento e documentos legais | **Planejada — fase atual, detalhe abaixo** |
 | 14 | Conformidade P1 — governança (ROPA/RIPD), retenção, DSAR, consentimento e documentos legais | Planejada — objetivo revisado abaixo |
 | 15 | Desempenho — instrumentação, índices, multiplicadores, compressão e pool de conexões | Planejada — objetivo revisado abaixo |
 | **15.5** | **Enforcement de qualidade + comentários de rastreabilidade** | **Planejada — objetivo abaixo** |
@@ -1060,7 +1061,7 @@ Itens de custo trivial, empacotados por já estarem tocando os mesmos arquivos/c
 
 - **Comportamento:** a VPS sobe com a mesma postura de segurança/conformidade que a Fase 13.6 fixou no Render — não uma versão nova a auditar do zero.
 - **Priority:** P0 · **Size:** S
-- **Critérios de aceite:** `REGISTRATION_ENABLED=false`, `DEMO_LOGIN_ENABLED=true`, `VITE_PRIVACY_CONTACT_EMAIL` real, trava de somente-leitura das contas demo (já existe no código desde a 13.6, é só configuração), `IOT_ALLOWED_HOSTS=127.0.0.1/32`; **cinco chaves de cifra geradas novas** — nunca as do Neon/Render; `CORS_ORIGIN`/`PUBLIC_API_ORIGIN` com o domínio real.
+- **Critérios de aceite:** `REGISTRATION_ENABLED=false`, `DEMO_LOGIN_ENABLED=true`, `VITE_PRIVACY_CONTACT_EMAIL` real, trava de somente-leitura das contas demo (já existe no código desde a 13.6, é só configuração), `IOT_ALLOWED_HOSTS=localhost` (a execução provou que `127.0.0.1/32`, previsto aqui, **não funciona**: dentro do container "localhost" resolve IPv4 **e** IPv6, e um CIDR só de IPv4 deixa o `::1` de fora — a checagem SSRF nega a conexão do medidor); **cinco chaves de cifra geradas novas** — nunca as do Neon/Render; `CORS_ORIGIN`/`PUBLIC_API_ORIGIN` com o domínio real.
 - **Depende de:** Reverse proxy; separação de privilégio do banco.
 - **Risco/observações:** reaproveitar chave de outro ambiente é o erro mais caro e mais fácil de cometer aqui — checklist explícito no `DEPLOY.md`.
 

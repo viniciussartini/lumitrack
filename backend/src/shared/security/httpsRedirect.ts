@@ -14,18 +14,44 @@
 export type HttpsRedirectDecision =
     { action: "next" } | { action: "reject" } | { action: "redirect"; location: string }
 
+// Caminho isento das duas checagens abaixo. É alvo exclusivo de verificação
+// interna — healthcheck do Docker e monitor de disponibilidade (ADR-0009) —
+// que batem no nome do serviço da rede interna (`backend:3333`), nunca no
+// domínio público: a checagem de host canônico rejeitaria (400) o próprio
+// monitoramento, e o redirect HTTPS devolveria 301 a um cliente que não segue
+// redirect. Só o `/health` exato é isento: comparação por igualdade, nunca
+// prefixo, para que `/health/../algo` ou `/healthz` não herdem a isenção.
+const HEALTH_PATH = "/health"
+
+function isHealthCheck(requestPath: string): boolean {
+    // O roteador do Express atende `/health` e `/health/` como a mesma rota;
+    // a isenção precisa cobrir as duas, senão um monitor configurado com barra
+    // final falha em produção por um motivo invisível.
+    return requestPath === HEALTH_PATH || requestPath === `${HEALTH_PATH}/`
+}
+
 export function decideHttpsRedirect(params: {
     nodeEnv: string
+    requestPath: string
     requestHost: string | undefined
     requestSecure: boolean
     originalUrl: string
     canonicalHost: string
     canonicalOrigin: string
 }): HttpsRedirectDecision {
-    const { nodeEnv, requestHost, requestSecure, originalUrl, canonicalHost, canonicalOrigin } =
-        params
+    const {
+        nodeEnv,
+        requestPath,
+        requestHost,
+        requestSecure,
+        originalUrl,
+        canonicalHost,
+        canonicalOrigin,
+    } = params
 
     if (nodeEnv !== "production") return { action: "next" }
+
+    if (isHealthCheck(requestPath)) return { action: "next" }
 
     if (requestHost !== canonicalHost) return { action: "reject" }
 

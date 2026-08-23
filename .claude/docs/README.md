@@ -41,6 +41,7 @@ Artefatos de governança LGPD produzidos pela remediação da Fase 11
 - `roadmap.md` — documento vivo mantido pela skill `planejar-roadmap`: fases em fatias verticais, P0/P1/P2, XS–XL, agrupadas em **entregas (milestones)**.
 - `onboarding.md` — guia de entrada no projeto, gerado pela skill `onboarding` (setup verificado, ordem de leitura do contexto, mapa dos módulos, armadilhas e primeira tarefa). **Ainda não gerado.**
 - `DEPLOY.md` — procedimento de go-live: os dois caminhos de deploy (Render+Neon e self-hosted/VPS), checklist de `.env` de produção e restauração de backup testada. Produzido pela Fase 13.5 do roadmap; referenciado por `04-tech-stack.md`, `render.yaml`, `Dockerfile` e pela ADR-0011.
+- `SEGURANCA-VPS.md` — companheiro do `DEPLOY.md` para a **máquina** em vez da aplicação: endurecimento de SSH, firewall, separação de privilégio, atualizações, backup cifrado e TLS, cada configuração explicada para quem nunca administrou servidor. Inclui o bloco de comandos de **auditoria periódica**, as decisões deliberadamente não adotadas (com o porquê) e a varredura de dados sensíveis num repositório público. Produzido na Fase 13.7.
 
 ## ADRs (`adr/`)
 

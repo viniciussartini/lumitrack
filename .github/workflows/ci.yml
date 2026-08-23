@@ -1,15 +1,17 @@
 name: CI
 
 # #11 — CI/CD com gates de segurança (A03/A08 da auditoria OWASP/LGPD, ver
-# .claude/docs/AUDITORIA_SEGURANCA.md). Roda em toda PR para main e em push direto
-# para main. Todos os jobs usam `npm ci` (nunca `npm install`) — build
-# reprodutível a partir do lockfile, peça central do gate de integridade.
+# .claude/docs/AUDITORIA_SEGURANCA.md). Roda em toda PR para main/staging e em
+# push direto pras duas (Fase 13.7, ADR-0012 — staging passou a ser a base
+# padrão de PR, main só recebe o PR de promoção staging→main). Todos os jobs
+# usam `npm ci` (nunca `npm install`) — build reprodutível a partir do
+# lockfile, peça central do gate de integridade.
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, staging]
   push:
-    branches: [main]
+    branches: [main, staging]
 
 # Mínimo do 11-seguranca-infraestrutura.md (P0) — nenhum job deste workflow
 # escreve no repositório, comenta em PR ou precisa de qualquer escopo além

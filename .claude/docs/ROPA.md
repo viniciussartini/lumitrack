@@ -140,33 +140,65 @@ log de admin, não repetido aqui para não duplicar o item 5).
 
 ## Tabela de operadores (Art. 39)
 
-| Operador | Serviço | Dado tratado | País de processamento | DPA assinado | SCC (se fora BR/UE) | Data |
-|---|---|---|---|---|---|---|
-| Render | Hospedagem da aplicação (API + interface estática) | Registros de acesso (IP, data/hora, rota) | Estados Unidos | Não | **Não** | 2026-08-09 |
-| Neon | PostgreSQL gerenciado | Apenas dados sintéticos das contas de demonstração | Estados Unidos | Não | **Não** | 2026-08-09 |
+> **Desde a Fase 13.7 (ADR-0012) o LumiTrack roda em dois ambientes, não um**,
+> e a tabela abaixo cobre os dois. A diferença entre eles **não é ter ou não
+> ter operador** — é *quantos*, *onde processam* e *a que têm acesso*:
+>
+> - **Produção** (VPS, São Paulo): um único operador, o **provedor de
+>   infraestrutura**, que processa integralmente no Brasil. Aplicação, banco
+>   e simulador rodam na mesma máquina alugada, sob controle direto do
+>   controlador; o provedor não tem acesso ao conteúdo da aplicação no curso
+>   normal da operação, mas **armazenar dado por conta do controlador é
+>   tratamento** (Art. 5º, X) e quem o faz é operador (Art. 5º, VII) — o
+>   papel existe independentemente do nível de acesso. É o mesmo agente
+>   externo que a ADR-0012 reconhece na sua análise de conformidade.
+> - **Staging/validação** (Render + Neon, EUA): dois operadores, ambos fora
+>   do país, com a exposição residual registrada na ADR-0010.
+>
+> Não é mais o caso de "a tabela some quando a hospedagem migrar" (redação
+> antiga desta seção, anterior à ADR-0012): a migração aconteceu, o staging
+> continua existindo de propósito, e a produção tem seu próprio operador —
+> só que nacional.
 
-**A tabela deixou de estar vazia em 2026-08-09** (**ADR-0010**). Até então, a
-ADR-0008 hospedava tudo numa VM própria em São Paulo e o controlador era o
-único agente de tratamento. O ambiente publicado passou a rodar em free tier
-fora do Brasil, com **escopo restrito a demonstração**.
+| Operador | Serviço | Ambiente | Dado tratado | País de processamento | DPA assinado | SCC (se fora BR/UE) | Data |
+|---|---|---|---|---|---|---|---|
+| Provedor de infraestrutura (VPS) | Servidor dedicado que hospeda toda a produção (aplicação, banco e simulador na mesma máquina) | **Produção** | Todo o dado da aplicação, em repouso no disco da máquina alugada — sem acesso lógico do provedor no curso normal da operação | **Brasil (São Paulo)** | Não | n/a — processamento nacional | 2026-08-23 |
+| Render | Hospedagem da aplicação (API + interface estática) | Staging/validação | Registros de acesso (IP, data/hora, rota) | Estados Unidos | Não | **Não** | 2026-08-09 |
+| Neon | PostgreSQL gerenciado | Staging/validação | Apenas dados sintéticos das contas de demonstração | Estados Unidos | Não | **Não** | 2026-08-09 |
 
-**O que isso significa, sem eufemismo:**
+**A tabela deixou de estar vazia em 2026-08-09** (**ADR-0010**), quando o
+ambiente publicado passou a rodar em free tier fora do Brasil. A **produção**
+(Fase 13.7, 2026-08-23) restaurou a conclusão de conformidade da ADR-0008 no
+que ela tem de decisivo — **nenhum dado sai do país** —, mas não a versão
+absoluta de "zero operador": trocar um provedor estrangeiro por um nacional
+elimina a transferência internacional, não o papel de operador. A diferença
+importa numa fiscalização, e é a razão desta linha existir.
+
+**Sobre o DPA da produção:** não celebrado. Diferente do caso Render/Neon,
+aqui não há transferência internacional a cobrir por SCC — a lacuna é apenas
+a formalização do Art. 39 com o provedor, cujo contrato padrão de hospedagem
+já rege a relação. Continua sendo uma pendência a resolver antes de qualquer
+uso com titular real, listada no `09-conformidade-legal.md`.
+
+**O que isso significa, sem eufemismo, sobre o staging:**
 
 - **Não há DPA nem SCC celebrados** com Render e Neon. Isso é uma lacuna
   real, registrada como tal.
 - **O banco não contém dado pessoal de titular real:** o cadastro público
-  está fechado (`REGISTRATION_ENABLED=false`) e as duas contas existentes
-  são sintéticas (`backend/prisma/seed-demo/` — CPF/CNPJ nunca emitidos,
-  e-mails em domínio inexistente). Sem titular, não há dado pessoal, logo a
-  linha do Neon trata apenas dado fictício.
+  está fechado (`REGISTRATION_ENABLED=false`) em **ambos** os ambientes, e
+  as duas contas existentes são sintéticas (`backend/prisma/seed-demo/` —
+  CPF/CNPJ nunca emitidos, e-mails em domínio inexistente). Sem titular,
+  não há dado pessoal, logo a linha do Neon trata apenas dado fictício.
 - **A exposição real se limita aos registros de acesso de visitantes**
   processados pelo Render — dado pessoal de pessoa real, tratado no
-  exterior, sem SCC. É o risco assumido da ADR-0010.
+  exterior, sem SCC. É o risco assumido da ADR-0010, mantido conscientemente
+  pela ADR-0012 como o custo de ter um ambiente de validação online.
 
-**Gate que reabre esta tabela:** abrir o cadastro para usuários reais exige
-migrar a hospedagem para o Brasil **antes** (Caminho B de
-`.claude/docs/DEPLOY.md`, já implementado no repositório). Feita a migração,
-estas duas linhas saem e a tabela volta a ficar vazia por fato.
+**Gate que reabre a possibilidade de esvaziar esta tabela por completo:**
+descontinuar o staging (Render+Neon) e passar a validar mudanças por outro
+meio, sem infraestrutura estrangeira — não está planejado hoje. Enquanto o
+staging existir com esse papel, esta tabela continua tendo as duas linhas,
+mesmo com a produção limpa.
 
 **Gate obrigatório ao adotar qualquer operador novo** (SMTP, APM, agregador
 de log, banco gerenciado, CDN): DPA assinado **antes do primeiro byte de
@@ -205,48 +237,63 @@ nesta tabela (nunca deixar o "S/N" desatualizado).
 
 ## Transferência internacional e hospedagem — estado atual
 
-**Revisada em 2026-08-09 (ADR-0010): passou a existir transferência
-internacional, restrita aos registros de acesso.**
+**Revisada em 2026-08-23 (ADR-0012): dois ambientes, duas conclusões
+diferentes.**
 
 A decisão original (ADR-0008, issue #158) hospedava tudo em São Paulo e
 podia afirmar que não havia transferência internacional por inexistência do
-fato gerador. A demo pública foi para free tier fora do Brasil (Render +
-Neon), e a afirmação deixou de ser verdadeira.
+fato gerador. A demo pública foi para free tier fora do Brasil em
+2026-08-09 (ADR-0010, Render + Neon), e a afirmação deixou de ser
+verdadeira **para o ambiente publicado então**. A Fase 13.7 (ADR-0012,
+2026-08-23) não desfez isso — em vez disso, separou os dois papéis em
+ambientes distintos: a **produção** (VPS Hostinger, São Paulo,
+`lumitrack.app.br`) retoma a conclusão da ADR-0008 na íntegra; o
+**staging/validação** (Render + Neon, mesma infraestrutura de antes)
+continua com a exposição da ADR-0010, agora permanentemente, não como
+estado transitório.
+
+### Produção (VPS Hostinger, São Paulo)
+
+Não há transferência internacional. Aplicação, banco de dados e simulador
+rodam na mesma máquina, sob controle direto do controlador, em São Paulo.
+As SCCs da ANPD (Res. CD/ANPD 19/2024) não se aplicam por inexistência do
+fato gerador — nenhum dado sai do país.
+
+Há **um** operador (Art. 39): o provedor de infraestrutura que aluga a
+máquina, listado na tabela acima. Ele processa integralmente em território
+nacional e não acessa o conteúdo da aplicação no curso normal da operação,
+mas armazenamento é tratamento (Art. 5º, X) e o papel de operador existe
+independentemente do nível de acesso. **DPA não celebrado** — pendência
+formal, sem exposição internacional associada.
+
+### Staging/validação (Render + Neon)
 
 O que efetivamente atravessa a fronteira:
 
 - **Registros de acesso de visitantes** (IP, data/hora, rota) — dado
   pessoal de pessoa real, tratado pelo Render nos Estados Unidos. **Sem
-  SCC celebrada.** É a exposição real, e é o risco assumido da ADR-0010.
+  SCC celebrada.** É a exposição real, e é o risco assumido pela ADR-0010,
+  mantido conscientemente pela ADR-0012.
 - **Dados das contas de demonstração** — sintéticos, sem titular. Não são
   dado pessoal e, portanto, sua ida ao exterior não configura transferência
   internacional de dado pessoal.
 
-Não há provedor SMTP contratado, então nenhum e-mail é entregue a pessoa
-real.
+Não há provedor SMTP contratado em nenhum dos dois ambientes, então nenhum
+e-mail é entregue a pessoa real.
 
-**Condição que sustenta este quadro:** o cadastro público está fechado
-(`REGISTRATION_ENABLED=false`). Se for aberto, pessoas reais passam a
-inserir dado pessoal real num ambiente fora do Brasil e esta análise cai
-inteira — por isso a ADR-0010 registra o compromisso de migrar a
-hospedagem para o Brasil **antes** de qualquer operação com usuário real.
-
-Consequência jurídica: as SCCs da ANPD (Res. CD/ANPD 19/2024) **não se
-aplicam** — não por dispensa, mas por inexistência do fato gerador. Não há
-operador (Art. 39), logo não há DPA a assinar: o controlador é o único
-agente de tratamento.
-
-**Condição de validade.** A ADR-0008 é explícita: a conclusão acima depende
-de o ambiente público **não tratar dado pessoal de titular real**, o que
-exige o cadastro público fechado (apenas contas de demonstração sobre o seed
-sintético). Esse controle **ainda não está implementado** — é item da Fase
-13 do roadmap. Enquanto não existir, o ambiente não deve ser publicado; um
-cadastro aberto faria pessoas reais inserirem e-mail real e derrubaria a
-premissa, junto com toda a conclusão desta seção.
+**Condição que sustenta este quadro, nos dois ambientes:** o cadastro
+público está fechado (`REGISTRATION_ENABLED=false`) — controle já
+implementado desde a Fase 13 do roadmap, confirmado em produção e staging.
+Se for aberto em qualquer um dos dois, pessoas reais passam a inserir dado
+pessoal real, e a análise daquele ambiente específico cai inteira. Abrir o
+cadastro no staging exigiria a mesma migração de hospedagem que já valeu
+para a produção; abrir na produção não muda a conclusão de zero
+transferência (ela já está no Brasil), mas reabre toda a análise de bases
+legais, retenção e DSAR com titulares reais — fora do escopo desta seção.
 
 Qualquer provedor estrangeiro adotado depois (APM, agregador de log, SMTP,
-CDN, banco gerenciado) **reabre** esta seção e exige DPA + SCC antes do
-primeiro byte de dado pessoal.
+CDN, banco gerenciado) **reabre** esta seção para o ambiente em que for
+adotado, e exige DPA + SCC antes do primeiro byte de dado pessoal.
 
 ## Manutenção deste documento
 
