@@ -196,19 +196,21 @@ O rewrite `/api/*` do site estático **não sustenta conexão de longa duração
 - **Hibernação após 15 min** sem tráfego, com cold start de ~60–90s. Comportamento esperado, não incidente.
 - **0,5 GB no Neon** — ver o aviso de volume do passo 3.
 
-## Keep-alive (evitar hibernação)
+## Hibernação: comportamento esperado, não problema a resolver
 
-**Decisão:** [ADR-0011](adr/0011-keep-alive-monitor-externo-uptimerobot.md) — dois mecanismos independentes de ping em `/health`, o suficiente para reduzir (não eliminar) a chance de a demo hibernar entre visitas.
+**Decisão:** [ADR-0013](adr/0013-fim-do-keep-alive-staging-hiberna-por-desenho.md) — **não há mais keep-alive**, e o staging hiberna por desenho.
 
-1. **UptimeRobot** (primário) — a cada 5 min. Configuração manual, fora do repositório:
-   - Criar conta gratuita em [uptimerobot.com](https://uptimerobot.com), sem cartão.
-   - Novo monitor **HTTP(s)**, URL `https://lumitrack-api.onrender.com/health`, intervalo **5 minutos**.
-   - Alerta por e-mail (ou Telegram) para o autor quando o monitor detectar `down`.
-2. **`.github/workflows/keep-alive.yml`** (redundância) — a cada 10 min, cron deslocado para minutos não-redondos. Já implementado; nenhuma ação manual.
+Houve, até 2026-08-23, dois mecanismos mantendo este ambiente acordado 24/7 (um monitor no UptimeRobot e o `.github/workflows/keep-alive.yml`) — ambos removidos. A justificativa deles era o papel antigo deste ambiente: **demo pública de portfólio**, onde um cold start no primeiro clique de um visitante inesperado custava caro. A ADR-0012 mudou esse papel para **staging/validação**, cujo público é o próprio autor, num momento em que ele sabe que está validando. Manter acordado um ambiente que ninguém visita por acaso é custo sem contrapartida.
 
-`/health` é público, sem autenticação, e **excluído do log de acesso** (`backend/src/app.ts`, `autoLogging.ignore`) — nenhum dos dois mecanismos processa dado pessoal, então esta decisão não abre a tabela de operadores do `ROPA.md` (ver ADR-0011 para o raciocínio completo).
+**O que isso significa na prática, ao validar um PR aqui:**
 
-**Limite conhecido:** `schedule` do GitHub Actions é melhor-esforço — pode atrasar ou descartar disparos sob carga (issue #222). A redundância reduz o impacto; não garante zero gap. Se gaps grandes continuarem incomodando na prática, a correção definitiva é o upgrade pago do Render (Starter, ~US$ 7/mês) — não adotado por falta de necessidade demonstrada.
+- A primeira requisição depois de um período de silêncio leva **60–90s** (cold start). Espere — não é falha, não adianta recarregar.
+- O site estático (`lumitrack`) **não hiberna**: a interface carrega na hora, e só os dados esperam a API acordar.
+- Os 11 medidores do simulador são recriados a cada despertar (`DEMO_BOOTSTRAP_ENABLED=true`), então o painel volta com dado ao vivo sozinho — nenhum passo manual.
+
+**Efeito colateral bem-vindo:** com a hibernação restaurada, o simulador só gera leitura enquanto alguém está de fato usando o ambiente. `meter_readings` para de crescer 24/7, o que tira a data de validade da pressão sobre o limite de 0,5 GB do Neon (a política de retenção em si continua sendo escopo da Fase 14 / issue #236).
+
+**Custo aceito:** o staging fica **sem nenhum monitoramento de disponibilidade** — o UptimeRobot também alertava quando `/health` parava de responder. Uma queda aqui passa a ser descoberta no momento em que se for usar o ambiente. Aceitável porque nada depende dele; ver ADR-0013 para o raciocínio e para o gate que reverteria a decisão.
 
 ---
 

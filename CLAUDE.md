@@ -98,5 +98,5 @@ Se um hook bloquear uma ação sua, siga a orientação da mensagem — não ten
 - `.claude/design/` — handoff bundles do Claude Design, um diretório por tela/fluxo (`{YYYY-MM-DD}-<tela>/`); o mais recente é o vigente (ver `10-design-system.md`).
 - `.claude/log/CHANGELOG.md` — histórico append-only de implementações.
 - `.claude/hooks/` — `block-git-commit-push.sh`, `block-env-files.sh` e `ativar-skills.sh`, registrados em `.claude/settings.json`.
-- `.github/` — templates de issue, `PULL_REQUEST_TEMPLATE.md` (**fonte única do corpo do PR**), `CODEOWNERS`, `dependabot.yml` (cobre os três pacotes) e os workflows (`ci.yml`, `keep-alive.yml`).
+- `.github/` — templates de issue, `PULL_REQUEST_TEMPLATE.md` (**fonte única do corpo do PR**), `CODEOWNERS`, `dependabot.yml` (cobre os três pacotes) e o workflow `ci.yml`.
 - **Wiki do projeto** — repositório git **separado**, clonado em `~/Development/lumitrack.wiki/` (é o `lumitrack.wiki.git` do GitHub, não um diretório deste repo). Edite os arquivos lá diretamente; o commit e o push são do usuário, como no repositório principal. `O-Sistema-Eletrico-Brasileiro.md` existe nos dois lugares: **a cópia em `.claude/docs/` é a fonte de verdade**, a do wiki é cópia sincronizada — ao alterar um, alterar o outro no mesmo trabalho.
