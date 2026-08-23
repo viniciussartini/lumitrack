@@ -95,6 +95,7 @@ export function createApp(deps: AppDependencies = {}) {
     app.use((req, res, next) => {
         const decision = decideHttpsRedirect({
             nodeEnv: env.NODE_ENV,
+            requestPath: req.path,
             requestHost: req.headers.host,
             requestSecure: req.secure,
             originalUrl: req.originalUrl,

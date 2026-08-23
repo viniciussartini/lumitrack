@@ -34,6 +34,12 @@ describe("DEMO_PASSWORD (seed de demonstração)", () => {
         expect(() => passwordSchema.parse(DEMO_PASSWORD)).not.toThrow()
     })
 
+    it("gera uma senha aleatória válida quando DEMO_SEED_PASSWORD está definida como string vazia (.env com a chave sem valor)", async () => {
+        process.env[ENV_KEY] = ""
+        const { DEMO_PASSWORD } = await import("./constants.js")
+        expect(() => passwordSchema.parse(DEMO_PASSWORD)).not.toThrow()
+    })
+
     it("gera uma senha diferente a cada execução sem DEMO_SEED_PASSWORD (não é um fallback fixo disfarçado)", async () => {
         const first = await import("./constants.js")
         vi.resetModules()

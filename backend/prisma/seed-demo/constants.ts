@@ -19,6 +19,10 @@ function randomSeedPassword(): string {
     return `${pick(upper)}${pick(lower)}${pick(digits)}${pick(special)}${filler}`
 }
 
-export const DEMO_PASSWORD = process.env["DEMO_SEED_PASSWORD"] ?? randomSeedPassword()
+// `||`, não `??`: um .env com a linha `DEMO_SEED_PASSWORD=` (sem valor,
+// caso comum do .env.example copiado sem edição) define a variável como
+// string vazia, não undefined — `??` deixaria essa string vazia passar
+// direto pro passwordSchema e falhar a validação de 8 caracteres.
+export const DEMO_PASSWORD = process.env["DEMO_SEED_PASSWORD"] || randomSeedPassword()
 
 export { DEMO_COMMERCIAL_EMAIL, DEMO_RESIDENTIAL_EMAIL }

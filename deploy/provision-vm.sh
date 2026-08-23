@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# deploy/provision-vm.sh — Fase 13.5 Bloco A, issue #188.
+# deploy/provision-vm.sh
 #
-# Provisionamento inicial de uma VM Ubuntu 24.04 LTS (Oracle Cloud Always
-# Free, sa-saopaulo-1 — ver ADR-0008) para rodar o stack via Docker Compose.
-# Rodar UMA VEZ, manualmente, via SSH na VM já criada — este script não
-# cria a VM em si (isso é console/CLI da Oracle Cloud, fora do repositório).
+# Provisionamento inicial de uma VM Ubuntu 24.04 LTS com datacenter no
+# Brasil (Fase 13.5: Oracle Cloud Always Free; Fase 13.7/ADR-0012: VPS
+# Hostinger — o script é genérico, não depende do provedor) para rodar o
+# stack via Docker Compose. Rodar UMA VEZ, manualmente, via SSH na VM já
+# criada — este script não cria a VM em si (isso é console/CLI do provedor,
+# fora do repositório) nem cria o usuário administrativo com sudo (ver
+# passo manual ao final — o nome do usuário é escolha do operador).
 #
 # Idempotente: pode ser rodado de novo sem duplicar regras de firewall ou
 # reinstalar o que já está presente.
@@ -41,6 +44,21 @@ fi
 echo "==> Instalando age (cifra do backup, deploy/backup-postgres.sh)..."
 apt-get install -y age
 
+echo "==> Instalando e habilitando atualizações de segurança automáticas..."
+apt-get install -y unattended-upgrades apt-listchanges
+systemctl enable --now unattended-upgrades
+
+echo "==> Configurando swap (rede de segurança para Postgres+Node+simulador+Caddy simultâneos)..."
+if swapon --show | grep -q .; then
+    echo "swap já configurado — pulando."
+else
+    fallocate -l 2G /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+    echo "/swapfile none swap sw 0 0" >>/etc/fstab
+fi
+
 echo "==> Criando usuário de serviço sem privilégio (lumitrack)..."
 if ! id lumitrack >/dev/null 2>&1; then
     useradd --system --create-home --shell /usr/sbin/nologin lumitrack
@@ -68,16 +86,33 @@ cat <<'EOF'
 Passos manuais que este script NÃO automatiza (mexer em SSH remotamente
 sem confirmação interativa é arriscado — ver CLAUDE.md):
 
-1. Em /etc/ssh/sshd_config, garanta:
+1. Crie o usuário administrativo com sudo (nome à sua escolha) e copie
+   para ele a chave pública já autorizada em root:
+     adduser --disabled-password --gecos '' <usuario>
+     usermod -aG sudo <usuario>
+     mkdir -p /home/<usuario>/.ssh && cp /root/.ssh/authorized_keys /home/<usuario>/.ssh/
+     chown -R <usuario>:<usuario> /home/<usuario>/.ssh && chmod 700 /home/<usuario>/.ssh
+   TESTE o login com esse usuário numa sessão SSH SEPARADA antes de
+   continuar — não prossiga sem confirmar que ele funciona.
+
+2. Só depois do teste acima, desabilite senha e login root. Imagens de
+   VPS costumam trazer sshd_config.d/ com mais de um arquivo — o OpenSSH
+   usa o PRIMEIRO valor encontrado por diretiva, então um arquivo de
+   provisionamento automático (ex.: cloud-init) processado antes do seu
+   pode silenciosamente vencer. Confira com `sshd -T | grep -E
+   "passwordauthentication|permitrootlogin"` antes E depois de editar.
+   Escreva um único arquivo novo (ex.: /etc/ssh/sshd_config.d/90-hardening.conf)
+   com:
      PasswordAuthentication no
      PermitRootLogin no
-   e rode `systemctl restart sshd` só depois de confirmar que sua chave
-   pública já autentica numa sessão SEPARADA (nunca feche a sessão atual
-   antes de confirmar).
+   Rode `sshd -t` (valida sintaxe) e só então `systemctl reload ssh`
+   — em Ubuntu 24.04 a unit é `ssh.service`, não `sshd.service`.
+   Reconfirme o acesso do usuário administrativo numa sessão NOVA antes
+   de encerrar a sessão root atual.
 
-2. `psql` a partir de fora da VM deve ser recusado — sem regra de ufw para
+3. `psql` a partir de fora da VM deve ser recusado — sem regra de ufw para
    5432, já é o caso; confirme com um `psql` de outra máquina depois do
-   deploy (critério de aceite do #188).
+   deploy.
 
 Próximo passo: clonar o repositório e seguir .claude/docs/DEPLOY.md a partir
 de "Publicação com Docker Compose".

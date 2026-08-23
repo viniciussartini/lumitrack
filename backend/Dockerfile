@@ -42,6 +42,17 @@ ENV NODE_ENV=production
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+# prisma.config.ts é onde a datasource resolve DATABASE_URL (Prisma 7 —
+# schema.prisma não tem mais `url` no bloco datasource) — sem este arquivo
+# no runtime, `prisma migrate deploy` (rodado via `docker compose run`, ver
+# DEPLOY.md) falha com "datasource.url property is required".
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+# `npm run db:seed:demo` (rodado sob demanda, mesmo padrão do migrate acima)
+# executa prisma/seed-demo.ts direto via tsx, TypeScript fonte (não passa
+# pelo `tsc` do build — fora do `include` do tsconfig.json) que importa
+# `@/shared/...` — o alias só resolve com src/ e tsconfig.json presentes.
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY package.json ./
 
 # Roda como usuário sem privilégio (já existe na imagem base node:*-slim) —
