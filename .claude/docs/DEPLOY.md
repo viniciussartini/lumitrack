@@ -542,7 +542,31 @@ Rode um backup manual para validar antes de confiar no agendamento: `sudo -u lum
 docker compose up -d uptime-kuma
 ```
 
-Acesse via túnel SSH (`ssh -L 3001:localhost:3001 <usuario>@<ip-da-vm>`, depois `http://localhost:3001` no navegador local), crie o monitor HTTP apontando para `http://backend:3333/health` e configure a notificação (Telegram recomendado). Ver [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a limitação aceita (não detecta a VM inteira fora do ar).
+O Uptime Kuma verifica de tempos em tempos se a aplicação ainda responde, e avisa quando ela para. O painel dele **não é publicado na internet** — escuta apenas no endereço interno da própria máquina, e o acesso é por túnel SSH. Abra o túnel a partir do **seu** computador:
+
+```bash
+ssh -f -N -L 3001:localhost:3001 <usuario>@<ip-da-vm>
+```
+
+`-L 3001:localhost:3001` faz a porta 3001 do seu computador desembocar na porta 3001 da VPS, através da conexão SSH já autenticada. `-f -N` manda o túnel para segundo plano sem abrir sessão de terminal. Agora `http://localhost:3001` no seu navegador mostra o painel remoto — sem nada exposto publicamente. Para fechar depois: `pkill -f "ssh -f -N -L 3001"`.
+
+**Primeiro acesso — criar a conta.** A tela inicial pede para criar o usuário administrador. Escolha uma senha forte e guarde no gerenciador de senhas: este painel não tem provedor de e-mail configurado, então **não existe "esqueci minha senha"**. Perder o acesso significa apagar o volume (`kuma_data`) e recomeçar.
+
+**Criar o monitor** — "Add New Monitor", com estes valores:
+
+| Campo | Valor | Por quê |
+|---|---|---|
+| Monitor Type | `HTTP(s)` | Faz uma requisição HTTP real, não um ping de rede |
+| Friendly Name | `LumiTrack — backend` | Nome que identifica o alerta |
+| URL | `http://backend:3333/health` | Ver abaixo |
+| Heartbeat Interval | `60` segundos | Detecta queda em até um minuto, sem gerar carga |
+| Retries | `3` | Evita alarme falso por uma falha isolada de rede |
+
+**Por que o endereço interno e não o domínio público:** `http://backend:3333/health` alcança o backend diretamente pela rede interna do Docker, sem passar pelo Caddy nem pelo DNS. Monitorar o domínio público diria apenas "algo quebrou" — poderia ser o backend, o proxy, o certificado ou o DNS. Monitorando o backend direto, um alerta significa exatamente uma coisa: **a aplicação parou**. (Esse endereço funciona por causa da isenção de `/health` na checagem de host canônico em `backend/src/app.ts` — o monitor chega com `Host: backend:3333`, que a proteção contra `Host` forjado rejeitaria sem a isenção.)
+
+> **Um monitor sem canal de notificação é um painel que ninguém olha.** O Kuma registra o histórico de disponibilidade, mas só avisa se você configurar uma notificação em "Settings → Notifications" — a ADR-0009 sugere Telegram (gratuito, chega no celular). **Estado atual desta instalação: monitor ativo, notificação ainda não configurada** — a detecção funciona, o aviso não. Enquanto isso não for feito, a descoberta de uma queda continua dependendo de alguém abrir o painel.
+
+Ver [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a limitação estrutural aceita: como o Kuma roda na mesma máquina que monitora, **ele não detecta a VM inteira fora do ar** — se ela cair, o monitor cai junto e nenhum alerta sai. É um risco assumido, não um esquecimento.
 
 ### 11. Verificação ponta a ponta
 
