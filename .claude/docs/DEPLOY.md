@@ -114,7 +114,7 @@ DATABASE_URL='<connection-string-administrativa-do-neon>' \
 
 > **As 5 chaves de cifra têm que ser EXATAMENTE as mesmas do painel do Render.** O seed roda da sua máquina, mas grava no mesmo banco (Neon) que o backend em produção lê depois. Se as chaves não baterem, tudo que foi cifrado no seed (CPF/CNPJ, endereço, credencial do medidor) fica ilegível em runtime — `AES-256-GCM` falha com `Unsupported state or unable to authenticate data` (tag de autenticação não bate), não com uma mensagem óbvia de "chave errada". Gere as chaves **uma vez**, salve-as no Render primeiro, e só então rode o seed reaproveitando os mesmos valores — nunca o contrário.
 >
-> **Sobre o volume no Neon (0,5 GB no plano gratuito):** o seed de demonstração **não gera histórico** — cria só a topologia (11 medidores, submedição por cômodo/equipamento) e os alertas, já configurados. Todo `MeterReading` nasce da ingestão IoT real a partir do deploy. Isso resolve na origem o estouro de volume que um seed com bulk insert causaria; o que resta acompanhar é o **crescimento das leituras ao vivo** ao longo do tempo — o `RetentionService` ainda não cobre `MeterReading` (item da Fase 14), então vale revisar o volume periodicamente.
+> **Sobre o volume no Neon (0,5 GB no plano gratuito):** o seed de demonstração **não gera histórico** — cria só a topologia (11 medidores, submedição por cômodo/equipamento) e os alertas, já configurados. Todo `MeterReading` nasce da ingestão IoT real a partir do deploy. Isso resolve na origem o estouro de volume que um seed com bulk insert causaria; o que resta acompanhar é o **crescimento das leituras ao vivo** ao longo do tempo — o `RetentionService` ainda não cobre `MeterReading` (item da Fase 15, reclassificado de conformidade para armazenamento/performance pela ADR-0014), então vale revisar o volume periodicamente.
 
 ### 4. Criar os serviços no Render
 
@@ -208,7 +208,7 @@ Houve, até 2026-08-23, dois mecanismos mantendo este ambiente acordado 24/7 (um
 - O site estático (`lumitrack`) **não hiberna**: a interface carrega na hora, e só os dados esperam a API acordar.
 - Os 11 medidores do simulador são recriados a cada despertar (`DEMO_BOOTSTRAP_ENABLED=true`), então o painel volta com dado ao vivo sozinho — nenhum passo manual.
 
-**Efeito colateral bem-vindo:** com a hibernação restaurada, o simulador só gera leitura enquanto alguém está de fato usando o ambiente. `meter_readings` para de crescer 24/7, o que tira a data de validade da pressão sobre o limite de 0,5 GB do Neon (a política de retenção em si continua sendo escopo da Fase 14 / issue #236).
+**Efeito colateral bem-vindo:** com a hibernação restaurada, o simulador só gera leitura enquanto alguém está de fato usando o ambiente. `meter_readings` para de crescer 24/7, o que tira a data de validade da pressão sobre o limite de 0,5 GB do Neon (a política de retenção em si continua sendo escopo da Fase 15 / issues #236, #267 — armazenamento/performance, não mais conformidade, pela ADR-0014).
 
 **Custo aceito:** o staging fica **sem nenhum monitoramento de disponibilidade** — o UptimeRobot também alertava quando `/health` parava de responder. Uma queda aqui passa a ser descoberta no momento em que se for usar o ambiente. Aceitável porque nada depende dele; ver ADR-0013 para o raciocínio e para o gate que reverteria a decisão.
 

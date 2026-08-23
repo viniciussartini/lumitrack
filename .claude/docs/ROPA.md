@@ -8,24 +8,35 @@
 >
 > **Não é parecer jurídico.** A coluna "Base legal" reflete o que
 > `frontend/src/legal/privacy-policy.md` já declara hoje; a atribuição
-> granular de base legal por operação, com revisão jurídica, é trabalho da
-> Fase 14 (`roadmap.md`). Este documento registra o estado **real** do
-> código na data abaixo — se o schema mudar, este arquivo precisa ser
-> atualizado no mesmo PR (ver "Manutenção", ao final).
+> granular de base legal por operação, com revisão jurídica formal, é
+> trabalho **deferido pela [ADR-0014](adr/0014-ambientes-permanentemente-demonstracao.md)**
+> — só se justifica havendo titular real. Este documento registra o estado
+> **real** do código na data abaixo — se o schema mudar, este arquivo
+> precisa ser atualizado no mesmo PR (ver "Manutenção", ao final).
 >
-> **Data de referência:** 2026-08-06 · commit da branch `feat/154-bloqueadores-conformidade-lgpd`.
+> **Data de referência:** 2026-08-23 · revisão pela ADR-0014, branch `epic/259-governanca-dados-ropa-ripd-dpa` (redação original: 2026-08-06, issue #156).
 
-## ⚠️ Este repositório é um projeto de portfólio
+## ⚠️ Este repositório é permanentemente um ambiente de demonstração
 
-Como em `.claude/docs/PROCEDIMENTO_DIREITOS_TITULAR.md`: não há operação
-real, e os dados de demonstração (`backend/prisma/seed-demo/`) são **100%
-sintéticos** — CPF/CNPJ gerados matematicamente válidos mas nunca emitidos
-de verdade (ver `backend/prisma/seed-demo/identities.ts`), e-mails em
-domínio `.dev` inexistente.
+Ver **[ADR-0014](adr/0014-ambientes-permanentemente-demonstracao.md)**: os
+dois ambientes publicados do LumiTrack (produção VPS + staging Render/Neon)
+**nunca vão tratar dado real de titular** — não é um estado transitório
+"enquanto o cadastro estiver fechado", é uma decisão permanente. Como em
+`.claude/docs/PROCEDIMENTO_DIREITOS_TITULAR.md`: não há operação real, e os
+dados de demonstração (`backend/prisma/seed-demo/`) são **100% sintéticos**
+— CPF/CNPJ gerados matematicamente válidos mas nunca emitidos de verdade
+(ver `backend/prisma/seed-demo/identities.ts`), e-mails em domínio `.dev`
+inexistente.
 
-A tabela de operadores abaixo está **vazia por fato**: a ADR-0008 decidiu
-hospedagem própria em São Paulo, com banco na mesma máquina e sem provedor
-SMTP contratado — não há terceiro tratando dado por conta do LumiTrack.
+**A tabela de operadores abaixo não está vazia** — ao contrário do que uma
+versão anterior deste documento chegou a afirmar, e que o laudo de
+conformidade de 2026-08-22 apontou como autocontradição (a tabela lista
+Render/Neon nos EUA enquanto o texto dizia "sem operador"). Há 3 operadores
+reais (VPS, Render, Neon, ver tabela abaixo); nenhum tem DPA assinado, e o
+staging tem transferência internacional sem SCC. A ADR-0014 assume esse
+risco de forma explícita e permanente, em vez de tratá-lo como pendência a
+sanar — quem fizer fork deste repositório para operar com titular real
+herda a obrigação de resolver isso, este documento não a resolve por ele.
 
 ## Operações de tratamento
 
@@ -155,10 +166,14 @@ log de admin, não repetido aqui para não duplicar o item 5).
 > - **Staging/validação** (Render + Neon, EUA): dois operadores, ambos fora
 >   do país, com a exposição residual registrada na ADR-0010.
 >
-> Não é mais o caso de "a tabela some quando a hospedagem migrar" (redação
-> antiga desta seção, anterior à ADR-0012): a migração aconteceu, o staging
-> continua existindo de propósito, e a produção tem seu próprio operador —
-> só que nacional.
+> **Pela ADR-0014 (2026-08-23): nenhum dos três operadores abaixo terá DPA
+> assinado, e o staging não terá SCC celebrada, enquanto os dois ambientes
+> permanecerem demonstração.** Não é mais o caso de "gate que reabre quando
+> abrir cadastro real" — é risco assumido de forma explícita e permanente.
+> A tabela não vai ficar vazia por migração de hospedagem (aconteceu na
+> Fase 13.7 e a produção ganhou seu próprio operador nacional), nem por
+> regularização contratual futura — só se um fork decidir operar com
+> titular real e assumir esse trabalho por conta própria.
 
 | Operador | Serviço | Ambiente | Dado tratado | País de processamento | DPA assinado | SCC (se fora BR/UE) | Data |
 |---|---|---|---|---|---|---|---|
@@ -174,11 +189,11 @@ absoluta de "zero operador": trocar um provedor estrangeiro por um nacional
 elimina a transferência internacional, não o papel de operador. A diferença
 importa numa fiscalização, e é a razão desta linha existir.
 
-**Sobre o DPA da produção:** não celebrado. Diferente do caso Render/Neon,
-aqui não há transferência internacional a cobrir por SCC — a lacuna é apenas
-a formalização do Art. 39 com o provedor, cujo contrato padrão de hospedagem
-já rege a relação. Continua sendo uma pendência a resolver antes de qualquer
-uso com titular real, listada no `09-conformidade-legal.md`.
+**Sobre o DPA da produção:** não celebrado, e não será celebrado enquanto a
+ADR-0014 vigorar. Diferente do caso Render/Neon, aqui não há transferência
+internacional a cobrir por SCC — a lacuna é apenas a formalização do Art. 39
+com o provedor, cujo contrato padrão de hospedagem já rege a relação. Risco
+assumido de forma permanente pela ADR-0014, listado no `09-conformidade-legal.md`.
 
 **O que isso significa, sem eufemismo, sobre o staging:**
 
@@ -192,13 +207,16 @@ uso com titular real, listada no `09-conformidade-legal.md`.
 - **A exposição real se limita aos registros de acesso de visitantes**
   processados pelo Render — dado pessoal de pessoa real, tratado no
   exterior, sem SCC. É o risco assumido da ADR-0010, mantido conscientemente
-  pela ADR-0012 como o custo de ter um ambiente de validação online.
+  pela ADR-0012 e tornado **permanente** pela ADR-0014 — não é mais custo
+  transitório de um ambiente de validação, é uma condição aceita para o
+  staging existir.
 
-**Gate que reabre a possibilidade de esvaziar esta tabela por completo:**
-descontinuar o staging (Render+Neon) e passar a validar mudanças por outro
-meio, sem infraestrutura estrangeira — não está planejado hoje. Enquanto o
-staging existir com esse papel, esta tabela continua tendo as duas linhas,
-mesmo com a produção limpa.
+**Única forma de esvaziar esta tabela por completo:** descontinuar o
+staging (Render+Neon) e passar a validar mudanças por outro meio, sem
+infraestrutura estrangeira — não está planejado. Enquanto o staging existir
+com esse papel, esta tabela continua tendo as duas linhas, mesmo com a
+produção limpa. Isso não é um "gate" que algo dispara — é uma escolha de
+infraestrutura, independente da decisão da ADR-0014.
 
 **Gate obrigatório ao adotar qualquer operador novo** (SMTP, APM, agregador
 de log, banco gerenciado, CDN): DPA assinado **antes do primeiro byte de
@@ -212,9 +230,10 @@ certificação de segurança) — usar aquela seção como anexo técnico do
 contrato. Após a assinatura, arquivar a cópia fora do repositório git e
 acrescentar a linha nesta tabela.
 
-**Gate obrigatório de go-live, por provedor:** DPA assinado e, se o
-processamento ocorrer fora do Brasil ou da UE, SCCs da ANPD incorporadas ao
-contrato — **antes do primeiro byte de dado pessoal trafegar**. Os requisitos
+**Se um provedor SMTP vier a ser contratado** (não planejado — ver ADR-0014):
+DPA assinado e, se o processamento ocorrer fora do Brasil ou da UE, SCCs da
+ANPD incorporadas ao contrato — **antes do primeiro byte de dado pessoal
+trafegar**. Os requisitos
 técnicos mínimos a exigir contratualmente do operador SMTP já estão
 detalhados em `.claude/docs/AUDITORIA_SEGURANCA.md` § 7.1 (TLS obrigatório,
 retenção mínima de logs, localização de processamento, notificação de
@@ -237,8 +256,8 @@ nesta tabela (nunca deixar o "S/N" desatualizado).
 
 ## Transferência internacional e hospedagem — estado atual
 
-**Revisada em 2026-08-23 (ADR-0012): dois ambientes, duas conclusões
-diferentes.**
+**Revisada em 2026-08-23 (ADR-0012, e novamente pela ADR-0014): dois
+ambientes, duas conclusões diferentes — e a segunda agora é permanente.**
 
 A decisão original (ADR-0008, issue #158) hospedava tudo em São Paulo e
 podia afirmar que não havia transferência internacional por inexistência do
@@ -263,8 +282,8 @@ Há **um** operador (Art. 39): o provedor de infraestrutura que aluga a
 máquina, listado na tabela acima. Ele processa integralmente em território
 nacional e não acessa o conteúdo da aplicação no curso normal da operação,
 mas armazenamento é tratamento (Art. 5º, X) e o papel de operador existe
-independentemente do nível de acesso. **DPA não celebrado** — pendência
-formal, sem exposição internacional associada.
+independentemente do nível de acesso. **DPA não celebrado** — risco assumido
+permanentemente pela ADR-0014, sem exposição internacional associada.
 
 ### Staging/validação (Render + Neon)
 
@@ -273,7 +292,8 @@ O que efetivamente atravessa a fronteira:
 - **Registros de acesso de visitantes** (IP, data/hora, rota) — dado
   pessoal de pessoa real, tratado pelo Render nos Estados Unidos. **Sem
   SCC celebrada.** É a exposição real, e é o risco assumido pela ADR-0010,
-  mantido conscientemente pela ADR-0012.
+  mantido conscientemente pela ADR-0012 e declarado **permanente** pela
+  ADR-0014.
 - **Dados das contas de demonstração** — sintéticos, sem titular. Não são
   dado pessoal e, portanto, sua ida ao exterior não configura transferência
   internacional de dado pessoal.
@@ -282,18 +302,23 @@ Não há provedor SMTP contratado em nenhum dos dois ambientes, então nenhum
 e-mail é entregue a pessoa real.
 
 **Condição que sustenta este quadro, nos dois ambientes:** o cadastro
-público está fechado (`REGISTRATION_ENABLED=false`) — controle já
-implementado desde a Fase 13 do roadmap, confirmado em produção e staging.
-Se for aberto em qualquer um dos dois, pessoas reais passam a inserir dado
-pessoal real, e a análise daquele ambiente específico cai inteira. Abrir o
-cadastro no staging exigiria a mesma migração de hospedagem que já valeu
-para a produção; abrir na produção não muda a conclusão de zero
-transferência (ela já está no Brasil), mas reabre toda a análise de bases
-legais, retenção e DSAR com titulares reais — fora do escopo desta seção.
+público está fechado por padrão (`REGISTRATION_ENABLED=false`, inclusive
+como default do código desde a ADR-0014) — controle implementado desde a
+Fase 13 do roadmap, confirmado em produção e staging. **Pela ADR-0014, essa
+condição é permanente, não transitória:** os dois ambientes nunca vão
+tratar dado real de titular. Se o próprio projeto decidir um dia abrir
+cadastro real em qualquer um dos dois — cenário não planejado —, isso exige
+uma nova `auditoria-conformidade` completa e a resolução de todos os
+achados **antes** de `REGISTRATION_ENABLED=true`, não a retomada informal
+do que ficou registrado aqui (ADR-0014, ponto 5). Quem fizer **fork** deste
+repositório para operar com titular real herda essa análise integralmente a
+partir do momento do fork.
 
 Qualquer provedor estrangeiro adotado depois (APM, agregador de log, SMTP,
 CDN, banco gerenciado) **reabre** esta seção para o ambiente em que for
-adotado, e exige DPA + SCC antes do primeiro byte de dado pessoal.
+adotado, e exige DPA + SCC antes do primeiro byte de dado pessoal — essa
+regra vale independentemente da ADR-0014, que trata dos 3 operadores já
+existentes, não de operadores futuros.
 
 ## Manutenção deste documento
 

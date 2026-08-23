@@ -15,10 +15,11 @@
 >
 > **Data de referência:** 2026-08-06 · commit da branch `feat/154-bloqueadores-conformidade-lgpd`.
 >
-> ⚠️ **Projeto de portfólio** — mesma ressalva de `PROCEDIMENTO_DIREITOS_TITULAR.md`
-> e `ROPA.md`: não há titulares reais hoje. Este RIPD avalia o tratamento
-> **como o código o implementa**, para que a avaliação já esteja pronta no
-> dia em que um fork operar com dados reais.
+> ⚠️ **Projeto de portfólio, permanentemente** ([ADR-0014](adr/0014-ambientes-permanentemente-demonstracao.md))
+> — mesma ressalva de `PROCEDIMENTO_DIREITOS_TITULAR.md` e `ROPA.md`: não há
+> e não haverá titulares reais nos ambientes publicados deste projeto. Este
+> RIPD avalia o tratamento **como o código o implementa**, para que a
+> avaliação já esteja pronta no dia em que um fork operar com dados reais.
 
 ## 1. Por que este tratamento exige RIPD
 
@@ -202,15 +203,16 @@ endereço).
 
 | # | Risco residual | Tratamento planejado |
 |---|---|---|
-| 6.1 | `meter_readings`/`alert_trigger_events` sem prazo de retenção — crescem indefinidamente, mantendo o perfil comportamental completo do titular por tempo indeterminado. | Fase 14 do roadmap ("Conformidade P1: retenção, DSAR, consentimento e documentos") — decisão de prazo com apoio jurídico, informada pela recomendação da seção 3.3 deste RIPD. |
-| 6.2 | `Meter.extra` (configuração de conexão do dispositivo) pode conter a senha do medidor em texto claro no JSON. | Fase 13 do roadmap ("Endurecimento de segurança (P1)") já lista "cifra de `Meter.extra.password` + omissão do `MeterResponse`" como item planejado. |
-| 6.3 | ~~Nenhuma decisão de hospedagem tomada — risco de exposição a jurisdição estrangeira somado ao risco comportamental.~~ **Tratado.** | **Resolvido pela ADR-0008** (issue #158): hospedagem própria em São Paulo, banco na mesma VM, sem operador estrangeiro — o dado comportamental avaliado neste RIPD não sai do Brasil. Risco remanescente **muda de natureza**: passa de jurisdicional para operacional (ponto único de falha, backup manual via `pg_dump`, ausência de redundância) — ver "Consequências negativas" da ADR-0008. |
-| 6.4 | Base legal específica desta operação (hoje "execução de contrato", registrada no ROPA) ainda não passou por revisão jurídica formal. | Fase 14 do roadmap — atribuição de base legal por operação, com revisão jurídica (mesma ressalva já registrada em `ROPA.md`). |
-| 6.5 | Sem DSAR (Data Subject Access Request) completo — a exportação hoje existente (`GET /api/users/me/data-export`) precisa ser conferida quanto a incluir o histórico de `meter_readings`/`alert_trigger_events` por inteiro, não só um resumo. | Fase 14 do roadmap lista "export DSAR completo (consumo agregado, medidores, disparos)" como item planejado — não verificado neste RIPD por estar fora do seu escopo (avaliação de impacto, não auditoria de export). |
+| 6.1 | `meter_readings`/`alert_trigger_events` sem prazo de retenção — crescem indefinidamente. Sem titular real (ADR-0014), isso deixa de ser risco de perfil comportamental exposto e passa a ser uma questão de **armazenamento/performance** (a maior tabela do sistema). | **Reclassificado — Fase 15 do roadmap** (desempenho), não mais Fase 14. Sem prazo LGPD a cumprir; decisão de compactação/expurgo, se vier, é por custo/performance, não por conformidade. |
+| 6.2 | `Meter.extra` (configuração de conexão do dispositivo) podia conter a senha do medidor em texto claro no JSON. | **Fechado.** Corrigido pela issue #182: `shared/crypto/meterCredentialEncryption.ts` cifra `extra.password` (AES-256-GCM, chave própria `METER_CREDENTIAL_ENCRYPTION_KEY`); `MeterResponse` nunca expõe a senha (só `passwordSet: boolean`). Coberto por teste dedicado (`meterCredentialEncryption.test.ts`, `meter.repository.test.ts`). |
+| 6.3 | Transferência internacional do staging (Render/Neon, registros de acesso de visitante, sem SCC). | **Aceito permanentemente — [ADR-0014](adr/0014-ambientes-permanentemente-demonstracao.md).** Deixa de ser "a reavaliar quando abrir cadastro real" (esse cadastro não vai abrir) e passa a ser risco assumido de forma explícita e definitiva enquanto o staging existir com esse papel. A produção (VPS) segue sem transferência internacional (ADR-0008/0012). |
+| 6.4 | Base legal específica desta operação (hoje "execução de contrato", registrada no ROPA) ainda não passou por revisão jurídica formal. | **Deferido — ADR-0014.** Atribuição formal com revisão jurídica só se justifica havendo titular real; não é trabalho ativo enquanto os ambientes forem demonstração. |
+| 6.5 | Sem DSAR (Data Subject Access Request) completo — a exportação hoje existente (`GET /api/users/me/data-export`) não inclui consumo agregado (`MeterReading`) nem disparos (`AlertTriggerEvent`). | **Deferido — ADR-0014.** Sem titular real, não há obrigação de Art. 18 a cumprir nem urgência de produto. |
 
 Nenhum destes riscos é tratado por esta issue — #157 entrega a avaliação,
-não a correção. Cada um já está alocado a uma fase específica do roadmap,
-para que a análise não fique arquivada sem dono.
+não a correção. 6.2 já foi corrigido por outra issue; 6.1 foi reclassificado
+para a Fase 15 (desempenho); 6.3, 6.4 e 6.5 são deferidos pela ADR-0014
+enquanto os ambientes forem permanentemente demonstração.
 
 ## 7. Reavaliação
 
