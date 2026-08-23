@@ -59,12 +59,15 @@ O LumiTrack roda em **dois ambientes**, com infraestrutura diferente:
 
 | Ambiente | Onde | Infraestrutura | Transferência internacional |
 |---|---|---|---|
-| **Produção** (`lumitrack.app.br`) | Brasil (São Paulo) | Máquina própria — aplicação, banco de dados e simulador na mesma infraestrutura, sem operador terceiro | **Não há.** Nenhum dado sai do país. |
-| **Staging/validação** (ambiente de testes usado durante o desenvolvimento, antes de cada mudança chegar à produção) | Estados Unidos | Render (API e interface) + Neon (banco de dados) | **Há, limitada aos registros de acesso** (IP, data/hora, rota) de quem visita esse ambiente — ver abaixo. |
+| **Produção** (`lumitrack.app.br`) | Brasil (São Paulo) | Servidor dedicado próprio — aplicação, banco de dados e simulador na mesma máquina. O único terceiro envolvido é o **provedor de infraestrutura** (a empresa que aluga o servidor), que processa exclusivamente em São Paulo | **Não há.** Nenhum dado sai do país. |
+| **Staging/validação** (ambiente de testes em `*.onrender.com`, usado durante o desenvolvimento, antes de cada mudança chegar à produção) | Estados Unidos | Render (API e interface) + Neon (banco de dados) | **Há, limitada aos registros de acesso** (IP, data/hora, rota) de quem visita esse ambiente — ver abaixo. |
 
 - **Na produção, não há transferência internacional de dado pessoal** — a
-  infraestrutura inteira roda no Brasil, sem nenhum operador estrangeiro
-  no caminho.
+  infraestrutura inteira roda no Brasil. O provedor de infraestrutura é
+  operador nos termos do Art. 39 da LGPD, porque armazena os dados por nossa
+  conta; ele não tem acesso ao conteúdo da aplicação no curso normal da
+  operação, e processa integralmente em território nacional. Nenhum outro
+  terceiro participa do tratamento nesse ambiente.
 - **No ambiente de staging, há transferência internacional limitada aos
   registros de acesso.** Como esse ambiente também não possui usuários
   reais (mesma trava de cadastro fechado da produção), o único dado
@@ -97,9 +100,10 @@ O LumiTrack roda em **dois ambientes**, com infraestrutura diferente:
 - CPF/CNPJ, endereço e o segredo de autenticação em duas etapas são
   armazenados criptografados (AES-256-GCM), com chaves independentes entre
   si — o comprometimento de uma não expõe as demais.
-- Infraestrutura hospedada por provedores de nuvem especializados — ver
-  seção 4 para o país de cada componente —, sem acesso de terceiros além
-  desses provedores.
+- Infraestrutura hospedada por provedores especializados, que atuam como
+  operadores nos termos do Art. 39 da LGPD — ver a seção 4 para quais são,
+  em qual ambiente e em que país cada um processa. Nenhum outro terceiro
+  tem acesso aos dados.
 
 ## 6. Seus direitos como titular (Art. 18 da LGPD)
 

@@ -235,6 +235,14 @@ getent passwd <usuario-de-servico>
 
 O final da linha deve mostrar `/usr/sbin/nologin`. Isso significa que, mesmo que alguém consiga executar comandos como esse usuário, não consegue abrir uma sessão interativa com ele. Ele existe só para ser dono dos arquivos e rodar os processos — não é uma conta de pessoa.
 
+> **Mas esse comando não responde a pergunta toda** — e vale ser explícito, porque é a armadilha que este documento denuncia no fail2ban. `getent passwd` prova que a *conta* existe sem shell; não diz nada sobre **qual usuário roda dentro de cada container**, que é decidido pelo `USER` do `Dockerfile` (ou herdado da imagem, que muitas vezes é `root`). Verifique o efeito, não a presença:
+>
+> ```bash
+> sudo docker inspect $(sudo docker ps -q) --format "{{.Name}}: {{.Config.User}}"
+> ```
+>
+> Um valor vazio significa que o container roda como `root` **dentro do seu próprio namespace** — o que não é automaticamente um problema (o isolamento do container continua valendo, e imagens oficiais como a do Postgres largam privilégio internamente), mas é o tipo de coisa que você quer saber de propósito, não por descuido. O `backend` deste projeto declara `USER node` explicitamente.
+
 ## 3.2 Containers sem privilégio elevado
 
 Um container pode ser configurado para ter acesso quase total ao sistema hospedeiro (modo `privileged`) — o que anula boa parte do isolamento que containers oferecem. Nenhum container deste projeto usa isso. Confirme:
@@ -391,8 +399,11 @@ sudo ss -tlnp
 echo "=== 5. Containers sem privilégio elevado ==="
 sudo docker inspect $(sudo docker ps -q) --format "{{.Name}}: Privileged={{.HostConfig.Privileged}}"
 
-echo "=== 6. Usuário de serviço sem shell de login ==="
+echo "=== 6a. Usuário de serviço sem shell de login ==="
 getent passwd <usuario-de-servico>
+
+echo "=== 6b. Qual usuário os containers REALMENTE usam ==="
+sudo docker inspect $(sudo docker ps -q) --format "{{.Name}}: {{.Config.User}}"
 
 echo "=== 7. Permissão dos arquivos de configuração ==="
 find /opt/<projeto> -maxdepth 3 -name ".env" -exec ls -la {} \;
@@ -416,7 +427,8 @@ df -h /
 | 3 | Firewall | `Status: active`, `deny (incoming)`, só 22/80/443 liberadas |
 | 4 | Portas | Nada em `0.0.0.0`/`[::]` além de 22, 80 e 443 |
 | 5 | Containers | Todos `Privileged=false` |
-| 6 | Usuário de serviço | Termina em `/usr/sbin/nologin` |
+| 6a | Usuário de serviço | Termina em `/usr/sbin/nologin` |
+| 6b | Usuário dentro dos containers | O que você decidiu de propósito — `node` no backend; vazio (root no namespace do container) só onde a imagem oficial assim exige |
 | 7 | Arquivos `.env` | Todos `-rw-------` |
 | 8 | Atualizações | `enabled` e `active` |
 | 9 | Kernel | As duas versões iguais (senão, reiniciar) |

@@ -140,26 +140,45 @@ log de admin, não repetido aqui para não duplicar o item 5).
 
 ## Tabela de operadores (Art. 39)
 
-> **Desde a Fase 13.7 (ADR-0012) o LumiTrack roda em dois ambientes, não um.**
-> A tabela abaixo cobre só o **staging/validação** (Render + Neon) — é o
-> único dos dois com operador terceiro. A **produção** (VPS Hostinger, São
-> Paulo, `lumitrack.app.br`) roda em máquina própria, sem nenhum operador:
-> aplicação, banco de dados e simulador na mesma infraestrutura, sob
-> controle direto do controlador. Não é mais o caso de "a tabela some
-> quando a hospedagem migrar" (redação antiga desta seção, anterior à
-> ADR-0012) — o staging continua existindo, de propósito, como ambiente de
-> validação online antes de cada mudança chegar à produção.
+> **Desde a Fase 13.7 (ADR-0012) o LumiTrack roda em dois ambientes, não um**,
+> e a tabela abaixo cobre os dois. A diferença entre eles **não é ter ou não
+> ter operador** — é *quantos*, *onde processam* e *a que têm acesso*:
+>
+> - **Produção** (VPS, São Paulo): um único operador, o **provedor de
+>   infraestrutura**, que processa integralmente no Brasil. Aplicação, banco
+>   e simulador rodam na mesma máquina alugada, sob controle direto do
+>   controlador; o provedor não tem acesso ao conteúdo da aplicação no curso
+>   normal da operação, mas **armazenar dado por conta do controlador é
+>   tratamento** (Art. 5º, X) e quem o faz é operador (Art. 5º, VII) — o
+>   papel existe independentemente do nível de acesso. É o mesmo agente
+>   externo que a ADR-0012 reconhece na sua análise de conformidade.
+> - **Staging/validação** (Render + Neon, EUA): dois operadores, ambos fora
+>   do país, com a exposição residual registrada na ADR-0010.
+>
+> Não é mais o caso de "a tabela some quando a hospedagem migrar" (redação
+> antiga desta seção, anterior à ADR-0012): a migração aconteceu, o staging
+> continua existindo de propósito, e a produção tem seu próprio operador —
+> só que nacional.
 
 | Operador | Serviço | Ambiente | Dado tratado | País de processamento | DPA assinado | SCC (se fora BR/UE) | Data |
 |---|---|---|---|---|---|---|---|
+| Provedor de infraestrutura (VPS) | Servidor dedicado que hospeda toda a produção (aplicação, banco e simulador na mesma máquina) | **Produção** | Todo o dado da aplicação, em repouso no disco da máquina alugada — sem acesso lógico do provedor no curso normal da operação | **Brasil (São Paulo)** | Não | n/a — processamento nacional | 2026-08-23 |
 | Render | Hospedagem da aplicação (API + interface estática) | Staging/validação | Registros de acesso (IP, data/hora, rota) | Estados Unidos | Não | **Não** | 2026-08-09 |
 | Neon | PostgreSQL gerenciado | Staging/validação | Apenas dados sintéticos das contas de demonstração | Estados Unidos | Não | **Não** | 2026-08-09 |
 
 **A tabela deixou de estar vazia em 2026-08-09** (**ADR-0010**), quando o
-ambiente publicado passou a rodar em free tier fora do Brasil. Ficou assim
-para o staging até hoje; a **produção** (Fase 13.7, 2026-08-23) restaurou a
-conclusão original da ADR-0008 — zero operador, todo o tratamento sob
-controle direto do controlador.
+ambiente publicado passou a rodar em free tier fora do Brasil. A **produção**
+(Fase 13.7, 2026-08-23) restaurou a conclusão de conformidade da ADR-0008 no
+que ela tem de decisivo — **nenhum dado sai do país** —, mas não a versão
+absoluta de "zero operador": trocar um provedor estrangeiro por um nacional
+elimina a transferência internacional, não o papel de operador. A diferença
+importa numa fiscalização, e é a razão desta linha existir.
+
+**Sobre o DPA da produção:** não celebrado. Diferente do caso Render/Neon,
+aqui não há transferência internacional a cobrir por SCC — a lacuna é apenas
+a formalização do Art. 39 com o provedor, cujo contrato padrão de hospedagem
+já rege a relação. Continua sendo uma pendência a resolver antes de qualquer
+uso com titular real, listada no `09-conformidade-legal.md`.
 
 **O que isso significa, sem eufemismo, sobre o staging:**
 
@@ -236,10 +255,16 @@ estado transitório.
 ### Produção (VPS Hostinger, São Paulo)
 
 Não há transferência internacional. Aplicação, banco de dados e simulador
-rodam na mesma máquina, sob controle direto do controlador — nenhum
-operador terceiro no caminho. As SCCs da ANPD (Res. CD/ANPD 19/2024) não
-se aplicam por inexistência do fato gerador; não há operador (Art. 39),
-logo não há DPA a assinar.
+rodam na mesma máquina, sob controle direto do controlador, em São Paulo.
+As SCCs da ANPD (Res. CD/ANPD 19/2024) não se aplicam por inexistência do
+fato gerador — nenhum dado sai do país.
+
+Há **um** operador (Art. 39): o provedor de infraestrutura que aluga a
+máquina, listado na tabela acima. Ele processa integralmente em território
+nacional e não acessa o conteúdo da aplicação no curso normal da operação,
+mas armazenamento é tratamento (Art. 5º, X) e o papel de operador existe
+independentemente do nível de acesso. **DPA não celebrado** — pendência
+formal, sem exposição internacional associada.
 
 ### Staging/validação (Render + Neon)
 

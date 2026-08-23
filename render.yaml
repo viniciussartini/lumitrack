@@ -1,4 +1,7 @@
-# Blueprint da demo pública (ADR-0010) — Render.
+# Blueprint do ambiente de staging/validação (ADR-0010, com o escopo
+# redefinido pela ADR-0012) — Render. Deixou de ser "a" produção na Fase 13.7:
+# a produção real roda na VPS (Caminho B do DEPLOY.md), e este ambiente passou
+# a validar cada PR online antes da promoção para `main`.
 # Passo a passo completo, incluindo o que precisa ser preenchido à mão:
 # .claude/docs/DEPLOY.md, "Caminho A".
 #
@@ -15,6 +18,12 @@ services:
       dockerContext: .
       plan: free
       region: oregon
+      # Sem esta chave o Render acompanha a branch padrão do repositório
+      # (`main`) — o que publicaria produção neste ambiente e deixaria o
+      # merge em `staging` sem efeito, invertendo os papéis que a ADR-0012
+      # separou. Versionado de propósito: ajuste feito só no painel se perde
+      # quando o serviço é recriado pelo blueprint.
+      branch: staging
       healthCheckPath: /health
       envVars:
           - key: NODE_ENV
@@ -100,6 +109,7 @@ services:
       runtime: static
       buildCommand: cd frontend && npm ci && npm run build
       staticPublishPath: frontend/dist
+      branch: staging # mesmo motivo do serviço acima
       envVars:
           # Vite resolve import.meta.env.VITE_* em BUILD time, não em
           # runtime — sem isso aqui, o botão de login de demonstração

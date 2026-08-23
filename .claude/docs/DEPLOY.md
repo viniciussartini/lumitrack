@@ -145,7 +145,7 @@ Definidas em `render.yaml` (não precisa fazer nada):
 | `NODE_ENV` | `production` | Liga as validações fail-closed de `config/env.ts`. |
 | `REGISTRATION_ENABLED` | `false` | **A premissa de conformidade inteira da ADR-0010.** O default do código é `true`. |
 | `DEMO_LOGIN_ENABLED` | `true` | Mantém o botão de demonstração funcional com o cadastro fechado. |
-| `IOT_ALLOWED_HOSTS` | `127.0.0.1/32` | Simulador no mesmo container = loopback. Não afrouxa a proteção de SSRF. |
+| `IOT_ALLOWED_HOSTS` | `localhost,127.0.0.1/32` | Simulador no mesmo container = loopback. **`localhost` precisa entrar como hostname, não só o CIDR:** dentro do container o nome resolve para IPv4 **e** IPv6, e um CIDR só de IPv4 deixa o `::1` de fora, fazendo a checagem de SSRF negar a conexão do medidor (mesmo achado documentado no Caminho B). Não afrouxa a proteção. |
 | `DEMO_BOOTSTRAP_ENABLED` | `true` | Recria os devices do simulador a cada despertar — sem isso o painel acorda sem dado ao vivo. |
 | `API_HOST` / `BROKER_HOST` | `127.0.0.1` | A API de controle e o broker do simulador nunca saem do container. |
 
@@ -315,7 +315,12 @@ sudo -u lumitrack cp backend/.env.example backend/.env
 sudo -u lumitrack cp iot-simulator/server/.env.example iot-simulator/server/.env
 sudo -u lumitrack cp deploy/.env.example deploy/.env
 sudo -u lumitrack cp frontend/.env.example frontend/.env
+
+# Fecha a permissão ANTES de gravar qualquer segredo nos arquivos.
+sudo -u lumitrack chmod 600 backend/.env iot-simulator/server/.env deploy/.env frontend/.env
 ```
+
+**Por que o `chmod 600` é parte do passo, e não um detalhe:** os `.env.example` são versionados com permissão de leitura para todos (é o certo — não têm segredo nenhum), e o `cp` propaga essa permissão para o destino. Nas linhas seguintes esses mesmos arquivos passam a conter o `JWT_SECRET`, as cinco chaves de criptografia e as duas senhas do Postgres. Sem fechar a permissão, qualquer usuário da máquina consegue lê-los. `600` significa "só o dono lê e escreve" — e por isso o bloco de auditoria do `SEGURANCA-VPS.md` exige `-rw-------` em todos os quatro.
 
 Por que `sudo -u lumitrack` na frente de cada comando: os arquivos precisam pertencer ao usuário `lumitrack` (o usuário de serviço sem shell interativo criado pelo `provision-vm.sh` no passo 3, que é quem de fato roda os containers) — não ao seu usuário administrativo (`<usuario>`, passo 1). `sudo -u lumitrack <comando>` executa aquele comando "como se fosse" o usuário `lumitrack`, sem trocar de sessão SSH.
 
@@ -413,12 +418,13 @@ A migração (criar as tabelas em si, a partir do schema do Prisma) é uma opera
 
 ```bash
 set -a && source deploy/.env && set +a
-docker compose run --rm --user root \
-  -e DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public" \
-  backend npm run db:migrate:deploy
+DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public" \
+  docker compose run --rm --user root -e DATABASE_URL backend npm run db:migrate:deploy
 ```
 
 O que cada parte faz: `source deploy/.env` carrega as variáveis daquele arquivo na sessão do seu terminal (só temporariamente, só nesta sessão SSH), para poder usá-las no comando seguinte. `docker compose run --rm` sobe um container **novo e temporário** do serviço `backend` (diferente de `up`, que sobe o container permanente) só para rodar esse um comando e depois se apagar sozinho (`--rm`). `--user root`: por padrão o container do backend roda como o usuário `node`, sem privilégio (boa prática de segurança — se alguém explorasse uma falha no backend, não ganharia root dentro do container) — mas o Prisma baixa, na hora, um executável (`schema-engine`) para aplicar a migração, e esse download precisa gravar em `node_modules/@prisma/engines`, uma pasta que o usuário `node` não tem permissão de escrita. `--user root` é uma exceção **só para este comando pontual** — o serviço `backend` de verdade (o que fica rodando 24h) continua sem privilégio, nada muda nisso.
+
+**Por que a senha vai numa variável antes do comando, e não dentro dele:** `-e DATABASE_URL` (só o nome, sem `=valor`) manda o Docker repassar a variável que já existe no ambiente do shell. Escrever `-e DATABASE_URL="postgresql://usuario:senha@..."` colocaria a senha administrativa do banco na **linha de comando do processo**, que qualquer usuário da máquina lê com um simples `ps aux` — e ela ainda ficaria no histórico do shell. É a mesma regra de ouro do passo 5: segredo não passa por lugar nenhum além do arquivo onde precisa estar.
 
 **Verificação (o comando abaixo TEM que falhar — se funcionar, algo está errado):**
 
