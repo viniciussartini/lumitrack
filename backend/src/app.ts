@@ -93,6 +93,13 @@ export function createApp(deps: AppDependencies = {}) {
     const canonicalOrigin = canonicalUrl.origin
 
     app.use((req, res, next) => {
+        // /health é alvo de checks internos (Docker healthcheck, Uptime Kuma)
+        // que batem em localhost/nome do serviço, nunca no domínio público —
+        // a checagem de Host abaixo sempre rejeitaria (400) o próprio
+        // monitoramento. Segue para os demais middlewares normalmente
+        // (helmet/CORS continuam aplicados, só o Host canônico é pulado).
+        if (req.path === "/health") return next()
+
         const decision = decideHttpsRedirect({
             nodeEnv: env.NODE_ENV,
             requestHost: req.headers.host,

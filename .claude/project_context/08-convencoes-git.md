@@ -207,7 +207,7 @@ gh issue edit {N} --milestone "MVP"
 **Convenções do PR (estas sim moram aqui):**
 
 - **Título:** Conventional Commits, derivado do prefixo da branch — `feat/12-cadastro` → `feat: cadastro de tarefas`.
-- **Base:** sempre `main`, salvo PR de sub-branch para branch de épico.
+- **Base:** `staging`, salvo o PR de promoção `staging`→`main` e o PR de sub-branch para branch de épico (ver seção "Fluxo de branches" acima, Fase 13.7 / ADR-0012).
 - **Referência de issue:** `Closes #N` na seção "Issues relacionadas" — branch `epic/{N}-...` referencia o épico; `{tipo}/{N}-...` referencia a issue.
 - **Labels:** mesma taxonomia das issues (`tipo:`, `prioridade:`), aplicadas ao PR quando úteis para o board.
 - **Checklist:** itens verificáveis pela skill são marcados; os que dependem de julgamento humano ficam desmarcados para você conferir.

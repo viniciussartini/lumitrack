@@ -1,18 +1,20 @@
 # DEPLOY.md — Go-live do LumiTrack
 
-> Produzido pela Fase 13.5 do roadmap (`.claude/docs/roadmap.md`), Bloco A. Este documento é o procedimento reproduzível de deploy — se um passo daqui divergir do que o operador realmente fez, o documento está desatualizado, não o deploy.
+> Produzido pela Fase 13.5 do roadmap (`.claude/docs/roadmap.md`), Bloco A, e executado de fato na VPS pela **Fase 13.7** (separação de ambientes, ADR-0012). Este documento é o procedimento reproduzível de deploy — se um passo daqui divergir do que o operador realmente fez, o documento está desatualizado, não o deploy.
 
-## Dois caminhos
+## Dois ambientes
 
-| | **Caminho A — demo pública** | **Caminho B — self-hosted** |
+| | **Produção — VPS Hostinger** | **Staging/integração — Render + Neon** |
 |---|---|---|
-| **Situação** | **Vigente hoje** | Pronto, ainda não executado |
-| **Onde** | Render + Neon (EUA), free tier | Máquina única no Brasil |
-| **Decisão** | [ADR-0010](adr/0010-demo-publica-free-tier-render-neon.md) | [ADR-0008](adr/0008-hospedagem-brasil-oracle-always-free.md) + [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) |
-| **Artefatos** | `render.yaml`, `Dockerfile` (raiz), `deploy/demo-entrypoint.sh` | `docker-compose.yml`, `deploy/Caddyfile`, `deploy/provision-vm.sh`, scripts de backup |
-| **Para quê** | Demonstração de portfólio, sem usuário real | **Migração obrigatória antes de operar com usuário real** |
+| **Branch** | `main` | `staging` |
+| **Onde** | Máquina única, São Paulo | Render + Neon (EUA), free tier |
+| **Decisão** | [ADR-0008](adr/0008-hospedagem-brasil-oracle-always-free.md) + [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) + [ADR-0012](adr/0012-separacao-producao-vps-staging-render-neon.md) | [ADR-0010](adr/0010-demo-publica-free-tier-render-neon.md), continua vigente com o escopo redefinido pela ADR-0012 |
+| **Artefatos** | `docker-compose.yml`, `deploy/Caddyfile`, `deploy/provision-vm.sh`, scripts de backup | `render.yaml`, `Dockerfile` (raiz), `deploy/demo-entrypoint.sh` |
+| **Para quê** | O produto real — o que fica acessível ao público como "o LumiTrack" | Validação online de cada PR antes de chegar em produção; também onde a demo de portfólio permanece enquanto a VPS estabiliza |
 
-O Caminho B não é legado nem alternativa hipotética: é o compromisso registrado na ADR-0010 e no `README.md`. Abrir o cadastro para pessoas reais exige migrar para ele **antes**, porque é ele que restaura a conclusão de conformidade da ADR-0008 (processamento no Brasil, sem operador estrangeiro).
+**Fluxo:** `feat/fix/epic/{N}-...` → PR → `staging` (deploy automático no Render) → validado online → PR → `main` (deploy na VPS, ver "Caminho B" abaixo). Detalhe da convenção em `08-convencoes-git.md`.
+
+O Caminho B não é legado nem alternativa hipotética: é a produção real desde a Fase 13.7, e restaura a conclusão de conformidade da ADR-0008 (processamento no Brasil, sem operador estrangeiro). O staging (Render+Neon, antigo "Caminho A") mantém a exposição residual registrada na ADR-0010 — por isso continua com cadastro fechado.
 
 ---
 
@@ -194,9 +196,9 @@ O rewrite `/api/*` do site estático **não sustenta conexão de longa duração
 
 ---
 
-# Caminho B — self-hosted (migração para o Brasil)
+# Caminho B — self-hosted (produção, VPS Hostinger)
 
-> **Quando usar:** antes de qualquer operação com usuário real. É este caminho que restaura a conclusão de conformidade da ADR-0008 — processamento exclusivamente no Brasil, sem operador estrangeiro, sem transferência internacional.
+> **Quando usar:** é a produção real, branch `main` (Fase 13.7, ADR-0012). Restaura a conclusão de conformidade da ADR-0008 — processamento exclusivamente no Brasil, sem operador estrangeiro, sem transferência internacional.
 
 ## Topologia
 
@@ -225,56 +227,107 @@ Ver [ADR-0008](adr/0008-hospedagem-brasil-oracle-always-free.md) para o racional
 ## Pré-requisitos
 
 - VM Ubuntu 24.04 com datacenter no Brasil, acesso root por SSH e portas 80/443 liberáveis.
-- Domínio real apontando (registro A/AAAA) para o IP público da VM.
 - Chave SSH configurada (nunca senha).
+- Domínio real apontando (registro A/AAAA) para o IP público da VM — **só é necessário a partir do passo 8**. Os passos 1–7 (usuário admin, SSH, provisionamento, banco, backend/simulador, seed) rodam inteiramente sem domínio — é assim que a Fase 13.7 foi executada na prática: VPS pronta primeiro, domínio comprado depois. Ver "Comprar o domínio e apontar o DNS" mais abaixo se você ainda não tem um.
 
 ## Passo a passo
 
-### 1. Provisionar o runtime da VM
+### 1. Criar o usuário administrativo com sudo
+
+A VPS chega só com acesso `root`. Antes de qualquer outra coisa, crie um usuário administrativo e **teste o login dele numa sessão separada** antes de prosseguir — nunca prossiga sem confirmar que funciona:
 
 ```bash
-scp deploy/provision-vm.sh usuario@<ip-da-vm>:~
-ssh usuario@<ip-da-vm>
+ssh root@<ip-da-vm>
+adduser --disabled-password --gecos '' <usuario>
+usermod -aG sudo <usuario>
+mkdir -p /home/<usuario>/.ssh
+cp /root/.ssh/authorized_keys /home/<usuario>/.ssh/authorized_keys
+chown -R <usuario>:<usuario> /home/<usuario>/.ssh
+chmod 700 /home/<usuario>/.ssh && chmod 600 /home/<usuario>/.ssh/authorized_keys
+```
+
+Em outro terminal, **sem fechar a sessão root**: `ssh <usuario>@<ip-da-vm>` e `sudo whoami` — deve responder `root` sem pedir senha (ou pedindo, se você preferiu não usar `NOPASSWD`). Só depois disso siga para o próximo passo.
+
+### 2. Endurecer o SSH
+
+Imagens de VPS costumam trazer mais de um arquivo em `/etc/ssh/sshd_config.d/` — o OpenSSH usa o **primeiro** valor encontrado por diretiva (não o último), então um arquivo de provisionamento do provedor pode silenciosamente vencer o seu. Confira antes:
+
+```bash
+sudo sshd -T | grep -E "passwordauthentication|permitrootlogin"
+```
+
+Se `passwordauthentication` estiver `yes` mesmo com algum arquivo dizendo `no`, é exatamente esse conflito — resolva com um único arquivo novo, ordenado para vencer (prefixo numérico alto):
+
+```bash
+sudo tee /etc/ssh/sshd_config.d/90-lumitrack-hardening.conf >/dev/null <<'EOF'
+PasswordAuthentication no
+PermitRootLogin no
+PubkeyAuthentication yes
+EOF
+sudo sshd -t   # valida sintaxe antes de aplicar
+sudo systemctl reload ssh   # em Ubuntu 24.04 a unit é "ssh", não "sshd"
+```
+
+Reconfirme numa sessão **nova** (`ssh <usuario>@<ip-da-vm>`) antes de encerrar a sessão root. Depois disso, `ssh root@<ip-da-vm>` deve ser recusado (`Permission denied (publickey)`).
+
+### 3. Provisionar o runtime da VM
+
+```bash
+scp deploy/provision-vm.sh <usuario>@<ip-da-vm>:~
+ssh <usuario>@<ip-da-vm>
 sudo ./provision-vm.sh
 ```
 
-Instala Docker Engine + Compose plugin, cria o usuário de serviço `lumitrack` e configura o `ufw` (só 22/80/443 liberados). Siga as instruções finais do script para o endurecimento manual de SSH.
+Instala Docker Engine + Compose plugin (pula se o provedor já entregou a VM com Docker pré-instalado — confira com `docker --version` antes), `age` (cifra do backup), `unattended-upgrades`, cria um swapfile de 2 GB, cria o usuário de serviço `lumitrack` (sem shell interativo — só roda os containers, não é o mesmo usuário administrativo do passo 1) e configura o `ufw` (só 22/80/443 liberados).
 
-### 2. Clonar o repositório
+### 4. Clonar o repositório
 
 ```bash
+sudo mkdir -p /opt/lumitrack && sudo chown lumitrack:lumitrack /opt/lumitrack
 sudo -u lumitrack git clone https://github.com/<owner>/lumitrack.git /opt/lumitrack
 cd /opt/lumitrack
 ```
 
-### 3. Configurar as variáveis de ambiente
+Repositório público — HTTPS sem credencial.
+
+### 5. Configurar as variáveis de ambiente
 
 ```bash
-cp backend/.env.example backend/.env
-cp iot-simulator/server/.env.example iot-simulator/server/.env
-cp deploy/.env.example deploy/.env
+sudo -u lumitrack cp backend/.env.example backend/.env
+sudo -u lumitrack cp iot-simulator/server/.env.example iot-simulator/server/.env
+sudo -u lumitrack cp deploy/.env.example deploy/.env
 ```
 
-Ver o checklist abaixo antes de prosseguir.
-
-### 4. Build do frontend
-
-O frontend é servido como arquivo estático pelo Caddy (bind mount) — não tem container próprio:
+Preencha os segredos (`JWT_SECRET`, as 5 chaves de criptografia, senhas do Postgres, token do simulador) gerando cada um **na própria VPS** e gravando direto no arquivo — nunca copiar segredo por um chat/terminal que fica em algum histórico. Exemplo por variável:
 
 ```bash
-cd frontend && npm ci && npm run build && cd ..
+sed -i "s|^JWT_SECRET=.*|JWT_SECRET=\"$(openssl rand -hex 48)\"|" backend/.env
+sed -i "s|^CPF_CNPJ_ENCRYPTION_KEY=.*|CPF_CNPJ_ENCRYPTION_KEY=\"$(openssl rand -hex 32)\"|" backend/.env
+# ... uma linha por chave (CPF_CNPJ_BLIND_INDEX_KEY, MFA_SECRET_ENCRYPTION_KEY,
+# ADDRESS_ENCRYPTION_KEY, METER_CREDENTIAL_ENCRYPTION_KEY, POSTGRES_PASSWORD em
+# deploy/.env, LUMITRACK_APP_PASSWORD em deploy/.env, SIMULATOR_API_TOKEN e
+# BROKER_PASSWORD em iot-simulator/server/.env — cada uma com openssl rand
+# independente, nunca reaproveitar valor entre variáveis)
 ```
 
-`frontend/dist/` precisa existir antes do `docker compose up`.
+Se ainda não tem domínio, deixe `DOMAIN` (`deploy/.env`) e `CORS_ORIGIN`/`FRONTEND_URL`/`PUBLIC_API_ORIGIN` (`backend/.env`) com um placeholder válido (ex.: `https://lumitrack.com.br`, o nome mais provável) — só precisam do valor real a partir do passo 8. `IOT_ALLOWED_HOSTS=localhost` (não `127.0.0.1/32` sozinho — ver comentário no `.env.example`, "localhost" resolve IPv4 **e** IPv6 dentro do container, um CIDR só de IPv4 deixa o `::1` de fora e a conexão do medidor cai por SSRF). `DEMO_LOGIN_ENABLED=true`, `REGISTRATION_ENABLED=false`, `DEMO_BOOTSTRAP_ENABLED=false` (em `iot-simulator/server/.env` — aqui o simulador não hiberna, os devices são criados uma vez pelo passo 7). Ver o checklist completo abaixo.
 
-### 5. Subir o banco e aplicar as migrações
+### 6. Chave de cifra do backup (fora da VPS)
 
-Subir o `postgres` já cria o papel de runtime sem DDL automaticamente (primeiro boot, `deploy/create-app-role.sql` — ver `docker-compose.yml`). A migração, porém, **precisa do usuário administrativo** — o `DATABASE_URL` de `backend/.env` (o de runtime, `lumitrack_app`) não tem `CREATE`:
+```bash
+age-keygen -o backup-key.txt   # roda na SUA máquina, NUNCA na VPS
+```
+
+Copie a linha `Public key: age1...` para `BACKUP_ENCRYPTION_PUBLIC_KEY` em `deploy/.env` da VPS. Guarde `backup-key.txt` (a privada) num local **estável e definitivo** fora do repositório — não uma pasta solta que pode ser movida ou apagada por engano; sem ela, os backups são irrecuperáveis, inclusive por você.
+
+### 7. Subir o banco e aplicar as migrações
+
+Subir o `postgres` já cria o papel de runtime sem DDL automaticamente (primeiro boot, `deploy/create-app-role.sql` — ver `docker-compose.yml`). A migração, porém, **precisa do usuário administrativo** — o `DATABASE_URL` de `backend/.env` (o de runtime, `lumitrack_app`) não tem `CREATE`. E precisa rodar como `--user root` **dentro do container** (não confundir com usuário do host): o Prisma baixa sob demanda o binário do `schema-engine` (não incluído por `prisma generate` em build), e o container roda como usuário `node` sem permissão de escrita em `node_modules/@prisma/engines` — isso é só para este comando administrativo pontual, o serviço `backend` continua rodando sem privilégio (`USER node` no `Dockerfile`, inalterado):
 
 ```bash
 docker compose up -d postgres
 set -a && source deploy/.env && set +a
-docker compose run --rm \
+docker compose run --rm --user root \
   -e DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public" \
   backend npm run db:migrate:deploy
 ```
@@ -286,27 +339,79 @@ docker compose exec postgres psql -U lumitrack_app -d "$POSTGRES_DB" -c 'CREATE 
 # esperado: ERROR: permission denied for schema public
 ```
 
-### 6. Subir o stack completo
+Build do frontend (estático, servido pelo Caddy via bind mount — sem container próprio). O host não tem Node instalado (só dentro de containers) — builda via um container Node descartável:
 
 ```bash
-docker compose up -d
-docker compose ps # todos os serviços "healthy"/"running"
-curl -I https://<seu-dominio>/ # frontend estático respondendo via Caddy
-docker compose exec backend curl -sf http://localhost:3333/health # /health não é proxiado publicamente
+docker run --rm -v "$(pwd)/frontend:/app" -w /app node:24-slim sh -c "npm ci && npm run build"
+sudo chown -R lumitrack:lumitrack frontend/dist
 ```
 
-### 7. Popular a demonstração
+Suba backend e simulador (ainda sem Caddy — sem domínio, o desafio ACME do Let's Encrypt só geraria erro repetido e risco de rate limit do Let's Encrypt; se o domínio já existir, pode pular direto para o passo 8):
 
 ```bash
-docker compose exec backend npm run db:seed:demo
+docker compose up -d backend simulator
+docker compose ps   # os três "healthy"
+docker compose exec backend node -e "require('http').get('http://localhost:3333/health',(r)=>process.exit(r.statusCode===200?0:1))"
+```
+
+Popule a demonstração — **nesta ordem** (o catálogo de distribuidoras precisa existir antes do seed de demo; ambos exigem `--user root` no container, mesmo motivo do migrate acima):
+
+```bash
+docker compose exec --user root backend npm run db:seed
+docker compose exec --user root backend npm run db:seed:demo
 ./deploy/seed-simulator-devices.sh
 ```
 
-### 8. Observabilidade
+**A conexão IoT de cada medidor só é estabelecida na inicialização do processo** (`restoreIoTConnections`, roda uma vez no boot) — criar medidores depois via seed não liga a conexão sozinho. Reinicie o backend para ele assumir os medidores recém-criados:
 
-Acesse o Uptime Kuma via túnel SSH (`ssh -L 3001:localhost:3001 usuario@<ip-da-vm>`, depois `http://localhost:3001` no navegador local), crie o monitor HTTP apontando para `http://backend:3333/health` e configure a notificação (Telegram recomendado). Ver [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a limitação aceita (não detecta a VM inteira fora do ar).
+```bash
+docker compose restart backend
+docker compose logs --tail=20 backend   # confirme "[Boot] Conexões restauradas: 11 ok, 0 falha(s)."
+```
 
-### 9. Verificação ponta a ponta
+**Atenção com `network_mode: "service:backend"` do `simulator`:** ele amarra à rede do container `backend` que existe *no momento em que o simulador sobe* — se você recriar o `backend` (`--build`/`--force-recreate`) depois, o simulador fica preso à rede de um container antigo e some a conectividade. Se isso acontecer (`ECONNREFUSED` batendo em `127.0.0.1:4100` de dentro do `backend`), recrie os dois juntos: `docker compose up -d --force-recreate backend simulator` — e lembre que isso também **apaga a rede/devices do simulador** (estado só em memória), exigindo rodar `seed-simulator-devices.sh` de novo.
+
+Depois de qualquer reseed dos devices, aguarde ~1min (o `MinuteRollupScheduler` agrega por minuto) e confirme:
+
+```bash
+docker compose exec -T postgres psql -U lumitrack_app -d "$POSTGRES_DB" -c "SELECT count(*) FROM meter_readings;"
+```
+
+### 8. Domínio, TLS e o resto do stack
+
+Só a partir daqui o domínio é necessário — ver "Comprar o domínio e apontar o DNS" abaixo se ainda não tiver um. Com o DNS já resolvendo para o IP da VPS:
+
+```bash
+sed -i "s|^DOMAIN=.*|DOMAIN=<seu-dominio-real>|" deploy/.env
+sed -i "s|^CORS_ORIGIN=.*|CORS_ORIGIN=https://<seu-dominio-real>|" backend/.env
+sed -i "s|^FRONTEND_URL=.*|FRONTEND_URL=https://<seu-dominio-real>|" backend/.env
+sed -i "s|^PUBLIC_API_ORIGIN=.*|PUBLIC_API_ORIGIN=https://<seu-dominio-real>|" backend/.env
+docker compose up -d --force-recreate backend simulator   # backend precisa reler o .env; recria o simulador junto (ver aviso acima) — rode seed-simulator-devices.sh de novo depois
+docker compose up -d caddy
+docker compose ps
+curl -I https://<seu-dominio-real>/       # frontend estático respondendo via Caddy, TLS válido
+curl -I http://<seu-dominio-real>/        # redireciona pra https
+```
+
+### 9. Backup automático
+
+```bash
+sudo cp deploy/lumitrack-backup.service deploy/lumitrack-backup.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now lumitrack-backup.timer
+```
+
+Rode um backup manual para validar antes de confiar no agendamento: `sudo -u lumitrack ./deploy/backup-postgres.sh`. Teste a restauração pelo menos uma vez (procedimento abaixo, "Backup e restauração testada") e registre em `deploy/BACKUP-RESTORE-LOG.md`.
+
+### 10. Observabilidade
+
+```bash
+docker compose up -d uptime-kuma
+```
+
+Acesse via túnel SSH (`ssh -L 3001:localhost:3001 <usuario>@<ip-da-vm>`, depois `http://localhost:3001` no navegador local), crie o monitor HTTP apontando para `http://backend:3333/health` e configure a notificação (Telegram recomendado). Ver [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a limitação aceita (não detecta a VM inteira fora do ar).
+
+### 11. Verificação ponta a ponta
 
 - [ ] Login com conta de demonstração funciona (`POST /api/auth/demo-login`).
 - [ ] O painel mostra potência ao vivo nos 11 medidores, via SSE.
@@ -316,12 +421,25 @@ Acesse o Uptime Kuma via túnel SSH (`ssh -L 3001:localhost:3001 usuario@<ip-da-
 - [ ] Certificado TLS válido, `http://` redireciona para `https://`, `Host` forjado recebe 400.
 - [ ] **Documentos legais atualizados para o cenário brasileiro:** `frontend/src/legal/privacy-policy.md` § 4 (volta a declarar processamento exclusivamente no Brasil, sem operadores), tabela de operadores de `.claude/docs/ROPA.md` (volta a ficar vazia) e `.claude/project_context/09-conformidade-legal.md`. Incrementar `CURRENT_CONSENT_VERSION` (`backend/src/shared/legal/consentVersion.ts`) **em sincronia** com a versão declarada no cabeçalho da Política — se divergirem, o usuário aceita um texto e o sistema grava outro.
 
+## Comprar o domínio e apontar o DNS
+
+Guia para quem nunca fez isso. Numera os cliques porque cada registrador muda a UI com frequência — o que não muda é o conceito.
+
+1. **Escolher e registrar o domínio.** Em [registro.br](https://registro.br) (para `.com.br`/`.app.br` — mais barato e mais simples para um projeto brasileiro que já processa dado exclusivamente no Brasil): crie uma conta, pesquise o nome desejado (ex.: `lumitrack`), escolha a terminação (`.com.br` é a mais reconhecida; `.app.br` é mais específico e mais barato), e finalize a compra. Leva minutos; o domínio fica ativo quase na hora.
+2. **Achar o IP da VPS.** É o mesmo IP que você usa para `ssh <usuario>@<ip-da-vm>` — no hPanel da Hostinger, também aparece no painel do servidor ("IP Address"). Se a VPS tiver IPv6, ele também aparece lá (`ip -6 addr show scope global` na própria VPS mostra o endereço).
+3. **Apontar o DNS.** No painel do registro.br (ou onde você registrou o domínio), procure "DNS" ou "Zona DNS" e crie:
+   - Um registro **A**, host `@` (ou em branco — significa o domínio raiz), apontando para o **IPv4** da VPS.
+   - Se houver IPv6, um registro **AAAA**, host `@`, apontando para o **IPv6** da VPS.
+   - Opcional: um registro **A** (e **AAAA**) para `www`, apontando para o mesmo IP, se quiser que `www.seu-dominio.com.br` também funcione (o Caddyfile precisaria listar os dois hosts — fora do escopo deste guia básico, ajuste `deploy/Caddyfile` se quiser isso).
+4. **Esperar a propagação.** De minutos a algumas horas (raramente mais). Confirme com `dig +short seu-dominio.com.br` (do seu computador) ou um serviço como [dnschecker.org](https://dnschecker.org) — quando o IP retornado bater com o da VPS, está propagado.
+5. **Seguir o passo 8** desta página ("Domínio, TLS e o resto do stack") — o Caddy só consegue emitir o certificado Let's Encrypt depois que o DNS já está resolvendo (o desafio ACME HTTP-01 precisa alcançar a porta 80 da VPS através do domínio).
+
 ## Checklist de `.env` de produção — Caminho B
 
 | Variável | Onde | Produção | Por quê |
 |---|---|---|---|
 | `NODE_ENV` | `backend/.env` | `production` | Liga as validações fail-closed de `config/env.ts`. |
-| `DATABASE_URL` | `backend/.env` | `postgresql://lumitrack_app:<LUMITRACK_APP_PASSWORD>@postgres:5432/<POSTGRES_DB>?schema=public` | Host é `postgres` (nome do serviço no compose), nunca `localhost`. Usuário `lumitrack_app` (sem DDL, criado automaticamente por `deploy/create-app-role.sql` no primeiro boot) — **não** `POSTGRES_USER`, que fica só para migração (passo 5). Senha deve bater com `LUMITRACK_APP_PASSWORD` de `deploy/.env`. |
+| `DATABASE_URL` | `backend/.env` | `postgresql://lumitrack_app:<LUMITRACK_APP_PASSWORD>@postgres:5432/<POSTGRES_DB>?schema=public` | Host é `postgres` (nome do serviço no compose), nunca `localhost`. Usuário `lumitrack_app` (sem DDL, criado automaticamente por `deploy/create-app-role.sql` no primeiro boot) — **não** `POSTGRES_USER`, que fica só para migração (passo 7). Senha deve bater com `LUMITRACK_APP_PASSWORD` de `deploy/.env`. |
 | `JWT_SECRET` | `backend/.env` | Novo valor gerado | Gate de go-live #7. `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`. |
 | `CPF_CNPJ_ENCRYPTION_KEY`, `CPF_CNPJ_BLIND_INDEX_KEY`, `MFA_SECRET_ENCRYPTION_KEY`, `ADDRESS_ENCRYPTION_KEY`, `METER_CREDENTIAL_ENCRYPTION_KEY` | `backend/.env` | 5 valores novos, todos distintos | Gate de go-live #7. `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` — nunca reaproveitar a mesma chave entre categorias de dado. |
 | `CORS_ORIGIN` | `backend/.env` | `https://<seu-dominio>` | Nunca `*` em produção. |
@@ -329,11 +447,11 @@ Acesse o Uptime Kuma via túnel SSH (`ssh -L 3001:localhost:3001 usuario@<ip-da-
 | `FRONTEND_URL` | `backend/.env` | `https://<seu-dominio>` | Compõe o link de e-mails transacionais. |
 | `REGISTRATION_ENABLED` | `backend/.env` | `false` enquanto for demonstração | Default do código é `true`. Ao abrir para usuários reais, este caminho é o pré-requisito. |
 | `DEMO_LOGIN_ENABLED` | `backend/.env` | `true` | Mantém o botão de demo funcional com o cadastro fechado. |
-| `IOT_ALLOWED_HOSTS` | `backend/.env` | `127.0.0.1/32` | O simulador compartilha o namespace de rede do container `backend` — o broker está em loopback. |
+| `IOT_ALLOWED_HOSTS` | `backend/.env` | `localhost` | O simulador compartilha o namespace de rede do container `backend` — o broker está em loopback, e os medidores de demo apontam pro host `"localhost"` (não IP literal). **Não** `127.0.0.1/32` sozinho: "localhost" resolve IPv4 e IPv6 (`::1`) dentro do container, um CIDR só de IPv4 deixa o `::1` de fora e a checagem SSRF nega a conexão (achado da Fase 13.7 — confirmado em produção real). |
 | `SMTP_*` | `backend/.env` | Sandbox, salvo se contratar provedor | Sem provedor, "esqueci minha senha" não é funcional. Contratar um cria um **operador** (DPA no ROPA). |
 | `SIMULATOR_API_TOKEN`, `BROKER_USERNAME`, `BROKER_PASSWORD` | `iot-simulator/server/.env` | Valores novos gerados | Devem bater com `SIMULATOR_BROKER_USERNAME`/`SIMULATOR_BROKER_PASSWORD` do `db:seed:demo`. |
 | `DEMO_BOOTSTRAP_ENABLED` | `iot-simulator/server/.env` | `false` | Aqui o serviço não hiberna; os devices são criados uma vez por `deploy/seed-simulator-devices.sh`. |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `deploy/.env` | Valores novos gerados | Usuário administrativo — só para migração (passo 5), nunca para `DATABASE_URL` do backend. |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `deploy/.env` | Valores novos gerados | Usuário administrativo — só para migração (passo 7), nunca para `DATABASE_URL` do backend. |
 | `LUMITRACK_APP_PASSWORD` | `deploy/.env` | Valor novo gerado, distinto de `POSTGRES_PASSWORD` | Senha do papel de runtime sem DDL. Deve bater com o `DATABASE_URL` acima. |
 | `DOMAIN` | `deploy/.env` | Domínio real | Repassado ao Caddy para o certificado Let's Encrypt. |
 | `BACKUP_ENCRYPTION_PUBLIC_KEY` | `deploy/.env` | Chave pública `age1...` gerada fora da VM | `age-keygen -o backup-key.txt` **na sua máquina**, nunca na VM — guarde a chave privada fora do repositório. Ver "Backup e restauração testada" abaixo. |
