@@ -24,7 +24,7 @@
 | 13 | Endurecimento de segurança (P1) — cadastro público, credenciais, perímetro, CSP, lacunas de teste | **Concluída** (#177–#184, épico #185) |
 | 13.5 | Primeiro deploy — infraestrutura de go-live + documentação pública | **Concluída** (épico #187) |
 | 13.6 | Correções críticas pós-go-live — canal do titular, aviso de privacidade, contas demo, privilégio de banco, backup | **Concluída** (PR #250) |
-| 13.7 | Separação de ambientes — VPS Hostinger (produção) + Render/Neon (staging) | **Concluída** (branch `feat/fase-13-7-separacao-ambientes`) |
+| 13.7 | Separação de ambientes — VPS Hostinger (produção) + Render/Neon (staging) | **Concluída** (PR #254 → staging, PR #256 → main; em produção na VPS) |
 | **14** | **Conformidade P1** — governança (ROPA/RIPD), retenção, DSAR, consentimento e documentos legais | **Planejada — fase atual, detalhe abaixo** |
 | 14 | Conformidade P1 — governança (ROPA/RIPD), retenção, DSAR, consentimento e documentos legais | Planejada — objetivo revisado abaixo |
 | 15 | Desempenho — instrumentação, índices, multiplicadores, compressão e pool de conexões | Planejada — objetivo revisado abaixo |
