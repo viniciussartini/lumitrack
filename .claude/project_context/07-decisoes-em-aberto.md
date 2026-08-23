@@ -12,7 +12,7 @@
 
 - **Provedor(es) OAuth:** Google · GitHub · nenhum (manter só credencial própria) · impacta o fluxo de cadastro e login, o modelo de `User` (conta federada vs. senha) e o consentimento LGPD do dado vindo do provedor · falta definir se o público-alvo ganha algo com login social. Hoje só existe login por e-mail/senha (+ MFA opcional).
 - **App mobile:** existe · não existe · impacta a estratégia de token (a ADR-0002 já prevê o canal MOBILE com Bearer), o escopo da API e a stack de UI · falta decidir se haverá app.
-- **Lockout de conta:** bloquear login após N tentativas falhas consecutivas · manter só o rate limiter · impacta A07 (`05`) e o risco de DoS por bloqueio de conta alheia · falta escolher o critério (por conta, por IP+conta, backoff progressivo) e o canal de desbloqueio. **Gap conhecido:** hoje a única defesa é o rate limiter por IP+e-mail (ver ADR-0003).
+- **Lockout de conta:** bloquear login após N tentativas falhas consecutivas · manter só o rate limiter · impacta A07 (`05`) e o risco de DoS por bloqueio de conta alheia · falta escolher o critério (por conta, por IP+conta, backoff progressivo) e o canal de desbloqueio. **Gap conhecido:** hoje a única defesa é o rate limiter por IP+e-mail (ver ADR-0003). **Urgência amarrada ao mesmo gate da ADR-0008/ADR-0012:** com `REGISTRATION_ENABLED=false` e só contas sintéticas em produção e staging, não há conta de titular real para um atacante esgotar por força bruta — o risco é hoje teórico. Reavaliar (e decidir antes de liberar) quando **abrir cadastro para usuários reais** em qualquer um dos dois ambientes, mesmo gate que reabre a análise de transferência internacional em `09-conformidade-legal.md`.
 
 ## Resolvidas
 
