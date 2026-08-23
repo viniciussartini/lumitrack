@@ -1,6 +1,6 @@
 # Política de Privacidade do LumiTrack
 
-**Versão 1.3 — vigente desde 22/08/2026**
+**Versão 1.4 — vigente desde 23/08/2026**
 
 Esta Política de Privacidade descreve como o LumiTrack ("nós", "plataforma")
 coleta, utiliza, armazena e protege os dados pessoais dos seus usuários
@@ -55,24 +55,25 @@ religiosa ou política, etc.).
 > e-mails em domínio inexistente). Nenhum dado pessoal de pessoa real é
 > coletado ou armazenado pela aplicação.
 
-A infraestrutura que hospeda a demonstração fica **fora do Brasil**:
+O LumiTrack roda em **dois ambientes**, com infraestrutura diferente:
 
-| Componente | Operador | País | O que trata |
+| Ambiente | Onde | Infraestrutura | Transferência internacional |
 |---|---|---|---|
-| Aplicação (API e interface) | Render | Estados Unidos | Registros de acesso (IP, data/hora, rota) |
-| Banco de dados PostgreSQL | Neon | Estados Unidos | Apenas os dados sintéticos das contas de demonstração |
+| **Produção** (`lumitrack.app.br`) | Brasil (São Paulo) | Máquina própria — aplicação, banco de dados e simulador na mesma infraestrutura, sem operador terceiro | **Não há.** Nenhum dado sai do país. |
+| **Staging/validação** (ambiente de testes usado durante o desenvolvimento, antes de cada mudança chegar à produção) | Estados Unidos | Render (API e interface) + Neon (banco de dados) | **Há, limitada aos registros de acesso** (IP, data/hora, rota) de quem visita esse ambiente — ver abaixo. |
 
-- **Há transferência internacional de dados, limitada aos registros de
-  acesso.** Como a aplicação não possui usuários reais, o único dado
-  pessoal que sai do Brasil é o gerado pela sua própria visita — endereço
-  IP e registro de acesso, tratados pelos provedores de infraestrutura
-  acima. Não celebramos Cláusulas-Padrão Contratuais (Resolução CD/ANPD
-  nº 19/2024) com esses provedores, e informamos isso de forma transparente
-  em vez de omitir: é uma limitação assumida de um ambiente de
-  demonstração.
-- **Compromisso:** caso o LumiTrack passe a operar com usuários reais, a
-  infraestrutura será migrada para o **Brasil** antes da abertura do
-  cadastro, eliminando a transferência internacional.
+- **Na produção, não há transferência internacional de dado pessoal** — a
+  infraestrutura inteira roda no Brasil, sem nenhum operador estrangeiro
+  no caminho.
+- **No ambiente de staging, há transferência internacional limitada aos
+  registros de acesso.** Como esse ambiente também não possui usuários
+  reais (mesma trava de cadastro fechado da produção), o único dado
+  pessoal que sai do Brasil ali é o gerado pela sua própria visita —
+  endereço IP e registro de acesso, tratados pelo Render e pelo Neon nos
+  Estados Unidos. Não celebramos Cláusulas-Padrão Contratuais (Resolução
+  CD/ANPD nº 19/2024) com esses provedores, e informamos isso de forma
+  transparente em vez de omitir: é uma limitação assumida, restrita a esse
+  ambiente de validação.
 - Não compartilhamos dados pessoais com terceiros para fins de
   publicidade, venda ou qualquer finalidade não descrita nesta Política.
 - Não utilizamos cookies de análise, rastreadores de terceiros ou
