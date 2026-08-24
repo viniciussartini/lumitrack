@@ -1938,3 +1938,12 @@
 - **Arquivos principais:** `.claude/docs/RIPD.md`.
 - **Decisões/ADRs:** nenhuma nova — aplica a ADR-0014 já registrada.
 - **Notas:** nenhuma mudança de código; nenhum teste referencia o conteúdo do RIPD, então a suíte já verde da entrada anterior (1811 backend + 5 frontend) continua válida.
+
+## [2026-08-23] docs: ADR-0015 — monitor externo de disponibilidade para a produção, fecha a issue #265
+
+- **Branch:** epic/259-governanca-dados-ropa-ripd-dpa
+- **Tipo:** docs
+- **O quê:** a ADR-0009 aceitou como custo que o Uptime Kuma cai junto da VM que deveria vigiar — a produção não tinha como detectar a própria queda. O bloqueio nunca foi técnico, e sim a pergunta de conformidade que a ADR-0011 já respondeu para o Render ("um ping externo não-autenticado em `/health` configura transferência internacional?" — não). Nova **ADR-0015** reaproveita esse raciocínio para a VPS, mas primeiro **verifica no código**, não presume: `backend/src/app.ts:147-149` confirma que `/health` não tem autenticação, responde só `{status, timestamp}` (sem PII) e é explicitamente ignorado pelo `pinoHttp` (`autoLogging: { ignore: ... }`, sem log de acesso) — as três premissas da ADR-0011 se sustentam. `deploy/Caddyfile` passou a expor `/health` (antes só `handle /api/*`; `/health` caía no fallback do SPA) — validado com `caddy validate` via Docker (`caddy:2-alpine`), configuração válida.
+- **Arquivos principais:** `.claude/docs/adr/0015-monitor-externo-producao-vps.md` (novo), `deploy/Caddyfile`, `.claude/docs/DEPLOY.md` (diagrama de topologia + nota sobre o efeito colateral no `curl` público), `.claude/project_context/04-tech-stack.md`, `.claude/project_context/07-decisoes-em-aberto.md`, `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** **ADR-0015** (nova) — monitor externo de disponibilidade para a produção.
+- **Notas:** fecha a última sub-issue aberta do épico #259 (#260, #261 e #265 concluídas). Falta só ação do usuário fora do repositório: aplicar a mudança de `Caddyfile` na VPS (deploy + restart do Caddy) e criar o monitor externo (ex.: UptimeRobot) apontando para `https://lumitrack.app.br/health`. A outra metade do buraco de observabilidade (canal de notificação do Uptime Kuma) continua pendente, sem relação com esta decisão.

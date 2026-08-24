@@ -227,8 +227,9 @@ Tudo numa única máquina, orquestrado via Docker Compose (`docker-compose.yml` 
 │  VM Ubuntu 24.04 — datacenter no Brasil                           │
 │                                                                    │
 │   caddy (80/443, TLS automático) ── publicado no host             │
-│     ├── /api/*  → backend:3333                                    │
-│     └── /*      → /srv (bind mount de frontend/dist, build local) │
+│     ├── /api/*    → backend:3333                                  │
+│     ├── /health   → backend:3333 (monitor externo, ADR-0015)       │
+│     └── /*        → /srv (bind mount de frontend/dist, build local)│
 │                                                                    │
 │   backend:3333 (rede interna) ── /health monitorado pelo Kuma     │
 │     └── network_mode: service:backend ← simulator (1883, 4100)    │
@@ -240,7 +241,9 @@ Tudo numa única máquina, orquestrado via Docker Compose (`docker-compose.yml` 
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-Ver [ADR-0008](adr/0008-hospedagem-brasil-oracle-always-free.md) para o racional (por que máquina única, por que sem operador estrangeiro) e [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a escolha do Uptime Kuma.
+Ver [ADR-0008](adr/0008-hospedagem-brasil-oracle-always-free.md) para o racional (por que máquina única, por que sem operador estrangeiro), [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a escolha do Uptime Kuma, e [ADR-0015](adr/0015-monitor-externo-producao-vps.md) para a decisão de expor `/health` publicamente via Caddy — o Kuma monitora o backend por dentro (detecta o processo parar), o monitor externo monitora de fora (detecta a VM inteira cair, o que o Kuma sozinho não consegue).
+
+**Efeito colateral desta mudança:** `curl https://{$DOMAIN}/health` agora devolve o JSON do backend (`{"status":"ok",...}`), não mais o HTML do SPA — o `Caddyfile` passou a rotear `/health` explicitamente (antes só roteava `/api/*`, e `/health` caía no fallback do SPA). Aplicar em produção exige o mesmo procedimento de sempre para mudança de `Caddyfile` (deploy + `docker compose restart caddy` ou equivalente) e, do lado do usuário, criar o monitor externo (ex.: UptimeRobot) apontando para essa URL.
 
 ## Pré-requisitos
 
