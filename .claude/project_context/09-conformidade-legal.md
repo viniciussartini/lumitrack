@@ -73,7 +73,7 @@
 
 ## Marco Civil da Internet (Lei 12.965/2014)
 
-- [x] Guarda de **registros de acesso a aplicações por 6 meses** (Art. 15) — já coberta na prática: `audit_logs` retém 730 dias (`DATA_RETENTION_AUDIT_LOG_DAYS`, `RetentionService`), acima do mínimo de 180 dias exigido.
+- [ ] Guarda de **registros de acesso a aplicações por 6 meses** (Art. 15) — **não coberta, achado [MÉDIO] do laudo de 2026-08-22 ainda em aberto.** `audit_logs` (730 dias) cobre eventos de autenticação/CRUD, **não** o conjunto de registros de acesso à aplicação; o log de requisição (`pinoHttp`) vai para stdout sem destino/rotação/retenção garantida em nenhum dos dois ambientes. **Distinto da ADR-0014:** aqui o titular é o visitante real (não depende de cadastro fechado), então a lógica de "ambiente permanentemente demo" não resolve isso sozinha — falta decidir e documentar a posição (o LumiTrack como portfólio sem fins econômicos provavelmente não é "provedor de aplicação com fins econômicos" no sentido do Art. 15, mas essa conclusão precisa estar escrita no ROPA, não ser omissão) e, em qualquer hipótese, configurar `logging: driver json-file, max-size, max-file` no compose.
 
 ## Cookies / Analytics
 

@@ -3,7 +3,7 @@
 - **Data:** 2026-08-22
 - **Status:** aceita
 - **Branch/Issue relacionada:** Fase 13.7 do roadmap (a criar via `criar-issues`)
-- **Relação com outras ADRs:** **retoma a conclusão de conformidade da ADR-0008** para o ambiente de produção — região São Paulo confirmada, sem operador estrangeiro. **Redefine o escopo da ADR-0010**, que continua vigente: Render+Neon deixa de ser "a" produção e passa a ser o ambiente de staging/integração, mantendo a mesma exposição residual já registrada lá (transferência internacional de registros de acesso de visitante).
+- **Relação com outras ADRs:** **retoma a conclusão de conformidade da ADR-0008** para o ambiente de produção — região São Paulo confirmada, sem operador estrangeiro. **Redefine o escopo da ADR-0010**, que continua vigente: Render+Neon deixa de ser "a" produção e passa a ser o ambiente de staging/integração, mantendo a mesma exposição residual já registrada lá (transferência internacional de registros de acesso de visitante). **A ADR-0014 (2026-08-23) declara essa separação permanente** — não é mais "produção pode um dia abrir cadastro real", é "não vai abrir".
 
 ## Contexto
 

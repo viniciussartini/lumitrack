@@ -208,6 +208,12 @@ jobs:
       SMTP_USER: ci
       SMTP_PASS: ci
       SMTP_FROM: "LumiTrack CI <ci@lumitrack.invalid>"
+      # Default do código é `false` (fail-closed, ADR-0014) — CI liga
+      # explicitamente, mesmo padrão do backend/.env.example, porque os
+      # testes de integração de user.routes.test.ts exercitam o fluxo de
+      # cadastro de verdade (validação, conflito de e-mail/CPF etc.), não
+      # o cenário de demo com cadastro fechado.
+      REGISTRATION_ENABLED: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

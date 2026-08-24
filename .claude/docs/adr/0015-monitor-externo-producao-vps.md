@@ -45,3 +45,4 @@ Sem autenticação (roteado antes de qualquer middleware de auth); resposta é s
 **Negativas/custos**
 - A outra metade do buraco de observabilidade (Uptime Kuma sem canal de notificação configurado) continua fora do escopo desta ADR — é configuração de minutos no painel do Kuma, ação do usuário.
 - Expor `/health` publicamente cria uma superfície mínima adicional (qualquer um pode confirmar que a aplicação está no ar) — aceito, é exatamente o propósito de um health check e não vaza nada além disso.
+- `/health` fica **fora do rate limit global** de propósito (`backend/src/app.ts`, registrado antes do `globalRateLimiter`) e agora é alcançável da internet pela primeira vez na VPS — o payload é minúsculo e não toca o banco, então o risco de abuso é baixo, mas é uma superfície nova de qualquer forma. Se o monitor externo escolhido não tiver IP fixo/allowlist, considerar um `rate_limit` dedicado no `Caddyfile` para este `handle`.

@@ -126,6 +126,35 @@ describe("envSchema — JWT_WEB_EXPIRES_IN (issue #215)", () => {
     })
 })
 
+describe("envSchema — REGISTRATION_ENABLED default fail-closed (ADR-0014)", () => {
+    it("aplica default `false` quando ausente — nenhum ambiente que esqueça de configurar nasce com cadastro aberto", () => {
+        const result = envSchema.safeParse(baseValidEnv)
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.REGISTRATION_ENABLED).toBe(false)
+        }
+    })
+
+    it("liga com REGISTRATION_ENABLED='true' — z.stringbool() interpreta a string, não z.coerce.boolean()", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, REGISTRATION_ENABLED: "true" })
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.REGISTRATION_ENABLED).toBe(true)
+        }
+    })
+
+    it("mantém desligado com REGISTRATION_ENABLED='false' — não pode virar true por coerção", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, REGISTRATION_ENABLED: "false" })
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.REGISTRATION_ENABLED).toBe(false)
+        }
+    })
+})
+
 describe("envSchema — DATABASE_TEST_URL/DATABASE_HTTP_TEST_URL (#165)", () => {
     it("rejeita NODE_ENV=test sem DATABASE_TEST_URL", () => {
         const result = envSchema.safeParse({

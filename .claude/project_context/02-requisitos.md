@@ -8,7 +8,7 @@
 ## 2.1 Requisitos Funcionais
 
 **Conta e autenticação**
-- RF01: o sistema deve permitir que um visitante se cadastre como pessoa física (nome, e-mail, senha, CPF) ou jurídica (razão social, e-mail, senha, CNPJ), registrando consentimento LGPD versionado. O cadastro público é **fechável por configuração** (`REGISTRATION_ENABLED`, default ligado): desligado, `POST /api/users` recusa com 403 — premissa de validade da ADR-0008 no ambiente de demonstração pública.
+- RF01: o sistema deve permitir que um visitante se cadastre como pessoa física (nome, e-mail, senha, CPF) ou jurídica (razão social, e-mail, senha, CNPJ), registrando consentimento LGPD versionado. O cadastro público é **fechável por configuração** (`REGISTRATION_ENABLED`, default **desligado** desde a ADR-0014 — fail-closed): desligado, `POST /api/users` recusa com 403 — premissa de validade da ADR-0008/ADR-0014 no ambiente de demonstração pública.
 - RF02: o sistema deve permitir que um usuário autentique via e-mail/senha, com canal `WEB` (cookie `HttpOnly`) ou `MOBILE` (Bearer token de longa duração).
 - RF03: o sistema deve permitir que um usuário habilite MFA via TOTP (QR code) e receba um lote de códigos de backup de uso único.
 - RF04: o sistema deve exigir o segundo fator no login quando o MFA estiver habilitado, aceitando código TOTP ou código de backup.

@@ -841,7 +841,7 @@ Com a Fase 13 fechada, os gates de go-live #1–#5 da ADR-0008 estão implementa
 - **Priority:** P0 · **Size:** S
 - **Critérios de aceite:** `REGISTRATION_ENABLED=false`, `DEMO_LOGIN_ENABLED=true`, `IOT_ALLOWED_HOSTS=127.0.0.1/32`, `CORS_ORIGIN` e `PUBLIC_API_ORIGIN` com o domínio real; `JWT_SECRET` e as **cinco** chaves de cifra geradas novas, nenhuma delas vinda do `.env.example`; `POST /api/users` responde 403 em produção; `POST /api/auth/demo-login` funciona; o checklist fica versionado no `DEPLOY.md`.
 - **Depende de:** Provisionamento da VM.
-- **Risco/observações:** `REGISTRATION_ENABLED` tem default `true` — subir sem trocá-lo derruba a conclusão de conformidade inteira da ADR-0008 no primeiro cadastro de uma pessoa real. É o item da fase com maior consequência e menor esforço.
+- **Risco/observações:** à época desta fase, `REGISTRATION_ENABLED` tinha default `true` no código — subir sem trocá-lo derrubaria a conclusão de conformidade inteira da ADR-0008 no primeiro cadastro de uma pessoa real. Era o item da fase com maior consequência e menor esforço. *(Nota de 2026-08-23: o default do código passou a ser `false` pela ADR-0014 — o risco descrito aqui não se aplica mais a partir dela, registro histórico preservado.)*
 
 #### Backup do PostgreSQL com restauração testada
 
@@ -1112,7 +1112,9 @@ Escopo atual:
 - **`09-conformidade-legal.md` e `privacy-policy.md`** atualizados para não sugerir mais uma trajetória "ainda não, mas em breve" rumo a titular real — a ressalva jurídica de completar o documento antes de operar com dado real passa a valer para quem fizer **fork**, não para o roadmap deste projeto. `CURRENT_CONSENT_VERSION` incrementada (1.4 → 1.5).
 - **Monitor externo de disponibilidade para a produção — decidido ([ADR-0015](adr/0015-monitor-externo-producao-vps.md)).** Reaproveita o raciocínio de conformidade da ADR-0011 (ping não-autenticado em `/health` não configura transferência internacional), verificado no código (`app.ts`: sem auth, sem PII, sem log de acesso) antes de reaplicar a conclusão. `deploy/Caddyfile` passou a expor `/health` (antes só `handle /api/*`, com `/health` caindo no fallback do SPA). Falta só ação do usuário fora do repositório: aplicar a mudança em produção (deploy) e criar o monitor externo (ex.: UptimeRobot) apontando para `https://lumitrack.app.br/health`.
 
-**Fora de escopo, deferido pela ADR-0014 (não reaberto sem decisão nova):** DPA de Render/Neon/provedor da VPS; SCC do staging; retenção de dado pessoal por titular; export DSAR completo; atribuição formal de base legal; reaceite de consentimento via `consentVersion`; guarda de registro de acesso além do que `audit_logs` (730 dias) já cobre — Marco Civil Art. 15 exige só 180.
+**Fora de escopo, deferido pela ADR-0014 (não reaberto sem decisão nova):** DPA de Render/Neon/provedor da VPS; SCC do staging; retenção de dado pessoal por titular; export DSAR completo; atribuição formal de base legal; reaceite de consentimento via `consentVersion`.
+
+**Não coberto por esta fase, achado próprio (issue #269 reaberta):** guarda de registros de acesso (Marco Civil Art. 15) — `audit_logs` (730 dias) cobre eventos de autenticação/CRUD, **não** o conjunto de registros de acesso à aplicação (`pinoHttp` vai para stdout sem retenção garantida). Diferente do resto desta fase, o titular aqui é o visitante real — não depende de cadastro fechado, então a ADR-0014 não resolve isso sozinha. Correção registrada em `.claude/log/CHANGELOG.md` (revisão de código do PR #274).
 
 ### Fase 15 — Desempenho: instrumentação, índices, multiplicadores e infraestrutura (P1)
 

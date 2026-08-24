@@ -143,7 +143,7 @@ Definidas em `render.yaml` (não precisa fazer nada):
 | Variável | Valor | Por quê |
 |---|---|---|
 | `NODE_ENV` | `production` | Liga as validações fail-closed de `config/env.ts`. |
-| `REGISTRATION_ENABLED` | `false` | **A premissa de conformidade inteira da ADR-0010.** O default do código é `true`. |
+| `REGISTRATION_ENABLED` | `false` | **A premissa de conformidade inteira da ADR-0010/ADR-0014.** O default do código já é `false` (fail-closed) — esta linha fixa explicitamente, sem depender do default. |
 | `DEMO_LOGIN_ENABLED` | `true` | Mantém o botão de demonstração funcional com o cadastro fechado. |
 | `IOT_ALLOWED_HOSTS` | `localhost,127.0.0.1/32` | Simulador no mesmo container = loopback. **`localhost` precisa entrar como hostname, não só o CIDR:** dentro do container o nome resolve para IPv4 **e** IPv6, e um CIDR só de IPv4 deixa o `::1` de fora, fazendo a checagem de SSRF negar a conexão do medidor (mesmo achado documentado no Caminho B). Não afrouxa a proteção. |
 | `DEMO_BOOTSTRAP_ENABLED` | `true` | Recria os devices do simulador a cada despertar — sem isso o painel acorda sem dado ao vivo. |
@@ -629,7 +629,7 @@ Guia para quem nunca fez isso. Numera os cliques porque cada registrador muda a 
 | `CORS_ORIGIN` | `backend/.env` | `https://<seu-dominio>` | Nunca `*` em produção. |
 | `PUBLIC_API_ORIGIN` | `backend/.env` | `https://<seu-dominio>` | Gate de go-live #5 — host canônico do redirect HTTPS e da checagem de `Host` forjado. |
 | `FRONTEND_URL` | `backend/.env` | `https://<seu-dominio>` | Compõe o link de e-mails transacionais. |
-| `REGISTRATION_ENABLED` | `backend/.env` | `false` enquanto for demonstração | Default do código é `true`. Ao abrir para usuários reais, este caminho é o pré-requisito. |
+| `REGISTRATION_ENABLED` | `backend/.env` | `false` enquanto for demonstração | Default do código já é `false` (fail-closed, ADR-0014). Ao abrir para usuários reais — não planejado —, este caminho é o pré-requisito. |
 | `DEMO_LOGIN_ENABLED` | `backend/.env` | `true` | Mantém o botão de demo funcional com o cadastro fechado. |
 | `IOT_ALLOWED_HOSTS` | `backend/.env` | `localhost` | O simulador compartilha o namespace de rede do container `backend` — o broker está em loopback, e os medidores de demo apontam pro host `"localhost"` (não IP literal). **Não** `127.0.0.1/32` sozinho: "localhost" resolve IPv4 e IPv6 (`::1`) dentro do container, um CIDR só de IPv4 deixa o `::1` de fora e a checagem SSRF nega a conexão (achado da Fase 13.7 — confirmado em produção real). |
 | `SMTP_*` | `backend/.env` | Sandbox, salvo se contratar provedor | Sem provedor, "esqueci minha senha" não é funcional. Contratar um cria um **operador** (DPA no ROPA). |
