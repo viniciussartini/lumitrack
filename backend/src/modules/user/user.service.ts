@@ -47,7 +47,12 @@ export class UserService {
     // `registrationEnabled` é injetado (não lido de `env` direto aqui) para
     // o guard ficar testável sem mockar módulo — mesma "tomada elétrica"
     // de DI que o resto do service já usa para o repository. Default `true`
-    // preserva o comportamento de todo chamador existente.
+    // aqui é escolha consciente sob a ADR-0014, não o mesmo fail-closed do
+    // `env.ts`: o único composition root real (`user.routes.ts`) sempre
+    // injeta `env.REGISTRATION_ENABLED` explicitamente, então este default
+    // só afeta quem instanciar `UserService` sem o 2º argumento — hoje,
+    // só a suíte de testes (preserva o comportamento dos testes existentes
+    // que não são sobre este guard).
     constructor(
         private readonly userRepository: UserRepository,
         private readonly registrationEnabled: boolean = true,

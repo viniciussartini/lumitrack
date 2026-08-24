@@ -3,7 +3,7 @@
 - **Data:** 2026-08-09
 - **Status:** aceita
 - **Branch/Issue relacionada:** Fase 13.5 do roadmap (épico #187)
-- **Relação com outras ADRs:** **substitui parcialmente a ADR-0008** — troca o provedor e, com ele, a conclusão de conformidade daquela decisão. Preserva a topologia lógica, a **condição de validade** (cadastro público fechado) e os **sete gates de go-live**.
+- **Relação com outras ADRs:** **substitui parcialmente a ADR-0008** — troca o provedor e, com ele, a conclusão de conformidade daquela decisão. Preserva a topologia lógica, a **condição de validade** (cadastro público fechado) e os **sete gates de go-live**. **A ADR-0014 (2026-08-23) encerra a condicional de "quando abrir cadastro real"** que este documento tratava como hipótese futura — os ambientes publicados são permanentemente demonstração.
 
 ## Contexto
 

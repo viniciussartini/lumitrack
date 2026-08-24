@@ -12,6 +12,16 @@
         reverse_proxy backend:3333
     }
 
+    # Exposto de propósito para monitor externo de disponibilidade
+    # (ADR-0015) — sem autenticação, sem dado pessoal no payload
+    # (`{"status","timestamp"}`) e sem log de acesso (`app.ts` ignora
+    # `/health` no pinoHttp). Reaproveita o raciocínio de conformidade da
+    # ADR-0011: um ping não-autenticado aqui não configura transferência
+    # internacional.
+    handle /health {
+        reverse_proxy backend:3333
+    }
+
     handle {
         root * /srv
         try_files {path} /index.html

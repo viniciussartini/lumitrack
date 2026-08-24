@@ -607,7 +607,7 @@ São **6 segredos obrigatórios sem default** (`JWT_SECRET` + as 5 chaves de cri
 | `DATA_RETENTION_REFRESH_TOKEN_DAYS` | `30` | Expurgo de refresh tokens inativos |
 | `DATA_RETENTION_AUDIT_LOG_DAYS` | `730` (~2 anos) | Expurgo de audit log |
 | `LOG_LEVEL` | `info` | `fatal\|error\|warn\|info\|debug\|trace\|silent` |
-| `REGISTRATION_ENABLED` | `true` | `false` fecha `POST /api/users` (403) — premissa da ADR-0008 para a demo pública |
+| `REGISTRATION_ENABLED` | `false` | Fail-closed (ADR-0014) — `true` abre `POST /api/users`; premissa da ADR-0008/ADR-0014 é manter fechado nos ambientes publicados |
 | `DEMO_LOGIN_ENABLED` | `false` | `true` habilita `POST /api/auth/demo-login`, independente de `REGISTRATION_ENABLED` |
 | `IOT_ALLOWED_HOSTS` | vazio (nenhuma exceção) | Allowlist de hosts/CIDRs para o guard de SSRF nas conexões de saída do medidor — sem isso, só destino público de fato alcançável na internet é aceito |
 

@@ -114,7 +114,7 @@ DATABASE_URL='<connection-string-administrativa-do-neon>' \
 
 > **As 5 chaves de cifra têm que ser EXATAMENTE as mesmas do painel do Render.** O seed roda da sua máquina, mas grava no mesmo banco (Neon) que o backend em produção lê depois. Se as chaves não baterem, tudo que foi cifrado no seed (CPF/CNPJ, endereço, credencial do medidor) fica ilegível em runtime — `AES-256-GCM` falha com `Unsupported state or unable to authenticate data` (tag de autenticação não bate), não com uma mensagem óbvia de "chave errada". Gere as chaves **uma vez**, salve-as no Render primeiro, e só então rode o seed reaproveitando os mesmos valores — nunca o contrário.
 >
-> **Sobre o volume no Neon (0,5 GB no plano gratuito):** o seed de demonstração **não gera histórico** — cria só a topologia (11 medidores, submedição por cômodo/equipamento) e os alertas, já configurados. Todo `MeterReading` nasce da ingestão IoT real a partir do deploy. Isso resolve na origem o estouro de volume que um seed com bulk insert causaria; o que resta acompanhar é o **crescimento das leituras ao vivo** ao longo do tempo — o `RetentionService` ainda não cobre `MeterReading` (item da Fase 14), então vale revisar o volume periodicamente.
+> **Sobre o volume no Neon (0,5 GB no plano gratuito):** o seed de demonstração **não gera histórico** — cria só a topologia (11 medidores, submedição por cômodo/equipamento) e os alertas, já configurados. Todo `MeterReading` nasce da ingestão IoT real a partir do deploy. Isso resolve na origem o estouro de volume que um seed com bulk insert causaria; o que resta acompanhar é o **crescimento das leituras ao vivo** ao longo do tempo — o `RetentionService` ainda não cobre `MeterReading` (item da Fase 15, reclassificado de conformidade para armazenamento/performance pela ADR-0014), então vale revisar o volume periodicamente.
 
 ### 4. Criar os serviços no Render
 
@@ -143,7 +143,7 @@ Definidas em `render.yaml` (não precisa fazer nada):
 | Variável | Valor | Por quê |
 |---|---|---|
 | `NODE_ENV` | `production` | Liga as validações fail-closed de `config/env.ts`. |
-| `REGISTRATION_ENABLED` | `false` | **A premissa de conformidade inteira da ADR-0010.** O default do código é `true`. |
+| `REGISTRATION_ENABLED` | `false` | **A premissa de conformidade inteira da ADR-0010/ADR-0014.** O default do código já é `false` (fail-closed) — esta linha fixa explicitamente, sem depender do default. |
 | `DEMO_LOGIN_ENABLED` | `true` | Mantém o botão de demonstração funcional com o cadastro fechado. |
 | `IOT_ALLOWED_HOSTS` | `localhost,127.0.0.1/32` | Simulador no mesmo container = loopback. **`localhost` precisa entrar como hostname, não só o CIDR:** dentro do container o nome resolve para IPv4 **e** IPv6, e um CIDR só de IPv4 deixa o `::1` de fora, fazendo a checagem de SSRF negar a conexão do medidor (mesmo achado documentado no Caminho B). Não afrouxa a proteção. |
 | `DEMO_BOOTSTRAP_ENABLED` | `true` | Recria os devices do simulador a cada despertar — sem isso o painel acorda sem dado ao vivo. |
@@ -208,7 +208,7 @@ Houve, até 2026-08-23, dois mecanismos mantendo este ambiente acordado 24/7 (um
 - O site estático (`lumitrack`) **não hiberna**: a interface carrega na hora, e só os dados esperam a API acordar.
 - Os 11 medidores do simulador são recriados a cada despertar (`DEMO_BOOTSTRAP_ENABLED=true`), então o painel volta com dado ao vivo sozinho — nenhum passo manual.
 
-**Efeito colateral bem-vindo:** com a hibernação restaurada, o simulador só gera leitura enquanto alguém está de fato usando o ambiente. `meter_readings` para de crescer 24/7, o que tira a data de validade da pressão sobre o limite de 0,5 GB do Neon (a política de retenção em si continua sendo escopo da Fase 14 / issue #236).
+**Efeito colateral bem-vindo:** com a hibernação restaurada, o simulador só gera leitura enquanto alguém está de fato usando o ambiente. `meter_readings` para de crescer 24/7, o que tira a data de validade da pressão sobre o limite de 0,5 GB do Neon (a política de retenção em si continua sendo escopo da Fase 15 / issues #236, #267 — armazenamento/performance, não mais conformidade, pela ADR-0014).
 
 **Custo aceito:** o staging fica **sem nenhum monitoramento de disponibilidade** — o UptimeRobot também alertava quando `/health` parava de responder. Uma queda aqui passa a ser descoberta no momento em que se for usar o ambiente. Aceitável porque nada depende dele; ver ADR-0013 para o raciocínio e para o gate que reverteria a decisão.
 
@@ -227,8 +227,9 @@ Tudo numa única máquina, orquestrado via Docker Compose (`docker-compose.yml` 
 │  VM Ubuntu 24.04 — datacenter no Brasil                           │
 │                                                                    │
 │   caddy (80/443, TLS automático) ── publicado no host             │
-│     ├── /api/*  → backend:3333                                    │
-│     └── /*      → /srv (bind mount de frontend/dist, build local) │
+│     ├── /api/*    → backend:3333                                  │
+│     ├── /health   → backend:3333 (monitor externo, ADR-0015)       │
+│     └── /*        → /srv (bind mount de frontend/dist, build local)│
 │                                                                    │
 │   backend:3333 (rede interna) ── /health monitorado pelo Kuma     │
 │     └── network_mode: service:backend ← simulator (1883, 4100)    │
@@ -240,7 +241,9 @@ Tudo numa única máquina, orquestrado via Docker Compose (`docker-compose.yml` 
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-Ver [ADR-0008](adr/0008-hospedagem-brasil-oracle-always-free.md) para o racional (por que máquina única, por que sem operador estrangeiro) e [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a escolha do Uptime Kuma.
+Ver [ADR-0008](adr/0008-hospedagem-brasil-oracle-always-free.md) para o racional (por que máquina única, por que sem operador estrangeiro), [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a escolha do Uptime Kuma, e [ADR-0015](adr/0015-monitor-externo-producao-vps.md) para a decisão de expor `/health` publicamente via Caddy — o Kuma monitora o backend por dentro (detecta o processo parar), o monitor externo monitora de fora (detecta a VM inteira cair, o que o Kuma sozinho não consegue).
+
+**Efeito colateral desta mudança:** `curl https://{$DOMAIN}/health` agora devolve o JSON do backend (`{"status":"ok",...}`), não mais o HTML do SPA — o `Caddyfile` passou a rotear `/health` explicitamente (antes só roteava `/api/*`, e `/health` caía no fallback do SPA). Aplicar em produção exige o mesmo procedimento de sempre para mudança de `Caddyfile` (deploy + `docker compose restart caddy` ou equivalente) e, do lado do usuário, criar o monitor externo (ex.: UptimeRobot) apontando para essa URL.
 
 ## Pré-requisitos
 
@@ -626,7 +629,7 @@ Guia para quem nunca fez isso. Numera os cliques porque cada registrador muda a 
 | `CORS_ORIGIN` | `backend/.env` | `https://<seu-dominio>` | Nunca `*` em produção. |
 | `PUBLIC_API_ORIGIN` | `backend/.env` | `https://<seu-dominio>` | Gate de go-live #5 — host canônico do redirect HTTPS e da checagem de `Host` forjado. |
 | `FRONTEND_URL` | `backend/.env` | `https://<seu-dominio>` | Compõe o link de e-mails transacionais. |
-| `REGISTRATION_ENABLED` | `backend/.env` | `false` enquanto for demonstração | Default do código é `true`. Ao abrir para usuários reais, este caminho é o pré-requisito. |
+| `REGISTRATION_ENABLED` | `backend/.env` | `false` enquanto for demonstração | Default do código já é `false` (fail-closed, ADR-0014). Ao abrir para usuários reais — não planejado —, este caminho é o pré-requisito. |
 | `DEMO_LOGIN_ENABLED` | `backend/.env` | `true` | Mantém o botão de demo funcional com o cadastro fechado. |
 | `IOT_ALLOWED_HOSTS` | `backend/.env` | `localhost` | O simulador compartilha o namespace de rede do container `backend` — o broker está em loopback, e os medidores de demo apontam pro host `"localhost"` (não IP literal). **Não** `127.0.0.1/32` sozinho: "localhost" resolve IPv4 e IPv6 (`::1`) dentro do container, um CIDR só de IPv4 deixa o `::1` de fora e a checagem SSRF nega a conexão (achado da Fase 13.7 — confirmado em produção real). |
 | `SMTP_*` | `backend/.env` | Sandbox, salvo se contratar provedor | Sem provedor, "esqueci minha senha" não é funcional. Contratar um cria um **operador** (DPA no ROPA). |

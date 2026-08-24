@@ -138,14 +138,16 @@ export const envSchema = z
 
         // Cadastro público (A06/ADR-0008). Desligar em ambiente de demo
         // pública: `POST /api/users` passa a recusar contas novas — é a
-        // premissa da ADR-0008 (hospedagem), que só garante ausência de
-        // transferência internacional enquanto o ambiente público não trata
-        // dado pessoal real. Default `true`: nenhum ambiente de
-        // desenvolvimento/produção normal perde a função sem opt-in explícito.
+        // premissa da ADR-0008 (hospedagem) e da ADR-0014 (ambientes
+        // permanentemente demonstração), que só garantem ausência de
+        // transferência internacional/dado real enquanto o cadastro público
+        // não trata titular real. Default `false` (fail-closed, ADR-0014):
+        // um ambiente novo que suba sem configurar a variável nasce fechado,
+        // não aberto — ligar exige opt-in explícito, nunca o contrário.
         // `z.stringbool()` (não `z.coerce.boolean()`) de propósito — coerce
         // faz `Boolean("false") === true`, o que tornaria impossível
         // desligar a flag via env; stringbool interpreta a string "false".
-        REGISTRATION_ENABLED: z.stringbool().default(true),
+        REGISTRATION_ENABLED: z.stringbool().default(false),
 
         // Login de demonstração sem senha no cliente (issue #179 — o
         // frontend não embarca mais e-mail/senha das contas demo no

@@ -9,16 +9,18 @@
 > avaliadas aqui são as mesmas registradas lá (itens 3 e 4).
 >
 > **Não é parecer jurídico.** Este é um checklist de engenharia informado
-> pela lei. A conclusão da seção "Necessidade e proporcionalidade" tem
-> implicação direta na política de retenção da Fase 14 do roadmap — antes
-> de tratá-la como definitiva, submeta a revisão jurídica.
+> pela lei. A conclusão da seção "Necessidade e proporcionalidade" informa
+> a política de retenção de `MeterReading` da **Fase 15** do roadmap — hoje
+> uma decisão de armazenamento/performance, não mais de conformidade
+> (ADR-0014, ver §6.1).
 >
 > **Data de referência:** 2026-08-06 · commit da branch `feat/154-bloqueadores-conformidade-lgpd`.
 >
-> ⚠️ **Projeto de portfólio** — mesma ressalva de `PROCEDIMENTO_DIREITOS_TITULAR.md`
-> e `ROPA.md`: não há titulares reais hoje. Este RIPD avalia o tratamento
-> **como o código o implementa**, para que a avaliação já esteja pronta no
-> dia em que um fork operar com dados reais.
+> ⚠️ **Projeto de portfólio, permanentemente** ([ADR-0014](adr/0014-ambientes-permanentemente-demonstracao.md))
+> — mesma ressalva de `PROCEDIMENTO_DIREITOS_TITULAR.md` e `ROPA.md`: não há
+> e não haverá titulares reais nos ambientes publicados deste projeto. Este
+> RIPD avalia o tratamento **como o código o implementa**, para que a
+> avaliação já esteja pronta no dia em que um fork operar com dados reais.
 
 ## 1. Por que este tratamento exige RIPD
 
@@ -112,29 +114,36 @@ de minuto individual**. A única razão pela qual ela continua existindo
 indefinidamente hoje é a ausência de um passo de compactação — não uma
 necessidade funcional.
 
-> **Atualização — premissa mudou, conclusão pendente de reavaliação.** A
-> issue #226 (épico #225) adicionou `"minute"` ao `granularitySchema` e a UI
-> passou a consultar histórico por minuto na janela da hora corrente (aba
-> "Hora" do painel de consumo). A frase acima — "nenhuma granularidade mais
-> fina que hora é exposta por nenhuma funcionalidade do produto" — não é
-> mais verdadeira: RF12 agora é servido, em parte, por uma consulta que
-> **lê** a granularidade de minuto diretamente, não só a agrega
-> internamente. Isso não derruba a recomendação de retenção limitada do
-> §3.3 por si só — mas o fundamento mudou de "o dado de minuto nunca é
-> consultado" para "o dado de minuto é consultado numa janela curta (a hora
-> corrente)", o que é um argumento diferente e mais forte para um prazo de
-> retenção curto, não mais fraco. A reavaliação em si — se o prazo
-> sugerido (60–90 dias) continua adequado, e se a exposição por minuto na
-> UI muda algum outro risco do §4 — fica para a Fase 14, junto com o resto
-> desta recomendação; não é feita aqui.
+> **Atualização — premissa mudou.** A issue #226 (épico #225) adicionou
+> `"minute"` ao `granularitySchema` e a UI passou a consultar histórico por
+> minuto na janela da hora corrente (aba "Hora" do painel de consumo). A
+> frase acima — "nenhuma granularidade mais fina que hora é exposta por
+> nenhuma funcionalidade do produto" — não é mais verdadeira: RF12 agora é
+> servido, em parte, por uma consulta que **lê** a granularidade de minuto
+> diretamente, não só a agrega internamente. Isso não derruba a
+> recomendação de retenção limitada do §3.3 por si só — pelo contrário, o
+> fundamento mudou de "o dado de minuto nunca é consultado" para "o dado de
+> minuto é consultado numa janela curta (a hora corrente)", um argumento
+> mais forte para um prazo de retenção curto, não mais fraco.
+>
+> **Reavaliação (2026-08-23, ADR-0014):** sem titular real nos ambientes
+> publicados, a pergunta "o prazo de 60–90 dias continua adequado?" deixou
+> de ser uma questão de conformidade — não há titular cujo perfil
+> comportamental precise de limite legal. A recomendação abaixo passa a ser
+> uma sugestão de **armazenamento/performance** para a **Fase 15**
+> (`meter_readings` é a maior tabela do sistema e cresce indefinidamente),
+> não mais um prazo LGPD a cumprir. Issue #236 (que levantou esta pergunta)
+> foi reclassificada de conformidade para desempenho com essa conclusão.
 
-### 3.3 Conclusão e recomendação (condiciona a Fase 14)
+### 3.3 Conclusão e recomendação (condiciona a Fase 15 — armazenamento/performance)
 
 **A granularidade de minuto não se justifica para retenção além do
 necessário para servir o agregado por hora e para uma janela de
-troubleshooting/contestação de fatura de curto prazo.** Recomendação
-concreta a ser avaliada (com apoio jurídico) na Fase 14 do roadmap, que já
-lista a retenção de `MeterReading` como pendência:
+troubleshooting/contestação de fatura de curto prazo.** Sem titular real
+(ADR-0014), esta deixou de ser uma recomendação de conformidade a validar
+com apoio jurídico — é uma sugestão de desenho de armazenamento para a
+**Fase 15** (issues #236/#267), motivada por custo/performance
+(`meter_readings` é a maior tabela do sistema e cresce indefinidamente):
 
 - Manter `MeterReading` em granularidade de minuto por uma janela limitada
   (ordem de grandeza sugerida: 60–90 dias — suficiente para o titular
@@ -142,13 +151,13 @@ lista a retenção de `MeterReading` como pendência:
   anomalia), e
 - Após essa janela, compactar para um agregado horário (ou descartar a
   linha de minuto e reter só o que já foi somado em `MeterReading`
-  agregada por hora/dia, conforme a Fase 14 decidir o desenho), eliminando
+  agregada por hora/dia, conforme a Fase 15 decidir o desenho), eliminando
   a granularidade fina do dado retido a longo prazo.
 
 Isso não é uma alteração de escopo desta issue (#157 entrega o relatório,
 não a implementação) — é o **fundamento**, com base no requisito de
-produto e não em conveniência técnica, que a Fase 14 precisa para não
-escolher um prazo arbitrário.
+produto e não em conveniência técnica, que a Fase 15 pode reaproveitar para
+não escolher uma janela de compactação arbitrária.
 
 ## 4. Riscos aos titulares
 
@@ -202,15 +211,16 @@ endereço).
 
 | # | Risco residual | Tratamento planejado |
 |---|---|---|
-| 6.1 | `meter_readings`/`alert_trigger_events` sem prazo de retenção — crescem indefinidamente, mantendo o perfil comportamental completo do titular por tempo indeterminado. | Fase 14 do roadmap ("Conformidade P1: retenção, DSAR, consentimento e documentos") — decisão de prazo com apoio jurídico, informada pela recomendação da seção 3.3 deste RIPD. |
-| 6.2 | `Meter.extra` (configuração de conexão do dispositivo) pode conter a senha do medidor em texto claro no JSON. | Fase 13 do roadmap ("Endurecimento de segurança (P1)") já lista "cifra de `Meter.extra.password` + omissão do `MeterResponse`" como item planejado. |
-| 6.3 | ~~Nenhuma decisão de hospedagem tomada — risco de exposição a jurisdição estrangeira somado ao risco comportamental.~~ **Tratado.** | **Resolvido pela ADR-0008** (issue #158): hospedagem própria em São Paulo, banco na mesma VM, sem operador estrangeiro — o dado comportamental avaliado neste RIPD não sai do Brasil. Risco remanescente **muda de natureza**: passa de jurisdicional para operacional (ponto único de falha, backup manual via `pg_dump`, ausência de redundância) — ver "Consequências negativas" da ADR-0008. |
-| 6.4 | Base legal específica desta operação (hoje "execução de contrato", registrada no ROPA) ainda não passou por revisão jurídica formal. | Fase 14 do roadmap — atribuição de base legal por operação, com revisão jurídica (mesma ressalva já registrada em `ROPA.md`). |
-| 6.5 | Sem DSAR (Data Subject Access Request) completo — a exportação hoje existente (`GET /api/users/me/data-export`) precisa ser conferida quanto a incluir o histórico de `meter_readings`/`alert_trigger_events` por inteiro, não só um resumo. | Fase 14 do roadmap lista "export DSAR completo (consumo agregado, medidores, disparos)" como item planejado — não verificado neste RIPD por estar fora do seu escopo (avaliação de impacto, não auditoria de export). |
+| 6.1 | `meter_readings`/`alert_trigger_events` sem prazo de retenção — crescem indefinidamente. Sem titular real (ADR-0014), isso deixa de ser risco de perfil comportamental exposto e passa a ser uma questão de **armazenamento/performance** (a maior tabela do sistema). | **Reclassificado — Fase 15 do roadmap** (desempenho), não mais Fase 14. Sem prazo LGPD a cumprir; decisão de compactação/expurgo, se vier, é por custo/performance, não por conformidade. |
+| 6.2 | `Meter.extra` (configuração de conexão do dispositivo) podia conter a senha do medidor em texto claro no JSON. | **Fechado.** Corrigido pela issue #182: `shared/crypto/meterCredentialEncryption.ts` cifra `extra.password` (AES-256-GCM, chave própria `METER_CREDENTIAL_ENCRYPTION_KEY`); `MeterResponse` nunca expõe a senha (só `passwordSet: boolean`). Coberto por teste dedicado (`meterCredentialEncryption.test.ts`, `meter.repository.test.ts`). |
+| 6.3 | Transferência internacional do staging (Render/Neon, registros de acesso de visitante, sem SCC). | **Aceito permanentemente — [ADR-0014](adr/0014-ambientes-permanentemente-demonstracao.md).** Deixa de ser "a reavaliar quando abrir cadastro real" (esse cadastro não vai abrir) e passa a ser risco assumido de forma explícita e definitiva enquanto o staging existir com esse papel. A produção (VPS) segue sem transferência internacional (ADR-0008/0012). |
+| 6.4 | Base legal específica desta operação (hoje "execução de contrato", registrada no ROPA) ainda não passou por revisão jurídica formal. | **Deferido — ADR-0014.** Atribuição formal com revisão jurídica só se justifica havendo titular real; não é trabalho ativo enquanto os ambientes forem demonstração. |
+| 6.5 | Sem DSAR (Data Subject Access Request) completo — a exportação hoje existente (`GET /api/users/me/data-export`) não inclui consumo agregado (`MeterReading`) nem disparos (`AlertTriggerEvent`). | **Deferido — ADR-0014.** Sem titular real, não há obrigação de Art. 18 a cumprir nem urgência de produto. |
 
 Nenhum destes riscos é tratado por esta issue — #157 entrega a avaliação,
-não a correção. Cada um já está alocado a uma fase específica do roadmap,
-para que a análise não fique arquivada sem dono.
+não a correção. 6.2 já foi corrigido por outra issue; 6.1 foi reclassificado
+para a Fase 15 (desempenho); 6.3, 6.4 e 6.5 são deferidos pela ADR-0014
+enquanto os ambientes forem permanentemente demonstração.
 
 ## 7. Reavaliação
 
@@ -219,8 +229,12 @@ de dados ou no fluxo de tratamento avaliado aqui — no mínimo: alteração da
 granularidade de coleta ou retenção de `MeterReading`, novo campo pessoal
 adicionado à cadeia `MeterReading → ... → User`, mudança de finalidade do
 tratamento de alertas, ou mudança na topologia de hospedagem decidida pela
-ADR-0008 (a revisão de 2026-08-06 já incorporou essa decisão em 6.3).
-A revisão mais próxima e certa é a implementação
-da recomendação da seção 3.3 na Fase 14 — nesse momento, este documento
-deve ser atualizado para refletir o desenho final adotado (não deixá-lo
-descrevendo um estado já superado).
+ADR-0008 (a revisão de 2026-08-06 já incorporou essa decisão em 6.3, e a
+revisão de 2026-08-23 incorporou a ADR-0014, que tornou 6.3 permanente e
+reclassificou 6.1 para a Fase 15). Se a compactação/expurgo da seção 3.3
+for implementada na Fase 15, este documento deve ser atualizado para
+refletir o desenho final adotado — não deixá-lo descrevendo um estado já
+superado. Se, ao contrário, o próprio projeto decidir abrir cadastro real
+um dia (não planejado, ADR-0014), este RIPD inteiro precisa ser
+reavaliado como parte da auditoria de conformidade exigida antes disso —
+não só a seção 3.3.

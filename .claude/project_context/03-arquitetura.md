@@ -113,7 +113,7 @@ Todo módulo em `backend/src/modules/<nome>/` segue a mesma cadeia de camadas:
 - **SMTP** (nodemailer) — recuperação de senha.
 - **Protocolos IoT** — MQTT, Modbus TCP/RTU, EtherNet/IP, Profibus, PROFINET, RS232, RS485 (adaptadores em `modules/iot/iot-worker/protocols/`).
 - **API de Dados Abertos da ANEEL** (`AneelTariffFlagSource.ts`) — a única chamada de saída não-IoT do backend: `fetch` para `https://dadosabertos.aneel.gov.br` no boot e a cada 24h, com schema de anti-corrupção próprio (ADR-0007). Relevante para quem mexer em SSRF/allowlist de saída.
-- Nenhum monitor externo de terceiro faz polling do `/health` — o UptimeRobot que cumpria esse papel no staging foi removido pela ADR-0013. A produção tem monitoramento **interno** (Uptime Kuma auto-hospedado, ADR-0009), que não é integração externa.
+- O UptimeRobot que fazia polling do `/health` no staging foi removido pela ADR-0013. A ADR-0015 decidiu (re)expor `/health` na produção via Caddy para um futuro monitor externo (ex.: UptimeRobot) — a exposição já está versionada (`deploy/Caddyfile`); criar o monitor em si é ação pendente do usuário fora do repositório. A produção também tem monitoramento **interno** (Uptime Kuma auto-hospedado, ADR-0009), que não é integração externa.
 - Nenhuma integração de pagamento, mapa ou terceiro de observability (Sentry/APM) está implementada — ver `07-decisoes-em-aberto.md`.
 
 ### Posse e autorização
@@ -135,3 +135,5 @@ Toda autorização é por posse de recurso, resolvida bottom-up: `MeterReading/A
 - `adr/0011-keep-alive-monitor-externo-uptimerobot.md` — keep-alive da demo via UptimeRobot (monitor externo). **Substituída pela ADR-0013**; permanece como registro do raciocínio de que um ping externo em `/health` não configura transferência internacional — precedente ainda utilizável.
 - `adr/0012-separacao-producao-vps-staging-render-neon.md` — produção migra para VPS Hostinger em São Paulo (branch `main`, retoma a conclusão de conformidade da ADR-0008); Render+Neon é rebaixado a staging/integração (branch `staging`, ADR-0010 continua vigente para esse ambiente).
 - `adr/0013-fim-do-keep-alive-staging-hiberna-por-desenho.md` — os dois mecanismos de keep-alive são removidos e o staging hiberna por desenho, consequência do papel que a ADR-0012 lhe deu: ambiente de validação não tem visitante inesperado a proteger de cold start.
+- `adr/0014-ambientes-permanentemente-demonstracao.md` — os dois ambientes publicados (produção VPS + staging Render/Neon) são declarados permanentemente demonstração, sem titular real; `REGISTRATION_ENABLED` ganha default `false` no código (fail-closed); trabalho de conformidade que só se justifica com titular real fica deferido enquanto a ADR vigorar.
+- `adr/0015-monitor-externo-producao-vps.md` — reaproveita o raciocínio da ADR-0011 (ping não-autenticado em `/health` não configura transferência internacional) para a produção; `deploy/Caddyfile` passa a expor `/health`.

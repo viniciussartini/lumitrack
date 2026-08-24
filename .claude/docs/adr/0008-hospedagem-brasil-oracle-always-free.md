@@ -17,6 +17,10 @@
 > compromisso de migrar para o Brasil antes de qualquer operação com usuário
 > real.
 >
+> **A [ADR-0014](0014-ambientes-permanentemente-demonstracao.md) (2026-08-23)
+> encerra essa condicional em definitivo:** os ambientes publicados nunca
+> vão operar com usuário real — não é mais "antes de", é "não vai acontecer".
+>
 > **Continua vigente e é fonte de verdade:** o levantamento de restrições
 > técnicas (por que serverless e scale-to-zero são inviáveis para este
 > backend), a topologia lógica, a **condição de validade** (cadastro público

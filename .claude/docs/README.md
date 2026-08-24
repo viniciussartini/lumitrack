@@ -62,5 +62,7 @@ Decisões arquiteturais relevantes, numeradas sequencialmente a partir do templa
 | `0011-keep-alive-monitor-externo-uptimerobot.md` | Keep-alive da demo via UptimeRobot (monitor externo) — **substituída pela `0013`** |
 | `0012-separacao-producao-vps-staging-render-neon.md` | Separação de ambientes — produção na VPS Hostinger (`main`), Render+Neon rebaixado a staging (`staging`) |
 | `0013-fim-do-keep-alive-staging-hiberna-por-desenho.md` | Fim do keep-alive — o staging hiberna por desenho |
+| `0014-ambientes-permanentemente-demonstracao.md` | Ambientes permanentemente de demonstração — nunca dado real de titular |
+| `0015-monitor-externo-producao-vps.md` | Monitor externo de disponibilidade para a produção (VPS) — `/health` exposto via Caddy |
 
 Um ADR nunca é apagado — se a decisão mudar, crie um novo e marque o antigo como "substituída por". Se a decisão resolve um item de `../project_context/07-decisoes-em-aberto.md`, atualize aquele arquivo.
