@@ -40,4 +40,16 @@ export class TariffFlagHistoryRepository {
             },
         })
     }
+
+    /**
+     * Expurgo por retenção — remove entradas de histórico mais antigas que
+     * `threshold`, por `createdAt`. Suportado pelo `@@index([createdAt])`
+     * já existente.
+     */
+    async deleteOlderThan(threshold: Date): Promise<number> {
+        const result = await this.prisma.tariffFlagHistory.deleteMany({
+            where: { createdAt: { lt: threshold } },
+        })
+        return result.count
+    }
 }

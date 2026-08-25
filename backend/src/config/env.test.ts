@@ -155,6 +155,111 @@ describe("envSchema — REGISTRATION_ENABLED default fail-closed (ADR-0014)", ()
     })
 })
 
+describe("envSchema — DEBUG_QUERY_LOGGING_ENABLED fail-closed em produção", () => {
+    it("aplica default `false` quando ausente", () => {
+        const result = envSchema.safeParse(baseValidEnv)
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DEBUG_QUERY_LOGGING_ENABLED).toBe(false)
+        }
+    })
+
+    it("liga em development", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            NODE_ENV: "development",
+            DEBUG_QUERY_LOGGING_ENABLED: "true",
+        })
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DEBUG_QUERY_LOGGING_ENABLED).toBe(true)
+        }
+    })
+
+    it("rejeita DEBUG_QUERY_LOGGING_ENABLED='true' quando NODE_ENV=production", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            NODE_ENV: "production",
+            DEBUG_QUERY_LOGGING_ENABLED: "true",
+        })
+
+        expect(result.success).toBe(false)
+        if (!result.success) {
+            const issue = result.error.issues.find(
+                (i) => i.path[0] === "DEBUG_QUERY_LOGGING_ENABLED",
+            )
+            expect(issue).toBeDefined()
+            expect(issue?.message).toMatch(/não pode ser true em produção/)
+        }
+    })
+})
+
+describe("envSchema — DATA_RETENTION_* falha fechado contra valor vazio/zero/negativo", () => {
+    // z.coerce.number() sozinho aceita "" (Number("") === 0) e negativo — sem
+    // .int().positive(), uma variável mal configurada (chave presente, valor
+    // vazio) faria daysAgo(0) apontar para "agora", e o expurgo apagaria a
+    // tabela inteira em vez de só o que passou do prazo. Representativo:
+    // testa uma das 8 chaves — todas usam a mesma regra.
+    it("rejeita string vazia", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            DATA_RETENTION_METER_READING_DAYS: "",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita zero", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            DATA_RETENTION_METER_READING_DAYS: "0",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita negativo", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            DATA_RETENTION_METER_READING_DAYS: "-5",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita não-inteiro", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            DATA_RETENTION_METER_READING_DAYS: "1.5",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("aceita um inteiro positivo válido", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            DATA_RETENTION_METER_READING_DAYS: "90",
+        })
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DATA_RETENTION_METER_READING_DAYS).toBe(90)
+        }
+    })
+
+    it("aplica o default 365 quando ausente", () => {
+        const result = envSchema.safeParse(baseValidEnv)
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DATA_RETENTION_METER_READING_DAYS).toBe(365)
+        }
+    })
+})
+
 describe("envSchema — DATABASE_TEST_URL/DATABASE_HTTP_TEST_URL (#165)", () => {
     it("rejeita NODE_ENV=test sem DATABASE_TEST_URL", () => {
         const result = envSchema.safeParse({

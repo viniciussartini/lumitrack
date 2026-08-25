@@ -111,4 +111,17 @@ export class MeterReadingRepository {
             avgPowerW: Number(r.avgpower ?? 0),
         }))
     }
+
+    /**
+     * Expurgo por retenção — remove leituras mais antigas que `threshold`
+     * por `minuteStart` (não `createdAt`): é o instante da leitura em si que
+     * define a janela de retenção, não quando a linha foi persistida.
+     * Suportado pelo índice `meter_readings_minuteStart_idx`.
+     */
+    async deleteOlderThan(threshold: Date): Promise<number> {
+        const result = await this.prisma.meterReading.deleteMany({
+            where: { minuteStart: { lt: threshold } },
+        })
+        return result.count
+    }
 }

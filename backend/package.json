@@ -25,7 +25,8 @@
         "db:reset": "prisma migrate reset",
         "backfill:cpf-cnpj": "tsx scripts/backfill-cpf-cnpj-encryption.ts",
         "backfill:address": "tsx scripts/backfill-address-encryption.ts",
-        "promote-admin": "tsx scripts/promote-admin.ts"
+        "promote-admin": "tsx scripts/promote-admin.ts",
+        "perf:generate-baseline-data": "tsx scripts/generate-performance-baseline-data.ts"
     },
     "keywords": [],
     "author": "",
@@ -37,6 +38,7 @@
         "@prisma/adapter-pg": "^7.4.1",
         "@prisma/client": "^7.4.1",
         "bcryptjs": "^3.0.3",
+        "compression": "^1.8.1",
         "cookie-parser": "^1.4.7",
         "cors": "^2.8.6",
         "dotenv": "^17.3.1",
@@ -63,6 +65,7 @@
     "devDependencies": {
         "@eslint/js": "^10.0.1",
         "@types/bcryptjs": "^3.0.0",
+        "@types/compression": "^1.8.1",
         "@types/cookie-parser": "^1.4.10",
         "@types/cors": "^2.8.19",
         "@types/express": "^5.0.6",

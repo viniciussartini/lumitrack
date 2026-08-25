@@ -1,6 +1,7 @@
 import express, { type RequestHandler } from "express"
 import cors from "cors"
 import helmet from "helmet"
+import compression from "compression"
 import cookieParser from "cookie-parser"
 import { pinoHttp } from "pino-http"
 import type { Logger } from "pino"
@@ -12,6 +13,8 @@ import { createGlobalRateLimiter, createAuthRateLimiter } from "@/shared/middlew
 import { decideHttpsRedirect } from "@/shared/security/httpsRedirect.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { AuditService } from "@/shared/audit/audit.service.js"
+import { createQueryCountMiddleware } from "@/shared/database/queryCounter.js"
+import { shouldCompress } from "@/shared/middlewares/compressionFilter.js"
 import { PrismaClient } from "@/generated/prisma/client.js"
 import { prisma } from "@/shared/database/prisma.js"
 import type { SendPasswordResetEmailFn } from "@/modules/auth/auth.service.js"
@@ -143,6 +146,13 @@ export function createApp(deps: AppDependencies = {}) {
         }),
     )
 
+    // Compressão HTTP — antes de qualquer rota, para que nenhuma resposta
+    // escape sem passar pelo filtro. `shouldCompress` exclui o stream SSE de
+    // ingestão IoT: comprimir segurar-ia os chunks até acumular um bloco,
+    // quebrando a entrega em tempo real (ver
+    // shared/middlewares/compressionFilter.ts).
+    app.use(compression({ filter: shouldCompress }))
+
     // Health check fica fora do rate limit (monitoramento / load balancer).
     app.get("/health", (_req, res) => {
         res.json({ status: "ok", timestamp: new Date().toISOString() })
@@ -171,6 +181,15 @@ export function createApp(deps: AppDependencies = {}) {
 
     app.use(express.json())
     app.use(express.urlencoded({ extended: true }))
+
+    // Instrumentação de desempenho — conta queries Prisma por requisição,
+    // restrita a /api/alerts e /api/consumption (N+1 e fan-out sob
+    // investigação). Fail-closed: env.ts proíbe DEBUG_QUERY_LOGGING_ENABLED
+    // em produção — este middleware só existe rodando com NODE_ENV=development
+    // e a flag ligada explicitamente, nunca em qualquer ambiente publicado.
+    if (env.DEBUG_QUERY_LOGGING_ENABLED) {
+        app.use(createQueryCountMiddleware(["/api/alerts", "/api/consumption"]))
+    }
 
     const authenticate = createAuthenticateMiddleware(prismaClient)
     const auditService = new AuditService(new AuditRepository(prismaClient))

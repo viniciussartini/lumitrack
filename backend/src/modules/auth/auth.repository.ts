@@ -184,6 +184,21 @@ export class AuthRepository {
         return result.count
     }
 
+    // Expurgo por retenção — DIFERENTE dos dois acima de propósito: só
+    // expurga código JÁ USADO há mais de `threshold`
+    // (`usedAt: { lt: threshold }` já exclui `usedAt: null` por semântica do
+    // Prisma). Um código ainda não usado (`usedAt: null`) nunca é candidato,
+    // mesmo muito antigo — continua válido para recuperação de conta até o
+    // usuário regerar o conjunto (createBackupCodes já apaga o conjunto
+    // anterior inteiro nesse momento). Expurgar por `createdAt` apagaria
+    // recovery codes válidos, quebrando a recuperação de MFA.
+    async deleteUsedMfaBackupCodes(threshold: Date): Promise<number> {
+        const result = await this.prisma.mfaBackupCode.deleteMany({
+            where: { usedAt: { lt: threshold } },
+        })
+        return result.count
+    }
+
     async findUserByEmailWithPassword(email: string) {
         return this.prisma.user.findUnique({
             where: { email },

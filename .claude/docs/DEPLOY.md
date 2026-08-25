@@ -440,6 +440,8 @@ docker compose exec postgres psql -U lumitrack_app -d "$POSTGRES_DB" -c 'CREATE 
 
 Essa mensagem de erro é o resultado *correto* — confirma que o usuário de runtime realmente não consegue alterar a estrutura do banco, mesmo que o backend inteiro seja comprometido por alguma falha futura.
 
+**Nota para migrações futuras contra o banco já em produção (não se aplica ao primeiro deploy, com o banco vazio):** o Prisma Migrate usa `CREATE INDEX` simples, não `CREATE INDEX CONCURRENTLY` — a criação toma lock `SHARE` na tabela, bloqueando escrita por alguns instantes. Em tabelas pequenas isso é imperceptível; numa tabela grande com ingestão contínua (`meter_readings`, alimentada pelo `MinuteRollupScheduler` a cada minuto), planeje a janela: o flush que cair durante a criação do índice falha, mas é reprocessado automaticamente no próximo minuto (`MinuteRollupScheduler` devolve o balde ao buffer em caso de erro) — sem perda de dado, só um erro pontual no log.
+
 **7.2 — Buildar o frontend.**
 
 O frontend é um site estático (HTML/CSS/JS puro depois de compilado) — não roda como container próprio, o Caddy só serve os arquivos direto de uma pasta (`frontend/dist`). Como a VPS não tem Node.js instalado no sistema (só dentro dos containers), o build roda dentro de um container Node **descartável**, criado só para essa tarefa:
@@ -578,6 +580,26 @@ ssh -f -N -L 3001:localhost:3001 <usuario>@<ip-da-vm>
 > **Um monitor sem canal de notificação é um painel que ninguém olha.** O Kuma registra o histórico de disponibilidade, mas só avisa se você configurar uma notificação em "Settings → Notifications" — a ADR-0009 sugere Telegram (gratuito, chega no celular). **Estado atual desta instalação: monitor ativo, notificação ainda não configurada** — a detecção funciona, o aviso não. Enquanto isso não for feito, a descoberta de uma queda continua dependendo de alguém abrir o painel.
 
 Ver [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a limitação estrutural aceita: como o Kuma roda na mesma máquina que monitora, **ele não detecta a VM inteira fora do ar** — se ela cair, o monitor cai junto e nenhum alerta sai. É um risco assumido, não um esquecimento.
+
+**`pg_stat_statements` (Fase 15, instrumentação de desempenho).** `docker-compose.yml` já sobe o serviço `postgres` com `shared_preload_libraries=pg_stat_statements` e monta `deploy/enable-pg-stat-statements.sql` — em volume **novo**, isso basta (o init script roda sozinho no primeiro boot). No volume **já provisionado** desta VPS (existe desde a Fase 13.7, antes desta mudança), a extensão exige dois passos manuais depois de atualizar o `docker-compose.yml`:
+
+```bash
+# 0. Carrega POSTGRES_USER/POSTGRES_DB de deploy/.env na sessão (mesmo padrão
+#    já usado no passo 7) — só nesta sessão SSH, não persiste.
+set -a && source deploy/.env && set +a
+
+# 1. Recria o container postgres com o command: novo (shared_preload_libraries
+#    só tem efeito com o servidor reiniciado — CREATE EXTENSION sozinho não basta)
+docker compose up -d postgres
+
+# 2. Confirma que o preload pegou, então habilita a extensão (idempotente)
+docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -c "SHOW shared_preload_libraries;"
+docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -f /docker-entrypoint-initdb.d/20-enable-pg-stat-statements.sql
+```
+
+Consultar depois: `SELECT query, calls, mean_exec_time, total_exec_time FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 20;` — o método completo (massa sintética, `EXPLAIN`, contagem de query por requisição) está em `.claude/docs/{DATA}-baseline-desempenho.md`.
 
 ### 11. Verificação ponta a ponta
 

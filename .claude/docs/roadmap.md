@@ -1169,7 +1169,7 @@ A retenção de `meter_readings` (issues #236/#267) é escopo próprio desta fas
 - **Priority:** P0 · **Size:** M
 - **Critérios de aceite:** `RetentionService` estendido para `MeterReading`, `AlertTriggerEvent`, `MfaBackupCode` e `TariffFlagHistory`, cada uma com seu `DATA_RETENTION_*_DAYS` em `env.ts` (nunca hardcoded, mesmo padrão das quatro já cobertas); prazo de `MeterReading` decidido a partir do crescimento real medido na instrumentação; `RIPD.md` §3.3 atualizado com o resultado; testes por entidade no padrão de `retention.service.test.ts`; `RetentionPurgeScheduler` sem mudança de contrato para as entidades já cobertas.
 - **Depende de:** Instrumental de medição; Índices de FK (índice de suporte ao expurgo).
-- **Risco/observações:** **as duas issues precisam ter os critérios de aceite reescritos antes de virarem trabalho** — #236 ainda pede apoio jurídico e fala em "condicionar a política da Fase 14"; #267 ainda trata `MeterReading` como o dado de maior risco LGPD. A ADR-0014 tirou o titular real da equação. A **política de conta inativa** que #267 pede fica **fora do escopo**: sem titular real, não tem objeto.
+- **Risco/observações:** as duas issues foram reescritas na criação do épico #275 (removido o apoio jurídico e a política de conta inativa, sem objeto sem titular real). **#236 concluído (2026-08-24):** prazo decidido em **365 dias**, com o crescimento real medido em #276 (~2 GiB/ano, teto conhecido e estável) — `RIPD.md` §3.2/§3.3 atualizados com a decisão final. Falta só #267 implementar `DATA_RETENTION_METER_READING_DAYS=365` e estender o `RetentionService`.
 
 ### Cache in-process de bandeira tarifária e distribuidoras
 
