@@ -93,6 +93,30 @@ export const envSchema = z
         DATA_RETENTION_PASSWORD_RESET_DAYS: z.coerce.number().default(30),
         DATA_RETENTION_AUDIT_LOG_DAYS: z.coerce.number().default(730), // ~2 anos
 
+        // Extensão da Fase 15 (issues #236/#267, ADR-0014) — deixou de ser
+        // Art. 15/16 (sem titular real, sem prazo LGPD a cumprir) e passou a
+        // ser armazenamento/performance: as 4 tabelas abaixo cresciam sem
+        // nenhum expurgo.
+        //
+        // MeterReading: 365 dias — decisão da issue #236, com o crescimento
+        // real medido em #276 (~2 GiB/ano para os 11 medidores da demo, teto
+        // conhecido e estável pela ADR-0014). Ver RIPD.md §3.3.
+        DATA_RETENTION_METER_READING_DAYS: z.coerce.number().default(365),
+        // AlertTriggerEvent: mesmo prazo de MeterReading — histórico de
+        // episódios de alerta, volume ínfimo perto de MeterReading (só cresce
+        // quando um alerta dispara e termina), sem motivo para ser mais curto.
+        DATA_RETENTION_ALERT_TRIGGER_EVENT_DAYS: z.coerce.number().default(365),
+        // MfaBackupCode: mesma família de AUTH_TOKEN/PASSWORD_RESET (30 dias)
+        // — é um crendencial, não um histórico. Conta a partir de `usedAt`,
+        // NUNCA de `createdAt`: um código ainda não usado continua válido
+        // para recuperação de conta indefinidamente, até o usuário regerar o
+        // conjunto (ver RetentionService — só expurga usedAt != null).
+        DATA_RETENTION_MFA_BACKUP_CODE_DAYS: z.coerce.number().default(30),
+        // TariffFlagHistory: mesmo prazo de AUDIT_LOG (730 dias) — é a mesma
+        // categoria de coisa (log histórico imutável de um evento do
+        // sistema), não um credencial nem dado de alto volume.
+        DATA_RETENTION_TARIFF_FLAG_HISTORY_DAYS: z.coerce.number().default(730),
+
         // MFA opcional via TOTP (A06/A07).
         // Chave própria (separada de CPF_CNPJ_ENCRYPTION_KEY) para cifrar o
         // segredo TOTP em repouso — compartimentaliza o risco: o

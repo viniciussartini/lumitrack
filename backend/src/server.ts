@@ -86,17 +86,26 @@ processor.addSampleListener((sample) => {
     void alertEvaluator.evaluate(sample.meterId, sample.powerW, sample.receivedAt)
 })
 
-// Retenção e expurgo de dados (Art. 15/16 LGPD): roda no boot e a
-// cada 24h, removendo tokens/resets já inativos e audit logs antigos
-// (períodos configuráveis via env.DATA_RETENTION_*).
+// Retenção e expurgo de dados: roda no boot e a cada 24h. As 4 primeiras
+// entidades são Art. 15/16 LGPD (tokens/resets já inativos, audit logs
+// antigos); as 4 últimas (Fase 15, issue #267, ADR-0014) são
+// armazenamento/performance, sem titular real. Períodos configuráveis via
+// env.DATA_RETENTION_*.
 const retentionService = new RetentionService(
     new AuthRepository(prisma),
     new AuditRepository(prisma),
+    new MeterReadingRepository(prisma),
+    new AlertTriggerEventRepository(prisma),
+    new TariffFlagHistoryRepository(prisma),
     {
         authToken: env.DATA_RETENTION_AUTH_TOKEN_DAYS,
         passwordReset: env.DATA_RETENTION_PASSWORD_RESET_DAYS,
         auditLog: env.DATA_RETENTION_AUDIT_LOG_DAYS,
         refreshToken: env.DATA_RETENTION_REFRESH_TOKEN_DAYS,
+        meterReading: env.DATA_RETENTION_METER_READING_DAYS,
+        alertTriggerEvent: env.DATA_RETENTION_ALERT_TRIGGER_EVENT_DAYS,
+        mfaBackupCode: env.DATA_RETENTION_MFA_BACKUP_CODE_DAYS,
+        tariffFlagHistory: env.DATA_RETENTION_TARIFF_FLAG_HISTORY_DAYS,
     },
 )
 const retentionScheduler = new RetentionPurgeScheduler(retentionService)
