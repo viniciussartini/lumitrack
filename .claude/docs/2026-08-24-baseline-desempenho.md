@@ -72,7 +72,9 @@ Execution Time: 151.690 ms
  2015 MB    | 1036 MB    | 5702400
 ```
 
-`total_size` inclui os índices (a diferença de ~979MB entre `total_size` e `table_size` é majoritariamente o índice único `meterId+minuteStart`, quase do tamanho da própria tabela — outro dado a favor de expurgo em vez de mais índice: cada índice novo em `meter_readings` custa proporcionalmente caro). Confirma a ordem de grandeza do laudo: ~86 bytes/linha úteis, ~172 bytes/linha com o índice único — 15.840 linhas/dia (perfil dos 11 medidores da demo) custam **~2,7 MB/dia** de armazenamento total nesse formato.
+`total_size` inclui os índices (a diferença de ~979MB entre `total_size` e `table_size` é majoritariamente o índice único `meterId+minuteStart`, quase do tamanho da própria tabela — outro dado a favor de expurgo em vez de mais índice: cada índice novo em `meter_readings` custa proporcionalmente caro). Dividindo pelas 5.702.400 linhas: **~190,5 bytes/linha só de tabela, ~370,5 bytes/linha com o índice único** (a diferença, ~180 bytes/linha, é o próprio índice). 15.840 linhas/dia (perfil dos 11 medidores da demo) custam **~5,6 MiB/dia** de armazenamento total nesse formato (~2,9 MiB/dia só de tabela) — **≈ 2 GiB/ano para os 11 medidores da demo**, um teto conhecido e estável: a ADR-0014 fixou os ambientes como permanentemente sintéticos, então esse número não escala com adoção de usuário real; ele só cresce com o tempo corrido.
+
+> **Correção (issue #236):** a versão original desta seção, escrita na sessão de #276, dividiu errado e registrou "~86 bytes/linha... ~2,7 MB/dia" — a conta certa dá ~190,5/~370,5 bytes/linha e ~5,6 MiB/dia (quase o dobro). Corrigido aqui porque a decisão de retenção de #236 usa este número.
 
 **Na VPS de produção — comando pronto, execução pendente (sem acesso desta sessão):**
 

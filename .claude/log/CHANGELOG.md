@@ -2028,3 +2028,17 @@
 - **Arquivos principais:** `backend/prisma/schema.prisma`, `backend/prisma/migrations/20260825020345_add_fk_indexes_desempenho/migration.sql` (novo), `.claude/docs/2026-08-24-baseline-desempenho.md`.
 - **Decisões/ADRs:** nenhuma nova.
 - **Notas:** migração reversível (basta `DROP INDEX` dos 6 nomes gerados — nenhuma tem efeito em dado existente). Suíte completa: 156/156 arquivos, 1849/1849 testes verdes (rodada única, sem falha — os três bancos locais foram migrados antes de rodar). `build`/`lint`/`format:check`/`depcruise` limpos.
+
+## [2026-08-24] docs: decide o prazo de retenção de MeterReading em 365 dias, corrige erro de cálculo em #276 (issue #236)
+
+- **Branch:** epic/275-fundacao-desempenho
+- **Tipo:** docs
+- **O quê:** quarta issue do épico #275 — sem código, é decisão + atualização de documento (por isso não passou pelo checklist de `nova-feature`, mesmo invocada com essa skill — a issue não constrói nada, decide um número). Antes de decidir, encontrada e corrigida uma conta errada em `.claude/docs/2026-08-24-baseline-desempenho.md` §4 (entrada de #276): a divisão de `total_size`/`table_size` pelas 5.702.400 linhas tinha sido feita errado, registrando "~86 bytes/linha... ~2,7 MB/dia" quando a conta correta dá **~190,5 bytes/linha só de tabela, ~370,5 bytes/linha com o índice único, ~5,6 MiB/dia de crescimento total** (quase o dobro do valor errado) — corrigido com nota explícita de correção, porque a decisão de retenção usa esse número.
+  - Com o número certo, o crescimento é **~2 GiB/ano** para os 11 medidores da demo — um teto **conhecido e estável** (ADR-0014: ambientes permanentemente sintéticos, não escalam com usuário real). Isso enfraquece o argumento de custo de disco isoladamente (2 GiB/ano é trivial), mas o argumento de custo de **query** continua forte (#276/#278 já mediram `findAggregated` fazendo `Parallel Seq Scan` proporcional ao tamanho de `meter_readings`).
+  - **Decisão levada ao usuário, não tomada unilateralmente:** apresentados os números reais e o trade-off (disco trivial vs. tamanho de tabela para query) com 4 opções (90/60/365 dias/outro). **Escolhido: 365 dias** — mantém um ano completo de granularidade fina a custo trivial, opção deliberada de manter comparação minuto a minuto ano contra ano no futuro, mesmo sem RF que peça isso hoje.
+  - **Reavaliação de risco de produto** (segundo critério de aceite): estender o prazo não muda nenhuma exposição da UI — a aba "Hora" sempre consulta a mesma janela curta (hora corrente), qualquer que seja o tamanho da janela de retenção total.
+  - `RIPD.md` §3.2 (nota de reavaliação) e §3.3 (conclusão) atualizados com a decisão final — §3.3 deixa de ser "condiciona a Fase 15" e passa a "decidido (Fase 15, issue #236)", com o número (`DATA_RETENTION_METER_READING_DAYS=365`) que a issue #267 vai implementar.
+  - `roadmap.md`: nota de risco/observações do item "Retenção de meter_readings" atualizada — não fala mais em "critérios de aceite a reescrever" (já foi feito na criação do épico) nem em "#236 pendente" (concluído).
+- **Arquivos principais:** `.claude/docs/RIPD.md`, `.claude/docs/2026-08-24-baseline-desempenho.md`, `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova — decisão de produto/engenharia registrada no RIPD, não uma decisão arquitetural que peça ADR própria.
+- **Notas:** issue #267 (implementação do `RetentionService` estendido) é a única pendência restante do épico #275 antes dele fechar por completo.

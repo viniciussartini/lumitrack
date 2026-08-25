@@ -134,30 +134,45 @@ necessidade funcional.
 > (`meter_readings` é a maior tabela do sistema e cresce indefinidamente),
 > não mais um prazo LGPD a cumprir. Issue #236 (que levantou esta pergunta)
 > foi reclassificada de conformidade para desempenho com essa conclusão.
+>
+> **Decisão final (2026-08-24, issue #236):** o prazo é **365 dias**, não os
+> 60–90 sugeridos acima. A instrumentação de #276 mediu o crescimento real
+> pela primeira vez: ~2 GiB/ano para os 11 medidores da demo, um teto
+> **conhecido e estável** (a ADR-0014 fixou os ambientes como
+> permanentemente sintéticos — o número não escala com adoção de usuário
+> real, só com o tempo corrido). Nesse patamar, o argumento de custo de
+> armazenamento por si só é fraco; a escolha de manter um ano inteiro de
+> granularidade fina é deliberada — mantém a opção de uma comparação
+> minuto a minuto ano contra ano no futuro, mesmo sem nenhum RF que peça
+> isso hoje —, não uma necessidade imposta pelo orçamento de disco.
 
-### 3.3 Conclusão e recomendação (condiciona a Fase 15 — armazenamento/performance)
+### 3.3 Conclusão e recomendação — decidido (Fase 15, issue #236)
 
-**A granularidade de minuto não se justifica para retenção além do
-necessário para servir o agregado por hora e para uma janela de
-troubleshooting/contestação de fatura de curto prazo.** Sem titular real
-(ADR-0014), esta deixou de ser uma recomendação de conformidade a validar
-com apoio jurídico — é uma sugestão de desenho de armazenamento para a
-**Fase 15** (issues #236/#267), motivada por custo/performance
-(`meter_readings` é a maior tabela do sistema e cresce indefinidamente):
+**A granularidade de minuto não se justifica pelo RF12** (que só consulta
+hora/dia/mês/ano) **nem pela aba "Hora"** (que só olha a hora corrente,
+qualquer que seja o tamanho da janela de retenção — reavaliado nesta issue:
+estender o prazo não muda nenhuma exposição da UI, porque a consulta
+sempre pede a mesma janela curta). Sem titular real (ADR-0014), isto não é
+mais uma recomendação de conformidade a validar com apoio jurídico — é uma
+decisão de desenho de armazenamento tomada com número medido, não estimado:
 
-- Manter `MeterReading` em granularidade de minuto por uma janela limitada
-  (ordem de grandeza sugerida: 60–90 dias — suficiente para o titular
-  contestar uma fatura recente e para suporte técnico investigar uma
-  anomalia), e
+- `MeterReading` é retida em granularidade de minuto por **365 dias**
+  (`DATA_RETENTION_METER_READING_DAYS`, implementado pela issue #267) —
+  cobre com folga a janela de contestação de fatura e investigação de
+  suporte técnico que motivou a faixa original de 60–90 dias, e mantém um
+  ano completo de detalhe fino a um custo medido e trivial (~2 GiB/ano,
+  ver `.claude/docs/2026-08-24-baseline-desempenho.md` §4).
 - Após essa janela, compactar para um agregado horário (ou descartar a
   linha de minuto e reter só o que já foi somado em `MeterReading`
-  agregada por hora/dia, conforme a Fase 15 decidir o desenho), eliminando
-  a granularidade fina do dado retido a longo prazo.
+  agregada por hora/dia — issue #267 decide o desenho de expurgo)
+  continua o destino da linha além de 365 dias.
 
-Isso não é uma alteração de escopo desta issue (#157 entrega o relatório,
-não a implementação) — é o **fundamento**, com base no requisito de
-produto e não em conveniência técnica, que a Fase 15 pode reaproveitar para
-não escolher uma janela de compactação arbitrária.
+O benefício de reter menos não é mais o custo de disco — é o custo de
+query em `meter_readings`: #276 mediu `findAggregated` fazendo `Parallel
+Seq Scan` proporcional ao tamanho da tabela (achado A-01). 365 dias mantém
+a tabela ordens de grandeza menor do que "indefinidamente", que é o que o
+laudo de desempenho de 2026-08-22 sinalizou como problema — não elimina o
+achado, mas o limita a um teto conhecido.
 
 ## 4. Riscos aos titulares
 
