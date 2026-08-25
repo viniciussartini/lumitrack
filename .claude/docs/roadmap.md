@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-23 · Fases 1–13.7 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, issue #127 e PRs #250 (13.6), #254/#256 (13.7). Fase atual: **14** (conformidade P1 — rescopada pela ADR-0014: ambientes permanentemente demo, ROPA/RIPD, monitor externo), detalhe abaixo.
+> Última atualização: 2026-08-24 · Fases 1–14 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14). Fase atual: **15** (desempenho — instrumentação antes de otimização, índices, cache, compressão, pool de conexões e retenção de `meter_readings`), detalhe abaixo.
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das auditorias** — as quatro de 2026-08-05 e, a partir da Fase 13.6, as quatro de 2026-08-22 (pós-deploy) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **A Fase 13.7 separa os ambientes:** VPS Hostinger (São Paulo) vira produção real (branch `main`), Render+Neon é rebaixado a staging/integração (branch `staging`) — ver **ADR-0012**. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
@@ -25,8 +25,8 @@
 | 13.5 | Primeiro deploy — infraestrutura de go-live + documentação pública | **Concluída** (épico #187) |
 | 13.6 | Correções críticas pós-go-live — canal do titular, aviso de privacidade, contas demo, privilégio de banco, backup | **Concluída** (PR #250) |
 | 13.7 | Separação de ambientes — VPS Hostinger (produção) + Render/Neon (staging) | **Concluída** (PR #254 → staging, PR #256 → main; em produção na VPS) |
-| **14** | **Conformidade P1** — formalizar a postura permanentemente demo (ADR-0014), ROPA/RIPD atualizados, monitor externo de disponibilidade | **Planejada — fase atual, rescopada pela ADR-0014, objetivo abaixo** |
-| 15 | Desempenho — instrumentação, índices, multiplicadores, compressão e pool de conexões | Planejada — objetivo revisado abaixo |
+| 14 | Conformidade P1 — formalizar a postura permanentemente demo (ADR-0014), ROPA/RIPD atualizados, monitor externo de disponibilidade | **Concluída** (#260, #261, #265, épico #259, PR #274) |
+| **15** | **Desempenho** — instrumentação, compressão, índices, retenção, cache, N+1 e endpoint batch | **Planejada — fase atual, detalhe abaixo** |
 | **15.5** | **Enforcement de qualidade + comentários de rastreabilidade** | **Planejada — objetivo abaixo** |
 | 16 | Worker IoT — robustez, estrutura e cobertura | Planejada — objetivo revisado abaixo |
 | 17 | Frontend — tempo real e bundle | Planejada — objetivo abaixo |
@@ -1100,7 +1100,7 @@ Itens de custo trivial, empacotados por já estarem tocando os mesmos arquivos/c
 - **Critérios de aceite:** `DEPLOY.md` reescrito com a VPS como produção; `04-tech-stack.md` com os dois ambientes e suas URLs; `07-decisoes-em-aberto.md` recebe a ADR-0012 na lista de resolvidas.
 - **Depende de:** todos os itens anteriores.
 
-### Fase 14 — Conformidade P1: formalizar a postura permanentemente demo + monitor externo (P1)
+## Fase 14 — Conformidade P1: formalizar a postura permanentemente demo + monitor externo (P1)
 
 **Rescopada em 2026-08-23 pela [ADR-0014](adr/0014-ambientes-permanentemente-demonstracao.md).** O escopo original desta fase (retenção de `MeterReading`/`AlertTriggerEvent`/`MfaBackupCode`/`TariffFlagHistory` por titular, export DSAR completo, base legal formal por operação, reaceite de consentimento, DPA de Render/Neon/VPS, SCC do staging) foi desenhado assumindo que a produção do LumiTrack poderia um dia operar com titular real. O dono do projeto decidiu que **os dois ambientes publicados (VPS produção + Render/Neon staging) nunca vão tratar dado real de titular — é permanentemente demonstração.** Isso reduz a fase a formalizar essa decisão e fechar a documentação de conformidade em torno dela, em vez de executar o trabalho operacional que só se justificaria havendo titular real.
 
@@ -1116,9 +1116,130 @@ Escopo atual:
 
 **Não coberto por esta fase, achado próprio (issue #269 reaberta):** guarda de registros de acesso (Marco Civil Art. 15) — `audit_logs` (730 dias) cobre eventos de autenticação/CRUD, **não** o conjunto de registros de acesso à aplicação (`pinoHttp` vai para stdout sem retenção garantida). Diferente do resto desta fase, o titular aqui é o visitante real — não depende de cadastro fechado, então a ADR-0014 não resolve isso sozinha. Correção registrada em `.claude/log/CHANGELOG.md` (revisão de código do PR #274).
 
-### Fase 15 — Desempenho: instrumentação, índices, multiplicadores e infraestrutura (P1)
+**Fechamento (2026-08-24):** entregue nas 3 sub-issues que sobraram do rescopo (#260 ROPA, #261 RIPD, #265 monitor externo), épico #259, branch `epic/259-governanca-dados-ropa-ripd-dpa`, PR #274. **Fecha a Fase 14.** A fase não teve redução de escopo durante a execução — o escopo já tinha sido reduzido *antes* dela começar, pela ADR-0014, que fechou #262/#263/#264 (DPA/SCC) sem objeto. Duas observações que não cabem em nenhuma sub-issue:
 
-Escopo original preservado (instrumentação primeiro — `pg_stat_statements`, `EXPLAIN`, `prisma.$on('query')`, React DevTools Profiler, `rollup-plugin-visualizer` — só então índices de FK, cache in-process de bandeira/distribuidoras, N+1 do `AlertService.findAll`, endpoint batch de consumo, `countBuckets` com `COUNT(*) OVER ()`), acrescido pelo laudo de 2026-08-22 de dois achados "zero risco, uma linha", isentos de medição prévia pelo próprio laudo: **compressão HTTP** (nem `compression` no Express nem `encode` no Caddy — bundle e JSON trafegam crus nos dois ambientes) e **pool de conexões do Prisma/pg sem configuração explícita** (`max`/`connectionTimeoutMillis` nunca definidos, com 3 consumidores concorrentes já confirmados no código). A retenção de `meter_readings` (issues #236/#267) é escopo próprio desta fase desde a ADR-0014 (2026-08-23) — deixou de ser conformidade (sem titular real, sem prazo LGPD a cumprir) e passou a ser questão de armazenamento/performance, sem coordenação com a Fase 14.
+- **Duas ações permanecem pendentes, ambas fora do repositório e ambas do usuário** (ADR-0015): aplicar o `deploy/Caddyfile` novo na VPS de produção (deploy + restart do Caddy) e criar o monitor externo apontando para `https://lumitrack.app.br/health`. A fase é dada por concluída porque tudo que é código e documentação está entregue e mesclado — o mesmo critério que fechou a Fase 13.5 com itens operacionais em aberto. Até a primeira ação acontecer, `/health` continua devolvendo o HTML do SPA em produção e o monitor não teria o que vigiar.
+- **Duas issues de conformidade P1 ficam abertas sem fase atribuída, por decisão do usuário:** #272 (correções do `RUNBOOK_INCIDENTES.md` — prazo em dobro do regime de pequeno porte, canal vigente da ANPD, guarda de 5 anos incluindo incidentes não comunicados) e #269 (guarda de registros de acesso, Marco Civil Art. 15). Nenhuma das duas é resolvida pela ADR-0014 e nenhuma bloqueia a Fase 15; serão alocadas quando houver uma próxima fase de conformidade a detalhar.
+
+## Fase 15 — Desempenho: instrumentação, índices, multiplicadores e infraestrutura (P1)
+
+**Entrega (milestone):** `Conformidade P1, desempenho e robustez`
+
+Remediação dos achados de desempenho de 2026-08-22 (6 Alto · 13 Médio · 12 Baixo), na ordem de ataque que o próprio laudo sugere: medir, depois desligar o que cresce sozinho, depois reduzir o custo unitário, depois eliminar a multiplicação. Nenhum RF novo.
+
+**Três correções de premissa em relação ao parágrafo-objetivo que esta seção substitui**, apuradas no detalhamento de 2026-08-24:
+
+1. **O objetivo anterior afirmava que o laudo isentava de medição prévia tanto a compressão HTTP quanto o pool de conexões. Não é o que o laudo diz.** A §6 isenta apenas **A-05** (compressão/cache — "configuração ausente, não trade-off"); **M-12** (pool) aparece na tabela da mesma §6 *exigindo* medição (`pool.totalCount`/`idleCount`/`waitingCount` durante um flush do minuto) e na §7 item 7, entre os "só com número na mão". O pool foi reposicionado como P2 dependente da instrumentação.
+2. **Não existe volume para medir.** A produção na VPS subiu em 2026-08-23 — são ~1–2 dias de `meter_readings`, e o staging hiberna por desenho desde a ADR-0013. `EXPLAIN` nesse volume responde "seq scan" para tudo e não decide nada. Por isso a instrumentação **inclui geração de massa sintética** num banco descartável: sem isso a fase mede o nada e otimiza no escuro.
+3. **A premissa do A-04 (retenção) mudou de lugar, não de tamanho.** O laudo elevou o achado a Alto por causa do teto de 0,5 GB do Neon com o keep-alive mantendo tudo acordado. A ADR-0013 removeu o keep-alive e a ADR-0012 moveu a produção para a VPS, onde `docker-compose.yml` roda `postgres` + `simulator` com `restart: unless-stopped` — o acúmulo de ~15.840 linhas/dia agora é no disco da VPS, não contra o teto do Neon. Continua real; deixou de ter data de validade curta.
+
+A retenção de `meter_readings` (issues #236/#267) é escopo próprio desta fase desde a ADR-0014 — deixou de ser conformidade (sem titular real, sem prazo LGPD a cumprir) e passou a ser questão de armazenamento/performance.
+
+### Instrumental de medição de banco + massa sintética
+
+- **Comportamento:** passa a ser possível responder com número, e não com opinião, quantas queries cada requisição faz e quanto custa cada agregação sobre volume realista.
+- **Cobre:** decide A-01, A-02, A-03, A-04, M-02, M-11, M-12 (laudo de desempenho 2026-08-22, §6).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:** `pg_stat_statements` habilitado no Postgres da VPS e no banco local; script que gera N meses de `meter_readings` sintéticas num banco descartável, com o mesmo perfil do simulador (11 medidores × 1.440 linhas/dia); `EXPLAIN (ANALYZE, BUFFERS)` de `findAggregated` e `countBuckets` (`consumption.repository.ts`) sobre 1 ano de dados de 1 medidor; `prisma.$on('query')` atrás de flag de ambiente, contando queries por requisição de `/api/alerts` e `/api/consumption`; `pool.totalCount`/`idleCount`/`waitingCount` logados durante um flush do `MinuteRollupScheduler`; `pg_total_relation_size('meter_readings')` e taxa de crescimento/dia medidos na VPS. Consolidado em `.claude/docs/{DATA}-baseline-desempenho.md`.
+- **Depende de:** —
+- **Risco/observações:** o log de query **não pode ir para produção ligado** — `prisma.$on('query')` em caminho quente vira o próprio gargalo. Flag desligada por padrão, fail-closed, no mesmo padrão das demais variáveis de ambiente do `env.ts`.
+
+### Compressão HTTP + cache de assets
+
+- **Comportamento:** bundle e JSON passam a trafegar comprimidos nos dois ambientes; assets com hash de conteúdo são servidos do cache em vez de revalidados a cada carregamento.
+- **Cobre:** A-05.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** `encode zstd gzip` no bloco do site do `deploy/Caddyfile`; `@static path /assets/*` com `Cache-Control: public, max-age=31536000, immutable` (seguro — o Vite gera nome com hash); `compression()` no Express **antes das rotas**, com `filter` excluindo `/api/iot/stream`; teste garantindo que o SSE continua entregando chunk a chunk; `curl -H "Accept-Encoding: gzip,br" -I` contra os dois ambientes confirmando o cabeçalho.
+- **Depende de:** —
+- **Risco/observações:** único item da fase que não depende da instrumentação — o laudo o isenta explicitamente. O risco real é comprimir SSE e quebrar o streaming (o buffer de compressão segura o chunk); por isso o filtro tem teste próprio, não confiança.
+
+### Índices de FK
+
+- **Comportamento:** nenhuma mudança visível ao usuário; as travessias de posse e as cascatas `ON DELETE` deixam de fazer seq scan.
+- **Cobre:** A-01, B-05.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** `@@index([userId])` em `Property` e `Alert`; `@@index([distributorId])` em `Property`; `@@index([propertyId])` em `Area`; `@@index([areaId])` em `Device`; índice de suporte ao expurgo em `MeterReading.minuteStart` isolado. Migração puramente aditiva e reversível; `EXPLAIN` de `resolveUserMeterIds` antes e depois sobre a massa sintética, anexado à issue.
+- **Depende de:** Instrumental de medição.
+- **Risco/observações:** o Prisma Migrate cria a *constraint* de FK mas não o índice no PostgreSQL (difere do MySQL) — é a razão de nenhuma dessas colunas estar indexada hoje, confirmada na varredura das migrações.
+
+### Retenção de `meter_readings` e das outras três entidades
+
+- **Comportamento:** o banco para de crescer indefinidamente; `PurgeSummary` ganha uma entrada por entidade nova.
+- **Cobre:** A-04 etapa 1 · issues #236, #267.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:** `RetentionService` estendido para `MeterReading`, `AlertTriggerEvent`, `MfaBackupCode` e `TariffFlagHistory`, cada uma com seu `DATA_RETENTION_*_DAYS` em `env.ts` (nunca hardcoded, mesmo padrão das quatro já cobertas); prazo de `MeterReading` decidido a partir do crescimento real medido na instrumentação; `RIPD.md` §3.3 atualizado com o resultado; testes por entidade no padrão de `retention.service.test.ts`; `RetentionPurgeScheduler` sem mudança de contrato para as entidades já cobertas.
+- **Depende de:** Instrumental de medição; Índices de FK (índice de suporte ao expurgo).
+- **Risco/observações:** **as duas issues precisam ter os critérios de aceite reescritos antes de virarem trabalho** — #236 ainda pede apoio jurídico e fala em "condicionar a política da Fase 14"; #267 ainda trata `MeterReading` como o dado de maior risco LGPD. A ADR-0014 tirou o titular real da equação. A **política de conta inativa** que #267 pede fica **fora do escopo**: sem titular real, não tem objeto.
+
+### Cache in-process de bandeira tarifária e distribuidoras
+
+- **Comportamento:** o custo por requisição de consumo cai sem mudar nenhuma resposta.
+- **Cobre:** M-03.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:** `TariffFlagConfig` e o catálogo de distribuidoras servidos de cache em processo, com invalidação amarrada ao job de sincronização da ANEEL; teste de que a mudança de bandeira propaga sem reiniciar o processo.
+- **Depende de:** Instrumental de medição.
+- **Risco/observações:** elimina 2 das 6–8 queries de *cada* chamada de consumo — o ganho é multiplicativo sobre o fan-out, e é a razão de vir antes dos itens que atacam o fan-out em si.
+
+### `resolveRootProperty` / `resolveMeterTarget` em uma query
+
+- **Comportamento:** a resolução de posse deixa de custar até 3 round trips sequenciais.
+- **Cobre:** M-11.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:** `include` aninhado no lugar dos lookups encadeados device → area → property; contagem de queries por requisição medida antes e depois; **teste dedicado de `resolveRootProperty`** entregue junto.
+- **Depende de:** Instrumental de medição.
+- **Risco/observações:** `resolveRootProperty` é a primitiva central de autorização de posse e hoje não tem cobertura dedicada — o teste que a Fase 15.5 prevê é **antecipado para cá**, não deixado para depois. Refatorar sem rede uma primitiva de autorização troca risco de performance por risco de segurança, que é o pior negócio possível.
+
+### N+1 de `AlertService.findAll` + `enabledCount` no envelope
+
+- **Comportamento:** listar alertas deixa de custar até 124 queries por página; a `AlertsPage` para de fazer uma segunda listagem só para contar um KPI.
+- **Cobre:** A-02, B-08.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:** `resolveMeterTarget` resolvido em lote (`findMany({ where: { id: { in: meterIds } } })` + `Map<meterId, target>`) ou `include` aninhado único; `enabledCount` exposto no envelope paginado (ou `GET /api/alerts/stats`); `AlertsPage` passa a consumir esse campo e a segunda chamada `useAlerts(1, 31)` é removida; contagem de queries por requisição medida antes e depois.
+- **Depende de:** Instrumental de medição; `resolveRootProperty`/`resolveMeterTarget` em uma query.
+- **Risco/observações:** a amplificação real vem do `RealtimeContext`, que invalida `queryKeys.alerts.all` a **todo** evento `alert-firing` — ~150 queries por episódio, por aba aberta. Sem este item, cada alerta que dispara é uma tempestade de queries.
+
+### Endpoint batch de consumo
+
+- **Comportamento:** o painel e as páginas de propriedade/área param de disparar uma requisição por filho e passam a resolver a comparação inteira numa chamada.
+- **Cobre:** A-03.
+- **Priority:** P1 · **Size:** L
+- **Critérios de aceite:** `GET /api/consumption/summary?targetType=&ids=&granularity=` resolvendo em 1 requisição e 1 query com `GROUP BY "meterId", bucket`; validação Zod na borda incluindo teto de itens em `ids`; **autorização de posse verificada por id da lista**, não só para o primeiro; adoção nos três pontos de fan-out (`PropertyComparisonSection`, `PropertyDetailsPage`, `AreaDetailsPage`); o `pageSize: 3` que existe só para não colidir `queryKey` desaparece junto.
+- **Depende de:** Instrumental de medição; cache in-process; `resolveRootProperty`/`resolveMeterTarget` em uma query.
+- **Risco/observações:** maior ganho da fase e maior superfície — **endpoint novo é superfície de autorização nova**, não só de performance. Se ficar grande demais na execução, quebrar em "endpoint + testes" e "adoção no frontend"; é o único item L da fase e a trava de tamanho do `06` se aplica.
+
+### `countBuckets` com `COUNT(*) OVER ()`
+
+- **Comportamento:** paginar consumo deixa de custar uma segunda varredura agregada idêntica.
+- **Cobre:** M-02.
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:** contagem obtida via window function na própria `findAggregated` em vez da subquery duplicada de `countBuckets`; resultado idêntico ao atual verificado por teste; `EXPLAIN` antes e depois.
+- **Depende de:** Instrumental de medição.
+- **Risco/observações:** classificado pelo laudo como "só com número na mão" — se a medição mostrar que a segunda varredura é barata no volume real, o item vira YAGNI e é fechado com justificativa, não implementado por ritual.
+
+### Pool de conexões explícito
+
+- **Comportamento:** o pool passa a ter tamanho e timeout deliberados em vez de default implícito.
+- **Cobre:** M-12.
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:** `max`, `connectionTimeoutMillis` e `idleTimeoutMillis` configurados no `PrismaPg` (`shared/database/prisma.ts`, hoje instanciado só com `connectionString`), vindos de `env.ts`, dimensionados pelo número medido na instrumentação — não por chute.
+- **Depende de:** Instrumental de medição.
+- **Risco/observações:** dimensionar pool sem medir troca um default razoável por um número inventado. É por isso que é P2 e depende da medição, ao contrário do que o objetivo anterior desta fase afirmava.
+
+**Fora do escopo desta fase, com destino:**
+
+| Achado | Destino | Por quê |
+|---|---|---|
+| A-06 (React Compiler), M-04 (code-splitting), B-02, B-07, B-11, B-12 | **Fase 17** | Já é o escopo declarado da 17 — e o baseline de bundle/render (`rollup-plugin-visualizer`, React DevTools Profiler) vai junto, para medir e corrigir na mesma fase |
+| M-01, M-05, M-06, M-07, M-09, M-13 | **Fase 16** | Worker IoT e simulador, escopo declarado da 16 |
+| A-04 **etapa 2** (rollup materializado por hora/dia) | **Adiado, com gate** | Tabela/componente novo exige ADR (`03-arquitetura.md`). Só se `findAggregated` sobre 1 ano medido estourar o orçamento de latência — senão a etapa 1 sozinha resolve e o resto é YAGNI |
+| M-10 (export LGPD sem limite, PDF síncrono) | **Adiado sem fase** | Sem titular real (ADR-0014), o export não tem volume que justifique o trabalho |
+| B-01, B-03, B-04, B-06, B-09, B-10 | **Fase 18** | Polimento de baixo impacto |
+
+**Justificativa de sequenciamento (o que não é óbvio):** a compressão vem antes de tudo apesar de não ser o maior ganho, porque é a única coisa da fase que não depende de medição e entrega no primeiro dia. Os índices e o expurgo vêm antes de cache, N+1 e endpoint batch porque são o que impede o custo de **crescer** — otimizar query antes de indexar mede o cenário errado e leva à conclusão errada sobre o que otimizar depois.
+
+## Fases 15.5–18 (objetivo — serão detalhadas ao chegar)
+
+> Mesmo planejamento just-in-time do bloco anterior: detalhar agora é escrever o que será reescrito antes de executar. Os achados que cada uma cobre ficam listados para rastreabilidade.
 
 ### Fase 15.5 — Enforcement de qualidade + comentários de rastreabilidade (P1)
 
@@ -1138,6 +1259,8 @@ Cobre o escopo original (quebrar `ModbusTcpConnection.ts` em um arquivo por adap
 ### Fase 17 — Frontend: tempo real e bundle (P2)
 
 Cobre: React Compiler habilitado (o código já é compiler-clean por lint e vários comentários citam o compilador — **colhe zero benefício dele hoje**) + separação do `RealtimeContext` em conexão/leituras; buffer de potência circular com downsampling (hoje O(n) por amostra sobre até 86.400 pontos, com o `useMemo` do gráfico nunca acertando); `useLiveMeterReading` sem render a cada 2 s; code-splitting por rota + `manualChunks` isolando `recharts` e a stack markdown (hoje `/login` baixa as duas dependências mais pesadas do projeto). Achados de 2026-08-22 confirmam este escopo sem item novo.
+
+**Inclui o baseline de medição do frontend, movido da Fase 15 no detalhamento de 2026-08-24:** `rollup-plugin-visualizer` no build (gzip do chunk inicial, com `recharts` e a stack markdown identificados) e React DevTools Profiler com "why did this render", 60 s no Painel. A Fase 15 instrumenta o banco porque corrige o banco lá; medir o frontend uma fase antes de corrigi-lo separaria o número da decisão que ele existe para tomar — o instrumental entra junto com as correções que decide (A-06, M-04, B-02, B-07).
 
 ### Fase 18 — Design system, cobertura e polimento (P2)
 
