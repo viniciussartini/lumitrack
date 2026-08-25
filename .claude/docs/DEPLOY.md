@@ -582,6 +582,10 @@ Ver [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a lim
 **`pg_stat_statements` (Fase 15, instrumentação de desempenho).** `docker-compose.yml` já sobe o serviço `postgres` com `shared_preload_libraries=pg_stat_statements` e monta `deploy/enable-pg-stat-statements.sql` — em volume **novo**, isso basta (o init script roda sozinho no primeiro boot). No volume **já provisionado** desta VPS (existe desde a Fase 13.7, antes desta mudança), a extensão exige dois passos manuais depois de atualizar o `docker-compose.yml`:
 
 ```bash
+# 0. Carrega POSTGRES_USER/POSTGRES_DB de deploy/.env na sessão (mesmo padrão
+#    já usado no passo 7) — só nesta sessão SSH, não persiste.
+set -a && source deploy/.env && set +a
+
 # 1. Recria o container postgres com o command: novo (shared_preload_libraries
 #    só tem efeito com o servidor reiniciado — CREATE EXTENSION sozinho não basta)
 docker compose up -d postgres
