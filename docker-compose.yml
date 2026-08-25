@@ -11,14 +11,32 @@ services:
   postgres:
     image: postgres:16
     restart: unless-stopped
+    # `shared_preload_libraries` só tem efeito com o servidor iniciado com a
+    # flag — não dá para ativar via `CREATE EXTENSION` depois (Fase 15,
+    # instrumentação de desempenho). `pg_stat_statements.track=all` inclui
+    # queries chamadas de dentro de função, não só as de nível superior.
+    # NOTA para o volume já provisionado da Fase 13.7: mudar este `command`
+    # exige `docker compose up -d postgres` (recria o container) E rodar
+    # manualmente `CREATE EXTENSION IF NOT EXISTS pg_stat_statements;` — o
+    # init script abaixo só roda sozinho em volume novo, vazio.
+    command:
+      [
+        "postgres",
+        "-c",
+        "shared_preload_libraries=pg_stat_statements",
+        "-c",
+        "pg_stat_statements.track=all",
+      ]
     env_file:
       - deploy/.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Roda uma única vez, no primeiro boot com volume vazio — cria o
-      # papel de runtime sem DDL (deploy/create-app-role.sql). Reprovisionar
-      # do zero (ex.: volume novo) recria a role automaticamente.
+      # Rodam uma única vez, no primeiro boot com volume vazio — criam o
+      # papel de runtime sem DDL (deploy/create-app-role.sql) e habilitam a
+      # extensão de instrumentação (deploy/enable-pg-stat-statements.sql).
+      # Reprovisionar do zero (ex.: volume novo) recria os dois automaticamente.
       - ./deploy/create-app-role.sql:/docker-entrypoint-initdb.d/10-create-app-role.sql:ro
+      - ./deploy/enable-pg-stat-statements.sql:/docker-entrypoint-initdb.d/20-enable-pg-stat-statements.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s

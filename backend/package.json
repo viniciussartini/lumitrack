@@ -25,7 +25,8 @@
         "db:reset": "prisma migrate reset",
         "backfill:cpf-cnpj": "tsx scripts/backfill-cpf-cnpj-encryption.ts",
         "backfill:address": "tsx scripts/backfill-address-encryption.ts",
-        "promote-admin": "tsx scripts/promote-admin.ts"
+        "promote-admin": "tsx scripts/promote-admin.ts",
+        "perf:generate-baseline-data": "tsx scripts/generate-performance-baseline-data.ts"
     },
     "keywords": [],
     "author": "",

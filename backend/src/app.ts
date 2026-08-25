@@ -12,6 +12,7 @@ import { createGlobalRateLimiter, createAuthRateLimiter } from "@/shared/middlew
 import { decideHttpsRedirect } from "@/shared/security/httpsRedirect.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { AuditService } from "@/shared/audit/audit.service.js"
+import { createQueryCountMiddleware } from "@/shared/database/queryCounter.js"
 import { PrismaClient } from "@/generated/prisma/client.js"
 import { prisma } from "@/shared/database/prisma.js"
 import type { SendPasswordResetEmailFn } from "@/modules/auth/auth.service.js"
@@ -171,6 +172,14 @@ export function createApp(deps: AppDependencies = {}) {
 
     app.use(express.json())
     app.use(express.urlencoded({ extended: true }))
+
+    // Instrumentação de desempenho (Fase 15) — conta queries Prisma por
+    // requisição, restrita a /api/alerts e /api/consumption (N+1 e fan-out
+    // sob investigação). Fail-closed: env.ts proíbe DEBUG_QUERY_LOGGING_ENABLED
+    // em produção, então este middleware nunca existe fora de dev/staging.
+    if (env.DEBUG_QUERY_LOGGING_ENABLED) {
+        app.use(createQueryCountMiddleware(["/api/alerts", "/api/consumption"]))
+    }
 
     const authenticate = createAuthenticateMiddleware(prismaClient)
     const auditService = new AuditService(new AuditRepository(prismaClient))

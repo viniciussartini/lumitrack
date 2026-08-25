@@ -167,6 +167,16 @@ export const envSchema = z
         // (ex.: "broker.local,192.168.0.0/16,10.0.5.20/32"). Vazio = nenhuma
         // exceção liberada, só destino público de fato alcançável na internet.
         IOT_ALLOWED_HOSTS: z.string().optional(),
+
+        // Instrumentação de desempenho (Fase 15, issue de instrumentação) —
+        // conta quantas queries Prisma cada requisição de /api/alerts e
+        // /api/consumption dispara, via prisma.$on('query') + AsyncLocalStorage
+        // (ver shared/database/queryCounter.ts). Nunca pode ir para produção
+        // ligada: o log de query em caminho quente vira o próprio gargalo que
+        // deveria medir. Default `false` (fail-closed, mesmo padrão de
+        // REGISTRATION_ENABLED) — o `.refine` abaixo barra `true` em produção
+        // mesmo que alguém configure a variável por engano.
+        DEBUG_QUERY_LOGGING_ENABLED: z.stringbool().default(false),
     })
     .refine((data) => !(data.NODE_ENV === "production" && data.CORS_ORIGIN === "*"), {
         message:
@@ -203,6 +213,11 @@ export const envSchema = z
             path: ["DATABASE_HTTP_TEST_URL"],
         },
     )
+    .refine((data) => !(data.NODE_ENV === "production" && data.DEBUG_QUERY_LOGGING_ENABLED), {
+        message:
+            "DEBUG_QUERY_LOGGING_ENABLED não pode ser true em produção — contar/logar toda query Prisma em caminho quente é o próprio gargalo que a instrumentação deveria medir",
+        path: ["DEBUG_QUERY_LOGGING_ENABLED"],
+    })
 
 const parsed = envSchema.safeParse(process.env)
 

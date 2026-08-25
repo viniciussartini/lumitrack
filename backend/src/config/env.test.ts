@@ -155,6 +155,47 @@ describe("envSchema — REGISTRATION_ENABLED default fail-closed (ADR-0014)", ()
     })
 })
 
+describe("envSchema — DEBUG_QUERY_LOGGING_ENABLED fail-closed em produção (Fase 15)", () => {
+    it("aplica default `false` quando ausente", () => {
+        const result = envSchema.safeParse(baseValidEnv)
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DEBUG_QUERY_LOGGING_ENABLED).toBe(false)
+        }
+    })
+
+    it("liga em development", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            NODE_ENV: "development",
+            DEBUG_QUERY_LOGGING_ENABLED: "true",
+        })
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DEBUG_QUERY_LOGGING_ENABLED).toBe(true)
+        }
+    })
+
+    it("rejeita DEBUG_QUERY_LOGGING_ENABLED='true' quando NODE_ENV=production", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            NODE_ENV: "production",
+            DEBUG_QUERY_LOGGING_ENABLED: "true",
+        })
+
+        expect(result.success).toBe(false)
+        if (!result.success) {
+            const issue = result.error.issues.find(
+                (i) => i.path[0] === "DEBUG_QUERY_LOGGING_ENABLED",
+            )
+            expect(issue).toBeDefined()
+            expect(issue?.message).toMatch(/não pode ser true em produção/)
+        }
+    })
+})
+
 describe("envSchema — DATABASE_TEST_URL/DATABASE_HTTP_TEST_URL (#165)", () => {
     it("rejeita NODE_ENV=test sem DATABASE_TEST_URL", () => {
         const result = envSchema.safeParse({

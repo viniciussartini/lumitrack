@@ -579,6 +579,22 @@ ssh -f -N -L 3001:localhost:3001 <usuario>@<ip-da-vm>
 
 Ver [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a limitação estrutural aceita: como o Kuma roda na mesma máquina que monitora, **ele não detecta a VM inteira fora do ar** — se ela cair, o monitor cai junto e nenhum alerta sai. É um risco assumido, não um esquecimento.
 
+**`pg_stat_statements` (Fase 15, instrumentação de desempenho).** `docker-compose.yml` já sobe o serviço `postgres` com `shared_preload_libraries=pg_stat_statements` e monta `deploy/enable-pg-stat-statements.sql` — em volume **novo**, isso basta (o init script roda sozinho no primeiro boot). No volume **já provisionado** desta VPS (existe desde a Fase 13.7, antes desta mudança), a extensão exige dois passos manuais depois de atualizar o `docker-compose.yml`:
+
+```bash
+# 1. Recria o container postgres com o command: novo (shared_preload_libraries
+#    só tem efeito com o servidor reiniciado — CREATE EXTENSION sozinho não basta)
+docker compose up -d postgres
+
+# 2. Confirma que o preload pegou, então habilita a extensão (idempotente)
+docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -c "SHOW shared_preload_libraries;"
+docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -f /docker-entrypoint-initdb.d/20-enable-pg-stat-statements.sql
+```
+
+Consultar depois: `SELECT query, calls, mean_exec_time, total_exec_time FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 20;` — o método completo (massa sintética, `EXPLAIN`, contagem de query por requisição) está em `.claude/docs/{DATA}-baseline-desempenho.md`.
+
 ### 11. Verificação ponta a ponta
 
 - [ ] Login com conta de demonstração funciona (`POST /api/auth/demo-login`).

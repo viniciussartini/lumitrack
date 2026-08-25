@@ -1,7 +1,7 @@
 import { createApp } from "@/app.js"
 import { env } from "@/config/env.js"
 import { logger } from "@/shared/logger/logger.js"
-import { prisma } from "@/shared/database/prisma.js"
+import { prisma, getPoolStats } from "@/shared/database/prisma.js"
 import { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
 import { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import { MinuteRollupScheduler } from "@/modules/iot/iot-worker/MinuteRollupScheduler.js"
@@ -68,7 +68,11 @@ const alertEvaluator = new AlertEvaluator(
 const manager = IoTConnectionManager.getInstance()
 const processor = new IoTDataProcessor(manager)
 
-const scheduler = new MinuteRollupScheduler(processor.buffer, new MeterReadingRepository(prisma))
+const scheduler = new MinuteRollupScheduler(
+    processor.buffer,
+    new MeterReadingRepository(prisma),
+    getPoolStats,
+)
 
 // Registra o processor no manager ANTES de restaurar as conexões,
 // garantindo que nenhuma leitura seja perdida durante o boot.

@@ -26,6 +26,46 @@ describe("MinuteRollupScheduler", () => {
             expect(repository.upsertMinute).not.toHaveBeenCalled()
         })
 
+        it("não consulta as estatísticas do pool quando não há baldes a persistir", async () => {
+            const repository = fakeRepository()
+            const getPoolStats = vi.fn()
+            const scheduler = new MinuteRollupScheduler(buffer, repository, getPoolStats)
+
+            await scheduler.flush()
+
+            expect(getPoolStats).not.toHaveBeenCalled()
+        })
+
+        it("consulta as estatísticas do pool após persistir baldes (instrumentação de desempenho)", async () => {
+            const repository = fakeRepository()
+            const getPoolStats = vi.fn().mockReturnValue({
+                totalCount: 5,
+                idleCount: 3,
+                waitingCount: 0,
+            })
+            const scheduler = new MinuteRollupScheduler(buffer, repository, getPoolStats)
+
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0.001,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 1,
+                },
+                new Date("2026-01-15T14:37:30.000Z"),
+            )
+
+            vi.useFakeTimers()
+            vi.setSystemTime(new Date("2026-01-15T14:38:00.000Z"))
+            await scheduler.flush()
+            vi.useRealTimers()
+
+            expect(getPoolStats).toHaveBeenCalledTimes(1)
+        })
+
         it("persiste cada balde completo via upsertMinute", async () => {
             const repository = fakeRepository()
             const scheduler = new MinuteRollupScheduler(buffer, repository)
