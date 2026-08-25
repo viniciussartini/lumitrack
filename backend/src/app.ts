@@ -1,6 +1,7 @@
 import express, { type RequestHandler } from "express"
 import cors from "cors"
 import helmet from "helmet"
+import compression from "compression"
 import cookieParser from "cookie-parser"
 import { pinoHttp } from "pino-http"
 import type { Logger } from "pino"
@@ -13,6 +14,7 @@ import { decideHttpsRedirect } from "@/shared/security/httpsRedirect.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { AuditService } from "@/shared/audit/audit.service.js"
 import { createQueryCountMiddleware } from "@/shared/database/queryCounter.js"
+import { shouldCompress } from "@/shared/middlewares/compressionFilter.js"
 import { PrismaClient } from "@/generated/prisma/client.js"
 import { prisma } from "@/shared/database/prisma.js"
 import type { SendPasswordResetEmailFn } from "@/modules/auth/auth.service.js"
@@ -143,6 +145,13 @@ export function createApp(deps: AppDependencies = {}) {
             credentials: true,
         }),
     )
+
+    // Compressão HTTP (A-05, Fase 15) — antes de qualquer rota, para que
+    // nenhuma resposta escape sem passar pelo filtro. `shouldCompress` exclui
+    // o stream SSE de ingestão IoT: comprimir segurar-ia os chunks até
+    // acumular um bloco, quebrando a entrega em tempo real (ver
+    // shared/middlewares/compressionFilter.ts).
+    app.use(compression({ filter: shouldCompress }))
 
     // Health check fica fora do rate limit (monitoramento / load balancer).
     app.get("/health", (_req, res) => {

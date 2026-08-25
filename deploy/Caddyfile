@@ -8,6 +8,14 @@
 # em deploy/provision-vm.sh).
 
 {$DOMAIN} {
+    # Compressão HTTP (A-05, Fase 15) — cobre o bundle estático e, quando a
+    # resposta de /api/* chega sem Content-Encoding do backend, também a API
+    # (o backend já comprime por conta própria, ver app.ts; encode aqui é
+    # defesa em profundidade e o que cobre o ambiente Render/staging, que não
+    # passa pelo Caddy). Nunca duplica: Caddy não recomprime resposta que já
+    # chegou com Content-Encoding.
+    encode zstd gzip
+
     handle /api/* {
         reverse_proxy backend:3333
     }
@@ -26,6 +34,14 @@
         root * /srv
         try_files {path} /index.html
         file_server
+
+        # Cache longo e imutável para os assets com hash de conteúdo que o
+        # Vite gera (ex.: index-C7g-RjOv.js) — seguro porque um conteúdo
+        # novo sempre vem com um nome de arquivo novo, nunca reaproveita o
+        # mesmo caminho. Sem isto, o navegador revalida (304) a cada
+        # carregamento em vez de servir do cache local.
+        @static path /assets/*
+        header @static Cache-Control "public, max-age=31536000, immutable"
     }
 
     header {
