@@ -440,6 +440,8 @@ docker compose exec postgres psql -U lumitrack_app -d "$POSTGRES_DB" -c 'CREATE 
 
 Essa mensagem de erro é o resultado *correto* — confirma que o usuário de runtime realmente não consegue alterar a estrutura do banco, mesmo que o backend inteiro seja comprometido por alguma falha futura.
 
+**Nota para migrações futuras contra o banco já em produção (não se aplica ao primeiro deploy, com o banco vazio):** o Prisma Migrate usa `CREATE INDEX` simples, não `CREATE INDEX CONCURRENTLY` — a criação toma lock `SHARE` na tabela, bloqueando escrita por alguns instantes. Em tabelas pequenas isso é imperceptível; numa tabela grande com ingestão contínua (`meter_readings`, alimentada pelo `MinuteRollupScheduler` a cada minuto), planeje a janela: o flush que cair durante a criação do índice falha, mas é reprocessado automaticamente no próximo minuto (`MinuteRollupScheduler` devolve o balde ao buffer em caso de erro) — sem perda de dado, só um erro pontual no log.
+
 **7.2 — Buildar o frontend.**
 
 O frontend é um site estático (HTML/CSS/JS puro depois de compilado) — não roda como container próprio, o Caddy só serve os arquivos direto de uma pasta (`frontend/dist`). Como a VPS não tem Node.js instalado no sistema (só dentro dos containers), o build roda dentro de um container Node **descartável**, criado só para essa tarefa:

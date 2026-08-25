@@ -135,18 +135,30 @@ necessidade funcional.
 > não mais um prazo LGPD a cumprir. Issue #236 (que levantou esta pergunta)
 > foi reclassificada de conformidade para desempenho com essa conclusão.
 >
-> **Decisão final (2026-08-24, issue #236):** o prazo é **365 dias**, não os
-> 60–90 sugeridos acima. A instrumentação de #276 mediu o crescimento real
-> pela primeira vez: ~2 GiB/ano para os 11 medidores da demo, um teto
-> **conhecido e estável** (a ADR-0014 fixou os ambientes como
-> permanentemente sintéticos — o número não escala com adoção de usuário
-> real, só com o tempo corrido). Nesse patamar, o argumento de custo de
-> armazenamento por si só é fraco; a escolha de manter um ano inteiro de
-> granularidade fina é deliberada — mantém a opção de uma comparação
-> minuto a minuto ano contra ano no futuro, mesmo sem nenhum RF que peça
-> isso hoje —, não uma necessidade imposta pelo orçamento de disco.
+> **Decisão final (2026-08-24):** o prazo é **365 dias**, não os 60–90
+> sugeridos acima. A instrumentação mediu o crescimento real pela primeira
+> vez: ~2 GiB/ano para os 11 medidores da demo, um teto **conhecido e
+> estável** (a ADR-0014 fixou os ambientes como permanentemente sintéticos
+> — o número não escala com adoção de usuário real, só com o tempo
+> corrido). Nesse patamar, o argumento de custo de armazenamento por si só
+> é fraco; a escolha de manter um ano inteiro de granularidade fina é
+> deliberada — folga generosa sobre a janela de 60–90 dias que já bastava
+> para contestação de fatura/suporte técnico, não uma necessidade imposta
+> pelo orçamento de disco.
+>
+> **Correção de escopo:** uma versão anterior desta nota também justificava
+> os 365 dias como "mantém a opção de comparação minuto a minuto ano contra
+> ano no futuro". Isso não se sustenta com o desenho implementado: a janela
+> é **rolante** (expurgo diário mantém sempre "os últimos 365 dias", não um
+> calendário fixo), então dois pontos no tempo separados por um ano nunca
+> coexistem na tabela, exceto por poucos dias na borda exata da janela. Uma
+> comparação ano a ano de verdade exigiria um desenho diferente (ex.:
+> retenção por calendário, ou um agregado separado) — não decidido aqui e
+> não implementado por #267. Removido como justificativa; os 365 dias
+> continuam a decisão, sustentados pelo custo trivial e pela folga sobre a
+> janela mínima necessária.
 
-### 3.3 Conclusão e recomendação — decidido (Fase 15, issue #236)
+### 3.3 Conclusão e recomendação — decidido
 
 **A granularidade de minuto não se justifica pelo RF12** (que só consulta
 hora/dia/mês/ano) **nem pela aba "Hora"** (que só olha a hora corrente,
@@ -157,22 +169,28 @@ mais uma recomendação de conformidade a validar com apoio jurídico — é uma
 decisão de desenho de armazenamento tomada com número medido, não estimado:
 
 - `MeterReading` é retida em granularidade de minuto por **365 dias**
-  (`DATA_RETENTION_METER_READING_DAYS`, implementado pela issue #267) —
-  cobre com folga a janela de contestação de fatura e investigação de
-  suporte técnico que motivou a faixa original de 60–90 dias, e mantém um
-  ano completo de detalhe fino a um custo medido e trivial (~2 GiB/ano,
-  ver `.claude/docs/2026-08-24-baseline-desempenho.md` §4).
-- Após essa janela, compactar para um agregado horário (ou descartar a
-  linha de minuto e reter só o que já foi somado em `MeterReading`
-  agregada por hora/dia — issue #267 decide o desenho de expurgo)
-  continua o destino da linha além de 365 dias.
+  (`DATA_RETENTION_METER_READING_DAYS`) — cobre com folga a janela de
+  contestação de fatura e investigação de suporte técnico que motivou a
+  faixa original de 60–90 dias, e mantém um ano completo de detalhe fino a
+  um custo medido e trivial (~2 GiB/ano, ver
+  `.claude/docs/2026-08-24-baseline-desempenho.md` §4).
+- **O que foi de fato implementado é expurgo definitivo (`DELETE`), sem
+  nenhuma compactação.** Não existe hoje um agregado por hora/dia
+  persistido — `MeterReading` é a única tabela de consumo do schema; o
+  agregado que o painel mostra é calculado sob demanda, a cada requisição,
+  a partir das próprias linhas de minuto (`ConsumptionRepository`). Passados
+  os 365 dias, a linha de minuto é apagada e **nenhuma forma agregada dela
+  sobrevive** — não há "reter só o que já foi somado" para reaproveitar
+  depois. Se um agregado persistido (materialização por hora/dia) vier a
+  ser construído no futuro, é um componente novo — exige ADR
+  (`03-arquitetura.md`) e uma reavaliação desta seção antes de ir ao ar.
 
 O benefício de reter menos não é mais o custo de disco — é o custo de
-query em `meter_readings`: #276 mediu `findAggregated` fazendo `Parallel
-Seq Scan` proporcional ao tamanho da tabela (achado A-01). 365 dias mantém
-a tabela ordens de grandeza menor do que "indefinidamente", que é o que o
-laudo de desempenho de 2026-08-22 sinalizou como problema — não elimina o
-achado, mas o limita a um teto conhecido.
+query em `meter_readings`: medição registrada no laudo de desempenho de
+2026-08-22 (achado A-01) mostra `findAggregated` fazendo `Parallel Seq
+Scan` proporcional ao tamanho da tabela. 365 dias mantém a tabela ordens
+de grandeza menor do que "indefinidamente", que é o que o laudo sinalizou
+como problema — não elimina o achado, mas o limita a um teto conhecido.
 
 ## 4. Riscos aos titulares
 
@@ -226,16 +244,16 @@ endereço).
 
 | # | Risco residual | Tratamento planejado |
 |---|---|---|
-| 6.1 | `meter_readings`/`alert_trigger_events` sem prazo de retenção — crescem indefinidamente. Sem titular real (ADR-0014), isso deixa de ser risco de perfil comportamental exposto e passa a ser uma questão de **armazenamento/performance** (a maior tabela do sistema). | **Reclassificado — Fase 15 do roadmap** (desempenho), não mais Fase 14. Sem prazo LGPD a cumprir; decisão de compactação/expurgo, se vier, é por custo/performance, não por conformidade. |
+| 6.1 | `meter_readings`/`alert_trigger_events` sem prazo de retenção — crescem indefinidamente. Sem titular real (ADR-0014), isso deixa de ser risco de perfil comportamental exposto e passa a ser uma questão de **armazenamento/performance** (a maior tabela do sistema). | **Fechado — implementado (2026-08-24).** `RetentionService` estendido: `MeterReading` expurgada por `minuteStart` (365 dias) e `AlertTriggerEvent` por `createdAt` (365 dias) — expurgo definitivo (`DELETE`), sem compactação nem agregado persistido (ver §3.3). Sem prazo LGPD a cumprir — decisão de custo/performance, não de conformidade. |
 | 6.2 | `Meter.extra` (configuração de conexão do dispositivo) podia conter a senha do medidor em texto claro no JSON. | **Fechado.** Corrigido pela issue #182: `shared/crypto/meterCredentialEncryption.ts` cifra `extra.password` (AES-256-GCM, chave própria `METER_CREDENTIAL_ENCRYPTION_KEY`); `MeterResponse` nunca expõe a senha (só `passwordSet: boolean`). Coberto por teste dedicado (`meterCredentialEncryption.test.ts`, `meter.repository.test.ts`). |
 | 6.3 | Transferência internacional do staging (Render/Neon, registros de acesso de visitante, sem SCC). | **Aceito permanentemente — [ADR-0014](adr/0014-ambientes-permanentemente-demonstracao.md).** Deixa de ser "a reavaliar quando abrir cadastro real" (esse cadastro não vai abrir) e passa a ser risco assumido de forma explícita e definitiva enquanto o staging existir com esse papel. A produção (VPS) segue sem transferência internacional (ADR-0008/0012). |
 | 6.4 | Base legal específica desta operação (hoje "execução de contrato", registrada no ROPA) ainda não passou por revisão jurídica formal. | **Deferido — ADR-0014.** Atribuição formal com revisão jurídica só se justifica havendo titular real; não é trabalho ativo enquanto os ambientes forem demonstração. |
 | 6.5 | Sem DSAR (Data Subject Access Request) completo — a exportação hoje existente (`GET /api/users/me/data-export`) não inclui consumo agregado (`MeterReading`) nem disparos (`AlertTriggerEvent`). | **Deferido — ADR-0014.** Sem titular real, não há obrigação de Art. 18 a cumprir nem urgência de produto. |
 
-Nenhum destes riscos é tratado por esta issue — #157 entrega a avaliação,
-não a correção. 6.2 já foi corrigido por outra issue; 6.1 foi reclassificado
-para a Fase 15 (desempenho); 6.3, 6.4 e 6.5 são deferidos pela ADR-0014
-enquanto os ambientes forem permanentemente demonstração.
+Nenhum destes riscos foi tratado pela issue #157 (origem deste RIPD) — ela
+entrega a avaliação, não a correção. 6.1 e 6.2 já foram corrigidos por
+issues próprias; 6.3, 6.4 e 6.5 são deferidos pela ADR-0014 enquanto os
+ambientes forem permanentemente demonstração.
 
 ## 7. Reavaliação
 
@@ -244,12 +262,13 @@ de dados ou no fluxo de tratamento avaliado aqui — no mínimo: alteração da
 granularidade de coleta ou retenção de `MeterReading`, novo campo pessoal
 adicionado à cadeia `MeterReading → ... → User`, mudança de finalidade do
 tratamento de alertas, ou mudança na topologia de hospedagem decidida pela
-ADR-0008 (a revisão de 2026-08-06 já incorporou essa decisão em 6.3, e a
-revisão de 2026-08-23 incorporou a ADR-0014, que tornou 6.3 permanente e
-reclassificou 6.1 para a Fase 15). Se a compactação/expurgo da seção 3.3
-for implementada na Fase 15, este documento deve ser atualizado para
-refletir o desenho final adotado — não deixá-lo descrevendo um estado já
-superado. Se, ao contrário, o próprio projeto decidir abrir cadastro real
-um dia (não planejado, ADR-0014), este RIPD inteiro precisa ser
-reavaliado como parte da auditoria de conformidade exigida antes disso —
-não só a seção 3.3.
+ADR-0008 (a revisão de 2026-08-06 já incorporou essa decisão em 6.3, a
+revisão de 2026-08-23 incorporou a ADR-0014, e a revisão de 2026-08-24
+fechou 6.1 com o desenho final — expurgo definitivo, sem compactação, ver
+§3.3). **Se algum dia um agregado por hora/dia persistido vier a ser
+construído**, esta seção volta a precisar de revisão — o item 6.1 e a §3.3
+descrevem hoje um estado sem esse componente, e introduzi-lo muda tanto o
+risco quanto o texto. Se, ao contrário, o próprio projeto decidir abrir
+cadastro real um dia (não planejado, ADR-0014), este RIPD inteiro precisa
+ser reavaliado como parte da auditoria de conformidade exigida antes
+disso — não só a seção 3.3.

@@ -258,6 +258,9 @@ model MfaBackupCode {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  // Suporte ao expurgo por retenção, que filtra só por usedAt (não userId) —
+  // ver AuthRepository.deleteUsedMfaBackupCodes.
+  @@index([usedAt])
   @@map("mfa_backup_codes")
 }
 
@@ -558,5 +561,10 @@ model AlertTriggerEvent {
   alert Alert @relation(fields: [alertId], references: [id], onDelete: Cascade)
 
   @@index([alertId, startedAt])
+  // Suporte ao expurgo por retenção, que filtra só por createdAt (sem
+  // alertId) — o índice acima tem alertId como coluna líder e não serve
+  // essa varredura, mesma regra de prefixo esquerdo do índice único de
+  // MeterReading.
+  @@index([createdAt])
   @@map("alert_trigger_events")
 }

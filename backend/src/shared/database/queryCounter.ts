@@ -36,7 +36,7 @@ export function getQueryCount(): number | null {
  * informados (ex.: `/api/alerts`, `/api/consumption`), para não instrumentar
  * a API inteira.
  *
- * Instrumentação pura (Fase 15): nunca deve rodar em produção — ver
+ * Instrumentação pura: nunca deve rodar em produção — ver
  * `DEBUG_QUERY_LOGGING_ENABLED` em `config/env.ts`, que falha fechado nesse
  * ambiente. Só tem efeito quando `prisma.$on('query')` está de fato
  * incrementando o contador (`shared/database/prisma.ts`).

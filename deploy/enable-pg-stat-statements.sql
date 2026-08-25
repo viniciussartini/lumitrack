@@ -1,15 +1,15 @@
--- Habilita a extensão de instrumentação de desempenho (Fase 15) no banco de
--- aplicação. Requer `shared_preload_libraries=pg_stat_statements` já
--- ativo no servidor (ver o `command:` do serviço `postgres` em
--- docker-compose.yml) — sem isso, `CREATE EXTENSION` falha porque a
--- biblioteca não foi carregada no boot.
+-- Habilita a extensão de instrumentação de desempenho no banco de aplicação.
+-- Requer `shared_preload_libraries=pg_stat_statements` já ativo no servidor
+-- (ver o `command:` do serviço `postgres` em docker-compose.yml) — sem
+-- isso, `CREATE EXTENSION` falha porque a biblioteca não foi carregada no
+-- boot.
 --
 -- Idempotente: pode rodar mais de uma vez sem erro.
 --
 -- Uso:
 --   - Docker Compose / VPS: montado em /docker-entrypoint-initdb.d/, roda
 --     sozinho no primeiro boot do container postgres com volume vazio.
---   - Volume já provisionado (ex.: VPS da Fase 13.7, antes desta mudança):
+--   - Volume já provisionado (produção já existente antes desta mudança):
 --     depois de recriar o container com o `command:` novo,
 --       docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
 --         -f /docker-entrypoint-initdb.d/20-enable-pg-stat-statements.sql

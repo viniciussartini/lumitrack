@@ -8,13 +8,17 @@
 # em deploy/provision-vm.sh).
 
 {$DOMAIN} {
-    # Compressão HTTP (A-05, Fase 15) — cobre o bundle estático e, quando a
-    # resposta de /api/* chega sem Content-Encoding do backend, também a API
-    # (o backend já comprime por conta própria, ver app.ts; encode aqui é
-    # defesa em profundidade e o que cobre o ambiente Render/staging, que não
-    # passa pelo Caddy). Nunca duplica: Caddy não recomprime resposta que já
-    # chegou com Content-Encoding.
-    encode zstd gzip
+    # Compressão HTTP — cobre o bundle estático e, quando a resposta de
+    # /api/* chega sem Content-Encoding do backend, também a API (o backend
+    # já comprime por conta própria, ver app.ts; encode aqui é defesa em
+    # profundidade e o que cobre o ambiente Render/staging, que não passa
+    # pelo Caddy). Nunca duplica: Caddy não recomprime resposta que já
+    # chegou com Content-Encoding. Exclui /api/iot/stream (SSE) pelo mesmo
+    # motivo do filtro equivalente no Express (shouldCompress, ver
+    # shared/middlewares/compressionFilter.ts): comprimir segura os chunks
+    # no buffer até acumular um bloco, quebrando a entrega em tempo real.
+    @nao_sse not path /api/iot/stream
+    encode @nao_sse zstd gzip
 
     handle /api/* {
         reverse_proxy backend:3333

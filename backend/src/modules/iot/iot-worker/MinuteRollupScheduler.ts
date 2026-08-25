@@ -123,10 +123,10 @@ export class MinuteRollupScheduler {
             }
         }
 
-        // Instrumentação de desempenho (Fase 15, M-12) — o flush do minuto é
-        // o ponto de maior concorrência de escrita do processo (até N
-        // upsertMinute simultâneos), então é onde a saturação do pool mais
-        // aparece. Nível debug: opt-in via LOG_LEVEL, sem custo em produção.
+        // Instrumentação de desempenho — o flush do minuto é o ponto de
+        // maior concorrência de escrita do processo (até N upsertMinute
+        // simultâneos), então é onde a saturação do pool mais aparece.
+        // Nível debug: opt-in via LOG_LEVEL, sem custo em produção.
         const poolStats = this.getPoolStats()
         if (poolStats) {
             log.debug(poolStats, "Estatísticas do pool de conexões após o flush")

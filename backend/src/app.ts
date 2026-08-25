@@ -146,10 +146,10 @@ export function createApp(deps: AppDependencies = {}) {
         }),
     )
 
-    // Compressão HTTP (A-05, Fase 15) — antes de qualquer rota, para que
-    // nenhuma resposta escape sem passar pelo filtro. `shouldCompress` exclui
-    // o stream SSE de ingestão IoT: comprimir segurar-ia os chunks até
-    // acumular um bloco, quebrando a entrega em tempo real (ver
+    // Compressão HTTP — antes de qualquer rota, para que nenhuma resposta
+    // escape sem passar pelo filtro. `shouldCompress` exclui o stream SSE de
+    // ingestão IoT: comprimir segurar-ia os chunks até acumular um bloco,
+    // quebrando a entrega em tempo real (ver
     // shared/middlewares/compressionFilter.ts).
     app.use(compression({ filter: shouldCompress }))
 
@@ -182,10 +182,11 @@ export function createApp(deps: AppDependencies = {}) {
     app.use(express.json())
     app.use(express.urlencoded({ extended: true }))
 
-    // Instrumentação de desempenho (Fase 15) — conta queries Prisma por
-    // requisição, restrita a /api/alerts e /api/consumption (N+1 e fan-out
-    // sob investigação). Fail-closed: env.ts proíbe DEBUG_QUERY_LOGGING_ENABLED
-    // em produção, então este middleware nunca existe fora de dev/staging.
+    // Instrumentação de desempenho — conta queries Prisma por requisição,
+    // restrita a /api/alerts e /api/consumption (N+1 e fan-out sob
+    // investigação). Fail-closed: env.ts proíbe DEBUG_QUERY_LOGGING_ENABLED
+    // em produção — este middleware só existe rodando com NODE_ENV=development
+    // e a flag ligada explicitamente, nunca em qualquer ambiente publicado.
     if (env.DEBUG_QUERY_LOGGING_ENABLED) {
         app.use(createQueryCountMiddleware(["/api/alerts", "/api/consumption"]))
     }

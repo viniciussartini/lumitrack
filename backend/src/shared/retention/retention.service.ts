@@ -10,10 +10,10 @@ const log = logger.child({ module: "RetentionService" })
 // Retenção e expurgo de dados. As 4 primeiras chaves são o número de dias
 // de retenção após o evento que torna o dado "inativo" (token
 // expirado/revogado, reset usado/expirado, log antigo) — depois disso, o
-// dado é removido. As 4 últimas (Fase 15, issue #267, ADR-0014) já não são
-// Art. 15/16 — sem titular real, é armazenamento/performance, não prazo
-// LGPD. Vem de env.ts (DATA_RETENTION_*), nunca hardcoded aqui, para que o
-// período possa ser ajustado sem deploy de código.
+// dado é removido. As 4 últimas (ADR-0014) já não são Art. 15/16 — sem
+// titular real, é armazenamento/performance, não prazo LGPD. Vem de env.ts
+// (DATA_RETENTION_*), nunca hardcoded aqui, para que o período possa ser
+// ajustado sem deploy de código.
 export type RetentionDays = {
     authToken: number
     passwordReset: number

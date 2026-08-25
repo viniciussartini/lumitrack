@@ -9,9 +9,9 @@ import { incrementQueryCount } from "@/shared/database/queryCounter.js"
 
 // Singleton pattern: uma única instância compartilhada em todo o processo.
 // `pgPool` acompanha `prisma` para que `getPoolStats()` (instrumentação de
-// desempenho, Fase 15) leia o mesmo pool de conexões que o client usa —
-// `PrismaPg` não expõe o pool que cria internamente quando recebe só uma
-// connection string, então o pool é criado aqui e passado para ele.
+// desempenho) leia o mesmo pool de conexões que o client usa — `PrismaPg`
+// não expõe o pool que cria internamente quando recebe só uma connection
+// string, então o pool é criado aqui e passado para ele.
 const globalForPrisma = globalThis as unknown as {
     prisma: PrismaClient | undefined
     pgPool: Pool | undefined
@@ -62,8 +62,8 @@ export type PoolStats = {
 
 /**
  * Estatísticas do pool de conexões `pg` subjacente ao Prisma — instrumentação
- * de desempenho (Fase 15), consumida pelo `MinuteRollupScheduler` a cada
- * flush. Não expõe o pool em si, só as três métricas de saturação.
+ * de desempenho, consumida pelo `MinuteRollupScheduler` a cada flush. Não
+ * expõe o pool em si, só as três métricas de saturação.
  */
 export function getPoolStats(): PoolStats {
     return {

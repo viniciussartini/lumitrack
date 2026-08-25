@@ -113,11 +113,10 @@ export class MeterReadingRepository {
     }
 
     /**
-     * Expurgo por retenção (Fase 15, issue #267) — remove leituras mais
-     * antigas que `threshold` por `minuteStart` (não `createdAt`): é o
-     * instante da leitura em si que define a janela de retenção, não quando
-     * a linha foi persistida. Suportado por `meter_readings_minuteStart_idx`
-     * (issue #278).
+     * Expurgo por retenção — remove leituras mais antigas que `threshold`
+     * por `minuteStart` (não `createdAt`): é o instante da leitura em si que
+     * define a janela de retenção, não quando a linha foi persistida.
+     * Suportado pelo índice `meter_readings_minuteStart_idx`.
      */
     async deleteOlderThan(threshold: Date): Promise<number> {
         const result = await this.prisma.meterReading.deleteMany({

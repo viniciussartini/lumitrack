@@ -89,33 +89,37 @@ export const envSchema = z
         // AuditLog usa um prazo mais longo de propósito — equilíbrio entre o
         // Art. 48 (capacidade de reconstruir incidentes) e o Art. 15/16
         // (minimização: não guardar dados além do necessário).
-        DATA_RETENTION_AUTH_TOKEN_DAYS: z.coerce.number().default(30),
-        DATA_RETENTION_PASSWORD_RESET_DAYS: z.coerce.number().default(30),
-        DATA_RETENTION_AUDIT_LOG_DAYS: z.coerce.number().default(730), // ~2 anos
+        // `.int().positive()` em todas — sem isso, `z.coerce.number()` aceita
+        // string vazia/zero/negativo (`Number("") === 0`) e o expurgo vira
+        // `deleteMany({ where: { data: { lt: now } } })`: a tabela inteira.
+        // Falha fechado no boot em vez de apagar dado em produção por uma
+        // variável mal configurada.
+        DATA_RETENTION_AUTH_TOKEN_DAYS: z.coerce.number().int().positive().default(30),
+        DATA_RETENTION_PASSWORD_RESET_DAYS: z.coerce.number().int().positive().default(30),
+        DATA_RETENTION_AUDIT_LOG_DAYS: z.coerce.number().int().positive().default(730), // ~2 anos
 
-        // Extensão da Fase 15 (issues #236/#267, ADR-0014) — deixou de ser
-        // Art. 15/16 (sem titular real, sem prazo LGPD a cumprir) e passou a
-        // ser armazenamento/performance: as 4 tabelas abaixo cresciam sem
-        // nenhum expurgo.
+        // Extensão que deixou de ser Art. 15/16 (sem titular real, sem prazo
+        // LGPD a cumprir) e passou a ser armazenamento/performance: as 4
+        // tabelas abaixo cresciam sem nenhum expurgo.
         //
-        // MeterReading: 365 dias — decisão da issue #236, com o crescimento
-        // real medido em #276 (~2 GiB/ano para os 11 medidores da demo, teto
-        // conhecido e estável pela ADR-0014). Ver RIPD.md §3.3.
-        DATA_RETENTION_METER_READING_DAYS: z.coerce.number().default(365),
+        // MeterReading: 365 dias, com o crescimento real medido (~2 GiB/ano
+        // para os 11 medidores da demo, teto conhecido e estável pela
+        // ADR-0014). Ver RIPD.md §3.3.
+        DATA_RETENTION_METER_READING_DAYS: z.coerce.number().int().positive().default(365),
         // AlertTriggerEvent: mesmo prazo de MeterReading — histórico de
         // episódios de alerta, volume ínfimo perto de MeterReading (só cresce
         // quando um alerta dispara e termina), sem motivo para ser mais curto.
-        DATA_RETENTION_ALERT_TRIGGER_EVENT_DAYS: z.coerce.number().default(365),
+        DATA_RETENTION_ALERT_TRIGGER_EVENT_DAYS: z.coerce.number().int().positive().default(365),
         // MfaBackupCode: mesma família de AUTH_TOKEN/PASSWORD_RESET (30 dias)
-        // — é um crendencial, não um histórico. Conta a partir de `usedAt`,
+        // — é um credencial, não um histórico. Conta a partir de `usedAt`,
         // NUNCA de `createdAt`: um código ainda não usado continua válido
         // para recuperação de conta indefinidamente, até o usuário regerar o
         // conjunto (ver RetentionService — só expurga usedAt != null).
-        DATA_RETENTION_MFA_BACKUP_CODE_DAYS: z.coerce.number().default(30),
+        DATA_RETENTION_MFA_BACKUP_CODE_DAYS: z.coerce.number().int().positive().default(30),
         // TariffFlagHistory: mesmo prazo de AUDIT_LOG (730 dias) — é a mesma
         // categoria de coisa (log histórico imutável de um evento do
         // sistema), não um credencial nem dado de alto volume.
-        DATA_RETENTION_TARIFF_FLAG_HISTORY_DAYS: z.coerce.number().default(730),
+        DATA_RETENTION_TARIFF_FLAG_HISTORY_DAYS: z.coerce.number().int().positive().default(730),
 
         // MFA opcional via TOTP (A06/A07).
         // Chave própria (separada de CPF_CNPJ_ENCRYPTION_KEY) para cifrar o
@@ -158,7 +162,7 @@ export const envSchema = z
         REFRESH_COOKIE_NAME: z.string().default("lumitrack_refresh"),
         REFRESH_CSRF_COOKIE_NAME: z.string().default("lumitrack_refresh_csrf"),
         REFRESH_CSRF_HEADER_NAME: z.string().default("x-refresh-csrf-token"),
-        DATA_RETENTION_REFRESH_TOKEN_DAYS: z.coerce.number().default(30),
+        DATA_RETENTION_REFRESH_TOKEN_DAYS: z.coerce.number().int().positive().default(30),
 
         // Cadastro público (A06/ADR-0008). Desligar em ambiente de demo
         // pública: `POST /api/users` passa a recusar contas novas — é a
@@ -192,10 +196,10 @@ export const envSchema = z
         // exceção liberada, só destino público de fato alcançável na internet.
         IOT_ALLOWED_HOSTS: z.string().optional(),
 
-        // Instrumentação de desempenho (Fase 15, issue de instrumentação) —
-        // conta quantas queries Prisma cada requisição de /api/alerts e
-        // /api/consumption dispara, via prisma.$on('query') + AsyncLocalStorage
-        // (ver shared/database/queryCounter.ts). Nunca pode ir para produção
+        // Instrumentação de desempenho — conta quantas queries Prisma cada
+        // requisição de /api/alerts e /api/consumption dispara, via
+        // prisma.$on('query') + AsyncLocalStorage (ver
+        // shared/database/queryCounter.ts). Nunca pode ir para produção
         // ligada: o log de query em caminho quente vira o próprio gargalo que
         // deveria medir. Default `false` (fail-closed, mesmo padrão de
         // REGISTRATION_ENABLED) — o `.refine` abaixo barra `true` em produção

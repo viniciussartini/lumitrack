@@ -184,8 +184,8 @@ export class AuthRepository {
         return result.count
     }
 
-    // Expurgo por retenção (Fase 15, issue #267) — DIFERENTE dos dois acima
-    // de propósito: só expurga código JÁ USADO há mais de `threshold`
+    // Expurgo por retenção — DIFERENTE dos dois acima de propósito: só
+    // expurga código JÁ USADO há mais de `threshold`
     // (`usedAt: { lt: threshold }` já exclui `usedAt: null` por semântica do
     // Prisma). Um código ainda não usado (`usedAt: null`) nunca é candidato,
     // mesmo muito antigo — continua válido para recuperação de conta até o

@@ -47,10 +47,10 @@ export class AlertTriggerEventRepository {
     }
 
     /**
-     * Expurgo por retenção (Fase 15, issue #267) — remove episódios
-     * persistidos há mais tempo que `threshold`, por `createdAt` (o episódio
-     * já está encerrado quando é criado; não há estado "ativo/inativo"
-     * separado a considerar, ao contrário de token/reset).
+     * Expurgo por retenção — remove episódios persistidos há mais tempo que
+     * `threshold`, por `createdAt` (o episódio já está encerrado quando é
+     * criado; não há estado "ativo/inativo" separado a considerar, ao
+     * contrário de token/reset).
      */
     async deleteOlderThan(threshold: Date): Promise<number> {
         const result = await this.prisma.alertTriggerEvent.deleteMany({

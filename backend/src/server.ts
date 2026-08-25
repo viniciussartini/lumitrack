@@ -88,9 +88,8 @@ processor.addSampleListener((sample) => {
 
 // Retenção e expurgo de dados: roda no boot e a cada 24h. As 4 primeiras
 // entidades são Art. 15/16 LGPD (tokens/resets já inativos, audit logs
-// antigos); as 4 últimas (Fase 15, issue #267, ADR-0014) são
-// armazenamento/performance, sem titular real. Períodos configuráveis via
-// env.DATA_RETENTION_*.
+// antigos); as 4 últimas (ADR-0014) são armazenamento/performance, sem
+// titular real. Períodos configuráveis via env.DATA_RETENTION_*.
 const retentionService = new RetentionService(
     new AuthRepository(prisma),
     new AuditRepository(prisma),

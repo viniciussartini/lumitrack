@@ -12,9 +12,14 @@ describe("shouldCompress", () => {
         expect(shouldCompress(req, {} as express.Response)).toBe(false)
     })
 
-    it("retorna false para sub-caminhos de /api/iot/stream", () => {
-        const req = { path: "/api/iot/stream/anything" } as unknown as express.Request
-        expect(shouldCompress(req, {} as express.Response)).toBe(false)
+    it("NÃO exclui /api/iot/stream-ticket — compartilha o prefixo textual, mas é rota JSON comum, não o stream", () => {
+        const req = {
+            path: "/api/iot/stream-ticket",
+            headers: { "accept-encoding": "gzip" },
+        } as unknown as express.Request
+        const res = { getHeader: () => undefined } as unknown as express.Response
+
+        expect(shouldCompress(req, res)).toBe(compression.filter(req, res))
     })
 
     it("delega ao filtro default do compression para outras rotas", () => {

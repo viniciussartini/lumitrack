@@ -12,13 +12,14 @@ services:
     image: postgres:16
     restart: unless-stopped
     # `shared_preload_libraries` só tem efeito com o servidor iniciado com a
-    # flag — não dá para ativar via `CREATE EXTENSION` depois (Fase 15,
-    # instrumentação de desempenho). `pg_stat_statements.track=all` inclui
-    # queries chamadas de dentro de função, não só as de nível superior.
-    # NOTA para o volume já provisionado da Fase 13.7: mudar este `command`
-    # exige `docker compose up -d postgres` (recria o container) E rodar
-    # manualmente `CREATE EXTENSION IF NOT EXISTS pg_stat_statements;` — o
-    # init script abaixo só roda sozinho em volume novo, vazio.
+    # flag — não dá para ativar via `CREATE EXTENSION` depois.
+    # `pg_stat_statements.track=all` inclui queries chamadas de dentro de
+    # função, não só as de nível superior.
+    # NOTA para um volume já existente (produção já provisionada antes desta
+    # mudança): mudar este `command` exige `docker compose up -d postgres`
+    # (recria o container) E rodar manualmente
+    # `CREATE EXTENSION IF NOT EXISTS pg_stat_statements;` — o init script
+    # abaixo só roda sozinho em volume novo, vazio.
     command:
       [
         "postgres",
