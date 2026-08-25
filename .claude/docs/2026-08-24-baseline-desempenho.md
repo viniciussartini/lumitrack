@@ -105,11 +105,45 @@ Implementado em `backend/src/shared/database/queryCounter.ts`, ligado em `shared
 
 **Verificado por teste unitário** (`MinuteRollupScheduler.test.ts`, 2 casos novos): não consulta o pool quando não há baldes a persistir (evita ruído a cada 60s sem dado novo); consulta exatamente uma vez após persistir. Valores reais de saturação (`totalCount`/`idleCount`/`waitingCount`) exigem processo rodando com IoT real conectado — observável em produção/staging com `LOG_LEVEL=debug`, insumo direto da issue de pool explícito (#285).
 
-## 8. Onde cada achado do laudo fica decidido
+## 8. `EXPLAIN` de `resolveUserMeterIds` antes/depois dos índices de FK (issue #278)
+
+Migração `20260825020345_add_fk_indexes_desempenho` (aditiva, 6 `CREATE INDEX`): `Property.userId`, `Property.distributorId`, `Area.propertyId`, `Device.areaId`, `Alert.userId`, `MeterReading.minuteStart` (suporte ao expurgo de #267). Aplicada em `lumitrack_dev`, `lumitrack_test` e `lumitrack_test_http`.
+
+**Metodologia:** ao contrário de §3 (onde o volume vem da massa sintética de `meter_readings`), aqui o gargalo não é tamanho de `meter_readings` — é a ausência de índice em tabelas que, na produção real, são pequenas (uma linha por propriedade/área/dispositivo físico, não por leitura). Para tornar o filtro por `userId` seletivo o bastante para o planner mostrar diferença, um banco descartável à parte foi populado via SQL direto (bulk insert, mais rápido que `createMany` em lote para este volume): **20.001 usuários, 20.001 propriedades (1:1), 20.001 medidores** (`targetType=PROPERTY`), mais um usuário-alvo isolado com 1 propriedade e 1 medidor — a mesma consulta 3-way `OR` de `resolveUserMeterIds` (`iot-stream.routes.ts:42-55`), traduzida para SQL equivalente, filtrando pelo usuário-alvo. **Antes/depois isolado com `DROP INDEX`/`CREATE INDEX` na mesma massa de dados** — controla a variável única que importa (presença do índice), sem re-gerar dado entre as duas medições.
+
+**Antes (sem os 3 índices que sustentam a cadeia property→area→device):**
+
+```
+Seq Scan on meters m (actual time=7.808..7.811 rows=1)
+  Rows Removed by Filter: 20000
+  Buffers: shared hit=1823
+  SubPlan 1 -> Seq Scan on properties (Rows Removed by Filter: 20000, Buffers: shared hit=445)
+  SubPlan 2 -> Nested Loop -> Seq Scan on properties (Buffers: shared hit=445) -> Seq Scan on areas
+  SubPlan 3 -> Nested Loop -> Nested Loop -> Seq Scan on properties (Buffers: shared hit=445) -> Seq Scan on areas -> Seq Scan on devices
+Execution Time: 7.892 ms
+```
+
+**Depois (com os 3 índices):**
+
+```
+Seq Scan on meters m (actual time=2.215..2.216 rows=1)
+  Rows Removed by Filter: 20000
+  Buffers: shared hit=504
+  SubPlan 1 -> Index Scan using "properties_userId_idx" (Buffers: shared hit=4)
+  SubPlan 2 -> Nested Loop -> Index Scan using "properties_userId_idx" (shared hit=4) -> Bitmap Heap Scan on areas via "areas_propertyId_idx" (shared hit=2)
+  SubPlan 3 -> ... -> Index Scan using "devices_areaId_idx" (never executed — SubPlan 2 já não bateu, curto-circuito do OR)
+Execution Time: 2.282 ms
+```
+
+**Leitura:** as 3 subconsultas (uma por ramo do `OR`: property/area/device) passam de `Seq Scan` (445 buffers e 20.000 linhas descartadas **cada uma**) para `Index Scan`/`Bitmap Heap Scan` (4 e 2 buffers). Tempo total cai de 7,89ms para 2,28ms — **~3,5× neste volume de 20 mil linhas**, com a vantagem crescendo junto do tamanho real da tabela (o `Seq Scan` externo em `meters` permanece — a própria tabela `meters` é pequena o bastante para o planner preferir seq scan nela mesma, comportamento correto e esperado, não um índice faltando). A cascata `ON DELETE` (achado citado no laudo) se beneficia do mesmo jeito: excluir uma `Property` agora localiza as `Area`s dependentes por índice, não por varredura completa de `areas`.
+
+Migração e resultado completo comentados na issue #278.
+
+## 9. Onde cada achado do laudo fica decidido
 
 | Achado do laudo 2026-08-22 | Decidido por este documento | Próximo passo |
 |---|---|---|
-| A-01 (índices de FK) | Confirmado que nenhum índice em `meter_readings` resolve `findAggregated` — o gargalo é tamanho de tabela, não índice ausente nela. A-01 mira `Property`/`Area`/`Device`/`Alert`, tabelas menores, onde o índice ausente é real (não medido aqui — issue própria, #278). | #278 |
+| A-01 (índices de FK) | Confirmado (§3) que nenhum índice em `meter_readings` resolve `findAggregated` — o gargalo lá é tamanho de tabela. Em `Property`/`Area`/`Device`, onde o índice ausente é real, §8 mede ~3,5× de ganho num volume de 20 mil linhas, com os 3 índices já aplicados via migração. | #278 — **concluído** |
 | A-04 etapa 1 (retenção) | Reforçado por §3 e §4: reduzir `meter_readings` ajuda tanto `findAggregated` (menos seq scan) quanto o tamanho físico da tabela+índice. | #236, #267 |
 | M-02 (`countBuckets` duplicado) | Quantificado: 151ms por página só para contar — issue #284 deixa de ser "só com número na mão", o número já existe. | #284 |
 | M-12 (pool sem configuração) | Instrumentação pronta (§7); valores reais dependem de operação real. | #285 |

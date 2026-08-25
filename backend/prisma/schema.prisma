@@ -133,8 +133,8 @@ model User {
   consentVersion String?
 
   // Campos exclusivos de pessoa física
-  firstName String?
-  lastName  String?
+  firstName     String?
+  lastName      String?
   // cpf armazena o valor criptografado (AES-256-GCM, ver shared/crypto/encryption.ts)
   // — não pode ser @unique porque o IV aleatório faz o mesmo CPF gerar
   // ciphertext diferente a cada criptografia. cpfBlindIndex (HMAC-SHA256,
@@ -143,7 +143,7 @@ model User {
   cpfBlindIndex String? @unique
 
   // Campos exclusivos de pessoa jurídica
-  companyName String?
+  companyName    String?
   // cnpj armazena o valor criptografado — mesma lógica do cpf acima.
   cnpj           String?
   cnpjBlindIndex String? @unique
@@ -302,9 +302,9 @@ model AuditLog {
 // concessionária). O custo por kWh agora é decomposto em TUSD + TE + tributos
 // (cálculo "por dentro"), aplicado pelo TariffService.
 model EnergyDistributor {
-  id   String @id @default(uuid())
-  name String
-  cnpj String @unique
+  id    String @id @default(uuid())
+  name  String
+  cnpj  String @unique
   state String // UF (ex.: "SP", "SC") — define a alíquota de ICMS aplicável
 
   // Parcelas da tarifa sem tributos, em BRL/kWh. TUSD = uso do sistema de
@@ -332,7 +332,7 @@ model EnergyDistributor {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Property {
-  id            String   @id @default(uuid())
+  id            String  @id @default(uuid())
   userId        String
   distributorId String
   name          String
@@ -360,6 +360,12 @@ model Property {
   areas       Area[]
   meter       Meter?
 
+  // O Prisma Migrate cria a constraint de FK, mas não o índice no Postgres
+  // (diferente do MySQL) — sem isto, toda travessia de posse (User→Property)
+  // e o filtro por distribuidora fazem seq scan (achado A-01, laudo de
+  // desempenho 2026-08-22).
+  @@index([userId])
+  @@index([distributorId])
   @@map("properties")
 }
 
@@ -375,6 +381,7 @@ model Area {
   devices  Device[]
   meter    Meter?
 
+  @@index([propertyId])
   @@map("areas")
 }
 
@@ -391,6 +398,7 @@ model Device {
   area  Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
   meter Meter?
 
+  @@index([areaId])
   @@map("devices")
 }
 
@@ -422,9 +430,9 @@ model Meter {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  property Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  area     Area?     @relation(fields: [areaId], references: [id], onDelete: Cascade)
-  device   Device?   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  property Property?      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  area     Area?          @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  device   Device?        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   readings MeterReading[]
   alerts   Alert[]
 
@@ -452,6 +460,11 @@ model MeterReading {
   meter Meter @relation(fields: [meterId], references: [id], onDelete: Cascade)
 
   @@unique([meterId, minuteStart])
+  // Índice isolado de suporte ao expurgo por retenção (issue #267, épico
+  // #275) — o expurgo filtra só por minuteStart (`< threshold`), sem
+  // meterId; o índice único acima tem meterId como coluna mais à esquerda,
+  // então não serve para essa varredura por regra de prefixo esquerdo.
+  @@index([minuteStart])
   @@map("meter_readings")
 }
 
@@ -523,6 +536,7 @@ model Alert {
   events AlertTriggerEvent[]
 
   @@index([meterId])
+  @@index([userId])
   @@map("alerts")
 }
 
