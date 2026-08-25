@@ -23,3 +23,28 @@
 **Resultado:** -2 queries por requisição a partir da segunda, exatamente as duas eliminadas (`distributorRepository.findById` e `tariffFlagRepository.get()`) — confirma a expectativa do achado M-03 do laudo de 2026-08-22. O ganho é por processo, não por request: a primeira requisição depois de um boot/deploy ainda paga o custo cheio (cache frio), e o TTL de 5 min do catálogo de distribuidoras eventualmente expira mesmo sem escrita — comportamento esperado e documentado no código, não uma limitação do teste.
 
 **Achado de implementação não previsto no plano original:** `TariffFlagRepository` e `DistributorRepository` são instanciados separadamente em 5 pontos de wiring diferentes (`consumption.routes.ts`, `simulation.routes.ts`, `tariff-flag.routes.ts`, `distributor.routes.ts`, `property.routes.ts`/`export.routes.ts` para o segundo) — todos sobre o mesmo `PrismaClient`/Postgres. Um cache por instância (`this.cache`) deixaria a invalidação feita por uma rota invisível às outras (ex.: a bandeira mudar via `TariffFlagSyncService` não seria vista pela instância usada por `consumption.routes.ts`). O cache foi implementado em nível de **módulo** (variável fora da classe), não de instância — corrige o problema sem tocar nos 5 pontos de wiring. Efeito colateral tratado: esse mesmo estado de módulo sobrevive entre `it()` de um mesmo arquivo de teste, então `cleanDatabase()` (`backend/src/shared/test/clean-database.ts`) agora também limpa os dois caches — sem isso, o primeiro `get()`/`findById()` bem-sucedido de uma suíte vazaria dado obsoleto para os testes seguintes mesmo após o banco ser limpo.
+
+## #281 — resolveRootProperty / resolveMeterTarget em uma única query
+
+**Achado crítico de implementação, não previsto no plano original:** a primeira versão (`include` aninhado simples, sem `relationLoadStrategy`) **não reduziu nenhuma query** — medido, não assumido. O Prisma, por padrão, resolve `include` fazendo **uma query por nível de relação** (a "query strategy"), não um `JOIN` SQL — para `device.findUnique({ include: { area: { include: { property: true } } } })` isso significa 3 `SELECT`s sequenciais nos bastidores do próprio Prisma, exatamente o mesmo custo de encadear `findById` manualmente. Confirmado com o listener `$on("query")`: antes e depois da primeira versão do código, `/api/consumption` com alvo DEVICE mediu **8 queries nos dois casos**.
+
+**Correção:** habilitado o preview feature `relationJoins` do Prisma (`previewFeatures = ["relationJoins"]` em `schema.prisma`, `prisma generate` executado) e adicionado `relationLoadStrategy: "join"` nas 3 queries novas (`AreaRepository.findByIdWithProperty`, `DeviceRepository.findByIdWithProperty`, `MeterRepository.findByIdWithTarget`) — isso força um `JOIN` SQL real de uma única ida ao banco. Opt-in por query: nenhum outro `include` do projeto muda de comportamento, só estes 3 pontos novos pedem explicitamente a estratégia de join.
+
+**Antes/depois — `/api/consumption`, alvo DEVICE (pior caso, 3 níveis: device→área→propriedade):**
+
+| Momento | Queries |
+|---|---|
+| Antes (`resolveRootProperty` com 3 lookups sequenciais) | 8 |
+| Depois, só `include` sem `relationLoadStrategy` (medido, descartado) | 8 (sem ganho) |
+| Depois, com `relationLoadStrategy: "join"` | 6 |
+
+**Antes/depois — `/api/alerts`, `AlertService.findAll`:** duas medições, porque o Prisma já faz batching automático de múltiplas chamadas `findUnique` concorrentes (via `Promise.all`) com a **mesma forma de query** — o achado do laudo (N+1, até 124 queries) só se manifesta por inteiro quando os alvos têm `targetType` **misto**, porque antes cada tipo batia numa tabela/forma de query diferente e o Prisma não conseguia agrupar entre tipos.
+
+| Cenário | Antes | Depois |
+|---|---|---|
+| 5 alertas, todos alvo PROPERTY (mesma forma de query já batchava) | 4 | 3 |
+| 6 alertas, `targetType` misto (2 PROPERTY, 2 AREA, 2 DEVICE) | 9 | 3 |
+
+**Leitura:** o ganho real do #281 para `/api/alerts` não é eliminar o N+1 por si (isso é o #282, que ainda falta), é dar a `resolveMeterTarget` **uma forma de query única para qualquer `targetType`** — isso é o que permite ao Prisma agrupar uma página inteira de alvos mistos numa única query, algo que a versão antiga (branch por tipo, 3 formas de query diferentes) nunca conseguia fazer sozinha. O caso de 5 alertas todos PROPERTY já era parcialmente batchado antes (dataloader do Prisma), por isso mostra um ganho menor (-1) — não é representativo do achado A-02 do laudo, que é sobre a mistura de tipos.
+
+**Teste dedicado:** `backend/src/shared/targetResolution.test.ts` (novo) — 6 casos, cobrindo PROPERTY/AREA/DEVICE e "não encontrado" nos níveis estruturalmente alcançáveis.

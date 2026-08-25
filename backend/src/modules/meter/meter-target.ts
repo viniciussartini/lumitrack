@@ -23,48 +23,44 @@ export type MeterTargetInfo = {
 // em listas de alerta) e o path da página de detalhes no frontend — usado
 // pela notificação para navegar direto ao alvo que disparou o alerta.
 // Retorna null se o medidor não existe ou seu alvo já foi removido.
+//
+// Uma única query (`findByIdWithTarget` resolve os 3 `include` possíveis
+// no mesmo round trip) em vez dos até 3 lookups sequenciais que existiam
+// antes — sem branch por `targetType` no lado da query, só na montagem do
+// resultado.
 export async function resolveMeterTarget(
     repos: MeterTargetRepos,
     meterId: string,
 ): Promise<MeterTargetInfo | null> {
-    const meter = await repos.meterRepository.findById(meterId)
-    if (!meter) return null
+    const result = await repos.meterRepository.findByIdWithTarget(meterId)
+    if (!result) return null
 
-    if (meter.targetType === "PROPERTY") {
-        const property = await repos.propertyRepository.findById(meter.propertyId!)
-        if (!property) return null
+    if (result.meter.targetType === "PROPERTY") {
+        if (!result.property) return null
         return {
-            ownerId: property.userId,
+            ownerId: result.property.userId,
             targetType: "PROPERTY",
-            targetName: property.name,
-            targetPath: `/propriedades/${property.id}`,
+            targetName: result.property.name,
+            targetPath: `/propriedades/${result.property.id}`,
         }
     }
 
-    if (meter.targetType === "AREA") {
-        const area = await repos.areaRepository.findById(meter.areaId!)
-        if (!area) return null
-        const property = await repos.propertyRepository.findById(area.propertyId)
-        if (!property) return null
+    if (result.meter.targetType === "AREA") {
+        if (!result.area || !result.property) return null
         return {
-            ownerId: property.userId,
+            ownerId: result.property.userId,
             targetType: "AREA",
-            targetName: area.name,
-            targetPath: `/propriedades/${property.id}/areas/${area.id}`,
+            targetName: result.area.name,
+            targetPath: `/propriedades/${result.property.id}/areas/${result.area.id}`,
         }
     }
 
     // DEVICE
-    const device = await repos.deviceRepository.findById(meter.deviceId!)
-    if (!device) return null
-    const area = await repos.areaRepository.findById(device.areaId)
-    if (!area) return null
-    const property = await repos.propertyRepository.findById(area.propertyId)
-    if (!property) return null
+    if (!result.device || !result.area || !result.property) return null
     return {
-        ownerId: property.userId,
+        ownerId: result.property.userId,
         targetType: "DEVICE",
-        targetName: device.name,
-        targetPath: `/propriedades/${property.id}/areas/${area.id}/devices/${device.id}`,
+        targetName: result.device.name,
+        targetPath: `/propriedades/${result.property.id}/areas/${result.area.id}/devices/${result.device.id}`,
     }
 }

@@ -1,6 +1,11 @@
 import { PrismaClient } from "@/generated/prisma/client.js"
 import type { CreateDeviceInput, UpdateDeviceInput } from "@/modules/device/device.schema.js"
 import { toSkipTake, type Paginated, type PaginationQuery } from "@/shared/pagination.js"
+import {
+    toPropertyResponse,
+    type PropertyResponse,
+} from "@/modules/property/property.repository.js"
+import type { AreaResponse } from "@/modules/area/area.repository.js"
 
 type PrismaDevice = NonNullable<Awaited<ReturnType<PrismaClient["device"]["findUnique"]>>>
 
@@ -11,6 +16,28 @@ export class DeviceRepository {
 
     async findById(id: string): Promise<DeviceResponse | null> {
         return this.prisma.device.findUnique({ where: { id } })
+    }
+
+    // Resolve device + área + propriedade dona numa única query (`include`
+    // aninhado), em vez dos 3 round trips sequenciais que `resolveRootProperty`
+    // fazia antes — `relationLoadStrategy: "join"` força um SQL JOIN real (a
+    // estratégia default do Prisma para `include` é executar uma query por
+    // nível de relação, não um join, mesmo aninhado). `Device.areaId` e
+    // `Area.propertyId` são FKs obrigatórias, então a única falha possível
+    // aqui é o próprio device não existir.
+    async findByIdWithProperty(
+        id: string,
+    ): Promise<{ device: DeviceResponse; area: AreaResponse; property: PropertyResponse } | null> {
+        const raw = await this.prisma.device.findUnique({
+            where: { id },
+            include: { area: { include: { property: true } } },
+            relationLoadStrategy: "join",
+        })
+        if (!raw) return null
+
+        const { area: rawArea, ...device } = raw
+        const { property, ...area } = rawArea
+        return { device, area, property: toPropertyResponse(property) }
     }
 
     async findAllByArea(areaId: string): Promise<DeviceResponse[]> {

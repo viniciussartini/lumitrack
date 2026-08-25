@@ -6,6 +6,12 @@ import {
     decryptMeterCredential,
 } from "@/shared/crypto/meterCredentialEncryption.js"
 import type { MeterConnectionConfig } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
+import {
+    toPropertyResponse,
+    type PropertyResponse,
+} from "@/modules/property/property.repository.js"
+import type { AreaResponse } from "@/modules/area/area.repository.js"
+import type { DeviceResponse } from "@/modules/device/device.repository.js"
 
 export type MeterResponse = {
     id: string
@@ -25,6 +31,13 @@ export type MeterResponse = {
 }
 
 type PrismaMeter = NonNullable<Awaited<ReturnType<PrismaClient["meter"]["findUnique"]>>>
+
+export type MeterWithTargetRow = {
+    meter: MeterResponse
+    property: PropertyResponse | null
+    area: AreaResponse | null
+    device: DeviceResponse | null
+}
 
 // Issue #182 — só MQTT carrega credencial (username/password) em `extra`; os
 // demais protocolos usam parâmetros de polling/endereçamento, nada sensível
@@ -138,6 +151,38 @@ export class MeterRepository {
 
         const raw = await this.prisma.meter.findFirst({ where })
         return raw ? toMeterResponse(raw) : null
+    }
+
+    // Uma única query para qualquer targetType — `relationLoadStrategy:
+    // "join"` força um SQL JOIN real cobrindo os 3 `include` opcionais de
+    // uma vez (a estratégia default do Prisma para `include` é uma query por
+    // nível de relação, não um join). Exatamente um de property/area/device
+    // vem populado, conforme `meter.targetType`. Substitui os até 3 round
+    // trips sequenciais que `resolveMeterTarget` fazia antes.
+    async findByIdWithTarget(meterId: string): Promise<MeterWithTargetRow | null> {
+        const raw = await this.prisma.meter.findUnique({
+            where: { id: meterId },
+            include: {
+                property: true,
+                area: { include: { property: true } },
+                device: { include: { area: { include: { property: true } } } },
+            },
+            relationLoadStrategy: "join",
+        })
+        if (!raw) return null
+
+        const property = raw.property ?? raw.area?.property ?? raw.device?.area.property ?? null
+        // `area` cobre os dois casos em que uma área importa: alvo AREA
+        // (área do próprio medidor) e alvo DEVICE (área-mãe do dispositivo,
+        // necessária pra montar o path). Nunca ambos ao mesmo tempo.
+        const area = raw.area ?? raw.device?.area ?? null
+
+        return {
+            meter: toMeterResponse(raw),
+            property: property ? toPropertyResponse(property) : null,
+            area,
+            device: raw.device,
+        }
     }
 
     // Une os 3 caminhos de posse (medidor de property, de area ou de device
