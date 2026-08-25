@@ -40,6 +40,15 @@ export function resolveFlagPer100Kwh(config: TariffFlagConfigResponse): number {
     return config[FLAG_FIELD[config.currentFlag]] as number
 }
 
+// Cache em nível de módulo, não de instância: várias rotas (consumption,
+// simulation, tariff-flag, o sync da ANEEL) instanciam seu próprio
+// `new TariffFlagRepository(prismaClient)` sobre o mesmo Postgres — um cache
+// por instância deixaria a invalidação feita por uma rota invisível às
+// outras. `update()` é o único caminho de escrita (chamado tanto pelo sync
+// automático quanto pela rota admin manual), por isso é o único lugar que
+// precisa atualizar o cache.
+let cachedConfig: TariffFlagConfigResponse | null = null
+
 // Singleton (id fixo = 1) — populado pelo seed. `get()` nunca deveria
 // retornar null em ambiente seedado; ainda assim o service trata a ausência
 // como NotFoundError em vez de assumir.
@@ -47,8 +56,13 @@ export class TariffFlagRepository {
     constructor(private readonly prisma: PrismaClient) {}
 
     async get(): Promise<TariffFlagConfigResponse | null> {
+        if (cachedConfig) return cachedConfig
+
         const raw = await this.prisma.tariffFlagConfig.findUnique({ where: { id: 1 } })
-        return raw ? toResponse(raw) : null
+        if (!raw) return null
+
+        cachedConfig = toResponse(raw)
+        return cachedConfig
     }
 
     async update(data: UpdateTariffFlagInput): Promise<TariffFlagConfigResponse> {
@@ -60,6 +74,15 @@ export class TariffFlagRepository {
             where: { id: 1 },
             data: cleanData,
         })
-        return toResponse(raw)
+        cachedConfig = toResponse(raw)
+        return cachedConfig
     }
+}
+
+// Estado de módulo sobrevive entre testes do mesmo arquivo — sem isto, o
+// primeiro `get()` bem-sucedido de uma suíte "vazaria" para os testes
+// seguintes mesmo depois do `cleanDatabase()` recriar os dados. Chamado por
+// `cleanDatabase()`, não pelos arquivos de teste individualmente.
+export function resetTariffFlagCacheForTests(): void {
+    cachedConfig = null
 }
