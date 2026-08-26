@@ -37,9 +37,10 @@ export function alertRoutes(
     )
     router.get("/", authenticate, (req, res, next) => controller.findAll(req, res, next))
 
-    // "/firing" precisa vir ANTES de "/:id" — senão o Express casaria
-    // "firing" como se fosse o valor do param :id.
+    // "/firing" e "/stats" precisam vir ANTES de "/:id" — senão o Express
+    // casaria "firing"/"stats" como se fossem o valor do param :id.
     router.get("/firing", authenticate, (req, res, next) => controller.findFiring(req, res, next))
+    router.get("/stats", authenticate, (req, res, next) => controller.stats(req, res, next))
 
     router.get("/:id", authenticate, (req, res, next) => controller.findById(req, res, next))
     router.put("/:id", authenticate, blockDemoWrite, (req, res, next) =>

@@ -127,6 +127,7 @@ export const queryKeys = {
         list: (page: number, pageSize: number) =>
             [...queryKeys.alerts.all, "list", page, pageSize] as const,
         firing: () => [...queryKeys.alerts.all, "firing"] as const,
+        stats: () => [...queryKeys.alerts.all, "stats"] as const,
         detail: (id: string) => [...queryKeys.alerts.all, "detail", id] as const,
     },
     alertEvents: {

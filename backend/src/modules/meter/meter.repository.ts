@@ -39,6 +39,32 @@ export type MeterWithTargetRow = {
     device: DeviceResponse | null
 }
 
+// Compartilhado entre `findByIdWithTarget` e `findManyByIdsWithTarget` — a
+// mesma forma de `include` nas duas é o que permite ao Prisma tratá-las como
+// uma única query em lote quando disparadas concorrentemente.
+const METER_TARGET_INCLUDE = {
+    property: true,
+    area: { include: { property: true } },
+    device: { include: { area: { include: { property: true } } } },
+} as const
+
+type RawMeterWithTarget = Prisma.MeterGetPayload<{ include: typeof METER_TARGET_INCLUDE }>
+
+function toMeterWithTargetRow(raw: RawMeterWithTarget): MeterWithTargetRow {
+    const property = raw.property ?? raw.area?.property ?? raw.device?.area.property ?? null
+    // `area` cobre os dois casos em que uma área importa: alvo AREA (área do
+    // próprio medidor) e alvo DEVICE (área-mãe do dispositivo, necessária
+    // pra montar o path). Nunca ambos ao mesmo tempo.
+    const area = raw.area ?? raw.device?.area ?? null
+
+    return {
+        meter: toMeterResponse(raw),
+        property: property ? toPropertyResponse(property) : null,
+        area,
+        device: raw.device,
+    }
+}
+
 // Issue #182 — só MQTT carrega credencial (username/password) em `extra`; os
 // demais protocolos usam parâmetros de polling/endereçamento, nada sensível
 // (ver IoTConnectionManager.ts::createConnection). A resposta pública nunca
@@ -162,27 +188,26 @@ export class MeterRepository {
     async findByIdWithTarget(meterId: string): Promise<MeterWithTargetRow | null> {
         const raw = await this.prisma.meter.findUnique({
             where: { id: meterId },
-            include: {
-                property: true,
-                area: { include: { property: true } },
-                device: { include: { area: { include: { property: true } } } },
-            },
+            include: METER_TARGET_INCLUDE,
             relationLoadStrategy: "join",
         })
-        if (!raw) return null
+        return raw ? toMeterWithTargetRow(raw) : null
+    }
 
-        const property = raw.property ?? raw.area?.property ?? raw.device?.area.property ?? null
-        // `area` cobre os dois casos em que uma área importa: alvo AREA
-        // (área do próprio medidor) e alvo DEVICE (área-mãe do dispositivo,
-        // necessária pra montar o path). Nunca ambos ao mesmo tempo.
-        const area = raw.area ?? raw.device?.area ?? null
+    // Versão em lote de `findByIdWithTarget` — uma única query para uma
+    // página inteira de medidores (qualquer mistura de targetType), em vez
+    // de uma chamada por medidor. Base do batching de `resolveMeterTargets`
+    // (substitui o N+1 de `AlertService.findAll`).
+    async findManyByIdsWithTarget(meterIds: string[]): Promise<Map<string, MeterWithTargetRow>> {
+        if (meterIds.length === 0) return new Map()
 
-        return {
-            meter: toMeterResponse(raw),
-            property: property ? toPropertyResponse(property) : null,
-            area,
-            device: raw.device,
-        }
+        const rows = await this.prisma.meter.findMany({
+            where: { id: { in: meterIds } },
+            include: METER_TARGET_INCLUDE,
+            relationLoadStrategy: "join",
+        })
+
+        return new Map(rows.map((raw) => [raw.id, toMeterWithTargetRow(raw)]))
     }
 
     // Une os 3 caminhos de posse (medidor de property, de area ou de device

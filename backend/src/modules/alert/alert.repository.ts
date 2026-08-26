@@ -38,6 +38,13 @@ export class AlertRepository {
         return this.prisma.alert.findMany({ where: { userId }, orderBy: { createdAt: "desc" } })
     }
 
+    // KPI "alertas ativos" do painel (GET /api/alerts/stats) — substitui a
+    // listagem de página cheia que o frontend fazia só pra contar `enabled`
+    // no cliente.
+    async countEnabledByUser(userId: string): Promise<number> {
+        return this.prisma.alert.count({ where: { userId, enabled: true } })
+    }
+
     // Todos os alertas habilitados de todos os usuários — usado só pelo
     // AlertEvaluator para popular o cache (meterId → Alert[]) no boot.
     async findAllEnabled(): Promise<AlertResponse[]> {

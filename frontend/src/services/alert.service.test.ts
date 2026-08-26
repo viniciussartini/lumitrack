@@ -63,6 +63,19 @@ describe("alertService.firing", () => {
     })
 })
 
+describe("alertService.stats", () => {
+    it("faz GET em /alerts/stats e descasca o envelope", async () => {
+        vi.mocked(api.get).mockResolvedValue({
+            data: { status: "success", data: { enabledCount: 3 } },
+        })
+
+        const result = await alertService.stats()
+
+        expect(api.get).toHaveBeenCalledWith("/alerts/stats")
+        expect(result).toEqual({ enabledCount: 3 })
+    })
+})
+
 describe("alertService.getById", () => {
     it("faz GET em /alerts/:id e descasca o envelope", async () => {
         vi.mocked(api.get).mockResolvedValue({

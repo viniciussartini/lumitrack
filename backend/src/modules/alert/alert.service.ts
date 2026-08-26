@@ -7,7 +7,12 @@ import {
 } from "@/modules/alert/alert.schema.js"
 import type { AlertRepository, AlertResponse } from "@/modules/alert/alert.repository.js"
 import type { AlertEvaluator, FiringAlert } from "@/modules/alert/alert-evaluator.js"
-import { resolveMeterTarget, type MeterTargetRepos } from "@/modules/meter/meter-target.js"
+import {
+    resolveMeterTarget,
+    resolveMeterTargets,
+    type MeterTargetInfo,
+    type MeterTargetRepos,
+} from "@/modules/meter/meter-target.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import type { Paginated } from "@/shared/pagination.js"
 import type { TargetType } from "@/generated/prisma/client.js"
@@ -41,8 +46,10 @@ export class AlertService {
         return alert
     }
 
-    private async withStatusAndTarget(alert: AlertResponse): Promise<AlertWithStatus> {
-        const targetInfo = await resolveMeterTarget(this.meterTargetRepos, alert.meterId)
+    private toAlertWithStatus(
+        alert: AlertResponse,
+        targetInfo: MeterTargetInfo | null,
+    ): AlertWithStatus {
         return {
             ...alert,
             status: this.alertEvaluator?.isFiring(alert.id) ? "firing" : "normal",
@@ -54,6 +61,11 @@ export class AlertService {
                   }
                 : null,
         }
+    }
+
+    private async withStatusAndTarget(alert: AlertResponse): Promise<AlertWithStatus> {
+        const targetInfo = await resolveMeterTarget(this.meterTargetRepos, alert.meterId)
+        return this.toAlertWithStatus(alert, targetInfo)
     }
 
     async create(userId: string, input: unknown): Promise<AlertResponse> {
@@ -84,11 +96,23 @@ export class AlertService {
         }
 
         const result = await this.alertRepository.findAllByUserPaginated(userId, parsed.data)
-        const items = await Promise.all(
-            result.items.map((alert) => this.withStatusAndTarget(alert)),
+        // Batch: 1 query pra página inteira (via `resolveMeterTargets`), em
+        // vez de 1 chamada de `resolveMeterTarget` por alerta — era o N+1
+        // de até 1-3 round trips por item (achado A-02 do laudo de 2026-08-22).
+        const meterIds = [...new Set(result.items.map((alert) => alert.meterId))]
+        const targetMap = await resolveMeterTargets(this.meterTargetRepos, meterIds)
+        const items = result.items.map((alert) =>
+            this.toAlertWithStatus(alert, targetMap.get(alert.meterId) ?? null),
         )
 
         return { items, total: result.total, page: result.page, pageSize: result.pageSize }
+    }
+
+    // GET /api/alerts/stats — só o KPI "alertas ativos" do painel; evita que
+    // o frontend precise pedir uma segunda página cheia de alertas (com todo
+    // o custo de `withStatusAndTarget`) só pra contar `enabled` no cliente.
+    async countEnabled(userId: string): Promise<number> {
+        return this.alertRepository.countEnabledByUser(userId)
     }
 
     // GET /api/alerts/firing — hidratação inicial do badge de alertas em

@@ -45,6 +45,18 @@
 | 5 alertas, todos alvo PROPERTY (mesma forma de query já batchava) | 4 | 3 |
 | 6 alertas, `targetType` misto (2 PROPERTY, 2 AREA, 2 DEVICE) | 9 | 3 |
 
-**Leitura:** o ganho real do #281 para `/api/alerts` não é eliminar o N+1 por si (isso é o #282, que ainda falta), é dar a `resolveMeterTarget` **uma forma de query única para qualquer `targetType`** — isso é o que permite ao Prisma agrupar uma página inteira de alvos mistos numa única query, algo que a versão antiga (branch por tipo, 3 formas de query diferentes) nunca conseguia fazer sozinha. O caso de 5 alertas todos PROPERTY já era parcialmente batchado antes (dataloader do Prisma), por isso mostra um ganho menor (-1) — não é representativo do achado A-02 do laudo, que é sobre a mistura de tipos.
+**Leitura:** o ganho real do #281 para `/api/alerts` não é eliminar o N+1 por si (isso é o #282), é dar a `resolveMeterTarget` **uma forma de query única para qualquer `targetType`** — isso é o que permite ao Prisma agrupar uma página inteira de alvos mistos numa única query, algo que a versão antiga (branch por tipo, 3 formas de query diferentes) nunca conseguia fazer sozinha. O caso de 5 alertas todos PROPERTY já era parcialmente batchado antes (dataloader do Prisma), por isso mostra um ganho menor (-1) — não é representativo do achado A-02 do laudo, que é sobre a mistura de tipos.
 
 **Teste dedicado:** `backend/src/shared/targetResolution.test.ts` (novo) — 6 casos, cobrindo PROPERTY/AREA/DEVICE e "não encontrado" nos níveis estruturalmente alcançáveis.
+
+## #282 — N+1 em AlertService.findAll + enabledCount no envelope paginado
+
+**Achado honesto, medido antes de escrever qualquer texto de resultado:** `MeterRepository.findManyByIdsWithTarget` (o batch explícito via `findMany({ where: { id: { in: meterIds } } } })`) mede **exatamente a mesma contagem de queries que o #281 sozinho já entregava** para o cenário de 6 alertas com `targetType` misto — 3 nos dois casos. O motivo: o dataloader do Prisma já coalescia as chamadas concorrentes de `Promise.all` em uma única query desde que #281 deu a `resolveMeterTarget` uma forma de query uniforme (`findByIdWithTarget`, mesmo `include`/`relationLoadStrategy` para qualquer `targetType`). O batch explícito deste #282 **não é redundante apesar disso**: o dataloader é um comportamento interno do motor Prisma, não documentado como contrato estável entre versões — depender só dele para a correção do N+1 seria frágil (qualquer mudança futura no motor, ou uma quebra acidental da concorrência do `Promise.all` em uma refatoração, regrediria silenciosamente, sem nenhum teste acusando). `findManyByIdsWithTarget` torna a garantia **explícita e testável**, independente de como o Prisma decide otimizar chamadas concorrentes.
+
+| Cenário | findAll antes (#275, código pré-#281) | findAll após #281 (dataloader implícito) | findAll após #282 (batch explícito) |
+|---|---|---|---|
+| 6 alertas, `targetType` misto | 9 | 3 | 3 |
+
+**`GET /api/alerts/stats`:** 1 query (`alert.count`). Substitui o que antes era uma segunda página cheia de `findAll` (pageSize 31) só para contar `enabled` no cliente — pagando o N+1 completo do A-02 (até 124 queries antes de #281/#282) para produzir um número inteiro. Ganho: de "o N+1 inteiro de uma segunda página" para 1 query de `COUNT`.
+
+**Teste dedicado:** caso novo em `alert.service.test.ts` com página de `targetType` misto (PROPERTY+AREA+DEVICE), provando que o `Map` de `resolveMeterTargets` associa o target certo a cada alerta — a montagem errada (target do alerta A aparecendo no alerta B) é exatamente o tipo de bug que um batch mal feito introduziria silenciosamente.
