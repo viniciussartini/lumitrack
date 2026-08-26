@@ -4,12 +4,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@testing-library/react"
 import { PropertyComparisonSection } from "@/components/dashboard/PropertyComparisonSection"
 import { consumptionService } from "@/services/consumption.service"
-import type { ConsumptionBucket, Granularity } from "@/types/consumption.types"
-import type { Paginated } from "@/types/pagination.types"
+import type { ConsumptionSummaryItem } from "@/types/consumption.types"
 import type { Property } from "@/types/property.types"
 
 vi.mock("@/services/consumption.service", () => ({
-    consumptionService: { list: vi.fn() },
+    consumptionService: { summary: vi.fn() },
 }))
 
 const property = (id: string, name: string): Property => ({
@@ -31,21 +30,13 @@ const property = (id: string, name: string): Property => ({
 const propA = property("prop-a", "Casa")
 const propB = property("prop-b", "Loja")
 
-const bucket = (kwh: number): ConsumptionBucket => ({
+const summaryItem = (id: string, kwh: number): ConsumptionSummaryItem => ({
+    id,
+    targetType: "PROPERTY",
     bucketStart: new Date().toISOString(),
     kwhConsumed: kwh,
     costBrl: kwh * 0.8,
     avgPowerW: 500,
-})
-
-const paginated = (
-    items: ConsumptionBucket[],
-): Paginated<ConsumptionBucket> & { granularity: Granularity } => ({
-    items,
-    total: items.length,
-    page: 1,
-    pageSize: 1,
-    granularity: "month",
 })
 
 const createTestQueryClient = () =>
@@ -71,18 +62,20 @@ beforeEach(() => {
 
 describe("PropertyComparisonSection", () => {
     it("não renderiza nada quando nenhuma propriedade tem dado de consumo", async () => {
-        vi.mocked(consumptionService.list).mockResolvedValue(paginated([]))
+        vi.mocked(consumptionService.summary).mockResolvedValue({ items: [] })
 
         const { container } = renderSection([propA, propB])
 
         await waitFor(() => {
-            expect(consumptionService.list).toHaveBeenCalledTimes(2)
+            expect(consumptionService.summary).toHaveBeenCalledTimes(1)
         })
         expect(container).toBeEmptyDOMElement()
     })
 
     it("funciona com apenas 1 propriedade, sem quebrar", async () => {
-        vi.mocked(consumptionService.list).mockResolvedValue(paginated([bucket(50)]))
+        vi.mocked(consumptionService.summary).mockResolvedValue({
+            items: [summaryItem("prop-a", 50)],
+        })
 
         renderSection([propA])
 
@@ -91,10 +84,12 @@ describe("PropertyComparisonSection", () => {
         expect(screen.getByText("50,00 kWh")).toBeInTheDocument()
     })
 
-    it("lista uma barra por propriedade com dado, ignorando a que não tem medidor (404)", async () => {
-        vi.mocked(consumptionService.list).mockImplementation(async ({ targetId }) => {
-            if (targetId === "prop-a") return paginated([bucket(100)])
-            throw new Error("Alvo sem medidor vinculado")
+    it("lista uma barra por propriedade com dado, ignorando a que não tem medidor", async () => {
+        // Sem medidor/leitura: o backend simplesmente não inclui o id no
+        // resultado (issue #283 — exclusão silenciosa), diferente do 404
+        // por chamada que o antigo `list()` por propriedade lançava.
+        vi.mocked(consumptionService.summary).mockResolvedValue({
+            items: [summaryItem("prop-a", 100)],
         })
 
         renderSection([propA, propB])
@@ -104,7 +99,9 @@ describe("PropertyComparisonSection", () => {
     })
 
     it("troca a unidade de comparação entre kWh e R$", async () => {
-        vi.mocked(consumptionService.list).mockResolvedValue(paginated([bucket(100)]))
+        vi.mocked(consumptionService.summary).mockResolvedValue({
+            items: [summaryItem("prop-a", 100)],
+        })
 
         renderSection([propA])
         await screen.findByText("100,00 kWh")

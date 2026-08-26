@@ -32,6 +32,8 @@ export type MonthlyKwhForYear = {
     kwhConsumed: number
 }
 
+export type LatestBucketForMeter = ConsumptionBucket & { meterId: string }
+
 /**
  * Recorte comum das duas agregações: qual medidor, que bucket, que janela.
  * `from`/`to` são explicitamente `Date | undefined` (e não opcionais) porque
@@ -129,6 +131,52 @@ export class ConsumptionRepository {
             yearBucket: r.yearbucket,
             monthBucket: r.monthbucket,
             kwhConsumed: Number(r.kwh),
+        }))
+    }
+
+    // Base do endpoint batch (GET /api/consumption/summary, issue #283) —
+    // uma única query para o bucket MAIS RECENTE de vários medidores de uma
+    // vez, em vez de uma chamada de `findAggregated` por alvo. `DISTINCT ON`
+    // sobre o resultado já agrupado por bucket é o que resolve "1 linha por
+    // meterId, a mais recente" sem paginação nem `LIMIT`/`OFFSET` por grupo
+    // (Postgres não tem "LIMIT por grupo" nativo fora de window function —
+    // `DISTINCT ON` + `ORDER BY meterId, bucket DESC` é o idioma equivalente
+    // e mais simples aqui, já que só 1 bucket por medidor é pedido).
+    async findLatestAggregatedForMeters(
+        meterIds: string[],
+        granularity: Granularity,
+        from: Date | undefined,
+        to: Date | undefined,
+    ): Promise<LatestBucketForMeter[]> {
+        if (meterIds.length === 0) return []
+        const unit = TRUNC_UNIT[granularity]
+
+        const rows = await this.prisma.$queryRaw<
+            { meterid: string; bucket: Date; kwh: number; avgpower: number | null }[]
+        >(
+            Prisma.sql`
+                SELECT DISTINCT ON ("meterId")
+                    "meterId" AS meterid, bucket, kwh, avgpower
+                FROM (
+                    SELECT
+                        "meterId",
+                        date_trunc(${unit}, ${localTsExpr()}) AS bucket,
+                        SUM("kwhConsumed") AS kwh,
+                        SUM("avgPowerW" * "secondsCovered") / NULLIF(SUM("secondsCovered"), 0) AS avgpower
+                    FROM "meter_readings"
+                    WHERE "meterId" = ANY(${meterIds}::text[])
+                    ${rangeFilter(from, to)}
+                    GROUP BY "meterId", bucket
+                ) sub
+                ORDER BY "meterId", bucket DESC
+            `,
+        )
+
+        return rows.map((r) => ({
+            meterId: r.meterid,
+            bucketStart: r.bucket,
+            kwhConsumed: Number(r.kwh),
+            avgPowerW: Number(r.avgpower ?? 0),
         }))
     }
 }

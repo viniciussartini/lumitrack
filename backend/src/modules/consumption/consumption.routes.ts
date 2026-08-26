@@ -38,6 +38,10 @@ export function consumptionRoutes(
     )
     const controller = new ConsumptionController(consumptionService)
 
+    // "/summary" precisa vir ANTES de "/" só por consistência de leitura com
+    // as outras rotas do módulo — não há conflito real aqui (não existe
+    // "/:id" em /api/consumption, o alvo sempre chega por query param).
+    router.get("/summary", authenticate, (req, res, next) => controller.summary(req, res, next))
     router.get("/", authenticate, (req, res, next) => controller.list(req, res, next))
 
     return router

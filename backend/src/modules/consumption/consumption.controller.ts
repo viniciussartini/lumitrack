@@ -15,4 +15,15 @@ export class ConsumptionController {
             next(error)
         }
     }
+
+    // GET /api/consumption/summary?targetType=&ids=&granularity=&from=&to=
+    async summary(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id: userId } = (req as AuthenticatedRequest).user
+            const result = await this.consumptionService.summary(userId, req.query)
+            res.status(200).json({ status: "success", data: result })
+        } catch (error) {
+            next(error)
+        }
+    }
 }

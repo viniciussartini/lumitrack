@@ -164,3 +164,75 @@ describe("GET /api/consumption", () => {
         expect(response.status).toBe(422)
     })
 })
+
+describe("GET /api/consumption/summary", () => {
+    it("retorna 401 sem token", async () => {
+        const response = await request(app).get(
+            "/api/consumption/summary?targetType=PROPERTY&ids=00000000-0000-0000-0000-000000000000&granularity=month",
+        )
+        expect(response.status).toBe(401)
+    })
+
+    it("retorna 200 com o bucket mais recente do alvo próprio, e filtra o de outro usuário", async () => {
+        const { token, propertyId } = await setupPropertyWithMeter(validUser)
+        const { propertyId: otherPropertyId } = await setupPropertyWithMeter(anotherUser)
+        // Token de A pedindo os dois ids — só o dele deve voltar.
+        const response = await request(app)
+            .get(
+                `/api/consumption/summary?targetType=PROPERTY&ids=${propertyId},${otherPropertyId}&granularity=month`,
+            )
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(200)
+        expect(response.body.data.items).toHaveLength(1)
+        expect(response.body.data.items[0].id).toBe(propertyId)
+    })
+
+    it("retorna 200 com items vazio quando nenhum id sobrevive à autorização", async () => {
+        const { token } = await setupPropertyWithMeter(validUser)
+        const { propertyId: otherPropertyId } = await setupPropertyWithMeter(anotherUser)
+
+        const response = await request(app)
+            .get(
+                `/api/consumption/summary?targetType=PROPERTY&ids=${otherPropertyId}&granularity=month`,
+            )
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(200)
+        expect(response.body.data.items).toEqual([])
+    })
+
+    it("retorna 422 para lote vazio", async () => {
+        const token = await registerAndLogin()
+
+        const response = await request(app)
+            .get("/api/consumption/summary?targetType=PROPERTY&ids=&granularity=month")
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(422)
+    })
+
+    it("retorna 422 para lote acima do teto de 50", async () => {
+        const token = await registerAndLogin()
+        const tooMany = Array.from(
+            { length: 51 },
+            () => "00000000-0000-0000-0000-000000000000",
+        ).join(",")
+
+        const response = await request(app)
+            .get(`/api/consumption/summary?targetType=PROPERTY&ids=${tooMany}&granularity=month`)
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(422)
+    })
+
+    it("retorna 422 para granularity inválida", async () => {
+        const { token, propertyId } = await setupPropertyWithMeter()
+
+        const response = await request(app)
+            .get(`/api/consumption/summary?targetType=PROPERTY&ids=${propertyId}&granularity=week`)
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(422)
+    })
+})

@@ -57,6 +57,31 @@
 |---|---|---|---|
 | 6 alertas, `targetType` misto | 9 | 3 | 3 |
 
+## #283 — Endpoint batch de consumo (GET /api/consumption/summary)
+
+**Metodologia — end-to-end contra o servidor de desenvolvimento real** (não só a suíte de testes): backend subido (`npm run dev`), 2 propriedades + 2 medidores criados via API real, 2 leituras inseridas direto via `psql`, endpoint chamado com `curl` autenticado. Prova que autorização por id, batching e cálculo de custo funcionam de ponta a ponta, não só contra o banco de teste isolado.
+
+```
+GET /api/consumption/summary?targetType=PROPERTY&ids=<A>,<B>&granularity=month
+→ 200, items: [{ id: A, kwhConsumed: 40, costBrl: 22.22, ... }, { id: B, kwhConsumed: 10, costBrl: 16.67, ... }]
+
+GET .../summary?ids=<A>,<id-inexistente>          → 200, items: [{ id: A, ... }]  (exclusão silenciosa)
+GET .../summary?ids=                              → 422 (lote vazio)
+GET .../summary (sem Authorization)               → 401
+```
+
+**Requisições HTTP — antes/depois, N alvos na mesma tela:** a prova mais direta vem da própria mudança do teste de `PropertyComparisonSection` — o teste antigo afirmava `expect(consumptionService.list).toHaveBeenCalledTimes(2)` para uma tela com 2 propriedades (uma chamada HTTP por propriedade, via `useQueries`); o teste novo, para o mesmo cenário de 2 propriedades, afirma `expect(consumptionService.summary).toHaveBeenCalledTimes(1)`. Generaliza para os 3 pontos de fan-out (`PropertyComparisonSection`, `AreasSection`, `DevicesSection`): de N requisições HTTP para 1, qualquer que seja N.
+
+| Ponto de fan-out | Requisições antes (N alvos) | Requisições depois |
+|---|---|---|
+| `PropertyComparisonSection` | N | 1 |
+| `AreasSection` (PropertyDetailsPage) | N | 1 |
+| `DevicesSection` (AreaDetailsPage) | N | 1 |
+
+**Achado de implementação, não previsto no plano original:** `meter_readings.meterId` é `String` (Postgres `text`), não `uuid` nativo — `WHERE "meterId" = ANY(${meterIds}::uuid[])` falhou em runtime com `operator does not exist: text = uuid` (`findMonthlyKwhForYears`, o precedente copiado para este cast, usa `::timestamp[]` porque compara contra uma coluna `timestamp`, não `uuid` — o padrão não se aplicava 1:1). Corrigido para `::text[]`, coerente com o tipo real da coluna. Pego pelos testes de integração (`consumption.service.test.ts`), não pelo type-check — reforça por que os testes rodam contra Postgres real, não mocks.
+
+**`pageSize: 3` removido dos 3 componentes** (issue #283, critério de aceite explícito) — existia só para não colidir a `queryKey` com a do KPI (`DashboardKpiRow`); com `queryKeys.consumption.summary(...)` como chave própria, não tem mais razão de existir. O `.reduce()` client-side em `AreasSection` que escolhia manualmente o bucket mais recente entre até 3 retornados também saiu — `findLatestAggregatedForMeters` já garante 1 bucket por medidor, o mais recente, no próprio SQL (`DISTINCT ON` + `ORDER BY bucket DESC`).
+
 **`GET /api/alerts/stats`:** 1 query (`alert.count`). Substitui o que antes era uma segunda página cheia de `findAll` (pageSize 31) só para contar `enabled` no cliente — pagando o N+1 completo do A-02 (até 124 queries antes de #281/#282) para produzir um número inteiro. Ganho: de "o N+1 inteiro de uma segunda página" para 1 query de `COUNT`.
 
 **Teste dedicado:** caso novo em `alert.service.test.ts` com página de `targetType` misto (PROPERTY+AREA+DEVICE), provando que o `Map` de `resolveMeterTargets` associa o target certo a cada alerta — a montagem errada (target do alerta A aparecendo no alerta B) é exatamente o tipo de bug que um batch mal feito introduziria silenciosamente.

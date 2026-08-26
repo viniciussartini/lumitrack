@@ -46,15 +46,15 @@ const consumptionService = new ConsumptionService(
 // GREEN = 0 — mesma fórmula "por dentro" usada no TariffService.
 const RATE = 0.6 / (1 - 0.2725)
 
-async function setupPropertyMeter() {
+async function setupPropertyMeter(email = "joao@example.com") {
     const user = await userService.createUser({
-        email: "joao@example.com",
+        email,
         password: "Senha@123",
         userType: "INDIVIDUAL",
         acceptedTerms: true,
         firstName: "João",
         lastName: "Silva",
-        cpf: "529.982.247-25",
+        cpf: email === "joao@example.com" ? "529.982.247-25" : "310.037.856-38",
     })
     const distributor = await createTestDistributor(prismaTest)
     await createTestTariffFlagConfig(prismaTest)
@@ -345,5 +345,156 @@ describe("ConsumptionService.list", () => {
             expect(result.items).toHaveLength(2)
             expect(result.total).toBe(3)
         })
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUITE: ConsumptionService.summary (issue #283) — endpoint batch, 1 bucket
+// mais recente por alvo, autorização verificada por id da lista.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("ConsumptionService.summary", () => {
+    it("retorna o bucket mais recente de cada propriedade própria, na mesma chamada", async () => {
+        const { user, meter: meterA, property: propertyA } = await setupPropertyMeter()
+        const distributor = await createTestDistributor(prismaTest)
+        const propertyB = await propertyService.create(user.id, {
+            name: "Sítio",
+            distributorId: distributor.id,
+            electricalSystem: "MONOPHASIC",
+        })
+        const meterB = await prismaTest.meter.create({
+            data: {
+                name: "Medidor B",
+                targetType: "PROPERTY",
+                propertyId: propertyB.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "sitio/medidor",
+            },
+        })
+        await insertReading(meterA.id, "2026-01-15T15:00:00Z", 40, 1000)
+        await insertReading(meterB.id, "2026-01-10T15:00:00Z", 10, 500)
+
+        const result = await consumptionService.summary(user.id, {
+            targetType: "PROPERTY",
+            ids: `${propertyA.id},${propertyB.id}`,
+            granularity: "month",
+        })
+
+        const byId = new Map(result.items.map((item) => [item.id, item]))
+        expect(byId.get(propertyA.id)?.kwhConsumed).toBeCloseTo(40)
+        expect(byId.get(propertyB.id)?.kwhConsumed).toBeCloseTo(10)
+    })
+
+    it("exclui silenciosamente ids de outro usuário — não derruba o lote", async () => {
+        const { user: userA, property: propertyA, meter: meterA } = await setupPropertyMeter()
+        const userB = await userService.createUser({
+            email: "outro-summary@example.com",
+            password: "Senha@123",
+            userType: "INDIVIDUAL",
+            acceptedTerms: true,
+            firstName: "Outro",
+            lastName: "Usuário",
+            cpf: "310.037.856-38",
+        })
+        const distributorB = await createTestDistributor(prismaTest)
+        const propertyB = await propertyService.create(userB.id, {
+            name: "Casa de B",
+            distributorId: distributorB.id,
+            electricalSystem: "MONOPHASIC",
+        })
+        const meterB = await prismaTest.meter.create({
+            data: {
+                name: "Medidor B",
+                targetType: "PROPERTY",
+                propertyId: propertyB.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "b/medidor",
+            },
+        })
+        await insertReading(meterA.id, "2026-01-15T15:00:00Z", 40, 1000)
+        await insertReading(meterB.id, "2026-01-15T15:00:00Z", 40, 1000)
+
+        const result = await consumptionService.summary(userA.id, {
+            targetType: "PROPERTY",
+            ids: `${propertyA.id},${propertyB.id}`,
+            granularity: "month",
+        })
+
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0]!.id).toBe(propertyA.id)
+    })
+
+    it("exclui silenciosamente id inexistente — não lança", async () => {
+        const { user, meter, property } = await setupPropertyMeter()
+        await insertReading(meter.id, "2026-01-15T15:00:00Z", 40, 1000)
+
+        const result = await consumptionService.summary(user.id, {
+            targetType: "PROPERTY",
+            ids: `${property.id},00000000-0000-0000-0000-000000000000`,
+            granularity: "month",
+        })
+
+        expect(result.items.map((i) => i.id)).toEqual([property.id])
+    })
+
+    it("retorna items vazio (200, não erro) quando nenhum id sobrevive à autorização", async () => {
+        const { user: userA } = await setupPropertyMeter()
+        const { property: propertyB } = await setupPropertyMeter("maria-summary@example.com")
+
+        const result = await consumptionService.summary(userA.id, {
+            targetType: "PROPERTY",
+            ids: propertyB.id,
+            granularity: "month",
+        })
+
+        expect(result.items).toEqual([])
+    })
+
+    it("granularity year + PROPERTY soma os custos mensais (mesmo comportamento de list())", async () => {
+        const { user, meter, property } = await setupPropertyMeter()
+        await insertReading(meter.id, "2026-01-15T15:00:00Z", 40, 1000)
+        await insertReading(meter.id, "2026-02-15T15:00:00Z", 30, 1000)
+
+        const result = await consumptionService.summary(user.id, {
+            targetType: "PROPERTY",
+            ids: property.id,
+            granularity: "year",
+        })
+
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0]!.kwhConsumed).toBeCloseTo(70)
+        expect(result.items[0]!.costBrl).toBeCloseTo(200 * RATE, 6)
+    })
+
+    it("lança ValidationError para lote vazio", async () => {
+        const { user } = await setupPropertyMeter()
+
+        await expect(
+            consumptionService.summary(user.id, {
+                targetType: "PROPERTY",
+                ids: "",
+                granularity: "month",
+            }),
+        ).rejects.toThrow()
+    })
+
+    it("lança ValidationError para lote acima do teto de 50", async () => {
+        const { user } = await setupPropertyMeter()
+        const tooMany = Array.from(
+            { length: 51 },
+            () => "00000000-0000-0000-0000-000000000000",
+        ).join(",")
+
+        await expect(
+            consumptionService.summary(user.id, {
+                targetType: "PROPERTY",
+                ids: tooMany,
+                granularity: "month",
+            }),
+        ).rejects.toThrow()
     })
 })

@@ -62,3 +62,19 @@ export interface ListConsumptionParams {
     page?: number
     pageSize?: number
 }
+
+/** Query params de `GET /api/consumption/summary` (issue #283). */
+export interface ConsumptionSummaryParams {
+    targetType: TargetType
+    /** Um tipo só vale pra lista inteira — mistura não faz sentido. */
+    ids: string[]
+    granularity: BucketSize
+    from?: Date
+    to?: Date
+}
+
+/** Item de `GET /api/consumption/summary` — o bucket mais recente de 1 alvo. */
+export interface ConsumptionSummaryItem extends ConsumptionBucket {
+    id: string
+    targetType: TargetType
+}
