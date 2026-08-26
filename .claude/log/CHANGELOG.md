@@ -2207,3 +2207,17 @@
 - **Arquivos principais:** `backend/src/config/env.ts`, `backend/src/config/env.test.ts`, `backend/src/shared/database/prisma.ts`, `backend/.env.example`.
 - **Decisões/ADRs:** nenhuma nova — os valores escolhidos estão documentados com o raciocínio em `.claude/docs/2026-08-26-baseline-desempenho-countbuckets-pool.md`.
 - **Notas:** suíte completa, `tsc`/`eslint`/`prettier --check`/`depcruise` limpos. Fecha a Fase 15 — próximo passo é `/preparar-pr` para a branch `perf/284-285-countbuckets-pool-conexoes` (`#284` + `#285`) contra `staging`, seguido de `revisao-codigo`.
+
+## [2026-08-26] fix: bloqueio e sugestões da revisão de código do PR #288
+
+- **Branch:** perf/284-285-countbuckets-pool-conexoes
+- **Tipo:** fix
+- **O quê:** aplica o laudo de `revisao-codigo` do PR #288 (#284 + #285), postado como comentário no próprio PR.
+  - **Bloqueio (comentário de rastreabilidade, proibido pelo `06`):** removidas as referências a `issue #284`/`#285` e ao nome do arquivo de baseline em `backend/src/config/env.ts`, `backend/.env.example` e `consumption.service.test.ts` — mantida a explicação funcional de cada comentário, só a rastreabilidade saiu (já vive no CHANGELOG e no PR).
+  - **Sugestão aplicada — fallback de `findAggregated` desnecessário na primeira página:** com `skip === 0` (garantido `page === 1`) e `take >= 1`, zero linhas já prova zero grupos — o total é `0` sem precisar da segunda query a `countBuckets`. Antes, esse caminho (medidor sem leitura, empty state do dashboard) ia em série a duas queries onde uma bastava. Coberto por teste novo ("primeira página sem nenhuma leitura retorna items e total vazios").
+  - **Sugestão aplicada — `countBuckets` agora `private`:** não tinha mais chamador fora de `findAggregated` (confirmado por busca no repositório) — o encapsulamento impede a reintrodução acidental do padrão de 2 queries que a #284 eliminou.
+  - **Sugestão aplicada — JSDoc em vez de comentário de linha:** `findAggregated` e `countBuckets` (métodos públicos/de contrato) documentados em bloco `/** */`, seguindo o padrão já usado em `BucketQuery` no mesmo arquivo.
+  - **Sugestão não aplicada nesta branch:** `statement_timeout`/`query_timeout` no `Pool` (metade do controle P1 do `11-seguranca-infraestrutura.md` sobre exaustão de conexões) — o próprio laudo recomenda issue própria com medição contra o pior caso legítimo (ex.: `RetentionPurgeScheduler` em lote grande), não uma alteração sem medir.
+- **Arquivos principais:** `backend/src/config/env.ts`, `backend/.env.example`, `backend/src/modules/consumption/consumption.repository.ts`, `backend/src/modules/consumption/consumption.service.test.ts`.
+- **Decisões/ADRs:** nenhuma nova.
+- **Notas:** suíte completa (159 arquivos / 1904 testes), `tsc`/`eslint`/`prettier --check`/`depcruise` limpos. PR #288 pronto para merge após esta correção.

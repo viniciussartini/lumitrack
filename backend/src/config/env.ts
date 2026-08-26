@@ -206,16 +206,14 @@ export const envSchema = z
         // mesmo que alguém configure a variável por engano.
         DEBUG_QUERY_LOGGING_ENABLED: z.stringbool().default(false),
 
-        // Pool de conexões `pg` (issue #285) — antes implícito no default do
-        // driver, agora explícito e mensurável. Mesma regra fail-closed de
-        // `.int().positive()` das DATA_RETENTION_*: sem ela, `z.coerce.number()`
-        // aceita "" ou negativo, e um pool com `max <= 0` derruba toda
-        // conexão ao banco no boot.
+        // Pool de conexões `pg` — antes implícito no default do driver, agora
+        // explícito e mensurável. Mesma regra fail-closed de `.int().positive()`
+        // das DATA_RETENTION_*: sem ela, `z.coerce.number()` aceita "" ou
+        // negativo, e um pool com `max <= 0` derruba toda conexão ao banco no boot.
         //
         // DB_POOL_MAX: default 10 documenta o comportamento real observado —
         // medição local (backend + iot-simulator com 11 medidores demo
-        // rodando simultâneos, ver .claude/docs/2026-08-26-baseline-desempenho
-        // -countbuckets-pool.md) mostrou o pool se estabilizando neste teto
+        // rodando simultâneos) mostrou o pool se estabilizando neste teto
         // (o default implícito do driver `pg`) sem nunca saturar sob essa carga.
         DB_POOL_MAX: z.coerce.number().int().positive().default(10),
         // DB_POOL_CONNECTION_TIMEOUT_MS: o default do `pg` é 0 (espera
