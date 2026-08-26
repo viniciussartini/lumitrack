@@ -47,9 +47,7 @@ const setupAuthAndProperty = async (page: Page) => {
     await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
         fulfillPaginated(route, [DIST_CEMIG]),
     )
-    await page.route("**/api/distributors/dist-cemig", (route) =>
-        fulfillJson(route, DIST_CEMIG),
-    )
+    await page.route("**/api/distributors/dist-cemig", (route) => fulfillJson(route, DIST_CEMIG))
     // Propriedade fixa — não editamos nem deletamos nesta spec.
     await page.route(/\/api\/properties(\?.*)?$/, (route) => {
         if (route.request().method() === "GET") {
@@ -70,19 +68,25 @@ const setupAuthAndProperty = async (page: Page) => {
         fulfillError(route, "Alvo sem medidor vinculado", 404),
     )
 
-    // `AreasSection` (PropertyDetailsPage) dispara `GET /api/consumption`
-    // por área da lista pra montar a "Comparação de áreas" — incondicional,
-    // não depende de a área ter medidor (o 404 correspondente é tratado
-    // como "sem dado" dentro do próprio hook). Sem esse mock, assim que uma
-    // área é criada essa chamada vaza pro proxy do Vite: localmente falha
-    // como erro de rede (inofensivo, mascara o problema); em CI, com o
-    // backend real de pé, o 401 (sem sessão real — a auth aqui é só
-    // `page.route` em `/api/auth/me`) dispara o interceptor global de
-    // "unauthorized" e redireciona pra /login no meio do teste — sintoma:
-    // "element was detached from the DOM" ao clicar em qualquer coisa
-    // depois (ver comentário em `support/appShell.ts`).
-    await page.route(/\/api\/consumption(\?.*)?$/, (route) =>
-        fulfillPaginated(route, []),
+    // `PropertyConsumptionSection` (o gráfico principal da propriedade)
+    // dispara `GET /api/consumption` — sem esse mock, a chamada vaza pro
+    // proxy do Vite: localmente falha como erro de rede (inofensivo,
+    // mascara o problema); em CI, com o backend real de pé, o 401 (sem
+    // sessão real — a auth aqui é só `page.route` em `/api/auth/me`)
+    // dispara o interceptor global de "unauthorized" e redireciona pra
+    // /login no meio do teste — sintoma: "element was detached from the
+    // DOM" ao clicar em qualquer coisa depois (ver comentário em
+    // `support/appShell.ts`).
+    await page.route(/\/api\/consumption(\?.*)?$/, (route) => fulfillPaginated(route, []))
+
+    // `AreasSection` (PropertyDetailsPage) dispara `GET /api/consumption/summary`
+    // com os ids de todas as áreas da lista pra montar a "Comparação de
+    // áreas" (endpoint batch — 1 requisição pra N áreas, não 1 por área) —
+    // incondicional, não depende de a área ter medidor (a exclusão do id
+    // sem dado é tratada no próprio backend). Mesmo sintoma do mock acima
+    // se ficar sem resposta.
+    await page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) =>
+        fulfillJson(route, { items: [] }),
     )
 }
 
@@ -103,10 +107,7 @@ const setupAuthAndProperty = async (page: Page) => {
  * `/areas/area-1` mas NÃO `/areas` (o `*` exige ao menos um segmento).
  * Por isso registramos os dois separadamente.
  */
-const setupAreasRoutes = async (
-    page: Page,
-    state: { areas: AreaSeed[]; nextId: number },
-) => {
+const setupAreasRoutes = async (page: Page, state: { areas: AreaSeed[]; nextId: number }) => {
     // Lista e criação. Regex (não glob): useAreas sempre envia
     // ?page=&pageSize= mesmo nos defaults — um glob sem tratar a query
     // string não casa a URL real e a requisição vaza pro backend (502).
@@ -135,56 +136,50 @@ const setupAreasRoutes = async (
     })
 
     // Detalhe, atualização e remoção (qualquer :areaId)
-    await page.route(
-        "**/api/properties/prop-1/areas/*",
-        async (route) => {
-            const method = route.request().method()
-            const url = new URL(route.request().url())
-            const areaId = url.pathname.split("/").pop()!
+    await page.route("**/api/properties/prop-1/areas/*", async (route) => {
+        const method = route.request().method()
+        const url = new URL(route.request().url())
+        const areaId = url.pathname.split("/").pop()!
 
-            const index = state.areas.findIndex((a) => a.id === areaId)
+        const index = state.areas.findIndex((a) => a.id === areaId)
 
-            if (method === "GET") {
-                if (index === -1) {
-                    return fulfillError(route, "Área não encontrada", 404)
-                }
-                return fulfillJson(route, state.areas[index])
+        if (method === "GET") {
+            if (index === -1) {
+                return fulfillError(route, "Área não encontrada", 404)
             }
+            return fulfillJson(route, state.areas[index])
+        }
 
-            if (method === "PUT") {
-                if (index === -1) {
-                    return route.fulfill({ status: 404 })
-                }
-                const body = JSON.parse(route.request().postData() ?? "{}")
-                state.areas[index] = {
-                    ...state.areas[index]!,
-                    ...body,
-                    updatedAt: new Date().toISOString(),
-                }
-                return fulfillJson(route, state.areas[index])
+        if (method === "PUT") {
+            if (index === -1) {
+                return route.fulfill({ status: 404 })
             }
-
-            if (method === "DELETE") {
-                if (index !== -1) {
-                    state.areas.splice(index, 1)
-                }
-                return route.fulfill({ status: 204 })
+            const body = JSON.parse(route.request().postData() ?? "{}")
+            state.areas[index] = {
+                ...state.areas[index]!,
+                ...body,
+                updatedAt: new Date().toISOString(),
             }
+            return fulfillJson(route, state.areas[index])
+        }
 
-            return route.continue()
-        },
-    )
+        if (method === "DELETE") {
+            if (index !== -1) {
+                state.areas.splice(index, 1)
+            }
+            return route.fulfill({ status: 204 })
+        }
+
+        return route.continue()
+    })
 
     // Idem: regex pra tolerar ?page=&pageSize= no GET de useDevices.
-    await page.route(
-        /\/api\/properties\/[^/]+\/areas\/[^/]+\/devices(\?.*)?$/,
-        (route) => {
-            if (route.request().method() === "GET") {
-                return fulfillPaginated(route, [])
-            }
-            return route.continue()
-        },
-    )
+    await page.route(/\/api\/properties\/[^/]+\/areas\/[^/]+\/devices(\?.*)?$/, (route) => {
+        if (route.request().method() === "GET") {
+            return fulfillPaginated(route, [])
+        }
+        return route.continue()
+    })
 }
 
 test.describe("Fluxo CRUD de áreas", () => {
@@ -206,12 +201,8 @@ test.describe("Fluxo CRUD de áreas", () => {
         await page.goto("/propriedades/prop-1")
         await hideDevTools(page)
 
-        await expect(
-            page.getByRole("heading", { level: 1, name: /casa principal/i }),
-        ).toBeVisible()
-        await expect(
-            page.getByText(/nenhuma área cadastrada/i),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { level: 1, name: /casa principal/i })).toBeVisible()
+        await expect(page.getByText(/nenhuma área cadastrada/i)).toBeVisible()
 
         // ─── 2. Criar nova área (via modal, sem navegação) ───────────────────
         await page.getByRole("button", { name: /adicionar área/i }).click()
@@ -221,9 +212,7 @@ test.describe("Fluxo CRUD de áreas", () => {
         await expect(createDialog).toBeVisible()
 
         await page.getByLabel(/nome da área/i).fill("Sala")
-        await page
-            .getByLabel(/descrição/i)
-            .fill("Área principal de convivência")
+        await page.getByLabel(/descrição/i).fill("Área principal de convivência")
 
         await page.getByRole("button", { name: /criar área/i }).click()
 
@@ -232,32 +221,20 @@ test.describe("Fluxo CRUD de áreas", () => {
         await expect(createDialog).not.toBeVisible()
         await expect(page).toHaveURL(/\/propriedades\/prop-1$/)
         await expect(page.getByTestId("area-card-area-1")).toBeVisible()
-        await expect(
-            page.getByRole("heading", { level: 3, name: /sala/i }),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { level: 3, name: /sala/i })).toBeVisible()
         // EmptyState não aparece mais
-        await expect(
-            page.getByText(/nenhuma área cadastrada/i),
-        ).not.toBeVisible()
+        await expect(page.getByText(/nenhuma área cadastrada/i)).not.toBeVisible()
 
         // ─── 3. Click no card → AreaDetailsPage ──────────────────────────────
         await page.getByTestId("area-card-area-1").click()
-        await expect(page).toHaveURL(
-            /\/propriedades\/prop-1\/areas\/area-1$/,
-        )
+        await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1$/)
 
         // Header tem nome + descrição + chip da propriedade pai
-        await expect(
-            page.getByRole("heading", { level: 1, name: /sala/i }),
-        ).toBeVisible()
-        await expect(
-            page.getByText(/área principal de convivência/i),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { level: 1, name: /sala/i })).toBeVisible()
+        await expect(page.getByText(/área principal de convivência/i)).toBeVisible()
         await expect(page.getByText(/casa principal/i)).toBeVisible()
         // Seção de devices — EmptyState
-        await expect(
-            page.getByText(/nenhum dispositivo cadastrado/i),
-        ).toBeVisible()
+        await expect(page.getByText(/nenhum dispositivo cadastrado/i)).toBeVisible()
 
         // ─── 4. Editar via botão do header (modal, sem navegar) ──────────────
         await page.getByRole("button", { name: /editar área/i }).click()
@@ -274,43 +251,29 @@ test.describe("Fluxo CRUD de áreas", () => {
 
         // Modal fecha, permanece na mesma AreaDetailsPage com o nome novo
         await expect(editDialog).not.toBeVisible()
-        await expect(page).toHaveURL(
-            /\/propriedades\/prop-1\/areas\/area-1$/,
-        )
-        await expect(
-            page.getByRole("heading", { level: 1, name: /sala renovada/i }),
-        ).toBeVisible()
+        await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1$/)
+        await expect(page.getByRole("heading", { level: 1, name: /sala renovada/i })).toBeVisible()
 
         // ─── 5. Excluir via menu ⋯ no header da details ──────────────────────
-        await page
-            .getByRole("button", { name: /opções de Sala renovada/i })
-            .click()
+        await page.getByRole("button", { name: /opções de Sala renovada/i }).click()
         await page.getByRole("menuitem", { name: /excluir/i }).click()
 
         // ConfirmDialog abre com aviso de cascade explícito
-        await expect(
-            page.getByRole("heading", { name: /excluir área/i }),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { name: /excluir área/i })).toBeVisible()
         // Os 3 elementos do cascade aparecem no aviso — escopo ao dialog
         // para evitar strict mode violation (a página tem "Dispositivos"
         // em outros elementos fora do dialog)
         const confirmDialog = page.getByRole("dialog")
         await expect(confirmDialog.getByText(/dispositivos/i)).toBeVisible()
-        await expect(
-            confirmDialog.getByText(/registros de consumo/i),
-        ).toBeVisible()
+        await expect(confirmDialog.getByText(/registros de consumo/i)).toBeVisible()
         await expect(confirmDialog.getByText(/alertas/i)).toBeVisible()
 
         await page.getByRole("button", { name: "Excluir" }).click()
 
         // Volta pra PropertyDetailsPage com EmptyState restaurado
         await expect(page).toHaveURL(/\/propriedades\/prop-1$/)
-        await expect(
-            page.getByText(/nenhuma área cadastrada/i),
-        ).toBeVisible()
-        await expect(
-            page.getByTestId("area-card-area-1"),
-        ).not.toBeVisible()
+        await expect(page.getByText(/nenhuma área cadastrada/i)).toBeVisible()
+        await expect(page.getByTestId("area-card-area-1")).not.toBeVisible()
     })
 
     test("edita e exclui uma área via menu ⋯ do card, sem sair da PropertyDetailsPage", async ({
@@ -329,14 +292,10 @@ test.describe("Fluxo CRUD de áreas", () => {
 
         // Confirma o card visível
         await expect(page.getByTestId("area-card-area-1")).toBeVisible()
-        await expect(
-            page.getByRole("heading", { level: 3, name: /cozinha/i }),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { level: 3, name: /cozinha/i })).toBeVisible()
 
         // ─── 1. Editar via menu ⋯ do card — modal local, nunca navega ────────
-        await page
-            .getByRole("button", { name: /opções de Cozinha/i })
-            .click()
+        await page.getByRole("button", { name: /opções de Cozinha/i }).click()
         await page.getByRole("menuitem", { name: /editar/i }).click()
 
         const editDialog = page.getByRole("dialog", { name: /editar área/i })
@@ -353,31 +312,21 @@ test.describe("Fluxo CRUD de áreas", () => {
         ).toBeVisible()
 
         // ─── 2. Excluir via menu ⋯ do card ───────────────────────────────────
-        await page
-            .getByRole("button", { name: /opções de Cozinha gourmet/i })
-            .click()
+        await page.getByRole("button", { name: /opções de Cozinha gourmet/i }).click()
         await page.getByRole("menuitem", { name: /excluir/i }).click()
 
         // ConfirmDialog abre na própria PropertyDetailsPage (não navegamos)
-        await expect(
-            page.getByRole("heading", { name: /excluir área/i }),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { name: /excluir área/i })).toBeVisible()
 
         await page.getByRole("button", { name: "Excluir" }).click()
 
         // Permanece na PropertyDetailsPage, EmptyState restaurado
         await expect(page).toHaveURL(/\/propriedades\/prop-1$/)
-        await expect(
-            page.getByText(/nenhuma área cadastrada/i),
-        ).toBeVisible()
-        await expect(
-            page.getByTestId("area-card-area-1"),
-        ).not.toBeVisible()
+        await expect(page.getByText(/nenhuma área cadastrada/i)).toBeVisible()
+        await expect(page.getByTestId("area-card-area-1")).not.toBeVisible()
     })
 
-    test("validação client-side bloqueia submit com nome vazio", async ({
-        page,
-    }) => {
+    test("validação client-side bloqueia submit com nome vazio", async ({ page }) => {
         await setupAuthAndProperty(page)
         const state: { areas: AreaSeed[]; nextId: number } = {
             areas: [],
@@ -406,9 +355,7 @@ test.describe("Fluxo CRUD de áreas", () => {
         // Interage com "descrição" (não com "nome") e clica direto no submit
         // sem blur manual — regressão do bug #111: sem esse fluxo, o clique
         // só validava o campo com autoFocus, escondendo o erro de "nome".
-        await page
-            .getByLabel(/descrição/i)
-            .fill("a".repeat(1001))
+        await page.getByLabel(/descrição/i).fill("a".repeat(1001))
         await page.getByRole("button", { name: /criar área/i }).click()
 
         await expect(page.getByText(/nome é obrigatório/i)).toBeVisible()

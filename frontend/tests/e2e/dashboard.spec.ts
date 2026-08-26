@@ -72,6 +72,13 @@ const setupDashboard = async (page: Page) => {
         return route.continue()
     })
     await page.route(/\/api\/consumption(\?.*)?$/, (route) => fulfillPaginated(route, []))
+    // `PropertyComparisonSection` dispara `GET /api/consumption/summary`
+    // com os ids de todas as propriedades — endpoint batch, 1 requisição
+    // pra N propriedades. Default vazio; o teste de comparação abaixo
+    // sobrescreve com dado real.
+    await page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) =>
+        fulfillJson(route, { items: [] }),
+    )
     // Default vazio — o gráfico "Consumo em tempo real" (issue #211) busca
     // /api/meter-readings sempre que há medidor; testes que não olham pro
     // conteúdo do gráfico não precisam sobrescrever isto.
@@ -324,17 +331,42 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
             if (url.searchParams.get("granularity") !== "month") {
                 return fulfillPaginated(route, [])
             }
-            const targetId = url.searchParams.get("targetId")
-            const kwh = targetId === PROP_1.id ? 120 : 60
+            // Só o KPI da propriedade selecionada (PROP_1) chama isto agora
+            // — a comparação entre propriedades usa o endpoint batch abaixo.
             return fulfillPaginated(route, [
                 {
                     bucketStart: new Date().toISOString(),
-                    kwhConsumed: kwh,
-                    costBrl: kwh * 0.8,
+                    kwhConsumed: 120,
+                    costBrl: 96,
                     avgPowerW: 500,
                 },
             ])
         })
+        // `PropertyComparisonSection` — 1 requisição batch pra todas as
+        // propriedades, não mais 1 por propriedade (substitui o mock acima
+        // por targetId).
+        await page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) =>
+            fulfillJson(route, {
+                items: [
+                    {
+                        id: PROP_1.id,
+                        targetType: "PROPERTY",
+                        bucketStart: new Date().toISOString(),
+                        kwhConsumed: 120,
+                        costBrl: 96,
+                        avgPowerW: 500,
+                    },
+                    {
+                        id: PROP_2.id,
+                        targetType: "PROPERTY",
+                        bucketStart: new Date().toISOString(),
+                        kwhConsumed: 60,
+                        costBrl: 48,
+                        avgPowerW: 500,
+                    },
+                ],
+            }),
+        )
         await mockSseStream(page, sseEvent("connected", { meterCount: 1 }))
 
         await page.goto("/dashboard")
@@ -372,6 +404,23 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
             }
             return fulfillPaginated(route, [])
         })
+        // `PropertyComparisonSection` só renderiza com pelo menos 1 alvo
+        // trazendo dado — sem este mock (a versão em lote da chamada acima),
+        // o teste abaixo (seção visível mesmo com 1 propriedade só) falharia.
+        await page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) =>
+            fulfillJson(route, {
+                items: [
+                    {
+                        id: PROP_1.id,
+                        targetType: "PROPERTY",
+                        bucketStart: new Date().toISOString(),
+                        kwhConsumed: 30,
+                        costBrl: 24,
+                        avgPowerW: 500,
+                    },
+                ],
+            }),
+        )
         await mockSseStream(page, sseEvent("connected", { meterCount: 1 }))
 
         await page.goto("/dashboard")
