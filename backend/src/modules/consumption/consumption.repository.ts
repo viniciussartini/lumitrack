@@ -50,36 +50,61 @@ export type BucketQuery = {
 export class ConsumptionRepository {
     constructor(private readonly prisma: PrismaClient) {}
 
+    // `COUNT(*) OVER ()` conta os grupos ANTES do LIMIT/OFFSET (window function
+    // roda depois do GROUP BY e antes do corte de página, na ordem lógica de
+    // execução do SQL) — dá o total de baldes na mesma query, sem a segunda
+    // varredura que `countBuckets` fazia sozinho.
+    //
+    // Exceção real, não hipotética: se o LIMIT/OFFSET zera o resultado (página
+    // fora do intervalo — ex.: pedir a página 5 de um total de 2), a query
+    // não devolve NENHUMA linha, e sem linha não tem onde o `COUNT(*) OVER()`
+    // "pendurar" o total. Só nesse caso, cai pro fallback de `countBuckets` —
+    // é o único jeito de não regredir a corretude da paginação (reportar
+    // `total: 0` quando na verdade há dado, só que fora da página pedida).
     async findAggregated(
         query: BucketQuery & { order: BucketOrder; skip: number; take: number },
-    ): Promise<ConsumptionBucket[]> {
+    ): Promise<{ items: ConsumptionBucket[]; total: number }> {
         const { meterId, granularity, from, to, order, skip, take } = query
         const unit = TRUNC_UNIT[granularity]
 
         const rows = await this.prisma.$queryRaw<
-            { bucket: Date; kwh: number; avgpower: number | null }[]
+            { bucket: Date; kwh: number; avgpower: number | null; total: bigint | number }[]
         >(
             Prisma.sql`
-                SELECT
-                    date_trunc(${unit}, ${localTsExpr()}) AS bucket,
-                    SUM("kwhConsumed") AS kwh,
-                    SUM("avgPowerW" * "secondsCovered") / NULLIF(SUM("secondsCovered"), 0) AS avgpower
-                FROM "meter_readings"
-                WHERE "meterId" = ${meterId}
-                ${rangeFilter(from, to)}
-                GROUP BY bucket
+                SELECT bucket, kwh, avgpower, COUNT(*) OVER () AS total
+                FROM (
+                    SELECT
+                        date_trunc(${unit}, ${localTsExpr()}) AS bucket,
+                        SUM("kwhConsumed") AS kwh,
+                        SUM("avgPowerW" * "secondsCovered") / NULLIF(SUM("secondsCovered"), 0) AS avgpower
+                    FROM "meter_readings"
+                    WHERE "meterId" = ${meterId}
+                    ${rangeFilter(from, to)}
+                    GROUP BY bucket
+                ) grouped
                 ORDER BY bucket ${ORDER_DIRECTION[order]}
                 LIMIT ${take} OFFSET ${skip}
             `,
         )
 
-        return rows.map((r) => ({
-            bucketStart: r.bucket,
-            kwhConsumed: Number(r.kwh),
-            avgPowerW: Number(r.avgpower ?? 0),
-        }))
+        if (rows.length === 0) {
+            const total = await this.countBuckets({ meterId, granularity, from, to })
+            return { items: [], total }
+        }
+
+        return {
+            items: rows.map((r) => ({
+                bucketStart: r.bucket,
+                kwhConsumed: Number(r.kwh),
+                avgPowerW: Number(r.avgpower ?? 0),
+            })),
+            total: Number(rows[0]!.total),
+        }
     }
 
+    // Usado sozinho só pelo fallback de página fora do intervalo em
+    // `findAggregated` — no caminho comum, o total já vem de lá via
+    // `COUNT(*) OVER ()`, sem precisar desta segunda varredura.
     async countBuckets(query: BucketQuery): Promise<number> {
         const { meterId, granularity, from, to } = query
         const unit = TRUNC_UNIT[granularity]

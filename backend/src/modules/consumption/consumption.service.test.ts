@@ -345,6 +345,28 @@ describe("ConsumptionService.list", () => {
             expect(result.items).toHaveLength(2)
             expect(result.total).toBe(3)
         })
+
+        // Regressão do #284: COUNT(*) OVER() não tem linha pra "pendurar" o
+        // total quando o LIMIT/OFFSET zera o resultado — sem o fallback pro
+        // countBuckets, este caso reportaria total: 0 mesmo havendo dado.
+        it("página fora do intervalo retorna items vazio com total correto (não 0)", async () => {
+            const { user, meter, property } = await setupPropertyMeter()
+
+            await insertReading(meter.id, "2026-01-15T13:00:00Z", 0.01, 600)
+            await insertReading(meter.id, "2026-01-15T14:00:00Z", 0.01, 600)
+            await insertReading(meter.id, "2026-01-15T15:00:00Z", 0.01, 600)
+
+            const result = await consumptionService.list(user.id, {
+                targetType: "PROPERTY",
+                targetId: property.id,
+                granularity: "hour",
+                page: 5,
+                pageSize: 2,
+            })
+
+            expect(result.items).toHaveLength(0)
+            expect(result.total).toBe(3)
+        })
     })
 })
 
