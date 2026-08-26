@@ -2194,3 +2194,16 @@
 - **Arquivos principais:** `backend/src/modules/consumption/consumption.repository.ts`, `consumption.service.ts`, `consumption.service.test.ts`, `.claude/docs/2026-08-26-baseline-desempenho-countbuckets-pool.md` (novo).
 - **Decisões/ADRs:** nenhuma nova.
 - **Notas:** suíte completa, `tsc`/`eslint`/`prettier --check`/`depcruise` limpos. Próximo e último item avulso da Fase 15: #285 (pool de conexões explícito), na mesma branch.
+
+## [2026-08-26] refactor: pool de conexões pg explícito via env vars (issue #285)
+
+- **Branch:** perf/284-285-countbuckets-pool-conexoes
+- **Tipo:** refactor
+- **O quê:** último item avulso da Fase 15. `backend/src/shared/database/prisma.ts` construía o `Pool` do driver `pg` só com `connectionString`, rodando no default implícito do driver (`max=10`, `connectionTimeoutMillis=0`, `idleTimeoutMillis=10000`) — nada configurável, nada documentado.
+  - **Medição real antes de decidir os valores:** backend de desenvolvimento e o `iot-simulator` (`DEMO_BOOTSTRAP_ENABLED=true`, 11 devices/tópicos MQTT da demo) rodando simultâneos contra o Postgres local — mesmo cenário de concorrência real que a issue cita (API + worker IoT + `MinuteRollupScheduler`/`RetentionPurgeScheduler` competindo pelo pool). 4 flushes consecutivos do scheduler observados via `LOG_LEVEL=debug` (a instrumentação `getPoolStats()` já existe desde o épico #275): `totalCount: 10, idleCount: 10, waitingCount: 0` nos 4, ou seja, o pool se estabiliza exatamente no default implícito do driver e nunca satura sob essa carga.
+  - **3 novos env vars em `env.ts`** (`.int().positive()`, mesmo padrão fail-closed das `DATA_RETENTION_*` — sem isso um `max <= 0` derrubaria toda conexão ao banco no boot): `DB_POOL_MAX` (default `10`, documenta o teto real observado em vez de depender do default implícito), `DB_POOL_CONNECTION_TIMEOUT_MS` (default `5000` — o default do `pg` é `0`/espera indefinida, incoerente com o padrão fail-closed do resto do arquivo), `DB_POOL_IDLE_TIMEOUT_MS` (default `30000` — o default do `pg` é `10000`ms, curto demais frente ao ciclo de 60s dos schedulers, que reconectaria a cada execução).
+  - `createPrismaClient()` em `prisma.ts` passa os 3 valores ao `new Pool({...})`. Comportamento observável idêntico ao anterior com os defaults propostos — é refatoração (torna explícito o que já era implícito), não mudança de comportamento.
+  - **Não testado por unit test o comportamento do pool em si** — é configuração passada ao driver `pg`, não lógica de domínio; simular isso daria falsa confiança. Testado o que é testável: fail-closed do schema (`env.test.ts`, rejeita vazio/zero/negativo/não-inteiro nos 3 vars, aplica os defaults documentados), verificado que a suíte nova falha de fato ao enfraquecer a validação antes de restaurá-la.
+- **Arquivos principais:** `backend/src/config/env.ts`, `backend/src/config/env.test.ts`, `backend/src/shared/database/prisma.ts`, `backend/.env.example`.
+- **Decisões/ADRs:** nenhuma nova — os valores escolhidos estão documentados com o raciocínio em `.claude/docs/2026-08-26-baseline-desempenho-countbuckets-pool.md`.
+- **Notas:** suíte completa, `tsc`/`eslint`/`prettier --check`/`depcruise` limpos. Fecha a Fase 15 — próximo passo é `/preparar-pr` para a branch `perf/284-285-countbuckets-pool-conexoes` (`#284` + `#285`) contra `staging`, seguido de `revisao-codigo`.
