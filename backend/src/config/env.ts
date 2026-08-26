@@ -205,6 +205,26 @@ export const envSchema = z
         // REGISTRATION_ENABLED) — o `.refine` abaixo barra `true` em produção
         // mesmo que alguém configure a variável por engano.
         DEBUG_QUERY_LOGGING_ENABLED: z.stringbool().default(false),
+
+        // Pool de conexões `pg` — antes implícito no default do driver, agora
+        // explícito e mensurável. Mesma regra fail-closed de `.int().positive()`
+        // das DATA_RETENTION_*: sem ela, `z.coerce.number()` aceita "" ou
+        // negativo, e um pool com `max <= 0` derruba toda conexão ao banco no boot.
+        //
+        // DB_POOL_MAX: default 10 documenta o comportamento real observado —
+        // medição local (backend + iot-simulator com 11 medidores demo
+        // rodando simultâneos) mostrou o pool se estabilizando neste teto
+        // (o default implícito do driver `pg`) sem nunca saturar sob essa carga.
+        DB_POOL_MAX: z.coerce.number().int().positive().default(10),
+        // DB_POOL_CONNECTION_TIMEOUT_MS: o default do `pg` é 0 (espera
+        // indefinidamente por uma conexão livre) — sob saturação real isso
+        // trava a requisição em vez de falhar visivelmente, incoerente com o
+        // padrão fail-closed do resto deste arquivo.
+        DB_POOL_CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+        // DB_POOL_IDLE_TIMEOUT_MS: o default do `pg` é 10000ms — curto demais
+        // frente ao ciclo de 60s do MinuteRollupScheduler/RetentionPurgeScheduler,
+        // que reconectaria a cada execução em vez de reaproveitar a conexão.
+        DB_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
     })
     .refine((data) => !(data.NODE_ENV === "production" && data.CORS_ORIGIN === "*"), {
         message:

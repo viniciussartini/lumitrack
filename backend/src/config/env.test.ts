@@ -260,6 +260,70 @@ describe("envSchema — DATA_RETENTION_* falha fechado contra valor vazio/zero/n
     })
 })
 
+describe("envSchema — DB_POOL_* falha fechado contra valor vazio/zero/negativo (#285)", () => {
+    // Mesma regra das DATA_RETENTION_*: sem .int().positive(), um pool com
+    // max <= 0 (ou timeout <= 0) passaria pelo schema e derrubaria toda
+    // conexão ao banco só no boot do driver `pg`, não na validação de env.
+    it("rejeita string vazia em DB_POOL_MAX", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_MAX: "" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita zero em DB_POOL_MAX", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_MAX: "0" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita negativo em DB_POOL_MAX", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_MAX: "-1" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita não-inteiro em DB_POOL_MAX", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_MAX: "1.5" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("aceita um inteiro positivo válido em DB_POOL_MAX", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_MAX: "20" })
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DB_POOL_MAX).toBe(20)
+        }
+    })
+
+    it("rejeita zero em DB_POOL_CONNECTION_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            DB_POOL_CONNECTION_TIMEOUT_MS: "0",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita negativo em DB_POOL_IDLE_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_IDLE_TIMEOUT_MS: "-30000" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("aplica os defaults documentados quando ausentes — max=10 é o comportamento real já observado, connectionTimeout=5000 e idleTimeout=30000 tornam explícito o que hoje é implícito no driver `pg`", () => {
+        const result = envSchema.safeParse(baseValidEnv)
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DB_POOL_MAX).toBe(10)
+            expect(result.data.DB_POOL_CONNECTION_TIMEOUT_MS).toBe(5000)
+            expect(result.data.DB_POOL_IDLE_TIMEOUT_MS).toBe(30000)
+        }
+    })
+})
+
 describe("envSchema — DATABASE_TEST_URL/DATABASE_HTTP_TEST_URL (#165)", () => {
     it("rejeita NODE_ENV=test sem DATABASE_TEST_URL", () => {
         const result = envSchema.safeParse({

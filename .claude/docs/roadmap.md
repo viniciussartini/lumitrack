@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-24 · Fases 1–14 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14). Fase atual: **15** (desempenho — instrumentação antes de otimização, índices, cache, compressão, pool de conexões e retenção de `meter_readings`), detalhe abaixo.
+> Última atualização: 2026-08-26 · Fases 1–15 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15). Fase atual: **15.5** (enforcement de qualidade), detalhe abaixo.
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das auditorias** — as quatro de 2026-08-05 e, a partir da Fase 13.6, as quatro de 2026-08-22 (pós-deploy) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **A Fase 13.7 separa os ambientes:** VPS Hostinger (São Paulo) vira produção real (branch `main`), Render+Neon é rebaixado a staging/integração (branch `staging`) — ver **ADR-0012**. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
@@ -1236,6 +1236,11 @@ A retenção de `meter_readings` (issues #236/#267) é escopo próprio desta fas
 | B-01, B-03, B-04, B-06, B-09, B-10 | **Fase 18** | Polimento de baixo impacto |
 
 **Justificativa de sequenciamento (o que não é óbvio):** a compressão vem antes de tudo apesar de não ser o maior ganho, porque é a única coisa da fase que não depende de medição e entrega no primeiro dia. Os índices e o expurgo vêm antes de cache, N+1 e endpoint batch porque são o que impede o custo de **crescer** — otimizar query antes de indexar mede o cenário errado e leva à conclusão errada sobre o que otimizar depois.
+
+**Fechamento (2026-08-26):** os 10 itens da fase entregues em três branches. **Épico #275** (fundação — instrumental de medição #276, compressão HTTP + cache #277, índices de FK #278, retenção de `meter_readings` e as outras três entidades #236/#267), branch `epic/275-fundacao-desempenho`, PR #286. **Épico #279** (redução de custo unitário — cache in-process de bandeira/distribuidoras #280, `resolveRootProperty`/`resolveMeterTarget` em uma query #281, N+1 de `AlertService.findAll` + `enabledCount` #282, endpoint batch de consumo #283), branch `epic/279-reducao-custo-unitario`, PR #287. **Issues avulsas #284/#285** (`countBuckets` via `COUNT(*) OVER ()` e pool de conexões explícito — as duas P2, sem épico próprio, dependentes do instrumental do #275), branch `perf/284-285-countbuckets-pool-conexoes`, PR #288. **Fecha a Fase 15.**
+
+- Nenhum item da fase virou YAGNI na execução — `countBuckets`/`COUNT(*) OVER()`, o único candidato explicitamente sinalizado como "só com número na mão", mediu ~3,4× mais rápido e ~8,4× menos buffer, então foi implementado.
+- **Achado próprio da revisão de código do PR #288, issue nova sem fase atribuída:** #289 (`statement_timeout`/`query_timeout` explícito no pool — a outra metade do controle P1 do `11-seguranca-infraestrutura.md` sobre exaustão de conexões, que o #285 só cobriu pela metade). Não bloqueia a Fase 15 nem tem medição própria feita ainda; mesmo tratamento dado a #269/#272 ao fim da Fase 14 — fica em aberto até uma fase de robustez/infra futura reivindicá-la.
 
 ## Fases 15.5–18 (objetivo — serão detalhadas ao chegar)
 

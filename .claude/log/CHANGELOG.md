@@ -2181,3 +2181,43 @@
 - **Arquivos principais:** `frontend/tests/e2e/alerts.spec.ts`, `area.spec.ts`, `device.spec.ts`, `dashboard.spec.ts`.
 - **Decisões/ADRs:** nenhuma nova.
 - **Notas:** achado de processo — os testes Playwright vivem em `frontend/tests/e2e/`, fora do `npx vitest run` que rodou (verde) em cada sub-issue desta sessão. Mudança de contrato de API precisa, a partir de agora, de uma varredura por `page.route` nesse diretório além dos testes de componente — os dois nunca rodam juntos localmente por padrão.
+
+## [2026-08-26] refactor: countBuckets via COUNT(*) OVER() em vez de segunda varredura (issue #284)
+
+- **Branch:** perf/284-285-countbuckets-pool-conexoes
+- **Tipo:** refactor
+- **O quê:** último item P2 da Fase 15 sem épico — depende do instrumental de medição do épico #275 (mesclado). `ConsumptionRepository.findAggregated` e `countBuckets` faziam o mesmo `GROUP BY date_trunc(...)` sobre `meter_readings` em 2 queries `$queryRaw` separadas — a segunda só para contar o total de baldes da paginação.
+  - **`findAggregated`** reescrita: a agregação vira uma subquery, e o nível externo adiciona `COUNT(*) OVER ()` antes do `ORDER BY`/`LIMIT`/`OFFSET` — window function roda depois do `GROUP BY` e antes do corte de página na ordem lógica do SQL, então conta o total de grupos, não só os da página. Assinatura muda de `Promise<ConsumptionBucket[]>` para `Promise<{ items: ConsumptionBucket[]; total: number }>`; o único call site (`ConsumptionService.list`) troca `Promise.all([findAggregated, countBuckets])` por uma chamada só.
+  - **Achado corrigido durante a implementação, não hipotético:** `COUNT(*) OVER()` não tem linha para "pendurar" o total quando `LIMIT`/`OFFSET` zera o resultado (página fora do intervalo — ex.: pedir a página 5 de um total de 2). Sem tratamento, isso reportaria `total: 0` mesmo havendo dado, quebrando a paginação do cliente silenciosamente. Corrigido com fallback: só quando a query devolve 0 linhas, uma chamada extra a `countBuckets` (mantida como método, agora só usada nesse caminho raro) resolve o total corretamente.
+  - **Medido, não YAGNI:** `EXPLAIN (ANALYZE, BUFFERS)` num banco descartável (950.400 linhas sintéticas, 11 medidores × 2 meses) — antes (2 queries) 124,3 ms / 22.897 buffers; depois (1 query) 36,2 ms / 2.729 buffers. **~3,4× mais rápido, ~8,4× menos buffer tocado.** O ganho não vem só de eliminar a segunda varredura: unificar as duas queries fez o planner trocar o `Parallel Seq Scan` que `findAggregated` escolhia sozinha por um `Bitmap Heap Scan` usando o índice único `meter_readings_meterId_minuteStart_key` — a query combinada herda o plano bom das duas.
+  - Comportamento idêntico ao anterior — é refatoração: todos os testes existentes de `consumption.service.test.ts` (granularidade, paginação, ordenação, custo) passaram sem alteração de expectativa. Teste novo cobrindo o edge case de página fora do intervalo, **verificado que de fato falha sem o fallback** (revertido temporariamente, confirmado `total: 0` incorreto, restaurado).
+- **Arquivos principais:** `backend/src/modules/consumption/consumption.repository.ts`, `consumption.service.ts`, `consumption.service.test.ts`, `.claude/docs/2026-08-26-baseline-desempenho-countbuckets-pool.md` (novo).
+- **Decisões/ADRs:** nenhuma nova.
+- **Notas:** suíte completa, `tsc`/`eslint`/`prettier --check`/`depcruise` limpos. Próximo e último item avulso da Fase 15: #285 (pool de conexões explícito), na mesma branch.
+
+## [2026-08-26] refactor: pool de conexões pg explícito via env vars (issue #285)
+
+- **Branch:** perf/284-285-countbuckets-pool-conexoes
+- **Tipo:** refactor
+- **O quê:** último item avulso da Fase 15. `backend/src/shared/database/prisma.ts` construía o `Pool` do driver `pg` só com `connectionString`, rodando no default implícito do driver (`max=10`, `connectionTimeoutMillis=0`, `idleTimeoutMillis=10000`) — nada configurável, nada documentado.
+  - **Medição real antes de decidir os valores:** backend de desenvolvimento e o `iot-simulator` (`DEMO_BOOTSTRAP_ENABLED=true`, 11 devices/tópicos MQTT da demo) rodando simultâneos contra o Postgres local — mesmo cenário de concorrência real que a issue cita (API + worker IoT + `MinuteRollupScheduler`/`RetentionPurgeScheduler` competindo pelo pool). 4 flushes consecutivos do scheduler observados via `LOG_LEVEL=debug` (a instrumentação `getPoolStats()` já existe desde o épico #275): `totalCount: 10, idleCount: 10, waitingCount: 0` nos 4, ou seja, o pool se estabiliza exatamente no default implícito do driver e nunca satura sob essa carga.
+  - **3 novos env vars em `env.ts`** (`.int().positive()`, mesmo padrão fail-closed das `DATA_RETENTION_*` — sem isso um `max <= 0` derrubaria toda conexão ao banco no boot): `DB_POOL_MAX` (default `10`, documenta o teto real observado em vez de depender do default implícito), `DB_POOL_CONNECTION_TIMEOUT_MS` (default `5000` — o default do `pg` é `0`/espera indefinida, incoerente com o padrão fail-closed do resto do arquivo), `DB_POOL_IDLE_TIMEOUT_MS` (default `30000` — o default do `pg` é `10000`ms, curto demais frente ao ciclo de 60s dos schedulers, que reconectaria a cada execução).
+  - `createPrismaClient()` em `prisma.ts` passa os 3 valores ao `new Pool({...})`. Comportamento observável idêntico ao anterior com os defaults propostos — é refatoração (torna explícito o que já era implícito), não mudança de comportamento.
+  - **Não testado por unit test o comportamento do pool em si** — é configuração passada ao driver `pg`, não lógica de domínio; simular isso daria falsa confiança. Testado o que é testável: fail-closed do schema (`env.test.ts`, rejeita vazio/zero/negativo/não-inteiro nos 3 vars, aplica os defaults documentados), verificado que a suíte nova falha de fato ao enfraquecer a validação antes de restaurá-la.
+- **Arquivos principais:** `backend/src/config/env.ts`, `backend/src/config/env.test.ts`, `backend/src/shared/database/prisma.ts`, `backend/.env.example`.
+- **Decisões/ADRs:** nenhuma nova — os valores escolhidos estão documentados com o raciocínio em `.claude/docs/2026-08-26-baseline-desempenho-countbuckets-pool.md`.
+- **Notas:** suíte completa, `tsc`/`eslint`/`prettier --check`/`depcruise` limpos. Fecha a Fase 15 — próximo passo é `/preparar-pr` para a branch `perf/284-285-countbuckets-pool-conexoes` (`#284` + `#285`) contra `staging`, seguido de `revisao-codigo`.
+
+## [2026-08-26] fix: bloqueio e sugestões da revisão de código do PR #288
+
+- **Branch:** perf/284-285-countbuckets-pool-conexoes
+- **Tipo:** fix
+- **O quê:** aplica o laudo de `revisao-codigo` do PR #288 (#284 + #285), postado como comentário no próprio PR.
+  - **Bloqueio (comentário de rastreabilidade, proibido pelo `06`):** removidas as referências a `issue #284`/`#285` e ao nome do arquivo de baseline em `backend/src/config/env.ts`, `backend/.env.example` e `consumption.service.test.ts` — mantida a explicação funcional de cada comentário, só a rastreabilidade saiu (já vive no CHANGELOG e no PR).
+  - **Sugestão aplicada — fallback de `findAggregated` desnecessário na primeira página:** com `skip === 0` (garantido `page === 1`) e `take >= 1`, zero linhas já prova zero grupos — o total é `0` sem precisar da segunda query a `countBuckets`. Antes, esse caminho (medidor sem leitura, empty state do dashboard) ia em série a duas queries onde uma bastava. Coberto por teste novo ("primeira página sem nenhuma leitura retorna items e total vazios").
+  - **Sugestão aplicada — `countBuckets` agora `private`:** não tinha mais chamador fora de `findAggregated` (confirmado por busca no repositório) — o encapsulamento impede a reintrodução acidental do padrão de 2 queries que a #284 eliminou.
+  - **Sugestão aplicada — JSDoc em vez de comentário de linha:** `findAggregated` e `countBuckets` (métodos públicos/de contrato) documentados em bloco `/** */`, seguindo o padrão já usado em `BucketQuery` no mesmo arquivo.
+  - **Sugestão não aplicada nesta branch:** `statement_timeout`/`query_timeout` no `Pool` (metade do controle P1 do `11-seguranca-infraestrutura.md` sobre exaustão de conexões) — o próprio laudo recomenda issue própria com medição contra o pior caso legítimo (ex.: `RetentionPurgeScheduler` em lote grande), não uma alteração sem medir.
+- **Arquivos principais:** `backend/src/config/env.ts`, `backend/.env.example`, `backend/src/modules/consumption/consumption.repository.ts`, `backend/src/modules/consumption/consumption.service.test.ts`.
+- **Decisões/ADRs:** nenhuma nova.
+- **Notas:** suíte completa (159 arquivos / 1904 testes), `tsc`/`eslint`/`prettier --check`/`depcruise` limpos. PR #288 pronto para merge após esta correção.

@@ -100,10 +100,12 @@ export class ConsumptionService {
 
         const bucketQuery = { meterId: meter.id, granularity, from, to }
 
-        const [buckets, total] = await Promise.all([
-            this.consumptionRepository.findAggregated({ ...bucketQuery, order, skip, take }),
-            this.consumptionRepository.countBuckets(bucketQuery),
-        ])
+        const { items: buckets, total } = await this.consumptionRepository.findAggregated({
+            ...bucketQuery,
+            order,
+            skip,
+            take,
+        })
 
         // Granularidade "year" + alvo PROPERTY: o piso de disponibilidade é
         // mensal, então o custo anual correto é a soma de 12 custos mensais
