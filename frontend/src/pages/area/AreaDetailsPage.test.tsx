@@ -17,6 +17,7 @@ import { meterService } from "@/services/meter.service"
 vi.mock("@/services/consumption.service", () => ({
     consumptionService: {
         list: vi.fn(),
+        summary: vi.fn(),
     },
 }))
 

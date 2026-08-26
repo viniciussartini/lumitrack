@@ -27,6 +27,11 @@ export const alertService = {
         return data.data
     },
 
+    stats: async (): Promise<{ enabledCount: number }> => {
+        const { data } = await api.get<ApiEnvelope<{ enabledCount: number }>>("/alerts/stats")
+        return data.data
+    },
+
     getById: async (id: string): Promise<AlertWithStatus> => {
         const { data } = await api.get<ApiEnvelope<AlertWithStatus>>(`/alerts/${id}`)
         return data.data

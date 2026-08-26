@@ -112,6 +112,16 @@ export const queryKeys = {
                 pageSize,
                 window,
             ] as const,
+        // Endpoint batch — "último bucket de N alvos do mesmo tipo", não
+        // paginado. Chave própria pra não colidir com `list`.
+        summary: (targetType: string, ids: string[], granularity: string) =>
+            [
+                ...queryKeys.consumption.all,
+                "summary",
+                targetType,
+                [...ids].sort(),
+                granularity,
+            ] as const,
     },
     meterReadings: {
         all: ["meterReadings"] as const,
@@ -127,6 +137,7 @@ export const queryKeys = {
         list: (page: number, pageSize: number) =>
             [...queryKeys.alerts.all, "list", page, pageSize] as const,
         firing: () => [...queryKeys.alerts.all, "firing"] as const,
+        stats: () => [...queryKeys.alerts.all, "stats"] as const,
         detail: (id: string) => [...queryKeys.alerts.all, "detail", id] as const,
     },
     alertEvents: {

@@ -38,6 +38,17 @@ export class AlertController {
         }
     }
 
+    // GET /api/alerts/stats
+    async stats(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id: userId } = (req as AuthenticatedRequest).user
+            const enabledCount = await this.alertService.countEnabled(userId)
+            res.status(200).json({ status: "success", data: { enabledCount } })
+        } catch (error) {
+            next(error)
+        }
+    }
+
     // GET /api/alerts/:id
     async findById(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {

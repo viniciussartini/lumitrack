@@ -24,6 +24,16 @@ export const useFiringAlerts = () =>
         queryFn: () => alertService.firing(),
     })
 
+/**
+ * KPI "alertas ativos" — evita pedir uma segunda página cheia de alertas
+ * só para contar `enabled` no cliente.
+ */
+export const useAlertsStats = () =>
+    useQuery({
+        queryKey: queryKeys.alerts.stats(),
+        queryFn: () => alertService.stats(),
+    })
+
 export const useAlert = (id: string | undefined) =>
     useQuery({
         queryKey: queryKeys.alerts.detail(id ?? ""),

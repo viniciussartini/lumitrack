@@ -24,7 +24,10 @@ export type PropertyResponse = Omit<PrismaProperty, "publicLightingFeeBrl"> & {
 // A cifra/decifra acontece exclusivamente nessa borda do repository —
 // o resto da aplicação (service, controller, frontend) continua recebendo
 // o valor em texto claro, sem nenhuma mudança de contrato de API.
-function toPropertyResponse(p: PrismaProperty): PropertyResponse {
+// Exportada para uso por AreaRepository/DeviceRepository, que também
+// precisam devolver uma Property decifrada ao resolver a cadeia de posse
+// numa única query (ver `findByIdWithProperty`).
+export function toPropertyResponse(p: PrismaProperty): PropertyResponse {
     return {
         ...p,
         address: p.address ? decryptAddress(p.address) : p.address,

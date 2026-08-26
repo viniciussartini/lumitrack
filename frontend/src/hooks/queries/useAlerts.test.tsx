@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { renderHook, waitFor } from "@testing-library/react"
 import type { ReactNode } from "react"
-import { useAlerts, useFiringAlerts, useAlert } from "@/hooks/queries/useAlerts"
+import { useAlerts, useAlertsStats, useFiringAlerts, useAlert } from "@/hooks/queries/useAlerts"
 import { alertService } from "@/services/alert.service"
 import type { AlertWithStatus } from "@/types/alert.types"
 
@@ -10,6 +10,7 @@ vi.mock("@/services/alert.service", () => ({
     alertService: {
         list: vi.fn(),
         firing: vi.fn(),
+        stats: vi.fn(),
         getById: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
@@ -111,6 +112,21 @@ describe("useFiringAlerts", () => {
 
         expect(alertService.firing).toHaveBeenCalled()
         expect(result.current.data).toEqual([mockAlert])
+    })
+})
+
+describe("useAlertsStats", () => {
+    it("chama stats() e retorna enabledCount", async () => {
+        vi.mocked(alertService.stats).mockResolvedValue({ enabledCount: 3 })
+
+        const { result } = renderHook(() => useAlertsStats(), {
+            wrapper: createWrapper(),
+        })
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+        expect(alertService.stats).toHaveBeenCalled()
+        expect(result.current.data).toEqual({ enabledCount: 3 })
     })
 })
 

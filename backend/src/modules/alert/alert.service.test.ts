@@ -5,8 +5,6 @@ import { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
-import { AreaRepository } from "@/modules/area/area.repository.js"
-import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import type { AlertEvaluator, FiringAlert } from "@/modules/alert/alert-evaluator.js"
@@ -22,12 +20,10 @@ const meterRepository = new MeterRepository(prismaTest)
 const propertyRepository = new PropertyRepository(prismaTest)
 const distributorRepository = new DistributorRepository(prismaTest)
 const propertyService = new PropertyService(propertyRepository, distributorRepository)
-const areaRepository = new AreaRepository(prismaTest)
-const deviceRepository = new DeviceRepository(prismaTest)
 const userRepository = new UserRepository(prismaTest)
 const userService = new UserService(userRepository)
 
-const meterTargetRepos = { meterRepository, propertyRepository, areaRepository, deviceRepository }
+const meterTargetRepos = { meterRepository }
 
 // Fake mínimo do AlertEvaluator — o service só chama isFiring/getFiringByUser/
 // invalidateMeter, então um fake simples evita subir o pipeline de amostras
@@ -265,6 +261,101 @@ describe("AlertService", () => {
             const result = await service.findAll(user.id, { page: 1, pageSize: 2 })
             expect(result.items).toHaveLength(2)
             expect(result.total).toBe(3)
+        })
+
+        // resolveMeterTargets (batch) precisa associar o target certo a
+        // cada alerta mesmo com targetType misto na mesma página,
+        // já que cada tipo antes batia numa forma de query diferente.
+        it("resolve o target correto por alerta numa página com targetType misto", async () => {
+            const { user, property, meter: propertyMeter } = await setupUserAndMeter()
+            const area = await prismaTest.area.create({
+                data: { propertyId: property.id, name: "Sala" },
+            })
+            const areaMeter = await prismaTest.meter.create({
+                data: {
+                    name: "Medidor da área",
+                    targetType: "AREA",
+                    areaId: area.id,
+                    protocol: "MQTT",
+                    host: "localhost",
+                    port: 1883,
+                    topic: "t2",
+                },
+            })
+            const device = await prismaTest.device.create({
+                data: { areaId: area.id, name: "Ar-condicionado" },
+            })
+            const deviceMeter = await prismaTest.meter.create({
+                data: {
+                    name: "Medidor do device",
+                    targetType: "DEVICE",
+                    deviceId: device.id,
+                    protocol: "MQTT",
+                    host: "localhost",
+                    port: 1883,
+                    topic: "t3",
+                },
+            })
+            const service = new AlertService(alertRepository, meterTargetRepos)
+            const alertProperty = await service.create(user.id, {
+                ...validAlertInput,
+                meterId: propertyMeter.id,
+                name: "Alerta propriedade",
+            })
+            const alertArea = await service.create(user.id, {
+                ...validAlertInput,
+                meterId: areaMeter.id,
+                name: "Alerta área",
+            })
+            const alertDevice = await service.create(user.id, {
+                ...validAlertInput,
+                meterId: deviceMeter.id,
+                name: "Alerta device",
+            })
+
+            const result = await service.findAll(user.id, { pageSize: 10 })
+
+            const byId = new Map(result.items.map((item) => [item.id, item]))
+            expect(byId.get(alertProperty.id)?.target).toEqual({
+                type: "PROPERTY",
+                name: "Casa",
+                path: `/propriedades/${property.id}`,
+            })
+            expect(byId.get(alertArea.id)?.target).toEqual({
+                type: "AREA",
+                name: "Sala",
+                path: `/propriedades/${property.id}/areas/${area.id}`,
+            })
+            expect(byId.get(alertDevice.id)?.target).toEqual({
+                type: "DEVICE",
+                name: "Ar-condicionado",
+                path: `/propriedades/${property.id}/areas/${area.id}/devices/${device.id}`,
+            })
+        })
+    })
+
+    describe("countEnabled", () => {
+        it("conta só os alertas habilitados do usuário autenticado", async () => {
+            const { user: userA, meter: meterA } = await setupUserAndMeter("joao@example.com")
+            const { user: userB, meter: meterB } = await setupUserAndMeter("maria@example.com")
+            const service = new AlertService(alertRepository, meterTargetRepos)
+            await service.create(userA.id, { ...validAlertInput, meterId: meterA.id })
+            await service.create(userA.id, {
+                ...validAlertInput,
+                meterId: meterA.id,
+                name: "Desabilitado",
+                enabled: false,
+            })
+            await service.create(userB.id, { ...validAlertInput, meterId: meterB.id })
+
+            expect(await service.countEnabled(userA.id)).toBe(1)
+        })
+
+        it("retorna 0 quando o usuário não tem nenhum alerta habilitado", async () => {
+            const { user } = await setupUserAndMeter()
+            const service = new AlertService(alertRepository, meterTargetRepos)
+
+            expect(await service.countEnabled(user.id)).toBe(0)
         })
     })
 

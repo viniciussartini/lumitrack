@@ -285,6 +285,34 @@ describe("GET /api/alerts/firing", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/alerts/stats
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("GET /api/alerts/stats", () => {
+    it("deve retornar enabledCount contando só os alertas habilitados do usuário", async () => {
+        const { token, meterId } = await setupUserWithMeter()
+        await createAlert(token, meterId)
+        await createAlert(token, meterId, {
+            ...validAlertBody,
+            name: "Desabilitado",
+            enabled: false,
+        })
+
+        const response = await request(app)
+            .get("/api/alerts/stats")
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(200)
+        expect(response.body.data).toEqual({ enabledCount: 1 })
+    })
+
+    it("deve retornar 401 sem token", async () => {
+        const response = await request(app).get("/api/alerts/stats")
+        expect(response.status).toBe(401)
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/alerts/:id
 // ─────────────────────────────────────────────────────────────────────────────
 

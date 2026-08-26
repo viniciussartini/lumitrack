@@ -32,6 +32,15 @@ const setupAuthAndMeters = async (page: Page) => {
     await mockAppShellBackground(page)
     await setupAuth(page)
     await page.route(/\/api\/meters(\?.*)?$/, (route) => fulfillPaginated(route, [METER_1]))
+
+    // KPI "Alertas ativos" — AlertsPage dispara isto incondicionalmente.
+    // Sem mock, a chamada vaza pro backend real (401, sem sessão de
+    // verdade) e derruba a página inteira (ver comentário em
+    // support/appShell.ts). Nenhum teste deste arquivo lê o valor do KPI,
+    // então um número fixo é suficiente.
+    await page.route(/\/api\/alerts\/stats(\?.*)?$/, (route) =>
+        fulfillJson(route, { enabledCount: 1 }),
+    )
 }
 
 const makeAlert = (overrides: Partial<AlertWithStatus> = {}): AlertWithStatus => ({

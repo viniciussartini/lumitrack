@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
-import { useQueries } from "@tanstack/react-query"
 import { AlertCircle, ArrowLeft, Cpu, LayoutGrid, Pencil, Plus } from "lucide-react"
 import { useArea } from "@/hooks/queries/useAreas"
 import { useProperty } from "@/hooks/queries/useProperties"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
-import { useConsumption } from "@/hooks/queries/useConsumption"
+import { useConsumption, useConsumptionSummary } from "@/hooks/queries/useConsumption"
 import { useDevices } from "@/hooks/queries/useDevices"
 import { useRealtime } from "@/contexts/RealtimeContext"
 import { Button } from "@/components/ui/Button"
@@ -19,13 +18,11 @@ import { AreaConsumptionSection } from "@/components/consumption/ConsumptionSect
 import { ComparisonBars } from "@/components/consumption/ComparisonBars"
 import { MeterSection } from "@/components/meter/MeterSection"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
-import { consumptionService } from "@/services/consumption.service"
-import { queryKeys } from "@/lib/queryClient"
 import { formatPowerKw } from "@/lib/format"
 import { formatKwh } from "@/lib/formatters/consumption"
 import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
-import type { ConsumptionBucket } from "@/types/consumption.types"
+import type { ConsumptionBucket, ConsumptionSummaryItem } from "@/types/consumption.types"
 
 /**
  * Página de detalhes de uma área — LumiTrack Home.dc.html, `areaDetailView`.
@@ -300,12 +297,10 @@ interface DevicesSectionProps {
  *
  * O consumo mensal por dispositivo (usado tanto no chip de potência de cada
  * DeviceCard — que é a potência nominal, não este dado — quanto nas barras
- * de comparação) é buscado UMA vez aqui via `useQueries`, mesmo padrão de
- * AreasSection em PropertyDetailsPage.tsx: uma query por dispositivo,
- * dinâmica conforme a lista carrega.
- *
- * Dispositivo sem medidor → a chamada de consumo 404, capturado e tratado
- * como "sem dado" (null), não como erro.
+ * de comparação) é buscado numa única chamada via `useConsumptionSummary`
+ * — substitui o `useQueries` de N chamadas, uma por dispositivo.
+ * Dispositivo sem medidor/sem leitura simplesmente não aparece no
+ * resultado — não é erro, só fica de fora da comparação.
  */
 const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
     const devicesQuery = useDevices(propertyId, areaId)
@@ -313,34 +308,21 @@ const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
     const [comparisonUnit, setComparisonUnit] = useState<"kwh" | "reais">("kwh")
     const devices = devicesQuery.data?.items ?? []
 
-    const consumptionQueries = useQueries({
-        queries: devices.map((device) => ({
-            queryKey: queryKeys.consumption.list("DEVICE", device.id, "month", 1, 3),
-            queryFn: async (): Promise<ConsumptionBucket | null> => {
-                try {
-                    const res = await consumptionService.list({
-                        targetType: "DEVICE",
-                        targetId: device.id,
-                        granularity: "month",
-                        page: 1,
-                        pageSize: 3,
-                    })
-                    return latestBucket(res.items)
-                } catch {
-                    return null
-                }
-            },
-        })),
-    })
+    const summaryQuery = useConsumptionSummary(
+        "DEVICE",
+        devices.map((d) => d.id),
+        "month",
+    )
+    const bucketById = new Map((summaryQuery.data?.items ?? []).map((item) => [item.id, item]))
 
     const comparisonRows = devices
-        .map((device, i) => ({
+        .map((device) => ({
             id: device.id,
             label: device.name,
-            bucket: consumptionQueries[i]?.data,
+            bucket: bucketById.get(device.id),
         }))
         .filter(
-            (row): row is { id: string; label: string; bucket: ConsumptionBucket } =>
+            (row): row is { id: string; label: string; bucket: ConsumptionSummaryItem } =>
                 row.bucket != null,
         )
 

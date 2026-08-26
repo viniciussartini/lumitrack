@@ -1,12 +1,12 @@
 import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
-import { useQueries } from "@tanstack/react-query"
 import { AlertCircle, ArrowLeft, Home, LayoutGrid, MapPin, Pencil, Plus } from "lucide-react"
 import { useProperty } from "@/hooks/queries/useProperties"
 import { useDistributor, useDistributors } from "@/hooks/queries/useDistributors"
 import { useAreas } from "@/hooks/queries/useAreas"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
 import { useLiveMeterReading } from "@/hooks/useLiveMeterReading"
+import { useConsumptionSummary } from "@/hooks/queries/useConsumption"
 import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Tag } from "@/components/ui/Tag"
@@ -18,8 +18,6 @@ import { PropertyConsumptionSection } from "@/components/consumption/Consumption
 import { ComparisonBars } from "@/components/consumption/ComparisonBars"
 import { MeterSection } from "@/components/meter/MeterSection"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
-import { consumptionService } from "@/services/consumption.service"
-import { queryKeys } from "@/lib/queryClient"
 import { formatPowerKw, formatKwhPrice, formatBrl } from "@/lib/format"
 import {
     BILLING_CLASS_LABELS,
@@ -27,7 +25,7 @@ import {
     type Property,
 } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
-import type { ConsumptionBucket } from "@/types/consumption.types"
+import type { ConsumptionSummaryItem } from "@/types/consumption.types"
 
 /**
  * Página de detalhes de uma propriedade — LumiTrack Home.dc.html,
@@ -292,14 +290,10 @@ interface AreasSectionProps {
  * Lista as áreas da propriedade + comparação de consumo entre elas.
  *
  * O consumo mensal por área (usado tanto no kWh/mês de cada AreaCard quanto
- * nas barras de comparação) é buscado UMA vez aqui via `useQueries` — uma
- * query por área, dinâmica conforme a lista carrega. `useQueries` (não N
- * chamadas de `useConsumption` em loop) é o jeito correto de disparar um
- * número variável de queries sem violar a regra de hooks.
- *
- * Sem medidor na área, a chamada de consumo 404 — capturado e tratado como
- * "sem dado" (null), não como erro: não é uma falha, é uma área que ainda
- * não tem leitura pra comparar.
+ * nas barras de comparação) é buscado numa única chamada via
+ * `useConsumptionSummary` — substitui o `useQueries` de N chamadas, uma
+ * por área. Área sem medidor/sem leitura simplesmente não aparece no
+ * resultado — não é erro, só fica de fora da comparação.
  */
 const AreasSection = ({ propertyId }: AreasSectionProps) => {
     const areasQuery = useAreas(propertyId)
@@ -307,35 +301,17 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
     const [comparisonUnit, setComparisonUnit] = useState<"kwh" | "reais">("kwh")
     const areas = areasQuery.data?.items ?? []
 
-    const consumptionQueries = useQueries({
-        queries: areas.map((area) => ({
-            queryKey: queryKeys.consumption.list("AREA", area.id, "month", 1, 3),
-            queryFn: async (): Promise<ConsumptionBucket | null> => {
-                try {
-                    const res = await consumptionService.list({
-                        targetType: "AREA",
-                        targetId: area.id,
-                        granularity: "month",
-                        page: 1,
-                        pageSize: 3,
-                    })
-                    if (res.items.length === 0) return null
-                    return res.items.reduce((latest, bucket) =>
-                        new Date(bucket.bucketStart) > new Date(latest.bucketStart)
-                            ? bucket
-                            : latest,
-                    )
-                } catch {
-                    return null
-                }
-            },
-        })),
-    })
+    const summaryQuery = useConsumptionSummary(
+        "AREA",
+        areas.map((a) => a.id),
+        "month",
+    )
+    const bucketById = new Map((summaryQuery.data?.items ?? []).map((item) => [item.id, item]))
 
     const comparisonRows = areas
-        .map((area, i) => ({ id: area.id, label: area.name, bucket: consumptionQueries[i]?.data }))
+        .map((area) => ({ id: area.id, label: area.name, bucket: bucketById.get(area.id) }))
         .filter(
-            (row): row is { id: string; label: string; bucket: ConsumptionBucket } =>
+            (row): row is { id: string; label: string; bucket: ConsumptionSummaryItem } =>
                 row.bucket != null,
         )
 
@@ -401,11 +377,11 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
                             className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3"
                             data-testid="areas-grid"
                         >
-                            {areas.map((area, i) => (
+                            {areas.map((area) => (
                                 <AreaCard
                                     key={area.id}
                                     area={area}
-                                    monthlyConsumption={consumptionQueries[i]?.data}
+                                    monthlyConsumption={bucketById.get(area.id)}
                                 />
                             ))}
                         </div>

@@ -7,9 +7,6 @@ import { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import { MinuteRollupScheduler } from "@/modules/iot/iot-worker/MinuteRollupScheduler.js"
 import { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
 import { MeterRepository } from "@/modules/meter/meter.repository.js"
-import { PropertyRepository } from "@/modules/property/property.repository.js"
-import { AreaRepository } from "@/modules/area/area.repository.js"
-import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { AlertRepository } from "@/modules/alert/alert.repository.js"
 import { AlertTriggerEventRepository } from "@/modules/alert/alert-trigger-event.repository.js"
 import { AlertEvaluator } from "@/modules/alert/alert-evaluator.js"
@@ -43,12 +40,7 @@ const meterRepository = new MeterRepository(prisma)
 const alertEvaluator = new AlertEvaluator(
     new AlertRepository(prisma),
     new AlertTriggerEventRepository(prisma),
-    {
-        meterRepository,
-        propertyRepository: new PropertyRepository(prisma),
-        areaRepository: new AreaRepository(prisma),
-        deviceRepository: new DeviceRepository(prisma),
-    },
+    { meterRepository },
     userEventHub,
     notificationStore,
 )

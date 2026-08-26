@@ -1,9 +1,7 @@
 import { useState } from "react"
-import { useQueries } from "@tanstack/react-query"
 import { ComparisonBars } from "@/components/consumption/ComparisonBars"
-import { consumptionService } from "@/services/consumption.service"
-import { queryKeys } from "@/lib/queryClient"
-import type { ConsumptionBucket } from "@/types/consumption.types"
+import { useConsumptionSummary } from "@/hooks/queries/useConsumption"
+import type { ConsumptionSummaryItem } from "@/types/consumption.types"
 import type { Property } from "@/types/property.types"
 
 interface PropertyComparisonSectionProps {
@@ -12,11 +10,11 @@ interface PropertyComparisonSectionProps {
 
 /**
  * "Comparação entre propriedades" — bloco `isDashboard` do handoff (seção
- * COMPARISON). Réplica do padrão de comparação de áreas em
- * `AreasSection` (PropertyDetailsPage.tsx): `useQueries` (uma por
- * propriedade, não N `useConsumption` em loop — violaria Regras dos Hooks),
- * bucket do mês corrente, 404 (sem medidor) vira `null` silenciosamente —
- * nunca erro, a propriedade só fica de fora da comparação.
+ * COMPARISON). Consumo do mês de todas as propriedades resolvido numa única
+ * chamada via `useConsumptionSummary` — substitui o `useQueries` de N
+ * chamadas, uma por propriedade. Propriedade sem medidor/sem leitura
+ * simplesmente não aparece no resultado — nunca é erro, só fica de fora da
+ * comparação.
  *
  * Independente da propriedade selecionada no seletor — compara TODAS
  * as propriedades do usuário, já carregadas em `DashboardPage` (sem
@@ -27,42 +25,21 @@ interface PropertyComparisonSectionProps {
 export const PropertyComparisonSection = ({ properties }: PropertyComparisonSectionProps) => {
     const [unit, setUnit] = useState<"kwh" | "reais">("kwh")
 
-    // pageSize 3 (não 1) — mesmo valor de AreasSection, deliberadamente
-    // diferente do pageSize 1 que `DashboardKpiRow` usa pra granularidade
-    // month da propriedade selecionada. Mesmo `targetId`/`granularity`, se o
-    // pageSize também colidisse a queryKey seria idêntica à do KPI, mas com
-    // queryFn de formato diferente (aqui devolve só o bucket, lá o envelope
-    // paginado inteiro) — o cache compartilhado serviria o formato errado
-    // pro outro consumidor. items[0] já é o mais recente (backend ordena
-    // DESC), pageSize maior só evita a colisão.
-    const consumptionQueries = useQueries({
-        queries: properties.map((property) => ({
-            queryKey: queryKeys.consumption.list("PROPERTY", property.id, "month", 1, 3),
-            queryFn: async (): Promise<ConsumptionBucket | null> => {
-                try {
-                    const res = await consumptionService.list({
-                        targetType: "PROPERTY",
-                        targetId: property.id,
-                        granularity: "month",
-                        page: 1,
-                        pageSize: 3,
-                    })
-                    return res.items[0] ?? null
-                } catch {
-                    return null
-                }
-            },
-        })),
-    })
+    const summaryQuery = useConsumptionSummary(
+        "PROPERTY",
+        properties.map((p) => p.id),
+        "month",
+    )
+    const bucketById = new Map((summaryQuery.data?.items ?? []).map((item) => [item.id, item]))
 
     const comparisonRows = properties
-        .map((property, i) => ({
+        .map((property) => ({
             id: property.id,
             label: property.name,
-            bucket: consumptionQueries[i]?.data,
+            bucket: bucketById.get(property.id),
         }))
         .filter(
-            (row): row is { id: string; label: string; bucket: ConsumptionBucket } =>
+            (row): row is { id: string; label: string; bucket: ConsumptionSummaryItem } =>
                 row.bucket != null,
         )
 

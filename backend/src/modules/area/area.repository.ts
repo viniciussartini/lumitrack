@@ -1,6 +1,10 @@
 import { PrismaClient } from "@/generated/prisma/client.js"
 import type { CreateAreaInput, UpdateAreaInput } from "@/modules/area/area.schema.js"
 import { toSkipTake, type Paginated, type PaginationQuery } from "@/shared/pagination.js"
+import {
+    toPropertyResponse,
+    type PropertyResponse,
+} from "@/modules/property/property.repository.js"
 
 // Tipo inferido diretamente do Prisma
 type PrismaArea = NonNullable<Awaited<ReturnType<PrismaClient["area"]["findUnique"]>>>
@@ -12,6 +16,26 @@ export class AreaRepository {
 
     async findById(id: string): Promise<AreaResponse | null> {
         return this.prisma.area.findUnique({ where: { id } })
+    }
+
+    // Resolve área + propriedade dona numa única query, em vez dos 2 round
+    // trips sequenciais que `resolveRootProperty` fazia antes —
+    // `relationLoadStrategy: "join"` força um SQL JOIN real (a estratégia
+    // default do Prisma para `include` é executar uma query por nível de
+    // relação, não um join). `Area.propertyId` é FK obrigatória, então a
+    // única falha possível aqui é a própria área não existir.
+    async findByIdWithProperty(
+        id: string,
+    ): Promise<{ area: AreaResponse; property: PropertyResponse } | null> {
+        const raw = await this.prisma.area.findUnique({
+            where: { id },
+            include: { property: true },
+            relationLoadStrategy: "join",
+        })
+        if (!raw) return null
+
+        const { property, ...area } = raw
+        return { area, property: toPropertyResponse(property) }
     }
 
     async findAllByProperty(propertyId: string): Promise<AreaResponse[]> {

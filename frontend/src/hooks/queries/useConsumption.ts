@@ -54,3 +54,22 @@ export const useConsumption = (
             }),
         enabled: Boolean(targetId),
     })
+
+/**
+ * Endpoint batch — o último bucket de N alvos do mesmo `targetType`,
+ * substituindo o padrão `useQueries` (1 chamada por alvo) que
+ * `PropertyComparisonSection`, `AreasSection` e `DevicesSection` usavam.
+ *
+ * `enabled: ids.length > 0` evita disparar a query com lote vazio (a lista
+ * de propriedades/áreas/dispositivos ainda pode não ter carregado).
+ */
+export const useConsumptionSummary = (
+    targetType: TargetType,
+    ids: string[],
+    granularity: BucketSize,
+) =>
+    useQuery({
+        queryKey: queryKeys.consumption.summary(targetType, ids, granularity),
+        queryFn: () => consumptionService.summary({ targetType, ids, granularity }),
+        enabled: ids.length > 0,
+    })

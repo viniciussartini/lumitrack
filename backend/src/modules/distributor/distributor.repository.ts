@@ -43,14 +43,37 @@ function toDistributorResponse(raw: PrismaDistributor): DistributorResponse {
     }
 }
 
+// Cache em nível de módulo (não de instância — várias rotas instanciam seu
+// próprio `new DistributorRepository(prismaClient)` sobre o mesmo Postgres,
+// só compartilhando estado se ele viver fora da instância) e por TTL, não
+// por invalidação: ao contrário da bandeira tarifária, este catálogo não tem
+// nenhum caminho de escrita em runtime (create/update/delete não existem
+// nesta classe) — não há evento para amarrar a invalidação. Um TTL curto
+// evita servir dado desatualizado indefinidamente se o catálogo mudar por
+// seed/migração futura sem reiniciar o processo.
+const CACHE_TTL_MS = 5 * 60 * 1000
+const cache = new Map<string, { value: DistributorResponse; cachedAt: number }>()
+
 // Catálogo global de distribuidoras (somente leitura, populado via seed) —
 // não há mais create/update/delete nem escopo por userId.
 export class DistributorRepository {
     constructor(private readonly prisma: PrismaClient) {}
 
     async findById(id: string): Promise<DistributorResponse | null> {
+        const cached = cache.get(id)
+        if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
+            return cached.value
+        }
+
         const raw = await this.prisma.energyDistributor.findUnique({ where: { id } })
-        return raw ? toDistributorResponse(raw) : null
+        if (!raw) {
+            cache.delete(id)
+            return null
+        }
+
+        const value = toDistributorResponse(raw)
+        cache.set(id, { value, cachedAt: Date.now() })
+        return value
     }
 
     async findAll(pagination: PaginationQuery): Promise<Paginated<DistributorResponse>> {
@@ -91,4 +114,12 @@ export class DistributorRepository {
         const count = await this.prisma.energyDistributor.count({ where: { id } })
         return count > 0
     }
+}
+
+// Estado de módulo sobrevive entre testes do mesmo arquivo — sem isto, a
+// primeira leitura bem-sucedida de uma suíte "vazaria" para os testes
+// seguintes mesmo depois do `cleanDatabase()` recriar os dados. Chamado por
+// `cleanDatabase()`, não pelos arquivos de teste individualmente.
+export function resetDistributorCacheForTests(): void {
+    cache.clear()
 }

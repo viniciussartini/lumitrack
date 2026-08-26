@@ -7,7 +7,7 @@ import { Pagination } from "@/components/ui/Pagination"
 import { AlertTable } from "@/components/alert/AlertTable"
 import { AlertEventTable } from "@/components/alert/AlertEventTable"
 import { AlertFormDialog } from "@/components/alert/AlertFormDialog"
-import { useAlerts, useFiringAlerts } from "@/hooks/queries/useAlerts"
+import { useAlerts, useAlertsStats, useFiringAlerts } from "@/hooks/queries/useAlerts"
 import { useAlertEvents } from "@/hooks/queries/useAlertEvents"
 import { useMeters } from "@/hooks/queries/useMeters"
 import { cn } from "@/lib/cn"
@@ -33,10 +33,10 @@ import type { AlertWithStatus } from "@/types/alert.types"
 export const AlertsPage = () => {
     const [page, setPage] = useState(1)
     const alertsQuery = useAlerts(page, DEFAULT_PAGE_SIZE)
-    // Catálogo completo (pageSize máximo do backend) só pra computar os
-    // KPIs — useAlerts(page, DEFAULT_PAGE_SIZE) é paginado e só refletiria
-    // a página visível da tabela, não o total real de alertas habilitados.
-    const allAlertsQuery = useAlerts(1, 31)
+    // KPI "Alertas ativos" via GET /api/alerts/stats — antes pedia uma
+    // segunda página cheia (pageSize 31) só pra contar `enabled` no
+    // cliente, pagando o custo de resolução de target de cada alerta.
+    const statsQuery = useAlertsStats()
     // "Em disparo agora" reusa a mesma fonte do WarningBadge do header
     // (useFiringAlerts, GET /api/alerts/firing) — mesma query key, dedupe
     // automático do React Query, sem chamada HTTP extra.
@@ -59,9 +59,9 @@ export const AlertsPage = () => {
     const eventsQuery = useAlertEvents(effectiveAlertId, eventsPage, DEFAULT_PAGE_SIZE)
     const selectedAlert = alerts.find((a) => a.id === effectiveAlertId)
 
-    const activeAlertsCount = allAlertsQuery.isLoading
+    const activeAlertsCount = statsQuery.isLoading
         ? ("—" as const)
-        : (allAlertsQuery.data?.items ?? []).filter((a) => a.enabled).length
+        : (statsQuery.data?.enabledCount ?? 0)
     const firingCount = firingQuery.isLoading ? ("—" as const) : (firingQuery.data ?? []).length
 
     const handleSelectAlertForHistory = (id: string) => {
