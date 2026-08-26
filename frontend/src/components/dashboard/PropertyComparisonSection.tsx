@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { ComparisonBars } from "@/components/consumption/ComparisonBars"
 import { useConsumptionSummary } from "@/hooks/queries/useConsumption"
-import type { ConsumptionBucket } from "@/types/consumption.types"
+import type { ConsumptionSummaryItem } from "@/types/consumption.types"
 import type { Property } from "@/types/property.types"
 
 interface PropertyComparisonSectionProps {
@@ -39,7 +39,7 @@ export const PropertyComparisonSection = ({ properties }: PropertyComparisonSect
             bucket: bucketById.get(property.id),
         }))
         .filter(
-            (row): row is { id: string; label: string; bucket: ConsumptionBucket } =>
+            (row): row is { id: string; label: string; bucket: ConsumptionSummaryItem } =>
                 row.bucket != null,
         )
 

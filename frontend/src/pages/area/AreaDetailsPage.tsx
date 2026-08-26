@@ -22,7 +22,7 @@ import { formatPowerKw } from "@/lib/format"
 import { formatKwh } from "@/lib/formatters/consumption"
 import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
-import type { ConsumptionBucket } from "@/types/consumption.types"
+import type { ConsumptionBucket, ConsumptionSummaryItem } from "@/types/consumption.types"
 
 /**
  * Página de detalhes de uma área — LumiTrack Home.dc.html, `areaDetailView`.
@@ -322,7 +322,7 @@ const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
             bucket: bucketById.get(device.id),
         }))
         .filter(
-            (row): row is { id: string; label: string; bucket: ConsumptionBucket } =>
+            (row): row is { id: string; label: string; bucket: ConsumptionSummaryItem } =>
                 row.bucket != null,
         )
 

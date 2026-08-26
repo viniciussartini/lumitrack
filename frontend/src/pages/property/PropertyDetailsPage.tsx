@@ -25,7 +25,7 @@ import {
     type Property,
 } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
-import type { ConsumptionBucket } from "@/types/consumption.types"
+import type { ConsumptionSummaryItem } from "@/types/consumption.types"
 
 /**
  * Página de detalhes de uma propriedade — LumiTrack Home.dc.html,
@@ -311,7 +311,7 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
     const comparisonRows = areas
         .map((area) => ({ id: area.id, label: area.name, bucket: bucketById.get(area.id) }))
         .filter(
-            (row): row is { id: string; label: string; bucket: ConsumptionBucket } =>
+            (row): row is { id: string; label: string; bucket: ConsumptionSummaryItem } =>
                 row.bucket != null,
         )
 
