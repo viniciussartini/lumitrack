@@ -349,7 +349,7 @@ describe("ConsumptionService.list", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SUITE: ConsumptionService.summary (issue #283) — endpoint batch, 1 bucket
+// SUITE: ConsumptionService.summary — endpoint batch, 1 bucket
 // mais recente por alvo, autorização verificada por id da lista.
 // ─────────────────────────────────────────────────────────────────────────────
 

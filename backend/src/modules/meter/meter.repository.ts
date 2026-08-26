@@ -50,18 +50,33 @@ const METER_TARGET_INCLUDE = {
 
 type RawMeterWithTarget = Prisma.MeterGetPayload<{ include: typeof METER_TARGET_INCLUDE }>
 
+// Descarta a relação aninhada (`property`/`area`) antes de expor como
+// `AreaResponse`/`DeviceResponse` — sem isto, os objetos carregariam em
+// runtime endereço ainda cifrado e `userId` que o tipo público não declara.
+// Mesma destruturação que `AreaRepository.findByIdWithProperty` e
+// `DeviceRepository.findByIdWithProperty` já fazem para o mesmo `include`.
+function stripAreaProperty(area: NonNullable<RawMeterWithTarget["area"]>): AreaResponse {
+    const { property: _property, ...rest } = area
+    return rest
+}
+
+function stripDeviceArea(device: NonNullable<RawMeterWithTarget["device"]>): DeviceResponse {
+    const { area: _area, ...rest } = device
+    return rest
+}
+
 function toMeterWithTargetRow(raw: RawMeterWithTarget): MeterWithTargetRow {
     const property = raw.property ?? raw.area?.property ?? raw.device?.area.property ?? null
     // `area` cobre os dois casos em que uma área importa: alvo AREA (área do
     // próprio medidor) e alvo DEVICE (área-mãe do dispositivo, necessária
     // pra montar o path). Nunca ambos ao mesmo tempo.
-    const area = raw.area ?? raw.device?.area ?? null
+    const rawArea = raw.area ?? raw.device?.area ?? null
 
     return {
         meter: toMeterResponse(raw),
         property: property ? toPropertyResponse(property) : null,
-        area,
-        device: raw.device,
+        area: rawArea ? stripAreaProperty(rawArea) : null,
+        device: raw.device ? stripDeviceArea(raw.device) : null,
     }
 }
 

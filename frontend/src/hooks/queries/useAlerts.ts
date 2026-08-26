@@ -25,8 +25,8 @@ export const useFiringAlerts = () =>
     })
 
 /**
- * KPI "alertas ativos" (issue #282) — evita pedir uma segunda página cheia
- * de alertas só para contar `enabled` no cliente.
+ * KPI "alertas ativos" — evita pedir uma segunda página cheia de alertas
+ * só para contar `enabled` no cliente.
  */
 export const useAlertsStats = () =>
     useQuery({

@@ -11,8 +11,8 @@ interface PropertyComparisonSectionProps {
 /**
  * "Comparação entre propriedades" — bloco `isDashboard` do handoff (seção
  * COMPARISON). Consumo do mês de todas as propriedades resolvido numa única
- * chamada via `useConsumptionSummary` (issue #283 — substitui o `useQueries`
- * de N chamadas, uma por propriedade). Propriedade sem medidor/sem leitura
+ * chamada via `useConsumptionSummary` — substitui o `useQueries` de N
+ * chamadas, uma por propriedade. Propriedade sem medidor/sem leitura
  * simplesmente não aparece no resultado — nunca é erro, só fica de fora da
  * comparação.
  *
@@ -30,9 +30,7 @@ export const PropertyComparisonSection = ({ properties }: PropertyComparisonSect
         properties.map((p) => p.id),
         "month",
     )
-    const bucketById = new Map(
-        (summaryQuery.data?.items ?? []).map((item) => [item.id, item as ConsumptionBucket]),
-    )
+    const bucketById = new Map((summaryQuery.data?.items ?? []).map((item) => [item.id, item]))
 
     const comparisonRows = properties
         .map((property) => ({

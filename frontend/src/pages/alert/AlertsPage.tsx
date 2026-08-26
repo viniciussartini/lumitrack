@@ -33,9 +33,9 @@ import type { AlertWithStatus } from "@/types/alert.types"
 export const AlertsPage = () => {
     const [page, setPage] = useState(1)
     const alertsQuery = useAlerts(page, DEFAULT_PAGE_SIZE)
-    // KPI "Alertas ativos" via GET /api/alerts/stats (issue #282) — antes
-    // pedia uma segunda página cheia (pageSize 31) só pra contar `enabled`
-    // no cliente, pagando o custo de resolução de target de cada alerta.
+    // KPI "Alertas ativos" via GET /api/alerts/stats — antes pedia uma
+    // segunda página cheia (pageSize 31) só pra contar `enabled` no
+    // cliente, pagando o custo de resolução de target de cada alerta.
     const statsQuery = useAlertsStats()
     // "Em disparo agora" reusa a mesma fonte do WarningBadge do header
     // (useFiringAlerts, GET /api/alerts/firing) — mesma query key, dedupe

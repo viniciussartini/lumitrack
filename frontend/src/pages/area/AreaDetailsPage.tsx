@@ -298,9 +298,9 @@ interface DevicesSectionProps {
  * O consumo mensal por dispositivo (usado tanto no chip de potência de cada
  * DeviceCard — que é a potência nominal, não este dado — quanto nas barras
  * de comparação) é buscado numa única chamada via `useConsumptionSummary`
- * (issue #283 — substitui o `useQueries` de N chamadas, uma por
- * dispositivo). Dispositivo sem medidor/sem leitura simplesmente não
- * aparece no resultado — não é erro, só fica de fora da comparação.
+ * — substitui o `useQueries` de N chamadas, uma por dispositivo.
+ * Dispositivo sem medidor/sem leitura simplesmente não aparece no
+ * resultado — não é erro, só fica de fora da comparação.
  */
 const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
     const devicesQuery = useDevices(propertyId, areaId)
@@ -313,9 +313,7 @@ const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
         devices.map((d) => d.id),
         "month",
     )
-    const bucketById = new Map(
-        (summaryQuery.data?.items ?? []).map((item) => [item.id, item as ConsumptionBucket]),
-    )
+    const bucketById = new Map((summaryQuery.data?.items ?? []).map((item) => [item.id, item]))
 
     const comparisonRows = devices
         .map((device) => ({

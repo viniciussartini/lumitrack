@@ -44,9 +44,9 @@ export const consumptionService = {
         return data.data
     },
 
-    // Endpoint batch (issue #283) — o último bucket de N alvos do mesmo
-    // targetType numa única requisição, substituindo o fan-out de N chamadas
-    // a `list()` que os 3 pontos de comparação do produto faziam antes.
+    // Endpoint batch — o último bucket de N alvos do mesmo targetType numa
+    // única requisição, substituindo o fan-out de N chamadas a `list()` que
+    // os 3 pontos de comparação do produto faziam antes.
     summary: async ({
         ids,
         from,

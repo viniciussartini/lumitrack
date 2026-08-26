@@ -5,8 +5,6 @@ import { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
-import { AreaRepository } from "@/modules/area/area.repository.js"
-import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import type { AlertEvaluator, FiringAlert } from "@/modules/alert/alert-evaluator.js"
@@ -22,12 +20,10 @@ const meterRepository = new MeterRepository(prismaTest)
 const propertyRepository = new PropertyRepository(prismaTest)
 const distributorRepository = new DistributorRepository(prismaTest)
 const propertyService = new PropertyService(propertyRepository, distributorRepository)
-const areaRepository = new AreaRepository(prismaTest)
-const deviceRepository = new DeviceRepository(prismaTest)
 const userRepository = new UserRepository(prismaTest)
 const userService = new UserService(userRepository)
 
-const meterTargetRepos = { meterRepository, propertyRepository, areaRepository, deviceRepository }
+const meterTargetRepos = { meterRepository }
 
 // Fake mínimo do AlertEvaluator — o service só chama isFiring/getFiringByUser/
 // invalidateMeter, então um fake simples evita subir o pipeline de amostras
@@ -267,8 +263,8 @@ describe("AlertService", () => {
             expect(result.total).toBe(3)
         })
 
-        // Issue #282 — resolveMeterTargets (batch) precisa associar o target
-        // certo a cada alerta mesmo com targetType misto na mesma página,
+        // resolveMeterTargets (batch) precisa associar o target certo a
+        // cada alerta mesmo com targetType misto na mesma página,
         // já que cada tipo antes batia numa forma de query diferente.
         it("resolve o target correto por alerta numa página com targetType misto", async () => {
             const { user, property, meter: propertyMeter } = await setupUserAndMeter()

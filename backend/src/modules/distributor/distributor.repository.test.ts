@@ -53,11 +53,12 @@ describe("DistributorRepository — cache", () => {
 
     it("findById() para ID inexistente não fica em cache permanentemente como miss", async () => {
         const missingId = "00000000-0000-0000-0000-000000000000"
+        await distributorRepository.findById(missingId)
+        const spy = vi.spyOn(prismaTest.energyDistributor, "findUnique")
 
-        const first = await distributorRepository.findById(missingId)
         const second = await distributorRepository.findById(missingId)
 
-        expect(first).toBeNull()
+        expect(spy).toHaveBeenCalledTimes(1)
         expect(second).toBeNull()
     })
 })

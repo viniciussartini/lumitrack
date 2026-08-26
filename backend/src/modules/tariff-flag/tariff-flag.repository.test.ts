@@ -5,12 +5,14 @@ import { cleanDatabase } from "@/shared/test/clean-database.js"
 import { createTestTariffFlagConfig } from "@/shared/test/distributorFixture.js"
 
 const tariffFlagRepository = new TariffFlagRepository(prismaTest)
+const FIVE_MINUTES_MS = 5 * 60 * 1000
 
 beforeEach(async () => {
     await cleanDatabase()
 })
 
 afterEach(() => {
+    vi.useRealTimers()
     vi.restoreAllMocks()
 })
 
@@ -53,5 +55,20 @@ describe("TariffFlagRepository — cache", () => {
         await tariffFlagRepository.get()
 
         expect(spy).not.toHaveBeenCalled()
+    })
+
+    // Backstop contra escrita fora da aplicação (ex.: prisma/seed.ts
+    // reexecutado contra um processo já no ar) — sem TTL, essa bandeira
+    // ficaria presa em cache até reiniciar o servidor.
+    it("após o TTL expirar, get() consulta o banco de novo mesmo sem update()", async () => {
+        await createTestTariffFlagConfig(prismaTest)
+        vi.useFakeTimers()
+
+        await tariffFlagRepository.get()
+        vi.advanceTimersByTime(FIVE_MINUTES_MS + 1)
+        const spy = vi.spyOn(prismaTest.tariffFlagConfig, "findUnique")
+        await tariffFlagRepository.get()
+
+        expect(spy).toHaveBeenCalledTimes(1)
     })
 })

@@ -291,9 +291,9 @@ interface AreasSectionProps {
  *
  * O consumo mensal por área (usado tanto no kWh/mês de cada AreaCard quanto
  * nas barras de comparação) é buscado numa única chamada via
- * `useConsumptionSummary` (issue #283 — substitui o `useQueries` de N
- * chamadas, uma por área). Área sem medidor/sem leitura simplesmente não
- * aparece no resultado — não é erro, só fica de fora da comparação.
+ * `useConsumptionSummary` — substitui o `useQueries` de N chamadas, uma
+ * por área. Área sem medidor/sem leitura simplesmente não aparece no
+ * resultado — não é erro, só fica de fora da comparação.
  */
 const AreasSection = ({ propertyId }: AreasSectionProps) => {
     const areasQuery = useAreas(propertyId)
@@ -306,9 +306,7 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
         areas.map((a) => a.id),
         "month",
     )
-    const bucketById = new Map(
-        (summaryQuery.data?.items ?? []).map((item) => [item.id, item as ConsumptionBucket]),
-    )
+    const bucketById = new Map((summaryQuery.data?.items ?? []).map((item) => [item.id, item]))
 
     const comparisonRows = areas
         .map((area) => ({ id: area.id, label: area.name, bucket: bucketById.get(area.id) }))

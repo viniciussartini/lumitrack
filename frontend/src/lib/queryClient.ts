@@ -112,8 +112,8 @@ export const queryKeys = {
                 pageSize,
                 window,
             ] as const,
-        // Endpoint batch (issue #283) — "último bucket de N alvos do mesmo
-        // tipo", não paginado. Chave própria pra não colidir com `list`.
+        // Endpoint batch — "último bucket de N alvos do mesmo tipo", não
+        // paginado. Chave própria pra não colidir com `list`.
         summary: (targetType: string, ids: string[], granularity: string) =>
             [
                 ...queryKeys.consumption.all,

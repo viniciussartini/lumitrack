@@ -4,9 +4,6 @@ import { AlertController } from "@/modules/alert/alert.controller.js"
 import { AlertRepository } from "@/modules/alert/alert.repository.js"
 import { AlertService } from "@/modules/alert/alert.service.js"
 import { MeterRepository } from "@/modules/meter/meter.repository.js"
-import { PropertyRepository } from "@/modules/property/property.repository.js"
-import { AreaRepository } from "@/modules/area/area.repository.js"
-import { DeviceRepository } from "@/modules/device/device.repository.js"
 import type { AlertEvaluator } from "@/modules/alert/alert-evaluator.js"
 import { blockDemoWrite } from "@/shared/middlewares/blockDemoWrite.js"
 
@@ -23,12 +20,7 @@ export function alertRoutes(
     const router = Router()
 
     const alertRepository = new AlertRepository(prismaClient)
-    const meterTargetRepos = {
-        meterRepository: new MeterRepository(prismaClient),
-        propertyRepository: new PropertyRepository(prismaClient),
-        areaRepository: new AreaRepository(prismaClient),
-        deviceRepository: new DeviceRepository(prismaClient),
-    }
+    const meterTargetRepos = { meterRepository: new MeterRepository(prismaClient) }
     const alertService = new AlertService(alertRepository, meterTargetRepos, alertEvaluator)
     const controller = new AlertController(alertService)
 

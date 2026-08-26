@@ -57,9 +57,9 @@ afterAll(async () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SUITE: resolveRootProperty — primitiva central de autorização de posse
-// (issue #281 — cobertura própria antes ausente; resolução agora em 1 query
-// por ramo em vez de até 3 round trips sequenciais)
+// SUITE: resolveRootProperty — primitiva central de autorização de posse,
+// cobertura própria antes ausente; resolução agora em 1 query por ramo em
+// vez de até 3 round trips sequenciais.
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("resolveRootProperty", () => {

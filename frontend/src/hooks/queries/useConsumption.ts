@@ -56,8 +56,8 @@ export const useConsumption = (
     })
 
 /**
- * Endpoint batch (issue #283) — o último bucket de N alvos do mesmo
- * `targetType`, substituindo o padrão `useQueries` (1 chamada por alvo) que
+ * Endpoint batch — o último bucket de N alvos do mesmo `targetType`,
+ * substituindo o padrão `useQueries` (1 chamada por alvo) que
  * `PropertyComparisonSection`, `AreasSection` e `DevicesSection` usavam.
  *
  * `enabled: ids.length > 0` evita disparar a query com lote vazio (a lista

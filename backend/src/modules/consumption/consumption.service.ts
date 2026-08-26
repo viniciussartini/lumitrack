@@ -161,9 +161,9 @@ export class ConsumptionService {
     // GET /api/consumption/summary — o último bucket de um conjunto de
     // alvos do MESMO targetType, resolvido numa única query de agregação
     // (Prisma) para todos os medidores, em vez de uma chamada de `list()`
-    // por alvo (achado A-03 do laudo de 2026-08-22). Não é paginado — é
-    // exatamente o que os 3 pontos de fan-out do frontend pedem (o bucket
-    // mais recente por alvo), não uma listagem genérica.
+    // por alvo. Não é paginado — é exatamente o que os 3 pontos de fan-out
+    // do frontend pedem (o bucket mais recente por alvo), não uma listagem
+    // genérica.
     async summary(userId: string, query: unknown): Promise<ConsumptionSummaryResponse> {
         const parsed = consumptionSummaryQuerySchema.safeParse(query)
         if (!parsed.success) {

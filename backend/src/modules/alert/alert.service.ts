@@ -97,8 +97,8 @@ export class AlertService {
 
         const result = await this.alertRepository.findAllByUserPaginated(userId, parsed.data)
         // Batch: 1 query pra página inteira (via `resolveMeterTargets`), em
-        // vez de 1 chamada de `resolveMeterTarget` por alerta — era o N+1
-        // de até 1-3 round trips por item (achado A-02 do laudo de 2026-08-22).
+        // vez de 1 chamada de `resolveMeterTarget` por alerta — evita até
+        // 1-3 round trips extras por item.
         const meterIds = [...new Set(result.items.map((alert) => alert.meterId))]
         const targetMap = await resolveMeterTargets(this.meterTargetRepos, meterIds)
         const items = result.items.map((alert) =>

@@ -63,7 +63,7 @@ export interface ListConsumptionParams {
     pageSize?: number
 }
 
-/** Query params de `GET /api/consumption/summary` (issue #283). */
+/** Query params de `GET /api/consumption/summary`. */
 export interface ConsumptionSummaryParams {
     targetType: TargetType
     /** Um tipo só vale pra lista inteira — mistura não faz sentido. */

@@ -50,8 +50,8 @@ export async function cleanDatabase(): Promise<void> {
     ])
 
     // TariffFlagRepository/DistributorRepository cacheiam em nível de módulo
-    // (issue #280) — sem isto, o cache de um teste anterior sobreviveria à
-    // limpeza do banco e vazaria dado obsoleto para o teste seguinte.
+    // — sem isto, o cache de um teste anterior sobreviveria à limpeza do
+    // banco e vazaria dado obsoleto para o teste seguinte.
     resetTariffFlagCacheForTests()
     resetDistributorCacheForTests()
 }

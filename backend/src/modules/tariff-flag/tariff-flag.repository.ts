@@ -44,10 +44,15 @@ export function resolveFlagPer100Kwh(config: TariffFlagConfigResponse): number {
 // simulation, tariff-flag, o sync da ANEEL) instanciam seu próprio
 // `new TariffFlagRepository(prismaClient)` sobre o mesmo Postgres — um cache
 // por instância deixaria a invalidação feita por uma rota invisível às
-// outras. `update()` é o único caminho de escrita (chamado tanto pelo sync
-// automático quanto pela rota admin manual), por isso é o único lugar que
-// precisa atualizar o cache.
+// outras. `update()` é o único caminho de escrita da aplicação (chamado
+// tanto pelo sync automático quanto pela rota admin manual), por isso
+// invalida ali. O TTL abaixo é só um backstop contra uma escrita fora da
+// aplicação (ex.: `prisma/seed.ts` reexecutado contra um processo já no
+// ar) — sem ele, uma bandeira trocada por fora do `update()` ficaria
+// presa em cache para sempre, até reiniciar o servidor.
+const CACHE_TTL_MS = 5 * 60 * 1000
 let cachedConfig: TariffFlagConfigResponse | null = null
+let cachedAt = 0
 
 // Singleton (id fixo = 1) — populado pelo seed. `get()` nunca deveria
 // retornar null em ambiente seedado; ainda assim o service trata a ausência
@@ -56,12 +61,13 @@ export class TariffFlagRepository {
     constructor(private readonly prisma: PrismaClient) {}
 
     async get(): Promise<TariffFlagConfigResponse | null> {
-        if (cachedConfig) return cachedConfig
+        if (cachedConfig && Date.now() - cachedAt < CACHE_TTL_MS) return cachedConfig
 
         const raw = await this.prisma.tariffFlagConfig.findUnique({ where: { id: 1 } })
         if (!raw) return null
 
         cachedConfig = toResponse(raw)
+        cachedAt = Date.now()
         return cachedConfig
     }
 
@@ -75,6 +81,7 @@ export class TariffFlagRepository {
             data: cleanData,
         })
         cachedConfig = toResponse(raw)
+        cachedAt = Date.now()
         return cachedConfig
     }
 }
@@ -85,4 +92,5 @@ export class TariffFlagRepository {
 // `cleanDatabase()`, não pelos arquivos de teste individualmente.
 export function resetTariffFlagCacheForTests(): void {
     cachedConfig = null
+    cachedAt = 0
 }

@@ -1,14 +1,12 @@
 import type { TargetType } from "@/generated/prisma/client.js"
 import type { MeterRepository, MeterWithTargetRow } from "@/modules/meter/meter.repository.js"
-import type { PropertyRepository } from "@/modules/property/property.repository.js"
-import type { AreaRepository } from "@/modules/area/area.repository.js"
-import type { DeviceRepository } from "@/modules/device/device.repository.js"
 
+// `findByIdWithTarget`/`findManyByIdsWithTarget` resolvem a cadeia inteira
+// (medidor→propriedade/área/device) numa única query via `include`, então
+// só o próprio `meterRepository` é necessário aqui — property/area/device
+// deixaram de ser dependência direta.
 export type MeterTargetRepos = {
     meterRepository: MeterRepository
-    propertyRepository: PropertyRepository
-    areaRepository: AreaRepository
-    deviceRepository: DeviceRepository
 }
 
 export type MeterTargetInfo = {

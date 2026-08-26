@@ -25,7 +25,7 @@ const deviceService = new DeviceService(deviceRepository, areaRepository, proper
 const userRepository = new UserRepository(prismaTest)
 const userService = new UserService(userRepository)
 
-const repos = { meterRepository, propertyRepository, areaRepository, deviceRepository }
+const repos = { meterRepository }
 
 async function setupHierarchy() {
     const user = await userService.createUser({

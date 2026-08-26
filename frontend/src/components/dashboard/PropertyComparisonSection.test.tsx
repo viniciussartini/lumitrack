@@ -86,8 +86,8 @@ describe("PropertyComparisonSection", () => {
 
     it("lista uma barra por propriedade com dado, ignorando a que não tem medidor", async () => {
         // Sem medidor/leitura: o backend simplesmente não inclui o id no
-        // resultado (issue #283 — exclusão silenciosa), diferente do 404
-        // por chamada que o antigo `list()` por propriedade lançava.
+        // resultado (exclusão silenciosa), diferente do 404 por chamada
+        // que o antigo `list()` por propriedade lançava.
         vi.mocked(consumptionService.summary).mockResolvedValue({
             items: [summaryItem("prop-a", 100)],
         })

@@ -27,8 +27,8 @@ export const listConsumptionQuerySchema = z
 
 export type ListConsumptionQuery = z.infer<typeof listConsumptionQuerySchema>
 
-// Teto de ids do lote — protege o GROUP BY de custo não limitado (critério
-// de aceite da issue #283). 50 é generoso para o uso real (nenhuma tela do
+// Teto de ids do lote — protege o GROUP BY de custo não limitado. 50 é
+// generoso para o uso real (nenhuma tela do
 // produto lista mais que algumas dezenas de propriedades/áreas/dispositivos
 // por usuário) sem ser um número tão pequeno a ponto de estourar em contas
 // legítimas.

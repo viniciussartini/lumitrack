@@ -134,8 +134,8 @@ export class ConsumptionRepository {
         }))
     }
 
-    // Base do endpoint batch (GET /api/consumption/summary, issue #283) —
-    // uma única query para o bucket MAIS RECENTE de vários medidores de uma
+    // Base do endpoint batch (GET /api/consumption/summary) — uma única
+    // query para o bucket MAIS RECENTE de vários medidores de uma
     // vez, em vez de uma chamada de `findAggregated` por alvo. `DISTINCT ON`
     // sobre o resultado já agrupado por bucket é o que resolve "1 linha por
     // meterId, a mais recente" sem paginação nem `LIMIT`/`OFFSET` por grupo
