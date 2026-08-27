@@ -207,8 +207,8 @@ describe("AuthService", () => {
     })
 
     // ─────────────────────────────────────────────────────────────────────────
-    // SUITE: demoLogin (issue #179 — login de demonstração sem senha no
-    // cliente, gated por DEMO_LOGIN_ENABLED injetado no construtor)
+    // SUITE: demoLogin (login de demonstração sem senha no cliente, gated
+    // por DEMO_LOGIN_ENABLED injetado no construtor)
     // ─────────────────────────────────────────────────────────────────────────
 
     describe("demoLogin", () => {
@@ -390,9 +390,9 @@ describe("AuthService", () => {
             )
         })
 
-        // #10 — OWASP A04: reproduz o achado antes da correção — o token
-        // enviado por e-mail não pode aparecer em claro na coluna do banco.
-        // Mesmo padrão do teste de senha em user.service.test.ts:87-101.
+        // OWASP A04: o token enviado por e-mail não pode aparecer em claro
+        // na coluna do banco — regressão do vazamento já corrigido. Mesmo
+        // padrão do teste de senha em user.service.test.ts:87-101.
         it("deve armazenar o token como hash SHA-256, nunca em texto puro", async () => {
             const { UserService } = await import("@/modules/user/user.service.js")
             const userService = new UserService(userRepository)
@@ -559,7 +559,7 @@ describe("AuthService", () => {
     })
 
     // ─────────────────────────────────────────────────────────────────────────
-    // SUITE: MFA (#12 — A06/A07)
+    // SUITE: MFA (A06/A07)
     // ─────────────────────────────────────────────────────────────────────────
 
     // Timeout maior que o default (5000ms) para todo o bloco — habilitar o
@@ -575,8 +575,8 @@ describe("AuthService", () => {
             return user.id
         }
 
-        // Issue #177 (ADR-0008): conta de demonstração — usada pelos testes
-        // de somente-leitura em verifyMfaSetup/disableMfa abaixo.
+        // Conta de demonstração (ADR-0008) — usada pelos testes de
+        // somente-leitura em verifyMfaSetup/disableMfa abaixo.
         async function createDemoUserAndGetId(): Promise<string> {
             const { UserService } = await import("@/modules/user/user.service.js")
             const userService = new UserService(userRepository)
@@ -648,8 +648,8 @@ describe("AuthService", () => {
                 expect(user?.mfaEnabled).toBe(false)
             })
 
-            // Issue #177 (ADR-0008): sem este guard, uma sessão na conta
-            // demo pode habilitar MFA e sequestrá-la permanentemente.
+            // Sem este guard (ADR-0008), uma sessão na conta demo poderia
+            // habilitar MFA e sequestrá-la permanentemente.
             it("lança ForbiddenError e não habilita MFA numa conta de demonstração", async () => {
                 const demoUserId = await createDemoUserAndGetId()
                 const { secret } = await authService.setupMfa(DEMO_RESIDENTIAL_EMAIL)
@@ -664,11 +664,11 @@ describe("AuthService", () => {
                 expect(user?.mfaSecret).toBeNull()
             })
 
-            // #10 — OWASP A07: reinscrever o segundo fator dá o mesmo
-            // resultado prático de desabilitá-lo (expulsa o dono legítimo),
-            // mas não exigia nada além de uma sessão válida — diferente de
-            // `disableMfa`, que já exige senha+código. Este é o teste que
-            // reproduz o bug e falha se o step-up for removido (DoD do
+            // OWASP A07: reinscrever o segundo fator dá o mesmo resultado
+            // prático de desabilitá-lo (expulsa o dono legítimo), mas não
+            // exigia nada além de uma sessão válida — diferente de
+            // `disableMfa`, que já exige senha+código. Este teste reproduz
+            // o cenário e falha se o step-up for removido (DoD do
             // 05-security-standards.md).
             it("recusa reinscrição com BadRequestError quando o MFA já está habilitado (step-up)", async () => {
                 const userId = await createUserAndGetId()
@@ -701,7 +701,7 @@ describe("AuthService", () => {
                 expect(session.token).toBeTruthy()
             })
 
-            // Purga de backup codes (#10 — A07): reinscrever via o caminho
+            // Purga de backup codes (A07): reinscrever via o caminho
             // correto (disable → setup) não pode deixar os códigos do lote
             // anterior utilizáveis.
             it("purga os backup codes do lote anterior ao reinscrever via disable → setup", async () => {
@@ -893,8 +893,8 @@ describe("AuthService", () => {
                 expect(user?.mfaEnabled).toBe(false)
             })
 
-            // Issue #177 (ADR-0008): defesa em profundidade — mesmo que uma
-            // conta demo chegue com MFA habilitado por fora do fluxo normal
+            // Defesa em profundidade (ADR-0008): mesmo que uma conta demo
+            // chegue com MFA habilitado por fora do fluxo normal
             // (verifyMfaSetup já bloqueia a conta demo; isto simula um
             // estado legado/manual), disableMfa continua recusando.
             it("lança ForbiddenError ao tentar desabilitar MFA de uma conta de demonstração", async () => {
@@ -950,7 +950,7 @@ describe("AuthService", () => {
         })
     })
 
-    // ─── refresh (#14 — A06) ──────────────────────────────────────────────────
+    // ─── refresh (A06) ────────────────────────────────────────────────────────
     describe("refresh", () => {
         async function createUserAndLogin() {
             const { UserService } = await import("@/modules/user/user.service.js")

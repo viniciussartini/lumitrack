@@ -29,8 +29,8 @@ export const fulfillError = (route: Route, message: string, status: number) =>
 
 /**
  * Resposta de uma listagem paginada — o envelope `Paginated<T>` que TODA
- * listagem passou a devolver na reformulação IoT (Fase 3, paginação
- * universal): `{ status: "success", data: { items, total, page, pageSize } }`.
+ * listagem passou a devolver na reformulação IoT (paginação universal):
+ * `{ status: "success", data: { items, total, page, pageSize } }`.
  *
  * É o erro mais comum de mock pós-rework: devolver o array cru (`data: [...]`)
  * faz o hook receber `undefined` em `.items` e a tela quebrar sem erro de

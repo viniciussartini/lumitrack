@@ -103,9 +103,9 @@ export class SimulationService {
     }
 
     // Custo da simulação via TariffService — mesmo racional do
-    // ConsumptionService (Fase 3.3): piso de disponibilidade + CIP só fazem
-    // sentido para o alvo PROPERTY num período que representa um mês
-    // faturável inteiro.
+    // ConsumptionService: piso de disponibilidade + CIP só fazem sentido
+    // para o alvo PROPERTY num período que representa um mês faturável
+    // inteiro.
     //   MONTHLY + PROPERTY: kwhConsumed já é o total do mês → piso/CIP direto.
     //   ANNUAL + PROPERTY: sem leituras reais mês a mês (é uma simulação
     //     hipotética), então aproxima-se dividindo o total por 12 meses

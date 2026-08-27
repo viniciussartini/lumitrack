@@ -10,7 +10,7 @@ import { Pagination } from "@/components/ui/Pagination"
 import type { Distributor } from "@/types/distributor.types"
 
 /**
- * Lista de propriedades do usuário autenticado (paginada — Fase 5).
+ * Lista de propriedades do usuário autenticado (paginada).
  *
  * Estados visuais:
  *   - Loading inicial — quando QUALQUER das duas queries

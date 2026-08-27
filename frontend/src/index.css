@@ -21,9 +21,8 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /* Tokens legados (tema âmbar pré-Industry) — mantidos intocados enquanto
-   telas ainda não migradas (fora do escopo da Fase 1 do roadmap) dependem
-   deles. Remover tela a tela conforme cada fase migra seus consumidores;
-   nenhum uso novo deve ser adicionado a partir daqui. */
+   telas ainda não migradas dependem deles. Remover tela a tela conforme
+   a migração avança; nenhum uso novo deve ser adicionado a partir daqui. */
 @theme {
     --color-brand-50: oklch(0.97 0.02 78);
     --color-brand-500: oklch(0.8 0.18 78);
@@ -109,8 +108,7 @@
    @apply bg-white ... }` sem layer aqui venceria essa regra (unlayered sempre
    bate layered no CSS Cascade Layers, independente de especificidade/ordem),
    fazendo páginas fora do AppShell (Login/Registro/Landing/legal) renderizarem
-   branco/preto puro em vez do cinza claro (#f2f2f3) do Industry — achado ao
-   corrigir a Landing (sub-issue #129, Fase 5). */
+   branco/preto puro em vez do cinza claro (#f2f2f3) do Industry. */
 html,
 body,
 #root {

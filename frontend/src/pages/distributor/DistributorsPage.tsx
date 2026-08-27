@@ -19,7 +19,7 @@ const matchesQuery = (distributor: Distributor, query: string): boolean => {
 const ALL_STATES = "ALL"
 
 /**
- * Catálogo global de distribuidoras — somente leitura (Fase 3/5).
+ * Catálogo global de distribuidoras — somente leitura.
  * Populado via seed; sem CRUD pelo usuário (sem dono, sem create/edit/delete).
  *
  * Sem paginação: o catálogo é pequeno (~dezenas), então buscamos tudo de uma

@@ -1,8 +1,8 @@
 /**
  * Tipos compartilhados de Distribuidora.
  *
- * Reformulação IoT (Fase 1/3): a distribuidora virou um catálogo GLOBAL
- * somente leitura, populado via seed — não tem mais dono (`userId`) nem
+ * A distribuidora é um catálogo GLOBAL
+ * somente leitura, populado via seed — não tem dono (`userId`) nem
  * CRUD pelo usuário. Os campos de tarifação mudaram de um único `kwhPrice`
  * para a composição real Grupo B: TUSD + TE, e as três alíquotas de
  * tributos (ICMS/PIS/COFINS) aplicadas "por dentro" pelo TariffService.

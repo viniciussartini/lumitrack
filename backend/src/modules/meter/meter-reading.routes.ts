@@ -9,7 +9,7 @@ import { AreaRepository } from "@/modules/area/area.repository.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
 
 // Rota top-level: /api/meter-readings — leituras agregadas por minuto/hora
-// via MeterReading, pro gráfico "ao vivo" (issue #211). Alvo por query param
+// via MeterReading, pro gráfico "ao vivo". Alvo por query param
 // (targetType/targetId), mesmo padrão de /api/consumption e /api/meters.
 export function meterReadingRoutes(
     authenticate: RequestHandler,

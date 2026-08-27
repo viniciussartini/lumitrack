@@ -25,7 +25,7 @@ export interface User {
 // Input de PUT /api/users/:id — espelha updateUserSchema do backend.
 // Todos os campos opcionais; nunca inclui cpf/cnpj (o backend já não os
 // aceita na atualização — imutáveis após o cadastro). `currentPassword`
-// (issue #178) só é exigido pelo backend quando `email` muda de fato — a
+// só é exigido pelo backend quando `email` muda de fato — a
 // troca não é efetivada aqui, só pedida (confirmação por link no novo
 // endereço).
 export interface UpdateUserInput {
@@ -43,7 +43,7 @@ export interface LoginInput {
     password: string
 }
 
-// Login de demonstração (issue #179) — o cliente escolhe só o perfil, sem
+// Login de demonstração — o cliente escolhe só o perfil, sem
 // nenhuma credencial: POST /auth/demo-login resolve o e-mail internamente
 // no backend (gated por DEMO_LOGIN_ENABLED).
 export type DemoProfile = "residential" | "commercial"

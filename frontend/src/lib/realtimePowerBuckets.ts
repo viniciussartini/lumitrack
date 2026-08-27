@@ -62,8 +62,8 @@ export interface PowerBucket {
  *
  * O balde em curso nunca aparece — seu agregado ainda não existe no banco
  * (só minutos já fechados são persistidos). Balde sem nenhuma leitura vira
- * `kw: 0` (zerado, não omitido — issue #211: ausência de dado é consumo
- * zero, não "sem informação").
+ * `kw: 0` (zerado, não omitido — ausência de dado é consumo zero, não "sem
+ * informação").
  *
  * `now` é sempre o epoch verdadeiro de quando os dados foram buscados
  * (`Date.now()` no `queryFn` do hook, nunca no corpo de render).

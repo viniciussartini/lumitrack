@@ -7,8 +7,8 @@ interface ApiEnvelope<T> {
 }
 
 /**
- * Camada de acesso às notificações efêmeras (Fase 4) — não persistidas,
- * vivem só na memória do processo do backend. "Lida" = excluída.
+ * Camada de acesso às notificações efêmeras — não persistidas, vivem só na
+ * memória do processo do backend. "Lida" = excluída.
  */
 export const notificationService = {
     list: async (): Promise<Notification[]> => {

@@ -19,7 +19,7 @@ interface AlertFormProps {
 }
 
 /**
- * Form de Alerta — faixa de potência (Fase 5, substitui o antigo threshold
+ * Form de Alerta — faixa de potência (substitui o antigo threshold
  * de kWh acumulado). `meterId` é imutável: em edição viaja como campo
  * hidden com o valor original, sem exigir nova escolha do usuário.
  *

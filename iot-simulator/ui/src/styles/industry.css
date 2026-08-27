@@ -10,8 +10,7 @@
    que index.css já usava antes desta migração (que já duplicava um
    subconjunto dos tokens de marca do frontend "só o necessário para os
    componentes de UI copiados renderizarem idênticos") — só que agora com os
-   tokens Industry em vez dos antigos tokens âmbar. Decisão registrada na
-   sub-issue #130 do épico #128 (Fase 5 do roadmap).
+   tokens Industry em vez dos antigos tokens âmbar.
 
    Duas adaptações do projeto, isoladas no fim do arquivo:
    1. Fontes self-hospedadas (era @import do Google Fonts) — ver
@@ -21,8 +20,8 @@
       só `dark:` do Tailwind por prefers-color-scheme). Adicionar o tema
       escuro completo do Industry exigiria construir esse mecanismo do zero
       pra uma ferramenta interna pequena — fora do escopo desta migração
-      (só visual, ver critérios de aceite da #130). App renderiza sempre
-      no tema claro, mesmo default dos protótipos (`theme: 'light'`). */
+      (só visual). App renderiza sempre no tema claro, mesmo default dos
+      protótipos (`theme: 'light'`). */
 
 :root {
     --color-bg: #f2f2f3;

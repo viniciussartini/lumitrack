@@ -60,8 +60,8 @@ type LoginResult =
 
 export class AuthService {
     // `demoLoginEnabled` é injetado (não lido de `env` direto no método) —
-    // mesmo padrão de DI usado em `UserService.registrationEnabled` (#177):
-    // deixa o guard testável sem mockar módulo. Default `false` preserva o
+    // mesmo padrão de DI usado em `UserService.registrationEnabled`: deixa
+    // o guard testável sem mockar módulo. Default `false` preserva o
     // comportamento de todo chamador existente.
     constructor(
         private readonly authRepository: AuthRepository,
@@ -95,7 +95,7 @@ export class AuthService {
         return { ...session, mfaRequired: false }
     }
 
-    // Login de demonstração (issue #179): sem senha do cliente — o e-mail
+    // Login de demonstração: sem senha do cliente — o e-mail
     // resolve internamente a partir do `profile` escolhido, nunca chega ao
     // frontend. Gated por DEMO_LOGIN_ENABLED (falha fechada, antes de
     // validar o payload) para o endpoint não existir funcionalmente em
@@ -122,9 +122,8 @@ export class AuthService {
         }
 
         // Contas demo não podem ter MFA habilitado através da API (guard em
-        // verifyMfaSetup, issue #177) — este branch é mantido só por
-        // simetria/defesa em profundidade com login(), não porque é
-        // esperado ser exercitado.
+        // verifyMfaSetup) — este branch é mantido só por simetria/defesa em
+        // profundidade com login(), não porque é esperado ser exercitado.
         if (user.mfaEnabled) {
             return { mfaRequired: true, mfaToken: this.issueMfaToken(user.id, channel) }
         }
@@ -201,9 +200,10 @@ export class AuthService {
 
         const user = await this.authRepository.findUserByIdWithPassword(userId)
 
-        // Contas de demonstração são somente leitura (ADR-0008 + achado de
-        // segurança "credenciais demo hardcoded") — sem isso, quem loga na
-        // conta demo pode habilitar MFA e sequestrá-la permanentemente.
+        // Contas de demonstração são somente leitura (ADR-0008): as
+        // credenciais são fixas e conhecidas publicamente — sem essa
+        // restrição, quem loga na conta demo poderia habilitar MFA e
+        // sequestrá-la permanentemente.
         if (user && DEMO_ACCOUNT_EMAILS.has(user.email)) {
             throw new ForbiddenError("Conta de demonstração é somente leitura")
         }
@@ -290,10 +290,10 @@ export class AuthService {
             return
         }
 
-        // Contas de demonstração (ver .claude/docs/PLANO_SIMULADOR_IOT_E_SEED_DEMO.md,
-        // Fase 4): nenhum token é criado nem e-mail enviado, mesmo padrão de
-        // retorno silencioso usado acima para e-mail inexistente — a resposta
-        // HTTP é idêntica nos dois casos, sem visitante conseguir distinguir.
+        // Contas de demonstração: nenhum token é criado nem e-mail enviado,
+        // mesmo padrão de retorno silencioso usado acima para e-mail
+        // inexistente — a resposta HTTP é idêntica nos dois casos, sem o
+        // visitante conseguir distinguir.
         if (DEMO_ACCOUNT_EMAILS.has(user.email)) {
             return
         }

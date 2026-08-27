@@ -9,12 +9,10 @@
 // Solução: iniciamos o Express em um servidor TCP real (porta aleatória) e
 // usamos o módulo `http` nativo do Node, que suporta streaming completamente.
 //
-// Reformulação IoT (Fase 4): contrato SSE completo — `alert-firing` e
-// `notification` chegam via UserEventHub (substituiu o antigo AlertNotifier,
-// que só sabia notificar o payload cru do Alert antigo). O intervalo de
-// re-resolução do conjunto de medidores é injetado curto neste app de teste
-// (200ms) para exercitar o refresh periódico sem esperar os 60s reais de
-// produção.
+// Contrato SSE completo: `alert-firing` e `notification` chegam via
+// UserEventHub. O intervalo de re-resolução do conjunto de medidores é
+// injetado curto neste app de teste (200ms) para exercitar o refresh
+// periódico sem esperar os 60s reais de produção.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest"
@@ -102,7 +100,7 @@ const anotherUser = {
 }
 
 // channel: "MOBILE" porque só precisamos de um Bearer token para autenticar
-// via header — WEB não devolve token no body (#06, cookie httpOnly).
+// via header — WEB não devolve token no body (cookie httpOnly).
 async function registerAndLogin(user = validUser): Promise<{ userId: string; token: string }> {
     const createRes = await request(app).post("/api/users").send(user)
     const res = await request(app).post("/api/auth/login").send({
@@ -492,8 +490,8 @@ describe("GET /api/iot/stream", () => {
         expect((reading!.data as { meterId: string }).meterId).toBe(meterIdCreated)
     })
 
-    // Issue #184 — a sessão que abriu o stream é revalidada no mesmo
-    // refresh periódico do conjunto de medidores (200ms no app de teste).
+    // A sessão que abriu o stream é revalidada no mesmo refresh periódico
+    // do conjunto de medidores (200ms no app de teste).
     it("encerra o stream quando a sessão que o abriu é revogada (logout)", async () => {
         const { token } = await setupUserWithMeter()
 

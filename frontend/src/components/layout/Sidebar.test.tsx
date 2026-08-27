@@ -48,7 +48,7 @@ describe("Sidebar — renderização", () => {
         })
     })
 
-    // Issue #216: "Segurança" duplicado — já existe no menu do usuário
+    // "Segurança" duplicado — já existe no menu do usuário
     // (UserMenu.tsx, role="menuitem", não "link"), não precisa também estar
     // na navegação principal da sidebar.
     it("não tem link para /seguranca na navegação — já existe no menu do usuário", () => {

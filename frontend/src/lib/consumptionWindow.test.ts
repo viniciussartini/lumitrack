@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest"
 import { resolveConsumptionWindow, resolveMonthlyHistoryWindow } from "@/lib/consumptionWindow"
 
-// 21/08/2026 às 19:45 — o mesmo instante do relato da issue #226.
+// Instante de referência fixo (21/08/2026 às 19:45) usado como "agora" em
+// todos os casos abaixo, para manter os testes determinísticos.
 const NOW = new Date(2026, 7, 21, 19, 45, 30)
 
 describe("resolveConsumptionWindow", () => {

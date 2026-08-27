@@ -22,9 +22,9 @@ export function userRoutes(
 ): Router {
     const router = Router()
 
-    // EmailChangeService próprio deste router (issue #178) — cada
-    // composition root monta o que precisa, mesmo padrão já usado por
-    // auth.routes.ts para UserRepository/UserService.
+    // EmailChangeService próprio deste router — cada composition root monta
+    // o que precisa, mesmo padrão já usado por auth.routes.ts para
+    // UserRepository/UserService.
     const authRepository = new AuthRepository(prismaClient)
     const emailChangeService = new EmailChangeService(
         authRepository,

@@ -23,11 +23,11 @@ interface MenuPosition {
 }
 
 /**
- * Menu de ações (⋯) numa linha da tabela de alertas (Fase 5) — Editar,
- * Habilitar/Desabilitar, Excluir. Sem mais "marcar como lido" (não existe
- * mais leitura — o alerta é um monitor contínuo, não um evento único).
+ * Menu de ações (⋯) numa linha da tabela de alertas — Editar,
+ * Habilitar/Desabilitar, Excluir. Sem "marcar como lido" (não existe
+ * leitura — o alerta é um monitor contínuo, não um evento único).
  *
- * O menu é renderizado via portal em `document.body` (issue #231): a linha
+ * O menu é renderizado via portal em `document.body`: a linha
  * vive dentro do `<div className="overflow-x-auto">` de `AlertTable.tsx`,
  * e por regra do CSS um ancestral com `overflow-x` diferente de `visible`
  * também clipa/rola no eixo Y — um `position: absolute` comum, por mais

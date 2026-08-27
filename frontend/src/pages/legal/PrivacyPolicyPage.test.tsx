@@ -34,9 +34,9 @@ describe("PrivacyPolicyPage", () => {
         expect(screen.getByTestId("lumitrack-wordmark")).toBeInTheDocument()
     })
 
-    // Issue #155 — as 3 referências vagas a "e-mail do encarregado (DPO)
-    // informado no rodapé da plataforma" viram o endereço real, configurado
-    // via VITE_PRIVACY_CONTACT_EMAIL.
+    // As 3 referências vagas a "e-mail do encarregado (DPO) informado no
+    // rodapé da plataforma" viram o endereço real, configurado via
+    // VITE_PRIVACY_CONTACT_EMAIL.
     it("substitui o placeholder do canal de privacidade pelo endereço configurado", async () => {
         renderWithProviders(<PrivacyPolicyPage />)
 

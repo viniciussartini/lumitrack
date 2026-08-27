@@ -8,15 +8,15 @@
  * Fluxo de dados:
  *   Medidor → IConnection.onData → IoTConnectionManager.dataHandler
  *          → IoTDataProcessor.process → MinuteBuffer.add
- *          → listeners (SSE, e futuramente AlertEvaluator na Fase 4)
+ *          → listeners (SSE, AlertEvaluator)
  *
- * Reformulação IoT (Fase 2): o payload deixou de ser um incremento de kWh
- * pronto (`{ value }`) e passou a ser uma leitura elétrica instantânea
- * (~1/s): `{ deviceTimestamp?, voltage, current, powerW, powerFactor }`.
- * A energia do intervalo é calculada aqui no backend a partir da potência e
- * do tempo decorrido desde a amostra anterior — o timestamp OFICIAL da
- * leitura é sempre o momento de recebimento (`new Date()`), nunca o
- * `deviceTimestamp` do payload, que é só metadado de diagnóstico (log).
+ * O payload é uma leitura elétrica instantânea (~1/s): `{ deviceTimestamp?,
+ * voltage, current, powerW, powerFactor }` — não um incremento de kWh
+ * pronto. A energia do intervalo é calculada aqui no backend a partir da
+ * potência e do tempo decorrido desde a amostra anterior — o timestamp
+ * OFICIAL da leitura é sempre o momento de recebimento (`new Date()`),
+ * nunca o `deviceTimestamp` do payload, que é só metadado de diagnóstico
+ * (log).
  *
  * Por que não lançar exceções aqui? Porque este código roda em um loop
  * assíncrono de background, fora do ciclo request/response do Express.
@@ -44,9 +44,9 @@ export interface MeterReadingSample {
     receivedAt: Date
 }
 
-// Listener genérico de amostras processadas. Usado hoje pela rota SSE
-// (evento "reading"); a Fase 4 registra aqui também o AlertEvaluator, sem
-// precisar mudar a API pública do processor.
+// Listener genérico de amostras processadas. Usado pela rota SSE (evento
+// "reading") e pelo AlertEvaluator, sem precisar mudar a API pública do
+// processor.
 export type SampleListener = (sample: MeterReadingSample) => void
 
 interface RawReadingPayload extends Record<string, unknown> {

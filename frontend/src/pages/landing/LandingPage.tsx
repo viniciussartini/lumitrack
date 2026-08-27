@@ -17,7 +17,7 @@ import {
 import { cn } from "@/lib/cn"
 
 /**
- * Landing pública (rota `/`) — Fase 5.
+ * Landing pública (rota `/`).
  * Layout conforme `LumiTrack Landing.dc.html`. Vive dentro de `PublicRoute`
  * (AppRouter.tsx): visitante não autenticado vê esta página; autenticado é
  * redirecionado para `/dashboard`, mesma regra já aplicada a /login e /registro.
@@ -651,9 +651,9 @@ const LandingFooter = () => (
                 <p className="text-text/62 mt-3.5 max-w-[34ch] text-[13px] leading-[1.55]">
                     Monitoramento de energia elétrica para pessoas físicas e jurídicas do Brasil.
                 </p>
-                {/* Canal de comunicação com o titular (LGPD Art. 18, issue
-                    #155) — precisa estar visível pra quem ainda não tem
-                    conta, não só dentro do app autenticado. */}
+                {/* Canal de comunicação com o titular (LGPD Art. 18) —
+                    precisa estar visível pra quem ainda não tem conta,
+                    não só dentro do app autenticado. */}
                 <a
                     href={`mailto:${PRIVACY_CONTACT_EMAIL}`}
                     className="text-text/55 hover:text-accent mt-3.5 inline-flex items-center gap-1.5 text-[12.5px]"
@@ -712,11 +712,10 @@ const LandingFooter = () => (
                     </a>
                 </span>
                 {/* Sem equivalente no handoff (LumiTrack Landing.dc.html não
-                    tem logo do GitHub) — acréscimo pedido pelo usuário
-                    (2026-08-04), ver CHANGELOG. Posição e tamanho (16px)
-                    seguem o mesmo padrão de BrandPanel.tsx (Login/Registro,
-                    issue #213). Ícone sem texto: aria-label dá o nome
-                    acessível. */}
+                    tem logo do GitHub) — acréscimo pedido pelo usuário.
+                    Posição e tamanho (16px) seguem o mesmo padrão de
+                    BrandPanel.tsx (Login/Registro). Ícone sem texto:
+                    aria-label dá o nome acessível. */}
                 <a
                     href={GITHUB_REPO_URL}
                     target="_blank"

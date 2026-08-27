@@ -21,8 +21,7 @@ import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/
 // ─── Instâncias ───────────────────────────────────────────────────────────────
 // SimulationService é stateless — não possui repositório próprio. Ele depende
 // dos repositórios de Property, Distributor, Area, Device e TariffFlag para
-// validar a cadeia de posse e calcular o custo via TariffService (Fase 3 —
-// substituiu o antigo kwhPrice fixo da distribuidora).
+// validar a cadeia de posse e calcular o custo via TariffService.
 
 const userRepository = new UserRepository(prismaTest)
 const userService = new UserService(userRepository)

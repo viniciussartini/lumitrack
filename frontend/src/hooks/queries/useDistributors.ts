@@ -5,7 +5,7 @@ import { DEFAULT_PAGE_SIZE } from "@/types/pagination.types"
 import type { Distributor } from "@/types/distributor.types"
 
 /**
- * Lista o catálogo de distribuidoras (paginado, somente leitura — Fase 3/5).
+ * Lista o catálogo de distribuidoras (paginado, somente leitura).
  */
 export const useDistributors = (page: number = 1, pageSize: number = DEFAULT_PAGE_SIZE) =>
     useQuery({

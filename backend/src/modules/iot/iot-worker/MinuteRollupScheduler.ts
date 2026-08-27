@@ -10,9 +10,9 @@
  * Diferente do antigo scheduler, este flush NÃO resolve hierarquia (device →
  * area → property → distributor) nem calcula custo — só persiste as
  * grandezas elétricas cruas por medidor/minuto via MeterReadingRepository.
- * O custo é calculado sob demanda na agregação (Fase 3, TariffService).
- * Também não dispara verificação de alertas — isso passa a ser feito amostra
- * a amostra pelo AlertEvaluator (Fase 4), não mais no rollup.
+ * O custo é calculado sob demanda na agregação (TariffService). Também não
+ * dispara verificação de alertas — isso é feito amostra a amostra pelo
+ * AlertEvaluator, não no rollup.
  */
 import type { MinuteBuffer } from "@/modules/iot/iot-worker/MinuteBuffer.js"
 import type { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"

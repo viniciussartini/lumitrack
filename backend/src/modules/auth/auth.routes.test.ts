@@ -207,7 +207,7 @@ describe("POST /api/auth/login", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/auth/demo-login (issue #179)
+// POST /api/auth/demo-login
 //
 // `app` (topo do arquivo) é criado com o `env` real do processo de teste —
 // DEMO_LOGIN_ENABLED não é setado em nenhum lugar do ambiente de teste
@@ -390,7 +390,7 @@ describe("POST /api/auth/logout", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Audit log (#08 — A09): LOGIN/LOGOUT
+// Audit log (A09): LOGIN/LOGOUT
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("Audit log — login/logout", () => {
@@ -417,7 +417,7 @@ describe("Audit log — login/logout", () => {
         expect(logs[0]).toMatchObject({ action: "LOGIN", outcome: "FAILURE", userId: null })
 
         const metadata = logs[0]?.metadata as { attemptedEmailHash?: string } | null
-        // Blind index, não o e-mail em claro (#10 — A09/LGPD Art. 6º III/VII):
+        // Blind index, não o e-mail em claro (A09/LGPD Art. 6º III/VII):
         // preserva a correlação de tentativas contra o mesmo alvo sem reter
         // o dado pessoal em si.
         expect(metadata?.attemptedEmailHash).toBe(generateBlindIndex(validUser.email))
@@ -447,7 +447,7 @@ describe("Audit log — login/logout", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Expiração de token (#04 — MOBILE agora expira; token armazenado como hash)
+// Expiração de token (MOBILE expira; token armazenado como hash)
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("Expiração de token", () => {
@@ -527,7 +527,7 @@ describe("POST /api/auth/forgot-password", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("POST /api/auth/reset-password", () => {
-    // #10 — OWASP A04: o token puro só existe no e-mail — a coluna do banco
+    // OWASP A04: o token puro só existe no e-mail — a coluna do banco
     // guarda o hash (ver teste de regressão abaixo). Captura via o mock de
     // e-mail, exatamente o que o usuário de verdade recebe e cola no
     // formulário de reset.
@@ -608,12 +608,11 @@ describe("POST /api/auth/reset-password", () => {
         expect(response.status).toBe(422)
     })
 
-    // #10 — OWASP A07: o cenário-alvo do "esqueci minha senha" é recuperar
-    // uma conta comprometida — antes desta correção, o reset não revogava
-    // nenhuma sessão existente, então um atacante com Bearer/cookie ativo
-    // sobrevivia à "recuperação" da vítima. Este é o teste que reproduz o
-    // bug e falha se a revogação for removida (DoD do
-    // 05-security-standards.md).
+    // OWASP A07: o cenário-alvo do "esqueci minha senha" é recuperar uma
+    // conta comprometida — sem revogar as sessões existentes no reset, um
+    // atacante com Bearer/cookie ativo sobreviveria à "recuperação" da
+    // vítima. Este teste reproduz o cenário e falha se a revogação for
+    // removida (DoD do 05-security-standards.md).
     describe("revogação de sessões existentes (A07)", () => {
         // Pede um novo reset para um e-mail já registrado — diferente de
         // getResetToken(), não tenta recriar o usuário.
@@ -680,7 +679,7 @@ describe("POST /api/auth/reset-password", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/auth/confirm-email-change (issue #178)
+// POST /api/auth/confirm-email-change
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("POST /api/auth/confirm-email-change", () => {
@@ -777,7 +776,7 @@ describe("POST /api/auth/confirm-email-change", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MFA (#12 — A06/A07)
+// MFA (A06/A07)
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Timeout maior que o default (5000ms) — habilitar o MFA hasheia 10 backup
@@ -870,7 +869,7 @@ describe("MFA", { timeout: 15000 }, () => {
             expect(response.status).toBe(401)
         })
 
-        // #10 — OWASP A07: reinscrever o segundo fator dá o mesmo resultado
+        // OWASP A07: reinscrever o segundo fator dá o mesmo resultado
         // prático de desabilitá-lo, mas não exigia nada além de uma sessão
         // válida — diferente de /mfa/disable, que já exige senha+código.
         it("retorna 400 ao tentar reinscrever quando o MFA já está habilitado (step-up)", async () => {

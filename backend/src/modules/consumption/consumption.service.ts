@@ -46,7 +46,7 @@ export type ConsumptionSummaryResponse = {
     items: ConsumptionSummaryItem[]
 }
 
-// Consumo agregado — somente leitura, via MeterReading (Fase 3.3). Resolve o
+// Consumo agregado — somente leitura, via MeterReading. Resolve o
 // medidor vinculado ao alvo diretamente (sem rollup de subárvore): agregar
 // também os medidores dos descendentes contaria a mesma energia duas vezes
 // quando tanto a propriedade quanto um device dela têm medidor próprio.

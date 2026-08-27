@@ -45,7 +45,7 @@ export function authRoutes(
     // Rotas públicas
     router.post("/login", (req, res, next) => authController.login(req, res, next))
     // Login de demonstração sem senha — gated por DEMO_LOGIN_ENABLED no
-    // service (issue #179). Rota sempre montada; o gate decide se funciona.
+    // service. Rota sempre montada; o gate decide se funciona.
     router.post("/demo-login", (req, res, next) => authController.demoLogin(req, res, next))
     // Segunda etapa do login quando a conta tem MFA habilitado — pública,
     // mas só aceita um mfaToken de curta duração emitido por /login.
@@ -58,8 +58,8 @@ export function authRoutes(
         authController.forgotPassword(req, res, next),
     )
     router.post("/reset-password", (req, res, next) => authController.resetPassword(req, res, next))
-    // Efetiva a troca de e-mail pedida via PUT /api/users/:id (issue #178) —
-    // pública, mas só aceita um token de confirmação válido.
+    // Efetiva a troca de e-mail pedida via PUT /api/users/:id — pública, mas
+    // só aceita um token de confirmação válido.
     router.post("/confirm-email-change", (req, res, next) =>
         authController.confirmEmailChange(req, res, next),
     )

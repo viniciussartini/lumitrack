@@ -6,15 +6,15 @@ import { hideDevTools } from "./support/devtools"
 import { DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
 
 /**
- * E2E do Painel (#116/#117/#119) — igual a `realtime.spec.ts`: mocka o
- * backend via `page.route()`, sem depender do backend rodando.
+ * E2E do Painel — igual a `realtime.spec.ts`: mocka o backend via
+ * `page.route()`, sem depender do backend rodando.
  *
- * `#115` (seletor de propriedade) já é exercitado aqui de passagem — é o
+ * O seletor de propriedade já é exercitado aqui de passagem — é o
  * primeiro E2E da rota `/dashboard`, então cobre também o caminho até
  * chegar na propriedade com o KPI.
  */
 
-/** 2ª propriedade só para os cenários de comparação (#119) — o resto do
+/** 2ª propriedade só para os cenários de comparação — o resto do
  * arquivo usa só PROP_1, um único item não exercitaria "N propriedades". */
 const PROP_2 = { ...PROP_1, id: "prop-2", name: "Loja" }
 
@@ -22,7 +22,7 @@ const sseEvent = (event: string, data: unknown) =>
     `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
 
 /** Medidor de nível PROPERTY vinculado diretamente a PROP_1 (ver nota de
- * design de #116: KPIs usam só o medidor direto da propriedade, sem somar
+ * design: KPIs usam só o medidor direto da propriedade, sem somar
  * Área/Dispositivo). */
 const PROPERTY_METER = {
     ...METER_1,
@@ -79,7 +79,7 @@ const setupDashboard = async (page: Page) => {
     await page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) =>
         fulfillJson(route, { items: [] }),
     )
-    // Default vazio — o gráfico "Consumo em tempo real" (issue #211) busca
+    // Default vazio — o gráfico "Consumo em tempo real" busca
     // /api/meter-readings sempre que há medidor; testes que não olham pro
     // conteúdo do gráfico não precisam sobrescrever isto.
     await page.route(/\/api\/meter-readings(\?.*)?$/, (route) =>
@@ -114,9 +114,9 @@ test.describe("Painel — visão em tempo real (#116)", () => {
             fulfillJson(route, PROPERTY_METER),
         )
         // Um balde no minuto anterior ao atual — já "fechado", então
-        // buildDenseWindowBuckets o inclui no gráfico (issue #211: o balde
-        // em curso nunca aparece, só os já persistidos). bucketStart segue
-        // a mesma convenção do backend real (meter-reading.repository.ts::
+        // buildDenseWindowBuckets o inclui no gráfico (o balde em curso
+        // nunca aparece, só os já persistidos). bucketStart segue a mesma
+        // convenção do backend real (meter-reading.repository.ts::
         // findAggregated): dígitos de SP "mascarados" como UTC.
         await page.route(/\/api\/meter-readings(\?.*)?$/, (route) => {
             const SAO_PAULO_UTC_OFFSET_MS = 3 * 60 * 60 * 1000
@@ -146,10 +146,10 @@ test.describe("Painel — visão em tempo real (#116)", () => {
         await hideDevTools(page)
 
         await expect(page.getByTestId("property-selector")).toBeVisible()
-        // Card único "Potência agora" + custo estimado (#117 corrige a
-        // divisão em 2 cards de #116 — handoff é 1 card com 2 linhas).
-        // "Potência agora" vem do SSE (ao vivo); o gráfico vem do banco
-        // (issue #211) — as duas fontes são independentes de propósito.
+        // Card único "Potência agora" + custo estimado (corrige a divisão
+        // anterior em 2 cards — handoff é 1 card com 2 linhas).
+        // "Potência agora" vem do SSE (ao vivo); o gráfico vem do banco —
+        // as duas fontes são independentes de propósito.
         await expect(page.getByText("0,95kW")).toBeVisible()
         await expect(page.getByTestId("realtime-power-chart")).toBeVisible()
     })
@@ -261,8 +261,8 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
                 )
             }
             if (granularity === "day") {
-                // Bucket da visão Mensal (issue #239, padrão default) — dia 1
-                // e 2 do mês corrente, dentro da janela que o componente pede.
+                // Bucket da visão Mensal (padrão default) — dia 1 e 2 do mês
+                // corrente, dentro da janela que o componente pede.
                 return fulfillPaginated(
                     route,
                     [
@@ -291,7 +291,7 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
 
         const history = page.getByTestId("consumption-history-section")
         await expect(history).toBeVisible()
-        // Padrão é Mensal (issue #239).
+        // Padrão é Mensal.
         await expect(history.getByTestId("consumption-chart")).toBeVisible()
         await expect(page.getByTestId("history-range-month")).toHaveAttribute(
             "aria-selected",

@@ -11,7 +11,7 @@ export const GITHUB_REPO_URL = "https://github.com/viniciussartini/lumitrack"
  * o mesmo usado em "ver no GitHub" por incontáveis projetos open source.
  *
  * Compartilhado entre "Sobre o projeto", a Landing e os painéis de
- * autenticação (Fase 7) — não duplicar.
+ * autenticação — não duplicar.
  */
 export const GitHubIcon = (props: SVGProps<SVGSVGElement>) => (
     <svg

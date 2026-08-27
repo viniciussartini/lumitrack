@@ -13,7 +13,7 @@ afterAll(async () => {
     await prismaTest.$disconnect()
 })
 
-// Endpoint administrativo de consulta do audit log (#16 — A09/Art. 48).
+// Endpoint administrativo de consulta do audit log (A09/Art. 48).
 describe("AuditRepository.findMany", () => {
     it("filtra por userId", async () => {
         // AuditLog.userId tem FK real para users — precisa de usuários

@@ -12,8 +12,8 @@ import { ALERT_1, DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
  * SSE (`/api/iot/stream`, `RealtimeContext` → `createAppStream`) — os três
  * eventos que o backend emite além de `connected`:
  *   - `reading`      → `MeterSection` (via `readingsByMeterId` de
- *     `useRealtime()`) — desde #99 a leitura entra inline no card do
- *     medidor (`meter-connection-card`/`meter-status-stale`), não mais no
+ *     `useRealtime()`) — a leitura entra inline no card do medidor
+ *     (`meter-connection-card`/`meter-status-stale`), não mais no
  *     antigo `RealTimeCard` (removido)
  *   - `alert-firing` → invalida `alerts.firing`/`alerts.all` (o REST
  *     re-resolve status/target; SSE só avisa "algo mudou")
@@ -93,7 +93,7 @@ const setupAuthAndProperty = async (page: Page) => {
     await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
         fulfillJson(route, PROPERTY_METER),
     )
-    // Card "Consumo em tempo real" (issue #211) — monta na mesma página
+    // Card "Consumo em tempo real" — monta na mesma página
     // sempre que há medidor, como PROPERTY_METER acima sempre garante.
     await page.route(/\/api\/meter-readings(\?.*)?$/, (route) =>
         fulfillJson(route, { items: [], granularity: "minute" }),
@@ -193,8 +193,8 @@ test.describe("SSE — RealtimeContext (reading, alert-firing, notification)", (
         // conexão SSE pode "vencer a corrida" contra o fetch de montagem —
         // `invalidateQueries` numa query que ainda está em andamento não
         // garante uma segunda ida à rede, e o teste passa a depender de
-        // timing (achado real rodando a suíte inteira em paralelo, não
-        // reproduzia isolado).
+        // timing: rodando a suíte inteira em paralelo, esse problema não
+        // reproduzia isolado.
         let resolveFirstFiringCall: () => void
         const firstFiringCallDone = new Promise<void>((resolve) => {
             resolveFirstFiringCall = resolve

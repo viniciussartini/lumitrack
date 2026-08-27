@@ -29,8 +29,8 @@ describe("AboutPage", () => {
         expect(repoLink).toHaveAttribute("rel", "noopener noreferrer")
     })
 
-    // Canal de comunicação com o titular (LGPD Art. 18, issue #155) — precisa
-    // estar visível dentro do shell autenticado, não só no rodapé público.
+    // Canal de comunicação com o titular (LGPD Art. 18) — precisa estar
+    // visível dentro do shell autenticado, não só no rodapé público.
     it("publica o canal de privacidade e linka para o Perfil", async () => {
         renderWithProviders(<AboutPage />)
 

@@ -52,7 +52,7 @@ describe("ensureFreshSession", () => {
     })
 })
 
-// SESSION_DURATION_MS = 1h (issue #215) → PROACTIVE = 80% = 2_880_000 ms (48 min)
+// SESSION_DURATION_MS = 1h → PROACTIVE = 80% = 2_880_000 ms (48 min)
 const PROACTIVE_MS = 60 * 60 * 1000 * 0.8
 
 describe("scheduleProactiveRefresh / cancelProactiveRefresh", () => {

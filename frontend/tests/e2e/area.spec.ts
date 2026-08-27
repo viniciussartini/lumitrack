@@ -13,7 +13,7 @@ import type { Area } from "../../src/types/area.types"
  * Este spec cobre o fluxo completo de Area:
  *   1. Listar (vazio inicial — EmptyState dentro de PropertyDetailsPage)
  *   2. Criar (via botão "Adicionar área" no header da seção, abre
- *      AreaFormDialog — sem navegação, desde #97)
+ *      AreaFormDialog — sem navegação)
  *   3. Ver detalhes (click no card)
  *   4. Editar (via botão "Editar área" no header da AreaDetailsPage, mesmo
  *      modal, sem navegar pra fora da AreaDetailsPage)
@@ -26,8 +26,8 @@ import type { Area } from "../../src/types/area.types"
  * O spec parte com 1 propriedade já cadastrada e 0 áreas. Não testamos
  * o fluxo de criar a propriedade aqui (já coberto em properties.spec.ts).
  *
- * Reescrito na sub-issue #102 — a versão anterior assumia rotas
- * /areas/nova e /areas/:id/editar que não existem mais desde #97, e o
+ * Este spec foi reescrito — a versão anterior assumia rotas
+ * /areas/nova e /areas/:id/editar que não existem mais, e o
  * label de submit "Salvar alterações" que na verdade é "Salvar área"
  * pro AreaFormDialog (cada entidade tem seu próprio texto).
  */
@@ -353,7 +353,7 @@ test.describe("Fluxo CRUD de áreas", () => {
         await expect(createDialog).toBeVisible()
 
         // Interage com "descrição" (não com "nome") e clica direto no submit
-        // sem blur manual — regressão do bug #111: sem esse fluxo, o clique
+        // sem blur manual — regressão conhecida: sem esse fluxo, o clique
         // só validava o campo com autoFocus, escondendo o erro de "nome".
         await page.getByLabel(/descrição/i).fill("a".repeat(1001))
         await page.getByRole("button", { name: /criar área/i }).click()

@@ -6,8 +6,8 @@ import {
 
 const ACIONAMENTO_RESOURCE_ID = "0591b8f6-fe54-437b-b72b-1aa2efd46e42"
 
-// Valores reais verificados na investigação do ADR-0007 (2026-08-04):
-// competência mais recente disponível era 2026-07-01 com "Amarela" ativa;
+// Valores reais verificados na investigação do ADR-0007: competência mais
+// recente disponível era 2026-07-01 com "Amarela" ativa;
 // REH nº 3.306/2024 (vigência 2024-04-01) é a linha de "Adicional" mais
 // recente para as 3 modalidades não-verde.
 const validAcionamentoBody = {

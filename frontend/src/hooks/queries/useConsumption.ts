@@ -14,7 +14,7 @@ export interface ConsumptionRange {
 }
 
 /**
- * Consumo agregado de um alvo (Fase 5 — substitui `useConsumptionBy*`).
+ * Consumo agregado de um alvo.
  *
  * `bucketSize` é o tamanho do bucket, não a granularidade escolhida na UI:
  * quem traduz uma na outra é `resolveConsumptionWindow`, e o resultado dessa

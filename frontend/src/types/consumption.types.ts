@@ -1,7 +1,7 @@
 import type { TargetType } from "@/types/meter.types"
 
 /**
- * Consumo agregado — reformulação IoT (Fase 3). Substitui o antigo modelo de
+ * Consumo agregado. Substitui o antigo modelo de
  * registros manuais (`ConsumptionRecord`/`ConsumptionPeriod`) por buckets
  * agregados via `GET /api/consumption`, calculados a partir de `MeterReading`
  * (persistência minuto a minuto). Somente leitura — não há mais criação

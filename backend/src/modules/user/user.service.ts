@@ -16,7 +16,7 @@ import { DEMO_ACCOUNT_EMAILS } from "@/shared/config/demoAccounts.js"
 // 12 é um bom equilíbrio entre segurança e performance.
 const BCRYPT_ROUNDS = 12
 
-// Issue #181 — mesma mensagem para os 3 conflitos de unicidade do cadastro
+// Mesma mensagem para os 3 conflitos de unicidade do cadastro
 // (e-mail/CPF/CNPJ), sem distinguir qual documento colidiu: mensagens
 // específicas ("CPF já cadastrado") permitem a um visitante sondar, um por
 // um, se um CPF/CNPJ/e-mail alheio já tem conta — minimização análoga à já
@@ -24,8 +24,8 @@ const BCRYPT_ROUNDS = 12
 // e-mail existe.
 const REGISTRATION_CONFLICT_MESSAGE = "Já existe uma conta cadastrada com os dados informados"
 
-// Dispara o pedido de troca de e-mail (issue #178) — plano fino injetado no
-// construtor, mesma "tomada elétrica" que o resto do service já usa, para
+// Dispara o pedido de troca de e-mail — plano fino injetado no construtor,
+// mesma "tomada elétrica" que o resto do service já usa, para
 // UserService não importar EmailChangeService/AuthRepository (módulo
 // diferente) diretamente. Ver user.routes.ts para a instância real.
 export type RequestEmailChangeFn = (params: {
@@ -127,9 +127,10 @@ export class UserService {
             throw new NotFoundError("Usuário não encontrado")
         }
 
-        // Contas de demonstração são somente leitura (ADR-0008 + achado de
-        // segurança "credenciais demo hardcoded") — sem isso, quem loga na
-        // conta demo pode trocar o e-mail e sequestrá-la permanentemente.
+        // Contas de demonstração são somente leitura (ADR-0008): as
+        // credenciais são fixas e conhecidas publicamente — sem essa
+        // restrição, quem loga na conta demo poderia trocar o e-mail e
+        // sequestrá-la permanentemente.
         if (DEMO_ACCOUNT_EMAILS.has(existing.email)) {
             throw new ForbiddenError("Conta de demonstração é somente leitura")
         }
@@ -142,8 +143,8 @@ export class UserService {
         }
 
         // `email`/`currentPassword` nunca vão para userRepository.update —
-        // o e-mail só é efetivado quando a troca é confirmada (issue #178),
-        // nunca diretamente aqui; os demais campos (nome etc.) persistem
+        // o e-mail só é efetivado quando a troca é confirmada, nunca
+        // diretamente aqui; os demais campos (nome etc.) persistem
         // normalmente, tratado ou não o e-mail nesta chamada.
         const { email, currentPassword, ...restData } = parsed.data
 

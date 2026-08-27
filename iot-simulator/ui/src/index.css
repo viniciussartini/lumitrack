@@ -2,8 +2,7 @@
 
 /* Fontes e tokens do design system Industry (ver ADR-0005 e
    .claude/project_context/10-design-system.md). industry.css é uma cópia
-   local adaptada — ver comentário de topo do próprio arquivo (mesma decisão
-   documentada na sub-issue #130 do épico #128, Fase 5).
+   local adaptada — ver comentário de topo do próprio arquivo.
 
    layer(...) obrigatório aqui pelo mesmo motivo do frontend principal: sem
    layer, o `a { color: var(--color-accent) }` global do industry.css

@@ -39,16 +39,16 @@ export const AppRouter = () => (
         <Route path="/privacidade" element={<PrivacyPolicyPage />} />
         <Route path="/termos" element={<TermsOfUsePage />} />
 
-        {/* Confirmação de troca de e-mail (issue #178) — standalone de
-            propósito, fora de PublicRoute: um usuário já autenticado
+        {/* Confirmação de troca de e-mail — standalone de propósito, fora
+            de PublicRoute: um usuário já autenticado
             também precisa conseguir confirmar (PublicRoute o mandaria
             direto pra /dashboard antes de a chamada acontecer). */}
         <Route path="/confirmar-email" element={<ConfirmEmailChangePage />} />
 
         {/* Rotas públicas — bloqueia acesso de quem já está logado. A raiz
-            entra aqui (Fase 5, sub-issue #129): usuário já autenticado que
-            acessa "/" cai em /dashboard pela mesma regra que já vale para
-            /login e /registro, sem duplicar a checagem de PublicRoute. */}
+            entra aqui: usuário já autenticado que acessa "/" cai em
+            /dashboard pela mesma regra que já vale para /login e /registro,
+            sem duplicar a checagem de PublicRoute. */}
         <Route element={<PublicRoute />}>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
@@ -69,7 +69,7 @@ export const AppRouter = () => (
 
                 {/* Criar/editar Propriedade/Área/Dispositivo acontece via modal
                     (PropertyFormDialog/AreaFormDialog/DeviceFormDialog), não
-                    mais em rota dedicada — ver sub-issue #97 do épico #104. */}
+                    em rota dedicada. */}
                 <Route path="/propriedades" element={<PropertiesPage />} />
                 <Route path="/propriedades/:id" element={<PropertyDetailsPage />} />
 
@@ -92,7 +92,7 @@ export const AppRouter = () => (
                     + 4 granularidades (hora/dia/mês/ano). */}
                 <Route path="/relatorios" element={<ReportsPage />} />
 
-                {/* Simulação — placeholder (Fase 5). */}
+                {/* Simulação — placeholder. */}
                 <Route path="/simulacao" element={<SimulationPage />} />
 
                 {/* Conta do usuário logado — acessível via UserMenu no Header. */}

@@ -8,8 +8,8 @@ import type { AlertEvaluator } from "@/modules/alert/alert-evaluator.js"
 import { blockDemoWrite } from "@/shared/middlewares/blockDemoWrite.js"
 
 // Rota top-level: /api/alerts — alerta é um recurso independente vinculado a
-// um medidor (via meterId no corpo da criação), não mais aninhado sob
-// property/area/device (Fase 4 — a hierarquia do alvo já está no Meter).
+// um medidor (via meterId no corpo da criação), não aninhado sob
+// property/area/device (a hierarquia do alvo já está no Meter).
 // `alertEvaluator` é opcional: sem ele (ex.: alguns testes), o status vem
 // sempre "normal" e /firing sempre vazio — nunca um 500.
 export function alertRoutes(

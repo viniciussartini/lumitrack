@@ -63,8 +63,8 @@ export const mockAppShellBackground = async (page: Page) => {
 }
 
 /**
- * Simula "usuário autenticado". Desde a #06 (sessão WEB em cookie httpOnly +
- * CSRF), não há token em localStorage para pré-semear: o app descobre quem
+ * Simula "usuário autenticado". Como a sessão WEB usa cookie httpOnly +
+ * CSRF, não há token em localStorage para pré-semear: o app descobre quem
  * está logado exclusivamente por `GET /api/auth/me`, tanto no bootstrap quanto
  * logo após o login. Mockar essa rota é o suficiente — e é o único caminho.
  */

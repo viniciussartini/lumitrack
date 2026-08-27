@@ -17,8 +17,8 @@ export interface InternalPublisherCredentials {
 
 // Cliente MQTT interno que publica no broker embutido, replicando o mesmo
 // padrão de conexão sem TLS usado por MqttConnection.ts no backend real.
-// Credenciais obrigatórias desde a issue #180 — o broker embutido passou a
-// exigir autenticação de todo cliente, inclusive deste publisher interno.
+// Credenciais obrigatórias — o broker embutido passou a exigir
+// autenticação de todo cliente, inclusive deste publisher interno.
 export function createInternalPublisher(
     brokerUrl: string,
     { username, password }: InternalPublisherCredentials,

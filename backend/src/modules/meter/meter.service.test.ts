@@ -37,11 +37,10 @@ const meterService = new MeterService(
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
 //
-// Property e EnergyDistributor ainda não têm seus módulos atualizados para o
-// schema v2 (isso é Fase 3 — catálogo de distribuidoras, electricalSystem em
-// Property). Por isso o setup de teste aqui cria essas entidades direto via
-// Prisma, sem passar pelos services (que continuam quebrados nesta fase,
-// como documentado no plano).
+// EnergyDistributor é catálogo somente leitura (populado por seed, RF08),
+// sem service de criação — por isso o setup de teste cria a distribuidora
+// direto via Prisma. Property é criada no mesmo bloco por conveniência, já
+// que os dois setups andam juntos aqui.
 
 let distributorSeq = 0
 
@@ -238,9 +237,9 @@ describe("MeterService", () => {
             ).rejects.toThrow(ValidationError)
         })
 
-        // #10 — OWASP A01 (SSRF): antes desta correção, qualquer host/port era
-        // aceito sem checagem — este é o teste que reproduz o bug e falha se o
-        // controle for removido (DoD do 05-security-standards.md).
+        // OWASP A01 (SSRF): sem esta checagem, qualquer host/port seria
+        // aceito. Este teste reproduz o cenário e falha se o controle for
+        // removido (DoD do 05-security-standards.md).
         describe("proteção SSRF (allowlist de destino)", () => {
             it("lança ValidationError ao apontar para rede privada (RFC1918) sem allowlist", async () => {
                 const { user, property } = await setupUserAndProperty()
@@ -428,9 +427,9 @@ describe("MeterService", () => {
             ).rejects.toThrow(ForbiddenError)
         })
 
-        // #10 — OWASP A01 (SSRF): `PUT /api/meters/:id` dispara `restart` da
-        // conexão (meter.controller.ts) — segundo caminho igualmente aberto
-        // antes desta correção, hoje coberto pela mesma checagem do create.
+        // OWASP A01 (SSRF): `PUT /api/meters/:id` dispara `restart` da
+        // conexão (meter.controller.ts) — segundo caminho de entrada, coberto
+        // pela mesma checagem do create.
         it("lança ValidationError ao atualizar host para rede privada sem allowlist", async () => {
             const { user, property } = await setupUserAndProperty()
             const meter = await meterService.create(user.id, {

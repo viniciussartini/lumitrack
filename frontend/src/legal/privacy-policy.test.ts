@@ -3,11 +3,12 @@
  * incompatíveis sobre a infraestrutura. Esta classe de defeito já apareceu
  * duas vezes, em formas diferentes:
  *
- * 1. Até a Fase 13.7 havia um único ambiente público (Render+Neon, EUA) e a
- *    seção 5 dizia "exclusivamente no Brasil" três parágrafos depois de a
- *    seção 4 descrever corretamente a infraestrutura fora do país.
- * 2. Na própria Fase 13.7, ao separar os dois ambientes, a seção 4 passou a
- *    dizer que a produção não tem "operador terceiro" nenhum — contradizendo
+ * 1. Antes de existirem dois ambientes distintos, havia um único ambiente
+ *    público (Render+Neon, EUA) e a seção 5 dizia "exclusivamente no
+ *    Brasil" três parágrafos depois de a seção 4 descrever corretamente a
+ *    infraestrutura fora do país.
+ * 2. Ao separar os dois ambientes, a seção 4 passou a dizer que a produção
+ *    não tem "operador terceiro" nenhum — contradizendo
  *    a seção 5 ("provedores de nuvem"), a ADR-0012 (que reconhece o provedor
  *    de infraestrutura como agente externo) e o Art. 5º, VII da LGPD, pelo
  *    qual quem armazena dado por conta do controlador É operador.

@@ -63,9 +63,9 @@ export const sendPasswordResetEmail: SendPasswordResetEmailFn = async (
     })
 }
 
-// Enviado ao NOVO endereço (issue #178) — só quem tem acesso à caixa de
-// entrada consegue efetivar a troca. Link aponta pra ConfirmEmailChangePage
-// no frontend, mesmo padrão de query param que sendPasswordResetEmail já usa.
+// Enviado ao NOVO endereço — só quem tem acesso à caixa de entrada consegue
+// efetivar a troca. Link aponta pra ConfirmEmailChangePage no frontend,
+// mesmo padrão de query param que sendPasswordResetEmail já usa.
 export const sendEmailChangeConfirmation: SendEmailChangeConfirmationFn = async (
     newEmail: string,
     confirmToken: string,
@@ -103,9 +103,9 @@ export const sendEmailChangeConfirmation: SendEmailChangeConfirmationFn = async 
     })
 }
 
-// Enviado ao endereço ANTIGO (issue #178), no momento do pedido — sinal de
-// alerta precoce para o dono legítimo agir (redefinir senha) antes mesmo de
-// o pedido ser confirmado, caso não tenha sido ele quem pediu a troca.
+// Enviado ao endereço ANTIGO, no momento do pedido — sinal de alerta precoce
+// para o dono legítimo agir (redefinir senha) antes mesmo de o pedido ser
+// confirmado, caso não tenha sido ele quem pediu a troca.
 export const sendEmailChangedNotice: SendEmailChangedNoticeFn = async (
     oldEmail: string,
     newEmail: string,

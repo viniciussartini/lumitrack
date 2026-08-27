@@ -43,9 +43,9 @@ const createTestQueryClient = () =>
 /**
  * Reproduz a estrutura real de `AlertTable.tsx`: o menu vive dentro de um
  * `<div className="overflow-x-auto">` com altura curta o bastante pra o
- * menu (várias linhas de `role="menuitem"`) estourar a caixa — exatamente
- * o cenário da issue #231. Sem isso, o teste não reproduziria o bug: um
- * wrapper alto o suficiente nunca precisaria clipar/rolar nada.
+ * menu (várias linhas de `role="menuitem"`) estourar a caixa. Sem isso, o
+ * teste não reproduziria o bug: um wrapper alto o suficiente nunca
+ * precisaria clipar/rolar nada.
  */
 const renderInsideScrollableAncestor = (onEdit?: () => void) => {
     const queryClient = createTestQueryClient()

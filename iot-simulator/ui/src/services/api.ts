@@ -2,7 +2,7 @@ import type { BrokerInfo, DeviceParams, NetworkSnapshot, VirtualDevice } from "@
 
 // Cliente REST simples para a API de controle do simulador. Sem CSRF/cookies
 // (ferramenta local, único operador) — bem mais enxuto que frontend/src/services/api.ts.
-// Anexa sempre o token (issue #180): as rotas que não o exigem (broker/info,
+// Anexa sempre o token: as rotas que não o exigem (broker/info,
 // status/stream) simplesmente o ignoram — mais simples que anexar por rota.
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

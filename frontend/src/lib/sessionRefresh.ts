@@ -1,7 +1,6 @@
 import { authService } from "@/services/auth.service"
 
-// Duração da sessão WEB sincronizada com JWT_WEB_EXPIRES_IN do backend (1h,
-// issue #215 — sessão de demo expirava rápido demais em 15 min).
+// Duração da sessão WEB sincronizada com JWT_WEB_EXPIRES_IN do backend (1h).
 // Deve ser atualizado manualmente caso a env var do backend mude — gap
 // documentado: sem endpoint de descoberta dinâmica neste ciclo.
 const SESSION_DURATION_MS = 60 * 60 * 1000

@@ -15,8 +15,9 @@ const requiredNumber = (message: string) =>
         .pipe(z.number({ message }))
 
 /**
- * Schema do form de Alerta (Fase 5 — faixa de potência, substitui o antigo
- * thresholdKwh). Espelha `createAlertSchema`/`updateAlertSchema` do backend.
+ * Schema do form de Alerta — faixa de potência (`referencePowerKw` +
+ * `tolerancePercent`). Espelha `createAlertSchema`/`updateAlertSchema` do
+ * backend.
  *
  * `meterId` é imutável após a criação — o form só o exibe (Select) em modo
  * criação; em edição, viaja como `<input type="hidden">` com o valor

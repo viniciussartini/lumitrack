@@ -13,7 +13,7 @@ export const loginSchema = z.object({
     }),
 })
 
-// ─── Demo login (issue #179) ───────────────────────────────────────────────────
+// ─── Demo login ─────────────────────────────────────────────────────────────
 // Sem senha: o cliente escolhe só o `profile`, o backend resolve o e-mail
 // fixo internamente (shared/config/demoAccounts.ts) — nenhuma credencial
 // trafega nem existe no frontend.
@@ -46,7 +46,7 @@ export const resetPasswordSchema = z.object({
     newPassword: passwordSchema,
 })
 
-// ─── Confirmação de troca de e-mail (issue #178) ───────────────────────────────
+// ─── Confirmação de troca de e-mail ─────────────────────────────────────────
 // O `token` é o UUID gerado por EmailChangeService.requestChange e enviado
 // ao NOVO endereço — confirmá-lo é o que efetiva a troca.
 export const confirmEmailChangeSchema = z.object({

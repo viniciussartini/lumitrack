@@ -44,8 +44,8 @@ export const authService = {
     },
 
     /**
-     * Login de demonstração (issue #179) — sem e-mail/senha no cliente, só
-     * o perfil escolhido. O backend resolve a conta demo internamente e
+     * Login de demonstração — sem e-mail/senha no cliente, só o perfil
+     * escolhido. O backend resolve a conta demo internamente e
      * gate por DEMO_LOGIN_ENABLED; se desligado, `api.post` rejeita com
      * 403 e o erro propaga como qualquer outra falha de login. Mesma forma
      * de resposta de `login()` (pode vir `mfaRequired`), tratada igual.
@@ -190,8 +190,8 @@ export const authService = {
     },
 
     /**
-     * Efetiva a troca de e-mail pedida via PUT /users/:id (issue #178), a
-     * partir do token recebido no NOVO endereço (link gerado em
+     * Efetiva a troca de e-mail pedida via PUT /users/:id, a partir do
+     * token recebido no NOVO endereço (link gerado em
      * backend/src/modules/auth/email.service.ts, válido por 1h). Todas as
      * sessões do usuário são revogadas no backend quando isso acontece —
      * inclusive a que estiver fazendo esta chamada, se houver.

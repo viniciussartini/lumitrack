@@ -17,7 +17,7 @@ const STATUS_STYLES: Record<AlertWithStatus["status"], string> = {
 }
 
 /**
- * Badge visual do status de um alerta (Fase 5) — "firing"/"normal", já
+ * Badge visual do status de um alerta — "firing"/"normal", já
  * resolvido pelo backend (`AlertEvaluator.isFiring`). Diferente do modelo
  * one-shot antigo, um alerta pode voltar a "firing" quantas vezes a
  * potência sair da faixa, enquanto habilitado.

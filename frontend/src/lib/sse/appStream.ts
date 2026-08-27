@@ -66,7 +66,7 @@ function wait(ms: number, signal: AbortSignal): Promise<void> {
 }
 
 /**
- * Contrato de eventos (Fase 4/5 — ver backend/src/modules/iot/iot-stream.routes.ts):
+ * Contrato de eventos (ver backend/src/modules/iot/iot-stream.routes.ts):
  *   connected     { meterCount }
  *   reading       { meterId, voltage, current, powerW, powerFactor, receivedAt }
  *   alert-firing  { type: "start"|"end", alertId, alertName, meterId, startedAt, endedAt? }
@@ -139,9 +139,8 @@ function parseAndDispatch<T>(
 
 /**
  * Abre uma conexão SSE única com o backend, despachando por nome de evento.
- * Substitui `createAlertStream` (Fase 4/5) — o contrato deixou de ter um
- * único evento `alert` e passou a ter `connected`/`reading`/`alert-firing`/
- * `notification`.
+ * Substitui `createAlertStream` — o contrato deixou de ter um único evento
+ * `alert` e passou a ter `connected`/`reading`/`alert-firing`/`notification`.
  *
  * `openWhenHidden: true` — leituras/alertas em tempo real devem continuar
  * chegando mesmo com a aba em background (o RealTimeCard e o WarningBadge

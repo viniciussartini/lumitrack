@@ -75,8 +75,8 @@ export const LoginPage = () => {
         void navigate(redirectTo, { replace: true })
     }
 
-    // POST /auth/demo-login (issue #179) — sem credencial no cliente, só o
-    // perfil escolhido; o backend resolve a conta demo internamente.
+    // POST /auth/demo-login — sem credencial no cliente, só o perfil
+    // escolhido; o backend resolve a conta demo internamente.
     const [isDemoLoading, setIsDemoLoading] = useState(false)
 
     const handleDemoLogin = async (profile: DemoProfile): Promise<void> => {

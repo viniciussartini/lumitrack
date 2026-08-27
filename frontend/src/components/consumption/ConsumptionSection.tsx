@@ -16,7 +16,7 @@ import {
 import type { TargetType } from "@/types/meter.types"
 
 // Wrappers "smart" — mesmo padrão de 3 por target usado no resto do app
-// (AlertSection antes da Fase 5, DeviceAlertSection, etc). propertyId/areaId
+// (AlertSection, DeviceAlertSection, etc). propertyId/areaId
 // continuam na assinatura para não obrigar as details pages a mudar como
 // chamam o componente — só targetId (o id do próprio nível) é usado de fato,
 // já que /api/consumption resolve a propriedade raiz internamente.

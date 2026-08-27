@@ -356,9 +356,9 @@ describe("AreaDetailsPage — seção de dispositivos (vazia)", () => {
         ).toBeInTheDocument()
     })
 
-    // Issue #217: "Em breve" não faz sentido no estado vazio de uma
-    // funcionalidade que já existe (cadastro de dispositivo) — a mensagem
-    // ficou órfã de um estágio anterior da feature.
+    // "Em breve" não faz sentido no estado vazio de uma funcionalidade que
+    // já existe (cadastro de dispositivo) — a mensagem ficou órfã de um
+    // estágio anterior da feature.
     it("não renderiza a marca 'Em breve' no estado vazio", async () => {
         renderPage()
 

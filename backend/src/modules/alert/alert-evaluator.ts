@@ -20,9 +20,9 @@ import type { UserEventHub } from "@/shared/sse/user-event-hub.js"
 import type { NotificationStore } from "@/shared/notifications/notification-store.js"
 import { logger } from "@/shared/logger/logger.js"
 
-// Constantes nomeadas (Fase 4, 4.1): 3 amostras fora abrem o episódio, 5
-// amostras dentro o fecham — assimetria proposital, é mais barato continuar
-// "em alerta" por mais um pouco do que apagar e reacender à toa.
+// 3 amostras fora abrem o episódio, 5 amostras dentro o fecham —
+// assimetria proposital, é mais barato continuar "em alerta" por mais um
+// pouco do que apagar e reacender à toa.
 const OPEN_AFTER_CONSECUTIVE_OUTSIDE = 3
 const CLOSE_AFTER_CONSECUTIVE_INSIDE = 5
 

@@ -19,7 +19,7 @@ const dateTimeFormatter = new Intl.DateTimeFormat("pt-BR", {
 })
 
 /**
- * Sino de notificações — evolução do antigo `AlertBellBadge` (Fase 5).
+ * Sino de notificações — evolução do antigo `AlertBellBadge`.
  * Notificações são efêmeras (backend, `NotificationStore`): "lida" = excluída.
  *
  * Três formas de "consumir" uma notificação:

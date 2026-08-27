@@ -19,9 +19,9 @@ export type MeterReadingListResponse = {
     granularity: MeterReadingGranularity
 }
 
-// Leituras agregadas por minuto/hora — só o que o gráfico "ao vivo" precisa
-// (issue #211): sem custo/tarifa, sem paginação (a janela já vem limitada
-// por from/to). Ver ConsumptionService para o equivalente de faturamento.
+// Leituras agregadas por minuto/hora — só o que o gráfico "ao vivo" precisa:
+// sem custo/tarifa, sem paginação (a janela já vem limitada por from/to).
+// Ver ConsumptionService para o equivalente de faturamento.
 export class MeterReadingService {
     constructor(
         private readonly meterReadingRepository: MeterReadingRepository,

@@ -12,9 +12,9 @@ import { CURRENT_CONSENT_VERSION } from "@/shared/legal/consentVersion.js"
 // Usar login real via POST /api/auth/login melhora a qualidade dos testes:
 // eles agora cobrem o fluxo completo de autenticacao, nao um atalho artificial.
 
-// Mocks de e-mail (issue #178) — sem isso, PUT /api/users/:id com troca de
-// e-mail tentaria enviar e-mail de verdade via nodemailer (SMTP_HOST fake
-// do .env de dev) durante os testes HTTP.
+// Mocks de e-mail — sem isso, PUT /api/users/:id com troca de e-mail
+// tentaria enviar e-mail de verdade via nodemailer (SMTP_HOST fake do .env
+// de dev) durante os testes HTTP.
 const mockSendEmailChangeConfirmation = vi.fn().mockResolvedValue(undefined)
 const mockSendEmailChangedNotice = vi.fn().mockResolvedValue(undefined)
 
@@ -50,7 +50,7 @@ const validCompanyBody = {
 // Cria um usuario e faz login, retornando o userId e o token JWT real.
 // Substituiu generateTestToken: o token agora existe na tabela auth_tokens.
 // channel: "MOBILE" porque este teste só precisa de um Bearer token para
-// autenticar via header — WEB não devolve token no body (#06, cookie httpOnly).
+// autenticar via header — WEB não devolve token no body (cookie httpOnly).
 async function registerAndLogin(body = validIndividualBody) {
     const createRes = await request(app).post("/api/users").send(body)
     const userId = createRes.body.data.id as string
@@ -98,9 +98,8 @@ describe("POST /api/users", () => {
         expect(response.body.data.consentedAt).not.toBeNull()
         expect(new Date(response.body.data.consentedAt).getTime()).toBeLessThanOrEqual(Date.now())
         // Comparado com a constante, não com um literal: o que importa é que
-        // a versão VIGENTE foi registrada. Fixar "1.0" aqui fazia o teste
-        // quebrar a cada publicação de nova versão dos documentos legais
-        // (aconteceu na #158, que subiu para 1.1 ao reescrever o § 4).
+        // a versão VIGENTE foi registrada. Fixar "1.0" aqui faria o teste
+        // quebrar a cada publicação de nova versão dos documentos legais.
         expect(response.body.data.consentVersion).toBe(CURRENT_CONSENT_VERSION)
     })
 
@@ -166,9 +165,9 @@ describe("POST /api/users", () => {
         expect(response.body.status).toBe("error")
     })
 
-    // Issue #181 — mensagem genérica: a resposta não deve indicar qual
-    // documento colidiu (e-mail x CPF), senão um visitante consegue sondar
-    // um CPF alheio específico por tentativa e erro via 409.
+    // Mensagem genérica: a resposta não deve indicar qual documento colidiu
+    // (e-mail x CPF), senão um visitante consegue sondar um CPF alheio
+    // específico por tentativa e erro via 409.
     it("deve retornar a mesma mensagem genérica para conflito de e-mail e de CPF", async () => {
         await request(app).post("/api/users").send(validIndividualBody)
 
@@ -295,8 +294,8 @@ describe("PUT /api/users/:id", () => {
         expect(response.status).toBe(409)
     })
 
-    // Issue #178: troca de e-mail exige senha atual + confirmação — não é
-    // mais efetivada na hora.
+    // Troca de e-mail exige senha atual + confirmação — não é mais
+    // efetivada na hora.
     describe("troca de e-mail", () => {
         it("deve retornar 422 quando o e-mail muda sem currentPassword", async () => {
             const { userId, token } = await registerAndLogin()
@@ -394,7 +393,7 @@ describe("DELETE /api/users/:id", () => {
 })
 
 // ---
-// Audit log (#08 — A09): USER_CREATE/UPDATE/DELETE + ACCESS_DENIED
+// Audit log (A09): USER_CREATE/UPDATE/DELETE + ACCESS_DENIED
 // ---
 
 describe("Audit log", () => {

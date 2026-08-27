@@ -5,7 +5,7 @@ import { env } from "@/config/env.js"
 // chave própria (METER_CREDENTIAL_ENCRYPTION_KEY) — compartimentaliza o
 // risco: a credencial de protocolo do medidor (ex.: senha MQTT em
 // Meter.extra.password) é tão sensível quanto uma senha de usuário, então
-// não compartilha chave com CPF/CNPJ, endereço ou segredo MFA (issue #182).
+// não compartilha chave com CPF/CNPJ, endereço ou segredo MFA.
 // Módulo separado (não parametrizado por chave) seguindo o mesmo padrão já
 // usado no projeto para addressEncryption.ts/mfaEncryption.ts vs. encryption.ts.
 

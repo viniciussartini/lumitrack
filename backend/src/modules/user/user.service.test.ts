@@ -112,11 +112,10 @@ describe("UserService", () => {
             expect(userInDb?.password).not.toBe("Senha@123")
         })
 
-        // Issue #184 — o controle de cifra (A04/Art. 46) já existe em
-        // user.repository.ts desde a introdução de encryption.ts; faltava um
-        // teste que lesse a coluna direto e confirmasse que o valor em
-        // repouso não é o texto claro, mesmo padrão do teste acima para a
-        // senha (hash bcrypt).
+        // O controle de cifra (A04/Art. 46) já existe em user.repository.ts
+        // desde a introdução de encryption.ts; este teste lê a coluna direto
+        // e confirma que o valor em repouso não é o texto claro, mesmo
+        // padrão do teste acima para a senha (hash bcrypt).
         it("armazena CPF cifrado em repouso, nunca em texto claro", async () => {
             await userService.createUser(validIndividualInput)
 
@@ -178,8 +177,8 @@ describe("UserService", () => {
             ).rejects.toThrow(ConflictError)
         })
 
-        // Issue #181 — a mensagem não pode distinguir qual dos 3 documentos
-        // colidiu, senão um visitante consegue sondar, um por um, se um
+        // A mensagem não pode distinguir qual dos 3 documentos colidiu,
+        // senão um visitante consegue sondar, um por um, se um
         // e-mail/CPF/CNPJ específico já tem conta cadastrada.
         it("deve usar a mesma mensagem genérica para os 3 conflitos de unicidade", async () => {
             await userService.createUser(validIndividualInput)
@@ -262,7 +261,7 @@ describe("UserService", () => {
     })
 
     // ─────────────────────────────────────────────────────────────────────────
-    // SUITE: createUser — REGISTRATION_ENABLED (ADR-0008, issue #177)
+    // SUITE: createUser — REGISTRATION_ENABLED (ADR-0008)
     // ─────────────────────────────────────────────────────────────────────────
 
     describe("createUser com cadastro público desabilitado", () => {
@@ -352,8 +351,8 @@ describe("UserService", () => {
             ).rejects.toThrow(ConflictError)
         })
 
-        // Issue #177 (ADR-0008): sem este guard, uma sessão na conta demo
-        // pode trocar o e-mail e sequestrá-la permanentemente.
+        // Sem este guard (ADR-0008), uma sessão na conta demo poderia
+        // trocar o e-mail e sequestrá-la permanentemente.
         it("deve lançar ForbiddenError ao tentar atualizar uma conta de demonstração", async () => {
             const demo = await userService.createUser(validDemoInput)
 
@@ -375,7 +374,7 @@ describe("UserService", () => {
     })
 
     // ─────────────────────────────────────────────────────────────────────────
-    // SUITE: updateUser — troca de e-mail (issue #178)
+    // SUITE: updateUser — troca de e-mail
     // ─────────────────────────────────────────────────────────────────────────
 
     describe("updateUser — troca de e-mail", () => {

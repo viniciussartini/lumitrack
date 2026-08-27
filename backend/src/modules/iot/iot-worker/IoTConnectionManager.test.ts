@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest"
 import { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
 
-// Regressão do risco residual documentado no CHANGELOG da issue #150: a
-// validação de SSRF em MeterService só corria na escrita (create/update),
-// não em toda tentativa de conexão real — um host cujo DNS mudasse para um
-// endereço interno DEPOIS de validado reconectava sem checagem em todo
-// restart do processo (server.ts restaura todo Meter do banco chamando
-// manager.start()). Estes testes cobrem o funil único (start()), não o
-// validador em si (já coberto por outboundHost.test.ts).
+// Regressão de um risco residual: a validação de SSRF em MeterService só
+// corria na escrita (create/update), não em toda tentativa de conexão real
+// — um host cujo DNS mudasse para um endereço interno DEPOIS de validado
+// reconectava sem checagem em todo restart do processo (server.ts restaura
+// todo Meter do banco chamando manager.start()). Estes testes cobrem o
+// funil único (start()), não o validador em si (já coberto por
+// outboundHost.test.ts).
 describe("IoTConnectionManager — revalidação de SSRF em start()", () => {
     it("recusa conectar a um host cujo endereço não é unicast público, sem registrar a conexão como ativa", async () => {
         const manager = IoTConnectionManager.getInstance()

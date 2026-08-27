@@ -31,7 +31,7 @@ const mockTariffFlagConfig: TariffFlagConfig = {
     updatedAt: new Date().toISOString(),
 }
 
-// Bandeira vem de GET /api/tariff-flag (leitura pública, #143) — mock no
+// Bandeira vem de GET /api/tariff-flag (leitura pública) — mock no
 // nível do hook evita precisar de um QueryClientProvider real neste teste.
 vi.mock("@/hooks/queries/useTariffFlag", () => ({
     useTariffFlag: vi.fn(),
@@ -213,7 +213,7 @@ describe("LoginPage — login de demonstração (VITE_DEMO_MODE)", () => {
             expect(authService.demoLogin).toHaveBeenCalledWith("residential")
         })
         // Nenhuma credencial em texto claro chega perto do authService — o
-        // único argumento é o profile (issue #179).
+        // único argumento é o profile.
         expect(authService.login).not.toHaveBeenCalled()
     })
 

@@ -18,9 +18,9 @@
 // O service notifica o manager via start/stop/restart. O manager não toca
 // no banco — só mantém o Map<meterId, IConnection> atualizado.
 //
-// Reformulação IoT (Fase 2): a chave passou de deviceId para meterId — a
-// config de conexão agora vem do Meter, não mais do antigo IoTDeviceConfig
-// 1:1 com Device. Um medidor pode estar vinculado a Property, Area ou Device.
+// A chave do Map é meterId, não deviceId — a config de conexão vem do
+// Meter, que pode estar vinculado a Property, Area ou Device (não é 1:1
+// com Device).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"

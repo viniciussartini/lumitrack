@@ -55,8 +55,7 @@ export class UserRepository {
     }
 
     // Usado só para verificar a senha atual antes de aceitar troca de
-    // e-mail (issue #178) — sem cpf/cnpj no select, então sem necessidade
-    // de decrypt.
+    // e-mail — sem cpf/cnpj no select, então sem necessidade de decrypt.
     async findByIdWithPassword(id: string): Promise<{ id: string; password: string } | null> {
         return this.prisma.user.findUnique({
             where: { id },
