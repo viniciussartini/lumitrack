@@ -20,7 +20,7 @@ interface MeterSectionProps {
 
 /**
  * Seção de medidor nas details pages (Property/Area/Device) — substitui o
- * antigo placeholder "Integração IoT" (Fase 5). Mostra:
+ * antigo placeholder "Integração IoT". Mostra:
  *   - Sem medidor: EmptyState + botão "Configurar medidor".
  *   - Com medidor: card (LumiTrack Home.dc.html, bloco "Medidor") com nome/
  *     conexão + status "Conectado"/"Sem leitura recente" e um footer de 3

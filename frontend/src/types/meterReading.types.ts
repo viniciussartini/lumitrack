@@ -1,7 +1,7 @@
 import type { TargetType } from "@/types/meter.types"
 
 /**
- * Leituras agregadas por minuto/hora — issue #211. Alimenta o gráfico
+ * Leituras agregadas por minuto/hora. Alimenta o gráfico
  * "Consumo em tempo real" (`RealtimeChartCard`), reconstruindo o histórico a
  * partir do que já está persistido em `MeterReading`, em vez de nascer
  * vazio a cada carregamento de página. Diferente de `ConsumptionBucket`

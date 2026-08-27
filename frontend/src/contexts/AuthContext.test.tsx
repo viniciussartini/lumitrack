@@ -138,9 +138,9 @@ describe("AuthProvider — login", () => {
     })
 })
 
-// Issue #179: mesmo contrato de login, sem credenciais — cobre só o que
-// difere (chamada a demoLogin em vez de login); os ramos de mfaRequired e
-// erro já são exercitados de forma equivalente acima.
+// Mesmo contrato de login, sem credenciais — cobre só o que difere (chamada
+// a demoLogin em vez de login); os ramos de mfaRequired e erro já são
+// exercitados de forma equivalente acima.
 describe("AuthProvider — demoLogin", () => {
     it("autentica o user em caso de sucesso", async () => {
         vi.mocked(authService.getCurrentUser).mockResolvedValue(null)

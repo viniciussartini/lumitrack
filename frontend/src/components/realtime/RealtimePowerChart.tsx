@@ -60,8 +60,8 @@ interface RealtimePowerChartProps {
  * também usado em Propriedade/Área/Dispositivo via `RealtimeChartCard`) —
  * `LineChart`, não `BarChart` (diferente de `ConsumptionChart`, que plota
  * buckets de billing vindos de `/api/consumption`): aqui os baldes já vêm
- * densos e zero-preenchidos de `buildDenseWindowBuckets` (issue #211,
- * `/api/meter-readings`) — este componente só formata e desenha, sem
+ * densos e zero-preenchidos de `buildDenseWindowBuckets`
+ * (`/api/meter-readings`) — este componente só formata e desenha, sem
  * agregação nenhuma própria.
  *
  * Sem frame `.blueprint` próprio — o card inteiro (header + gráfico)

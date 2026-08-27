@@ -5,7 +5,7 @@ import { DEFAULT_PAGE_SIZE } from "@/types/pagination.types"
 import type { Device } from "@/types/device.types"
 
 /**
- * Lista os dispositivos de uma área (paginado — Fase 5).
+ * Lista os dispositivos de uma área (paginado).
  *
  * `enabled: Boolean(propertyId && areaId)` evita disparar a query quando
  * algum dos dois é undefined/empty (rotas dinâmicas onde algum param ainda

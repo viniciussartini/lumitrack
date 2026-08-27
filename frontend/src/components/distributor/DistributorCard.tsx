@@ -12,7 +12,7 @@ interface DistributorCardProps {
  * fórmula de `TariffService.calculateCore` (backend/src/shared/tariff/
  * tariff.service.ts), aplicada a 1 kWh: total = (tusd+te) / (1 − Σ tributos).
  * Bandeira vigente não entra aqui — catálogo de distribuidoras não carrega
- * bandeira (isso é Fase 4, ver roadmap).
+ * bandeira.
  */
 const computeEffectiveTariffPerKwh = (distributor: Distributor): number => {
     const taxRateSum = distributor.icmsRate + distributor.pisRate + distributor.cofinsRate
@@ -20,7 +20,7 @@ const computeEffectiveTariffPerKwh = (distributor: Distributor): number => {
 }
 
 /**
- * Card de distribuidora — catálogo global somente leitura (Fase 5).
+ * Card de distribuidora — catálogo global somente leitura.
  * Sem link de edição/menu — o catálogo é seedado, sem CRUD pelo usuário.
  */
 export const DistributorCard = ({ distributor }: DistributorCardProps) => (

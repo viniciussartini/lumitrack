@@ -5,7 +5,7 @@ import { queryKeys } from "@/lib/queryClient"
 import type { AlertWithStatus, CreateAlertInput, UpdateAlertInput } from "@/types/alert.types"
 
 /**
- * Mutations de Alerta (Fase 5 — contrato flat, vinculado a um `meterId`).
+ * Mutations de Alerta — contrato flat, vinculado a um `meterId`.
  *
  * Regras gerais:
  *   - onSuccess invalida `alerts.all` (lista/detalhe/firing) — o volume de

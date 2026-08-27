@@ -22,7 +22,7 @@ interface HistoryRangeToggleProps {
  *
  * "6 meses"/"12 meses" controlam `pageSize` de `useConsumption` com
  * granularidade `month` fixa (sem janela — "os últimos N buckets").
- * "Mensal" (issue #230) muda de granularidade: consumo consolidado por
+ * "Mensal" muda de granularidade: consumo consolidado por
  * DIA dentro do mês corrente, do dia 1 até ontem — outra grandeza, não um
  * terceiro valor na mesma escala de meses.
  */

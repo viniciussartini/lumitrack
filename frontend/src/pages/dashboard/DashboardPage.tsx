@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/EmptyState"
 import { Button } from "@/components/ui/Button"
 
 /**
- * Painel (`/dashboard`) — Fase 4, bloco `isDashboard` do
+ * Painel (`/dashboard`) — bloco `isDashboard` do
  * handoff (`LumiTrack Home.dc.html`, linhas 152-246). O seletor de
  * propriedade fica aqui dentro, não na topbar (o handoff não tem nenhum
  * seletor no header compartilhado). O kicker/título "Painel geral/

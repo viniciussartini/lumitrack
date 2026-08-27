@@ -7,7 +7,7 @@ import type { ConsumptionBucket } from "@/types/consumption.types"
  * (verdade na prática: produto brasileiro), mesma simplificação já aceita
  * no resto do app. **Não usar para decodificar `bucketStart` do backend**
  * — ver `bucketDateKey`, que existe exatamente por esses dois casos não
- * serem intercambiáveis (issue #233).
+ * serem intercambiáveis.
  */
 export const toLocalDateKey = (date: Date): string => {
     const year = date.getFullYear()
@@ -67,8 +67,7 @@ export const findBucketForDate = (
  * desfazem essa codificação sem aplicar conversão nova — getters locais
  * (America/Sao_Paulo, UTC-3) empurrariam o dia 1 meia-noite pro dia 31 do
  * mês anterior às 21h, e `getMonth()` devolveria o mês errado pra **todo**
- * bucket de mês, não um caso de borda raro (issue #234, mesma classe da
- * #233 — confirmado com teste antes de corrigir).
+ * bucket de mês, não um caso de borda raro.
  */
 export const bucketMonthKey = (bucketStart: string): string => {
     const date = new Date(bucketStart)

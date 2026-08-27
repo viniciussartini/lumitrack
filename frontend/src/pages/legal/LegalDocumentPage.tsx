@@ -43,7 +43,7 @@ const extractHeadings = (markdown: string): Heading[] =>
  * nova (`target="_blank"` no Registro e nos links do rodapé da Landing) —
  * "← Voltar ao cadastro" não tinha destino real; fechar a aba é a ação
  * natural. O handoff tem "← Voltar ao site" na nav — removido por decisão
- * do usuário (2026-08-04), registrada no CHANGELOG.
+ * do usuário.
  */
 export const LegalDocumentPage = ({ title, markdown }: LegalDocumentPageProps) => {
     useEffect(() => {

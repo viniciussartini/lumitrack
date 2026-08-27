@@ -10,12 +10,12 @@ import { extractErrorMessage } from "@/services/api"
 type Status = "loading" | "success" | "error" | "missing-token"
 
 /**
- * /confirmar-email?token=... — efetiva a troca de e-mail pedida em Perfil
- * (issue #178). Dispara sozinha ao montar (sem form — o token já é a única
- * entrada) e mostra o resultado. Como TODAS as sessões do usuário são
- * revogadas no backend ao confirmar, o CTA de sucesso leva a /login mesmo
- * que a aba que abriu o link estivesse autenticada — a sessão dela, se
- * houver, já não é mais válida.
+ * /confirmar-email?token=... — efetiva a troca de e-mail pedida em Perfil.
+ * Dispara sozinha ao montar (sem form — o token já é a única entrada) e
+ * mostra o resultado. Como TODAS as sessões do usuário são revogadas no
+ * backend ao confirmar, o CTA de sucesso leva a /login mesmo que a aba que
+ * abriu o link estivesse autenticada — a sessão dela, se houver, já não é
+ * mais válida.
  */
 export const ConfirmEmailChangePage = () => {
     const [searchParams] = useSearchParams()

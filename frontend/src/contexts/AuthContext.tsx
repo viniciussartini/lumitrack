@@ -23,7 +23,7 @@ interface AuthContextValue {
      * de sessão quando o login já está completo (sem MFA, ou seja).
      */
     login: (input: LoginInput) => Promise<LoginResult>
-    /** Login de demonstração (issue #179) — mesmo contrato de `login`, sem credenciais. */
+    /** Login de demonstração — mesmo contrato de `login`, sem credenciais. */
     demoLogin: (profile: DemoProfile) => Promise<LoginResult>
     /** Segundo passo do login quando a conta tem MFA habilitado. */
     completeMfaLogin: (input: MfaLoginVerifyInput) => Promise<void>

@@ -22,8 +22,8 @@ export interface ConsumptionSummaryResponse {
 }
 
 /**
- * Camada de acesso à API de consumo agregado (reescrita da Fase 3 —
- * substitui o antigo CRUD manual de `ConsumptionRecord`).
+ * Camada de acesso à API de consumo agregado — substitui o antigo CRUD
+ * manual de `ConsumptionRecord`.
  *
  * `GET /api/consumption` é somente leitura: agrega `MeterReading` por
  * bucket (minute/hour/day/month/year) do medidor vinculado ao alvo, dentro da

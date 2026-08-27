@@ -37,7 +37,7 @@ import type { ConsumptionSummaryItem } from "@/types/consumption.types"
  *      sistema/faturamento/CIP) + ações (Editar / ⋯)
  *   3. KPI "Potência agora" (só quando há medidor com leitura real — sem
  *      inventar dado; ver 07-decisoes-em-aberto / ADR sobre os KPIs
- *      omitidos nesta issue: Consumo hoje, Custo projetado, Bandeira)
+ *      omitidos: Consumo hoje, Custo projetado, Bandeira)
  *   4. Seção de Medidor
  *   5. Seção de Consumo (histórico real — ocupa o lugar do gráfico "ao vivo"
  *      bespoke do protótipo, que foi omitido por não ter dado/lógica real)

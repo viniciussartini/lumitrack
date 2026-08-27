@@ -14,21 +14,21 @@ import type { Meter } from "../../src/types/meter.types"
  *   1. EmptyState "sem medidor" (`by-target` → 404 → `null`)
  *   2. Ciclo vincular → editar → remover (via `MeterFormDialog`, dialog
  *      identificado por role, não testid — mesmo padrão que
- *      properties/area/device.spec.ts já usam desde #102)
+ *      properties/area/device.spec.ts já usam)
  *   3. Leitura em tempo real (Potência/Tensão/Corrente) aparece junto com o
  *      card de conexão, em estado "sem leitura recente" (nenhuma amostra
- *      chega pelo SSE mockado) — desde #99, essa leitura entra inline no
- *      próprio card de `MeterSection` (`meter-connection-card` +
- *      `meter-status-stale`), não mais no antigo `RealTimeCard` (removido)
+ *      chega pelo SSE mockado) — essa leitura entra inline no próprio card
+ *      de `MeterSection` (`meter-connection-card` + `meter-status-stale`),
+ *      não mais no antigo `RealTimeCard` (removido)
  *   4. Campos condicionais do form por protocolo (rede/tópico/serial)
  *
- * Reescrito nesta correção — ficou pra trás quando #99 migrou a leitura em
- * tempo real do antigo `RealTimeCard.tsx` (removido) pra dentro de
- * `MeterSection.tsx` e quando #97/#98 unificaram os modais de CRUD sem
+ * Reescrito nesta correção — ficou pra trás quando a leitura em tempo real
+ * migrou do antigo `RealTimeCard.tsx` (removido) pra dentro de
+ * `MeterSection.tsx`, e quando os modais de CRUD foram unificados sem
  * testid próprio no `FormDialog`: os testids `real-time-card`,
  * `real-time-card-stale` e `meter-form-dialog` deixaram de existir no
- * código-fonte havia várias sub-issues, sem que este spec fosse notado —
- * #102 reescreveu só properties/area/device.spec.ts.
+ * código-fonte havia bastante tempo, sem que este spec fosse notado — a
+ * reescrita anterior cobriu só properties/area/device.spec.ts.
  */
 
 const setupAuthAndProperty = async (page: Page) => {
@@ -57,7 +57,7 @@ const setupAuthAndProperty = async (page: Page) => {
     // ConsumptionSection também monta na mesma página e usa /api/consumption
     // assim que houver medidor — precisa de mock pra não vazar.
     await page.route(/\/api\/consumption(\?.*)?$/, (route) => fulfillPaginated(route, []))
-    // Mesma lógica pro card "Consumo em tempo real" (issue #211) —
+    // Mesma lógica pro card "Consumo em tempo real" —
     // /api/meter-readings assim que houver medidor.
     await page.route(/\/api\/meter-readings(\?.*)?$/, (route) =>
         fulfillJson(route, { items: [], granularity: "minute" }),

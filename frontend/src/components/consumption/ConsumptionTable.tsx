@@ -13,7 +13,7 @@ interface ConsumptionTableProps {
 }
 
 /**
- * Tabela de consumo agregado — somente leitura (Fase 5, substitui o antigo
+ * Tabela de consumo agregado — somente leitura (substitui o antigo
  * CRUD manual). Colunas: Período | kWh | Custo | Potência média.
  *
  * Renderiza na ordem recebida — quem consulta é que define se a janela vem

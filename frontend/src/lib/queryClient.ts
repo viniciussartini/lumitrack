@@ -26,11 +26,11 @@ import { QueryClient } from "@tanstack/react-query"
  *       TODAS as queries montadas de uma vez — inclui o fan-out de
  *       consumo do Painel (até 20 propriedades × ~8 queries no
  *       backend cada, ~160 queries por refetch). Enquanto esse endpoint
- *       não vira uma chamada em lote (Fase 15 do roadmap), `true`
- *       amplificaria exatamente esse custo. Os dados que realmente
- *       precisam de frescor "ao vivo" (potência, leituras) já chegam por
- *       SSE (RealtimeContext), não por refetch do TanStack Query —
- *       revisitar quando o fan-out for resolvido, se fizer sentido.
+ *       não vira uma chamada em lote, `true` amplificaria exatamente esse
+ *       custo. Os dados que realmente precisam de frescor "ao vivo"
+ *       (potência, leituras) já chegam por SSE (RealtimeContext), não por
+ *       refetch do TanStack Query — revisitar quando o fan-out for
+ *       resolvido, se fizer sentido.
  */
 export const queryClient = new QueryClient({
     defaultOptions: {
@@ -49,10 +49,10 @@ export const queryClient = new QueryClient({
 /**
  * Chaves de query — centralizadas para evitar typos e facilitar invalidação.
  *
- * Reformulação IoT (Fase 5): listagens paginadas (properties, areas, devices,
- * meters, distributors, alerts, alertEvents, consumption) incluem page/pageSize
- * na key — páginas diferentes são resultados diferentes que valem cache
- * próprio. `notifications` não é paginado (efêmero, cap de 100 no backend).
+ * Listagens paginadas (properties, areas, devices, meters, distributors,
+ * alerts, alertEvents, consumption) incluem page/pageSize na key — páginas
+ * diferentes são resultados diferentes que valem cache próprio.
+ * `notifications` não é paginado (efêmero, cap de 100 no backend).
  */
 export const queryKeys = {
     distributors: {

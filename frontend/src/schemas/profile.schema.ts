@@ -7,11 +7,11 @@ const emailField = z
     .min(1, "E-mail é obrigatório")
     .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "E-mail inválido")
 
-// `currentPassword` só é exigido quando o e-mail muda de fato (issue #178)
-// — comparado contra `originalEmail`, capturado no momento em que o form é
-// montado (`user.email`). Não dá para expressar isso num objeto Zod
-// estático porque o schema não conhece o valor original; por isso os dois
-// schemas abaixo viram fábricas em vez de constantes.
+// `currentPassword` só é exigido quando o e-mail muda de fato — comparado
+// contra `originalEmail`, capturado no momento em que o form é montado
+// (`user.email`). Não dá para expressar isso num objeto Zod estático porque
+// o schema não conhece o valor original; por isso os dois schemas abaixo
+// viram fábricas em vez de constantes.
 
 /**
  * Edição de perfil — PF: nome/sobrenome/e-mail/senha atual (condicional).

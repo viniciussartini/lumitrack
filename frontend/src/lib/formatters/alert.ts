@@ -1,10 +1,8 @@
 /**
- * Formatadores de Alerta (Fase 5 — faixa de potência).
+ * Formatadores de Alerta — faixa de potência.
  *
- * Diferente do modelo antigo (thresholdKwh + target polimórfico resolvido
- * no frontend via lookup), o backend agora resolve o alvo diretamente
- * (`AlertWithStatus.target`), então não há mais formatAlertTarget/lookup
- * aqui — só formatação numérica/temporal.
+ * O backend resolve o alvo diretamente (`AlertWithStatus.target`), então
+ * não há formatAlertTarget/lookup aqui — só formatação numérica/temporal.
  */
 
 const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("pt-BR", {

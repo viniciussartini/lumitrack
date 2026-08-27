@@ -12,7 +12,7 @@ interface UserMenuProps {
      * "sidebar": bloco de identidade do rodapé da Sidebar (avatar maior +
      * nome + tipo de conta), LumiTrack Home.dc.html linhas 69-76 — o
      * protótipo só navega direto pro Perfil nesse bloco, mas aqui ele vira
-     * o trigger deste mesmo menu (decisão do usuário, 2026-08-04): o
+     * o trigger deste mesmo menu, por decisão deliberada: o
      * protótipo não tem logout em lugar nenhum, então precisa continuar
      * acessível por Perfil / Segurança / Sair.
      */

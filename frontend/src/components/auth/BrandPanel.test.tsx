@@ -32,7 +32,7 @@ describe("BrandPanel — rodapé", () => {
         )
     })
 
-    // Issue #214: sem isso, o painel esquerdo é um item de grid comum —
+    // Sem isso, o painel esquerdo é um item de grid comum —
     // sua altura é a altura da linha do grid, que muda conforme o
     // conteúdo da coluna direita (ex.: Registro trocando Pessoa
     // Física/Jurídica). `self-start` tira o painel do stretch padrão do

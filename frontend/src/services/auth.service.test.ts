@@ -98,7 +98,7 @@ describe("authService.login", () => {
     })
 })
 
-// Issue #179: sem e-mail/senha no cliente — só o profile e o channel fixo.
+// Sem e-mail/senha no cliente — só o profile e o channel fixo.
 describe("authService.demoLogin", () => {
     it("envia só profile + channel='WEB', sem nenhuma credencial", async () => {
         vi.mocked(api.post).mockResolvedValueOnce({
@@ -336,7 +336,7 @@ describe("authService.register", () => {
     })
 })
 
-// Issue #178: efetiva a troca de e-mail pedida em Perfil.
+// Efetiva a troca de e-mail pedida em Perfil.
 describe("authService.confirmEmailChange", () => {
     it("faz POST em /auth/confirm-email-change com o token", async () => {
         vi.mocked(api.post).mockResolvedValueOnce({ data: { status: "success" } })

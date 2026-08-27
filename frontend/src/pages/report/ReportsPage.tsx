@@ -10,10 +10,10 @@ import { REPORT_GRANULARITIES } from "@/types/consumption.types"
 import type { TargetType } from "@/types/meter.types"
 
 /**
- * Relatórios — /relatorios (Fase 5). Corrige o gap do menu: antes só havia
- * relatório por entidade (rota `/…/relatorio`, removida nesta fase); agora
- * é uma página única com seletor cascata de alvo (propriedade → área →
- * dispositivo) + as 4 granularidades (hora/dia/mês/ano).
+ * Relatórios — /relatorios. Corrige o gap do menu: antes só havia relatório
+ * por entidade (rota `/…/relatorio`, removida); agora é uma página única
+ * com seletor cascata de alvo (propriedade → área → dispositivo) + as 4
+ * granularidades (hora/dia/mês/ano).
  *
  * Reaproveita `ConsumptionSection` (mesmo componente das details pages) —
  * gráfico, tabela e paginação idênticos, só variando o alvo e as
@@ -56,7 +56,7 @@ export const ReportsPage = () => {
     return (
         <div className="flex flex-col gap-6">
             {/* h1 "Relatórios" removido — duplicava o título que o Header
-                (#136) agora mostra pra rota /relatorios. Página sem handoff
+                agora mostra pra rota /relatorios. Página sem handoff
                 Industry ainda (ver 10-design-system.md), resto intocado. */}
             <p className="text-sm text-slate-600 dark:text-slate-400">
                 Selecione um alvo para ver o consumo agregado por hora, dia, mês ou ano.

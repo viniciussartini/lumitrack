@@ -1,7 +1,7 @@
 import type { TargetType } from "@/types/meter.types"
 
 /**
- * Tipos compartilhados de Alerta — reformulação IoT (Fase 4).
+ * Tipos compartilhados de Alerta.
  * Espelham `backend/src/modules/alert/alert.schema.ts` + `alert.service.ts`.
  *
  * Alertas monitoram uma FAIXA DE POTÊNCIA de um medidor, não mais um

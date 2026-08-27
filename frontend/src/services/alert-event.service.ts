@@ -8,9 +8,9 @@ interface ApiEnvelope<T> {
 }
 
 /**
- * Camada de acesso ao histórico de episódios de disparo — módulo novo
- * (Fase 4), somente leitura. Recurso top-level filtrado por `alertId`,
- * mesmo padrão de `consumption`/`meters`.
+ * Camada de acesso ao histórico de episódios de disparo — somente leitura.
+ * Recurso top-level filtrado por `alertId`, mesmo padrão de
+ * `consumption`/`meters`.
  */
 export const alertEventService = {
     list: async (params: ListAlertEventParams): Promise<Paginated<AlertTriggerEvent>> => {

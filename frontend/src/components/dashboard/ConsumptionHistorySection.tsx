@@ -34,7 +34,7 @@ const MONTHLY_HISTORY_PAGE_SIZE = 31
  * página quando a propriedade selecionada não tem medidor, mas é a mesma
  * convenção já em produção em `PropertyDetailsPage` (MeterSection +
  * ConsumptionSection, cada um com seu próprio aviso) — não uma
- * inconsistência nova desta issue.
+ * inconsistência nova.
  */
 export const ConsumptionHistorySection = ({
     propertyId,

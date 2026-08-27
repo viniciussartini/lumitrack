@@ -8,11 +8,11 @@ import { FAKE_USER } from "./support/fixtures"
 // E2E focado em UI: mocka as respostas do backend via page.route(). Vantagem:
 // não depende do backend rodando de verdade — roda no CI sem coordenação.
 //
-// Desde a #06 (sessão WEB via cookie httpOnly + CSRF), o login não retorna
-// mais o token no body nem existe leitura de token via localStorage — o
-// frontend sempre busca o usuário autenticado via GET /auth/me (tanto no
-// bootstrap quanto logo após o login), e é essa a única rota que precisa
-// ser mockada para simular "usuário autenticado" nestes testes.
+// Como a sessão WEB usa cookie httpOnly + CSRF, o login não retorna mais o
+// token no body nem existe leitura de token via localStorage — o frontend
+// sempre busca o usuário autenticado via GET /auth/me (tanto no bootstrap
+// quanto logo após o login), e é essa a única rota que precisa ser mockada
+// para simular "usuário autenticado" nestes testes.
 
 test.describe("Fluxo de autenticação", () => {
     test.beforeEach(async ({ context }) => {
@@ -24,9 +24,7 @@ test.describe("Fluxo de autenticação", () => {
     }) => {
         await page.goto("/dashboard")
         await expect(page).toHaveURL(/\/login/)
-        await expect(
-            page.getByRole("heading", { name: /entrar no lumitrack/i }),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { name: /entrar no lumitrack/i })).toBeVisible()
     })
 
     test("mostra erro de validação ao submeter form vazio", async ({ page }) => {
@@ -86,10 +84,8 @@ test.describe("Fluxo de autenticação", () => {
         )
         await mockAppShellBackground(page)
         // Mesmo motivo do teste de logout logo abaixo: DashboardPage sempre
-        // chama useProperties ao montar (#115).
-        await page.route(/\/api\/properties(\?.*)?$/, (route) =>
-            fulfillPaginated(route, []),
-        )
+        // chama useProperties ao montar.
+        await page.route(/\/api\/properties(\?.*)?$/, (route) => fulfillPaginated(route, []))
 
         await page.goto("/login")
         await page.getByLabel(/e-mail/i).fill("test@example.com")
@@ -115,16 +111,14 @@ test.describe("Fluxo de autenticação", () => {
             }),
         )
         await mockAppShellBackground(page)
-        // DashboardPage sempre chama useProperties ao montar (#115) — sem
+        // DashboardPage sempre chama useProperties ao montar — sem
         // mock, cai no backend real sem sessão válida e redireciona pro
         // /login no meio do teste (ver appShell.ts). Lista vazia de propósito:
         // este teste só quer o cabeçalho (saudação) e o menu do usuário, uma
         // propriedade real montaria RealtimeSection/etc, que por sua vez
         // fariam suas próprias chamadas não mockadas (medidor, consumo,
         // bandeira) e cairiam no mesmo problema.
-        await page.route(/\/api\/properties(\?.*)?$/, (route) =>
-            fulfillPaginated(route, []),
-        )
+        await page.route(/\/api\/properties(\?.*)?$/, (route) => fulfillPaginated(route, []))
 
         await page.goto("/dashboard")
         await hideDevTools(page)

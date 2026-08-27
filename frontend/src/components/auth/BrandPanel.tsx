@@ -7,7 +7,7 @@ import { GITHUB_REPO_URL, GitHubIcon } from "@/components/ui/GitHubIcon"
  * Grade das 4 telas de autenticação (Login/Registro/Esqueci senha/Redefinir
  * senha) — largura fixa para o painel de marca não "pular" na troca de
  * tela. Handoff diverge entre si (Login usa 1.05fr, Registro e Recuperar
- * Senha usam .95fr); decisão do usuário (2026-08-04): padronizar em .95fr
+ * Senha usam .95fr); padronizado em .95fr
  * (maioria do handoff e do código já existente) em vez de seguir a
  * divergência.
  */
@@ -32,7 +32,7 @@ interface BrandPanelProps {
  * óbvia é o formulário ocupar a tela inteira, que é o que resta ao
  * esconder este painel.
  *
- * `lg:self-start lg:h-screen lg:sticky lg:top-0` (issue #214): sem isso,
+ * `lg:self-start lg:h-screen lg:sticky lg:top-0`: sem isso,
  * a altura do painel é a da linha do grid (`AUTH_LAYOUT_GRID_CLASS`,
  * `align-items: stretch` padrão), que muda com o conteúdo da coluna
  * irmã — visível no Registro ao trocar Pessoa Física/Jurídica (o

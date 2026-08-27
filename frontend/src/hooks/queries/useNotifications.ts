@@ -3,8 +3,8 @@ import { notificationService } from "@/services/notification.service"
 import { queryKeys } from "@/lib/queryClient"
 
 /**
- * Notificações efêmeras (Fase 5) — hidratação inicial do NotificationDropdown.
- * O restante chega via SSE (evento `notification`), que atualiza o cache
+ * Notificações efêmeras — hidratação inicial do NotificationDropdown. O
+ * restante chega via SSE (evento `notification`), que atualiza o cache
  * diretamente (ver RealtimeContext) em vez de invalidar/refetch.
  */
 export const useNotifications = () =>

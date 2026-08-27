@@ -4,7 +4,7 @@ import type { BucketSize, Granularity } from "@/types/consumption.types"
  * Bucket correspondente a cada granularidade: a granularidade escolhida pelo
  * usuário é a JANELA, e o bucket é o nível imediatamente mais fino. Selecionar
  * "Hora" significa "a hora corrente, minuto a minuto" — não "uma linha por
- * hora retrocedendo no tempo" (issue #226).
+ * hora retrocedendo no tempo".
  */
 const BUCKET_BY_GRANULARITY: Record<Granularity, BucketSize> = {
     hour: "minute",
@@ -91,8 +91,8 @@ export interface MonthlyHistoryWindow {
 }
 
 /**
- * Janela do histórico "Mensal" do painel (issue #230) — do dia 1 do mês
- * corrente até ONTEM, inclusive. Diferente de `resolveConsumptionWindow`
+ * Janela do histórico "Mensal" do painel — do dia 1 do mês corrente até
+ * ONTEM, inclusive. Diferente de `resolveConsumptionWindow`
  * (que sempre inclui o instante corrente, ainda em andamento), esta janela
  * exclui **de propósito** o dia de hoje: ele está incompleto, e uma barra
  * baixa só porque o dia mal começou distorceria a leitura do gráfico.

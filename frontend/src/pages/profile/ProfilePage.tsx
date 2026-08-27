@@ -40,7 +40,7 @@ import type { UpdateUserInput, User } from "@/types/auth.types"
  * também precisa ver/editar o próprio perfil, mesma ramificação por
  * `userType` já usada em RegisterPage/registerSchema.
  *
- * "Editar" abre `FormDialog` (issue #219) — diverge de propósito do
+ * "Editar" abre `FormDialog` — diverge de propósito do
  * protótipo (`LumiTrack Home.dc.html`, `profIsEditing`), que troca o
  * conteúdo do card inline; escolha deliberada de manter o mesmo padrão de
  * modal já usado por Propriedade/Área/Dispositivo/Medidor, em vez de um
@@ -59,9 +59,9 @@ export const ProfilePage = () => {
 
     const handleSave = async (input: UpdateUserInput): Promise<void> => {
         // A resposta de PUT /api/users/:id continua trazendo o e-mail ANTIGO
-        // quando o e-mail muda (issue #178 — só efetiva após confirmação
-        // pelo novo endereço) — sem este aviso diferente, o usuário acharia
-        // que a troca já valeu, quando na verdade nada mudou ainda.
+        // quando o e-mail muda (só efetiva após confirmação pelo novo
+        // endereço) — sem este aviso diferente, o usuário acharia que a
+        // troca já valeu, quando na verdade nada mudou ainda.
         const isChangingEmail = Boolean(input.email && input.email !== user.email)
 
         try {
@@ -228,7 +228,7 @@ interface DataSubjectRight {
     label: string
     /** `true` quando já dá pra exercer sem sair desta página (ou do fluxo de
      * exportação/exclusão abaixo); os demais passam pelo canal de
-     * privacidade (Fase 11). */
+     * privacidade. */
     selfService: boolean
     note?: string
 }
@@ -460,8 +460,8 @@ const IndividualProfileForm = ({
         },
     })
 
-    // Senha atual só é pedida quando o e-mail muda de fato (issue #178) —
-    // trocar nome/sobrenome não exige reautenticação.
+    // Senha atual só é pedida quando o e-mail muda de fato — trocar
+    // nome/sobrenome não exige reautenticação.
     const isChangingEmail = watch("email") !== user.email
 
     const handleFormSubmit = async (data: IndividualProfileFormData): Promise<void> => {
@@ -550,7 +550,7 @@ const CompanyProfileForm = ({ user, onCancel, onSave, isSaving }: CompanyProfile
         },
     })
 
-    // Senha atual só é pedida quando o e-mail muda de fato (issue #178).
+    // Senha atual só é pedida quando o e-mail muda de fato.
     const isChangingEmail = watch("email") !== user.email
 
     const handleFormSubmit = async (data: CompanyProfileFormData): Promise<void> => {

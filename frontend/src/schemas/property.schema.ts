@@ -55,8 +55,8 @@ const optionalNonNegativeNumber = z
  *     só consegue escolher ids legítimos das distribuidoras carregadas).
  *   - Campos opcionais aceitam string vazia e convertem pra undefined antes
  *     de validar (vide emptyToUndefined acima).
- *   - `electricalSystem`/`billingClass`/`publicLightingFeeBrl` migraram da
- *     distribuidora para a propriedade na Fase 1 da reformulação IoT.
+ *   - `electricalSystem`/`billingClass`/`publicLightingFeeBrl` pertencem à
+ *     propriedade, não à distribuidora.
  */
 export const propertyFormSchema = z.object({
     distributorId: z.string().min(1, { message: "Selecione uma distribuidora" }),

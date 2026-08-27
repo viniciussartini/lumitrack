@@ -46,7 +46,7 @@ export type Uf = (typeof VALID_UFS)[number]
 /**
  * Sistema elétrico da unidade consumidora — define o piso de disponibilidade
  * (30/50/100 kWh) aplicado na tarifação mensal (TariffService no backend).
- * Migrou da distribuidora para a propriedade na Fase 1 da reformulação IoT.
+ * Pertence à propriedade, não à distribuidora.
  */
 export type ElectricalSystem = "MONOPHASIC" | "BIPHASIC" | "TRIPHASIC"
 

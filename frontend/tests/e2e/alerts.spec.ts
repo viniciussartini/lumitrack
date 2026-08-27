@@ -11,8 +11,8 @@ import type { AlertTriggerEvent } from "../../src/types/alert-event.types"
  * E2E focado em UI: mocka as respostas do backend via page.route().
  * Vantagem: não depende do backend rodando — roda no CI sem coordenação.
  *
- * `/alertas` — inbox global de alertas no modelo de faixa de potência
- * (Fase 4/5, substitui por completo o antigo threshold de kWh one-shot):
+ * `/alertas` — inbox global de alertas no modelo de faixa de potência,
+ * substitui por completo o antigo threshold de kWh one-shot:
  *   1. CRUD flat (nome, medidor, potência de referência, tolerância, enabled)
  *   2. Toggle habilitar/desabilitar sem passar pelo form
  *   3. Status firing/normal + histórico de disparos (AlertTriggerEvent)
