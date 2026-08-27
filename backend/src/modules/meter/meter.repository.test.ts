@@ -64,7 +64,7 @@ afterAll(async () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Issue #182 — cifra de Meter.extra.password + omissão do MeterResponse
+// Cifra de Meter.extra.password + omissão do MeterResponse
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("MeterRepository — cifra da credencial MQTT", () => {

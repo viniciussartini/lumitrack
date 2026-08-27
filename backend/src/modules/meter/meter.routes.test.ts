@@ -9,11 +9,11 @@ const app = createApp({ prismaClient: prismaHttpTest })
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
 //
-// Property/EnergyDistributor são criados direto via Prisma — os módulos HTTP
-// de property/distributor ainda não foram atualizados para o schema v2
-// (Fase 3), então POST /api/properties falharia por falta de
-// `electricalSystem` (campo obrigatório sem default). Isso é o estado
-// esperado nesta fase; o módulo `meter` sob teste aqui não depende deles.
+// EnergyDistributor é catálogo somente leitura via API (populado por seed,
+// RF08), sem endpoint de criação — por isso o setup de teste cria a
+// distribuidora direto via Prisma. Property também via Prisma por
+// conveniência, já que os testes aqui exercitam o módulo `meter`, não o
+// fluxo HTTP de property.
 
 const validUser = {
     email: "joao@example.com",
@@ -135,7 +135,7 @@ describe("POST /api/meters", () => {
         expect(response.body.message).toBe("Conta de demonstração é somente leitura")
     })
 
-    // Issue #182 — a senha nunca deve sair na resposta HTTP, cifrada ou não.
+    // A senha nunca deve sair na resposta HTTP, cifrada ou não.
     it("nunca devolve extra.password na resposta — expõe passwordSet: true", async () => {
         const token = await registerAndLogin()
         const propertyId = await seedProperty(token)
@@ -222,10 +222,10 @@ describe("POST /api/meters", () => {
         expect(response.status).toBe(401)
     })
 
-    // #10 — OWASP A01 (SSRF): antes desta correção, qualquer host era aceito
-    // sem checagem e o controller disparava a conexão de saída logo em
-    // seguida — este é o teste que reproduz o bug e falha se o controle for
-    // removido (DoD do 05-security-standards.md).
+    // OWASP A01 (SSRF): sem esta checagem, qualquer host seria aceito e o
+    // controller dispararia a conexão de saída logo em seguida. Este teste
+    // reproduz o cenário e falha se o controle for removido (DoD do
+    // 05-security-standards.md).
     it("retorna 422 ao apontar para rede privada (RFC1918) sem allowlist", async () => {
         const token = await registerAndLogin()
         const propertyId = await seedProperty(token)
@@ -347,9 +347,9 @@ describe("PUT /api/meters/:id", () => {
         expect(response.status).toBe(403)
     })
 
-    // #10 — OWASP A01 (SSRF): PUT dispara `restart` da conexão de saída
-    // (meter.controller.ts) — segundo caminho igualmente aberto antes desta
-    // correção, hoje coberto pela mesma checagem do POST.
+    // OWASP A01 (SSRF): PUT dispara `restart` da conexão de saída
+    // (meter.controller.ts) — segundo caminho de entrada, coberto pela
+    // mesma checagem do POST.
     it("retorna 422 ao atualizar host para rede privada sem allowlist", async () => {
         const token = await registerAndLogin()
         const propertyId = await seedProperty(token)

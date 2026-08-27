@@ -80,8 +80,8 @@ function toMeterWithTargetRow(raw: RawMeterWithTarget): MeterWithTargetRow {
     }
 }
 
-// Issue #182 — só MQTT carrega credencial (username/password) em `extra`; os
-// demais protocolos usam parâmetros de polling/endereçamento, nada sensível
+// Só MQTT carrega credencial (username/password) em `extra`; os demais
+// protocolos usam parâmetros de polling/endereçamento, nada sensível
 // (ver IoTConnectionManager.ts::createConnection). A resposta pública nunca
 // devolve o valor decifrado — só se a senha está definida (mesmo espírito de
 // `mfaEnabled` em UserRepository: o dado sensível em si nunca sai do módulo

@@ -7,10 +7,9 @@ import type { MeterConnectionConfig } from "@/modules/iot/iot-worker/IoTConnecti
 // uma falha de conexão IoT não deve impedir a resposta HTTP. Import
 // dinâmico para não acoplar o módulo de negócio ao worker no nível de
 // módulo (mesmo padrão usado pelo antigo iot.controller.ts). O callback
-// pode ser async (issue #182 — buscar a config de conexão decifrada é uma
-// chamada a mais ao banco) sem que este helper precise aguardá-lo: o
-// `.then(fn)` externo já não é esperado por ninguém, preservando o
-// fire-and-forget.
+// pode ser async (buscar a config de conexão decifrada é uma chamada a
+// mais ao banco) sem que este helper precise aguardá-lo: o `.then(fn)`
+// externo já não é esperado por ninguém, preservando o fire-and-forget.
 function withConnectionManager(
     fn: (manager: {
         start: (config: MeterConnectionConfig) => Promise<void>

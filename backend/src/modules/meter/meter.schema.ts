@@ -24,7 +24,7 @@ export type MeterProtocol = z.infer<typeof meterProtocolSchema>
 // Campos comuns a todo medidor, independente do protocolo.
 const nameField = { name: z.string().min(1, { message: "Nome é obrigatório" }).max(200) }
 
-// `extra` tipado por protocolo (issue #182) — substitui o antigo
+// `extra` tipado por protocolo — substitui o antigo
 // `z.record(z.string(), z.unknown())` genérico, que aceitava qualquer par
 // chave/valor sem checagem nenhuma. Só os campos que IoTConnectionManager.ts
 // (createConnection) de fato lê para cada protocolo — chave desconhecida é

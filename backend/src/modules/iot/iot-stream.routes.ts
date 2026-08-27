@@ -13,7 +13,7 @@
  * Segurança: o endpoint exige autenticação. As leituras são filtradas por
  * userId — cada cliente só recebe dados dos seus próprios medidores.
  *
- * Contrato de eventos (Fase 4):
+ * Contrato de eventos:
  *   connected     { meterCount }
  *   reading       { meterId, voltage, current, powerW, powerFactor, receivedAt }
  *   alert-firing  { type: "start"|"end", alertId, alertName, meterId, startedAt, endedAt? }
@@ -54,10 +54,11 @@ async function resolveUserMeterIds(userId: string, prisma: PrismaClient): Promis
     return new Set(meters.map((m) => m.id))
 }
 
-// Issue #184 — SSE nunca passa pelo middleware `authenticate` de novo depois
-// do handshake inicial (a conexão fica aberta indefinidamente). Sem isso, um
-// stream aberto antes de um logout ou reset de senha continuava entregando
-// leituras/eventos indefinidamente, mesmo com a sessão já revogada. Mesma
+// SSE nunca passa pelo middleware `authenticate` de novo depois do
+// handshake inicial (a conexão fica aberta indefinidamente). Sem esta
+// checagem periódica, um stream aberto antes de um logout ou reset de
+// senha continuaria entregando leituras/eventos indefinidamente, mesmo com
+// a sessão já revogada. Mesma
 // checagem que `authenticate` faz por requisição (revokedAt/expiresAt),
 // aplicada aqui a cada refresh periódico em vez de a cada mensagem — SSE não
 // tem "requisição" recorrente para prender a checagem nela.
@@ -156,7 +157,7 @@ function createStreamHandler(
             clearInterval(keepAlive)
         }
 
-        // Re-resolve o conjunto de medidores E revalida a sessão (issue #184)
+        // Re-resolve o conjunto de medidores E revalida a sessão
         // periodicamente, sem exigir reconexão do cliente. Sessão revogada
         // (logout, reset de senha) ou expirada encerra a resposta — o
         // cliente (EventSource ou equivalente) simplesmente vê a conexão

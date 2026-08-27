@@ -15,12 +15,12 @@ interface SerialDataHarness {
     onData(handler: (data: Record<string, unknown>) => void): void
 }
 
-// Estes testes usam o import("ethernet-ip") real (não mockado) — é
-// justamente a lacuna que deixou o CI verde no PR #51 (bump 1.2.5→2.0.0):
-// a lib v2 reescreveu a API inteira (Controller→PLC, connect(ip, slot)→
-// connect(ip, {slot}), readTag/writeTag→read/write), e como o uso é via
-// import() dinâmico, um mock no nível do módulo nunca pegaria a
-// divergência — só bate contra o pacote publicado de verdade.
+// Estes testes usam o import("ethernet-ip") real (não mockado) — cobrem
+// justamente a lacuna que deixaria passar despercebido um bump de versão
+// como 1.2.5→2.0.0: a lib v2 reescreveu a API inteira (Controller→PLC,
+// connect(ip, slot)→connect(ip, {slot}), readTag/writeTag→read/write), e
+// como o uso é via import() dinâmico, um mock no nível do módulo nunca
+// pegaria a divergência — só bate contra o pacote publicado de verdade.
 describe("EthernetIpConnection", () => {
     it("usa a superfície real da API v2 (PLC, connect com {slot}) — falha com erro de conexão, não com TypeError de API incompatível", async () => {
         // Nada deve estar escutando em 127.0.0.1:44818 (porta fixa da lib,
@@ -56,12 +56,12 @@ describe("EthernetIpConnection", () => {
     })
 })
 
-// #164 — Rs485Connection fazia `buffer.split("")` (decompunha em
+// Regressão: Rs485Connection fazia `buffer.split("")` (decompunha em
 // caracteres individuais) em vez de `split("\n")`: dataHandler era chamado
 // uma vez por byte recebido, JSON.parse de um único caractere sempre
 // falhava, e nenhuma leitura RS-485 era jamais decodificada. Mesmo bug de
-// classe também coberto para o Rs232Connection (correto hoje, mas sem
-// teste de regressão nenhum protocolo serial tinha antes desta issue).
+// classe também coberto para o Rs232Connection (correto hoje, mas até
+// então sem teste de regressão em nenhum protocolo serial).
 describe.each([
     [
         "Rs485Connection",

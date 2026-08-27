@@ -193,8 +193,8 @@ export class MeterService {
     }
 
     // Passagem fina para o worker IoT conectar de verdade (extra.password
-    // decifrado) — issue #182. Sem checagem de ownership adicional: só é
-    // chamado logo após create/update na mesma requisição (posse já
+    // decifrado). Sem checagem de ownership adicional: só é chamado logo
+    // após create/update na mesma requisição (posse já
     // validada) ou pelo boot do servidor (infraestrutura de processo, não
     // uma rota HTTP). O controller não deve falar com MeterRepository
     // diretamente, daí esta passagem existir em vez de expor o repository.

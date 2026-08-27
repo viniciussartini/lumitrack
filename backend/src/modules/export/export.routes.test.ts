@@ -33,7 +33,7 @@ const anotherUser = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // channel: "MOBILE" porque só precisamos de um Bearer token para autenticar
-// via header — WEB não devolve token no body (#06, cookie httpOnly).
+// via header — WEB não devolve token no body (cookie httpOnly).
 async function registerAndLogin(user = validUser) {
     await request(app).post("/api/users").send(user)
     const loginRes = await request(app).post("/api/auth/login").send({
@@ -160,7 +160,7 @@ describe("GET /api/users/me/data-export", () => {
 
         // O controller registra este audit log DEPOIS de enviar a resposta
         // (decisão de latência) — a escrita corre em paralelo ao fim do
-        // request acima, sem ordem garantida (#113).
+        // request acima, sem ordem garantida.
         const auditEntry = await waitFor(() =>
             prismaHttpTest.auditLog.findFirst({
                 where: { userId, action: "DATA_EXPORT" },

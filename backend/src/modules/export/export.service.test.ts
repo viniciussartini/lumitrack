@@ -69,10 +69,10 @@ const validUserB = {
 }
 
 // Cria a cadeia completa user → distributor (catálogo) → property → area →
-// device, um medidor + alerta (inseridos direto via Prisma — o módulo
-// `alert` ainda está no formato pré-reformulação e será reescrito na Fase 4;
-// aqui só precisamos de uma linha válida contra o schema atual para testar
-// a agregação do export) e uma linha de audit log.
+// device, um medidor + alerta (inseridos direto via Prisma, sem instanciar
+// MeterService/AlertService neste arquivo — só precisamos de uma linha
+// válida contra o schema atual para testar a agregação do export) e uma
+// linha de audit log.
 async function setupFull(userInput = validUserA) {
     const user = await userService.createUser(userInput)
     const distributor = await createTestDistributor(prismaTest)
@@ -144,8 +144,8 @@ describe("ExportService.generate", () => {
         expect(payload.properties).toHaveLength(1)
         expect(payload.properties[0]!.id).toBe(property.id)
 
-        // Distribuidora agora é catálogo global — o export traz só as
-        // efetivamente vinculadas às propriedades do titular (Fase 3.2).
+        // Distribuidora é catálogo global — o export traz só as
+        // efetivamente vinculadas às propriedades do titular.
         expect(payload.distributors).toHaveLength(1)
         expect(payload.distributors[0]!.id).toBe(distributor.id)
 

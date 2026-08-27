@@ -2233,3 +2233,20 @@
 - **Arquivos principais:** `.claude/docs/roadmap.md`.
 - **Decisões/ADRs:** nenhuma nova ainda — a fase 15.5 abre 2 ADRs como itens de trabalho (padrão de acesso cross-módulo; decisão de type-check no pre-commit, se aplicável), a registrar quando executados.
 - **Notas:** 3 decisões deixadas explicitamente "a decidir na execução" (mesmo padrão de itens anteriores do roadmap): escopo do épico de rastreabilidade (só `src/` ou também scripts/seed/E2E), type-check no pre-commit vs. correção do `06`, e `dependency-cruiser` nos 2 pacotes do `iot-simulator`. Próximo passo natural: `criar-issues` para abrir o épico de comentários de rastreabilidade e os itens individuais de enforcement.
+
+## [2026-08-26] refactor: remove comentários de rastreabilidade — backend auth/user/meter/iot/export (issue #291)
+
+- **Branch:** epic/290-limpeza-comentarios-rastreabilidade
+- **Tipo:** refactor
+- **O quê:** primeira sub-issue do épico #290 (Fase 15.5) — remove referências a issue/PR/Fase N/achado de auditoria em comentários de código-fonte, proibidas pelo `06-code-quality-standards.md`/`CLAUDE.md`, nos módulos backend de maior concentração (`auth`, `user`, `meter`, `iot`, `export`).
+  - **91 ocorrências reais em 33 arquivos** (medição direta nesta execução, ligeiramente acima das 89/33 estimadas no planejamento da Fase 15.5 — variação normal de contagem manual vs. grep). Cada ocorrência revisada linha a linha, não removida em massa: comentário puramente de rastro (`// issue #178`, `// Fase 2`, `// #10 — OWASP A04: reproduz o achado...`) teve só a referência retirada, preservando a explicação funcional que a acompanhava.
+  - **2 falsos positivos confirmados e preservados** (`auth.service.test.ts:1005,1020` — "Função de auditoria chamada"/"Auditoria de reuso..." referem-se ao recurso de trilha de auditoria do próprio sistema — RF19 —, não a um laudo de QA).
+  - **4 comentários corrigidos por estarem desatualizados, não só por rastreabilidade** (higiene do `06`: "comentário desatualizado é pior que ausente"), achado ao revisar o contexto de cada um antes de editar:
+    - `IoTDataProcessor.ts`/`MinuteRollupScheduler.ts`: diziam que o `AlertEvaluator` seria integrado "na Fase 4" — já está integrado e registrado em `server.ts` desde então; reescrito no presente.
+    - `meter.service.test.ts`/`meter.routes.test.ts`: diziam que `PropertyService` "ainda não suporta" `electricalSystem` (motivo dado para o setup de teste usar Prisma direto) — falso hoje (`property.schema.ts` já tem o campo obrigatório, `PropertyService.create` já o repassa). Razão real, confirmada por grep (`DistributorService` não tem método de criação): `EnergyDistributor` é catálogo somente leitura, sem service de criação — só por isso o teste usa Prisma direto; `Property` foi junto por conveniência do mesmo bloco de setup.
+    - `export.service.ts`: dizia que a exportação de consumo agregado ficaria "para quando a agregação (TariffService/Fase 3) existir" — o `TariffService` já existe; a lacuna (consumo ainda fora do payload de export) continua real, só a causa apontada estava errada.
+    - `export.service.test.ts`: dizia que o módulo `alert` "ainda está no formato pré-reformulação e será reescrito na Fase 4" — falso (`AlertService.create` já existe e é usado em produção); a inserção via Prisma no teste é só para não instanciar `AlertService` num arquivo que testa `ExportService`.
+  - Nenhuma mudança de comportamento: só comentários.
+- **Arquivos principais:** 33 arquivos em `backend/src/modules/{auth,user,meter,iot,export}/`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** verificação completa antes de fechar — `tsc --noEmit`, `eslint --max-warnings=0`, `prettier --check` e `depcruise` (1223 módulos, 0 violações) limpos nos 4; suíte dos 5 módulos (22 arquivos/333 testes) e suíte completa do backend (159 arquivos/1904 testes) verdes, sem nenhuma regressão. Próxima sub-issue do épico #290: #292 (backend — demais módulos + shared/config/scripts).

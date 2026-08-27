@@ -16,7 +16,7 @@ export type MeterReadingBucket = {
 // Persistência das leituras minuto a minuto (MeterReading). Deliberadamente
 // simples: ao contrário do antigo HourlyRollupScheduler, não resolve
 // hierarquia nem calcula custo — grava só as grandezas elétricas cruas. O
-// custo é calculado sob demanda na agregação (Fase 3, TariffService).
+// custo é calculado sob demanda na agregação (TariffService).
 export class MeterReadingRepository {
     constructor(private readonly prisma: PrismaClient) {}
 
@@ -80,7 +80,7 @@ export class MeterReadingRepository {
 
     /**
      * Agrega leituras por minuto/hora numa janela — usada pelo gráfico "ao
-     * vivo" (issue #211), não pelo faturamento (isso é `ConsumptionRepository`).
+     * vivo", não pelo faturamento (isso é `ConsumptionRepository`).
      * `avgPowerW` ponderado por `secondsCovered`, mesma receita de
      * `ConsumptionRepository.findAggregated` — sem soma de kWh nem
      * paginação, só a grandeza que o gráfico plota.
