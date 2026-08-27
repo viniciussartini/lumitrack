@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# deploy/seed-simulator-devices.sh — Fase 13.5 Bloco A, issue #193.
+# deploy/seed-simulator-devices.sh
 #
 # O iot-simulator/server não persiste estado entre reinícios — a cada boot
 # do container `simulator`, a rede e os devices de demonstração precisam

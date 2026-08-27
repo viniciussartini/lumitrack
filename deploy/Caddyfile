@@ -1,4 +1,4 @@
-# Caddyfile — reverse proxy + TLS do go-live (Fase 13.5 Bloco A, issue #190).
+# Caddyfile — reverse proxy + TLS do go-live.
 # {$DOMAIN} vem da variável de ambiente DOMAIN (deploy/.env, repassada pelo
 # docker-compose.yml) — nunca hardcode o domínio real aqui.
 #

@@ -1,10 +1,9 @@
 name: CI
 
-# #11 — CI/CD com gates de segurança (A03/A08 da auditoria OWASP/LGPD, ver
-# .claude/docs/AUDITORIA_SEGURANCA.md). Roda em toda PR para main/staging e em
-# push direto pras duas (Fase 13.7, ADR-0012 — staging passou a ser a base
-# padrão de PR, main só recebe o PR de promoção staging→main). Todos os jobs
-# usam `npm ci` (nunca `npm install`) — build reprodutível a partir do
+# CI/CD com gates de segurança (A03/A08 OWASP/LGPD). Roda em toda PR para
+# main/staging e em push direto pras duas (ADR-0012 — staging passou a ser a
+# base padrão de PR, main só recebe o PR de promoção staging→main). Todos os
+# jobs usam `npm ci` (nunca `npm install`) — build reprodutível a partir do
 # lockfile, peça central do gate de integridade.
 
 on:
@@ -26,12 +25,12 @@ env:
   GITLEAKS_VERSION: "8.30.1"
 
 jobs:
-  # #163 — gate de segurança (OWASP A03, supply chain): um segredo
-  # commitado passa a quebrar o CI. Escaneia o histórico completo (não só o
-  # diff do PR) porque os achados já triados (.gitleaks.toml) precisam
-  # continuar allowlistados em toda execução, não só na primeira. Imagem
-  # oficial do gitleaks, versão fixa — sem Action de terceiro no
-  # Marketplace, mesmo padrão do resto do `ci.yml` (só `actions/*` oficiais).
+  # Gate de segurança (OWASP A03, supply chain): um segredo commitado
+  # passa a quebrar o CI. Escaneia o histórico completo (não só o diff do
+  # PR) porque os achados já triados (.gitleaks.toml) precisam continuar
+  # allowlistados em toda execução, não só na primeira. Imagem oficial do
+  # gitleaks, versão fixa — sem Action de terceiro no Marketplace, mesmo
+  # padrão do resto do `ci.yml` (só `actions/*` oficiais).
   secret-scan:
     runs-on: ubuntu-latest
     steps:
@@ -104,8 +103,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       # Bloqueia em high/critical. Moderate só gera aviso (não falha o
-      # job) — ver achado A03 em .claude/docs/AUDITORIA_SEGURANCA.md sobre a vuln
-      # moderada conhecida em devDependency do backend (sem fix ainda).
+      # job) — há uma vulnerabilidade moderada conhecida em devDependency do
+      # backend, sem fix disponível ainda.
       - run: npm audit --audit-level=high
       - name: Relatório completo (não bloqueante)
         if: always()
@@ -275,7 +274,7 @@ jobs:
         working-directory: iot-simulator
     env:
       # Nenhum destes valores é um segredo real — só para satisfazer a
-      # validação de env.ts do simulador neste ambiente de CI (issue #180).
+      # validação de env.ts do simulador neste ambiente de CI.
       SIMULATOR_API_TOKEN: ci-only-dummy-token-nao-usado-em-producao
       BROKER_USERNAME: ci-dummy-user
       BROKER_PASSWORD: ci-dummy-pass
