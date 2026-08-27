@@ -51,7 +51,7 @@ describe("AuditService.record", () => {
         ).resolves.toBeUndefined()
     })
 
-    // #10 — A09 / LGPD Art. 6º III/VII: metadata/ipAddress/userAgent são
+    // A09 / LGPD Art. 6º III/VII: metadata/ipAddress/userAgent são
     // legítimos só na tabela audit_logs (Art. 48) — o logger de aplicação
     // não pode espelhar a entrada inteira, só um resumo não-identificante.
     it("loga só um resumo não-identificante — nunca metadata/ipAddress/userAgent", async () => {

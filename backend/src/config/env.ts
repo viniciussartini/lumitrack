@@ -26,8 +26,8 @@ export const envSchema = z
             .optional(),
 
         JWT_SECRET: z.string().min(32, { message: "JWT_SECRET deve ter ao menos 32 caracteres" }),
-        // Render não define esta env var (fora do render.yaml, ver #215) —
-        // o default abaixo é o que efetivamente vale em produção.
+        // Render não define esta env var (fora do render.yaml) — o default
+        // abaixo é o que efetivamente vale em produção.
         JWT_WEB_EXPIRES_IN: z.string().default("1h"),
         // Tokens MOBILE não tinham expiração por tempo (apenas revogação manual
         // via logout) — um token vazado tinha validade indefinida. Agora expiram
@@ -45,8 +45,8 @@ export const envSchema = z
 
         FRONTEND_URL: z.string().default("http://localhost:3000"),
 
-        // Host canônico do redirect HTTP→HTTPS em produção (issue #183) —
-        // NUNCA o `Host` do cliente (ver shared/security/httpsRedirect.ts):
+        // Host canônico do redirect HTTP→HTTPS em produção — NUNCA o `Host`
+        // do cliente (ver shared/security/httpsRedirect.ts):
         // um Host forjado usado como destino do redirect é open redirect via
         // Host header. Default de dev inofensivo; `.refine` abaixo barra o
         // default em produção, mesmo padrão já usado para CORS_ORIGIN="*".
@@ -145,8 +145,8 @@ export const envSchema = z
         }),
 
         // Criptografia da credencial de protocolo do medidor em repouso
-        // (issue #182 — Meter.extra.password, ex.: senha MQTT). Chave própria
-        // (separada das 3 acima) — mesma compartimentalização de risco.
+        // (Meter.extra.password, ex.: senha MQTT). Chave própria (separada
+        // das 3 acima) — mesma compartimentalização de risco.
         // Mesmo formato (64 caracteres hex / 32 bytes). Gerar com:
         //   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
         METER_CREDENTIAL_ENCRYPTION_KEY: z.string().regex(/^[0-9a-f]{64}$/i, {
@@ -177,9 +177,9 @@ export const envSchema = z
         // desligar a flag via env; stringbool interpreta a string "false".
         REGISTRATION_ENABLED: z.stringbool().default(false),
 
-        // Login de demonstração sem senha no cliente (issue #179 — o
-        // frontend não embarca mais e-mail/senha das contas demo no
-        // bundle). `POST /api/auth/demo-login` só funciona com esta flag
+        // Login de demonstração sem senha no cliente — o frontend não
+        // embarca e-mail/senha das contas demo no bundle.
+        // `POST /api/auth/demo-login` só funciona com esta flag
         // ligada — independente de REGISTRATION_ENABLED: o deploy público
         // liga as duas (cadastro fechado + login demo aberto), mas
         // dev/CI podem querer testar o botão de demo sem fechar o

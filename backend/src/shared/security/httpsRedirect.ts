@@ -1,5 +1,5 @@
-// Decide o que fazer com uma requisição antes de qualquer rota, em produção
-// (issue #183). Função pura — recebe `nodeEnv` por parâmetro em vez de ler
+// Decide o que fazer com uma requisição antes de qualquer rota, em
+// produção. Função pura — recebe `nodeEnv` por parâmetro em vez de ler
 // `env.NODE_ENV` direto, mesmo padrão já usado em csrf.ts/logger.ts para
 // permanecer testável mesmo com NODE_ENV=test fixado globalmente pelo
 // vitest.config.ts.

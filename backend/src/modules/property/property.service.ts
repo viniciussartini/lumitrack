@@ -12,8 +12,8 @@ export class PropertyService {
     constructor(
         private readonly propertyRepository: PropertyRepository,
         // DistributorRepository é injetado para validar que o distributorId
-        // informado existe no catálogo global (Fase 3.2 — distribuidora
-        // deixou de ter dono, é um catálogo somente leitura compartilhado).
+        // informado existe no catálogo global (distribuidora não tem dono —
+        // é um catálogo somente leitura compartilhado).
         private readonly distributorRepository: DistributorRepository,
     ) {}
 

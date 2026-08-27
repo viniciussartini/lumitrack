@@ -23,15 +23,15 @@ const deviceService = new DeviceService(deviceRepository, areaRepository, proper
 const DEMO_METER_HOST = "localhost"
 const DEMO_METER_PORT = 1883
 
-// Credenciais do broker MQTT do iot-simulator (issue #180 — o broker passou
-// a exigir authenticate). Lidas do ambiente do processo de seed, com
-// fallback para os mesmos valores de exemplo do .env.example do simulador —
-// dado sintético de demonstração, não segredo de produção (mesmo espírito
-// do resto deste seed). `prisma.meter.create` é chamado direto (não via
-// MeterRepository) neste script, então a senha precisa ser cifrada aqui
-// mesmo, à mão — sem isso, ficaria em texto claro no banco (issue #182:
-// MeterRepository cifra automaticamente para todo o resto da aplicação,
-// mas esse caminho de escrita raw do seed passa batido por ele).
+// Credenciais do broker MQTT do iot-simulator (o broker exige authenticate).
+// Lidas do ambiente do processo de seed, com fallback para os mesmos
+// valores de exemplo do .env.example do simulador — dado sintético de
+// demonstração, não segredo de produção (mesmo espírito do resto deste
+// seed). `prisma.meter.create` é chamado direto (não via MeterRepository)
+// neste script, então a senha precisa ser cifrada aqui mesmo, à mão — sem
+// isso, ficaria em texto claro no banco (MeterRepository cifra
+// automaticamente para todo o resto da aplicação, mas esse caminho de
+// escrita raw do seed passa batido por ele).
 const DEMO_METER_CREDENTIALS = {
     username: process.env.SIMULATOR_BROKER_USERNAME ?? "sim-demo-user",
     password: encryptMeterCredential(process.env.SIMULATOR_BROKER_PASSWORD ?? "sim-demo-pass"),

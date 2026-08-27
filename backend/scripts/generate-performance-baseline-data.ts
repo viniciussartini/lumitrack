@@ -5,8 +5,8 @@ import { PrismaClient } from "@/generated/prisma/client.js"
 
 // Gera massa sintética de meter_readings no mesmo perfil da demonstração
 // (iot-simulator/server/src/simulation/demoBootstrap.ts): 1 amostra/minuto
-// por medidor, mesma cardinalidade usada para projetar o crescimento no
-// laudo de desempenho de 2026-08-22 (11 medidores x 1.440 linhas/dia).
+// por medidor, mesma cardinalidade usada para projetar o crescimento do
+// banco (11 medidores x 1.440 linhas/dia).
 //
 // Existe para dar volume realista a EXPLAIN (ANALYZE, BUFFERS) — sem massa,
 // o planner do Postgres escolhe seq scan para tudo com poucas centenas de

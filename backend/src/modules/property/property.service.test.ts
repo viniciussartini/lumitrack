@@ -100,11 +100,11 @@ describe("PropertyService", () => {
             expect(property.publicLightingFeeBrl).toBeNull()
         })
 
-        // Issue #184 — o controle de cifra (A04/Art. 46) já existe em
+        // O controle de cifra (A04/Art. 46) já existe em
         // property.repository.ts desde a introdução de addressEncryption.ts;
-        // faltava um teste que lesse a coluna direto e confirmasse que o
-        // valor em repouso não é o texto claro (mesmo padrão já usado para o
-        // hash de senha em user.service.test.ts).
+        // este teste lê a coluna direto e confirma que o valor em repouso
+        // não é o texto claro (mesmo padrão já usado para o hash de senha
+        // em user.service.test.ts).
         it("armazena address/city/state/zipCode cifrados em repouso, nunca em texto claro", async () => {
             const { user, distributor } = await setupUserAndDistributor()
 

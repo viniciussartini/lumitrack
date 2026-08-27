@@ -7,9 +7,9 @@ import type {
 import { NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import type { Paginated } from "@/shared/pagination.js"
 
-// Catálogo global de distribuidoras — somente leitura. Não há mais
+// Catálogo global de distribuidoras — somente leitura. Não há
 // create/update/delete nem noção de "dono": o catálogo é compartilhado por
-// todos os usuários (ver .claude/docs/PLANO_REFORMULACAO_IOT.md, Fase 3.2).
+// todos os usuários.
 export class DistributorService {
     constructor(private readonly distributorRepository: DistributorRepository) {}
 

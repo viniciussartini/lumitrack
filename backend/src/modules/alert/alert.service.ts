@@ -22,9 +22,8 @@ export type AlertWithStatus = AlertResponse & {
     target: { type: TargetType; name: string; path: string } | null
 }
 
-// CRUD de alertas por faixa de potência (Fase 4) — substitui a semântica
-// one-shot antiga (thresholdKwh/triggeredAt/readAt). Cada alerta agora é um
-// monitor contínuo de um medidor: dispara (e volta a disparar) quantas vezes
+// CRUD de alertas por faixa de potência — cada alerta é um monitor
+// contínuo de um medidor: dispara (e volta a disparar) quantas vezes
 // a potência sair da faixa, enquanto `enabled`. `alertEvaluator` é opcional
 // para permitir montar o service sem o singleton em contextos de teste que
 // não precisam do status de disparo.

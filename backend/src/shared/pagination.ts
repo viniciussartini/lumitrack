@@ -1,7 +1,7 @@
 import { z } from "zod"
 
-// Paginação universal (Fase 3.4): página ≥ 1 (default 1), pageSize 1–31
-// (default 10). O teto de 31 é intencional — cobre o pior caso de "um mês"
+// Paginação universal: página ≥ 1 (default 1), pageSize 1–31 (default 10).
+// O teto de 31 é intencional — cobre o pior caso de "um mês"
 // (dia a dia) numa única página, sem permitir que um cliente peça a tabela
 // inteira de uma vez.
 export const paginationQuerySchema = z.object({

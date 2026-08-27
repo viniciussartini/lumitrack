@@ -43,7 +43,7 @@ const validPropertyBody = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // channel: "MOBILE" porque só precisamos de um Bearer token para autenticar
-// via header — WEB não devolve token no body (#06, cookie httpOnly).
+// via header — WEB não devolve token no body (cookie httpOnly).
 async function registerAndLogin(user = validUser) {
     const createRes = await request(app).post("/api/users").send(user)
     const userId = createRes.body.data.id as string
@@ -56,8 +56,8 @@ async function registerAndLogin(user = validUser) {
     return { userId, token }
 }
 
-// Distribuidora agora é catálogo global (Fase 3.2) — inserida direto no
-// banco de teste, não existe mais POST /api/distributors.
+// Distribuidora é catálogo global — inserida direto no banco de teste, não
+// existe POST /api/distributors.
 async function createDistributor() {
     const dist = await createTestDistributor(prismaHttpTest)
     return { id: dist.id }
@@ -520,7 +520,7 @@ describe("DELETE /api/properties/:id", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Audit log (#08 — A09): PROPERTY_CREATE/UPDATE/DELETE + ACCESS_DENIED
+// Audit log (A09): PROPERTY_CREATE/UPDATE/DELETE + ACCESS_DENIED
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("Audit log", () => {
@@ -600,7 +600,7 @@ describe("Audit log", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Criptografia do endereço (#15 — A04/Art. 46)
+// Criptografia do endereço (A04/Art. 46)
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("Criptografia do endereço em repouso", () => {

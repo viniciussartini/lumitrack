@@ -11,8 +11,8 @@ import { DistributorRepository } from "@/modules/distributor/distributor.reposit
 import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
 
 // Rota top-level: /api/consumption — consumo agregado via MeterReading,
-// somente leitura (Fase 3.3). Não aninhada sob property/area/device porque o
-// alvo é escolhido por query param (targetType/targetId), igual a /api/meters.
+// somente leitura. Não aninhada sob property/area/device porque o alvo é
+// escolhido por query param (targetType/targetId), igual a /api/meters.
 export function consumptionRoutes(
     authenticate: RequestHandler,
     prismaClient: PrismaClient,

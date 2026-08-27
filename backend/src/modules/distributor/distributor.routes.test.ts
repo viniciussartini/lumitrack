@@ -36,7 +36,7 @@ afterAll(async () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GET /api/distributors — catálogo global somente leitura (Fase 3.2)
+// GET /api/distributors — catálogo global somente leitura
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("GET /api/distributors", () => {

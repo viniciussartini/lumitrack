@@ -1,9 +1,8 @@
 import type { NotificationStore, Notification } from "@/shared/notifications/notification-store.js"
 import { NotFoundError } from "@/shared/errors/AppError.js"
 
-// Notificações efêmeras (Fase 4) — "lida" = excluída, sem estado read/unread.
-// Não persistidas: sobrevivem a reload de página, não a restart do servidor
-// (requisito explícito do plano).
+// Notificações efêmeras — "lida" = excluída, sem estado read/unread. Não
+// persistidas: sobrevivem a reload de página, não a restart do servidor.
 export class NotificationService {
     constructor(private readonly notificationStore: NotificationStore) {}
 

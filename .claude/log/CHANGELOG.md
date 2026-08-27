@@ -2250,3 +2250,16 @@
 - **Arquivos principais:** 33 arquivos em `backend/src/modules/{auth,user,meter,iot,export}/`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** verificação completa antes de fechar — `tsc --noEmit`, `eslint --max-warnings=0`, `prettier --check` e `depcruise` (1223 módulos, 0 violações) limpos nos 4; suíte dos 5 módulos (22 arquivos/333 testes) e suíte completa do backend (159 arquivos/1904 testes) verdes, sem nenhuma regressão. Próxima sub-issue do épico #290: #292 (backend — demais módulos + shared/config/scripts).
+
+## [2026-08-26] refactor: remove comentários de rastreabilidade — backend demais módulos + shared/config/scripts (issue #292)
+
+- **Branch:** epic/290-limpeza-comentarios-rastreabilidade
+- **Tipo:** refactor
+- **O quê:** segunda sub-issue do épico #290 (Fase 15.5) — remove referências a issue/PR/Fase N/data de decisão em comentários de código-fonte nos módulos backend restantes (`property`, `alert`, `consumption`, `tariff-flag`, `simulation`, `distributor`, `area`, `admin`, `device`, `notification`), em `shared/`, `config/`, na raiz de `src/` (`app.ts`, `server.ts` e testes), e no escopo auxiliar incluído nesta rodada (`backend/scripts/`, `backend/prisma/seed-demo/`).
+  - **36 arquivos tocados** (perto dos 39 estimados no planejamento — pequena variação normal entre estimativa por grep e revisão manual). Cada ocorrência revisada linha a linha: comentário puramente de rastro teve só a referência retirada, preservando a explicação funcional.
+  - **8 falsos positivos confirmados e preservados**, mesmas duas categorias já catalogadas na #291: "auditoria" como termo de domínio — trilha de audit log, RF19, não laudo de QA (`admin.controller.ts`, `audit.service.ts`, `requireRole.ts`, `logger.ts`) — e data de fixture de teste, não data de decisão (`consumption.service.test.ts` — virada de dia em fuso horário; `AneelTariffFlagSource.test.ts` — competência/vigência de norma regulatória).
+  - **1 comentário corrigido por estar tecnicamente incorreto** (não só desatualizado), achado ao revisar `server.ts` antes de editar: a doc do pipeline IoT dizia que ele era "diferente do pipeline anterior" sem explicar em quê — a comparação real (pipeline por hora/por device, com cálculo de custo e checagem de alertas no rollup) tinha sido perdida numa edição anterior da #291 por engano; restaurada aqui como parte da limpeza, já que o bloco inteiro estava sendo revisado de qualquer forma.
+  - Nenhuma mudança de comportamento: só comentários.
+- **Arquivos principais:** 36 arquivos em `backend/src/modules/{property,alert,consumption,tariff-flag,simulation,distributor,area,admin,device,notification}/`, `backend/src/shared/`, `backend/src/config/`, `backend/src/{app,server}.ts` + testes, `backend/scripts/`, `backend/prisma/seed-demo/`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** verificação completa — `tsc --noEmit`, `eslint --max-warnings=0`, `prettier --check` e `depcruise` (1223 módulos, 0 violações) limpos; suíte dos arquivos afetados (58 arquivos/636 testes) e suíte completa do backend (159 arquivos/1904 testes) verdes, sem nenhuma regressão. Próxima sub-issue do épico #290: #293 (frontend + specs E2E).

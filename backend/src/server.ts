@@ -34,7 +34,7 @@ const notificationStore = new NotificationStore()
 // instâncias do repository só para ler o mesmo Meter de lugares diferentes.
 const meterRepository = new MeterRepository(prisma)
 
-// AlertEvaluator (Fase 4) — avalia cada amostra elétrica contra os alertas
+// AlertEvaluator — avalia cada amostra elétrica contra os alertas
 // por faixa de potência habilitados do medidor (histerese por contagem de
 // amostras consecutivas). Registrado como listener do processor logo abaixo.
 const alertEvaluator = new AlertEvaluator(
@@ -46,16 +46,16 @@ const alertEvaluator = new AlertEvaluator(
 )
 
 /**
- * Inicialização do pipeline IoT (Fase 2 — reformulação)
+ * Inicialização do pipeline IoT
  *
  * Primeiro o manager (conexões), depois o processor (valida/calcula energia,
  * alimenta o buffer), depois o scheduler (persiste os baldes de minuto).
  *
- * Diferente do pipeline anterior (por hora, por device, com cálculo de custo
- * e checagem de alertas no rollup), este é propositalmente mais simples: o
+ * Diferente de um pipeline por hora/por device com cálculo de custo e
+ * checagem de alertas no rollup, este é propositalmente mais simples: o
  * scheduler só persiste grandezas elétricas cruas por medidor/minuto. Custo
- * fica para a agregação (Fase 3); alertas por potência são avaliados amostra
- * a amostra pelo AlertEvaluator (Fase 4), não mais no rollup.
+ * fica para a agregação; alertas por potência são avaliados amostra a
+ * amostra pelo AlertEvaluator, não no rollup.
  */
 const manager = IoTConnectionManager.getInstance()
 const processor = new IoTDataProcessor(manager)
@@ -162,9 +162,9 @@ const server = app.listen(env.PORT, () => {
  */
 async function restoreIoTConnections(): Promise<void> {
     try {
-        // Já decifrado (issue #182 — extra.password de medidores MQTT é
-        // cifrado em repouso; findAllConnectionConfigs é o único caminho
-        // interno autorizado a devolver o valor em texto claro).
+        // Já decifrado — extra.password de medidores MQTT é cifrado em
+        // repouso; findAllConnectionConfigs é o único caminho interno
+        // autorizado a devolver o valor em texto claro.
         const configs = await meterRepository.findAllConnectionConfigs()
 
         if (configs.length === 0) {

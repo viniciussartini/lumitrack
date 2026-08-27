@@ -1,8 +1,8 @@
-// Issue #184 — os controles de A02 (cabeçalhos de segurança via helmet, CORS
-// pinado) já existem em app.ts desde antes desta issue, mas nenhum teste os
-// cobria: uma remoção acidental de `helmet(...)` ou uma troca de `CORS_ORIGIN`
-// por uma função que reflete a Origin da requisição passaria batido. Este
-// arquivo fecha essa lacuna de cobertura pura — não muda nenhum controle.
+// Os controles de A02 (cabeçalhos de segurança via helmet, CORS pinado) já
+// existem em app.ts, mas sem teste que os cobrisse: uma remoção acidental
+// de `helmet(...)` ou uma troca de `CORS_ORIGIN` por uma função que
+// reflete a Origin da requisição passaria batido. Este arquivo fecha essa
+// lacuna de cobertura pura — não muda nenhum controle.
 import { describe, it, expect } from "vitest"
 import request from "supertest"
 import { createApp } from "@/app.js"

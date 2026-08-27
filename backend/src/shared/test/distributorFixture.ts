@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@/generated/prisma/client.js"
 
-// Distribuidora deixou de ser cadastrada por usuário (Fase 3.2) — é um
-// catálogo global somente leitura, populado via seed em produção. Nos
+// Distribuidora não é cadastrada por usuário — é um catálogo global
+// somente leitura, populado via seed em produção. Nos
 // testes, cada suíte insere a(s) distribuidora(s) que precisa diretamente
 // via Prisma (nunca via API — não há mais POST /api/distributors).
 let cnpjCounter = 0

@@ -193,7 +193,7 @@ describe("authenticate", () => {
         expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError))
     })
 
-    // RBAC mínimo (#16) — role sempre lida do banco, nunca um claim do JWT.
+    // RBAC mínimo — role sempre lida do banco, nunca um claim do JWT.
     it("popula req.user.role com o default USER para um usuário recém-criado", async () => {
         const token = await loginAndGetTokens("MOBILE")
         const req = makeReq({ headers: { authorization: `Bearer ${token}` } })
