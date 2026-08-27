@@ -2289,3 +2289,16 @@
 - **Arquivos principais:** 8 arquivos em `iot-simulator/server/src/**` + `iot-simulator/server/vitest.config.ts`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** verificação completa — `tsc --noEmit`, `eslint --max-warnings=0` e `prettier --check` limpos; suíte completa do pacote verde (15 arquivos/85 testes), sem nenhuma regressão. Épico #290: 4/5 sub-issues concluídas — falta só #295 (`iot-simulator/ui`, 2 ocorrências/2 arquivos).
+
+## [2026-08-27] refactor: remove comentários de rastreabilidade — iot-simulator/ui (issue #295)
+
+- **Branch:** epic/290-limpeza-comentarios-rastreabilidade
+- **Tipo:** refactor
+- **O quê:** quinta e última sub-issue do épico #290 (Fase 15.5) — remove referências a issue/sub-issue/épico/Fase N em comentários de código-fonte de `iot-simulator/ui/src`.
+  - **4 arquivos tocados** (`vite-env.d.ts`, `index.css`, `services/api.ts`, `styles/industry.css`) — acima das 2/2 estimadas no planejamento (a medição do planejamento já vinha de um grep menos exaustivo, mesmo padrão de variação já visto nas sub-issues anteriores do épico). Cada comentário revisado linha a linha: só a referência foi retirada, preservando a explicação funcional (por que o token precisa bater com o server, por que `industry.css` é cópia local adaptada, por que o tema escuro ficou fora do escopo da migração Industry).
+  - **2 falsos positivos confirmados e preservados**: `styles/industry.css:2` e `styles/industry-fonts.css:4` citam o path do bundle de design vigente (`.claude/design/2026-07-31-lumitrack-completo/`) — mesmo tratamento já dado a `AboutPage.tsx` na #293: é um identificador funcional (qual handoff consultar), não uma data de decisão.
+  - **1 ocorrência preservada por estar fora do escopo literal da regra**: `services/api.test.ts:72` — "issue #180" dentro do título de um `it(...)`, não um comentário.
+  - Nenhuma mudança de comportamento: só comentários.
+- **Arquivos principais:** 4 arquivos em `iot-simulator/ui/src/**`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** verificação completa — `tsc -b`, `eslint --max-warnings=0`, `prettier --check` e `vite build` (produção) limpos; suíte completa do pacote verde (3 arquivos/14 testes), sem nenhuma regressão. **Épico #290 concluído: 5/5 sub-issues** (#291 backend alta concentração, #292 backend demais módulos, #293 frontend + E2E, #294 iot-simulator/server, #295 iot-simulator/ui) — limpeza de comentários de rastreabilidade completa nos 3 pacotes do monorepo.
