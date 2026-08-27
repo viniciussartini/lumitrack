@@ -37,13 +37,12 @@ export const DEMO_NETWORK_NAME = "Demo"
  * (`z.number().min(0).max(100)`, usado como
  * `nominalPowerW * (noiseAmplitudePercent / 100)` em `signalGenerator.ts`).
  *
- * Valores calibrados para uma leitura ao vivo mais estável (achado de uso
- * real, sem issue própria — ruído gaussiano é independente a cada tick,
- * sem correlação entre leituras consecutivas; nos valores originais
- * (2–8%) o "Potência agora" oscilava visivelmente segundo a segundo,
- * sem transmitir sensação de medição real). Mantida a ordem relativa de
- * variabilidade entre perfis — cargas resistivas puras (chuveiro) mais
- * estáveis que motores/solda industrial.
+ * Valores calibrados para uma leitura ao vivo mais estável — ruído
+ * gaussiano é independente a cada tick, sem correlação entre leituras
+ * consecutivas; nos valores originais (2–8%) o "Potência agora" oscilava
+ * visivelmente segundo a segundo, sem transmitir sensação de medição
+ * real. Mantida a ordem relativa de variabilidade entre perfis — cargas
+ * resistivas puras (chuveiro) mais estáveis que motores/solda industrial.
  */
 export const DEMO_DEVICES: readonly NewDeviceInput[] = [
     // ── Casa Demo (residencial) ──────────────────────────────────────────

@@ -50,8 +50,8 @@ export function createApp({
         res.json({ host: "localhost", port: env.BROKER_PORT })
     })
 
-    // Token de API só nas rotas de controle (issue #180) — /api/broker/info
-    // e /api/status/stream continuam sem token: o segundo é consumido via
+    // Token de API só nas rotas de controle — /api/broker/info e
+    // /api/status/stream continuam sem token: o segundo é consumido via
     // EventSource nativo do browser, que não permite headers customizados.
     const authenticate = requireApiToken(apiToken)
     app.use("/api/networks", authenticate, networksRoutes(store, engine))

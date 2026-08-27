@@ -35,7 +35,6 @@ describe("createApp", () => {
         expect(res.body).toEqual({ host: "localhost", port: 1883 })
     })
 
-    // Issue #180 — perímetro mínimo do simulador.
     describe("perímetro de segurança", () => {
         it("aplica helmet (ex.: x-content-type-options) em toda resposta", async () => {
             const res = await request(createTestApp()).get("/health")

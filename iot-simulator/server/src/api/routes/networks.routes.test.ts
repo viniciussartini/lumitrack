@@ -5,8 +5,8 @@ import { SimulationEngine } from "@/simulation/simulationEngine.js"
 import { createApp } from "@/api/app.js"
 import type { InternalPublisher } from "@/mqtt/internalPublisher.js"
 
-// /api/networks exige Authorization desde a issue #180 — token fixo de
-// teste, injetado via apiToken (não depende do env.SIMULATOR_API_TOKEN).
+// /api/networks exige Authorization — token fixo de teste, injetado via
+// apiToken (não depende do env.SIMULATOR_API_TOKEN).
 const API_TOKEN = "token-de-teste-para-rotas-protegidas"
 
 function createFakePublisher(): InternalPublisher {

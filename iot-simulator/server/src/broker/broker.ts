@@ -30,8 +30,8 @@ export function createBroker({ username, password }: BrokerCredentials): Embedde
     const expectedPassword = Buffer.from(password)
 
     // Sem credencial batendo exatamente, nenhum cliente conecta — nem o
-    // publisher interno da própria simulação, nem o backend real (issue
-    // #180). Antes disso o broker aceitava qualquer cliente anônimo.
+    // publisher interno da própria simulação, nem o backend real. Antes
+    // disso o broker aceitava qualquer cliente anônimo.
     aedes.authenticate = (_client, clientUsername, clientPassword, callback) => {
         const usernameOk = clientUsername !== undefined && clientUsername !== null
         const passwordOk = clientPassword !== undefined && clientPassword !== null

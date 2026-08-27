@@ -2276,3 +2276,16 @@
 - **Arquivos principais:** 93 arquivos em `frontend/src/**` e `frontend/tests/e2e/**`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** verificação completa — `tsc -b` e `prettier --check` limpos nos arquivos tocados; `eslint --max-warnings=0` reporta 8 warnings, confirmados pré-existentes via `git stash` (mesmos 8 antes desta sessão — débito já catalogado nas Fases 15.5/17 do roadmap, React Compiler incompatível com `react-hook-form`). Suíte completa de testes unitários do frontend verde (82 arquivos/720 testes). **Suíte E2E Playwright não executada nesta sub-issue** (exigiria app+navegadores rodando para um risco de regressão essencialmente nulo em edição só de comentário) — coberta indiretamente por `tsc -b` (valida sintaxe/tipos dos specs) e pela suíte completa do backend/frontend já verde. Épico #290: 3/5 sub-issues concluídas (#291 backend alta concentração, #292 backend demais módulos, #293 frontend + E2E) — faltam #294 (`iot-simulator/server`) e #295 (`iot-simulator/ui`).
+
+## [2026-08-27] refactor: remove comentários de rastreabilidade — iot-simulator/server (issue #294)
+
+- **Branch:** epic/290-limpeza-comentarios-rastreabilidade
+- **Tipo:** refactor
+- **O quê:** quarta sub-issue do épico #290 (Fase 15.5) — remove referências a issue em comentários de código-fonte de `iot-simulator/server/src` + escopo auxiliar (`vitest.config.ts`).
+  - **8 arquivos tocados** (`api/app.ts`, `api/app.test.ts`, `api/routes/devices.routes.test.ts`, `api/routes/networks.routes.test.ts`, `broker/broker.ts`, `mqtt/internalPublisher.ts`, `simulation/demoBootstrap.ts`, `vitest.config.ts`) — todas as ocorrências reais rastreadas ao mesmo evento (issue #180, autenticação obrigatória do broker MQTT embutido). Cada comentário revisado linha a linha: só a referência à issue foi retirada, preservando a explicação funcional (por que a credencial é exigida, por que o token de teste existe, o que o `env.ts` valida).
+  - **1 ocorrência preservada por estar fora do escopo literal da regra** (mesma disciplina já aplicada na #293): `broker.test.ts:38` — "issue #180" dentro do *título* de um `it(...)`, não um comentário `//`/`/* */`/JSDoc.
+  - `demoBootstrap.ts` teve, além da referência à issue, a frase "achado de uso real, sem issue própria" removida — era ela mesma um comentário de rastreabilidade (meta-referência a ausência de issue), mesmo sem número; a calibração de ruído gaussiano que justificava o comentário foi mantida.
+  - Nenhuma mudança de comportamento: só comentários.
+- **Arquivos principais:** 8 arquivos em `iot-simulator/server/src/**` + `iot-simulator/server/vitest.config.ts`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** verificação completa — `tsc --noEmit`, `eslint --max-warnings=0` e `prettier --check` limpos; suíte completa do pacote verde (15 arquivos/85 testes), sem nenhuma regressão. Épico #290: 4/5 sub-issues concluídas — falta só #295 (`iot-simulator/ui`, 2 ocorrências/2 arquivos).
