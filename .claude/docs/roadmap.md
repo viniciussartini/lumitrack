@@ -26,8 +26,8 @@
 | 13.6 | Correções críticas pós-go-live — canal do titular, aviso de privacidade, contas demo, privilégio de banco, backup | **Concluída** (PR #250) |
 | 13.7 | Separação de ambientes — VPS Hostinger (produção) + Render/Neon (staging) | **Concluída** (PR #254 → staging, PR #256 → main; em produção na VPS) |
 | 14 | Conformidade P1 — formalizar a postura permanentemente demo (ADR-0014), ROPA/RIPD atualizados, monitor externo de disponibilidade | **Concluída** (#260, #261, #265, épico #259, PR #274) |
-| **15** | **Desempenho** — instrumentação, compressão, índices, retenção, cache, N+1 e endpoint batch | **Planejada — fase atual, detalhe abaixo** |
-| **15.5** | **Enforcement de qualidade + comentários de rastreabilidade** | **Planejada — objetivo abaixo** |
+| 15 | Desempenho — instrumentação, compressão, índices, retenção, cache, N+1 e endpoint batch | **Concluída** (épicos #275, #279, issues #284/#285 — PRs #286, #287, #288) |
+| **15.5** | **Enforcement de qualidade + comentários de rastreabilidade** | **Planejada — fase atual, detalhe abaixo** |
 | 16 | Worker IoT — robustez, estrutura e cobertura | Planejada — objetivo revisado abaixo |
 | 17 | Frontend — tempo real e bundle | Planejada — objetivo abaixo |
 | 18 | Design system, cobertura de testes e polimento | Planejada — objetivo revisado abaixo |
@@ -1242,15 +1242,96 @@ A retenção de `meter_readings` (issues #236/#267) é escopo próprio desta fas
 - Nenhum item da fase virou YAGNI na execução — `countBuckets`/`COUNT(*) OVER()`, o único candidato explicitamente sinalizado como "só com número na mão", mediu ~3,4× mais rápido e ~8,4× menos buffer, então foi implementado.
 - **Achado próprio da revisão de código do PR #288, issue nova sem fase atribuída:** #289 (`statement_timeout`/`query_timeout` explícito no pool — a outra metade do controle P1 do `11-seguranca-infraestrutura.md` sobre exaustão de conexões, que o #285 só cobriu pela metade). Não bloqueia a Fase 15 nem tem medição própria feita ainda; mesmo tratamento dado a #269/#272 ao fim da Fase 14 — fica em aberto até uma fase de robustez/infra futura reivindicá-la.
 
-## Fases 15.5–18 (objetivo — serão detalhadas ao chegar)
+## Fase 15.5 — Enforcement de qualidade + comentários de rastreabilidade
 
-> Mesmo planejamento just-in-time do bloco anterior: detalhar agora é escrever o que será reescrito antes de executar. Os achados que cada uma cobre ficam listados para rastreabilidade.
-
-### Fase 15.5 — Enforcement de qualidade + comentários de rastreabilidade (P1)
+**Entrega (milestone):** `Conformidade P1, desempenho e robustez` (mesma milestone da Fase 15 — fecha com ela).
 
 > Mesmo raciocínio que já colocou a Fase 12 antes das Fases 16–18: fechar a lacuna entre o que os padrões declaram enforçado e o que a ferramenta de fato verifica, **antes** que mais código complexo (Fase 16, Fases 19–22) se acumule por trás de travas que não travam.
+>
+> **Correção de premissa em relação ao parágrafo-objetivo que esta seção substitui (detalhamento de 2026-08-26):** o objetivo anterior listava "teste de `resolveRootProperty` (hoje sem cobertura dedicada)" como parte do escopo. Não é mais verdade — o critério de aceite do item `resolveRootProperty`/`resolveMeterTarget` em uma query da Fase 15 (issue #281) já antecipou esse teste, entregue em `backend/src/shared/targetResolution.test.ts` (6 casos, PROPERTY/AREA/DEVICE × happy-path/`NotFoundError`). **Este item sai do escopo da 15.5.** Os números do laudo de qualidade de 2026-08-22 também mudaram ao medir de novo agora: comentários de rastreabilidade eram ~310/192 arquivos, hoje são 266 ocorrências em 159 arquivos nos 4 diretórios `src/` dos pacotes (+59 ocorrências em 17 arquivos fora de `src/`, se o épico incluir esse escopo auxiliar); arquivos com regra de complexidade desligada eram 54, hoje são 57 (48 frontend, 7 backend, 2 `iot-simulator/ui`).
 
-Cobre: decisões de enforcement do laudo de qualidade de 2026-08-22 — instalar `eslint-plugin-jsdoc` (ou corrigir o `06` para não afirmar que existe); `complexity`/`max-lines-per-function` hoje desligadas em 54 arquivos (~metade do frontend) — trocar por teto decrescente com prazo em vez de `off` puro (**issue #168**, aberta desde a Fase 12 justamente por não ter fase onde caber na época — é esta); `dependency-cruiser` com a regra de ciclo que o `03` já promete, ausente no backend e inexistente no frontend; decidir sobre type-check no pre-commit; ADR sobre o padrão real de acesso cross-módulo (service → repository de outro módulo). **Comentário de rastreabilidade** — ~310 ocorrências (issue/PR/Fase N) em 192 arquivos, violando a regra inegociável do `06`/`CLAUDE.md`; épico próprio (o laudo recomenda), quebrado por diretório/pacote na execução. Teste de `resolveRootProperty` (primitiva central de autorização de posse, hoje sem cobertura dedicada).
+### JSDoc real: instalar `eslint-plugin-jsdoc` ou corrigir o `06`
+
+- **Comportamento:** nenhum para o usuário final — ferramenta de qualidade interna.
+- **Cobre:** Q-04 (laudo de qualidade 2026-08-22, Alta) — fecha a lacuna entre o `06` (afirma "`eslint-plugin-jsdoc` valida presença e forma dos blocos em exports públicos") e a realidade: o pacote não consta em nenhum dos 5 `package.json` nem em nenhuma `eslint.config.js`.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - Medir primeiro (mesmo princípio "meça antes de otimizar" já aplicado na Fase 15): contar quantos exports públicos hoje não têm bloco JSDoc, por pacote, antes de decidir a severidade da regra.
+  - `eslint-plugin-jsdoc` instalado nos 4 `package.json`; `jsdoc/require-jsdoc`/`require-param`/`require-returns` configuradas em cada `eslint.config.js`, escopadas a exports públicos (classes, funções/métodos exportados de `service`/`repository`/`controller` — não cada helper interno, para não gerar ruído desproporcional ao valor).
+  - Débito pré-existente tratado no mesmo padrão já usado para a regra de complexidade: override explícito e catalogado por arquivo, nunca a regra inteira desligada globalmente — se o volume for grande, abre o mesmo tipo de issue de acompanhamento que a #168 já é para complexidade.
+  - Se a medição mostrar que o custo de anotar o débito existente é desproporcional ao valor imediato, a alternativa é corrigir o `06` para não afirmar o que a ferramenta não faz — decisão a registrar no fechamento desta fase, não assumida agora.
+- **Depende de:** —
+- **Risco/observações:** baixo tecnicamente (config), mas é a mesma armadilha da regra de complexidade: ligar a regra `error` sem debitar o legado quebra o build inteiro no primeiro commit.
+
+### Complexidade: teto decrescente com prazo (issue #168) em vez de `off` puro
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** issue #168 (aberta na Fase 12), débito de complexidade real em **57 arquivos** (número atualizado — o laudo antigo dizia 54: 47 frontend, 5 backend, 2 simulador).
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - Substituir os overrides `"off"` por um teto acima do valor real de cada arquivo hoje, mas abaixo do desligamento total, com uma data/fase de revisão registrada no próprio comentário do override (ex.: "teto 25 até a Fase 18, então reavaliar") — não fixar a refatoração em si, que é escopo das Fases 16/18.
+  - `IoTConnectionManager.ts` e `consumption.service.ts` (backend) citados explicitamente por já terem fase de destino conhecida (16 e 18, respectivamente, conforme comentário existente no config) — o teto desses dois pode já refletir essa data.
+  - Issue #168 atualizada com a contagem real (57, não 54) e a lista por arquivo.
+- **Depende de:** —
+- **Risco/observações:** baixo — é mudança de configuração, não de código; risco é só escolher um teto tão frouxo que equivale a `off` disfarçado.
+
+### `dependency-cruiser`: regra de ciclo no backend + cobertura no frontend
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** promessa não cumprida do `03-arquitetura.md` ("sem dependência circular entre módulos... verificável por regra do dependency-cruiser"); achado Q-20 do laudo de qualidade.
+- **Priority:** P1 · **Size:** S/M
+- **Critérios de aceite:**
+  - `no-circular` adicionado a `backend/.dependency-cruiser.cjs` (hoje só tem 1 regra, `no-express-in-domain`), rodando limpo — a arquitetura já é modular, a expectativa é que entre verde.
+  - `frontend/.dependency-cruiser.cjs` novo, com pelo menos a regra de ciclo e uma regra direcional equivalente (ex.: `services`/`hooks` não importar de `pages`/`components`).
+  - Decidir na execução se os 2 pacotes do `iot-simulator` recebem config própria ou ficam de fora por proporcionalidade — registrar a decisão, não assumir.
+  - CI (`ci.yml`) ganha o job de `depcruise` para o frontend, no mesmo padrão do `backend-lint` já existente (hoje o dependency-cruiser só roda para o backend).
+- **Depende de:** —
+- **Risco/observações:** baixo-médio — se houver ciclo real hoje "escondido" pela ausência da regra, corrigi-lo pode tocar imports em múltiplos arquivos; medir o tamanho real do problema faz parte do próprio item antes de estimar o esforço final.
+
+### Type-check no pre-commit — decisão + correção do `06`
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** `06` afirma que o pre-commit roda "lint, format e type-check"; hoje o `.husky/pre-commit`/`lint-staged.config.js` roda só `eslint --fix` + `prettier --write` (`scripts/lint-staged-run.mjs`) — type-check só acontece no CI.
+- **Priority:** P2 · **Size:** XS/S
+- **Critérios de aceite:**
+  - Decisão a tomar na execução, documentada com o porquê: (a) adicionar `tsc -b`/`tsc --noEmit` ao pre-commit, aceitando o custo de latência por commit num projeto solo; ou (b) corrigir o `06` para refletir que type-check é só gate de CI.
+  - Se (a): usar build incremental (`tsconfig.tsbuildinfo`) para não pagar o custo de type-check completo a cada commit.
+  - Se (b): `06-code-quality-standards.md` editado para remover a afirmação incorreta.
+- **Depende de:** —
+- **Risco/observações:** baixo — decisão de ergonomia de desenvolvimento, sem risco técnico em qualquer dos dois caminhos.
+
+### ADR: padrão de acesso cross-módulo (service → repository de outro módulo)
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** lacuna entre o `03-arquitetura.md` (não documenta o padrão) e o código real — 14 arquivos `*.service.ts` importam `*.repository.ts` de outro módulo diretamente (`consumption`, `simulation`, `meter-reading`, `meter`, `area`, `property`, `alert-event`, `device`, `export`).
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  - ADR registrando que o padrão já em uso pervasivamente (service de um módulo lendo repository de outro diretamente, incluindo os helpers compartilhados `resolveRootProperty`/`resolveMeterTarget` desenhados exatamente para isso) é o padrão sancionado — não um desvio a corrigir.
+  - `03-arquitetura.md` atualizado para documentar essa regra explicitamente, com um exemplo real (`consumption.service.ts`) citado.
+  - Critério negativo: o que continua proibido é service importar framework/infra de outro módulo ou pular a camada de repository (acessar Prisma direto) — a regra `no-express-in-domain` já cobre a primeira parte; não é escopo deste item recriar essa regra.
+- **Depende de:** —
+- **Risco/observações:** baixo — é documentação alcançando a realidade do código, não mudança de código.
+
+### Épico: limpeza de comentários de rastreabilidade
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** regra inegociável do `06`/`CLAUDE.md` — proibição de comentário de rastreabilidade (issue/PR/achado/auditoria/Fase N/data/autor no código-fonte).
+- **Priority:** P1 · **Size:** L (épico com sub-issues por módulo/pacote)
+- **Critérios de aceite:**
+  - Escopo confirmado: **266 ocorrências em 159 arquivos** nos 4 diretórios `src/` dos pacotes (backend 144/70 arquivos, frontend 110/79, `iot-simulator/server` 10/8, `iot-simulator/ui` 2/2). Decisão a bater na criação das issues: incluir ou não as **+59 ocorrências em 17 arquivos** fora de `src/` (`backend/scripts/`, `backend/prisma/seed-demo/`, `frontend/tests/e2e/**`, `iot-simulator/server/vitest.config.ts`).
+  - Sub-issues por módulo/diretório, agrupando os menores para não fragmentar demais:
+    - Backend: `auth` (31 ocorrências, maior concentração), `user` (18), `meter`+`iot` (16 cada), `export` (8); módulos com 1-4 ocorrências (`property`, `alert`, `consumption`, `tariff-flag`, `simulation`, `distributor`, `area`, `admin`, `device`, `notification`) agrupados em 1-2 sub-issues "módulos menores"; `shared`/`config`/raiz (15 arquivos) como sub-issue própria.
+    - Frontend: 79 arquivos/110 ocorrências — quebrar por diretório (`components/`, `pages/`, `hooks/`, `types/`) na criação das issues.
+    - `iot-simulator/server` (10/8) e `iot-simulator/ui` (2/2): 1 sub-issue cada, dado o volume pequeno.
+  - **Cada sub-issue exige revisão manual linha a linha antes de remover** — um grep automatizado gera ruído real (12 falsos positivos confirmados na medição de 2026-08-26: cor hex capturada por `#\d+`, data de exemplo em docstring de formatação, "auditoria" como termo de domínio/trilha de auditoria do sistema, não laudo). Nada de `sed` em massa.
+  - `TODO(design)` (1 ocorrência, `AboutPage.tsx`) preservado — é categoria própria do kit, não rastreabilidade.
+  - Cada comentário removido some ou vira comentário funcional (explica o quê/como/por quê) — não é "apagar tudo", é diferenciar rastro (proibido) de contexto funcional (permitido) linha a linha.
+- **Depende de:** nenhuma dependência técnica com os itens de enforcement acima — pode rodar em paralelo. Ordem sugerida (não obrigatória): depois de fechar as configs de enforcement, para as sub-issues já nascerem sob as travas novas.
+- **Risco/observações:** maior item da fase em volume, mas risco técnico baixo (é remoção/reescrita de comentário, não lógica) — o risco real é humano: decidir mal o que é "rastro" vs. "contexto funcional" em massa. Por isso a revisão linha a linha é critério, não sugestão.
+
+## Fases 16–18 (objetivo — serão detalhadas ao chegar)
+
+> Mesmo planejamento just-in-time do bloco anterior: detalhar agora é escrever o que será reescrito antes de executar. Os achados que cada uma cobre ficam listados para rastreabilidade.
 
 ### Fase 16 — Worker IoT: robustez, estrutura e cobertura (P2)
 
