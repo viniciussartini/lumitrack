@@ -41,17 +41,14 @@ const setupAuthAndProperties = async (page: Page) => {
     await page.route(/\/api\/properties\/prop-2\/areas(\?.*)?$/, (route) =>
         fulfillPaginated(route, []),
     )
-    await page.route(
-        /\/api\/properties\/prop-1\/areas\/area-1\/devices(\?.*)?$/,
-        (route) => fulfillPaginated(route, [DEVICE_1]),
+    await page.route(/\/api\/properties\/prop-1\/areas\/area-1\/devices(\?.*)?$/, (route) =>
+        fulfillPaginated(route, [DEVICE_1]),
     )
 
     // Medidor presente em qualquer alvo — sem isso, ConsumptionSection para
     // no EmptyState "sem medidor" e nunca chega a chamar /api/consumption,
     // que é justamente a chamada que este spec precisa inspecionar.
-    await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
-        fulfillJson(route, METER_1),
-    )
+    await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) => fulfillJson(route, METER_1))
 }
 
 test.describe("Relatórios (/relatorios)", () => {
@@ -63,26 +60,18 @@ test.describe("Relatórios (/relatorios)", () => {
         page,
     }) => {
         await setupAuthAndProperties(page)
-        await page.route(/\/api\/consumption(\?.*)?$/, (route) =>
-            fulfillPaginated(route, []),
-        )
+        await page.route(/\/api\/consumption(\?.*)?$/, (route) => fulfillPaginated(route, []))
 
         await page.goto("/relatorios")
         await hideDevTools(page)
 
-        await expect(
-            page.getByRole("heading", { name: /^relatórios$/i, level: 1 }),
-        ).toBeVisible()
-        await expect(
-            page.getByText(/selecione uma propriedade para começar/i),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { name: /^relatórios$/i, level: 1 })).toBeVisible()
+        await expect(page.getByText(/selecione uma propriedade para começar/i)).toBeVisible()
         await expect(page.getByTestId("reports-area-select")).toBeDisabled()
         await expect(page.getByTestId("reports-device-select")).toBeDisabled()
         await expect(page.getByTestId("consumption-section")).toHaveCount(0)
         // O banner de placeholder aparece independente de haver alvo selecionado.
-        await expect(
-            page.getByTestId("reports-placeholder-banner"),
-        ).toBeVisible()
+        await expect(page.getByTestId("reports-placeholder-banner")).toBeVisible()
     })
 
     test("cascata propriedade → área → dispositivo ajusta o targetType da consulta (DEVICE > AREA > PROPERTY)", async ({
@@ -104,9 +93,7 @@ test.describe("Relatórios (/relatorios)", () => {
         await hideDevTools(page)
 
         // ─── 1. Seleciona só a propriedade → targetType PROPERTY ─────────────
-        await page
-            .getByTestId("reports-property-select")
-            .selectOption(PROP_1.id)
+        await page.getByTestId("reports-property-select").selectOption(PROP_1.id)
 
         await expect(page.getByTestId("consumption-section")).toBeVisible()
         await expect(page.getByTestId("reports-area-select")).toBeEnabled()
@@ -124,46 +111,30 @@ test.describe("Relatórios (/relatorios)", () => {
 
         // ─── 3. Seleciona o dispositivo → targetType DEVICE (vence sobre
         // área e propriedade, ambas ainda selecionadas nos outros selects) ────
-        await page
-            .getByTestId("reports-device-select")
-            .selectOption(DEVICE_1.id)
+        await page.getByTestId("reports-device-select").selectOption(DEVICE_1.id)
 
         await expect
             .poll(() => consumptionRequests.at(-1))
             .toEqual({ targetType: "DEVICE", targetId: "device-1" })
     })
 
-    test("trocar de propriedade reseta área e dispositivo selecionados", async ({
-        page,
-    }) => {
+    test("trocar de propriedade reseta área e dispositivo selecionados", async ({ page }) => {
         await setupAuthAndProperties(page)
-        await page.route(/\/api\/consumption(\?.*)?$/, (route) =>
-            fulfillPaginated(route, []),
-        )
+        await page.route(/\/api\/consumption(\?.*)?$/, (route) => fulfillPaginated(route, []))
 
         await page.goto("/relatorios")
         await hideDevTools(page)
 
-        await page
-            .getByTestId("reports-property-select")
-            .selectOption(PROP_1.id)
+        await page.getByTestId("reports-property-select").selectOption(PROP_1.id)
         await page.getByTestId("reports-area-select").selectOption(AREA_1.id)
-        await page
-            .getByTestId("reports-device-select")
-            .selectOption(DEVICE_1.id)
+        await page.getByTestId("reports-device-select").selectOption(DEVICE_1.id)
 
-        await expect(page.getByTestId("reports-area-select")).toHaveValue(
-            AREA_1.id,
-        )
-        await expect(page.getByTestId("reports-device-select")).toHaveValue(
-            DEVICE_1.id,
-        )
+        await expect(page.getByTestId("reports-area-select")).toHaveValue(AREA_1.id)
+        await expect(page.getByTestId("reports-device-select")).toHaveValue(DEVICE_1.id)
 
         // Troca pra outra propriedade (sem áreas) — reseta área e dispositivo,
         // e os dois selects voltam a ficar desabilitados.
-        await page
-            .getByTestId("reports-property-select")
-            .selectOption(PROP_2.id)
+        await page.getByTestId("reports-property-select").selectOption(PROP_2.id)
 
         await expect(page.getByTestId("reports-area-select")).toHaveValue("")
         await expect(page.getByTestId("reports-device-select")).toHaveValue("")

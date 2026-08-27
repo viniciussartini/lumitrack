@@ -10,10 +10,9 @@
 // usamos o módulo `http` nativo do Node, que suporta streaming completamente.
 //
 // Contrato SSE completo: `alert-firing` e `notification` chegam via
-// UserEventHub. O intervalo de
-// re-resolução do conjunto de medidores é injetado curto neste app de teste
-// (200ms) para exercitar o refresh periódico sem esperar os 60s reais de
-// produção.
+// UserEventHub. O intervalo de re-resolução do conjunto de medidores é
+// injetado curto neste app de teste (200ms) para exercitar o refresh
+// periódico sem esperar os 60s reais de produção.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest"

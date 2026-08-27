@@ -58,10 +58,10 @@ async function resolveUserMeterIds(userId: string, prisma: PrismaClient): Promis
 // handshake inicial (a conexão fica aberta indefinidamente). Sem esta
 // checagem periódica, um stream aberto antes de um logout ou reset de
 // senha continuaria entregando leituras/eventos indefinidamente, mesmo com
-// a sessão já revogada. Mesma
-// checagem que `authenticate` faz por requisição (revokedAt/expiresAt),
-// aplicada aqui a cada refresh periódico em vez de a cada mensagem — SSE não
-// tem "requisição" recorrente para prender a checagem nela.
+// a sessão já revogada. Mesma checagem que `authenticate` faz por
+// requisição (revokedAt/expiresAt), aplicada aqui a cada refresh periódico
+// em vez de a cada mensagem — SSE não tem "requisição" recorrente para
+// prender a checagem nela.
 async function isSessionStillValid(
     authToken: string,
     authRepository: AuthRepository,

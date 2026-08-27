@@ -221,7 +221,7 @@ describe("DashboardKpiRow — Custo projetado do mês", () => {
         ).toBeInTheDocument()
     })
 
-    it("acha o bucket do mês mesmo com a codificação real de dia 1 meia-noite SP", async () => {
+    it("acha o bucket do mês mesmo com a codificação real de dia 1 meia-noite SP (issue #234)", async () => {
         // Fixture de meio-dia local (teste acima) nunca cruza fronteira de
         // mês em fuso nenhum — mascarava a mesma classe de bug já
         // confirmada no teste do bucket de dia, acima. Dia 1 meia-noite SP

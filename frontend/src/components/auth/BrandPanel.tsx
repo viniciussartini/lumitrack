@@ -7,9 +7,8 @@ import { GITHUB_REPO_URL, GitHubIcon } from "@/components/ui/GitHubIcon"
  * Grade das 4 telas de autenticação (Login/Registro/Esqueci senha/Redefinir
  * senha) — largura fixa para o painel de marca não "pular" na troca de
  * tela. Handoff diverge entre si (Login usa 1.05fr, Registro e Recuperar
- * Senha usam .95fr); padronizado em .95fr
- * (maioria do handoff e do código já existente) em vez de seguir a
- * divergência.
+ * Senha usam .95fr); padronizado em .95fr (maioria do handoff e do código
+ * já existente) em vez de seguir a divergência.
  */
 export const AUTH_LAYOUT_GRID_CLASS = "grid min-h-screen lg:grid-cols-[.95fr_1fr]"
 

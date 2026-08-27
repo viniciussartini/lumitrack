@@ -260,7 +260,7 @@ describe("envSchema — DATA_RETENTION_* falha fechado contra valor vazio/zero/n
     })
 })
 
-describe("envSchema — DB_POOL_* falha fechado contra valor vazio/zero/negativo", () => {
+describe("envSchema — DB_POOL_* falha fechado contra valor vazio/zero/negativo (#285)", () => {
     // Mesma regra das DATA_RETENTION_*: sem .int().positive(), um pool com
     // max <= 0 (ou timeout <= 0) passaria pelo schema e derrubaria toda
     // conexão ao banco só no boot do driver `pg`, não na validação de env.

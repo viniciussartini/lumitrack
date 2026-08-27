@@ -62,7 +62,7 @@ beforeEach(() => {
     vi.clearAllMocks()
 })
 
-describe("AlertRowMenu — sobreposição", () => {
+describe("AlertRowMenu — sobreposição (issue #231)", () => {
     it("o menu é portalado pra fora do ancestral com overflow — não é descendente dele no DOM", async () => {
         const user = userEvent.setup()
         renderInsideScrollableAncestor()
@@ -167,7 +167,7 @@ describe("AlertRowMenu — comportamento (sem regressão)", () => {
     })
 })
 
-describe("AlertRowMenu — acessibilidade por teclado", () => {
+describe("AlertRowMenu — acessibilidade por teclado (achado na revisão do PR #235)", () => {
     it("ao abrir, move o foco pro primeiro item — o portal tira o menu do fluxo de Tab do trigger", async () => {
         const onEdit = vi.fn()
         const user = userEvent.setup()

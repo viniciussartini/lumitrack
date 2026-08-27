@@ -565,7 +565,7 @@ textarea.input {
     background: transparent;
     border: 1px solid var(--color-divider);
 }
-/* .dialog fica de fora do fundo transparente do .card (issue #218): um
+/* .dialog fica de fora do fundo transparente do .card: um
    card transparente faz sentido sobre o canvas normal da página, mas um
    dialog flutua sobre `.dialog-backdrop` (semi-transparente) cobrindo
    conteúdo arbitrário da página — transparente ali deixa o conteúdo de
