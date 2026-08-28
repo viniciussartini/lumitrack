@@ -3,6 +3,7 @@ import globals from "globals"
 import reactHooks from "eslint-plugin-react-hooks"
 import reactRefresh from "eslint-plugin-react-refresh"
 import tseslint from "typescript-eslint"
+import jsdoc from "eslint-plugin-jsdoc"
 
 export default tseslint.config(
     { ignores: ["dist"] },
@@ -54,6 +55,32 @@ export default tseslint.config(
         files: ["src/components/network/NetworkCard.tsx", "src/pages/Dashboard.tsx"],
         rules: {
             "max-lines-per-function": "off",
+        },
+    },
+    {
+        // JSDoc real em exports públicos de services/hooks
+        // (06-code-quality-standards.md) — equivalente da camada de service
+        // neste pacote (só componentes de UI e alguns hooks/services, sem
+        // convenção service/repository/controller). Medido antes de ligar:
+        // débito pequeno, corrigido junto — zero débito para catalogar.
+        files: ["src/services/*.ts", "src/hooks/*.ts"],
+        ignores: ["**/*.test.ts"],
+        plugins: { jsdoc },
+        rules: {
+            "jsdoc/require-jsdoc": [
+                "error",
+                {
+                    publicOnly: true,
+                    require: { FunctionDeclaration: true },
+                    contexts: [
+                        "ExportNamedDeclaration > FunctionDeclaration",
+                        "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > ArrowFunctionExpression",
+                        "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > FunctionExpression",
+                    ],
+                },
+            ],
+            "jsdoc/require-param": "error",
+            "jsdoc/require-returns": "error",
         },
     },
 )

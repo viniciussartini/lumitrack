@@ -62,6 +62,7 @@ vi.mock("@/services/distributor.service", () => ({
 vi.mock("@/services/api", () => ({
     api: {},
     extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
+    ensureFreshSession: vi.fn(),
 }))
 
 vi.mock("sonner", () => ({

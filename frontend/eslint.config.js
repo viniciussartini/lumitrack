@@ -3,6 +3,7 @@ import globals from "globals"
 import reactHooks from "eslint-plugin-react-hooks"
 import reactRefresh from "eslint-plugin-react-refresh"
 import tseslint from "typescript-eslint"
+import jsdoc from "eslint-plugin-jsdoc"
 
 export default tseslint.config(
     { ignores: ["dist", "playwright-report", "test-results"] },
@@ -26,17 +27,17 @@ export default tseslint.config(
         },
         rules: {
             ...reactHooks.configs.recommended.rules,
-            "react-refresh/only-export-components": [
-                "warn",
-                { allowConstantExport: true },
-            ],
+            "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
             // Travas de qualidade obrigatórias (06-code-quality-standards.md:43).
             // Violações existentes na entrada dessas regras são catalogadas e
             // endereçadas nas Fases 16-18 do roadmap, não silenciadas com
             // eslint-disable (ver .claude/docs/roadmap.md, Fase 12).
             complexity: ["error", 12],
             "max-depth": ["error", 4],
-            "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
+            "max-lines-per-function": [
+                "error",
+                { max: 60, skipBlankLines: true, skipComments: true },
+            ],
             "@typescript-eslint/no-floating-promises": "error",
             "@typescript-eslint/no-misused-promises": "error",
         },
@@ -109,6 +110,40 @@ export default tseslint.config(
         rules: {
             complexity: "off",
             "max-lines-per-function": "off",
+        },
+    },
+    {
+        // JSDoc real em exports públicos da camada de service
+        // (06-code-quality-standards.md) — equivalente frontend de
+        // service/repository/controller do backend. Débito medido e
+        // corrigido junto: os `*.service.ts` só tinham tags @param/@returns
+        // faltando em blocos já existentes; api.ts tinha 2 exports
+        // (ensureFreshSession, extractErrorMessage) sem bloco. `*.ts` (não
+        // só `*.service.ts`) cobre os dois.
+        files: ["src/services/*.ts"],
+        ignores: ["**/*.test.ts"],
+        plugins: { jsdoc },
+        rules: {
+            "jsdoc/require-jsdoc": [
+                "error",
+                {
+                    publicOnly: true,
+                    require: {
+                        ClassDeclaration: true,
+                        MethodDefinition: true,
+                        FunctionDeclaration: true,
+                    },
+                    contexts: [
+                        "ExportNamedDeclaration > ClassDeclaration",
+                        "ExportNamedDeclaration > FunctionDeclaration",
+                        "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > ArrowFunctionExpression",
+                        "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > FunctionExpression",
+                        "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > ObjectExpression > Property",
+                    ],
+                },
+            ],
+            "jsdoc/require-param": "error",
+            "jsdoc/require-returns": "error",
         },
     },
 )

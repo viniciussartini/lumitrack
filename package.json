@@ -5,10 +5,13 @@
     "description": "Raiz do monorepo — só a tooling de git hooks (husky/lint-staged). backend/, frontend/ e iot-simulator/ continuam pacotes independentes (03-arquitetura.md); nenhuma dependência de runtime vive aqui.",
     "type": "module",
     "scripts": {
-        "prepare": "husky"
+        "prepare": "husky",
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
     },
     "devDependencies": {
         "husky": "^9.1.7",
-        "lint-staged": "^16.2.6"
+        "lint-staged": "^16.2.6",
+        "prettier": "^3.9.6"
     }
 }

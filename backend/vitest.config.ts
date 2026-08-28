@@ -19,6 +19,13 @@ export default defineConfig({
 
         maxWorkers: 1, // Força testes a rodarem em série para evitar conflitos no banco de dados compartilhado. O cleanDatabase() apaga tudo antes de cada teste, mas se rodarem em paralelo, podem interferir um no outro.
 
+        // O default do Vitest 4.x só exclui node_modules/.git — sem isto,
+        // um dist/ local (de `npm run build`, ou de `tsc -b` rodado sem
+        // --noEmit) faz o vitest também rodar os .test.js compilados,
+        // duplicando cada teste silenciosamente. Mesma guarda já usada em
+        // iot-simulator/server/vitest.config.ts.
+        exclude: ["**/node_modules/**", "**/.git/**", "**/dist/**"],
+
         coverage: {
             provider: "v8",
             reporter: ["text", "lcov", "html"],

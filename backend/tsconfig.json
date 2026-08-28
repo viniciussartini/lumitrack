@@ -16,6 +16,14 @@
         "outDir": "dist",
         "rootDir": "src",
 
+        /* --- Build incremental --- */
+        // Sem isto, `tsc --noEmit` (usado no pre-commit e no gate de type-check)
+        // não tem cache nenhum — paga type-check completo a cada chamada. O
+        // .tsbuildinfo fica em node_modules/.tmp (já gitignored) para não
+        // repetir o erro de tê-lo commitado na raiz do pacote.
+        "incremental": true,
+        "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo",
+
         /* --- Qualidade e segurança --- */
         "strict": true,
         "noUncheckedIndexedAccess": true,

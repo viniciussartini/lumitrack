@@ -23,6 +23,14 @@ function bufferEquals(a: Buffer, b: Buffer): boolean {
     return a.length === b.length && timingSafeEqual(a, b)
 }
 
+/**
+ * Cria um broker MQTT embutido (aedes), autenticado por usuário/senha fixos.
+ *
+ * @param credentials Usuário/senha exigidos de todo cliente MQTT.
+ * @param credentials.username Usuário exigido na autenticação.
+ * @param credentials.password Senha exigida na autenticação.
+ * @returns O broker, com `start`/`stop` para controlar seu ciclo de vida.
+ */
 export function createBroker({ username, password }: BrokerCredentials): EmbeddedBroker {
     const aedes = new Aedes()
     let server: Server | null = null
