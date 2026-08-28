@@ -112,7 +112,10 @@ export default tseslint.config(
     {
         // JSDoc real em exports públicos de service/repository/controller
         // (06-code-quality-standards.md). Ligado como "error" — vale para
-        // todo módulo novo e todo método público novo a partir de agora.
+        // todo arquivo novo a partir de agora (um arquivo fora do override
+        // abaixo já é pego inteiro). Método novo dentro de um arquivo já
+        // catalogado no override continua isento, porque a exceção é por
+        // arquivo, não por método — ver #303 para o débito remanescente.
         files: [
             "src/modules/*/*.service.ts",
             "src/modules/*/*.repository.ts",

@@ -2,12 +2,15 @@ import { useMutation } from "@tanstack/react-query"
 import { api } from "@/services/api"
 import type { DeviceParams } from "@/types"
 
-// Mutations de controle (CRUD de redes/devices, power, anomalia). Não há
-// useQuery/cache aqui de propósito: o estado de leitura vem inteiramente de
-// useLiveStatus (SSE) — o servidor reenvia o snapshot atualizado logo após
-// qualquer mutação ter efeito, então duplicar esse estado numa query do
-// TanStack Query seria uma segunda fonte de verdade sem necessidade.
-/** @returns As mutations de controle do simulador (redes/devices/power/anomalia). */
+/**
+ * Mutations de controle (CRUD de redes/devices, power, anomalia). Não há
+ * useQuery/cache aqui de propósito: o estado de leitura vem inteiramente de
+ * useLiveStatus (SSE) — o servidor reenvia o snapshot atualizado logo após
+ * qualquer mutação ter efeito, então duplicar esse estado numa query do
+ * TanStack Query seria uma segunda fonte de verdade sem necessidade.
+ *
+ * @returns As mutations de controle do simulador (redes/devices/power/anomalia).
+ */
 export function useNetworks() {
     const createNetwork = useMutation({
         mutationFn: (name: string) => api.createNetwork(name),

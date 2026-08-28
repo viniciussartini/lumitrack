@@ -1,4 +1,4 @@
-import { api, ensureFreshSession } from "@/services/api"
+import { api } from "@/services/api"
 import type {
     DemoProfile,
     LoginInput,
@@ -158,13 +158,6 @@ export const authService = {
             return null
         }
     },
-
-    /**
-     * Renova a sessão WEB via refresh token httpOnly. Implementação vive em
-     * api.ts (dedup de chamadas concorrentes) — ver comentário lá sobre por
-     * que não pode ser o inverso.
-     */
-    refresh: ensureFreshSession,
 
     /**
      * Cria uma nova conta. Retorna o User criado.

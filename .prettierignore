@@ -1,0 +1,11 @@
+# .prettierrc.json na raiz é só para os scripts de tooling de git hooks que
+# vivem aqui (backend/, frontend/ e iot-simulator/ têm cada um o seu
+# .prettierrc.json próprio — 03-arquitetura.md). Sem este ignore, um
+# `prettier --write .` na raiz alcança .claude/, .github/ e os READMEs dos
+# pacotes, reformatando conteúdo que não é dono desta config (achado ao
+# revisar o PR #304 — nunca rode prettier na raiz sem este arquivo).
+*
+!scripts/*.mjs
+!lint-staged.config.js
+!package.json
+!.prettierrc.json

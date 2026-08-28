@@ -16,7 +16,6 @@ vi.mock("@/services/auth.service", () => ({
         logout: vi.fn(),
         getCurrentUser: vi.fn(),
         register: vi.fn(),
-        refresh: vi.fn(),
         mfaSetup: vi.fn(),
         mfaVerifySetup: vi.fn(),
         mfaDisable: vi.fn(),

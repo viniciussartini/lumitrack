@@ -6,15 +6,16 @@ export interface LiveStatus {
     connected: boolean
 }
 
-// Consome GET /api/status/stream (SSE) — o servidor reenvia o snapshot
-// completo a cada mudança, então não há necessidade de merge/diff local,
-// nem de polling: `networks` sempre reflete o estado atual do simulador.
-//
-// Usa EventSource nativo do browser (não @microsoft/fetch-event-source,
-// usado no frontend principal) — este endpoint não exige headers
-// customizados/credenciais, então a API nativa é suficiente e evita uma
-// dependência extra para uma ferramenta interna pequena.
 /**
+ * Consome GET /api/status/stream (SSE) — o servidor reenvia o snapshot
+ * completo a cada mudança, então não há necessidade de merge/diff local,
+ * nem de polling: `networks` sempre reflete o estado atual do simulador.
+ *
+ * Usa EventSource nativo do browser (não @microsoft/fetch-event-source,
+ * usado no frontend principal) — este endpoint não exige headers
+ * customizados/credenciais, então a API nativa é suficiente e evita uma
+ * dependência extra para uma ferramenta interna pequena.
+ *
  * @returns O snapshot atual das redes/devices e se o stream SSE está conectado.
  */
 export function useLiveStatus(): LiveStatus {

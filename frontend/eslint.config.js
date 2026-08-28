@@ -115,10 +115,13 @@ export default tseslint.config(
     {
         // JSDoc real em exports públicos da camada de service
         // (06-code-quality-standards.md) — equivalente frontend de
-        // service/repository/controller do backend. Medido antes de ligar:
-        // zero débito (os services já documentavam bem; só faltavam tags
-        // @param/@returns em blocos já existentes, corrigido junto).
-        files: ["src/services/*.service.ts"],
+        // service/repository/controller do backend. Débito medido e
+        // corrigido junto: os `*.service.ts` só tinham tags @param/@returns
+        // faltando em blocos já existentes; api.ts tinha 2 exports
+        // (ensureFreshSession, extractErrorMessage) sem bloco. `*.ts` (não
+        // só `*.service.ts`) cobre os dois.
+        files: ["src/services/*.ts"],
+        ignores: ["**/*.test.ts"],
         plugins: { jsdoc },
         rules: {
             "jsdoc/require-jsdoc": [

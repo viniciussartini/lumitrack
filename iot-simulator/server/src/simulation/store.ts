@@ -107,12 +107,18 @@ export class SimulationStore extends EventEmitter {
         return true
     }
 
-    /** @returns Todas as redes cadastradas. */
+    /**
+     * @returns Um array novo com todas as redes — snapshot seguro pra
+     *   iterar/filtrar sem expor o `Map` interno nem o mutar por engano.
+     */
     listNetworks(): VirtualNetwork[] {
         return [...this.networks.values()]
     }
 
     /**
+     * Lookup direto por id (O(1)) — usado internamente por `createDevice`
+     * pra validar que a rede existe antes de criar o device nela.
+     *
      * @param id Id da rede.
      * @returns A rede, ou `undefined` se não existir.
      */
@@ -221,6 +227,11 @@ export class SimulationStore extends EventEmitter {
     }
 
     /**
+     * Persiste o estado de anomalia como está — não valida nem calcula
+     * `endsAt`, isso é responsabilidade de quem chama (`SimulationEngine`,
+     * que sabe a duração pedida). Primitivo compartilhado: `clearAnomaly`
+     * é só um atalho pra este método com o estado neutro.
+     *
      * @param deviceId Id do device.
      * @param anomaly Novo estado de anomalia.
      * @returns O device atualizado, ou `undefined` se não existir.
@@ -235,6 +246,10 @@ export class SimulationStore extends EventEmitter {
     }
 
     /**
+     * Reaproveita `setAnomaly` com `DEFAULT_ANOMALY_STATE` em vez de
+     * duplicar a lógica de persistência/emissão de evento — única fonte de
+     * verdade pra "o que é um device sem anomalia".
+     *
      * @param deviceId Id do device.
      * @returns O device atualizado, ou `undefined` se não existir.
      */

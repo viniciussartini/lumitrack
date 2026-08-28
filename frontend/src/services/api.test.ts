@@ -79,6 +79,30 @@ describe("ensureFreshSession", () => {
         expect(postSpy).toHaveBeenCalledWith("/auth/refresh", {}, expect.anything())
     })
 
+    it("injeta o cookie de CSRF de refresh no header x-refresh-csrf-token", async () => {
+        document.cookie = "lumitrack_refresh_csrf=meu-token-de-refresh"
+
+        await ensureFreshSession()
+
+        expect(postSpy).toHaveBeenCalledWith(
+            "/auth/refresh",
+            {},
+            { headers: { "x-refresh-csrf-token": "meu-token-de-refresh" } },
+        )
+
+        document.cookie = "lumitrack_refresh_csrf=; Max-Age=0"
+    })
+
+    it("envia string vazia no header quando não há cookie de CSRF de refresh", async () => {
+        await ensureFreshSession()
+
+        expect(postSpy).toHaveBeenCalledWith(
+            "/auth/refresh",
+            {},
+            { headers: { "x-refresh-csrf-token": "" } },
+        )
+    })
+
     it("chamadas posteriores à conclusão do primeiro refresh iniciam um novo", async () => {
         await ensureFreshSession()
         await ensureFreshSession()

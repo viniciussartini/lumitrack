@@ -19,9 +19,14 @@
 //     vitest pegar os `.test.js` compilados junto com os `.test.ts` fonte
 //     (teste duplicado, achado ao ligar isto na issue #298). `tsc --noEmit`
 //     evita o emit inteiramente.
-// Roda incremental (tsBuildInfoFile já configurado em cada tsconfig do
-// pacote), então o custo por commit é ~150-200ms com cache quente (medido);
-// só o primeiro run do dia paga o custo completo (~1-3s por pacote).
+// Roda incremental nos 4 pacotes (`incremental`/`tsBuildInfoFile` em cada
+// tsconfig), mas o ganho do cache difere por modo: `-b` (build) pula
+// projetos de referência inteiros quando nada mudou neles, então o custo
+// por commit cai pra ~130-160ms com cache quente (frontend/iot-simulator/ui,
+// medido). `--noEmit` sempre reavalia o programa inteiro (só não escreve
+// arquivo) mesmo com cache — o custo por commit fica em ~750-780ms
+// (backend) e ~450-470ms (iot-simulator/server), medido. Cache frio (primeiro
+// run do dia) soma mais ~1s em qualquer um dos quatro.
 import { spawnSync } from "node:child_process"
 import path from "node:path"
 

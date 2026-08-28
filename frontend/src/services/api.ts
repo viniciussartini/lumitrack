@@ -41,6 +41,8 @@ let refreshPromise: Promise<void> | null = null
  * sessionRefresh.ts criaria um ciclo (dependency-cruiser no-circular,
  * 03-arquitetura.md), já que sessionRefresh.ts depende de auth.service.ts,
  * que depende deste módulo.
+ *
+ * @returns Nada — sinaliza sucesso pela resolução da promise.
  */
 export async function ensureFreshSession(): Promise<void> {
     if (refreshPromise) return refreshPromise
@@ -99,6 +101,14 @@ api.interceptors.response.use(
     },
 )
 
+/**
+ * Extrai uma mensagem de erro apresentável ao usuário — prioriza a mensagem
+ * vinda do backend (`error.response.data.message`), cai para a mensagem do
+ * próprio erro, e por fim um texto genérico.
+ *
+ * @param error Erro capturado (tipicamente de uma chamada `api.*`).
+ * @returns Mensagem pronta para exibir.
+ */
 export const extractErrorMessage = (error: unknown): string => {
     if (axios.isAxiosError(error)) {
         const data: unknown = error.response?.data
