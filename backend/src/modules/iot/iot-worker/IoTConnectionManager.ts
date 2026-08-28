@@ -31,15 +31,13 @@ import { env } from "@/config/env.js"
 
 const log = logger.child({ module: "IoTManager" })
 import { MqttConnection } from "@/modules/iot/iot-worker/protocols/MqttConnection.js"
-import {
-    ModbusTcpConnection,
-    ModbusRtuConnection,
-    EthernetIpConnection,
-    ProfibusConnection,
-    ProfinetConnection,
-    Rs232Connection,
-    Rs485Connection,
-} from "@/modules/iot/iot-worker/protocols/ModbusTcpConnection.js"
+import { ModbusTcpConnection } from "@/modules/iot/iot-worker/protocols/ModbusTcpConnection.js"
+import { ModbusRtuConnection } from "@/modules/iot/iot-worker/protocols/ModbusRtuConnection.js"
+import { EthernetIpConnection } from "@/modules/iot/iot-worker/protocols/EthernetIpConnection.js"
+import { ProfibusConnection } from "@/modules/iot/iot-worker/protocols/ProfibusConnection.js"
+import { ProfinetConnection } from "@/modules/iot/iot-worker/protocols/ProfinetConnection.js"
+import { Rs232Connection } from "@/modules/iot/iot-worker/protocols/Rs232Connection.js"
+import { Rs485Connection } from "@/modules/iot/iot-worker/protocols/Rs485Connection.js"
 
 // Config de conexão de um medidor — subconjunto do MeterResponse do módulo
 // meter, mantido aqui para não acoplar o worker ao módulo de negócio.

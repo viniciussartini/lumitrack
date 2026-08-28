@@ -1,37 +1,34 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// ModbusTcpConnection
+// ModbusRtuConnection
 //
-// Modbus TCP e o protocolo industrial mais comum para leitura de medidores,
-// CLPs e sensores via rede Ethernet. Funciona como uma ligacao telefonica
-// direta: o backend pergunta ao dispositivo qual e o valor de um registrador.
-// E request/response puro — sem push. Por isso usamos polling.
+// Modbus RTU roda sobre RS-485 ou RS-232 (serial fisico).
+// Nao ha TCP/IP — a comunicacao e feita pela porta serial do servidor.
 //
-// Dependencia: npm install jsmodbus
+// Dependencia: npm install serialport jsmodbus
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
 import { logger } from "@/shared/logger/logger.js"
 
-export interface ModbusTcpConnectionConfig {
+export interface ModbusRtuConnectionConfig {
     meterId: string
-    host: string
-    port: number
-    address: string
+    address: string // caminho da porta serial, ex: "/dev/ttyUSB0" ou "COM3"
+    baudRate?: number // (do campo extra) padrao 9600
     pollingIntervalMs?: number
     unitId?: number
 }
 
-export class ModbusTcpConnection implements IConnection {
+export class ModbusRtuConnection implements IConnection {
     readonly meterId: string
 
-    private socket: unknown = null
+    private port: unknown = null
     private client: unknown = null
     private connected = false
     private pollingTimer: ReturnType<typeof setInterval> | null = null
     private dataHandler: ((data: Record<string, unknown>) => void) | null = null
-    private readonly config: ModbusTcpConnectionConfig
+    private readonly config: ModbusRtuConnectionConfig
 
-    constructor(config: ModbusTcpConnectionConfig) {
+    constructor(config: ModbusRtuConnectionConfig) {
         this.meterId = config.meterId
         this.config = config
     }
@@ -41,37 +38,37 @@ export class ModbusTcpConnection implements IConnection {
             return
         }
 
-        const net = await import("net")
+        const { SerialPort } = await import("serialport")
         const jsmodbus = await import("jsmodbus")
 
-        this.socket = new net.Socket()
-        this.client = new jsmodbus.client.TCP(
-            this.socket as import("net").Socket,
-            this.config.unitId ?? 1,
-        )
+        this.port = new SerialPort({
+            path: this.config.address,
+            baudRate: this.config.baudRate ?? 9600,
+            autoOpen: false,
+        })
+
+        const serialPort = this.port as InstanceType<typeof SerialPort>
+
+        this.client = new jsmodbus.client.RTU(serialPort, this.config.unitId ?? 1)
 
         await new Promise<void>((resolve, reject) => {
-            const socket = this.socket as import("net").Socket
-            socket.connect({ host: this.config.host, port: this.config.port }, () => {
+            serialPort.open((err) => {
+                if (err) {
+                    reject(err)
+                    return
+                }
+
                 this.connected = true
                 this._startPolling()
                 resolve()
             })
-            socket.on("error", reject)
         })
     }
 
-    // Modbus e request/response — nao ha push de dados do dispositivo.
-    // Polling: a cada intervalo o backend le o registrador configurado.
     private _startPolling(): void {
         const intervalMs = this.config.pollingIntervalMs ?? 5000
-        const registerAddress = parseInt(this.config.address, 10)
 
         this.pollingTimer = setInterval(() => {
-            // setInterval espera um callback () => void — o corpo é async por
-            // causa do await de leitura, então roda numa IIFE `void`ada. O
-            // try/catch abaixo já cobre 100% do corpo, então a promise nunca
-            // rejeita de verdade; isto só satisfaz o tipo (no-misused-promises).
             void (async () => {
                 if (!this.dataHandler || !this.client) {
                     return
@@ -86,16 +83,16 @@ export class ModbusTcpConnection implements IConnection {
                             response: { body: { values: number[] } }
                         }>
                     }
-                    const result = await modbusClient.readHoldingRegisters(registerAddress, 1)
+                    const result = await modbusClient.readHoldingRegisters(0, 1)
                     const value = result.response.body.values[0]
                     this.dataHandler({
-                        register: this.config.address,
+                        port: this.config.address,
                         value,
                         timestamp: new Date().toISOString(),
                     })
                 } catch (err) {
                     logger.error(
-                        { module: "ModbusTCP", meterId: this.meterId, err },
+                        { module: "ModbusRTU", meterId: this.meterId, err },
                         "Erro na leitura",
                     )
                 }
@@ -112,11 +109,10 @@ export class ModbusTcpConnection implements IConnection {
             clearInterval(this.pollingTimer)
             this.pollingTimer = null
         }
-
-        const socket = this.socket as import("net").Socket
-        socket.destroy()
+        const serialPort = this.port as { close: (cb?: (err?: Error | null) => void) => void }
+        await new Promise<void>((resolve) => serialPort.close(() => resolve()))
         this.connected = false
-        this.socket = null
+        this.port = null
         this.client = null
     }
 
