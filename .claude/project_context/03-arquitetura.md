@@ -95,8 +95,9 @@ Todo módulo em `backend/src/modules/<nome>/` segue a mesma cadeia de camadas:
 - **`*.schema.ts`** — validação Zod na borda (parseia `req.body`/`req.query`/`req.params` antes de qualquer lógica).
 - **`*.controller.ts`** — tradução HTTP ↔ domínio; sem regra de negócio.
 - **`*.service.ts`** — regra de negócio, testável sem Express nem banco (mockando o repository).
-- **`*.repository.ts`** — único ponto de acesso ao Prisma para aquele módulo; módulos não leem tabelas uns dos outros diretamente.
+- **`*.repository.ts`** — único ponto de acesso ao Prisma para aquele módulo; módulos não leem tabelas uns dos outros diretamente (nenhum módulo acessa o Prisma de outro — só o repository dono lê a tabela).
 - Módulos sem estado próprio persistido (ex.: `simulation`) omitem `*.repository.ts`.
+- **Acesso cross-módulo:** um `*.service.ts` **pode** importar e chamar o `*.repository.ts` de outro módulo diretamente — é o padrão sancionado para consultas agregadas ou de resolução de posse que precisam ler mais de um domínio (ex.: `ConsumptionService` lendo `MeterRepository`/`PropertyRepository`/`AreaRepository`/`DeviceRepository`; os helpers `resolveRootProperty`/`resolveMeterTarget` de `shared/targetResolution.ts` existem exatamente para isso). O que continua proibido: importar framework/infra de outro módulo (`no-express-in-domain`) ou pular a camada de repository acessando Prisma direto fora do módulo dono. Ver ADR-0016.
 
 16 módulos ativos: `admin`, `alert`, `alert-event`, `area`, `auth`, `consumption`, `device`, `distributor`, `export`, `iot` (worker de ingestão, sem rota própria além do stream SSE), `meter`, `notification`, `property`, `simulation`, `tariff-flag`, `user`.
 
@@ -137,3 +138,4 @@ Toda autorização é por posse de recurso, resolvida bottom-up: `MeterReading/A
 - `adr/0013-fim-do-keep-alive-staging-hiberna-por-desenho.md` — os dois mecanismos de keep-alive são removidos e o staging hiberna por desenho, consequência do papel que a ADR-0012 lhe deu: ambiente de validação não tem visitante inesperado a proteger de cold start.
 - `adr/0014-ambientes-permanentemente-demonstracao.md` — os dois ambientes publicados (produção VPS + staging Render/Neon) são declarados permanentemente demonstração, sem titular real; `REGISTRATION_ENABLED` ganha default `false` no código (fail-closed); trabalho de conformidade que só se justifica com titular real fica deferido enquanto a ADR vigorar.
 - `adr/0015-monitor-externo-producao-vps.md` — reaproveita o raciocínio da ADR-0011 (ping não-autenticado em `/health` não configura transferência internacional) para a produção; `deploy/Caddyfile` passa a expor `/health`.
+- `adr/0016-service-le-repository-de-outro-modulo.md` — `*.service.ts` pode importar o `*.repository.ts` de outro módulo diretamente (padrão já em uso em 9 services); formaliza o que os helpers de `shared/targetResolution.ts` já pressupõem.
