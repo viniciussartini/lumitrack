@@ -57,6 +57,9 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run format:check
+      # Mesmo gate do backend-lint — ver .dependency-cruiser.cjs (no-circular
+      # + no-ui-import-in-logic, 03-arquitetura.md).
+      - run: npm run depcruise
 
   frontend-build:
     runs-on: ubuntu-latest
@@ -126,7 +129,7 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       # Fecha o gate que o PULL_REQUEST_TEMPLATE.md já declara obrigatório —
-      # ver .dependency-cruiser.cjs (regra única: domínio não importa
+      # ver .dependency-cruiser.cjs (no-circular + domínio não importa
       # framework/infra HTTP diretamente, 03-arquitetura.md).
       - run: npm run depcruise
 
@@ -251,6 +254,9 @@ jobs:
       - run: npm ci
       - run: npm run lint -w server -w ui
       - run: npm run format:check -w server -w ui
+      # Mesmo gate do backend-lint — ver .dependency-cruiser.cjs de cada
+      # workspace (no-circular, 03-arquitetura.md).
+      - run: npm run depcruise -w server -w ui
 
   iot-simulator-build:
     runs-on: ubuntu-latest

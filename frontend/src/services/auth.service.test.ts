@@ -9,6 +9,7 @@ vi.mock("@/services/api", () => ({
         get: vi.fn(),
     },
     extractErrorMessage: vi.fn(),
+    ensureFreshSession: vi.fn(),
 }))
 
 import { api } from "@/services/api"

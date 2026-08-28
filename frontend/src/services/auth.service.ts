@@ -1,5 +1,4 @@
-import { api } from "@/services/api"
-import { getRefreshCsrfToken } from "@/lib/csrf"
+import { api, ensureFreshSession } from "@/services/api"
 import type {
     DemoProfile,
     LoginInput,
@@ -28,6 +27,10 @@ export const authService = {
      * nunca chega a JS, então buscamos o usuário completo via /auth/me
      * (o id não está mais disponível para decodificação local).
      * O channel é fixo "WEB" — o app mobile usaria "MOBILE".
+     *
+     * @param input Credenciais de login.
+     * @returns O usuário autenticado, ou `mfaRequired`+`mfaToken` se o
+     *   segundo fator ainda precisa ser verificado.
      */
     login: async (input: LoginInput): Promise<LoginResult> => {
         const { data } = await api.post<ApiEnvelope<LoginResponse>>("/auth/login", {
@@ -49,6 +52,10 @@ export const authService = {
      * gate por DEMO_LOGIN_ENABLED; se desligado, `api.post` rejeita com
      * 403 e o erro propaga como qualquer outra falha de login. Mesma forma
      * de resposta de `login()` (pode vir `mfaRequired`), tratada igual.
+     *
+     * @param profile Perfil de demonstração escolhido pelo cliente.
+     * @returns O usuário autenticado, ou `mfaRequired`+`mfaToken` se o
+     *   segundo fator ainda precisa ser verificado.
      */
     demoLogin: async (profile: DemoProfile): Promise<LoginResult> => {
         const { data } = await api.post<ApiEnvelope<LoginResponse>>("/auth/demo-login", {
@@ -70,6 +77,9 @@ export const authService = {
      * (formato XXXXX-XXXXX). Em caso de sucesso, o backend seta os cookies
      * de sessão exatamente como um login normal — mesmo padrão de
      * `login()`: busca o usuário completo via /auth/me em seguida.
+     *
+     * @param input Token de MFA (da primeira etapa do login) + código.
+     * @returns O usuário autenticado.
      */
     verifyMfaLogin: async (input: MfaLoginVerifyInput): Promise<User> => {
         await api.post<ApiEnvelope<LoginResponse>>("/auth/login/mfa", input)
@@ -83,6 +93,8 @@ export const authService = {
      * persistido nesta chamada — o secret só é gravado quando confirmado
      * via mfaVerifySetup. Retorna o secret (para digitação manual) e um QR
      * code pronto (data URL PNG) para escanear no app autenticador.
+     *
+     * @returns O secret TOTP e o QR code de setup.
      */
     mfaSetup: async (): Promise<MfaSetupResponse> => {
         const { data } = await api.post<ApiEnvelope<MfaSetupResponse>>("/auth/mfa/setup")
@@ -94,6 +106,9 @@ export const authService = {
      * ativa o MFA na conta. Retorna os 10 códigos de backup em texto
      * plano — única vez que ficam visíveis, nunca mais recuperáveis depois
      * (persistidos como hash).
+     *
+     * @param input Código TOTP gerado a partir do secret de mfaSetup.
+     * @returns Os 10 códigos de backup em texto plano.
      */
     mfaVerifySetup: async (input: MfaVerifySetupInput): Promise<MfaVerifySetupResponse> => {
         const { data } = await api.post<ApiEnvelope<MfaVerifySetupResponse>>(
@@ -107,6 +122,8 @@ export const authService = {
      * Desativa o MFA. Exige senha atual + um código válido (TOTP ou
      * backup) — dupla confirmação porque desativar reduz a segurança da
      * conta.
+     *
+     * @param input Senha atual + código TOTP/backup.
      */
     mfaDisable: async (input: MfaDisableInput): Promise<void> => {
         await api.post("/auth/mfa/disable", input)
@@ -130,6 +147,8 @@ export const authService = {
      * Busca o usuário autenticado via cookie/sessão atual. Retorna null se
      * não houver sessão (401) — usado no boot da app para restaurar o
      * estado de autenticação sem decodificar nada no cliente.
+     *
+     * @returns O usuário autenticado, ou `null` se não houver sessão.
      */
     getCurrentUser: async (): Promise<User | null> => {
         try {
@@ -141,19 +160,11 @@ export const authService = {
     },
 
     /**
-     * Renova a sessão WEB via refresh token httpOnly. Não retorna dados —
-     * o backend sobrescreve os cookies de sessão. O header CSRF de refresh
-     * é injetado manualmente (o interceptor genérico de api.ts usa o CSRF
-     * de sessão, que pode estar expirado neste momento).
+     * Renova a sessão WEB via refresh token httpOnly. Implementação vive em
+     * api.ts (dedup de chamadas concorrentes) — ver comentário lá sobre por
+     * que não pode ser o inverso.
      */
-    refresh: async (): Promise<void> => {
-        const refreshCsrf = getRefreshCsrfToken()
-        await api.post(
-            "/auth/refresh",
-            {},
-            { headers: { "x-refresh-csrf-token": refreshCsrf ?? "" } },
-        )
-    },
+    refresh: ensureFreshSession,
 
     /**
      * Cria uma nova conta. Retorna o User criado.
@@ -162,6 +173,9 @@ export const authService = {
      *
      * NOTA: este método NÃO faz login. O auto-login é responsabilidade
      * do AuthContext.register, que orquestra register + login.
+     *
+     * @param input Dados de cadastro (pessoa física ou jurídica).
+     * @returns O usuário criado.
      */
     register: async (input: RegisterInput): Promise<User> => {
         const { data } = await api.post<ApiEnvelope<User>>("/users", input)
@@ -173,6 +187,8 @@ export const authService = {
      * 200 (mesma mensagem genérica), exista ou não o e-mail — proteção
      * contra enumeração de contas. Por isso não há um "e-mail não
      * encontrado" a tratar aqui: sucesso é o único caminho desta chamada.
+     *
+     * @param email E-mail da conta.
      */
     forgotPassword: async (email: string): Promise<void> => {
         await api.post("/auth/forgot-password", { email })
@@ -184,6 +200,9 @@ export const authService = {
      * 1h). Propaga erro (400) se o token for inválido, expirado ou já
      * usado — extractErrorMessage entrega a mensagem do backend pronta
      * pra exibir.
+     *
+     * @param token Token de redefinição recebido por e-mail.
+     * @param newPassword Nova senha escolhida pelo usuário.
      */
     resetPassword: async (token: string, newPassword: string): Promise<void> => {
         await api.post("/auth/reset-password", { token, newPassword })
@@ -195,6 +214,8 @@ export const authService = {
      * backend/src/modules/auth/email.service.ts, válido por 1h). Todas as
      * sessões do usuário são revogadas no backend quando isso acontece —
      * inclusive a que estiver fazendo esta chamada, se houver.
+     *
+     * @param token Token de confirmação recebido no novo e-mail.
      */
     confirmEmailChange: async (token: string): Promise<void> => {
         await api.post("/auth/confirm-email-change", { token })

@@ -1,7 +1,6 @@
 import axios, { AxiosError } from "axios"
-import { getCsrfToken } from "@/lib/csrf"
+import { getCsrfToken, getRefreshCsrfToken } from "@/lib/csrf"
 import { authState } from "@/lib/authState"
-import { ensureFreshSession } from "@/lib/sessionRefresh"
 
 // Métodos mutáveis precisam do header CSRF quando autenticados via cookie
 // httpOnly (double-submit cookie pattern — ver backend/shared/security/csrf.ts).
@@ -25,6 +24,40 @@ api.interceptors.request.use((config) => {
     }
     return config
 })
+
+// Promise em voo compartilhada — N chamadas concorrentes a ensureFreshSession
+// (o interceptor abaixo e o timer proativo de sessionRefresh.ts) aguardam o
+// mesmo POST /auth/refresh em vez de disparar N.
+let refreshPromise: Promise<void> | null = null
+
+/**
+ * Renova a sessão WEB via refresh token httpOnly, deduplicando chamadas
+ * concorrentes. Não retorna dados — o backend sobrescreve os cookies de
+ * sessão. O header CSRF de refresh é injetado manualmente (o interceptor
+ * de request acima usa o CSRF de sessão, que pode estar expirado agora).
+ *
+ * Vive em api.ts (não em sessionRefresh.ts/auth.service.ts) porque o
+ * interceptor de 401 abaixo precisa chamá-la — um import de volta para
+ * sessionRefresh.ts criaria um ciclo (dependency-cruiser no-circular,
+ * 03-arquitetura.md), já que sessionRefresh.ts depende de auth.service.ts,
+ * que depende deste módulo.
+ */
+export async function ensureFreshSession(): Promise<void> {
+    if (refreshPromise) return refreshPromise
+
+    refreshPromise = api
+        .post(
+            "/auth/refresh",
+            {},
+            { headers: { "x-refresh-csrf-token": getRefreshCsrfToken() ?? "" } },
+        )
+        .then(() => undefined)
+        .finally(() => {
+            refreshPromise = null
+        })
+
+    return refreshPromise
+}
 
 /**
  * Response interceptor

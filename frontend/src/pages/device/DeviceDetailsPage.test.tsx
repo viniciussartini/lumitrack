@@ -63,6 +63,7 @@ vi.mock("@/services/property.service", () => ({
 vi.mock("@/services/api", () => ({
     api: {},
     extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
+    ensureFreshSession: vi.fn(),
 }))
 
 const mockDevice: Device = {
