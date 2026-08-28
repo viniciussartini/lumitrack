@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-26 · Fases 1–15 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15). Fase atual: **15.5** (enforcement de qualidade), detalhe abaixo.
+> Última atualização: 2026-08-28 · Fases 1–15.5 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, #290, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15), #300 (épico #290, Fase 15.5), #304 (#296–#299, Fase 15.5). Issue #168 (complexidade), parte do escopo da 15.5, dobrada para a Fase 16. Fase atual: **16** (worker IoT: robustez, estrutura e cobertura), detalhe abaixo.
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das auditorias** — as quatro de 2026-08-05 e, a partir da Fase 13.6, as quatro de 2026-08-22 (pós-deploy) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **A Fase 13.7 separa os ambientes:** VPS Hostinger (São Paulo) vira produção real (branch `main`), Render+Neon é rebaixado a staging/integração (branch `staging`) — ver **ADR-0012**. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
@@ -27,8 +27,8 @@
 | 13.7 | Separação de ambientes — VPS Hostinger (produção) + Render/Neon (staging) | **Concluída** (PR #254 → staging, PR #256 → main; em produção na VPS) |
 | 14 | Conformidade P1 — formalizar a postura permanentemente demo (ADR-0014), ROPA/RIPD atualizados, monitor externo de disponibilidade | **Concluída** (#260, #261, #265, épico #259, PR #274) |
 | 15 | Desempenho — instrumentação, compressão, índices, retenção, cache, N+1 e endpoint batch | **Concluída** (épicos #275, #279, issues #284/#285 — PRs #286, #287, #288) |
-| **15.5** | **Enforcement de qualidade + comentários de rastreabilidade** | **Planejada — fase atual, detalhe abaixo** |
-| 16 | Worker IoT — robustez, estrutura e cobertura | Planejada — objetivo revisado abaixo |
+| 15.5 | Enforcement de qualidade + comentários de rastreabilidade | **Concluída** (épico #290, #296–#299, PRs #300/#304) — issue #168 dobrada para a Fase 16 |
+| **16** | **Worker IoT — robustez, estrutura e cobertura** | **Planejada — fase atual, detalhe abaixo** |
 | 17 | Frontend — tempo real e bundle | Planejada — objetivo abaixo |
 | 18 | Design system, cobertura de testes e polimento | Planejada — objetivo revisado abaixo |
 | 19 | Grupo A — fundação tarifária (subgrupos, modalidades, postos, demanda) + Horária Verde | Planejada — detalhe abaixo |
@@ -1329,18 +1329,132 @@ A retenção de `meter_readings` (issues #236/#267) é escopo próprio desta fas
 - **Depende de:** nenhuma dependência técnica com os itens de enforcement acima — pode rodar em paralelo. Ordem sugerida (não obrigatória): depois de fechar as configs de enforcement, para as sub-issues já nascerem sob as travas novas.
 - **Risco/observações:** maior item da fase em volume, mas risco técnico baixo (é remoção/reescrita de comentário, não lógica) — o risco real é humano: decidir mal o que é "rastro" vs. "contexto funcional" em massa. Por isso a revisão linha a linha é critério, não sugestão.
 
-## Fases 16–18 (objetivo — serão detalhadas ao chegar)
+## Fase 16 — Worker IoT: robustez, estrutura e cobertura
+
+**Entrega (milestone):** `Robustez e Polimento` (nova — cobre as Fases 16, 17 e 18; fecha antes da maior expansão de domínio do roadmap, a Fase 19).
+
+> **Correção de premissa em relação ao parágrafo-objetivo que esta seção substitui (detalhamento de 2026-08-28):** a investigação desta rodada encontrou a realidade **mais grave** do que o achado de 2026-08-22 registrava. São **8 adaptadores de protocolo**, não 6 (o stub de Profibus e o Profinet não tinham sido contados). E o mapeamento de payload dos adaptadores não-MQTT não é "ad hoc" — é **estruturalmente quebrado**: `IoTDataProcessor.isValidPayload` (`backend/src/modules/iot/iot-worker/IoTDataProcessor.ts:64-76`) só aceita `{voltage, current, powerW, powerFactor}`, formato que só o MQTT emite (por coincidência, porque bate com o payload do simulador). Modbus TCP/RTU, EtherNet/IP, Profibus, Profinet, RS232 e RS485 emitem formatos nativos (`{register, value}`, `{tag, value}`, `{db, data: number[]}`...) que a validação rejeita — **toda leitura desses 6 protocolos é descartada silenciosamente hoje** (`log.warn("Leitura inválida descartada")`). Isso eleva o item de mapeamento/schema de "estrutura" para "correção de bug ativo" e muda sua prioridade de P2 para P0.
+>
+> **Issue #168 (tetos de complexidade, 57 arquivos) dobrada para esta fase** por decisão do usuário em 2026-08-28 — não fazia parte da branch que fechou o resto da Fase 15.5 (#296–#299) e continuava aberta. Ver item 6 abaixo.
+
+### 1. Fix isolado: MQTT `reconnectPeriod: 0`
+
+- **Comportamento:** nenhum para o usuário final diretamente — mas evita o modo de falha mais caro de diagnosticar do worker: painel que parece funcionar e nunca mais atualiza.
+- **Cobre:** achado de 2026-08-22, confirmado em `backend/src/modules/iot/iot-worker/protocols/MqttConnection.ts:52` — `reconnectPeriod: 0` desabilita a reconexão automática, contradizendo o comentário do `deploy/demo-entrypoint.sh:60-62` ("o cliente MQTT do backend reconecta sozinho quando o broker subir"). Contraste: o publisher MQTT do próprio simulador (`iot-simulator/server/src/mqtt/internalPublisher.ts:38`) já usa `reconnectPeriod: 1000` corretamente.
+- **Priority:** P0 · **Size:** XS
+- **Critérios de aceite:**
+  - `reconnectPeriod` do `MqttConnection` passa a ter um valor positivo (alinhado ao do simulador, 1000ms, salvo razão em contrário encontrada na execução).
+  - Teste pinando o valor da opção passada ao client MQTT — mesmo padrão já usado para travar comportamento de configuração em outras partes do worker.
+- **Depende de:** — (isolado, mesmo tratamento que o bug do RS-485 recebeu na Fase 12 — bug funcional confirmado não espera o resto da fase).
+- **Risco/observações:** baixo — mudança de uma constante, com teste de regressão.
+
+### 2. Caracterização + split do `ModbusTcpConnection.ts`
+
+- **Comportamento:** nenhum para o usuário final — pré-requisito estrutural para os itens 3–5.
+- **Cobre:** `backend/src/modules/iot/iot-worker/protocols/ModbusTcpConnection.ts`, 805 linhas, 7 classes num arquivo só (`ModbusTcpConnection`, `ModbusRtuConnection`, `EthernetIpConnection`, `ProfibusConnection` — stub que só lança erro —, `ProfinetConnection`, `Rs232Connection`, `Rs485Connection`); `Rs232Connection._handleSerialData` e `Rs485Connection._handleSerialData` duplicam a mesma lógica de buffering de linha.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - **Caracterizar antes de mover** (regra do skill `refatoracao`): hoje só `ModbusTcpConnection.test.ts` (116 linhas) existe, cobrindo `EthernetIpConnection` e o buffering de `Rs232Connection`/`Rs485Connection` — não cobre `ModbusTcpConnection`, `ModbusRtuConnection`, `ProfibusConnection` nem `ProfinetConnection`. Escrever teste de caracterização do comportamento atual dessas 4 classes **antes** de tocar no arquivo.
+  - Split em 1 arquivo por adaptador (8 arquivos, incluindo o já isolado `MqttConnection.ts` como modelo) + `serialLineParser.ts` compartilhado, absorvendo o buffering hoje duplicado entre RS232/RS485.
+  - Nenhuma mudança de comportamento neste item — verificado pelos testes de caracterização passando antes e depois do split. A correção do payload (item 3) é item separado de propósito, para não misturar refactor estrutural com bugfix no mesmo diff.
+- **Depende de:** —
+- **Risco/observações:** médio — é o arquivo mais complexo do worker IoT sendo movido com cobertura ainda fina; a caracterização é o que torna o risco aceitável.
+
+### 3. Schema Zod por protocolo + correção do mapeamento de payload (bug crítico)
+
+- **Comportamento:** os 6 protocolos não-MQTT passam a entregar leitura de verdade ao invés de serem descartados silenciosamente — pré-condição para qualquer medidor não-MQTT funcionar de ponta a ponta.
+- **Cobre:** as 12 non-null assertions de `IoTConnectionManager.createConnection()` (uma por campo obrigatório por protocolo — MQTT `host!`/`port!`/`topic!`, MODBUS_RTU `address!`, ETHERNET_IP `host!`, PROFIBUS `address!`, PROFINET `host!`, RS232/RS485 `address!`) e o mapeamento real do payload nativo de cada adaptador para `{voltage, current, powerW, powerFactor}`, hoje inexistente para os 6 protocolos não-MQTT. Inclui teto de sanidade (upper bound) nos valores — `isFiniteNonNegative`/`isValidPayload` (`IoTDataProcessor.ts:60-76`) hoje só validam `Number.isFinite` e `>= 0` (fora `powerFactor`, já limitado a 0–1); não há teto superior para voltagem/corrente/potência.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Schema Zod por protocolo validando o payload nativo antes do mapeamento (substitui as non-null assertions por validação real, com erro claro se um campo obrigatório faltar).
+  - Mapeamento de cada um dos 6 formatos nativos (`{register, value}`, `{port, value}`, `{tag, value}`, `{db, data: number[]}`, `{raw}` para RS232/RS485 quando a linha não é JSON) para o formato interno — decisão de execução sobre onde esse mapeamento é físico/unidade-dependente (ex.: registrador Modbus para tensão pode exigir escala) vs. onde é estrutural.
+  - Teto de sanidade adicionado a `isValidPayload` para voltagem/corrente/potência, com valor plausível para instalação residencial/comercial (a definir na execução, documentado no código).
+  - Teste cobrindo pelo menos um payload real de cada um dos 8 protocolos chegando íntegro em `IoTDataProcessor`, e um payload fora do teto sendo rejeitado.
+- **Depende de:** item 2 (fix limpo, em arquivo por adaptador, não no monólito de 805 linhas).
+- **Risco/observações:** alto valor, risco médio — é o item que efetivamente liga 6 de 8 protocolos que hoje não funcionam; o risco é mapear a unidade/escala errada de um registrador e produzir leitura plausível porém incorreta (pior que descartar, porque não é visível).
+
+### 4. Polling robusto: reentrância por tick, timeout, backoff, reconexão
+
+- **Comportamento:** medidor que fica temporariamente inacessível (rede lenta, timeout, queda de conexão) volta a reportar sozinho, sem intervenção manual.
+- **Cobre:** hoje a reentrância só é tratada no nível de conexão (`IoTConnectionManager.start()` recusa reabrir uma conexão já registrada), não no tick do `setInterval` de cada adaptador — uma leitura mais lenta que o intervalo de polling empilha execuções concorrentes. Não há timeout no `await` das chamadas de leitura (um socket travado bloqueia o tick indefinidamente). Não há backoff nem reconexão automática se o transporte cair depois de estabelecido.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - Guard de reentrância por tick em cada adaptador (skip ou fila, decisão de execução — skip é mais simples e alinhado ao padrão de polling já usado).
+  - Timeout explícito envolvendo cada chamada de leitura, com erro tratado (não exceção não capturada).
+  - Backoff exponencial com teto e reconexão automática ao detectar queda do transporte, mesmo espírito do fix do item 1 para o MQTT.
+  - Teste cobrindo: tick sobreposto sendo descartado, timeout disparando, reconexão acontecendo após queda simulada.
+- **Depende de:** item 2 (adaptadores já em arquivos próprios).
+- **Risco/observações:** médio — toca o coração do worker; mitigado pela cobertura de teste do item 5 vindo logo em seguida.
+
+### 5. Cobertura de teste dos 8 adaptadores
+
+- **Comportamento:** nenhum para o usuário final — rede de segurança para os itens 2–4 e para mudanças futuras.
+- **Cobre:** hoje só `ModbusTcpConnection.test.ts` existe, cobrindo parcialmente `EthernetIpConnection` e o buffering de `Rs232Connection`/`Rs485Connection`. Sem teste: `ModbusTcpConnection`, `ModbusRtuConnection`, `ProfibusConnection`, `ProfinetConnection`, `MqttConnection`.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - Um arquivo de teste por adaptador (acompanhando o split do item 2), cobrindo pelo menos: conexão bem-sucedida, leitura válida chegando ao listener, comportamento do item 3 (payload mapeado) e do item 4 (timeout/reconexão) para aquele protocolo especificamente.
+  - `ProfibusConnection` (stub que só lança erro): teste confirmando o comportamento de stub documentado, não implementação especulativa do protocolo.
+- **Depende de:** itens 2, 3 e 4 (evita escrever teste que seria reescrito).
+- **Risco/observações:** baixo — é teste, não mudança de comportamento.
+
+### 6. Complexidade: tetos por arquivo (issue #168, 57 arquivos)
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** issue #168 — substituir os 57 overrides `"off"` de `complexity`/`max-lines-per-function` por um teto numérico acima do valor real de hoje, com data/fase de revisão registrada no comentário. Dentro do escopo desta fase está só `IoTConnectionManager.ts` (o único dos 57 arquivos que pertence ao worker IoT); os outros 56 (48 frontend, 6 backend restantes, 2 `iot-simulator/ui`) seguem o mesmo tratamento em paralelo, sem dependência técnica com o resto da Fase 16.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - `IoTConnectionManager.ts` recebe teto refletindo o tamanho **depois** dos itens 3–4 (schema + polling robusto vão alterar esse arquivo) — medir de novo antes de fixar o número, não usar o valor pré-mudança.
+  - Os demais 56 arquivos recebem teto acima do valor real medido em cada um, abaixo do que equivaleria a desligar a regra, com comentário citando a fase de reavaliação (`consumption.service.ts` já tem destino conhecido, Fase 18).
+  - Issue #168 fechada com a lista final por arquivo.
+- **Depende de:** item 4 (para o teto do `IoTConnectionManager.ts`).
+- **Risco/observações:** baixo — mudança de configuração, não de código.
+
+### 7. SSE: serialização única + backpressure
+
+- **Comportamento:** o painel em tempo real continua responsivo mesmo com múltiplas abas abertas ou uma conexão lenta.
+- **Cobre:** `iot-stream.routes.ts:139-143` — cada assinante SSE faz seu próprio `JSON.stringify(sample)`, ao invés de serializar uma vez e reusar entre assinantes. `res.write()` nunca verifica o retorno — sem tratamento de `drain`, um consumidor lento não é freado (backpressure ausente).
+- **Priority:** P1 · **Size:** S/M
+- **Critérios de aceite:**
+  - Serialização do payload uma vez por amostra, compartilhada entre todos os assinantes daquele evento.
+  - Tratamento do retorno de `res.write()` — pelo menos detectar e desconectar um consumidor persistentemente lento, para não acumular memória em buffer.
+  - Teste cobrindo múltiplos assinantes recebendo a mesma amostra sem re-serialização (verificável por contagem de chamadas a `JSON.stringify`, ou reestruturação equivalente que torne o comportamento testável).
+- **Depende de:** —
+- **Risco/observações:** baixo-médio — é caminho quente (toda leitura passa por aqui), mas mudança isolada ao roteamento SSE.
+
+### 8. Simulador: coalescer notificações de snapshot
+
+- **Comportamento:** o simulador continua respondendo com o mesmo número de devices/clientes simultâneos sem degradar.
+- **Cobre:** confirmado O(D²×C) — `iot-simulator/server/src/simulation/store.ts` `recordSample()` emite 1 evento `"changed"` por device por tick (D eventos/segundo); `status.routes.ts:20-25` registra 1 listener por cliente SSE, cada um reconstruindo o snapshot completo (`store.snapshot()`, O(D)) e serializando de novo a cada evento — D eventos × C listeners × O(D) por segundo.
+- **Priority:** P1 · **Size:** S/M
+- **Critérios de aceite:**
+  - Coalescer eventos de múltiplos devices no mesmo tick numa única notificação (debounce/batch por ciclo de simulação), reduzindo para O(D) + O(C) por tick.
+  - Teste cobrindo múltiplos devices atualizando no mesmo tick gerando 1 notificação por cliente, não D.
+- **Depende de:** —
+- **Risco/observações:** baixo — isolado ao simulador (ferramenta de dev/demo, não produto final).
+
+### 9. `upsertMinute` em `INSERT ... ON CONFLICT`
+
+- **Comportamento:** nenhum para o usuário final — corrige uma janela de corrida interna.
+- **Cobre:** `backend/src/modules/meter/meter-reading.repository.ts:30-79` — hoje é check-then-write (`findUnique` seguido de `create`/`update` com média ponderada), padrão TOCTOU-prone. A lógica de média ponderada (documentada nas linhas 23-28, para o caso de reinício do servidor no meio do minuto) é legítima e deve ser preservada.
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:**
+  - Reescrito como `INSERT ... ON CONFLICT DO UPDATE`, preservando a média ponderada dentro da cláusula de conflito.
+  - Testes existentes de `upsertMinute` continuam verdes sem alteração de resultado.
+- **Depende de:** —
+- **Risco/observações:** baixo — Prisma suporta `ON CONFLICT` via `$queryRaw` ou `upsert` nativo, dependendo de como a chave de conflito está modelada; verificar na execução qual API do Prisma cobre o caso sem SQL cru.
+
+### 10. Issues #255 e #257 (topologia de rede do simulador + script de deploy)
+
+- **Comportamento:** reiniciar o `backend` sozinho não derruba a rede do `simulator`; promover `staging`→`main` deixa de ser procedimento manual de 5 comandos.
+- **Cobre:** já detalhadas com critérios de aceite completos nas próprias issues — confirmado em 2026-08-28 que ambas continuam válidas: `docker-compose.yml:83` ainda usa `network_mode: "service:backend"`; `deploy/` ainda não tem `update-production.sh` (nem equivalente). Mesma raiz do item 1 (robustez de rede/reconexão do simulador).
+- **Priority:** P2 (herdada das issues) · **Size:** conforme as issues
+- **Critérios de aceite:** ver corpo de #255 e #257 — nada novo a detalhar aqui.
+- **Depende de:** #255 antes de #257 (a automação de deploy assume a topologia de rede corrigida).
+- **Risco/observações:** ver as issues.
+
+## Fases 17–18 (objetivo — serão detalhadas ao chegar)
 
 > Mesmo planejamento just-in-time do bloco anterior: detalhar agora é escrever o que será reescrito antes de executar. Os achados que cada uma cobre ficam listados para rastreabilidade.
-
-### Fase 16 — Worker IoT: robustez, estrutura e cobertura (P2)
-
-Cobre o escopo original (quebrar `ModbusTcpConnection.ts` em um arquivo por adaptador + `serialLineParser.ts` compartilhado; schema Zod por protocolo eliminando os non-null assertions; polling com reentrância/timeout/backoff/reconexão; mapeamento de payload dos adaptadores não-MQTT; tetos plausíveis no payload IoT; SSE com serialização única e backpressure; `upsertMinute` em `INSERT ... ON CONFLICT`; cobertura dos 6 adaptadores), acrescido do achado novo de 2026-08-22: **MQTT com `reconnectPeriod: 0`** — desabilita reconexão automática, contradizendo o próprio comentário do `demo-entrypoint.sh` que promete reconexão; modo de falha mais caro de diagnosticar (painel que parece funcionar mas nunca mais atualiza). E o simulador: coalescer notificações de snapshot (hoje O(D²×C) materializações/segundo).
-
-**Acrescentado em 2026-08-23 (levantamento de pendências não tratadas)** — dois itens que compartilham a mesma raiz do `reconnectPeriod` acima, a topologia de rede do simulador:
-
-- **Issue #255 — simulador com rede própria** em vez de `network_mode: "service:backend"`. Achado da revisão do PR #254, adiado de propósito de lá por alterar a rede de um ambiente recém-estabilizado dentro de um PR documental. É a causa-raiz de dois custos operacionais reais: reiniciar o `backend` sozinho quebra a rede do `simulator`, e o guard de SSRF precisa liberar o hostname `localhost` por causa do namespace compartilhado.
-- **Issue #257 — script de deploy da produção.** Toda promoção para `main` hoje é SSH + cinco comandos manuais + reseed, e o `network_mode` acima é exatamente o que torna o erro fácil: recriar `backend` sem `simulator` deixa o painel sem dado ao vivo, sem erro visível. Um `deploy/update-production.sh` idempotente elimina a classe inteira de erro. Entra junto de #255 porque corrigir a topologia sem automatizar o procedimento resolve metade do problema, e as duas mexem nos mesmos arquivos.
 
 ### Fase 17 — Frontend: tempo real e bundle (P2)
 
@@ -1542,3 +1656,13 @@ Candidatos conhecidos, ainda sem fase:
 - **13.7 aplica a lição da 13.6 na fundação, não como remendo:** a separação de privilégio do usuário do banco e a cifra do backup entram *desde a primeira subida* da VPS, porque o banco nasce vazio — mais barato do que a correção equivalente no Neon (Fase 13.6), que precisa lidar com um ambiente já em produção.
 - **15.5 entre 15 e 16, não dentro da 18:** mesmo raciocínio que já colocou a Fase 12 antes das Fases 16–18 — as decisões de enforcement (JSDoc, complexidade, dependency-cruiser, padrão de acesso cross-módulo) vão apontar exatamente o que refatorar no split do `ModbusTcpConnection.ts` (Fase 16); instalar a trava depois paga o trabalho duas vezes. O comentário de rastreabilidade (~310 ocorrências) entra na mesma fase por ser a mesma categoria de achado — lacuna entre padrão declarado e padrão enforçado — mesmo sendo P1 e não bloqueante: fechar antes das Fases 19–22 evita que o volume de comentários a limpar cresça junto com a maior expansão de domínio do roadmap.
 - **14, 15, 16 e 18 revisados, não substituídos:** os quatro laudos de 2026-08-22 confirmaram o escopo já planejado em 2026-08-05 na quase totalidade dos itens (mesma causa raiz, evidência mais concreta) — a revisão troca a generalidade da rodada anterior por arquivo:linha e acrescenta só os achados genuinamente novos (compressão HTTP, pool de conexões, bug do `reconnectPeriod`, contagens atualizadas de design system). Não há motivo para reescrever o que já estava certo.
+
+### Replanejamento de 2026-08-28 (detalhamento da Fase 16)
+
+**O que mudou:** a Fase 15.5 fechou (épico #290 + #296–#299, PRs #300/#304) e a Fase 16 foi detalhada de objetivo para itens completos, com investigação direta do código do worker IoT em vez de reaproveitar a medição de 2026-08-22.
+
+- **Issue #168 dobrada para a Fase 16, não fechada dentro da 15.5:** a branch que fechou #296–#299 não incluiu #168 (decisão do usuário, 2026-08-28) — o item "teto decrescente de complexidade" que o detalhamento de 2026-08-26 da 15.5 previa continua pendente. Como o único dos 57 arquivos de #168 que pertence ao worker IoT é `IoTConnectionManager.ts`, e esse arquivo já é o centro da Fase 16, dobrar a issue inteira para cá (item 6) custa menos do que reabrir a 15.5 para um item isolado.
+- **Achado que mudou a prioridade do item de schema/payload — de P2 para P0:** o parágrafo-objetivo de 2026-08-22/23 descrevia "mapeamento de payload dos adaptadores não-MQTT" como item de estrutura. A investigação de 2026-08-28 (leitura direta de `IoTDataProcessor.isValidPayload` e dos 8 adaptadores) encontrou que não é inconsistência — é descarte silencioso de toda leitura de 6 dos 8 protocolos, porque o formato que a validação aceita só o MQTT produz. Bug ativo, não dívida estrutural; motivo do item 3 ter subido para P0, logo depois só do fix isolado do `reconnectPeriod` (item 1).
+- **Contagem de adaptadores corrigida de 6 para 8:** a medição anterior não contava o stub de `ProfibusConnection` nem `ProfinetConnection`, ambos dentro do mesmo `ModbusTcpConnection.ts`. Isso também eleva o tamanho real do item de cobertura de teste (item 5) e do split estrutural (item 2).
+- **Ordem separando split (item 2) de correção de bug (item 3), com caracterização entre os dois:** a regra do skill `refatoracao` ("caracterizar antes de mover") se aplica diretamente aqui — `ModbusTcpConnection.ts` tem 805 linhas e cobertura de teste hoje fina. Misturar o split estrutural com a correção do payload no mesmo diff dificultaria isolar qual mudança causou qual efeito, caso algo quebre.
+- **Milestone nova `Robustez e Polimento` criada para as Fases 16–18:** decisão do usuário, 2026-08-28 — as três fases não tinham entrega nomeada; juntas formam o marco reconhecível de "sistema estabilizado antes da expansão para Grupo A" (Fase 19), que é justamente o próximo marco do roadmap.
