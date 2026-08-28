@@ -1,6 +1,7 @@
 import js from "@eslint/js"
 import globals from "globals"
 import tseslint from "typescript-eslint"
+import jsdoc from "eslint-plugin-jsdoc"
 
 export default tseslint.config(
     { ignores: ["dist", "coverage"] },
@@ -50,6 +51,37 @@ export default tseslint.config(
         files: ["**/*.test.ts"],
         rules: {
             "max-lines-per-function": "off",
+        },
+    },
+    {
+        // JSDoc real em exports públicos da camada de simulação/broker/MQTT
+        // (06-code-quality-standards.md) — equivalente da camada de service
+        // neste pacote (sem convenção service/repository/controller). Medido
+        // antes de ligar: débito pequeno, corrigido junto — zero débito
+        // para catalogar.
+        files: ["src/simulation/*.ts", "src/broker/*.ts", "src/mqtt/*.ts"],
+        ignores: ["**/*.test.ts"],
+        plugins: { jsdoc },
+        rules: {
+            "jsdoc/require-jsdoc": [
+                "error",
+                {
+                    publicOnly: true,
+                    require: {
+                        ClassDeclaration: true,
+                        MethodDefinition: true,
+                        FunctionDeclaration: true,
+                    },
+                    contexts: [
+                        "ExportNamedDeclaration > ClassDeclaration",
+                        "ExportNamedDeclaration > FunctionDeclaration",
+                        "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > ArrowFunctionExpression",
+                        "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > FunctionExpression",
+                    ],
+                },
+            ],
+            "jsdoc/require-param": "error",
+            "jsdoc/require-returns": "error",
         },
     },
 )

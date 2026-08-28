@@ -14,6 +14,9 @@ export interface LiveStatus {
 // usado no frontend principal) — este endpoint não exige headers
 // customizados/credenciais, então a API nativa é suficiente e evita uma
 // dependência extra para uma ferramenta interna pequena.
+/**
+ * @returns O snapshot atual das redes/devices e se o stream SSE está conectado.
+ */
 export function useLiveStatus(): LiveStatus {
     const [networks, setNetworks] = useState<NetworkSnapshot[]>([])
     const [connected, setConnected] = useState(false)

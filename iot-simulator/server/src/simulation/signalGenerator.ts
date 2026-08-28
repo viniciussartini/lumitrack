@@ -1,6 +1,13 @@
 import type { AnomalyState, DeviceParams, ElectricalSample } from "@/simulation/types.js"
 
-// Box-Muller (transformação polar simples), sem dependência externa.
+/**
+ * Amostra de ruído gaussiano via Box-Muller (transformação polar simples),
+ * sem dependência externa.
+ *
+ * @param stdDev Desvio padrão do ruído.
+ * @param mean Média do ruído (default 0).
+ * @returns Uma amostra aleatória da distribuição normal(mean, stdDev).
+ */
 export function gaussianNoise(stdDev: number, mean = 0): number {
     const u1 = Math.random()
     const u2 = Math.random()
@@ -25,6 +32,16 @@ function round(value: number, decimals: number): number {
     return Math.round(value * factor) / factor
 }
 
+/**
+ * Gera uma amostra elétrica sintética para um tick: senoide de período
+ * longo + ruído gaussiano por grandeza, com clamps mínimos de tensão e
+ * fator de potência para nunca produzir corrente `Infinity`/`NaN`.
+ *
+ * @param params Parâmetros nominais do device (tensão, potência, ruído).
+ * @param anomaly Estado de anomalia ativa (multiplica potência, afunda tensão).
+ * @param tickIndex Índice do tick atual — alimenta a fase da senoide.
+ * @returns A amostra (tensão, corrente, potência, fator de potência).
+ */
 export function generateSample(
     params: DeviceParams,
     anomaly: AnomalyState,

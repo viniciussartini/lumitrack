@@ -7,6 +7,7 @@ import type { DeviceParams } from "@/types"
 // useLiveStatus (SSE) — o servidor reenvia o snapshot atualizado logo após
 // qualquer mutação ter efeito, então duplicar esse estado numa query do
 // TanStack Query seria uma segunda fonte de verdade sem necessidade.
+/** @returns As mutations de controle do simulador (redes/devices/power/anomalia). */
 export function useNetworks() {
     const createNetwork = useMutation({
         mutationFn: (name: string) => api.createNetwork(name),
