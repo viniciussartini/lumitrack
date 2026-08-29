@@ -21,7 +21,10 @@
  */
 import { Router, type Request, type RequestHandler, type Response } from "express"
 import { PrismaClient } from "@/generated/prisma/client.js"
-import type { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
+import type {
+    IoTDataProcessor,
+    MeterReadingSample,
+} from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
 import type { UserEventHub } from "@/shared/sse/user-event-hub.js"
 import { AuthRepository } from "@/modules/auth/auth.repository.js"
@@ -109,6 +112,140 @@ function createStreamAuthMiddleware(
     }
 }
 
+// ─── Backpressure de escrita SSE ───────────────────────────────────────────
+//
+// Extraído do corpo da conexão para ser testável sem um socket real — mesmo
+// motivo de extração já usado nos adaptadores de protocolo IoT
+// (_handleMessage, _readSample): reproduzir res.write() devolvendo false
+// (buffer de saída cheio) e o evento 'drain' subsequente de verdade exigiria
+// um consumidor lento de fato, over TCP real.
+export interface SseWritable {
+    write(chunk: string): boolean
+    once(event: "drain", listener: () => void): void
+}
+
+export interface SseBackpressureState {
+    awaitingDrain: boolean
+    disconnected: boolean
+}
+
+export function createBackpressureState(): SseBackpressureState {
+    return { awaitingDrain: false, disconnected: false }
+}
+
+/**
+ * Escreve um chunk SSE já formatado, tratando backpressure.
+ *
+ * Se o buffer de saída já estava cheio desde a escrita anterior (o 'drain'
+ * daquela escrita ainda não disparou) e chega uma NOVA mensagem, o
+ * consumidor do outro lado é persistentemente lento — não dá pra saber
+ * quando (se algum dia) ele vai drenar. Em vez de empilhar mais dados no
+ * buffer indefinidamente (memória cresce sem limite), aciona `onSlowConsumer`
+ * para a conexão ser encerrada.
+ *
+ * @param res - Destino da escrita (Response real ou fake de teste).
+ * @param state - Estado de backpressure desta conexão, de `createBackpressureState()`.
+ * @param chunk - Frame SSE já formatado (`event: ...\ndata: ...\n\n` ou comentário `: ...\n\n`).
+ * @param onSlowConsumer - Chamado no lugar da escrita quando o consumidor é considerado lento.
+ */
+export function writeSseChunk(
+    res: SseWritable,
+    state: SseBackpressureState,
+    chunk: string,
+    onSlowConsumer: () => void,
+): void {
+    if (state.disconnected) return
+
+    if (state.awaitingDrain) {
+        state.disconnected = true
+        onSlowConsumer()
+        return
+    }
+
+    const ok = res.write(chunk)
+    if (!ok) {
+        state.awaitingDrain = true
+        res.once("drain", () => {
+            state.awaitingDrain = false
+        })
+    }
+}
+
+// Par writeEvent/writeRaw de uma conexão — extraído do corpo de
+// createStreamHandler só para não estourar o limite de linhas por função do
+// lint (mesmo motivo dos demais extraídos neste arquivo).
+function createEventWriter(
+    res: Response,
+    cleanup: () => void,
+): {
+    writeEvent: (eventName: string, payload: string) => void
+    writeRaw: (chunk: string) => void
+} {
+    const backpressure = createBackpressureState()
+
+    // Consumidor persistentemente lento (buffer de saída cheio, sem drenar
+    // entre uma escrita e a próxima) — encerra em vez de deixar o buffer
+    // crescer sem limite.
+    function disconnectSlowConsumer(): void {
+        cleanup()
+        if (!res.writableEnded) res.end()
+    }
+
+    return {
+        writeEvent: (eventName, payload) =>
+            writeSseChunk(
+                res,
+                backpressure,
+                `event: ${eventName}\ndata: ${payload}\n\n`,
+                disconnectSlowConsumer,
+            ),
+        writeRaw: (chunk) => writeSseChunk(res, backpressure, chunk, disconnectSlowConsumer),
+    }
+}
+
+// Revalida a sessão e re-resolve o conjunto de medidores do usuário a cada
+// tick, sem exigir reconexão do cliente — extraído do corpo de
+// createStreamHandler pelo mesmo motivo do writer acima. Sessão revogada
+// (logout, reset de senha) ou expirada encerra a resposta.
+function startMembershipRefresh(options: {
+    res: Response
+    userId: string
+    authToken: string
+    prismaClient: PrismaClient
+    authRepository: AuthRepository
+    intervalMs: number
+    onMeterIdsRefreshed: (ids: Set<string>) => void
+    cleanup: () => void
+}): NodeJS.Timeout {
+    const { res, userId, authToken, prismaClient, authRepository, intervalMs } = options
+
+    return setInterval(() => {
+        void (async () => {
+            // A conexão pode já ter fechado (cleanup() já rodou) enquanto
+            // este tick estava em voo — um tick já disparado não é cancelado
+            // por clearInterval. Sem essa guarda, um erro aqui (ex.: pool de
+            // conexões já encerrado) vira uma promise rejeitada sem
+            // tratamento, que no Node derruba o processo inteiro — levando
+            // junto todo stream SSE aberto, não só este.
+            if (res.writableEnded) return
+            try {
+                const sessionValid = await isSessionStillValid(authToken, authRepository)
+                if (res.writableEnded) return
+                if (!sessionValid) {
+                    options.cleanup()
+                    res.end()
+                    return
+                }
+                options.onMeterIdsRefreshed(await resolveUserMeterIds(userId, prismaClient))
+            } catch {
+                // Falha transitória (rede, banco) durante a revalidação
+                // periódica — a conexão segue aberta e tenta de novo no
+                // próximo tick; não deve derrubar o processo nem o stream.
+            }
+        })()
+    }, intervalMs)
+}
+
 // Corpo da conexão SSE em si (uma vez já autenticada por qualquer um dos
 // dois caminhos acima) — extraído pelo mesmo motivo do middleware acima.
 function createStreamHandler(
@@ -118,6 +255,16 @@ function createStreamHandler(
     authRepository: AuthRepository,
     membershipRefreshIntervalMs: number,
 ) {
+    // Compartilhado entre TODAS as conexões deste router (não por conexão) —
+    // uma amostra processada é o mesmo objeto para todo listener que a
+    // recebe (IoTDataProcessor.process() itera um Set de listeners com a
+    // mesma referência, ver processo lá). Múltiplas conexões do mesmo
+    // usuário (abas/dispositivos diferentes) hoje serializavam a mesma
+    // amostra uma vez por conexão; a WeakMap garante uma serialização por
+    // amostra, e o próprio GC libera a entrada quando a amostra deixa de ser
+    // referenciada por qualquer listener.
+    const serializedSampleCache = new WeakMap<MeterReadingSample, string>()
+
     return async (req: Request, res: Response): Promise<void> => {
         const { id: userId } = (req as AuthenticatedRequest).user
         const { authToken } = req as AuthenticatedRequest
@@ -131,15 +278,21 @@ function createStreamHandler(
 
         let userMeterIds = await resolveUserMeterIds(userId, prismaClient)
 
-        res.write(
-            `event: connected\ndata: ${JSON.stringify({ meterCount: userMeterIds.size })}\n\n`,
-        )
+        const { writeEvent, writeRaw } = createEventWriter(res, () => cleanup())
+
+        writeEvent("connected", JSON.stringify({ meterCount: userMeterIds.size }))
 
         // ─── Listener de leituras IoT ─────────────────────────────────────────
         const readingUnsub = processor.addSampleListener((sample) => {
             if (!userMeterIds.has(sample.meterId)) return
-            const payload = JSON.stringify(sample)
-            res.write(`event: reading\ndata: ${payload}\n\n`)
+
+            let payload = serializedSampleCache.get(sample)
+            if (payload === undefined) {
+                payload = JSON.stringify(sample)
+                serializedSampleCache.set(sample, payload)
+            }
+
+            writeEvent("reading", payload)
         })
 
         // ─── Listener de eventos por usuário (alert-firing, notification) ────
@@ -147,7 +300,7 @@ function createStreamHandler(
         // o evento é do próprio usuário. O nome do evento SSE é o mesmo nome
         // passado para userEventHub.emit(...).
         const eventUnsub = userEventHub.addListener(userId, (event, payload) => {
-            res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
+            writeEvent(event, JSON.stringify(payload))
         })
 
         function cleanup(): void {
@@ -158,40 +311,23 @@ function createStreamHandler(
         }
 
         // Re-resolve o conjunto de medidores E revalida a sessão
-        // periodicamente, sem exigir reconexão do cliente. Sessão revogada
-        // (logout, reset de senha) ou expirada encerra a resposta — o
-        // cliente (EventSource ou equivalente) simplesmente vê a conexão
-        // terminar, coerente com a sessão não existir mais.
-        const membershipRefresh = setInterval(() => {
-            void (async () => {
-                // A conexão pode já ter fechado (cleanup() já rodou, limpando
-                // este interval) enquanto este tick estava em voo — um tick já
-                // disparado não é cancelado por clearInterval. Sem essa guarda,
-                // um erro aqui (ex.: pool de conexões já encerrado) vira uma
-                // promise rejeitada sem tratamento, que no Node derruba o
-                // processo inteiro — levando junto todo stream SSE aberto, não
-                // só este.
-                if (res.writableEnded) return
-                try {
-                    const sessionValid = await isSessionStillValid(authToken, authRepository)
-                    if (res.writableEnded) return
-                    if (!sessionValid) {
-                        cleanup()
-                        res.end()
-                        return
-                    }
-                    userMeterIds = await resolveUserMeterIds(userId, prismaClient)
-                } catch {
-                    // Falha transitória (rede, banco) durante a revalidação
-                    // periódica — a conexão segue aberta e tenta de novo no
-                    // próximo tick; não deve derrubar o processo nem o stream.
-                }
-            })()
-        }, membershipRefreshIntervalMs)
+        // periodicamente, sem exigir reconexão do cliente.
+        const membershipRefresh = startMembershipRefresh({
+            res,
+            userId,
+            authToken,
+            prismaClient,
+            authRepository,
+            intervalMs: membershipRefreshIntervalMs,
+            onMeterIdsRefreshed: (ids) => {
+                userMeterIds = ids
+            },
+            cleanup: () => cleanup(),
+        })
 
         // Keep-alive: envia um comentário SSE a cada 30 segundos.
         const keepAlive = setInterval(() => {
-            res.write(": keep-alive\n\n")
+            writeRaw(": keep-alive\n\n")
         }, 30_000)
 
         // Cleanup ao desconectar.

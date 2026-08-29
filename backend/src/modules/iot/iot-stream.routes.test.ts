@@ -15,7 +15,7 @@
 // periódico sem esperar os 60s reais de produção.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest"
+import { describe, it, expect, vi, beforeAll, beforeEach, afterAll } from "vitest"
 import request from "supertest"
 import { createServer, type Server } from "http"
 import http from "http"
@@ -24,7 +24,11 @@ import { Router } from "express"
 import { createApp } from "@/app.js"
 import { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
-import { iotStreamRoutes } from "@/modules/iot/iot-stream.routes.js"
+import {
+    iotStreamRoutes,
+    createBackpressureState,
+    writeSseChunk,
+} from "@/modules/iot/iot-stream.routes.js"
 import { createAuthenticateMiddleware } from "@/shared/middlewares/authenticate.js"
 import { UserEventHub } from "@/shared/sse/user-event-hub.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
@@ -268,6 +272,105 @@ const validReadingPayload = { voltage: 220, current: 2, powerW: 440, powerFactor
 // SUITE: GET /api/iot/stream
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SUITE: writeSseChunk / backpressure (issue #311)
+//
+// Reproduzir res.write() devolvendo false (buffer de saída cheio) e o
+// 'drain' subsequente de verdade exigiria um consumidor lento sobre um
+// socket TCP real — daí a extração testada aqui com um SseWritable fake em
+// vez de um teste de integração como o resto do arquivo.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("writeSseChunk", () => {
+    function createFakeWritable(writeReturns: boolean[]): {
+        write: (chunk: string) => boolean
+        once: (event: "drain", listener: () => void) => void
+        chunks: string[]
+        fireDrain: () => void
+    } {
+        const chunks: string[] = []
+        let drainListener: (() => void) | null = null
+        let callIndex = 0
+
+        return {
+            chunks,
+            write: (chunk) => {
+                chunks.push(chunk)
+                const result = writeReturns[callIndex] ?? true
+                callIndex += 1
+                return result
+            },
+            once: (_event, listener) => {
+                drainListener = listener
+            },
+            fireDrain: () => {
+                drainListener?.()
+                drainListener = null
+            },
+        }
+    }
+
+    it("escreve normalmente enquanto o buffer de saída não está cheio", () => {
+        const fake = createFakeWritable([true, true])
+        const state = createBackpressureState()
+        const onSlowConsumer = vi.fn()
+
+        writeSseChunk(fake, state, "a", onSlowConsumer)
+        writeSseChunk(fake, state, "b", onSlowConsumer)
+
+        expect(fake.chunks).toEqual(["a", "b"])
+        expect(onSlowConsumer).not.toHaveBeenCalled()
+        expect(state.disconnected).toBe(false)
+    })
+
+    it("espera o 'drain' quando write() devolve false, sem desconectar — próxima escrita só acontece depois de drenar", () => {
+        const fake = createFakeWritable([false, true])
+        const state = createBackpressureState()
+        const onSlowConsumer = vi.fn()
+
+        writeSseChunk(fake, state, "a", onSlowConsumer)
+        expect(state.awaitingDrain).toBe(true)
+
+        fake.fireDrain()
+        expect(state.awaitingDrain).toBe(false)
+
+        writeSseChunk(fake, state, "b", onSlowConsumer)
+        expect(fake.chunks).toEqual(["a", "b"])
+        expect(onSlowConsumer).not.toHaveBeenCalled()
+    })
+
+    it("desconecta um consumidor persistentemente lento — nova mensagem chega antes do 'drain' da anterior", () => {
+        const fake = createFakeWritable([false])
+        const state = createBackpressureState()
+        const onSlowConsumer = vi.fn()
+
+        writeSseChunk(fake, state, "a", onSlowConsumer)
+        expect(state.awaitingDrain).toBe(true)
+
+        // 'drain' da primeira escrita nunca chega — a segunda mensagem
+        // encontra o buffer ainda cheio.
+        writeSseChunk(fake, state, "b", onSlowConsumer)
+
+        expect(onSlowConsumer).toHaveBeenCalledTimes(1)
+        expect(state.disconnected).toBe(true)
+        // "b" nunca chega a ser escrito — o consumidor já foi desconectado.
+        expect(fake.chunks).toEqual(["a"])
+    })
+
+    it("depois de desconectado, ignora escritas futuras sem chamar onSlowConsumer de novo", () => {
+        const fake = createFakeWritable([false])
+        const state = createBackpressureState()
+        const onSlowConsumer = vi.fn()
+
+        writeSseChunk(fake, state, "a", onSlowConsumer)
+        writeSseChunk(fake, state, "b", onSlowConsumer)
+        writeSseChunk(fake, state, "c", onSlowConsumer)
+
+        expect(onSlowConsumer).toHaveBeenCalledTimes(1)
+        expect(fake.chunks).toEqual(["a"])
+    })
+})
+
 describe("GET /api/iot/stream", () => {
     it("deve retornar 401 sem token", async () => {
         const response = await request(app).get("/api/iot-test/stream")
@@ -347,6 +450,57 @@ describe("GET /api/iot/stream", () => {
 
         const readings = events.filter((e) => e.event === "reading")
         expect(readings).toHaveLength(0)
+    })
+
+    it("serializa a amostra uma única vez, mesmo com 2 conexões do mesmo usuário (2 abas) recebendo o mesmo evento", async () => {
+        const { token, meterId } = await setupUserWithMeter()
+
+        const streamA = await openSseStream(token)
+        const streamB = await openSseStream(token)
+
+        const stringifySpy = vi.spyOn(JSON, "stringify")
+
+        let connectedCount = 0
+        const triggerWhenBothConnected = (event: string): void => {
+            if (event !== "connected") return
+            connectedCount += 1
+            if (connectedCount === 2) {
+                simulateReading(meterId, validReadingPayload)
+            }
+        }
+
+        const [eventsA, eventsB] = await Promise.all([
+            collectSseEvents(streamA, {
+                maxWaitMs: 3000,
+                stopAfterEvent: "reading",
+                onEvent: triggerWhenBothConnected,
+            }),
+            collectSseEvents(streamB, {
+                maxWaitMs: 3000,
+                stopAfterEvent: "reading",
+                onEvent: triggerWhenBothConnected,
+            }),
+        ])
+
+        // Conta só as chamadas de stringify sobre a própria amostra — outras
+        // chamadas incidentais (ex.: logging, Prisma) acontecem em paralelo
+        // e não devem contaminar a contagem. Precisa ler `.mock.calls` ANTES
+        // de `mockRestore()` — `mockRestore()` também limpa o histórico de
+        // chamadas, não só restaura a implementação original.
+        const sampleStringifyCalls = stringifySpy.mock.calls.filter(([arg]) => {
+            return (
+                typeof arg === "object" &&
+                arg !== null &&
+                (arg as Record<string, unknown>)["meterId"] === meterId &&
+                (arg as Record<string, unknown>)["voltage"] === validReadingPayload["voltage"]
+            )
+        })
+
+        stringifySpy.mockRestore()
+
+        expect(eventsA.find((e) => e.event === "reading")).toBeDefined()
+        expect(eventsB.find((e) => e.event === "reading")).toBeDefined()
+        expect(sampleStringifyCalls).toHaveLength(1)
     })
 
     it("deve receber evento 'alert-firing' emitido pelo UserEventHub para o próprio usuário", async () => {
