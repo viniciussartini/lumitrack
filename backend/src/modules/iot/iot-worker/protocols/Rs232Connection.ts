@@ -10,6 +10,8 @@
 
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
 import { SerialLineParser } from "@/modules/iot/iot-worker/protocols/serialLineParser.js"
+import { scheduleReconnect } from "@/modules/iot/iot-worker/protocols/reconnectBackoff.js"
+import { logger } from "@/shared/logger/logger.js"
 
 export interface Rs232ConnectionConfig {
     meterId: string
@@ -29,6 +31,7 @@ export class Rs232Connection implements IConnection {
     private dataHandler: ((data: Record<string, unknown>) => void) | null = null
     private readonly config: Rs232ConnectionConfig
     private readonly lineParser: SerialLineParser
+    private intentionallyDisconnected = false
 
     constructor(config: Rs232ConnectionConfig) {
         this.meterId = config.meterId
@@ -54,6 +57,8 @@ export class Rs232Connection implements IConnection {
         if (this.connected) {
             return
         }
+
+        this.intentionallyDisconnected = false
 
         const { SerialPort } = await import("serialport")
 
@@ -85,6 +90,34 @@ export class Rs232Connection implements IConnection {
         serialPort.on("data", (chunk: Buffer) => {
             this._handleSerialData(chunk)
         })
+
+        // Queda do transporte depois de já conectado (cabo desconectado,
+        // dispositivo desligado) — antes não havia reconexão nenhuma.
+        serialPort.on("close", () => this._handleTransportDown())
+        serialPort.on("error", (err) => {
+            logger.error(
+                { module: "RS232", meterId: this.meterId, err },
+                "Erro no transporte serial",
+            )
+            this._handleTransportDown()
+        })
+    }
+
+    private _handleTransportDown(): void {
+        if (this.intentionallyDisconnected || !this.connected) {
+            return
+        }
+
+        this.connected = false
+        this.port = null
+        this.lineParser.reset()
+
+        scheduleReconnect({
+            meterId: this.meterId,
+            moduleTag: "RS232",
+            reconnect: () => this.connect(),
+            isStopped: () => this.intentionallyDisconnected,
+        })
     }
 
     // Exposto como método (não inline) para ser chamado diretamente pelo
@@ -95,6 +128,8 @@ export class Rs232Connection implements IConnection {
     }
 
     async disconnect(): Promise<void> {
+        this.intentionallyDisconnected = true
+
         if (!this.connected) {
             return
         }

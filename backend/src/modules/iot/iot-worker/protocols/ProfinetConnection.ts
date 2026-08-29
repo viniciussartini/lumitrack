@@ -10,6 +10,8 @@
 
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
 import { logger } from "@/shared/logger/logger.js"
+import { PollingLoop } from "@/modules/iot/iot-worker/protocols/pollingLoop.js"
+import { scheduleReconnect } from "@/modules/iot/iot-worker/protocols/reconnectBackoff.js"
 
 export interface ProfinetConnectionConfig {
     meterId: string
@@ -38,9 +40,10 @@ export class ProfinetConnection implements IConnection {
 
     private client: unknown = null
     private connected = false
-    private pollingTimer: ReturnType<typeof setInterval> | null = null
+    private pollingLoop: PollingLoop | null = null
     private dataHandler: ((data: Record<string, unknown>) => void) | null = null
     private readonly config: ProfinetConnectionConfig
+    private intentionallyDisconnected = false
 
     constructor(config: ProfinetConnectionConfig) {
         this.meterId = config.meterId
@@ -51,6 +54,8 @@ export class ProfinetConnection implements IConnection {
         if (this.connected) {
             return
         }
+
+        this.intentionallyDisconnected = false
 
         const S7 = await import("node-snap7").catch(() => {
             throw new Error(
@@ -87,25 +92,28 @@ export class ProfinetConnection implements IConnection {
     }
 
     private _startPolling(): void {
-        const intervalMs = this.config.pollingIntervalMs ?? 5000
+        this.pollingLoop = new PollingLoop({
+            intervalMs: this.config.pollingIntervalMs ?? 5000,
+            shouldRun: () => this.dataHandler !== null && this.client !== null,
+            readSample: () => this._readSample(),
+            onSample: (sample) => this.dataHandler?.(sample),
+            onError: (err) => {
+                logger.error({ module: "Profinet", meterId: this.meterId, err }, "Erro na leitura")
+            },
+            onUnhealthy: () => this._handleUnhealthy(),
+        })
+        this.pollingLoop.start()
+    }
 
-        this.pollingTimer = setInterval(() => {
-            void (async () => {
-                if (!this.dataHandler || !this.client) {
-                    return
-                }
-
-                try {
-                    const sample = await this._readSample()
-                    this.dataHandler(sample)
-                } catch (err) {
-                    logger.error(
-                        { module: "Profinet", meterId: this.meterId, err },
-                        "Erro na leitura",
-                    )
-                }
-            })()
-        }, intervalMs)
+    private _handleUnhealthy(): void {
+        void this._cleanup().then(() => {
+            scheduleReconnect({
+                meterId: this.meterId,
+                moduleTag: "Profinet",
+                reconnect: () => this.connect(),
+                isStopped: () => this.intentionallyDisconnected,
+            })
+        })
     }
 
     // Extraído para ser testável sem um PLC S7 real. Lê os 4 data blocks
@@ -139,14 +147,17 @@ export class ProfinetConnection implements IConnection {
     }
 
     async disconnect(): Promise<void> {
+        this.intentionallyDisconnected = true
+        await this._cleanup()
+    }
+
+    private async _cleanup(): Promise<void> {
         if (!this.connected) {
             return
         }
 
-        if (this.pollingTimer) {
-            clearInterval(this.pollingTimer)
-            this.pollingTimer = null
-        }
+        this.pollingLoop?.stop()
+        this.pollingLoop = null
 
         const client = this.client as { Disconnect: () => void }
         client.Disconnect()

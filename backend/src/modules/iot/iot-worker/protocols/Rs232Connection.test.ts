@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { Rs232Connection } from "@/modules/iot/iot-worker/protocols/Rs232Connection.js"
 
 // `_handleSerialData` é privado — chamado diretamente pelo teste (em vez de
@@ -9,6 +9,13 @@ interface SerialDataHarness {
     _handleSerialData(chunk: Buffer): void
     buffer: string
     onData(handler: (data: Record<string, unknown>) => void): void
+}
+
+interface TransportDownHarness {
+    connected: boolean
+    intentionallyDisconnected: boolean
+    connect(): Promise<void>
+    _handleTransportDown(): void
 }
 
 describe("Rs232Connection — montagem de linhas a partir de chunks parciais", () => {
@@ -96,5 +103,55 @@ describe("Rs232Connection — montagem de linhas a partir de chunks parciais", (
         })
 
         expect(connection.isConnected()).toBe(false)
+    })
+
+    describe("reconexão automática (issue #308)", () => {
+        beforeEach(() => {
+            vi.useFakeTimers()
+        })
+
+        afterEach(() => {
+            vi.useRealTimers()
+        })
+
+        // Regressão: antes desta issue, uma queda do transporte serial
+        // (cabo desconectado, dispositivo desligado) deixava a conexão
+        // parada para sempre — sem reconectar sozinha.
+        it("_handleTransportDown() limpa o estado e agenda reconexão com backoff, quando a queda não foi intencional", async () => {
+            const connection = new Rs232Connection({
+                meterId: "meter-rs232-reconnect",
+                address: "/dev/ttyUSB0",
+            }) as unknown as TransportDownHarness
+
+            connection.connected = true
+            connection.intentionallyDisconnected = false
+            const connectSpy = vi.spyOn(connection, "connect").mockResolvedValue(undefined)
+
+            connection._handleTransportDown()
+
+            expect(connection.connected).toBe(false)
+
+            await vi.advanceTimersByTimeAsync(1000) // delay base do backoff
+            expect(connectSpy).toHaveBeenCalledTimes(1)
+        })
+
+        // disconnect() intencional marca intentionallyDisconnected antes de
+        // fechar a porta — o "close" que o SerialPort.close() dispara não
+        // deve reviver a conexão que o usuário pediu para encerrar.
+        it("_handleTransportDown() não agenda reconexão quando a desconexão foi intencional", async () => {
+            const connection = new Rs232Connection({
+                meterId: "meter-rs232-reconnect-2",
+                address: "/dev/ttyUSB0",
+            }) as unknown as TransportDownHarness
+
+            connection.connected = true
+            connection.intentionallyDisconnected = true
+            const connectSpy = vi.spyOn(connection, "connect").mockResolvedValue(undefined)
+
+            connection._handleTransportDown()
+
+            await vi.advanceTimersByTimeAsync(10_000)
+            expect(connectSpy).not.toHaveBeenCalled()
+        })
     })
 })

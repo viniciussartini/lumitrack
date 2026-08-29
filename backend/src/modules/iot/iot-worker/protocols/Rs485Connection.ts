@@ -13,6 +13,8 @@
 
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
 import { SerialLineParser } from "@/modules/iot/iot-worker/protocols/serialLineParser.js"
+import { scheduleReconnect } from "@/modules/iot/iot-worker/protocols/reconnectBackoff.js"
+import { logger } from "@/shared/logger/logger.js"
 
 export interface Rs485ConnectionConfig {
     meterId: string
@@ -32,6 +34,7 @@ export class Rs485Connection implements IConnection {
     private dataHandler: ((data: Record<string, unknown>) => void) | null = null
     private readonly config: Rs485ConnectionConfig
     private readonly lineParser: SerialLineParser
+    private intentionallyDisconnected = false
 
     constructor(config: Rs485ConnectionConfig) {
         this.meterId = config.meterId
@@ -62,6 +65,8 @@ export class Rs485Connection implements IConnection {
             return
         }
 
+        this.intentionallyDisconnected = false
+
         const { SerialPort } = await import("serialport")
 
         this.port = new SerialPort({
@@ -91,6 +96,34 @@ export class Rs485Connection implements IConnection {
         serialPort.on("data", (chunk: Buffer) => {
             this._handleSerialData(chunk)
         })
+
+        // Queda do transporte depois de já conectado — antes não havia
+        // reconexão nenhuma.
+        serialPort.on("close", () => this._handleTransportDown())
+        serialPort.on("error", (err) => {
+            logger.error(
+                { module: "RS485", meterId: this.meterId, err },
+                "Erro no transporte serial",
+            )
+            this._handleTransportDown()
+        })
+    }
+
+    private _handleTransportDown(): void {
+        if (this.intentionallyDisconnected || !this.connected) {
+            return
+        }
+
+        this.connected = false
+        this.port = null
+        this.lineParser.reset()
+
+        scheduleReconnect({
+            meterId: this.meterId,
+            moduleTag: "RS485",
+            reconnect: () => this.connect(),
+            isStopped: () => this.intentionallyDisconnected,
+        })
     }
 
     private _handleSerialData(chunk: Buffer): void {
@@ -98,6 +131,8 @@ export class Rs485Connection implements IConnection {
     }
 
     async disconnect(): Promise<void> {
+        this.intentionallyDisconnected = true
+
         if (!this.connected) {
             return
         }

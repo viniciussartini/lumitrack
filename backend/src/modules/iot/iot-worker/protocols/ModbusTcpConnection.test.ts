@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { ModbusTcpConnection } from "@/modules/iot/iot-worker/protocols/ModbusTcpConnection.js"
 
 const baseConfig = {
@@ -18,6 +18,13 @@ interface ReadSampleHarness {
     client: unknown
     dataHandler: ((data: Record<string, unknown>) => void) | null
     _readSample(): Promise<Record<string, unknown>>
+}
+
+interface UnhealthyHarness {
+    connected: boolean
+    socket: unknown
+    connect(): Promise<void>
+    _handleUnhealthy(): void
 }
 
 // Teste de caracterização (issue #306) — comportamento hoje sem cobertura.
@@ -93,5 +100,37 @@ describe("ModbusTcpConnection", () => {
         expect(sample["powerW"]).toBe(3300)
         expect(sample["powerFactor"]).toBe(0)
         expect(typeof sample["deviceTimestamp"]).toBe("string")
+    })
+
+    describe("reconexão automática (issue #308)", () => {
+        beforeEach(() => {
+            vi.useFakeTimers()
+        })
+
+        afterEach(() => {
+            vi.useRealTimers()
+        })
+
+        // Regressão: antes desta issue, uma conexão que caía (transporte
+        // morto detectado via falhas consecutivas de leitura) ficava parada
+        // para sempre — sem reconectar sozinha, exigia restart() manual.
+        it("_handleUnhealthy() limpa o estado da conexão e agenda reconexão com backoff", async () => {
+            const connection = new ModbusTcpConnection({
+                meterId: "meter-modbus-tcp-reconnect",
+                ...baseConfig,
+            }) as unknown as UnhealthyHarness
+
+            connection.connected = true
+            connection.socket = { destroy: vi.fn() }
+            const connectSpy = vi.spyOn(connection, "connect").mockResolvedValue(undefined)
+
+            connection._handleUnhealthy()
+            await vi.advanceTimersByTimeAsync(0) // _cleanup() é async
+
+            expect(connection.connected).toBe(false)
+
+            await vi.advanceTimersByTimeAsync(1000) // delay base do backoff
+            expect(connectSpy).toHaveBeenCalledTimes(1)
+        })
     })
 })

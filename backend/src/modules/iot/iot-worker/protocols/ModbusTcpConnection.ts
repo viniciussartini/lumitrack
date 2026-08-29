@@ -11,6 +11,8 @@
 
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
 import { logger } from "@/shared/logger/logger.js"
+import { PollingLoop } from "@/modules/iot/iot-worker/protocols/pollingLoop.js"
+import { scheduleReconnect } from "@/modules/iot/iot-worker/protocols/reconnectBackoff.js"
 
 export interface ModbusTcpConnectionConfig {
     meterId: string
@@ -37,9 +39,12 @@ export class ModbusTcpConnection implements IConnection {
     private socket: unknown = null
     private client: unknown = null
     private connected = false
-    private pollingTimer: ReturnType<typeof setInterval> | null = null
+    private pollingLoop: PollingLoop | null = null
     private dataHandler: ((data: Record<string, unknown>) => void) | null = null
     private readonly config: ModbusTcpConnectionConfig
+    // Distingue disconnect() intencional de queda de transporte — só a
+    // segunda deve acionar reconexão automática (ver _handleUnhealthy).
+    private intentionallyDisconnected = false
 
     constructor(config: ModbusTcpConnectionConfig) {
         this.meterId = config.meterId
@@ -50,6 +55,8 @@ export class ModbusTcpConnection implements IConnection {
         if (this.connected) {
             return
         }
+
+        this.intentionallyDisconnected = false
 
         const net = await import("net")
         const jsmodbus = await import("jsmodbus")
@@ -74,30 +81,34 @@ export class ModbusTcpConnection implements IConnection {
     // Modbus e request/response — nao ha push de dados do dispositivo.
     // Polling: a cada intervalo o backend le os 4 registradores configurados
     // (voltage/current/power/powerFactor) e combina numa amostra só.
+    // PollingLoop cobre reentrância por tick, timeout de leitura e detecção
+    // de transporte morto (onUnhealthy → reconexão com backoff).
     private _startPolling(): void {
-        const intervalMs = this.config.pollingIntervalMs ?? 5000
+        this.pollingLoop = new PollingLoop({
+            intervalMs: this.config.pollingIntervalMs ?? 5000,
+            shouldRun: () => this.dataHandler !== null && this.client !== null,
+            readSample: () => this._readSample(),
+            onSample: (sample) => this.dataHandler?.(sample),
+            onError: (err) => {
+                logger.error({ module: "ModbusTCP", meterId: this.meterId, err }, "Erro na leitura")
+            },
+            onUnhealthy: () => this._handleUnhealthy(),
+        })
+        this.pollingLoop.start()
+    }
 
-        this.pollingTimer = setInterval(() => {
-            // setInterval espera um callback () => void — o corpo é async por
-            // causa do await de leitura, então roda numa IIFE `void`ada. O
-            // try/catch abaixo já cobre 100% do corpo, então a promise nunca
-            // rejeita de verdade; isto só satisfaz o tipo (no-misused-promises).
-            void (async () => {
-                if (!this.dataHandler || !this.client) {
-                    return
-                }
-
-                try {
-                    const sample = await this._readSample()
-                    this.dataHandler(sample)
-                } catch (err) {
-                    logger.error(
-                        { module: "ModbusTCP", meterId: this.meterId, err },
-                        "Erro na leitura",
-                    )
-                }
-            })()
-        }, intervalMs)
+    // Acionado pelo PollingLoop após falhas consecutivas — assume que o
+    // transporte caiu, encerra a conexão atual e agenda reconexão com
+    // backoff exponencial (reconnectBackoff.ts).
+    private _handleUnhealthy(): void {
+        void this._cleanup().then(() => {
+            scheduleReconnect({
+                meterId: this.meterId,
+                moduleTag: "ModbusTCP",
+                reconnect: () => this.connect(),
+                isStopped: () => this.intentionallyDisconnected,
+            })
+        })
     }
 
     // Extraído do corpo do polling para ser testável sem um socket real —
@@ -123,15 +134,23 @@ export class ModbusTcpConnection implements IConnection {
         return { voltage, current, powerW, powerFactor, deviceTimestamp: new Date().toISOString() }
     }
 
+    // Intencional (chamado por quem usa a conexão) — interrompe qualquer
+    // reconexão automática que viesse a ser agendada depois.
     async disconnect(): Promise<void> {
+        this.intentionallyDisconnected = true
+        await this._cleanup()
+    }
+
+    // Cleanup puro (sem marcar como intencional) — reusado por
+    // `_handleUnhealthy` para encerrar a conexão morta antes de agendar
+    // reconexão, sem impedir essa própria reconexão de acontecer.
+    private async _cleanup(): Promise<void> {
         if (!this.connected) {
             return
         }
 
-        if (this.pollingTimer) {
-            clearInterval(this.pollingTimer)
-            this.pollingTimer = null
-        }
+        this.pollingLoop?.stop()
+        this.pollingLoop = null
 
         const socket = this.socket as import("net").Socket
         socket.destroy()

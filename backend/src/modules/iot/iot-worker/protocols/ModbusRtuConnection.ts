@@ -9,6 +9,8 @@
 
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
 import { logger } from "@/shared/logger/logger.js"
+import { PollingLoop } from "@/modules/iot/iot-worker/protocols/pollingLoop.js"
+import { scheduleReconnect } from "@/modules/iot/iot-worker/protocols/reconnectBackoff.js"
 
 export interface ModbusRtuConnectionConfig {
     meterId: string
@@ -35,9 +37,10 @@ export class ModbusRtuConnection implements IConnection {
     private port: unknown = null
     private client: unknown = null
     private connected = false
-    private pollingTimer: ReturnType<typeof setInterval> | null = null
+    private pollingLoop: PollingLoop | null = null
     private dataHandler: ((data: Record<string, unknown>) => void) | null = null
     private readonly config: ModbusRtuConnectionConfig
+    private intentionallyDisconnected = false
 
     constructor(config: ModbusRtuConnectionConfig) {
         this.meterId = config.meterId
@@ -48,6 +51,8 @@ export class ModbusRtuConnection implements IConnection {
         if (this.connected) {
             return
         }
+
+        this.intentionallyDisconnected = false
 
         const { SerialPort } = await import("serialport")
         const jsmodbus = await import("jsmodbus")
@@ -77,25 +82,28 @@ export class ModbusRtuConnection implements IConnection {
     }
 
     private _startPolling(): void {
-        const intervalMs = this.config.pollingIntervalMs ?? 5000
+        this.pollingLoop = new PollingLoop({
+            intervalMs: this.config.pollingIntervalMs ?? 5000,
+            shouldRun: () => this.dataHandler !== null && this.client !== null,
+            readSample: () => this._readSample(),
+            onSample: (sample) => this.dataHandler?.(sample),
+            onError: (err) => {
+                logger.error({ module: "ModbusRTU", meterId: this.meterId, err }, "Erro na leitura")
+            },
+            onUnhealthy: () => this._handleUnhealthy(),
+        })
+        this.pollingLoop.start()
+    }
 
-        this.pollingTimer = setInterval(() => {
-            void (async () => {
-                if (!this.dataHandler || !this.client) {
-                    return
-                }
-
-                try {
-                    const sample = await this._readSample()
-                    this.dataHandler(sample)
-                } catch (err) {
-                    logger.error(
-                        { module: "ModbusRTU", meterId: this.meterId, err },
-                        "Erro na leitura",
-                    )
-                }
-            })()
-        }, intervalMs)
+    private _handleUnhealthy(): void {
+        void this._cleanup().then(() => {
+            scheduleReconnect({
+                meterId: this.meterId,
+                moduleTag: "ModbusRTU",
+                reconnect: () => this.connect(),
+                isStopped: () => this.intentionallyDisconnected,
+            })
+        })
     }
 
     // Extraído para ser testável sem uma porta serial real. Antes lia sempre
@@ -122,14 +130,18 @@ export class ModbusRtuConnection implements IConnection {
     }
 
     async disconnect(): Promise<void> {
+        this.intentionallyDisconnected = true
+        await this._cleanup()
+    }
+
+    private async _cleanup(): Promise<void> {
         if (!this.connected) {
             return
         }
 
-        if (this.pollingTimer) {
-            clearInterval(this.pollingTimer)
-            this.pollingTimer = null
-        }
+        this.pollingLoop?.stop()
+        this.pollingLoop = null
+
         const serialPort = this.port as { close: (cb?: (err?: Error | null) => void) => void }
         await new Promise<void>((resolve) => serialPort.close(() => resolve()))
         this.connected = false
