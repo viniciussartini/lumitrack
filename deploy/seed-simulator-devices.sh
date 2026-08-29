@@ -20,10 +20,11 @@
 # instalado, e instalar um binário extra só para este script pontual não
 # vale o aumento de superfície da imagem que roda o serviço o tempo todo.
 #
-# Roda de DENTRO do container `backend` (docker compose exec) porque
-# `simulator` usa `network_mode: "service:backend"` — a API do simulador
-# (porta 4100) só é alcançável em 127.0.0.1 a partir desse container, nunca
-# do host (ver docker-compose.yml e ADR-0008).
+# Roda de DENTRO do container `backend` (docker compose exec) porque é um
+# container já presente na rede interna do compose com Node disponível — a
+# API do simulador (porta 4100) é alcançável por qualquer container dessa
+# rede via DNS interno, no hostname do serviço (`simulator`), nunca do host
+# (sem `ports:` publicado — ver docker-compose.yml e ADR-0017).
 #
 # Requer SIMULATOR_API_TOKEN, BROKER_USERNAME, BROKER_PASSWORD já presentes
 # em iot-simulator/server/.env (mesmos valores usados no db:seed:demo do
@@ -70,7 +71,7 @@ DEVICES_LIST="$DEVICES_LIST" SIMULATOR_API_TOKEN="$SIMULATOR_API_TOKEN" \
     docker compose exec -T \
     -e DEVICES_LIST -e SIMULATOR_API_TOKEN \
     backend node <<'NODE_SCRIPT'
-const API = "http://127.0.0.1:4100"
+const API = "http://simulator:4100"
 const headers = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${process.env.SIMULATOR_API_TOKEN}`,

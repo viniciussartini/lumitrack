@@ -73,16 +73,18 @@ services:
     restart: unless-stopped
     env_file:
       - iot-simulator/server/.env
-    # Compartilha o namespace de rede do container `backend` — preserva
-    # "localhost"/127.0.0.1 como o endereço já hardcoded em
-    # backend/prisma/seed-demo/topology.ts e no IOT_ALLOWED_HOSTS de
-    # backend/.env.example (ver nota na ADR-0008 e no DEPLOY.md). Consequência:
-    # a API do simulador (4100) e o broker MQTT (1883) não são alcançáveis
-    # nem do host, só de dentro do container `backend` — mais estrito que o
-    # antigo "bind 127.0.0.1".
-    network_mode: "service:backend"
-    depends_on:
-      - backend
+    # Rede própria (a mesma `lumitrack_default` dos demais serviços, por
+    # padrão do compose) — não mais `network_mode: "service:backend"` (ver
+    # ADR-0017, que revisa a decisão de co-localização de rede da ADR-0008).
+    # Sem `network_mode` compartilhado, `backend` alcança a API (4100) e o
+    # broker MQTT (1883) do simulador via DNS interno do compose, no
+    # hostname do serviço: `simulator:4100`/`simulator:1883` — exige
+    # `BROKER_HOST=0.0.0.0`/`API_HOST=0.0.0.0` no `iot-simulator/server/.env`
+    # de produção (o container escuta em todas as interfaces DELE; o que
+    # continua fechado é a ausência de `ports:` aqui, que impede qualquer
+    # alcance do host ou da internet — só outros containers desta rede
+    # interna chegam nele). Sem `depends_on: backend`: as duas conexões são
+    # independentes agora, e reiniciar uma não derruba a rede da outra.
 
   caddy:
     image: caddy:2
