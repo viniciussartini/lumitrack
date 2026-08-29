@@ -1,4 +1,4 @@
-import { Router } from "express"
+import { Router, type Response } from "express"
 import type { SimulationStore } from "@/simulation/store.js"
 
 const KEEP_ALIVE_INTERVAL_MS = 30_000
@@ -10,6 +10,33 @@ const KEEP_ALIVE_INTERVAL_MS = 30_000
 export function statusRoutes(store: SimulationStore): Router {
     const router = Router()
 
+    // Compartilhado entre TODAS as conexões (não um listener por cliente,
+    // como antes) — um único "changed" do store monta e serializa o
+    // snapshot UMA vez (O(D)), e essa mesma string é escrita para os C
+    // clientes conectados (O(C)). Antes, cada cliente tinha seu próprio
+    // listener reconstruindo e serializando o snapshot inteiro por conta
+    // própria a cada "changed" (O(D) × C).
+    const clients = new Set<Response>()
+
+    function broadcastSnapshot(): void {
+        if (clients.size === 0) return
+        const chunk = `event: snapshot\ndata: ${JSON.stringify(store.snapshot())}\n\n`
+        for (const res of clients) {
+            // Entre o cliente derrubar o socket e o "close" removê-lo do Set
+            // existe uma janela — escrever numa resposta já encerrada emite
+            // "error" sem handler. Sem esta guarda, isso também interromperia
+            // o `for`, deixando os clientes restantes deste broadcast sem o
+            // snapshot.
+            if (res.writableEnded || res.destroyed) {
+                clients.delete(res)
+                continue
+            }
+            res.write(chunk)
+        }
+    }
+
+    store.on("changed", broadcastSnapshot)
+
     router.get("/stream", (req, res) => {
         res.setHeader("Content-Type", "text/event-stream")
         res.setHeader("Cache-Control", "no-cache")
@@ -17,19 +44,18 @@ export function statusRoutes(store: SimulationStore): Router {
         res.setHeader("X-Accel-Buffering", "no")
         res.flushHeaders()
 
-        function sendSnapshot(): void {
-            res.write(`event: snapshot\ndata: ${JSON.stringify(store.snapshot())}\n\n`)
-        }
-
-        sendSnapshot()
-        store.on("changed", sendSnapshot)
+        // Snapshot inicial é individual (não compartilhável) — quem acabou
+        // de conectar precisa do estado atual já, sem esperar o próximo
+        // "changed".
+        res.write(`event: snapshot\ndata: ${JSON.stringify(store.snapshot())}\n\n`)
+        clients.add(res)
 
         const keepAlive = setInterval(() => {
             res.write(": keep-alive\n\n")
         }, KEEP_ALIVE_INTERVAL_MS)
 
         req.on("close", () => {
-            store.off("changed", sendSnapshot)
+            clients.delete(res)
             clearInterval(keepAlive)
         })
     })

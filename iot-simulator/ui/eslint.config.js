@@ -48,13 +48,28 @@ export default tseslint.config(
             "max-lines-per-function": "off",
         },
     },
+    // Débito pré-existente descoberto ao ligar a trava, mesma classe do
+    // achado catalogado no frontend principal — ver eslint.config.js de
+    // frontend/. Complexidade já está dentro do limite global nos dois.
+    // Revisar na Fase 18 (roadmap.md, polimento).
     {
-        // Débito pré-existente descoberto ao ligar a trava nesta issue
-        // (#160), mesma classe do achado catalogado no frontend principal —
-        // ver eslint.config.js de frontend/. Rastreado em #168.
-        files: ["src/components/network/NetworkCard.tsx", "src/pages/Dashboard.tsx"],
+        // 184 linhas.
+        files: ["src/components/network/NetworkCard.tsx"],
         rules: {
-            "max-lines-per-function": "off",
+            "max-lines-per-function": [
+                "error",
+                { max: 190, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // 180 linhas.
+        files: ["src/pages/Dashboard.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 190, skipBlankLines: true, skipComments: true },
+            ],
         },
     },
     {

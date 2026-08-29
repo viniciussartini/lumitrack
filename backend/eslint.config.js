@@ -74,39 +74,76 @@ export default tseslint.config(
         },
     },
     {
-        // Violações pré-existentes na entrada da trava, catalogadas em vez de
-        // silenciadas. Cada uma tem endereçamento já previsto no roadmap ou
-        // foi reportada como achado novo.
+        // `createConnection` — mesmo depois do schema Zod por protocolo o
+        // switch por protocolo ainda passa do teto global. Teto acima do
+        // valor medido (complexidade 19, 99 linhas), abaixo do que
+        // equivaleria a desligar a regra — revisar na Fase 18 (roadmap.md,
+        // polimento) se o arquivo crescer.
         files: ["src/modules/iot/iot-worker/IoTConnectionManager.ts"],
         rules: {
-            // `createConnection` — endereçado na Fase 16 (`.claude/docs/roadmap.md`),
-            // que já prevê schema Zod por protocolo eliminando este switch monolítico.
-            complexity: "off",
-            "max-lines-per-function": "off",
+            complexity: ["error", 20],
+            "max-lines-per-function": [
+                "error",
+                { max: 110, skipBlankLines: true, skipComments: true },
+            ],
         },
     },
     {
+        // `list()` — endereçado na Fase 18. Teto acima do valor medido
+        // (84 linhas); complexidade já está dentro do limite global, sem
+        // necessidade de override.
         files: ["src/modules/consumption/consumption.service.ts"],
         rules: {
-            // `list()` — endereçado na Fase 18.
-            "max-lines-per-function": "off",
+            "max-lines-per-function": [
+                "error",
+                { max: 90, skipBlankLines: true, skipComments: true },
+            ],
         },
     },
     {
-        files: [
-            "src/shared/middlewares/authenticate.ts",
-            "src/app.ts",
-            "prisma/seed-demo/readings.ts",
-            "prisma/seed-demo/topology.ts",
-            "scripts/backfill-address-encryption.ts",
-        ],
+        // Código de autenticação — teto (não extração) por cautela: mudar a
+        // estrutura deste arquivo exige o cuidado dedicado de uma mudança
+        // própria, não um efeito colateral de configuração. Teto acima do
+        // valor medido (complexidade 17, 66 linhas) — revisar na Fase 18.
+        files: ["src/shared/middlewares/authenticate.ts"],
         rules: {
-            // Achados novos ao ligar a trava, sem item de roadmap prévio —
-            // catalogados em vez de reescritos às pressas fora de escopo
-            // (`authenticate.ts` é código de autenticação: risco de
-            // introduzir regressão de segurança sem o cuidado dedicado).
-            complexity: "off",
-            "max-lines-per-function": "off",
+            complexity: ["error", 20],
+            "max-lines-per-function": [
+                "error",
+                { max: 70, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // Ponto de composição único do app — teto acima do valor medido
+        // (complexidade 14, 129 linhas). Revisar na Fase 18 se justificar
+        // quebrar o ponto de composição.
+        files: ["src/app.ts"],
+        rules: {
+            complexity: ["error", 15],
+            "max-lines-per-function": [
+                "error",
+                { max: 140, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // Teto acima do valor medido (61 linhas, 1 acima do teto global);
+        // complexidade já está dentro do limite. Revisar na Fase 18.
+        files: ["prisma/seed-demo/topology.ts"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 70, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // `main` — teto acima do valor medido (complexidade 14); linhas por
+        // função já estão dentro do limite global. Revisar na Fase 18.
+        files: ["scripts/backfill-address-encryption.ts"],
+        rules: {
+            complexity: ["error", 15],
         },
     },
     {
