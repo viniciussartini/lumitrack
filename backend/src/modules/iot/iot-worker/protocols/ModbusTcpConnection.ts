@@ -16,9 +16,19 @@ export interface ModbusTcpConnectionConfig {
     meterId: string
     host: string
     port: number
-    address: string
+    address: string // registrador de voltagem
+    currentAddress: string
+    powerAddress: string
+    powerFactorAddress: string
     pollingIntervalMs?: number
     unitId?: number
+}
+
+type ModbusReadClient = {
+    readHoldingRegisters: (
+        addr: number,
+        count: number,
+    ) => Promise<{ response: { body: { values: number[] } } }>
 }
 
 export class ModbusTcpConnection implements IConnection {
@@ -62,10 +72,10 @@ export class ModbusTcpConnection implements IConnection {
     }
 
     // Modbus e request/response — nao ha push de dados do dispositivo.
-    // Polling: a cada intervalo o backend le o registrador configurado.
+    // Polling: a cada intervalo o backend le os 4 registradores configurados
+    // (voltage/current/power/powerFactor) e combina numa amostra só.
     private _startPolling(): void {
         const intervalMs = this.config.pollingIntervalMs ?? 5000
-        const registerAddress = parseInt(this.config.address, 10)
 
         this.pollingTimer = setInterval(() => {
             // setInterval espera um callback () => void — o corpo é async por
@@ -78,21 +88,8 @@ export class ModbusTcpConnection implements IConnection {
                 }
 
                 try {
-                    const modbusClient = this.client as {
-                        readHoldingRegisters: (
-                            addr: number,
-                            count: number,
-                        ) => Promise<{
-                            response: { body: { values: number[] } }
-                        }>
-                    }
-                    const result = await modbusClient.readHoldingRegisters(registerAddress, 1)
-                    const value = result.response.body.values[0]
-                    this.dataHandler({
-                        register: this.config.address,
-                        value,
-                        timestamp: new Date().toISOString(),
-                    })
+                    const sample = await this._readSample()
+                    this.dataHandler(sample)
                 } catch (err) {
                     logger.error(
                         { module: "ModbusTCP", meterId: this.meterId, err },
@@ -101,6 +98,29 @@ export class ModbusTcpConnection implements IConnection {
                 }
             })()
         }, intervalMs)
+    }
+
+    // Extraído do corpo do polling para ser testável sem um socket real —
+    // mesmo padrão já usado em Rs232Connection/Rs485Connection para
+    // `_handleSerialData`. Lê os 4 registradores em sequência: Modbus é
+    // request/response sobre uma única conexão, leituras concorrentes no
+    // mesmo socket intercalariam respostas.
+    private async _readSample(): Promise<Record<string, unknown>> {
+        const client = this.client as ModbusReadClient
+        const readOne = async (address: string): Promise<number> => {
+            const result = await client.readHoldingRegisters(parseInt(address, 10), 1)
+            // NaN se o dispositivo devolver uma resposta vazia — inválido,
+            // mesmo tratamento que IoTDataProcessor já dá a qualquer valor
+            // não numérico (isFiniteInRange rejeita).
+            return result.response.body.values[0] ?? NaN
+        }
+
+        const voltage = await readOne(this.config.address)
+        const current = await readOne(this.config.currentAddress)
+        const powerW = await readOne(this.config.powerAddress)
+        const powerFactor = await readOne(this.config.powerFactorAddress)
+
+        return { voltage, current, powerW, powerFactor, deviceTimestamp: new Date().toISOString() }
     }
 
     async disconnect(): Promise<void> {

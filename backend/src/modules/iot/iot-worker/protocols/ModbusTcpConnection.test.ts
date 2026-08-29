@@ -1,5 +1,24 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi } from "vitest"
 import { ModbusTcpConnection } from "@/modules/iot/iot-worker/protocols/ModbusTcpConnection.js"
+
+const baseConfig = {
+    host: "127.0.0.1",
+    port: 1, // porta privilegiada, nada deve estar escutando nela em teste
+    address: "10", // voltagem
+    currentAddress: "11",
+    powerAddress: "12",
+    powerFactorAddress: "13",
+}
+
+// `_readSample` é privado — chamado diretamente pelo teste (com `client`
+// stubado) porque exercitar a leitura real exigiria um servidor Modbus TCP
+// de verdade. Mesmo padrão de extração já usado para `_handleSerialData`
+// em Rs232Connection/Rs485Connection.
+interface ReadSampleHarness {
+    client: unknown
+    dataHandler: ((data: Record<string, unknown>) => void) | null
+    _readSample(): Promise<Record<string, unknown>>
+}
 
 // Teste de caracterização (issue #306) — comportamento hoje sem cobertura.
 // Usa o import("jsmodbus")/net real (não mockado), mesmo padrão já usado
@@ -9,9 +28,7 @@ describe("ModbusTcpConnection", () => {
     it("connect() contra uma porta fechada rejeita com Error de conexão, não TypeError", async () => {
         const connection = new ModbusTcpConnection({
             meterId: "meter-modbus-tcp-test",
-            host: "127.0.0.1",
-            port: 1, // porta privilegiada, nada deve estar escutando nela em teste
-            address: "0",
+            ...baseConfig,
         })
 
         let caught: unknown
@@ -28,9 +45,7 @@ describe("ModbusTcpConnection", () => {
     it("disconnect() sem connect() prévio não lança (guarda de idempotência)", async () => {
         const connection = new ModbusTcpConnection({
             meterId: "meter-modbus-tcp-test-2",
-            host: "127.0.0.1",
-            port: 1,
-            address: "0",
+            ...baseConfig,
         })
 
         await expect(connection.disconnect()).resolves.toBeUndefined()
@@ -39,11 +54,44 @@ describe("ModbusTcpConnection", () => {
     it("isConnected() começa false", () => {
         const connection = new ModbusTcpConnection({
             meterId: "meter-modbus-tcp-test-3",
-            host: "127.0.0.1",
-            port: 1,
-            address: "0",
+            ...baseConfig,
         })
 
         expect(connection.isConnected()).toBe(false)
+    })
+
+    // Regressão (issue #307): antes desta correção, cada tick de polling lia
+    // UM registrador só e emitia `{register, value, timestamp}` — formato
+    // que IoTDataProcessor.isValidPayload sempre rejeitava (não tem
+    // voltage/current/powerW/powerFactor). Agora lê os 4 registradores
+    // configurados e combina numa amostra elétrica completa.
+    it("_readSample() lê os 4 registradores configurados, na ordem, e combina numa amostra elétrica", async () => {
+        const connection = new ModbusTcpConnection({
+            meterId: "meter-modbus-tcp-test-4",
+            ...baseConfig,
+        }) as unknown as ReadSampleHarness
+
+        const readHoldingRegisters = vi.fn((addr: number) => {
+            // Cada registrador devolve um valor distinto e identificável —
+            // prova que a amostra final não está lendo o mesmo endereço 4x.
+            const valuesByAddress: Record<number, number> = { 10: 220, 11: 15, 12: 3300, 13: 0 }
+            return Promise.resolve({
+                response: { body: { values: [valuesByAddress[addr] ?? -1] } },
+            })
+        })
+        connection.client = { readHoldingRegisters }
+
+        const sample = await connection._readSample()
+
+        expect(readHoldingRegisters).toHaveBeenCalledTimes(4)
+        expect(readHoldingRegisters).toHaveBeenNthCalledWith(1, 10, 1)
+        expect(readHoldingRegisters).toHaveBeenNthCalledWith(2, 11, 1)
+        expect(readHoldingRegisters).toHaveBeenNthCalledWith(3, 12, 1)
+        expect(readHoldingRegisters).toHaveBeenNthCalledWith(4, 13, 1)
+        expect(sample["voltage"]).toBe(220)
+        expect(sample["current"]).toBe(15)
+        expect(sample["powerW"]).toBe(3300)
+        expect(sample["powerFactor"]).toBe(0)
+        expect(typeof sample["deviceTimestamp"]).toBe("string")
     })
 })

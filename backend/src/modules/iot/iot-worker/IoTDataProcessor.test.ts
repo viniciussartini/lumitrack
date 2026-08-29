@@ -58,6 +58,36 @@ describe("IoTDataProcessor", () => {
             expect(processor.buffer.getLatest("meter-1")).toBeNull()
         })
 
+        it("descarta payload com voltage acima do teto de plausibilidade (500V) — valor implausível, não só negativo", () => {
+            callProcess(processor, "meter-1", {
+                voltage: 999999,
+                current: 1,
+                powerW: 100,
+                powerFactor: 0.9,
+            })
+            expect(processor.buffer.getLatest("meter-1")).toBeNull()
+        })
+
+        it("descarta payload com current acima do teto de plausibilidade (2000A)", () => {
+            callProcess(processor, "meter-1", {
+                voltage: 220,
+                current: 999999,
+                powerW: 100,
+                powerFactor: 0.9,
+            })
+            expect(processor.buffer.getLatest("meter-1")).toBeNull()
+        })
+
+        it("descarta payload com powerW acima do teto de plausibilidade (1 MW)", () => {
+            callProcess(processor, "meter-1", {
+                voltage: 220,
+                current: 1,
+                powerW: 999_999_999,
+                powerFactor: 0.9,
+            })
+            expect(processor.buffer.getLatest("meter-1")).toBeNull()
+        })
+
         it("descarta payload com NaN/Infinity", () => {
             callProcess(processor, "meter-1", {
                 voltage: NaN,

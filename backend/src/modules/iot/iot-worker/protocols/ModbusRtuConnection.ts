@@ -13,9 +13,20 @@ import { logger } from "@/shared/logger/logger.js"
 export interface ModbusRtuConnectionConfig {
     meterId: string
     address: string // caminho da porta serial, ex: "/dev/ttyUSB0" ou "COM3"
+    voltageAddress: string // registrador de voltagem — RTU não tem "address" livre para isso
+    currentAddress: string
+    powerAddress: string
+    powerFactorAddress: string
     baudRate?: number // (do campo extra) padrao 9600
     pollingIntervalMs?: number
     unitId?: number
+}
+
+type ModbusReadClient = {
+    readHoldingRegisters: (
+        addr: number,
+        count: number,
+    ) => Promise<{ response: { body: { values: number[] } } }>
 }
 
 export class ModbusRtuConnection implements IConnection {
@@ -75,21 +86,8 @@ export class ModbusRtuConnection implements IConnection {
                 }
 
                 try {
-                    const modbusClient = this.client as {
-                        readHoldingRegisters: (
-                            addr: number,
-                            count: number,
-                        ) => Promise<{
-                            response: { body: { values: number[] } }
-                        }>
-                    }
-                    const result = await modbusClient.readHoldingRegisters(0, 1)
-                    const value = result.response.body.values[0]
-                    this.dataHandler({
-                        port: this.config.address,
-                        value,
-                        timestamp: new Date().toISOString(),
-                    })
+                    const sample = await this._readSample()
+                    this.dataHandler(sample)
                 } catch (err) {
                     logger.error(
                         { module: "ModbusRTU", meterId: this.meterId, err },
@@ -98,6 +96,29 @@ export class ModbusRtuConnection implements IConnection {
                 }
             })()
         }, intervalMs)
+    }
+
+    // Extraído para ser testável sem uma porta serial real. Antes lia sempre
+    // o registrador 0, ignorando qualquer endereço configurado — agora lê
+    // os 4 registradores configurados (voltage/current/power/powerFactor),
+    // em sequência: assim como o Modbus TCP, é request/response sobre uma
+    // única conexão.
+    private async _readSample(): Promise<Record<string, unknown>> {
+        const client = this.client as ModbusReadClient
+        const readOne = async (address: string): Promise<number> => {
+            const result = await client.readHoldingRegisters(parseInt(address, 10), 1)
+            // NaN se o dispositivo devolver uma resposta vazia — inválido,
+            // mesmo tratamento que IoTDataProcessor já dá a qualquer valor
+            // não numérico (isFiniteInRange rejeita).
+            return result.response.body.values[0] ?? NaN
+        }
+
+        const voltage = await readOne(this.config.voltageAddress)
+        const current = await readOne(this.config.currentAddress)
+        const powerW = await readOne(this.config.powerAddress)
+        const powerFactor = await readOne(this.config.powerFactorAddress)
+
+        return { voltage, current, powerW, powerFactor, deviceTimestamp: new Date().toISOString() }
     }
 
     async disconnect(): Promise<void> {

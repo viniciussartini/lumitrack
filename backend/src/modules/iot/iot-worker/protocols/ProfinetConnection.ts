@@ -15,10 +15,22 @@ export interface ProfinetConnectionConfig {
     meterId: string
     host: string
     port?: number
-    address?: string // area de memoria, ex: "DB1" (Data Block 1)
+    address: string // area de memoria da voltagem, ex: "DB1" (Data Block 1)
+    currentAddress: string
+    powerAddress: string
+    powerFactorAddress: string
     pollingIntervalMs?: number
     rack?: number // rack do PLC Siemens (padrao 0)
     slot?: number // slot da CPU (padrao 1)
+}
+
+type S7ReadClient = {
+    DBRead: (
+        db: number,
+        start: number,
+        size: number,
+        cb: (err: Error | null, data: Buffer) => void,
+    ) => void
 }
 
 export class ProfinetConnection implements IConnection {
@@ -76,7 +88,6 @@ export class ProfinetConnection implements IConnection {
 
     private _startPolling(): void {
         const intervalMs = this.config.pollingIntervalMs ?? 5000
-        const dbNumber = parseInt((this.config.address ?? "DB1").replace("DB", ""), 10) || 1
 
         this.pollingTimer = setInterval(() => {
             void (async () => {
@@ -85,25 +96,8 @@ export class ProfinetConnection implements IConnection {
                 }
 
                 try {
-                    const client = this.client as {
-                        DBRead: (
-                            db: number,
-                            start: number,
-                            size: number,
-                            cb: (err: Error | null, data: Buffer) => void,
-                        ) => void
-                    }
-                    const data = await new Promise<Buffer>((resolve, reject) => {
-                        client.DBRead(dbNumber, 0, 10, (err, buf) => {
-                            if (err) reject(err)
-                            else resolve(buf)
-                        })
-                    })
-                    this.dataHandler({
-                        db: dbNumber,
-                        data: Array.from(data),
-                        timestamp: new Date().toISOString(),
-                    })
+                    const sample = await this._readSample()
+                    this.dataHandler(sample)
                 } catch (err) {
                     logger.error(
                         { module: "Profinet", meterId: this.meterId, err },
@@ -112,6 +106,36 @@ export class ProfinetConnection implements IConnection {
                 }
             })()
         }, intervalMs)
+    }
+
+    // Extraído para ser testável sem um PLC S7 real. Lê os 4 data blocks
+    // configurados (voltage/current/power/powerFactor) em sequência — mesma
+    // conexão S7Client compartilhada, sem garantia de leituras concorrentes.
+    //
+    // Convenção adotada (não há dispositivo real conectado hoje para
+    // validar contra um layout de fábrica): os 2 primeiros bytes do bloco
+    // lido são interpretados como um WORD (UInt16BE) — o tipo mais comum
+    // para uma grandeza escalar num DB Siemens. Ajustar aqui quando um
+    // dispositivo real definir o layout verdadeiro do DB.
+    private async _readSample(): Promise<Record<string, unknown>> {
+        const client = this.client as S7ReadClient
+        const readOne = async (address: string): Promise<number> => {
+            const dbNumber = parseInt(address.replace("DB", ""), 10) || 1
+            const data = await new Promise<Buffer>((resolve, reject) => {
+                client.DBRead(dbNumber, 0, 2, (err, buf) => {
+                    if (err) reject(err)
+                    else resolve(buf)
+                })
+            })
+            return data.readUInt16BE(0)
+        }
+
+        const voltage = await readOne(this.config.address)
+        const current = await readOne(this.config.currentAddress)
+        const powerW = await readOne(this.config.powerAddress)
+        const powerFactor = await readOne(this.config.powerFactorAddress)
+
+        return { voltage, current, powerW, powerFactor, deviceTimestamp: new Date().toISOString() }
     }
 
     async disconnect(): Promise<void> {

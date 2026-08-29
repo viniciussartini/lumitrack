@@ -15,7 +15,10 @@ export interface EthernetIpConnectionConfig {
     meterId: string
     host: string
     port?: number
-    address?: string // tag CIP a monitorar, ex: "Motor.Speed"
+    address: string // tag CIP de voltagem, ex: "Motor.Speed"
+    currentAddress: string
+    powerAddress: string
+    powerFactorAddress: string
     pollingIntervalMs?: number
 }
 
@@ -48,7 +51,6 @@ export class EthernetIpConnection implements IConnection {
 
     private _startPolling(): void {
         const intervalMs = this.config.pollingIntervalMs ?? 5000
-        const tag = this.config.address ?? "output"
 
         this.pollingTimer = setInterval(() => {
             void (async () => {
@@ -57,8 +59,8 @@ export class EthernetIpConnection implements IConnection {
                 }
 
                 try {
-                    const value = await this.plc.read(tag)
-                    this.dataHandler({ tag, value, timestamp: new Date().toISOString() })
+                    const sample = await this._readSample()
+                    this.dataHandler(sample)
                 } catch (err) {
                     logger.error(
                         { module: "EthernetIP", meterId: this.meterId, err },
@@ -67,6 +69,20 @@ export class EthernetIpConnection implements IConnection {
                 }
             })()
         }, intervalMs)
+    }
+
+    // Extraído para ser testável sem um PLC real. Lê as 4 tags CIP
+    // configuradas (voltage/current/power/powerFactor) em sequência —
+    // leituras concorrentes sobre a mesma conexão PLC não são garantidas
+    // pela lib.
+    private async _readSample(): Promise<Record<string, unknown>> {
+        const plc = this.plc as import("ethernet-ip").PLC
+        const voltage = await plc.read(this.config.address)
+        const current = await plc.read(this.config.currentAddress)
+        const powerW = await plc.read(this.config.powerAddress)
+        const powerFactor = await plc.read(this.config.powerFactorAddress)
+
+        return { voltage, current, powerW, powerFactor, deviceTimestamp: new Date().toISOString() }
     }
 
     async disconnect(): Promise<void> {
