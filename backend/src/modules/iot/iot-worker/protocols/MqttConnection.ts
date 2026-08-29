@@ -49,7 +49,15 @@ export class MqttConnection implements IConnection {
         // Com exactOptionalPropertyTypes: true, nao podemos passar username: undefined
         // diretamente se o tipo IClientOptions da lib nao aceita undefined explicito.
         // Construimos o objeto condicionalmente.
-        const opts: Record<string, unknown> = { reconnectPeriod: 0 }
+        //
+        // reconnectPeriod positivo (alinhado ao publisher do simulador,
+        // internalPublisher.ts) para o client reconectar sozinho se o broker
+        // cair depois de conectado — mesmo espírito do backoff dos demais
+        // adaptadores. O caso em que a conexão nunca chegou a se estabelecer
+        // é tratado à parte no listener de "error" abaixo: sem isso, um
+        // client que nunca é guardado pelo IoTConnectionManager (connect()
+        // rejeitou) ficaria reconectando sozinho para sempre, sem dono.
+        const opts: Record<string, unknown> = { reconnectPeriod: 1000 }
 
         if (this.config.username !== undefined) {
             opts["username"] = this.config.username
@@ -63,8 +71,10 @@ export class MqttConnection implements IConnection {
 
         await new Promise<void>((resolve, reject) => {
             const mqttClient = this.client as ReturnType<typeof mqtt.connect>
+            let initialConnectSettled = false
 
             mqttClient.on("connect", () => {
+                initialConnectSettled = true
                 this.connected = true
                 mqttClient.subscribe(this.config.topic, (err) => {
                     if (err) {
@@ -75,7 +85,20 @@ export class MqttConnection implements IConnection {
                 })
             })
 
-            mqttClient.on("error", (err) => reject(err))
+            mqttClient.on("error", (err) => {
+                if (initialConnectSettled) {
+                    // Erro após a primeira conexão — o próprio client já
+                    // tenta reconectar sozinho (reconnectPeriod acima).
+                    return
+                }
+                initialConnectSettled = true
+                // Encerra explicitamente: connect() vai rejeitar, e o
+                // IoTConnectionManager descarta esta instância sem nunca
+                // chamar disconnect() nela — sem isto, o client ficaria
+                // reconectando para sempre, sem ninguém para pará-lo.
+                mqttClient.end(true)
+                reject(err)
+            })
 
             mqttClient.on("message", (_topic, payload) => {
                 this._handleMessage(payload)

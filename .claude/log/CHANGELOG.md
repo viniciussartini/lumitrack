@@ -2513,3 +2513,15 @@
 - **Arquivos principais:** `backend/eslint.config.js`, `frontend/eslint.config.js`, `iot-simulator/ui/eslint.config.js`.
 - **Decisões/ADRs:** nenhuma — é aplicação do critério de aceite já registrado no roadmap (Fase 16, item 6), sem decisão nova de arquitetura.
 - **Notas:** `eslint` (0 erros nos 3 pacotes; frontend mantém 8 warnings pré-existentes, não relacionados — `react-hooks/incompatible-library` no React Compiler, confirmado via `git stash` que já existiam antes desta mudança), `tsc`/`tsc -b` e `prettier --check` limpos nos 3 pacotes; `depcruise` sem violação em backend (278 módulos) e frontend (289 módulos). Suítes completas verdes: backend 92/1054, frontend 82/722, `iot-simulator/ui` 3/14. Issue #168 fica pronta para ser fechada pelo usuário, com a lista final por arquivo nesta entrada — a hierarquia de sub-issue não estava envolvida aqui (issue avulsa, não sub-issue de épico), e como a branch tem base `staging`, o merge não fecha a issue automaticamente (auto-close só dispara em merge para `main`).
+
+## [2026-08-29] fix: reconexão automática do cliente MQTT do worker IoT (issue #310, item 1 da Fase 16)
+
+- **Branch:** chore/310-311-312-313-168-robustez-fase-16
+- **Tipo:** fix
+- **O quê:** `MqttConnection.ts:52` fixava `reconnectPeriod: 0` — desabilitava a reconexão automática do client `mqtt.js`, contradizendo o comentário de `deploy/demo-entrypoint.sh:60-62` ("o cliente MQTT do backend reconecta sozinho quando o broker subir") e destoando do publisher MQTT do próprio simulador (`internalPublisher.ts`, `reconnectPeriod: 1000`). Causa-raiz: alguém sobrescreveu explicitamente o próprio default da lib (`mqtt.js` já usa `1000` por padrão) — a correção restaura um valor positivo, agora documentado.
+  - **Fix mínimo:** `reconnectPeriod: 0` → `reconnectPeriod: 1000`.
+  - **Regressão evitada pela própria correção:** com `reconnectPeriod` positivo, um client cuja conexão inicial nunca chega a se estabelecer (`connect()` rejeita) ficaria reconectando sozinho para sempre, sem dono — `IoTConnectionManager.start()` descarta a instância no `catch` sem nunca chamar `disconnect()` nela. Corrigido no próprio listener de erro: `initialConnectSettled` distingue a falha da *primeira* tentativa (chama `mqttClient.end(true)` antes de rejeitar, parando o client de vez) de um erro *depois* de já ter conectado uma vez (deixa o próprio `mqtt.js` reconectar sozinho, que é o comportamento desejado).
+  - **Testes (2 novos):** `reconnectPeriod` do client real (`mqtt.js`, não mockado) pinado em `1000` após `connect()` contra broker inalcançável; `client.disconnecting === true` / `client.reconnecting === false` após a mesma rejeição, provando que o client foi encerrado e não ficou tentando reconectar sem dono.
+- **Arquivos principais:** `backend/src/modules/iot/iot-worker/protocols/MqttConnection.ts`, `MqttConnection.test.ts`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** `tsc --noEmit`, `eslint --max-warnings=0`, `prettier --check` e `depcruise` (278 módulos, 1159 dependências, sem violação) limpos. Suíte completa do backend: **92 arquivos / 1056 testes**, todos verdes (era 92/1054, +2).

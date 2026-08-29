@@ -17,11 +17,19 @@ interface MessageHandlerHarness {
     _handleMessage(payload: Buffer): void
 }
 
+interface MqttClientHarness {
+    client: {
+        options: { reconnectPeriod: number }
+        disconnecting: boolean
+        reconnecting: boolean
+    } | null
+}
+
 // Teste de caracterização — MqttConnection é a implementação
 // de referência do worker IoT (comentário no topo do arquivo) e, mesmo
 // assim, nunca teve teste próprio até esta issue.
 describe("MqttConnection", () => {
-    it("connect() contra um broker inalcançável rejeita com Error de conexão, não TypeError — reconnectPeriod: 0 faz a rejeição ser imediata", async () => {
+    it("connect() contra um broker inalcançável rejeita com Error de conexão, não TypeError", async () => {
         const connection = new MqttConnection({ meterId: "meter-mqtt-test", ...baseConfig })
 
         let caught: unknown
@@ -33,6 +41,33 @@ describe("MqttConnection", () => {
 
         expect(caught).toBeInstanceOf(Error)
         expect(caught).not.toBeInstanceOf(TypeError)
+    })
+
+    it("connect() usa reconnectPeriod positivo — issue #310, reconnectPeriod: 0 desabilitava a reconexão automática do client", async () => {
+        const connection = new MqttConnection({
+            meterId: "meter-mqtt-test-reconnect",
+            ...baseConfig,
+        }) as unknown as MqttClientHarness
+
+        await expect(
+            (connection as unknown as { connect(): Promise<void> }).connect(),
+        ).rejects.toBeInstanceOf(Error)
+
+        expect(connection.client?.options.reconnectPeriod).toBe(1000)
+    })
+
+    it("connect() contra broker inalcançável encerra o client — sem dono para pará-lo depois, reconnectPeriod positivo o deixaria reconectando para sempre", async () => {
+        const connection = new MqttConnection({
+            meterId: "meter-mqtt-test-orphan",
+            ...baseConfig,
+        }) as unknown as MqttClientHarness
+
+        await expect(
+            (connection as unknown as { connect(): Promise<void> }).connect(),
+        ).rejects.toBeInstanceOf(Error)
+
+        expect(connection.client?.disconnecting).toBe(true)
+        expect(connection.client?.reconnecting).toBe(false)
     })
 
     it("disconnect() sem connect() prévio não lança (guarda de idempotência)", async () => {
