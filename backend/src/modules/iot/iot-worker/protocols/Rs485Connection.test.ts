@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { Rs485Connection } from "@/modules/iot/iot-worker/protocols/Rs485Connection.js"
 
 // `_handleSerialData` é privado — chamado diretamente pelo teste (em vez de
@@ -9,6 +9,13 @@ interface SerialDataHarness {
     _handleSerialData(chunk: Buffer): void
     buffer: string
     onData(handler: (data: Record<string, unknown>) => void): void
+}
+
+interface TransportDownHarness {
+    connected: boolean
+    intentionallyDisconnected: boolean
+    connect(): Promise<void>
+    _handleTransportDown(): void
 }
 
 // Regressão: Rs485Connection fazia `buffer.split("")` (decompunha em
@@ -100,5 +107,49 @@ describe("Rs485Connection — montagem de linhas a partir de chunks parciais", (
         })
 
         expect(connection.isConnected()).toBe(false)
+    })
+
+    describe("reconexão automática (issue #308)", () => {
+        beforeEach(() => {
+            vi.useFakeTimers()
+        })
+
+        afterEach(() => {
+            vi.useRealTimers()
+        })
+
+        it("_handleTransportDown() limpa o estado e agenda reconexão com backoff, quando a queda não foi intencional", async () => {
+            const connection = new Rs485Connection({
+                meterId: "meter-rs485-reconnect",
+                address: "/dev/ttyUSB0",
+            }) as unknown as TransportDownHarness
+
+            connection.connected = true
+            connection.intentionallyDisconnected = false
+            const connectSpy = vi.spyOn(connection, "connect").mockResolvedValue(undefined)
+
+            connection._handleTransportDown()
+
+            expect(connection.connected).toBe(false)
+
+            await vi.advanceTimersByTimeAsync(1000) // delay base do backoff
+            expect(connectSpy).toHaveBeenCalledTimes(1)
+        })
+
+        it("_handleTransportDown() não agenda reconexão quando a desconexão foi intencional", async () => {
+            const connection = new Rs485Connection({
+                meterId: "meter-rs485-reconnect-2",
+                address: "/dev/ttyUSB0",
+            }) as unknown as TransportDownHarness
+
+            connection.connected = true
+            connection.intentionallyDisconnected = true
+            const connectSpy = vi.spyOn(connection, "connect").mockResolvedValue(undefined)
+
+            connection._handleTransportDown()
+
+            await vi.advanceTimersByTimeAsync(10_000)
+            expect(connectSpy).not.toHaveBeenCalled()
+        })
     })
 })

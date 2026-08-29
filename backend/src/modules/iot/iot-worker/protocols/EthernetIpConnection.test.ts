@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { EthernetIpConnection } from "@/modules/iot/iot-worker/protocols/EthernetIpConnection.js"
 
 const baseConfig = {
@@ -12,6 +12,12 @@ const baseConfig = {
 interface ReadSampleHarness {
     plc: unknown
     _readSample(): Promise<Record<string, unknown>>
+}
+
+interface UnhealthyHarness {
+    connected: boolean
+    connect(): Promise<void>
+    _handleUnhealthy(): void
 }
 
 // Estes testes usam o import("ethernet-ip") real (não mockado) — cobrem
@@ -86,5 +92,33 @@ describe("EthernetIpConnection", () => {
         expect(sample["current"]).toBe(12)
         expect(sample["powerW"]).toBe(2640)
         expect(sample["powerFactor"]).toBe(0.95)
+    })
+
+    describe("reconexão automática (issue #308)", () => {
+        beforeEach(() => {
+            vi.useFakeTimers()
+        })
+
+        afterEach(() => {
+            vi.useRealTimers()
+        })
+
+        it("_handleUnhealthy() limpa o estado da conexão e agenda reconexão com backoff", async () => {
+            const connection = new EthernetIpConnection({
+                meterId: "meter-eip-reconnect",
+                ...baseConfig,
+            }) as unknown as UnhealthyHarness
+
+            connection.connected = true
+            const connectSpy = vi.spyOn(connection, "connect").mockResolvedValue(undefined)
+
+            connection._handleUnhealthy()
+            await vi.advanceTimersByTimeAsync(0) // _cleanup() é async
+
+            expect(connection.connected).toBe(false)
+
+            await vi.advanceTimersByTimeAsync(1000) // delay base do backoff
+            expect(connectSpy).toHaveBeenCalledTimes(1)
+        })
     })
 })

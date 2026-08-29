@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { ModbusRtuConnection } from "@/modules/iot/iot-worker/protocols/ModbusRtuConnection.js"
 
 const baseConfig = {
@@ -12,6 +12,13 @@ const baseConfig = {
 interface ReadSampleHarness {
     client: unknown
     _readSample(): Promise<Record<string, unknown>>
+}
+
+interface UnhealthyHarness {
+    connected: boolean
+    port: unknown
+    connect(): Promise<void>
+    _handleUnhealthy(): void
 }
 
 // Teste de caracterização (issue #306) — comportamento hoje sem cobertura.
@@ -85,5 +92,34 @@ describe("ModbusRtuConnection", () => {
         expect(sample["current"]).toBe(8)
         expect(sample["powerW"]).toBe(900)
         expect(sample["powerFactor"]).toBe(1)
+    })
+
+    describe("reconexão automática (issue #308)", () => {
+        beforeEach(() => {
+            vi.useFakeTimers()
+        })
+
+        afterEach(() => {
+            vi.useRealTimers()
+        })
+
+        it("_handleUnhealthy() limpa o estado da conexão e agenda reconexão com backoff", async () => {
+            const connection = new ModbusRtuConnection({
+                meterId: "meter-modbus-rtu-reconnect",
+                ...baseConfig,
+            }) as unknown as UnhealthyHarness
+
+            connection.connected = true
+            connection.port = { close: (cb: () => void) => cb() }
+            const connectSpy = vi.spyOn(connection, "connect").mockResolvedValue(undefined)
+
+            connection._handleUnhealthy()
+            await vi.advanceTimersByTimeAsync(0) // _cleanup() é async
+
+            expect(connection.connected).toBe(false)
+
+            await vi.advanceTimersByTimeAsync(1000) // delay base do backoff
+            expect(connectSpy).toHaveBeenCalledTimes(1)
+        })
     })
 })
