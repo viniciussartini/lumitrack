@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto"
 import { Prisma, PrismaClient } from "@/generated/prisma/client.js"
 import type { MinuteBucketSnapshot } from "@/modules/iot/iot-worker/MinuteBuffer.js"
 import type { MeterReadingGranularity } from "@/modules/meter/meter-reading.schema.js"
@@ -26,56 +27,65 @@ export class MeterReadingRepository {
      * scheduler rodou o flush duas vezes — faz merge ponderado por
      * secondsCovered em vez de sobrescrever, preservando as amostras já
      * persistidas (nem perde, nem duplica energia).
+     *
+     * `INSERT ... ON CONFLICT DO UPDATE` atômico, não check-then-write:
+     * duas chamadas concorrentes para o mesmo (meterId, minuteStart) — ex.
+     * dois flushes do `MinuteBuffer` disparando quase juntos — faziam
+     * `findUnique` e as duas viam "não existe", e a segunda `create()`
+     * falhava por violar a constraint única (`meterId_minuteStart`). A
+     * média ponderada só pode ser expressa dentro do próprio SQL porque
+     * depende do valor JÁ PERSISTIDO no exato momento do conflito —
+     * calculá-la no client antes de saber se há conflito (como o `upsert()`
+     * nativo do Prisma faria) reintroduziria a mesma corrida. `EXCLUDED`
+     * refere-se à linha que esta chamada tentou inserir; `"meter_readings"`
+     * (sem alias) refere-se à linha já existente antes deste conflito.
      */
     async upsertMinute(snapshot: MinuteBucketSnapshot): Promise<void> {
-        const existing = await this.prisma.meterReading.findUnique({
-            where: {
-                meterId_minuteStart: {
-                    meterId: snapshot.meterId,
-                    minuteStart: snapshot.minuteStart,
-                },
-            },
-        })
-
-        if (!existing) {
-            await this.prisma.meterReading.create({
-                data: {
-                    meterId: snapshot.meterId,
-                    minuteStart: snapshot.minuteStart,
-                    kwhConsumed: snapshot.energyKwh,
-                    avgVoltage: snapshot.avgVoltage,
-                    avgCurrent: snapshot.avgCurrent,
-                    avgPowerW: snapshot.avgPowerW,
-                    avgPowerFactor: snapshot.avgPowerFactor,
-                    sampleCount: snapshot.sampleCount,
-                    secondsCovered: snapshot.secondsCovered,
-                },
-            })
-            return
-        }
-
-        // Combina duas médias ponderadas: soma (média × peso) de cada lado e
-        // divide pela soma dos pesos (secondsCovered). Energia e sampleCount
-        // apenas somam — não são médias.
-        const totalSeconds = existing.secondsCovered + snapshot.secondsCovered
-        const weighted = (existingAvg: number, newAvg: number): number =>
-            totalSeconds > 0
-                ? (existingAvg * existing.secondsCovered + newAvg * snapshot.secondsCovered) /
-                  totalSeconds
-                : newAvg
-
-        await this.prisma.meterReading.update({
-            where: { id: existing.id },
-            data: {
-                kwhConsumed: existing.kwhConsumed + snapshot.energyKwh,
-                avgVoltage: weighted(existing.avgVoltage, snapshot.avgVoltage),
-                avgCurrent: weighted(existing.avgCurrent, snapshot.avgCurrent),
-                avgPowerW: weighted(existing.avgPowerW, snapshot.avgPowerW),
-                avgPowerFactor: weighted(existing.avgPowerFactor, snapshot.avgPowerFactor),
-                sampleCount: existing.sampleCount + snapshot.sampleCount,
-                secondsCovered: totalSeconds,
-            },
-        })
+        await this.prisma.$executeRaw`
+            INSERT INTO "meter_readings" (
+                "id", "meterId", "minuteStart", "kwhConsumed", "avgVoltage", "avgCurrent",
+                "avgPowerW", "avgPowerFactor", "sampleCount", "secondsCovered", "updatedAt"
+            )
+            VALUES (
+                ${randomUUID()}, ${snapshot.meterId}, ${snapshot.minuteStart},
+                ${snapshot.energyKwh}, ${snapshot.avgVoltage}, ${snapshot.avgCurrent},
+                ${snapshot.avgPowerW}, ${snapshot.avgPowerFactor}, ${snapshot.sampleCount},
+                ${snapshot.secondsCovered}, now()
+            )
+            ON CONFLICT ("meterId", "minuteStart") DO UPDATE SET
+                "kwhConsumed" = "meter_readings"."kwhConsumed" + EXCLUDED."kwhConsumed",
+                "avgVoltage" = CASE
+                    WHEN "meter_readings"."secondsCovered" + EXCLUDED."secondsCovered" > 0 THEN
+                        ("meter_readings"."avgVoltage" * "meter_readings"."secondsCovered"
+                            + EXCLUDED."avgVoltage" * EXCLUDED."secondsCovered")
+                        / ("meter_readings"."secondsCovered" + EXCLUDED."secondsCovered")
+                    ELSE EXCLUDED."avgVoltage"
+                END,
+                "avgCurrent" = CASE
+                    WHEN "meter_readings"."secondsCovered" + EXCLUDED."secondsCovered" > 0 THEN
+                        ("meter_readings"."avgCurrent" * "meter_readings"."secondsCovered"
+                            + EXCLUDED."avgCurrent" * EXCLUDED."secondsCovered")
+                        / ("meter_readings"."secondsCovered" + EXCLUDED."secondsCovered")
+                    ELSE EXCLUDED."avgCurrent"
+                END,
+                "avgPowerW" = CASE
+                    WHEN "meter_readings"."secondsCovered" + EXCLUDED."secondsCovered" > 0 THEN
+                        ("meter_readings"."avgPowerW" * "meter_readings"."secondsCovered"
+                            + EXCLUDED."avgPowerW" * EXCLUDED."secondsCovered")
+                        / ("meter_readings"."secondsCovered" + EXCLUDED."secondsCovered")
+                    ELSE EXCLUDED."avgPowerW"
+                END,
+                "avgPowerFactor" = CASE
+                    WHEN "meter_readings"."secondsCovered" + EXCLUDED."secondsCovered" > 0 THEN
+                        ("meter_readings"."avgPowerFactor" * "meter_readings"."secondsCovered"
+                            + EXCLUDED."avgPowerFactor" * EXCLUDED."secondsCovered")
+                        / ("meter_readings"."secondsCovered" + EXCLUDED."secondsCovered")
+                    ELSE EXCLUDED."avgPowerFactor"
+                END,
+                "sampleCount" = "meter_readings"."sampleCount" + EXCLUDED."sampleCount",
+                "secondsCovered" = "meter_readings"."secondsCovered" + EXCLUDED."secondsCovered",
+                "updatedAt" = now()
+        `
     }
 
     /**
