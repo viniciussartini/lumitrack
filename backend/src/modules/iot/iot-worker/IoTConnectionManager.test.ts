@@ -52,3 +52,48 @@ describe("IoTConnectionManager — revalidação de SSRF em start()", () => {
         await expect(manager.stop("meter-ssrf-test-metadata")).resolves.toBeUndefined()
     })
 })
+
+// Regressão: as 12 non-null assertions de createConnection()
+// foram substituídas por validação Zod real (connectionConfigSchema) — um
+// config com host/port válidos (passa SSRF) mas faltando campo obrigatório
+// específico do protocolo agora falha fechado com log, em vez de coagir
+// `null` para o tipo esperado silenciosamente ou lançar sem tratamento.
+describe("IoTConnectionManager — validação de config em start()", () => {
+    it("recusa iniciar MODBUS_TCP sem extra.currentAddress/powerAddress/powerFactorAddress, sem lançar e sem registrar conexão", async () => {
+        const manager = IoTConnectionManager.getInstance()
+        const before = manager.activeCount()
+
+        await expect(
+            manager.start({
+                meterId: "meter-config-invalid-modbus-tcp",
+                protocol: "MODBUS_TCP",
+                host: "127.0.0.1",
+                port: 502,
+                topic: null,
+                address: "10",
+                extra: null, // faltam os 3 campos obrigatórios
+            }),
+        ).resolves.toBeUndefined()
+
+        expect(manager.activeCount()).toBe(before)
+    })
+
+    it("recusa iniciar MQTT sem topic (campo obrigatório do protocolo), sem lançar", async () => {
+        const manager = IoTConnectionManager.getInstance()
+        const before = manager.activeCount()
+
+        await expect(
+            manager.start({
+                meterId: "meter-config-invalid-mqtt",
+                protocol: "MQTT",
+                host: "127.0.0.1",
+                port: 1883,
+                topic: null,
+                address: null,
+                extra: null,
+            }),
+        ).resolves.toBeUndefined()
+
+        expect(manager.activeCount()).toBe(before)
+    })
+})

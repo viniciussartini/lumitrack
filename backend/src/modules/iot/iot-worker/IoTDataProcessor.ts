@@ -57,17 +57,26 @@ interface RawReadingPayload extends Record<string, unknown> {
     powerFactor: number
 }
 
-function isFiniteNonNegative(value: unknown): value is number {
-    return typeof value === "number" && Number.isFinite(value) && value >= 0
+// Tetos de plausibilidade física — nenhum tem origem numa norma, são só uma
+// margem generosa acima do maior valor esperado numa instalação
+// residencial/comercial (Grupo B), para pegar erro grosseiro de leitura
+// (unidade errada, overflow de registrador, ruído) sem rejeitar instalação
+// legítima. Grupo A de grande porte (Fase 19+) pode exigir revisão.
+const MAX_PLAUSIBLE_VOLTAGE = 500 // V — cobre 127/220/380V com margem
+const MAX_PLAUSIBLE_CURRENT = 2000 // A
+const MAX_PLAUSIBLE_POWER_W = 1_000_000 // 1 MW
+
+function isFiniteInRange(value: unknown, max: number): value is number {
+    return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= max
 }
 
 function isValidPayload(raw: Record<string, unknown>): raw is RawReadingPayload {
     const { voltage, current, powerW, powerFactor } = raw
 
     return (
-        isFiniteNonNegative(voltage) &&
-        isFiniteNonNegative(current) &&
-        isFiniteNonNegative(powerW) &&
+        isFiniteInRange(voltage, MAX_PLAUSIBLE_VOLTAGE) &&
+        isFiniteInRange(current, MAX_PLAUSIBLE_CURRENT) &&
+        isFiniteInRange(powerW, MAX_PLAUSIBLE_POWER_W) &&
         typeof powerFactor === "number" &&
         Number.isFinite(powerFactor) &&
         powerFactor >= 0 &&

@@ -78,18 +78,25 @@ export class MqttConnection implements IConnection {
             mqttClient.on("error", (err) => reject(err))
 
             mqttClient.on("message", (_topic, payload) => {
-                if (!this.dataHandler) {
-                    return
-                }
-
-                try {
-                    const parsed = JSON.parse(payload.toString()) as Record<string, unknown>
-                    this.dataHandler(parsed)
-                } catch {
-                    this.dataHandler({ raw: payload.toString() })
-                }
+                this._handleMessage(payload)
             })
         })
+    }
+
+    // Extraído para ser testável sem um broker real — mesmo padrão já usado
+    // em `_handleSerialData` (RS-232/RS-485) e `_readSample` (Modbus/EtherNet-IP/Profinet)
+    // neste diretório.
+    private _handleMessage(payload: Buffer): void {
+        if (!this.dataHandler) {
+            return
+        }
+
+        try {
+            const parsed = JSON.parse(payload.toString()) as Record<string, unknown>
+            this.dataHandler(parsed)
+        } catch {
+            this.dataHandler({ raw: payload.toString() })
+        }
     }
 
     async disconnect(): Promise<void> {

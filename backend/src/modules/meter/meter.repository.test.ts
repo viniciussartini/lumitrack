@@ -144,10 +144,20 @@ describe("MeterRepository — cifra da credencial MQTT", () => {
             host: "localhost",
             port: 502,
             address: "1",
-            extra: { pollingIntervalMs: 5000 },
+            extra: {
+                pollingIntervalMs: 5000,
+                currentAddress: "2",
+                powerAddress: "3",
+                powerFactorAddress: "4",
+            },
         })
 
-        expect(meter.extra).toEqual({ pollingIntervalMs: 5000 })
+        expect(meter.extra).toEqual({
+            pollingIntervalMs: 5000,
+            currentAddress: "2",
+            powerAddress: "3",
+            powerFactorAddress: "4",
+        })
         expect(meter.extra).not.toHaveProperty("passwordSet")
     })
 

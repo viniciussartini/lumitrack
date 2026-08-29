@@ -1,12 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// ModbusTcpConnection
+// ModbusRtuConnection
 //
-// Modbus TCP e o protocolo industrial mais comum para leitura de medidores,
-// CLPs e sensores via rede Ethernet. Funciona como uma ligacao telefonica
-// direta: o backend pergunta ao dispositivo qual e o valor de um registrador.
-// E request/response puro — sem push. Por isso usamos polling.
+// Modbus RTU roda sobre RS-485 ou RS-232 (serial fisico).
+// Nao ha TCP/IP — a comunicacao e feita pela porta serial do servidor.
 //
-// Dependencia: npm install jsmodbus
+// Dependencia: npm install serialport jsmodbus
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
@@ -14,14 +12,14 @@ import { logger } from "@/shared/logger/logger.js"
 import { PollingLoop } from "@/modules/iot/iot-worker/protocols/pollingLoop.js"
 import { cleanupThenReconnect } from "@/modules/iot/iot-worker/protocols/reconnectBackoff.js"
 
-export interface ModbusTcpConnectionConfig {
+export interface ModbusRtuConnectionConfig {
     meterId: string
-    host: string
-    port: number
-    address: string // registrador de voltagem
+    address: string // caminho da porta serial, ex: "/dev/ttyUSB0" ou "COM3"
+    voltageAddress: string // registrador de voltagem — RTU não tem "address" livre para isso
     currentAddress: string
     powerAddress: string
     powerFactorAddress: string
+    baudRate?: number // (do campo extra) padrao 9600
     pollingIntervalMs?: number
     unitId?: number
 }
@@ -33,20 +31,18 @@ type ModbusReadClient = {
     ) => Promise<{ response: { body: { values: number[] } } }>
 }
 
-export class ModbusTcpConnection implements IConnection {
+export class ModbusRtuConnection implements IConnection {
     readonly meterId: string
 
-    private socket: unknown = null
+    private port: unknown = null
     private client: unknown = null
     private connected = false
     private pollingLoop: PollingLoop | null = null
     private dataHandler: ((data: Record<string, unknown>) => void) | null = null
-    private readonly config: ModbusTcpConnectionConfig
-    // Distingue disconnect() intencional de queda de transporte — só a
-    // segunda deve acionar reconexão automática (ver _handleUnhealthy).
+    private readonly config: ModbusRtuConnectionConfig
     private intentionallyDisconnected = false
 
-    constructor(config: ModbusTcpConnectionConfig) {
+    constructor(config: ModbusRtuConnectionConfig) {
         this.meterId = config.meterId
         this.config = config
     }
@@ -58,40 +54,39 @@ export class ModbusTcpConnection implements IConnection {
 
         this.intentionallyDisconnected = false
 
-        const net = await import("net")
+        const { SerialPort } = await import("serialport")
         const jsmodbus = await import("jsmodbus")
 
-        this.socket = new net.Socket()
-        this.client = new jsmodbus.client.TCP(
-            this.socket as import("net").Socket,
-            this.config.unitId ?? 1,
-        )
+        this.port = new SerialPort({
+            path: this.config.address,
+            baudRate: this.config.baudRate ?? 9600,
+            autoOpen: false,
+        })
+
+        const serialPort = this.port as InstanceType<typeof SerialPort>
+
+        this.client = new jsmodbus.client.RTU(serialPort, this.config.unitId ?? 1)
 
         await new Promise<void>((resolve, reject) => {
-            const socket = this.socket as import("net").Socket
-            socket.connect({ host: this.config.host, port: this.config.port }, () => {
+            serialPort.open((err) => {
+                if (err) {
+                    reject(err)
+                    return
+                }
+
                 this.connected = true
                 this._startPolling()
                 resolve()
             })
-            socket.on("error", reject)
         })
 
-        // Fecha a janela de corrida: um disconnect() intencional que chegou
-        // enquanto este connect() ainda estava em andamento não encontrou
-        // `this.connected` true ainda, então seu _cleanup() não teve efeito
-        // nenhum — sem este check, a conexão ficaria órfã (sem referência
-        // no IoTConnectionManager, mas ativa, entregando leituras).
+        // Fecha a janela de corrida: ver comentário equivalente em
+        // ModbusTcpConnection.connect().
         if (this.intentionallyDisconnected) {
             await this._cleanup()
         }
     }
 
-    // Modbus e request/response — nao ha push de dados do dispositivo.
-    // Polling: a cada intervalo o backend le os 4 registradores configurados
-    // (voltage/current/power/powerFactor) e combina numa amostra só.
-    // PollingLoop cobre reentrância por tick, timeout de leitura e detecção
-    // de transporte morto (onUnhealthy → reconexão com backoff).
     private _startPolling(): void {
         this.pollingLoop = new PollingLoop({
             intervalMs: this.config.pollingIntervalMs ?? 5000,
@@ -99,38 +94,31 @@ export class ModbusTcpConnection implements IConnection {
             readSample: () => this._readSample(),
             onSample: (sample) => this.dataHandler?.(sample),
             onError: (err) => {
-                logger.error({ module: "ModbusTCP", meterId: this.meterId, err }, "Erro na leitura")
+                logger.error({ module: "ModbusRTU", meterId: this.meterId, err }, "Erro na leitura")
             },
             onUnhealthy: () => this._handleUnhealthy(),
         })
         this.pollingLoop.start()
     }
 
-    // Acionado pelo PollingLoop após falhas consecutivas — assume que o
-    // transporte caiu, encerra a conexão atual e agenda reconexão com
-    // backoff exponencial (reconnectBackoff.ts).
     private _handleUnhealthy(): void {
         cleanupThenReconnect({
             meterId: this.meterId,
-            moduleTag: "ModbusTCP",
+            moduleTag: "ModbusRTU",
             cleanup: () => this._cleanup(),
             reconnect: () => this.connect(),
             isStopped: () => this.intentionallyDisconnected,
         })
     }
 
-    // Extraído do corpo do polling para ser testável sem um socket real —
-    // mesmo padrão já usado em Rs232Connection/Rs485Connection para
-    // `_handleSerialData`. Lê os 4 registradores em sequência: Modbus é
-    // request/response sobre uma única conexão, leituras concorrentes no
-    // mesmo socket intercalariam respostas.
+    // Extraído para ser testável sem uma porta serial real. Antes lia sempre
+    // o registrador 0, ignorando qualquer endereço configurado — agora lê
+    // os 4 registradores configurados (voltage/current/power/powerFactor),
+    // em sequência: assim como o Modbus TCP, é request/response sobre uma
+    // única conexão.
     //
-    // Limitação conhecida: os valores chegam crus (inteiros de 16 bits),
-    // sem escala nenhuma aplicada. Um `powerFactor` real codificado como
-    // `950` (=0,95) ou `95` (=95%) nunca vai passar no range [0,1] que
-    // IoTDataProcessor exige — a amostra inteira seria descartada. Sem
-    // dispositivo real conectado hoje para calibrar a escala certa sem
-    // inventá-la. Rastreado em #315.
+    // Mesma limitação de escala do Modbus TCP — ver comentário em
+    // ModbusTcpConnection._readSample(). Rastreado em #315.
     private async _readSample(): Promise<Record<string, unknown>> {
         const client = this.client as ModbusReadClient
         const readOne = async (address: string): Promise<number> => {
@@ -141,7 +129,7 @@ export class ModbusTcpConnection implements IConnection {
             return result.response.body.values[0] ?? NaN
         }
 
-        const voltage = await readOne(this.config.address)
+        const voltage = await readOne(this.config.voltageAddress)
         const current = await readOne(this.config.currentAddress)
         const powerW = await readOne(this.config.powerAddress)
         const powerFactor = await readOne(this.config.powerFactorAddress)
@@ -149,16 +137,11 @@ export class ModbusTcpConnection implements IConnection {
         return { voltage, current, powerW, powerFactor, deviceTimestamp: new Date().toISOString() }
     }
 
-    // Intencional (chamado por quem usa a conexão) — interrompe qualquer
-    // reconexão automática que viesse a ser agendada depois.
     async disconnect(): Promise<void> {
         this.intentionallyDisconnected = true
         await this._cleanup()
     }
 
-    // Cleanup puro (sem marcar como intencional) — reusado por
-    // `_handleUnhealthy` para encerrar a conexão morta antes de agendar
-    // reconexão, sem impedir essa própria reconexão de acontecer.
     private async _cleanup(): Promise<void> {
         if (!this.connected) {
             return
@@ -167,10 +150,10 @@ export class ModbusTcpConnection implements IConnection {
         this.pollingLoop?.stop()
         this.pollingLoop = null
 
-        const socket = this.socket as import("net").Socket
-        socket.destroy()
+        const serialPort = this.port as { close: (cb?: (err?: Error | null) => void) => void }
+        await new Promise<void>((resolve) => serialPort.close(() => resolve()))
         this.connected = false
-        this.socket = null
+        this.port = null
         this.client = null
     }
 
