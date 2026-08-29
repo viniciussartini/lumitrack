@@ -56,3 +56,27 @@ export function scheduleReconnect(options: ReconnectBackoffOptions): void {
 
     attemptReconnect()
 }
+
+export interface CleanupThenReconnectOptions extends ReconnectBackoffOptions {
+    cleanup: () => Promise<void>
+}
+
+// Encerra a conexão morta antes de agendar a reconexão — usado pelos
+// adaptadores de polling em `onUnhealthy`. A reconexão precisa ser agendada
+// mesmo se o `cleanup()` falhar (ex.: `plc.disconnect()`/`client.Disconnect()`
+// rejeitando/lançando porque o transporte já está morto, o cenário mais
+// comum de chegar aqui) — sem o `.catch`, a rejeição não tratada podia
+// derrubar o processo inteiro e, de quebra, a reconexão nunca era agendada.
+export function cleanupThenReconnect(options: CleanupThenReconnectOptions): void {
+    options
+        .cleanup()
+        .catch((err: unknown) => {
+            logger.error(
+                { module: options.moduleTag, meterId: options.meterId, err },
+                "Falha ao limpar conexão antes de reconectar — reconectando mesmo assim",
+            )
+        })
+        .finally(() => {
+            scheduleReconnect(options)
+        })
+}

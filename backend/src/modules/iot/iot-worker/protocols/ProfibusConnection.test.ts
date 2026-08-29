@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest"
 import { ProfibusConnection } from "@/modules/iot/iot-worker/protocols/ProfibusConnection.js"
 
-// Teste de caracterização (issue #306) — comportamento hoje sem cobertura.
+// Teste de caracterização — comportamento hoje sem cobertura.
 // ProfibusConnection é um stub deliberado (sem SDK Node.js publico e
 // estável para PROFIBUS) — o contrato a preservar é: connect() sempre
 // rejeita com um erro claro, disconnect()/onData() são noop seguros.

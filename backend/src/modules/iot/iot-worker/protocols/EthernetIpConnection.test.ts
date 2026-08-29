@@ -60,7 +60,7 @@ describe("EthernetIpConnection", () => {
         expect(connection.isConnected()).toBe(false)
     })
 
-    // Regressão (issue #307): antes desta correção, cada tick lia UMA tag só
+    // Regressão: antes desta correção, cada tick lia UMA tag só
     // e emitia `{tag, value, timestamp}` — formato que IoTDataProcessor
     // sempre rejeitava. Agora lê as 4 tags configuradas e combina numa
     // amostra elétrica completa.
@@ -94,7 +94,7 @@ describe("EthernetIpConnection", () => {
         expect(sample["powerFactor"]).toBe(0.95)
     })
 
-    describe("reconexão automática (issue #308)", () => {
+    describe("reconexão automática", () => {
         beforeEach(() => {
             vi.useFakeTimers()
         })

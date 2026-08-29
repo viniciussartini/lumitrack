@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import net from "net"
 import { ModbusTcpConnection } from "@/modules/iot/iot-worker/protocols/ModbusTcpConnection.js"
 
 const baseConfig = {
@@ -27,7 +28,7 @@ interface UnhealthyHarness {
     _handleUnhealthy(): void
 }
 
-// Teste de caracterização (issue #306) — comportamento hoje sem cobertura.
+// Teste de caracterização — comportamento hoje sem cobertura.
 // Usa o import("jsmodbus")/net real (não mockado), mesmo padrão já usado
 // para EthernetIpConnection neste diretório: uma conexão recusada pelo SO
 // deve chegar como Error de rede, não como TypeError de API incompatível.
@@ -67,7 +68,7 @@ describe("ModbusTcpConnection", () => {
         expect(connection.isConnected()).toBe(false)
     })
 
-    // Regressão (issue #307): antes desta correção, cada tick de polling lia
+    // Regressão: antes desta correção, cada tick de polling lia
     // UM registrador só e emitia `{register, value, timestamp}` — formato
     // que IoTDataProcessor.isValidPayload sempre rejeitava (não tem
     // voltage/current/powerW/powerFactor). Agora lê os 4 registradores
@@ -102,7 +103,7 @@ describe("ModbusTcpConnection", () => {
         expect(typeof sample["deviceTimestamp"]).toBe("string")
     })
 
-    describe("reconexão automática (issue #308)", () => {
+    describe("reconexão automática", () => {
         beforeEach(() => {
             vi.useFakeTimers()
         })
@@ -131,6 +132,51 @@ describe("ModbusTcpConnection", () => {
 
             await vi.advanceTimersByTimeAsync(1000) // delay base do backoff
             expect(connectSpy).toHaveBeenCalledTimes(1)
+        })
+    })
+
+    describe("corrida entre connect() e disconnect()", () => {
+        let server: net.Server
+        let port: number
+
+        beforeEach(async () => {
+            // Servidor TCP real, sem falar Modbus nenhum — o suficiente
+            // para o handshake TCP completar e connect() resolver; o
+            // worker nunca chega a fazer uma leitura de verdade neste teste.
+            server = net.createServer((socket) => socket.on("error", () => {}))
+            await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
+            const address = server.address()
+            port = typeof address === "object" && address ? address.port : 0
+        })
+
+        afterEach(async () => {
+            await new Promise<void>((resolve) => server.close(() => resolve()))
+        })
+
+        // Regressão: disconnect() chegando enquanto connect() ainda está em
+        // andamento (socket TCP handshake em curso) encontrava `connected`
+        // ainda false — seu cleanup não tinha efeito nenhum — e depois
+        // connect() terminava marcando `connected = true`, deixando uma
+        // conexão órfã (sem referência no manager, mas ativa).
+        it("disconnect() concorrente com connect() não deixa a conexão órfã", async () => {
+            const connection = new ModbusTcpConnection({
+                meterId: "meter-modbus-tcp-race",
+                host: "127.0.0.1",
+                port,
+                address: "10",
+                currentAddress: "11",
+                powerAddress: "12",
+                powerFactorAddress: "13",
+            })
+
+            const connectPromise = connection.connect()
+            // `disconnect()` chamado no mesmo tick, antes do handshake TCP
+            // completar — `connected` ainda é false neste instante.
+            const disconnectPromise = connection.disconnect()
+
+            await Promise.all([connectPromise, disconnectPromise])
+
+            expect(connection.isConnected()).toBe(false)
         })
     })
 })

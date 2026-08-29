@@ -11,11 +11,14 @@
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
 import { logger } from "@/shared/logger/logger.js"
 import { PollingLoop } from "@/modules/iot/iot-worker/protocols/pollingLoop.js"
-import { scheduleReconnect } from "@/modules/iot/iot-worker/protocols/reconnectBackoff.js"
+import { cleanupThenReconnect } from "@/modules/iot/iot-worker/protocols/reconnectBackoff.js"
 
 export interface EthernetIpConnectionConfig {
     meterId: string
     host: string
+    // Aceito pelo schema por simetria com os demais protocolos de rede, mas
+    // ignorado aqui: a lib `ethernet-ip` fixa a porta em 44818 (padrão CIP)
+    // e `PLC.connect()` não aceita porta customizada.
     port?: number
     address: string // tag CIP de voltagem, ex: "Motor.Speed"
     currentAddress: string
@@ -52,6 +55,12 @@ export class EthernetIpConnection implements IConnection {
         await this.plc.connect(this.config.host, { slot: 0 })
         this.connected = true
         this._startPolling()
+
+        // Fecha a janela de corrida: ver comentário equivalente em
+        // ModbusTcpConnection.connect().
+        if (this.intentionallyDisconnected) {
+            await this._cleanup()
+        }
     }
 
     private _startPolling(): void {
@@ -72,13 +81,12 @@ export class EthernetIpConnection implements IConnection {
     }
 
     private _handleUnhealthy(): void {
-        void this._cleanup().then(() => {
-            scheduleReconnect({
-                meterId: this.meterId,
-                moduleTag: "EthernetIP",
-                reconnect: () => this.connect(),
-                isStopped: () => this.intentionallyDisconnected,
-            })
+        cleanupThenReconnect({
+            meterId: this.meterId,
+            moduleTag: "EthernetIP",
+            cleanup: () => this._cleanup(),
+            reconnect: () => this.connect(),
+            isStopped: () => this.intentionallyDisconnected,
         })
     }
 

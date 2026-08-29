@@ -10,7 +10,7 @@
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
 import { logger } from "@/shared/logger/logger.js"
 import { PollingLoop } from "@/modules/iot/iot-worker/protocols/pollingLoop.js"
-import { scheduleReconnect } from "@/modules/iot/iot-worker/protocols/reconnectBackoff.js"
+import { cleanupThenReconnect } from "@/modules/iot/iot-worker/protocols/reconnectBackoff.js"
 
 export interface ModbusRtuConnectionConfig {
     meterId: string
@@ -79,6 +79,12 @@ export class ModbusRtuConnection implements IConnection {
                 resolve()
             })
         })
+
+        // Fecha a janela de corrida: ver comentário equivalente em
+        // ModbusTcpConnection.connect().
+        if (this.intentionallyDisconnected) {
+            await this._cleanup()
+        }
     }
 
     private _startPolling(): void {
@@ -96,13 +102,12 @@ export class ModbusRtuConnection implements IConnection {
     }
 
     private _handleUnhealthy(): void {
-        void this._cleanup().then(() => {
-            scheduleReconnect({
-                meterId: this.meterId,
-                moduleTag: "ModbusRTU",
-                reconnect: () => this.connect(),
-                isStopped: () => this.intentionallyDisconnected,
-            })
+        cleanupThenReconnect({
+            meterId: this.meterId,
+            moduleTag: "ModbusRTU",
+            cleanup: () => this._cleanup(),
+            reconnect: () => this.connect(),
+            isStopped: () => this.intentionallyDisconnected,
         })
     }
 
@@ -111,6 +116,9 @@ export class ModbusRtuConnection implements IConnection {
     // os 4 registradores configurados (voltage/current/power/powerFactor),
     // em sequência: assim como o Modbus TCP, é request/response sobre uma
     // única conexão.
+    //
+    // Mesma limitação de escala do Modbus TCP — ver comentário em
+    // ModbusTcpConnection._readSample(). Rastreado em #315.
     private async _readSample(): Promise<Record<string, unknown>> {
         const client = this.client as ModbusReadClient
         const readOne = async (address: string): Promise<number> => {

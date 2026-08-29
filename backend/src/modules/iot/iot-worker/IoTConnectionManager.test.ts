@@ -53,7 +53,7 @@ describe("IoTConnectionManager — revalidação de SSRF em start()", () => {
     })
 })
 
-// Regressão (issue #307): as 12 non-null assertions de createConnection()
+// Regressão: as 12 non-null assertions de createConnection()
 // foram substituídas por validação Zod real (connectionConfigSchema) — um
 // config com host/port válidos (passa SSRF) mas faltando campo obrigatório
 // específico do protocolo agora falha fechado com log, em vez de coagir

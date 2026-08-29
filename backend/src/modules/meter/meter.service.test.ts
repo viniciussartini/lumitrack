@@ -314,7 +314,7 @@ describe("MeterService", () => {
                 expect(meter.address).toBe("/dev/ttyUSB0")
             })
 
-            // Regressão (issue #307): antes desta correção, MODBUS_TCP/RTU,
+            // Regressão: antes desta correção, MODBUS_TCP/RTU,
             // ETHERNET_IP e PROFINET aceitavam config incompleta — o worker
             // IoT só descobria em runtime, descartando toda leitura em
             // silêncio (IoTDataProcessor.isValidPayload nunca validava).
@@ -383,6 +383,73 @@ describe("MeterService", () => {
                         name: "Medidor Profinet incompleto",
                         protocol: "PROFINET",
                         host: "localhost",
+                        targetType: "PROPERTY",
+                        propertyId: property.id,
+                        extra: {
+                            currentAddress: "DB2",
+                            powerAddress: "DB3",
+                            powerFactorAddress: "DB4",
+                        },
+                    }),
+                ).rejects.toThrow(ValidationError)
+            })
+
+            // Regressão: antes só a presença do endereço era validada — um
+            // registrador Modbus não numérico (`parseInt("abc", 10)` = NaN)
+            // ou um DB Profinet fora do formato (`"DB0"` virava DB1 por
+            // engano, `parseInt("0") || 1`) só seriam descobertos em
+            // runtime, na primeira leitura. Agora falham na criação.
+            it("rejeita MODBUS_TCP com endereço de registrador não numérico", async () => {
+                const { user, property } = await setupUserAndProperty()
+
+                await expect(
+                    meterService.create(user.id, {
+                        name: "Medidor Modbus endereço inválido",
+                        protocol: "MODBUS_TCP",
+                        host: "localhost",
+                        port: 502,
+                        address: "abc",
+                        targetType: "PROPERTY",
+                        propertyId: property.id,
+                        extra: {
+                            currentAddress: "11",
+                            powerAddress: "12",
+                            powerFactorAddress: "13",
+                        },
+                    }),
+                ).rejects.toThrow(ValidationError)
+            })
+
+            it("rejeita MODBUS_TCP com registrador acima de 65535", async () => {
+                const { user, property } = await setupUserAndProperty()
+
+                await expect(
+                    meterService.create(user.id, {
+                        name: "Medidor Modbus registrador fora do range",
+                        protocol: "MODBUS_TCP",
+                        host: "localhost",
+                        port: 502,
+                        address: "70000",
+                        targetType: "PROPERTY",
+                        propertyId: property.id,
+                        extra: {
+                            currentAddress: "11",
+                            powerAddress: "12",
+                            powerFactorAddress: "13",
+                        },
+                    }),
+                ).rejects.toThrow(ValidationError)
+            })
+
+            it("rejeita PROFINET com DB fora do formato DB<N> — não coage 'DB0' para DB1 silenciosamente", async () => {
+                const { user, property } = await setupUserAndProperty()
+
+                await expect(
+                    meterService.create(user.id, {
+                        name: "Medidor Profinet DB inválido",
+                        protocol: "PROFINET",
+                        host: "localhost",
+                        address: "DB0",
                         targetType: "PROPERTY",
                         propertyId: property.id,
                         extra: {

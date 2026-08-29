@@ -21,17 +21,41 @@ import { z } from "zod"
 // 4 grandezas (voltage/current/powerW/powerFactor) simultaneamente — por
 // isso exigem 3 endereços adicionais em `extra` (ver meter.schema.ts para o
 // mesmo requisito espelhado na validação de escrita).
-const quantityAddressFields = (protocol: string) => ({
-    currentAddress: z
+//
+// Valida o FORMATO, não só a presença — mesma razão e mesmos validadores de
+// meter.schema.ts (duplicados de propósito, ver cabeçalho do arquivo):
+// `ModbusTcpConnection._readSample()` faria `parseInt("abc", 10)` e leria
+// o registrador `NaN`; `ProfinetConnection` faria `"DB0"` virar DB1.
+const registerAddress = (label: string, protocol: string) =>
+    z
         .string()
-        .min(1, { message: `extra.currentAddress é obrigatório para ${protocol}` }),
-    powerAddress: z
+        .min(1, { message: `extra.${label} é obrigatório para ${protocol}` })
+        .regex(/^\d+$/, {
+            message: `extra.${label} deve ser um número de registrador (0-65535) para ${protocol}`,
+        })
+        .refine((value) => Number(value) <= 65535, {
+            message: `extra.${label} deve ser um registrador válido (0-65535) para ${protocol}`,
+        })
+
+const dbAddress = (label: string, protocol: string) =>
+    z
         .string()
-        .min(1, { message: `extra.powerAddress é obrigatório para ${protocol}` }),
-    powerFactorAddress: z
-        .string()
-        .min(1, { message: `extra.powerFactorAddress é obrigatório para ${protocol}` }),
-})
+        .min(1, { message: `extra.${label} é obrigatório para ${protocol}` })
+        .regex(/^DB[1-9]\d*$/, {
+            message: `extra.${label} deve seguir o formato DB<N>, N >= 1 (ex.: "DB1") para ${protocol}`,
+        })
+
+const tagAddress = (label: string, protocol: string) =>
+    z.string().min(1, { message: `extra.${label} é obrigatório para ${protocol}` })
+
+const quantityAddressFields = (protocol: string, kind: "register" | "db" | "tag") => {
+    const validator = kind === "register" ? registerAddress : kind === "db" ? dbAddress : tagAddress
+    return {
+        currentAddress: validator("currentAddress", protocol),
+        powerAddress: validator("powerAddress", protocol),
+        powerFactorAddress: validator("powerFactorAddress", protocol),
+    }
+}
 
 const mqttConnectionSchema = z.object({
     meterId: z.string().min(1),
@@ -51,11 +75,11 @@ const modbusTcpConnectionSchema = z.object({
     host: z.string().min(1),
     port: z.number().int().min(1).max(65535),
     topic: z.null().optional(),
-    address: z.string().min(1), // registrador de voltagem
+    address: registerAddress("address", "MODBUS_TCP"), // registrador de voltagem
     extra: z.object({
         pollingIntervalMs: z.number().optional(),
         unitId: z.number().optional(),
-        ...quantityAddressFields("MODBUS_TCP"),
+        ...quantityAddressFields("MODBUS_TCP", "register"),
     }),
 })
 
@@ -70,10 +94,8 @@ const modbusRtuConnectionSchema = z.object({
         baudRate: z.number().optional(),
         pollingIntervalMs: z.number().optional(),
         unitId: z.number().optional(),
-        voltageAddress: z
-            .string()
-            .min(1, { message: "extra.voltageAddress é obrigatório para MODBUS_RTU" }),
-        ...quantityAddressFields("MODBUS_RTU"),
+        voltageAddress: registerAddress("voltageAddress", "MODBUS_RTU"),
+        ...quantityAddressFields("MODBUS_RTU", "register"),
     }),
 })
 
@@ -83,10 +105,10 @@ const ethernetIpConnectionSchema = z.object({
     host: z.string().min(1),
     port: z.number().int().min(1).max(65535).nullable(),
     topic: z.null().optional(),
-    address: z.string().min(1), // tag de voltagem
+    address: tagAddress("address", "ETHERNET_IP"), // tag de voltagem
     extra: z.object({
         pollingIntervalMs: z.number().optional(),
-        ...quantityAddressFields("ETHERNET_IP"),
+        ...quantityAddressFields("ETHERNET_IP", "tag"),
     }),
 })
 
@@ -108,12 +130,12 @@ const profinetConnectionSchema = z.object({
     host: z.string().min(1),
     port: z.number().int().min(1).max(65535).nullable(),
     topic: z.null().optional(),
-    address: z.string().min(1), // DB de voltagem
+    address: dbAddress("address", "PROFINET"), // DB de voltagem
     extra: z.object({
         pollingIntervalMs: z.number().optional(),
         rack: z.number().optional(),
         slot: z.number().optional(),
-        ...quantityAddressFields("PROFINET"),
+        ...quantityAddressFields("PROFINET", "db"),
     }),
 })
 

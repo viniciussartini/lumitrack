@@ -17,7 +17,7 @@ interface MessageHandlerHarness {
     _handleMessage(payload: Buffer): void
 }
 
-// Teste de caracterização (issue #309) — MqttConnection é a implementação
+// Teste de caracterização — MqttConnection é a implementação
 // de referência do worker IoT (comentário no topo do arquivo) e, mesmo
 // assim, nunca teve teste próprio até esta issue.
 describe("MqttConnection", () => {

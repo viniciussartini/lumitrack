@@ -29,7 +29,7 @@ describe("PollingLoop", () => {
         loop.stop()
     })
 
-    // Regressão (issue #308): antes, `setInterval` cru disparava de novo
+    // Regressão: antes, `setInterval` cru disparava de novo
     // mesmo com o tick anterior ainda em andamento — uma leitura mais lenta
     // que o intervalo empilhava execuções concorrentes sobre a mesma conexão.
     it("não reentra: um tick ainda em andamento faz o próximo disparo ser ignorado", async () => {
@@ -60,7 +60,7 @@ describe("PollingLoop", () => {
         loop.stop()
     })
 
-    // Regressão (issue #308): antes, nenhuma chamada de leitura tinha
+    // Regressão: antes, nenhuma chamada de leitura tinha
     // timeout — um socket travado bloqueava o tick indefinidamente.
     it("timeout: leitura que nunca resolve é tratada como erro, não trava o loop", async () => {
         const onError = vi.fn()
@@ -84,6 +84,47 @@ describe("PollingLoop", () => {
         loop.stop()
     })
 
+    // Regressão: o timeout desistir de esperar não significa que a leitura
+    // original parou — sem manter `inFlight` travado até ela assentar de
+    // verdade, um socket Modbus (request/response sobre uma única conexão)
+    // podia receber uma segunda requisição sobreposta à primeira, ainda
+    // pendente, intercalando respostas.
+    it("timeout não libera o próximo tick até a leitura original de fato assentar", async () => {
+        const pendingRead: { resolve: (() => void) | null } = { resolve: null }
+        const readSample = vi.fn(
+            () =>
+                new Promise<Record<string, unknown>>((resolve) => {
+                    pendingRead.resolve = () => resolve({ voltage: 1 })
+                }),
+        )
+        const onError = vi.fn()
+        const loop = new PollingLoop({
+            intervalMs: 50,
+            timeoutMs: 20,
+            readSample,
+            onSample: vi.fn(),
+            onError,
+            onUnhealthy: vi.fn(),
+        })
+
+        loop.start()
+        // Primeiro tick dispara em 50ms, timeout de 20ms vence em 70ms —
+        // o tick já reportou erro, mas a leitura original continua pendente
+        // (nunca foi resolvida). Mais 2 intervalos se passam (150ms, 200ms)
+        // sem que um novo tick chame readSample de novo.
+        await vi.advanceTimersByTimeAsync(220)
+        expect(readSample).toHaveBeenCalledTimes(1)
+        expect(onError).toHaveBeenCalledTimes(1)
+
+        // A leitura original finalmente assenta — só agora o próximo tick
+        // (já vencido no relógio) pode disparar.
+        pendingRead.resolve?.()
+        await vi.advanceTimersByTimeAsync(50)
+        expect(readSample).toHaveBeenCalledTimes(2)
+
+        loop.stop()
+    })
+
     it("shouldRun() false pula o tick sem chamar readSample nem onError", async () => {
         const readSample = vi.fn(() => Promise.resolve({}))
         const loop = new PollingLoop({
@@ -102,7 +143,7 @@ describe("PollingLoop", () => {
         loop.stop()
     })
 
-    // Regressão (issue #308): antes, uma conexão morta ficava tentando ler
+    // Regressão: antes, uma conexão morta ficava tentando ler
     // para sempre, sem nunca sinalizar que precisa reconectar.
     it("aciona onUnhealthy após N falhas consecutivas (default 3), e reseta o contador após um sucesso", async () => {
         const onUnhealthy = vi.fn()

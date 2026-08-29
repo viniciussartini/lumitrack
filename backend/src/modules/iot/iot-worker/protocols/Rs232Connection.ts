@@ -101,6 +101,15 @@ export class Rs232Connection implements IConnection {
             )
             this._handleTransportDown()
         })
+
+        // Fecha a janela de corrida: um disconnect() intencional que chegou
+        // enquanto este connect() ainda estava em andamento não encontrou
+        // `this.connected` true ainda, então seu fechamento de porta não
+        // teve efeito — sem este check, a porta ficaria órfã (sem
+        // referência, mas aberta, entregando leituras).
+        if (this.intentionallyDisconnected) {
+            await this.disconnect()
+        }
     }
 
     private _handleTransportDown(): void {
@@ -109,8 +118,18 @@ export class Rs232Connection implements IConnection {
         }
 
         this.connected = false
+        const previousPort = this.port as {
+            close: (cb?: (err?: Error | null) => void) => void
+        } | null
         this.port = null
         this.lineParser.reset()
+
+        // Fecha a porta antiga best-effort — se chegamos aqui via "error"
+        // sem um "close" subsequente, a porta pode continuar aberta, e a
+        // reconexão tentaria abrir o mesmo caminho de novo (EBUSY em loop
+        // até o teto do backoff). Erro de fechar uma porta já morta é
+        // esperado e ignorado.
+        previousPort?.close(() => {})
 
         scheduleReconnect({
             meterId: this.meterId,

@@ -107,6 +107,12 @@ export class Rs485Connection implements IConnection {
             )
             this._handleTransportDown()
         })
+
+        // Fecha a janela de corrida: ver comentário equivalente em
+        // Rs232Connection.connect().
+        if (this.intentionallyDisconnected) {
+            await this.disconnect()
+        }
     }
 
     private _handleTransportDown(): void {
@@ -115,8 +121,15 @@ export class Rs485Connection implements IConnection {
         }
 
         this.connected = false
+        const previousPort = this.port as {
+            close: (cb?: (err?: Error | null) => void) => void
+        } | null
         this.port = null
         this.lineParser.reset()
+
+        // Fecha a porta antiga best-effort — ver comentário equivalente em
+        // Rs232Connection._handleTransportDown() (risco de EBUSY em loop).
+        previousPort?.close(() => {})
 
         scheduleReconnect({
             meterId: this.meterId,

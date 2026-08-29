@@ -65,9 +65,26 @@ export class PollingLoop {
         }
 
         this.inFlight = true
+        const readPromise = this.options.readSample()
+
+        // Só libera `inFlight` quando a leitura de verdade assentar — não
+        // quando `_withTimeout` abaixo desiste dela. Se o timeout vencer a
+        // corrida, a chamada original ainda pode estar em voo (ex.:
+        // aguardando resposta no socket Modbus); sem isso, o próximo tick
+        // poderia disparar uma nova requisição sobre a mesma conexão
+        // enquanto a antiga ainda está pendente, intercalando respostas.
+        readPromise.then(
+            () => {
+                this.inFlight = false
+            },
+            () => {
+                this.inFlight = false
+            },
+        )
+
         try {
             const timeoutMs = this.options.timeoutMs ?? this.options.intervalMs
-            const sample = await this._withTimeout(this.options.readSample(), timeoutMs)
+            const sample = await this._withTimeout(readPromise, timeoutMs)
             this.consecutiveFailures = 0
             this.options.onSample(sample)
         } catch (err) {
@@ -78,8 +95,6 @@ export class PollingLoop {
                 this.consecutiveFailures = 0
                 this.options.onUnhealthy()
             }
-        } finally {
-            this.inFlight = false
         }
     }
 

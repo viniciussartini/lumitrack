@@ -22,7 +22,7 @@ interface UnhealthyHarness {
     _handleUnhealthy(): void
 }
 
-// Teste de caracterização (issue #306) — comportamento hoje sem cobertura.
+// Teste de caracterização — comportamento hoje sem cobertura.
 // Usa o import("node-snap7") real (não mockado).
 describe("ProfinetConnection", () => {
     it("connect() contra um host inalcançável rejeita — node-snap7 devolve o errno cru (número), não um Error, quirk pré-existente da lib nativa que este teste apenas documenta", async () => {
@@ -57,7 +57,7 @@ describe("ProfinetConnection", () => {
         expect(connection.isConnected()).toBe(false)
     })
 
-    // Regressão (issue #307): antes desta correção, cada tick lia UM data
+    // Regressão: antes desta correção, cada tick lia UM data
     // block só e emitia `{db, data: number[], timestamp}` — formato que
     // IoTDataProcessor sempre rejeitava. Agora lê os 4 DBs configurados
     // (convenção: primeiros 2 bytes como UInt16BE) e combina numa amostra
@@ -94,7 +94,7 @@ describe("ProfinetConnection", () => {
         expect(sample["powerFactor"]).toBe(1)
     })
 
-    describe("reconexão automática (issue #308)", () => {
+    describe("reconexão automática", () => {
         beforeEach(() => {
             vi.useFakeTimers()
         })

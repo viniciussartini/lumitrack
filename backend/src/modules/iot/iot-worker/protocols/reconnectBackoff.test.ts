@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { scheduleReconnect } from "@/modules/iot/iot-worker/protocols/reconnectBackoff.js"
+import {
+    scheduleReconnect,
+    cleanupThenReconnect,
+} from "@/modules/iot/iot-worker/protocols/reconnectBackoff.js"
 
 describe("scheduleReconnect", () => {
     beforeEach(() => {
@@ -28,7 +31,7 @@ describe("scheduleReconnect", () => {
         expect(reconnect).toHaveBeenCalledTimes(1)
     })
 
-    // Regressão (issue #308): antes, nenhum adaptador reconectava sozinho —
+    // Regressão: antes, nenhum adaptador reconectava sozinho —
     // uma queda de transporte exigia intervenção manual (restart()).
     it("dobra o delay a cada falha (backoff exponencial), até o teto", async () => {
         const reconnect = vi.fn(() => Promise.reject(new Error("ainda fora do ar")))
@@ -81,7 +84,7 @@ describe("scheduleReconnect", () => {
         expect(reconnect).toHaveBeenCalledTimes(2)
     })
 
-    // Regressão (issue #308): sem isStopped(), uma reconexão em andamento
+    // Regressão: sem isStopped(), uma reconexão em andamento
     // reviveria uma conexão que o usuário pediu para encerrar (disconnect()
     // intencional não deve virar reconexão automática).
     it("isStopped() true interrompe as tentativas — nenhuma chamada a reconnect()", async () => {
@@ -97,5 +100,61 @@ describe("scheduleReconnect", () => {
 
         await vi.advanceTimersByTimeAsync(10_000)
         expect(reconnect).not.toHaveBeenCalled()
+    })
+})
+
+describe("cleanupThenReconnect", () => {
+    beforeEach(() => {
+        vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+        vi.useRealTimers()
+    })
+
+    it("agenda a reconexão depois que cleanup() resolve", async () => {
+        const cleanup = vi.fn(() => Promise.resolve())
+        const reconnect = vi.fn(() => Promise.resolve())
+
+        cleanupThenReconnect({
+            meterId: "m1",
+            moduleTag: "Test",
+            cleanup,
+            reconnect,
+            isStopped: () => false,
+            baseDelayMs: 100,
+        })
+
+        await vi.advanceTimersByTimeAsync(0) // cleanup() é async
+        expect(cleanup).toHaveBeenCalledTimes(1)
+
+        await vi.advanceTimersByTimeAsync(100)
+        expect(reconnect).toHaveBeenCalledTimes(1)
+    })
+
+    // Regressão: `_handleUnhealthy()` fazia `cleanup().then(() =>
+    // scheduleReconnect(...))` sem `.catch` — se `cleanup()` rejeitasse
+    // (plausível: desconectar um transporte já morto, exatamente o cenário
+    // de chegar aqui), a reconexão nunca era agendada (conexão morre em
+    // silêncio) e a rejeição não tratada podia derrubar o processo inteiro.
+    it("agenda a reconexão mesmo se cleanup() rejeitar", async () => {
+        const cleanup = vi.fn(() => Promise.reject(new Error("cleanup falhou")))
+        const reconnect = vi.fn(() => Promise.resolve())
+
+        expect(() => {
+            cleanupThenReconnect({
+                meterId: "m1",
+                moduleTag: "Test",
+                cleanup,
+                reconnect,
+                isStopped: () => false,
+                baseDelayMs: 100,
+            })
+        }).not.toThrow()
+
+        await vi.advanceTimersByTimeAsync(0) // cleanup() rejeita
+        await vi.advanceTimersByTimeAsync(100) // delay base do backoff
+
+        expect(reconnect).toHaveBeenCalledTimes(1)
     })
 })

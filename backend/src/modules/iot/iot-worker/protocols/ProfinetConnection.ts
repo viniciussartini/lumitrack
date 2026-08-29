@@ -11,7 +11,7 @@
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
 import { logger } from "@/shared/logger/logger.js"
 import { PollingLoop } from "@/modules/iot/iot-worker/protocols/pollingLoop.js"
-import { scheduleReconnect } from "@/modules/iot/iot-worker/protocols/reconnectBackoff.js"
+import { cleanupThenReconnect } from "@/modules/iot/iot-worker/protocols/reconnectBackoff.js"
 
 export interface ProfinetConnectionConfig {
     meterId: string
@@ -89,6 +89,12 @@ export class ProfinetConnection implements IConnection {
         })
 
         this._startPolling()
+
+        // Fecha a janela de corrida: ver comentário equivalente em
+        // ModbusTcpConnection.connect().
+        if (this.intentionallyDisconnected) {
+            await this._cleanup()
+        }
     }
 
     private _startPolling(): void {
@@ -106,13 +112,12 @@ export class ProfinetConnection implements IConnection {
     }
 
     private _handleUnhealthy(): void {
-        void this._cleanup().then(() => {
-            scheduleReconnect({
-                meterId: this.meterId,
-                moduleTag: "Profinet",
-                reconnect: () => this.connect(),
-                isStopped: () => this.intentionallyDisconnected,
-            })
+        cleanupThenReconnect({
+            meterId: this.meterId,
+            moduleTag: "Profinet",
+            cleanup: () => this._cleanup(),
+            reconnect: () => this.connect(),
+            isStopped: () => this.intentionallyDisconnected,
         })
     }
 
@@ -125,10 +130,16 @@ export class ProfinetConnection implements IConnection {
     // lido são interpretados como um WORD (UInt16BE) — o tipo mais comum
     // para uma grandeza escalar num DB Siemens. Ajustar aqui quando um
     // dispositivo real definir o layout verdadeiro do DB.
+    //
+    // Mesma limitação de escala do Modbus — ver comentário em
+    // ModbusTcpConnection._readSample(). Rastreado em #315.
     private async _readSample(): Promise<Record<string, unknown>> {
         const client = this.client as S7ReadClient
         const readOne = async (address: string): Promise<number> => {
-            const dbNumber = parseInt(address.replace("DB", ""), 10) || 1
+            // O schema (connectionConfigSchema.ts) garante o formato
+            // `DB<N com N >= 1>` antes de a conexão existir — sem fallback
+            // silencioso aqui: "DB0" já não passa da borda.
+            const dbNumber = parseInt(address.replace("DB", ""), 10)
             const data = await new Promise<Buffer>((resolve, reject) => {
                 client.DBRead(dbNumber, 0, 2, (err, buf) => {
                     if (err) reject(err)

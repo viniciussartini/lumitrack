@@ -21,7 +21,7 @@ interface UnhealthyHarness {
     _handleUnhealthy(): void
 }
 
-// Teste de caracterização (issue #306) — comportamento hoje sem cobertura.
+// Teste de caracterização — comportamento hoje sem cobertura.
 // Usa o import("serialport")/jsmodbus real (não mockado): abrir uma porta
 // serial inexistente deve rejeitar com Error de I/O, não TypeError.
 describe("ModbusRtuConnection", () => {
@@ -60,7 +60,7 @@ describe("ModbusRtuConnection", () => {
         expect(connection.isConnected()).toBe(false)
     })
 
-    // Regressão (issue #307): antes desta correção, `_startPolling` lia
+    // Regressão: antes desta correção, `_startPolling` lia
     // SEMPRE o registrador 0 (`readHoldingRegisters(0, 1)`), ignorando
     // qualquer endereço configurado — bug funcional, não só de payload.
     // Agora lê os 4 registradores configurados (voltageAddress e as 3
@@ -94,7 +94,7 @@ describe("ModbusRtuConnection", () => {
         expect(sample["powerFactor"]).toBe(1)
     })
 
-    describe("reconexão automática (issue #308)", () => {
+    describe("reconexão automática", () => {
         beforeEach(() => {
             vi.useFakeTimers()
         })

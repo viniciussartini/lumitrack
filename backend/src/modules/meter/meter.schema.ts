@@ -48,22 +48,47 @@ const mqttExtraSchema = z
 // 3 endereços em `extra` — um por grandeza restante — e o worker IoT lê os
 // 4 em sequência a cada tick (ver IoTConnectionManager.ts). Sem os 4, a
 // leitura nunca chega a um formato que IoTDataProcessor aceite.
-const quantityAddressFields = (protocol: string) => ({
-    currentAddress: z
+//
+// Cada protocolo valida o FORMATO do endereço, não só a presença — sem
+// isso, `ModbusTcpConnection._readSample()` faria `parseInt("abc", 10)` e
+// leria o registrador `NaN` silenciosamente, e `ProfinetConnection` faria
+// `"DB0"` virar DB1 por engano (`parseInt("0") || 1`). Falhar na borda, na
+// criação do medidor, é sempre melhor que descobrir em runtime.
+const registerAddress = (label: string, protocol: string) =>
+    z
         .string()
-        .min(1, { message: `extra.currentAddress é obrigatório para ${protocol}` }),
-    powerAddress: z
+        .min(1, { message: `extra.${label} é obrigatório para ${protocol}` })
+        .regex(/^\d+$/, {
+            message: `extra.${label} deve ser um número de registrador (0-65535) para ${protocol}`,
+        })
+        .refine((value) => Number(value) <= 65535, {
+            message: `extra.${label} deve ser um registrador válido (0-65535) para ${protocol}`,
+        })
+
+const dbAddress = (label: string, protocol: string) =>
+    z
         .string()
-        .min(1, { message: `extra.powerAddress é obrigatório para ${protocol}` }),
-    powerFactorAddress: z
-        .string()
-        .min(1, { message: `extra.powerFactorAddress é obrigatório para ${protocol}` }),
-})
+        .min(1, { message: `extra.${label} é obrigatório para ${protocol}` })
+        .regex(/^DB[1-9]\d*$/, {
+            message: `extra.${label} deve seguir o formato DB<N>, N >= 1 (ex.: "DB1") para ${protocol}`,
+        })
+
+const tagAddress = (label: string, protocol: string) =>
+    z.string().min(1, { message: `extra.${label} é obrigatório para ${protocol}` })
+
+const quantityAddressFields = (protocol: string, kind: "register" | "db" | "tag") => {
+    const validator = kind === "register" ? registerAddress : kind === "db" ? dbAddress : tagAddress
+    return {
+        currentAddress: validator("currentAddress", protocol),
+        powerAddress: validator("powerAddress", protocol),
+        powerFactorAddress: validator("powerFactorAddress", protocol),
+    }
+}
 
 const modbusTcpExtraSchema = z.object({
     pollingIntervalMs: z.number().optional(),
     unitId: z.number().optional(),
-    ...quantityAddressFields("MODBUS_TCP"),
+    ...quantityAddressFields("MODBUS_TCP", "register"),
 })
 
 // MODBUS_RTU usa `address` para o caminho da porta serial (ex.:
@@ -73,10 +98,8 @@ const modbusRtuExtraSchema = z.object({
     baudRate: z.number().optional(),
     pollingIntervalMs: z.number().optional(),
     unitId: z.number().optional(),
-    voltageAddress: z
-        .string()
-        .min(1, { message: "extra.voltageAddress é obrigatório para MODBUS_RTU" }),
-    ...quantityAddressFields("MODBUS_RTU"),
+    voltageAddress: registerAddress("voltageAddress", "MODBUS_RTU"),
+    ...quantityAddressFields("MODBUS_RTU", "register"),
 })
 
 const profibusExtraSchema = z
@@ -88,14 +111,14 @@ const profibusExtraSchema = z
 
 const ethernetIpExtraSchema = z.object({
     pollingIntervalMs: z.number().optional(),
-    ...quantityAddressFields("ETHERNET_IP"),
+    ...quantityAddressFields("ETHERNET_IP", "tag"),
 })
 
 const profinetExtraSchema = z.object({
     pollingIntervalMs: z.number().optional(),
     rack: z.number().optional(),
     slot: z.number().optional(),
-    ...quantityAddressFields("PROFINET"),
+    ...quantityAddressFields("PROFINET", "db"),
 })
 
 const serialExtraSchema = z
@@ -135,7 +158,7 @@ export const createMeterSchema = z.discriminatedUnion("protocol", [
         protocol: z.literal("MODBUS_TCP"),
         host: z.string().min(1, { message: "host é obrigatório para MODBUS_TCP" }),
         port: z.number().int().min(1).max(65535, { message: "port é obrigatório para MODBUS_TCP" }),
-        address: z.string().min(1, { message: "address é obrigatório para MODBUS_TCP" }),
+        address: registerAddress("address", "MODBUS_TCP"),
         topic: z.undefined().optional(),
     }),
     z.object({
@@ -177,9 +200,7 @@ export const createMeterSchema = z.discriminatedUnion("protocol", [
         protocol: z.literal("PROFINET"),
         host: z.string().min(1, { message: "host é obrigatório para PROFINET" }),
         port: z.number().int().min(1).max(65535).optional(),
-        address: z
-            .string()
-            .min(1, { message: "address (DB de voltagem) é obrigatório para PROFINET" }),
+        address: dbAddress("address", "PROFINET"),
         topic: z.undefined().optional(),
     }),
     z.object({
@@ -223,7 +244,7 @@ export const updateMeterSchema = z.discriminatedUnion("protocol", [
         protocol: z.literal("MODBUS_TCP"),
         host: z.string().min(1),
         port: z.number().int().min(1).max(65535),
-        address: z.string().min(1),
+        address: registerAddress("address", "MODBUS_TCP"),
         topic: z.undefined().optional(),
     }),
     z.object({
@@ -259,7 +280,7 @@ export const updateMeterSchema = z.discriminatedUnion("protocol", [
         protocol: z.literal("PROFINET"),
         host: z.string().min(1),
         port: z.number().int().min(1).max(65535).optional(),
-        address: z.string().min(1),
+        address: dbAddress("address", "PROFINET"),
         topic: z.undefined().optional(),
     }),
     z.object({

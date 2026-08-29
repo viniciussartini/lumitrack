@@ -12,7 +12,7 @@
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
 import { logger } from "@/shared/logger/logger.js"
 import { PollingLoop } from "@/modules/iot/iot-worker/protocols/pollingLoop.js"
-import { scheduleReconnect } from "@/modules/iot/iot-worker/protocols/reconnectBackoff.js"
+import { cleanupThenReconnect } from "@/modules/iot/iot-worker/protocols/reconnectBackoff.js"
 
 export interface ModbusTcpConnectionConfig {
     meterId: string
@@ -76,6 +76,15 @@ export class ModbusTcpConnection implements IConnection {
             })
             socket.on("error", reject)
         })
+
+        // Fecha a janela de corrida: um disconnect() intencional que chegou
+        // enquanto este connect() ainda estava em andamento não encontrou
+        // `this.connected` true ainda, então seu _cleanup() não teve efeito
+        // nenhum — sem este check, a conexão ficaria órfã (sem referência
+        // no IoTConnectionManager, mas ativa, entregando leituras).
+        if (this.intentionallyDisconnected) {
+            await this._cleanup()
+        }
     }
 
     // Modbus e request/response — nao ha push de dados do dispositivo.
@@ -101,13 +110,12 @@ export class ModbusTcpConnection implements IConnection {
     // transporte caiu, encerra a conexão atual e agenda reconexão com
     // backoff exponencial (reconnectBackoff.ts).
     private _handleUnhealthy(): void {
-        void this._cleanup().then(() => {
-            scheduleReconnect({
-                meterId: this.meterId,
-                moduleTag: "ModbusTCP",
-                reconnect: () => this.connect(),
-                isStopped: () => this.intentionallyDisconnected,
-            })
+        cleanupThenReconnect({
+            meterId: this.meterId,
+            moduleTag: "ModbusTCP",
+            cleanup: () => this._cleanup(),
+            reconnect: () => this.connect(),
+            isStopped: () => this.intentionallyDisconnected,
         })
     }
 
@@ -116,6 +124,13 @@ export class ModbusTcpConnection implements IConnection {
     // `_handleSerialData`. Lê os 4 registradores em sequência: Modbus é
     // request/response sobre uma única conexão, leituras concorrentes no
     // mesmo socket intercalariam respostas.
+    //
+    // Limitação conhecida: os valores chegam crus (inteiros de 16 bits),
+    // sem escala nenhuma aplicada. Um `powerFactor` real codificado como
+    // `950` (=0,95) ou `95` (=95%) nunca vai passar no range [0,1] que
+    // IoTDataProcessor exige — a amostra inteira seria descartada. Sem
+    // dispositivo real conectado hoje para calibrar a escala certa sem
+    // inventá-la. Rastreado em #315.
     private async _readSample(): Promise<Record<string, unknown>> {
         const client = this.client as ModbusReadClient
         const readOne = async (address: string): Promise<number> => {

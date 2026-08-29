@@ -109,7 +109,7 @@ describe("Rs485Connection — montagem de linhas a partir de chunks parciais", (
         expect(connection.isConnected()).toBe(false)
     })
 
-    describe("reconexão automática (issue #308)", () => {
+    describe("reconexão automática", () => {
         beforeEach(() => {
             vi.useFakeTimers()
         })
