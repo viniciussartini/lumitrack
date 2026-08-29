@@ -22,6 +22,15 @@ export function statusRoutes(store: SimulationStore): Router {
         if (clients.size === 0) return
         const chunk = `event: snapshot\ndata: ${JSON.stringify(store.snapshot())}\n\n`
         for (const res of clients) {
+            // Entre o cliente derrubar o socket e o "close" removê-lo do Set
+            // existe uma janela — escrever numa resposta já encerrada emite
+            // "error" sem handler. Sem esta guarda, isso também interromperia
+            // o `for`, deixando os clientes restantes deste broadcast sem o
+            // snapshot.
+            if (res.writableEnded || res.destroyed) {
+                clients.delete(res)
+                continue
+            }
             res.write(chunk)
         }
     }

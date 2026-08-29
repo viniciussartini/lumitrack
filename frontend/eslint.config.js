@@ -53,19 +53,37 @@ export default tseslint.config(
     },
     // Débito pré-existente descoberto ao ligar a trava — não havia
     // catalogação prévia de complexidade de componente React (só backend).
-    // Medido de novo em 2026-08-28 (o levantamento original catalogava 48
-    // arquivos; 6 já passam nos dois limites hoje e saíram da lista —
-    // RealtimeSection.tsx, PropertyCard.tsx, ConfirmDialog.tsx,
-    // RealtimeContext.tsx, ThemeContext.tsx e AboutPage.tsx). Cada bloco
-    // abaixo agrupa arquivos com o mesmo teto medido — acima do valor real,
-    // abaixo do que equivaleria a desligar a regra. Revisar na Fase 18
-    // (roadmap.md, polimento).
+    // O levantamento original catalogava 48 arquivos; 6 já passam nos dois
+    // limites hoje e saíram da lista — RealtimeSection.tsx, PropertyCard.tsx,
+    // ConfirmDialog.tsx, RealtimeContext.tsx, ThemeContext.tsx e
+    // AboutPage.tsx. Cada bloco abaixo é 1 arquivo com o teto medido
+    // individualmente — acima do valor real, abaixo do que equivaleria a
+    // desligar a regra. Revisar na Fase 18 (roadmap.md, polimento).
     {
-        files: [
-            "src/components/consumption/ConsumptionSection.tsx",
-            "src/components/meter/MeterForm.tsx",
-            "src/pages/report/ReportsPage.tsx",
-        ],
+        // Complexidade 18, 101 linhas.
+        files: ["src/components/consumption/ConsumptionSection.tsx"],
+        rules: {
+            complexity: ["error", 20],
+            "max-lines-per-function": [
+                "error",
+                { max: 110, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // Complexidade 16, 104 linhas.
+        files: ["src/components/meter/MeterForm.tsx"],
+        rules: {
+            complexity: ["error", 20],
+            "max-lines-per-function": [
+                "error",
+                { max: 110, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // Complexidade 16, 102 linhas.
+        files: ["src/pages/report/ReportsPage.tsx"],
         rules: {
             complexity: ["error", 20],
             "max-lines-per-function": [
@@ -135,7 +153,19 @@ export default tseslint.config(
         },
     },
     {
-        files: ["src/components/ui/Input.tsx", "src/pages/property/PropertiesPage.tsx"],
+        // Complexidade 17, 83 linhas.
+        files: ["src/components/ui/Input.tsx"],
+        rules: {
+            complexity: ["error", 20],
+            "max-lines-per-function": [
+                "error",
+                { max: 90, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // Complexidade 19, 79 linhas.
+        files: ["src/pages/property/PropertiesPage.tsx"],
         rules: {
             complexity: ["error", 20],
             "max-lines-per-function": [
@@ -216,18 +246,23 @@ export default tseslint.config(
     },
     // Só complexidade acima do teto — linhas por função já dentro do limite.
     {
-        files: ["src/lib/userDisplay.ts", "src/pages/dashboard/DashboardPage.tsx"],
+        // Complexidade 15.
+        files: ["src/lib/userDisplay.ts"],
+        rules: {
+            complexity: ["error", 20],
+        },
+    },
+    {
+        // Complexidade 16.
+        files: ["src/pages/dashboard/DashboardPage.tsx"],
         rules: {
             complexity: ["error", 20],
         },
     },
     // Só linhas por função acima do teto — complexidade já dentro do limite.
     {
-        files: [
-            "src/components/area/AreaForm.tsx",
-            "src/components/device/DeviceForm.tsx",
-            "src/components/distributor/DistributorCard.tsx",
-        ],
+        // 80 linhas.
+        files: ["src/components/area/AreaForm.tsx"],
         rules: {
             "max-lines-per-function": [
                 "error",
@@ -236,13 +271,68 @@ export default tseslint.config(
         },
     },
     {
-        files: [
-            "src/components/alert/AlertForm.tsx",
-            "src/components/area/AreaMenu.tsx",
-            "src/components/property/PropertyMenu.tsx",
-            "src/pages/auth/ForgotPasswordPage.tsx",
-            "src/pages/profile/ProfilePage.tsx",
-        ],
+        // 84 linhas.
+        files: ["src/components/device/DeviceForm.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 90, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // 78 linhas.
+        files: ["src/components/distributor/DistributorCard.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 90, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // 115 linhas.
+        files: ["src/components/alert/AlertForm.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 120, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // 110 linhas.
+        files: ["src/components/area/AreaMenu.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 120, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // 110 linhas.
+        files: ["src/components/property/PropertyMenu.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 120, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // 114 linhas.
+        files: ["src/pages/auth/ForgotPasswordPage.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 120, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // 106 linhas.
+        files: ["src/pages/profile/ProfilePage.tsx"],
         rules: {
             "max-lines-per-function": [
                 "error",
@@ -260,11 +350,8 @@ export default tseslint.config(
         },
     },
     {
-        files: [
-            "src/components/auth/BrandPanel.tsx",
-            "src/components/auth/MfaCodeForm.tsx",
-            "src/components/consumption/ConsumptionChart.tsx",
-        ],
+        // 66 linhas.
+        files: ["src/components/auth/BrandPanel.tsx"],
         rules: {
             "max-lines-per-function": [
                 "error",
@@ -273,11 +360,48 @@ export default tseslint.config(
         },
     },
     {
-        files: [
-            "src/components/dashboard/PropertyComparisonSection.tsx",
-            "src/components/device/DeviceFormDialog.tsx",
-            "src/components/layout/Sidebar.tsx",
-        ],
+        // 69 linhas.
+        files: ["src/components/auth/MfaCodeForm.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 80, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // 73 linhas.
+        files: ["src/components/consumption/ConsumptionChart.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 80, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // 61 linhas.
+        files: ["src/components/dashboard/PropertyComparisonSection.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 70, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // 63 linhas.
+        files: ["src/components/device/DeviceFormDialog.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 70, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // 64 linhas.
+        files: ["src/components/layout/Sidebar.tsx"],
         rules: {
             "max-lines-per-function": [
                 "error",
@@ -313,7 +437,18 @@ export default tseslint.config(
         },
     },
     {
-        files: ["src/contexts/AuthContext.tsx", "src/pages/device/DeviceDetailsPage.tsx"],
+        // 105 linhas.
+        files: ["src/contexts/AuthContext.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 110, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // 104 linhas.
+        files: ["src/pages/device/DeviceDetailsPage.tsx"],
         rules: {
             "max-lines-per-function": [
                 "error",

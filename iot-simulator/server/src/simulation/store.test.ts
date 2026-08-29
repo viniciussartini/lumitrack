@@ -112,9 +112,9 @@ describe("SimulationStore — power, anomaly, samples", () => {
         expect(updated.publishCount).toBe(1)
         expect(updated.connected).toBe(true)
 
-        // recordSample() coalesce a notificação "changed" (issue #312) — o
-        // estado do device já está atualizado sincronamente acima, mas o
-        // evento só dispara depois de um setImmediate.
+        // recordSample() coalesce a notificação "changed" — o estado do
+        // device já está atualizado sincronamente acima, mas o evento só
+        // dispara depois de um setImmediate.
         await new Promise<void>((resolve) => setImmediate(resolve))
         expect(listener).toHaveBeenCalledWith({ reason: "device-sample" })
     })

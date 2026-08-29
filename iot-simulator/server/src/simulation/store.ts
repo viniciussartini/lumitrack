@@ -104,7 +104,7 @@ export class SimulationStore extends EventEmitter {
         this.sampleNotifyScheduled = true
         setImmediate(() => {
             this.sampleNotifyScheduled = false
-            this.emit("changed", { reason: "device-sample" })
+            this.emitChanged({ reason: "device-sample" })
         })
     }
 

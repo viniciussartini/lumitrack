@@ -20,7 +20,7 @@ import request from "supertest"
 import { createServer, type Server } from "http"
 import http from "http"
 import type { AddressInfo } from "net"
-import { Router } from "express"
+import { Router, type Response } from "express"
 import { createApp } from "@/app.js"
 import { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
@@ -28,6 +28,7 @@ import {
     iotStreamRoutes,
     createBackpressureState,
     writeSseChunk,
+    createEventWriter,
 } from "@/modules/iot/iot-stream.routes.js"
 import { createAuthenticateMiddleware } from "@/shared/middlewares/authenticate.js"
 import { UserEventHub } from "@/shared/sse/user-event-hub.js"
@@ -329,45 +330,129 @@ describe("writeSseChunk", () => {
         const onSlowConsumer = vi.fn()
 
         writeSseChunk(fake, state, "a", onSlowConsumer)
-        expect(state.awaitingDrain).toBe(true)
+        expect(state.pendingSinceDrain).toBe(1)
 
         fake.fireDrain()
-        expect(state.awaitingDrain).toBe(false)
+        expect(state.pendingSinceDrain).toBe(0)
 
         writeSseChunk(fake, state, "b", onSlowConsumer)
         expect(fake.chunks).toEqual(["a", "b"])
         expect(onSlowConsumer).not.toHaveBeenCalled()
     })
 
-    it("desconecta um consumidor persistentemente lento — nova mensagem chega antes do 'drain' da anterior", () => {
-        const fake = createFakeWritable([false])
+    it("tolera 1 chunk a mais acumulado antes do 'drain' — várias mensagens na mesma volta do event loop não derrubam a conexão", () => {
+        const fake = createFakeWritable([false, false, true])
         const state = createBackpressureState()
         const onSlowConsumer = vi.fn()
 
         writeSseChunk(fake, state, "a", onSlowConsumer)
-        expect(state.awaitingDrain).toBe(true)
+        expect(state.pendingSinceDrain).toBe(1)
 
-        // 'drain' da primeira escrita nunca chega — a segunda mensagem
-        // encontra o buffer ainda cheio.
+        // "b" chega antes do 'drain' de "a" — ainda dentro da tolerância,
+        // não desconecta.
         writeSseChunk(fake, state, "b", onSlowConsumer)
+        expect(state.pendingSinceDrain).toBe(2)
+        expect(onSlowConsumer).not.toHaveBeenCalled()
+        expect(fake.chunks).toEqual(["a", "b"])
+
+        fake.fireDrain()
+        expect(state.pendingSinceDrain).toBe(0)
+    })
+
+    it("desconecta um consumidor persistentemente lento — 2 mensagens acumuladas além da tolerância, sem nenhum 'drain' entre elas", () => {
+        const fake = createFakeWritable([false, false])
+        const state = createBackpressureState()
+        const onSlowConsumer = vi.fn()
+
+        writeSseChunk(fake, state, "a", onSlowConsumer)
+        writeSseChunk(fake, state, "b", onSlowConsumer) // ainda tolerado
+        expect(onSlowConsumer).not.toHaveBeenCalled()
+
+        // "c" chega e nenhum 'drain' aconteceu entre "a", "b" e "c" — agora
+        // sim, persistentemente lento.
+        writeSseChunk(fake, state, "c", onSlowConsumer)
 
         expect(onSlowConsumer).toHaveBeenCalledTimes(1)
         expect(state.disconnected).toBe(true)
-        // "b" nunca chega a ser escrito — o consumidor já foi desconectado.
-        expect(fake.chunks).toEqual(["a"])
+        // "c" nunca chega a ser escrito — o consumidor já foi desconectado.
+        expect(fake.chunks).toEqual(["a", "b"])
     })
 
     it("depois de desconectado, ignora escritas futuras sem chamar onSlowConsumer de novo", () => {
-        const fake = createFakeWritable([false])
+        const fake = createFakeWritable([false, false])
         const state = createBackpressureState()
         const onSlowConsumer = vi.fn()
 
         writeSseChunk(fake, state, "a", onSlowConsumer)
         writeSseChunk(fake, state, "b", onSlowConsumer)
         writeSseChunk(fake, state, "c", onSlowConsumer)
+        writeSseChunk(fake, state, "d", onSlowConsumer)
 
         expect(onSlowConsumer).toHaveBeenCalledTimes(1)
-        expect(fake.chunks).toEqual(["a"])
+        // "a" e "b" chegam a ser escritos (dentro da tolerância); "c" é a
+        // desconexão em si (nunca escrito); "d" é ignorado (já desconectado).
+        expect(fake.chunks).toEqual(["a", "b"])
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUITE: createEventWriter — integração real com cleanup()/res.end() (PR #317)
+//
+// writeSseChunk isolado (acima) já prova a máquina de estados de
+// backpressure em si. O que faltava: provar que createEventWriter de fato
+// aciona cleanup() e res.end() quando um consumidor é considerado lento —
+// se alguém remover essa chamada de dentro de disconnectSlowConsumer, os
+// testes de writeSseChunk continuariam verdes (não conhecem cleanup()) e o
+// listener do processor ficaria pendurado para sempre, sem nenhum teste
+// pegando isso.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("createEventWriter", () => {
+    function createFakeResponse(): {
+        write: ReturnType<typeof vi.fn>
+        once: (event: "drain", listener: () => void) => void
+        end: ReturnType<typeof vi.fn>
+        writableEnded: boolean
+    } {
+        const fakeRes = {
+            // Sempre "buffer cheio" e o 'drain' nunca dispara — simula um
+            // consumidor que não drena de jeito nenhum.
+            write: vi.fn(() => false),
+            once: (_event: "drain", _listener: () => void) => {},
+            end: vi.fn(),
+            writableEnded: false,
+        }
+        fakeRes.end.mockImplementation(() => {
+            fakeRes.writableEnded = true
+        })
+        return fakeRes
+    }
+
+    it("aciona cleanup() e res.end() de verdade ao desconectar um consumidor lento", () => {
+        const fakeRes = createFakeResponse()
+        const cleanup = vi.fn()
+        const { writeEvent } = createEventWriter(fakeRes as unknown as Response, "user-1", cleanup)
+
+        writeEvent("reading", "1") // buffer cheio
+        writeEvent("reading", "2") // ainda tolerado
+        writeEvent("reading", "3") // persistentemente lento — desconecta
+
+        expect(cleanup).toHaveBeenCalledTimes(1)
+        expect(fakeRes.end).toHaveBeenCalledTimes(1)
+    })
+
+    it("não chama res.end() de novo se a resposta já tiver encerrado por outro motivo (ex.: sessão revogada)", () => {
+        const fakeRes = createFakeResponse()
+        fakeRes.writableEnded = true // já encerrada por outro caminho
+        const cleanup = vi.fn()
+        const { writeEvent } = createEventWriter(fakeRes as unknown as Response, "user-1", cleanup)
+
+        writeEvent("reading", "1")
+        writeEvent("reading", "2")
+        writeEvent("reading", "3")
+
+        expect(cleanup).toHaveBeenCalledTimes(1)
+        expect(fakeRes.end).not.toHaveBeenCalled()
     })
 })
 
@@ -460,47 +545,54 @@ describe("GET /api/iot/stream", () => {
 
         const stringifySpy = vi.spyOn(JSON, "stringify")
 
-        let connectedCount = 0
-        const triggerWhenBothConnected = (event: string): void => {
-            if (event !== "connected") return
-            connectedCount += 1
-            if (connectedCount === 2) {
-                simulateReading(meterId, validReadingPayload)
+        // try/finally: se qualquer expect abaixo falhar (ou o Promise.all
+        // rejeitar), o spy precisa ser restaurado de qualquer jeito — senão
+        // ele vaza para os testes seguintes do arquivo, que passariam a
+        // rodar com JSON.stringify espionado sem saber.
+        try {
+            let connectedCount = 0
+            const triggerWhenBothConnected = (event: string): void => {
+                if (event !== "connected") return
+                connectedCount += 1
+                if (connectedCount === 2) {
+                    simulateReading(meterId, validReadingPayload)
+                }
             }
+
+            const [eventsA, eventsB] = await Promise.all([
+                collectSseEvents(streamA, {
+                    maxWaitMs: 3000,
+                    stopAfterEvent: "reading",
+                    onEvent: triggerWhenBothConnected,
+                }),
+                collectSseEvents(streamB, {
+                    maxWaitMs: 3000,
+                    stopAfterEvent: "reading",
+                    onEvent: triggerWhenBothConnected,
+                }),
+            ])
+
+            // Conta só as chamadas de stringify sobre a própria amostra —
+            // outras chamadas incidentais (ex.: logging, Prisma) acontecem em
+            // paralelo e não devem contaminar a contagem. Precisa ler
+            // `.mock.calls` ANTES de `mockRestore()` (no finally) —
+            // `mockRestore()` também limpa o histórico de chamadas, não só
+            // restaura a implementação original.
+            const sampleStringifyCalls = stringifySpy.mock.calls.filter(([arg]) => {
+                return (
+                    typeof arg === "object" &&
+                    arg !== null &&
+                    (arg as Record<string, unknown>)["meterId"] === meterId &&
+                    (arg as Record<string, unknown>)["voltage"] === validReadingPayload["voltage"]
+                )
+            })
+
+            expect(eventsA.find((e) => e.event === "reading")).toBeDefined()
+            expect(eventsB.find((e) => e.event === "reading")).toBeDefined()
+            expect(sampleStringifyCalls).toHaveLength(1)
+        } finally {
+            stringifySpy.mockRestore()
         }
-
-        const [eventsA, eventsB] = await Promise.all([
-            collectSseEvents(streamA, {
-                maxWaitMs: 3000,
-                stopAfterEvent: "reading",
-                onEvent: triggerWhenBothConnected,
-            }),
-            collectSseEvents(streamB, {
-                maxWaitMs: 3000,
-                stopAfterEvent: "reading",
-                onEvent: triggerWhenBothConnected,
-            }),
-        ])
-
-        // Conta só as chamadas de stringify sobre a própria amostra — outras
-        // chamadas incidentais (ex.: logging, Prisma) acontecem em paralelo
-        // e não devem contaminar a contagem. Precisa ler `.mock.calls` ANTES
-        // de `mockRestore()` — `mockRestore()` também limpa o histórico de
-        // chamadas, não só restaura a implementação original.
-        const sampleStringifyCalls = stringifySpy.mock.calls.filter(([arg]) => {
-            return (
-                typeof arg === "object" &&
-                arg !== null &&
-                (arg as Record<string, unknown>)["meterId"] === meterId &&
-                (arg as Record<string, unknown>)["voltage"] === validReadingPayload["voltage"]
-            )
-        })
-
-        stringifySpy.mockRestore()
-
-        expect(eventsA.find((e) => e.event === "reading")).toBeDefined()
-        expect(eventsB.find((e) => e.event === "reading")).toBeDefined()
-        expect(sampleStringifyCalls).toHaveLength(1)
     })
 
     it("deve receber evento 'alert-firing' emitido pelo UserEventHub para o próprio usuário", async () => {

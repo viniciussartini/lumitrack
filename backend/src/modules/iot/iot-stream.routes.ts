@@ -27,6 +27,7 @@ import type {
 } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
 import type { UserEventHub } from "@/shared/sse/user-event-hub.js"
+import { logger } from "@/shared/logger/logger.js"
 import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import { hashToken } from "@/shared/crypto/hashToken.js"
 import { SseTicketService } from "@/modules/iot/sse-ticket.service.js"
@@ -125,23 +126,30 @@ export interface SseWritable {
 }
 
 export interface SseBackpressureState {
-    awaitingDrain: boolean
+    pendingSinceDrain: number
     disconnected: boolean
 }
 
 export function createBackpressureState(): SseBackpressureState {
-    return { awaitingDrain: false, disconnected: false }
+    return { pendingSinceDrain: 0, disconnected: false }
 }
+
+// Tolerância de 1 chunk acumulado além do que já estava pendente: várias
+// mensagens processadas na mesma volta do event loop (ex.: um broker
+// entregando um lote de leituras de uma vez) não devem derrubar uma conexão
+// que drenaria no próximo tick — só a partir do 2º chunk empilhado sem
+// nenhum 'drain' entre eles é que o consumidor é considerado
+// persistentemente lento.
+const MAX_PENDING_CHUNKS_BEFORE_DISCONNECT = 1
 
 /**
  * Escreve um chunk SSE já formatado, tratando backpressure.
  *
- * Se o buffer de saída já estava cheio desde a escrita anterior (o 'drain'
- * daquela escrita ainda não disparou) e chega uma NOVA mensagem, o
- * consumidor do outro lado é persistentemente lento — não dá pra saber
- * quando (se algum dia) ele vai drenar. Em vez de empilhar mais dados no
- * buffer indefinidamente (memória cresce sem limite), aciona `onSlowConsumer`
- * para a conexão ser encerrada.
+ * Se o buffer de saída segue cheio (sem nenhum 'drain' entre uma escrita e a
+ * próxima) além da tolerância acima, o consumidor do outro lado é
+ * persistentemente lento — não dá pra saber quando (se algum dia) ele vai
+ * drenar. Em vez de empilhar mais dados no buffer indefinidamente (memória
+ * cresce sem limite), aciona `onSlowConsumer` para a conexão ser encerrada.
  *
  * @param res - Destino da escrita (Response real ou fake de teste).
  * @param state - Estado de backpressure desta conexão, de `createBackpressureState()`.
@@ -156,7 +164,7 @@ export function writeSseChunk(
 ): void {
     if (state.disconnected) return
 
-    if (state.awaitingDrain) {
+    if (state.pendingSinceDrain > MAX_PENDING_CHUNKS_BEFORE_DISCONNECT) {
         state.disconnected = true
         onSlowConsumer()
         return
@@ -164,18 +172,21 @@ export function writeSseChunk(
 
     const ok = res.write(chunk)
     if (!ok) {
-        state.awaitingDrain = true
-        res.once("drain", () => {
-            state.awaitingDrain = false
-        })
+        state.pendingSinceDrain += 1
+        if (state.pendingSinceDrain === 1) {
+            res.once("drain", () => {
+                state.pendingSinceDrain = 0
+            })
+        }
     }
 }
 
 // Par writeEvent/writeRaw de uma conexão — extraído do corpo de
 // createStreamHandler só para não estourar o limite de linhas por função do
 // lint (mesmo motivo dos demais extraídos neste arquivo).
-function createEventWriter(
+export function createEventWriter(
     res: Response,
+    userId: string,
     cleanup: () => void,
 ): {
     writeEvent: (eventName: string, payload: string) => void
@@ -187,6 +198,7 @@ function createEventWriter(
     // entre uma escrita e a próxima) — encerra em vez de deixar o buffer
     // crescer sem limite.
     function disconnectSlowConsumer(): void {
+        logger.warn({ module: "IoTStream", userId }, "Consumidor SSE lento — conexão encerrada")
         cleanup()
         if (!res.writableEnded) res.end()
     }
@@ -278,7 +290,7 @@ function createStreamHandler(
 
         let userMeterIds = await resolveUserMeterIds(userId, prismaClient)
 
-        const { writeEvent, writeRaw } = createEventWriter(res, () => cleanup())
+        const { writeEvent, writeRaw } = createEventWriter(res, userId, () => cleanup())
 
         writeEvent("connected", JSON.stringify({ meterCount: userMeterIds.size }))
 
