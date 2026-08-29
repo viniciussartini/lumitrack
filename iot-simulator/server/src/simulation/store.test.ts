@@ -65,7 +65,7 @@ describe("SimulationStore — devices", () => {
 })
 
 describe("SimulationStore — power, anomaly, samples", () => {
-    it("setPower/setAnomaly/recordSample atualizam o device certo e emitem 'changed'", () => {
+    it("setPower/setAnomaly/recordSample atualizam o device certo e emitem 'changed'", async () => {
         const store = new SimulationStore()
         const network = store.createNetwork("Casa Teste")
         const device = store.createDevice(network.id, { name: "Medidor 1", topic: "sim/dev1" })!
@@ -111,11 +111,12 @@ describe("SimulationStore — power, anomaly, samples", () => {
         expect(updated.lastPublishedAt).toBe(1000)
         expect(updated.publishCount).toBe(1)
         expect(updated.connected).toBe(true)
-        expect(listener).toHaveBeenCalledWith({
-            reason: "device-sample",
-            networkId: network.id,
-            deviceId: device.id,
-        })
+
+        // recordSample() coalesce a notificação "changed" (issue #312) — o
+        // estado do device já está atualizado sincronamente acima, mas o
+        // evento só dispara depois de um setImmediate.
+        await new Promise<void>((resolve) => setImmediate(resolve))
+        expect(listener).toHaveBeenCalledWith({ reason: "device-sample" })
     })
 
     it("setPower/setAnomaly/recordSample em device inexistente não lançam", () => {

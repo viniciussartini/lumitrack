@@ -73,8 +73,39 @@ export class SimulationStore extends EventEmitter {
     // path, então precisamos localizar a rede dona de um device em O(1).
     private readonly deviceIndex = new Map<string, string>()
 
+    // Só o caminho de recordSample() precisa de coalescência — é o único
+    // chamado em rajada (1x/s por device ligado, via DeviceRunner.tick(),
+    // um setInterval por device). Os demais (CRUD de rede/device, power,
+    // anomalia) são ações do usuário via API, uma de cada vez, sem rajada —
+    // continuam síncronos, como o teste existente já espera.
+    private sampleNotifyScheduled = false
+
     private emitChanged(event: ChangeEvent): void {
         this.emit("changed", event)
+    }
+
+    /**
+     * Agenda uma única notificação "changed" coalescendo N chamadas de
+     * `recordSample()` da mesma rajada — vários devices publicam amostra
+     * quase ao mesmo tempo (cada um com seu próprio `setInterval` de
+     * `DeviceRunner`, mas alinhados no mesmo período). Sem isto, cada
+     * amostra dispara "changed" individualmente, e cada disparo faz todo
+     * assinante SSE reconstruir e serializar o snapshot inteiro de novo
+     * (O(D) por disparo × D disparos × C assinantes = O(D²×C) por ciclo).
+     *
+     * `setImmediate` (fase "check" do event loop) só roda depois que TODOS
+     * os timers vencidos na mesma volta do event loop (fase "timers") já
+     * dispararam — ao contrário de `process.nextTick`, que rodaria entre um
+     * timer e o próximo, sem esperar os demais. Isso garante que as N
+     * amostras da mesma rajada caiam na mesma notificação coalescida.
+     */
+    private scheduleCoalescedSampleNotification(): void {
+        if (this.sampleNotifyScheduled) return
+        this.sampleNotifyScheduled = true
+        setImmediate(() => {
+            this.sampleNotifyScheduled = false
+            this.emit("changed", { reason: "device-sample" })
+        })
     }
 
     /**
@@ -259,7 +290,9 @@ export class SimulationStore extends EventEmitter {
 
     /**
      * Registra a leitura mais recente de um device (`DeviceRunner` chama a
-     * cada tick publicado).
+     * cada tick publicado). A notificação "changed" desta chamada é
+     * coalescida com a de outros devices da mesma rajada — ver
+     * `scheduleCoalescedSampleNotification`.
      *
      * @param deviceId Id do device.
      * @param sample Amostra elétrica gerada.
@@ -273,6 +306,6 @@ export class SimulationStore extends EventEmitter {
         device.lastPublishedAt = publishedAtMs
         device.publishCount += 1
         device.connected = true
-        this.emitChanged({ reason: "device-sample", networkId: device.networkId, deviceId })
+        this.scheduleCoalescedSampleNotification()
     }
 }
