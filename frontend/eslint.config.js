@@ -51,65 +51,292 @@ export default tseslint.config(
             "max-lines-per-function": "off",
         },
     },
+    // Débito pré-existente descoberto ao ligar a trava — não havia
+    // catalogação prévia de complexidade de componente React (só backend).
+    // Medido de novo em 2026-08-28 (o levantamento original catalogava 48
+    // arquivos; 6 já passam nos dois limites hoje e saíram da lista —
+    // RealtimeSection.tsx, PropertyCard.tsx, ConfirmDialog.tsx,
+    // RealtimeContext.tsx, ThemeContext.tsx e AboutPage.tsx). Cada bloco
+    // abaixo agrupa arquivos com o mesmo teto medido — acima do valor real,
+    // abaixo do que equivaleria a desligar a regra. Revisar na Fase 18
+    // (roadmap.md, polimento).
     {
-        // Débito pré-existente descoberto ao ligar a trava — não havia
-        // catalogação prévia de complexidade de componente React (só
-        // backend), então não há fase do roadmap que já cubra isto.
-        // Catalogado explicitamente aqui (não eslint-disable disperso), em
-        // vez de reescrever ~46 arquivos fora do escopo deste enforcement.
+        files: [
+            "src/components/consumption/ConsumptionSection.tsx",
+            "src/components/meter/MeterForm.tsx",
+            "src/pages/report/ReportsPage.tsx",
+        ],
+        rules: {
+            complexity: ["error", 20],
+            "max-lines-per-function": [
+                "error",
+                { max: 110, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/components/dashboard/ConsumptionHistorySection.tsx"],
+        rules: {
+            complexity: ["error", 25],
+            "max-lines-per-function": [
+                "error",
+                { max: 80, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/components/dashboard/DashboardKpiRow.tsx"],
+        rules: {
+            complexity: ["error", 30],
+            "max-lines-per-function": [
+                "error",
+                { max: 90, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/components/meter/MeterFormDialog.tsx"],
+        rules: {
+            complexity: ["error", 15],
+            "max-lines-per-function": [
+                "error",
+                { max: 70, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/components/meter/MeterSection.tsx"],
+        rules: {
+            complexity: ["error", 25],
+            "max-lines-per-function": [
+                "error",
+                { max: 180, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/components/property/PropertyForm.tsx"],
+        rules: {
+            complexity: ["error", 30],
+            "max-lines-per-function": [
+                "error",
+                { max: 190, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/components/property/PropertyFormDialog.tsx"],
+        rules: {
+            complexity: ["error", 15],
+            "max-lines-per-function": [
+                "error",
+                { max: 110, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/components/ui/Input.tsx", "src/pages/property/PropertiesPage.tsx"],
+        rules: {
+            complexity: ["error", 20],
+            "max-lines-per-function": [
+                "error",
+                { max: 90, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/pages/alert/AlertsPage.tsx"],
+        rules: {
+            complexity: ["error", 40],
+            "max-lines-per-function": [
+                "error",
+                { max: 170, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/pages/area/AreaDetailsPage.tsx"],
+        rules: {
+            complexity: ["error", 15],
+            "max-lines-per-function": [
+                "error",
+                { max: 140, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/pages/auth/LoginPage.tsx"],
+        rules: {
+            complexity: ["error", 15],
+            "max-lines-per-function": [
+                "error",
+                { max: 230, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/pages/auth/RegisterPage.tsx"],
+        rules: {
+            complexity: ["error", 25],
+            "max-lines-per-function": [
+                "error",
+                { max: 320, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/pages/distributor/DistributorsPage.tsx"],
+        rules: {
+            complexity: ["error", 25],
+            "max-lines-per-function": [
+                "error",
+                { max: 100, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/pages/property/PropertyDetailsPage.tsx"],
+        rules: {
+            complexity: ["error", 15],
+            "max-lines-per-function": [
+                "error",
+                { max: 150, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/pages/settings/SecurityPage.tsx"],
+        rules: {
+            complexity: ["error", 15],
+            "max-lines-per-function": [
+                "error",
+                { max: 160, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    // Só complexidade acima do teto — linhas por função já dentro do limite.
+    {
+        files: ["src/lib/userDisplay.ts", "src/pages/dashboard/DashboardPage.tsx"],
+        rules: {
+            complexity: ["error", 20],
+        },
+    },
+    // Só linhas por função acima do teto — complexidade já dentro do limite.
+    {
+        files: [
+            "src/components/area/AreaForm.tsx",
+            "src/components/device/DeviceForm.tsx",
+            "src/components/distributor/DistributorCard.tsx",
+        ],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 90, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
         files: [
             "src/components/alert/AlertForm.tsx",
-            "src/components/alert/AlertRowMenu.tsx",
-            "src/components/area/AreaForm.tsx",
             "src/components/area/AreaMenu.tsx",
+            "src/components/property/PropertyMenu.tsx",
+            "src/pages/auth/ForgotPasswordPage.tsx",
+            "src/pages/profile/ProfilePage.tsx",
+        ],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 120, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/components/alert/AlertRowMenu.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 210, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: [
             "src/components/auth/BrandPanel.tsx",
             "src/components/auth/MfaCodeForm.tsx",
             "src/components/consumption/ConsumptionChart.tsx",
-            "src/components/consumption/ConsumptionSection.tsx",
-            "src/components/dashboard/ConsumptionHistorySection.tsx",
-            "src/components/dashboard/DashboardKpiRow.tsx",
-            "src/components/dashboard/PropertyComparisonSection.tsx",
-            "src/components/dashboard/RealtimeSection.tsx",
-            "src/components/device/DeviceFormDialog.tsx",
-            "src/components/device/DeviceForm.tsx",
-            "src/components/device/DeviceMenu.tsx",
-            "src/components/distributor/DistributorCard.tsx",
-            "src/components/layout/NotificationDropdown.tsx",
-            "src/components/layout/Sidebar.tsx",
-            "src/components/layout/UserMenu.tsx",
-            "src/components/meter/MeterFormDialog.tsx",
-            "src/components/meter/MeterForm.tsx",
-            "src/components/meter/MeterSection.tsx",
-            "src/components/property/PropertyCard.tsx",
-            "src/components/property/PropertyFormDialog.tsx",
-            "src/components/property/PropertyForm.tsx",
-            "src/components/property/PropertyMenu.tsx",
-            "src/components/ui/ConfirmDialog.tsx",
-            "src/components/ui/Input.tsx",
-            "src/contexts/AuthContext.tsx",
-            "src/contexts/RealtimeContext.tsx",
-            "src/contexts/ThemeContext.tsx",
-            "src/lib/userDisplay.ts",
-            "src/pages/about/AboutPage.tsx",
-            "src/pages/alert/AlertsPage.tsx",
-            "src/pages/area/AreaDetailsPage.tsx",
-            "src/pages/auth/ForgotPasswordPage.tsx",
-            "src/pages/auth/LoginPage.tsx",
-            "src/pages/auth/RegisterPage.tsx",
-            "src/pages/auth/ResetPasswordPage.tsx",
-            "src/pages/dashboard/DashboardPage.tsx",
-            "src/pages/device/DeviceDetailsPage.tsx",
-            "src/pages/distributor/DistributorsPage.tsx",
-            "src/pages/landing/LandingPage.tsx",
-            "src/pages/profile/ProfilePage.tsx",
-            "src/pages/property/PropertiesPage.tsx",
-            "src/pages/property/PropertyDetailsPage.tsx",
-            "src/pages/report/ReportsPage.tsx",
-            "src/pages/settings/SecurityPage.tsx",
         ],
         rules: {
-            complexity: "off",
-            "max-lines-per-function": "off",
+            "max-lines-per-function": [
+                "error",
+                { max: 80, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: [
+            "src/components/dashboard/PropertyComparisonSection.tsx",
+            "src/components/device/DeviceFormDialog.tsx",
+            "src/components/layout/Sidebar.tsx",
+        ],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 70, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/components/device/DeviceMenu.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 130, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/components/layout/NotificationDropdown.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 140, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/components/layout/UserMenu.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 150, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/contexts/AuthContext.tsx", "src/pages/device/DeviceDetailsPage.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 110, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/pages/auth/ResetPasswordPage.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 160, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        files: ["src/pages/landing/LandingPage.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 100, skipBlankLines: true, skipComments: true },
+            ],
         },
     },
     {

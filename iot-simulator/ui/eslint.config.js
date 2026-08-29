@@ -49,12 +49,17 @@ export default tseslint.config(
         },
     },
     {
-        // Débito pré-existente descoberto ao ligar a trava nesta issue
-        // (#160), mesma classe do achado catalogado no frontend principal —
-        // ver eslint.config.js de frontend/. Rastreado em #168.
+        // Débito pré-existente descoberto ao ligar a trava, mesma classe do
+        // achado catalogado no frontend principal — ver eslint.config.js de
+        // frontend/. Medido em 2026-08-28 (184 e 180 linhas); complexidade
+        // já está dentro do limite global nos dois. Revisar na Fase 18
+        // (roadmap.md, polimento).
         files: ["src/components/network/NetworkCard.tsx", "src/pages/Dashboard.tsx"],
         rules: {
-            "max-lines-per-function": "off",
+            "max-lines-per-function": [
+                "error",
+                { max: 190, skipBlankLines: true, skipComments: true },
+            ],
         },
     },
     {
