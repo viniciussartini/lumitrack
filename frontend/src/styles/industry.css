@@ -687,6 +687,30 @@ textarea.input {
     --text-44: 44px;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   Espaçamento de layout de página — adaptação do projeto, não vem do
+   styles.css do bundle. --space-1..8 (acima, herdado da Fase 1) cobre só
+   os componentes de base do Industry; o layout de página no bundle usa
+   medida livre, sem grade — conferido nos 8 protótipos .dc.html
+   (gap:12px, padding:16px, padding:18px... nenhum múltiplo de 3.4px).
+   Não é débito, é como o design é. Os 8 valores abaixo são só os que se
+   repetem 8+ vezes no código (119 das 149 ocorrências arbitrárias restantes
+   após a Fase 18/#336-#340) — o resto (~29 valores, 1-4 usos cada) fica
+   como valor arbitrário legítimo, sem token, mesmo critério de
+   proporcionalidade já aplicado a `06-code-quality-standards.md` (YAGNI).
+   Nomeados pelo valor em px, mesmo critério da escala tipográfica acima.
+   ══════════════════════════════════════════════════════════════════════ */
+:root {
+    --spacing-9: 9px;
+    --spacing-15: 15px;
+    --spacing-18: 18px;
+    --spacing-22: 22px;
+    --spacing-26: 26px;
+    --spacing-30: 30px;
+    --spacing-46: 46px;
+    --spacing-1200: 1200px;
+}
+
 /* Foco mais visível em inputs (outline, além da borda que .input já muda) —
    presente nos 3 protótipos de autenticação (Login/Registro/Recuperar
    Senha), sempre igual: .lt-input é aditiva a .input, não substitui. */

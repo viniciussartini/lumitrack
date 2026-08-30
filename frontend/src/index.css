@@ -86,6 +86,18 @@
        numérica (p-12, gap-24...), não só aos 6 passos que o Industry nomeia. */
     --spacing: var(--space-1);
 
+    /* Layout de página — ver styles/industry.css (adaptação do projeto).
+       Namespace --spacing-<nome> gera utilitária pra p/m/w/h/gap/max-w/
+       min-h/min-w simultaneamente (testado antes de aplicar em massa). */
+    --spacing-9: var(--spacing-9);
+    --spacing-15: var(--spacing-15);
+    --spacing-18: var(--spacing-18);
+    --spacing-22: var(--spacing-22);
+    --spacing-26: var(--spacing-26);
+    --spacing-30: var(--spacing-30);
+    --spacing-46: var(--spacing-46);
+    --spacing-1200: var(--spacing-1200);
+
     --radius-sm: var(--radius-sm);
     --radius-md: var(--radius-md);
     --radius-lg: var(--radius-lg);
