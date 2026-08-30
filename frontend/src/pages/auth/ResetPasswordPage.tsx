@@ -62,11 +62,11 @@ export const ResetPasswordPage = () => {
                     extra={<RecoverySteps current="reset" />}
                 />
                 <main className="flex items-center justify-center p-7 lg:p-14">
-                    <Blueprint className="w-full max-w-[400px] px-[30px] py-[34px] text-center">
-                        <h2 className="font-heading mt-5 text-[26px] leading-[1.05] font-semibold uppercase">
+                    <Blueprint className="w-full max-w-[400px] px-[30px] py-10 text-center">
+                        <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
                             Link inválido
                         </h2>
-                        <p className="text-muted mt-3 text-[14.5px] leading-[1.55]">
+                        <p className="text-muted text-14-5 mt-3 leading-[1.55]">
                             Este link de redefinição está incompleto ou já foi usado. Solicite um
                             novo.
                         </p>
@@ -90,7 +90,7 @@ export const ResetPasswordPage = () => {
             <main className="flex items-center justify-center p-7 lg:p-14">
                 <div className="w-full max-w-[400px]">
                     {done ? (
-                        <Blueprint className="px-[30px] py-[34px] text-center">
+                        <Blueprint className="px-[30px] py-10 text-center">
                             <div className="mx-auto flex h-[52px] w-[52px] items-center justify-center border-[1.5px] border-[#2f6f3f]">
                                 <Check
                                     className="h-[26px] w-[26px] text-[#2f6f3f]"
@@ -98,10 +98,10 @@ export const ResetPasswordPage = () => {
                                     aria-hidden="true"
                                 />
                             </div>
-                            <h2 className="font-heading mt-5 text-[26px] leading-[1.05] font-semibold uppercase">
+                            <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
                                 Senha redefinida
                             </h2>
-                            <p className="text-muted mt-3 text-[14.5px] leading-[1.55]">
+                            <p className="text-muted text-14-5 mt-3 leading-[1.55]">
                                 Sua senha foi atualizada com sucesso. Use a nova senha para entrar
                                 na sua conta.
                             </p>
@@ -120,13 +120,13 @@ export const ResetPasswordPage = () => {
                             noValidate
                         >
                             <div>
-                                <span className="text-accent-700 font-heading block text-[13px] font-semibold tracking-[.09em] uppercase">
+                                <span className="text-accent-700 font-heading text-13 block font-semibold tracking-[.09em] uppercase">
                                     Nova senha
                                 </span>
                                 <h2 className="font-heading mt-3 text-[clamp(26px,2.8vw,36px)] leading-[1.03] font-semibold uppercase">
                                     Defina sua senha
                                 </h2>
-                                <p className="text-muted mt-3 text-[14.5px] leading-normal">
+                                <p className="text-muted text-14-5 mt-3 leading-normal">
                                     Escolha uma nova senha para sua conta. Ela precisa atender aos
                                     requisitos abaixo.
                                 </p>

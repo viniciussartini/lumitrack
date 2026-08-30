@@ -68,16 +68,16 @@ export const ConfirmEmailChangePage = () => {
 }
 
 const LoadingCard = () => (
-    <Blueprint className="px-[30px] py-[34px] text-center">
-        <h2 className="font-heading mt-5 text-[26px] leading-[1.05] font-semibold uppercase">
+    <Blueprint className="px-[30px] py-10 text-center">
+        <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
             Confirmando…
         </h2>
-        <p className="text-muted mt-3 text-[14.5px] leading-[1.55]">Aguarde um instante.</p>
+        <p className="text-muted text-14-5 mt-3 leading-[1.55]">Aguarde um instante.</p>
     </Blueprint>
 )
 
 const SuccessCard = () => (
-    <Blueprint className="px-[30px] py-[34px] text-center">
+    <Blueprint className="px-[30px] py-10 text-center">
         <div className="mx-auto flex h-[52px] w-[52px] items-center justify-center border-[1.5px] border-[#2f6f3f]">
             <Check
                 className="h-[26px] w-[26px] text-[#2f6f3f]"
@@ -85,10 +85,10 @@ const SuccessCard = () => (
                 aria-hidden="true"
             />
         </div>
-        <h2 className="font-heading mt-5 text-[26px] leading-[1.05] font-semibold uppercase">
+        <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
             E-mail atualizado
         </h2>
-        <p className="text-muted mt-3 text-[14.5px] leading-[1.55]">
+        <p className="text-muted text-14-5 mt-3 leading-[1.55]">
             Seu e-mail foi confirmado com sucesso. Por segurança, todas as sessões ativas foram
             encerradas — entre novamente para continuar.
         </p>
@@ -99,7 +99,7 @@ const SuccessCard = () => (
 )
 
 const ErrorCard = ({ message }: { message: string }) => (
-    <Blueprint className="px-[30px] py-[34px] text-center">
+    <Blueprint className="px-[30px] py-10 text-center">
         <div className="border-status-danger mx-auto flex h-[52px] w-[52px] items-center justify-center border-[1.5px]">
             <X
                 className="text-status-danger h-[26px] w-[26px]"
@@ -107,10 +107,10 @@ const ErrorCard = ({ message }: { message: string }) => (
                 aria-hidden="true"
             />
         </div>
-        <h2 className="font-heading mt-5 text-[26px] leading-[1.05] font-semibold uppercase">
+        <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
             Link inválido
         </h2>
-        <p className="text-muted mt-3 text-[14.5px] leading-[1.55]">{message}</p>
+        <p className="text-muted text-14-5 mt-3 leading-[1.55]">{message}</p>
         <Button asChild variant="secondary" className="btn-block mt-6 min-h-[46px]">
             <Link to="/perfil">Voltar para o perfil</Link>
         </Button>
