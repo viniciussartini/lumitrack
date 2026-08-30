@@ -617,6 +617,74 @@ textarea.input {
     --color-status-danger: #a53b2c; /* vermelha P1 — erro, ação destrutiva */
     --color-status-danger-strong: #7d241a; /* vermelha P2 — severidade maior */
     --color-status-highlight: #d98a1e; /* destaque de sidebar/navegação ativa */
+
+    /* Indicador "dado ao vivo" — cor própria, não reaproveita
+       --color-status-success apesar do tom próximo: papel semântico
+       diferente (liveness, não resultado positivo) e é a cor mais repetida
+       do app (9 pontos hoje hardcoded). Vem do handoff (LumiTrack
+       Login.dc.html, painel "Ao vivo"). Sem variante dark — usada tanto no
+       BrandPanel escuro quanto no conteúdo claro do app, mesmo valor. */
+    --color-status-live: #3f8f52;
+
+    /* Bandeira tarifária sobre fundo escuro (BrandPanel/Sidebar) — os tokens
+       --color-status-* acima são pensados para fundo claro e ficam
+       ilegíveis lá (ver frontend/src/types/tariff-flag.types.ts). O handoff
+       só define a cor da bandeira Verde (texto #8fd0a0 / ponto
+       --color-status-live); Amarela/Vermelha P1/Vermelha P2 são
+       extrapolação registrada (mesmo padrão texto pastel + ponto mais
+       saturado), não inventada em componente. */
+    --color-flag-green: #8fd0a0;
+    --color-flag-yellow: #e0b563;
+    --color-flag-yellow-dot: #c98f2e;
+    --color-flag-red-p1: #e08a76;
+    --color-flag-red-p1-dot: #c15a42;
+    --color-flag-red-p2: #e0654a;
+    --color-flag-red-p2-dot: #a83f2c;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Escala tipográfica — adaptação do projeto, não vem do styles.css do
+   bundle. O bundle define font-size só por classe de componente (h1..h6,
+   .card-title, .dialog-title...), sem uma escala nomeada reutilizável — as
+   telas do produto fora dessas classes foram implementadas com valor
+   arbitrário entre colchetes por falta de token (10-design-system.md,
+   "dívida remanescente", Fase 18). Os 26 valores abaixo são a união de todo
+   `font-size` distinto usado nos 8 protótipos .dc.html do bundle vigente
+   (2026-07-31-lumitrack-completo) e das classes de componente deste
+   arquivo — não um valor novo, e não arredondado: os passos de meio pixel
+   (12.5, 13.5...) aparecem dezenas de vezes cada no bundle, sistemáticos,
+   não ruído. Nomeados pelo valor em px (não xs/sm/lg — 26 passos não cabem
+   em nomenclatura semântica sem perder precisão) e aditivos à escala
+   padrão do Tailwind (text-xs/sm/base/lg/xl...), que o projeto já usa em
+   141 pontos para texto sem correspondente no protótipo — não resetada.
+   ══════════════════════════════════════════════════════════════════════ */
+:root {
+    --text-10: 10px;
+    --text-11: 11px;
+    --text-11-5: 11.5px;
+    --text-12: 12px;
+    --text-12-5: 12.5px;
+    --text-13: 13px;
+    --text-13-5: 13.5px;
+    --text-14: 14px;
+    --text-14-5: 14.5px;
+    --text-15: 15px;
+    --text-15-5: 15.5px;
+    --text-16: 16px;
+    --text-17: 17px;
+    --text-18: 18px;
+    --text-19: 19px;
+    --text-20: 20px;
+    --text-22: 22px;
+    --text-24: 24px;
+    --text-25: 25px;
+    --text-26: 26px;
+    --text-28: 28px;
+    --text-30: 30px;
+    --text-32: 32px;
+    --text-38: 38px;
+    --text-42: 42px;
+    --text-44: 44px;
 }
 
 /* Foco mais visível em inputs (outline, além da borda que .input já muda) —
