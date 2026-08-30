@@ -1,6 +1,7 @@
 import { defineConfig } from "vitest/config"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
+import { visualizer } from "rollup-plugin-visualizer"
 import path from "node:path"
 
 // index.html usa %VITE_CSP_CONNECT_EXTRA% no connect-src do CSP (ver
@@ -11,7 +12,19 @@ import path from "node:path"
 process.env.VITE_CSP_CONNECT_EXTRA ??= ""
 
 export default defineConfig({
-    plugins: [react(), tailwindcss()],
+    plugins: [
+        react(),
+        tailwindcss(),
+        // `ANALYZE=true npm run build` gera dist/stats.html (treemap +
+        // tamanho gzip por módulo); não roda em todo build.
+        process.env.ANALYZE === "true" &&
+            visualizer({
+                filename: "dist/stats.html",
+                gzipSize: true,
+                brotliSize: true,
+                template: "treemap",
+            }),
+    ],
     resolve: {
         alias: {
             "@": path.resolve(__dirname, "./src"),

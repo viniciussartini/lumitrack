@@ -2676,3 +2676,11 @@
 - **Arquivos principais:** `.claude/docs/roadmap.md`.
 - **Decisões/ADRs:** nenhuma nova.
 - **Notas:** ordem de dependência dos itens segue "medir → otimizar → medir de novo" (baseline antes de tudo, React Compiler antes dos itens que ele pode tornar redundantes). Nenhuma das 3 decisões pendentes de `07-decisoes-em-aberto.md` bloqueia a fase. Próximo passo sugerido: abrir as issues da Fase 17 via skill `criar-issues`.
+
+## [2026-08-30] chore: instrumentação de baseline de bundle e renders (item 1 da Fase 17)
+- **Branch:** epic/322-frontend-tempo-real-bundle
+- **Tipo:** chore
+- **O quê:** `rollup-plugin-visualizer` instalado e configurado no `vite.config.ts` do frontend, gated por `ANALYZE=true` (não roda em todo build). Baseline de bundle e de contagem de renders (`Header`/`MeterSection`/`RealtimeChartCard`) medido e registrado em `.claude/docs/2026-08-30-fase17-baseline-frontend.md` para comparação no fechamento da fase. Nenhuma mudança de comportamento — item de pura instrumentação/medição.
+- **Arquivos principais:** `frontend/vite.config.ts`; `frontend/package.json`/`package-lock.json`; `.claude/docs/2026-08-30-fase17-baseline-frontend.md` (novo).
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** a contagem de renders foi obtida via `React.Profiler` (API pública) envolvendo temporariamente os 3 componentes + um backend descartável fora do repositório servindo 60 leituras SSE reais em 60s contra `PropertyDetailsPage` — instrumentação revertida via `git checkout` ao final, sem vestígio no código (ver metodologia completa no documento de baseline). `tsc -b`, `eslint`, `depcruise` e `prettier --check` limpos; Vitest 722/722 verde (sem alteração). Achado colateral fora de escopo: `frontend/.env` (não lido/editado) tem `VITE_SSE_URL` apontando para URL absoluta, forçando o caminho cross-origin de SSE em dev local — contornado só para esta medição via variável de ambiente do shell, sem tocar o `.env`; vale o usuário confirmar se é intencional.
