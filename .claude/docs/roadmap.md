@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-30 · Fases 1–17 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, #290, #305, #322, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15), #300 (épico #290, Fase 15.5), #304 (#296–#299, Fase 15.5), #314 (épico #305: #306–#309, Fase 16), #317 (#310–#313, #168, Fase 16), #321 (#255, #257, #316, Fase 16). Fase 17 (épico #322: #323–#328) fechou via PR #333, mesclado em staging. Fase atual: **18** (design system, cobertura e polimento) — ainda em nível de objetivo, a detalhar.
+> Última atualização: 2026-08-30 · Fases 1–17 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, #290, #305, #322, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15), #300 (épico #290, Fase 15.5), #304 (#296–#299, Fase 15.5), #314 (épico #305: #306–#309, Fase 16), #317 (#310–#313, #168, Fase 16), #321 (#255, #257, #316, Fase 16). Fase 17 (épico #322: #323–#328) fechou via PR #333, mesclado em staging. Fase atual: **18** (design system, cobertura e polimento) — detalhada em 2026-08-30, 16 itens; absorve as issues #329 e #318, com destino registrado para #315/#303/#289/#302/#272/#269 (fora do escopo desta fase).
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das auditorias** — as quatro de 2026-08-05 e, a partir da Fase 13.6, as quatro de 2026-08-22 (pós-deploy) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **A Fase 13.7 separa os ambientes:** VPS Hostinger (São Paulo) vira produção real (branch `main`), Render+Neon é rebaixado a staging/integração (branch `staging`) — ver **ADR-0012**. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
@@ -30,7 +30,7 @@
 | 15.5 | Enforcement de qualidade + comentários de rastreabilidade | **Concluída** (épico #290, #296–#299, PRs #300/#304) — issue #168 dobrada para a Fase 16 |
 | 16 | Worker IoT — robustez, estrutura e cobertura | **Concluída** (épico #305 — PR #314; PR #317; PR #321) |
 | 17 | Frontend — tempo real e bundle | **Concluída** (épico #322 — #323–#328; PR #333 mesclado em staging) |
-| **18** | **Design system, cobertura de testes e polimento** | Planejada — fase atual, objetivo abaixo, a detalhar |
+| **18** | **Design system, cobertura de testes e polimento** | Planejada — fase atual, detalhada em 16 itens |
 | 19 | Grupo A — fundação tarifária (subgrupos, modalidades, postos, demanda) + Horária Verde | Planejada — detalhe abaixo |
 | 20 | Grupo A — Horária Azul, ultrapassagem de demanda e energia reativa excedente | Planejada — objetivo abaixo |
 | 21 | Mercado Livre de Energia (ACL) | Planejada — objetivo abaixo |
@@ -1576,13 +1576,166 @@ Queda de ~75% em relação ao pico pós-compiler, e ~73% em relação ao baselin
 
 **Fechamento:** os 8 itens da fase (issues #323–#328, épico #322) estão implementados, testados e mesclados em `staging` via PR #333 (revisado pela `revisao-codigo`, com 4 bloqueios corrigidos e 5 sugestões aplicadas antes do merge). Duas falhas E2E pré-existentes de `page.clock.install()` (não relacionadas ao escopo desta fase, investigadas e confirmadas por A/B) ficaram registradas como issue própria (#329) em vez de bloquear o fechamento.
 
-## Fase 18 (objetivo — será detalhada ao chegar)
+## Fase 18 — Design system, cobertura e polimento
 
-> Mesmo planejamento just-in-time do bloco anterior: detalhar agora é escrever o que será reescrito antes de executar.
+**Entrega (milestone):** `Robustez e Polimento` (mesma das Fases 16 e 17 — fecha o milestone).
 
-### Fase 18 — Design system, cobertura e polimento (P2)
+> **Detalhamento de 2026-08-30, que substitui o parágrafo-objetivo anterior.** Os números do laudo de 2026-08-22 mudaram ao medir de novo agora: valores arbitrários eram 291 em 44 arquivos, hoje são **372 em 44 arquivos** (mesmos arquivos, dívida cresceu dentro deles); hex hardcodado segue em **66 ocorrências/17 arquivos**, igual ao laudo; a paleta pré-Industry encolheu de ~15-16 para **13 arquivos**; o idioma `parseOrThrow` (Q-12) é hoje **35 repetições em 15 arquivos** (o laudo dizia 33/14 — `env.ts` entrou na contagem). O ramo morto do `UserMenu` foi confirmado por grep: `variant="header"` (default) só é exercitado por `UserMenu.test.tsx` — o único consumidor de produção é `Sidebar.tsx` com `variant="sidebar"`, desde que o menu de usuário migrou pro rodapé da Sidebar na Fase 6.
+>
+> **Issues abertas absorvidas por decisão do usuário (2026-08-30):** #329 (E2E `page.clock.install()` não processa corpo de SSE mockada — diferida do fechamento da Fase 17 exatamente para cá) e #318 (tetos de complexidade sem plano de redução real em `AlertsPage`/`RegisterPage` — mesmo alvo da recomendação Q-06 desta fase). Avaliadas e mantidas **fora** do escopo, com destino registrado: #315 (fator de escala Modbus/Profinet — IoT/backend, fora do escopo de design/cobertura desta fase, fica como débito próprio); #303 (JSDoc — 48 arquivos backend — já tem decisão própria da Fase 15.5/Q-04, épico grande demais para entrar de carona); #289 (`statement_timeout`/`query_timeout` no pool — infra/backend, mesmo tratamento do fechamento da Fase 15: fica em aberto para uma fase de robustez/infra futura); #302, #272, #269 (conformidade/LGPD — fora do escopo declarado da fase; #302 já tem destino explícito, adiado pela ADR-0014).
 
-Cobre: **decisão de token primeiro** — mapear no `@theme` a escala tipográfica e de espaçamento que o protótipo de fato usa (**291 valores arbitrários em 44 arquivos**, medição de 2026-08-22 — dobrou desde a nota de 2026-08-09) e promover o verde `#3f8f52` a token, com `/design-sync` de volta; **cor hardcodada como achado distinto do débito de espaçamento** — 54 ocorrências de hex em 17 arquivos, incluindo o mapa de cores de bandeira tarifária inteiramente arbitrário; depois a limpeza mecânica — tokens pré-Industry em ~16 arquivos, `.lt-live-dot` no lugar da animação inline replicada 10×, ramo morto do `UserMenu`, `LiveKpiCard` adotado nas 3 páginas que o copiaram, decisão única sobre `Blueprint` vs. cantos manuais, e lint anti-regressão. Mais: namespace próprio de `queryKey` para "último bucket"; cobertura de Alertas, do SSE client e do CRUD de Medidor; `parseOrThrow` eliminando as 31 repetições; drift de documentação viva restante; e o restante do polimento.
+### 1. Escala de tokens (tipografia/espaçamento) no `@theme` + promoção de cor
+
+- **Comportamento:** nenhum para o usuário final — decisão de token que destrava os itens 2–4.
+- **Cobre:** Q-26 do laudo de qualidade 2026-08-22 (372 valores arbitrários/44 arquivos — o `@theme` já mapeia cor/fonte/raio/sombra, mas não a escala tipográfica e de espaçamento que o protótipo de fato usa); Q-25 parte 2 (`#3f8f52`, cor órfã do ponto "ao vivo" em 9 pontos, promovida a `--color-status-live`; as 4 cores da bandeira tarifária em `tariff-flag.types.ts:66-76`, hoje hex arbitrário puro, promovidas a `--color-flag-green/yellow/red-p1/red-p2`); Q-36 (nota do `10-design-system.md:69`, datada de 2026-08-09, subestima a dívida em ~2,5×).
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - Levantar no bundle (`design-system/styles.css`/`.dc.html`) a escala de espaçamento e tipografia que o protótipo de fato usa — não inventar uma nova.
+  - Mapear a escala no `@theme` (`frontend/src/styles/industry.css`); `--color-status-live` e as 4 `--color-flag-*` criadas e documentadas.
+  - `/design-sync` executado, refletindo os tokens novos de volta no Claude Design.
+  - `10-design-system.md:69` reescrito com os números reais (372/44, 66/17) e a nota de que a dívida de espaçamento foi resolvida na raiz — não mais "~143 valores".
+- **Depende de:** —
+- **Risco/observações:** baixo-médio — é decisão + infraestrutura de token, a aplicação em massa é o item seguinte.
+
+### 2. Épico: aplicar a escala nos arquivos com valor arbitrário/hex
+
+- **Comportamento:** nenhum direto — as telas passam a usar só a escala de tokens, sem hex nem valor arbitrário entre colchetes.
+- **Cobre:** os 372 valores arbitrários (Q-26, 44 arquivos) e o restante das 66 ocorrências de hex (Q-25, 17 arquivos) depois das 5 substituições mecânicas (hex com token equivalente já existente) e das cores promovidas no item 1.
+- **Priority:** P1/P2 · **Size:** L (épico com sub-issues por concentração — mesmo padrão de fragmentação já usado no épico de comentários de rastreabilidade da Fase 15.5)
+- **Critérios de aceite:**
+  - Sub-issues por arquivo/concentração: `LandingPage` (55 valores) · `ProfilePage` (26) · `PropertyDetailsPage` (18) · `ConfirmEmailChangePage` (16) · `ResetPasswordPage` (14) · `AreaDetailsPage` (13) · `LoginPage` (12) · `ForgotPasswordPage` (12) · `RegisterPage` (11) · `MeterSection` (10) · resto (34 arquivos) agrupado por diretório.
+  - `frontend/src/types/tariff-flag.types.ts:66-76` migrado para os 4 tokens `--color-flag-*` do item 1 — é o caso mais grave por ser dado, não markup.
+  - Nenhuma mudança de comportamento — só substituição de valor por token/classe equivalente; conferido visualmente contra o bundle onde houver handoff.
+- **Depende de:** item 1 (escala definida antes de aplicar — evita escrever o que seria reescrito).
+- **Risco/observações:** maior volume de arquivos tocados da fase, mas puramente mecânico/visual — mesma classe de risco baixo do épico de comentários da Fase 15.5.
+
+### 3. Paleta pré-Industry restante (13 arquivos)
+
+- **Comportamento:** nenhum direto.
+- **Cobre:** Q-27 — `slate-*`/`gray-*`/`amber-*` em `ConsumptionChart.tsx`, `ConsumptionTable.tsx`, `AlertRowMenu.tsx`, `AreaForm.tsx`, `AreaMenu.tsx`, `PropertyForm.tsx`, `PropertyMenu.tsx`, `DeviceMenu.tsx`, `DeviceForm.tsx`, `MeterForm.tsx`, `UserMenu.tsx`, `ReportsPage.tsx`, `PlaceholderPage.tsx` (medição atual — encolheu de ~15-16 para 13 desde o laudo).
+- **Priority:** P2 · **Size:** M
+- **Critérios de aceite:** `ConsumptionChart`/`ConsumptionTable` primeiro (miolo do Histórico de Consumo, acabou de ser retrabalhado — custo marginal baixo de migrar agora); os demais 11 arquivos migrados para os tokens Industry equivalentes; `UserMenu.tsx` coordenado no mesmo PR do item 5 (mesmo arquivo).
+- **Depende de:** item 1 (tokens).
+- **Risco/observações:** baixo — migração já repetida 4 fases seguidas, padrão conhecido.
+
+### 4. `.lt-live-dot` compartilhado + `LiveKpiCard` adotado nas details pages
+
+- **Comportamento:** nenhum direto — elimina 8 cópias textualmente idênticas do bloco do ponto verde "ao vivo".
+- **Cobre:** Q-13 — `PropertyDetailsPage.tsx:117`, `AreaDetailsPage.tsx:135`, `DeviceDetailsPage.tsx:132`, `LoginPage.tsx:120`, `LandingPage.tsx:174`, `LiveKpiCard.tsx:27`, `MeterSection.tsx:168`, `RealtimeChartCard.tsx:57`.
+- **Priority:** P2 · **Size:** S/M
+- **Critérios de aceite:** `<LiveBadge label="..." />` extraído (classe `.lt-live-dot` em `industry.css` + componente React fino); `PropertyDetailsPage`/`AreaDetailsPage`/`DeviceDetailsPage` — as 3 páginas que copiaram o padrão do `LiveKpiCard` — passam a consumir o componente central em vez de reimplementar; `LandingPage`/`LoginPage`/`MeterSection`/`RealtimeChartCard` migrados junto, já que a extração cobre os 8 pontos de uma vez.
+- **Depende de:** item 1 (`--color-status-live`).
+- **Risco/observações:** baixo — resolve Q-13 e parte de Q-25 no mesmo movimento, como o próprio laudo recomenda.
+
+### 5. Remover o ramo morto do `UserMenu` (`variant="header"`)
+
+- **Comportamento:** nenhum funcional — código morto confirmado por grep: desde a Fase 6, `UserMenu` só é montado com `variant="sidebar"` (`Sidebar.tsx:97`); o branch `variant === "header"` (o default do componente) não tem nenhum consumidor de produção — só `UserMenu.test.tsx`, que hoje valida exclusivamente o ramo morto.
+- **Cobre:** achado do detalhamento desta fase (não estava em nenhum dos 4 laudos — a Fase 6 introduziu o resíduo ao migrar o trigger para a Sidebar sem remover o branch antigo).
+- **Priority:** P2 · **Size:** XS/S
+- **Critérios de aceite:** prop `variant` e o branch `"header"` removidos do componente; `UserMenu.test.tsx` reescrito para cobrir o único comportamento real (`sidebar`); nenhuma referência residual a `rounded-md`/`bg-slate-100`/`bg-accent rounded-full`/`focus-visible:ring-brand-500` (tokens pré-Industry do branch morto).
+- **Depende de:** —
+- **Risco/observações:** baixo — exclusão de código morto verificado, não refatoração especulativa.
+
+### 6. Decisão única: `Blueprint` vs. cantos manuais
+
+- **Comportamento:** nenhum direto.
+- **Cobre:** 29 arquivos usam a classe `.blueprint` hoje, sem critério documentado no `10-design-system.md` sobre quando usá-la vs. compor o efeito de canto cortado manualmente — divergência que cresce a cada tela nova sem uma regra explícita.
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:** levantamento dos casos que hoje implementam o efeito manualmente (fora de `.blueprint`); decisão registrada — um critério só (ex.: `.blueprint` sempre que o elemento for um cartão/painel de destaque) — documentada no `10-design-system.md`; arquivos divergentes migrados para o critério escolhido.
+- **Depende de:** —
+- **Risco/observações:** baixo — decisão de convenção + migração pontual dos divergentes.
+
+### 7. Lint anti-regressão de tokens
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** protege o investimento dos itens 1–4 — a dívida de valor arbitrário já dobrou uma vez sem trava nenhuma (143 → 291 → 372 em 3 semanas, notas de 2026-08-09 e 2026-08-22).
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:** regra de lint (ESLint customizada ou equivalente) bloqueando `\[\d+(px|rem|em|%)\]` e hex de 6 dígitos em `.tsx` de produção fora de `industry.css`, com exceção catalogada por arquivo onde necessário (mesmo padrão de override explícito já usado para complexidade/JSDoc); regra rodando no CI.
+- **Depende de:** itens 1–4 fechados — ligar a regra antes quebra o build no débito legado, mesma armadilha já registrada para `eslint-plugin-jsdoc` e para a trava de complexidade na Fase 15.5.
+- **Risco/observações:** baixo — configuração, não código de produto.
+
+### 8. Namespace próprio de `queryKey` para "último(s) bucket(s)"
+
+- **Comportamento:** nenhum direto — reduz o risco de um bug de cache já visto se repetir.
+- **Cobre:** `DashboardKpiRow.tsx:54-56` chama `useConsumption("PROPERTY", propertyId, "hour", 1, 3)` / `(..., "day", 1, 5)` / `(..., "month", 1, 1)` — reaproveitando o namespace `list` (paginação) da `queryKey` para um propósito diferente ("me dê os últimos N baldes"), com `pageSize` arbitrário fazendo esse papel. É a mesma classe do bug real corrigido às pressas no fechamento da Fase 4 (colisão de `queryKey` entre `PropertyComparisonSection` e `DashboardKpiRow`, resolvida alinhando `pageSize` a 3 em vez de separar por propósito).
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:** nova entrada em `queryKeys.consumption` (ex.: `latest(targetType, targetId, granularity, count)`), distinta de `list`, consumida pelo `DashboardKpiRow`; teste garantindo que um consumidor "latest" e um "list" com a mesma combinação targetType/granularity/pageSize não compartilham cache.
+- **Depende de:** —
+- **Risco/observações:** baixo-médio — já causou 1 bug real; hoje é mitigado só por convenção (`pageSize` coincidindo), não por estrutura.
+
+### 9. Cobertura de Alertas (RF14–RF16)
+
+- **Comportamento:** nenhum novo para o usuário final — rede de segurança para o único mecanismo que avisa sobre consumo anômalo.
+- **Cobre:** `AlertsPage.tsx` sem teste próprio — hoje só `AlertRowMenu.test.tsx` (menu de contexto) e `useAlerts.test.tsx` (hook) existem; nada cobre o fluxo de criar/editar/habilitar/excluir alerta via `AlertFormDialog`, nem a página inteira.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:** `AlertsPage.test.tsx` novo cobrindo listar, criar, editar, habilitar/desabilitar e excluir; teste de `AlertFormDialog` isolado se a página ficar grande demais para um arquivo só.
+- **Depende de:** —
+- **Risco/observações:** baixo tecnicamente, mas é a maior lacuna de sinal da fase — RF14–16 sem nenhum teste de fluxo até aqui.
+
+### 10. Cobertura do cliente SSE (`appStream.ts`)
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** `frontend/src/lib/sse/appStream.ts` (parsing de evento, reconexão) sem teste próprio — hoje só exercitado indiretamente via `RealtimeContext.test.tsx`.
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:** teste unitário do client isolado (mock de `EventSource`) cobrindo evento válido, evento malformado e reconexão.
+- **Depende de:** —
+- **Risco/observações:** baixo.
+
+### 11. Cobertura do CRUD de Medidor
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** os hooks relacionados a medidor já têm teste (`useLiveMeterReading`, `useLatestMeterReading`, `useMeterReadingHistory`), mas `MeterForm`/`MeterFormDialog` (criar/editar/excluir medidor) não tem teste de fluxo.
+- **Priority:** P2 · **Size:** S/M
+- **Critérios de aceite:** teste cobrindo criar, editar e excluir medidor pelo formulário, incluindo os campos de `extra` por protocolo adicionados em #316 (Fase 16).
+- **Depende de:** —
+- **Risco/observações:** baixo.
+
+### 12. `parseOrThrow` — eliminar as repetições (Q-12)
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** Q-12 — idioma `safeParse`→`ValidationError` repetido **35× em 15 arquivos** backend (contagem atual — o laudo dizia 33/14; `env.ts` passou a repetir o padrão também).
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:** `parseOrThrow<T>(schema: ZodType<T>, input: unknown): T` em `shared/validation/`; os 15 arquivos migrados; nenhuma mudança na mensagem de erro que chega ao usuário (a decisão de qual erro do Zod vira mensagem continua a mesma, só centralizada); testes de erro de validação existentes continuam verdes.
+- **Depende de:** —
+- **Risco/observações:** baixo — mudança mecânica, mas toca 15 arquivos de validação; a suíte existente é o critério de regressão.
+
+### 13. Complexidade: `consumption.service.ts` (issue #168, parte prometida para esta fase)
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** o override de complexidade em `backend/eslint.config.js` já cita este arquivo com destino "até a Fase 18, então reavaliar" (registrado nas Fases 15.5 e 16). Q-09 já recomenda o caminho: extrair `computeYearlyPropertyCosts()` e `resolveBucketCost()` como métodos privados de `ConsumptionService.list()` (117 linhas, 5 responsabilidades em sequência).
+- **Priority:** P1 · **Size:** S/M
+- **Critérios de aceite:** os 2 métodos extraídos e testados em isolamento; teto de complexidade do arquivo revisado para refletir o tamanho real pós-extração — se não sair da lista de exceção, o teto é numérico (nunca `off`) com nova data registrada no comentário; issue #168 fechada para este arquivo.
+- **Depende de:** —
+- **Risco/observações:** baixo-médio — é a regra de negócio de custo (RF13); extrair sem mudar comportamento é o próprio critério de aceite, verificado pelos testes existentes.
+
+### 14. Complexidade: `AlertsPage`/`RegisterPage` (fecha #318)
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** issue #318 — os 2 arquivos frontend têm teto de complexidade sem plano de redução real, mesmo alvo da recomendação Q-06 desta fase ("mover as ~15 telas de maior valor para fora da lista na Fase 18").
+- **Priority:** P2 · **Size:** S/M
+- **Critérios de aceite:** sub-componentes/hooks extraídos que reduzam a complexidade ciclomática real dos 2 arquivos — não só levantar o teto; issue #318 fechável pelos critérios acima.
+- **Depende de:** item 9 (cobertura de Alertas) — mexer em `AlertsPage` sem teste de fluxo antes é o mesmo risco que a Fase 16 evitou ao caracterizar antes de mover.
+- **Risco/observações:** baixo-médio — extração de UI, mitigada pela cobertura do item 9 vindo antes.
+
+### 15. Fix isolado: E2E `page.clock.install()` não processa SSE mockada (fecha #329)
+
+- **Comportamento:** nenhum para o usuário final — infraestrutura de teste.
+- **Cobre:** issue #329, registrada no fechamento da Fase 17 como "não relacionada ao escopo daquela fase, investigada e confirmada por A/B", diferida explicitamente para cá.
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:** causa raiz corrigida (mock de SSE compatível com `page.clock.install()`); as 2 falhas E2E pré-existentes voltam a passar; issue #329 fechada.
+- **Depende de:** —
+- **Risco/observações:** baixo — isolado à infraestrutura de teste E2E, não ao produto.
+
+### 16. Drift de documentação viva remanescente
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** Q-35 — `.claude/docs/README.md` não lista `DEPLOY.md` nem `O-Sistema-Eletrico-Brasileiro.md`; `03-arquitetura.md:107-109` inventaria `shared/` mas omite `errors/`, `targetResolution.ts`, `database/timeBucket.ts` e `test/`. (A nota do `10-design-system.md:69`, Q-36, já é critério de aceite do item 1 — não repetida aqui.)
+- **Priority:** P2 · **Size:** XS
+- **Critérios de aceite:** os 2 inventários completados conforme Q-35.
+- **Depende de:** —
+- **Risco/observações:** baixo — edição de texto.
+
+**Justificativa de sequenciamento (o que não é óbvio):** o token (item 1) vem antes de tudo porque aplicar em massa (2–4) sem a escala definida seria escrever o que será reescrito — mesmo raciocínio já usado nas Fases 13–18 antes desta. O lint anti-regressão (7) só entra depois de 1–4 fecharem, pela mesma armadilha já vivida com `eslint-plugin-jsdoc` e a trava de complexidade na Fase 15.5: ligar a regra `error` sem debitar o legado quebra o build no primeiro commit. Os itens de cobertura (9–11), `parseOrThrow` (12) e os dois itens de complexidade (13–14, exceto a dependência de 14 em 9) são independentes entre si e do bloco de design — podem rodar em paralelo ou em qualquer ordem dentro da fase.
 
 ---
 

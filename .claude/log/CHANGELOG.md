@@ -2772,3 +2772,11 @@
 - **Arquivos principais:** `frontend/src/hooks/queries/useLatestMeterReading.ts`; `frontend/vite.config.ts`; `frontend/src/components/ui/LoadingScreen.tsx`; `frontend/playwright.config.ts`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** o poll perpétuo de `refetchInterval` pra um alvo com medidor vinculado mas sem NENHUM minuto persistido ainda não tem teto — aceito por ora, documentado no comentário: o cenário mais comum (alvo sem medidor nenhum) já foi eliminado pelo gate de `meterId` da issue anterior, e medidor vinculado que nunca reportou é mais raro, resolvendo-se sozinho na primeira leitura persistida. Nenhuma mudança de comportamento observável em nenhum dos 5 pontos — `useLatestMeterReading.test.tsx`/`useLiveMeterReading.test.ts` continuam verdes sem alteração. `tsc -b`, `eslint` (0 erros), `depcruise` e Vitest (744/744) limpos.
+
+## [2026-08-30] docs: roadmap de implementação (fase 18)
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** Fase 18 (design system, cobertura e polimento) detalhada por completo em `.claude/docs/roadmap.md` — 16 itens, promovida de objetivo para itens completos com critérios de aceite. Números re-medidos em vez de reaproveitados do laudo de 2026-08-22 (valores arbitrários: 291→372 em 44 arquivos; `parseOrThrow`: 33/14→35/15; paleta pré-Industry: ~15-16→13 arquivos); um achado novo (ramo morto `variant="header"` do `UserMenu`, cuja suíte valida exclusivamente esse ramo) confirmado por grep, fora dos 4 laudos originais. Por decisão do usuário, as issues #329 e #318 entram no escopo da fase; #315, #303, #289, #302, #272 e #269 foram avaliadas e mantidas fora, com o destino de cada uma registrado no próprio roadmap.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** nenhum código alterado — só planejamento. Sequenciamento: token de espaçamento/tipografia primeiro (item 1) porque a aplicação em massa (item 2) sem a escala definida escreveria o que seria reescrito; lint anti-regressão (item 7) só depois de 1–4 fechados, mesma armadilha já registrada para `eslint-plugin-jsdoc`/complexidade na Fase 15.5.
