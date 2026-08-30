@@ -12,16 +12,20 @@ import type { TargetType } from "@/types/meter.types"
 const REFETCH_INTERVAL_MS = 30_000
 
 /** Acima disso, o retido é velho demais pra ainda cobrir uma virada de hora
- * normal (folga generosa sobre o pior caso de ~2-3 ciclos de
- * `refetchInterval` até o primeiro minuto da hora nova fechar) — cobre o
- * caso de a aba voltar de segundo plano bem no meio de uma virada, o que sem
- * este limite mostraria dado de minutos/horas atrás sem indicar que está
+ * normal. O backend persiste minutos em lote (`MinuteRollupScheduler`,
+ * alinhado ao próprio minuto cheio) — não por leitura, em tempo real —
+ * então o pior caso real é: até `REFETCH_INTERVAL_MS` sem sobrar nenhum
+ * poll antes da virada, mais o minuto inteiro que o novo período leva pra
+ * fechar, mais folga pro lote do backend persistir sob carga (concorrência
+ * de escrita entre vários medidores no mesmo flush). Cobre também o caso de
+ * a aba voltar de segundo plano bem no meio de uma virada, o que sem este
+ * limite mostraria dado de minutos/horas atrás sem indicar que está
  * desatualizado. Contado a partir de quando o retido foi CAPTURADO (não do
  * `bucketStart` do balde mais novo nele) — o balde mais novo já nasce até
  * ~2min mais velho que `now` (só minutos já fechados existem), então medir a
  * partir dele deixaria a folga real bem menor que `RETENTION_MAX_AGE_MS` e
  * arriscaria descartar o retido ainda durante uma virada normal. */
-const RETENTION_MAX_AGE_MS = 2 * 60_000
+const RETENTION_MAX_AGE_MS = 3 * 60_000
 
 /**
  * Histórico do gráfico "Consumo em tempo real" — busca `/api/meter-readings`
@@ -44,15 +48,24 @@ const RETENTION_MAX_AGE_MS = 2 * 60_000
  * `buildDenseWindowBuckets` devolve `[]` de propósito (a hora nova ainda não
  * fechou nenhum minuto) — sem isso, o gráfico piscava pro estado "Aguardando
  * leituras" por até ~1 min a cada virada de hora, mesmo com dado recente
- * disponível. O retido só é servido enquanto tiver sido capturado há menos
- * de `RETENTION_MAX_AGE_MS` — sem isso, um retorno de segundo plano bem na
- * virada de hora mostraria dado velho sem indicar que está desatualizado. O
- * retido é escopado por alvo (chave `targetType:targetId`, num `Map`
- * guardado num `ref`) — sem isso, trocar de propriedade/área/dispositivo no
- * meio da virada de hora herdaria os baldes do alvo anterior por engano.
- * Leitura e escrita do `ref` ficam só dentro do `queryFn` (nunca no corpo
- * síncrono do hook) — tocar `.current` durante o render é proibido pelas
- * regras do React Compiler.
+ * disponível. No minuto seguinte, o balde do primeiro minuto da hora nova já
+ * aparece na janela densa — mas, se o backend ainda não persistiu o lote
+ * daquele minuto (o rollup é em lote, alinhado ao próprio minuto cheio, não
+ * por leitura em tempo real), o valor vem zero-preenchido por ausência de
+ * item, indistinguível de "consumo zero" real. Um resultado que é só ESSE
+ * balde solto (`buckets.length === 1`) e zerado é tratado como ainda não
+ * confirmado o suficiente pra substituir um retido mais rico (a hora
+ * inteira anterior) — qualquer coisa com mais de um balde, ou um único
+ * balde não-zero, já é aceita de imediato (a ambiguidade só importa quando é
+ * a ÚNICA informação disponível). O retido só é servido enquanto tiver sido
+ * capturado há menos de `RETENTION_MAX_AGE_MS` — sem isso, um retorno de
+ * segundo plano bem na virada de hora mostraria dado velho sem indicar que
+ * está desatualizado. O retido é escopado por alvo (chave
+ * `targetType:targetId`, num `Map` guardado num `ref`) — sem isso, trocar de
+ * propriedade/área/dispositivo no meio da virada de hora herdaria os
+ * baldes do alvo anterior por engano. Leitura e escrita do `ref` ficam só
+ * dentro do `queryFn` (nunca no corpo síncrono do hook) — tocar `.current`
+ * durante o render é proibido pelas regras do React Compiler.
  */
 interface RetainedBuckets {
     buckets: PowerBucket[]
@@ -87,16 +100,18 @@ export const useMeterReadingHistory = (
             }))
 
             const buckets = buildDenseWindowBuckets(sparseBuckets, now)
-            if (buckets.length > 0) {
+            const isLoneUnconfirmedZero = buckets.length === 1 && buckets[0]!.kw === 0
+
+            if (buckets.length > 0 && !isLoneUnconfirmedZero) {
                 retainedByTarget.current.set(targetKey, { buckets, retainedAt: now })
                 return buckets
             }
 
             const retained = retainedByTarget.current.get(targetKey)
-            if (!retained || now - retained.retainedAt > RETENTION_MAX_AGE_MS) {
-                return []
+            if (retained && now - retained.retainedAt <= RETENTION_MAX_AGE_MS) {
+                return retained.buckets
             }
-            return retained.buckets
+            return buckets
         },
         enabled: Boolean(targetId) && Boolean(meterId),
         refetchInterval: REFETCH_INTERVAL_MS,
