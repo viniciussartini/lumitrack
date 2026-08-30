@@ -60,18 +60,18 @@ export const BrandPanel = ({ eyebrow, headline, description, extra }: BrandPanel
         </svg>
 
         <Link to="/" className="relative inline-block no-underline">
-            <LumiTrackWordmark textClassName="text-[20px]" />
+            <LumiTrackWordmark textClassName="text-20" />
         </Link>
 
         <div className="relative">
-            <span className="font-heading text-status-highlight block text-[13px] leading-none font-semibold tracking-[.09em] uppercase">
+            <span className="font-heading text-status-highlight text-13 block leading-none font-semibold tracking-[.09em] uppercase">
                 {eyebrow}
             </span>
             <h1 className="font-heading mt-4 max-w-[16ch] text-[clamp(30px,3.4vw,46px)] leading-[1.04] font-semibold uppercase">
                 {headline}
             </h1>
             {description && (
-                <p className="mt-[18px] max-w-[42ch] text-[15px] leading-[1.55] text-[#e6ecf2]/78">
+                <p className="text-15 mt-18 max-w-[42ch] leading-[1.55] text-[#e6ecf2]/78">
                     {description}
                 </p>
             )}

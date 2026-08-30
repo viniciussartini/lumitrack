@@ -69,15 +69,15 @@ export const UserMenu = ({ variant = "header" }: UserMenuProps) => {
                 >
                     <span
                         aria-hidden="true"
-                        className="font-heading flex h-9 w-9 shrink-0 items-center justify-center border border-white/26 text-[15px] font-semibold text-[#e6ecf2]"
+                        className="font-heading text-15 flex h-9 w-9 shrink-0 items-center justify-center border border-white/26 font-semibold text-[#e6ecf2]"
                     >
                         {initials}
                     </span>
                     <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13.5px] font-semibold text-[#e6ecf2]">
+                        <span className="text-13-5 block truncate font-semibold text-[#e6ecf2]">
                             {name}
                         </span>
-                        <span className="block truncate text-[11.5px] text-[#d7e0ea]/55">
+                        <span className="text-11-5 block truncate text-[#d7e0ea]/55">
                             {accountTypeLabel}
                         </span>
                     </span>

@@ -34,7 +34,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
 
     return (
         <header
-            className="border-divider sticky top-0 z-10 flex flex-wrap items-center justify-between gap-4 border-b px-[clamp(20px,3vw,36px)] py-[18px] backdrop-blur-sm"
+            className="border-divider sticky top-0 z-10 flex flex-wrap items-center justify-between gap-4 border-b px-[clamp(20px,3vw,36px)] py-18 backdrop-blur-sm"
             style={{ background: "color-mix(in srgb, var(--color-bg) 92%, transparent)" }}
         >
             <div className="flex min-w-0 items-center gap-3">
@@ -45,7 +45,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
                     aria-label="Abrir menu"
                     className="lt-iconbtn shrink-0 md:hidden"
                 >
-                    <Menu className="h-[18px] w-[18px]" strokeWidth={1.5} aria-hidden="true" />
+                    <Menu className="h-18 w-18" strokeWidth={1.5} aria-hidden="true" />
                 </button>
 
                 <div className="min-w-0">
@@ -60,7 +60,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
 
             <div className="flex items-center gap-3">
                 {isConnected && (
-                    <span className="font-heading text-status-success inline-flex items-center gap-[7px] text-[11px] font-semibold tracking-[.07em] uppercase">
+                    <span className="font-heading text-status-success text-11 inline-flex items-center gap-[7px] font-semibold tracking-[.07em] uppercase">
                         <span
                             aria-hidden="true"
                             className="bg-status-success inline-block h-2 w-2 rounded-full"

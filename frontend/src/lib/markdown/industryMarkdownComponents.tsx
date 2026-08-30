@@ -19,9 +19,9 @@ export const industryMarkdownComponents: Components = {
         </h1>
     ),
     h2: ({ children }) => <h2 id={slugify(String(children))}>{children}</h2>,
-    p: ({ children }) => <p className="text-muted text-[15px] leading-[1.62]">{children}</p>,
+    p: ({ children }) => <p className="text-muted text-15 leading-[1.62]">{children}</p>,
     ul: ({ children }) => <ul>{children}</ul>,
-    li: ({ children }) => <li className="text-muted text-[15px] leading-[1.55]">{children}</li>,
+    li: ({ children }) => <li className="text-muted text-15 leading-[1.55]">{children}</li>,
     strong: ({ children }) => <strong>{children}</strong>,
     a: ({ children, href }) => (
         <Link to={href ?? "#"} className="text-accent-700 hover:text-accent font-medium">
@@ -29,17 +29,17 @@ export const industryMarkdownComponents: Components = {
         </Link>
     ),
     blockquote: ({ children }) => (
-        <div className="blueprint border-status-warning/40 my-8 flex items-start gap-3 px-5 py-[18px]">
+        <div className="blueprint border-status-warning/40 my-8 flex items-start gap-3 px-5 py-18">
             <i className="corner tl" />
             <i className="corner tr" />
             <i className="corner bl" />
             <i className="corner br" />
             <AlertTriangle
-                className="text-status-warning mt-0.5 h-[18px] w-[18px] shrink-0"
+                className="text-status-warning mt-0.5 h-18 w-18 shrink-0"
                 strokeWidth={1.5}
                 aria-hidden="true"
             />
-            <div className="text-status-warning/90 text-[13.5px] [&_p]:m-0 [&_p]:text-inherit">
+            <div className="text-status-warning/90 text-13-5 [&_p]:m-0 [&_p]:text-inherit">
                 {children}
             </div>
         </div>

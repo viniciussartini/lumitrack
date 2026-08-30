@@ -54,10 +54,10 @@ export const PropertyComparisonSection = ({ properties }: PropertyComparisonSect
 
             <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
                 <div>
-                    <span className="font-heading text-[17px] font-semibold uppercase">
+                    <span className="font-heading text-17 font-semibold uppercase">
                         Comparação entre propriedades
                     </span>
-                    <span className="text-muted mt-[3px] block text-[12.5px]">
+                    <span className="text-muted text-12-5 mt-[3px] block">
                         Consumo do mês por unidade ({unit === "kwh" ? "kWh" : "R$"})
                     </span>
                 </div>

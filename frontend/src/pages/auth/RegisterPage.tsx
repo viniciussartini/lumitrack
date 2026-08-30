@@ -333,7 +333,7 @@ export const RegisterPage = () => {
                         <Button
                             type="submit"
                             isLoading={isSubmitting}
-                            className={cn("btn-block", "mt-1 min-h-[46px]")}
+                            className={cn("btn-block", "mt-1 min-h-46")}
                         >
                             Criar conta
                         </Button>

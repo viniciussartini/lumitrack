@@ -24,7 +24,7 @@ export const AlertTable = ({ alerts, onEdit }: AlertTableProps) => (
         <i className="corner br" />
 
         <div className="border-divider border-b px-5 py-4">
-            <span className="font-heading text-[17px] font-semibold uppercase">
+            <span className="font-heading text-17 font-semibold uppercase">
                 Alertas configurados
             </span>
         </div>

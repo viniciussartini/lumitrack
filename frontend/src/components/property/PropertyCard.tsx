@@ -69,11 +69,11 @@ export const PropertyCard = ({ property, distributorName, distributors }: Proper
                         <Home className="h-5 w-5" strokeWidth={1.5} />
                     </span>
                     <div className="min-w-0 flex-1">
-                        <h3 className="font-heading truncate text-[19px] leading-tight font-semibold tracking-[.01em] uppercase">
+                        <h3 className="font-heading text-19 truncate leading-tight font-semibold tracking-[.01em] uppercase">
                             {property.name}
                         </h3>
                         {addressLine && (
-                            <p className="text-muted mt-[5px] flex items-center gap-1.5 text-[12.5px]">
+                            <p className="text-muted text-12-5 mt-[5px] flex items-center gap-1.5">
                                 <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                                 <span className="truncate">{addressLine}</span>
                             </p>
@@ -82,7 +82,7 @@ export const PropertyCard = ({ property, distributorName, distributors }: Proper
                 </div>
 
                 {/* Footer — tags de faturamento/sistema/distribuidora */}
-                <div className="flex flex-wrap gap-2 px-5 pb-[18px]">
+                <div className="flex flex-wrap gap-2 px-5 pb-18">
                     <Tag variant="accent" className="font-semibold">
                         {property.billingClass}
                     </Tag>

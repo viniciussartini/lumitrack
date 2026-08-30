@@ -108,10 +108,10 @@ export const ConsumptionSection = ({
 
                 <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
                     <div>
-                        <h2 className="font-heading text-[17px] font-semibold uppercase">
+                        <h2 className="font-heading text-17 font-semibold uppercase">
                             Histórico de consumo
                         </h2>
-                        <span className="text-muted mt-[3px] block text-[12.5px]">
+                        <span className="text-muted text-12-5 mt-[3px] block">
                             {CONSUMPTION_WINDOW_DESCRIPTION[granularity]}
                         </span>
                     </div>
@@ -122,7 +122,7 @@ export const ConsumptionSection = ({
                     />
                 </div>
 
-                <div className="px-5 py-[18px]">
+                <div className="px-5 py-18">
                     {!meterQuery.isLoading && !hasMeter && (
                         <EmptyState
                             icon={LineChart}

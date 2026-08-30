@@ -61,10 +61,10 @@ export const LegalDocumentPage = ({ title, markdown }: LegalDocumentPageProps) =
                 </div>
 
                 <div className="border-divider border-b pt-8 pb-6">
-                    <span className="font-heading text-accent-700 text-[13px] font-semibold tracking-[.09em] uppercase">
+                    <span className="font-heading text-accent-700 text-13 font-semibold tracking-[.09em] uppercase">
                         Central de privacidade · LGPD
                     </span>
-                    <div className="mt-[22px] flex gap-2.5">
+                    <div className="mt-22 flex gap-2.5">
                         <Link to="/privacidade" className="lt-tab" data-on={isPrivacy}>
                             Política de Privacidade
                         </Link>
@@ -76,7 +76,7 @@ export const LegalDocumentPage = ({ title, markdown }: LegalDocumentPageProps) =
 
                 <div className="grid grid-cols-[200px_minmax(0,1fr)] items-start gap-12 pt-10 pb-20">
                     <aside className="lt-toc sticky top-8 flex flex-col gap-0.5">
-                        <span className="font-heading text-muted mb-2.5 pl-[14px] text-[11px] font-semibold tracking-[.08em] uppercase">
+                        <span className="font-heading text-muted text-11 mb-2.5 pl-[14px] font-semibold tracking-[.08em] uppercase">
                             Nesta página
                         </span>
                         {headings.map((heading) => (

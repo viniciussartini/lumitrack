@@ -17,6 +17,7 @@ import { DeviceCard } from "@/components/device/DeviceCard"
 import { AreaConsumptionSection } from "@/components/consumption/ConsumptionSection"
 import { ComparisonBars } from "@/components/consumption/ComparisonBars"
 import { MeterSection } from "@/components/meter/MeterSection"
+import { IconCircle } from "@/components/ui/IconCircle"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
 import { formatPowerKw } from "@/lib/format"
 import { formatKwh } from "@/lib/formatters/consumption"
@@ -111,12 +112,12 @@ export const AreaDetailsPage = () => {
             />
 
             {meter && (
-                <div className="blueprint w-fit min-w-[220px] px-5 py-[18px]">
+                <div className="blueprint w-fit min-w-[220px] px-5 py-18">
                     <i className="corner tl" />
                     <i className="corner tr" />
                     <i className="corner bl" />
                     <i className="corner br" />
-                    <div className="font-heading flex items-center gap-2 text-[11px] font-semibold tracking-[.07em] uppercase">
+                    <div className="font-heading text-11 flex items-center gap-2 font-semibold tracking-[.07em] uppercase">
                         <span
                             className="h-2 w-2 rounded-full bg-[#3f8f52]"
                             style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
@@ -124,7 +125,7 @@ export const AreaDetailsPage = () => {
                         />
                         Potência agora
                     </div>
-                    <div className="font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold">
+                    <div className="font-heading text-30 mt-2.5 font-features-['tnum'_1] leading-none font-semibold">
                         {lastKnownPowerW !== undefined ? (
                             formatPowerKw(lastKnownPowerW)
                         ) : (
@@ -191,19 +192,14 @@ const AreaHeaderCard = ({
     const [isEditOpen, setIsEditOpen] = useState(false)
 
     return (
-        <div className="blueprint p-[26px]">
+        <div className="blueprint p-26">
             <i className="corner tl" />
             <i className="corner tr" />
             <i className="corner bl" />
             <i className="corner br" />
 
-            <div className="flex min-w-0 items-start gap-[15px]">
-                <span
-                    className="border-accent text-accent flex h-[52px] w-[52px] shrink-0 items-center justify-center border-[1.5px]"
-                    aria-hidden="true"
-                >
-                    <LayoutGrid className="h-[26px] w-[26px]" strokeWidth={1.5} />
-                </span>
+            <div className="flex min-w-0 items-start gap-15">
+                <IconCircle icon={LayoutGrid} tone="accent" strokeWidth={1.5} />
                 <div className="min-w-0 flex-1">
                     <h1 className="font-heading truncate text-[clamp(24px,2.6vw,32px)] leading-none font-semibold uppercase">
                         {area.name}
@@ -214,14 +210,14 @@ const AreaHeaderCard = ({
                 </div>
             </div>
 
-            <div className="mt-[18px] flex flex-wrap gap-[9px]">
+            <div className="mt-18 flex flex-wrap gap-9">
                 <PropertyTag property={property} isLoading={isPropertyLoading} />
                 {monthlyBucket && (
                     <Tag variant="neutral">{formatKwh(monthlyBucket.kwhConsumed)} kWh/mês</Tag>
                 )}
             </div>
 
-            <div className="mt-[22px] flex flex-wrap items-center gap-2">
+            <div className="mt-22 flex flex-wrap items-center gap-2">
                 <Button variant="secondary" size="sm" onClick={() => setIsEditOpen(true)}>
                     <Pencil className="h-4 w-4" aria-hidden="true" />
                     Editar área
@@ -324,14 +320,12 @@ const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
                 <i className="corner br" />
 
                 <div className="border-divider flex items-center justify-between border-b px-5 py-4">
-                    <h2 className="font-heading text-[17px] font-semibold uppercase">
-                        Dispositivos
-                    </h2>
+                    <h2 className="font-heading text-17 font-semibold uppercase">Dispositivos</h2>
                     <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => setIsCreateOpen(true)}
-                        className="min-h-9 text-[13px]"
+                        className="text-13 min-h-9"
                     >
                         <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                         Adicionar dispositivo
@@ -388,10 +382,10 @@ const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
 
                     <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
                         <div>
-                            <span className="font-heading text-[17px] font-semibold uppercase">
+                            <span className="font-heading text-17 font-semibold uppercase">
                                 Comparação de dispositivos
                             </span>
-                            <span className="text-muted mt-[3px] block text-[12.5px]">
+                            <span className="text-muted text-12-5 mt-[3px] block">
                                 Consumo por dispositivo neste mês (
                                 {comparisonUnit === "kwh" ? "kWh" : "R$"})
                             </span>

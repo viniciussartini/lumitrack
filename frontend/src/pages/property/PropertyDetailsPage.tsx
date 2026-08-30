@@ -17,6 +17,7 @@ import { AreaCard } from "@/components/area/AreaCard"
 import { PropertyConsumptionSection } from "@/components/consumption/ConsumptionSection"
 import { ComparisonBars } from "@/components/consumption/ComparisonBars"
 import { MeterSection } from "@/components/meter/MeterSection"
+import { IconCircle } from "@/components/ui/IconCircle"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
 import { formatPowerKw, formatKwhPrice, formatBrl } from "@/lib/format"
 import {
@@ -106,12 +107,12 @@ export const PropertyDetailsPage = () => {
             />
 
             {meter && (
-                <div className="blueprint w-fit min-w-[220px] px-5 py-[18px]">
+                <div className="blueprint w-fit min-w-[220px] px-5 py-18">
                     <i className="corner tl" />
                     <i className="corner tr" />
                     <i className="corner bl" />
                     <i className="corner br" />
-                    <div className="font-heading flex items-center gap-2 text-[11px] font-semibold tracking-[.07em] uppercase">
+                    <div className="font-heading text-11 flex items-center gap-2 font-semibold tracking-[.07em] uppercase">
                         <span
                             className="h-2 w-2 rounded-full bg-[#3f8f52]"
                             style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
@@ -119,7 +120,7 @@ export const PropertyDetailsPage = () => {
                         />
                         Potência agora
                     </div>
-                    <div className="font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold">
+                    <div className="font-heading text-30 mt-2.5 font-features-['tnum'_1] leading-none font-semibold">
                         {lastKnownPowerW !== undefined ? (
                             formatPowerKw(lastKnownPowerW)
                         ) : (
@@ -165,7 +166,7 @@ const PropertyHeaderCard = ({
     const [isEditOpen, setIsEditOpen] = useState(false)
 
     return (
-        <div className="blueprint p-[26px]">
+        <div className="blueprint p-26">
             <i className="corner tl" />
             <i className="corner tr" />
             <i className="corner bl" />
@@ -173,13 +174,8 @@ const PropertyHeaderCard = ({
 
             {/* Linha superior: ícone + título/endereço + ações */}
             <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="flex min-w-0 items-start gap-[15px]">
-                    <span
-                        className="border-accent text-accent flex h-[52px] w-[52px] shrink-0 items-center justify-center border-[1.5px]"
-                        aria-hidden="true"
-                    >
-                        <Home className="h-[26px] w-[26px]" strokeWidth={1.5} />
-                    </span>
+                <div className="flex min-w-0 items-start gap-15">
+                    <IconCircle icon={Home} tone="accent" strokeWidth={1.5} />
                     <div className="min-w-0">
                         <h1 className="font-heading truncate text-[clamp(24px,2.6vw,32px)] leading-none font-semibold uppercase">
                             {property.name}
@@ -214,19 +210,19 @@ const PropertyHeaderCard = ({
             </div>
 
             {/* Tags — distribuidora vinculada */}
-            <div className="border-divider mt-[22px] border-t pt-[18px]">
-                <div className="font-heading text-muted mb-3 text-[11px] font-semibold tracking-[.08em] uppercase">
+            <div className="border-divider mt-22 border-t pt-18">
+                <div className="font-heading text-muted text-11 mb-3 font-semibold tracking-[.08em] uppercase">
                     Distribuidora vinculada
                 </div>
                 <DistributorTags distributor={distributor} isLoading={isDistributorLoading} />
             </div>
 
             {/* Tags — faturamento da própria propriedade */}
-            <div className="border-divider mt-[18px] border-t pt-[18px]">
-                <div className="font-heading text-muted mb-3 text-[11px] font-semibold tracking-[.08em] uppercase">
+            <div className="border-divider mt-18 border-t pt-18">
+                <div className="font-heading text-muted text-11 mb-3 font-semibold tracking-[.08em] uppercase">
                     Faturamento
                 </div>
-                <div className="flex flex-wrap gap-[9px]">
+                <div className="flex flex-wrap gap-9">
                     <Tag variant="outline">
                         {ELECTRICAL_SYSTEM_LABELS[property.electricalSystem]}
                     </Tag>
@@ -256,7 +252,7 @@ const DistributorTags = ({ distributor, isLoading }: DistributorTagsProps) => {
     if (isLoading) {
         return (
             <div
-                className="flex flex-wrap gap-[9px]"
+                className="flex flex-wrap gap-9"
                 aria-busy="true"
                 aria-label="Carregando dados da distribuidora"
             >
@@ -272,7 +268,7 @@ const DistributorTags = ({ distributor, isLoading }: DistributorTagsProps) => {
     }
 
     return (
-        <div className="flex flex-wrap gap-[9px]">
+        <div className="flex flex-wrap gap-9">
             <Tag variant="accent" className="font-semibold">
                 {distributor.name}
             </Tag>
@@ -325,12 +321,12 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
                 <i className="corner br" />
 
                 <div className="border-divider flex items-center justify-between border-b px-5 py-4">
-                    <h2 className="font-heading text-[17px] font-semibold uppercase">Áreas</h2>
+                    <h2 className="font-heading text-17 font-semibold uppercase">Áreas</h2>
                     <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => setIsCreateOpen(true)}
-                        className="min-h-9 text-[13px]"
+                        className="text-13 min-h-9"
                     >
                         <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                         Adicionar área
@@ -399,10 +395,10 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
 
                     <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
                         <div>
-                            <span className="font-heading text-[17px] font-semibold uppercase">
+                            <span className="font-heading text-17 font-semibold uppercase">
                                 Comparação de áreas
                             </span>
-                            <span className="text-muted mt-[3px] block text-[12.5px]">
+                            <span className="text-muted text-12-5 mt-[3px] block">
                                 Consumo por área neste mês (
                                 {comparisonUnit === "kwh" ? "kWh" : "R$"})
                             </span>

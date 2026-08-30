@@ -25,7 +25,7 @@ export const RecoverySteps = ({ current }: RecoveryStepsProps) => {
     const currentIndex = ORDER.indexOf(current)
 
     return (
-        <ol className="mt-[30px] flex list-none flex-col gap-4 p-0">
+        <ol className="mt-30 flex list-none flex-col gap-4 p-0">
             {STEPS.map((step, i) => {
                 const status = i === currentIndex ? "active" : i < currentIndex ? "done" : "idle"
                 return (

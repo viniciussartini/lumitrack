@@ -71,7 +71,7 @@ export const DistribuidorsPage = () => {
 
             {!isLoading && !isError && distributors.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-heading text-muted mr-1 text-[11px] font-semibold tracking-[.08em] uppercase">
+                    <span className="font-heading text-muted text-11 mr-1 font-semibold tracking-[.08em] uppercase">
                         Estado
                     </span>
                     {states.map((state) => (

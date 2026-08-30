@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { AUTH_LAYOUT_GRID_CLASS, BrandPanel } from "@/components/auth/BrandPanel"
-import { ConfirmationIcon } from "@/components/auth/ConfirmationIcon"
+import { IconCircle } from "@/components/ui/IconCircle"
 import { RecoverySteps } from "@/components/auth/RecoverySteps"
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
@@ -70,7 +70,7 @@ export const ForgotPasswordPage = () => {
                                 uma nova senha.
                             </p>
 
-                            <div className="mt-[26px]">
+                            <div className="mt-26">
                                 <Input
                                     label="E-mail cadastrado"
                                     type="email"
@@ -93,7 +93,7 @@ export const ForgotPasswordPage = () => {
                             <Button
                                 type="submit"
                                 isLoading={isSubmitting}
-                                className="btn-block mt-6 min-h-[46px]"
+                                className="btn-block mt-6 min-h-46"
                             >
                                 Enviar link de recuperação
                             </Button>
@@ -104,8 +104,13 @@ export const ForgotPasswordPage = () => {
                             </p>
                         </form>
                     ) : (
-                        <Blueprint className="px-[30px] py-10 text-center">
-                            <ConfirmationIcon icon={Mail} tone="accent" strokeWidth={1.5} />
+                        <Blueprint className="px-30 py-10 text-center">
+                            <IconCircle
+                                icon={Mail}
+                                tone="accent"
+                                strokeWidth={1.5}
+                                className="mx-auto"
+                            />
                             <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
                                 Link enviado
                             </h2>

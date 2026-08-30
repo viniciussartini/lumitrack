@@ -16,12 +16,12 @@ interface LiveKpiCardProps {
  * `DashboardKpiRow`.
  */
 export const LiveKpiCard = ({ label, value, subValue, isLive = false }: LiveKpiCardProps) => (
-    <div className="blueprint px-5 py-[18px]">
+    <div className="blueprint px-5 py-18">
         <i className="corner tl" />
         <i className="corner tr" />
         <i className="corner bl" />
         <i className="corner br" />
-        <div className="font-heading flex items-center gap-2 text-[11px] font-semibold tracking-[.07em] uppercase">
+        <div className="font-heading text-11 flex items-center gap-2 font-semibold tracking-[.07em] uppercase">
             {isLive && (
                 <span
                     className="h-2 w-2 rounded-full bg-[#3f8f52]"
@@ -31,7 +31,7 @@ export const LiveKpiCard = ({ label, value, subValue, isLive = false }: LiveKpiC
             )}
             {label}
         </div>
-        <div className="font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold">
+        <div className="font-heading text-30 mt-2.5 font-features-['tnum'_1] leading-none font-semibold">
             {value}
         </div>
         {subValue !== undefined && (

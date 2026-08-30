@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/Input"
 import { PasswordRequirements } from "@/components/ui/PasswordRequirements"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { AUTH_LAYOUT_GRID_CLASS, BrandPanel } from "@/components/auth/BrandPanel"
-import { ConfirmationIcon } from "@/components/auth/ConfirmationIcon"
+import { IconCircle } from "@/components/ui/IconCircle"
 import { RecoverySteps } from "@/components/auth/RecoverySteps"
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
@@ -63,7 +63,7 @@ export const ResetPasswordPage = () => {
                     extra={<RecoverySteps current="reset" />}
                 />
                 <main className="flex items-center justify-center p-7 lg:p-14">
-                    <Blueprint className="w-full max-w-[400px] px-[30px] py-10 text-center">
+                    <Blueprint className="w-full max-w-[400px] px-30 py-10 text-center">
                         <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
                             Link inválido
                         </h2>
@@ -71,7 +71,7 @@ export const ResetPasswordPage = () => {
                             Este link de redefinição está incompleto ou já foi usado. Solicite um
                             novo.
                         </p>
-                        <Button asChild className="btn-block mt-6 min-h-[46px]">
+                        <Button asChild className="btn-block mt-6 min-h-46">
                             <Link to="/esqueci-senha">Solicitar novo link</Link>
                         </Button>
                     </Blueprint>
@@ -91,8 +91,13 @@ export const ResetPasswordPage = () => {
             <main className="flex items-center justify-center p-7 lg:p-14">
                 <div className="w-full max-w-[400px]">
                     {done ? (
-                        <Blueprint className="px-[30px] py-10 text-center">
-                            <ConfirmationIcon icon={Check} tone="success" strokeWidth={1.8} />
+                        <Blueprint className="px-30 py-10 text-center">
+                            <IconCircle
+                                icon={Check}
+                                tone="success"
+                                strokeWidth={1.8}
+                                className="mx-auto"
+                            />
                             <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
                                 Senha redefinida
                             </h2>
@@ -102,7 +107,7 @@ export const ResetPasswordPage = () => {
                             </p>
                             <Button
                                 type="button"
-                                className="btn-block mt-6 min-h-[46px]"
+                                className="btn-block mt-6 min-h-46"
                                 onClick={() => void navigate("/login", { replace: true })}
                             >
                                 Ir para o login
@@ -162,7 +167,7 @@ export const ResetPasswordPage = () => {
                             <Button
                                 type="submit"
                                 isLoading={isSubmitting}
-                                className="btn-block mt-1 min-h-[46px]"
+                                className="btn-block mt-1 min-h-46"
                             >
                                 Redefinir senha
                             </Button>

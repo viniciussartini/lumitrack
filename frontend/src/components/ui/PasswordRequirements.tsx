@@ -44,7 +44,7 @@ export const PasswordRequirements = ({ password }: PasswordRequirementsProps) =>
                 <li
                     key={req.label}
                     className={cn(
-                        "flex items-center gap-[7px] text-[12.5px]",
+                        "text-12-5 flex items-center gap-[7px]",
                         met ? "text-status-success" : "text-muted",
                     )}
                 >
