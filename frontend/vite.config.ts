@@ -34,6 +34,28 @@ export default defineConfig({
             "@": path.resolve(__dirname, "./src"),
         },
     },
+    build: {
+        rollupOptions: {
+            output: {
+                // `recharts` (só nos gráficos) e a stack de markdown (só nas
+                // páginas de documento legal/institucional) já saem do
+                // bundle inicial por serem alcançados só via rota lazy
+                // (ver AppRouter.tsx) — nomear os chunks aqui é só pra não
+                // depender da heurística automática do bundler pra manter
+                // os dois isolados de forma previsível.
+                manualChunks(id) {
+                    if (id.includes("/node_modules/recharts/")) return "vendor-charts"
+                    if (
+                        id.includes("/node_modules/react-markdown/") ||
+                        id.includes("/node_modules/remark-gfm/")
+                    ) {
+                        return "vendor-markdown"
+                    }
+                    return undefined
+                },
+            },
+        },
+    },
     server: {
         port: 5173,
         proxy: {

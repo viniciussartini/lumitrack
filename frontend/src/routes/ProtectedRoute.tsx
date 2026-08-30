@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router"
 import { useAuth } from "@/contexts/AuthContext"
+import { LoadingScreen } from "@/components/ui/LoadingScreen"
 
 /**
  * Guarda de rota: redireciona para /login se o user não estiver autenticado.
@@ -23,11 +24,7 @@ export const ProtectedRoute = () => {
     const location = useLocation()
 
     if (isLoading) {
-        return (
-            <div className="flex h-screen items-center justify-center">
-                <div className="text-slate-500 dark:text-slate-400">Carregando...</div>
-            </div>
-        )
+        return <LoadingScreen />
     }
 
     if (!isAuthenticated) {
