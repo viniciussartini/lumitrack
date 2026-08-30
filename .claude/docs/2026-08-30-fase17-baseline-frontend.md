@@ -1,6 +1,6 @@
 # Baseline de frontend — Fase 17 (tempo real e bundle)
 
-> Medido antes de qualquer mudança da Fase 17, para comparação no fechamento da fase. Ver `.claude/docs/roadmap.md`, seção "Fase 17 — Frontend: tempo real e bundle".
+> Medido antes de qualquer mudança da Fase 17, para comparação no fechamento da fase. Ver `.claude/docs/roadmap.md`, seção "Fase 17 — Frontend: tempo real e bundle". **Fechamento (item 8) na seção "Estado final" ao fim deste documento.**
 
 ## Bundle inicial
 
@@ -33,3 +33,30 @@ O mesmo build (`ANALYZE=true npm run build`) depois de habilitar o compiler (iss
 ## Achado colateral (fora do escopo desta issue)
 
 `frontend/.env` (não versionado, não lido/editado pelo agente) tem `VITE_SSE_URL` apontando para uma URL absoluta — em desenvolvimento local isso força o app pelo caminho *cross-origin* (`connectCrossOrigin`, ticket de uso único), em vez do caminho same-origin direto. Na primeira tentativa desta medição, isso causou um loop de erro 404 contra `/api/iot/stream-ticket` (não mockado) a cada 2s, mascarando os números reais. Contornado *apenas* para esta medição via `VITE_SSE_URL= npm run dev` (variável de ambiente do shell tem prioridade sobre `.env` no Vite) — nenhum arquivo `.env` foi tocado. Vale o usuário confirmar se esse valor em `frontend/.env` é intencional para o setup local atual.
+
+## Estado final (fechamento da fase, item 8)
+
+Mesma metodologia (`<Profiler>` temporário + backend descartável + Playwright, revertido logo em seguida), reaplicada depois dos 8 itens da fase.
+
+### Bundle inicial (fechamento)
+
+`ANALYZE=true npm run build`, já com `React.lazy`+`Suspense` nas rotas e `manualChunks` isolando `recharts`/a stack de markdown (item 7):
+
+| Arquivo | Tamanho | Gzip |
+|---|---|---|
+| `dist/assets/index-*.css` | 73,86 kB | 13,65 kB |
+| `dist/assets/index-*.js` (chunk inicial) | 327,91 kB | **103,55 kB** |
+| `dist/assets/vendor-charts-*.js` (`recharts`, assíncrono) | 391,37 kB | 111,65 kB |
+| `dist/assets/vendor-markdown-*.js` (`react-markdown`+`remark-gfm`, assíncrono) | 154,06 kB | 45,90 kB |
+
+O chunk inicial caiu de 418,77 kB (pós-compiler) para **103,55 kB gzip** — queda de ~75%. `recharts` e a stack de markdown, antes dentro dos mesmos 418,77 kB, agora só baixam quando uma rota que de fato os usa é visitada.
+
+### Contagem de renders (fechamento — 60 leituras SSE em 60s, mesmo cenário)
+
+| Componente | Baseline | Pós-compiler (item 2) | Estado final (após itens 3-7) |
+|---|---|---|---|
+| `Header.tsx` | 64 | 4 | 4 |
+| `MeterSection.tsx` | 124 | 94 | **64** |
+| `RealtimeChartCard.tsx` | 189 | 10 | 9 |
+
+`Header`/`RealtimeChartCard` mantiveram o patamar do compiler (nada nos itens 3-7 muda o que eles leem). `MeterSection` continuou caindo (94→64): a separação do `RealtimeContext` (item 3) e o fim do `setInterval` incondicional de 2s (item 4) eliminaram as duas fontes de re-render que não vinham de dado genuinamente novo — os ~64 renders restantes batem 1:1 com as 60 leituras reais recebidas, não mais desperdício de reconciliação.
