@@ -57,7 +57,7 @@
 **Fluxo Git**
 - `onboarding` — gera `.claude/docs/onboarding.md` (setup verificado, ordem de leitura, mapa dos módulos, armadilhas, primeira tarefa).
 - `preparar-pr` — mapeia as alterações da branch, preenche o `.github/PULL_REQUEST_TEMPLATE.md` conforme o `08` e **cria o PR** pronto para revisão (exige branch publicada; push e merge continuam manuais).
-- `criar-issues` — cria issues no GitHub (de um laudo de auditoria, da **fase atual do roadmap** ou avulsas). Decide entre **épico + sub-issues** (`gh issue create --parent`, exige gh ≥ 2.94.0) e issues individuais, e cria a **branch** (`epic/{N}-...` ou `{tipo}/{N}-...`). Todo corpo abre com `**Priority:** · **Size:**` (não são labels). **Sempre com aprovação em lote** antes de executar.
+- `criar-issues` — cria issues no GitHub (de um laudo de auditoria, da **fase atual do roadmap** ou avulsas). Decide entre **épico + sub-issues** (`gh issue create --parent`, exige gh ≥ 2.94.0) e issues individuais, e cria a **branch** (`epic/{N}-...` ou `{tipo}/{N}-...`). Todo corpo abre com `**Priority:** · **Size:**` (notação P0–P2/XS–XL só no corpo, para transpor ao Projects) e toda issue leva `tipo:` + `prioridade:` como labels. **Sempre com aprovação em lote** antes de executar.
 
 ## Auditorias e revisão (subagents somente-leitura em `.claude/agents/`)
 
