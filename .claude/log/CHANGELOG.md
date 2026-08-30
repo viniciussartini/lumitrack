@@ -2843,3 +2843,12 @@
 - **Arquivos principais:** `frontend/src/styles/industry.css`; `frontend/src/index.css`; 32 arquivos em `components/`/`pages/` consumindo os tokens novos; `frontend/src/components/ui/IconCircle.tsx` (comentário atualizado — 26px deixou de ser exclusivo do componente).
 - **Decisões/ADRs:** nenhuma — decisão de nomenclatura de token, não item do `07-decisoes-em-aberto.md`.
 - **Notas:** nenhuma mudança de comportamento — todo `p-N`/`w-N`/`h-N`/`gap-N`/`mt-N`/`max-w-N`/`min-h-N` novo é pixel-idêntico ao valor original (confirmado no CSS compilado: 8/8 classes testadas geram a regra esperada). `npm run build`, `eslint` (0 erros, mesmos 9 warnings pré-existentes), `tsc -b`, Vitest completo (744/744) e `depcruise` (299 módulos, 0 violações) limpos.
+
+## [2026-08-30] feat: lint anti-regressão de tokens (#341)
+- **Branch:** epic/334-fundacao-tokens-design-system
+- **Tipo:** feature
+- **O quê:** última sub-issue do épico #334. `no-restricted-syntax` com 2 seletores em `frontend/eslint.config.js`, escopados a `src/**/*.tsx` (exceto `.test.tsx`): bloqueia valor arbitrário do Tailwind (`Literal[value=/\[\d+(\.\d+)?(px|rem|em|%)\]/]`) e hex de 6 dígitos (`Literal[value=/#[0-9a-fA-F]{6}/]`), cada um com mensagem explicando o porquê e remetendo ao `10-design-system.md`. Débito catalogado por arquivo (mesmo padrão já usado para complexidade/JSDoc, nunca a regra inteira desligada): 12 arquivos com as duas exceções, 22 só com a de valor arbitrário, 3 só com a de hex — exatamente o snapshot de `#336-#353` (34 arquivos/60 valores arbitrários, 15 arquivos/hex). CI já cobre — o job `frontend-lint` existente roda `npm run lint`, nenhuma mudança de workflow necessária.
+- **Verificação:** testado nos dois sentidos antes de aceitar como pronto — um componente descartável com `p-[13px] text-[#3B82F6]` disparou os 2 erros esperados (removido em seguida); um arquivo do grupo "só exceção de valor arbitrário" (`PropertiesPage.tsx`) continuou bloqueando hex novo introduzido temporariamente, confirmando que a exceção é por *regra*, não por arquivo inteiro.
+- **Arquivos principais:** `frontend/eslint.config.js`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** `npm run build`, `eslint` (0 erros, mesmos 9 warnings pré-existentes), `tsc -b`, Vitest completo (744/744) e `depcruise` (299 módulos, 0 violações) limpos. Fecha o épico #334 (Fase 18, itens 1-2 e 7 do roadmap) — restam os itens 3-6 (épico #335, issues #342-#345).
