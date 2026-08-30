@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { AUTH_LAYOUT_GRID_CLASS, BrandPanel } from "@/components/auth/BrandPanel"
+import { ConfirmationIcon } from "@/components/auth/ConfirmationIcon"
 import { RecoverySteps } from "@/components/auth/RecoverySteps"
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
@@ -104,13 +105,7 @@ export const ForgotPasswordPage = () => {
                         </form>
                     ) : (
                         <Blueprint className="px-[30px] py-10 text-center">
-                            <div className="border-accent mx-auto flex h-[52px] w-[52px] items-center justify-center border-[1.5px]">
-                                <Mail
-                                    className="text-accent h-[26px] w-[26px]"
-                                    strokeWidth={1.5}
-                                    aria-hidden="true"
-                                />
-                            </div>
+                            <ConfirmationIcon icon={Mail} tone="accent" strokeWidth={1.5} />
                             <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
                                 Link enviado
                             </h2>

@@ -2797,3 +2797,12 @@
 - **Arquivos principais:** os 5 arquivos citados.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** nenhuma mudança de comportamento — os 10 valores de espaçamento convertidos são matematicamente idênticos ao original (confirmado no CSS compilado: `w-5`/`h-5` = 17px, `py-10` = 34px), e os `text-N` reaproveitam literalmente os mesmos px do bundle. `npm run build`, `eslint` (0 erros, mesmos 9 warnings pré-existentes), `tsc -b`, Vitest completo (744/744, incluindo os 48 testes das 5 páginas de auth) e `depcruise` limpos.
+
+## [2026-08-30] refactor: extrai ConfirmationIcon do padrão recorrente achado em #337
+- **Branch:** epic/334-fundacao-tokens-design-system
+- **Tipo:** refactor
+- **O quê:** o "círculo com ícone" (52px, ícone 26px, borda 1.5px) apontado no achado de #337 estava duplicado idêntico em `ForgotPasswordPage` (link enviado), `ResetPasswordPage` (senha redefinida) e `ConfirmEmailChangePage` (sucesso e erro) — 4 cópias ao todo. Extraído para `frontend/src/components/auth/ConfirmationIcon.tsx`, com `tone: "accent" | "success" | "danger"` mapeando pra `border-*`/`text-*` já tokenizados. As medidas em si (52/26/1.5px) não são múltiplo de 3.4px — ficam locais ao componente, não viram token global, mesmo critério de promoção já usado no projeto ("cria-se o primitivo quando um segundo consumidor real pedir", Fase 1) — depois da extração o único consumidor é o próprio componente.
+- **Bug corrigido no caminho:** a variante "sucesso" de `ResetPasswordPage`/`ConfirmEmailChangePage` hardcodava `#2f6f3f` (border e texto do ícone) em vez de usar `--color-status-success`, que já tem exatamente esse valor — a variante "erro" da mesma família já usava `border-status-danger`/`text-status-danger` corretamente, então era só a "sucesso" que divergia. Corrigido na extração: as 3 tonalidades agora usam token.
+- **Arquivos principais:** `frontend/src/components/auth/ConfirmationIcon.tsx` (novo); `ForgotPasswordPage.tsx`, `ResetPasswordPage.tsx`, `ConfirmEmailChangePage.tsx`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** nenhuma mudança visual pretendida, exceto a correção do hex (mesma cor, `#2f6f3f` == `--color-status-success`, então também sem diferença perceptível). `npm run build`, `eslint` (0 erros), `tsc -b`, Vitest completo (744/744) e `depcruise` (299 módulos, 0 violações) limpos.

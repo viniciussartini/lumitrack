@@ -4,6 +4,7 @@ import { Check, X } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { AUTH_LAYOUT_GRID_CLASS, BrandPanel } from "@/components/auth/BrandPanel"
+import { ConfirmationIcon } from "@/components/auth/ConfirmationIcon"
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
 
@@ -78,13 +79,7 @@ const LoadingCard = () => (
 
 const SuccessCard = () => (
     <Blueprint className="px-[30px] py-10 text-center">
-        <div className="mx-auto flex h-[52px] w-[52px] items-center justify-center border-[1.5px] border-[#2f6f3f]">
-            <Check
-                className="h-[26px] w-[26px] text-[#2f6f3f]"
-                strokeWidth={1.8}
-                aria-hidden="true"
-            />
-        </div>
+        <ConfirmationIcon icon={Check} tone="success" strokeWidth={1.8} />
         <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
             E-mail atualizado
         </h2>
@@ -100,13 +95,7 @@ const SuccessCard = () => (
 
 const ErrorCard = ({ message }: { message: string }) => (
     <Blueprint className="px-[30px] py-10 text-center">
-        <div className="border-status-danger mx-auto flex h-[52px] w-[52px] items-center justify-center border-[1.5px]">
-            <X
-                className="text-status-danger h-[26px] w-[26px]"
-                strokeWidth={1.8}
-                aria-hidden="true"
-            />
-        </div>
+        <ConfirmationIcon icon={X} tone="danger" strokeWidth={1.8} />
         <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
             Link inválido
         </h2>

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input"
 import { PasswordRequirements } from "@/components/ui/PasswordRequirements"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { AUTH_LAYOUT_GRID_CLASS, BrandPanel } from "@/components/auth/BrandPanel"
+import { ConfirmationIcon } from "@/components/auth/ConfirmationIcon"
 import { RecoverySteps } from "@/components/auth/RecoverySteps"
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
@@ -91,13 +92,7 @@ export const ResetPasswordPage = () => {
                 <div className="w-full max-w-[400px]">
                     {done ? (
                         <Blueprint className="px-[30px] py-10 text-center">
-                            <div className="mx-auto flex h-[52px] w-[52px] items-center justify-center border-[1.5px] border-[#2f6f3f]">
-                                <Check
-                                    className="h-[26px] w-[26px] text-[#2f6f3f]"
-                                    strokeWidth={1.8}
-                                    aria-hidden="true"
-                                />
-                            </div>
+                            <ConfirmationIcon icon={Check} tone="success" strokeWidth={1.8} />
                             <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
                                 Senha redefinida
                             </h2>
