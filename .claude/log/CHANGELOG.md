@@ -2806,3 +2806,12 @@
 - **Arquivos principais:** `frontend/src/components/auth/ConfirmationIcon.tsx` (novo); `ForgotPasswordPage.tsx`, `ResetPasswordPage.tsx`, `ConfirmEmailChangePage.tsx`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** nenhuma mudança visual pretendida, exceto a correção do hex (mesma cor, `#2f6f3f` == `--color-status-success`, então também sem diferença perceptível). `npm run build`, `eslint` (0 erros), `tsc -b`, Vitest completo (744/744) e `depcruise` (299 módulos, 0 violações) limpos.
+
+## [2026-08-30] refactor: aplica a escala de tokens — Landing + Profile (#338)
+- **Branch:** epic/334-fundacao-tokens-design-system
+- **Tipo:** refactor
+- **O quê:** terceira sub-issue do épico #334. `LandingPage` (maior concentração da fase, 55 valores) e `ProfilePage` (26 valores) migrados de `text-[Npx]` para a escala `text-N`/`text-N-5` de #336 — 26 ocorrências em `LandingPage` (13, 11, 14.5, 44, 15.5, 13.5, 12.5, 22, 19) e 17 em `ProfilePage` (10, 14.5, 12.5, 17, 28), 100% dos tamanhos usados já existiam na escala. Mais 2 conversões de espaçamento em `LandingPage` que batiam em múltiplo exato de `--spacing` (`w-[34px]`/`h-[34px]` → `w-10`/`h-10`, 34 = 10×3.4px).
+- **Mesmo achado do #337, maior desta vez:** `ProfilePage` não teve **nenhuma** conversão de espaçamento possível (`w-[15px]`, `py-[18px]`, `h-[15px]`, `pb-[18px]`, `p-[26px]`, `gap-[18px]`, `border-[1.5px]` — nenhum é múltiplo de 3.4px). `LandingPage` ainda tem 21 ocorrências não convertíveis, a maior parte `max-w-[1200px]` (9×, a largura máxima do container — mesmo valor repetido em toda a página) e variações de `18px`/`22px`/`26/27/28/29px` em padding/margin/gap que não caem na grade. Mesma conclusão do #337: não é débito ignorado, é ausência real de token — registrado em comentário no #338.
+- **Arquivos principais:** `frontend/src/pages/landing/LandingPage.tsx`; `frontend/src/pages/profile/ProfilePage.tsx`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** nenhuma mudança de comportamento — todos os `text-N` e os 2 `w-10`/`h-10` são pixel-idênticos ao valor original (confirmado no CSS compilado). `npm run build`, `eslint` (0 erros, mesmos 9 warnings pré-existentes), `tsc -b`, Vitest completo (744/744) e `depcruise` (299 módulos, 0 violações) limpos.
