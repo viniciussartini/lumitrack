@@ -1,14 +1,25 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { act, renderHook } from "@testing-library/react"
 import { useLiveMeterReading } from "@/hooks/useLiveMeterReading"
-import { useRealtime } from "@/contexts/RealtimeContext"
+import { useRealtimeReadings } from "@/contexts/RealtimeContext"
+import { useLatestMeterReading } from "@/hooks/queries/useLatestMeterReading"
 import type { ReadingPayload } from "@/lib/sse/appStream"
 
 vi.mock("@/contexts/RealtimeContext", () => ({
-    useRealtime: vi.fn(),
+    useRealtimeReadings: vi.fn(),
 }))
 
-const mockedUseRealtime = vi.mocked(useRealtime)
+vi.mock("@/hooks/queries/useLatestMeterReading", () => ({
+    useLatestMeterReading: vi.fn(),
+}))
+
+const mockedUseRealtimeReadings = vi.mocked(useRealtimeReadings)
+const mockedUseLatestMeterReading = vi.mocked(useLatestMeterReading)
+
+const mockFallback = (data: number | undefined) =>
+    mockedUseLatestMeterReading.mockReturnValue({
+        data,
+    } as ReturnType<typeof useLatestMeterReading>)
 
 const READING_1: ReadingPayload = {
     meterId: "meter-1",
@@ -19,9 +30,13 @@ const READING_1: ReadingPayload = {
     receivedAt: "2026-07-15T12:00:00.000Z",
 }
 
+const renderLiveReading = (meterId: string | undefined) =>
+    renderHook(() => useLiveMeterReading("PROPERTY", "prop-1", meterId))
+
 beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(READING_1.receivedAt))
+    mockFallback(undefined)
 })
 
 afterEach(() => {
@@ -30,36 +45,34 @@ afterEach(() => {
 
 describe("useLiveMeterReading", () => {
     it("sem leitura para o medidor, começa (e permanece) obsoleta", () => {
-        mockedUseRealtime.mockReturnValue({ readingsByMeterId: {}, isConnected: true })
+        mockedUseRealtimeReadings.mockReturnValue({ readingsByMeterId: {} })
 
-        const { result } = renderHook(() => useLiveMeterReading("meter-1"))
+        const { result } = renderLiveReading("meter-1")
 
         expect(result.current.reading).toBeUndefined()
         expect(result.current.isStale).toBe(true)
     })
 
     it("leitura recém-chegada não é obsoleta", () => {
-        mockedUseRealtime.mockReturnValue({
+        mockedUseRealtimeReadings.mockReturnValue({
             readingsByMeterId: { "meter-1": READING_1 },
-            isConnected: true,
         })
 
-        const { result } = renderHook(() => useLiveMeterReading("meter-1"))
+        const { result } = renderLiveReading("meter-1")
 
         expect(result.current.reading).toBe(READING_1)
         expect(result.current.isStale).toBe(false)
     })
 
     it("fica obsoleta exatamente 10s depois de receivedAt, sem re-render antes disso", () => {
-        mockedUseRealtime.mockReturnValue({
+        mockedUseRealtimeReadings.mockReturnValue({
             readingsByMeterId: { "meter-1": READING_1 },
-            isConnected: true,
         })
 
         let renderCount = 0
         const { result } = renderHook(() => {
             renderCount++
-            return useLiveMeterReading("meter-1")
+            return useLiveMeterReading("PROPERTY", "prop-1", "meter-1")
         })
 
         expect(result.current.isStale).toBe(false)
@@ -79,16 +92,13 @@ describe("useLiveMeterReading", () => {
     })
 
     it("uma leitura nova do mesmo medidor reagenda a expiração", () => {
-        mockedUseRealtime.mockReturnValue({
+        mockedUseRealtimeReadings.mockReturnValue({
             readingsByMeterId: { "meter-1": READING_1 },
-            isConnected: true,
         })
 
         const { result, rerender } = renderHook(
-            ({ id }: { id: string }) => useLiveMeterReading(id),
-            {
-                initialProps: { id: "meter-1" },
-            },
+            ({ id }: { id: string }) => useLiveMeterReading("PROPERTY", "prop-1", id),
+            { initialProps: { id: "meter-1" } },
         )
 
         act(() => {
@@ -97,9 +107,8 @@ describe("useLiveMeterReading", () => {
         expect(result.current.isStale).toBe(false)
 
         const READING_2: ReadingPayload = { ...READING_1, receivedAt: new Date().toISOString() }
-        mockedUseRealtime.mockReturnValue({
+        mockedUseRealtimeReadings.mockReturnValue({
             readingsByMeterId: { "meter-1": READING_2 },
-            isConnected: true,
         })
         rerender({ id: "meter-1" })
 
@@ -118,12 +127,11 @@ describe("useLiveMeterReading", () => {
     })
 
     it("limpa o timer ao desmontar", () => {
-        mockedUseRealtime.mockReturnValue({
+        mockedUseRealtimeReadings.mockReturnValue({
             readingsByMeterId: { "meter-1": READING_1 },
-            isConnected: true,
         })
 
-        const { unmount } = renderHook(() => useLiveMeterReading("meter-1"))
+        const { unmount } = renderLiveReading("meter-1")
         unmount()
 
         expect(() => {
@@ -131,5 +139,51 @@ describe("useLiveMeterReading", () => {
                 vi.advanceTimersByTime(20_000)
             })
         }).not.toThrow()
+    })
+})
+
+describe("useLiveMeterReading — fallback REST de potência", () => {
+    it("usa a potência da leitura SSE quando ela está fresca, ignorando o fallback", () => {
+        mockedUseRealtimeReadings.mockReturnValue({
+            readingsByMeterId: { "meter-1": READING_1 },
+        })
+        mockFallback(9999)
+
+        const { result } = renderLiveReading("meter-1")
+
+        expect(result.current.lastKnownPowerW).toBe(READING_1.powerW)
+    })
+
+    it("usa o fallback REST quando não há leitura SSE — aba recém-aberta", () => {
+        mockedUseRealtimeReadings.mockReturnValue({ readingsByMeterId: {} })
+        mockFallback(850)
+
+        const { result } = renderLiveReading("meter-1")
+
+        expect(result.current.reading).toBeUndefined()
+        expect(result.current.lastKnownPowerW).toBe(850)
+    })
+
+    it("sem leitura SSE e sem fallback disponível, fica undefined (não inventa dado)", () => {
+        mockedUseRealtimeReadings.mockReturnValue({ readingsByMeterId: {} })
+        mockFallback(undefined)
+
+        const { result } = renderLiveReading("meter-1")
+
+        expect(result.current.lastKnownPowerW).toBeUndefined()
+    })
+
+    it("desabilita o fallback assim que a leitura SSE está fresca, e reabilita se ela ficar obsoleta", () => {
+        mockedUseRealtimeReadings.mockReturnValue({
+            readingsByMeterId: { "meter-1": READING_1 },
+        })
+
+        renderLiveReading("meter-1")
+        expect(mockedUseLatestMeterReading).toHaveBeenLastCalledWith("PROPERTY", "prop-1", false)
+
+        act(() => {
+            vi.advanceTimersByTime(10_001)
+        })
+        expect(mockedUseLatestMeterReading).toHaveBeenLastCalledWith("PROPERTY", "prop-1", true)
     })
 })

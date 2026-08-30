@@ -3,7 +3,7 @@ import { useLocation } from "react-router"
 import { NotificationDropdown } from "@/components/layout/NotificationDropdown"
 import { WarningBadge } from "@/components/layout/WarningBadge"
 import { useAuth } from "@/contexts/AuthContext"
-import { useRealtime } from "@/contexts/RealtimeContext"
+import { useRealtimeConnection } from "@/contexts/RealtimeContext"
 import { getPageTitle } from "@/config/pageTitles"
 import { getGreetingName } from "@/lib/userDisplay"
 
@@ -25,7 +25,7 @@ interface HeaderProps {
 export const Header = ({ onMenuClick }: HeaderProps) => {
     const location = useLocation()
     const { user } = useAuth()
-    const { isConnected } = useRealtime()
+    const { isConnected } = useRealtimeConnection()
 
     const { kicker, title } = getPageTitle(location.pathname)
     const isDashboard = location.pathname === "/dashboard"

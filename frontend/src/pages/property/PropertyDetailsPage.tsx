@@ -57,9 +57,10 @@ export const PropertyDetailsPage = () => {
     const distributorsQuery = useDistributors(1, 31)
     // KPI "Potência agora" — mesma fonte que MeterSection usa internamente
     // (useMeterByTarget dedupe via cache do TanStack Query, sem query extra
-    // de verdade) + useLiveMeterReading (SSE) pra leitura ao vivo.
+    // de verdade) + useLiveMeterReading (SSE, com fallback REST) pra
+    // potência mais recente conhecida.
     const meterQuery = useMeterByTarget("PROPERTY", id)
-    const { reading, isStale: isReadingStale } = useLiveMeterReading(meterQuery.data?.id)
+    const { lastKnownPowerW } = useLiveMeterReading("PROPERTY", id, meterQuery.data?.id)
 
     // Loading só do primeiro nível (property). Distributor carregando depois
     // não bloqueia a página inteira — mostramos um placeholder local.
@@ -119,8 +120,8 @@ export const PropertyDetailsPage = () => {
                         Potência agora
                     </div>
                     <div className="font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold">
-                        {!isReadingStale && reading ? (
-                            formatPowerKw(reading.powerW)
+                        {lastKnownPowerW !== undefined ? (
+                            formatPowerKw(lastKnownPowerW)
                         ) : (
                             <span className="text-muted">—</span>
                         )}

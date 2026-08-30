@@ -23,6 +23,10 @@ interface DashboardKpiRowProps {
     propertyId: string
     reading: ReadingPayload | undefined
     isStale: boolean
+    /** Potência mais recente conhecida (SSE fresco ou fallback REST) — só
+     * para o valor exibido; `isLive`/custo estimado continuam exigindo SSE
+     * fresco de verdade (ver `reading`/`isStale`). */
+    lastKnownPowerW: number | undefined
 }
 
 const signedPercentFormatter = new Intl.NumberFormat("pt-BR", {
@@ -37,7 +41,12 @@ const signedPercentFormatter = new Intl.NumberFormat("pt-BR", {
  * em 2 cards), Consumo hoje, Custo projetado do mês, Bandeira
  * vigente.
  */
-export const DashboardKpiRow = ({ propertyId, reading, isStale }: DashboardKpiRowProps) => {
+export const DashboardKpiRow = ({
+    propertyId,
+    reading,
+    isStale,
+    lastKnownPowerW,
+}: DashboardKpiRowProps) => {
     const [now] = useState(() => new Date())
 
     // "Potência agora" + custo estimado — mesma conta de RealtimeSection (tarifa
@@ -73,7 +82,7 @@ export const DashboardKpiRow = ({ propertyId, reading, isStale }: DashboardKpiRo
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <LiveKpiCard
                 label="Potência agora"
-                value={currentPowerKw !== null ? formatPowerKw(reading!.powerW) : "—"}
+                value={lastKnownPowerW !== undefined ? formatPowerKw(lastKnownPowerW) : "—"}
                 subValue={
                     estimatedCostPerHour !== null
                         ? `≈ ${formatBrl(estimatedCostPerHour)}/h estimado`

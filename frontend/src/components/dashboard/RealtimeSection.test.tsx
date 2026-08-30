@@ -7,7 +7,7 @@ import { meterService } from "@/services/meter.service"
 import { consumptionService } from "@/services/consumption.service"
 import { meterReadingService } from "@/services/meterReading.service"
 import { tariffFlagService } from "@/services/tariff-flag.service"
-import { useRealtime } from "@/contexts/RealtimeContext"
+import { useRealtimeReadings } from "@/contexts/RealtimeContext"
 import type { Meter } from "@/types/meter.types"
 import type { Paginated } from "@/types/pagination.types"
 import type { Granularity } from "@/types/consumption.types"
@@ -39,7 +39,7 @@ vi.mock("@/services/tariff-flag.service", () => ({
 }))
 
 vi.mock("@/contexts/RealtimeContext", () => ({
-    useRealtime: vi.fn(() => ({ readingsByMeterId: {}, isConnected: false })),
+    useRealtimeReadings: vi.fn(() => ({ readingsByMeterId: {} })),
 }))
 
 const mockMeter: Meter = {
@@ -97,7 +97,7 @@ const renderSection = (propertyId = "prop-1", propertyName = "Casa") => {
 
 beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useRealtime).mockReturnValue({ readingsByMeterId: {}, isConnected: false })
+    vi.mocked(useRealtimeReadings).mockReturnValue({ readingsByMeterId: {} })
     vi.mocked(consumptionService.list).mockResolvedValue(paginatedConsumption())
     vi.mocked(meterReadingService.list).mockResolvedValue({ items: [], granularity: "minute" })
     vi.mocked(tariffFlagService.get).mockReturnValue(new Promise(() => {})) // não resolve — não é o foco destes testes
@@ -156,9 +156,8 @@ describe("RealtimeSection — com medidor", () => {
 
     it("mostra o KPI 'Potência agora' quando uma leitura chega", async () => {
         vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
-        vi.mocked(useRealtime).mockReturnValue({
+        vi.mocked(useRealtimeReadings).mockReturnValue({
             readingsByMeterId: { "meter-1": mockReading(1500) },
-            isConnected: false,
         })
 
         renderSection()

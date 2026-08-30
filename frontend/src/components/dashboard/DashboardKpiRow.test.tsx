@@ -126,7 +126,13 @@ const createTestQueryClient = () =>
 const renderRow = (props: Partial<Parameters<typeof DashboardKpiRow>[0]> = {}) => {
     const queryClient = createTestQueryClient()
     return render(
-        <DashboardKpiRow propertyId="prop-1" reading={undefined} isStale={true} {...props} />,
+        <DashboardKpiRow
+            propertyId="prop-1"
+            reading={undefined}
+            isStale={true}
+            lastKnownPowerW={undefined}
+            {...props}
+        />,
         {
             wrapper: ({ children }) => (
                 <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -153,7 +159,7 @@ describe("DashboardKpiRow — Potência agora / custo estimado", () => {
             hour: [bucket(now.toISOString(), 2, 1)], // tarifa efetiva R$0,50/kWh
         })
 
-        renderRow({ reading: mockReading(1000), isStale: false }) // 1 kW
+        renderRow({ reading: mockReading(1000), isStale: false, lastKnownPowerW: 1000 }) // 1 kW
 
         expect(await screen.findByText("1,00kW")).toBeInTheDocument()
         expect(await screen.findByText(/≈ R\$\s?0,50\/h estimado/)).toBeInTheDocument()

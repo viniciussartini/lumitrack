@@ -31,7 +31,7 @@ interface RealtimeSectionProps {
 export const RealtimeSection = ({ propertyId, propertyName }: RealtimeSectionProps) => {
     const meterQuery = useMeterByTarget("PROPERTY", propertyId)
     const meter = meterQuery.data
-    const { reading, isStale } = useLiveMeterReading(meter?.id)
+    const liveReading = useLiveMeterReading("PROPERTY", propertyId, meter?.id)
 
     if (meterQuery.isLoading) {
         return (
@@ -73,7 +73,7 @@ export const RealtimeSection = ({ propertyId, propertyName }: RealtimeSectionPro
 
     return (
         <div className="flex flex-col gap-4">
-            <DashboardKpiRow propertyId={propertyId} reading={reading} isStale={isStale} />
+            <DashboardKpiRow propertyId={propertyId} {...liveReading} />
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2.1fr)_minmax(0,1fr)]">
                 <RealtimeChartCard

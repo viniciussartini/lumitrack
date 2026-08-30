@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import { AlertCircle, ArrowLeft, Cpu, Pencil } from "lucide-react"
 import { useDevice } from "@/hooks/queries/useDevices"
 import { useArea } from "@/hooks/queries/useAreas"
 import { useProperty } from "@/hooks/queries/useProperties"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
-import { useRealtime } from "@/contexts/RealtimeContext"
+import { useLiveMeterReading } from "@/hooks/useLiveMeterReading"
 import { Button } from "@/components/ui/Button"
 import { Tag } from "@/components/ui/Tag"
 import { DeviceMenu } from "@/components/device/DeviceMenu"
@@ -53,19 +53,10 @@ export const DeviceDetailsPage = () => {
     const areaQuery = useArea(propertyId, areaId)
     const propertyQuery = useProperty(propertyId)
     // KPI "Potência agora" — mesma fonte que MeterSection usa internamente
-    // (useMeterByTarget dedupe via cache do TanStack Query) + useRealtime
-    // (SSE) pra leitura ao vivo.
+    // (useMeterByTarget dedupe via cache do TanStack Query) + useLiveMeterReading
+    // (SSE, com fallback REST) pra potência mais recente conhecida.
     const meterQuery = useMeterByTarget("DEVICE", deviceId)
-    const { readingsByMeterId } = useRealtime()
-    // Estado (não Date.now() direto) pra recalcular a "idade" da leitura
-    // periodicamente sem violar a regra de pureza de render — mesmo padrão
-    // de MeterSection.tsx/PropertyDetailsPage.tsx/AreaDetailsPage.tsx.
-    const [now, setNow] = useState(() => Date.now())
-
-    useEffect(() => {
-        const interval = setInterval(() => setNow(Date.now()), 2_000)
-        return () => clearInterval(interval)
-    }, [])
+    const { lastKnownPowerW } = useLiveMeterReading("DEVICE", deviceId, meterQuery.data?.id)
 
     if (deviceQuery.isLoading) {
         return (
@@ -97,8 +88,6 @@ export const DeviceDetailsPage = () => {
     const area = areaQuery.data
     const property = propertyQuery.data
     const meter = meterQuery.data
-    const reading = meter ? readingsByMeterId[meter.id] : undefined
-    const isReadingStale = !reading || now - new Date(reading.receivedAt).getTime() > 10_000
 
     const handleAfterDelete = () => {
         // Após excluir, volta pra área pai. replace evita que o botão
@@ -136,8 +125,8 @@ export const DeviceDetailsPage = () => {
                         Potência agora
                     </div>
                     <div className="font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold">
-                        {!isReadingStale && reading ? (
-                            formatPowerKw(reading.powerW)
+                        {lastKnownPowerW !== undefined ? (
+                            formatPowerKw(lastKnownPowerW)
                         ) : (
                             <span className="text-muted">—</span>
                         )}

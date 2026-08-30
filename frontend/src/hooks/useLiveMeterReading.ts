@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
-import { useRealtime } from "@/contexts/RealtimeContext"
+import { useRealtimeReadings } from "@/contexts/RealtimeContext"
+import { useLatestMeterReading } from "@/hooks/queries/useLatestMeterReading"
 import type { ReadingPayload } from "@/lib/sse/appStream"
+import type { TargetType } from "@/types/meter.types"
 
 /** Leitura considerada "obsoleta" após esse tempo sem uma amostra nova —
  * mesmo limiar que o antigo RealTimeCard usava. */
@@ -9,6 +11,15 @@ const STALE_THRESHOLD_MS = 10_000
 interface UseLiveMeterReadingResult {
     reading: ReadingPayload | undefined
     isStale: boolean
+    /**
+     * Melhor potência conhecida agora, seja de onde vier: a leitura SSE
+     * quando fresca, ou o fallback REST (último balde por minuto já
+     * persistido) enquanto o SSE ainda não entregou nada. `undefined` só
+     * quando nenhuma das duas fontes tem dado. Tensão/corrente/fator de
+     * potência não têm equivalente — só existem na amostra instantânea do
+     * SSE, nunca no agregado por minuto.
+     */
+    lastKnownPowerW: number | undefined
 }
 
 const computeIsStale = (reading: ReadingPayload | undefined): boolean =>
@@ -16,12 +27,17 @@ const computeIsStale = (reading: ReadingPayload | undefined): boolean =>
 
 /**
  * Última leitura SSE de um medidor + status de "obsoleta" (sem amostra nova
- * há mais de `STALE_THRESHOLD_MS`). Extraído de `MeterSection`/
- * `PropertyDetailsPage`, que duplicavam a mesma lógica — 3º consumidor real
- * (`RealtimeSection`, Painel) justifica a extração.
+ * há mais de `STALE_THRESHOLD_MS`), com fallback REST de potência quando o
+ * SSE ainda não entregou nenhuma leitura deste medidor (aba recém-aberta,
+ * medidor que demora a reportar) — sem isso, os cards de potência ficavam em
+ * "—" indefinidamente mesmo com leituras recentes já persistidas.
  */
-export const useLiveMeterReading = (meterId: string | undefined): UseLiveMeterReadingResult => {
-    const { readingsByMeterId } = useRealtime()
+export const useLiveMeterReading = (
+    targetType: TargetType,
+    targetId: string | undefined,
+    meterId: string | undefined,
+): UseLiveMeterReadingResult => {
+    const { readingsByMeterId } = useRealtimeReadings()
     const reading = meterId ? readingsByMeterId[meterId] : undefined
 
     const [isStale, setIsStale] = useState(() => computeIsStale(reading))
@@ -61,5 +77,12 @@ export const useLiveMeterReading = (meterId: string | undefined): UseLiveMeterRe
         return () => clearTimeout(timer)
     }, [reading])
 
-    return { reading, isStale }
+    // Só busca via REST enquanto o SSE não tem nada fresco pra oferecer —
+    // some sozinho (query desabilitada) assim que uma leitura real chega, e
+    // volta a rodar se a conexão cair depois.
+    const needsFallback = isStale
+    const fallbackQuery = useLatestMeterReading(targetType, targetId, needsFallback)
+    const lastKnownPowerW = !isStale && reading ? reading.powerW : fallbackQuery.data
+
+    return { reading, isStale, lastKnownPowerW }
 }
