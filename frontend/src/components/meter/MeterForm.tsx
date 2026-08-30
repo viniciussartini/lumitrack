@@ -25,11 +25,11 @@ interface MeterFormProps {
 const PROTOCOL_OPTIONS = Object.entries(METER_PROTOCOL_LABELS) as [MeterProtocol, string][]
 
 // TODO(design): aguardando handoff — campos de endereço por grandeza
-// elétrica (issue #316). Sem bundle no `.claude/design/` cobrindo estes
-// campos; versão utilitária provisória (shadcn default), mesmo padrão já
-// aceito nesta tela para os campos de baudRate/unitId/pollingIntervalMs
-// (também nunca tiveram design próprio). Placeholder só ilustra o formato
-// esperado por protocolo — não é validação (isso é o schema).
+// elétrica. Sem bundle no `.claude/design/` cobrindo estes campos; versão
+// utilitária provisória (shadcn default), seguindo a regra de ausência do
+// `10-design-system.md` (decisão tomada com o usuário antes da
+// implementação). Placeholder só ilustra o formato esperado por protocolo
+// — não é validação (isso é o schema).
 const ADDRESS_PLACEHOLDER_BY_PROTOCOL: Partial<Record<MeterProtocol, string>> = {
     MODBUS_TCP: "Registrador (ex.: 0)",
     MODBUS_RTU: "/dev/ttyUSB0",

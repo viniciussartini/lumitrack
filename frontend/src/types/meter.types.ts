@@ -67,7 +67,7 @@ export const ADDRESS_PROTOCOLS: readonly MeterProtocol[] = [
  * voltageAddress, porque seu `address` de topo é o caminho da porta serial,
  * não a voltagem). Espelha `quantityAddressFields` de
  * `backend/src/modules/meter/meter.schema.ts` — sem esses campos, o
- * backend rejeita a criação/edição do medidor com 400 (issue #316).
+ * backend rejeita a criação/edição do medidor com 400.
  */
 export const QUANTITY_ADDRESS_PROTOCOLS: readonly MeterProtocol[] = [
     "MODBUS_TCP",

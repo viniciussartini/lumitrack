@@ -219,9 +219,9 @@ test.describe("Medidor (MeterSection)", () => {
         await expect(page.getByLabel(/^endereço$/i)).toHaveCount(0)
 
         // Modbus TCP — host/porta + endereço de voltagem (registrador) e os
-        // 3 endereços de grandeza em extra (issue #316: antes desta
-        // correção, MODBUS_TCP não mostrava NENHUM campo de endereço,
-        // tornando o protocolo impossível de configurar pela UI).
+        // 3 endereços de grandeza em extra. Antes desta correção, MODBUS_TCP
+        // não mostrava NENHUM campo de endereço, tornando o protocolo
+        // impossível de configurar pela UI.
         await page.getByLabel(/protocolo/i).selectOption("MODBUS_TCP")
         await expect(page.getByLabel(/^host$/i)).toBeVisible()
         await expect(page.getByLabel(/porta/i)).toBeVisible()
@@ -272,9 +272,7 @@ test.describe("Medidor (MeterSection)", () => {
         await expect(dialog).toBeVisible()
     })
 
-    test("cria um medidor MODBUS_TCP com os endereços de grandeza (issue #316)", async ({
-        page,
-    }) => {
+    test("cria um medidor MODBUS_TCP com os endereços de grandeza", async ({ page }) => {
         await setupAuthAndProperty(page)
 
         let meter: Meter | null = null
@@ -337,5 +335,61 @@ test.describe("Medidor (MeterSection)", () => {
         const card = page.getByTestId("meter-connection-card")
         await expect(card).toContainText(/medidor modbus tcp/i)
         await expect(card).toContainText(/192\.168\.0\.30:502/)
+    })
+
+    test("edita um medidor MODBUS_TCP sem apagar campos de extra que o form não expõe", async ({
+        page,
+    }) => {
+        await setupAuthAndProperty(page)
+
+        // `unitId` não tem campo no MeterForm — só existe porque o medidor
+        // foi criado por outro caminho (seed, API direta). O bug corrigido
+        // aqui: editar só o endereço de corrente pela UI não pode apagar
+        // esse campo ao enviar `extra` de volta pro backend.
+        let meter: Meter = {
+            id: "meter-modbus-tcp",
+            name: "Medidor Modbus TCP",
+            targetType: "PROPERTY",
+            propertyId: "prop-1",
+            areaId: null,
+            deviceId: null,
+            protocol: "MODBUS_TCP",
+            host: "192.168.0.30",
+            port: 502,
+            topic: null,
+            address: "0",
+            extra: { unitId: 7, currentAddress: "1", powerAddress: "2", powerFactorAddress: "3" },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        }
+        let updatedBody: Record<string, unknown> = {}
+
+        await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) => fulfillJson(route, meter))
+
+        await page.route("**/api/meters/meter-modbus-tcp", async (route) => {
+            if (route.request().method() !== "PUT") return route.continue()
+            updatedBody = JSON.parse(route.request().postData() ?? "{}")
+            meter = { ...meter, ...updatedBody, updatedAt: new Date().toISOString() }
+            return fulfillJson(route, meter)
+        })
+
+        await page.goto("/propriedades/prop-1")
+        await hideDevTools(page)
+
+        await page.getByRole("button", { name: /editar medidor/i }).click()
+        const editDialog = page.getByRole("dialog", { name: /editar medidor/i })
+        await expect(editDialog).toBeVisible()
+        await expect(page.getByLabel(/endereço de corrente/i)).toHaveValue("1")
+
+        await page.getByLabel(/endereço de corrente/i).fill("99")
+        await page.getByRole("button", { name: /salvar alterações/i }).click()
+
+        await expect(editDialog).not.toBeVisible()
+        expect(updatedBody.extra).toEqual({
+            unitId: 7,
+            currentAddress: "99",
+            powerAddress: "2",
+            powerFactorAddress: "3",
+        })
     })
 })

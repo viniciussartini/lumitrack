@@ -44,7 +44,7 @@ flowchart LR
 
     BACKEND["LumiTrack backend\nIoTConnectionManager → MqttConnection\nsubscribe no mesmo tópico, mesmas credenciais"]
 
-    BROKER -. "mqtt://127.0.0.1:1883\n(guard de SSRF do backend exige\nIOT_ALLOWED_HOSTS=127.0.0.1/32)" .-> BACKEND
+    BROKER -. "mqtt://127.0.0.1:1883\n(guard de SSRF do backend exige\nIOT_ALLOWED_HOSTS=localhost — não\n127.0.0.1/32, que deixa ::1 de fora)" .-> BACKEND
 
     style SIM fill:#f4f4f2,stroke:#999
     style BACKEND fill:#eef3ee,stroke:#3f8f52

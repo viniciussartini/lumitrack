@@ -9,6 +9,10 @@ dist/
 .env
 !.env.example
 
+# Estado operacional do deploy/update-production.sh — SHA do último deploy
+# bem-sucedido na VPS, nunca versionado.
+deploy/.last-deployed-sha
+
 # Nenhuma regra para backend/prisma/migrations/ aqui de propósito — as
 # migrations DEVEM ser versionadas (histórico de schema é parte do código).
 # Uma regra `prisma/migrations/` já existiu aqui, mas nunca casava de

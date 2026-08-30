@@ -23,12 +23,12 @@ interface MeterFormDialogProps {
 }
 
 /**
- * Monta `extra` a partir dos campos de endereço por grandeza do form —
- * só os 4 protocolos de QUANTITY_ADDRESS_PROTOCOLS usam algum destes
- * (issue #316). `voltageAddress` só existe pra MODBUS_RTU (os demais
- * guardam a voltagem no `address` de topo, já enviado à parte).
+ * Monta só os endereços de grandeza a partir do form — só os 4 protocolos
+ * de QUANTITY_ADDRESS_PROTOCOLS usam algum destes. `voltageAddress` só
+ * existe pra MODBUS_RTU (os demais guardam a voltagem no `address` de
+ * topo, já enviado à parte).
  */
-function buildExtra(data: MeterFormData): Record<string, string> | undefined {
+function buildQuantityExtra(data: MeterFormData): Record<string, string> | undefined {
     if (!QUANTITY_ADDRESS_PROTOCOLS.includes(data.protocol as MeterProtocol)) return undefined
 
     const extra: Record<string, string> = {}
@@ -42,9 +42,18 @@ function buildExtra(data: MeterFormData): Record<string, string> | undefined {
     return Object.keys(extra).length > 0 ? extra : undefined
 }
 
-/** Campos de conexão comuns a criação e edição — só o alvo (targetField) difere. */
-function buildConnectionFields(data: MeterFormData) {
-    const extra = buildExtra(data)
+/**
+ * Campos de conexão comuns a criação e edição — só o alvo (targetField)
+ * difere. `existingExtra` (só na edição) é mesclado por baixo dos endereços
+ * de grandeza novos: `MeterRepository.update` substitui a coluna `extra`
+ * INTEIRA sempre que a chave vem no payload (não faz merge no backend) —
+ * reconstruí-la só com os endereços de grandeza apagaria silenciosamente
+ * `unitId`/`baudRate`/`pollingIntervalMs`/`rack`/`slot`, que este form não
+ * expõe. Em CREATE não há `extra` anterior — `existingExtra` fica `undefined`.
+ */
+function buildConnectionFields(data: MeterFormData, existingExtra?: Meter["extra"]) {
+    const quantityExtra = buildQuantityExtra(data)
+    const extra = quantityExtra ? { ...existingExtra, ...quantityExtra } : undefined
     return {
         protocol: data.protocol,
         ...(data.host !== undefined && { host: data.host }),
@@ -69,8 +78,8 @@ function buildCreateInput(
     return { ...targetField, name: data.name, ...buildConnectionFields(data) }
 }
 
-function buildUpdateInput(data: MeterFormData): UpdateMeterInput {
-    return { name: data.name, ...buildConnectionFields(data) }
+function buildUpdateInput(data: MeterFormData, existingExtra: Meter["extra"]): UpdateMeterInput {
+    return { name: data.name, ...buildConnectionFields(data, existingExtra) }
 }
 
 /**
@@ -87,7 +96,8 @@ export const MeterFormDialog = ({ isOpen, onClose, mode }: MeterFormDialogProps)
             if (mode.kind === "create") {
                 await createMeter.mutateAsync(buildCreateInput(data, mode))
             } else {
-                await updateMeter.mutateAsync({ id: mode.meter.id, input: buildUpdateInput(data) })
+                const input = buildUpdateInput(data, mode.meter.extra)
+                await updateMeter.mutateAsync({ id: mode.meter.id, input })
             }
             onClose()
         } catch (error) {

@@ -37,49 +37,89 @@ function matchesAddressKind(value: string, kind: AddressKind): boolean {
     }
 }
 
-export const meterFormSchema = z
-    .object({
-        name: z.string().min(1, "Nome é obrigatório").max(200, "Nome muito longo"),
+const baseMeterFormSchema = z.object({
+    name: z.string().min(1, "Nome é obrigatório").max(200, "Nome muito longo"),
 
-        protocol: z.enum(
-            [
-                "MQTT",
-                "MODBUS_TCP",
-                "MODBUS_RTU",
-                "ETHERNET_IP",
-                "PROFIBUS",
-                "PROFINET",
-                "RS232",
-                "RS485",
-            ],
-            { message: "Selecione o protocolo" },
-        ),
+    protocol: z.enum(
+        [
+            "MQTT",
+            "MODBUS_TCP",
+            "MODBUS_RTU",
+            "ETHERNET_IP",
+            "PROFIBUS",
+            "PROFINET",
+            "RS232",
+            "RS485",
+        ],
+        { message: "Selecione o protocolo" },
+    ),
 
-        host: emptyToUndefined.pipe(z.string().max(255).optional()),
+    host: emptyToUndefined.pipe(z.string().max(255).optional()),
 
-        port: z
-            .union([z.string(), z.number()])
-            .optional()
-            .transform((val) => {
-                if (val === "" || val === undefined || val === null) return undefined
-                const parsed = Number(val)
-                return Number.isNaN(parsed) ? undefined : parsed
-            })
-            .pipe(z.number().int().min(1).max(65535).optional()),
+    port: z
+        .union([z.string(), z.number()])
+        .optional()
+        .transform((val) => {
+            if (val === "" || val === undefined || val === null) return undefined
+            const parsed = Number(val)
+            return Number.isNaN(parsed) ? undefined : parsed
+        })
+        .pipe(z.number().int().min(1).max(65535).optional()),
 
-        topic: emptyToUndefined.pipe(z.string().max(255).optional()),
+    topic: emptyToUndefined.pipe(z.string().max(255).optional()),
 
-        address: emptyToUndefined.pipe(z.string().max(255).optional()),
+    address: emptyToUndefined.pipe(z.string().max(255).optional()),
 
-        // Endereços de grandeza elétrica (extra.*, issue #316) — só os 4
-        // protocolos de QUANTITY_ADDRESS_PROTOCOLS usam algum destes.
-        // voltageAddress existe só porque MODBUS_RTU usa `address` (topo)
-        // pro caminho da porta serial, sem sobra pra guardar a voltagem.
-        voltageAddress: emptyToUndefined.pipe(z.string().max(255).optional()),
-        currentAddress: emptyToUndefined.pipe(z.string().max(255).optional()),
-        powerAddress: emptyToUndefined.pipe(z.string().max(255).optional()),
-        powerFactorAddress: emptyToUndefined.pipe(z.string().max(255).optional()),
-    })
+    // Endereços de grandeza elétrica (extra.*) — só os 4 protocolos de
+    // QUANTITY_ADDRESS_PROTOCOLS usam algum destes.
+    // voltageAddress existe só porque MODBUS_RTU usa `address` (topo)
+    // pro caminho da porta serial, sem sobra pra guardar a voltagem.
+    voltageAddress: emptyToUndefined.pipe(z.string().max(255).optional()),
+    currentAddress: emptyToUndefined.pipe(z.string().max(255).optional()),
+    powerAddress: emptyToUndefined.pipe(z.string().max(255).optional()),
+    powerFactorAddress: emptyToUndefined.pipe(z.string().max(255).optional()),
+})
+
+type BaseMeterFormShape = z.infer<typeof baseMeterFormSchema>
+type QuantityField = "currentAddress" | "powerAddress" | "powerFactorAddress"
+
+const QUANTITY_FIELD_LABELS: Record<QuantityField, string> = {
+    currentAddress: "corrente",
+    powerAddress: "potência",
+    powerFactorAddress: "fator de potência",
+}
+
+// Presença e formato viram refines SEPARADOS (não um só "obrigatório") —
+// digitar um valor com formato errado não deve mostrar "é obrigatório" com
+// o campo preenchido na tela, a mesma separação que o backend já faz entre
+// `.min(1)` e `.regex()`.
+type RefineArgs = [(data: BaseMeterFormShape) => boolean, { message: string; path: PropertyKey[] }]
+
+function quantityRequiredRefine(field: QuantityField): RefineArgs {
+    const label = QUANTITY_FIELD_LABELS[field]
+    return [
+        (data) =>
+            !QUANTITY_ADDRESS_PROTOCOLS.includes(data.protocol as MeterProtocol) ||
+            data[field] !== undefined,
+        { message: `Endereço de ${label} é obrigatório para este protocolo`, path: [field] },
+    ]
+}
+
+function quantityFormatRefine(field: QuantityField): RefineArgs {
+    const label = QUANTITY_FIELD_LABELS[field]
+    return [
+        (data) => {
+            if (!QUANTITY_ADDRESS_PROTOCOLS.includes(data.protocol as MeterProtocol)) return true
+            const value = data[field]
+            if (value === undefined) return true
+            const kind = ADDRESS_KIND_BY_PROTOCOL[data.protocol as MeterProtocol]
+            return !kind || matchesAddressKind(value, kind)
+        },
+        { message: `Formato de endereço de ${label} inválido para este protocolo`, path: [field] },
+    ]
+}
+
+export const meterFormSchema = baseMeterFormSchema
     .refine(
         (data) => !NETWORK_PROTOCOLS.includes(data.protocol as MeterProtocol) || Boolean(data.host),
         { message: "Host é obrigatório para este protocolo", path: ["host"] },
@@ -110,59 +150,27 @@ export const meterFormSchema = z
         },
         { message: "Formato de endereço inválido para este protocolo", path: ["address"] },
     )
+    .refine((data) => data.protocol !== "MODBUS_RTU" || data.voltageAddress !== undefined, {
+        message: "Endereço de voltagem é obrigatório para MODBUS_RTU",
+        path: ["voltageAddress"],
+    })
     .refine(
         (data) => {
-            if (data.protocol !== "MODBUS_RTU") return true
-            if (data.voltageAddress === undefined) return false
+            if (data.protocol !== "MODBUS_RTU" || data.voltageAddress === undefined) return true
             return matchesAddressKind(data.voltageAddress, "register")
         },
         {
-            message: "Endereço de voltagem (registrador) é obrigatório para MODBUS_RTU",
+            message:
+                "Formato de endereço de voltagem inválido (esperado registrador 0-65535) para MODBUS_RTU",
             path: ["voltageAddress"],
         },
     )
-    .refine(
-        (data) => {
-            const kind = ADDRESS_KIND_BY_PROTOCOL[data.protocol as MeterProtocol]
-            if (!QUANTITY_ADDRESS_PROTOCOLS.includes(data.protocol as MeterProtocol) || !kind) {
-                return true
-            }
-            if (data.currentAddress === undefined) return false
-            return matchesAddressKind(data.currentAddress, kind)
-        },
-        {
-            message: "Endereço de corrente é obrigatório para este protocolo",
-            path: ["currentAddress"],
-        },
-    )
-    .refine(
-        (data) => {
-            const kind = ADDRESS_KIND_BY_PROTOCOL[data.protocol as MeterProtocol]
-            if (!QUANTITY_ADDRESS_PROTOCOLS.includes(data.protocol as MeterProtocol) || !kind) {
-                return true
-            }
-            if (data.powerAddress === undefined) return false
-            return matchesAddressKind(data.powerAddress, kind)
-        },
-        {
-            message: "Endereço de potência é obrigatório para este protocolo",
-            path: ["powerAddress"],
-        },
-    )
-    .refine(
-        (data) => {
-            const kind = ADDRESS_KIND_BY_PROTOCOL[data.protocol as MeterProtocol]
-            if (!QUANTITY_ADDRESS_PROTOCOLS.includes(data.protocol as MeterProtocol) || !kind) {
-                return true
-            }
-            if (data.powerFactorAddress === undefined) return false
-            return matchesAddressKind(data.powerFactorAddress, kind)
-        },
-        {
-            message: "Endereço de fator de potência é obrigatório para este protocolo",
-            path: ["powerFactorAddress"],
-        },
-    )
+    .refine(...quantityRequiredRefine("currentAddress"))
+    .refine(...quantityFormatRefine("currentAddress"))
+    .refine(...quantityRequiredRefine("powerAddress"))
+    .refine(...quantityFormatRefine("powerAddress"))
+    .refine(...quantityRequiredRefine("powerFactorAddress"))
+    .refine(...quantityFormatRefine("powerFactorAddress"))
 
 export type MeterFormData = z.output<typeof meterFormSchema>
 export type MeterFormInput = z.input<typeof meterFormSchema>
