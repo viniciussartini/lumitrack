@@ -51,7 +51,7 @@
         "node-snap7": "^1.0.9",
         "nodemailer": "^9.0.1",
         "otplib": "^13.4.1",
-        "pdfkit": "^0.19.1",
+        "pdfkit": "^0.20.1",
         "pino": "^10.3.1",
         "pino-http": "^11.0.0",
         "pino-pretty": "^13.1.3",
