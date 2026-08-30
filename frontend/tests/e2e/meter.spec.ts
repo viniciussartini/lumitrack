@@ -218,25 +218,124 @@ test.describe("Medidor (MeterSection)", () => {
         await expect(page.getByLabel(/tópico mqtt/i)).toBeVisible()
         await expect(page.getByLabel(/^endereço$/i)).toHaveCount(0)
 
-        // Modbus TCP — host/porta, sem tópico nem endereço.
+        // Modbus TCP — host/porta + endereço de voltagem (registrador) e os
+        // 3 endereços de grandeza em extra (issue #316: antes desta
+        // correção, MODBUS_TCP não mostrava NENHUM campo de endereço,
+        // tornando o protocolo impossível de configurar pela UI).
         await page.getByLabel(/protocolo/i).selectOption("MODBUS_TCP")
         await expect(page.getByLabel(/^host$/i)).toBeVisible()
         await expect(page.getByLabel(/porta/i)).toBeVisible()
         await expect(page.getByLabel(/tópico mqtt/i)).toHaveCount(0)
-        await expect(page.getByLabel(/^endereço$/i)).toHaveCount(0)
+        await expect(page.getByLabel(/^endereço$/i)).toBeVisible()
+        await expect(page.getByLabel(/endereço de voltagem/i)).toHaveCount(0)
+        await expect(page.getByLabel(/endereço de corrente/i)).toBeVisible()
+        await expect(page.getByLabel(/endereço de potência/i)).toBeVisible()
+        await expect(page.getByLabel(/endereço de fator de potência/i)).toBeVisible()
 
-        // Modbus RTU (serial) — só endereço, nada de rede.
+        // Modbus RTU (serial) — endereço serial (porta) + endereço de
+        // voltagem próprio em extra (só ele tem os DOIS: o `address` de
+        // topo é o caminho serial, não uma grandeza) + as 3 de extra.
         await page.getByLabel(/protocolo/i).selectOption("MODBUS_RTU")
         await expect(page.getByLabel(/^host$/i)).toHaveCount(0)
         await expect(page.getByLabel(/porta/i)).toHaveCount(0)
         await expect(page.getByLabel(/tópico mqtt/i)).toHaveCount(0)
         await expect(page.getByLabel(/^endereço$/i)).toBeVisible()
+        await expect(page.getByLabel(/endereço de voltagem/i)).toBeVisible()
+        await expect(page.getByLabel(/endereço de corrente/i)).toBeVisible()
 
-        // Submit sem preencher o campo exigido pelo protocolo atual (serial)
-        // dispara a validação condicional do schema.
+        // EtherNet/IP — host/porta + endereço de voltagem (tag), sem
+        // endereço de voltagem separado em extra (o `address` de topo já é
+        // a tag de voltagem).
+        await page.getByLabel(/protocolo/i).selectOption("ETHERNET_IP")
+        await expect(page.getByLabel(/^host$/i)).toBeVisible()
+        await expect(page.getByLabel(/^endereço$/i)).toBeVisible()
+        await expect(page.getByLabel(/endereço de voltagem/i)).toHaveCount(0)
+        await expect(page.getByLabel(/endereço de potência/i)).toBeVisible()
+
+        // Profinet — host/porta + endereço de voltagem (DB).
+        await page.getByLabel(/protocolo/i).selectOption("PROFINET")
+        await expect(page.getByLabel(/^host$/i)).toBeVisible()
+        await expect(page.getByLabel(/^endereço$/i)).toBeVisible()
+        await expect(page.getByLabel(/endereço de fator de potência/i)).toBeVisible()
+
+        // Profibus (serial, stub) — só o endereço original, sem grandezas.
+        await page.getByLabel(/protocolo/i).selectOption("PROFIBUS")
+        await expect(page.getByLabel(/^endereço$/i)).toBeVisible()
+        await expect(page.getByLabel(/endereço de corrente/i)).toHaveCount(0)
+
+        // Volta pra RTU e faz o submit sem preencher os campos exigidos —
+        // dispara a validação condicional do schema (endereço + grandezas).
+        await page.getByLabel(/protocolo/i).selectOption("MODBUS_RTU")
         await page.getByLabel(/nome do medidor/i).fill("Medidor Serial")
         await page.getByRole("button", { name: /vincular medidor/i }).click()
         await expect(page.getByText(/endereço é obrigatório para este protocolo/i)).toBeVisible()
         await expect(dialog).toBeVisible()
+    })
+
+    test("cria um medidor MODBUS_TCP com os endereços de grandeza (issue #316)", async ({
+        page,
+    }) => {
+        await setupAuthAndProperty(page)
+
+        let meter: Meter | null = null
+        let createdBody: Record<string, unknown> = {}
+
+        await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) => {
+            if (meter) return fulfillJson(route, meter)
+            return fulfillError(route, "Alvo sem medidor vinculado", 404)
+        })
+
+        await page.route(/\/api\/meters(\?.*)?$/, async (route) => {
+            if (route.request().method() !== "POST") return route.continue()
+            createdBody = JSON.parse(route.request().postData() ?? "{}")
+            meter = {
+                id: "meter-modbus-tcp",
+                name: createdBody.name as string,
+                targetType: "PROPERTY",
+                propertyId: "prop-1",
+                areaId: null,
+                deviceId: null,
+                protocol: createdBody.protocol as Meter["protocol"],
+                host: (createdBody.host as string) ?? null,
+                port: (createdBody.port as number) ?? null,
+                topic: null,
+                address: (createdBody.address as string) ?? null,
+                extra: (createdBody.extra as Meter["extra"]) ?? null,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            }
+            return fulfillJson(route, meter, 201)
+        })
+
+        await page.goto("/propriedades/prop-1")
+        await hideDevTools(page)
+
+        await page.getByTestId("meter-section-create").click()
+        const dialog = page.getByRole("dialog", { name: /configurar medidor/i })
+        await expect(dialog).toBeVisible()
+
+        await page.getByLabel(/nome do medidor/i).fill("Medidor Modbus TCP")
+        await page.getByLabel(/protocolo/i).selectOption("MODBUS_TCP")
+        await page.getByLabel(/^host$/i).fill("192.168.0.30")
+        await page.getByLabel(/porta/i).fill("502")
+        await page.getByLabel(/^endereço$/i).fill("0")
+        await page.getByLabel(/endereço de corrente/i).fill("1")
+        await page.getByLabel(/endereço de potência/i).fill("2")
+        await page.getByLabel(/endereço de fator de potência/i).fill("3")
+
+        await page.getByRole("button", { name: /vincular medidor/i }).click()
+
+        await expect(dialog).not.toBeVisible()
+        expect(createdBody.protocol).toBe("MODBUS_TCP")
+        expect(createdBody.address).toBe("0")
+        expect(createdBody.extra).toEqual({
+            currentAddress: "1",
+            powerAddress: "2",
+            powerFactorAddress: "3",
+        })
+
+        const card = page.getByTestId("meter-connection-card")
+        await expect(card).toContainText(/medidor modbus tcp/i)
+        await expect(card).toContainText(/192\.168\.0\.30:502/)
     })
 })
