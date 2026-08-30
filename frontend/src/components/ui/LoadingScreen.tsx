@@ -5,6 +5,6 @@
  */
 export const LoadingScreen = () => (
     <div className="flex h-screen items-center justify-center">
-        <div className="text-slate-500 dark:text-slate-400">Carregando...</div>
+        <div className="text-muted">Carregando...</div>
     </div>
 )

@@ -34,9 +34,12 @@ export default defineConfig({
         // nunca chega no ambiente do Playwright, e os testes de tempo real
         // ficam presos esperando um evento que nunca chega. Só tem efeito
         // quando o Playwright de fato sobe o servidor — não se reaproveitar
-        // um já rodando (`reuseExistingServer`, abaixo).
+        // um já rodando (`reuseExistingServer`, abaixo). No comando de CI,
+        // o prefixo só precisa estar no `build`: a variável é embutida no
+        // bundle nesse momento, e `vite preview` depois só serve os arquivos
+        // estáticos já gerados — repeti-lo ali não teria efeito nenhum.
         command: process.env.CI
-            ? "VITE_SSE_URL= npm run build && VITE_SSE_URL= npm run preview -- --port 5173 --strictPort"
+            ? "VITE_SSE_URL= npm run build && npm run preview -- --port 5173 --strictPort"
             : "VITE_SSE_URL= npm run dev",
         url: "http://localhost:5173",
         reuseExistingServer: !process.env.CI,

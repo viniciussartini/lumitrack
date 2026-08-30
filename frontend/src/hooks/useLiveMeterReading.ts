@@ -12,12 +12,14 @@ interface UseLiveMeterReadingResult {
     reading: ReadingPayload | undefined
     isStale: boolean
     /**
-     * Melhor potência conhecida agora, seja de onde vier: a leitura SSE
-     * quando fresca, ou o fallback REST (último balde por minuto já
-     * persistido) enquanto o SSE ainda não entregou nada. `undefined` só
-     * quando nenhuma das duas fontes tem dado. Tensão/corrente/fator de
-     * potência não têm equivalente — só existem na amostra instantânea do
-     * SSE, nunca no agregado por minuto.
+     * Melhor potência conhecida agora, por ordem de prioridade: (1) leitura
+     * SSE fresca; (2) fallback REST (último balde por minuto já persistido);
+     * (3) leitura SSE obsoleta, se o REST ainda não respondeu — mostrar um
+     * valor com minutos de idade é melhor que apagar um valor que já
+     * existia na tela. `undefined` só quando as três fontes faltam (alvo
+     * sem NENHUMA leitura ainda, nem SSE nem persistida). Tensão/corrente/
+     * fator de potência não têm equivalente — só existem na amostra
+     * instantânea do SSE, nunca no agregado por minuto.
      */
     lastKnownPowerW: number | undefined
 }
@@ -79,10 +81,12 @@ export const useLiveMeterReading = (
 
     // Só busca via REST enquanto o SSE não tem nada fresco pra oferecer —
     // some sozinho (query desabilitada) assim que uma leitura real chega, e
-    // volta a rodar se a conexão cair depois.
+    // volta a rodar se a conexão cair depois. Sem medidor vinculado, nem
+    // dispara (a query já se desabilita sozinha por dentro).
     const needsFallback = isStale
-    const fallbackQuery = useLatestMeterReading(targetType, targetId, needsFallback)
-    const lastKnownPowerW = !isStale && reading ? reading.powerW : (fallbackQuery.data ?? undefined)
+    const fallbackQuery = useLatestMeterReading(targetType, targetId, meterId, needsFallback)
+    const lastKnownPowerW =
+        !isStale && reading ? reading.powerW : (fallbackQuery.data ?? reading?.powerW)
 
     return { reading, isStale, lastKnownPowerW }
 }

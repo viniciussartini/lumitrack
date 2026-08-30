@@ -179,11 +179,37 @@ describe("useLiveMeterReading — fallback REST de potência", () => {
         })
 
         renderLiveReading("meter-1")
-        expect(mockedUseLatestMeterReading).toHaveBeenLastCalledWith("PROPERTY", "prop-1", false)
+        expect(mockedUseLatestMeterReading).toHaveBeenLastCalledWith(
+            "PROPERTY",
+            "prop-1",
+            "meter-1",
+            false,
+        )
 
         act(() => {
             vi.advanceTimersByTime(10_001)
         })
-        expect(mockedUseLatestMeterReading).toHaveBeenLastCalledWith("PROPERTY", "prop-1", true)
+        expect(mockedUseLatestMeterReading).toHaveBeenLastCalledWith(
+            "PROPERTY",
+            "prop-1",
+            "meter-1",
+            true,
+        )
+    })
+
+    it("leitura SSE obsoleta é usada como último recurso enquanto o fallback REST ainda não respondeu", () => {
+        mockedUseRealtimeReadings.mockReturnValue({
+            readingsByMeterId: { "meter-1": READING_1 },
+        })
+        mockFallback(undefined)
+
+        const { result } = renderLiveReading("meter-1")
+
+        act(() => {
+            vi.advanceTimersByTime(10_001)
+        })
+
+        expect(result.current.isStale).toBe(true)
+        expect(result.current.lastKnownPowerW).toBe(READING_1.powerW)
     })
 })

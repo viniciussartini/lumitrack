@@ -43,6 +43,15 @@ export default defineConfig({
                 // (ver AppRouter.tsx) — nomear os chunks aqui é só pra não
                 // depender da heurística automática do bundler pra manter
                 // os dois isolados de forma previsível.
+                //
+                // O casamento por substring do caminho assume o layout PLANO
+                // de `node_modules` do npm (`package-lock.json` é o lockfile
+                // deste projeto) — `/node_modules/recharts/` só aparece uma
+                // vez no caminho de cada módulo do pacote. Um gerenciador com
+                // `node_modules` aninhado (pnpm sem `node-linker=hoisted`,
+                // por exemplo) faria essas condições nunca baterem — sem
+                // erro, só voltando pra heurística automática do bundler e
+                // perdendo a separação nomeada dos chunks.
                 manualChunks(id) {
                     if (id.includes("/node_modules/recharts/")) return "vendor-charts"
                     if (
