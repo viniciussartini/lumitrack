@@ -35,7 +35,11 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
     const [confirmOpen, setConfirmOpen] = useState(false)
 
     const meter = meterQuery.data
-    const { reading, isStale } = useLiveMeterReading(meter?.id)
+    const { reading, isStale, lastKnownPowerW } = useLiveMeterReading(
+        targetType,
+        targetId,
+        meter?.id,
+    )
 
     const handleDelete = async () => {
         if (!meter) return
@@ -176,7 +180,9 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
                     <div className="border-divider grid grid-cols-3 border-t">
                         <MeterStat
                             label="Potência"
-                            value={!isStale && reading ? formatPowerKw(reading.powerW) : "—"}
+                            value={
+                                lastKnownPowerW !== undefined ? formatPowerKw(lastKnownPowerW) : "—"
+                            }
                             className="border-divider border-r"
                         />
                         <MeterStat

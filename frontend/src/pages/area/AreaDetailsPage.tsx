@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import { AlertCircle, ArrowLeft, Cpu, LayoutGrid, Pencil, Plus } from "lucide-react"
 import { useArea } from "@/hooks/queries/useAreas"
@@ -6,7 +6,7 @@ import { useProperty } from "@/hooks/queries/useProperties"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
 import { useConsumption, useConsumptionSummary } from "@/hooks/queries/useConsumption"
 import { useDevices } from "@/hooks/queries/useDevices"
-import { useRealtime } from "@/contexts/RealtimeContext"
+import { useLiveMeterReading } from "@/hooks/useLiveMeterReading"
 import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Tag } from "@/components/ui/Tag"
@@ -59,16 +59,7 @@ export const AreaDetailsPage = () => {
     const meterQuery = useMeterByTarget("AREA", areaId)
     const hasMeter = Boolean(meterQuery.data)
     const monthlyQuery = useConsumption("AREA", hasMeter ? areaId : undefined, "month", 1, 3)
-    const { readingsByMeterId } = useRealtime()
-    // Estado (não Date.now() direto) pra recalcular a "idade" da leitura
-    // periodicamente sem violar a regra de pureza de render — mesmo padrão
-    // de MeterSection.tsx/PropertyDetailsPage.tsx.
-    const [now, setNow] = useState(() => Date.now())
-
-    useEffect(() => {
-        const interval = setInterval(() => setNow(Date.now()), 2_000)
-        return () => clearInterval(interval)
-    }, [])
+    const { lastKnownPowerW } = useLiveMeterReading("AREA", areaId, meterQuery.data?.id)
 
     if (areaQuery.isLoading) {
         return (
@@ -98,8 +89,6 @@ export const AreaDetailsPage = () => {
     const area = areaQuery.data
     const property = propertyQuery.data
     const meter = meterQuery.data
-    const reading = meter ? readingsByMeterId[meter.id] : undefined
-    const isReadingStale = !reading || now - new Date(reading.receivedAt).getTime() > 10_000
     const monthlyBucket = latestBucket(monthlyQuery.data?.items ?? [])
 
     const handleAfterDelete = () => {
@@ -136,8 +125,8 @@ export const AreaDetailsPage = () => {
                         Potência agora
                     </div>
                     <div className="font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold">
-                        {!isReadingStale && reading ? (
-                            formatPowerKw(reading.powerW)
+                        {lastKnownPowerW !== undefined ? (
+                            formatPowerKw(lastKnownPowerW)
                         ) : (
                             <span className="text-muted">—</span>
                         )}

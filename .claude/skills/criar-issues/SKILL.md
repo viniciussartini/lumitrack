@@ -15,17 +15,20 @@ Transforma achados de auditoria (ou demandas avulsas) em issues no GitHub — **
 2. Confirme o repositório alvo (`gh repo view --json nameWithOwner -q .nameWithOwner`).
 3. Leia a taxonomia de labels em `.claude/project_context/08-convencoes-git.md`.
 
-> **Obrigatório no CORPO de TODA issue criada — épico, sub-issue ou avulsa** (prioridade e tamanho **não** são labels; o formato é o mesmo do roadmap):
+> **Obrigatório em TODA issue criada — épico, sub-issue ou avulsa:** 1 label `tipo:` + 1 label `prioridade:` + a notação P0–P2/XS–XL **no corpo**, primeira linha, no mesmo formato do roadmap. **Não existe label `size:` nem `prioridade: P0`** — a notação serve para você transpor aos campos do Projects.
 >
 > ```
 > **Priority:** P0 · **Size:** M
 > ```
 >
-> | Priority | Quando |
-> |---|---|
-> | `P0` | Crítico para o MVP, bloqueia o resto; achado [CRÍTICA] ou [ALTA] |
-> | `P1` | Importante, próximo ciclo; achado [MÉDIA] |
-> | `P2` | Desejável, depois; achado [BAIXA] |
+> | Corpo | Label correspondente (obrigatória) | Quando |
+> |---|---|---|
+> | `P0` | `prioridade: crítica` | Bloqueia o MVP/release; achado [CRÍTICA] |
+> | `P0` | `prioridade: alta` | Achado [ALTA] |
+> | `P1` | `prioridade: média` | Importante, próximo ciclo; achado [MÉDIA] |
+> | `P2` | `prioridade: baixa` | Desejável, depois; achado [BAIXA] |
+>
+> A notação do corpo e a label saem do **mesmo** item — nunca divergem.
 >
 > | Size | Referência |
 > |---|---|
@@ -60,7 +63,7 @@ Apresente a **classificação proposta** no rascunho ("estas 4 viram o épico X;
 1. Leia o relatório indicado em `.claude/docs/` (se o usuário não indicar, use o mais recente e confirme).
 2. Extraia cada achado e rascunhe uma issue:
    - **Título:** `[Auditoria] {título do achado}`
-   - **Labels:** `origem: auditoria` + `tipo:` conforme a auditoria (segurança→`tipo: segurança`; conformidade→`tipo: conformidade`; desempenho→`tipo: desempenho`; qualidade→`tipo: refactor`, ou `tipo: chore` p/ tooling) + `área:` quando inferível pelo local do achado.
+   - **Labels:** `origem: auditoria` + `prioridade:` mapeada da severidade + `tipo:` conforme a auditoria (segurança→`tipo: segurança`; conformidade→`tipo: conformidade`; desempenho→`tipo: desempenho`; qualidade→`tipo: refactor`, ou `tipo: chore` p/ tooling) + `área:` quando inferível pelo local do achado.
    - **Corpo:** abre com `**Priority:** · **Size:**` — Priority mapeada da severidade (Crítica/Alta→P0, Média→P1, Baixa→P2), Size estimado por você.
    - **Corpo:** relatório de origem (nome do arquivo), severidade, achado com local (arquivo:linha), evidência e recomendação — mesmo formato do template `03-achado-auditoria`.
 3. **Deduplicação:** antes de incluir no lote, busque issues existentes (`gh issue list --state open --search "{termos do achado}"`); se já houver issue equivalente, marque como "já existe: #N" no rascunho e não recrie.
@@ -71,27 +74,28 @@ Apresente a **classificação proposta** no rascunho ("estas 4 viram o épico X;
 1. Leia `.claude/docs/roadmap.md` e identifique a **fase atual**.
 2. Rascunhe uma issue por item da fase — **somente da fase atual**; issues de fases futuras são backlog-cadáver (as fases vão mudar).
    - **Título:** `[Feature] {item do roadmap}`
-   - **Labels:** `tipo: feature` + `área:` quando inferível.
+   - **Labels:** `tipo: feature` + `prioridade:` correspondente à Priority do item + `área:` quando inferível.
    - **Corpo:** abre com `**Priority:** · **Size:**` **copiados do item do roadmap** — não reestime aqui; o roadmap é a fonte de verdade.
    - **Corpo:** comportamento entregue, RFs cobertos, **critérios de aceite** (copiados do roadmap — a `nova-feature` os transforma nos primeiros testes), dependências, e `Priority: PX · Size: XX` (para preencher os campos do GitHub Projects, se usado — `gh issue create` não seta campos de Project).
 3. Deduplicação e checkpoint de aprovação valem igual (ver abaixo).
 
 ## Modo 3 — Issue avulsa (da conversa)
 
-Rascunhe a issue a partir do que foi discutido: `tipo:` conforme a natureza (bug/feature/refactor/chore), corpo abrindo com `**Priority:** · **Size:**` propostos, no formato do template correspondente em `.github/ISSUE_TEMPLATE/` (bug: reprodução + esperado vs. atual; feature: motivação + RF + critérios de aceite).
+Rascunhe a issue a partir do que foi discutido: `tipo:` conforme a natureza (bug/feature/refactor/chore) + `prioridade:` proposta, corpo abrindo com `**Priority:** · **Size:**` propostos, no formato do template correspondente em `.github/ISSUE_TEMPLATE/` (bug: reprodução + esperado vs. atual; feature: motivação + RF + critérios de aceite).
 
 ## Checkpoint de aprovação (OBRIGATÓRIO)
 
-Apresente o lote completo — **agrupamento proposto (épicos × individuais) com justificativa**, títulos, **a linha `**Priority:** · **Size:**` de cada issue e suas labels (`tipo:`, `área:`)**, corpos resumidos e **branches que serão criadas** — e **pergunte explicitamente** se pode criar. Aguarde o "aprovado" (total ou parcial: o usuário pode cortar, editar ou reagrupar itens). **Nunca execute `gh issue create` nem `git checkout -b` antes disso.**
+Apresente o lote completo — **agrupamento proposto (épicos × individuais) com justificativa**, títulos, **a linha `**Priority:** · **Size:**` de cada issue e suas labels (`tipo:`, `prioridade:`, `área:`)**, corpos resumidos e **branches que serão criadas** — e **pergunte explicitamente** se pode criar. Aguarde o "aprovado" (total ou parcial: o usuário pode cortar, editar ou reagrupar itens). **Nunca execute `gh issue create` nem `git checkout -b` antes disso.**
 
-> **Antes de executar, confira item por item:** o corpo de toda issue do lote abre com `**Priority:** · **Size:**` e tem 1 label `tipo:`? Faltou em alguma → complete antes de rodar `gh`, não depois.
+> **Antes de executar, confira item por item:** o corpo de toda issue do lote abre com `**Priority:** · **Size:**`, tem 1 label `tipo:` e 1 label `prioridade:` **coerente com a notação do corpo**? Faltou em alguma → complete antes de rodar `gh`, não depois.
 
 ## Execução
 
 ### A. Issues individuais
 
 ```bash
-gh issue create --title "..." --body-file /tmp/issue.md --label "origem: auditoria" --label "tipo: ..."
+gh issue create --title "..." --body-file /tmp/issue.md \
+  --label "origem: auditoria" --label "tipo: ..." --label "prioridade: ..."
 ```
 O corpo abre com a linha `**Priority:** · **Size:**`.
 
@@ -100,14 +104,15 @@ O corpo abre com a linha `**Priority:** · **Size:**`.
 1. **Crie o épico primeiro** (ele precisa existir para ser referenciado como pai):
    ```bash
    gh issue create --title "[Épico] {nome do agrupamento}" \
-     --body-file /tmp/epico.md --label "épico" --label "tipo: feature"
+     --body-file /tmp/epico.md --label "épico" --label "tipo: feature" \
+     --label "prioridade: {crítica|alta|média|baixa}"
    ```
    O corpo começa com `**Priority:** P0 · **Size:** L` — o **Size do épico é o esforço do conjunto** (normalmente L ou XL). Depois: objetivo da fatia vertical, RFs cobertos, critérios de aceite **do conjunto**, contexto compartilhado, e a branch de implementação (preenchida no passo 3).
 
 2. **Crie cada sub-issue vinculada ao pai** (gh ≥ 2.94.0):
    ```bash
    gh issue create --title "..." --body "..." --parent {N-do-épico} \
-     --label "tipo: ..." --label "área: ..."
+     --label "tipo: ..." --label "prioridade: {herdada do épico}" --label "área: ..."
    ```
    O corpo de cada sub-issue começa com `**Priority:** {herdada do épico} · **Size:** {próprio dela}`.
    - Para vincular issue **já existente** ao épico: `gh issue edit {N-do-épico} --add-sub-issue {M}`.

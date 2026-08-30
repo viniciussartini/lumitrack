@@ -26,6 +26,7 @@ Melhora a estrutura **sem alterar o comportamento observável**.
 - Testes continuam verdes (comportamento preservado).
 - type-check, lint, format passam.
 - **dependency-cruiser** continua verde (nenhuma fronteira nova violada).
+- **Comentários:** funcionais — Javadoc/JSDoc em classes, funções públicas e lógica não óbvia, explicando o **porquê**. **Nunca** referencie issue, PR, auditoria, achado, data ou autor no comentário (`06`): rastreabilidade vive no git, nos ADRs e nas issues, e o lint (`no-warning-comments`) barra. Refatoração é o momento clássico de escrever "movido conforme achado X" — não escreva.
 
 ## Ao concluir
 

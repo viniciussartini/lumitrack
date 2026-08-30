@@ -2,7 +2,7 @@
 name: scaffold-projeto
 description: Inicializa um projeto greenfield do zero com a fundação completa. Começa por uma ENTREVISTA de arquitetura e tech stack (com opções, recomendações e trade-offs) quando 03-arquitetura.md ou 04-tech-stack.md estiverem [PREENCHER], registrando as decisões como ADRs. Use SEMPRE que o usuário pedir para "iniciar o projeto", "fazer o scaffold", "criar a estrutura inicial", "montar o repositório", "definir a stack", "definir a arquitetura" ou começar a base de uma aplicação nova. Cria a estrutura de monólito modular, configura ferramentas de qualidade (tsconfig strict, ESLint, Prettier, husky, dependency-cruiser), a fundação de segurança OWASP, a config segura por ambiente e o gate de CI. Não usar para features em projeto já existente (use nova-feature).
 model: opus
-effort: max
+effort: xhigh
 ---
 
 # Skill: Scaffold do Projeto
@@ -70,7 +70,7 @@ Em **plan mode**, apresente um PLANO e aguarde aprovação. O plano deve conter:
 - Estrutura de pastas por domínio (fronteiras isoladas).
 - Schema Prisma inicial.
 - Tema do frontend gerado **a partir dos design tokens da fonte de design declarada** (`10-design-system.md`); sem entrega de design ainda, tema mínimo marcado `TODO(design)`.
-- `tsconfig` strict, ESLint + Prettier + `eslint-plugin-jsdoc`, husky + lint-staged.
+- `tsconfig` strict, ESLint + Prettier + `eslint-plugin-jsdoc` + `no-warning-comments` configurado conforme o `06` (bloqueia comentário de rastreabilidade), husky + lint-staged.
 - **Fundação de infraestrutura conforme o `11` (itens `[P0]`):** usuário de banco sem DDL + usuário de migração separado, `sslmode=require`, seed sintético, workflows com `permissions:` mínimo e actions pinadas por SHA, secret scanning/push protection, `.env.example` sem valores reais, ambientes isolados.
 - Regras de dependency-cruiser (direção de dependência + fronteiras).
 - Middlewares de segurança (authz, validação, error handler, rate limit, helmet/CORS).

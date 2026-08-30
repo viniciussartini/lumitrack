@@ -12,7 +12,7 @@ export default defineConfig({
     },
     projects: [
         { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-        { name: "firefox",  use: { ...devices["Desktop Firefox"] } },
+        { name: "firefox", use: { ...devices["Desktop Firefox"] } },
     ],
     webServer: {
         // No CI, roda contra um build de produção (`vite preview`) em vez de
@@ -25,9 +25,22 @@ export default defineConfig({
         // demanda do dev server, reduzindo timing flakiness sob CI com CPU
         // limitada. Local (fora de CI) continua em `vite dev` para manter
         // HMR na iteração manual.
+        //
+        // `VITE_SSE_URL=` força o caminho same-origin do SSE (o que os specs
+        // de tempo real mockam via `page.route("**/api/iot/stream")`),
+        // independente do que estiver em `frontend/.env` — sem isso, um
+        // `.env` local com `VITE_SSE_URL` absoluto (caminho cross-origin,
+        // pensado pra demo fora do Brasil) faz o app tentar um ticket que
+        // nunca chega no ambiente do Playwright, e os testes de tempo real
+        // ficam presos esperando um evento que nunca chega. Só tem efeito
+        // quando o Playwright de fato sobe o servidor — não se reaproveitar
+        // um já rodando (`reuseExistingServer`, abaixo). No comando de CI,
+        // o prefixo só precisa estar no `build`: a variável é embutida no
+        // bundle nesse momento, e `vite preview` depois só serve os arquivos
+        // estáticos já gerados — repeti-lo ali não teria efeito nenhum.
         command: process.env.CI
-            ? "npm run build && npm run preview -- --port 5173 --strictPort"
-            : "npm run dev",
+            ? "VITE_SSE_URL= npm run build && npm run preview -- --port 5173 --strictPort"
+            : "VITE_SSE_URL= npm run dev",
         url: "http://localhost:5173",
         reuseExistingServer: !process.env.CI,
         timeout: process.env.CI ? 120_000 : 60_000,

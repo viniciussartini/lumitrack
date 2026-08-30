@@ -68,6 +68,13 @@ const setupAuthAndProperty = async (page: Page) => {
         fulfillError(route, "Alvo sem medidor vinculado", 404),
     )
 
+    // Sem medidor, o fallback REST de potência (`useLatestMeterReading`) não
+    // deveria nem disparar — mas a rota precisa de resposta de qualquer
+    // forma (senão vaza pro proxy do Vite pro backend real).
+    await page.route(/\/api\/meter-readings(\?.*)?$/, (route) =>
+        fulfillJson(route, { items: [], granularity: "minute" }),
+    )
+
     // `PropertyConsumptionSection` (o gráfico principal da propriedade)
     // dispara `GET /api/consumption` — sem esse mock, a chamada vaza pro
     // proxy do Vite: localmente falha como erro de rede (inofensivo,

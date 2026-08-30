@@ -130,6 +130,66 @@ describe("useMeterReadingHistory — retenção na virada de hora", () => {
         await waitFor(() => expect(result.current.data).toEqual([]))
     })
 
+    it("mantém o retido mesmo quando o backend atrasa além do 1min ideal pra fechar o minuto novo da hora", async () => {
+        // Último poll não-vazio pouco antes da virada — o pior caso pra
+        // idade do retido: o `refetchInterval` pode capturar o último dado
+        // fresco até ~30s antes da virada em si.
+        vi.spyOn(Date, "now").mockReturnValue(trueEpoch(19, 59, 45))
+        vi.mocked(meterReadingService.list).mockResolvedValue({
+            items: [{ bucketStart: maskedIso(19, 0), avgPowerW: 1000 }],
+            granularity: "minute",
+        })
+
+        const { result } = renderHook(
+            () => useMeterReadingHistory("PROPERTY", "prop-1", "meter-1"),
+            { wrapper: createWrapper() },
+        )
+
+        await waitFor(() => expect(result.current.data?.length).toBeGreaterThan(0))
+        const bucketsBeforeTurnover = result.current.data!
+        let lastUpdatedAt = result.current.dataUpdatedAt
+
+        // Virada de hora, minuto ainda em curso — vazio esperado, retido
+        // cobre sem esforço (~25s decorridos).
+        vi.spyOn(Date, "now").mockReturnValue(trueEpoch(20, 0, 10))
+        vi.mocked(meterReadingService.list).mockResolvedValue({
+            items: [],
+            granularity: "minute",
+        })
+        await result.current.refetch()
+        await waitFor(() => expect(result.current.dataUpdatedAt).not.toBe(lastUpdatedAt))
+        expect(result.current.data).toEqual(bucketsBeforeTurnover)
+        lastUpdatedAt = result.current.dataUpdatedAt
+
+        // O minuto novo (20:00) só é persistido quando o rollup do backend
+        // drena o buffer no flush seguinte, alinhado a 20:01:00 — não em
+        // tempo real por leitura. Sob carga (muitos medidores concorrendo
+        // pelo pool de conexões), esse flush pode atrasar alguns segundos
+        // além do ideal antes de o dado ficar visível via `/api/meter-readings`.
+        // Aqui, ~50s de atraso: ainda vazio às 20:01:50 (125s desde o
+        // retido), dado real só a partir de 20:01:56.
+        vi.spyOn(Date, "now").mockReturnValue(trueEpoch(20, 1, 50))
+        vi.mocked(meterReadingService.list).mockResolvedValue({
+            items: [],
+            granularity: "minute",
+        })
+        await result.current.refetch()
+        await waitFor(() => expect(result.current.dataUpdatedAt).not.toBe(lastUpdatedAt))
+        expect(result.current.data).toEqual(bucketsBeforeTurnover)
+        lastUpdatedAt = result.current.dataUpdatedAt
+
+        // Dado real da hora nova finalmente disponível — some o retido, usa
+        // o de verdade.
+        vi.spyOn(Date, "now").mockReturnValue(trueEpoch(20, 1, 56))
+        vi.mocked(meterReadingService.list).mockResolvedValue({
+            items: [{ bucketStart: maskedIso(20, 0), avgPowerW: 2000 }],
+            granularity: "minute",
+        })
+        await result.current.refetch()
+        await waitFor(() => expect(result.current.dataUpdatedAt).not.toBe(lastUpdatedAt))
+        expect(result.current.data).toEqual([{ bucketStart: trueEpoch(20, 0), kw: 2 }])
+    })
+
     it("troca de alvo não herda os baldes retidos do alvo anterior", async () => {
         vi.spyOn(Date, "now").mockReturnValue(trueEpoch(19, 30, 10))
         vi.mocked(meterReadingService.list).mockResolvedValue({

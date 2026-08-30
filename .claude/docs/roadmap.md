@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-29 · Fases 1–16 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, #290, #305, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15), #300 (épico #290, Fase 15.5), #304 (#296–#299, Fase 15.5), #314 (épico #305: #306–#309, Fase 16), #317 (#310–#313, #168, Fase 16), #321 (#255, #257, #316, Fase 16). Fase atual: **17** (frontend: tempo real e bundle) — detalhada abaixo, 8 itens.
+> Última atualização: 2026-08-30 · Fases 1–17 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, #290, #305, #322, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15), #300 (épico #290, Fase 15.5), #304 (#296–#299, Fase 15.5), #314 (épico #305: #306–#309, Fase 16), #317 (#310–#313, #168, Fase 16), #321 (#255, #257, #316, Fase 16). Fase 17 (épico #322: #323–#328) fechou sem PR aberto ainda. Fase atual: **18** (design system, cobertura e polimento) — ainda em nível de objetivo, a detalhar.
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das auditorias** — as quatro de 2026-08-05 e, a partir da Fase 13.6, as quatro de 2026-08-22 (pós-deploy) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **A Fase 13.7 separa os ambientes:** VPS Hostinger (São Paulo) vira produção real (branch `main`), Render+Neon é rebaixado a staging/integração (branch `staging`) — ver **ADR-0012**. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
@@ -29,8 +29,8 @@
 | 15 | Desempenho — instrumentação, compressão, índices, retenção, cache, N+1 e endpoint batch | **Concluída** (épicos #275, #279, issues #284/#285 — PRs #286, #287, #288) |
 | 15.5 | Enforcement de qualidade + comentários de rastreabilidade | **Concluída** (épico #290, #296–#299, PRs #300/#304) — issue #168 dobrada para a Fase 16 |
 | 16 | Worker IoT — robustez, estrutura e cobertura | **Concluída** (épico #305 — PR #314; PR #317; PR #321) |
-| **17** | **Frontend — tempo real e bundle** | Planejada — fase atual, detalhamento abaixo |
-| 18 | Design system, cobertura de testes e polimento | Planejada — objetivo revisado abaixo |
+| 17 | Frontend — tempo real e bundle | **Concluída** (épico #322 — #323–#328; PR ainda não aberto) |
+| **18** | **Design system, cobertura de testes e polimento** | Planejada — fase atual, objetivo abaixo, a detalhar |
 | 19 | Grupo A — fundação tarifária (subgrupos, modalidades, postos, demanda) + Horária Verde | Planejada — detalhe abaixo |
 | 20 | Grupo A — Horária Azul, ultrapassagem de demanda e energia reativa excedente | Planejada — objetivo abaixo |
 | 21 | Mercado Livre de Energia (ACL) | Planejada — objetivo abaixo |
@@ -1549,6 +1549,32 @@ A retenção de `meter_readings` (issues #236/#267) é escopo próprio desta fas
 - **Critérios de aceite:** novo relatório do visualizer + nova sessão do Profiler; números antes/depois registrados no "Estado final" do fechamento da fase.
 - **Depende de:** todos os anteriores.
 - **Risco/observações:** baixo.
+
+### Estado final (fechamento da Fase 17)
+
+Mesma metodologia do baseline do item 1 (`.claude/docs/2026-08-30-fase17-baseline-frontend.md`), reaplicada após os 8 itens: `ANALYZE=true npm run build` para o bundle, `<Profiler>` temporário (revertido em seguida) + backend descartável simulando 60 leituras reais de SSE em 60s para os renders de `Header.tsx`/`MeterSection.tsx`/`RealtimeChartCard.tsx` em `/propriedades/prop-1`.
+
+**Bundle (chunk inicial, gzip):**
+
+| Momento | Tamanho |
+|---|---|
+| Antes da fase (baseline, item 1) | 382,84 kB |
+| Após o React Compiler (item 2) | 418,77 kB |
+| **Após code-splitting + `manualChunks` (item 7, estado final)** | **103,55 kB** |
+
+Queda de ~75% em relação ao pico pós-compiler, e ~73% em relação ao baseline original — `recharts` (`vendor-charts`, 111,65 kB gzip) e `react-markdown`+`remark-gfm` (`vendor-markdown`, 45,90 kB gzip) saíram do bundle inicial, carregados só nas rotas que os usam.
+
+**Contagem de renders (60 leituras SSE em 60s, `/propriedades/prop-1`):**
+
+| Componente | Baseline (sem compiler) | Pós-compiler (item 2) | Estado final (após itens 3-7) |
+|---|---|---|---|
+| `Header.tsx` | 64 | 4 | 4 |
+| `MeterSection.tsx` | 124 | 94 | 64 |
+| `RealtimeChartCard.tsx` | 189 | 10 | 9 |
+
+`Header` e `RealtimeChartCard` já tinham despencado com o compiler sozinho (achado A-06) e seguem estáveis. `MeterSection` continuou caindo depois do compiler (94→64) — o item 4 (fim do `setInterval` incondicional de 2s) e o item 3 (contexto separado) removeram as duas fontes de re-render que não vinham de dado genuinamente novo; os ~64 renders restantes correspondem 1:1 às 60 leituras reais recebidas (a parte que só uma leitura nova pode explicar, não mais desperdício de reconciliação).
+
+**Fechamento:** os 8 itens da fase (issues #323–#328, épico #322) estão implementados, testados e commitados na branch `epic/322-frontend-tempo-real-bundle`; PR ainda não aberto (usa a skill `preparar-pr` quando o usuário decidir abrir). Duas falhas E2E pré-existentes de `page.clock.install()` (não relacionadas ao escopo desta fase, investigadas e confirmadas por A/B) ficaram registradas como issue própria (#329) em vez de bloquear o fechamento.
 
 ## Fase 18 (objetivo — será detalhada ao chegar)
 

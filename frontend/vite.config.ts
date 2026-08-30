@@ -1,6 +1,8 @@
 import { defineConfig } from "vitest/config"
-import react from "@vitejs/plugin-react"
+import react, { reactCompilerPreset } from "@vitejs/plugin-react"
+import babel from "@rolldown/plugin-babel"
 import tailwindcss from "@tailwindcss/vite"
+import { visualizer } from "rollup-plugin-visualizer"
 import path from "node:path"
 
 // index.html usa %VITE_CSP_CONNECT_EXTRA% no connect-src do CSP (ver
@@ -11,10 +13,56 @@ import path from "node:path"
 process.env.VITE_CSP_CONNECT_EXTRA ??= ""
 
 export default defineConfig({
-    plugins: [react(), tailwindcss()],
+    plugins: [
+        react(),
+        babel({
+            presets: [reactCompilerPreset()],
+        }),
+        tailwindcss(),
+        // `ANALYZE=true npm run build` gera dist/stats.html (treemap +
+        // tamanho gzip por módulo); não roda em todo build.
+        process.env.ANALYZE === "true" &&
+            visualizer({
+                filename: "dist/stats.html",
+                gzipSize: true,
+                brotliSize: true,
+                template: "treemap",
+            }),
+    ],
     resolve: {
         alias: {
             "@": path.resolve(__dirname, "./src"),
+        },
+    },
+    build: {
+        rollupOptions: {
+            output: {
+                // `recharts` (só nos gráficos) e a stack de markdown (só nas
+                // páginas de documento legal/institucional) já saem do
+                // bundle inicial por serem alcançados só via rota lazy
+                // (ver AppRouter.tsx) — nomear os chunks aqui é só pra não
+                // depender da heurística automática do bundler pra manter
+                // os dois isolados de forma previsível.
+                //
+                // O casamento por substring do caminho assume o layout PLANO
+                // de `node_modules` do npm (`package-lock.json` é o lockfile
+                // deste projeto) — `/node_modules/recharts/` só aparece uma
+                // vez no caminho de cada módulo do pacote. Um gerenciador com
+                // `node_modules` aninhado (pnpm sem `node-linker=hoisted`,
+                // por exemplo) faria essas condições nunca baterem — sem
+                // erro, só voltando pra heurística automática do bundler e
+                // perdendo a separação nomeada dos chunks.
+                manualChunks(id) {
+                    if (id.includes("/node_modules/recharts/")) return "vendor-charts"
+                    if (
+                        id.includes("/node_modules/react-markdown/") ||
+                        id.includes("/node_modules/remark-gfm/")
+                    ) {
+                        return "vendor-markdown"
+                    }
+                    return undefined
+                },
+            },
         },
     },
     server: {

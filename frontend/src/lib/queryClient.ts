@@ -131,6 +131,11 @@ export const queryKeys = {
         // de refetch da mesma.
         history: (targetType: string, targetId: string) =>
             [...queryKeys.meterReadings.all, "history", targetType, targetId] as const,
+        // Fallback REST da potência mais recente — chave própria, não
+        // compartilha cache com `history` (janela e formato de retorno
+        // diferentes).
+        latest: (targetType: string, targetId: string) =>
+            [...queryKeys.meterReadings.all, "latest", targetType, targetId] as const,
     },
     alerts: {
         all: ["alerts"] as const,
