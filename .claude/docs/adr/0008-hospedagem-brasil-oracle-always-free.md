@@ -138,6 +138,14 @@ Decisões que compõem esta:
    existe. O `IOT_ALLOWED_HOSTS` da issue #150 passa a listar `localhost`,
    que é exatamente o caso legítimo que a allowlist foi desenhada para
    permitir.
+   > **Revisado pela [ADR-0017](0017-simulador-rede-propria-docker-compose.md)
+   > (2026-08-29, Caminho B/VPS):** a co-localização via `network_mode:
+   > "service:backend"` se mostrou frágil na prática (qualquer restart do
+   > `backend` quebrava a rede do `simulator`). O `simulator` passou a ter
+   > rede própria no compose, alcançável pelo hostname `simulator` — o
+   > racional de "sem broker exposto à internet" desta decisão continua
+   > valendo (nenhuma porta é publicada ao host), só a forma de alcance
+   > interno mudou de namespace compartilhado para rede Docker própria.
 4. **Cadastro público fechado — apenas contas de demonstração.** Ver
    "Condição de validade" abaixo; é o que sustenta juridicamente todo o
    resto.
@@ -243,9 +251,15 @@ Antes de expor o ambiente publicamente, nesta ordem:
    premissa desta ADR, não um refinamento.
 2. Tirar as credenciais demo do bundle do frontend (Fase 13).
 3. Endurecer o perímetro do simulador IoT — no mínimo o bind em `127.0.0.1`
-   (Fase 13).
+   (Fase 13); **no Caminho B (VPS), revisado pela ADR-0017 para `0.0.0.0`
+   dentro do container do simulador**, já que ele passou a ter rede própria
+   em vez de compartilhar o namespace do `backend` — continua sem `ports:`
+   publicado, sem alcance externo.
 4. `IOT_ALLOWED_HOSTS=localhost` (ou `127.0.0.1/32`), para o backend alcançar
-   o broker local sem afrouxar a proteção contra SSRF da issue #150.
+   o broker local sem afrouxar a proteção contra SSRF da issue #150. **No
+   Caminho B, revisado pela ADR-0017 para `IOT_ALLOWED_HOSTS=simulator`**
+   (hostname do serviço Docker, já que o simulador deixou de compartilhar a
+   rede do backend).
 5. TLS com host canônico e redirect de HTTP, mais CSP do SPA (Fase 13 — os
    dois itens estavam explicitamente "ligados à decisão de hospedagem", que
    é esta). **Implementado na issue #183:** o redirect HTTP→HTTPS do backend

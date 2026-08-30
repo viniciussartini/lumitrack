@@ -49,13 +49,42 @@ export const NETWORK_PROTOCOLS: readonly MeterProtocol[] = [
 /** Protocolos que exigem `topic` (além de host+port). */
 export const TOPIC_PROTOCOLS: readonly MeterProtocol[] = ["MQTT"]
 
-/** Protocolos seriais/endereçáveis — exigem apenas `address`. */
-export const SERIAL_PROTOCOLS: readonly MeterProtocol[] = [
+/** Protocolos que exigem `address` — todos exceto MQTT (host/port/topic). */
+export const ADDRESS_PROTOCOLS: readonly MeterProtocol[] = [
+    "MODBUS_TCP",
     "MODBUS_RTU",
+    "ETHERNET_IP",
     "PROFIBUS",
+    "PROFINET",
     "RS232",
     "RS485",
 ]
+
+/**
+ * Protocolos de registrador/tag único que, além do endereço "principal" (a
+ * grandeza voltagem), exigem mais endereços em `extra` — um por grandeza
+ * elétrica restante (current/power/powerFactor; MODBUS_RTU soma um quarto,
+ * voltageAddress, porque seu `address` de topo é o caminho da porta serial,
+ * não a voltagem). Espelha `quantityAddressFields` de
+ * `backend/src/modules/meter/meter.schema.ts` — sem esses campos, o
+ * backend rejeita a criação/edição do medidor com 400.
+ */
+export const QUANTITY_ADDRESS_PROTOCOLS: readonly MeterProtocol[] = [
+    "MODBUS_TCP",
+    "MODBUS_RTU",
+    "ETHERNET_IP",
+    "PROFINET",
+]
+
+/** Formato de endereço de grandeza exigido por protocolo (valida no client). */
+export type AddressKind = "register" | "db" | "tag"
+
+export const ADDRESS_KIND_BY_PROTOCOL: Partial<Record<MeterProtocol, AddressKind>> = {
+    MODBUS_TCP: "register",
+    MODBUS_RTU: "register",
+    ETHERNET_IP: "tag",
+    PROFINET: "db",
+}
 
 /** Medidor retornado pela API */
 export interface Meter {

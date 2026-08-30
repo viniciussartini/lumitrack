@@ -19,8 +19,11 @@ const deviceService = new DeviceService(deviceRepository, areaRepository, proper
 // MQTT porque é o único protocolo de fato integrado ponta a ponta no backend
 // (ver .claude/docs/PLANO_SIMULADOR_IOT_E_SEED_DEMO.md) — host/port apontam pro
 // broker embutido do iot-simulator, caso o usuário queira ligar um device
-// virtual num desses medidores depois.
-const DEMO_METER_HOST = "localhost"
+// virtual num desses medidores depois. Configurável por env porque o
+// hostname certo depende da topologia de rede do ambiente: local (backend e
+// simulador no mesmo host) usa "localhost"; VPS via docker-compose (ADR-0017
+// — simulador com rede própria) usa o nome do serviço, "simulator".
+const DEMO_METER_HOST = process.env.DEMO_METER_HOST ?? "localhost"
 const DEMO_METER_PORT = 1883
 
 // Credenciais do broker MQTT do iot-simulator (o broker exige authenticate).
