@@ -274,7 +274,7 @@ const validReadingPayload = { voltage: 220, current: 2, powerW: 440, powerFactor
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SUITE: writeSseChunk / backpressure (issue #311)
+// SUITE: writeSseChunk / backpressure
 //
 // Reproduzir res.write() devolvendo false (buffer de saída cheio) e o
 // 'drain' subsequente de verdade exigiria um consumidor lento sobre um
@@ -396,7 +396,7 @@ describe("writeSseChunk", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SUITE: createEventWriter — integração real com cleanup()/res.end() (PR #317)
+// SUITE: createEventWriter — integração real com cleanup()/res.end()
 //
 // writeSseChunk isolado (acima) já prova a máquina de estados de
 // backpressure em si. O que faltava: provar que createEventWriter de fato

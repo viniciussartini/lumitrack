@@ -4,22 +4,6 @@
 >
 > **Fora de escopo:** versão de release (SemVer, tags `vX.Y.Z`). O projeto é um web app com deploy contínuo — não há artefato consumido por terceiros, então numeração de versão não comunica nada a ninguém e cairia na trava YAGNI do `06`. Se um dia houver app mobile, API pública ou biblioteca, esta seção ganha a convenção de release.
 
-## Ambientes e branches principais
-
-**Duas branches de longa duração, cada uma servindo um ambiente** (ADR-0012):
-
-| Branch | Ambiente | Papel |
-|---|---|---|
-| `main` | VPS Hostinger, São Paulo (Caminho B do `DEPLOY.md`) | Produção — estável, testado e consolidado, acessível ao público. |
-| `staging` | Render + Neon (Caminho A do `DEPLOY.md`) | Testes e integração — recebe o merge de toda branch de implementação para validação online antes da promoção. Continua público. |
-
-**Fluxo:** `feat/fix/epic/{N}-...` → PR → `staging` → validado online → PR → `main`.
-
-- **Base padrão de PR passa a ser `staging`**, não `main` — a skill `preparar-pr` usa `staging` salvo indicação em contrário.
-- **O PR de promoção `staging`→`main`** é diferente de um PR de feature: não fecha issue própria (as issues já fecharam nos commits das branches que entraram em `staging`), e o checklist do `PULL_REQUEST_TEMPLATE.md` foca em "o que já foi validado no staging" em vez de critérios de aceite de uma issue específica.
-- **`main` e `staging` são ambas protegidas** contra push direto — toda entrada, nos dois casos, passa por PR.
-- **CI roda em PR para as duas** — `ci.yml` não fica restrito a `main`.
-
 ## Nomes de branch
 
 Formato: `<tipo>/<descricao-em-kebab-case>` — o `<tipo>` espelha os tipos de commit e as labels `tipo:`.
@@ -88,14 +72,16 @@ Obtenha a branch com: `git rev-parse --abbrev-ref HEAD`.
 | `tipo: chore` | `#B4B2A9` | Config, CI, dependências |
 | `épico` | `#5B4FCF` | Issue guarda-chuva com sub-issues vinculadas (branch `epic/`) |
 
-**`prioridade:` — quando (espelha a severidade das auditorias)**
+**Prioridade e tamanho NÃO são labels** — vivem no **corpo da issue**, no mesmo formato do roadmap:
 
-| Label | Cor | Uso |
-|---|---|---|
-| `prioridade: crítica` | `#A32D2D` | Bloqueia release; achado [CRÍTICA] de auditoria |
-| `prioridade: alta` | `#D85A30` | Próximo ciclo; achado [ALTA] |
-| `prioridade: média` | `#BA7517` | Programável; achado [MÉDIA] |
-| `prioridade: baixa` | `#639922` | Oportunidade; achado [BAIXA] |
+```
+**Priority:** P0 · **Size:** M
+```
+
+- **Priority:** `P0` (crítico para o MVP, bloqueia o resto) · `P1` (importante, próximo ciclo) · `P2` (desejável, depois).
+- **Size:** `XS · S · M · L · XL` (esforço relativo). `XL` é sinal de que o item deve ser quebrado.
+- **Achado de auditoria:** a severidade do laudo vira Priority — CRÍTICA/ALTA → `P0` · MÉDIA → `P1` · BAIXA → `P2`.
+- Motivo de não ser label: prioridade e tamanho **mudam a cada replanejamento**, e o roadmap já é a fonte de verdade deles. Duplicar em label criaria dois lugares para atualizar e um deles ficaria errado.
 
 **`área:` — onde**
 
@@ -109,16 +95,17 @@ Obtenha a branch com: `git rev-parse --abbrev-ref HEAD`.
 | `status: aguardando-decisão` | `#F0997B` | Depende de item do `07-decisoes-em-aberto.md` |
 | `status: precisa-adr` | `#AFA9EC` | A solução exige decisão arquitetural registrada |
 
-**`origem: auditoria`** (`#888780`) — issue criada a partir de achado de relatório em `.claude/docs/` (cite o arquivo do relatório no corpo da issue).
+**`origem: auditoria`** (`#888780`) — issue criada a partir de achado de relatório em `docs/` (cite o arquivo do relatório no corpo da issue).
 
 **Regras de uso**
-- **Épicos:** recebem a label `épico` + `tipo:` + `prioridade:`; as sub-issues herdam a `prioridade:` do épico (salvo justificativa) e têm `tipo:`/`área:` próprios. Sub-issues nativas exigem **gh ≥ 2.94.0** (`gh issue create --parent N`); abaixo disso, checklist `- [ ] #N` no corpo do épico.
-- Toda issue recebe **1 `tipo:` + 1 `prioridade:`**; `área:`, `status:` e `origem:` conforme o caso.
-- Achado de auditoria → issue com `origem: auditoria` + severidade mapeada em `prioridade:` + `tipo:` correspondente (segurança/conformidade/desempenho/refactor).
+- **Toda issue — épico, sub-issue ou avulsa — recebe 1 label `tipo:` e traz `**Priority:** · **Size:**` no corpo.** Sem exceção: issue sem prioridade não entra em triagem, sem tamanho não entra em planejamento.
+- **Épicos:** recebem também a label `épico`. O **Size do épico é o esforço do conjunto** (normalmente L ou XL); cada sub-issue declara o **seu próprio** Size no corpo. As sub-issues herdam a Priority do épico (salvo justificativa) e têm `tipo:`/`área:` próprios. Sub-issues nativas exigem **gh ≥ 2.94.0** (`gh issue create --parent N`); abaixo disso, checklist `- [ ] #N` no corpo do épico.
+- `área:`, `status:` e `origem:` conforme o caso.
+- Achado de auditoria → issue com `origem: auditoria` + `tipo:` correspondente (segurança/conformidade/desempenho/refactor), com a severidade mapeada em **Priority** no corpo.
 - A label `tipo:` da issue deve bater com o prefixo do commit que a resolve.
-- **Templates de issue** em `.github/ISSUE_TEMPLATE/` (bug, feature, achado de auditoria) já aplicam a label de `tipo:`/`origem:` automaticamente; a `prioridade:` é adicionada na triagem.
+- **Templates de issue** em `.github/ISSUE_TEMPLATE/` (bug, feature, achado de auditoria) aplicam a label de `tipo:`/`origem:` automaticamente e pedem Priority e Size no corpo.
 - A skill `criar-issues` automatiza a criação em lote a partir de laudos de auditoria (com aprovação do usuário e deduplicação), aplicando esta taxonomia.
-- **GitHub Projects (se usado):** os campos padrão `Priority` (P0/P1/P2) e `Size` (XS–XL) do Projects são usados no roadmap. Mapeamento para labels: **P0 → `prioridade: crítica` · P1 → `prioridade: alta` · P2 → `prioridade: média`** (`baixa` fica para achados leves de auditoria). `Size` vive no roadmap/corpo da issue — campos de Project são preenchidos manualmente no board.
+- **GitHub Projects (se usado):** os campos `Priority` e `Size` do board usam os mesmos valores do corpo da issue (P0–P2, XS–XL) e são preenchidos manualmente. **A fonte de verdade é o roadmap**; o corpo da issue é o espelho dele no GitHub, e o board é conveniência de visualização.
 
 **Bootstrap (criar tudo de uma vez com o GitHub CLI):**
 
@@ -131,10 +118,6 @@ gh label create "tipo: segurança"    --color 993C1D --description "Controles OW
 gh label create "tipo: conformidade" --color D4537E --description "LGPD / legislação brasileira" --force
 gh label create "tipo: docs"         --color 85B7EB --description "Documentação, ADRs, contexto" --force
 gh label create "tipo: chore"        --color B4B2A9 --description "Config, CI, dependências" --force
-gh label create "prioridade: crítica" --color A32D2D --description "Bloqueia release" --force
-gh label create "prioridade: alta"    --color D85A30 --description "Próximo ciclo" --force
-gh label create "prioridade: média"   --color BA7517 --description "Programável" --force
-gh label create "prioridade: baixa"   --color 639922 --description "Oportunidade" --force
 gh label create "área: frontend"  --color 378ADD --description "React / UI" --force
 gh label create "área: backend"   --color 534AB7 --description "API / domínio" --force
 gh label create "área: banco"     --color 0F6E56 --description "PostgreSQL / Prisma / dados" --force
@@ -143,7 +126,7 @@ gh label create "status: bloqueada"           --color 444441 --description "Depe
 gh label create "status: aguardando-decisão"  --color F0997B --description "Depende do 07-decisoes-em-aberto" --force
 gh label create "status: precisa-adr"         --color AFA9EC --description "Exige decisão arquitetural (ADR)" --force
 gh label create "épico" --color 5B4FCF --description "Issue guarda-chuva com sub-issues" --force
-gh label create "origem: auditoria" --color 888780 --description "Criada a partir de relatório em .claude/docs/" --force
+gh label create "origem: auditoria" --color 888780 --description "Criada a partir de relatório em docs/" --force
 ```
 
 ## Milestones (entrega, não fase)
@@ -159,7 +142,7 @@ gh label create "origem: auditoria" --color 888780 --description "Criada a parti
 - **Encerramento:** fecha quando a **última fase** da entrega é concluída no roadmap.
 - **Sinal de granularidade errada:** milestone com menos de ~8 issues provavelmente é uma fase disfarçada; milestone que nunca fecha é escopo de projeto, não de entrega.
 
-**Complementaridade:** milestone responde *"em que entrega"*; label `prioridade:` responde *"quão urgente"*; `Size` do Projects responde *"quão grande"*. Não duplicar: prioridade e tamanho não viram milestone.
+**Complementaridade:** milestone responde *"em que entrega"*; **Priority** (no corpo) responde *"quão urgente"*; **Size** (no corpo) responde *"quão grande"*. Não duplicar: prioridade e tamanho não viram milestone nem label.
 
 **Comandos** (a milestone precisa existir antes de ser atribuída):
 
@@ -207,7 +190,7 @@ gh issue edit {N} --milestone "MVP"
 **Convenções do PR (estas sim moram aqui):**
 
 - **Título:** Conventional Commits, derivado do prefixo da branch — `feat/12-cadastro` → `feat: cadastro de tarefas`.
-- **Base:** `staging`, salvo o PR de promoção `staging`→`main` e o PR de sub-branch para branch de épico (ver seção "Fluxo de branches" acima, Fase 13.7 / ADR-0012).
+- **Base:** sempre `main`, salvo PR de sub-branch para branch de épico.
 - **Referência de issue:** `Closes #N` na seção "Issues relacionadas" — branch `epic/{N}-...` referencia o épico; `{tipo}/{N}-...` referencia a issue.
-- **Labels:** mesma taxonomia das issues (`tipo:`, `prioridade:`), aplicadas ao PR quando úteis para o board.
+- **Labels:** mesma taxonomia das issues (`tipo:`, `área:`), aplicadas ao PR quando úteis para o board.
 - **Checklist:** itens verificáveis pela skill são marcados; os que dependem de julgamento humano ficam desmarcados para você conferir.

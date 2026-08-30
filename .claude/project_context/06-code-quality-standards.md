@@ -5,8 +5,6 @@
 > **Trava anti-over-engineering (ler antes do resto):** aplique os princípios **onde eles se pagam**, não por ritual. Abstração especulativa, camadas e generalizações "para o futuro" custam mais do que rendem. **YAGNI e KISS têm precedência** sobre qualquer princípio abaixo em caso de conflito.
 >
 > **Calibre pelo contexto, não pelo hábito:** o que é over-engineering num protótipo de uma pessoa pode ser requisito num sistema com equipe, rotatividade e dado de terceiro. Em equipe, o custo de leitura por outra pessoa entra na conta — explicitude vence esperteza. Segurança, conformidade e os controles verificáveis do `05`/`11` **nunca** são cortados por YAGNI.
->
-> **Calibragem deste projeto:** solo (`01`), mas **maduro e com dado pessoal real de titulares em jogo** — não é protótipo descartável. Na prática: abstração especulativa continua fora, e os controles de `05`, `09` e `11` continuam inegociáveis. O agente `revisao-codigo` é a única camada de revisão antes do merge; escreva para ele conseguir julgar.
 
 ## SOLID (com pragmatismo)
 
@@ -77,7 +75,20 @@ Nada de referências a **issues, PRs, relatórios de auditoria, achados, sprints
 - Nada de comentário redundante que repete o nome (`// incrementa o contador` sobre `contador++`).
 - `TODO` sem dono e sem prazo vira issue, não comentário. Exceção do kit: `TODO(design)` para tela aguardando handoff (ver `10`).
 
-**Enforcement:** `eslint-plugin-jsdoc` valida presença e forma dos blocos em exports públicos (`jsdoc/require-jsdoc`, `jsdoc/require-param`, `jsdoc/require-returns`). Coerente com o princípio do topo: o que pode virar lint, vira lint.
+**Enforcement (obrigatório — esta regra é ignorada com frequência quando fica só na prosa):**
+
+- `eslint-plugin-jsdoc` valida presença e forma dos blocos em exports públicos (`jsdoc/require-jsdoc`, `jsdoc/require-param`, `jsdoc/require-returns`).
+- **`no-warning-comments` bloqueia comentário de rastreabilidade** — regra nativa do ESLint, casa o termo em qualquer posição do comentário:
+
+```js
+"no-warning-comments": ["error", {
+  terms: ["issue #", "closes #", "fixes #", "pr #", "auditoria", "achado",
+          "conforme revisão", "solicitado na revisão", "ver issue", "ref #"],
+  location: "anywhere"
+}]
+```
+
+Coerente com o princípio do topo: o que pode virar lint, vira lint. Se um termo legítimo cair na regra, a saída é reescrever o comentário em termos funcionais — não adicionar exceção.
 
 ## DRY · KISS · YAGNI
 

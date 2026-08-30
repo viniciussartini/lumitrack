@@ -62,6 +62,33 @@ export default tseslint.config(
             ],
             "@typescript-eslint/no-floating-promises": "error",
             "@typescript-eslint/no-misused-promises": "error",
+            // Mecaniza a proibição de comentário de rastreabilidade
+            // (06-code-quality-standards.md) — issue/PR/laudo/achado de
+            // revisão pertencem ao git, aos ADRs, ao CHANGELOG e às issues,
+            // nunca ao código-fonte. Termos de auditoria são específicos
+            // ("laudo de auditoria" etc.), não a palavra solta — ela também
+            // nomeia a feature de trilha de auditoria (audit trail) do
+            // sistema, uso legítimo que a regra não deve barrar.
+            "no-warning-comments": [
+                "error",
+                {
+                    terms: [
+                        "issue #",
+                        "closes #",
+                        "fixes #",
+                        "pr #",
+                        "laudo de auditoria",
+                        "achado de auditoria",
+                        "relatório de auditoria",
+                        "achado",
+                        "conforme revisão",
+                        "solicitado na revisão",
+                        "ver issue",
+                        "ref #",
+                    ],
+                    location: "anywhere",
+                },
+            ],
         },
     },
     {

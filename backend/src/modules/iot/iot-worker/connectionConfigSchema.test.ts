@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest"
 import { connectionConfigSchema } from "@/modules/iot/iot-worker/connectionConfigSchema.js"
 import { createMeterSchema } from "@/modules/meter/meter.schema.js"
 
-// Teste de contrato (issue #314, sugestão da revisão): connectionConfigSchema
+// Teste de contrato: connectionConfigSchema
 // duplica a forma de createMeterSchema de propósito (o worker não importa do
 // módulo `meter` — ver o cabeçalho de connectionConfigSchema.ts). A
 // duplicação evita acoplamento indevido, mas abre espaço para drift
