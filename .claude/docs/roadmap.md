@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-28 · Fases 1–15.5 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, #290, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15), #300 (épico #290, Fase 15.5), #304 (#296–#299, Fase 15.5). Issue #168 (complexidade), parte do escopo da 15.5, dobrada para a Fase 16. Fase atual: **16** (worker IoT: robustez, estrutura e cobertura), detalhe abaixo.
+> Última atualização: 2026-08-29 · Fases 1–16 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, #290, #305, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15), #300 (épico #290, Fase 15.5), #304 (#296–#299, Fase 15.5), #314 (épico #305: #306–#309, Fase 16), #317 (#310–#313, #168, Fase 16), #321 (#255, #257, #316, Fase 16). Fase atual: **17** (frontend: tempo real e bundle) — objetivo já esboçado abaixo, detalhamento completo fica para quando a fase chegar (mesmo planejamento just-in-time do resto do documento).
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das auditorias** — as quatro de 2026-08-05 e, a partir da Fase 13.6, as quatro de 2026-08-22 (pós-deploy) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **A Fase 13.7 separa os ambientes:** VPS Hostinger (São Paulo) vira produção real (branch `main`), Render+Neon é rebaixado a staging/integração (branch `staging`) — ver **ADR-0012**. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
@@ -28,8 +28,8 @@
 | 14 | Conformidade P1 — formalizar a postura permanentemente demo (ADR-0014), ROPA/RIPD atualizados, monitor externo de disponibilidade | **Concluída** (#260, #261, #265, épico #259, PR #274) |
 | 15 | Desempenho — instrumentação, compressão, índices, retenção, cache, N+1 e endpoint batch | **Concluída** (épicos #275, #279, issues #284/#285 — PRs #286, #287, #288) |
 | 15.5 | Enforcement de qualidade + comentários de rastreabilidade | **Concluída** (épico #290, #296–#299, PRs #300/#304) — issue #168 dobrada para a Fase 16 |
-| **16** | **Worker IoT — robustez, estrutura e cobertura** | **Planejada — fase atual, detalhe abaixo** |
-| 17 | Frontend — tempo real e bundle | Planejada — objetivo abaixo |
+| 16 | Worker IoT — robustez, estrutura e cobertura | **Concluída** (épico #305 — PR #314; PR #317; PR #321) |
+| **17** | **Frontend — tempo real e bundle** | Planejada — fase atual, objetivo abaixo |
 | 18 | Design system, cobertura de testes e polimento | Planejada — objetivo revisado abaixo |
 | 19 | Grupo A — fundação tarifária (subgrupos, modalidades, postos, demanda) + Horária Verde | Planejada — detalhe abaixo |
 | 20 | Grupo A — Horária Azul, ultrapassagem de demanda e energia reativa excedente | Planejada — objetivo abaixo |
@@ -1443,14 +1443,14 @@ A retenção de `meter_readings` (issues #236/#267) é escopo próprio desta fas
 - **Depende de:** —
 - **Risco/observações:** baixo — Prisma suporta `ON CONFLICT` via `$queryRaw` ou `upsert` nativo, dependendo de como a chave de conflito está modelada; verificar na execução qual API do Prisma cobre o caso sem SQL cru.
 
-### 10. Issues #255 e #257 (topologia de rede do simulador + script de deploy)
+### 10. Issues #255, #257 e #316 (topologia de rede do simulador, script de deploy e campos do MeterForm) — Concluído
 
-- **Comportamento:** reiniciar o `backend` sozinho não derruba a rede do `simulator`; promover `staging`→`main` deixa de ser procedimento manual de 5 comandos.
-- **Cobre:** já detalhadas com critérios de aceite completos nas próprias issues — confirmado em 2026-08-28 que ambas continuam válidas: `docker-compose.yml:83` ainda usa `network_mode: "service:backend"`; `deploy/` ainda não tem `update-production.sh` (nem equivalente). Mesma raiz do item 1 (robustez de rede/reconexão do simulador).
-- **Priority:** P2 (herdada das issues) · **Size:** conforme as issues
-- **Critérios de aceite:** ver corpo de #255 e #257 — nada novo a detalhar aqui.
-- **Depende de:** #255 antes de #257 (a automação de deploy assume a topologia de rede corrigida).
-- **Risco/observações:** ver as issues.
+- **Comportamento:** reiniciar o `backend` sozinho não derruba a rede do `simulator`; promover `staging`→`main` deixa de ser procedimento manual de 5 comandos; MODBUS_TCP/MODBUS_RTU/ETHERNET_IP/PROFINET voltam a ser configuráveis pela UI.
+- **Cobre:** #255/#257 já detalhadas com critérios de aceite completos nas próprias issues. **#316 entrou nesta mesma branch por decisão do usuário (2026-08-29)** — não fazia parte do item 10 original; nasceu como achado da revisão do PR #314 (issue #307): `MeterForm.tsx` nunca expôs os campos de `extra` que o schema do backend passou a exigir para esses 4 protocolos, tornando-os impossíveis de criar/editar pela interface.
+- **Priority:** P2 (herdada de #255/#257) · **Size:** conforme as issues
+- **Status:** Concluído — PR #321. #255: `docker-compose.yml` com rede própria para o `simulator` + ADR-0017. #257: `deploy/update-production.sh` novo. #316: campos de endereço por grandeza no `MeterForm.tsx` (versão utilitária provisória, `TODO(design)` — sem handoff no bundle para esses campos).
+- **Depende de:** #255 antes de #257 (a automação de deploy assume a topologia de rede corrigida) — respeitado na execução.
+- **Risco/observações:** validação real contra a VPS de produção fica pendente para #255/#257 (sem ambiente disponível nesta execução, como as próprias issues já registravam); #316 sem cobertura e2e contra o backend real (mocks via `page.route()`, mesmo padrão já em uso no arquivo).
 
 ## Fases 17–18 (objetivo — serão detalhadas ao chegar)
 

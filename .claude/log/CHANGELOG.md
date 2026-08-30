@@ -2627,3 +2627,12 @@
 - **Arquivos principais:** `frontend/src/types/meter.types.ts`; `frontend/src/schemas/meter.schema.ts`; `frontend/src/components/meter/MeterForm.tsx`; `frontend/src/components/meter/MeterFormDialog.tsx`; `frontend/tests/e2e/meter.spec.ts`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** `tsc -b`, `eslint .` (real script do repo — sem `--max-warnings=0`, que não é a convenção do frontend; os mesmos 8 warnings pré-existentes de `react-hooks/incompatible-library` continuam, nenhum novo), `prettier --check` e `depcruise` limpos. Suíte completa de unit/component verde: 82 arquivos / 722 testes (sem alteração de contagem). E2E do `meter.spec.ts`: 4/4 verdes (o teste de troca de protocolo estendido pros 4 protocolos + 1 teste novo de criação ponta a ponta de MODBUS_TCP com os 3 endereços de grandeza). Suíte e2e completa (chromium): 5 falhas em `dashboard.spec.ts`/`realtime.spec.ts`, **confirmadas pré-existentes** (reproduzidas idênticas numa árvore com os arquivos desta issue stashed) — não relacionadas a esta mudança; possivelmente a mesma classe de bug das issues #319/#320 abertas nesta sessão (card de potência ao vivo/SSE). Não investigadas nem corrigidas aqui, por estarem fora do escopo da #316.
+
+## [2026-08-29] docs: Fase 16 concluída no roadmap + PR #321
+- **Branch:** chore/255-257-316-fase-16
+- **Tipo:** docs
+- **O quê:** `.claude/docs/roadmap.md` atualizado — Fase 16 (worker IoT: robustez, estrutura e cobertura) marcada **Concluída** na visão geral (épico #305/PR #314; PR #317; PR #321) e o item 10 fechado, agora citando as 3 issues (#255, #257 e #316 — esta última incorporada à mesma branch por decisão do usuário, fora do escopo original do item 10). Cabeçalho (`Última atualização`/`Fase atual`) avançado para a Fase 17 (frontend: tempo real e bundle) — objetivo já esboçado no documento, detalhamento completo fica para quando a fase chegar (mesmo planejamento just-in-time já usado no resto do roadmap).
+  - PR #321 criado (`gh pr create`, skill `preparar-pr`), base `staging`, `Closes #255, closes #257, closes #316`.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova (ADR-0017 já registrada na entrada da #255).
+- **Notas:** documento apenas — nada a rodar. Fase 16 está agora 10/10 itens concluídos.
