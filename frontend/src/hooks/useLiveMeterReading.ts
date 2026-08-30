@@ -82,7 +82,7 @@ export const useLiveMeterReading = (
     // volta a rodar se a conexão cair depois.
     const needsFallback = isStale
     const fallbackQuery = useLatestMeterReading(targetType, targetId, needsFallback)
-    const lastKnownPowerW = !isStale && reading ? reading.powerW : fallbackQuery.data
+    const lastKnownPowerW = !isStale && reading ? reading.powerW : (fallbackQuery.data ?? undefined)
 
     return { reading, isStale, lastKnownPowerW }
 }

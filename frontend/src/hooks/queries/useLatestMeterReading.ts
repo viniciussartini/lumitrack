@@ -20,7 +20,11 @@ export const useLatestMeterReading = (
 ) =>
     useQuery({
         queryKey: queryKeys.meterReadings.latest(targetType, targetId ?? ""),
-        queryFn: async (): Promise<number | undefined> => {
+        // `null`, não `undefined`: o TanStack Query trata `undefined` vindo
+        // do `queryFn` como erro de contrato (query nunca "resolve" um
+        // resultado válido) — `null` é o jeito correto de dizer "busquei e
+        // não achei nada".
+        queryFn: async (): Promise<number | null> => {
             const now = Date.now()
             const { items } = await meterReadingService.list({
                 targetType,
@@ -30,7 +34,7 @@ export const useLatestMeterReading = (
                 to: new Date(now).toISOString(),
             })
 
-            if (items.length === 0) return undefined
+            if (items.length === 0) return null
 
             const mostRecent = items.reduce((latest, item) =>
                 new Date(item.bucketStart) > new Date(latest.bucketStart) ? item : latest,
