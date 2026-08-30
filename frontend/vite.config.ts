@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config"
-import react from "@vitejs/plugin-react"
+import react, { reactCompilerPreset } from "@vitejs/plugin-react"
+import babel from "@rolldown/plugin-babel"
 import tailwindcss from "@tailwindcss/vite"
 import { visualizer } from "rollup-plugin-visualizer"
 import path from "node:path"
@@ -14,6 +15,9 @@ process.env.VITE_CSP_CONNECT_EXTRA ??= ""
 export default defineConfig({
     plugins: [
         react(),
+        babel({
+            presets: [reactCompilerPreset()],
+        }),
         tailwindcss(),
         // `ANALYZE=true npm run build` gera dist/stats.html (treemap +
         // tamanho gzip por módulo); não roda em todo build.

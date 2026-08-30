@@ -16,15 +16,19 @@ Um único chunk JS de ~383 kB gzip — confirma numericamente o achado M-04 (nen
 
 ## Contagem de renders (60s no equivalente ao Painel)
 
-**Método:** como a extensão React DevTools ("why did this render") exige uma sessão manual de navegador, a contagem foi automatizada via a API pública `React.Profiler` (não a extensão) — envolvendo temporariamente `Header`, `MeterSection` e `RealtimeChartCard` num `<Profiler onRender>` que conta commits, revertido logo em seguida (`git checkout`, nenhum vestígio no código). Um backend descartável (Node puro, fora do repositório) serviu os mesmos endpoints que os componentes chamam, incluindo 60 eventos `reading` reais via SSE — 1 por segundo, 60 segundos — para `frontend/src/pages/property/PropertyDetailsPage.tsx`, a única tela que monta os três componentes ao mesmo tempo. Um script Playwright abriu a página, esperou os 60s e leu a contagem.
+**Método:** como a extensão React DevTools ("why did this render") exige uma sessão manual de navegador, a contagem foi automatizada via a API pública `React.Profiler` (não a extensão) — envolvendo temporariamente `Header`, `MeterSection` e `RealtimeChartCard` num `<Profiler onRender>` que conta commits, revertido logo em seguida (`git checkout`, nenhum vestígio no código). Um backend descartável (Node puro, fora do repositório) serviu os mesmos endpoints que os componentes chamam, incluindo 60 eventos `reading` reais via SSE — 1 por segundo, 60 segundos — para `frontend/src/pages/property/PropertyDetailsPage.tsx`, a única tela que monta os três componentes ao mesmo tempo. Um script Playwright abriu a página, esperou os 60s e leu a contagem. A mesma metodologia foi reaplicada depois de habilitar o React Compiler, para medir o efeito direto (mesmo cenário, mesmas 60 leituras).
 
-| Componente | Renders em 60s (60 leituras SSE) |
-|---|---|
-| `Header.tsx` | **64** |
-| `MeterSection.tsx` | 124 |
-| `RealtimeChartCard.tsx` | 189 |
+| Componente | Antes (sem compiler) | Depois (com React Compiler) | Variação |
+|---|---|---|---|
+| `Header.tsx` | 64 | **4** | −94% |
+| `MeterSection.tsx` | 124 | 94 | −24% |
+| `RealtimeChartCard.tsx` | 189 | **10** | −95% |
 
-`Header` só lê `isConnected` do `RealtimeContext` — 64 renders em 60 leituras confirma o achado A-06 de forma direta: o `value` do contexto é recriado a cada leitura SSE, então **todo** consumidor re-renderiza, mesmo quem não lê `readingsByMeterId`. `MeterSection`/`RealtimeChartCard` renderizam bem mais que as 60 leituras porque somam A-06 (contexto) com o `setInterval` de 2s do `useLiveMeterReading` (achado B-02) e, no caso do `RealtimeChartCard`, o cascateamento de um pai não memoizado (achado B-07).
+`Header` só lê `isConnected` do `RealtimeContext` — 64 renders em 60 leituras confirmava o achado A-06 de forma direta: o `value` do contexto é recriado a cada leitura SSE, então **todo** consumidor re-renderizava, mesmo quem não lê `readingsByMeterId`. O React Compiler (issue #324) resolveu isso quase por completo para `Header` e `RealtimeChartCard` — a memoização automática evita que um componente re-renderize quando os valores que ele efetivamente lê não mudaram, mesmo com o objeto do contexto sendo recriado. `MeterSection` caiu bem menos (124→94): ele lê `reading`/`isStale` diretamente de `useLiveMeterReading`, valores que **de fato mudam** a cada leitura e a cada 2s (achado B-02) — o compiler não elimina re-render de dado que genuinamente mudou; só a separação do contexto (item 3/#319) e o fim do `setInterval` incondicional (item 4/#325) resolvem o restante.
+
+## Efeito do React Compiler no bundle
+
+O mesmo build (`ANALYZE=true npm run build`) depois de habilitar o compiler (issue #324): `dist/assets/index-*.js` foi de 1.305,88 kB (382,84 kB gzip) para **1.398,71 kB (418,77 kB gzip)** — o código de memoização automática que o compiler injeta pesa ~36 kB gzip a mais. Trade-off esperado e aceito: menos trabalho de render em troca de mais código estático: o ganho de renders eliminados (tabela abaixo) supera o custo do bundle, e o code-splitting do item 7 ainda reduz o chunk inicial de qualquer forma.
 
 ## Achado colateral (fora do escopo desta issue)
 
