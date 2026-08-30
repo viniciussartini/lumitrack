@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-29 · Fases 1–16 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, #290, #305, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15), #300 (épico #290, Fase 15.5), #304 (#296–#299, Fase 15.5), #314 (épico #305: #306–#309, Fase 16), #317 (#310–#313, #168, Fase 16), #321 (#255, #257, #316, Fase 16). Fase atual: **17** (frontend: tempo real e bundle) — objetivo já esboçado abaixo, detalhamento completo fica para quando a fase chegar (mesmo planejamento just-in-time do resto do documento).
+> Última atualização: 2026-08-29 · Fases 1–16 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, #290, #305, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15), #300 (épico #290, Fase 15.5), #304 (#296–#299, Fase 15.5), #314 (épico #305: #306–#309, Fase 16), #317 (#310–#313, #168, Fase 16), #321 (#255, #257, #316, Fase 16). Fase atual: **17** (frontend: tempo real e bundle) — detalhada abaixo, 8 itens.
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das auditorias** — as quatro de 2026-08-05 e, a partir da Fase 13.6, as quatro de 2026-08-22 (pós-deploy) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **A Fase 13.7 separa os ambientes:** VPS Hostinger (São Paulo) vira produção real (branch `main`), Render+Neon é rebaixado a staging/integração (branch `staging`) — ver **ADR-0012**. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
@@ -29,7 +29,7 @@
 | 15 | Desempenho — instrumentação, compressão, índices, retenção, cache, N+1 e endpoint batch | **Concluída** (épicos #275, #279, issues #284/#285 — PRs #286, #287, #288) |
 | 15.5 | Enforcement de qualidade + comentários de rastreabilidade | **Concluída** (épico #290, #296–#299, PRs #300/#304) — issue #168 dobrada para a Fase 16 |
 | 16 | Worker IoT — robustez, estrutura e cobertura | **Concluída** (épico #305 — PR #314; PR #317; PR #321) |
-| **17** | **Frontend — tempo real e bundle** | Planejada — fase atual, objetivo abaixo |
+| **17** | **Frontend — tempo real e bundle** | Planejada — fase atual, detalhamento abaixo |
 | 18 | Design system, cobertura de testes e polimento | Planejada — objetivo revisado abaixo |
 | 19 | Grupo A — fundação tarifária (subgrupos, modalidades, postos, demanda) + Horária Verde | Planejada — detalhe abaixo |
 | 20 | Grupo A — Horária Azul, ultrapassagem de demanda e energia reativa excedente | Planejada — objetivo abaixo |
@@ -1452,15 +1452,107 @@ A retenção de `meter_readings` (issues #236/#267) é escopo próprio desta fas
 - **Depende de:** #255 antes de #257 (a automação de deploy assume a topologia de rede corrigida) — respeitado na execução.
 - **Risco/observações:** validação real contra a VPS de produção fica pendente para #255/#257 (sem ambiente disponível nesta execução, como as próprias issues já registravam); #316 sem cobertura e2e contra o backend real (mocks via `page.route()`, mesmo padrão já em uso no arquivo).
 
-## Fases 17–18 (objetivo — serão detalhadas ao chegar)
+## Fase 17 — Frontend: tempo real e bundle
 
-> Mesmo planejamento just-in-time do bloco anterior: detalhar agora é escrever o que será reescrito antes de executar. Os achados que cada uma cobre ficam listados para rastreabilidade.
+**Entrega (milestone):** `Robustez e Polimento` (mesma das Fases 16 e 18).
 
-### Fase 17 — Frontend: tempo real e bundle (P2)
+> **Correção de premissa em relação ao esboço de 2026-08-24 que esta seção substitui:** o item "buffer de potência circular com downsampling, até 86.400 pontos" está desatualizado — o backend já resolveu isso (`useMeterReadingHistory.ts`/`buildDenseWindowBuckets` entregam ≤60 baldes agregados por minuto; o `useMemo` de `RealtimePowerChart.tsx` já acerta), confirmado pelo próprio achado A-06 do laudo de 2026-08-22 ("o que já melhorou"). O item 5 abaixo substitui isso pelo achado real remanescente (B-07: reconciliação do recharts sem memo). **As issues #319 e #320, abertas na mesma janela do fechamento da Fase 16, entram no escopo** (decisão do usuário, 2026-08-29) — ver itens 3 e 6.
 
-Cobre: React Compiler habilitado (o código já é compiler-clean por lint e vários comentários citam o compilador — **colhe zero benefício dele hoje**) + separação do `RealtimeContext` em conexão/leituras; buffer de potência circular com downsampling (hoje O(n) por amostra sobre até 86.400 pontos, com o `useMemo` do gráfico nunca acertando); `useLiveMeterReading` sem render a cada 2 s; code-splitting por rota + `manualChunks` isolando `recharts` e a stack markdown (hoje `/login` baixa as duas dependências mais pesadas do projeto). Achados de 2026-08-22 confirmam este escopo sem item novo.
+### 1. Baseline de medição (movido da Fase 15)
 
-**Inclui o baseline de medição do frontend, movido da Fase 15 no detalhamento de 2026-08-24:** `rollup-plugin-visualizer` no build (gzip do chunk inicial, com `recharts` e a stack markdown identificados) e React DevTools Profiler com "why did this render", 60 s no Painel. A Fase 15 instrumenta o banco porque corrige o banco lá; medir o frontend uma fase antes de corrigi-lo separaria o número da decisão que ele existe para tomar — o instrumental entra junto com as correções que decide (A-06, M-04, B-02, B-07).
+- **Comportamento:** nenhum para o usuário final — mede antes de decidir, para não separar o número da correção que ele orienta.
+- **Cobre:** M-04 (nenhum `manualChunks`/visualizer hoje) e A-06 (medir renders antes do React Compiler).
+- **Priority:** P2 · **Size:** XS
+- **Critérios de aceite:**
+  - `rollup-plugin-visualizer` instalado e configurado no `vite.config.ts`, gerando relatório no build.
+  - Gzip do chunk inicial registrado como baseline (documento de fechamento da fase).
+  - Sessão do React DevTools Profiler ("why did this render", 60s no Painel) gravada, com contagem de renders de `Header.tsx`, `MeterSection.tsx` e `RealtimeChartCard.tsx` como baseline.
+- **Depende de:** —
+- **Risco/observações:** baixo — é só instrumentação, sem mudança de comportamento.
+
+### 2. React Compiler habilitado
+
+- **Comportamento:** nenhum direto — mas é o que resolve a maior parte dos itens seguintes por baixo, conforme ordem de recomendação do laudo.
+- **Cobre:** achado A-06 (`RealtimeContext.tsx` mistura `readingsByMeterId`/`isConnected` num único `value` recriado a cada render; todo consumidor de `useRealtime()` re-renderiza a 1Hz) — recomendação (1) do laudo.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  - `babel-plugin-react-compiler` instalado e configurado via `@vitejs/plugin-react` no `vite.config.ts`; `eslint-plugin-react-compiler` ativado (formaliza o gate — o lint já era compiler-clean, mas nada verificava isso).
+  - Build, lint e suíte de testes existente permanecem verdes.
+  - Nova sessão do Profiler mostra queda mensurável de renders em `Header.tsx` (que só lê `isConnected`) comparado ao baseline do item 1.
+- **Depende de:** item 1.
+- **Risco/observações:** médio — primeira adoção do compiler no projeto; risco de memoização incorreta em algum componente não coberto por teste. Mitigado por comparar comportamento antes/depois via a suíte existente.
+
+### 3. Separar `RealtimeContext` em conexão/leituras + fallback REST (fecha #319)
+
+- **Comportamento:** o card "Potência agora" e a seção "Medidor" mostram a última leitura conhecida mesmo quando o SSE ainda não entregou o primeiro evento (hoje ficam em "sem leitura" indefinidamente).
+- **Cobre:** issue #319 (prioridade alta) + achado A-06. Arquivos: `RealtimeContext.tsx`, `useLiveMeterReading.ts`, `MeterSection.tsx`, `DeviceDetailsPage.tsx`.
+- **Priority:** P1 (herda a prioridade alta da issue — é bug de comportamento visível, não só desempenho) · **Size:** M
+- **Critérios de aceite:**
+  - `RealtimeConnectionContext` (`isConnected`) e `RealtimeReadingsContext` (`readingsByMeterId`) separados; `Header.tsx` passa a consumir só o de conexão.
+  - `MeterSection`/`DeviceDetailsPage` buscam a leitura mais recente via REST quando ainda não há entrada em `readingsByMeterId` para aquele medidor, e trocam para o valor do SSE assim que chegar (confirmar na execução se já existe endpoint reutilizável de "última leitura" ou se precisa criar um).
+  - Teste cobrindo: `Header` não re-renderiza quando chega leitura de um medidor (só quando `isConnected` muda); `MeterSection` mostra valor do REST antes do primeiro evento SSE.
+  - Issue #319 fechável pelos critérios acima.
+- **Depende de:** item 2 (evita reconstruir a separação de um jeito que o compiler tornaria redundante).
+- **Risco/observações:** médio-alto — é o item que mais toca arquivos compartilhados entre 4 telas; a existência (ou não) do endpoint REST de última leitura só se confirma na execução.
+
+### 4. `useLiveMeterReading` sem render a cada 2s (B-02)
+
+- **Comportamento:** nenhum direto — elimina uma segunda fonte constante de re-render nas 3 páginas que usam o hook.
+- **Cobre:** `setInterval(() => setNow(Date.now()), 2_000)` incondicional (linha do hook).
+- **Priority:** P2 · **Size:** XS/S
+- **Critérios de aceite:**
+  - `setInterval` trocado por `setTimeout` agendado para `receivedAt + 10s` (expiração exata), reagendado a cada leitura nova.
+  - Teste com fake timers garantindo zero disparos enquanto a leitura está fresca.
+- **Depende de:** item 3 (mesmo hook).
+- **Risco/observações:** baixo.
+
+### 5. Memoização dos gráficos de tempo real (B-07 — substitui o item desatualizado do buffer circular)
+
+- **Comportamento:** nenhum direto.
+- **Cobre:** B-07 — `RealtimePowerChart`/`ConsumptionChart` reconciliados pelo recharts a cada render mesmo com `buckets` idênticos (o `useMemo` já acerta; o problema é a falta de memo no componente).
+- **Priority:** P2 · **Size:** XS
+- **Critérios de aceite:**
+  - Medir via Profiler se o item 2 (compiler) já eliminou o re-render redundante dos dois gráficos.
+  - Só adicionar `React.memo` explícito se ainda houver reconciliação sem mudança de props após o item 2.
+- **Depende de:** item 2.
+- **Risco/observações:** baixo.
+
+### 6. Corrigir retenção de cache na virada de hora (#320)
+
+- **Comportamento:** o gráfico "Consumo em tempo real" deixa de mostrar "aguardando leituras" por ~1min na virada de hora.
+- **Cobre:** issue #320 — `useMeterReadingHistory.ts`/`RETENTION_MAX_AGE_MS` e `buildDenseWindowBuckets`.
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:**
+  - Teste reproduzindo o bug (simulação de virada de hora).
+  - Correção da causa raiz na janela de retenção/geração de baldes.
+  - Teste de regressão cobrindo a virada de hora.
+- **Depende de:** — (arquivos isolados dos itens 2-5, pode ser feito em paralelo).
+- **Risco/observações:** baixo.
+
+### 7. Code-splitting por rota + `manualChunks` (M-04)
+
+- **Comportamento:** `/login` e as rotas que não usam gráfico/markdown carregam mais rápido (bundle inicial menor).
+- **Cobre:** 22 rotas estáticas em `AppRouter.tsx`; `recharts` e `react-markdown`+`remark-gfm` inteiros no bundle inicial mesmo sem uso em `/login`.
+- **Priority:** P2 · **Size:** M
+- **Critérios de aceite:**
+  - `React.lazy`+`Suspense` nas rotas do `AppRouter.tsx`, reaproveitando um padrão de fallback (spinner/skeleton) já existente no app.
+  - `manualChunks` no `vite.config.ts` isolando `recharts` e a stack markdown.
+  - Relatório do visualizer mostra queda no chunk inicial comparado ao baseline do item 1.
+- **Depende de:** item 1 (comparação).
+- **Risco/observações:** baixo-médio.
+
+### 8. Fechamento: re-medição
+
+- **Comportamento:** nenhum.
+- **Cobre:** fecha o baseline do item 1.
+- **Priority:** P2 · **Size:** XS
+- **Critérios de aceite:** novo relatório do visualizer + nova sessão do Profiler; números antes/depois registrados no "Estado final" do fechamento da fase.
+- **Depende de:** todos os anteriores.
+- **Risco/observações:** baixo.
+
+## Fase 18 (objetivo — será detalhada ao chegar)
+
+> Mesmo planejamento just-in-time do bloco anterior: detalhar agora é escrever o que será reescrito antes de executar.
 
 ### Fase 18 — Design system, cobertura e polimento (P2)
 
@@ -1666,3 +1758,12 @@ Candidatos conhecidos, ainda sem fase:
 - **Contagem de adaptadores corrigida de 6 para 8:** a medição anterior não contava o stub de `ProfibusConnection` nem `ProfinetConnection`, ambos dentro do mesmo `ModbusTcpConnection.ts`. Isso também eleva o tamanho real do item de cobertura de teste (item 5) e do split estrutural (item 2).
 - **Ordem separando split (item 2) de correção de bug (item 3), com caracterização entre os dois:** a regra do skill `refatoracao` ("caracterizar antes de mover") se aplica diretamente aqui — `ModbusTcpConnection.ts` tem 805 linhas e cobertura de teste hoje fina. Misturar o split estrutural com a correção do payload no mesmo diff dificultaria isolar qual mudança causou qual efeito, caso algo quebre.
 - **Milestone nova `Robustez e Polimento` criada para as Fases 16–18:** decisão do usuário, 2026-08-28 — as três fases não tinham entrega nomeada; juntas formam o marco reconhecível de "sistema estabilizado antes da expansão para Grupo A" (Fase 19), que é justamente o próximo marco do roadmap.
+
+### Replanejamento de 2026-08-29 (detalhamento da Fase 17)
+
+**O que mudou:** a Fase 16 fechou (épico #305, PRs #314/#317/#321) e a Fase 17 foi detalhada de objetivo para 8 itens completos, com investigação direta do código (`RealtimeContext.tsx`, `useLiveMeterReading.ts`, `RealtimePowerChart.tsx`, `useMeterReadingHistory.ts`, `vite.config.ts`) em vez de reaproveitar cegamente o esboço de 2026-08-24.
+
+- **Item do "buffer de potência circular" corrigido:** a premissa de "downsampling sobre até 86.400 pontos" não corresponde mais ao código — o backend já entrega ≤60 baldes agregados por minuto, e o `useMemo` do gráfico já acerta (o próprio achado A-06 do laudo de 2026-08-22 registra essa melhoria). O item 5 da fase passou a cobrir o achado real remanescente (B-07: `RealtimePowerChart`/`ConsumptionChart` sem memo, reconciliados pelo recharts a cada render).
+- **Issues #319 e #320 incorporadas ao escopo** (decisão do usuário, 2026-08-29): #319 (prioridade alta — card "Potência agora" sem fallback REST quando o SSE atrasa) vira o item 3, fundido com a separação do `RealtimeContext` por tocar exatamente os mesmos arquivos; #320 (bug de retenção de cache na virada de hora) vira o item 6, independente por tocar arquivos distintos.
+- **Item 3 elevado a P1 dentro da fase:** é o único item com comportamento de usuário real e bug ativo (herdado da prioridade alta da issue #319); os demais permanecem P2, mantendo o caráter de "endurecimento" da fase (mesma lógica das Fases 10–18).
+- **Ordem de dependência (medir → otimizar → medir de novo):** o item 1 (baseline) vem antes de tudo para não separar o número da decisão que ele orienta; os itens 3-5 dependem do item 2 (React Compiler) para não reconstruir mitigações que o compilador pode tornar redundantes.

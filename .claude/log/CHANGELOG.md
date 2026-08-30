@@ -2668,3 +2668,11 @@
 - **Arquivos principais:** `backend/eslint.config.js`; `frontend/eslint.config.js`; `iot-simulator/server/eslint.config.js`; `iot-simulator/ui/eslint.config.js`; `backend/src/modules/iot/iot-worker/connectionConfigSchema.test.ts`; `backend/src/modules/iot/iot-stream.routes.test.ts`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** `eslint` rodado nos 4 pacotes após a mudança — 0 erros em todos (frontend mantém os 8 warnings pré-existentes de `react-hooks/incompatible-library`, sem relação). Regra validada disparando de fato num arquivo `.test.ts` descartável com comentário `(issue #999)` proposital, depois removido.
+
+## [2026-08-29] docs: roadmap de implementação — Fase 17 detalhada
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** Fase 16 fechada (épico #305, PRs #314/#317/#321) — Fase 17 ("Frontend: tempo real e bundle") detalhada de objetivo para 8 itens completos, com investigação direta do código (`RealtimeContext.tsx`, `useLiveMeterReading.ts`, `RealtimePowerChart.tsx`, `useMeterReadingHistory.ts`, `vite.config.ts`) e do laudo `2026-08-22-desempenho-audit.md`. Corrigida premissa desatualizada do esboço anterior (item "buffer de potência circular/86.400 pontos" — já resolvido pelo backend; substituído pelo achado real B-07, memoização dos gráficos). Issues #319 (prioridade alta, sem fallback REST na leitura ao vivo) e #320 (bug de retenção na virada de hora) incorporadas ao escopo da fase por decisão do usuário.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova.
+- **Notas:** ordem de dependência dos itens segue "medir → otimizar → medir de novo" (baseline antes de tudo, React Compiler antes dos itens que ele pode tornar redundantes). Nenhuma das 3 decisões pendentes de `07-decisoes-em-aberto.md` bloqueia a fase. Próximo passo sugerido: abrir as issues da Fase 17 via skill `criar-issues`.
