@@ -801,6 +801,18 @@ textarea.input {
         transform: scale(0.72);
     }
 }
+/* Ponto pulsante "ao vivo" — mesmo bloco (tamanho/cor/animação) repetido em
+   todo indicador de dado em tempo real (Login, Landing, KPIs do painel,
+   details pages, MeterSection, RealtimeChartCard). O wrapper ao redor
+   (cor do texto, tracking, gap) varia por contexto e continua fora daqui —
+   ver LiveBadge.tsx. */
+.lt-live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+    background: var(--color-status-live);
+    animation: lt-pulse 1.6s ease-in-out infinite;
+}
 
 /* Modal de formulário (CRUD de Propriedade/Medidor/Área/Dispositivo) —
    LumiTrack Home.dc.html, <style> local do protótipo. Usado por FormDialog.tsx.
