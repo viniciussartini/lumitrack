@@ -2942,3 +2942,15 @@
 - **Arquivos principais:** `frontend/src/lib/queryClient.ts`; `frontend/src/hooks/queries/useConsumption.ts`; `frontend/src/hooks/queries/useConsumption.test.tsx`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** `npm run build`, `eslint` (0 erros, mesmos 9 warnings pré-existentes), `tsc -b`, Vitest completo (748/748, +1 novo) e `depcruise` (300 módulos, 0 violações) limpos.
+
+## [2026-08-31] refactor: cobertura de Alertas (RF14–RF16) (#347)
+
+- **Branch:** chore/fase-18-cobertura-e-debito-tecnico
+- **Tipo:** refactor
+- **O quê:** item 9 da Fase 18 do roadmap — maior lacuna de sinal identificada na fase. `AlertsPage.tsx` (RF14–RF16) não tinha teste próprio; só existiam `AlertRowMenu.test.tsx` (menu de contexto, em isolamento) e `useAlerts.test.tsx` (hook). Nada cobria a página inteira nem o fluxo de criar/editar via `AlertFormDialog`.
+- **`AlertsPage.test.tsx` novo, 12 casos** cobrindo os 5 fluxos do critério de aceite: **listar** (skeleton, erro inline, empty state, lista populada + os 2 KPIs "Alertas ativos"/"Em disparo agora"); **criar** (abre o dialog, preenche o form, `alertService.create` chamado com o payload certo, dialog fecha); **editar** (abre pré-preenchido a partir do menu ⋯ da linha, `alertService.update` chamado com id + dados); **habilitar/desabilitar** (os dois sentidos, a partir do menu ⋯); **excluir** (pede confirmação antes — `delete` não é chamado só ao clicar no item do menu —, chama `alertService.delete` só após confirmar).
+- **Levantamento antes de escrever — o que já tinha cobertura, pra não duplicar:** `AlertRowMenu.test.tsx` já cobre habilitar/desabilitar e edição em profundidade no nível do componente (portal, posicionamento, teclado). `AlertsPage.test.tsx` cobre esses dois mais rasos — só confirma que a página monta o menu de verdade e que a mutation certa dispara a partir do contexto real da página, sem repetir a exaustão de casos que já existe. **Excluir não tinha nenhuma cobertura em lugar nenhum** (nem `AlertRowMenu.test.tsx` testava o fluxo de confirmação) — é o caso novo tratado com mais profundidade aqui.
+- **Sem mudança de comportamento:** nenhum arquivo de produção foi tocado — só o teste novo, escrito contra o comportamento existente (teste de caracterização, não de regressão).
+- **Arquivos principais:** `frontend/src/pages/alert/AlertsPage.test.tsx` (novo).
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** `npm run build`, `eslint` (0 erros, mesmos 9 warnings pré-existentes), `tsc -b`, Vitest completo (760/760, +12 novos) e `depcruise` (301 módulos, 0 violações) limpos.
