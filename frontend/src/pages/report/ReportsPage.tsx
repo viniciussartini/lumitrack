@@ -5,7 +5,6 @@ import { ConsumptionSection } from "@/components/consumption/ConsumptionSection"
 import { useProperties } from "@/hooks/queries/useProperties"
 import { useAreas } from "@/hooks/queries/useAreas"
 import { useDevices } from "@/hooks/queries/useDevices"
-import { cn } from "@/lib/cn"
 import { REPORT_GRANULARITIES } from "@/types/consumption.types"
 import type { TargetType } from "@/types/meter.types"
 
@@ -58,11 +57,11 @@ export const ReportsPage = () => {
             {/* h1 "Relatórios" removido — duplicava o título que o Header
                 agora mostra pra rota /relatorios. Página sem handoff
                 Industry ainda (ver 10-design-system.md), resto intocado. */}
-            <p className="text-sm text-slate-600 dark:text-slate-400">
+            <p className="text-muted text-sm">
                 Selecione um alvo para ver o consumo agregado por hora, dia, mês ou ano.
             </p>
 
-            <div className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-3 dark:border-slate-800 dark:bg-slate-900">
+            <div className="border-divider bg-surface grid grid-cols-1 gap-4 rounded-lg border p-4 md:grid-cols-3">
                 <Select
                     label="Propriedade"
                     value={propertyId}
@@ -109,9 +108,7 @@ export const ReportsPage = () => {
             </div>
 
             {target === null ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Selecione uma propriedade para começar.
-                </p>
+                <p className="text-muted text-sm">Selecione uma propriedade para começar.</p>
             ) : (
                 <ConsumptionSection
                     key={`${target.targetType}-${target.targetId}`}
@@ -122,11 +119,7 @@ export const ReportsPage = () => {
             )}
 
             <div
-                className={cn(
-                    "flex items-center gap-3 rounded-lg border border-dashed p-4 text-sm",
-                    "border-slate-300 text-slate-500",
-                    "dark:border-slate-700 dark:text-slate-400",
-                )}
+                className="border-divider text-muted flex items-center gap-3 rounded-lg border border-dashed p-4 text-sm"
                 data-testid="reports-placeholder-banner"
             >
                 <Construction className="h-5 w-5 shrink-0" aria-hidden="true" />

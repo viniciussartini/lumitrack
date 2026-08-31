@@ -113,22 +113,14 @@ export const AreaMenu = ({ area, showEdit = true, onEdit, onAfterDelete }: AreaM
                     aria-haspopup="menu"
                     className={cn(
                         "flex h-8 w-8 items-center justify-center rounded-md",
-                        "text-slate-500 hover:bg-slate-100 hover:text-slate-700",
-                        "dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200",
-                        "focus:ring-brand-500 focus:ring-2 focus:outline-none",
+                        "text-muted hover:bg-divider hover:text-text",
                     )}
                 >
                     <MoreVertical className="h-4 w-4" aria-hidden="true" />
                 </button>
 
                 {isMenuOpen && (
-                    <div
-                        role="menu"
-                        className={cn(
-                            "absolute top-full right-0 z-20 mt-1 w-40 overflow-hidden rounded-md border bg-white shadow-lg",
-                            "border-slate-200 dark:border-slate-800 dark:bg-slate-900",
-                        )}
-                    >
+                    <div role="menu" className="lt-menu top-full right-0 mt-1 w-40 overflow-hidden">
                         {showEdit && onEdit && (
                             <button
                                 type="button"
@@ -138,11 +130,7 @@ export const AreaMenu = ({ area, showEdit = true, onEdit, onAfterDelete }: AreaM
                                     setIsMenuOpen(false)
                                     onEdit()
                                 }}
-                                className={cn(
-                                    "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
-                                    "text-slate-700 hover:bg-slate-50",
-                                    "dark:text-slate-200 dark:hover:bg-slate-800",
-                                )}
+                                className="lt-menu-item border-t-0"
                             >
                                 <Pencil className="h-4 w-4" aria-hidden="true" />
                                 Editar
@@ -153,9 +141,8 @@ export const AreaMenu = ({ area, showEdit = true, onEdit, onAfterDelete }: AreaM
                             role="menuitem"
                             onClick={handleDeleteClick}
                             className={cn(
-                                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
-                                "text-red-600 hover:bg-red-50",
-                                "dark:text-red-400 dark:hover:bg-red-950/50",
+                                "lt-menu-item lt-menu-item-danger",
+                                !(showEdit && onEdit) && "border-t-0",
                             )}
                         >
                             <Trash2 className="h-4 w-4" aria-hidden="true" />

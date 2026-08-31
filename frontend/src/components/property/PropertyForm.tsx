@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Select } from "@/components/ui/Select"
 import { formatCep } from "@/lib/masks"
-import { cn } from "@/lib/cn"
 import {
     propertyFormSchema,
     type PropertyFormData,
@@ -221,7 +220,7 @@ export const PropertyForm = ({
                 </div>
             </Section>
 
-            <div className="flex justify-end gap-2 border-t border-slate-200 pt-4 dark:border-slate-800">
+            <div className="border-divider flex justify-end gap-2 border-t pt-4">
                 <Button
                     type="button"
                     variant="secondary"
@@ -249,12 +248,8 @@ interface SectionProps {
 const Section = ({ title, description, children }: SectionProps) => (
     <section className="flex flex-col gap-3">
         <header>
-            <h2 className={cn("text-base font-semibold", "text-slate-900 dark:text-slate-100")}>
-                {title}
-            </h2>
-            {description && (
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{description}</p>
-            )}
+            <h2 className="text-text text-base font-semibold">{title}</h2>
+            {description && <p className="text-muted mt-0.5 text-xs">{description}</p>}
         </header>
         {children}
     </section>

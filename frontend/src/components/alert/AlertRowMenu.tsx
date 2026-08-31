@@ -184,10 +184,8 @@ export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
                 aria-expanded={isMenuOpen}
                 data-testid={`alert-menu-trigger-${alert.id}`}
                 className={cn(
-                    "rounded-md p-1.5 text-slate-500 transition-colors",
-                    "hover:bg-slate-100 hover:text-slate-700",
-                    "dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200",
-                    "focus-visible:ring-brand-500 focus-visible:ring-2 focus-visible:outline-none",
+                    "rounded-md p-1.5 transition-colors",
+                    "text-muted hover:bg-divider hover:text-text",
                 )}
             >
                 <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
@@ -216,11 +214,7 @@ export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
                                 role="menuitem"
                                 onClick={handleEditClick}
                                 data-testid={`alert-menu-edit-${alert.id}`}
-                                className={cn(
-                                    "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
-                                    "text-slate-700 hover:bg-slate-50",
-                                    "dark:text-slate-200 dark:hover:bg-slate-700",
-                                )}
+                                className="lt-menu-item border-t-0"
                             >
                                 <Pencil className="h-4 w-4" aria-hidden="true" />
                                 Editar
@@ -234,10 +228,8 @@ export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
                             disabled={patchEnabled.isPending}
                             data-testid={`alert-menu-toggle-enabled-${alert.id}`}
                             className={cn(
-                                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
-                                "text-slate-700 hover:bg-slate-50",
-                                "dark:text-slate-200 dark:hover:bg-slate-700",
-                                "disabled:cursor-not-allowed disabled:opacity-60",
+                                "lt-menu-item disabled:cursor-not-allowed disabled:opacity-60",
+                                !onEdit && "border-t-0",
                             )}
                         >
                             {alert.enabled ? (
@@ -258,11 +250,7 @@ export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
                             role="menuitem"
                             onClick={handleDeleteClick}
                             data-testid={`alert-menu-delete-${alert.id}`}
-                            className={cn(
-                                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm",
-                                "text-red-600 hover:bg-red-50",
-                                "dark:text-red-400 dark:hover:bg-red-950/30",
-                            )}
+                            className="lt-menu-item lt-menu-item-danger"
                         >
                             <Trash2 className="h-4 w-4" aria-hidden="true" />
                             Excluir

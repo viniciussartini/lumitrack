@@ -1,4 +1,3 @@
-import { cn } from "@/lib/cn"
 import {
     formatAvgPowerW,
     formatBucketLabel,
@@ -21,12 +20,12 @@ interface ConsumptionTableProps {
  */
 export const ConsumptionTable = ({ buckets, bucketSize }: ConsumptionTableProps) => (
     <div
-        className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800"
+        className="border-divider overflow-x-auto rounded-lg border"
         data-testid="consumption-table-wrapper"
     >
         <table className="w-full text-sm" data-testid="consumption-table">
-            <thead className="bg-slate-50 dark:bg-slate-900/50">
-                <tr className="text-left text-xs tracking-wide text-slate-500 uppercase dark:text-slate-400">
+            <thead className="bg-surface">
+                <tr className="text-muted text-left text-xs tracking-wide uppercase">
                     <th scope="col" className="px-4 py-3 font-medium">
                         Período
                     </th>
@@ -41,29 +40,24 @@ export const ConsumptionTable = ({ buckets, bucketSize }: ConsumptionTableProps)
                     </th>
                 </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            <tbody className="divide-divider divide-y">
                 {buckets.map((bucket) => (
                     <tr
                         key={bucket.bucketStart}
                         data-testid={`consumption-row-${bucket.bucketStart}`}
-                        className={cn(
-                            "text-slate-900 dark:text-slate-100",
-                            "hover:bg-slate-50 dark:hover:bg-slate-900/50",
-                        )}
+                        className="text-text hover:bg-divider"
                     >
-                        <td className="px-4 py-3 whitespace-nowrap text-slate-700 dark:text-slate-300">
+                        <td className="text-text/80 px-4 py-3 whitespace-nowrap">
                             {formatBucketLabel(bucket.bucketStart, bucketSize)}
                         </td>
                         <td className="px-4 py-3 text-right font-mono tabular-nums">
                             {formatKwh(bucket.kwhConsumed)}
-                            <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">
-                                kWh
-                            </span>
+                            <span className="text-muted ml-1 text-xs">kWh</span>
                         </td>
-                        <td className="px-4 py-3 text-right font-mono text-slate-700 tabular-nums dark:text-slate-300">
+                        <td className="text-text/80 px-4 py-3 text-right font-mono tabular-nums">
                             {formatCostBrl(bucket.costBrl)}
                         </td>
-                        <td className="px-4 py-3 text-right font-mono text-slate-700 tabular-nums dark:text-slate-300">
+                        <td className="text-text/80 px-4 py-3 text-right font-mono tabular-nums">
                             {formatAvgPowerW(bucket.avgPowerW)}
                         </td>
                     </tr>
