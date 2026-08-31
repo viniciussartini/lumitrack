@@ -2,6 +2,7 @@ import { Link } from "react-router"
 import { BarChart3, Flag, Mail, TrendingUp, Zap } from "lucide-react"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { Button } from "@/components/ui/Button"
+import { LiveBadge } from "@/components/ui/LiveBadge"
 import { Tag } from "@/components/ui/Tag"
 import { useLiveTicker } from "@/hooks/useLiveTicker"
 import { GITHUB_REPO_URL, GitHubIcon } from "@/components/ui/GitHubIcon"
@@ -169,13 +170,10 @@ const LandingLivePanel = () => {
                 <span className="font-heading text-text/70 text-xs font-semibold tracking-widest uppercase">
                     Painel · Tempo real
                 </span>
-                <span className="font-heading text-11 inline-flex items-center gap-1.5 font-semibold tracking-[.08em] text-[#3f8f52] uppercase">
-                    <span
-                        className="h-2 w-2 rounded-full bg-[#3f8f52]"
-                        style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
-                    />
-                    Ao vivo
-                </span>
+                <LiveBadge
+                    label="Ao vivo"
+                    className="font-heading text-11 text-status-live gap-1.5 font-semibold tracking-[.08em] uppercase"
+                />
             </div>
             <div className="border-divider grid grid-cols-2 border-b">
                 <div className="border-divider p-18px border-r">

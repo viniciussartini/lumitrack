@@ -66,41 +66,30 @@ export const AreaForm = ({
             <div className="flex flex-col gap-4">
                 <Input label="Nome da área" error={errors.name?.message} {...register("name")} />
 
-                <div className="flex flex-col gap-1">
-                    <label
-                        htmlFor="description"
-                        className={cn("text-sm font-medium", "text-slate-700 dark:text-slate-300")}
-                    >
+                <div className="field">
+                    <label htmlFor="description">
                         Descrição
-                        <span className="ml-1 text-xs font-normal text-slate-500 dark:text-slate-400">
-                            (opcional)
-                        </span>
+                        <span className="text-muted ml-1 text-xs font-normal">(opcional)</span>
                     </label>
                     <textarea
                         id="description"
                         rows={4}
                         className={cn(
-                            "rounded-md border bg-white px-3 py-2 text-sm shadow-sm",
-                            "border-slate-300 text-slate-900",
-                            "placeholder:text-slate-400",
-                            "focus:border-brand-500 focus:ring-brand-500 focus:ring-1 focus:outline-none",
-                            "dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100",
-                            "dark:placeholder:text-slate-500",
-                            errors.description &&
-                                "border-red-500 focus:border-red-500 focus:ring-red-500",
+                            "input lt-input",
+                            errors.description && "border-status-danger",
                         )}
                         placeholder="Ex.: Sala principal, com TV e sistema de som."
                         {...register("description")}
                     />
                     {errors.description?.message && (
-                        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+                        <p role="alert" className="text-status-danger text-xs">
                             {errors.description.message}
                         </p>
                     )}
                 </div>
             </div>
 
-            <div className="flex justify-end gap-2 border-t border-slate-200 pt-4 dark:border-slate-800">
+            <div className="border-divider flex justify-end gap-2 border-t pt-4">
                 <Button
                     type="button"
                     variant="secondary"

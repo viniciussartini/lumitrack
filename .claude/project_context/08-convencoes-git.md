@@ -11,10 +11,10 @@ Formato: `<tipo>/<descricao-em-kebab-case>` — o `<tipo>` espelha os tipos de c
 - `feat/criacao-de-tarefas` · `fix/refresh-token-logout` · `refactor/extrai-calculo-total` · `perf/n1-listagem-pedidos` · `chore/atualiza-eslint` · `docs/adr-token-storage`
 - Se a branch resolve uma issue, inclua o número: `fix/123-refresh-token-logout`.
 
-**Branch de épico** — `main` é protegida contra merge direto; toda entrega passa por PR.
+**Branch de épico** — `main` (produção) é protegida contra merge direto; toda entrega passa por PR para `staging` (integração) primeiro — ver ADR-0012.
 
 - Formato: `epic/<numero-do-epico>-<descricao-em-kebab-case>` — ex.: `epic/42-cadastro-de-tarefas`.
-- **Uma branch por épico:** todas as sub-issues são implementadas e commitadas nela, e o conjunto vira **um único PR** para `main`. Evita PRs intermediários e mantém a fatia vertical íntegra (banco → API → UI entram juntos).
+- **Uma branch por épico:** todas as sub-issues são implementadas e commitadas nela, e o conjunto vira **um único PR** para `staging`. Evita PRs intermediários e mantém a fatia vertical íntegra (banco → API → UI entram juntos). A promoção `staging` → `main` é um PR separado, após validação online.
 - Cada commit na branch do épico fecha sua sub-issue: `feat(tarefas): adiciona endpoint de criação` + rodapé `Closes #44`.
 - A descrição do PR do épico usa `Closes #42` (o épico) — as sub-issues já foram fechadas pelos commits.
 - **Risco a vigiar:** branch de vida longa. Se o épico passar de ~5 sub-issues ou de alguns dias, prefira quebrá-lo em épicos menores (a skill `criar-issues` já aplica essa trava ao propor o agrupamento).
@@ -204,7 +204,7 @@ gh issue edit {N} --milestone "MVP"
 **Convenções do PR (estas sim moram aqui):**
 
 - **Título:** Conventional Commits, derivado do prefixo da branch — `feat/12-cadastro` → `feat: cadastro de tarefas`.
-- **Base:** sempre `main`, salvo PR de sub-branch para branch de épico.
+- **Base:** `staging`, salvo o PR de promoção `staging` → `main` (ADR-0012) e o de sub-branch para branch de épico.
 - **Referência de issue:** `Closes #N` na seção "Issues relacionadas" — branch `epic/{N}-...` referencia o épico; `{tipo}/{N}-...` referencia a issue.
 - **Labels:** mesma taxonomia das issues (`tipo:`, `prioridade:`, `área:`), aplicadas ao PR quando úteis para o board.
 - **Checklist:** itens verificáveis pela skill são marcados; os que dependem de julgamento humano ficam desmarcados para você conferir.

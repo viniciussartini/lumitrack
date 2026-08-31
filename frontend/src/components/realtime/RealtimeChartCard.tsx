@@ -1,4 +1,5 @@
 import { RealtimePowerChart } from "@/components/realtime/RealtimePowerChart"
+import { LiveBadge } from "@/components/ui/LiveBadge"
 import { useMeterReadingHistory } from "@/hooks/queries/useMeterReadingHistory"
 import type { TargetType } from "@/types/meter.types"
 
@@ -50,14 +51,10 @@ export const RealtimeChartCard = ({
                     </span>
                 </div>
                 <div className="flex items-center gap-3.5">
-                    <span className="font-heading text-11 inline-flex items-center gap-1.5 font-semibold tracking-[.07em] text-[#3f8f52] uppercase">
-                        <span
-                            className="h-2 w-2 rounded-full bg-[#3f8f52]"
-                            style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
-                            aria-hidden="true"
-                        />
-                        Ao vivo
-                    </span>
+                    <LiveBadge
+                        label="Ao vivo"
+                        className="font-heading text-11 text-status-live gap-1.5 font-semibold tracking-[.07em] uppercase"
+                    />
                 </div>
             </div>
             <div className="p-4">

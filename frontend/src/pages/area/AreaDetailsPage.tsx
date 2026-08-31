@@ -18,6 +18,7 @@ import { AreaConsumptionSection } from "@/components/consumption/ConsumptionSect
 import { ComparisonBars } from "@/components/consumption/ComparisonBars"
 import { MeterSection } from "@/components/meter/MeterSection"
 import { IconCircle } from "@/components/ui/IconCircle"
+import { LiveKpiCard } from "@/components/dashboard/LiveKpiCard"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
 import { formatPowerKw } from "@/lib/format"
 import { formatKwh } from "@/lib/formatters/consumption"
@@ -112,27 +113,18 @@ export const AreaDetailsPage = () => {
             />
 
             {meter && (
-                <div className="blueprint py-18px w-fit min-w-[220px] px-5">
-                    <i className="corner tl" />
-                    <i className="corner tr" />
-                    <i className="corner bl" />
-                    <i className="corner br" />
-                    <div className="font-heading text-11 flex items-center gap-2 font-semibold tracking-[.07em] uppercase">
-                        <span
-                            className="h-2 w-2 rounded-full bg-[#3f8f52]"
-                            style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
-                            aria-hidden="true"
-                        />
-                        Potência agora
-                    </div>
-                    <div className="font-heading text-30 mt-2.5 font-features-['tnum'_1] leading-none font-semibold">
-                        {lastKnownPowerW !== undefined ? (
+                <LiveKpiCard
+                    label="Potência agora"
+                    value={
+                        lastKnownPowerW !== undefined ? (
                             formatPowerKw(lastKnownPowerW)
                         ) : (
                             <span className="text-muted">—</span>
-                        )}
-                    </div>
-                </div>
+                        )
+                    }
+                    isLive
+                    className="w-fit min-w-[220px]"
+                />
             )}
 
             {meter && (

@@ -217,7 +217,7 @@ export const MeterForm = ({
                 <QuantityAddressFields protocol={protocol} register={register} errors={errors} />
             )}
 
-            <div className="flex justify-end gap-2 border-t border-slate-200 pt-4 dark:border-slate-800">
+            <div className="border-divider flex justify-end gap-2 border-t pt-4">
                 <Button
                     type="button"
                     variant="secondary"

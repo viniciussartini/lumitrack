@@ -1,6 +1,7 @@
 import { Menu } from "lucide-react"
 import { useLocation } from "react-router"
 import { NotificationDropdown } from "@/components/layout/NotificationDropdown"
+import { LiveBadge } from "@/components/ui/LiveBadge"
 import { WarningBadge } from "@/components/layout/WarningBadge"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRealtimeConnection } from "@/contexts/RealtimeContext"
@@ -60,14 +61,10 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
 
             <div className="flex items-center gap-3">
                 {isConnected && (
-                    <span className="font-heading text-status-success text-11 inline-flex items-center gap-[7px] font-semibold tracking-[.07em] uppercase">
-                        <span
-                            aria-hidden="true"
-                            className="bg-status-success inline-block h-2 w-2 rounded-full"
-                            style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
-                        />
-                        Dados ao vivo
-                    </span>
+                    <LiveBadge
+                        label="Dados ao vivo"
+                        className="font-heading text-11 text-status-live gap-[7px] font-semibold tracking-[.07em] uppercase"
+                    />
                 )}
                 <WarningBadge />
                 <NotificationDropdown />

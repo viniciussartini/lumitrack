@@ -2,6 +2,7 @@ import { useState } from "react"
 import { AlertCircle, Pencil, Plus, Radio, Trash2, WifiOff } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
+import { LiveBadge } from "@/components/ui/LiveBadge"
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog"
 import { MeterFormDialog } from "@/components/meter/MeterFormDialog"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
@@ -167,13 +168,10 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
                                 Sem leitura recente
                             </span>
                         ) : (
-                            <span className="font-heading text-11 inline-flex items-center gap-1.5 font-semibold tracking-[.07em] text-[#3f8f52] uppercase">
-                                <span
-                                    className="h-2 w-2 rounded-full bg-[#3f8f52]"
-                                    style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
-                                />
-                                Conectado
-                            </span>
+                            <LiveBadge
+                                label="Conectado"
+                                className="font-heading text-11 text-status-live gap-1.5 font-semibold tracking-[.07em] uppercase"
+                            />
                         )}
                     </div>
 

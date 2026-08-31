@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { loginSchema, type LoginFormData } from "@/schemas/auth.schema"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
+import { LiveBadge } from "@/components/ui/LiveBadge"
 import { MfaCodeForm } from "@/components/auth/MfaCodeForm"
 import { DEMO_PROFILE_LABELS } from "@/config/demoUsers"
 import type { DemoProfile } from "@/types/auth.types"
@@ -115,13 +116,10 @@ export const LoginPage = () => {
                     // pode não ser a real).
                     <div className="mt-7 flex flex-wrap gap-3.5">
                         <div className="px-18px min-w-[120px] border border-white/22 py-3.5">
-                            <div className="font-heading text-11 flex items-center gap-[7px] leading-none font-semibold tracking-[.08em] text-[#e6ecf2]/66 uppercase">
-                                <span
-                                    className="h-2 w-2 rounded-full bg-[#3f8f52]"
-                                    style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
-                                />
-                                Ao vivo
-                            </div>
+                            <LiveBadge
+                                label="Ao vivo"
+                                className="font-heading text-11 flex gap-[7px] leading-none font-semibold tracking-[.08em] text-[#e6ecf2]/66 uppercase"
+                            />
                             <div
                                 data-testid="login-live-kwh"
                                 className="font-heading text-30 mt-2 font-features-['tnum'_1] leading-none font-semibold"
