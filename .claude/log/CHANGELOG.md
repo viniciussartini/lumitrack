@@ -2968,3 +2968,17 @@
 - **Arquivos principais:** `frontend/src/lib/sse/appStream.test.ts` (novo).
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** `npm run build`, `eslint` (0 erros, mesmos 9 warnings pré-existentes), `tsc -b`, Vitest completo (766/766, +6 novos, verificado estável em 2 execuções — um flake de `useLiveTicker`/real timer não relacionado apareceu numa rodada isolada e não se repetiu) e `depcruise` (302 módulos, 0 violações) limpos.
+
+## [2026-08-31] refactor: cobertura do CRUD de Medidor (#349)
+
+- **Branch:** chore/fase-18-cobertura-e-debito-tecnico
+- **Tipo:** refactor
+- **O quê:** item 11 da Fase 18 do roadmap. Os hooks de leitura de medidor já tinham teste (`useLiveMeterReading`, `useLatestMeterReading`, `useMeterReadingHistory`), mas `MeterForm`/`MeterFormDialog` (criar/editar/excluir) não tinham teste de fluxo.
+- **`MeterSection.test.tsx` novo, 6 casos** — escolhido `MeterSection` (não `MeterFormDialog` isolado) como ponto de entrada dos testes: é o único lugar que monta os 3 gatilhos reais (criar/editar/excluir) exatamente como a UI de produção os expõe, então o teste também cobre a integração `MeterSection → MeterFormDialog → useCreateMeter/useUpdateMeter/useDeleteMeter`, não só o form isolado.
+  - **Criar:** MQTT (protocolo default, sem `extra`) — `meterService.create` chamado com `targetType`/`propertyId` + campos de conexão certos. MODBUS_TCP — troca de protocolo revela os campos de endereço de grandeza (`extra.*`, os campos do #316/Fase 16); `create` chamado com `extra: {currentAddress, powerAddress, powerFactorAddress}`.
+  - **Editar:** dialog abre pré-preenchido, inclusive os 3 endereços de grandeza existentes (prova que `buildDefaultValues`/`extraStringField` funcionam com dado real, não só o objeto vazio da criação); `update` chamado com o nome novo e o `extra` **preservado** — cobre justo o comentário mais denso do arquivo (`buildConnectionFields`: o backend substitui a coluna `extra` inteira, então editar só o nome não pode apagar os endereços de grandeza em silêncio).
+  - **Excluir:** confirmação pedida antes (`delete` não chamado só ao clicar no botão da lixeira), `meterService.delete` chamado com o id só após confirmar no `ConfirmDialog`.
+- **Sem mudança de comportamento:** nenhum arquivo de produção foi tocado — só o teste novo, contra o comportamento existente.
+- **Arquivos principais:** `frontend/src/components/meter/MeterSection.test.tsx` (novo).
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** `npm run build`, `eslint` (0 erros, mesmos 9 warnings pré-existentes), `tsc -b`, Vitest completo (772/772, +6 novos) e `depcruise` (303 módulos, 0 violações) limpos.
