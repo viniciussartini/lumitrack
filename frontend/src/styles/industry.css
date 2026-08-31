@@ -813,6 +813,11 @@ textarea.input {
     background: var(--color-status-live);
     animation: lt-pulse 1.6s ease-in-out infinite;
 }
+@media (prefers-reduced-motion: reduce) {
+    .lt-live-dot {
+        animation: none;
+    }
+}
 
 /* Modal de formulário (CRUD de Propriedade/Medidor/Área/Dispositivo) —
    LumiTrack Home.dc.html, <style> local do protótipo. Usado por FormDialog.tsx.

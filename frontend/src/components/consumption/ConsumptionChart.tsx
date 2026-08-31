@@ -112,7 +112,7 @@ export const ConsumptionChart = ({
         >
             <ResponsiveContainer width="100%" height={320}>
                 <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-divider" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-divider)" />
                     <XAxis
                         dataKey="label"
                         tick={{ fontSize: 12, fill: "var(--color-text)", fillOpacity: 0.55 }}

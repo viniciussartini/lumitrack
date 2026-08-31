@@ -172,7 +172,7 @@ const LandingLivePanel = () => {
                 </span>
                 <LiveBadge
                     label="Ao vivo"
-                    className="font-heading text-11 gap-1.5 font-semibold tracking-[.08em] text-[#3f8f52] uppercase"
+                    className="font-heading text-11 text-status-live gap-1.5 font-semibold tracking-[.08em] uppercase"
                 />
             </div>
             <div className="border-divider grid grid-cols-2 border-b">

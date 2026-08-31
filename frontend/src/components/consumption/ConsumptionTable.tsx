@@ -44,7 +44,7 @@ export const ConsumptionTable = ({ buckets, bucketSize }: ConsumptionTableProps)
                     <tr
                         key={bucket.bucketStart}
                         data-testid={`consumption-row-${bucket.bucketStart}`}
-                        className="text-text hover:bg-divider"
+                        className="text-text hover:bg-accent/7"
                     >
                         <td className="text-text/80 px-4 py-3 whitespace-nowrap">
                             {formatBucketLabel(bucket.bucketStart, bucketSize)}

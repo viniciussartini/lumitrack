@@ -121,7 +121,7 @@ export const DeviceMenu = ({ device, showEdit = true, onEdit, onAfterDelete }: D
                     aria-haspopup="menu"
                     className={cn(
                         "flex h-8 w-8 items-center justify-center rounded-md",
-                        "text-muted hover:bg-divider hover:text-text",
+                        "text-muted hover:bg-accent/7 hover:text-text",
                     )}
                 >
                     <MoreVertical className="h-4 w-4" aria-hidden="true" />

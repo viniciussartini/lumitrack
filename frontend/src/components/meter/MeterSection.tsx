@@ -170,7 +170,7 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
                         ) : (
                             <LiveBadge
                                 label="Conectado"
-                                className="font-heading text-11 gap-1.5 font-semibold tracking-[.07em] text-[#3f8f52] uppercase"
+                                className="font-heading text-11 text-status-live gap-1.5 font-semibold tracking-[.07em] uppercase"
                             />
                         )}
                     </div>

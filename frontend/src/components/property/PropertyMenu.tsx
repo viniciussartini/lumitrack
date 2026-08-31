@@ -110,7 +110,7 @@ export const PropertyMenu = ({
                     aria-label={`Opções de ${property.name}`}
                     className={cn(
                         "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
-                        "text-muted hover:bg-divider hover:text-text",
+                        "text-muted hover:bg-accent/7 hover:text-text",
                     )}
                 >
                     <MoreVertical className="h-4 w-4" aria-hidden="true" />

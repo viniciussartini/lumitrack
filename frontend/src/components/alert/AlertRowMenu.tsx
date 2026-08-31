@@ -185,7 +185,7 @@ export const AlertRowMenu = ({ alert, onEdit }: AlertRowMenuProps) => {
                 data-testid={`alert-menu-trigger-${alert.id}`}
                 className={cn(
                     "rounded-md p-1.5 transition-colors",
-                    "text-muted hover:bg-divider hover:text-text",
+                    "text-muted hover:bg-accent/7 hover:text-text",
                 )}
             >
                 <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
