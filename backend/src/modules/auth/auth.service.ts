@@ -1,7 +1,6 @@
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
 import { randomUUID, randomBytes } from "crypto"
-import { z } from "zod"
 import { env } from "@/config/env.js"
 import { hashToken } from "@/shared/crypto/hashToken.js"
 import { parseJwtExpiry } from "@/shared/time/parseJwtExpiry.js"
@@ -23,12 +22,8 @@ import {
     mfaSetupVerifySchema,
     mfaDisableSchema,
 } from "@/modules/auth/auth.schema.js"
-import {
-    UnauthorizedError,
-    BadRequestError,
-    ForbiddenError,
-    ValidationError,
-} from "@/shared/errors/AppError.js"
+import { UnauthorizedError, BadRequestError, ForbiddenError } from "@/shared/errors/AppError.js"
+import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 import type { StringValue } from "ms"
 
 // Tipo do EmailService
@@ -70,14 +65,7 @@ export class AuthService {
     ) {}
 
     async login(input: unknown): Promise<LoginResult> {
-        const parsed = loginSchema.safeParse(input)
-
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        const { email, password, channel } = parsed.data
+        const { email, password, channel } = parseOrThrow(loginSchema, input)
 
         const user = await this.authRepository.findUserByEmailWithPassword(email)
 
@@ -105,14 +93,7 @@ export class AuthService {
             throw new ForbiddenError("Login de demonstração desabilitado neste ambiente")
         }
 
-        const parsed = demoLoginSchema.safeParse(input)
-
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        const { profile, channel } = parsed.data
+        const { profile, channel } = parseOrThrow(demoLoginSchema, input)
         const email = profile === "residential" ? DEMO_RESIDENTIAL_EMAIL : DEMO_COMMERCIAL_EMAIL
 
         const user = await this.authRepository.findUserByEmailWithPassword(email)
@@ -142,14 +123,7 @@ export class AuthService {
     // o mfaToken de curta duração (provando que a senha já foi validada)
     // mais um código válido (TOTP ou backup code).
     async completeMfaLogin(input: unknown): Promise<SessionResult> {
-        const parsed = mfaLoginVerifySchema.safeParse(input)
-
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        const { mfaToken, code } = parsed.data
+        const { mfaToken, code } = parseOrThrow(mfaLoginVerifySchema, input)
 
         let payload: { purpose: string; userId: string; channel: "WEB" | "MOBILE" }
         try {
@@ -189,14 +163,7 @@ export class AuthService {
     }
 
     async verifyMfaSetup(userId: string, input: unknown): Promise<{ backupCodes: string[] }> {
-        const parsed = mfaSetupVerifySchema.safeParse(input)
-
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        const { secret, code } = parsed.data
+        const { secret, code } = parseOrThrow(mfaSetupVerifySchema, input)
 
         const user = await this.authRepository.findUserByIdWithPassword(userId)
 
@@ -241,14 +208,7 @@ export class AuthService {
     // XSS) não deve ser suficiente para desligar o segundo fator de outra
     // conta.
     async disableMfa(userId: string, input: unknown): Promise<void> {
-        const parsed = mfaDisableSchema.safeParse(input)
-
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        const { password, code } = parsed.data
+        const { password, code } = parseOrThrow(mfaDisableSchema, input)
 
         const user = await this.authRepository.findUserByIdWithPassword(userId)
 
@@ -275,14 +235,7 @@ export class AuthService {
     }
 
     async forgotPassword(input: unknown): Promise<void> {
-        const parsed = forgotPasswordSchema.safeParse(input)
-
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        const { email } = parsed.data
+        const { email } = parseOrThrow(forgotPasswordSchema, input)
 
         const user = await this.authRepository.findUserByEmailWithPassword(email)
 
@@ -315,14 +268,7 @@ export class AuthService {
     }
 
     async resetPassword(input: unknown): Promise<void> {
-        const parsed = resetPasswordSchema.safeParse(input)
-
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        const { token, newPassword } = parsed.data
+        const { token, newPassword } = parseOrThrow(resetPasswordSchema, input)
 
         const reset = await this.authRepository.findPasswordReset(hashToken(token))
 

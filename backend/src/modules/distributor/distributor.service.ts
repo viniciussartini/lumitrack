@@ -1,10 +1,10 @@
-import { z } from "zod"
 import { listDistributorQuerySchema } from "@/modules/distributor/distributor.schema.js"
 import type {
     DistributorRepository,
     DistributorResponse,
 } from "@/modules/distributor/distributor.repository.js"
-import { NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { NotFoundError } from "@/shared/errors/AppError.js"
+import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 import type { Paginated } from "@/shared/pagination.js"
 
 // Catálogo global de distribuidoras — somente leitura. Não há
@@ -24,13 +24,8 @@ export class DistributorService {
     }
 
     async findAll(query: unknown): Promise<Paginated<DistributorResponse>> {
-        const parsed = listDistributorQuerySchema.safeParse(query)
+        const data = parseOrThrow(listDistributorQuerySchema, query)
 
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        return this.distributorRepository.findAll(parsed.data)
+        return this.distributorRepository.findAll(data)
     }
 }

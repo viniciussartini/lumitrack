@@ -1,8 +1,8 @@
-import { z } from "zod"
 import { createAreaSchema, updateAreaSchema } from "@/modules/area/area.schema.js"
 import type { AreaRepository, AreaResponse } from "@/modules/area/area.repository.js"
 import type { PropertyRepository } from "@/modules/property/property.repository.js"
-import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { ForbiddenError, NotFoundError } from "@/shared/errors/AppError.js"
+import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 import { paginationQuerySchema, type Paginated } from "@/shared/pagination.js"
 
 export class AreaService {
@@ -29,14 +29,9 @@ export class AreaService {
 
     async create(propertyId: string, userId: string, input: unknown): Promise<AreaResponse> {
         await this.validatePropertyOwnership(propertyId, userId)
-        const parsed = createAreaSchema.safeParse(input)
+        const data = parseOrThrow(createAreaSchema, input)
 
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        return this.areaRepository.create(propertyId, parsed.data)
+        return this.areaRepository.create(propertyId, data)
     }
 
     async findById(id: string, propertyId: string, userId: string): Promise<AreaResponse> {
@@ -61,13 +56,9 @@ export class AreaService {
     ): Promise<Paginated<AreaResponse>> {
         await this.validatePropertyOwnership(propertyId, userId)
 
-        const parsed = paginationQuerySchema.safeParse(query)
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
+        const data = parseOrThrow(paginationQuerySchema, query)
 
-        return this.areaRepository.findAllByPropertyPaginated(propertyId, parsed.data)
+        return this.areaRepository.findAllByPropertyPaginated(propertyId, data)
     }
 
     async update(
@@ -77,14 +68,9 @@ export class AreaService {
         input: unknown,
     ): Promise<AreaResponse> {
         await this.findById(id, propertyId, userId)
-        const parsed = updateAreaSchema.safeParse(input)
+        const data = parseOrThrow(updateAreaSchema, input)
 
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        return this.areaRepository.update(id, parsed.data)
+        return this.areaRepository.update(id, data)
     }
 
     async delete(id: string, propertyId: string, userId: string): Promise<void> {

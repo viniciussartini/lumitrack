@@ -1,4 +1,3 @@
-import { z } from "zod"
 import {
     listMeterReadingsQuerySchema,
     type MeterReadingGranularity,
@@ -12,7 +11,8 @@ import type { PropertyRepository } from "@/modules/property/property.repository.
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
 import { resolveRootProperty } from "@/shared/targetResolution.js"
-import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { ForbiddenError, NotFoundError } from "@/shared/errors/AppError.js"
+import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 
 export type MeterReadingListResponse = {
     items: MeterReadingBucket[]
@@ -32,13 +32,10 @@ export class MeterReadingService {
     ) {}
 
     async list(userId: string, query: unknown): Promise<MeterReadingListResponse> {
-        const parsed = listMeterReadingsQuerySchema.safeParse(query)
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        const { targetType, targetId, granularity, from, to } = parsed.data
+        const { targetType, targetId, granularity, from, to } = parseOrThrow(
+            listMeterReadingsQuerySchema,
+            query,
+        )
 
         const property = await resolveRootProperty(targetType, targetId, {
             propertyRepository: this.propertyRepository,

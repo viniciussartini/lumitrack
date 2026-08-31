@@ -1,10 +1,10 @@
 import { randomUUID } from "crypto"
-import { z } from "zod"
 import { hashToken } from "@/shared/crypto/hashToken.js"
 import { logger } from "@/shared/logger/logger.js"
 import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import { confirmEmailChangeSchema } from "@/modules/auth/auth.schema.js"
-import { BadRequestError, ConflictError, ValidationError } from "@/shared/errors/AppError.js"
+import { BadRequestError, ConflictError } from "@/shared/errors/AppError.js"
+import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 
 export type SendEmailChangeConfirmationFn = (
     newEmail: string,
@@ -57,14 +57,7 @@ export class EmailChangeService {
     }
 
     async confirmChange(input: unknown): Promise<{ userId: string }> {
-        const parsed = confirmEmailChangeSchema.safeParse(input)
-
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        const { token } = parsed.data
+        const { token } = parseOrThrow(confirmEmailChangeSchema, input)
 
         const change = await this.authRepository.findEmailChange(hashToken(token))
 

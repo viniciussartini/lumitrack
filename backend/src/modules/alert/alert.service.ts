@@ -1,4 +1,3 @@
-import { z } from "zod"
 import {
     createAlertSchema,
     updateAlertSchema,
@@ -13,7 +12,8 @@ import {
     type MeterTargetInfo,
     type MeterTargetRepos,
 } from "@/modules/meter/meter-target.js"
-import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { ForbiddenError, NotFoundError } from "@/shared/errors/AppError.js"
+import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 import type { Paginated } from "@/shared/pagination.js"
 import type { TargetType } from "@/generated/prisma/client.js"
 
@@ -68,13 +68,9 @@ export class AlertService {
     }
 
     async create(userId: string, input: unknown): Promise<AlertResponse> {
-        const parsed = createAlertSchema.safeParse(input)
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
+        const data = parseOrThrow(createAlertSchema, input)
 
-        const targetInfo = await resolveMeterTarget(this.meterTargetRepos, parsed.data.meterId)
+        const targetInfo = await resolveMeterTarget(this.meterTargetRepos, data.meterId)
         if (!targetInfo) {
             throw new NotFoundError("Medidor não encontrado")
         }
@@ -82,19 +78,15 @@ export class AlertService {
             throw new ForbiddenError("Acesso negado")
         }
 
-        const alert = await this.alertRepository.create(userId, parsed.data)
+        const alert = await this.alertRepository.create(userId, data)
         await this.alertEvaluator?.invalidateMeter(alert.meterId)
         return alert
     }
 
     async findAll(userId: string, query: unknown): Promise<Paginated<AlertWithStatus>> {
-        const parsed = listAlertQuerySchema.safeParse(query)
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
+        const data = parseOrThrow(listAlertQuerySchema, query)
 
-        const result = await this.alertRepository.findAllByUserPaginated(userId, parsed.data)
+        const result = await this.alertRepository.findAllByUserPaginated(userId, data)
         // Batch: 1 query pra página inteira (via `resolveMeterTargets`), em
         // vez de 1 chamada de `resolveMeterTarget` por alerta — evita até
         // 1-3 round trips extras por item.
@@ -128,13 +120,9 @@ export class AlertService {
     async update(id: string, userId: string, input: unknown): Promise<AlertResponse> {
         await this.getOwnedAlert(id, userId)
 
-        const parsed = updateAlertSchema.safeParse(input)
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
+        const data = parseOrThrow(updateAlertSchema, input)
 
-        const updated = await this.alertRepository.update(id, parsed.data)
+        const updated = await this.alertRepository.update(id, data)
         await this.alertEvaluator?.invalidateMeter(updated.meterId)
         return updated
     }
@@ -142,13 +130,9 @@ export class AlertService {
     async patchEnabled(id: string, userId: string, input: unknown): Promise<AlertResponse> {
         const alert = await this.getOwnedAlert(id, userId)
 
-        const parsed = patchEnabledSchema.safeParse(input)
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
+        const data = parseOrThrow(patchEnabledSchema, input)
 
-        const updated = await this.alertRepository.update(id, parsed.data)
+        const updated = await this.alertRepository.update(id, data)
         await this.alertEvaluator?.invalidateMeter(alert.meterId)
         return updated
     }

@@ -1,4 +1,3 @@
-import { z } from "zod"
 import { TargetType } from "@/generated/prisma/client.js"
 import {
     createMeterSchema,
@@ -17,6 +16,7 @@ import {
     NotFoundError,
     ValidationError,
 } from "@/shared/errors/AppError.js"
+import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 import { paginationQuerySchema, type Paginated } from "@/shared/pagination.js"
 import { checkOutboundHost } from "@/shared/security/outboundHost.js"
 import { env } from "@/config/env.js"
@@ -114,52 +114,34 @@ export class MeterService {
     }
 
     async create(userId: string, input: unknown): Promise<MeterResponse> {
-        const parsed = createMeterSchema.safeParse(input)
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
+        const data = parseOrThrow(createMeterSchema, input)
 
-        await this.assertOutboundHostAllowed(parsed.data)
+        await this.assertOutboundHostAllowed(data)
 
-        const targetId = this.extractTargetId(parsed.data)
-        const ownerId = await this.resolveTargetOwnerId(parsed.data.targetType, targetId)
+        const targetId = this.extractTargetId(data)
+        const ownerId = await this.resolveTargetOwnerId(data.targetType, targetId)
 
         if (ownerId !== userId) throw new ForbiddenError("Acesso negado")
 
-        const existing = await this.meterRepository.findByTarget(parsed.data.targetType, targetId)
+        const existing = await this.meterRepository.findByTarget(data.targetType, targetId)
         if (existing) throw new ConflictError("Este alvo já possui um medidor vinculado")
 
-        return this.meterRepository.create(parsed.data)
+        return this.meterRepository.create(data)
     }
 
     async findAll(userId: string, query: unknown): Promise<Paginated<MeterResponse>> {
-        const parsed = paginationQuerySchema.safeParse(query)
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
+        const data = parseOrThrow(paginationQuerySchema, query)
 
-        return this.meterRepository.findAllByUserPaginated(userId, parsed.data)
+        return this.meterRepository.findAllByUserPaginated(userId, data)
     }
 
     async findByTargetQuery(userId: string, query: unknown): Promise<MeterResponse> {
-        const parsed = byTargetQuerySchema.safeParse(query)
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
+        const data = parseOrThrow(byTargetQuerySchema, query)
 
-        const ownerId = await this.resolveTargetOwnerId(
-            parsed.data.targetType,
-            parsed.data.targetId,
-        )
+        const ownerId = await this.resolveTargetOwnerId(data.targetType, data.targetId)
         if (ownerId !== userId) throw new ForbiddenError("Acesso negado")
 
-        const meter = await this.meterRepository.findByTarget(
-            parsed.data.targetType,
-            parsed.data.targetId,
-        )
+        const meter = await this.meterRepository.findByTarget(data.targetType, data.targetId)
         if (!meter) throw new NotFoundError("Medidor não encontrado para este alvo")
 
         return meter
@@ -176,15 +158,11 @@ export class MeterService {
     async update(id: string, userId: string, input: unknown): Promise<MeterResponse> {
         await this.findById(id, userId)
 
-        const parsed = updateMeterSchema.safeParse(input)
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
+        const data = parseOrThrow(updateMeterSchema, input)
 
-        await this.assertOutboundHostAllowed(parsed.data)
+        await this.assertOutboundHostAllowed(data)
 
-        return this.meterRepository.update(id, parsed.data)
+        return this.meterRepository.update(id, data)
     }
 
     async delete(id: string, userId: string): Promise<void> {

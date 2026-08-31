@@ -1,11 +1,11 @@
-import { z } from "zod"
 import { createPropertySchema, updatePropertySchema } from "@/modules/property/property.schema.js"
 import type {
     PropertyRepository,
     PropertyResponse,
 } from "@/modules/property/property.repository.js"
 import type { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
-import { NotFoundError, ForbiddenError, ValidationError } from "@/shared/errors/AppError.js"
+import { NotFoundError, ForbiddenError } from "@/shared/errors/AppError.js"
+import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 import { paginationQuerySchema, type Paginated } from "@/shared/pagination.js"
 
 export class PropertyService {
@@ -26,14 +26,7 @@ export class PropertyService {
     }
 
     async create(userId: string, input: unknown): Promise<PropertyResponse> {
-        const parsed = createPropertySchema.safeParse(input)
-
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        const data = parsed.data
+        const data = parseOrThrow(createPropertySchema, input)
 
         await this.validateDistributorExists(data.distributorId)
 
@@ -55,27 +48,15 @@ export class PropertyService {
     }
 
     async findAll(userId: string, query: unknown): Promise<Paginated<PropertyResponse>> {
-        const parsed = paginationQuerySchema.safeParse(query)
+        const data = parseOrThrow(paginationQuerySchema, query)
 
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        return this.propertyRepository.findAllByUserPaginated(userId, parsed.data)
+        return this.propertyRepository.findAllByUserPaginated(userId, data)
     }
 
     async update(id: string, requestingUserId: string, input: unknown): Promise<PropertyResponse> {
         await this.findById(id, requestingUserId)
 
-        const parsed = updatePropertySchema.safeParse(input)
-
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        const data = parsed.data
+        const data = parseOrThrow(updatePropertySchema, input)
 
         if (data.distributorId !== undefined) {
             await this.validateDistributorExists(data.distributorId)

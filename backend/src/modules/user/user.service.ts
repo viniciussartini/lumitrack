@@ -1,5 +1,4 @@
 import bcrypt from "bcryptjs"
-import { z } from "zod"
 import { createUserSchema, updateUserSchema } from "@/modules/user/user.schema.js"
 import type { UserRepository } from "@/modules/user/user.repository.js"
 import {
@@ -9,6 +8,7 @@ import {
     UnauthorizedError,
     ValidationError,
 } from "@/shared/errors/AppError.js"
+import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 import { CURRENT_CONSENT_VERSION } from "@/shared/legal/consentVersion.js"
 import { DEMO_ACCOUNT_EMAILS } from "@/shared/config/demoAccounts.js"
 
@@ -67,16 +67,9 @@ export class UserService {
             throw new ForbiddenError("Cadastro de novas contas está desabilitado neste ambiente")
         }
 
-        const parsed = createUserSchema.safeParse(input)
-
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
         // acceptedTerms é apenas um sinal de aceite — não é uma coluna do banco.
         // O que persiste é o registro do consentimento (consentedAt/consentVersion).
-        const { acceptedTerms: _acceptedTerms, ...data } = parsed.data
+        const { acceptedTerms: _acceptedTerms, ...data } = parseOrThrow(createUserSchema, input)
 
         const existingEmail = await this.userRepository.findByEmail(data.email)
 
@@ -135,18 +128,11 @@ export class UserService {
             throw new ForbiddenError("Conta de demonstração é somente leitura")
         }
 
-        const parsed = updateUserSchema.safeParse(input)
-
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
         // `email`/`currentPassword` nunca vão para userRepository.update —
         // o e-mail só é efetivado quando a troca é confirmada, nunca
         // diretamente aqui; os demais campos (nome etc.) persistem
         // normalmente, tratado ou não o e-mail nesta chamada.
-        const { email, currentPassword, ...restData } = parsed.data
+        const { email, currentPassword, ...restData } = parseOrThrow(updateUserSchema, input)
 
         if (email && email !== existing.email) {
             // Reautenticação (A07): sem isso, uma sessão sequestrada podia

@@ -1,11 +1,11 @@
-import { z } from "zod"
 import { updateTariffFlagSchema } from "@/modules/tariff-flag/tariff-flag.schema.js"
 import type {
     TariffFlagRepository,
     TariffFlagConfigResponse,
 } from "@/modules/tariff-flag/tariff-flag.repository.js"
 import type { TariffFlagHistoryRepository } from "@/modules/tariff-flag/tariff-flag-history.repository.js"
-import { NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { NotFoundError } from "@/shared/errors/AppError.js"
+import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 
 export class TariffFlagService {
     constructor(
@@ -27,15 +27,10 @@ export class TariffFlagService {
     // histórico junto do config antes/depois. Nunca nulo aqui: só
     // chega autenticado (requireRole("ADMIN") em tariff-flag.routes.ts).
     async update(input: unknown, actorUserId: string): Promise<TariffFlagConfigResponse> {
-        const parsed = updateTariffFlagSchema.safeParse(input)
-
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
+        const data = parseOrThrow(updateTariffFlagSchema, input)
 
         const current = await this.get()
-        const updated = await this.tariffFlagRepository.update(parsed.data)
+        const updated = await this.tariffFlagRepository.update(data)
 
         await this.tariffFlagHistoryRepository.create({
             previousFlag: current.currentFlag,

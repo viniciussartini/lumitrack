@@ -1,4 +1,3 @@
-import { z } from "zod"
 import { simulationInputSchema } from "@/modules/simulation/simulation.schema.js"
 import type {
     SimulationInput,
@@ -21,6 +20,7 @@ import {
 } from "@/modules/tariff-flag/tariff-flag.repository.js"
 import { TariffService } from "@/shared/tariff/tariff.service.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 
 const PROJECTED_DAYS: Record<"DAILY" | "MONTHLY" | "ANNUAL", number> = {
     DAILY: 1,
@@ -39,13 +39,7 @@ export class SimulationService {
     ) {}
 
     async simulate(propertyId: string, userId: string, input: unknown): Promise<SimulationResult> {
-        const parsed = simulationInputSchema.safeParse(input)
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        const data = parsed.data
+        const data = parseOrThrow(simulationInputSchema, input)
 
         const property = await this.validatePropertyOwnership(propertyId, userId)
         await this.validateTarget(data, propertyId)

@@ -1,4 +1,3 @@
-import { z } from "zod"
 import {
     listConsumptionQuerySchema,
     consumptionSummaryQuerySchema,
@@ -22,7 +21,8 @@ import {
 } from "@/modules/tariff-flag/tariff-flag.repository.js"
 import { TariffService } from "@/shared/tariff/tariff.service.js"
 import { toSkipTake, type Paginated } from "@/shared/pagination.js"
-import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { ForbiddenError, NotFoundError } from "@/shared/errors/AppError.js"
+import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 import { resolveRootProperty } from "@/shared/targetResolution.js"
 import type { TargetType } from "@/generated/prisma/client.js"
 
@@ -63,13 +63,10 @@ export class ConsumptionService {
     ) {}
 
     async list(userId: string, query: unknown): Promise<ConsumptionListResponse> {
-        const parsed = listConsumptionQuerySchema.safeParse(query)
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        const { targetType, targetId, granularity, from, to, order, ...pagination } = parsed.data
+        const { targetType, targetId, granularity, from, to, order, ...pagination } = parseOrThrow(
+            listConsumptionQuerySchema,
+            query,
+        )
 
         const property = await resolveRootProperty(targetType, targetId, {
             propertyRepository: this.propertyRepository,
@@ -167,12 +164,10 @@ export class ConsumptionService {
     // do frontend pedem (o bucket mais recente por alvo), não uma listagem
     // genérica.
     async summary(userId: string, query: unknown): Promise<ConsumptionSummaryResponse> {
-        const parsed = consumptionSummaryQuerySchema.safeParse(query)
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-        const { targetType, ids, granularity, from, to } = parsed.data
+        const { targetType, ids, granularity, from, to } = parseOrThrow(
+            consumptionSummaryQuerySchema,
+            query,
+        )
 
         // Autorização verificada por id da lista, não só do primeiro — id
         // inexistente ou de outro usuário é excluído silenciosamente do
