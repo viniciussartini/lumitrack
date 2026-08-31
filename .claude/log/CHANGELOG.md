@@ -2954,3 +2954,17 @@
 - **Arquivos principais:** `frontend/src/pages/alert/AlertsPage.test.tsx` (novo).
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** `npm run build`, `eslint` (0 erros, mesmos 9 warnings pré-existentes), `tsc -b`, Vitest completo (760/760, +12 novos) e `depcruise` (301 módulos, 0 violações) limpos.
+
+## [2026-08-31] refactor: cobertura do cliente SSE (appStream.ts) (#348)
+
+- **Branch:** chore/fase-18-cobertura-e-debito-tecnico
+- **Tipo:** refactor
+- **O quê:** item 10 da Fase 18 do roadmap. `appStream.ts` (parsing de evento, reconexão) não tinha teste próprio — `RealtimeContext.test.tsx` mocka `createAppStream` inteiro (não exercita o client real, nem indiretamente).
+- **Achado antes de escrever o teste — a issue pede "mock de `EventSource`", mas o client não usa a API nativa:** `appStream.ts` usa `fetchEventSource` (`@microsoft/fetch-event-source`, fetch + `ReadableStream`), não o construtor `EventSource`. O ponto de isolamento real é a lib, não a Web API — mockado `@microsoft/fetch-event-source` em vez de `EventSource`.
+- **Achado sobre qual caminho o ambiente de teste exercita por padrão:** o `.env` do projeto tem `VITE_SSE_URL` absoluto (`http://localhost:3000/...`), então `import.meta.env.VITE_SSE_URL` já é truthy em qualquer teste que importe `appStream.ts` sem mockar o módulo inteiro — `isCrossOrigin(SSE_URL)` é `true` por padrão, e o caminho exercitado é `connectCrossOrigin` (não `connectSameOrigin`). Isso favoreceu o teste: `connectCrossOrigin` tem o único laço de reconexão que é código nosso (busca ticket novo a cada tentativa, espera 2s) — o retry do caminho same-origin é 100% interno à lib, não haveria o que testar de verdade lá além do que os dois caminhos já compartilham (`buildHandlers`/`parseAndDispatch`, exercitados de qualquer forma).
+- **`appStream.test.ts` novo, 6 casos** cobrindo os 3 do critério de aceite mais 3 complementares baratos de escrever no mesmo esqueleto: **evento válido** (`reading` despachado pro `onReading` com o payload já parseado; evento sem handler correspondente, ex. keep-alive, não lança nem chama nada); **evento malformado** (JSON inválido dispara `onError` com o `SyntaxError`, sem lançar nem chamar o handler do evento; resposta inicial com content-type errado — `onopen` rejeita como erro fatal, mesmo mecanismo que faz a lib desistir de retentar); **reconexão** (após erro, aguarda exatamente o delay antes de tentar de novo — verificado 1ms antes e 1ms depois do limiar —, busca um ticket NOVO a cada tentativa, nunca reaproveita a URL consumida; a função de cleanup aborta e para o laço, confirmado avançando bem além do delay sem nenhuma tentativa nova).
+- **Timers falsos + laço assíncrono real:** o teste de reconexão usa `vi.useFakeTimers()` + `vi.advanceTimersByTimeAsync` (não `vi.waitFor`, que usa `setTimeout` real internamente e travaria com o relógio congelado) — precisa flushar timer E microtask a cada passo porque `connectCrossOrigin` é um `while` com `await fetch()` → `await fetchEventSource()` → `await wait()` encadeados.
+- **Sem mudança de comportamento:** nenhum arquivo de produção foi tocado — só o teste novo.
+- **Arquivos principais:** `frontend/src/lib/sse/appStream.test.ts` (novo).
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** `npm run build`, `eslint` (0 erros, mesmos 9 warnings pré-existentes), `tsc -b`, Vitest completo (766/766, +6 novos, verificado estável em 2 execuções — um flake de `useLiveTicker`/real timer não relacionado apareceu numa rodada isolada e não se repetiu) e `depcruise` (302 módulos, 0 violações) limpos.
