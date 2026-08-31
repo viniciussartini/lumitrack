@@ -91,16 +91,17 @@ export const queryKeys = {
     },
     consumption: {
         all: ["consumption"] as const,
-        // `window` distingue consultas de janela (tabela/gráfico de consumo,
-        // que pedem from/to/order) das consultas "últimos N buckets" dos KPIs
-        // — mesmo alvo e mesmo bucket, resultados diferentes.
+        // Consulta de janela (tabela/gráfico de consumo, from/to/order) —
+        // `window` sempre um valor real aqui; a consulta "últimos N buckets"
+        // (sem janela) tem chave própria, `latest` abaixo, desde que colidiu
+        // de verdade com esta (Fase 4).
         list: (
             targetType: string,
             targetId: string,
             granularity: string,
             page: number,
             pageSize: number,
-            window: string = "all",
+            window: string,
         ) =>
             [
                 ...queryKeys.consumption.all,
@@ -111,6 +112,19 @@ export const queryKeys = {
                 page,
                 pageSize,
                 window,
+            ] as const,
+        // "Últimos N buckets" (KPIs do painel, comparação mensal de área) —
+        // não paginado; `count` é quantos buckets mais recentes, não um
+        // `pageSize` de verdade. Chave própria: nunca compartilha cache com
+        // `list`, mesmo que targetType/granularity/pageSize coincidam.
+        latest: (targetType: string, targetId: string, granularity: string, count: number) =>
+            [
+                ...queryKeys.consumption.all,
+                "latest",
+                targetType,
+                targetId,
+                granularity,
+                count,
             ] as const,
         // Endpoint batch — "último bucket de N alvos do mesmo tipo", não
         // paginado. Chave própria pra não colidir com `list`.
