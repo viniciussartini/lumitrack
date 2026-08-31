@@ -63,7 +63,7 @@ export const ResetPasswordPage = () => {
                     extra={<RecoverySteps current="reset" />}
                 />
                 <main className="flex items-center justify-center p-7 lg:p-14">
-                    <Blueprint className="w-full max-w-[400px] px-30 py-10 text-center">
+                    <Blueprint className="px-30px w-full max-w-[400px] py-10 text-center">
                         <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
                             Link inválido
                         </h2>
@@ -71,7 +71,7 @@ export const ResetPasswordPage = () => {
                             Este link de redefinição está incompleto ou já foi usado. Solicite um
                             novo.
                         </p>
-                        <Button asChild className="btn-block mt-6 min-h-46">
+                        <Button asChild className="btn-block min-h-46px mt-6">
                             <Link to="/esqueci-senha">Solicitar novo link</Link>
                         </Button>
                     </Blueprint>
@@ -91,7 +91,7 @@ export const ResetPasswordPage = () => {
             <main className="flex items-center justify-center p-7 lg:p-14">
                 <div className="w-full max-w-[400px]">
                     {done ? (
-                        <Blueprint className="px-30 py-10 text-center">
+                        <Blueprint className="px-30px py-10 text-center">
                             <IconCircle
                                 icon={Check}
                                 tone="success"
@@ -107,7 +107,7 @@ export const ResetPasswordPage = () => {
                             </p>
                             <Button
                                 type="button"
-                                className="btn-block mt-6 min-h-46"
+                                className="btn-block min-h-46px mt-6"
                                 onClick={() => void navigate("/login", { replace: true })}
                             >
                                 Ir para o login
@@ -167,7 +167,7 @@ export const ResetPasswordPage = () => {
                             <Button
                                 type="submit"
                                 isLoading={isSubmitting}
-                                className="btn-block mt-1 min-h-46"
+                                className="btn-block min-h-46px mt-1"
                             >
                                 Redefinir senha
                             </Button>

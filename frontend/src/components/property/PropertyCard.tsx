@@ -82,7 +82,7 @@ export const PropertyCard = ({ property, distributorName, distributors }: Proper
                 </div>
 
                 {/* Footer — tags de faturamento/sistema/distribuidora */}
-                <div className="flex flex-wrap gap-2 px-5 pb-18">
+                <div className="pb-18px flex flex-wrap gap-2 px-5">
                     <Tag variant="accent" className="font-semibold">
                         {property.billingClass}
                     </Tag>

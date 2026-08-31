@@ -66,8 +66,8 @@ const LandingNav = () => (
             backdropFilter: "blur(8px)",
         }}
     >
-        <span className="nav-brand inline-flex items-center gap-9 tracking-[-.01em]">
-            <img src="/lumitrack-logo.svg" alt="" className="block h-[29px] w-26" />
+        <span className="nav-brand gap-9px inline-flex items-center tracking-[-.01em]">
+            <img src="/lumitrack-logo.svg" alt="" className="w-26px block h-[29px]" />
             <span className="whitespace-nowrap">
                 Lumi
                 <span className="bg-linear-to-r from-[#5980A6] via-[#96B18F] to-[#D4E277] bg-clip-text text-transparent">
@@ -100,7 +100,7 @@ const LandingNav = () => (
 )
 
 const LandingHero = () => (
-    <section className="mx-auto grid max-w-1200 grid-cols-1 items-center gap-10 px-5 py-12 sm:px-8 md:py-16 lg:grid-cols-2 lg:gap-18 lg:py-24">
+    <section className="max-w-1200px mx-auto grid grid-cols-1 items-center gap-10 px-5 py-12 sm:px-8 md:py-16 lg:grid-cols-2 lg:gap-18 lg:py-24">
         <div>
             <span className="font-heading text-accent-700 text-13 block font-semibold tracking-[.09em] uppercase">
                 Monitoramento de energia · Brasil
@@ -113,7 +113,7 @@ const LandingHero = () => (
                 <br />
                 ele vire <span className="text-accent">conta</span>.
             </h1>
-            <p className="text-text/80 mt-22 max-w-[44ch] text-base leading-[1.55]">
+            <p className="text-text/80 mt-22px max-w-[44ch] text-base leading-[1.55]">
                 O LumiTrack acompanha o consumo das suas unidades em tempo real, projeta o valor da
                 fatura e simula cenários para todos os grupos tarifários do sistema elétrico
                 brasileiro — do residencial B1 ao industrial de alta tensão.
@@ -126,7 +126,7 @@ const LandingHero = () => (
                     <a href="#recursos">Ver como funciona</a>
                 </Button>
             </div>
-            <div className="text-text/58 text-12-5 mt-26 flex flex-wrap gap-5">
+            <div className="text-text/58 text-12-5 mt-26px flex flex-wrap gap-5">
                 <span className="inline-flex items-center gap-1.5">
                     <span className="bg-accent h-1.5 w-1.5" />
                     Pessoas físicas e jurídicas
@@ -165,7 +165,7 @@ const LandingLivePanel = () => {
 
     return (
         <Blueprint className="p-0" data-testid="landing-live-panel">
-            <div className="border-divider flex items-center justify-between border-b px-18 py-3.5">
+            <div className="border-divider px-18px flex items-center justify-between border-b py-3.5">
                 <span className="font-heading text-text/70 text-xs font-semibold tracking-widest uppercase">
                     Painel · Tempo real
                 </span>
@@ -178,7 +178,7 @@ const LandingLivePanel = () => {
                 </span>
             </div>
             <div className="border-divider grid grid-cols-2 border-b">
-                <div className="border-divider border-r p-18">
+                <div className="border-divider p-18px border-r">
                     <div className="font-heading text-text/55 text-11 mb-2 font-semibold tracking-[.08em] uppercase">
                         Potência agora
                     </div>
@@ -187,7 +187,7 @@ const LandingLivePanel = () => {
                         <span className="text-text/55 ml-1 text-lg">kW</span>
                     </div>
                 </div>
-                <div className="p-18">
+                <div className="p-18px">
                     <div className="font-heading text-text/55 text-11 mb-2 font-semibold tracking-[.08em] uppercase">
                         Custo projetado / h
                     </div>
@@ -197,14 +197,14 @@ const LandingLivePanel = () => {
                     </div>
                 </div>
             </div>
-            <div className="px-18 pt-4 pb-1.5">
+            <div className="px-18px pt-4 pb-1.5">
                 <div className="font-heading text-text/55 text-11 mb-2.5 font-semibold tracking-[.08em] uppercase">
                     Consumo · últimas 24h (kWh)
                 </div>
                 <LiveAreaChart />
             </div>
             {tariffFlag && (
-                <div className="flex items-center justify-between px-18 py-3.5">
+                <div className="px-18px flex items-center justify-between py-3.5">
                     <Tag
                         variant="outline"
                         className={cn(
@@ -276,7 +276,7 @@ const METRICS = [
 ]
 
 const LandingMetrics = () => (
-    <section className="mx-auto max-w-1200 px-5 py-2 sm:px-8">
+    <section className="max-w-1200px mx-auto px-5 py-2 sm:px-8">
         <Blueprint className="grid grid-cols-2 p-0 lg:grid-cols-4">
             {METRICS.map((metric, i) => (
                 <div
@@ -327,18 +327,22 @@ const FEATURES = [
 ]
 
 const LandingFeatures = () => (
-    <section id="recursos" className="mx-auto max-w-1200 px-5 py-10 sm:px-8 md:py-14">
+    <section id="recursos" className="max-w-1200px mx-auto px-5 py-10 sm:px-8 md:py-14">
         <span className="font-heading text-accent-700 text-13 block font-semibold tracking-[.09em] uppercase">
             01 · O que você acompanha
         </span>
         <hr className="border-divider my-3.5 border-t" />
         <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES.map((feature) => (
-                <Blueprint key={feature.title} className="p-22">
+                <Blueprint key={feature.title} className="p-22px">
                     <div
                         className={`mb-4 flex h-10 w-10 items-center justify-center border-[1.5px] ${feature.colorClass}`}
                     >
-                        <feature.icon className="h-18 w-18" strokeWidth={1.5} aria-hidden="true" />
+                        <feature.icon
+                            className="h-18px w-18px"
+                            strokeWidth={1.5}
+                            aria-hidden="true"
+                        />
                     </div>
                     <h3 className="font-heading text-19 uppercase">{feature.title}</h3>
                     <p className="text-text/76 mt-2.5 text-sm leading-normal">
@@ -386,7 +390,7 @@ const FLAGS = [
 ]
 
 const LandingFlags = () => (
-    <section id="bandeiras" className="mx-auto max-w-1200 px-5 py-10 sm:px-8 md:py-14">
+    <section id="bandeiras" className="max-w-1200px mx-auto px-5 py-10 sm:px-8 md:py-14">
         <span className="font-heading text-accent-700 text-13 block font-semibold tracking-[.09em] uppercase">
             02 · Bandeiras tarifárias
         </span>
@@ -399,7 +403,7 @@ const LandingFlags = () => (
             {FLAGS.map((flag) => (
                 <Blueprint key={flag.name} className="p-0">
                     <div className={`h-1.5 ${flag.barClass}`} />
-                    <div className="p-22">
+                    <div className="p-22px">
                         <h4 className={`font-heading text-lg uppercase ${flag.colorClass}`}>
                             {flag.name}
                         </h4>
@@ -421,7 +425,7 @@ const LandingFlags = () => (
 const LandingReports = () => (
     <section
         id="relatorios"
-        className="mx-auto grid max-w-1200 grid-cols-1 items-center gap-9 px-5 py-10 sm:px-8 md:py-14 lg:grid-cols-[7fr_5fr] lg:gap-18"
+        className="max-w-1200px mx-auto grid grid-cols-1 items-center gap-9 px-5 py-10 sm:px-8 md:py-14 lg:grid-cols-[7fr_5fr] lg:gap-18"
     >
         <div>
             <span className="font-heading text-accent-700 text-13 block font-semibold tracking-[.09em] uppercase">
@@ -438,7 +442,7 @@ const LandingReports = () => (
                 convencional, branca e horária — e exporte relatórios prontos para a diretoria ou
                 para o contador.
             </p>
-            <ul className="mt-22 flex list-none flex-col gap-3 p-0">
+            <ul className="mt-22px flex list-none flex-col gap-3 p-0">
                 <li className="text-14-5 flex gap-3 leading-[1.4]">
                     <span className="text-accent font-bold">→</span>Projeção de fatura por unidade e
                     consolidada
@@ -455,7 +459,7 @@ const LandingReports = () => (
         </div>
 
         <Blueprint className="order-first p-0">
-            <div className="border-divider flex items-center justify-between border-b px-5 py-18">
+            <div className="border-divider py-18px flex items-center justify-between border-b px-5">
                 <span className="font-heading text-text/70 text-xs font-semibold tracking-widest uppercase">
                     Relatório · Simulação de custo
                 </span>
@@ -531,14 +535,14 @@ const AUDIENCE = [
 ]
 
 const LandingAudience = () => (
-    <section id="planos" className="mx-auto max-w-1200 px-5 py-10 sm:px-8 md:py-14">
+    <section id="planos" className="max-w-1200px mx-auto px-5 py-10 sm:px-8 md:py-14">
         <span className="font-heading text-accent-700 text-13 block font-semibold tracking-[.09em] uppercase">
             04 · Para quem é
         </span>
         <hr className="border-divider my-3.5 border-t" />
         <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
             {AUDIENCE.map((item) => (
-                <Blueprint key={item.tagLabel} className="p-30">
+                <Blueprint key={item.tagLabel} className="p-30px">
                     <Tag className={`font-semibold ${item.tagClass}`}>{item.tagLabel}</Tag>
                     <h3 className="font-heading mt-4 text-2xl uppercase">{item.title}</h3>
                     <p className="text-text/78 text-14-5 mt-3 leading-[1.55]">{item.description}</p>
@@ -549,12 +553,12 @@ const LandingAudience = () => (
 )
 
 const LandingClose = () => (
-    <section className="mx-auto max-w-1200 px-5 py-12 sm:px-8 md:py-18">
+    <section className="max-w-1200px mx-auto px-5 py-12 sm:px-8 md:py-18">
         <Blueprint className="bg-accent-900 p-8 text-white sm:p-14">
             <h2 className="font-heading max-w-[20ch] text-[clamp(28px,3.6vw,44px)] leading-[1.03] uppercase">
                 Comece a monitorar suas unidades hoje.
             </h2>
-            <p className="text-15-5 mt-18 max-w-[52ch] leading-[1.55] text-white/78">
+            <p className="text-15-5 mt-18px max-w-[52ch] leading-[1.55] text-white/78">
                 Crie sua conta em minutos, cadastre suas unidades e acompanhe o consumo em tempo
                 real, com histórico, comparação e bandeiras tarifárias.
             </p>
@@ -631,7 +635,7 @@ const FOOTER_COLUMNS: FooterColumn[] = [
 
 const LandingFooter = () => (
     <footer className="border-divider border-t">
-        <div className="mx-auto grid max-w-1200 grid-cols-1 gap-8 px-5 py-11 sm:grid-cols-2 sm:px-8 lg:grid-cols-[2fr_1fr_1fr_1fr]">
+        <div className="max-w-1200px mx-auto grid grid-cols-1 gap-8 px-5 py-11 sm:grid-cols-2 sm:px-8 lg:grid-cols-[2fr_1fr_1fr_1fr]">
             <div>
                 <span className="font-heading inline-flex items-center gap-2.5 text-lg font-semibold">
                     <img src="/lumitrack-logo.svg" alt="" className="block h-[27px] w-6" />
@@ -652,7 +656,7 @@ const LandingFooter = () => (
                     href={`mailto:${PRIVACY_CONTACT_EMAIL}`}
                     className="text-text/55 hover:text-accent text-12-5 mt-3.5 inline-flex items-center gap-1.5"
                 >
-                    <Mail className="h-15 w-15" strokeWidth={1.5} aria-hidden="true" />
+                    <Mail className="h-15px w-15px" strokeWidth={1.5} aria-hidden="true" />
                     {PRIVACY_CONTACT_EMAIL}
                 </a>
             </div>
@@ -691,7 +695,7 @@ const LandingFooter = () => (
         <div className="border-divider border-t">
             <div
                 data-testid="landing-footer-credit"
-                className="text-text/55 mx-auto grid max-w-1200 grid-cols-[1fr_auto_1fr] items-center gap-3 px-5 py-4.5 text-xs sm:px-8"
+                className="text-text/55 max-w-1200px mx-auto grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-5 py-4.5 text-xs sm:px-8"
             >
                 <span>© 2026 LumiTrack · Todos os direitos reservados · Feito no Brasil</span>
                 <span className="text-center whitespace-nowrap">

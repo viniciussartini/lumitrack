@@ -85,12 +85,16 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                         >
                             {visible ? (
                                 <EyeOff
-                                    className="h-18 w-18"
+                                    className="h-18px w-18px"
                                     strokeWidth={1.5}
                                     aria-hidden="true"
                                 />
                             ) : (
-                                <Eye className="h-18 w-18" strokeWidth={1.5} aria-hidden="true" />
+                                <Eye
+                                    className="h-18px w-18px"
+                                    strokeWidth={1.5}
+                                    aria-hidden="true"
+                                />
                             )}
                         </button>
                     )}

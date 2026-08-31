@@ -228,7 +228,7 @@ interface KpiCardProps {
 }
 
 const KpiCard = ({ label, value, highlight }: KpiCardProps) => (
-    <div className="blueprint px-5 py-18">
+    <div className="blueprint py-18px px-5">
         <i className="corner tl" />
         <i className="corner tr" />
         <i className="corner bl" />

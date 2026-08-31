@@ -40,7 +40,7 @@ export const LumiTrackWordmark = ({
         <img
             src="/lumitrack-logo.svg"
             alt=""
-            className={cn("block h-[29px] w-26", variant === "dark" && "brightness-125")}
+            className={cn("w-26px block h-[29px]", variant === "dark" && "brightness-125")}
         />
         <span
             className={cn(

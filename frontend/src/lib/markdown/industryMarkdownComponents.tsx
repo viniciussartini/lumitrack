@@ -29,13 +29,13 @@ export const industryMarkdownComponents: Components = {
         </Link>
     ),
     blockquote: ({ children }) => (
-        <div className="blueprint border-status-warning/40 my-8 flex items-start gap-3 px-5 py-18">
+        <div className="blueprint border-status-warning/40 py-18px my-8 flex items-start gap-3 px-5">
             <i className="corner tl" />
             <i className="corner tr" />
             <i className="corner bl" />
             <i className="corner br" />
             <AlertTriangle
-                className="text-status-warning mt-0.5 h-18 w-18 shrink-0"
+                className="text-status-warning h-18px w-18px mt-0.5 shrink-0"
                 strokeWidth={1.5}
                 aria-hidden="true"
             />

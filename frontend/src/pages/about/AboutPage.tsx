@@ -25,7 +25,7 @@ export const AboutPage = () => (
             </ReactMarkdown>
         </article>
 
-        <div className="blueprint flex flex-wrap items-center justify-between gap-4 p-26">
+        <div className="blueprint p-26px flex flex-wrap items-center justify-between gap-4">
             <i className="corner tl" />
             <i className="corner tr" />
             <i className="corner bl" />
@@ -55,7 +55,7 @@ export const AboutPage = () => (
             autenticado, não só no rodapé público; "Sobre o projeto" é o
             destino institucional já estabelecido, sem precisar inventar um
             rodapé novo no AppShell. */}
-        <div className="blueprint flex flex-wrap items-center justify-between gap-4 p-26">
+        <div className="blueprint p-26px flex flex-wrap items-center justify-between gap-4">
             <i className="corner tl" />
             <i className="corner tr" />
             <i className="corner bl" />

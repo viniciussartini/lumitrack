@@ -84,13 +84,13 @@ export const ProfilePage = () => {
 
     return (
         <div className="flex flex-col gap-6">
-            <div className="blueprint p-26">
+            <div className="blueprint p-26px">
                 <i className="corner tl" />
                 <i className="corner tr" />
                 <i className="corner bl" />
                 <i className="corner br" />
 
-                <div className="flex flex-wrap items-center gap-18">
+                <div className="gap-18px flex flex-wrap items-center">
                     <span
                         aria-hidden="true"
                         className="border-accent text-accent font-heading text-28 flex h-18 w-18 shrink-0 items-center justify-center border-[1.5px] font-semibold"
@@ -102,7 +102,7 @@ export const ProfilePage = () => {
                             {name}
                         </h1>
                         <p className="text-muted mt-2 flex items-center gap-2 text-sm">
-                            <Mail className="h-15 w-15" aria-hidden="true" />
+                            <Mail className="h-15px w-15px" aria-hidden="true" />
                             {user.email}
                         </p>
                     </div>
@@ -183,7 +183,7 @@ const AccountSummaryCard = ({ user }: { user: User }) => {
             </div>
 
             <div className="divide-divider grid grid-cols-1 divide-y sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-                <div className="px-5 py-18">
+                <div className="py-18px px-5">
                     <div className="font-heading text-muted text-10 font-semibold tracking-[.07em] uppercase">
                         Membro desde
                     </div>
@@ -191,7 +191,7 @@ const AccountSummaryCard = ({ user }: { user: User }) => {
                         {formatDate(user.createdAt)}
                     </div>
                 </div>
-                <div className="px-5 py-18">
+                <div className="py-18px px-5">
                     <div className="font-heading text-muted text-10 font-semibold tracking-[.07em] uppercase">
                         Propriedades
                     </div>
@@ -201,7 +201,7 @@ const AccountSummaryCard = ({ user }: { user: User }) => {
                             : "—"}
                     </div>
                 </div>
-                <div className="px-5 py-18">
+                <div className="py-18px px-5">
                     <div className="font-heading text-muted text-10 font-semibold tracking-[.07em] uppercase">
                         2FA
                     </div>
@@ -212,9 +212,9 @@ const AccountSummaryCard = ({ user }: { user: User }) => {
                         )}
                     >
                         {user.mfaEnabled ? (
-                            <ShieldCheck className="h-15 w-15" aria-hidden="true" />
+                            <ShieldCheck className="h-15px w-15px" aria-hidden="true" />
                         ) : (
-                            <ShieldOff className="h-15 w-15" aria-hidden="true" />
+                            <ShieldOff className="h-15px w-15px" aria-hidden="true" />
                         )}
                         {user.mfaEnabled ? "Ativado" : "Desativado"}
                     </div>
@@ -381,7 +381,7 @@ const ProfileReadView = ({ user }: { user: User }) => {
     const isIndividual = user.userType === "INDIVIDUAL"
 
     return (
-        <div className="grid grid-cols-1 gap-x-6 gap-y-4 px-5 pt-1.5 pb-18 sm:grid-cols-2">
+        <div className="pb-18px grid grid-cols-1 gap-x-6 gap-y-4 px-5 pt-1.5 sm:grid-cols-2">
             {isIndividual ? (
                 <>
                     <ProfileField label="Nome" value={user.firstName ?? "—"} />

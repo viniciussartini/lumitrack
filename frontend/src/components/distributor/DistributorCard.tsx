@@ -35,7 +35,7 @@ export const DistributorCard = ({ distributor }: DistributorCardProps) => (
                 className="border-accent text-accent flex h-11 w-11 shrink-0 items-center justify-center border"
                 aria-hidden="true"
             >
-                <Zap className="h-22 w-22" strokeWidth={1.5} />
+                <Zap className="h-22px w-22px" strokeWidth={1.5} />
             </div>
             <div className="min-w-0 flex-1">
                 <h3 className="font-heading truncate text-lg font-semibold uppercase">

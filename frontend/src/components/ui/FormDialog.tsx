@@ -48,7 +48,7 @@ export const FormDialog = ({ open, onOpenChange, kicker, title, children }: Form
                 <i className="corner bl" />
                 <i className="corner br" />
 
-                <div className="flex items-start justify-between gap-4 px-6 pt-22">
+                <div className="pt-22px flex items-start justify-between gap-4 px-6">
                     <div>
                         <span className="font-heading text-accent-700 text-11 block font-semibold tracking-[.08em] uppercase">
                             {kicker}
@@ -65,7 +65,7 @@ export const FormDialog = ({ open, onOpenChange, kicker, title, children }: Form
                     </Dialog.Close>
                 </div>
 
-                <div className="px-6 pt-22 pb-6">{children}</div>
+                <div className="pt-22px px-6 pb-6">{children}</div>
             </Dialog.Content>
         </Dialog.Portal>
     </Dialog.Root>

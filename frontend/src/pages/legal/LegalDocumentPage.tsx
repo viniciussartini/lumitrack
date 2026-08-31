@@ -64,7 +64,7 @@ export const LegalDocumentPage = ({ title, markdown }: LegalDocumentPageProps) =
                     <span className="font-heading text-accent-700 text-13 font-semibold tracking-[.09em] uppercase">
                         Central de privacidade · LGPD
                     </span>
-                    <div className="mt-22 flex gap-2.5">
+                    <div className="mt-22px flex gap-2.5">
                         <Link to="/privacidade" className="lt-tab" data-on={isPrivacy}>
                             Política de Privacidade
                         </Link>

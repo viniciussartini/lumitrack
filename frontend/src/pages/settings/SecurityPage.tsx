@@ -82,7 +82,7 @@ export const SecurityPage = () => {
                 Gerencie a autenticação de dois fatores da sua conta.
             </p>
 
-            <div className="blueprint p-26">
+            <div className="blueprint p-26px">
                 <i className="corner tl" />
                 <i className="corner tr" />
                 <i className="corner bl" />
@@ -222,7 +222,7 @@ const BackupCodesReveal = ({ codes, onFinish }: BackupCodesRevealProps) => {
                 role="alert"
                 className="border-status-warning/40 bg-status-warning/10 text-status-warning flex items-start gap-2.5 border px-3.5 py-3 text-sm leading-relaxed"
             >
-                <AlertTriangle className="mt-0.5 h-18 w-18 shrink-0" aria-hidden="true" />
+                <AlertTriangle className="h-18px w-18px mt-0.5 shrink-0" aria-hidden="true" />
                 2FA ativado com sucesso. Guarde estes códigos de backup em um lugar seguro — eles
                 não serão exibidos novamente, e cada um pode ser usado uma única vez para entrar
                 caso você perca acesso ao aplicativo autenticador.

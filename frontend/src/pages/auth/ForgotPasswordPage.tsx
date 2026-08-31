@@ -70,7 +70,7 @@ export const ForgotPasswordPage = () => {
                                 uma nova senha.
                             </p>
 
-                            <div className="mt-26">
+                            <div className="mt-26px">
                                 <Input
                                     label="E-mail cadastrado"
                                     type="email"
@@ -93,7 +93,7 @@ export const ForgotPasswordPage = () => {
                             <Button
                                 type="submit"
                                 isLoading={isSubmitting}
-                                className="btn-block mt-6 min-h-46"
+                                className="btn-block min-h-46px mt-6"
                             >
                                 Enviar link de recuperação
                             </Button>
@@ -104,7 +104,7 @@ export const ForgotPasswordPage = () => {
                             </p>
                         </form>
                     ) : (
-                        <Blueprint className="px-30 py-10 text-center">
+                        <Blueprint className="px-30px py-10 text-center">
                             <IconCircle
                                 icon={Mail}
                                 tone="accent"

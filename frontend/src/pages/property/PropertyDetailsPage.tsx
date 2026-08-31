@@ -107,7 +107,7 @@ export const PropertyDetailsPage = () => {
             />
 
             {meter && (
-                <div className="blueprint w-fit min-w-[220px] px-5 py-18">
+                <div className="blueprint py-18px w-fit min-w-[220px] px-5">
                     <i className="corner tl" />
                     <i className="corner tr" />
                     <i className="corner bl" />
@@ -166,7 +166,7 @@ const PropertyHeaderCard = ({
     const [isEditOpen, setIsEditOpen] = useState(false)
 
     return (
-        <div className="blueprint p-26">
+        <div className="blueprint p-26px">
             <i className="corner tl" />
             <i className="corner tr" />
             <i className="corner bl" />
@@ -174,7 +174,7 @@ const PropertyHeaderCard = ({
 
             {/* Linha superior: ícone + título/endereço + ações */}
             <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="flex min-w-0 items-start gap-15">
+                <div className="gap-15px flex min-w-0 items-start">
                     <IconCircle icon={Home} tone="accent" strokeWidth={1.5} />
                     <div className="min-w-0">
                         <h1 className="font-heading truncate text-[clamp(24px,2.6vw,32px)] leading-none font-semibold uppercase">
@@ -210,7 +210,7 @@ const PropertyHeaderCard = ({
             </div>
 
             {/* Tags — distribuidora vinculada */}
-            <div className="border-divider mt-22 border-t pt-18">
+            <div className="border-divider mt-22px pt-18px border-t">
                 <div className="font-heading text-muted text-11 mb-3 font-semibold tracking-[.08em] uppercase">
                     Distribuidora vinculada
                 </div>
@@ -218,11 +218,11 @@ const PropertyHeaderCard = ({
             </div>
 
             {/* Tags — faturamento da própria propriedade */}
-            <div className="border-divider mt-18 border-t pt-18">
+            <div className="border-divider mt-18px pt-18px border-t">
                 <div className="font-heading text-muted text-11 mb-3 font-semibold tracking-[.08em] uppercase">
                     Faturamento
                 </div>
-                <div className="flex flex-wrap gap-9">
+                <div className="gap-9px flex flex-wrap">
                     <Tag variant="outline">
                         {ELECTRICAL_SYSTEM_LABELS[property.electricalSystem]}
                     </Tag>
@@ -252,7 +252,7 @@ const DistributorTags = ({ distributor, isLoading }: DistributorTagsProps) => {
     if (isLoading) {
         return (
             <div
-                className="flex flex-wrap gap-9"
+                className="gap-9px flex flex-wrap"
                 aria-busy="true"
                 aria-label="Carregando dados da distribuidora"
             >
@@ -268,7 +268,7 @@ const DistributorTags = ({ distributor, isLoading }: DistributorTagsProps) => {
     }
 
     return (
-        <div className="flex flex-wrap gap-9">
+        <div className="gap-9px flex flex-wrap">
             <Tag variant="accent" className="font-semibold">
                 {distributor.name}
             </Tag>

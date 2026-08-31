@@ -69,7 +69,7 @@ export const ConfirmEmailChangePage = () => {
 }
 
 const LoadingCard = () => (
-    <Blueprint className="px-30 py-10 text-center">
+    <Blueprint className="px-30px py-10 text-center">
         <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
             Confirmando…
         </h2>
@@ -78,7 +78,7 @@ const LoadingCard = () => (
 )
 
 const SuccessCard = () => (
-    <Blueprint className="px-30 py-10 text-center">
+    <Blueprint className="px-30px py-10 text-center">
         <IconCircle icon={Check} tone="success" strokeWidth={1.8} className="mx-auto" />
         <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
             E-mail atualizado
@@ -87,20 +87,20 @@ const SuccessCard = () => (
             Seu e-mail foi confirmado com sucesso. Por segurança, todas as sessões ativas foram
             encerradas — entre novamente para continuar.
         </p>
-        <Button asChild className="btn-block mt-6 min-h-46">
+        <Button asChild className="btn-block min-h-46px mt-6">
             <Link to="/login">Ir para o login</Link>
         </Button>
     </Blueprint>
 )
 
 const ErrorCard = ({ message }: { message: string }) => (
-    <Blueprint className="px-30 py-10 text-center">
+    <Blueprint className="px-30px py-10 text-center">
         <IconCircle icon={X} tone="danger" strokeWidth={1.8} className="mx-auto" />
         <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
             Link inválido
         </h2>
         <p className="text-muted text-14-5 mt-3 leading-[1.55]">{message}</p>
-        <Button asChild variant="secondary" className="btn-block mt-6 min-h-46">
+        <Button asChild variant="secondary" className="btn-block min-h-46px mt-6">
             <Link to="/perfil">Voltar para o perfil</Link>
         </Button>
     </Blueprint>

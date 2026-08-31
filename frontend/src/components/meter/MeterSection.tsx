@@ -136,7 +136,7 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
                     </div>
 
                     <div
-                        className="flex flex-wrap items-center justify-between gap-4 px-5 py-18"
+                        className="py-18px flex flex-wrap items-center justify-between gap-4 px-5"
                         data-testid="meter-connection-card"
                     >
                         <div className="flex min-w-0 items-center gap-[13px]">

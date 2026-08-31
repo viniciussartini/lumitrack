@@ -112,7 +112,7 @@ export const DeviceDetailsPage = () => {
             />
 
             {meter && (
-                <div className="blueprint w-fit min-w-[220px] px-5 py-18">
+                <div className="blueprint py-18px w-fit min-w-[220px] px-5">
                     <i className="corner tl" />
                     <i className="corner tr" />
                     <i className="corner bl" />
@@ -205,13 +205,13 @@ const DeviceHeaderCard = ({
     const brandModelLabel = [device.brand, device.model].filter(Boolean).join(" · ")
 
     return (
-        <div className="blueprint p-26">
+        <div className="blueprint p-26px">
             <i className="corner tl" />
             <i className="corner tr" />
             <i className="corner bl" />
             <i className="corner br" />
 
-            <div className="flex min-w-0 items-start gap-15">
+            <div className="gap-15px flex min-w-0 items-start">
                 <IconCircle icon={Cpu} tone="accent" strokeWidth={1.5} />
                 <div className="min-w-0 flex-1">
                     <h1 className="font-heading truncate text-[clamp(24px,2.6vw,32px)] leading-none font-semibold uppercase">
@@ -221,7 +221,7 @@ const DeviceHeaderCard = ({
             </div>
 
             {/* Tags — hierarquia (propriedade avó + área pai) e metadados */}
-            <div className="mt-18 flex flex-wrap gap-9">
+            <div className="mt-18px gap-9px flex flex-wrap">
                 <HierarchyTag
                     isLoading={isPropertyLoading}
                     label={property?.name}
@@ -236,7 +236,7 @@ const DeviceHeaderCard = ({
                 {device.powerWatts !== null && <Tag variant="neutral">{device.powerWatts}W</Tag>}
             </div>
 
-            <div className="mt-22 flex flex-wrap items-center gap-2">
+            <div className="mt-22px flex flex-wrap items-center gap-2">
                 <Button variant="secondary" size="sm" onClick={() => setIsEditOpen(true)}>
                     <Pencil className="h-4 w-4" aria-hidden="true" />
                     Editar dispositivo

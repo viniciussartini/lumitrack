@@ -114,7 +114,7 @@ export const LoginPage = () => {
                     // simplesmente não aparece (sem chutar uma bandeira que
                     // pode não ser a real).
                     <div className="mt-7 flex flex-wrap gap-3.5">
-                        <div className="min-w-[120px] border border-white/22 px-18 py-3.5">
+                        <div className="px-18px min-w-[120px] border border-white/22 py-3.5">
                             <div className="font-heading text-11 flex items-center gap-[7px] leading-none font-semibold tracking-[.08em] text-[#e6ecf2]/66 uppercase">
                                 <span
                                     className="h-2 w-2 rounded-full bg-[#3f8f52]"
@@ -131,7 +131,7 @@ export const LoginPage = () => {
                             </div>
                         </div>
                         {tariffFlag && (
-                            <div className="min-w-[120px] border border-white/22 px-18 py-3.5">
+                            <div className="px-18px min-w-[120px] border border-white/22 py-3.5">
                                 <div className="font-heading text-11 leading-none font-semibold tracking-[.08em] text-[#e6ecf2]/66 uppercase">
                                     Bandeira
                                 </div>
@@ -142,7 +142,7 @@ export const LoginPage = () => {
                                     )}
                                 >
                                     <span
-                                        className="h-9 w-9 rounded-full"
+                                        className="h-9px w-9px rounded-full"
                                         style={{
                                             background:
                                                 TARIFF_FLAG_DARK_DOT_COLOR[tariffFlag.currentFlag],
@@ -237,7 +237,7 @@ export const LoginPage = () => {
                                 <Button
                                     type="submit"
                                     isLoading={isSubmitting}
-                                    className="btn-block mt-1 min-h-46"
+                                    className="btn-block min-h-46px mt-1"
                                 >
                                     Entrar
                                 </Button>

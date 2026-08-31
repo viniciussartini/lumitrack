@@ -122,7 +122,7 @@ export const ConsumptionSection = ({
                     />
                 </div>
 
-                <div className="px-5 py-18">
+                <div className="py-18px px-5">
                     {!meterQuery.isLoading && !hasMeter && (
                         <EmptyState
                             icon={LineChart}

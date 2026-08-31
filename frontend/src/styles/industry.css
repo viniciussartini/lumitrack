@@ -694,21 +694,28 @@ textarea.input {
    medida livre, sem grade — conferido nos 8 protótipos .dc.html
    (gap:12px, padding:16px, padding:18px... nenhum múltiplo de 3.4px).
    Não é débito, é como o design é. Os 8 valores abaixo são só os que se
-   repetem 8+ vezes no código (119 das 149 ocorrências arbitrárias restantes
-   após a Fase 18/#336-#340) — o resto (~29 valores, 1-4 usos cada) fica
-   como valor arbitrário legítimo, sem token, mesmo critério de
-   proporcionalidade já aplicado a `06-code-quality-standards.md` (YAGNI).
-   Nomeados pelo valor em px, mesmo critério da escala tipográfica acima.
-   ══════════════════════════════════════════════════════════════════════ */
+   repetem 8+ vezes no código — o resto fica como valor arbitrário
+   legítimo, sem token, mesmo critério de proporcionalidade já aplicado a
+   `06-code-quality-standards.md` (YAGNI).
+
+   Nomeados com o sufixo `px` (`--spacing-18px`, não `--spacing-18`) — um
+   nome puramente numérico colide com o namespace que o multiplicador
+   `--spacing` (acima) já resolve dinamicamente para QUALQUER número: a
+   utilitária `w-9`, por exemplo, já existia via `calc(var(--spacing) * 9)`
+   antes deste bloco, e um token nomeado `--spacing-9` passaria a vencer
+   esse cálculo — encolhendo silenciosamente todo `w-9`/`gap-9`/`min-h-9`
+   pré-existente no projeto para 9px em vez dos 30,6px corretos. `px` no
+   nome nunca é um sufixo numérico válido de multiplicador, então não há
+   colisão possível, hoje ou com uma leva futura de tokens. ═══════════ */
 :root {
-    --spacing-9: 9px;
-    --spacing-15: 15px;
-    --spacing-18: 18px;
-    --spacing-22: 22px;
-    --spacing-26: 26px;
-    --spacing-30: 30px;
-    --spacing-46: 46px;
-    --spacing-1200: 1200px;
+    --spacing-9px: 9px;
+    --spacing-15px: 15px;
+    --spacing-18px: 18px;
+    --spacing-22px: 22px;
+    --spacing-26px: 26px;
+    --spacing-30px: 30px;
+    --spacing-46px: 46px;
+    --spacing-1200px: 1200px;
 }
 
 /* Foco mais visível em inputs (outline, além da borda que .input já muda) —

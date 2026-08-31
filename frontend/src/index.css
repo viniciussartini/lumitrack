@@ -88,15 +88,18 @@
 
     /* Layout de página — ver styles/industry.css (adaptação do projeto).
        Namespace --spacing-<nome> gera utilitária pra p/m/w/h/gap/max-w/
-       min-h/min-w simultaneamente (testado antes de aplicar em massa). */
-    --spacing-9: var(--spacing-9);
-    --spacing-15: var(--spacing-15);
-    --spacing-18: var(--spacing-18);
-    --spacing-22: var(--spacing-22);
-    --spacing-26: var(--spacing-26);
-    --spacing-30: var(--spacing-30);
-    --spacing-46: var(--spacing-46);
-    --spacing-1200: var(--spacing-1200);
+       min-h/min-w simultaneamente (testado antes de aplicar em massa).
+       Sufixo `px` no nome é obrigatório — ver comentário em industry.css:
+       um nome puramente numérico (`--spacing-9`) colide com o multiplicador
+       `--spacing` acima, que já resolve QUALQUER número (w-9, gap-9...). */
+    --spacing-9px: var(--spacing-9px);
+    --spacing-15px: var(--spacing-15px);
+    --spacing-18px: var(--spacing-18px);
+    --spacing-22px: var(--spacing-22px);
+    --spacing-26px: var(--spacing-26px);
+    --spacing-30px: var(--spacing-30px);
+    --spacing-46px: var(--spacing-46px);
+    --spacing-1200px: var(--spacing-1200px);
 
     --radius-sm: var(--radius-sm);
     --radius-md: var(--radius-md);

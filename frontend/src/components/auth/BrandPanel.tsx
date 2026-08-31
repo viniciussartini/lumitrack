@@ -71,7 +71,7 @@ export const BrandPanel = ({ eyebrow, headline, description, extra }: BrandPanel
                 {headline}
             </h1>
             {description && (
-                <p className="text-15 mt-18 max-w-[42ch] leading-[1.55] text-[#e6ecf2]/78">
+                <p className="text-15 mt-18px max-w-[42ch] leading-[1.55] text-[#e6ecf2]/78">
                     {description}
                 </p>
             )}
