@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Construction } from "lucide-react"
 import { Select } from "@/components/ui/Select"
+import { Blueprint } from "@/components/ui/Blueprint"
 import { ConsumptionSection } from "@/components/consumption/ConsumptionSection"
 import { useProperties } from "@/hooks/queries/useProperties"
 import { useAreas } from "@/hooks/queries/useAreas"
@@ -61,7 +62,7 @@ export const ReportsPage = () => {
                 Selecione um alvo para ver o consumo agregado por hora, dia, mês ou ano.
             </p>
 
-            <div className="border-divider bg-surface grid grid-cols-1 gap-4 rounded-lg border p-4 md:grid-cols-3">
+            <Blueprint className="grid grid-cols-1 gap-4 p-4 md:grid-cols-3">
                 <Select
                     label="Propriedade"
                     value={propertyId}
@@ -105,7 +106,7 @@ export const ReportsPage = () => {
                         </option>
                     ))}
                 </Select>
-            </div>
+            </Blueprint>
 
             {target === null ? (
                 <p className="text-muted text-sm">Selecione uma propriedade para começar.</p>

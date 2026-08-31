@@ -19,10 +19,9 @@ interface ConsumptionTableProps {
  * cronológica (`order: "asc"`) ou do mais recente para o mais antigo.
  */
 export const ConsumptionTable = ({ buckets, bucketSize }: ConsumptionTableProps) => (
-    <div
-        className="border-divider overflow-x-auto rounded-lg border"
-        data-testid="consumption-table-wrapper"
-    >
+    // Sem borda própria: única consumidora (ConsumptionSection) já envolve a
+    // tabela num `.blueprint` — mesmo raciocínio do ConsumptionChart.
+    <div className="overflow-x-auto" data-testid="consumption-table-wrapper">
         <table className="w-full text-sm" data-testid="consumption-table">
             <thead className="bg-surface">
                 <tr className="text-muted text-left text-xs tracking-wide uppercase">

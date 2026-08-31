@@ -102,13 +102,13 @@ export const ConsumptionChart = ({
         )
     }
 
+    // Sem borda/fundo próprios: os dois consumidores (ConsumptionSection,
+    // ConsumptionHistorySection) já envolvem este componente num `.blueprint`
+    // — uma segunda moldura aqui dentro seria borda dupla, não um cartão novo.
     return (
         <div
             data-testid="consumption-chart"
-            className={cn(
-                "border-divider bg-surface rounded-lg border p-4 transition-opacity",
-                isRefetching && "opacity-60",
-            )}
+            className={cn("transition-opacity", isRefetching && "opacity-60")}
         >
             <ResponsiveContainer width="100%" height={320}>
                 <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
