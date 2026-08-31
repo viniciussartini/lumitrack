@@ -30,7 +30,7 @@ export const AlertStatusBadge = ({ alert, className }: AlertStatusBadgeProps) =>
         data-testid={`alert-status-badge-${alert.id}`}
         data-status={alert.status}
         className={cn(
-            "font-heading inline-flex items-center border px-2 py-0.5 text-[11px] font-semibold uppercase",
+            "font-heading text-11 inline-flex items-center border px-2 py-0.5 font-semibold uppercase",
             STATUS_STYLES[alert.status],
             className,
         )}

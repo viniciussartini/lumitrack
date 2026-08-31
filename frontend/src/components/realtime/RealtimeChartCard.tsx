@@ -44,15 +44,13 @@ export const RealtimeChartCard = ({
             <i className="corner br" />
             <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
                 <div>
-                    <span className="font-heading text-[17px] font-semibold uppercase">
-                        {title}
-                    </span>
+                    <span className="font-heading text-17 font-semibold uppercase">{title}</span>
                     <span className="text-muted mt-0.5 block text-xs">
                         {subtitle} · última hora
                     </span>
                 </div>
                 <div className="flex items-center gap-3.5">
-                    <span className="font-heading inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[.07em] text-[#3f8f52] uppercase">
+                    <span className="font-heading text-11 inline-flex items-center gap-1.5 font-semibold tracking-[.07em] text-[#3f8f52] uppercase">
                         <span
                             className="h-2 w-2 rounded-full bg-[#3f8f52]"
                             style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}

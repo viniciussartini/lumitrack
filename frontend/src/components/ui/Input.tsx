@@ -85,13 +85,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                         >
                             {visible ? (
                                 <EyeOff
-                                    className="h-[18px] w-[18px]"
+                                    className="h-18px w-18px"
                                     strokeWidth={1.5}
                                     aria-hidden="true"
                                 />
                             ) : (
                                 <Eye
-                                    className="h-[18px] w-[18px]"
+                                    className="h-18px w-18px"
                                     strokeWidth={1.5}
                                     aria-hidden="true"
                                 />

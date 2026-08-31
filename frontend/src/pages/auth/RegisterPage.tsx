@@ -121,19 +121,19 @@ export const RegisterPage = () => {
 
             <main className="flex items-center justify-center p-7 py-10 lg:p-14">
                 <div className="w-full max-w-[440px]">
-                    <span className="text-accent-700 font-heading block text-[13px] font-semibold tracking-[.09em] uppercase">
+                    <span className="text-accent-700 font-heading text-13 block font-semibold tracking-[.09em] uppercase">
                         Criar conta
                     </span>
                     <h2 className="font-heading mt-3 text-[clamp(26px,2.8vw,36px)] leading-[1.03] font-semibold uppercase">
                         Nova conta LumiTrack
                     </h2>
-                    <p className="text-muted mt-3 text-[14.5px] leading-normal">
+                    <p className="text-muted text-14-5 mt-3 leading-normal">
                         Escolha o tipo de conta e preencha seus dados.
                     </p>
 
                     {/* Tipo de conta */}
                     <div className="mt-6">
-                        <span className="font-heading text-muted mb-2.5 block text-[11px] leading-none font-semibold tracking-[.08em] uppercase">
+                        <span className="font-heading text-muted text-11 mb-2.5 block leading-none font-semibold tracking-[.08em] uppercase">
                             Tipo de conta
                         </span>
                         <div className="flex gap-[10px]">
@@ -145,11 +145,7 @@ export const RegisterPage = () => {
                                 onClick={() => setValue("userType", "INDIVIDUAL")}
                                 className="lt-typebtn"
                             >
-                                <User
-                                    className="h-[17px] w-[17px]"
-                                    strokeWidth={1.5}
-                                    aria-hidden="true"
-                                />
+                                <User className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
                                 Pessoa Física
                             </button>
                             <button
@@ -161,7 +157,7 @@ export const RegisterPage = () => {
                                 className="lt-typebtn"
                             >
                                 <Building2
-                                    className="h-[17px] w-[17px]"
+                                    className="h-5 w-5"
                                     strokeWidth={1.5}
                                     aria-hidden="true"
                                 />
@@ -296,7 +292,7 @@ export const RegisterPage = () => {
 
                         {/* Consentimento LGPD (Art. 7º/8º) — aceite explícito obrigatório */}
                         <div className="flex flex-col gap-1">
-                            <label className="flex cursor-pointer items-start gap-2.5 text-[13.5px] leading-normal">
+                            <label className="text-13-5 flex cursor-pointer items-start gap-2.5 leading-normal">
                                 <input
                                     type="checkbox"
                                     className="accent-accent mt-0.5 h-4 w-4 shrink-0"
@@ -337,7 +333,7 @@ export const RegisterPage = () => {
                         <Button
                             type="submit"
                             isLoading={isSubmitting}
-                            className={cn("btn-block", "mt-1 min-h-[46px]")}
+                            className={cn("btn-block", "min-h-46px mt-1")}
                         >
                             Criar conta
                         </Button>

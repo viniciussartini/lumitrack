@@ -86,6 +86,21 @@
        numérica (p-12, gap-24...), não só aos 6 passos que o Industry nomeia. */
     --spacing: var(--space-1);
 
+    /* Layout de página — ver styles/industry.css (adaptação do projeto).
+       Namespace --spacing-<nome> gera utilitária pra p/m/w/h/gap/max-w/
+       min-h/min-w simultaneamente (testado antes de aplicar em massa).
+       Sufixo `px` no nome é obrigatório — ver comentário em industry.css:
+       um nome puramente numérico (`--spacing-9`) colide com o multiplicador
+       `--spacing` acima, que já resolve QUALQUER número (w-9, gap-9...). */
+    --spacing-9px: var(--spacing-9px);
+    --spacing-15px: var(--spacing-15px);
+    --spacing-18px: var(--spacing-18px);
+    --spacing-22px: var(--spacing-22px);
+    --spacing-26px: var(--spacing-26px);
+    --spacing-30px: var(--spacing-30px);
+    --spacing-46px: var(--spacing-46px);
+    --spacing-1200px: var(--spacing-1200px);
+
     --radius-sm: var(--radius-sm);
     --radius-md: var(--radius-md);
     --radius-lg: var(--radius-lg);
@@ -100,6 +115,45 @@
     --color-status-danger: var(--color-status-danger);
     --color-status-danger-strong: var(--color-status-danger-strong);
     --color-status-highlight: var(--color-status-highlight);
+    --color-status-live: var(--color-status-live);
+
+    --color-flag-green: var(--color-flag-green);
+    --color-flag-yellow: var(--color-flag-yellow);
+    --color-flag-yellow-dot: var(--color-flag-yellow-dot);
+    --color-flag-red-p1: var(--color-flag-red-p1);
+    --color-flag-red-p1-dot: var(--color-flag-red-p1-dot);
+    --color-flag-red-p2: var(--color-flag-red-p2);
+    --color-flag-red-p2-dot: var(--color-flag-red-p2-dot);
+
+    /* Escala tipográfica — ver styles/industry.css (adaptação do projeto).
+       Aditiva à escala padrão do Tailwind (text-xs/sm/base/lg/xl...), que
+       o projeto já usa em 141 pontos sem correspondente no protótipo. */
+    --text-10: var(--text-10);
+    --text-11: var(--text-11);
+    --text-11-5: var(--text-11-5);
+    --text-12: var(--text-12);
+    --text-12-5: var(--text-12-5);
+    --text-13: var(--text-13);
+    --text-13-5: var(--text-13-5);
+    --text-14: var(--text-14);
+    --text-14-5: var(--text-14-5);
+    --text-15: var(--text-15);
+    --text-15-5: var(--text-15-5);
+    --text-16: var(--text-16);
+    --text-17: var(--text-17);
+    --text-18: var(--text-18);
+    --text-19: var(--text-19);
+    --text-20: var(--text-20);
+    --text-22: var(--text-22);
+    --text-24: var(--text-24);
+    --text-25: var(--text-25);
+    --text-26: var(--text-26);
+    --text-28: var(--text-28);
+    --text-30: var(--text-30);
+    --text-32: var(--text-32);
+    --text-38: var(--text-38);
+    --text-42: var(--text-42);
+    --text-44: var(--text-44);
 }
 
 /* Reset suave + base do app. Sem cor aqui: `body { background: var(--color-bg);

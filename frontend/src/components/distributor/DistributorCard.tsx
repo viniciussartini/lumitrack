@@ -35,7 +35,7 @@ export const DistributorCard = ({ distributor }: DistributorCardProps) => (
                 className="border-accent text-accent flex h-11 w-11 shrink-0 items-center justify-center border"
                 aria-hidden="true"
             >
-                <Zap className="h-[22px] w-[22px]" strokeWidth={1.5} />
+                <Zap className="h-22px w-22px" strokeWidth={1.5} />
             </div>
             <div className="min-w-0 flex-1">
                 <h3 className="font-heading truncate text-lg font-semibold uppercase">
@@ -49,12 +49,12 @@ export const DistributorCard = ({ distributor }: DistributorCardProps) => (
 
         <div className="border-divider grid grid-cols-2 border-t">
             <div className="border-divider border-r px-5 py-3.5">
-                <div className="font-heading text-muted text-[10px] font-semibold tracking-[.07em] uppercase">
+                <div className="font-heading text-muted text-10 font-semibold tracking-[.07em] uppercase">
                     TUSD
                 </div>
                 <div
                     className={cn(
-                        "font-heading mt-1.5 text-[19px] font-semibold",
+                        "font-heading text-19 mt-1.5 font-semibold",
                         "font-features-['tnum'_1]",
                     )}
                 >
@@ -62,12 +62,12 @@ export const DistributorCard = ({ distributor }: DistributorCardProps) => (
                 </div>
             </div>
             <div className="px-5 py-3.5">
-                <div className="font-heading text-muted text-[10px] font-semibold tracking-[.07em] uppercase">
+                <div className="font-heading text-muted text-10 font-semibold tracking-[.07em] uppercase">
                     TE
                 </div>
                 <div
                     className={cn(
-                        "font-heading mt-1.5 text-[19px] font-semibold",
+                        "font-heading text-19 mt-1.5 font-semibold",
                         "font-features-['tnum'_1]",
                     )}
                 >
@@ -80,7 +80,7 @@ export const DistributorCard = ({ distributor }: DistributorCardProps) => (
             className="border-divider flex flex-wrap items-center gap-3.5 border-t px-5 py-3.5"
             style={{ background: "color-mix(in srgb, var(--color-accent) 3%, transparent)" }}
         >
-            <span className="font-heading text-muted text-[10px] font-semibold tracking-[.06em] uppercase">
+            <span className="font-heading text-muted text-10 font-semibold tracking-[.06em] uppercase">
                 Tributos
             </span>
             <span className={cn("text-xs", "font-features-['tnum'_1]")}>
@@ -95,7 +95,7 @@ export const DistributorCard = ({ distributor }: DistributorCardProps) => (
                 <span className="text-muted">COFINS</span>{" "}
                 <b className="font-semibold">{formatPercent(distributor.cofinsRate)}</b>
             </span>
-            <span className={cn("ml-auto text-[12.5px]", "font-features-['tnum'_1]")}>
+            <span className={cn("text-12-5 ml-auto", "font-features-['tnum'_1]")}>
                 <span className="text-muted">Efetiva</span>{" "}
                 <b className="text-accent-700 font-bold">
                     {formatKwhPrice(computeEffectiveTariffPerKwh(distributor))}

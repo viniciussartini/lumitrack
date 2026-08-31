@@ -138,7 +138,7 @@ export const AlertsPage = () => {
             {/* Área (b) — histórico de disparos */}
             <section className="flex flex-col gap-3">
                 <header className="flex flex-wrap items-center justify-between gap-3">
-                    <h2 className="font-heading flex items-center gap-2 text-[17px] font-semibold uppercase">
+                    <h2 className="font-heading text-17 flex items-center gap-2 font-semibold uppercase">
                         <History className="h-5 w-5" aria-hidden="true" />
                         Histórico de disparos
                     </h2>
@@ -228,12 +228,12 @@ interface KpiCardProps {
 }
 
 const KpiCard = ({ label, value, highlight }: KpiCardProps) => (
-    <div className="blueprint px-5 py-[18px]">
+    <div className="blueprint py-18px px-5">
         <i className="corner tl" />
         <i className="corner tr" />
         <i className="corner bl" />
         <i className="corner br" />
-        <div className="font-heading flex items-center gap-2 text-[11px] font-semibold tracking-[.07em] uppercase">
+        <div className="font-heading text-11 flex items-center gap-2 font-semibold tracking-[.07em] uppercase">
             {highlight && (
                 <span
                     className="h-2 w-2 rounded-full"
@@ -248,7 +248,7 @@ const KpiCard = ({ label, value, highlight }: KpiCardProps) => (
         </div>
         <div
             className={cn(
-                "font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold",
+                "font-heading text-30 mt-2.5 font-features-['tnum'_1] leading-none font-semibold",
                 highlight && "text-status-warning",
             )}
         >

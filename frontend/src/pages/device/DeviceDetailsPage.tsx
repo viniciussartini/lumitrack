@@ -12,6 +12,7 @@ import { DeviceMenu } from "@/components/device/DeviceMenu"
 import { DeviceFormDialog } from "@/components/device/DeviceFormDialog"
 import { DeviceConsumptionSection } from "@/components/consumption/ConsumptionSection"
 import { MeterSection } from "@/components/meter/MeterSection"
+import { IconCircle } from "@/components/ui/IconCircle"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
 import { formatPowerKw } from "@/lib/format"
 import type { Device } from "@/types/device.types"
@@ -111,12 +112,12 @@ export const DeviceDetailsPage = () => {
             />
 
             {meter && (
-                <div className="blueprint w-fit min-w-[220px] px-5 py-[18px]">
+                <div className="blueprint py-18px w-fit min-w-[220px] px-5">
                     <i className="corner tl" />
                     <i className="corner tr" />
                     <i className="corner bl" />
                     <i className="corner br" />
-                    <div className="font-heading flex items-center gap-2 text-[11px] font-semibold tracking-[.07em] uppercase">
+                    <div className="font-heading text-11 flex items-center gap-2 font-semibold tracking-[.07em] uppercase">
                         <span
                             className="h-2 w-2 rounded-full bg-[#3f8f52]"
                             style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
@@ -124,7 +125,7 @@ export const DeviceDetailsPage = () => {
                         />
                         Potência agora
                     </div>
-                    <div className="font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold">
+                    <div className="font-heading text-30 mt-2.5 font-features-['tnum'_1] leading-none font-semibold">
                         {lastKnownPowerW !== undefined ? (
                             formatPowerKw(lastKnownPowerW)
                         ) : (
@@ -204,19 +205,14 @@ const DeviceHeaderCard = ({
     const brandModelLabel = [device.brand, device.model].filter(Boolean).join(" · ")
 
     return (
-        <div className="blueprint p-[26px]">
+        <div className="blueprint p-26px">
             <i className="corner tl" />
             <i className="corner tr" />
             <i className="corner bl" />
             <i className="corner br" />
 
-            <div className="flex min-w-0 items-start gap-[15px]">
-                <span
-                    className="border-accent text-accent flex h-[52px] w-[52px] shrink-0 items-center justify-center border-[1.5px]"
-                    aria-hidden="true"
-                >
-                    <Cpu className="h-[26px] w-[26px]" strokeWidth={1.5} />
-                </span>
+            <div className="gap-15px flex min-w-0 items-start">
+                <IconCircle icon={Cpu} tone="accent" strokeWidth={1.5} />
                 <div className="min-w-0 flex-1">
                     <h1 className="font-heading truncate text-[clamp(24px,2.6vw,32px)] leading-none font-semibold uppercase">
                         {device.name}
@@ -225,7 +221,7 @@ const DeviceHeaderCard = ({
             </div>
 
             {/* Tags — hierarquia (propriedade avó + área pai) e metadados */}
-            <div className="mt-[18px] flex flex-wrap gap-[9px]">
+            <div className="mt-18px gap-9px flex flex-wrap">
                 <HierarchyTag
                     isLoading={isPropertyLoading}
                     label={property?.name}
@@ -240,7 +236,7 @@ const DeviceHeaderCard = ({
                 {device.powerWatts !== null && <Tag variant="neutral">{device.powerWatts}W</Tag>}
             </div>
 
-            <div className="mt-[22px] flex flex-wrap items-center gap-2">
+            <div className="mt-22px flex flex-wrap items-center gap-2">
                 <Button variant="secondary" size="sm" onClick={() => setIsEditOpen(true)}>
                     <Pencil className="h-4 w-4" aria-hidden="true" />
                     Editar dispositivo

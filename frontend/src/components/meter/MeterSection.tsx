@@ -111,7 +111,7 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
                     <i className="corner br" />
 
                     <div className="border-divider flex items-center justify-between border-b px-5 py-4">
-                        <span className="font-heading text-[17px] font-semibold uppercase">
+                        <span className="font-heading text-17 font-semibold uppercase">
                             Medidor
                         </span>
                         <div className="flex items-center gap-2">
@@ -119,7 +119,7 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
                                 variant="secondary"
                                 size="sm"
                                 onClick={() => setDialogOpen(true)}
-                                className="min-h-9 text-[13px]"
+                                className="text-13 min-h-9"
                             >
                                 <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                                 Editar medidor
@@ -136,7 +136,7 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
                     </div>
 
                     <div
-                        className="flex flex-wrap items-center justify-between gap-4 px-5 py-[18px]"
+                        className="py-18px flex flex-wrap items-center justify-between gap-4 px-5"
                         data-testid="meter-connection-card"
                     >
                         <div className="flex min-w-0 items-center gap-[13px]">
@@ -147,8 +147,8 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
                                 <Radio className="h-5 w-5" strokeWidth={1.5} />
                             </span>
                             <div className="min-w-0">
-                                <p className="truncate text-[14.5px] font-semibold">{meter.name}</p>
-                                <p className="text-muted mt-[3px] text-[12.5px]">
+                                <p className="text-14-5 truncate font-semibold">{meter.name}</p>
+                                <p className="text-muted text-12-5 mt-[3px]">
                                     {METER_PROTOCOL_LABELS[meter.protocol]}
                                     {meter.host &&
                                         ` · ${meter.host}${meter.port ? `:${meter.port}` : ""}`}
@@ -160,14 +160,14 @@ export const MeterSection = ({ targetType, targetId }: MeterSectionProps) => {
 
                         {isStale ? (
                             <span
-                                className="text-muted font-heading inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[.07em] uppercase"
+                                className="text-muted font-heading text-11 inline-flex items-center gap-1.5 font-semibold tracking-[.07em] uppercase"
                                 data-testid="meter-status-stale"
                             >
                                 <WifiOff className="h-3.5 w-3.5" aria-hidden="true" />
                                 Sem leitura recente
                             </span>
                         ) : (
-                            <span className="font-heading inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[.07em] text-[#3f8f52] uppercase">
+                            <span className="font-heading text-11 inline-flex items-center gap-1.5 font-semibold tracking-[.07em] text-[#3f8f52] uppercase">
                                 <span
                                     className="h-2 w-2 rounded-full bg-[#3f8f52]"
                                     style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
@@ -225,7 +225,7 @@ interface MeterStatProps {
 
 const MeterStat = ({ label, value, className }: MeterStatProps) => (
     <div className={cn("px-5 py-3.5", className)}>
-        <div className="font-heading text-muted text-[10px] font-semibold tracking-[.07em] uppercase">
+        <div className="font-heading text-muted text-10 font-semibold tracking-[.07em] uppercase">
             {label}
         </div>
         <div className="font-heading mt-[7px] font-features-['tnum'_1] text-xl font-semibold">

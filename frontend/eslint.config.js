@@ -502,6 +502,118 @@ export default tseslint.config(
         },
     },
     {
+        // Anti-regressão de tokens (10-design-system.md § "Tokens são
+        // contrato") — a dívida de valor arbitrário dobrou de 143 para 291
+        // para 372 ocorrências em 3 semanas sem nenhuma trava. Barra
+        // string literal (ou trecho estático de template literal) com
+        // sintaxe de valor arbitrário do Tailwind (`text-[13px]`,
+        // `p-[18px]`...) ou hex de 3/6 dígitos fora de
+        // `src/styles/industry.css` (que não é `.ts`/`.tsx`, então já fica
+        // de fora do escopo do arquivo). Não cobre `.css`: os tokens em si
+        // (definição) vivem lá — a regra é sobre *consumo*, não definição.
+        files: ["src/**/*.{ts,tsx}"],
+        ignores: ["**/*.test.{ts,tsx}"],
+        rules: {
+            "no-restricted-syntax": [
+                "error",
+                {
+                    selector:
+                        "Literal[value=/\\[\\d+(\\.\\d+)?(px|rem|em|%)\\]/], TemplateElement[value.raw=/\\[\\d+(\\.\\d+)?(px|rem|em|%)\\]/]",
+                    message:
+                        "Valor arbitrário do Tailwind sem token equivalente. Se o valor já existe na escala (industry.css), use a classe nomeada; se não existe, é uma decisão de token nova — não driblar inline (10-design-system.md).",
+                },
+                {
+                    selector:
+                        "Literal[value=/#([0-9a-fA-F]{3}){1,2}\\b/], TemplateElement[value.raw=/#([0-9a-fA-F]{3}){1,2}\\b/]",
+                    message:
+                        "Cor hexadecimal hardcoded. Use um token de cor existente (industry.css) ou promova a um novo — não driblar inline (10-design-system.md).",
+                },
+            ],
+        },
+    },
+    // Débito catalogado ao ligar a trava (Fase 18, item 7) — 34 arquivos com
+    // valor arbitrário sem token equivalente na escala atual (majoritariamente
+    // espaçamento fora da grade de --spacing, ver CHANGELOG "resto agrupado")
+    // e 15 com hex sem token correspondente. Catalogado por arquivo: o grupo
+    // abaixo tem as duas dívidas ao mesmo tempo, por isso desliga a regra
+    // inteira; os dois grupos seguintes têm só uma das duas e desligam
+    // apenas o seletor correspondente, preservando o outro ativo. Mesmo
+    // padrão já usado para complexidade/JSDoc — sem exceção, nenhum arquivo
+    // fora desta lista pode introduzir a dívida. Revisar ao decidir uma 2ª
+    // leva de tokens de espaçamento/cor.
+    {
+        files: [
+            "src/components/auth/RecoverySteps.tsx",
+            "src/components/consumption/ComparisonBars.tsx",
+            "src/components/layout/Sidebar.tsx",
+            "src/components/layout/UserMenu.tsx",
+            "src/components/meter/MeterSection.tsx",
+            "src/components/ui/LumiTrackWordmark.tsx",
+            "src/pages/area/AreaDetailsPage.tsx",
+            "src/pages/auth/LoginPage.tsx",
+            "src/pages/auth/RegisterPage.tsx",
+            "src/pages/device/DeviceDetailsPage.tsx",
+            "src/pages/landing/LandingPage.tsx",
+            "src/pages/property/PropertyDetailsPage.tsx",
+        ],
+        rules: { "no-restricted-syntax": "off" },
+    },
+    {
+        files: [
+            "src/components/alert/AlertEventTable.tsx",
+            "src/components/alert/AlertTable.tsx",
+            "src/components/area/AreaCard.tsx",
+            "src/components/consumption/ConsumptionSection.tsx",
+            "src/components/dashboard/ConsumptionHistorySection.tsx",
+            "src/components/dashboard/PropertyComparisonSection.tsx",
+            "src/components/dashboard/PropertySelector.tsx",
+            "src/components/device/DeviceCard.tsx",
+            "src/components/layout/Header.tsx",
+            "src/components/property/PropertyCard.tsx",
+            "src/components/ui/FormDialog.tsx",
+            "src/components/ui/IconCircle.tsx",
+            "src/components/ui/Input.tsx",
+            "src/components/ui/PasswordRequirements.tsx",
+            "src/pages/alert/AlertsPage.tsx",
+            "src/pages/auth/ConfirmEmailChangePage.tsx",
+            "src/pages/auth/ForgotPasswordPage.tsx",
+            "src/pages/auth/ResetPasswordPage.tsx",
+            "src/pages/distributor/DistributorsPage.tsx",
+            "src/pages/legal/LegalDocumentPage.tsx",
+            "src/pages/profile/ProfilePage.tsx",
+            "src/pages/property/PropertiesPage.tsx",
+        ],
+        rules: {
+            "no-restricted-syntax": [
+                "error",
+                {
+                    selector:
+                        "Literal[value=/#([0-9a-fA-F]{3}){1,2}\\b/], TemplateElement[value.raw=/#([0-9a-fA-F]{3}){1,2}\\b/]",
+                    message:
+                        "Cor hexadecimal hardcoded. Use um token de cor existente (industry.css) ou promova a um novo — não driblar inline (10-design-system.md).",
+                },
+            ],
+        },
+    },
+    {
+        files: [
+            "src/components/auth/BrandPanel.tsx",
+            "src/components/dashboard/LiveKpiCard.tsx",
+            "src/components/realtime/RealtimeChartCard.tsx",
+        ],
+        rules: {
+            "no-restricted-syntax": [
+                "error",
+                {
+                    selector:
+                        "Literal[value=/\\[\\d+(\\.\\d+)?(px|rem|em|%)\\]/], TemplateElement[value.raw=/\\[\\d+(\\.\\d+)?(px|rem|em|%)\\]/]",
+                    message:
+                        "Valor arbitrário do Tailwind sem token equivalente. Se o valor já existe na escala (industry.css), use a classe nomeada; se não existe, é uma decisão de token nova — não driblar inline (10-design-system.md).",
+                },
+            ],
+        },
+    },
+    {
         // JSDoc real em exports públicos da camada de service
         // (06-code-quality-standards.md) — equivalente frontend de
         // service/repository/controller do backend. Débito medido e

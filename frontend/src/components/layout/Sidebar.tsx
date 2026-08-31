@@ -58,10 +58,10 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => (
         >
             {/* Cabeçalho da sidebar — logo + close (mobile only) */}
             <div
-                className="flex items-center justify-between gap-2.5 border-b px-[18px] pt-[22px] pb-[18px]"
+                className="px-18px pt-22px pb-18px flex items-center justify-between gap-2.5 border-b"
                 style={SIDEBAR_DIVIDER}
             >
-                <LumiTrackWordmark textClassName="text-[19px]" />
+                <LumiTrackWordmark textClassName="text-19" />
 
                 {/* Botão fechar — só em mobile */}
                 <button

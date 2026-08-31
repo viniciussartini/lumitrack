@@ -63,17 +63,17 @@ export const TARIFF_FLAG_BG_CLASS: Record<TariffFlag, string> = {
  * silenciosamente no componente.
  */
 export const TARIFF_FLAG_DARK_TEXT_CLASS: Record<TariffFlag, string> = {
-    GREEN: "text-[#8fd0a0]",
-    YELLOW: "text-[#e0b563]",
-    RED_P1: "text-[#e08a76]",
-    RED_P2: "text-[#e0654a]",
+    GREEN: "text-flag-green",
+    YELLOW: "text-flag-yellow",
+    RED_P1: "text-flag-red-p1",
+    RED_P2: "text-flag-red-p2",
 }
 
 export const TARIFF_FLAG_DARK_DOT_COLOR: Record<TariffFlag, string> = {
-    GREEN: "#3f8f52",
-    YELLOW: "#c98f2e",
-    RED_P1: "#c15a42",
-    RED_P2: "#a83f2c",
+    GREEN: "var(--color-status-live)",
+    YELLOW: "var(--color-flag-yellow-dot)",
+    RED_P1: "var(--color-flag-red-p1-dot)",
+    RED_P2: "var(--color-flag-red-p2-dot)",
 }
 
 /** Valor de acréscimo (R$/100kWh) de cada bandeira, dado um config. */

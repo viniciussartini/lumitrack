@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input"
 import { PasswordRequirements } from "@/components/ui/PasswordRequirements"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { AUTH_LAYOUT_GRID_CLASS, BrandPanel } from "@/components/auth/BrandPanel"
+import { IconCircle } from "@/components/ui/IconCircle"
 import { RecoverySteps } from "@/components/auth/RecoverySteps"
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
@@ -62,15 +63,15 @@ export const ResetPasswordPage = () => {
                     extra={<RecoverySteps current="reset" />}
                 />
                 <main className="flex items-center justify-center p-7 lg:p-14">
-                    <Blueprint className="w-full max-w-[400px] px-[30px] py-[34px] text-center">
-                        <h2 className="font-heading mt-5 text-[26px] leading-[1.05] font-semibold uppercase">
+                    <Blueprint className="px-30px w-full max-w-[400px] py-10 text-center">
+                        <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
                             Link inválido
                         </h2>
-                        <p className="text-muted mt-3 text-[14.5px] leading-[1.55]">
+                        <p className="text-muted text-14-5 mt-3 leading-[1.55]">
                             Este link de redefinição está incompleto ou já foi usado. Solicite um
                             novo.
                         </p>
-                        <Button asChild className="btn-block mt-6 min-h-[46px]">
+                        <Button asChild className="btn-block min-h-46px mt-6">
                             <Link to="/esqueci-senha">Solicitar novo link</Link>
                         </Button>
                     </Blueprint>
@@ -90,24 +91,23 @@ export const ResetPasswordPage = () => {
             <main className="flex items-center justify-center p-7 lg:p-14">
                 <div className="w-full max-w-[400px]">
                     {done ? (
-                        <Blueprint className="px-[30px] py-[34px] text-center">
-                            <div className="mx-auto flex h-[52px] w-[52px] items-center justify-center border-[1.5px] border-[#2f6f3f]">
-                                <Check
-                                    className="h-[26px] w-[26px] text-[#2f6f3f]"
-                                    strokeWidth={1.8}
-                                    aria-hidden="true"
-                                />
-                            </div>
-                            <h2 className="font-heading mt-5 text-[26px] leading-[1.05] font-semibold uppercase">
+                        <Blueprint className="px-30px py-10 text-center">
+                            <IconCircle
+                                icon={Check}
+                                tone="success"
+                                strokeWidth={1.8}
+                                className="mx-auto"
+                            />
+                            <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
                                 Senha redefinida
                             </h2>
-                            <p className="text-muted mt-3 text-[14.5px] leading-[1.55]">
+                            <p className="text-muted text-14-5 mt-3 leading-[1.55]">
                                 Sua senha foi atualizada com sucesso. Use a nova senha para entrar
                                 na sua conta.
                             </p>
                             <Button
                                 type="button"
-                                className="btn-block mt-6 min-h-[46px]"
+                                className="btn-block min-h-46px mt-6"
                                 onClick={() => void navigate("/login", { replace: true })}
                             >
                                 Ir para o login
@@ -120,13 +120,13 @@ export const ResetPasswordPage = () => {
                             noValidate
                         >
                             <div>
-                                <span className="text-accent-700 font-heading block text-[13px] font-semibold tracking-[.09em] uppercase">
+                                <span className="text-accent-700 font-heading text-13 block font-semibold tracking-[.09em] uppercase">
                                     Nova senha
                                 </span>
                                 <h2 className="font-heading mt-3 text-[clamp(26px,2.8vw,36px)] leading-[1.03] font-semibold uppercase">
                                     Defina sua senha
                                 </h2>
-                                <p className="text-muted mt-3 text-[14.5px] leading-normal">
+                                <p className="text-muted text-14-5 mt-3 leading-normal">
                                     Escolha uma nova senha para sua conta. Ela precisa atender aos
                                     requisitos abaixo.
                                 </p>
@@ -167,7 +167,7 @@ export const ResetPasswordPage = () => {
                             <Button
                                 type="submit"
                                 isLoading={isSubmitting}
-                                className="btn-block mt-1 min-h-[46px]"
+                                className="btn-block min-h-46px mt-1"
                             >
                                 Redefinir senha
                             </Button>

@@ -24,7 +24,7 @@ export const TariffFlagListCard = () => {
     return (
         <Blueprint className="p-0" data-testid="tariff-flag-list-card">
             <div className="border-divider border-b px-5 py-4">
-                <span className="font-heading text-[17px] font-semibold uppercase">
+                <span className="font-heading text-17 font-semibold uppercase">
                     Bandeiras tarifárias
                 </span>
             </div>
@@ -97,7 +97,7 @@ const TariffFlagRow = ({ flag, config }: TariffFlagRowProps) => {
                     aria-hidden="true"
                 />
                 <div>
-                    <p className="text-[13.5px] font-semibold">{TARIFF_FLAG_LABELS[flag]}</p>
+                    <p className="text-13-5 font-semibold">{TARIFF_FLAG_LABELS[flag]}</p>
                     <p className="text-muted text-xs">
                         {formatTariffFlagNote(tariffFlagPer100Kwh(config, flag))}
                     </p>
@@ -107,7 +107,7 @@ const TariffFlagRow = ({ flag, config }: TariffFlagRowProps) => {
             {isCurrent && (
                 <span
                     className={cn(
-                        "font-heading text-[10px] font-semibold tracking-[.06em] uppercase",
+                        "font-heading text-10 font-semibold tracking-[.06em] uppercase",
                         TARIFF_FLAG_TEXT_CLASS[flag],
                     )}
                 >

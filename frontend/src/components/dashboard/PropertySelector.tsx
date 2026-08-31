@@ -13,7 +13,7 @@ interface PropertySelectorProps {
  */
 export const PropertySelector = ({ properties, selectedId, onChange }: PropertySelectorProps) => (
     <div className="flex flex-wrap items-center gap-[10px]">
-        <span className="font-heading text-muted mr-1 text-[11px] font-semibold tracking-[.08em] uppercase">
+        <span className="font-heading text-muted text-11 mr-1 font-semibold tracking-[.08em] uppercase">
             Propriedade
         </span>
         <div

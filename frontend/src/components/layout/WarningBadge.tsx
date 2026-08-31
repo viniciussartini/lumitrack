@@ -30,7 +30,7 @@ export const WarningBadge = () => {
             data-count={count}
             className="lt-iconbtn"
         >
-            <TriangleAlert className="h-[18px] w-[18px]" strokeWidth={1.5} aria-hidden="true" />
+            <TriangleAlert className="h-18px w-18px" strokeWidth={1.5} aria-hidden="true" />
             {count > 0 && (
                 <span
                     data-testid="warning-badge-count"
