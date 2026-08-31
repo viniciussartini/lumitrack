@@ -57,19 +57,21 @@ const renderWithUser = (user: User) => {
 }
 
 describe("UserMenu — renderização", () => {
-    it("exibe nome e iniciais para pessoa física", async () => {
+    it("exibe nome, iniciais e tipo de conta para pessoa física", async () => {
         renderWithUser(mockUserPF)
 
         // Aguarda o AuthContext hidratar
         expect(await screen.findByText("João Silva")).toBeInTheDocument()
         expect(screen.getByText("JS")).toBeInTheDocument()
+        expect(screen.getByText("Pessoa Física")).toBeInTheDocument()
     })
 
-    it("exibe tradeName e inicial para pessoa jurídica", async () => {
+    it("exibe tradeName, inicial e tipo de conta para pessoa jurídica", async () => {
         renderWithUser(mockUserPJ)
 
         expect(await screen.findByText("Empresa")).toBeInTheDocument()
         expect(screen.getByText("E")).toBeInTheDocument()
+        expect(screen.getByText("Pessoa Jurídica")).toBeInTheDocument()
     })
 
     it("começa fechado — dropdown não está visível", async () => {

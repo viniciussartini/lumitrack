@@ -94,7 +94,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => (
             {/* Rodapé — identidade do usuário (trigger do UserMenu) + tema */}
             <div className="flex items-center gap-[11px] border-t p-3.5" style={SIDEBAR_DIVIDER}>
                 <div className="min-w-0 flex-1">
-                    <UserMenu variant="sidebar" />
+                    <UserMenu />
                 </div>
                 <ThemeToggle className="shrink-0 border border-white/26 text-[#d7e0ea] hover:bg-white/6" />
             </div>
