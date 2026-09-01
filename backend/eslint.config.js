@@ -116,9 +116,15 @@ export default tseslint.config(
         },
     },
     {
-        // `list()` — endereçado na Fase 18. Teto acima do valor medido
-        // (84 linhas); complexidade já está dentro do limite global, sem
-        // necessidade de override.
+        // `summary()` (82 linhas) — `list()` saiu desta exceção depois de
+        // `computeYearlyPropertyCosts`/`resolveBucketCost` serem extraídos
+        // pra métodos próprios, agora dentro do teto global sem override.
+        // `summary()` não foi tocado por aquela extração — já tem seu
+        // próprio equivalente em `calculateYearlyPropertyCost`, um método à
+        // parte — e seu tamanho vem de orquestrar autorização em lote
+        // (resolver posse de cada id, montar os mapas de medidor/bucket),
+        // não de lógica de custo repetida. Teto acima do valor medido;
+        // revisitar se o arquivo crescer.
         files: ["src/modules/consumption/consumption.service.ts"],
         rules: {
             "max-lines-per-function": [

@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest"
 import { ConsumptionService } from "@/modules/consumption/consumption.service.js"
-import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
+import {
+    ConsumptionRepository,
+    type ConsumptionBucket,
+} from "@/modules/consumption/consumption.repository.js"
+import type { PropertyResponse } from "@/modules/property/property.repository.js"
+import type { DistributorResponse } from "@/modules/distributor/distributor.repository.js"
+import type { Granularity } from "@/modules/consumption/consumption.schema.js"
+import type { TargetType } from "@/generated/prisma/client.js"
 import { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
@@ -96,6 +103,75 @@ async function insertReading(
             secondsCovered: 60,
         },
     })
+}
+
+// `computeYearlyPropertyCosts`/`resolveBucketCost` (extraídos de `list()`)
+// são privados — mesmo padrão de acesso já usado em
+// IoTDataProcessor.test.ts: cast para uma interface mínima em vez de `any`.
+function callComputeYearlyPropertyCosts(
+    service: ConsumptionService,
+    meterId: string,
+    buckets: ConsumptionBucket[],
+    granularity: Granularity,
+    targetType: TargetType,
+    property: PropertyResponse,
+    distributor: DistributorResponse,
+    flagPer100Kwh: number,
+): Promise<Map<number, number>> {
+    return (
+        service as unknown as {
+            computeYearlyPropertyCosts: (
+                meterId: string,
+                buckets: ConsumptionBucket[],
+                granularity: Granularity,
+                targetType: TargetType,
+                property: PropertyResponse,
+                distributor: DistributorResponse,
+                flagPer100Kwh: number,
+            ) => Promise<Map<number, number>>
+        }
+    ).computeYearlyPropertyCosts(
+        meterId,
+        buckets,
+        granularity,
+        targetType,
+        property,
+        distributor,
+        flagPer100Kwh,
+    )
+}
+
+function callResolveBucketCost(
+    service: ConsumptionService,
+    bucket: ConsumptionBucket,
+    granularity: Granularity,
+    targetType: TargetType,
+    property: PropertyResponse,
+    distributor: DistributorResponse,
+    flagPer100Kwh: number,
+    yearlyPropertyCostByBucketMs: Map<number, number>,
+): number {
+    return (
+        service as unknown as {
+            resolveBucketCost: (
+                bucket: ConsumptionBucket,
+                granularity: Granularity,
+                targetType: TargetType,
+                property: PropertyResponse,
+                distributor: DistributorResponse,
+                flagPer100Kwh: number,
+                yearlyPropertyCostByBucketMs: Map<number, number>,
+            ) => number
+        }
+    ).resolveBucketCost(
+        bucket,
+        granularity,
+        targetType,
+        property,
+        distributor,
+        flagPer100Kwh,
+        yearlyPropertyCostByBucketMs,
+    )
 }
 
 beforeEach(async () => {
@@ -536,5 +612,213 @@ describe("ConsumptionService.summary", () => {
                 granularity: "month",
             }),
         ).rejects.toThrow()
+    })
+})
+
+// Os dois métodos extraídos de `list()` testados diretamente — sem passar
+// pela autorização/resolução de alvo/paginação de `list()`, que já tem sua
+// própria cobertura acima.
+describe("ConsumptionService — computeYearlyPropertyCosts (privado, extraído de list())", () => {
+    it("granularidade diferente de 'year' retorna Map vazio sem consultar o repositório", async () => {
+        const { property } = await setupPropertyMeter()
+        const distributor = (await distributorRepository.findById(property.distributorId))!
+        const bucket: ConsumptionBucket = {
+            bucketStart: new Date("2026-01-01T00:00:00Z"),
+            kwhConsumed: 999,
+            avgPowerW: 0,
+        }
+
+        const result = await callComputeYearlyPropertyCosts(
+            consumptionService,
+            "medidor-inexistente", // guard sai antes de tocar o repositório
+            [bucket],
+            "month",
+            "PROPERTY",
+            property,
+            distributor,
+            0,
+        )
+
+        expect(result.size).toBe(0)
+    })
+
+    it("alvo diferente de PROPERTY (AREA/DEVICE) retorna Map vazio mesmo com granularidade year", async () => {
+        const { property } = await setupPropertyMeter()
+        const distributor = (await distributorRepository.findById(property.distributorId))!
+        const bucket: ConsumptionBucket = {
+            bucketStart: new Date("2026-01-01T00:00:00Z"),
+            kwhConsumed: 999,
+            avgPowerW: 0,
+        }
+
+        const result = await callComputeYearlyPropertyCosts(
+            consumptionService,
+            "medidor-inexistente",
+            [bucket],
+            "year",
+            "AREA",
+            property,
+            distributor,
+            0,
+        )
+
+        expect(result.size).toBe(0)
+    })
+
+    it("lista de buckets vazia retorna Map vazio mesmo com granularidade year e alvo PROPERTY", async () => {
+        const { property } = await setupPropertyMeter()
+        const distributor = (await distributorRepository.findById(property.distributorId))!
+
+        const result = await callComputeYearlyPropertyCosts(
+            consumptionService,
+            "medidor-inexistente",
+            [],
+            "year",
+            "PROPERTY",
+            property,
+            distributor,
+            0,
+        )
+
+        expect(result.size).toBe(0)
+    })
+
+    it("soma o custo de cada mês (com piso próprio) sob a chave do bucket anual real", async () => {
+        const { meter, property } = await setupPropertyMeter()
+        const distributor = (await distributorRepository.findById(property.distributorId))!
+
+        // Mesmas leituras do teste indireto em ConsumptionService.list — 40
+        // kWh em janeiro e 30 em fevereiro/2026 (SP), ambos abaixo do piso
+        // de 100 kWh (TRIPHASIC).
+        await insertReading(meter.id, "2026-01-15T15:00:00Z", 40, 1000)
+        await insertReading(meter.id, "2026-02-15T15:00:00Z", 30, 1000)
+
+        // Bucket real (não fabricado) — findMonthlyKwhForYears casa por
+        // igualdade exata de timestamp truncado, então usa o mesmo valor
+        // que findAggregated(granularity: "year") já devolveria.
+        const { items: yearBuckets } = await consumptionRepository.findAggregated({
+            meterId: meter.id,
+            granularity: "year",
+            from: undefined,
+            to: undefined,
+            order: "desc",
+            skip: 0,
+            take: 10,
+        })
+        expect(yearBuckets).toHaveLength(1)
+
+        const result = await callComputeYearlyPropertyCosts(
+            consumptionService,
+            meter.id,
+            yearBuckets,
+            "year",
+            "PROPERTY",
+            property,
+            distributor,
+            0,
+        )
+
+        expect(result.size).toBe(1)
+        // 100×RATE (piso de janeiro) + 100×RATE (piso de fevereiro) — não
+        // 70×RATE (soma real) nem 100×RATE (piso único sobre o total).
+        expect(result.get(yearBuckets[0]!.bucketStart.getTime())).toBeCloseTo(200 * RATE, 6)
+    })
+})
+
+describe("ConsumptionService — resolveBucketCost (privado, extraído de list())", () => {
+    it("year+PROPERTY: lê do Map pré-computado, ignora kwhConsumed do bucket", async () => {
+        const { property } = await setupPropertyMeter()
+        const distributor = (await distributorRepository.findById(property.distributorId))!
+        const bucket: ConsumptionBucket = {
+            bucketStart: new Date("2026-01-01T00:00:00Z"),
+            kwhConsumed: 999999, // deliberadamente absurdo — não deve influenciar o resultado
+            avgPowerW: 0,
+        }
+        const yearlyCosts = new Map([[bucket.bucketStart.getTime(), 42]])
+
+        const cost = callResolveBucketCost(
+            consumptionService,
+            bucket,
+            "year",
+            "PROPERTY",
+            property,
+            distributor,
+            0,
+            yearlyCosts,
+        )
+
+        expect(cost).toBe(42)
+    })
+
+    it("year+PROPERTY sem entrada correspondente no Map retorna 0 (não lança)", async () => {
+        const { property } = await setupPropertyMeter()
+        const distributor = (await distributorRepository.findById(property.distributorId))!
+        const bucket: ConsumptionBucket = {
+            bucketStart: new Date("2026-01-01T00:00:00Z"),
+            kwhConsumed: 40,
+            avgPowerW: 0,
+        }
+
+        const cost = callResolveBucketCost(
+            consumptionService,
+            bucket,
+            "year",
+            "PROPERTY",
+            property,
+            distributor,
+            0,
+            new Map(),
+        )
+
+        expect(cost).toBe(0)
+    })
+
+    it("granularidade month + PROPERTY delega a calculateBucketCost (aplica o piso mensal)", async () => {
+        const { property } = await setupPropertyMeter()
+        const distributor = (await distributorRepository.findById(property.distributorId))!
+        const bucket: ConsumptionBucket = {
+            bucketStart: new Date("2026-01-01T00:00:00Z"),
+            kwhConsumed: 40, // abaixo do piso de 100 kWh (TRIPHASIC)
+            avgPowerW: 0,
+        }
+
+        const cost = callResolveBucketCost(
+            consumptionService,
+            bucket,
+            "month",
+            "PROPERTY",
+            property,
+            distributor,
+            0,
+            new Map(), // Map vazio — este branch nem deveria olhar pra ele
+        )
+
+        expect(cost).toBeCloseTo(100 * RATE, 6)
+    })
+
+    it("granularidade year + alvo AREA/DEVICE delega a calculateBucketCost (sem piso nem Map)", async () => {
+        const { property } = await setupPropertyMeter()
+        const distributor = (await distributorRepository.findById(property.distributorId))!
+        const bucket: ConsumptionBucket = {
+            bucketStart: new Date("2026-01-01T00:00:00Z"),
+            kwhConsumed: 10,
+            avgPowerW: 0,
+        }
+        // Map com uma entrada pro mesmo timestamp — não deve ser usada,
+        // porque o alvo não é PROPERTY.
+        const yearlyCosts = new Map([[bucket.bucketStart.getTime(), 999]])
+
+        const cost = callResolveBucketCost(
+            consumptionService,
+            bucket,
+            "year",
+            "AREA",
+            property,
+            distributor,
+            0,
+            yearlyCosts,
+        )
+
+        expect(cost).toBeCloseTo(10 * RATE, 6)
     })
 })

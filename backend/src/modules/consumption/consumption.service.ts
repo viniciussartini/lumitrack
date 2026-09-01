@@ -3,7 +3,10 @@ import {
     consumptionSummaryQuerySchema,
     type Granularity,
 } from "@/modules/consumption/consumption.schema.js"
-import type { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
+import type {
+    ConsumptionBucket,
+    ConsumptionRepository,
+} from "@/modules/consumption/consumption.repository.js"
 import type { MeterRepository } from "@/modules/meter/meter.repository.js"
 import type {
     PropertyRepository,
@@ -104,55 +107,30 @@ export class ConsumptionService {
             take,
         })
 
-        // Granularidade "year" + alvo PROPERTY: o piso de disponibilidade é
-        // mensal, então o custo anual correto é a soma de 12 custos mensais
-        // (cada um com seu próprio piso/CIP) — nunca o piso aplicado uma
-        // única vez sobre o total do ano. Batching por página inteira (1
-        // query pra todos os buckets de ano da página) — diferente do caso
-        // de `summary()`, que só tem 1 bucket por alvo e resolve isso inline.
-        const yearlyPropertyCostByBucketMs = new Map<number, number>()
-        if (granularity === "year" && targetType === "PROPERTY" && buckets.length > 0) {
-            const monthlyRows = await this.consumptionRepository.findMonthlyKwhForYears(
-                meter.id,
-                buckets.map((b) => b.bucketStart),
-            )
+        const yearlyPropertyCostByBucketMs = await this.computeYearlyPropertyCosts(
+            meter.id,
+            buckets,
+            granularity,
+            targetType,
+            property,
+            distributor,
+            flagPer100Kwh,
+        )
 
-            for (const row of monthlyRows) {
-                const monthCost = this.calculateMonthCost(
-                    row.kwhConsumed,
-                    property,
-                    distributor,
-                    flagPer100Kwh,
-                )
-
-                const key = row.yearBucket.getTime()
-                yearlyPropertyCostByBucketMs.set(
-                    key,
-                    (yearlyPropertyCostByBucketMs.get(key) ?? 0) + monthCost,
-                )
-            }
-        }
-
-        const items: ConsumptionBucketResponse[] = buckets.map((bucket) => {
-            const costBrl =
-                granularity === "year" && targetType === "PROPERTY"
-                    ? (yearlyPropertyCostByBucketMs.get(bucket.bucketStart.getTime()) ?? 0)
-                    : this.calculateBucketCost(
-                          bucket,
-                          granularity,
-                          targetType,
-                          property,
-                          distributor,
-                          flagPer100Kwh,
-                      )
-
-            return {
-                bucketStart: bucket.bucketStart,
-                kwhConsumed: bucket.kwhConsumed,
-                costBrl,
-                avgPowerW: bucket.avgPowerW,
-            }
-        })
+        const items: ConsumptionBucketResponse[] = buckets.map((bucket) => ({
+            bucketStart: bucket.bucketStart,
+            kwhConsumed: bucket.kwhConsumed,
+            costBrl: this.resolveBucketCost(
+                bucket,
+                granularity,
+                targetType,
+                property,
+                distributor,
+                flagPer100Kwh,
+                yearlyPropertyCostByBucketMs,
+            ),
+            avgPowerW: bucket.avgPowerW,
+        }))
 
         return { items, total, page: pagination.page, pageSize: pagination.pageSize, granularity }
     }
@@ -258,6 +236,78 @@ export class ConsumptionService {
         }
 
         return { items }
+    }
+
+    // Granularidade "year" + alvo PROPERTY: o piso de disponibilidade é
+    // mensal, então o custo anual correto é a soma de 12 custos mensais
+    // (cada um com seu próprio piso/CIP) — nunca o piso aplicado uma
+    // única vez sobre o total do ano. Batching por página inteira (1 query
+    // pra todos os buckets de ano da página) — extraído do corpo de `list()`.
+    // `summary()` tem seu equivalente em `calculateYearlyPropertyCost`, que
+    // resolve o mesmo cálculo pra 1 bucket só.
+    private async computeYearlyPropertyCosts(
+        meterId: string,
+        buckets: ConsumptionBucket[],
+        granularity: Granularity,
+        targetType: TargetType,
+        property: PropertyResponse,
+        distributor: DistributorResponse,
+        flagPer100Kwh: number,
+    ): Promise<Map<number, number>> {
+        const yearlyPropertyCostByBucketMs = new Map<number, number>()
+
+        if (granularity !== "year" || targetType !== "PROPERTY" || buckets.length === 0) {
+            return yearlyPropertyCostByBucketMs
+        }
+
+        const monthlyRows = await this.consumptionRepository.findMonthlyKwhForYears(
+            meterId,
+            buckets.map((b) => b.bucketStart),
+        )
+
+        for (const row of monthlyRows) {
+            const monthCost = this.calculateMonthCost(
+                row.kwhConsumed,
+                property,
+                distributor,
+                flagPer100Kwh,
+            )
+
+            const key = row.yearBucket.getTime()
+            yearlyPropertyCostByBucketMs.set(
+                key,
+                (yearlyPropertyCostByBucketMs.get(key) ?? 0) + monthCost,
+            )
+        }
+
+        return yearlyPropertyCostByBucketMs
+    }
+
+    // Custo de um bucket dentro do map() de `list()` — extraído: year+PROPERTY
+    // usa o pré-cálculo em lote de `computeYearlyPropertyCosts`
+    // (o piso mensal já foi somado ali), os demais casos delegam a
+    // `calculateBucketCost`, compartilhado com `summary()`.
+    private resolveBucketCost(
+        bucket: ConsumptionBucket,
+        granularity: Granularity,
+        targetType: TargetType,
+        property: PropertyResponse,
+        distributor: DistributorResponse,
+        flagPer100Kwh: number,
+        yearlyPropertyCostByBucketMs: Map<number, number>,
+    ): number {
+        if (granularity === "year" && targetType === "PROPERTY") {
+            return yearlyPropertyCostByBucketMs.get(bucket.bucketStart.getTime()) ?? 0
+        }
+
+        return this.calculateBucketCost(
+            bucket,
+            granularity,
+            targetType,
+            property,
+            distributor,
+            flagPer100Kwh,
+        )
     }
 
     // Custo de um único mês (a unidade que sustenta o piso/CIP de PROPERTY)
