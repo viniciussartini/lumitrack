@@ -1,6 +1,8 @@
-# Baseline de Desempenho — statement_timeout do pool (issue #289)
+# Baseline de Desempenho — statement_timeout do pool e do expurgo de retenção (issue #289)
 
-> Dimensiona `DB_POOL_STATEMENT_TIMEOUT_MS` (novo) medindo o pior caso legítimo do sistema — o `DELETE` represado do `RetentionPurgeScheduler` sobre `meter_readings` — em vez de escolher um valor arbitrário. Mesmo racional de proporcionalidade dos baselines anteriores da Fase 15 (#284/#285): metodologia primeiro, número depois.
+> Dimensiona dois controles a partir da mesma medição: `DB_POOL_STATEMENT_TIMEOUT_MS` (teto padrão do pool, vale pra toda conexão inclusive rota HTTP) e `RETENTION_PURGE_STATEMENT_TIMEOUT_MS` (teto próprio do expurgo, aplicado via `SET LOCAL` só na transação de cada delete de retenção, `shared/database/withPurgeTimeout.ts`). Medindo o pior caso legítimo do sistema — o `DELETE` represado do `RetentionPurgeScheduler` sobre `meter_readings` — em vez de escolher um valor arbitrário. Mesmo racional de proporcionalidade dos baselines anteriores da Fase 15: metodologia primeiro, número depois.
+>
+> **Revisão pós-medição inicial:** a primeira versão deste baseline aplicava um único timeout de 120s a todo o pool, inclusive rotas HTTP — revisão de código apontou que isso deixa `DB_POOL_MAX` requisições presas segurando a API por até 2 minutos num cenário de query travada em rota, uma janela bem maior que o necessário pra qualquer query HTTP legítima. Corrigido separando os dois tetos: o pool volta a ter um valor curto (rota HTTP nunca deveria demorar minutos), e só a transação do expurgo — cujo pior caso legítimo é sabidamente mais lento — recebe o teto de 120s medido abaixo.
 
 ## Por que `meter_readings` é o pior caso, não `audit_logs`/`alert_trigger_events`/`tariff_flag_history`
 
@@ -28,8 +30,10 @@ Execution Time: 47.959,014 ms (≈ 48,0 s)
 
 ## Decisão de dimensionamento
 
-**`DB_POOL_STATEMENT_TIMEOUT_MS=120000` (2 minutos)** — margem de **~2,5×** sobre o pior caso medido (48s), generosa o suficiente para absorver hardware de produção mais lento que o ambiente local de medição, sem abrir mão do propósito do controle (uma query realmente presa — lock, bug, plano ruim — ainda é cancelada em tempo finito, protegendo o pool de exaustão). Configurado via `env.ts` (`DB_POOL_STATEMENT_TIMEOUT_MS`, `.int().positive()`, mesmo padrão fail-closed de `DB_POOL_MAX`/`DB_POOL_CONNECTION_TIMEOUT_MS`/`DB_POOL_IDLE_TIMEOUT_MS`), nunca hardcoded — ajustável sem deploy de código se uma medição futura em produção pedir outro valor.
+**`RETENTION_PURGE_STATEMENT_TIMEOUT_MS=120000` (2 minutos)** — margem de **~2,5×** sobre o pior caso medido (48s), generosa o suficiente para absorver hardware de produção mais lento que o ambiente local de medição, sem abrir mão do propósito do controle (uma query realmente presa — lock, bug, plano ruim — ainda é cancelada em tempo finito). Aplicado via `SET LOCAL statement_timeout` **só dentro da transação de cada delete de expurgo** (`shared/database/withPurgeTimeout.ts`) — não afeta nenhuma outra conexão do pool, nem vaza para a próxima query da mesma conexão (o `SET LOCAL` reseta sozinho ao fim da transação).
 
-**Enforçado via `statement_timeout` do Postgres** (não `query_timeout` do driver `pg`): o corte acontece no servidor, então sobrevive mesmo que o processo Node trave em outra coisa antes de conseguir cancelar a query — mais forte que um timeout só do lado do cliente.
+**`DB_POOL_STATEMENT_TIMEOUT_MS=15000` (15 segundos)** — teto padrão do `Pool` `pg`, vale por default para toda conexão, inclusive as que servem rota HTTP. Nenhuma query de rota medida nos baselines de desempenho da Fase 15 chegou perto de 1s (a mais pesada, `findAggregated` sem otimização, ficou na casa de centenas de ms); 15s dá folga generosa para qualquer rota legítima sem deixar `DB_POOL_MAX` conexões presas segurando a API por minutos — o cenário de exaustão de pool citado em `11-seguranca-infraestrutura.md` (DoS barato).
 
-Este timeout de 120s se aplica a **toda** conexão do pool, não só ao expurgo — cobre igualmente o cenário citado em `11-seguranca-infraestrutura.md` (exaustão de conexões como DoS barato): qualquer query presa em qualquer rota agora libera a conexão em no máximo 2 minutos, em vez de segurá-la indefinidamente.
+Os dois vêm de `env.ts` (`.int().positive()`, mesmo padrão fail-closed de `DB_POOL_MAX`/`DB_POOL_CONNECTION_TIMEOUT_MS`/`DB_POOL_IDLE_TIMEOUT_MS`), nunca hardcoded — ajustáveis sem deploy de código se uma medição futura em produção pedir outro valor.
+
+**Enforçados via `statement_timeout` do Postgres** (não `query_timeout` do driver `pg`): o corte acontece no servidor, então sobrevive mesmo que o processo Node trave em outra coisa antes de conseguir cancelar a query — mais forte que um timeout só do lado do cliente.

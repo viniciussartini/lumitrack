@@ -3,6 +3,7 @@ import { Prisma, PrismaClient } from "@/generated/prisma/client.js"
 import type { MinuteBucketSnapshot } from "@/modules/iot/iot-worker/MinuteBuffer.js"
 import type { MeterReadingGranularity } from "@/modules/meter/meter-reading.schema.js"
 import { localTsExpr, rangeFilter } from "@/shared/database/timeBucket.js"
+import { withPurgeTimeout } from "@/shared/database/withPurgeTimeout.js"
 
 const TRUNC_UNIT: Record<MeterReadingGranularity, string> = {
     minute: "minute",
@@ -143,9 +144,11 @@ export class MeterReadingRepository {
      * @returns Quantidade de leituras removidas.
      */
     async deleteOlderThan(threshold: Date): Promise<number> {
-        const result = await this.prisma.meterReading.deleteMany({
-            where: { minuteStart: { lt: threshold } },
+        return withPurgeTimeout(this.prisma, async (tx) => {
+            const result = await tx.meterReading.deleteMany({
+                where: { minuteStart: { lt: threshold } },
+            })
+            return result.count
         })
-        return result.count
     }
 }

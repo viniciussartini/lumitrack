@@ -49,7 +49,7 @@ const mockMqttMeter: Meter = {
 }
 
 // Protocolo com endereços de grandeza (extra.*) — MODBUS_TCP, um dos 4 de
-// QUANTITY_ADDRESS_PROTOCOLS (#316, Fase 16).
+// QUANTITY_ADDRESS_PROTOCOLS.
 const mockModbusTcpMeter: Meter = {
     id: "meter-2",
     name: "Medidor Modbus",
@@ -122,7 +122,7 @@ describe("MeterSection — criar medidor", () => {
         )
     })
 
-    it("protocolo com endereços de grandeza (MODBUS_TCP) manda 'extra' no create — campos do #316", async () => {
+    it("protocolo com endereços de grandeza (MODBUS_TCP) manda 'extra' no create — campos de endereço de grandeza", async () => {
         vi.mocked(meterService.create).mockResolvedValue(mockModbusTcpMeter)
         const user = userEvent.setup()
         renderSection()

@@ -5,13 +5,15 @@ export const sseEvent = (event: string, data: unknown): string =>
     `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
 
 /**
- * Janela de tolerância para tratar duas conexões quase simultâneas como o
- * mesmo "boot" da página (ver `mockSseStream` abaixo) — folgada o bastante
- * acima do intervalo real entre as duas (~1-2ms, StrictMode) e bem abaixo do
- * retry padrão de `@microsoft/fetch-event-source` (1000ms, `fetch.js`), que é
- * o cenário que a janela precisa continuar recusando.
+ * Quantas requisições consecutivas contam como o mesmo "boot" da página (ver
+ * `mockSseStream` abaixo) — `React.StrictMode` dispara exatamente 2 (monta →
+ * limpa → monta de novo), nunca mais, nunca menos. Contagem em vez de janela
+ * de tempo: um critério de relógio de parede fica sujeito à carga da máquina
+ * (CI mais lento que local pode atrasar o 2º mount além de qualquer janela
+ * fixa), enquanto a contagem de requisições é exata e independente de
+ * timing.
  */
-const CONNECT_GRACE_MS = 200
+const STRICT_MODE_MOUNT_ATTEMPTS = 2
 
 /**
  * Registra `GET /api/iot/stream` com um corpo SSE fixo — sobrescreve o
@@ -35,22 +37,23 @@ const CONNECT_GRACE_MS = 200
  * eventos que o teste espera (`reading`, `alert-firing`, `notification`)
  * nunca chegam, mesmo a conexão em si tendo "aberto" normalmente.
  *
- * A janela de graça resolve isso sem apostar em qual das duas sobrevive:
- * toda requisição dentro de `CONNECT_GRACE_MS` da primeira recebe o corpo
- * cheio (a que for abortada simplesmente descarta o que recebeu — não há
- * ninguém do lado do app pra processar); só requisições fora da janela (um
- * reconnect de verdade, após a conexão sobrevivente ter fechado e a lib
- * retentado) caem no fallback.
+ * A contagem resolve isso sem apostar em qual das duas sobrevive nem em
+ * relógio: as `STRICT_MODE_MOUNT_ATTEMPTS` primeiras requisições recebem o
+ * corpo cheio (a que for abortada simplesmente descarta o que recebeu — não
+ * há ninguém do lado do app pra processar); só a requisição seguinte a essas
+ * (um reconnect de verdade, após a conexão sobrevivente ter fechado e a lib
+ * retentado) cai no fallback.
  */
 export const mockSseStream = async (page: Page, initialBody: string): Promise<void> => {
-    let firstRequestAt: number | null = null
+    let requestCount = 0
 
     await page.route("**/api/iot/stream", (route) => {
-        const now = Date.now()
-        if (firstRequestAt === null) firstRequestAt = now
+        requestCount += 1
 
-        const withinConnectGrace = now - firstRequestAt < CONNECT_GRACE_MS
-        const body = withinConnectGrace ? initialBody : sseEvent("connected", { meterCount: 1 })
+        const isStrictModeMountAttempt = requestCount <= STRICT_MODE_MOUNT_ATTEMPTS
+        const body = isStrictModeMountAttempt
+            ? initialBody
+            : sseEvent("connected", { meterCount: 1 })
 
         return route.fulfill({ status: 200, contentType: "text/event-stream", body })
     })

@@ -127,6 +127,19 @@ describe("AlertsPage — listar", () => {
         expect(await screen.findByText("Nenhum alerta configurado")).toBeInTheDocument()
     })
 
+    it("sem nenhum alerta, o histórico mostra o texto de vazio e não renderiza o seletor", async () => {
+        vi.mocked(alertService.list).mockResolvedValue(paginated([]))
+
+        renderPage()
+
+        expect(
+            await screen.findByText(
+                "Crie um alerta para começar a acumular histórico de disparos.",
+            ),
+        ).toBeInTheDocument()
+        expect(screen.queryByTestId("alert-events-select")).not.toBeInTheDocument()
+    })
+
     it("lista os alertas e mostra os KPIs", async () => {
         vi.mocked(alertService.list).mockResolvedValue(paginated([mockAlert]))
         vi.mocked(alertService.stats).mockResolvedValue({ enabledCount: 3 })

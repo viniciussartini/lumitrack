@@ -1,14 +1,19 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { fetchEventSource, type FetchEventSourceInit } from "@microsoft/fetch-event-source"
-import { createAppStream } from "@/lib/sse/appStream"
+import type { createAppStream as CreateAppStream } from "@/lib/sse/appStream"
 
 /**
  * O cliente usa `fetchEventSource` (fetch + ReadableStream), não o
- * `EventSource` nativo — mockar a lib é o ponto de isolamento real. O
- * ambiente de teste carrega `.env` (`VITE_SSE_URL` absoluto), então o
- * caminho exercitado por padrão aqui é o cross-origin (`connectCrossOrigin`)
- * — o mesmo `buildHandlers`/`parseAndDispatch` que o caminho same-origin usa,
- * mais o laço de reconexão próprio (não delegado à lib) que só existe aqui.
+ * `EventSource` nativo — mockar a lib é o ponto de isolamento real.
+ *
+ * `VITE_SSE_URL` é fixada aqui (`vi.stubEnv` + `vi.resetModules` + import
+ * dinâmico em `beforeEach`) como uma URL absoluta, escolhendo
+ * deliberadamente o caminho cross-origin (`connectCrossOrigin`) — o mesmo
+ * `buildHandlers`/`parseAndDispatch` que o caminho same-origin usa, mais o
+ * laço de reconexão próprio (não delegado à lib) que só existe aqui. Sem
+ * fixar, o caminho exercitado dependeria do `.env` carregado pelo processo
+ * de teste — se `VITE_SSE_URL` mudasse pra relativa ou sumisse numa máquina,
+ * o teste passaria a exercitar o caminho same-origin sem avisar.
  */
 vi.mock("@microsoft/fetch-event-source", () => ({
     fetchEventSource: vi.fn(),
@@ -18,9 +23,31 @@ vi.mock("@microsoft/fetch-event-source", () => ({
 const mockedFetchEventSource = vi.mocked(fetchEventSource)
 
 let ticketCounter = 0
+let createAppStream: typeof CreateAppStream
 
-beforeEach(() => {
+/**
+ * A cadeia real até o `fetchEventSource` mockado ser chamado atravessa mais
+ * de uma resolução de Promise (`fetch()` → `response.json()`) — quantos
+ * microtasks exatamente uma única chamada de `vi.advanceTimersByTimeAsync(0)`
+ * garante drenar não é uma garantia documentada da API, e variou entre
+ * ambiente local e CI (mesmo código, mesma versão do Vitest). Repetir um
+ * número fixo de vezes é determinístico e não consome o relógio falso (cada
+ * rodada avança 0ms) — ao contrário de `vi.waitFor`, que soma ~50ms reais
+ * de relógio falso por tentativa de poll e pode estourar sozinho um budget
+ * de delay que o teste está justamente tentando medir com precisão.
+ */
+async function flushPendingPromises(): Promise<void> {
+    for (let i = 0; i < 10; i++) {
+        await vi.advanceTimersByTimeAsync(0)
+    }
+}
+
+beforeEach(async () => {
     vi.clearAllMocks()
+    vi.resetModules()
+    vi.stubEnv("VITE_SSE_URL", "https://api.lumitrack.example/api/iot/stream")
+    ;({ createAppStream } = await import("@/lib/sse/appStream"))
+
     ticketCounter = 0
     vi.stubGlobal(
         "fetch",
@@ -36,6 +63,7 @@ beforeEach(() => {
 
 afterEach(() => {
     vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
     vi.useRealTimers()
 })
 
@@ -122,7 +150,7 @@ describe("createAppStream — reconexão", () => {
         createAppStream({})
 
         // 1ª tentativa: busca o ticket, chama fetchEventSource, que falha.
-        await vi.advanceTimersByTimeAsync(0)
+        await flushPendingPromises()
         expect(fetch).toHaveBeenCalledTimes(1)
         expect(mockedFetchEventSource).toHaveBeenCalledTimes(1)
 
@@ -133,6 +161,7 @@ describe("createAppStream — reconexão", () => {
         // Delay completo: busca um ticket NOVO (não reaproveita o consumido)
         // e tenta de novo.
         await vi.advanceTimersByTimeAsync(1)
+        await flushPendingPromises()
         expect(fetch).toHaveBeenCalledTimes(2)
         expect(mockedFetchEventSource).toHaveBeenCalledTimes(2)
 
@@ -149,7 +178,7 @@ describe("createAppStream — reconexão", () => {
 
         const cleanup = createAppStream({})
 
-        await vi.advanceTimersByTimeAsync(0)
+        await flushPendingPromises()
         expect(mockedFetchEventSource).toHaveBeenCalledTimes(1)
 
         cleanup()

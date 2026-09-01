@@ -65,7 +65,7 @@ Passos imediatos conforme o tipo de incidente:
    - Resetar senhas dos afetados (aviso por e-mail).
 
 3. **Comunicação:**
-   - Art. 48 aplicável: "risco relevante aos titulares" = sim se dados confidenciais (CPF, padrão de consumo) foram expostos. Notificar no prazo do § 4.1 (3 dias úteis do conhecimento, dobrado no pequeno porte).
+   - Art. 48 aplicável: "risco relevante aos titulares" = sim se dados confidenciais (CPF, padrão de consumo) foram expostos. Notificar conforme a seção 4.1 deste runbook (3 dias úteis do conhecimento, dobrado no pequeno porte).
 
 ### 2.3 Incidente: Vulnerabilidade de dependência (npm audit / Dependabot)
 

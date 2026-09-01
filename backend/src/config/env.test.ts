@@ -324,7 +324,7 @@ describe("envSchema — DB_POOL_* falha fechado contra valor vazio/zero/negativo
     })
 })
 
-describe("envSchema — DB_POOL_STATEMENT_TIMEOUT_MS falha fechado contra valor vazio/zero/negativo (#289)", () => {
+describe("envSchema — DB_POOL_STATEMENT_TIMEOUT_MS falha fechado contra valor vazio/zero/negativo", () => {
     // Mesma regra das demais DB_POOL_*: sem .int().positive(), um timeout
     // <= 0 passaria pelo schema — statement_timeout=0 no Postgres significa
     // "sem timeout", o oposto exato do controle que esta variável existe
@@ -370,7 +370,71 @@ describe("envSchema — DB_POOL_STATEMENT_TIMEOUT_MS falha fechado contra valor 
 
         expect(result.success).toBe(true)
         if (result.success) {
-            expect(result.data.DB_POOL_STATEMENT_TIMEOUT_MS).toBe(120_000)
+            expect(result.data.DB_POOL_STATEMENT_TIMEOUT_MS).toBe(15_000)
+        }
+    })
+})
+
+describe("envSchema — RETENTION_PURGE_STATEMENT_TIMEOUT_MS falha fechado contra valor vazio/zero/negativo", () => {
+    // Mesma regra das demais DB_POOL_*/RETENTION_*: sem .int().positive(),
+    // um timeout <= 0 passaria pelo schema — statement_timeout=0 no Postgres
+    // significa "sem timeout", o oposto exato do controle que esta variável
+    // existe para garantir (aqui, escopado à transação do expurgo via
+    // withPurgeTimeout, não ao pool inteiro).
+    it("rejeita string vazia em RETENTION_PURGE_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            RETENTION_PURGE_STATEMENT_TIMEOUT_MS: "",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita zero em RETENTION_PURGE_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            RETENTION_PURGE_STATEMENT_TIMEOUT_MS: "0",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita negativo em RETENTION_PURGE_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            RETENTION_PURGE_STATEMENT_TIMEOUT_MS: "-1",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita não-inteiro em RETENTION_PURGE_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            RETENTION_PURGE_STATEMENT_TIMEOUT_MS: "1.5",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("aceita um inteiro positivo válido em RETENTION_PURGE_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            RETENTION_PURGE_STATEMENT_TIMEOUT_MS: "180000",
+        })
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.RETENTION_PURGE_STATEMENT_TIMEOUT_MS).toBe(180000)
+        }
+    })
+
+    it("aplica o default documentado quando ausente", () => {
+        const result = envSchema.safeParse(baseValidEnv)
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.RETENTION_PURGE_STATEMENT_TIMEOUT_MS).toBe(120_000)
         }
     })
 })

@@ -5,6 +5,7 @@ import {
     TariffFlagChangeSource,
 } from "@/generated/prisma/client.js"
 import type { TariffFlagConfigResponse } from "@/modules/tariff-flag/tariff-flag.repository.js"
+import { withPurgeTimeout } from "@/shared/database/withPurgeTimeout.js"
 
 // Snapshot dos 4 valores por 100kWh, sem o `currentFlag`/`updatedAt` — é o
 // que efetivamente diverge entre "antes" e "depois" além da bandeira em si.
@@ -60,9 +61,11 @@ export class TariffFlagHistoryRepository {
      * @returns Quantidade de entradas removidas.
      */
     async deleteOlderThan(threshold: Date): Promise<number> {
-        const result = await this.prisma.tariffFlagHistory.deleteMany({
-            where: { createdAt: { lt: threshold } },
+        return withPurgeTimeout(this.prisma, async (tx) => {
+            const result = await tx.tariffFlagHistory.deleteMany({
+                where: { createdAt: { lt: threshold } },
+            })
+            return result.count
         })
-        return result.count
     }
 }

@@ -18,7 +18,7 @@ interface TicketEntry extends StreamTicketPayload {
 
 /**
  * Ticket de vida curta e uso único para autenticar o stream SSE quando ele
- * precisa ser aberto cross-origin (demo pública): o cookie de sessão nunca
+ * precisa ser aberto cross-origin (demo pública, ADR-0010): o cookie de sessão nunca
  * chega nesse cenário, porque foi definido pelo navegador para o domínio do
  * site estático (lumitrack.onrender.com), não para o da API
  * (lumitrack-api.onrender.com) — `SameSite:"none"` não muda isso, é um

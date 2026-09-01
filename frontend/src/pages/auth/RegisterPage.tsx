@@ -137,7 +137,10 @@ export const RegisterPage = () => {
                         <span className="font-heading text-muted text-11 mb-2.5 block leading-none font-semibold tracking-[.08em] uppercase">
                             Tipo de conta
                         </span>
-                        <AccountTypeToggle userType={userType} onSelect={setValue} />
+                        <AccountTypeToggle
+                            userType={userType}
+                            onSelect={(t) => setValue("userType", t)}
+                        />
                     </div>
 
                     <form
@@ -232,7 +235,7 @@ export const RegisterPage = () => {
 
 interface AccountTypeToggleProps {
     userType: RegisterFormData["userType"]
-    onSelect: UseFormSetValue<RegisterFormData>
+    onSelect: (userType: RegisterFormData["userType"]) => void
 }
 
 const AccountTypeToggle = ({ userType, onSelect }: AccountTypeToggleProps) => (
@@ -242,7 +245,7 @@ const AccountTypeToggle = ({ userType, onSelect }: AccountTypeToggleProps) => (
             aria-label="Pessoa Física"
             aria-pressed={userType === "INDIVIDUAL"}
             data-on={userType === "INDIVIDUAL"}
-            onClick={() => onSelect("userType", "INDIVIDUAL")}
+            onClick={() => onSelect("INDIVIDUAL")}
             className="lt-typebtn"
         >
             <User className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
@@ -253,7 +256,7 @@ const AccountTypeToggle = ({ userType, onSelect }: AccountTypeToggleProps) => (
             aria-label="Pessoa Jurídica"
             aria-pressed={userType === "COMPANY"}
             data-on={userType === "COMPANY"}
-            onClick={() => onSelect("userType", "COMPANY")}
+            onClick={() => onSelect("COMPANY")}
             className="lt-typebtn"
         >
             <Building2 className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />

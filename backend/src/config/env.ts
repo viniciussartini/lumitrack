@@ -231,12 +231,29 @@ export const envSchema = z
         // cancelar a query). Sem timeout, uma query presa (lock, plano ruim,
         // bug) segura a conexão indefinidamente — com `DB_POOL_MAX` finito,
         // é o jeito mais barato de esgotar o pool inteiro e derrubar a API
-        // (DoS). Default de 120s: medido contra o pior caso legítimo do
-        // sistema — o `DELETE` represado do `RetentionPurgeScheduler` sobre
-        // `meter_readings` numa tabela em escala de produção (~5,7M linhas,
-        // metodologia idêntica ao baseline de #284/#285) — com folga; ver
-        // `.claude/docs/2026-08-31-baseline-desempenho-statement-timeout.md`.
-        DB_POOL_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
+        // (DoS). Este é o teto do POOL — vale por padrão para toda conexão,
+        // inclusive as que servem rota HTTP. Default de 15s: generoso para
+        // qualquer query legítima de rota (a mais pesada medida nos
+        // baselines de desempenho da Fase 15 ficou na casa de centenas de
+        // ms), mas curto o bastante para não deixar `DB_POOL_MAX` conexões
+        // presas segurando a API por minutos. O `RetentionPurgeScheduler`
+        // usa um teto PRÓPRIO, maior — ver `RETENTION_PURGE_STATEMENT_TIMEOUT_MS`
+        // logo abaixo — porque o pior caso legítimo dele (expurgo represado)
+        // é sabidamente mais lento que qualquer rota HTTP.
+        DB_POOL_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
+        // RETENTION_PURGE_STATEMENT_TIMEOUT_MS: teto PRÓPRIO do expurgo de
+        // retenção (`shared/database/withPurgeTimeout.ts`), aplicado via
+        // `SET LOCAL statement_timeout` só dentro da transação de cada
+        // delete de expurgo — não afeta nenhuma outra conexão do pool.
+        // Existe separado do `DB_POOL_STATEMENT_TIMEOUT_MS` porque o pior
+        // caso legítimo dos dois é de naturezas diferentes: uma rota HTTP
+        // nunca deveria demorar minutos, mas um `DELETE` represado sobre
+        // `meter_readings` em escala de produção, sim (medido em ~48s contra
+        // uma massa sintética de 5,7M linhas — ver
+        // `.claude/docs/2026-08-31-baseline-desempenho-statement-timeout.md`).
+        // Default de 120s mantém a margem de ~2,5× já medida sobre esse
+        // pior caso.
+        RETENTION_PURGE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
     })
     .refine((data) => !(data.NODE_ENV === "production" && data.CORS_ORIGIN === "*"), {
         message:

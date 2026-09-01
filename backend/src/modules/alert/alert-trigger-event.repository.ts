@@ -1,5 +1,6 @@
 import { PrismaClient } from "@/generated/prisma/client.js"
 import { toSkipTake, type Paginated, type PaginationQuery } from "@/shared/pagination.js"
+import { withPurgeTimeout } from "@/shared/database/withPurgeTimeout.js"
 
 type PrismaAlertTriggerEvent = NonNullable<
     Awaited<ReturnType<PrismaClient["alertTriggerEvent"]["findUnique"]>>
@@ -73,9 +74,11 @@ export class AlertTriggerEventRepository {
      * @returns Quantidade de episódios removidos.
      */
     async deleteOlderThan(threshold: Date): Promise<number> {
-        const result = await this.prisma.alertTriggerEvent.deleteMany({
-            where: { createdAt: { lt: threshold } },
+        return withPurgeTimeout(this.prisma, async (tx) => {
+            const result = await tx.alertTriggerEvent.deleteMany({
+                where: { createdAt: { lt: threshold } },
+            })
+            return result.count
         })
-        return result.count
     }
 }

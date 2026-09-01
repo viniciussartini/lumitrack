@@ -1,4 +1,5 @@
 import { PrismaClient, Role } from "@/generated/prisma/client.js"
+import { withPurgeTimeout } from "@/shared/database/withPurgeTimeout.js"
 
 // Retornado pelo findActiveToken — usado tanto no middleware de autenticação
 // quanto no service de logout para verificar se o token é válido.
@@ -232,15 +233,17 @@ export class AuthRepository {
      * @returns Quantidade de tokens removidos.
      */
     async deleteExpiredOrRevokedTokens(threshold: Date): Promise<number> {
-        const result = await this.prisma.authToken.deleteMany({
-            where: {
-                OR: [
-                    { revokedAt: { lt: threshold } },
-                    { revokedAt: null, expiresAt: { lt: threshold } },
-                ],
-            },
+        return withPurgeTimeout(this.prisma, async (tx) => {
+            const result = await tx.authToken.deleteMany({
+                where: {
+                    OR: [
+                        { revokedAt: { lt: threshold } },
+                        { revokedAt: null, expiresAt: { lt: threshold } },
+                    ],
+                },
+            })
+            return result.count
         })
-        return result.count
     }
 
     /**
@@ -251,12 +254,17 @@ export class AuthRepository {
      * @returns Quantidade de resets removidos.
      */
     async deleteExpiredPasswordResets(threshold: Date): Promise<number> {
-        const result = await this.prisma.passwordReset.deleteMany({
-            where: {
-                OR: [{ usedAt: { lt: threshold } }, { usedAt: null, expiresAt: { lt: threshold } }],
-            },
+        return withPurgeTimeout(this.prisma, async (tx) => {
+            const result = await tx.passwordReset.deleteMany({
+                where: {
+                    OR: [
+                        { usedAt: { lt: threshold } },
+                        { usedAt: null, expiresAt: { lt: threshold } },
+                    ],
+                },
+            })
+            return result.count
         })
-        return result.count
     }
 
     /**
@@ -273,10 +281,12 @@ export class AuthRepository {
      * @returns Quantidade de backup codes removidos.
      */
     async deleteUsedMfaBackupCodes(threshold: Date): Promise<number> {
-        const result = await this.prisma.mfaBackupCode.deleteMany({
-            where: { usedAt: { lt: threshold } },
+        return withPurgeTimeout(this.prisma, async (tx) => {
+            const result = await tx.mfaBackupCode.deleteMany({
+                where: { usedAt: { lt: threshold } },
+            })
+            return result.count
         })
-        return result.count
     }
 
     /**
@@ -502,15 +512,17 @@ export class AuthRepository {
      * @returns Quantidade de refresh tokens removidos.
      */
     async deleteExpiredOrRevokedRefreshTokens(threshold: Date): Promise<number> {
-        const result = await this.prisma.refreshToken.deleteMany({
-            where: {
-                OR: [
-                    { revokedAt: { lt: threshold } },
-                    { revokedAt: null, expiresAt: { lt: threshold } },
-                ],
-            },
+        return withPurgeTimeout(this.prisma, async (tx) => {
+            const result = await tx.refreshToken.deleteMany({
+                where: {
+                    OR: [
+                        { revokedAt: { lt: threshold } },
+                        { revokedAt: null, expiresAt: { lt: threshold } },
+                    ],
+                },
+            })
+            return result.count
         })
-        return result.count
     }
 
     /**
