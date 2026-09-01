@@ -324,6 +324,57 @@ describe("envSchema — DB_POOL_* falha fechado contra valor vazio/zero/negativo
     })
 })
 
+describe("envSchema — DB_POOL_STATEMENT_TIMEOUT_MS falha fechado contra valor vazio/zero/negativo (#289)", () => {
+    // Mesma regra das demais DB_POOL_*: sem .int().positive(), um timeout
+    // <= 0 passaria pelo schema — statement_timeout=0 no Postgres significa
+    // "sem timeout", o oposto exato do controle que esta variável existe
+    // para garantir.
+    it("rejeita string vazia em DB_POOL_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_STATEMENT_TIMEOUT_MS: "" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita zero em DB_POOL_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_STATEMENT_TIMEOUT_MS: "0" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita negativo em DB_POOL_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_STATEMENT_TIMEOUT_MS: "-1" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita não-inteiro em DB_POOL_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_STATEMENT_TIMEOUT_MS: "1.5" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("aceita um inteiro positivo válido em DB_POOL_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            DB_POOL_STATEMENT_TIMEOUT_MS: "60000",
+        })
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DB_POOL_STATEMENT_TIMEOUT_MS).toBe(60000)
+        }
+    })
+
+    it("aplica o default documentado quando ausente", () => {
+        const result = envSchema.safeParse(baseValidEnv)
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DB_POOL_STATEMENT_TIMEOUT_MS).toBe(120_000)
+        }
+    })
+})
+
 describe("envSchema — DATABASE_TEST_URL/DATABASE_HTTP_TEST_URL (#165)", () => {
     it("rejeita NODE_ENV=test sem DATABASE_TEST_URL", () => {
         const result = envSchema.safeParse({

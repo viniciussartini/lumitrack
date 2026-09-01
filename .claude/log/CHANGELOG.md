@@ -3059,3 +3059,12 @@
 - **Arquivos principais:** `.claude/docs/RUNBOOK_INCIDENTES.md`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** documental, sem código tocado.
+
+## [2026-08-31] perf: statement_timeout explícito no pool de conexões (#289)
+- **Branch:** chore/fase-18-cobertura-e-debito-tecnico
+- **Tipo:** perf
+- **O quê:** PR #288 (issues #284/#285) tornou explícito `max`/`connectionTimeoutMillis`/`idleTimeoutMillis` do `Pool` pg, mas não o timeout de query — `11-seguranca-infraestrutura.md` trata os dois como um único controle P1 (exaustão de conexões é o DoS mais barato contra API com banco). Adicionada `DB_POOL_STATEMENT_TIMEOUT_MS` (nova env var, `.int().positive()`, mesmo padrão fail-closed das demais `DB_POOL_*`, default 120000ms), aplicada como `statement_timeout` do driver `pg` em `shared/database/prisma.ts` — enforçado pelo próprio Postgres, não pelo cliente Node. Valor medido, não chutado: `EXPLAIN ANALYZE` do `DELETE` de expurgo do `RetentionPurgeScheduler` sobre `meter_readings` numa massa sintética de 5.702.400 linhas (11 medidores × 12 meses, banco descartável `lumitrack_perf_baseline`, mesma escala dos baselines de #284/#285) mediu o pior caso legítimo em ~48s (threshold no futuro, capturando 100% da tabela — mais adverso que qualquer expurgo real); 120000ms dá ~2,5× de margem. Metodologia e resultado completos em baseline dedicado.
+- **Verificado:** `EXPLAIN ANALYZE` rodado dentro de transação com `ROLLBACK` (massa sintética preservada, nenhum dado real tocado); `npx tsc -b`, `eslint .`, `depcruise` (281 módulos, 0 violações) e suíte completa (93 arquivos, 1084 testes) — todos verdes.
+- **Arquivos principais:** `backend/src/config/env.ts`, `backend/src/config/env.test.ts`, `backend/src/shared/database/prisma.ts`, `backend/.env.example`, `.claude/docs/2026-08-31-baseline-desempenho-statement-timeout.md` (novo).
+- **Decisões/ADRs:** nenhuma — decisão de dimensionamento documentada no baseline, mesmo padrão de #285.
+- **Notas:** ação destrutiva (`prisma db push --accept-data-loss` contra o banco descartável recém-criado) executada só após confirmação explícita do usuário, seguindo o guard do próprio Prisma contra ação de IA sem revisão humana.

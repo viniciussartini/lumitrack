@@ -225,6 +225,18 @@ export const envSchema = z
         // frente ao ciclo de 60s do MinuteRollupScheduler/RetentionPurgeScheduler,
         // que reconectaria a cada execução em vez de reaproveitar a conexão.
         DB_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
+        // DB_POOL_STATEMENT_TIMEOUT_MS: enforçado pelo próprio Postgres
+        // (`SET statement_timeout`, via config nativo do driver `pg` —
+        // sobrevive mesmo se o processo Node travar em outra coisa antes de
+        // cancelar a query). Sem timeout, uma query presa (lock, plano ruim,
+        // bug) segura a conexão indefinidamente — com `DB_POOL_MAX` finito,
+        // é o jeito mais barato de esgotar o pool inteiro e derrubar a API
+        // (DoS). Default de 120s: medido contra o pior caso legítimo do
+        // sistema — o `DELETE` represado do `RetentionPurgeScheduler` sobre
+        // `meter_readings` numa tabela em escala de produção (~5,7M linhas,
+        // metodologia idêntica ao baseline de #284/#285) — com folga; ver
+        // `.claude/docs/2026-08-31-baseline-desempenho-statement-timeout.md`.
+        DB_POOL_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
     })
     .refine((data) => !(data.NODE_ENV === "production" && data.CORS_ORIGIN === "*"), {
         message:
