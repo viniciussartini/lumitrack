@@ -3077,3 +3077,11 @@
 - **Arquivos principais:** 48 arquivos em `backend/src/modules/*/*.service.ts|repository.ts|controller.ts` (admin, alert, alert-event, area, auth, consumption, device, distributor, export, iot, meter, notification, property, simulation, tariff-flag, user) + `backend/eslint.config.js` (override removido).
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** trabalho feito por 6 agentes em paralelo (um por lote de módulos), cada um seguindo o mesmo padrão de estilo calibrado manualmente em 2 arquivos antes da delegação (`alert-event.controller.ts`/`alert-event.service.ts`) e verificando com `npx eslint` arquivo a arquivo antes de reportar; consolidação e verificação final (eslint/tsc/depcruise/testes completos + checagem manual de amostra) feitas depois, sobre o resultado de todos os lotes.
+
+## [2026-08-31] docs: tabela de ADRs do README.md atualizada com 0016–0018
+- **Branch:** chore/fase-18-cobertura-e-debito-tecnico
+- **Tipo:** docs
+- **O quê:** achado à parte durante a triagem da #352 (drift do Q-35, já resolvido por outro trabalho): a tabela de ADRs em `.claude/docs/README.md` parava em `0015`, mas `0016` (service lê repository de outro módulo), `0017` (simulador com rede própria no compose) e `0018` (guarda de registro de acesso não implementada, criada nesta mesma sessão) já existiam como arquivo sem entrada na tabela. Mesmo tipo de drift que o Q-35 corrigiu — completado no mesmo espírito.
+- **Arquivos principais:** `.claude/docs/README.md`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** edição de texto, sem código tocado.
