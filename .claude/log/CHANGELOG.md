@@ -3043,3 +3043,11 @@
 - **Arquivos principais:** `frontend/tests/e2e/dashboard.spec.ts`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** correção só em teste — sem mudança em código de produção.
+
+## [2026-08-31] docs: ADR-0018 — guarda de registros de acesso (Marco Civil Art. 15) não será implementada (#269)
+- **Branch:** chore/fase-18-cobertura-e-debito-tecnico
+- **Tipo:** docs
+- **O quê:** issue #269 (última sub-issue aberta do épico #266, Fase 14) pedia guarda formal de registros de acesso por 6 meses sob sigilo (Art. 15 do Marco Civil). Confirmado explicitamente com o usuário: a ADR-0014 (ambientes publicados permanentemente de demonstração, sem titular real) estende seu racional a este item, mesmo sem citá-lo literalmente — sem titular real, formalizar essa guarda é desproporcional ao risco. Issue fechada como não-vai-fazer no GitHub, com comentário linkando o ADR.
+- **Arquivos principais:** `.claude/docs/adr/0018-guarda-registro-acesso-marco-civil-nao-implementada.md` (novo), `.claude/project_context/07-decisoes-em-aberto.md`.
+- **Decisões/ADRs:** ADR-0018 (estende ADR-0014).
+- **Notas:** nenhuma alteração de código — decisão de escopo/conformidade.
