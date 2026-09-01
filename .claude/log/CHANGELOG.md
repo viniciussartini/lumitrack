@@ -3051,3 +3051,11 @@
 - **Arquivos principais:** `.claude/docs/adr/0018-guarda-registro-acesso-marco-civil-nao-implementada.md` (novo), `.claude/project_context/07-decisoes-em-aberto.md`.
 - **Decisões/ADRs:** ADR-0018 (estende ADR-0014).
 - **Notas:** nenhuma alteração de código — decisão de escopo/conformidade.
+
+## [2026-08-31] docs: corrige prazo, canal ANPD e retenção no RUNBOOK_INCIDENTES.md (#272)
+- **Branch:** chore/fase-18-cobertura-e-debito-tecnico
+- **Tipo:** docs
+- **O quê:** 3 correções pendentes do laudo de conformidade (2026-08-22) aplicadas a `.claude/docs/RUNBOOK_INCIDENTES.md`: (1) § 4.1 — prazo de comunicação à ANPD corrigido de "prazo razoável (72h como referência)" para o prazo real da Res. CD/ANPD 15/2024 (3 dias úteis do conhecimento, dobrado para 6 no regime de pequeno porte), com nota sobre a comunicação preliminar admitida em até 20 dias úteis para completar; (2) § 4.2 — canal corrigido da ouvidoria do Ministério da Cidadania (errado) para o canal real: sistema SEI!ANPD (peticionamento eletrônico), com o procedimento de submissão e a página oficial (confirmados via busca na web, gov.br/anpd); (3) § 5.1 — registro de incidentes explicitado com retenção de 5 anos, cobrindo também incidentes avaliados e não comunicados, com campo obrigatório novo para a justificativa da não comunicação.
+- **Arquivos principais:** `.claude/docs/RUNBOOK_INCIDENTES.md`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** documental, sem código tocado.
