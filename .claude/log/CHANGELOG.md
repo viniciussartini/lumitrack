@@ -3034,3 +3034,12 @@
 - **Arquivos principais:** `frontend/tests/e2e/support/sse.ts` (novo); `frontend/tests/e2e/dashboard.spec.ts`; `frontend/tests/e2e/realtime.spec.ts`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** `npm run build` (tsc) ✓, `eslint` (0 erros) ✓, `depcruise` (303 módulos, 0 violações) ✓, Vitest completo (91/91, 772/772, suíte de unidade não toca `tests/e2e/`) ✓, suíte E2E completa (chromium) 53/54 (1 achado pré-existente fora do escopo, ver acima) ✓.
+
+## [2026-08-31] fix: E2E "Consumo hoje" comparava bucket de dia sem relógio controlado (#356)
+- **Branch:** chore/fase-18-cobertura-e-debito-tecnico
+- **Tipo:** fix
+- **O quê:** `dashboard.spec.ts` — "mostra Consumo hoje/Custo projetado do mês e a bandeira vigente destacada (#117)" mockava `GET /api/consumption?granularity=day` com `bucketStart: new Date().toISOString()` (hora real do processo Node) e não instalava `page.clock`. `findBucketForDate`/`bucketDateKey` (`dashboardKpis.ts`) decodificam `bucketStart` com getters UTC (convenção do backend real: dígitos de meia-noite SP mascarados como UTC) e comparam contra a data local do browser (`toLocalDateKey`). Rodando entre 21h e meia-noite em São Paulo (UTC-3), a data UTC do `bucketStart` gerado já era o dia seguinte enquanto a data local do browser ainda era "hoje" — o bucket nunca era encontrado, `todayKwh` ficava 0 e `"12,00kWh"` nunca aparecia. Causa confirmada por reprodução ao vivo (não é a mesma classe do #329: aqui a hipótese de fronteira de dia/fuso estava correta). Corrigido no mesmo padrão do teste vizinho "Potência agora": `page.clock.install({ time: new Date(CLOCK_TIME) })` com `CLOCK_TIME` fixo, e `bucketStart` do mock construído a partir da meia-noite UTC do dia de `CLOCK_TIME` (só precisa acertar a data, não a hora — ao contrário do bucket de minuto do teste vizinho).
+- **Verificado:** teste isolado, 3 runs × chromium + firefox — 6/6 verdes; suíte completa de `dashboard.spec.ts` (14 testes) e suíte E2E inteira (108 testes) — 100% verdes; `eslint` no arquivo tocado — 0 erros.
+- **Arquivos principais:** `frontend/tests/e2e/dashboard.spec.ts`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** correção só em teste — sem mudança em código de produção.

@@ -139,6 +139,21 @@ test.describe("Painel — visão em tempo real (#116)", () => {
     test("mostra Consumo hoje/Custo projetado do mês e a bandeira vigente destacada (#117)", async ({
         page,
     }) => {
+        // Relógio da PÁGINA congelado (mesmo padrão do teste "Potência
+        // agora" acima) — o card "Consumo hoje" busca o bucket de hoje
+        // comparando a data local do browser (`toLocalDateKey`) contra a
+        // data do `bucketStart` do mock decodificada como UTC
+        // (`bucketDateKey`, dashboardKpis.ts — mesma convenção do backend
+        // real). Sem relógio fixo, os dois lados usam a hora real do
+        // sistema; toda vez que o teste roda entre 21h e meia-noite em
+        // São Paulo (UTC-3), a data UTC já virou o dia seguinte enquanto a
+        // data local de SP ainda é "hoje", e o bucket deixa de ser
+        // encontrado — falha intermitente e dependente só do horário do
+        // CI. CLOCK_TIME fixo, longe de qualquer fronteira de dia nos dois
+        // fusos, elimina essa dependência.
+        const CLOCK_TIME = "2026-07-17T12:30:00.000Z"
+        await page.clock.install({ time: new Date(CLOCK_TIME) })
+
         await setupDashboard(page)
         await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
             fulfillJson(route, PROPERTY_METER),
@@ -147,9 +162,16 @@ test.describe("Painel — visão em tempo real (#116)", () => {
             const url = new URL(route.request().url())
             const granularity = url.searchParams.get("granularity")
             if (granularity === "day") {
+                // Meia-noite (UTC) do dia de CLOCK_TIME — mesma convenção
+                // que `bucketDateKey` espera (dígitos de data já prontos
+                // pra leitura via getters UTC), sem precisar de máscara de
+                // fuso: à diferença do bucket de minuto do teste acima, um
+                // bucket de DIA só precisa acertar a data, não a hora.
+                const todayBucketStart = new Date(CLOCK_TIME)
+                todayBucketStart.setUTCHours(0, 0, 0, 0)
                 return fulfillPaginated(route, [
                     {
-                        bucketStart: new Date().toISOString(),
+                        bucketStart: todayBucketStart.toISOString(),
                         kwhConsumed: 12,
                         costBrl: 9.6,
                         avgPowerW: 500,
