@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router"
 import { useForm } from "react-hook-form"
+import type { FieldErrors, UseFormRegister, UseFormSetValue } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { User, Building2 } from "lucide-react"
 import { Button } from "@/components/ui/Button"
@@ -136,34 +137,10 @@ export const RegisterPage = () => {
                         <span className="font-heading text-muted text-11 mb-2.5 block leading-none font-semibold tracking-[.08em] uppercase">
                             Tipo de conta
                         </span>
-                        <div className="flex gap-[10px]">
-                            <button
-                                type="button"
-                                aria-label="Pessoa Física"
-                                aria-pressed={userType === "INDIVIDUAL"}
-                                data-on={userType === "INDIVIDUAL"}
-                                onClick={() => setValue("userType", "INDIVIDUAL")}
-                                className="lt-typebtn"
-                            >
-                                <User className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
-                                Pessoa Física
-                            </button>
-                            <button
-                                type="button"
-                                aria-label="Pessoa Jurídica"
-                                aria-pressed={userType === "COMPANY"}
-                                data-on={userType === "COMPANY"}
-                                onClick={() => setValue("userType", "COMPANY")}
-                                className="lt-typebtn"
-                            >
-                                <Building2
-                                    className="h-5 w-5"
-                                    strokeWidth={1.5}
-                                    aria-hidden="true"
-                                />
-                                Pessoa Jurídica
-                            </button>
-                        </div>
+                        <AccountTypeToggle
+                            userType={userType}
+                            onSelect={(t) => setValue("userType", t)}
+                        />
                     </div>
 
                     <form
@@ -181,89 +158,20 @@ export const RegisterPage = () => {
                             {...register("email")}
                         />
 
-                        {/* Campos PF */}
                         {userType === "INDIVIDUAL" && (
-                            <>
-                                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-                                    <Input
-                                        label="Nome"
-                                        autoComplete="given-name"
-                                        placeholder="João"
-                                        error={
-                                            "firstName" in errors
-                                                ? errors.firstName?.message
-                                                : undefined
-                                        }
-                                        {...register("firstName")}
-                                    />
-                                    <Input
-                                        label="Sobrenome"
-                                        autoComplete="family-name"
-                                        placeholder="Silva"
-                                        error={
-                                            "lastName" in errors
-                                                ? errors.lastName?.message
-                                                : undefined
-                                        }
-                                        {...register("lastName")}
-                                    />
-                                </div>
-                                <Input
-                                    label="CPF"
-                                    inputMode="numeric"
-                                    placeholder="000.000.000-00"
-                                    error={"cpf" in errors ? errors.cpf?.message : undefined}
-                                    {...register("cpf", {
-                                        onChange: (e) => {
-                                            e.target.value = formatCpf(e.target.value)
-                                            setValue("cpf", e.target.value, {
-                                                shouldValidate: false,
-                                            })
-                                        },
-                                    })}
-                                />
-                            </>
+                            <IndividualFields
+                                register={register}
+                                errors={errors}
+                                setValue={setValue}
+                            />
                         )}
 
-                        {/* Campos PJ */}
                         {userType === "COMPANY" && (
-                            <>
-                                <Input
-                                    label="Razão social"
-                                    autoComplete="organization"
-                                    placeholder="Empresa Ltda"
-                                    error={
-                                        "companyName" in errors
-                                            ? errors.companyName?.message
-                                            : undefined
-                                    }
-                                    {...register("companyName")}
-                                />
-                                <Input
-                                    label="Nome fantasia (opcional)"
-                                    placeholder="Empresa"
-                                    error={
-                                        "tradeName" in errors
-                                            ? errors.tradeName?.message
-                                            : undefined
-                                    }
-                                    {...register("tradeName")}
-                                />
-                                <Input
-                                    label="CNPJ"
-                                    inputMode="numeric"
-                                    placeholder="00.000.000/0000-00"
-                                    error={"cnpj" in errors ? errors.cnpj?.message : undefined}
-                                    {...register("cnpj", {
-                                        onChange: (e) => {
-                                            e.target.value = formatCnpj(e.target.value)
-                                            setValue("cnpj", e.target.value, {
-                                                shouldValidate: false,
-                                            })
-                                        },
-                                    })}
-                                />
-                            </>
+                            <CompanyFields
+                                register={register}
+                                errors={errors}
+                                setValue={setValue}
+                            />
                         )}
 
                         {/* Senha + requisitos */}
@@ -290,36 +198,10 @@ export const RegisterPage = () => {
                             {...register("confirmPassword")}
                         />
 
-                        {/* Consentimento LGPD (Art. 7º/8º) — aceite explícito obrigatório */}
-                        <div className="flex flex-col gap-1">
-                            <label className="text-13-5 flex cursor-pointer items-start gap-2.5 leading-normal">
-                                <input
-                                    type="checkbox"
-                                    className="accent-accent mt-0.5 h-4 w-4 shrink-0"
-                                    {...register("acceptedTerms")}
-                                />
-                                <span>
-                                    Li e concordo com a{" "}
-                                    <Link
-                                        to="/privacidade"
-                                        target="_blank"
-                                        className="text-accent-700"
-                                    >
-                                        Política de Privacidade
-                                    </Link>{" "}
-                                    e os{" "}
-                                    <Link to="/termos" target="_blank" className="text-accent-700">
-                                        Termos de Uso
-                                    </Link>
-                                    .
-                                </span>
-                            </label>
-                            {errors.acceptedTerms && (
-                                <p className="text-status-danger text-sm">
-                                    {errors.acceptedTerms.message}
-                                </p>
-                            )}
-                        </div>
+                        <AcceptedTermsField
+                            register={register}
+                            error={errors.acceptedTerms?.message}
+                        />
 
                         {serverError && (
                             <div
@@ -350,3 +232,140 @@ export const RegisterPage = () => {
         </div>
     )
 }
+
+interface AccountTypeToggleProps {
+    userType: RegisterFormData["userType"]
+    onSelect: (userType: RegisterFormData["userType"]) => void
+}
+
+const AccountTypeToggle = ({ userType, onSelect }: AccountTypeToggleProps) => (
+    <div className="flex gap-[10px]">
+        <button
+            type="button"
+            aria-label="Pessoa Física"
+            aria-pressed={userType === "INDIVIDUAL"}
+            data-on={userType === "INDIVIDUAL"}
+            onClick={() => onSelect("INDIVIDUAL")}
+            className="lt-typebtn"
+        >
+            <User className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+            Pessoa Física
+        </button>
+        <button
+            type="button"
+            aria-label="Pessoa Jurídica"
+            aria-pressed={userType === "COMPANY"}
+            data-on={userType === "COMPANY"}
+            onClick={() => onSelect("COMPANY")}
+            className="lt-typebtn"
+        >
+            <Building2 className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+            Pessoa Jurídica
+        </button>
+    </div>
+)
+
+interface IndividualFieldsProps {
+    register: UseFormRegister<RegisterFormData>
+    errors: FieldErrors<RegisterFormData>
+    setValue: UseFormSetValue<RegisterFormData>
+}
+
+const IndividualFields = ({ register, errors, setValue }: IndividualFieldsProps) => (
+    <>
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <Input
+                label="Nome"
+                autoComplete="given-name"
+                placeholder="João"
+                error={"firstName" in errors ? errors.firstName?.message : undefined}
+                {...register("firstName")}
+            />
+            <Input
+                label="Sobrenome"
+                autoComplete="family-name"
+                placeholder="Silva"
+                error={"lastName" in errors ? errors.lastName?.message : undefined}
+                {...register("lastName")}
+            />
+        </div>
+        <Input
+            label="CPF"
+            inputMode="numeric"
+            placeholder="000.000.000-00"
+            error={"cpf" in errors ? errors.cpf?.message : undefined}
+            {...register("cpf", {
+                onChange: (e) => {
+                    e.target.value = formatCpf(e.target.value)
+                    setValue("cpf", e.target.value, { shouldValidate: false })
+                },
+            })}
+        />
+    </>
+)
+
+interface CompanyFieldsProps {
+    register: UseFormRegister<RegisterFormData>
+    errors: FieldErrors<RegisterFormData>
+    setValue: UseFormSetValue<RegisterFormData>
+}
+
+const CompanyFields = ({ register, errors, setValue }: CompanyFieldsProps) => (
+    <>
+        <Input
+            label="Razão social"
+            autoComplete="organization"
+            placeholder="Empresa Ltda"
+            error={"companyName" in errors ? errors.companyName?.message : undefined}
+            {...register("companyName")}
+        />
+        <Input
+            label="Nome fantasia (opcional)"
+            placeholder="Empresa"
+            error={"tradeName" in errors ? errors.tradeName?.message : undefined}
+            {...register("tradeName")}
+        />
+        <Input
+            label="CNPJ"
+            inputMode="numeric"
+            placeholder="00.000.000/0000-00"
+            error={"cnpj" in errors ? errors.cnpj?.message : undefined}
+            {...register("cnpj", {
+                onChange: (e) => {
+                    e.target.value = formatCnpj(e.target.value)
+                    setValue("cnpj", e.target.value, { shouldValidate: false })
+                },
+            })}
+        />
+    </>
+)
+
+interface AcceptedTermsFieldProps {
+    register: UseFormRegister<RegisterFormData>
+    error: string | undefined
+}
+
+// Consentimento LGPD (Art. 7º/8º) — aceite explícito obrigatório.
+const AcceptedTermsField = ({ register, error }: AcceptedTermsFieldProps) => (
+    <div className="flex flex-col gap-1">
+        <label className="text-13-5 flex cursor-pointer items-start gap-2.5 leading-normal">
+            <input
+                type="checkbox"
+                className="accent-accent mt-0.5 h-4 w-4 shrink-0"
+                {...register("acceptedTerms")}
+            />
+            <span>
+                Li e concordo com a{" "}
+                <Link to="/privacidade" target="_blank" className="text-accent-700">
+                    Política de Privacidade
+                </Link>{" "}
+                e os{" "}
+                <Link to="/termos" target="_blank" className="text-accent-700">
+                    Termos de Uso
+                </Link>
+                .
+            </span>
+        </label>
+        {error && <p className="text-status-danger text-sm">{error}</p>}
+    </div>
+)

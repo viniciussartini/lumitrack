@@ -16,22 +16,31 @@ interface TicketEntry extends StreamTicketPayload {
     expiresAt: number
 }
 
-// Ticket de vida curta e uso único para autenticar o stream SSE quando ele
-// precisa ser aberto cross-origin (demo pública no Render, ADR-0010): o
-// cookie de sessão nunca chega nesse cenário, porque foi definido pelo
-// navegador para o domínio do site estático (lumitrack.onrender.com), não
-// para o da API (lumitrack-api.onrender.com) — SameSite:"none" não muda
-// isso, é um problema de domínio do cookie, não de política cross-site.
-// `Domain=.onrender.com` também não resolve: onrender.com está na lista de
-// sufixos públicos, o navegador rejeita esse cookie.
-//
-// O cliente busca um ticket autenticado normalmente (cookie same-origin,
-// via POST /api/iot/stream-ticket, atravessando o rewrite) e troca
-// imediatamente pela conexão SSE, cross-origin, sem depender de cookie
-// nenhum nesse segundo passo.
+/**
+ * Ticket de vida curta e uso único para autenticar o stream SSE quando ele
+ * precisa ser aberto cross-origin (demo pública, ADR-0010): o cookie de sessão nunca
+ * chega nesse cenário, porque foi definido pelo navegador para o domínio do
+ * site estático (lumitrack.onrender.com), não para o da API
+ * (lumitrack-api.onrender.com) — `SameSite:"none"` não muda isso, é um
+ * problema de domínio do cookie, não de política cross-site.
+ * `Domain=.onrender.com` também não resolve: onrender.com está na lista de
+ * sufixos públicos, o navegador rejeita esse cookie.
+ *
+ * O cliente busca um ticket autenticado normalmente (cookie same-origin,
+ * via POST /api/iot/stream-ticket, atravessando o rewrite) e troca
+ * imediatamente pela conexão SSE, cross-origin, sem depender de cookie
+ * nenhum nesse segundo passo.
+ */
 export class SseTicketService {
     private readonly tickets = new Map<string, TicketEntry>()
 
+    /**
+     * Emite um ticket de vida curta e uso único, vinculado ao payload de
+     * identidade informado.
+     *
+     * @param payload - Identidade e credenciais a associar ao ticket.
+     * @returns Ticket opaco a ser trocado pela conexão SSE.
+     */
     issue(payload: StreamTicketPayload): string {
         this.sweepExpired()
         const ticket = randomBytes(32).toString("hex")
@@ -39,8 +48,14 @@ export class SseTicketService {
         return ticket
     }
 
-    // Uso único: removido no mesmo passo em que é lido, mesmo se inválido —
-    // nunca reutilizável, nem repetindo o mesmo valor por engano.
+    /**
+     * Consome um ticket — uso único: removido no mesmo passo em que é lido,
+     * mesmo se inválido — nunca reutilizável, nem repetindo o mesmo valor
+     * por engano.
+     *
+     * @param ticket - Ticket emitido por {@link issue}.
+     * @returns Payload de identidade associado, ou `null` se o ticket for inválido, expirado ou já consumido.
+     */
     consume(ticket: string): StreamTicketPayload | null {
         const entry = this.tickets.get(ticket)
         this.tickets.delete(ticket)

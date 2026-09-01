@@ -18,7 +18,14 @@ import {
     validateCsrf,
 } from "@/shared/security/csrf.js"
 
+/** Camada HTTP de autenticação, sessão, MFA e recuperação de conta. */
 export class AuthController {
+    /**
+     * @param authService - Regra de autenticação, sessão e MFA.
+     * @param userService - Usado para ler o perfil do usuário autenticado.
+     * @param auditService - Registra eventos de autenticação para trilha de auditoria.
+     * @param emailChangeService - Regra de confirmação de troca de e-mail.
+     */
     constructor(
         private readonly authService: AuthService,
         private readonly userService: UserService,
@@ -26,7 +33,15 @@ export class AuthController {
         private readonly emailChangeService: EmailChangeService,
     ) {}
 
-    // POST /api/auth/login — Público
+    /**
+     * `POST /api/auth/login` — Público. Valida credenciais e, se a conta não
+     * tiver MFA, estabelece a sessão; auditando sucesso e falha (esta
+     * última só quando é de fato uma tentativa de credencial).
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async login(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const result = await this.authService.login(req.body)
@@ -81,10 +96,16 @@ export class AuthController {
         }
     }
 
-    // POST /api/auth/demo-login — Público (gated por DEMO_LOGIN_ENABLED).
-    // Sem senha no corpo — só `profile` + `channel` — então não há
-    // "tentativa de credencial" a auditar em caso de falha (o erro é
-    // sempre configuração do ambiente: flag desligada ou seed ausente).
+    /**
+     * `POST /api/auth/demo-login` — Público (gated por DEMO_LOGIN_ENABLED).
+     * Sem senha no corpo — só `profile` + `channel` — então não há
+     * "tentativa de credencial" a auditar em caso de falha (o erro é
+     * sempre configuração do ambiente: flag desligada ou seed ausente).
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async demoLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const result = await this.authService.demoLogin(req.body)
@@ -115,8 +136,14 @@ export class AuthController {
         }
     }
 
-    // POST /api/auth/login/mfa — Público (mas exige mfaToken válido)
-    // Segunda etapa do login quando a conta tem MFA habilitado.
+    /**
+     * `POST /api/auth/login/mfa` — Público (mas exige mfaToken válido).
+     * Segunda etapa do login quando a conta tem MFA habilitado.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async verifyMfaLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { token, refreshToken, channel, userId } =
@@ -148,7 +175,14 @@ export class AuthController {
         }
     }
 
-    // GET /api/auth/me — Protegido
+    /**
+     * `GET /api/auth/me` — Protegido. Devolve o perfil do usuário
+     * autenticado.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async me(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id } = (req as AuthenticatedRequest).user
@@ -160,7 +194,14 @@ export class AuthController {
         }
     }
 
-    // POST /api/auth/logout — Protegido
+    /**
+     * `POST /api/auth/logout` — Protegido. Revoga a sessão (e o refresh
+     * token, quando presente) e limpa os cookies de sessão no canal WEB.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { authToken, authSource, user } = req as AuthenticatedRequest
@@ -194,7 +235,15 @@ export class AuthController {
         }
     }
 
-    // POST /api/auth/refresh — Público (JWT pode estar expirado)
+    /**
+     * `POST /api/auth/refresh` — Público (JWT pode estar expirado). Valida o
+     * refresh token e o CSRF de refresh via cookies, rotaciona a sessão e
+     * limpa todos os cookies em qualquer falha, para forçar novo login.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const rawRefreshToken = req.cookies?.[env.REFRESH_COOKIE_NAME] as string | undefined
@@ -245,7 +294,15 @@ export class AuthController {
         }
     }
 
-    // POST /api/auth/forgot-password — Público
+    /**
+     * `POST /api/auth/forgot-password` — Público. Sempre responde com
+     * sucesso genérico, independente de o e-mail existir, para não revelar
+     * quais endereços estão cadastrados.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             await this.authService.forgotPassword(req.body)
@@ -260,7 +317,14 @@ export class AuthController {
         }
     }
 
-    // POST /api/auth/reset-password — Público
+    /**
+     * `POST /api/auth/reset-password` — Público. Efetiva a nova senha a
+     * partir do token de reset.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             await this.authService.resetPassword(req.body)
@@ -274,7 +338,15 @@ export class AuthController {
         }
     }
 
-    // POST /api/auth/confirm-email-change — Público (mas exige token válido)
+    /**
+     * `POST /api/auth/confirm-email-change` — Público (mas exige token
+     * válido). Efetiva a troca de e-mail e audita a atualização de dados
+     * cadastrais do usuário.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async confirmEmailChange(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { userId } = await this.emailChangeService.confirmChange(req.body)
@@ -298,8 +370,14 @@ export class AuthController {
         }
     }
 
-    // POST /api/auth/mfa/setup — Protegido
-    // Gera um secret+QR novo — nada é persistido até verifyMfaSetup().
+    /**
+     * `POST /api/auth/mfa/setup` — Protegido. Gera um secret+QR novo — nada
+     * é persistido até verifyMfaSetup().
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async setupMfa(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { email } = (req as AuthenticatedRequest).user
@@ -311,7 +389,14 @@ export class AuthController {
         }
     }
 
-    // POST /api/auth/mfa/verify-setup — Protegido
+    /**
+     * `POST /api/auth/mfa/verify-setup` — Protegido. Confirma o secret
+     * gerado em setupMfa e habilita o MFA, auditando a ativação.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async verifyMfaSetup(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id: userId } = (req as AuthenticatedRequest).user
@@ -332,7 +417,14 @@ export class AuthController {
         }
     }
 
-    // POST /api/auth/mfa/disable — Protegido
+    /**
+     * `POST /api/auth/mfa/disable` — Protegido. Desabilita o MFA da conta e
+     * audita a desativação.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async disableMfa(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id: userId } = (req as AuthenticatedRequest).user

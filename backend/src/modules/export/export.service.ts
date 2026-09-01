@@ -38,7 +38,20 @@ export type DataExportPayload = {
     auditLogs: AuditLogResponse[]
 }
 
+/**
+ * Agrega, num único payload, todos os dados pessoais que o LumiTrack guarda
+ * sobre um titular (Art. 18 LGPD), para exportação em JSON ou PDF.
+ */
 export class ExportService {
+    /**
+     * @param userRepository - Dados cadastrais do titular.
+     * @param propertyRepository - Propriedades do titular.
+     * @param distributorRepository - Catálogo de distribuidoras, para resolver as vinculadas às propriedades do titular.
+     * @param alertRepository - Alertas configurados pelo titular.
+     * @param areaRepository - Áreas das propriedades do titular.
+     * @param deviceRepository - Dispositivos das áreas do titular.
+     * @param auditRepository - Trilha de auditoria de acesso a dados do titular.
+     */
     constructor(
         private readonly userRepository: UserRepository,
         private readonly propertyRepository: PropertyRepository,
@@ -49,9 +62,15 @@ export class ExportService {
         private readonly auditRepository: AuditRepository,
     ) {}
 
-    // userId vem sempre do middleware authenticate (GET /api/users/me/data-export,
-    // sem :id na URL) — não há checagem de ownership a fazer aqui, cada
-    // repositório já filtra nativamente por userId.
+    /**
+     * Monta o payload completo de exportação de dados do titular. `userId`
+     * vem sempre do middleware `authenticate` (`GET /api/users/me/data-export`,
+     * sem `:id` na URL) — não há checagem de ownership a fazer aqui, cada
+     * repositório já filtra nativamente por `userId`.
+     *
+     * @param userId - Id do usuário autenticado (titular dos dados).
+     * @returns Payload agregado com todos os dados pessoais do titular.
+     */
     async generate(userId: string): Promise<DataExportPayload> {
         const user = await this.userRepository.findById(userId)
         if (!user) {

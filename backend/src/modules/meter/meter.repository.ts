@@ -174,14 +174,34 @@ function extractField<T>(input: object, key: string): T | null {
     return key in input ? ((input as Record<string, T>)[key] ?? null) : null
 }
 
+/**
+ * Persistência de medidores — cada medidor tem exatamente um alvo
+ * (property/area/device) e, quando MQTT, uma credencial cifrada em repouso
+ * (ver {@link encryptExtraForStorage}/{@link decryptExtraForConnection}).
+ */
 export class MeterRepository {
+    /** @param prisma - Cliente Prisma usado para ler e gravar medidores. */
     constructor(private readonly prisma: PrismaClient) {}
 
+    /**
+     * Busca um medidor pelo id.
+     *
+     * @param id - Id do medidor.
+     * @returns O medidor, ou `null` se não existir.
+     */
     async findById(id: string): Promise<MeterResponse | null> {
         const raw = await this.prisma.meter.findUnique({ where: { id } })
         return raw ? toMeterResponse(raw) : null
     }
 
+    /**
+     * Busca o medidor vinculado a um alvo (property/area/device) específico
+     * — no máximo um medidor por alvo.
+     *
+     * @param targetType - Tipo do alvo (PROPERTY, AREA ou DEVICE).
+     * @param targetId - Id do alvo.
+     * @returns O medidor vinculado, ou `null` se o alvo não tiver medidor.
+     */
     async findByTarget(targetType: TargetType, targetId: string): Promise<MeterResponse | null> {
         const where =
             targetType === "PROPERTY"
@@ -194,12 +214,18 @@ export class MeterRepository {
         return raw ? toMeterResponse(raw) : null
     }
 
-    // Uma única query para qualquer targetType — `relationLoadStrategy:
-    // "join"` força um SQL JOIN real cobrindo os 3 `include` opcionais de
-    // uma vez (a estratégia default do Prisma para `include` é uma query por
-    // nível de relação, não um join). Exatamente um de property/area/device
-    // vem populado, conforme `meter.targetType`. Substitui os até 3 round
-    // trips sequenciais que `resolveMeterTarget` fazia antes.
+    /**
+     * Busca um medidor com seu alvo completo já resolvido. Uma única query
+     * para qualquer targetType — `relationLoadStrategy: "join"` força um SQL
+     * JOIN real cobrindo os 3 `include` opcionais de uma vez (a estratégia
+     * default do Prisma para `include` é uma query por nível de relação, não
+     * um join). Exatamente um de property/area/device vem populado,
+     * conforme `meter.targetType`. Substitui os até 3 round trips
+     * sequenciais que `resolveMeterTarget` fazia antes.
+     *
+     * @param meterId - Id do medidor.
+     * @returns O medidor com seu alvo resolvido, ou `null` se não existir.
+     */
     async findByIdWithTarget(meterId: string): Promise<MeterWithTargetRow | null> {
         const raw = await this.prisma.meter.findUnique({
             where: { id: meterId },
@@ -209,10 +235,15 @@ export class MeterRepository {
         return raw ? toMeterWithTargetRow(raw) : null
     }
 
-    // Versão em lote de `findByIdWithTarget` — uma única query para uma
-    // página inteira de medidores (qualquer mistura de targetType), em vez
-    // de uma chamada por medidor. Base do batching de `resolveMeterTargets`
-    // (substitui o N+1 de `AlertService.findAll`).
+    /**
+     * Versão em lote de {@link findByIdWithTarget} — uma única query para
+     * uma página inteira de medidores (qualquer mistura de targetType), em
+     * vez de uma chamada por medidor. Base do batching de
+     * `resolveMeterTargets` (substitui o N+1 de `AlertService.findAll`).
+     *
+     * @param meterIds - Ids dos medidores a buscar.
+     * @returns Mapa de id do medidor para o medidor com seu alvo resolvido.
+     */
     async findManyByIdsWithTarget(meterIds: string[]): Promise<Map<string, MeterWithTargetRow>> {
         if (meterIds.length === 0) return new Map()
 
@@ -225,8 +256,14 @@ export class MeterRepository {
         return new Map(rows.map((raw) => [raw.id, toMeterWithTargetRow(raw)]))
     }
 
-    // Une os 3 caminhos de posse (medidor de property, de area ou de device
-    // do usuário) numa única query via OR de relação aninhada.
+    /**
+     * Lista todos os medidores do usuário, sem paginação. Une os 3 caminhos
+     * de posse (medidor de property, de area ou de device do usuário) numa
+     * única query via OR de relação aninhada.
+     *
+     * @param userId - Id do usuário dono, direto ou indireto, dos medidores.
+     * @returns Todos os medidores do usuário, ordenados por nome.
+     */
     async findAllByUser(userId: string): Promise<MeterResponse[]> {
         const rows = await this.prisma.meter.findMany({
             where: {
@@ -241,6 +278,14 @@ export class MeterRepository {
         return rows.map(toMeterResponse)
     }
 
+    /**
+     * Lista paginada dos medidores do usuário, unindo os 3 caminhos de
+     * posse (medidor de property, de area ou de device do usuário).
+     *
+     * @param userId - Id do usuário dono, direto ou indireto, dos medidores.
+     * @param pagination - Página e tamanho de página desejados.
+     * @returns Página de medidores do usuário, ordenados por nome.
+     */
     async findAllByUserPaginated(
         userId: string,
         pagination: PaginationQuery,
@@ -267,6 +312,13 @@ export class MeterRepository {
         }
     }
 
+    /**
+     * Cria um medidor, cifrando a credencial (`extra.password`) antes de
+     * persistir quando o protocolo é MQTT.
+     *
+     * @param input - Dados validados do medidor a criar.
+     * @returns O medidor criado.
+     */
     async create(input: CreateMeterInput): Promise<MeterResponse> {
         const raw = await this.prisma.meter.create({
             data: {
@@ -291,15 +343,22 @@ export class MeterRepository {
         return toMeterResponse(raw)
     }
 
+    /**
+     * Atualiza um medidor. `extra` é opcional no schema de update
+     * (updateMeterSchema, MQTT inclusive) para não forçar reenvio da senha
+     * em toda edição — a resposta pública nunca devolve a senha em claro
+     * (ver {@link sanitizeExtraForResponse}), então um formulário de edição
+     * legitimamente não tem como reenviá-la. Se a chave nem veio no
+     * payload, a credencial existente não deve ser tocada; `extractField`
+     * trataria "ausente" e "null explícito" da mesma forma (apagando a
+     * coluna), então o `in` é checado antes dele, para os dois casos terem
+     * efeitos diferentes.
+     *
+     * @param id - Id do medidor a atualizar.
+     * @param input - Dados validados do medidor, já sem os campos ausentes.
+     * @returns O medidor atualizado.
+     */
     async update(id: string, input: UpdateMeterInput): Promise<MeterResponse> {
-        // `extra` é opcional no schema de update (updateMeterSchema, MQTT
-        // inclusive) para não forçar reenvio da senha em toda edição — a
-        // resposta pública nunca devolve a senha em claro (sanitizeExtraForResponse),
-        // então um formulário de edição legitimamente não tem como reenviá-la.
-        // Se a chave nem veio no payload, a credencial existente não deve ser
-        // tocada; `extractField` trataria "ausente" e "null explícito" da
-        // mesma forma (apagando a coluna), então o `in` é checado aqui, antes
-        // dele, para os dois casos terem efeitos diferentes.
         const extraProvided = "extra" in input
         const raw = await this.prisma.meter.update({
             where: { id },
@@ -323,20 +382,37 @@ export class MeterRepository {
         return toMeterResponse(raw)
     }
 
+    /**
+     * Remove um medidor.
+     *
+     * @param id - Id do medidor a remover.
+     */
     async delete(id: string): Promise<void> {
         await this.prisma.meter.delete({ where: { id } })
     }
 
-    // Só para uso interno do worker IoT (conexão real) — extra.password vem
-    // decifrado. Nunca chamado a partir de uma rota HTTP diretamente (ver
-    // MeterService.getConnectionConfig/getAllConnectionConfigs).
+    /**
+     * Configuração de conexão de um medidor com a credencial decifrada — só
+     * para uso interno do worker IoT (conexão real). Nunca chamado a partir
+     * de uma rota HTTP diretamente (ver
+     * `MeterService.getConnectionConfig`/`getAllConnectionConfigs`).
+     *
+     * @param id - Id do medidor.
+     * @returns A configuração de conexão do medidor, ou `null` se não existir.
+     */
     async findConnectionConfigById(id: string): Promise<MeterConnectionConfig | null> {
         const raw = await this.prisma.meter.findUnique({ where: { id } })
         return raw ? toConnectionConfig(raw) : null
     }
 
-    // Usado no boot do servidor (server.ts::restoreIoTConnections) para
-    // reconectar todos os medidores de uma vez.
+    /**
+     * Configuração de conexão de todos os medidores cadastrados, com a
+     * credencial decifrada — usado no boot do servidor
+     * (`server.ts::restoreIoTConnections`) para reconectar todos os
+     * medidores de uma vez.
+     *
+     * @returns A configuração de conexão de todos os medidores.
+     */
     async findAllConnectionConfigs(): Promise<MeterConnectionConfig[]> {
         const rows = await this.prisma.meter.findMany()
         return rows.map(toConnectionConfig)

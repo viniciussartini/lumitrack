@@ -4,13 +4,24 @@ import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
 import { getRequestContext } from "@/shared/audit/requestContext.js"
 
+/** Camada HTTP de imóveis — delega toda a regra a {@link PropertyService} e registra os eventos de auditoria de cada escrita. */
 export class PropertyController {
+    /**
+     * @param propertyService - Serviço de imóveis, composto manualmente nas rotas do módulo.
+     * @param auditService - Registro de eventos de auditoria das escritas do módulo.
+     */
     constructor(
         private readonly propertyService: PropertyService,
         private readonly auditService: AuditService,
     ) {}
 
-    // POST /api/properties — Autenticado
+    /**
+     * `POST /api/properties` — cria um imóvel do usuário autenticado.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async create(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id: userId } = (req as AuthenticatedRequest).user
@@ -31,7 +42,14 @@ export class PropertyController {
         }
     }
 
-    // GET /api/properties?page=&pageSize= — Autenticado
+    /**
+     * `GET /api/properties?page=&pageSize=` — lista paginada dos imóveis do
+     * usuário autenticado.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async findAll(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id: userId } = (req as AuthenticatedRequest).user
@@ -42,7 +60,14 @@ export class PropertyController {
         }
     }
 
-    // GET /api/properties/:id — Autenticado
+    /**
+     * `GET /api/properties/:id` — detalhe de um imóvel, escopado ao
+     * usuário autenticado (dono do imóvel).
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async findById(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id: propertyId } = req.params as { id: string }
@@ -54,7 +79,14 @@ export class PropertyController {
         }
     }
 
-    // PUT /api/properties/:id — Autenticado
+    /**
+     * `PUT /api/properties/:id` — atualiza um imóvel do usuário autenticado
+     * e registra, em auditoria, quais campos mudaram.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async update(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id: propertyId } = req.params as { id: string }
@@ -80,7 +112,13 @@ export class PropertyController {
         }
     }
 
-    // DELETE /api/properties/:id — Autenticado
+    /**
+     * `DELETE /api/properties/:id` — remove um imóvel do usuário autenticado.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id: propertyId } = req.params as { id: string }

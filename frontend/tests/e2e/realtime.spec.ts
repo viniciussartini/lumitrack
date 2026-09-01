@@ -3,6 +3,7 @@ import { test, expect, type Page } from "@playwright/test"
 import { fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
+import { mockSseStream, sseEvent } from "./support/sse"
 import { ALERT_1, DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
 
 /**
@@ -25,36 +26,12 @@ import { ALERT_1, DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
  * API pública de mock do Playwright) — por isso o evento fica todo no corpo
  * inicial da resposta, e a passagem de tempo (para o caso "stale") é
  * simulada com `page.clock`, nunca com espera real.
+ *
+ * `sseEvent`/`mockSseStream` vêm de `./support/sse` — ver ali o porquê da
+ * janela de graça contra o duplo-mount do `React.StrictMode`.
  */
 
 const CLOCK_TIME = "2026-07-17T12:00:00.000Z"
-
-const sseEvent = (event: string, data: unknown) =>
-    `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
-
-/**
- * Registra `GET /api/iot/stream` com um corpo SSE fixo — sobrescreve o
- * stream vazio de `mockAppShellBackground` (registrado depois, então vence).
- *
- * `route.fulfill()` entrega o corpo inteiro e fecha a conexão — a lib
- * `fetch-event-source` trata isso como uma desconexão e reconecta sozinha.
- * Sem tratar isso, cada reconexão reentrega o MESMO corpo, disparando os
- * eventos de novo (ex.: um segundo toast de `notification`, uma segunda
- * leitura). Só a primeira conexão recebe o script; reconexões (se
- * acontecerem antes do teste terminar) recebem só `connected`.
- */
-const mockSseStream = async (page: Page, initialBody: string) => {
-    let alreadyConnected = false
-    await page.route("**/api/iot/stream", (route) => {
-        const body = alreadyConnected ? sseEvent("connected", { meterCount: 1 }) : initialBody
-        alreadyConnected = true
-        return route.fulfill({
-            status: 200,
-            contentType: "text/event-stream",
-            body,
-        })
-    })
-}
 
 /** Medidor de nível PROPERTY (METER_1 é DEVICE por fixture — o mock não
  * precisa manter a consistência do alvo, só o `id` bater com o `meterId`

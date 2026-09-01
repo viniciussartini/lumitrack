@@ -23,6 +23,15 @@ function createPrismaClient(): { client: PrismaClient; pool: Pool } {
         max: env.DB_POOL_MAX,
         connectionTimeoutMillis: env.DB_POOL_CONNECTION_TIMEOUT_MS,
         idleTimeoutMillis: env.DB_POOL_IDLE_TIMEOUT_MS,
+        // Enforçado pelo Postgres (não pelo driver) — cobre também o caso de
+        // o processo Node ficar preso em outra coisa antes de cancelar a
+        // query. Este é o teto do POOL — vale por padrão, inclusive para
+        // rota HTTP. O RetentionPurgeScheduler usa um teto PRÓPRIO, maior,
+        // via `SET LOCAL` (shared/database/withPurgeTimeout.ts), porque o
+        // pior caso legítimo dele é mais lento que o de qualquer rota. Ver
+        // DB_POOL_STATEMENT_TIMEOUT_MS/RETENTION_PURGE_STATEMENT_TIMEOUT_MS
+        // em config/env.ts para o racional dos dois valores.
+        statement_timeout: env.DB_POOL_STATEMENT_TIMEOUT_MS,
     })
     const adapter = new PrismaPg(pool)
 

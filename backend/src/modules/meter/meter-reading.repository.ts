@@ -3,6 +3,7 @@ import { Prisma, PrismaClient } from "@/generated/prisma/client.js"
 import type { MinuteBucketSnapshot } from "@/modules/iot/iot-worker/MinuteBuffer.js"
 import type { MeterReadingGranularity } from "@/modules/meter/meter-reading.schema.js"
 import { localTsExpr, rangeFilter } from "@/shared/database/timeBucket.js"
+import { withPurgeTimeout } from "@/shared/database/withPurgeTimeout.js"
 
 const TRUNC_UNIT: Record<MeterReadingGranularity, string> = {
     minute: "minute",
@@ -14,11 +15,14 @@ export type MeterReadingBucket = {
     avgPowerW: number
 }
 
-// Persistência das leituras minuto a minuto (MeterReading). Deliberadamente
-// simples: ao contrário do antigo HourlyRollupScheduler, não resolve
-// hierarquia nem calcula custo — grava só as grandezas elétricas cruas. O
-// custo é calculado sob demanda na agregação (TariffService).
+/**
+ * Persistência das leituras minuto a minuto (MeterReading). Deliberadamente
+ * simples: ao contrário do antigo HourlyRollupScheduler, não resolve
+ * hierarquia nem calcula custo — grava só as grandezas elétricas cruas. O
+ * custo é calculado sob demanda na agregação (TariffService).
+ */
 export class MeterReadingRepository {
+    /** @param prisma - Cliente Prisma usado para ler e gravar leituras de medidor. */
     constructor(private readonly prisma: PrismaClient) {}
 
     /**
@@ -39,6 +43,8 @@ export class MeterReadingRepository {
      * nativo do Prisma faria) reintroduziria a mesma corrida. `EXCLUDED`
      * refere-se à linha que esta chamada tentou inserir; `"meter_readings"`
      * (sem alias) refere-se à linha já existente antes deste conflito.
+     *
+     * @param snapshot - Amostra agregada de um minuto, pronta para persistir.
      */
     async upsertMinute(snapshot: MinuteBucketSnapshot): Promise<void> {
         await this.prisma.$executeRaw`
@@ -94,6 +100,12 @@ export class MeterReadingRepository {
      * `avgPowerW` ponderado por `secondsCovered`, mesma receita de
      * `ConsumptionRepository.findAggregated` — sem soma de kWh nem
      * paginação, só a grandeza que o gráfico plota.
+     *
+     * @param meterId - Id do medidor.
+     * @param granularity - Granularidade dos buckets (minuto ou hora).
+     * @param from - Início da janela (inclusive).
+     * @param to - Fim da janela (inclusive).
+     * @returns Buckets ordenados por início, com a potência média de cada um.
      */
     async findAggregated(
         meterId: string,
@@ -127,11 +139,16 @@ export class MeterReadingRepository {
      * por `minuteStart` (não `createdAt`): é o instante da leitura em si que
      * define a janela de retenção, não quando a linha foi persistida.
      * Suportado pelo índice `meter_readings_minuteStart_idx`.
+     *
+     * @param threshold - Leituras com `minuteStart` anterior a este instante são removidas.
+     * @returns Quantidade de leituras removidas.
      */
     async deleteOlderThan(threshold: Date): Promise<number> {
-        const result = await this.prisma.meterReading.deleteMany({
-            where: { minuteStart: { lt: threshold } },
+        return withPurgeTimeout(this.prisma, async (tx) => {
+            const result = await tx.meterReading.deleteMany({
+                where: { minuteStart: { lt: threshold } },
+            })
+            return result.count
         })
-        return result.count
     }
 }

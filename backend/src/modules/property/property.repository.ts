@@ -20,13 +20,18 @@ export type PropertyResponse = Omit<PrismaProperty, "publicLightingFeeBrl"> & {
     publicLightingFeeBrl: number | null
 }
 
-// Decifra os 4 campos de endereço antes de retornar ao service/controller.
-// A cifra/decifra acontece exclusivamente nessa borda do repository —
-// o resto da aplicação (service, controller, frontend) continua recebendo
-// o valor em texto claro, sem nenhuma mudança de contrato de API.
-// Exportada para uso por AreaRepository/DeviceRepository, que também
-// precisam devolver uma Property decifrada ao resolver a cadeia de posse
-// numa única query (ver `findByIdWithProperty`).
+/**
+ * Decifra os 4 campos de endereço antes de retornar ao service/controller.
+ * A cifra/decifra acontece exclusivamente nessa borda do repository —
+ * o resto da aplicação (service, controller, frontend) continua recebendo
+ * o valor em texto claro, sem nenhuma mudança de contrato de API.
+ * Exportada para uso por AreaRepository/DeviceRepository, que também
+ * precisam devolver uma Property decifrada ao resolver a cadeia de posse
+ * numa única query (ver `findByIdWithProperty`).
+ *
+ * @param p - Registro de imóvel como vem do Prisma, com endereço cifrado.
+ * @returns O imóvel com os campos de endereço decifrados.
+ */
 export function toPropertyResponse(p: PrismaProperty): PropertyResponse {
     return {
         ...p,
@@ -38,14 +43,29 @@ export function toPropertyResponse(p: PrismaProperty): PropertyResponse {
     }
 }
 
+/** Acesso a imóveis persistidos — decifra o endereço na borda antes de devolver ao chamador. */
 export class PropertyRepository {
+    /** @param prisma - Cliente Prisma usado para acessar a tabela de imóveis. */
     constructor(private readonly prisma: PrismaClient) {}
 
+    /**
+     * Busca um imóvel pelo id, sem restringir por dono — a checagem de
+     * ownership é responsabilidade do chamador.
+     *
+     * @param id - Id do imóvel.
+     * @returns O imóvel decifrado, ou `null` se não existir.
+     */
     async findById(id: string): Promise<PropertyResponse | null> {
         const property = await this.prisma.property.findUnique({ where: { id } })
         return property && toPropertyResponse(property)
     }
 
+    /**
+     * Lista todos os imóveis de um usuário, sem paginação.
+     *
+     * @param userId - Id do usuário dono dos imóveis.
+     * @returns Todos os imóveis do usuário, ordenados por nome.
+     */
     async findAllByUser(userId: string): Promise<PropertyResponse[]> {
         const properties = await this.prisma.property.findMany({
             where: { userId },
@@ -54,6 +74,13 @@ export class PropertyRepository {
         return properties.map(toPropertyResponse)
     }
 
+    /**
+     * Lista paginada dos imóveis de um usuário.
+     *
+     * @param userId - Id do usuário dono dos imóveis.
+     * @param pagination - Página e tamanho de página solicitados.
+     * @returns Página de imóveis do usuário, ordenados por nome.
+     */
     async findAllByUserPaginated(
         userId: string,
         pagination: PaginationQuery,
@@ -78,6 +105,13 @@ export class PropertyRepository {
         }
     }
 
+    /**
+     * Cria um imóvel, cifrando os campos de endereço antes de persistir.
+     *
+     * @param userId - Id do usuário dono do imóvel.
+     * @param data - Dados do imóvel a criar, já validados.
+     * @returns O imóvel criado, decifrado.
+     */
     async create(userId: string, data: CreatePropertyInput): Promise<PropertyResponse> {
         const property = await this.prisma.property.create({
             data: {
@@ -96,6 +130,14 @@ export class PropertyRepository {
         return toPropertyResponse(property)
     }
 
+    /**
+     * Atualiza um imóvel, cifrando os campos de endereço informados antes
+     * de persistir.
+     *
+     * @param id - Id do imóvel a atualizar.
+     * @param data - Campos a atualizar, já validados.
+     * @returns O imóvel atualizado, decifrado.
+     */
     async update(id: string, data: UpdatePropertyInput): Promise<PropertyResponse> {
         // Spread condicional requerido por exactOptionalPropertyTypes: true —
         // evita sobrescrever campos existentes com undefined.
@@ -127,6 +169,11 @@ export class PropertyRepository {
         return toPropertyResponse(property)
     }
 
+    /**
+     * Remove um imóvel definitivamente.
+     *
+     * @param id - Id do imóvel a remover.
+     */
     async delete(id: string): Promise<void> {
         await this.prisma.property.delete({ where: { id } })
     }

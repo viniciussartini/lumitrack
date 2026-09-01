@@ -116,9 +116,15 @@ export default tseslint.config(
         },
     },
     {
-        // `list()` — endereçado na Fase 18. Teto acima do valor medido
-        // (84 linhas); complexidade já está dentro do limite global, sem
-        // necessidade de override.
+        // `summary()` (82 linhas) — `list()` saiu desta exceção depois de
+        // `computeYearlyPropertyCosts`/`resolveBucketCost` serem extraídos
+        // pra métodos próprios, agora dentro do teto global sem override.
+        // `summary()` não foi tocado por aquela extração — já tem seu
+        // próprio equivalente em `calculateYearlyPropertyCost`, um método à
+        // parte — e seu tamanho vem de orquestrar autorização em lote
+        // (resolver posse de cada id, montar os mapas de medidor/bucket),
+        // não de lógica de custo repetida. Teto acima do valor medido;
+        // revisitar se o arquivo crescer.
         files: ["src/modules/consumption/consumption.service.ts"],
         rules: {
             "max-lines-per-function": [
@@ -175,11 +181,7 @@ export default tseslint.config(
     },
     {
         // JSDoc real em exports públicos de service/repository/controller
-        // (06-code-quality-standards.md). Ligado como "error" — vale para
-        // todo arquivo novo a partir de agora (um arquivo fora do override
-        // abaixo já é pego inteiro). Método novo dentro de um arquivo já
-        // catalogado no override continua isento, porque a exceção é por
-        // arquivo, não por método — ver #303 para o débito remanescente.
+        // (06-code-quality-standards.md), sem exceções.
         files: [
             "src/modules/*/*.service.ts",
             "src/modules/*/*.repository.ts",
@@ -206,69 +208,6 @@ export default tseslint.config(
             ],
             "jsdoc/require-param": "error",
             "jsdoc/require-returns": "error",
-        },
-    },
-    {
-        // Débito de JSDoc: 100% dos arquivos do escopo acima usam comentário
-        // `//` funcional em vez de JSDoc real nas classes/métodos públicos.
-        // Catalogado por arquivo (não um glob genérico) — cada um sai desta
-        // lista ao ser documentado; a lista nunca cresce silenciosamente,
-        // já que um módulo novo não entra aqui automaticamente. Rastreado
-        // em #303.
-        files: [
-            "src/modules/admin/admin.controller.ts",
-            "src/modules/admin/admin.service.ts",
-            "src/modules/alert/alert.controller.ts",
-            "src/modules/alert/alert.repository.ts",
-            "src/modules/alert/alert.service.ts",
-            "src/modules/alert/alert-trigger-event.repository.ts",
-            "src/modules/alert-event/alert-event.controller.ts",
-            "src/modules/alert-event/alert-event.service.ts",
-            "src/modules/area/area.controller.ts",
-            "src/modules/area/area.repository.ts",
-            "src/modules/area/area.service.ts",
-            "src/modules/auth/auth.controller.ts",
-            "src/modules/auth/auth.repository.ts",
-            "src/modules/auth/auth.service.ts",
-            "src/modules/auth/email-change.service.ts",
-            "src/modules/auth/email.service.ts",
-            "src/modules/consumption/consumption.controller.ts",
-            "src/modules/consumption/consumption.repository.ts",
-            "src/modules/consumption/consumption.service.ts",
-            "src/modules/device/device.controller.ts",
-            "src/modules/device/device.repository.ts",
-            "src/modules/device/device.service.ts",
-            "src/modules/distributor/distributor.controller.ts",
-            "src/modules/distributor/distributor.repository.ts",
-            "src/modules/distributor/distributor.service.ts",
-            "src/modules/export/export.controller.ts",
-            "src/modules/export/export.service.ts",
-            "src/modules/iot/sse-ticket.service.ts",
-            "src/modules/meter/meter.controller.ts",
-            "src/modules/meter/meter-reading.controller.ts",
-            "src/modules/meter/meter-reading.repository.ts",
-            "src/modules/meter/meter-reading.service.ts",
-            "src/modules/meter/meter.repository.ts",
-            "src/modules/meter/meter.service.ts",
-            "src/modules/notification/notification.controller.ts",
-            "src/modules/notification/notification.service.ts",
-            "src/modules/property/property.controller.ts",
-            "src/modules/property/property.repository.ts",
-            "src/modules/property/property.service.ts",
-            "src/modules/simulation/simulation.controller.ts",
-            "src/modules/simulation/simulation.service.ts",
-            "src/modules/tariff-flag/tariff-flag.controller.ts",
-            "src/modules/tariff-flag/tariff-flag-history.repository.ts",
-            "src/modules/tariff-flag/tariff-flag.repository.ts",
-            "src/modules/tariff-flag/tariff-flag.service.ts",
-            "src/modules/user/user.controller.ts",
-            "src/modules/user/user.repository.ts",
-            "src/modules/user/user.service.ts",
-        ],
-        rules: {
-            "jsdoc/require-jsdoc": "off",
-            "jsdoc/require-param": "off",
-            "jsdoc/require-returns": "off",
         },
     },
 )

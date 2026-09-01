@@ -3,6 +3,7 @@ import { test, expect, type Page } from "@playwright/test"
 import { fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
+import { mockSseStream, sseEvent } from "./support/sse"
 import { DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
 
 /**
@@ -12,14 +13,13 @@ import { DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
  * O seletor de propriedade já é exercitado aqui de passagem — é o
  * primeiro E2E da rota `/dashboard`, então cobre também o caminho até
  * chegar na propriedade com o KPI.
+ *
+ * `sseEvent`/`mockSseStream` vêm de `./support/sse`.
  */
 
 /** 2ª propriedade só para os cenários de comparação — o resto do
  * arquivo usa só PROP_1, um único item não exercitaria "N propriedades". */
 const PROP_2 = { ...PROP_1, id: "prop-2", name: "Loja" }
-
-const sseEvent = (event: string, data: unknown) =>
-    `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
 
 /** Medidor de nível PROPERTY vinculado diretamente a PROP_1 (ver nota de
  * design: KPIs usam só o medidor direto da propriedade, sem somar
@@ -38,24 +38,6 @@ const TARIFF_FLAG = {
     redP1Per100Kwh: 4.46,
     redP2Per100Kwh: 7.87,
     updatedAt: new Date().toISOString(),
-}
-
-/**
- * `route.fulfill()` entrega o corpo inteiro e fecha a conexão — reconexões
- * automáticas da lib `fetch-event-source` reentregariam o mesmo corpo se não
- * tratado. Só a primeira conexão recebe o script.
- */
-const mockSseStream = async (page: Page, initialBody: string) => {
-    let alreadyConnected = false
-    await page.route("**/api/iot/stream", (route) => {
-        const body = alreadyConnected ? sseEvent("connected", { meterCount: 1 }) : initialBody
-        alreadyConnected = true
-        return route.fulfill({
-            status: 200,
-            contentType: "text/event-stream",
-            body,
-        })
-    })
 }
 
 const setupDashboard = async (page: Page) => {
@@ -157,6 +139,21 @@ test.describe("Painel — visão em tempo real (#116)", () => {
     test("mostra Consumo hoje/Custo projetado do mês e a bandeira vigente destacada (#117)", async ({
         page,
     }) => {
+        // Relógio da PÁGINA congelado (mesmo padrão do teste "Potência
+        // agora" acima) — o card "Consumo hoje" busca o bucket de hoje
+        // comparando a data local do browser (`toLocalDateKey`) contra a
+        // data do `bucketStart` do mock decodificada como UTC
+        // (`bucketDateKey`, dashboardKpis.ts — mesma convenção do backend
+        // real). Sem relógio fixo, os dois lados usam a hora real do
+        // sistema; toda vez que o teste roda entre 21h e meia-noite em
+        // São Paulo (UTC-3), a data UTC já virou o dia seguinte enquanto a
+        // data local de SP ainda é "hoje", e o bucket deixa de ser
+        // encontrado — falha intermitente e dependente só do horário do
+        // CI. CLOCK_TIME fixo, longe de qualquer fronteira de dia nos dois
+        // fusos, elimina essa dependência.
+        const CLOCK_TIME = "2026-07-17T12:30:00.000Z"
+        await page.clock.install({ time: new Date(CLOCK_TIME) })
+
         await setupDashboard(page)
         await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
             fulfillJson(route, PROPERTY_METER),
@@ -165,9 +162,16 @@ test.describe("Painel — visão em tempo real (#116)", () => {
             const url = new URL(route.request().url())
             const granularity = url.searchParams.get("granularity")
             if (granularity === "day") {
+                // Meia-noite (UTC) do dia de CLOCK_TIME — mesma convenção
+                // que `bucketDateKey` espera (dígitos de data já prontos
+                // pra leitura via getters UTC), sem precisar de máscara de
+                // fuso: à diferença do bucket de minuto do teste acima, um
+                // bucket de DIA só precisa acertar a data, não a hora.
+                const todayBucketStart = new Date(CLOCK_TIME)
+                todayBucketStart.setUTCHours(0, 0, 0, 0)
                 return fulfillPaginated(route, [
                     {
-                        bucketStart: new Date().toISOString(),
+                        bucketStart: todayBucketStart.toISOString(),
                         kwhConsumed: 12,
                         costBrl: 9.6,
                         avgPowerW: 500,
