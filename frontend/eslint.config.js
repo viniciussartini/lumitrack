@@ -202,12 +202,16 @@ export default tseslint.config(
         },
     },
     {
+        // Extraído em CreatedAlertsSection/AlertHistorySection — a
+        // complexidade de todo o arquivo já caiu dentro do teto global (o
+        // maior dos três é 11), só `max-lines-per-function` segue acima por
+        // causa do JSX de orquestração (cabeçalho + KPIs + as duas seções +
+        // o dialog). Teto acima do valor medido; revisitar se crescer.
         files: ["src/pages/alert/AlertsPage.tsx"],
         rules: {
-            complexity: ["error", 40],
             "max-lines-per-function": [
                 "error",
-                { max: 170, skipBlankLines: true, skipComments: true },
+                { max: 80, skipBlankLines: true, skipComments: true },
             ],
         },
     },
@@ -232,12 +236,18 @@ export default tseslint.config(
         },
     },
     {
+        // Componente principal (169 linhas) — extraído em subcomponentes
+        // (AccountTypeToggle/IndividualFields/CompanyFields/
+        // AcceptedTermsField); a complexidade já caiu dentro do teto global
+        // (9), só `max-lines-per-function` segue acima por causa do JSX de
+        // orquestração (form + os 3 campos comuns + o botão de submit) que
+        // não fazia sentido fatiar mais fino sem perder legibilidade. Teto
+        // acima do valor medido; revisitar se crescer.
         files: ["src/pages/auth/RegisterPage.tsx"],
         rules: {
-            complexity: ["error", 25],
             "max-lines-per-function": [
                 "error",
-                { max: 320, skipBlankLines: true, skipComments: true },
+                { max: 180, skipBlankLines: true, skipComments: true },
             ],
         },
     },
