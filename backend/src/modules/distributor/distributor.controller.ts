@@ -1,10 +1,19 @@
 import type { Request, Response, NextFunction } from "express"
 import type { DistributorService } from "@/modules/distributor/distributor.service.js"
 
+/** Camada HTTP do catálogo de distribuidoras — delega toda a regra a {@link DistributorService}. */
 export class DistributorController {
+    /** @param distributorService - Serviço do catálogo de distribuidoras, composto manualmente nas rotas do módulo. */
     constructor(private readonly distributorService: DistributorService) {}
 
-    // GET /api/distributors?page=&pageSize= — Autenticado (catálogo global)
+    /**
+     * `GET /api/distributors?page=&pageSize=` — lista paginada do catálogo
+     * global de distribuidoras, disponível a qualquer usuário autenticado.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async findAll(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const result = await this.distributorService.findAll(req.query)
@@ -14,7 +23,13 @@ export class DistributorController {
         }
     }
 
-    // GET /api/distributors/:id — Autenticado
+    /**
+     * `GET /api/distributors/:id` — detalhe de uma distribuidora do catálogo.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async findById(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id: distributorId } = req.params as { id: string }

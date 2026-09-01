@@ -24,10 +24,23 @@ function withConnectionManager(
     )
 }
 
+/**
+ * Camada HTTP de medidores — delega toda a regra a {@link MeterService} e,
+ * após criar/atualizar/remover, dispara em segundo plano a atualização da
+ * conexão IoT real (ver `withConnectionManager`), sem bloquear a resposta.
+ */
 export class MeterController {
+    /** @param meterService - Serviço de medidores, composto manualmente nas rotas do módulo. */
     constructor(private readonly meterService: MeterService) {}
 
-    // POST /api/meters
+    /**
+     * `POST /api/meters` — cria o medidor e, em segundo plano, inicia a
+     * conexão IoT real com a configuração recém-criada.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async create(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id: userId } = (req as AuthenticatedRequest).user
@@ -44,7 +57,14 @@ export class MeterController {
         }
     }
 
-    // GET /api/meters?page=&pageSize=
+    /**
+     * `GET /api/meters?page=&pageSize=` — lista paginada dos medidores do
+     * usuário autenticado.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async findAll(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id: userId } = (req as AuthenticatedRequest).user
@@ -55,7 +75,14 @@ export class MeterController {
         }
     }
 
-    // GET /api/meters/by-target?targetType=&targetId=
+    /**
+     * `GET /api/meters/by-target?targetType=&targetId=` — medidor vinculado
+     * a um alvo específico (property/area/device) do usuário autenticado.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async findByTarget(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id: userId } = (req as AuthenticatedRequest).user
@@ -66,7 +93,13 @@ export class MeterController {
         }
     }
 
-    // GET /api/meters/:id
+    /**
+     * `GET /api/meters/:id` — detalhe de um medidor do usuário autenticado.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async findById(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id } = req.params as { id: string }
@@ -78,7 +111,14 @@ export class MeterController {
         }
     }
 
-    // PUT /api/meters/:id
+    /**
+     * `PUT /api/meters/:id` — atualiza o medidor e, em segundo plano,
+     * reinicia a conexão IoT com a configuração atualizada.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async update(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id } = req.params as { id: string }
@@ -99,7 +139,14 @@ export class MeterController {
         }
     }
 
-    // DELETE /api/meters/:id
+    /**
+     * `DELETE /api/meters/:id` — remove o medidor e, em segundo plano,
+     * encerra a conexão IoT associada.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id } = req.params as { id: string }

@@ -53,17 +53,35 @@ type SessionResult = {
 type LoginResult =
     (SessionResult & { mfaRequired: false }) | { mfaRequired: true; mfaToken: string }
 
+/**
+ * Autenticação, sessão, MFA e recuperação de conta — login, refresh
+ * rotacionado, TOTP com backup codes e o ciclo de esqueci-minha-senha.
+ */
 export class AuthService {
-    // `demoLoginEnabled` é injetado (não lido de `env` direto no método) —
-    // mesmo padrão de DI usado em `UserService.registrationEnabled`: deixa
-    // o guard testável sem mockar módulo. Default `false` preserva o
-    // comportamento de todo chamador existente.
+    /**
+     * `demoLoginEnabled` é injetado (não lido de `env` direto no método) —
+     * mesmo padrão de DI usado em `UserService.registrationEnabled`: deixa
+     * o guard testável sem mockar módulo. Default `false` preserva o
+     * comportamento de todo chamador existente.
+     *
+     * @param authRepository - Acesso a dados de autenticação, sessão e MFA persistidos.
+     * @param sendPasswordResetEmail - Envia o e-mail com o link de redefinição de senha.
+     * @param demoLoginEnabled - Libera o endpoint de login de demonstração.
+     */
     constructor(
         private readonly authRepository: AuthRepository,
         private readonly sendPasswordResetEmail: SendPasswordResetEmailFn,
         private readonly demoLoginEnabled: boolean = false,
     ) {}
 
+    /**
+     * Valida e-mail e senha; se a conta tiver MFA habilitado, devolve um
+     * `mfaToken` de curta duração em vez da sessão (segunda etapa em
+     * {@link completeMfaLogin}).
+     *
+     * @param input - Corpo bruto da requisição (`email`, `password`, `channel`), validado aqui.
+     * @returns A sessão emitida, ou um `mfaToken` pendente quando MFA está habilitado.
+     */
     async login(input: unknown): Promise<LoginResult> {
         const { email, password, channel } = parseOrThrow(loginSchema, input)
 
@@ -83,11 +101,16 @@ export class AuthService {
         return { ...session, mfaRequired: false }
     }
 
-    // Login de demonstração: sem senha do cliente — o e-mail
-    // resolve internamente a partir do `profile` escolhido, nunca chega ao
-    // frontend. Gated por DEMO_LOGIN_ENABLED (falha fechada, antes de
-    // validar o payload) para o endpoint não existir funcionalmente em
-    // ambientes que não optaram por expor login de demonstração.
+    /**
+     * Login de demonstração: sem senha do cliente — o e-mail
+     * resolve internamente a partir do `profile` escolhido, nunca chega ao
+     * frontend. Gated por DEMO_LOGIN_ENABLED (falha fechada, antes de
+     * validar o payload) para o endpoint não existir funcionalmente em
+     * ambientes que não optaram por expor login de demonstração.
+     *
+     * @param input - Corpo bruto da requisição (`profile`, `channel`), validado aqui.
+     * @returns A sessão emitida, ou um `mfaToken` pendente quando MFA está habilitado.
+     */
     async demoLogin(input: unknown): Promise<LoginResult> {
         if (!this.demoLoginEnabled) {
             throw new ForbiddenError("Login de demonstração desabilitado neste ambiente")
@@ -119,9 +142,14 @@ export class AuthService {
         })
     }
 
-    // Completa o login depois que login() retornou mfaRequired:true — exige
-    // o mfaToken de curta duração (provando que a senha já foi validada)
-    // mais um código válido (TOTP ou backup code).
+    /**
+     * Completa o login depois que login() retornou mfaRequired:true — exige
+     * o mfaToken de curta duração (provando que a senha já foi validada)
+     * mais um código válido (TOTP ou backup code).
+     *
+     * @param input - Corpo bruto da requisição (`mfaToken`, `code`), validado aqui.
+     * @returns A sessão emitida.
+     */
     async completeMfaLogin(input: unknown): Promise<SessionResult> {
         const { mfaToken, code } = parseOrThrow(mfaLoginVerifySchema, input)
 
@@ -151,9 +179,14 @@ export class AuthService {
         return this.issueSessionToken(user.id, user.email, user.userType, payload.channel)
     }
 
-    // Gera um novo secret TOTP + QR code — nada é persistido ainda. O
-    // cliente precisa confirmar com verifyMfaSetup() (re-submetendo o
-    // secret junto com um código válido) antes de habilitar de fato.
+    /**
+     * Gera um novo secret TOTP + QR code — nada é persistido ainda. O
+     * cliente precisa confirmar com verifyMfaSetup() (re-submetendo o
+     * secret junto com um código válido) antes de habilitar de fato.
+     *
+     * @param email - E-mail do usuário, usado no label do QR code TOTP.
+     * @returns O secret gerado e o QR code (data URL) para escanear no app autenticador.
+     */
     async setupMfa(email: string): Promise<{ secret: string; qrCodeDataUrl: string }> {
         const secret = generateTotpSecret()
         const uri = generateTotpUri(email, secret)
@@ -162,6 +195,15 @@ export class AuthService {
         return { secret, qrCodeDataUrl }
     }
 
+    /**
+     * Confirma a configuração de MFA: exige um código TOTP válido para o
+     * secret gerado em {@link setupMfa}, então persiste o secret (cifrado)
+     * e emite os backup codes.
+     *
+     * @param userId - Id do usuário que está habilitando o MFA.
+     * @param input - Corpo bruto da requisição (`secret`, `code`), validado aqui.
+     * @returns Os backup codes em texto claro (única vez que ficam visíveis).
+     */
     async verifyMfaSetup(userId: string, input: unknown): Promise<{ backupCodes: string[] }> {
         const { secret, code } = parseOrThrow(mfaSetupVerifySchema, input)
 
@@ -204,9 +246,14 @@ export class AuthService {
         return { backupCodes }
     }
 
-    // Exige senha + código válido — uma sessão sozinha (ex.: roubada via
-    // XSS) não deve ser suficiente para desligar o segundo fator de outra
-    // conta.
+    /**
+     * Exige senha + código válido — uma sessão sozinha (ex.: roubada via
+     * XSS) não deve ser suficiente para desligar o segundo fator de outra
+     * conta.
+     *
+     * @param userId - Id do usuário que está desabilitando o MFA.
+     * @param input - Corpo bruto da requisição (`password`, `code`), validado aqui.
+     */
     async disableMfa(userId: string, input: unknown): Promise<void> {
         const { password, code } = parseOrThrow(mfaDisableSchema, input)
 
@@ -234,6 +281,14 @@ export class AuthService {
         await this.authRepository.disableMfa(userId)
     }
 
+    /**
+     * Inicia o ciclo de "esqueci minha senha": se o e-mail existir e não for
+     * de uma conta de demonstração, cria um token de reset (hash) e envia o
+     * e-mail com o link — silencioso nos demais casos, para não revelar se
+     * um e-mail está cadastrado.
+     *
+     * @param input - Corpo bruto da requisição (`email`), validado aqui.
+     */
     async forgotPassword(input: unknown): Promise<void> {
         const { email } = parseOrThrow(forgotPasswordSchema, input)
 
@@ -267,6 +322,12 @@ export class AuthService {
         await this.sendPasswordResetEmail(email, resetToken)
     }
 
+    /**
+     * Efetiva a redefinição de senha a partir de um token de reset válido e
+     * ainda não usado, revogando toda sessão vigente do usuário.
+     *
+     * @param input - Corpo bruto da requisição (`token`, `newPassword`), validado aqui.
+     */
     async resetPassword(input: unknown): Promise<void> {
         const { token, newPassword } = parseOrThrow(resetPasswordSchema, input)
 
@@ -297,6 +358,13 @@ export class AuthService {
         })
     }
 
+    /**
+     * Encerra a sessão atual (revoga o token de sessão) e, se um refresh
+     * token ainda ativo foi informado, revoga-o também.
+     *
+     * @param sessionToken - JWT de sessão em claro, do usuário autenticado.
+     * @param rawRefreshToken - Refresh token em claro, quando o canal é WEB.
+     */
     async logout(sessionToken: string, rawRefreshToken?: string): Promise<void> {
         const hashedToken = hashToken(sessionToken)
         const stored = await this.authRepository.findActiveToken(hashedToken)
@@ -320,9 +388,15 @@ export class AuthService {
         }
     }
 
-    // Renova a sessão WEB: valida o refresh token, rotaciona-o e emite um
-    // novo JWT + novo refresh token. Detecta reuso de tokens já revogados
-    // (sinal de roubo) e revoga todas as sessões do usuário nesse caso.
+    /**
+     * Renova a sessão WEB: valida o refresh token, rotaciona-o e emite um
+     * novo JWT + novo refresh token. Detecta reuso de tokens já revogados
+     * (sinal de roubo) e revoga todas as sessões do usuário nesse caso.
+     *
+     * @param rawRefreshToken - Refresh token em claro, recebido do cookie.
+     * @param auditFn - Callback opcional acionado quando um reuso de token é detectado.
+     * @returns A nova sessão emitida.
+     */
     async refresh(
         rawRefreshToken: string,
         auditFn?: (userId: string) => Promise<void>,

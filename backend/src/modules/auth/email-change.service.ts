@@ -14,16 +14,33 @@ export type SendEmailChangedNoticeFn = (oldEmail: string, newEmail: string) => P
 
 const EMAIL_CHANGE_EXPIRES_MS = 60 * 60 * 1000 // 1h, mesmo prazo do reset de senha
 
-// Serviço pequeno e focado (2 métodos), separado de AuthService de propósito
-// — user.routes.ts precisa disparar o pedido de troca sem arrastar
-// sendPasswordResetEmail (dependência de AuthService que não usaria).
+/**
+ * Serviço pequeno e focado (2 métodos), separado de AuthService de propósito
+ * — user.routes.ts precisa disparar o pedido de troca sem arrastar
+ * sendPasswordResetEmail (dependência de AuthService que não usaria).
+ */
 export class EmailChangeService {
+    /**
+     * @param authRepository - Acesso a tokens de troca de e-mail e sessões persistidas.
+     * @param sendEmailChangeConfirmation - Envia o e-mail de confirmação ao novo endereço.
+     * @param sendEmailChangedNotice - Envia o aviso de alerta ao endereço antigo.
+     */
     constructor(
         private readonly authRepository: AuthRepository,
         private readonly sendEmailChangeConfirmation: SendEmailChangeConfirmationFn,
         private readonly sendEmailChangedNotice: SendEmailChangedNoticeFn,
     ) {}
 
+    /**
+     * Inicia o pedido de troca de e-mail: persiste o token (hash) e dispara
+     * o e-mail de confirmação ao novo endereço, mais um aviso best-effort ao
+     * antigo.
+     *
+     * @param params - Dados do pedido de troca.
+     * @param params.userId - Id do usuário que solicitou a troca.
+     * @param params.oldEmail - Endereço atual da conta.
+     * @param params.newEmail - Endereço para o qual a troca foi solicitada.
+     */
     async requestChange(params: {
         userId: string
         oldEmail: string
@@ -56,6 +73,14 @@ export class EmailChangeService {
         }
     }
 
+    /**
+     * Efetiva a troca de e-mail: valida o token de confirmação, garante que
+     * o novo endereço ainda está livre e revoga toda sessão vigente do
+     * usuário.
+     *
+     * @param input - Corpo bruto da requisição (`token`), validado aqui.
+     * @returns Id do usuário cujo e-mail foi efetivado.
+     */
     async confirmChange(input: unknown): Promise<{ userId: string }> {
         const { token } = parseOrThrow(confirmEmailChangeSchema, input)
 

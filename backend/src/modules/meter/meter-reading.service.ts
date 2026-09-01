@@ -19,10 +19,19 @@ export type MeterReadingListResponse = {
     granularity: MeterReadingGranularity
 }
 
-// Leituras agregadas por minuto/hora — só o que o gráfico "ao vivo" precisa:
-// sem custo/tarifa, sem paginação (a janela já vem limitada por from/to).
-// Ver ConsumptionService para o equivalente de faturamento.
+/**
+ * Leituras agregadas por minuto/hora — só o que o gráfico "ao vivo" precisa:
+ * sem custo/tarifa, sem paginação (a janela já vem limitada por from/to).
+ * Ver `ConsumptionService` para o equivalente de faturamento.
+ */
 export class MeterReadingService {
+    /**
+     * @param meterReadingRepository - Acesso às leituras agregadas persistidas.
+     * @param meterRepository - Resolve o medidor vinculado ao alvo consultado.
+     * @param propertyRepository - Usado para checar ownership subindo até a propriedade.
+     * @param areaRepository - Usado para resolver a propriedade-mãe de um alvo do tipo área.
+     * @param deviceRepository - Usado para resolver a área-mãe de um alvo do tipo dispositivo.
+     */
     constructor(
         private readonly meterReadingRepository: MeterReadingRepository,
         private readonly meterRepository: MeterRepository,
@@ -31,6 +40,13 @@ export class MeterReadingService {
         private readonly deviceRepository: DeviceRepository,
     ) {}
 
+    /**
+     * Série agregada de leituras do alvo informado, restrita ao titular.
+     *
+     * @param userId - Id do usuário autenticado (dono do alvo).
+     * @param query - Query string bruta (alvo, granularidade e janela), validada aqui.
+     * @returns Pontos agregados e a granularidade efetivamente aplicada.
+     */
     async list(userId: string, query: unknown): Promise<MeterReadingListResponse> {
         const { targetType, targetId, granularity, from, to } = parseOrThrow(
             listMeterReadingsQuerySchema,

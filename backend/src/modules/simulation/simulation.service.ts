@@ -28,7 +28,20 @@ const PROJECTED_DAYS: Record<"DAILY" | "MONTHLY" | "ANNUAL", number> = {
     ANNUAL: 365,
 }
 
+/**
+ * Simula consumo e custo hipotéticos de energia para uma propriedade, área
+ * ou dispositivo, sem gravar nada — usa a mesma tarifação do consumo real
+ * (via {@link TariffService}), aplicada sobre entradas informadas pelo usuário.
+ */
 export class SimulationService {
+    /**
+     * @param propertyRepository - Acesso a propriedades, para validar ownership e resolver a distribuidora vinculada.
+     * @param distributorRepository - Acesso ao catálogo de distribuidoras, para resolver as tarifas aplicáveis.
+     * @param areaRepository - Acesso a áreas, para validar a cadeia de posse do alvo simulado.
+     * @param deviceRepository - Acesso a dispositivos, para validar a cadeia de posse e resolver potência cadastrada.
+     * @param tariffFlagRepository - Acesso à bandeira tarifária vigente.
+     * @param tariffService - Calculadora de tarifação, reaproveitada do consumo real.
+     */
     constructor(
         private readonly propertyRepository: PropertyRepository,
         private readonly distributorRepository: DistributorRepository,
@@ -38,6 +51,16 @@ export class SimulationService {
         private readonly tariffService: TariffService = new TariffService(),
     ) {}
 
+    /**
+     * Executa uma simulação de consumo e custo para o alvo e período
+     * informados, validando ownership da propriedade e a cadeia de posse do
+     * alvo antes de calcular.
+     *
+     * @param propertyId - Id da propriedade sob a qual a simulação é feita.
+     * @param userId - Id do usuário autenticado (dono da propriedade).
+     * @param input - Corpo bruto da requisição, validado aqui.
+     * @returns Resultado da simulação (consumo projetado e custo estimado).
+     */
     async simulate(propertyId: string, userId: string, input: unknown): Promise<SimulationResult> {
         const data = parseOrThrow(simulationInputSchema, input)
 

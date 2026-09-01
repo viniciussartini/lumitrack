@@ -22,10 +22,20 @@ export interface TariffFlagHistoryEntry {
     changedByUserId: string | null
 }
 
-// Só grava — sem endpoint de leitura (evita escopo extra sem consumidor real).
+/**
+ * Histórico de trocas de bandeira tarifária. Só grava — sem endpoint de
+ * leitura (evita escopo extra sem consumidor real).
+ */
 export class TariffFlagHistoryRepository {
+    /** @param prisma - Cliente Prisma usado para persistir o histórico de bandeiras. */
     constructor(private readonly prisma: PrismaClient) {}
 
+    /**
+     * Registra uma troca de bandeira tarifária, com os valores antes e
+     * depois da mudança.
+     *
+     * @param entry - Dados da troca a registrar.
+     */
     async create(entry: TariffFlagHistoryEntry): Promise<void> {
         await this.prisma.tariffFlagHistory.create({
             data: {
@@ -45,6 +55,9 @@ export class TariffFlagHistoryRepository {
      * Expurgo por retenção — remove entradas de histórico mais antigas que
      * `threshold`, por `createdAt`. Suportado pelo `@@index([createdAt])`
      * já existente.
+     *
+     * @param threshold - Data-limite; entradas anteriores a ela são removidas.
+     * @returns Quantidade de entradas removidas.
      */
     async deleteOlderThan(threshold: Date): Promise<number> {
         const result = await this.prisma.tariffFlagHistory.deleteMany({

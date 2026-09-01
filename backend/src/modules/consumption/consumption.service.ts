@@ -49,11 +49,23 @@ export type ConsumptionSummaryResponse = {
     items: ConsumptionSummaryItem[]
 }
 
-// Consumo agregado — somente leitura, via MeterReading. Resolve o
-// medidor vinculado ao alvo diretamente (sem rollup de subárvore): agregar
-// também os medidores dos descendentes contaria a mesma energia duas vezes
-// quando tanto a propriedade quanto um device dela têm medidor próprio.
+/**
+ * Consumo agregado — somente leitura, via MeterReading. Resolve o
+ * medidor vinculado ao alvo diretamente (sem rollup de subárvore): agregar
+ * também os medidores dos descendentes contaria a mesma energia duas vezes
+ * quando tanto a propriedade quanto um device dela têm medidor próprio.
+ */
 export class ConsumptionService {
+    /**
+     * @param consumptionRepository - Acesso às leituras de medidor agregadas em baldes.
+     * @param meterRepository - Resolve o medidor vinculado a um alvo.
+     * @param propertyRepository - Resolve a propriedade raiz de um alvo e seus dados tarifários.
+     * @param areaRepository - Usado por {@link resolveRootProperty} para subir a árvore até a propriedade.
+     * @param deviceRepository - Usado por {@link resolveRootProperty} para subir a árvore até a propriedade.
+     * @param distributorRepository - Resolve a distribuidora vinculada à propriedade, com suas tarifas.
+     * @param tariffFlagRepository - Resolve a configuração vigente da bandeira tarifária.
+     * @param tariffService - Calcula o custo em reais a partir do consumo em kWh.
+     */
     constructor(
         private readonly consumptionRepository: ConsumptionRepository,
         private readonly meterRepository: MeterRepository,
@@ -65,6 +77,14 @@ export class ConsumptionService {
         private readonly tariffService: TariffService = new TariffService(),
     ) {}
 
+    /**
+     * Consumo agregado e paginado de um único alvo, já com o custo em reais
+     * calculado por balde.
+     *
+     * @param userId - Id do usuário autenticado (dono do alvo).
+     * @param query - Query string bruta (alvo, granularidade, janela, paginação), validada aqui.
+     * @returns Página de baldes de consumo com custo, mais a granularidade usada.
+     */
     async list(userId: string, query: unknown): Promise<ConsumptionListResponse> {
         const { targetType, targetId, granularity, from, to, order, ...pagination } = parseOrThrow(
             listConsumptionQuerySchema,
@@ -135,12 +155,18 @@ export class ConsumptionService {
         return { items, total, page: pagination.page, pageSize: pagination.pageSize, granularity }
     }
 
-    // GET /api/consumption/summary — o último bucket de um conjunto de
-    // alvos do MESMO targetType, resolvido numa única query de agregação
-    // (Prisma) para todos os medidores, em vez de uma chamada de `list()`
-    // por alvo. Não é paginado — é exatamente o que os 3 pontos de fan-out
-    // do frontend pedem (o bucket mais recente por alvo), não uma listagem
-    // genérica.
+    /**
+     * `GET /api/consumption/summary` — o último bucket de um conjunto de
+     * alvos do MESMO targetType, resolvido numa única query de agregação
+     * (Prisma) para todos os medidores, em vez de uma chamada de `list()`
+     * por alvo. Não é paginado — é exatamente o que os 3 pontos de fan-out
+     * do frontend pedem (o bucket mais recente por alvo), não uma listagem
+     * genérica.
+     *
+     * @param userId - Id do usuário autenticado (dono dos alvos).
+     * @param query - Query string bruta (tipo de alvo, ids, granularidade, janela), validada aqui.
+     * @returns O bucket mais recente de cada alvo de posse do usuário.
+     */
     async summary(userId: string, query: unknown): Promise<ConsumptionSummaryResponse> {
         const { targetType, ids, granularity, from, to } = parseOrThrow(
             consumptionSummaryQuerySchema,

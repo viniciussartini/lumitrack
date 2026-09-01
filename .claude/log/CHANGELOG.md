@@ -3068,3 +3068,12 @@
 - **Arquivos principais:** `backend/src/config/env.ts`, `backend/src/config/env.test.ts`, `backend/src/shared/database/prisma.ts`, `backend/.env.example`, `.claude/docs/2026-08-31-baseline-desempenho-statement-timeout.md` (novo).
 - **Decisões/ADRs:** nenhuma — decisão de dimensionamento documentada no baseline, mesmo padrão de #285.
 - **Notas:** ação destrutiva (`prisma db push --accept-data-loss` contra o banco descartável recém-criado) executada só após confirmação explícita do usuário, seguindo o guard do próprio Prisma contra ação de IA sem revisão humana.
+
+## [2026-08-31] refactor: paga a dívida de JSDoc catalogada no backend — 48 arquivos (#303)
+- **Branch:** chore/fase-18-cobertura-e-debito-tecnico
+- **Tipo:** refactor
+- **O quê:** os 48 arquivos `*.service.ts`/`*.repository.ts`/`*.controller.ts` catalogados como débito na #303 (achado ao ligar `jsdoc/require-jsdoc`/`require-param`/`require-returns` como `error` na #296) ganharam JSDoc real em toda classe exportada, construtor e método público — comentários `//` explicativos pré-existentes foram promovidos para dentro dos blocos JSDoc (conteúdo preservado, não reescrito do zero) em vez de duplicados; métodos privados ficaram fora do escopo (a regra é `publicOnly: true`). O override que desligava as 3 regras para esses 48 arquivos foi removido inteiramente de `backend/eslint.config.js` — dívida zerada, não parcial.
+- **Verificado:** `npx eslint` (0 erros em todo `backend/`, incluindo os 48 arquivos individualmente), `tsc -b` (0 erros), `depcruise` (281 módulos, 0 violações), suíte completa (93 arquivos, 1084 testes) — todos verdes. Diff conferido linha a linha: só comentários adicionados/promovidos, zero alteração de código de comportamento.
+- **Arquivos principais:** 48 arquivos em `backend/src/modules/*/*.service.ts|repository.ts|controller.ts` (admin, alert, alert-event, area, auth, consumption, device, distributor, export, iot, meter, notification, property, simulation, tariff-flag, user) + `backend/eslint.config.js` (override removido).
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** trabalho feito por 6 agentes em paralelo (um por lote de módulos), cada um seguindo o mesmo padrão de estilo calibrado manualmente em 2 arquivos antes da delegação (`alert-event.controller.ts`/`alert-event.service.ts`) e verificando com `npx eslint` arquivo a arquivo antes de reportar; consolidação e verificação final (eslint/tsc/depcruise/testes completos + checagem manual de amostra) feitas depois, sobre o resultado de todos os lotes.

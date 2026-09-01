@@ -20,9 +20,14 @@ const transporter = nodemailer.createTransport({
     },
 })
 
-// Implementação real da função que o AuthService injeta em produção.
-// O link aponta para o frontend — o token vai como query param para que
-// a página de reset possa capturá-lo do URL ao carregar.
+/**
+ * Implementação real da função que o AuthService injeta em produção.
+ * O link aponta para o frontend — o token vai como query param para que
+ * a página de reset possa capturá-lo do URL ao carregar.
+ *
+ * @param email - Endereço do destinatário (titular da conta).
+ * @param resetToken - Token de redefinição em texto claro (só existe neste e-mail).
+ */
 export const sendPasswordResetEmail: SendPasswordResetEmailFn = async (
     email: string,
     resetToken: string,
@@ -63,9 +68,14 @@ export const sendPasswordResetEmail: SendPasswordResetEmailFn = async (
     })
 }
 
-// Enviado ao NOVO endereço — só quem tem acesso à caixa de entrada consegue
-// efetivar a troca. Link aponta pra ConfirmEmailChangePage no frontend,
-// mesmo padrão de query param que sendPasswordResetEmail já usa.
+/**
+ * Enviado ao NOVO endereço — só quem tem acesso à caixa de entrada consegue
+ * efetivar a troca. Link aponta pra ConfirmEmailChangePage no frontend,
+ * mesmo padrão de query param que sendPasswordResetEmail já usa.
+ *
+ * @param newEmail - Endereço de destino, ainda não efetivado na conta.
+ * @param confirmToken - Token de confirmação em texto claro (só existe neste e-mail).
+ */
 export const sendEmailChangeConfirmation: SendEmailChangeConfirmationFn = async (
     newEmail: string,
     confirmToken: string,
@@ -103,9 +113,14 @@ export const sendEmailChangeConfirmation: SendEmailChangeConfirmationFn = async 
     })
 }
 
-// Enviado ao endereço ANTIGO, no momento do pedido — sinal de alerta precoce
-// para o dono legítimo agir (redefinir senha) antes mesmo de o pedido ser
-// confirmado, caso não tenha sido ele quem pediu a troca.
+/**
+ * Enviado ao endereço ANTIGO, no momento do pedido — sinal de alerta precoce
+ * para o dono legítimo agir (redefinir senha) antes mesmo de o pedido ser
+ * confirmado, caso não tenha sido ele quem pediu a troca.
+ *
+ * @param oldEmail - Endereço atual da conta, que recebe o aviso.
+ * @param newEmail - Endereço para o qual a troca foi solicitada.
+ */
 export const sendEmailChangedNotice: SendEmailChangedNoticeFn = async (
     oldEmail: string,
     newEmail: string,

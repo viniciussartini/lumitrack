@@ -54,11 +54,21 @@ function toDistributorResponse(raw: PrismaDistributor): DistributorResponse {
 const CACHE_TTL_MS = 5 * 60 * 1000
 const cache = new Map<string, { value: DistributorResponse; cachedAt: number }>()
 
-// Catálogo global de distribuidoras (somente leitura, populado via seed) —
-// não há mais create/update/delete nem escopo por userId.
+/**
+ * Catálogo global de distribuidoras (somente leitura, populado via seed) —
+ * não há mais create/update/delete nem escopo por userId.
+ */
 export class DistributorRepository {
+    /** @param prisma - Cliente Prisma usado para consultar o catálogo de distribuidoras. */
     constructor(private readonly prisma: PrismaClient) {}
 
+    /**
+     * Busca uma distribuidora por id, servindo do cache em memória quando
+     * ainda dentro do TTL.
+     *
+     * @param id - Id da distribuidora.
+     * @returns Distribuidora encontrada, ou `null` se não existir.
+     */
     async findById(id: string): Promise<DistributorResponse | null> {
         const cached = cache.get(id)
         if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
@@ -76,6 +86,12 @@ export class DistributorRepository {
         return value
     }
 
+    /**
+     * Lista paginada do catálogo, ordenada por nome.
+     *
+     * @param pagination - Página e tamanho de página desejados.
+     * @returns Página de distribuidoras.
+     */
     async findAll(pagination: PaginationQuery): Promise<Paginated<DistributorResponse>> {
         const { skip, take } = toSkipTake(pagination)
 
@@ -96,9 +112,14 @@ export class DistributorRepository {
         }
     }
 
-    // Busca em lote por ID, sem paginação — usado internamente (ex.: pela
-    // exportação LGPD, para resolver os nomes das distribuidoras vinculadas
-    // às propriedades do titular) e nunca exposto via HTTP.
+    /**
+     * Busca em lote por ID, sem paginação — usado internamente (ex.: pela
+     * exportação LGPD, para resolver os nomes das distribuidoras vinculadas
+     * às propriedades do titular) e nunca exposto via HTTP.
+     *
+     * @param ids - Ids das distribuidoras a buscar.
+     * @returns Distribuidoras encontradas (sem entradas para ids inexistentes).
+     */
     async findAllByIds(ids: string[]): Promise<DistributorResponse[]> {
         if (ids.length === 0) return []
 
@@ -108,18 +129,25 @@ export class DistributorRepository {
         return rows.map(toDistributorResponse)
     }
 
-    // Usado pelo service de propriedade para validar que o distributorId
-    // informado existe no catálogo antes de vincular.
+    /**
+     * Usado pelo service de propriedade para validar que o distributorId
+     * informado existe no catálogo antes de vincular.
+     *
+     * @param id - Id da distribuidora a verificar.
+     * @returns `true` se a distribuidora existe no catálogo.
+     */
     async exists(id: string): Promise<boolean> {
         const count = await this.prisma.energyDistributor.count({ where: { id } })
         return count > 0
     }
 }
 
-// Estado de módulo sobrevive entre testes do mesmo arquivo — sem isto, a
-// primeira leitura bem-sucedida de uma suíte "vazaria" para os testes
-// seguintes mesmo depois do `cleanDatabase()` recriar os dados. Chamado por
-// `cleanDatabase()`, não pelos arquivos de teste individualmente.
+/**
+ * Estado de módulo sobrevive entre testes do mesmo arquivo — sem isto, a
+ * primeira leitura bem-sucedida de uma suíte "vazaria" para os testes
+ * seguintes mesmo depois do `cleanDatabase()` recriar os dados. Chamado por
+ * `cleanDatabase()`, não pelos arquivos de teste individualmente.
+ */
 export function resetDistributorCacheForTests(): void {
     cache.clear()
 }

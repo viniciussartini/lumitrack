@@ -28,6 +28,10 @@ const REGISTRATION_CONFLICT_MESSAGE = "Já existe uma conta cadastrada com os da
 // mesma "tomada elétrica" que o resto do service já usa, para
 // UserService não importar EmailChangeService/AuthRepository (módulo
 // diferente) diretamente. Ver user.routes.ts para a instância real.
+// Dispara o pedido de troca de e-mail — plano fino injetado no construtor,
+// mesma "tomada elétrica" que o resto do service já usa, para
+// UserService não importar EmailChangeService/AuthRepository (módulo
+// diferente) diretamente. Ver user.routes.ts para a instância real.
 export type RequestEmailChangeFn = (params: {
     userId: string
     oldEmail: string
@@ -43,22 +47,26 @@ const throwRequestEmailChangeNotConfigured: RequestEmailChangeFn = async () => {
     throw new Error("UserService: requestEmailChange não foi configurado")
 }
 
+/** Regras de negócio de contas de usuário — cadastro, consulta, atualização (incl. troca de e-mail com reautenticação) e exclusão, com proteção especial das contas de demonstração. */
 export class UserService {
-    // `registrationEnabled` é injetado (não lido de `env` direto aqui) para
-    // o guard ficar testável sem mockar módulo — mesma "tomada elétrica"
-    // de DI que o resto do service já usa para o repository. Default `true`
-    // aqui é escolha consciente sob a ADR-0014, não o mesmo fail-closed do
-    // `env.ts`: o único composition root real (`user.routes.ts`) sempre
-    // injeta `env.REGISTRATION_ENABLED` explicitamente, então este default
-    // só afeta quem instanciar `UserService` sem o 2º argumento — hoje,
-    // só a suíte de testes (preserva o comportamento dos testes existentes
-    // que não são sobre este guard).
+    /**
+     * @param userRepository - Acesso a contas de usuário persistidas.
+     * @param registrationEnabled - Liga/desliga o cadastro público de novas contas. Injetado (não lido de `env` direto aqui) para o guard ficar testável sem mockar módulo — mesma "tomada elétrica" de DI que o resto do service já usa para o repository. Default `true` aqui é escolha consciente sob a ADR-0014, não o mesmo fail-closed do `env.ts`: o único composition root real (`user.routes.ts`) sempre injeta `env.REGISTRATION_ENABLED` explicitamente, então este default só afeta quem instanciar `UserService` sem o 2º argumento — hoje, só a suíte de testes (preserva o comportamento dos testes existentes que não são sobre este guard).
+     * @param requestEmailChange - Dispara o pedido de troca de e-mail. Plano fino injetado no construtor para UserService não importar EmailChangeService/AuthRepository (módulo diferente) diretamente.
+     */
     constructor(
         private readonly userRepository: UserRepository,
         private readonly registrationEnabled: boolean = true,
         private readonly requestEmailChange: RequestEmailChangeFn = throwRequestEmailChangeNotConfigured,
     ) {}
 
+    /**
+     * Cadastra uma nova conta, checando antes que o cadastro público esteja
+     * habilitado e que e-mail/CPF/CNPJ ainda não tenham conta associada.
+     *
+     * @param input - Corpo bruto da requisição, validado aqui.
+     * @returns A conta criada.
+     */
     async createUser(input: unknown) {
         // ADR-0008: cadastro público fechado é a premissa de que o ambiente
         // de demo não trata dado pessoal real. Falha fechada, antes de
@@ -103,6 +111,12 @@ export class UserService {
         })
     }
 
+    /**
+     * Busca uma conta pelo id.
+     *
+     * @param id - Id da conta.
+     * @returns A conta, se existir.
+     */
     async findById(id: string) {
         const user = await this.userRepository.findById(id)
 
@@ -113,6 +127,15 @@ export class UserService {
         return user
     }
 
+    /**
+     * Atualiza os dados da conta, tratando a troca de e-mail como um fluxo
+     * à parte (exige reautenticação e só é efetivada quando confirmada) e
+     * bloqueando qualquer escrita sobre uma conta de demonstração.
+     *
+     * @param id - Id da conta a atualizar.
+     * @param input - Corpo bruto da requisição, validado aqui.
+     * @returns A conta atualizada.
+     */
     async updateUser(id: string, input: unknown) {
         const existing = await this.userRepository.findById(id)
 
@@ -163,6 +186,11 @@ export class UserService {
         return this.userRepository.update(id, restData)
     }
 
+    /**
+     * Remove a conta, bloqueando a exclusão de uma conta de demonstração.
+     *
+     * @param id - Id da conta a remover.
+     */
     async deleteUser(id: string): Promise<void> {
         const existing = await this.userRepository.findById(id)
 
