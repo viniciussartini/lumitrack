@@ -293,11 +293,8 @@ const KpiCard = ({ label, value, highlight }: KpiCardProps) => (
         <div className="font-heading text-11 flex items-center gap-2 font-semibold tracking-[.07em] uppercase">
             {highlight && (
                 <span
-                    className="h-2 w-2 rounded-full"
-                    style={{
-                        backgroundColor: "var(--color-status-warning)",
-                        animation: "lt-pulse 1.6s ease-in-out infinite",
-                    }}
+                    className="lt-live-dot"
+                    style={{ backgroundColor: "var(--color-status-warning)" }}
                     aria-hidden="true"
                 />
             )}

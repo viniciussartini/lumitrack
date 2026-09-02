@@ -165,10 +165,22 @@ async function restoreIoTConnections(): Promise<void> {
         // Já decifrado — extra.password de medidores MQTT é cifrado em
         // repouso; findAllConnectionConfigs é o único caminho interno
         // autorizado a devolver o valor em texto claro.
-        const configs = await meterRepository.findAllConnectionConfigs()
+        const { configs, skippedMeterIds } = await meterRepository.findAllConnectionConfigs()
 
-        if (configs.length === 0) {
+        if (configs.length === 0 && skippedMeterIds.length === 0) {
             logger.info("[Boot] Nenhum medidor encontrado. Nada a restaurar.")
+            return
+        }
+
+        // Todo medidor cadastrado tem credencial indecifrável — "nenhum
+        // medidor encontrado" seria falso aqui (existem medidores; nenhum
+        // pôde ser lido) e esconderia exatamente o cenário que motivou o
+        // isolamento por item em findAllConnectionConfigs().
+        if (configs.length === 0) {
+            logger.error(
+                { skippedMeterIds },
+                "[Boot] Todos os medidores cadastrados têm credencial indecifrável — nenhuma conexão foi restaurada.",
+            )
             return
         }
 
@@ -178,8 +190,11 @@ async function restoreIoTConnections(): Promise<void> {
 
         const succeeded = results.filter((r) => r.status === "fulfilled").length
         const failed = results.filter((r) => r.status === "rejected").length
+        const skipped = skippedMeterIds.length
 
-        logger.info(`[Boot] Conexões restauradas: ${succeeded} ok, ${failed} falha(s).`)
+        logger.info(
+            `[Boot] Conexões restauradas: ${succeeded} ok, ${failed} falha(s)${skipped > 0 ? `, ${skipped} descartada(s) por credencial indecifrável` : ""}.`,
+        )
     } catch (err) {
         // Falha na restauração não deve impedir o servidor de responder —
         // o monitoramento IoT é importante mas não é o núcleo da API REST.

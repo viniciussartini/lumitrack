@@ -70,6 +70,13 @@ const baseMeterFormSchema = z.object({
 
     address: emptyToUndefined.pipe(z.string().max(255).optional()),
 
+    // Credencial MQTT (extra.username/extra.password no backend) — o único
+    // protocolo com autenticação opcional; nenhum broker é obrigado a exigir
+    // usuário/senha, então os dois ficam sempre opcionais aqui também (sem
+    // `.refine()` de obrigatoriedade como host/port/topic).
+    mqttUsername: emptyToUndefined.pipe(z.string().max(255).optional()),
+    mqttPassword: emptyToUndefined.pipe(z.string().max(255).optional()),
+
     // Endereços de grandeza elétrica (extra.*) — só os 4 protocolos de
     // QUANTITY_ADDRESS_PROTOCOLS usam algum destes.
     // voltageAddress existe só porque MODBUS_RTU usa `address` (topo)

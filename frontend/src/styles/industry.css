@@ -797,8 +797,8 @@ textarea.input {
         transform: scale(1);
     }
     50% {
-        opacity: 0.35;
-        transform: scale(0.72);
+        opacity: 0.45;
+        transform: scale(0.88);
     }
 }
 /* Ponto pulsante "ao vivo" — mesmo bloco (tamanho/cor/animação) repetido em
@@ -811,7 +811,7 @@ textarea.input {
     height: 8px;
     border-radius: 9999px;
     background: var(--color-status-live);
-    animation: lt-pulse 1.6s ease-in-out infinite;
+    animation: lt-pulse 2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 @media (prefers-reduced-motion: reduce) {
     .lt-live-dot {

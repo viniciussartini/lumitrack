@@ -8,13 +8,27 @@ import { shouldCompress } from "@/shared/middlewares/compressionFilter.js"
 
 describe("shouldCompress", () => {
     it("retorna false para /api/iot/stream", () => {
-        const req = { path: "/api/iot/stream" } as unknown as express.Request
+        const req = { originalUrl: "/api/iot/stream" } as unknown as express.Request
+        expect(shouldCompress(req, {} as express.Response)).toBe(false)
+    })
+
+    // O filtro é sempre invocado de dentro do onHeaders do pacote `compression`
+    // — no momento em que dispara (res.flushHeaders()/writeHead()), a
+    // execução está dentro do sub-router de /api/iot, que reescreve
+    // req.path/req.url para o caminho relativo ao seu mount point durante o
+    // despacho da rota. req.path aqui valeria "/stream", não
+    // "/api/iot/stream" — só req.originalUrl (nunca reescrito) é confiável.
+    it("continua retornando false mesmo com req.path já reescrito por um sub-router (mount /api/iot)", () => {
+        const req = {
+            path: "/stream",
+            originalUrl: "/api/iot/stream",
+        } as unknown as express.Request
         expect(shouldCompress(req, {} as express.Response)).toBe(false)
     })
 
     it("NÃO exclui /api/iot/stream-ticket — compartilha o prefixo textual, mas é rota JSON comum, não o stream", () => {
         const req = {
-            path: "/api/iot/stream-ticket",
+            originalUrl: "/api/iot/stream-ticket",
             headers: { "accept-encoding": "gzip" },
         } as unknown as express.Request
         const res = { getHeader: () => undefined } as unknown as express.Response
@@ -24,12 +38,31 @@ describe("shouldCompress", () => {
 
     it("delega ao filtro default do compression para outras rotas", () => {
         const req = {
-            path: "/api/consumption",
+            originalUrl: "/api/consumption",
             headers: { "accept-encoding": "gzip" },
         } as unknown as express.Request
         const res = { getHeader: () => undefined } as unknown as express.Response
 
         expect(shouldCompress(req, res)).toBe(compression.filter(req, res))
+    })
+
+    it("ignora a query string ao comparar com /api/iot/stream", () => {
+        const req = { originalUrl: "/api/iot/stream?ticket=abc123" } as unknown as express.Request
+        expect(shouldCompress(req, {} as express.Response)).toBe(false)
+    })
+
+    // Segunda barreira, independente do path: o roteador do Express casa
+    // rotas sem diferenciar caixa e tolera barra final — nenhuma delas bate
+    // na comparação exata de originalUrl, mas ambas chegam à mesma rota SSE
+    // e já têm Content-Type: text/event-stream no momento em que o filtro
+    // roda (dentro do onHeaders, disparado por flushHeaders()).
+    it("retorna false quando o Content-Type já é text/event-stream, mesmo com originalUrl fora do formato esperado", () => {
+        const req = { originalUrl: "/API/iot/stream/" } as unknown as express.Request
+        const res = {
+            getHeader: () => "text/event-stream; charset=utf-8",
+        } as unknown as express.Response
+
+        expect(shouldCompress(req, res)).toBe(false)
     })
 })
 
@@ -49,10 +82,15 @@ describe("compression({ filter: shouldCompress }) — comportamento real", () =>
         app = express()
         app.use(compression({ filter: shouldCompress, threshold: 0 }))
 
-        // Simula o formato real do SSE: vários chunks pequenos, escritos aos
-        // poucos — se a compressão estivesse ativa aqui, o gzip/brotli
-        // segurariam os primeiros chunks até acumular buffer suficiente.
-        app.get("/api/iot/stream", (_req, res) => {
+        // Monta o stream num sub-router em /api/iot, igual a
+        // `app.use("/api/iot", iotStreamRoutes(...))` em app.ts — não
+        // direto em `app`. É essa camada extra de roteamento que reescreve
+        // req.path/req.url para o caminho relativo ao mount point
+        // (`/stream`) enquanto a rota é despachada; testar com a rota
+        // montada direto em `app` (sem sub-router) não reproduz isso e
+        // deixaria passar um filtro comparando com `req.path`.
+        const iotRouter = express.Router()
+        iotRouter.get("/stream", (_req, res) => {
             res.setHeader("Content-Type", "text/event-stream")
             res.flushHeaders()
 
@@ -66,6 +104,7 @@ describe("compression({ filter: shouldCompress }) — comportamento real", () =>
                 }
             }, 30)
         })
+        app.use("/api/iot", iotRouter)
 
         // Payload grande e repetitivo (comprime bem) numa rota comum — prova
         // que o filtro segue comprimindo tudo que não é o stream.

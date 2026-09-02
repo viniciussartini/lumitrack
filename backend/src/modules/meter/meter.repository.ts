@@ -12,6 +12,21 @@ import {
 } from "@/modules/property/property.repository.js"
 import type { AreaResponse } from "@/modules/area/area.repository.js"
 import type { DeviceResponse } from "@/modules/device/device.repository.js"
+import { logger } from "@/shared/logger/logger.js"
+
+const log = logger.child({ module: "MeterRepository" })
+
+/**
+ * Resultado de `findAllConnectionConfigs()` — separa os medidores prontos
+ * para conectar dos descartados por credencial indecifrável, para que o
+ * chamador (boot do servidor) distinga "nenhum medidor cadastrado" de
+ * "todos cadastrados, todos com credencial quebrada" — os dois cenários
+ * produzem `configs.length === 0`, mas exigem log e diagnóstico diferentes.
+ */
+export interface ConnectionConfigsResult {
+    configs: MeterConnectionConfig[]
+    skippedMeterIds: string[]
+}
 
 export type MeterResponse = {
     id: string
@@ -354,12 +369,25 @@ export class MeterRepository {
      * coluna), então o `in` é checado antes dele, para os dois casos terem
      * efeitos diferentes.
      *
+     * Pelo mesmo motivo, quando `extra` VEM no payload de um medidor MQTT
+     * mas sem a chave `password` (ex.: form de edição reenviando só o
+     * username alterado), a senha cifrada já armazenada é preservada em vez
+     * de apagada — ver {@link preserveMqttPasswordIfMissing}.
+     *
      * @param id - Id do medidor a atualizar.
      * @param input - Dados validados do medidor, já sem os campos ausentes.
      * @returns O medidor atualizado.
      */
     async update(id: string, input: UpdateMeterInput): Promise<MeterResponse> {
         const extraProvided = "extra" in input
+        const extraForStorage = extraProvided
+            ? await this.preserveMqttPasswordIfMissing(
+                  id,
+                  input.protocol,
+                  extractField<Record<string, unknown>>(input, "extra"),
+              )
+            : undefined
+
         const raw = await this.prisma.meter.update({
             where: { id },
             data: {
@@ -369,17 +397,46 @@ export class MeterRepository {
                 port: extractField<number>(input, "port"),
                 topic: extractField<string>(input, "topic"),
                 address: extractField<string>(input, "address"),
-                ...(extraProvided && {
-                    extra: toJsonInput(
-                        encryptExtraForStorage(
-                            input.protocol,
-                            extractField<Record<string, unknown>>(input, "extra"),
-                        ),
-                    ),
-                }),
+                ...(extraProvided && { extra: toJsonInput(extraForStorage) }),
             },
         })
         return toMeterResponse(raw)
+    }
+
+    /**
+     * Cifra o `extra` recebido no `update` e, para MQTT, preserva a senha já
+     * armazenada quando o payload não reenvia `password`. A API nunca
+     * devolve a senha em claro (ver {@link sanitizeExtraForResponse}), então
+     * nenhum cliente legítimo tem como reenviá-la — tratar "ausente" como
+     * "remover" apagaria a credencial em toda edição que não mexe na senha
+     * (ex.: só trocar o username). A senha preservada é lida já cifrada
+     * direto da linha atual e colada por cima do resultado de
+     * {@link encryptExtraForStorage} — nunca passa pela cifra de novo, ou o
+     * ciphertext seria cifrado em cima do próprio ciphertext.
+     *
+     * @param id - Id do medidor sendo atualizado (para reler a senha atual).
+     * @param protocol - Protocolo do medidor após a atualização.
+     * @param rawExtra - `extra` bruto recebido no payload de update.
+     * @returns O `extra` cifrado, com a senha existente preservada quando aplicável.
+     */
+    private async preserveMqttPasswordIfMissing(
+        id: string,
+        protocol: IoTProtocol,
+        rawExtra: Record<string, unknown> | null,
+    ): Promise<Record<string, unknown> | null> {
+        const encrypted = encryptExtraForStorage(protocol, rawExtra)
+        if (protocol !== "MQTT" || !rawExtra || "password" in rawExtra || !encrypted) {
+            return encrypted
+        }
+
+        const current = await this.prisma.meter.findUnique({
+            where: { id },
+            select: { extra: true },
+        })
+        const currentPassword = (current?.extra as Record<string, unknown> | null)?.password
+        if (typeof currentPassword !== "string") return encrypted
+
+        return { ...encrypted, password: currentPassword }
     }
 
     /**
@@ -411,10 +468,35 @@ export class MeterRepository {
      * (`server.ts::restoreIoTConnections`) para reconectar todos os
      * medidores de uma vez.
      *
-     * @returns A configuração de conexão de todos os medidores.
+     * Um medidor cuja credencial não decifra (ex.: `METER_CREDENTIAL_ENCRYPTION_KEY`
+     * trocada sem reciframento das linhas antigas) é descartado individualmente
+     * — sem isso, `Array.map` propagaria a exceção pra fora da função e um
+     * único medidor corrompido derrubava a reconexão de TODOS os outros no
+     * boot (efeito observado: nenhum medidor recebe dado em tempo real até o
+     * próximo restart, mesmo os com credencial íntegra). `skippedMeterIds` vai
+     * junto no retorno — sem isso, o chamador não consegue distinguir "banco
+     * vazio" de "todos os medidores cadastrados foram descartados", que pedem
+     * mensagens de boot diferentes.
+     *
+     * @returns Os medidores com credencial decifrável, mais os ids dos descartados.
      */
-    async findAllConnectionConfigs(): Promise<MeterConnectionConfig[]> {
+    async findAllConnectionConfigs(): Promise<ConnectionConfigsResult> {
         const rows = await this.prisma.meter.findMany()
-        return rows.map(toConnectionConfig)
+        const configs: MeterConnectionConfig[] = []
+        const skippedMeterIds: string[] = []
+
+        for (const row of rows) {
+            try {
+                configs.push(toConnectionConfig(row))
+            } catch (err) {
+                log.error(
+                    { meterId: row.id, err },
+                    "Credencial do medidor não pôde ser decifrada — conexão não será restaurada",
+                )
+                skippedMeterIds.push(row.id)
+            }
+        }
+
+        return { configs, skippedMeterIds }
     }
 }
