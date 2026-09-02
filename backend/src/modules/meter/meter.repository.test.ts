@@ -200,6 +200,56 @@ describe("MeterRepository — cifra da credencial MQTT", () => {
         expect((configs[0]?.extra as Record<string, unknown>).password).toBe("senha-1")
     })
 
+    it("findAllConnectionConfigs descarta só o medidor com credencial indecifrável, sem derrubar os demais", async () => {
+        // Um medidor por property (constraint única) — uma segunda property
+        // do mesmo usuário/distribuidora simula um segundo medidor distinto
+        // (findAllConnectionConfigs busca globalmente, não por usuário).
+        const { property: healthyProperty } = await setupUserAndProperty()
+        const corruptedProperty = await prismaTest.property.create({
+            data: {
+                userId: healthyProperty.userId,
+                distributorId: healthyProperty.distributorId,
+                name: "Casa 2",
+                electricalSystem: "MONOPHASIC",
+            },
+        })
+
+        const healthy = await meterRepository.create({
+            name: "Medidor Saudável",
+            targetType: "PROPERTY",
+            propertyId: healthyProperty.id,
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "lumitrack/saudavel",
+            extra: { username: "user-mqtt", password: "senha-boa" },
+        })
+        const corrupted = await meterRepository.create({
+            name: "Medidor Corrompido",
+            targetType: "PROPERTY",
+            propertyId: corruptedProperty.id,
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "lumitrack/corrompido",
+            extra: { username: "user-mqtt", password: "senha-qualquer" },
+        })
+
+        // Simula uma credencial que não decifra mais com a chave atual (ex.:
+        // METER_CREDENTIAL_ENCRYPTION_KEY rotacionada sem reciframento das
+        // linhas antigas) — grava direto no banco, contornando o
+        // `encryptMeterCredential` do repository.
+        await prismaTest.meter.update({
+            where: { id: corrupted.id },
+            data: { extra: { username: "user-mqtt", password: "ciphertext-invalido-e-curto" } },
+        })
+
+        const configs = await meterRepository.findAllConnectionConfigs()
+
+        expect(configs).toHaveLength(1)
+        expect(configs[0]?.meterId).toBe(healthy.id)
+    })
+
     it("update recifra a senha com um ciphertext novo (IV distinto)", async () => {
         const { property } = await setupUserAndProperty()
         const plaintext = "senha-mqtt-super-secreta"

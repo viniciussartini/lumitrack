@@ -12,6 +12,9 @@ import {
 } from "@/modules/property/property.repository.js"
 import type { AreaResponse } from "@/modules/area/area.repository.js"
 import type { DeviceResponse } from "@/modules/device/device.repository.js"
+import { logger } from "@/shared/logger/logger.js"
+
+const log = logger.child({ module: "MeterRepository" })
 
 export type MeterResponse = {
     id: string
@@ -411,10 +414,30 @@ export class MeterRepository {
      * (`server.ts::restoreIoTConnections`) para reconectar todos os
      * medidores de uma vez.
      *
-     * @returns A configuração de conexão de todos os medidores.
+     * Um medidor cuja credencial não decifra (ex.: `METER_CREDENTIAL_ENCRYPTION_KEY`
+     * trocada sem reciframento das linhas antigas) é descartado individualmente
+     * — sem isso, `Array.map` propagaria a exceção pra fora da função e um
+     * único medidor corrompido derrubava a reconexão de TODOS os outros no
+     * boot (efeito observado: nenhum medidor recebe dado em tempo real até o
+     * próximo restart, mesmo os com credencial íntegra).
+     *
+     * @returns A configuração de conexão dos medidores com credencial decifrável.
      */
     async findAllConnectionConfigs(): Promise<MeterConnectionConfig[]> {
         const rows = await this.prisma.meter.findMany()
-        return rows.map(toConnectionConfig)
+        const configs: MeterConnectionConfig[] = []
+
+        for (const row of rows) {
+            try {
+                configs.push(toConnectionConfig(row))
+            } catch (err) {
+                log.error(
+                    { meterId: row.id, err },
+                    "Credencial do medidor não pôde ser decifrada — conexão não será restaurada",
+                )
+            }
+        }
+
+        return configs
     }
 }
