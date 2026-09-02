@@ -27,13 +27,28 @@ import compression from "compression"
  * é uma rota JSON comum que só compartilha o prefixo textual, não um
  * sub-caminho do stream — `startsWith` a excluiria por engano.
  *
+ * Segunda barreira, independente do path: o roteador do Express casa rotas
+ * sem diferenciar caixa e tolera barra final (`/API/iot/stream`,
+ * `/api/iot/stream/` chegam à mesma rota sem bater na comparação acima) — o
+ * modo de falha seria o mesmo silêncio total que este filtro existe para
+ * evitar. A rota do stream define `Content-Type: text/event-stream` antes de
+ * `flushHeaders()`, e é justamente esse instante que o hook `onHeaders`
+ * intercepta — então `res.getHeader` já enxerga o valor certo na hora da
+ * decisão, sem depender do path ter sido escrito de um jeito específico.
+ *
  * @param req - Requisição em curso.
  * @param res - Resposta em curso.
- * @returns `false` para `/api/iot/stream`; caso contrário, o filtro default.
+ * @returns `false` para `/api/iot/stream` (ou resposta `text/event-stream`);
+ * caso contrário, o filtro default.
  */
 export function shouldCompress(req: Request, res: Response): boolean {
     const path = req.originalUrl.split("?")[0]
     if (path === "/api/iot/stream") {
+        return false
+    }
+
+    const contentType = res.getHeader("Content-Type")
+    if (typeof contentType === "string" && contentType.startsWith("text/event-stream")) {
         return false
     }
 

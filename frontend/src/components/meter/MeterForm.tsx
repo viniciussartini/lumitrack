@@ -142,8 +142,12 @@ const QuantityAddressFields = ({ protocol, register, errors }: QuantityAddressFi
 interface MqttCredentialFieldsProps {
     register: UseFormRegister<MeterFormInput>
     errors: FieldErrors<MeterFormData>
-    /** Medidor já tem senha configurada? Muda o placeholder do campo — a
-     * senha em si nunca chega aqui (o backend não devolve em claro). */
+    /** Medidor já tem usuário configurado? Muda o placeholder — limpar o
+     * campo na edição preserva o valor atual (não remove), então o aviso
+     * de "não exigir" só vale quando não há usuário prévio a preservar. */
+    hasStoredUsername: boolean
+    /** Medidor já tem senha configurada? Mesma lógica de `hasStoredUsername` —
+     * a senha em si nunca chega aqui (o backend não devolve em claro). */
     hasStoredPassword: boolean
 }
 
@@ -151,22 +155,34 @@ interface MqttCredentialFieldsProps {
  * Credencial MQTT (extra.username/extra.password) — separado do form
  * principal pelo mesmo motivo de `QuantityAddressFields` (teto de tamanho
  * do kit). Único protocolo com noção de usuário/senha na conexão.
+ *
+ * `autoComplete="off"`/`"new-password"`: sem isso, o gerenciador de senha do
+ * navegador reconhece o par usuário+senha do form e pode oferecer
+ * autopreencher com a credencial da própria conta LumiTrack do usuário —
+ * que iria cifrada como credencial de um broker MQTT de terceiros.
  */
 const MqttCredentialFields = ({
     register,
     errors,
+    hasStoredUsername,
     hasStoredPassword,
 }: MqttCredentialFieldsProps) => (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Input
             label="Usuário MQTT (opcional)"
-            placeholder="Deixe em branco se o broker não exigir"
+            autoComplete="off"
+            placeholder={
+                hasStoredUsername
+                    ? "Deixe em branco para manter o usuário atual"
+                    : "Deixe em branco se o broker não exigir"
+            }
             error={errors.mqttUsername?.message}
             {...register("mqttUsername")}
         />
         <Input
             label="Senha MQTT (opcional)"
             type="password"
+            autoComplete="new-password"
             placeholder={
                 hasStoredPassword
                     ? "Deixe em branco para manter a senha atual"
@@ -211,6 +227,7 @@ export const MeterForm = ({
     // Único protocolo com credencial — os demais não têm noção de
     // usuário/senha na conexão (rede local/serial direta).
     const needsMqttCredentials = protocol === "MQTT"
+    const hasStoredUsername = extraStringField(initialData?.extra ?? null, "username").length > 0
     const hasStoredPassword = extraBooleanField(initialData?.extra, "passwordSet")
 
     return (
@@ -265,6 +282,7 @@ export const MeterForm = ({
                 <MqttCredentialFields
                     register={register}
                     errors={errors}
+                    hasStoredUsername={hasStoredUsername}
                     hasStoredPassword={hasStoredPassword}
                 />
             )}

@@ -92,6 +92,17 @@ describe("MeterFormDialog — credencial MQTT", () => {
         )
     })
 
+    it("campos de credencial MQTT não usam autocomplete do navegador", () => {
+        renderDialog()
+
+        // Sem isso, o gerenciador de senha do navegador pode oferecer
+        // autopreencher com a credencial da própria conta LumiTrack do
+        // usuário — que iria cifrada como credencial de um broker MQTT de
+        // terceiros (equipamento de terceiros, não login do usuário).
+        expect(screen.getByLabelText(/usuário mqtt/i)).toHaveAttribute("autocomplete", "off")
+        expect(screen.getByLabelText(/senha mqtt/i)).toHaveAttribute("autocomplete", "new-password")
+    })
+
     it("não envia extra quando o medidor MQTT é criado sem credencial (broker sem auth)", async () => {
         const user = userEvent.setup()
         vi.mocked(meterService.create).mockResolvedValue(mockMqttMeter)
@@ -109,27 +120,29 @@ describe("MeterFormDialog — credencial MQTT", () => {
         )
     })
 
-    it("edição sem tocar o campo de senha preserva a credencial já configurada", async () => {
+    it("edição sem tocar o campo de senha não reenvia password nem o campo derivado passwordSet", async () => {
         const user = userEvent.setup()
         vi.mocked(meterService.update).mockResolvedValue(mockMqttMeter)
 
         renderDialog({ mode: { kind: "edit", meter: mockMqttMeter } })
 
         // Usuário pré-preenchido (não é sensível); senha nasce vazia — só
-        // trocamos o nome, sem tocar em nenhum campo de credencial.
+        // trocamos o nome, sem tocar em nenhum campo de credencial. Este
+        // teste cobre só a FORMA do payload que o frontend monta — quem a
+        // senha existente de fato sobrevive à atualização é coberto no
+        // backend (meter.repository.test.ts, MeterRepository.update), onde
+        // dá pra observar o dado persistido; um mock de meterService não
+        // prova preservação nenhuma.
         expect(screen.getByLabelText(/usuário mqtt/i)).toHaveValue("sim-user")
         expect(screen.getByLabelText(/senha mqtt/i)).toHaveValue("")
 
         await user.click(screen.getByRole("button", { name: /salvar alterações/i }))
 
-        expect(meterService.update).toHaveBeenCalledWith(
-            "meter-1",
-            expect.objectContaining({
-                extra: expect.objectContaining({ username: "sim-user", passwordSet: true }),
-            }),
-        )
         const [, input] = vi.mocked(meterService.update).mock.calls[0]!
-        expect(input.extra).not.toHaveProperty("password")
+        // passwordSet só existe na resposta da API (campo derivado) — não
+        // pode voltar no payload de update, senão o cliente reenviaria um
+        // dado que não é seu para escrever.
+        expect(input.extra).toEqual({ username: "sim-user" })
     })
 
     it("edição trocando a senha envia o novo valor, preservando o usuário existente", async () => {

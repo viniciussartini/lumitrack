@@ -44,11 +44,14 @@ function buildQuantityExtra(data: MeterFormData): Record<string, string> | undef
 
 /**
  * Credencial MQTT a partir do form — só existe para esse protocolo.
- * `mqttPassword` fica de fora quando o campo está vazio (usuário não digitou
- * nada): na edição isso preserva a senha já armazenada via o merge de
- * `buildConnectionFields` com `existingExtra`, em vez de apagá-la — o campo
- * nunca é pré-preenchido com o valor real (o backend não devolve senha em
- * claro), então "vazio" aqui significa sempre "não mexer", nunca "remover".
+ * `mqttPassword` fica de fora do payload quando o campo está vazio (usuário
+ * não digitou nada) — o campo nunca é pré-preenchido com o valor real (o
+ * backend não devolve senha em claro, só `passwordSet`), então "vazio" aqui
+ * significa sempre "não mexer", nunca "remover". A preservação de verdade
+ * não acontece aqui nem em `existingExtra` (a resposta da API nunca carrega
+ * a senha, então não há o que mesclar) — é `MeterRepository.update` quem
+ * recarrega e mantém a senha cifrada já armazenada quando `password` não
+ * vem na chave `extra`.
  */
 function buildMqttExtra(data: MeterFormData): Record<string, string> | undefined {
     if (data.protocol !== "MQTT") return undefined
@@ -58,6 +61,20 @@ function buildMqttExtra(data: MeterFormData): Record<string, string> | undefined
     if (data.mqttPassword !== undefined) extra.password = data.mqttPassword
 
     return Object.keys(extra).length > 0 ? extra : undefined
+}
+
+/**
+ * Remove de `existingExtra` os campos que só existem na resposta da API,
+ * nunca no que se pode escrever de volta — hoje só `passwordSet`
+ * (`sanitizeExtraForResponse` no backend). Sem isto, o merge com `newExtra`
+ * reenviaria esse campo derivado no payload de update; hoje é inofensivo só
+ * porque o schema Zod do backend descarta chaves desconhecidas por padrão.
+ */
+function stripDerivedExtraFields(extra?: Meter["extra"]): Record<string, unknown> | undefined {
+    if (!extra) return undefined
+    const rest: Record<string, unknown> = { ...extra }
+    delete rest.passwordSet
+    return rest
 }
 
 /**
@@ -74,7 +91,7 @@ function buildConnectionFields(data: MeterFormData, existingExtra?: Meter["extra
     // Mutuamente exclusivos por protocolo (MQTT nunca está em
     // QUANTITY_ADDRESS_PROTOCOLS) — nunca os dois preenchidos ao mesmo tempo.
     const newExtra = buildQuantityExtra(data) ?? buildMqttExtra(data)
-    const extra = newExtra ? { ...existingExtra, ...newExtra } : undefined
+    const extra = newExtra ? { ...stripDerivedExtraFields(existingExtra), ...newExtra } : undefined
     return {
         protocol: data.protocol,
         ...(data.host !== undefined && { host: data.host }),

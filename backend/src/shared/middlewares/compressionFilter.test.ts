@@ -50,6 +50,20 @@ describe("shouldCompress", () => {
         const req = { originalUrl: "/api/iot/stream?ticket=abc123" } as unknown as express.Request
         expect(shouldCompress(req, {} as express.Response)).toBe(false)
     })
+
+    // Segunda barreira, independente do path: o roteador do Express casa
+    // rotas sem diferenciar caixa e tolera barra final — nenhuma delas bate
+    // na comparação exata de originalUrl, mas ambas chegam à mesma rota SSE
+    // e já têm Content-Type: text/event-stream no momento em que o filtro
+    // roda (dentro do onHeaders, disparado por flushHeaders()).
+    it("retorna false quando o Content-Type já é text/event-stream, mesmo com originalUrl fora do formato esperado", () => {
+        const req = { originalUrl: "/API/iot/stream/" } as unknown as express.Request
+        const res = {
+            getHeader: () => "text/event-stream; charset=utf-8",
+        } as unknown as express.Response
+
+        expect(shouldCompress(req, res)).toBe(false)
+    })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────

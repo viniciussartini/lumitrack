@@ -299,6 +299,73 @@ describe("MeterRepository — cifra da credencial MQTT", () => {
         expect((config?.extra as Record<string, unknown>).password).toBe(plaintext)
     })
 
+    it("update com `extra` presente mas sem `password` preserva a senha existente (não apaga)", async () => {
+        const { property } = await setupUserAndProperty()
+        const plaintext = "senha-mqtt-super-secreta"
+
+        const meter = await meterRepository.create({
+            name: "Medidor Geral",
+            targetType: "PROPERTY",
+            propertyId: property.id,
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "lumitrack/teste",
+            extra: { username: "user-mqtt", password: plaintext },
+        })
+
+        // Cenário real do formulário de edição: a API nunca devolve a senha em
+        // claro (sanitizeExtraForResponse troca por passwordSet), então o
+        // cliente reenvia `extra` só com os campos que edita de fato — aqui,
+        // trocando o username, sem reenviar a chave `password`.
+        await meterRepository.update(meter.id, {
+            name: "Medidor Geral",
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "lumitrack/teste",
+            extra: { username: "novo-user" },
+        })
+
+        const config = await meterRepository.findConnectionConfigById(meter.id)
+        expect((config?.extra as Record<string, unknown>).username).toBe("novo-user")
+        expect((config?.extra as Record<string, unknown>).password).toBe(plaintext)
+    })
+
+    it("update com `extra` sem `password` preserva o MESMO ciphertext, sem recifrar", async () => {
+        const { property } = await setupUserAndProperty()
+
+        const meter = await meterRepository.create({
+            name: "Medidor Geral",
+            targetType: "PROPERTY",
+            propertyId: property.id,
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "lumitrack/teste",
+            extra: { username: "user-mqtt", password: "senha-mqtt-super-secreta" },
+        })
+        const before = await prismaTest.meter.findUniqueOrThrow({ where: { id: meter.id } })
+        const ciphertextBefore = (before.extra as Record<string, unknown>).password
+
+        await meterRepository.update(meter.id, {
+            name: "Medidor Geral",
+            protocol: "MQTT",
+            host: "localhost",
+            port: 1883,
+            topic: "lumitrack/teste",
+            extra: { username: "novo-user" },
+        })
+        const after = await prismaTest.meter.findUniqueOrThrow({ where: { id: meter.id } })
+        const ciphertextAfter = (after.extra as Record<string, unknown>).password
+
+        // Byte a byte igual, não só "decifra pro mesmo valor": preserveMqttPasswordIfMissing
+        // recarrega o ciphertext já cifrado e o cola por cima do resultado de
+        // encryptExtraForStorage — se ele passasse pela cifra de novo por engano,
+        // o ciphertext mudaria (IV novo a cada chamada) mesmo decifrando igual.
+        expect(ciphertextAfter).toBe(ciphertextBefore)
+    })
+
     it("update sem `extra` no payload preserva a credencial existente (não apaga)", async () => {
         const { property } = await setupUserAndProperty()
         const plaintext = "senha-mqtt-super-secreta"
