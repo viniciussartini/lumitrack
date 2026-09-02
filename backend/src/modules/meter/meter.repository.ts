@@ -369,12 +369,25 @@ export class MeterRepository {
      * coluna), então o `in` é checado antes dele, para os dois casos terem
      * efeitos diferentes.
      *
+     * Pelo mesmo motivo, quando `extra` VEM no payload de um medidor MQTT
+     * mas sem a chave `password` (ex.: form de edição reenviando só o
+     * username alterado), a senha cifrada já armazenada é preservada em vez
+     * de apagada — ver {@link preserveMqttPasswordIfMissing}.
+     *
      * @param id - Id do medidor a atualizar.
      * @param input - Dados validados do medidor, já sem os campos ausentes.
      * @returns O medidor atualizado.
      */
     async update(id: string, input: UpdateMeterInput): Promise<MeterResponse> {
         const extraProvided = "extra" in input
+        const extraForStorage = extraProvided
+            ? await this.preserveMqttPasswordIfMissing(
+                  id,
+                  input.protocol,
+                  extractField<Record<string, unknown>>(input, "extra"),
+              )
+            : undefined
+
         const raw = await this.prisma.meter.update({
             where: { id },
             data: {
@@ -384,17 +397,46 @@ export class MeterRepository {
                 port: extractField<number>(input, "port"),
                 topic: extractField<string>(input, "topic"),
                 address: extractField<string>(input, "address"),
-                ...(extraProvided && {
-                    extra: toJsonInput(
-                        encryptExtraForStorage(
-                            input.protocol,
-                            extractField<Record<string, unknown>>(input, "extra"),
-                        ),
-                    ),
-                }),
+                ...(extraProvided && { extra: toJsonInput(extraForStorage) }),
             },
         })
         return toMeterResponse(raw)
+    }
+
+    /**
+     * Cifra o `extra` recebido no `update` e, para MQTT, preserva a senha já
+     * armazenada quando o payload não reenvia `password`. A API nunca
+     * devolve a senha em claro (ver {@link sanitizeExtraForResponse}), então
+     * nenhum cliente legítimo tem como reenviá-la — tratar "ausente" como
+     * "remover" apagaria a credencial em toda edição que não mexe na senha
+     * (ex.: só trocar o username). A senha preservada é lida já cifrada
+     * direto da linha atual e colada por cima do resultado de
+     * {@link encryptExtraForStorage} — nunca passa pela cifra de novo, ou o
+     * ciphertext seria cifrado em cima do próprio ciphertext.
+     *
+     * @param id - Id do medidor sendo atualizado (para reler a senha atual).
+     * @param protocol - Protocolo do medidor após a atualização.
+     * @param rawExtra - `extra` bruto recebido no payload de update.
+     * @returns O `extra` cifrado, com a senha existente preservada quando aplicável.
+     */
+    private async preserveMqttPasswordIfMissing(
+        id: string,
+        protocol: IoTProtocol,
+        rawExtra: Record<string, unknown> | null,
+    ): Promise<Record<string, unknown> | null> {
+        const encrypted = encryptExtraForStorage(protocol, rawExtra)
+        if (protocol !== "MQTT" || !rawExtra || "password" in rawExtra || !encrypted) {
+            return encrypted
+        }
+
+        const current = await this.prisma.meter.findUnique({
+            where: { id },
+            select: { extra: true },
+        })
+        const currentPassword = (current?.extra as Record<string, unknown> | null)?.password
+        if (typeof currentPassword !== "string") return encrypted
+
+        return { ...encrypted, password: currentPassword }
     }
 
     /**
