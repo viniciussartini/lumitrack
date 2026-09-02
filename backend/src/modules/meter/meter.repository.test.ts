@@ -1,3 +1,4 @@
+import { randomBytes, createCipheriv } from "crypto"
 import { describe, it, expect, beforeEach, afterAll } from "vitest"
 import { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { UserService } from "@/modules/user/user.service.js"
@@ -194,10 +195,11 @@ describe("MeterRepository — cifra da credencial MQTT", () => {
             extra: { username: "user-mqtt", password: "senha-1" },
         })
 
-        const configs = await meterRepository.findAllConnectionConfigs()
+        const { configs, skippedMeterIds } = await meterRepository.findAllConnectionConfigs()
 
         expect(configs).toHaveLength(1)
         expect((configs[0]?.extra as Record<string, unknown>).password).toBe("senha-1")
+        expect(skippedMeterIds).toEqual([])
     })
 
     it("findAllConnectionConfigs descarta só o medidor com credencial indecifrável, sem derrubar os demais", async () => {
@@ -237,17 +239,30 @@ describe("MeterRepository — cifra da credencial MQTT", () => {
 
         // Simula uma credencial que não decifra mais com a chave atual (ex.:
         // METER_CREDENTIAL_ENCRYPTION_KEY rotacionada sem reciframento das
-        // linhas antigas) — grava direto no banco, contornando o
-        // `encryptMeterCredential` do repository.
+        // linhas antigas) — cifra com uma chave DIFERENTE da configurada no
+        // ambiente de teste, no mesmo formato (iv + authTag + ciphertext) que
+        // `encryptMeterCredential` produz, pra reproduzir o cenário real (tag
+        // de autenticação rejeitada pela chave errada) em vez de uma string
+        // curta que só falha por acidente de tamanho.
+        const wrongKey = randomBytes(32)
+        const iv = randomBytes(12)
+        const cipher = createCipheriv("aes-256-gcm", wrongKey, iv)
+        const ciphertext = Buffer.concat([cipher.update("senha-qualquer", "utf8"), cipher.final()])
+        const corruptedCiphertext = Buffer.concat([iv, cipher.getAuthTag(), ciphertext]).toString(
+            "base64",
+        )
+
         await prismaTest.meter.update({
             where: { id: corrupted.id },
-            data: { extra: { username: "user-mqtt", password: "ciphertext-invalido-e-curto" } },
+            data: { extra: { username: "user-mqtt", password: corruptedCiphertext } },
         })
 
-        const configs = await meterRepository.findAllConnectionConfigs()
+        const { configs, skippedMeterIds } = await meterRepository.findAllConnectionConfigs()
 
         expect(configs).toHaveLength(1)
         expect(configs[0]?.meterId).toBe(healthy.id)
+        expect((configs[0]?.extra as Record<string, unknown>).password).toBe("senha-boa")
+        expect(skippedMeterIds).toEqual([corrupted.id])
     })
 
     it("update recifra a senha com um ciphertext novo (IV distinto)", async () => {

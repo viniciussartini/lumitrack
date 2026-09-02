@@ -16,6 +16,18 @@ import { logger } from "@/shared/logger/logger.js"
 
 const log = logger.child({ module: "MeterRepository" })
 
+/**
+ * Resultado de `findAllConnectionConfigs()` — separa os medidores prontos
+ * para conectar dos descartados por credencial indecifrável, para que o
+ * chamador (boot do servidor) distinga "nenhum medidor cadastrado" de
+ * "todos cadastrados, todos com credencial quebrada" — os dois cenários
+ * produzem `configs.length === 0`, mas exigem log e diagnóstico diferentes.
+ */
+export interface ConnectionConfigsResult {
+    configs: MeterConnectionConfig[]
+    skippedMeterIds: string[]
+}
+
 export type MeterResponse = {
     id: string
     name: string
@@ -419,13 +431,17 @@ export class MeterRepository {
      * — sem isso, `Array.map` propagaria a exceção pra fora da função e um
      * único medidor corrompido derrubava a reconexão de TODOS os outros no
      * boot (efeito observado: nenhum medidor recebe dado em tempo real até o
-     * próximo restart, mesmo os com credencial íntegra).
+     * próximo restart, mesmo os com credencial íntegra). `skippedMeterIds` vai
+     * junto no retorno — sem isso, o chamador não consegue distinguir "banco
+     * vazio" de "todos os medidores cadastrados foram descartados", que pedem
+     * mensagens de boot diferentes.
      *
-     * @returns A configuração de conexão dos medidores com credencial decifrável.
+     * @returns Os medidores com credencial decifrável, mais os ids dos descartados.
      */
-    async findAllConnectionConfigs(): Promise<MeterConnectionConfig[]> {
+    async findAllConnectionConfigs(): Promise<ConnectionConfigsResult> {
         const rows = await this.prisma.meter.findMany()
         const configs: MeterConnectionConfig[] = []
+        const skippedMeterIds: string[] = []
 
         for (const row of rows) {
             try {
@@ -435,9 +451,10 @@ export class MeterRepository {
                     { meterId: row.id, err },
                     "Credencial do medidor não pôde ser decifrada — conexão não será restaurada",
                 )
+                skippedMeterIds.push(row.id)
             }
         }
 
-        return configs
+        return { configs, skippedMeterIds }
     }
 }

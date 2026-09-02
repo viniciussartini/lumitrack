@@ -5,7 +5,11 @@ import {
     byTargetQuerySchema,
 } from "@/modules/meter/meter.schema.js"
 import type { CreateMeterInput, UpdateMeterInput } from "@/modules/meter/meter.schema.js"
-import type { MeterRepository, MeterResponse } from "@/modules/meter/meter.repository.js"
+import type {
+    ConnectionConfigsResult,
+    MeterRepository,
+    MeterResponse,
+} from "@/modules/meter/meter.repository.js"
 import type { MeterConnectionConfig } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
 import type { PropertyRepository } from "@/modules/property/property.repository.js"
 import type { AreaRepository } from "@/modules/area/area.repository.js"
@@ -238,11 +242,12 @@ export class MeterService {
 
     /**
      * Configuração de conexão de todos os medidores cadastrados — usado no
-     * boot do servidor para reconectar todos de uma vez.
+     * boot do servidor para reconectar todos de uma vez. Medidores com
+     * credencial indecifrável vêm à parte, em `skippedMeterIds`.
      *
-     * @returns A configuração de conexão de todos os medidores.
+     * @returns Os medidores com credencial decifrável, mais os ids dos descartados.
      */
-    async getAllConnectionConfigs(): Promise<MeterConnectionConfig[]> {
+    async getAllConnectionConfigs(): Promise<ConnectionConfigsResult> {
         return this.meterRepository.findAllConnectionConfigs()
     }
 }

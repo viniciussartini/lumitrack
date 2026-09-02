@@ -296,7 +296,7 @@ const KpiCard = ({ label, value, highlight }: KpiCardProps) => (
                     className="h-2 w-2 rounded-full"
                     style={{
                         backgroundColor: "var(--color-status-warning)",
-                        animation: "lt-pulse 1.6s ease-in-out infinite",
+                        animation: "lt-pulse 2s cubic-bezier(0.45, 0, 0.55, 1) infinite",
                     }}
                     aria-hidden="true"
                 />
