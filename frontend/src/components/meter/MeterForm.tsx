@@ -50,6 +50,11 @@ function extraStringField(extra: Meter["extra"], key: string): string {
     return typeof value === "string" ? value : ""
 }
 
+/** Lê um campo booleano de `extra` com segurança (ex.: `passwordSet`). */
+function extraBooleanField(extra: Meter["extra"] | undefined, key: string): boolean {
+    return extra?.[key] === true
+}
+
 function buildDefaultValues(initialData: Meter | undefined): MeterFormInput {
     if (!initialData) {
         return {
@@ -63,6 +68,8 @@ function buildDefaultValues(initialData: Meter | undefined): MeterFormInput {
             currentAddress: "",
             powerAddress: "",
             powerFactorAddress: "",
+            mqttUsername: "",
+            mqttPassword: "",
         }
     }
 
@@ -77,6 +84,13 @@ function buildDefaultValues(initialData: Meter | undefined): MeterFormInput {
         currentAddress: extraStringField(initialData.extra, "currentAddress"),
         powerAddress: extraStringField(initialData.extra, "powerAddress"),
         powerFactorAddress: extraStringField(initialData.extra, "powerFactorAddress"),
+        // Usuário não é sensível — a API devolve em claro (`toMeterResponse`).
+        // Senha nunca vem do backend em claro (só `passwordSet: boolean`) —
+        // o campo nasce sempre vazio; o placeholder condicional em
+        // `MqttCredentialFields` avisa que deixá-lo em branco preserva a
+        // senha já configurada.
+        mqttUsername: extraStringField(initialData.extra, "username"),
+        mqttPassword: "",
     }
 }
 
@@ -125,6 +139,45 @@ const QuantityAddressFields = ({ protocol, register, errors }: QuantityAddressFi
     </>
 )
 
+interface MqttCredentialFieldsProps {
+    register: UseFormRegister<MeterFormInput>
+    errors: FieldErrors<MeterFormData>
+    /** Medidor já tem senha configurada? Muda o placeholder do campo — a
+     * senha em si nunca chega aqui (o backend não devolve em claro). */
+    hasStoredPassword: boolean
+}
+
+/**
+ * Credencial MQTT (extra.username/extra.password) — separado do form
+ * principal pelo mesmo motivo de `QuantityAddressFields` (teto de tamanho
+ * do kit). Único protocolo com noção de usuário/senha na conexão.
+ */
+const MqttCredentialFields = ({
+    register,
+    errors,
+    hasStoredPassword,
+}: MqttCredentialFieldsProps) => (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Input
+            label="Usuário MQTT (opcional)"
+            placeholder="Deixe em branco se o broker não exigir"
+            error={errors.mqttUsername?.message}
+            {...register("mqttUsername")}
+        />
+        <Input
+            label="Senha MQTT (opcional)"
+            type="password"
+            placeholder={
+                hasStoredPassword
+                    ? "Deixe em branco para manter a senha atual"
+                    : "Deixe em branco se o broker não exigir"
+            }
+            error={errors.mqttPassword?.message}
+            {...register("mqttPassword")}
+        />
+    </div>
+)
+
 /**
  * Form de medidor — vale para criação (vinculado a um alvo, resolvido fora
  * deste componente) e edição (só a config de conexão, o alvo é imutável).
@@ -155,6 +208,10 @@ export const MeterForm = ({
     const needsTopic = TOPIC_PROTOCOLS.includes(protocol)
     const needsAddress = ADDRESS_PROTOCOLS.includes(protocol)
     const needsQuantityAddresses = QUANTITY_ADDRESS_PROTOCOLS.includes(protocol)
+    // Único protocolo com credencial — os demais não têm noção de
+    // usuário/senha na conexão (rede local/serial direta).
+    const needsMqttCredentials = protocol === "MQTT"
+    const hasStoredPassword = extraBooleanField(initialData?.extra, "passwordSet")
 
     return (
         <form
@@ -201,6 +258,14 @@ export const MeterForm = ({
                     placeholder="lumitrack/medidores/123"
                     error={errors.topic?.message}
                     {...register("topic")}
+                />
+            )}
+
+            {needsMqttCredentials && (
+                <MqttCredentialFields
+                    register={register}
+                    errors={errors}
+                    hasStoredPassword={hasStoredPassword}
                 />
             )}
 

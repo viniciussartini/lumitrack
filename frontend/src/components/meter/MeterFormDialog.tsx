@@ -43,17 +43,38 @@ function buildQuantityExtra(data: MeterFormData): Record<string, string> | undef
 }
 
 /**
+ * Credencial MQTT a partir do form — só existe para esse protocolo.
+ * `mqttPassword` fica de fora quando o campo está vazio (usuário não digitou
+ * nada): na edição isso preserva a senha já armazenada via o merge de
+ * `buildConnectionFields` com `existingExtra`, em vez de apagá-la — o campo
+ * nunca é pré-preenchido com o valor real (o backend não devolve senha em
+ * claro), então "vazio" aqui significa sempre "não mexer", nunca "remover".
+ */
+function buildMqttExtra(data: MeterFormData): Record<string, string> | undefined {
+    if (data.protocol !== "MQTT") return undefined
+
+    const extra: Record<string, string> = {}
+    if (data.mqttUsername !== undefined) extra.username = data.mqttUsername
+    if (data.mqttPassword !== undefined) extra.password = data.mqttPassword
+
+    return Object.keys(extra).length > 0 ? extra : undefined
+}
+
+/**
  * Campos de conexão comuns a criação e edição — só o alvo (targetField)
- * difere. `existingExtra` (só na edição) é mesclado por baixo dos endereços
- * de grandeza novos: `MeterRepository.update` substitui a coluna `extra`
- * INTEIRA sempre que a chave vem no payload (não faz merge no backend) —
- * reconstruí-la só com os endereços de grandeza apagaria silenciosamente
- * `unitId`/`baudRate`/`pollingIntervalMs`/`rack`/`slot`, que este form não
- * expõe. Em CREATE não há `extra` anterior — `existingExtra` fica `undefined`.
+ * difere. `existingExtra` (só na edição) é mesclado por baixo de `newExtra`
+ * (endereços de grandeza OU credencial MQTT, conforme o protocolo):
+ * `MeterRepository.update` substitui a coluna `extra` INTEIRA sempre que a
+ * chave vem no payload (não faz merge no backend) — reconstruí-la só com o
+ * que este form edita apagaria silenciosamente `unitId`/`baudRate`/
+ * `pollingIntervalMs`/`rack`/`slot`, que ele não expõe. Em CREATE não há
+ * `extra` anterior — `existingExtra` fica `undefined`.
  */
 function buildConnectionFields(data: MeterFormData, existingExtra?: Meter["extra"]) {
-    const quantityExtra = buildQuantityExtra(data)
-    const extra = quantityExtra ? { ...existingExtra, ...quantityExtra } : undefined
+    // Mutuamente exclusivos por protocolo (MQTT nunca está em
+    // QUANTITY_ADDRESS_PROTOCOLS) — nunca os dois preenchidos ao mesmo tempo.
+    const newExtra = buildQuantityExtra(data) ?? buildMqttExtra(data)
+    const extra = newExtra ? { ...existingExtra, ...newExtra } : undefined
     return {
         protocol: data.protocol,
         ...(data.host !== undefined && { host: data.host }),
