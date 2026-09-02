@@ -29,6 +29,15 @@
 - **Decisões/ADRs:** `adr/0002-token-storage-cookie-httponly.md`, `adr/0003-mfa-totp-opcional.md`, `adr/0004-monolito-modular-por-dominio.md` — três decisões já vigentes no código, formalizadas nesta sessão.
 - **Notas:** `.claude/design/` segue vazio — nenhuma tela tem handoff bundle ainda; toda tarefa de UI cai na regra de ausência do `10-design-system.md` até `/design-sync` + primeiro handoff. Labels do GitHub (`08-convencoes-git.md`) ainda não criadas — ação externa, fora de escopo desta entrada. Referência a `docs/O-Sistema-Elétrico-Brasileiro.md` em `backend/prisma/seed.ts:35` aponta para um arquivo inexistente — não corrigida, sinalizada ao usuário.
 
+## [2026-09-02] fix: cores do wordmark "LumiTrack" na variante escura
+
+- **Branch:** fix/359-360-wordmark-e-seletor-hora-consumo
+- **Tipo:** fix
+- **O quê:** na variante `dark` do wordmark (Login, Registro e Sidebar), "Lumi" usava `text-[#e6ecf2]` (cinza-azulado claro) em vez de branco puro, e "Track" usava um gradiente (`#8fb0d6 → #a9c6a2 → #e2ef8f`) diferente do gradiente do ícone SVG da logo. Corrigido "Lumi" para `text-white` e unificado o gradiente de "Track" com o do ícone (`#5980A6 → #96B18F → #D4E277`) em ambas as variantes — a variante `light` já usava essas cores, então o `GRADIENT_BY_VARIANT` por variante virou uma única constante `TRACK_GRADIENT`.
+- **Arquivos principais:** `frontend/src/components/ui/LumiTrackWordmark.tsx`, `frontend/src/components/ui/LumiTrackWordmark.test.tsx` (novo).
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** cobre a issue #359. A issue #360 (seletor de janela de hora no histórico de consumo) segue pendente na mesma branch.
+
 ## [2026-07-31] chore: labels do GitHub + correção da referência à wiki
 
 - **Branch:** main
