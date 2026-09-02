@@ -122,3 +122,57 @@ describe("ConsumptionSection — título e legenda", () => {
         expect(await screen.findByText("Consumo do ano corrente, mês a mês")).toBeInTheDocument()
     })
 })
+
+describe("ConsumptionSection — seletor de janela de hora", () => {
+    it("aparece só na aba Hora (padrão), some nas demais", async () => {
+        renderSection()
+
+        expect(await screen.findByTestId("hour-window-select")).toBeInTheDocument()
+
+        const user = userEvent.setup()
+        await user.click(screen.getByTestId("granularity-tab-day"))
+
+        expect(screen.queryByTestId("hour-window-select")).not.toBeInTheDocument()
+    })
+
+    it("escolher outra hora muda a legenda e a janela consultada na API", async () => {
+        renderSection()
+        await screen.findByTestId("hour-window-select")
+        vi.mocked(consumptionService.list).mockClear()
+
+        const currentHour = new Date().getHours()
+        const previousHour = currentHour > 0 ? currentHour - 1 : 0
+        // Nada a testar sem uma hora anterior disponível (00h — só uma opção).
+        if (previousHour === currentHour) return
+
+        const user = userEvent.setup()
+        await user.selectOptions(
+            screen.getByTestId("hour-window-select"),
+            `${previousHour}h - ${previousHour + 1}h`,
+        )
+
+        expect(
+            await screen.findByText(
+                `Consumo de ${previousHour}h às ${previousHour + 1}h, minuto a minuto`,
+            ),
+        ).toBeInTheDocument()
+        const calledWith = vi.mocked(consumptionService.list).mock.calls.at(-1)![0]
+        expect(calledWith.from?.getHours()).toBe(previousHour)
+        expect(calledWith.to?.getHours()).toBe(previousHour + 1)
+    })
+
+    it("voltar pra aba Hora depois de Dia reseta o seletor pra hora corrente", async () => {
+        renderSection()
+        await screen.findByTestId("hour-window-select")
+
+        const currentHour = new Date().getHours()
+        if (currentHour === 0) return
+
+        const user = userEvent.setup()
+        await user.selectOptions(screen.getByTestId("hour-window-select"), `0h - 1h`)
+        await user.click(screen.getByTestId("granularity-tab-day"))
+        await user.click(screen.getByTestId("granularity-tab-hour"))
+
+        expect(await screen.findByTestId("hour-window-select")).toHaveValue(String(currentHour))
+    })
+})

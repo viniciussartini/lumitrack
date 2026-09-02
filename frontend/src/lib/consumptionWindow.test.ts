@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest"
-import { resolveConsumptionWindow, resolveMonthlyHistoryWindow } from "@/lib/consumptionWindow"
+import {
+    describeConsumptionWindow,
+    resolveConsumptionWindow,
+    resolveMonthlyHistoryWindow,
+} from "@/lib/consumptionWindow"
 
 // Instante de referência fixo (21/08/2026 às 19:45) usado como "agora" em
 // todos os casos abaixo, para manter os testes determinísticos.
@@ -50,6 +54,45 @@ describe("resolveConsumptionWindow", () => {
 
         expect(from).toEqual(new Date(2026, 11, 1, 0, 0, 0, 0))
         expect(to).toEqual(new Date(2027, 0, 1, 0, 0, 0, 0))
+    })
+
+    it("hora com selectedHour → usa a hora escolhida em vez da hora corrente de `now`", () => {
+        const { bucketSize, from, to } = resolveConsumptionWindow("hour", NOW, 14)
+
+        expect(bucketSize).toBe("minute")
+        expect(from).toEqual(new Date(2026, 7, 21, 14, 0, 0, 0))
+        expect(to).toEqual(new Date(2026, 7, 21, 15, 0, 0, 0))
+    })
+
+    it("selectedHour é ignorado para as demais granularidades", () => {
+        const { from, to } = resolveConsumptionWindow("day", NOW, 14)
+
+        expect(from).toEqual(new Date(2026, 7, 21, 0, 0, 0, 0))
+        expect(to).toEqual(new Date(2026, 7, 22, 0, 0, 0, 0))
+    })
+})
+
+describe("describeConsumptionWindow", () => {
+    it("hora selecionada igual à corrente → legenda de 'hora corrente'", () => {
+        expect(describeConsumptionWindow("hour", 19, 19)).toBe(
+            "Consumo da hora corrente, minuto a minuto",
+        )
+    })
+
+    it("hora selecionada diferente da corrente → legenda cita a janela escolhida", () => {
+        expect(describeConsumptionWindow("hour", 14, 19)).toBe(
+            "Consumo de 14h às 15h, minuto a minuto",
+        )
+    })
+
+    it("demais granularidades ignoram os parâmetros de hora", () => {
+        expect(describeConsumptionWindow("day", 14, 19)).toBe(
+            "Consumo do dia corrente, hora a hora",
+        )
+        expect(describeConsumptionWindow("month", 14, 19)).toBe(
+            "Consumo do mês corrente, dia a dia",
+        )
+        expect(describeConsumptionWindow("year", 14, 19)).toBe("Consumo do ano corrente, mês a mês")
     })
 })
 

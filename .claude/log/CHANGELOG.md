@@ -38,6 +38,15 @@
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** cobre a issue #359. A issue #360 (seletor de janela de hora no histórico de consumo) segue pendente na mesma branch.
 
+## [2026-09-02] fix: seletor de janela de hora no histórico de consumo
+
+- **Branch:** fix/359-360-wordmark-e-seletor-hora-consumo
+- **Tipo:** fix
+- **O quê:** na granularidade "Hora" do histórico de consumo (propriedades, áreas, dispositivos e /relatorios), a janela consultada travava sempre na hora corrente do relógio local, sem nenhum controle para o usuário escolher outra hora já passada do dia. Adicionado `HourWindowSelect` (novo componente, `select` nativo com as opções 0h-1h até a hora corrente) exibido ao lado do `GranularityTabs` só quando "Hora" está ativa; `resolveConsumptionWindow` ganhou o parâmetro opcional `selectedHour` (default: hora corrente, comportamento inalterado quando ausente) para montar a janela a partir da hora escolhida em vez de sempre `now.getHours()`. A legenda (`describeConsumptionWindow`, substitui o antigo `CONSUMPTION_WINDOW_DESCRIPTION` estático) agora varia com a hora selecionada. Trocar de granularidade e voltar pra "Hora" reseta o seletor pra hora corrente. `ConsumptionSection` extraiu o cabeçalho pro subcomponente `ConsumptionSectionHeader` pra caber no limite de linhas por função do lint depois da nova prop.
+- **Arquivos principais:** `frontend/src/lib/consumptionWindow.ts`, `frontend/src/lib/consumptionWindow.test.ts`, `frontend/src/components/consumption/HourWindowSelect.tsx` (novo), `frontend/src/components/consumption/HourWindowSelect.test.tsx` (novo), `frontend/src/components/consumption/ConsumptionSection.tsx`, `frontend/src/components/consumption/ConsumptionSection.test.tsx`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** cobre a issue #360, encerrando a branch `fix/359-360-wordmark-e-seletor-hora-consumo` (issues #359 e #360). Sem entrega de design (`.claude/design/`) para as details pages/`/relatorios` — o `select` reaproveita as classes `.input`/`.lt-input` já usadas por `Select.tsx`, seguindo o mesmo padrão ad-hoc de `GranularityTabs`/`HistoryRangeToggle`, que também não têm handoff próprio.
+
 ## [2026-07-31] chore: labels do GitHub + correção da referência à wiki
 
 - **Branch:** main
