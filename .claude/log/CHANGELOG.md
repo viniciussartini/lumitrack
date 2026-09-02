@@ -3181,3 +3181,12 @@
 - **Arquivos principais:** `backend/src/modules/meter/meter.repository.test.ts`, `frontend/src/components/meter/MeterFormDialog.tsx`, `frontend/src/components/meter/MeterFormDialog.test.tsx`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** vale conferir se o hook de `lint-staged` do projeto está de fato restaurando seu stash automático em toda execução — um commit parcial que perde silenciosamente arquivos não staged é o tipo de falha que só aparece numa auditoria como esta.
+
+## [2026-09-02] chore: atualiza fast-uri e qs para destravar o CI (npm audit --audit-level=high)
+- **Branch:** fix/reconexao-iot-credencial-corrompida
+- **Tipo:** chore
+- **O quê:** job `backend-audit` do CI passou a falhar em `npm audit --audit-level=high` por uma advisory **high** publicada para `fast-uri@3.0.0-3.1.5` (transitiva de `prisma` → `@prisma/dev` → `@prisma/streams-local` → `ajv`) e uma **moderada** em `qs@2.2.5-6.15.3` (transitiva de `express`/`supertest`). Confirmado que não tem relação com o trabalho desta branch: nenhum commit da branch tocou `package.json`/`package-lock.json`, e o último CI da `staging` (2026-09-01, antes desta investigação) passou verde — a advisory do `fast-uri` deve ter sido publicada depois disso. `npm audit fix` (sem `--force`) resolveu as duas com bump de patch já permitido pelo range semver dos pacotes-pai: `qs` 6.15.2→6.16.0, `fast-uri` 3.1.5→3.1.7. Nenhuma dependência direta do `package.json` mudou — só o `package-lock.json`.
+- **Verificado:** `npm audit --audit-level=high` (o comando exato do CI) devolve "found 0 vulnerabilities"; suíte completa do backend (94 arquivos, 1096 testes), `tsc --noEmit` e `eslint` sem apontamentos após o bump.
+- **Arquivos principais:** `backend/package-lock.json`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** aplicado nesta branch (em vez de uma branch `chore/` separada a partir de `staging`) por decisão do usuário, para destravar o CI da PR #358 imediatamente.
