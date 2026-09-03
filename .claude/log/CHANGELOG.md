@@ -65,6 +65,15 @@
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** o teste que antes travava a presença da marca "Em breve" (`renderiza a marca 'Em breve' explicitamente`) foi substituído por um teste que garante sua ausência.
 
+## [2026-09-02] refactor: barras do gráfico de histórico de consumo em âmbar
+
+- **Branch:** fix/359-360-wordmark-e-seletor-hora-consumo
+- **Tipo:** refactor
+- **O quê:** `Bar` do `ConsumptionChart` (recharts) trocou `fill="var(--color-accent)"` por `fill="var(--color-status-highlight)"` — token âmbar (`#d98a1e`) já usado no projeto como cor de destaque (nav ativa da Sidebar, eyebrow do `BrandPanel`, marcadores da Landing), não um hex novo. Os tokens legados `--color-brand-*`/`--color-energy` (tema âmbar pré-Industry, `index.css`) foram descartados de propósito — o próprio arquivo os marca como "nenhum uso novo deve ser adicionado a partir daqui". Puramente visual: sem mudança de dado, estrutura ou lógica do gráfico.
+- **Arquivos principais:** `frontend/src/components/consumption/ConsumptionChart.tsx`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** sem teste de regressão — nenhum teste do projeto (nem `ConsumptionChart.test.tsx`, nem o análogo `RealtimePowerChart.test.tsx`) verifica cor de preenchimento do recharts, porque `ResponsiveContainer` não recebe dimensões reais em jsdom e as barras não chegam a renderizar no ambiente de teste; verificado via build/lint/depcruise/prettier, sem regressão.
+
 ## [2026-07-31] chore: labels do GitHub + correção da referência à wiki
 
 - **Branch:** main

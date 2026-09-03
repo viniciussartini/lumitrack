@@ -129,7 +129,7 @@ export const ConsumptionChart = ({
                     <Tooltip content={<ChartTooltip />} />
                     <Bar
                         dataKey="kwh"
-                        fill="var(--color-accent)"
+                        fill="var(--color-status-highlight)"
                         radius={[4, 4, 0, 0]}
                         name="kWh"
                     />
