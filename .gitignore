@@ -13,6 +13,13 @@ dist/
 # bem-sucedido na VPS, nunca versionado.
 deploy/.last-deployed-sha
 
+# Saída do deploy/backup-postgres.sh (BACKUP_DIR default = <raiz do
+# repo>/backups) — dumps criptografados do Postgres, nunca versionados. Sem
+# esta regra, o `git status --porcelain` do update-production.sh sempre via
+# esses arquivos como "não rastreados" e abortava o deploy por segurança
+# (achado ao vivo na promoção da Fase 14-19, 2026-09-03).
+backups/
+
 # Nenhuma regra para backend/prisma/migrations/ aqui de propósito — as
 # migrations DEVEM ser versionadas (histórico de schema é parte do código).
 # Uma regra `prisma/migrations/` já existiu aqui, mas nunca casava de
