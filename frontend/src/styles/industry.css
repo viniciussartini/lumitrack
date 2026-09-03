@@ -601,6 +601,11 @@ textarea.input {
     --color-accent: #7ba6d0;
     --color-accent-700: #a8c6e2;
     --color-accent-100: #22344a;
+
+    /* --color-chart-amber escurece no tema claro (ver :root abaixo) pra manter
+       3:1 de contraste contra --color-bg/--color-surface — no escuro o mesmo
+       tom que já valia pra --color-status-highlight passa sem ajuste. */
+    --color-chart-amber: #d98a1e;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -617,6 +622,14 @@ textarea.input {
     --color-status-danger: #a53b2c; /* vermelha P1 — erro, ação destrutiva */
     --color-status-danger-strong: #7d241a; /* vermelha P2 — severidade maior */
     --color-status-highlight: #d98a1e; /* destaque de sidebar/navegação ativa */
+
+    /* Preenchimento de gráfico (barras, séries) — token próprio, não
+       reaproveita --color-status-highlight: papel semântico diferente (dado
+       de série, não estado de navegação/status) e precisa de um valor mais
+       escuro no tema claro pra manter 3:1 de contraste (WCAG 2.2 1.4.11)
+       contra --color-bg/--color-surface, que o tom de --color-status-highlight
+       não atinge. Variante escura em :root[data-theme="dark"] acima. */
+    --color-chart-amber: #a86a12;
 
     /* Indicador "dado ao vivo" — cor própria, não reaproveita
        --color-status-success apesar do tom próximo: papel semântico
@@ -640,6 +653,14 @@ textarea.input {
     --color-flag-red-p1-dot: #c15a42;
     --color-flag-red-p2: #e0654a;
     --color-flag-red-p2-dot: #a83f2c;
+
+    /* Gradiente do wordmark/ícone "LumiTrack" (public/lumitrack-logo.svg,
+       linearGradient#id0) — 1º stop já é --color-accent (#5980a6, acima);
+       só o 2º/3º ainda não tinham token, hardcoded em
+       components/ui/LumiTrackWordmark.tsx. Sem variante dark: o texto usa o
+       mesmo degradê nas duas variantes de fundo. */
+    --color-brand-gradient-mid: #96b18f;
+    --color-brand-gradient-end: #d4e277;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest"
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen } from "@testing-library/react"
@@ -124,55 +124,76 @@ describe("ConsumptionSection — título e legenda", () => {
 })
 
 describe("ConsumptionSection — seletor de janela de hora", () => {
+    // Hora fixa (19h) em vez do relógio real: os testes precisam de uma hora
+    // anterior disponível (falha silenciosa entre 00:00-00:59 com o relógio
+    // real, já que não haveria "hora anterior" a escolher).
+    const NOW = new Date(2026, 7, 21, 19, 45, 30)
+
+    beforeEach(() => {
+        vi.useFakeTimers({ shouldAdvanceTime: true })
+        vi.setSystemTime(NOW)
+    })
+
+    afterEach(() => {
+        vi.useRealTimers()
+    })
+
     it("aparece só na aba Hora (padrão), some nas demais", async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
         renderSection()
 
         expect(await screen.findByTestId("hour-window-select")).toBeInTheDocument()
 
-        const user = userEvent.setup()
         await user.click(screen.getByTestId("granularity-tab-day"))
 
         expect(screen.queryByTestId("hour-window-select")).not.toBeInTheDocument()
     })
 
     it("escolher outra hora muda a legenda e a janela consultada na API", async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
         renderSection()
         await screen.findByTestId("hour-window-select")
         vi.mocked(consumptionService.list).mockClear()
 
-        const currentHour = new Date().getHours()
-        const previousHour = currentHour > 0 ? currentHour - 1 : 0
-        // Nada a testar sem uma hora anterior disponível (00h — só uma opção).
-        if (previousHour === currentHour) return
-
-        const user = userEvent.setup()
-        await user.selectOptions(
-            screen.getByTestId("hour-window-select"),
-            `${previousHour}h - ${previousHour + 1}h`,
-        )
+        await user.selectOptions(screen.getByTestId("hour-window-select"), "18h - 19h")
 
         expect(
-            await screen.findByText(
-                `Consumo de ${previousHour}h às ${previousHour + 1}h, minuto a minuto`,
-            ),
+            await screen.findByText("Consumo de 18h às 19h, minuto a minuto"),
         ).toBeInTheDocument()
         const calledWith = vi.mocked(consumptionService.list).mock.calls.at(-1)![0]
-        expect(calledWith.from?.getHours()).toBe(previousHour)
-        expect(calledWith.to?.getHours()).toBe(previousHour + 1)
+        expect(calledWith.from?.getHours()).toBe(18)
+        expect(calledWith.to?.getHours()).toBe(19)
     })
 
     it("voltar pra aba Hora depois de Dia reseta o seletor pra hora corrente", async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
         renderSection()
         await screen.findByTestId("hour-window-select")
 
-        const currentHour = new Date().getHours()
-        if (currentHour === 0) return
-
-        const user = userEvent.setup()
-        await user.selectOptions(screen.getByTestId("hour-window-select"), `0h - 1h`)
+        await user.selectOptions(screen.getByTestId("hour-window-select"), "0h - 1h")
         await user.click(screen.getByTestId("granularity-tab-day"))
         await user.click(screen.getByTestId("granularity-tab-hour"))
 
-        expect(await screen.findByTestId("hour-window-select")).toHaveValue(String(currentHour))
+        expect(await screen.findByTestId("hour-window-select")).toHaveValue("19")
+    })
+
+    it("hora selecionada além da nova hora corrente (virada de dia, sem trocar de aba) é clampada, sem <select> em branco", async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        const { rerender } = renderSection()
+        await screen.findByTestId("hour-window-select")
+
+        await user.selectOptions(screen.getByTestId("hour-window-select"), "19h - 20h")
+
+        // Virada de dia com a aba "Hora" ainda ativa, sem o usuário trocar de
+        // aba: currentHour cai de 19 pra 0 na próxima renderização, ficando
+        // menor que o selectedHour (19) guardado no estado. `rerender` força
+        // uma nova passagem sem depender de nenhuma interação do usuário.
+        vi.setSystemTime(new Date(2026, 7, 22, 0, 5, 0))
+        rerender(<ConsumptionSection targetType="PROPERTY" targetId="prop-1" />)
+
+        expect(await screen.findByTestId("hour-window-select")).toHaveValue("0")
+        expect(
+            await screen.findByText("Consumo da hora corrente, minuto a minuto"),
+        ).toBeInTheDocument()
     })
 })

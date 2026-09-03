@@ -26,9 +26,8 @@ const WINDOW_DESCRIPTION_BY_GRANULARITY: Record<Exclude<Granularity, "hour">, st
 /**
  * Legenda da janela ativa (`ConsumptionSection`, exibida abaixo do título
  * "Histórico de consumo"). Em "Hora" varia com a hora escolhida no
- * `HourWindowSelect`: mantém o texto genérico quando é a hora corrente
- * (comportamento anterior, sem seletor) e cita a janela quando o usuário
- * escolheu outra hora já passada do dia.
+ * `HourWindowSelect`: texto genérico quando a hora escolhida é a corrente,
+ * e cita a janela quando o usuário escolheu outra hora já passada do dia.
  */
 export const describeConsumptionWindow = (
     granularity: Granularity,
@@ -60,9 +59,9 @@ export interface ConsumptionWindow {
  * `to` cai no início da janela seguinte (exclusivo, como o filtro do backend)
  * e por isso fica no futuro — inofensivo, já que não há leitura futura.
  *
- * `selectedHour` sobrepõe a hora de `now` só na granularidade "hora" — é o
- * que permite ao `HourWindowSelect` consultar uma hora já passada do dia
- * corrente em vez de travar sempre na hora corrente do relógio.
+ * `selectedHour` sobrepõe a hora de `now` só na granularidade "hora" —
+ * qualquer outra hora já passada do dia corrente, escolhida no
+ * `HourWindowSelect`; sem `selectedHour`, a janela usa a hora de `now`.
  */
 export const resolveConsumptionWindow = (
     granularity: Granularity,

@@ -16,14 +16,14 @@ describe("LumiTrackWordmark — variante dark (Login, Registro, Sidebar)", () =>
 
         const track = screen.getByText("Track")
 
-        expect(track).toHaveClass("from-[#5980A6]", "via-[#96B18F]", "to-[#D4E277]")
+        expect(track).toHaveClass("from-accent", "via-brand-gradient-mid", "to-brand-gradient-end")
     })
 
     it("mantém 'Lumi' branco mesmo com textClassName do tamanho de fonte do Industry (uso real do BrandPanel/Sidebar)", () => {
-        // Regressão: `text-19`/`text-20` (styles/industry.css) e `text-white`
-        // são ambos prefixados por "text-" — sem a extensão de tema em
-        // `lib/cn.ts`, o tailwind-merge classificava os dois como a mesma
-        // propriedade (cor) e descartava `text-white`.
+        // `text-19` (tamanho de fonte, styles/industry.css) e `text-white`
+        // (cor) são ambos prefixados por "text-" mas não conflitam: a
+        // extensão de tema em `lib/cn.ts` garante que o tailwind-merge trata
+        // os dois como propriedades diferentes.
         render(<LumiTrackWordmark textClassName="text-19" />)
 
         const lumiSpan = screen.getByText("Track").parentElement!
@@ -38,6 +38,6 @@ describe("LumiTrackWordmark — variante light (páginas legais)", () => {
 
         const track = screen.getByText("Track")
 
-        expect(track).toHaveClass("from-[#5980A6]", "via-[#96B18F]", "to-[#D4E277]")
+        expect(track).toHaveClass("from-accent", "via-brand-gradient-mid", "to-brand-gradient-end")
     })
 })

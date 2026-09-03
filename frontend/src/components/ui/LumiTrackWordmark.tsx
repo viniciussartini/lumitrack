@@ -14,7 +14,7 @@ interface LumiTrackWordmarkProps {
     variant?: "dark" | "light"
 }
 
-const TRACK_GRADIENT = "from-[#5980A6] via-[#96B18F] to-[#D4E277]"
+const TRACK_GRADIENT = "from-accent via-brand-gradient-mid to-brand-gradient-end"
 
 /**
  * Logo + wordmark "Lumi/Track" com gradiente no "Track" — tratamento visual

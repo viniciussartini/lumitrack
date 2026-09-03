@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { AlertCircle, LineChart } from "lucide-react"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Pagination } from "@/components/ui/Pagination"
@@ -66,11 +66,20 @@ export const ConsumptionSection = ({
 }: ConsumptionSectionProps) => {
     const [granularity, setGranularity] = useState<Granularity>(granularities[0]!)
     const [page, setPage] = useState(1)
+    // `now` capturado uma única vez por render e reaproveitado em tudo que
+    // depende da hora corrente, pra currentHour e a janela consultada nunca
+    // divergirem entre si (a legenda dizendo uma janela, a query buscando
+    // outra) bem na virada da hora.
+    const now = new Date()
+    const currentHour = now.getHours()
     // Hora consultada quando a granularidade é "hour" — default a hora
-    // corrente (comportamento anterior ao HourWindowSelect), sobreposto
-    // quando o usuário escolhe outra hora já passada do dia.
-    const currentHour = new Date().getHours()
+    // corrente, sobreposto quando o usuário escolhe outra hora já passada
+    // do dia. Clampada a currentHour: se o usuário deixa a aba aberta
+    // durante a virada do dia, a hora escolhida (ex.: 23h) pode passar a
+    // ser maior que a nova hora corrente (0h) — sem o clamp, o <select>
+    // fica com um `value` sem `<option>` correspondente (em branco).
     const [selectedHour, setSelectedHour] = useState(currentHour)
+    const effectiveHour = Math.min(selectedHour, currentHour)
 
     // Sem medidor vinculado, /api/consumption devolve 404 — checamos
     // primeiro se existe medidor pra distinguir "sem medidor" (EmptyState
@@ -79,13 +88,12 @@ export const ConsumptionSection = ({
     const hasMeter = Boolean(meterQuery.data)
 
     // A granularidade escolhida é a janela; o bucket é o nível abaixo dela
-    // (Hora → minuto a minuto, Dia → hora a hora). Fixada por
-    // granularidade/hora selecionada para não recriar a query key a cada
-    // render — trocar de aba ou de hora recalcula.
-    const consumptionWindow = useMemo(
-        () => resolveConsumptionWindow(granularity, undefined, selectedHour),
-        [granularity, selectedHour],
-    )
+    // (Hora → minuto a minuto, Dia → hora a hora). `resolveConsumptionWindow`
+    // é barata (só monta alguns `Date`) e determinística a partir de
+    // granularity/now/effectiveHour — sem necessidade de memoização: o
+    // `from`/`to` resultante é o mesmo em qualquer render dentro da mesma
+    // hora/dia, então a query key (que serializa em ISO string) não muda.
+    const consumptionWindow = resolveConsumptionWindow(granularity, now, effectiveHour)
 
     // Só dispara a query quando já sabemos que há medidor — evita uma
     // chamada fadada ao 404 "sem medidor" enquanto o meterQuery ainda
@@ -104,8 +112,8 @@ export const ConsumptionSection = ({
     const handleGranularityChange = (next: Granularity) => {
         setGranularity(next)
         setPage(1)
-        // Volta pra hora corrente ao (re)entrar na aba "Hora" — mesmo default
-        // de antes do seletor, o usuário escolhe outra hora a partir daqui.
+        // Volta pra hora corrente ao (re)entrar na aba "Hora" — ponto de
+        // partida a cada entrada; o usuário escolhe outra hora a partir daqui.
         if (next === "hour") setSelectedHour(currentHour)
     }
 
@@ -127,7 +135,7 @@ export const ConsumptionSection = ({
                 <ConsumptionSectionHeader
                     granularity={granularity}
                     granularities={granularities}
-                    selectedHour={selectedHour}
+                    selectedHour={effectiveHour}
                     currentHour={currentHour}
                     onGranularityChange={handleGranularityChange}
                     onHourChange={handleHourChange}
