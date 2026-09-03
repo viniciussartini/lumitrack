@@ -2,6 +2,7 @@ version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/backend"
+    target-branch: "staging"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
@@ -22,6 +23,7 @@ updates:
 
   - package-ecosystem: "npm"
     directory: "/frontend"
+    target-branch: "staging"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
@@ -35,6 +37,7 @@ updates:
 
   - package-ecosystem: "npm"
     directory: "/iot-simulator"
+    target-branch: "staging"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
@@ -50,6 +53,7 @@ updates:
 
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "staging"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
