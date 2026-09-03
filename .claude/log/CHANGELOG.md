@@ -47,6 +47,24 @@
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** cobre a issue #360, encerrando a branch `fix/359-360-wordmark-e-seletor-hora-consumo` (issues #359 e #360). Sem entrega de design (`.claude/design/`) para as details pages/`/relatorios` — o `select` reaproveita as classes `.input`/`.lt-input` já usadas por `Select.tsx`, seguindo o mesmo padrão ad-hoc de `GranularityTabs`/`HistoryRangeToggle`, que também não têm handoff próprio.
 
+## [2026-09-02] fix: `cn()` descartava a cor do texto ao combinar com o tamanho de fonte do Industry (regressão do wordmark)
+
+- **Branch:** fix/359-360-wordmark-e-seletor-hora-consumo
+- **Tipo:** fix
+- **O quê:** a correção anterior do wordmark (`text-white` em `LumiTrackWordmark.tsx`) continuava renderizando "Lumi" com a cor errada em uso real — preto na Sidebar, cinza-azulado (`#e6ecf2`, cor herdada do `BrandPanel`) no Login/Registro — mesmo com o teste do componente isolado passando. Causa raiz: `lib/cn.ts` usa `tailwind-merge` sem estender o tema do projeto; a escala de fonte do Industry (`text-10`...`text-44`, sufixos puramente numéricos como `text-19`/`text-20`/`text-12-5`) não é reconhecida por padrão, e a heurística do tailwind-merge para sufixos desconhecidos de `text-` os trata como possível nome de cor — `cn("text-white", "text-19")` (uso real do `LumiTrackWordmark` via `textClassName`) descartava `text-white` por achar que as duas classes definiam a mesma propriedade. Corrigido estendendo `tailwind-merge` (`extendTailwindMerge`) para reconhecer sufixos puramente numéricos (`/^\d+(-\d+)?$/`) como tamanho de fonte, não cor.
+- **Arquivos principais:** `frontend/src/lib/cn.ts`, `frontend/src/lib/cn.test.ts` (novo), `frontend/src/components/ui/LumiTrackWordmark.test.tsx`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** bug sistêmico — qualquer combinação de um tamanho de fonte do Industry com uma classe de cor de texto via `cn()` estava sujeita ao mesmo descarte silencioso, dependendo da ordem dos argumentos; a correção em `cn.ts` cobre todo o projeto, não só o wordmark. Reportado pelo usuário após validação visual da issue #359 (o teste automatizado do componente isolado não pegava o bug porque só reproduz visualmente na composição real com `textClassName`).
+
+## [2026-09-02] fix: remove texto "Em breve" indevido nos detalhes de propriedade sem áreas
+
+- **Branch:** fix/359-360-wordmark-e-seletor-hora-consumo
+- **Tipo:** fix
+- **O quê:** o `EmptyState` de "Nenhuma área cadastrada" em `PropertyDetailsPage.tsx` trazia um parágrafo extra "Em breve" e uma descrição dizendo "o cadastro de áreas estará disponível em breve" — cópia esquecida de antes da feature existir. A criação de área já está disponível (botão "Adicionar área" abre `AreaFormDialog`, funcional). Removido o parágrafo "Em breve" e reescrita a descrição do `EmptyState` para refletir que a criação já é possível.
+- **Arquivos principais:** `frontend/src/pages/property/PropertyDetailsPage.tsx`, `frontend/src/pages/property/PropertyDetailsPage.test.tsx`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** o teste que antes travava a presença da marca "Em breve" (`renderiza a marca 'Em breve' explicitamente`) foi substituído por um teste que garante sua ausência.
+
 ## [2026-07-31] chore: labels do GitHub + correção da referência à wiki
 
 - **Branch:** main
