@@ -3270,3 +3270,13 @@
 - **Arquivos principais:** `.claude/docs/roadmap.md`.
 - **Decisões/ADRs:** nenhuma nova — só cross-referência à ADR-0014 já existente.
 - **Notas:** cruzado com `gh issue list`/`gh pr list` para confirmar os números antes de escrever (não presumido a partir do plano antigo).
+
+## [2026-09-02] chore: dependabot passa a mirar staging
+
+- **Branch:** staging
+- **Tipo:** chore
+- **O quê:** `.github/dependabot.yml` ganhou `target-branch: "staging"` nos 4 ecossistemas (backend, frontend, iot-simulator, github-actions) — antes sem `target-branch`, os PRs abriam contra `main` por padrão, contrariando o ADR-0012 (toda entrega passa por `staging` antes de `main`). Fechados os 6 PRs órfãos que miravam `main` (#330, #331, #332 — grupos minor/patch seguros, CI verde — e #35, #54, #175 — bump major de `typescript` p/ 7.0.2, bloqueado por incompatibilidade de peer dependency com `typescript-eslint`, já documentada em comentário nos 3). O dependabot deve reabrir os updates pendentes contra `staging` no próximo ciclo, com o diff recalculado contra o lockfile de lá (que já divergiu de `main` em 133 commits).
+- **Achado que motivou a mudança:** ao avaliar os PRs abertos do dependabot para decidir merge, o usuário pediu pra mesclar em `staging` primeiro — só aí ficou evidente que o dependabot nunca tinha mirado `staging`, sempre abriu contra `main` desde a adoção do kit.
+- **Arquivos principais:** `.github/dependabot.yml`.
+- **Decisões/ADRs:** nenhuma nova — é correção de configuração pra bater com o ADR-0012 já existente, não uma decisão nova.
+- **Notas:** os 3 PRs seguros fechados (#330/#331/#332) cobriam ~52 atualizações patch/minor já validadas (SO seguras, CI verde, sem major, bases em cima do `main` atual) — o retrabalho de re-triagem contra o novo diff em `staging` fica para quando o dependabot reabrir.
