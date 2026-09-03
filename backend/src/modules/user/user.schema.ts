@@ -100,8 +100,7 @@ export const createUserSchema = z.discriminatedUnion("userType", [individualSche
 // registrados), então um refine que exigisse a senha sempre que `email`
 // está presente bloquearia qualquer edição que não mexe no e-mail. A
 // obrigatoriedade real (só quando o e-mail muda de fato) é verificada em
-// UserService.updateUser, que já compara contra o valor atual do banco
-// (issue #178).
+// UserService.updateUser, que já compara contra o valor atual do banco.
 export const updateUserSchema = z.object({
     email: z.email({ message: "E-mail inválido" }).optional(),
     currentPassword: z.string().min(1, { message: "Senha atual é obrigatória" }).optional(),

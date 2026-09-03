@@ -1,9 +1,13 @@
 # ADR-0011 — Keep-alive da demo: monitor externo (UptimeRobot) como ping primário
 
 - **Data:** 2026-08-21
-- **Status:** aceita
+- **Status:** **substituída pela ADR-0013** (2026-08-23)
 - **Branch/Issue relacionada:** issue #229, épico #225 (achados de uso real pós-deploy)
 - **Relação com outras ADRs:** aplica-se exclusivamente ao **Caminho A** (demo pública, ADR-0010). Não se aplica ao Caminho B (ADR-0008 + ADR-0009), que preserva zero operador estrangeiro por desenho.
+
+> **Substituída pela [ADR-0013](0013-fim-do-keep-alive-staging-hiberna-por-desenho.md).** A ADR-0012 rebaixou este ambiente de demo pública a staging/validação, e um ambiente de validação acordado 24/7 não tem beneficiário — os dois mecanismos de keep-alive foram removidos.
+>
+> **O que continua valendo desta ADR:** o raciocínio da seção "Decisão" sobre um monitor externo em `/health` **não configurar transferência internacional de dado pessoal**. Ele não foi revertido — o keep-alive saiu por falta de propósito, não por falha do argumento — e é o precedente sobre o qual a Fase 14 avalia adotar um monitor externo para a **produção**, fechando a lacuna de detecção que a ADR-0009 aceitou como custo.
 
 ## Contexto
 

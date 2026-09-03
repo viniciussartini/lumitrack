@@ -3,26 +3,26 @@ import { test, expect, type Page } from "@playwright/test"
 import { fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
+import { mockSseStream, sseEvent } from "./support/sse"
 import { DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
 
 /**
- * E2E do Painel (#116/#117/#119) — igual a `realtime.spec.ts`: mocka o
- * backend via `page.route()`, sem depender do backend rodando.
+ * E2E do Painel — igual a `realtime.spec.ts`: mocka o backend via
+ * `page.route()`, sem depender do backend rodando.
  *
- * `#115` (seletor de propriedade) já é exercitado aqui de passagem — é o
+ * O seletor de propriedade já é exercitado aqui de passagem — é o
  * primeiro E2E da rota `/dashboard`, então cobre também o caminho até
  * chegar na propriedade com o KPI.
+ *
+ * `sseEvent`/`mockSseStream` vêm de `./support/sse`.
  */
 
-/** 2ª propriedade só para os cenários de comparação (#119) — o resto do
+/** 2ª propriedade só para os cenários de comparação — o resto do
  * arquivo usa só PROP_1, um único item não exercitaria "N propriedades". */
 const PROP_2 = { ...PROP_1, id: "prop-2", name: "Loja" }
 
-const sseEvent = (event: string, data: unknown) =>
-    `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
-
 /** Medidor de nível PROPERTY vinculado diretamente a PROP_1 (ver nota de
- * design de #116: KPIs usam só o medidor direto da propriedade, sem somar
+ * design: KPIs usam só o medidor direto da propriedade, sem somar
  * Área/Dispositivo). */
 const PROPERTY_METER = {
     ...METER_1,
@@ -40,24 +40,6 @@ const TARIFF_FLAG = {
     updatedAt: new Date().toISOString(),
 }
 
-/**
- * `route.fulfill()` entrega o corpo inteiro e fecha a conexão — reconexões
- * automáticas da lib `fetch-event-source` reentregariam o mesmo corpo se não
- * tratado. Só a primeira conexão recebe o script.
- */
-const mockSseStream = async (page: Page, initialBody: string) => {
-    let alreadyConnected = false
-    await page.route("**/api/iot/stream", (route) => {
-        const body = alreadyConnected ? sseEvent("connected", { meterCount: 1 }) : initialBody
-        alreadyConnected = true
-        return route.fulfill({
-            status: 200,
-            contentType: "text/event-stream",
-            body,
-        })
-    })
-}
-
 const setupDashboard = async (page: Page) => {
     await mockAppShellBackground(page)
     await setupAuth(page)
@@ -72,7 +54,14 @@ const setupDashboard = async (page: Page) => {
         return route.continue()
     })
     await page.route(/\/api\/consumption(\?.*)?$/, (route) => fulfillPaginated(route, []))
-    // Default vazio — o gráfico "Consumo em tempo real" (issue #211) busca
+    // `PropertyComparisonSection` dispara `GET /api/consumption/summary`
+    // com os ids de todas as propriedades — endpoint batch, 1 requisição
+    // pra N propriedades. Default vazio; o teste de comparação abaixo
+    // sobrescreve com dado real.
+    await page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) =>
+        fulfillJson(route, { items: [] }),
+    )
+    // Default vazio — o gráfico "Consumo em tempo real" busca
     // /api/meter-readings sempre que há medidor; testes que não olham pro
     // conteúdo do gráfico não precisam sobrescrever isto.
     await page.route(/\/api\/meter-readings(\?.*)?$/, (route) =>
@@ -107,9 +96,9 @@ test.describe("Painel — visão em tempo real (#116)", () => {
             fulfillJson(route, PROPERTY_METER),
         )
         // Um balde no minuto anterior ao atual — já "fechado", então
-        // buildDenseWindowBuckets o inclui no gráfico (issue #211: o balde
-        // em curso nunca aparece, só os já persistidos). bucketStart segue
-        // a mesma convenção do backend real (meter-reading.repository.ts::
+        // buildDenseWindowBuckets o inclui no gráfico (o balde em curso
+        // nunca aparece, só os já persistidos). bucketStart segue a mesma
+        // convenção do backend real (meter-reading.repository.ts::
         // findAggregated): dígitos de SP "mascarados" como UTC.
         await page.route(/\/api\/meter-readings(\?.*)?$/, (route) => {
             const SAO_PAULO_UTC_OFFSET_MS = 3 * 60 * 60 * 1000
@@ -139,10 +128,10 @@ test.describe("Painel — visão em tempo real (#116)", () => {
         await hideDevTools(page)
 
         await expect(page.getByTestId("property-selector")).toBeVisible()
-        // Card único "Potência agora" + custo estimado (#117 corrige a
-        // divisão em 2 cards de #116 — handoff é 1 card com 2 linhas).
-        // "Potência agora" vem do SSE (ao vivo); o gráfico vem do banco
-        // (issue #211) — as duas fontes são independentes de propósito.
+        // Card único "Potência agora" + custo estimado (corrige a divisão
+        // anterior em 2 cards — handoff é 1 card com 2 linhas).
+        // "Potência agora" vem do SSE (ao vivo); o gráfico vem do banco —
+        // as duas fontes são independentes de propósito.
         await expect(page.getByText("0,95kW")).toBeVisible()
         await expect(page.getByTestId("realtime-power-chart")).toBeVisible()
     })
@@ -150,6 +139,21 @@ test.describe("Painel — visão em tempo real (#116)", () => {
     test("mostra Consumo hoje/Custo projetado do mês e a bandeira vigente destacada (#117)", async ({
         page,
     }) => {
+        // Relógio da PÁGINA congelado (mesmo padrão do teste "Potência
+        // agora" acima) — o card "Consumo hoje" busca o bucket de hoje
+        // comparando a data local do browser (`toLocalDateKey`) contra a
+        // data do `bucketStart` do mock decodificada como UTC
+        // (`bucketDateKey`, dashboardKpis.ts — mesma convenção do backend
+        // real). Sem relógio fixo, os dois lados usam a hora real do
+        // sistema; toda vez que o teste roda entre 21h e meia-noite em
+        // São Paulo (UTC-3), a data UTC já virou o dia seguinte enquanto a
+        // data local de SP ainda é "hoje", e o bucket deixa de ser
+        // encontrado — falha intermitente e dependente só do horário do
+        // CI. CLOCK_TIME fixo, longe de qualquer fronteira de dia nos dois
+        // fusos, elimina essa dependência.
+        const CLOCK_TIME = "2026-07-17T12:30:00.000Z"
+        await page.clock.install({ time: new Date(CLOCK_TIME) })
+
         await setupDashboard(page)
         await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
             fulfillJson(route, PROPERTY_METER),
@@ -158,9 +162,16 @@ test.describe("Painel — visão em tempo real (#116)", () => {
             const url = new URL(route.request().url())
             const granularity = url.searchParams.get("granularity")
             if (granularity === "day") {
+                // Meia-noite (UTC) do dia de CLOCK_TIME — mesma convenção
+                // que `bucketDateKey` espera (dígitos de data já prontos
+                // pra leitura via getters UTC), sem precisar de máscara de
+                // fuso: à diferença do bucket de minuto do teste acima, um
+                // bucket de DIA só precisa acertar a data, não a hora.
+                const todayBucketStart = new Date(CLOCK_TIME)
+                todayBucketStart.setUTCHours(0, 0, 0, 0)
                 return fulfillPaginated(route, [
                     {
-                        bucketStart: new Date().toISOString(),
+                        bucketStart: todayBucketStart.toISOString(),
                         kwhConsumed: 12,
                         costBrl: 9.6,
                         avgPowerW: 500,
@@ -254,8 +265,8 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
                 )
             }
             if (granularity === "day") {
-                // Bucket da visão Mensal (issue #239, padrão default) — dia 1
-                // e 2 do mês corrente, dentro da janela que o componente pede.
+                // Bucket da visão Mensal (padrão default) — dia 1 e 2 do mês
+                // corrente, dentro da janela que o componente pede.
                 return fulfillPaginated(
                     route,
                     [
@@ -284,7 +295,7 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
 
         const history = page.getByTestId("consumption-history-section")
         await expect(history).toBeVisible()
-        // Padrão é Mensal (issue #239).
+        // Padrão é Mensal.
         await expect(history.getByTestId("consumption-chart")).toBeVisible()
         await expect(page.getByTestId("history-range-month")).toHaveAttribute(
             "aria-selected",
@@ -324,17 +335,42 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
             if (url.searchParams.get("granularity") !== "month") {
                 return fulfillPaginated(route, [])
             }
-            const targetId = url.searchParams.get("targetId")
-            const kwh = targetId === PROP_1.id ? 120 : 60
+            // Só o KPI da propriedade selecionada (PROP_1) chama isto agora
+            // — a comparação entre propriedades usa o endpoint batch abaixo.
             return fulfillPaginated(route, [
                 {
                     bucketStart: new Date().toISOString(),
-                    kwhConsumed: kwh,
-                    costBrl: kwh * 0.8,
+                    kwhConsumed: 120,
+                    costBrl: 96,
                     avgPowerW: 500,
                 },
             ])
         })
+        // `PropertyComparisonSection` — 1 requisição batch pra todas as
+        // propriedades, não mais 1 por propriedade (substitui o mock acima
+        // por targetId).
+        await page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) =>
+            fulfillJson(route, {
+                items: [
+                    {
+                        id: PROP_1.id,
+                        targetType: "PROPERTY",
+                        bucketStart: new Date().toISOString(),
+                        kwhConsumed: 120,
+                        costBrl: 96,
+                        avgPowerW: 500,
+                    },
+                    {
+                        id: PROP_2.id,
+                        targetType: "PROPERTY",
+                        bucketStart: new Date().toISOString(),
+                        kwhConsumed: 60,
+                        costBrl: 48,
+                        avgPowerW: 500,
+                    },
+                ],
+            }),
+        )
         await mockSseStream(page, sseEvent("connected", { meterCount: 1 }))
 
         await page.goto("/dashboard")
@@ -372,6 +408,23 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
             }
             return fulfillPaginated(route, [])
         })
+        // `PropertyComparisonSection` só renderiza com pelo menos 1 alvo
+        // trazendo dado — sem este mock (a versão em lote da chamada acima),
+        // o teste abaixo (seção visível mesmo com 1 propriedade só) falharia.
+        await page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) =>
+            fulfillJson(route, {
+                items: [
+                    {
+                        id: PROP_1.id,
+                        targetType: "PROPERTY",
+                        bucketStart: new Date().toISOString(),
+                        kwhConsumed: 30,
+                        costBrl: 24,
+                        avgPowerW: 500,
+                    },
+                ],
+            }),
+        )
         await mockSseStream(page, sseEvent("connected", { meterCount: 1 }))
 
         await page.goto("/dashboard")

@@ -126,6 +126,319 @@ describe("envSchema — JWT_WEB_EXPIRES_IN (issue #215)", () => {
     })
 })
 
+describe("envSchema — REGISTRATION_ENABLED default fail-closed (ADR-0014)", () => {
+    it("aplica default `false` quando ausente — nenhum ambiente que esqueça de configurar nasce com cadastro aberto", () => {
+        const result = envSchema.safeParse(baseValidEnv)
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.REGISTRATION_ENABLED).toBe(false)
+        }
+    })
+
+    it("liga com REGISTRATION_ENABLED='true' — z.stringbool() interpreta a string, não z.coerce.boolean()", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, REGISTRATION_ENABLED: "true" })
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.REGISTRATION_ENABLED).toBe(true)
+        }
+    })
+
+    it("mantém desligado com REGISTRATION_ENABLED='false' — não pode virar true por coerção", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, REGISTRATION_ENABLED: "false" })
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.REGISTRATION_ENABLED).toBe(false)
+        }
+    })
+})
+
+describe("envSchema — DEBUG_QUERY_LOGGING_ENABLED fail-closed em produção", () => {
+    it("aplica default `false` quando ausente", () => {
+        const result = envSchema.safeParse(baseValidEnv)
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DEBUG_QUERY_LOGGING_ENABLED).toBe(false)
+        }
+    })
+
+    it("liga em development", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            NODE_ENV: "development",
+            DEBUG_QUERY_LOGGING_ENABLED: "true",
+        })
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DEBUG_QUERY_LOGGING_ENABLED).toBe(true)
+        }
+    })
+
+    it("rejeita DEBUG_QUERY_LOGGING_ENABLED='true' quando NODE_ENV=production", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            NODE_ENV: "production",
+            DEBUG_QUERY_LOGGING_ENABLED: "true",
+        })
+
+        expect(result.success).toBe(false)
+        if (!result.success) {
+            const issue = result.error.issues.find(
+                (i) => i.path[0] === "DEBUG_QUERY_LOGGING_ENABLED",
+            )
+            expect(issue).toBeDefined()
+            expect(issue?.message).toMatch(/não pode ser true em produção/)
+        }
+    })
+})
+
+describe("envSchema — DATA_RETENTION_* falha fechado contra valor vazio/zero/negativo", () => {
+    // z.coerce.number() sozinho aceita "" (Number("") === 0) e negativo — sem
+    // .int().positive(), uma variável mal configurada (chave presente, valor
+    // vazio) faria daysAgo(0) apontar para "agora", e o expurgo apagaria a
+    // tabela inteira em vez de só o que passou do prazo. Representativo:
+    // testa uma das 8 chaves — todas usam a mesma regra.
+    it("rejeita string vazia", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            DATA_RETENTION_METER_READING_DAYS: "",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita zero", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            DATA_RETENTION_METER_READING_DAYS: "0",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita negativo", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            DATA_RETENTION_METER_READING_DAYS: "-5",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita não-inteiro", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            DATA_RETENTION_METER_READING_DAYS: "1.5",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("aceita um inteiro positivo válido", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            DATA_RETENTION_METER_READING_DAYS: "90",
+        })
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DATA_RETENTION_METER_READING_DAYS).toBe(90)
+        }
+    })
+
+    it("aplica o default 365 quando ausente", () => {
+        const result = envSchema.safeParse(baseValidEnv)
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DATA_RETENTION_METER_READING_DAYS).toBe(365)
+        }
+    })
+})
+
+describe("envSchema — DB_POOL_* falha fechado contra valor vazio/zero/negativo (#285)", () => {
+    // Mesma regra das DATA_RETENTION_*: sem .int().positive(), um pool com
+    // max <= 0 (ou timeout <= 0) passaria pelo schema e derrubaria toda
+    // conexão ao banco só no boot do driver `pg`, não na validação de env.
+    it("rejeita string vazia em DB_POOL_MAX", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_MAX: "" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita zero em DB_POOL_MAX", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_MAX: "0" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita negativo em DB_POOL_MAX", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_MAX: "-1" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita não-inteiro em DB_POOL_MAX", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_MAX: "1.5" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("aceita um inteiro positivo válido em DB_POOL_MAX", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_MAX: "20" })
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DB_POOL_MAX).toBe(20)
+        }
+    })
+
+    it("rejeita zero em DB_POOL_CONNECTION_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            DB_POOL_CONNECTION_TIMEOUT_MS: "0",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita negativo em DB_POOL_IDLE_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_IDLE_TIMEOUT_MS: "-30000" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("aplica os defaults documentados quando ausentes — max=10 é o comportamento real já observado, connectionTimeout=5000 e idleTimeout=30000 tornam explícito o que hoje é implícito no driver `pg`", () => {
+        const result = envSchema.safeParse(baseValidEnv)
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DB_POOL_MAX).toBe(10)
+            expect(result.data.DB_POOL_CONNECTION_TIMEOUT_MS).toBe(5000)
+            expect(result.data.DB_POOL_IDLE_TIMEOUT_MS).toBe(30000)
+        }
+    })
+})
+
+describe("envSchema — DB_POOL_STATEMENT_TIMEOUT_MS falha fechado contra valor vazio/zero/negativo", () => {
+    // Mesma regra das demais DB_POOL_*: sem .int().positive(), um timeout
+    // <= 0 passaria pelo schema — statement_timeout=0 no Postgres significa
+    // "sem timeout", o oposto exato do controle que esta variável existe
+    // para garantir.
+    it("rejeita string vazia em DB_POOL_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_STATEMENT_TIMEOUT_MS: "" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita zero em DB_POOL_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_STATEMENT_TIMEOUT_MS: "0" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita negativo em DB_POOL_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_STATEMENT_TIMEOUT_MS: "-1" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita não-inteiro em DB_POOL_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({ ...baseValidEnv, DB_POOL_STATEMENT_TIMEOUT_MS: "1.5" })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("aceita um inteiro positivo válido em DB_POOL_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            DB_POOL_STATEMENT_TIMEOUT_MS: "60000",
+        })
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DB_POOL_STATEMENT_TIMEOUT_MS).toBe(60000)
+        }
+    })
+
+    it("aplica o default documentado quando ausente", () => {
+        const result = envSchema.safeParse(baseValidEnv)
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DB_POOL_STATEMENT_TIMEOUT_MS).toBe(15_000)
+        }
+    })
+})
+
+describe("envSchema — RETENTION_PURGE_STATEMENT_TIMEOUT_MS falha fechado contra valor vazio/zero/negativo", () => {
+    // Mesma regra das demais DB_POOL_*/RETENTION_*: sem .int().positive(),
+    // um timeout <= 0 passaria pelo schema — statement_timeout=0 no Postgres
+    // significa "sem timeout", o oposto exato do controle que esta variável
+    // existe para garantir (aqui, escopado à transação do expurgo via
+    // withPurgeTimeout, não ao pool inteiro).
+    it("rejeita string vazia em RETENTION_PURGE_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            RETENTION_PURGE_STATEMENT_TIMEOUT_MS: "",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita zero em RETENTION_PURGE_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            RETENTION_PURGE_STATEMENT_TIMEOUT_MS: "0",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita negativo em RETENTION_PURGE_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            RETENTION_PURGE_STATEMENT_TIMEOUT_MS: "-1",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("rejeita não-inteiro em RETENTION_PURGE_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            RETENTION_PURGE_STATEMENT_TIMEOUT_MS: "1.5",
+        })
+
+        expect(result.success).toBe(false)
+    })
+
+    it("aceita um inteiro positivo válido em RETENTION_PURGE_STATEMENT_TIMEOUT_MS", () => {
+        const result = envSchema.safeParse({
+            ...baseValidEnv,
+            RETENTION_PURGE_STATEMENT_TIMEOUT_MS: "180000",
+        })
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.RETENTION_PURGE_STATEMENT_TIMEOUT_MS).toBe(180000)
+        }
+    })
+
+    it("aplica o default documentado quando ausente", () => {
+        const result = envSchema.safeParse(baseValidEnv)
+
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.RETENTION_PURGE_STATEMENT_TIMEOUT_MS).toBe(120_000)
+        }
+    })
+})
+
 describe("envSchema — DATABASE_TEST_URL/DATABASE_HTTP_TEST_URL (#165)", () => {
     it("rejeita NODE_ENV=test sem DATABASE_TEST_URL", () => {
         const result = envSchema.safeParse({

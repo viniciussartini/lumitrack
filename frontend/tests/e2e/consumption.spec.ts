@@ -17,11 +17,11 @@ import {
  * E2E focado em UI: mocka as respostas do backend via page.route().
  * Vantagem: não depende do backend rodando — roda no CI sem coordenação.
  *
- * `ConsumptionSection` — consumo agregado somente leitura (Fase 3/5,
- * substitui o antigo CRUD manual de `ConsumptionRecord`). Testado através da
+ * `ConsumptionSection` — consumo agregado somente leitura, substitui o
+ * antigo CRUD manual de `ConsumptionRecord`. Testado através da
  * `PropertyDetailsPage` (`PropertyConsumptionSection`), que usa
- * `DETAILS_GRANULARITIES` (hora|dia) — os 4 níveis de `/relatorios` são
- * escopo da sub-issue #8.
+ * `DETAILS_GRANULARITIES` (hora|dia) — os 4 níveis de `/relatorios` ficam
+ * fora do escopo deste spec.
  *
  * Ordem de checagem da própria seção: primeiro resolve se o alvo tem
  * medidor (`GET /api/meters/by-target`); só dispara `GET /api/consumption`
@@ -57,7 +57,7 @@ const setupAuthAndProperty = async (page: Page) => {
     await page.route(/\/api\/properties\/prop-1\/areas(\?.*)?$/, (route) =>
         fulfillPaginated(route, []),
     )
-    // Default vazio — o card "Consumo em tempo real" (issue #211) busca
+    // Default vazio — o card "Consumo em tempo real" busca
     // /api/meter-readings sempre que há medidor; testes deste arquivo não
     // olham pro conteúdo desse card, mas a rota precisa de resposta (senão
     // cai no proxy do Vite pro backend real, que não está rodando aqui).
@@ -135,7 +135,7 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
         await hideDevTools(page)
 
         // Hora é a granularidade default (primeiro item de DETAILS_GRANULARITIES)
-        // e pede buckets de MINUTO da hora corrente — a issue #226.
+        // e pede buckets de MINUTO da hora corrente.
         await expect(page.getByTestId("granularity-tab-hour")).toHaveAttribute(
             "aria-selected",
             "true",
@@ -220,7 +220,7 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
         await page.goto("/propriedades/prop-1")
         await hideDevTools(page)
 
-        // 30 registros por página (issue #227) — o teto do backend é 31.
+        // 30 registros por página — o teto do backend é 31.
         await expect.poll(() => requestedPageSize).toBe("30")
 
         await expect(
@@ -239,7 +239,7 @@ test.describe("Consumo agregado (ConsumptionSection)", () => {
         await expect(page.getByTestId("pagination")).toContainText(/11 itens · página 2 de 2/i)
 
         // Volta pelo número da página, não pelo "anterior" — é o controle novo
-        // da issue #227 exercitado na tela real.
+        // exercitado na tela real.
         await page.getByTestId("pagination-page-1").click()
 
         await expect(

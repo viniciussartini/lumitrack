@@ -7,9 +7,9 @@ import { TariffFlagService } from "@/modules/tariff-flag/tariff-flag.service.js"
 import { requireRole } from "@/shared/middlewares/requireRole.js"
 
 // Configuração singleton da bandeira tarifária vigente. Leitura pública
-// (sem autenticação) — decisão do usuário (2026-08-05): a bandeira não é
-// dado sensível/pessoal (a própria ANEEL já publica isso abertamente, ver
-// ADR-0007) e passou a ser exibida na Landing e no Login, telas sem sessão.
+// (sem autenticação): a bandeira não é dado sensível/pessoal (a própria
+// ANEEL já publica isso abertamente, ver ADR-0007) e é exibida na Landing
+// e no Login, telas sem sessão.
 // Único GET público do backend hoje — todo o resto exige `authenticate`.
 // Atualização (`PUT`) continua restrita a administradores.
 export function tariffFlagRoutes(authenticate: RequestHandler, prismaClient: PrismaClient): Router {

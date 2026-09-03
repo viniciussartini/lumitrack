@@ -1,19 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
-vi.mock("@/services/auth.service", () => ({
-    authService: {
-        refresh: vi.fn(),
-    },
+vi.mock("@/services/api", () => ({
+    ensureFreshSession: vi.fn(),
 }))
 
-import { authService } from "@/services/auth.service"
-import {
-    ensureFreshSession,
-    scheduleProactiveRefresh,
-    cancelProactiveRefresh,
-} from "@/lib/sessionRefresh"
+import { ensureFreshSession } from "@/services/api"
+import { scheduleProactiveRefresh, cancelProactiveRefresh } from "@/lib/sessionRefresh"
 
-const mockRefresh = vi.mocked(authService.refresh)
+const mockRefresh = vi.mocked(ensureFreshSession)
 
 beforeEach(() => {
     vi.clearAllMocks()
@@ -26,33 +20,7 @@ afterEach(() => {
     cancelProactiveRefresh()
 })
 
-describe("ensureFreshSession", () => {
-    it("chama authService.refresh exatamente uma vez mesmo sob chamadas concorrentes", async () => {
-        mockRefresh.mockResolvedValue(undefined)
-
-        // N chamadas paralelas — só 1 POST deve acontecer.
-        await Promise.all([ensureFreshSession(), ensureFreshSession(), ensureFreshSession()])
-
-        expect(mockRefresh).toHaveBeenCalledTimes(1)
-    })
-
-    it("chamadas posteriores à conclusão do primeiro refresh iniciam um novo", async () => {
-        mockRefresh.mockResolvedValue(undefined)
-
-        await ensureFreshSession()
-        await ensureFreshSession()
-
-        expect(mockRefresh).toHaveBeenCalledTimes(2)
-    })
-
-    it("propaga erro quando authService.refresh rejeita", async () => {
-        mockRefresh.mockRejectedValue(new Error("refresh falhou"))
-
-        await expect(ensureFreshSession()).rejects.toThrow("refresh falhou")
-    })
-})
-
-// SESSION_DURATION_MS = 1h (issue #215) → PROACTIVE = 80% = 2_880_000 ms (48 min)
+// SESSION_DURATION_MS = 1h → PROACTIVE = 80% = 2_880_000 ms (48 min)
 const PROACTIVE_MS = 60 * 60 * 1000 * 0.8
 
 describe("scheduleProactiveRefresh / cancelProactiveRefresh", () => {

@@ -1,15 +1,12 @@
 import { createApp } from "@/app.js"
 import { env } from "@/config/env.js"
 import { logger } from "@/shared/logger/logger.js"
-import { prisma } from "@/shared/database/prisma.js"
+import { prisma, getPoolStats } from "@/shared/database/prisma.js"
 import { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
 import { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import { MinuteRollupScheduler } from "@/modules/iot/iot-worker/MinuteRollupScheduler.js"
 import { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
 import { MeterRepository } from "@/modules/meter/meter.repository.js"
-import { PropertyRepository } from "@/modules/property/property.repository.js"
-import { AreaRepository } from "@/modules/area/area.repository.js"
-import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { AlertRepository } from "@/modules/alert/alert.repository.js"
 import { AlertTriggerEventRepository } from "@/modules/alert/alert-trigger-event.repository.js"
 import { AlertEvaluator } from "@/modules/alert/alert-evaluator.js"
@@ -37,38 +34,37 @@ const notificationStore = new NotificationStore()
 // instâncias do repository só para ler o mesmo Meter de lugares diferentes.
 const meterRepository = new MeterRepository(prisma)
 
-// AlertEvaluator (Fase 4) — avalia cada amostra elétrica contra os alertas
+// AlertEvaluator — avalia cada amostra elétrica contra os alertas
 // por faixa de potência habilitados do medidor (histerese por contagem de
 // amostras consecutivas). Registrado como listener do processor logo abaixo.
 const alertEvaluator = new AlertEvaluator(
     new AlertRepository(prisma),
     new AlertTriggerEventRepository(prisma),
-    {
-        meterRepository,
-        propertyRepository: new PropertyRepository(prisma),
-        areaRepository: new AreaRepository(prisma),
-        deviceRepository: new DeviceRepository(prisma),
-    },
+    { meterRepository },
     userEventHub,
     notificationStore,
 )
 
 /**
- * Inicialização do pipeline IoT (Fase 2 — reformulação)
+ * Inicialização do pipeline IoT
  *
  * Primeiro o manager (conexões), depois o processor (valida/calcula energia,
  * alimenta o buffer), depois o scheduler (persiste os baldes de minuto).
  *
- * Diferente do pipeline anterior (por hora, por device, com cálculo de custo
- * e checagem de alertas no rollup), este é propositalmente mais simples: o
+ * Diferente de um pipeline por hora/por device com cálculo de custo e
+ * checagem de alertas no rollup, este é propositalmente mais simples: o
  * scheduler só persiste grandezas elétricas cruas por medidor/minuto. Custo
- * fica para a agregação (Fase 3); alertas por potência são avaliados amostra
- * a amostra pelo AlertEvaluator (Fase 4), não mais no rollup.
+ * fica para a agregação; alertas por potência são avaliados amostra a
+ * amostra pelo AlertEvaluator, não no rollup.
  */
 const manager = IoTConnectionManager.getInstance()
 const processor = new IoTDataProcessor(manager)
 
-const scheduler = new MinuteRollupScheduler(processor.buffer, new MeterReadingRepository(prisma))
+const scheduler = new MinuteRollupScheduler(
+    processor.buffer,
+    new MeterReadingRepository(prisma),
+    getPoolStats,
+)
 
 // Registra o processor no manager ANTES de restaurar as conexões,
 // garantindo que nenhuma leitura seja perdida durante o boot.
@@ -82,17 +78,25 @@ processor.addSampleListener((sample) => {
     void alertEvaluator.evaluate(sample.meterId, sample.powerW, sample.receivedAt)
 })
 
-// Retenção e expurgo de dados (Art. 15/16 LGPD): roda no boot e a
-// cada 24h, removendo tokens/resets já inativos e audit logs antigos
-// (períodos configuráveis via env.DATA_RETENTION_*).
+// Retenção e expurgo de dados: roda no boot e a cada 24h. As 4 primeiras
+// entidades são Art. 15/16 LGPD (tokens/resets já inativos, audit logs
+// antigos); as 4 últimas (ADR-0014) são armazenamento/performance, sem
+// titular real. Períodos configuráveis via env.DATA_RETENTION_*.
 const retentionService = new RetentionService(
     new AuthRepository(prisma),
     new AuditRepository(prisma),
+    new MeterReadingRepository(prisma),
+    new AlertTriggerEventRepository(prisma),
+    new TariffFlagHistoryRepository(prisma),
     {
         authToken: env.DATA_RETENTION_AUTH_TOKEN_DAYS,
         passwordReset: env.DATA_RETENTION_PASSWORD_RESET_DAYS,
         auditLog: env.DATA_RETENTION_AUDIT_LOG_DAYS,
         refreshToken: env.DATA_RETENTION_REFRESH_TOKEN_DAYS,
+        meterReading: env.DATA_RETENTION_METER_READING_DAYS,
+        alertTriggerEvent: env.DATA_RETENTION_ALERT_TRIGGER_EVENT_DAYS,
+        mfaBackupCode: env.DATA_RETENTION_MFA_BACKUP_CODE_DAYS,
+        tariffFlagHistory: env.DATA_RETENTION_TARIFF_FLAG_HISTORY_DAYS,
     },
 )
 const retentionScheduler = new RetentionPurgeScheduler(retentionService)
@@ -158,13 +162,25 @@ const server = app.listen(env.PORT, () => {
  */
 async function restoreIoTConnections(): Promise<void> {
     try {
-        // Já decifrado (issue #182 — extra.password de medidores MQTT é
-        // cifrado em repouso; findAllConnectionConfigs é o único caminho
-        // interno autorizado a devolver o valor em texto claro).
-        const configs = await meterRepository.findAllConnectionConfigs()
+        // Já decifrado — extra.password de medidores MQTT é cifrado em
+        // repouso; findAllConnectionConfigs é o único caminho interno
+        // autorizado a devolver o valor em texto claro.
+        const { configs, skippedMeterIds } = await meterRepository.findAllConnectionConfigs()
 
-        if (configs.length === 0) {
+        if (configs.length === 0 && skippedMeterIds.length === 0) {
             logger.info("[Boot] Nenhum medidor encontrado. Nada a restaurar.")
+            return
+        }
+
+        // Todo medidor cadastrado tem credencial indecifrável — "nenhum
+        // medidor encontrado" seria falso aqui (existem medidores; nenhum
+        // pôde ser lido) e esconderia exatamente o cenário que motivou o
+        // isolamento por item em findAllConnectionConfigs().
+        if (configs.length === 0) {
+            logger.error(
+                { skippedMeterIds },
+                "[Boot] Todos os medidores cadastrados têm credencial indecifrável — nenhuma conexão foi restaurada.",
+            )
             return
         }
 
@@ -174,8 +190,11 @@ async function restoreIoTConnections(): Promise<void> {
 
         const succeeded = results.filter((r) => r.status === "fulfilled").length
         const failed = results.filter((r) => r.status === "rejected").length
+        const skipped = skippedMeterIds.length
 
-        logger.info(`[Boot] Conexões restauradas: ${succeeded} ok, ${failed} falha(s).`)
+        logger.info(
+            `[Boot] Conexões restauradas: ${succeeded} ok, ${failed} falha(s)${skipped > 0 ? `, ${skipped} descartada(s) por credencial indecifrável` : ""}.`,
+        )
     } catch (err) {
         // Falha na restauração não deve impedir o servidor de responder —
         // o monitoramento IoT é importante mas não é o núcleo da API REST.

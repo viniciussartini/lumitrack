@@ -13,7 +13,7 @@ import type { Device } from "../../src/types/device.types"
  * Este spec cobre o fluxo completo de Device:
  *   1. Listar (vazio inicial — EmptyState dentro de AreaDetailsPage)
  *   2. Criar (via botão "Adicionar dispositivo" no header da seção, abre
- *      DeviceFormDialog — sem navegação, desde #97)
+ *      DeviceFormDialog — sem navegação)
  *   3. Ver detalhes (click no card → DeviceDetailsPage com header + tags
  *      área/propriedade + seções Medidor/Consumo)
  *   4. Editar (via botão "Editar dispositivo" no header da
@@ -30,11 +30,11 @@ import type { Device } from "../../src/types/device.types"
  * Não testamos o fluxo de criar a propriedade/área aqui (já coberto
  * em properties.spec.ts e area.spec.ts).
  *
- * Reescrito na sub-issue #102 — a versão anterior assumia rotas
- * /devices/novo e /devices/:id/editar que não existem mais desde #97, o
+ * Este spec foi reescrito — a versão anterior assumia rotas
+ * /devices/novo e /devices/:id/editar que não existem mais, o
  * label "Salvar alterações" que na verdade é "Salvar dispositivo" pro
  * DeviceFormDialog, e os testids device-property-chip/device-area-chip
- * que não existem mais: DeviceDetailsPage (reescrita em #101) mostra a
+ * que não existem mais: DeviceDetailsPage (reescrita) mostra a
  * hierarquia via Tag simples, sem testid — vira locator de texto, mesma
  * convenção já usada pro chip de propriedade em AreaDetailsPage.
  */
@@ -88,15 +88,29 @@ const setupAuthPropertyAndArea = async (page: Page) => {
         fulfillError(route, "Alvo sem medidor vinculado", 404),
     )
 
-    // `DevicesSection` (AreaDetailsPage) dispara `GET /api/consumption` por
-    // dispositivo da lista pra montar a "Comparação de dispositivos" —
-    // incondicional, não depende de o dispositivo ter medidor. Mesmo motivo
-    // do mock análogo em `area.spec.ts`: sem isso, assim que um dispositivo
-    // é criado a chamada vaza pro backend real em CI (401 sem sessão real →
+    // Sem medidor, o fallback REST de potência (`useLatestMeterReading`) não
+    // deveria nem disparar — mas a rota precisa de resposta de qualquer
+    // forma (senão vaza pro proxy do Vite pro backend real).
+    await page.route(/\/api\/meter-readings(\?.*)?$/, (route) =>
+        fulfillJson(route, { items: [], granularity: "minute" }),
+    )
+
+    // `AreaConsumptionSection` (o gráfico principal da área) dispara
+    // `GET /api/consumption` — sem isso, assim que um dispositivo é criado
+    // a chamada vaza pro backend real em CI (401 sem sessão real →
     // interceptor global de "unauthorized" → redirect pra /login no meio do
     // teste → "element was detached from the DOM" em qualquer click
     // seguinte; ver `support/appShell.ts`).
     await page.route(/\/api\/consumption(\?.*)?$/, (route) => fulfillPaginated(route, []))
+
+    // `DevicesSection` (AreaDetailsPage) dispara `GET /api/consumption/summary`
+    // com os ids de todos os dispositivos da lista pra montar a "Comparação
+    // de dispositivos" (endpoint batch — 1 requisição pra N dispositivos,
+    // não 1 por dispositivo) — incondicional, não depende de o dispositivo
+    // ter medidor. Mesmo sintoma do mock acima se ficar sem resposta.
+    await page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) =>
+        fulfillJson(route, { items: [] }),
+    )
 }
 
 /**
@@ -398,7 +412,7 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         await expect(createDialog).toBeVisible()
 
         // Interage com "potência" (não com "nome") e clica direto no submit
-        // sem blur manual — regressão do bug #111: sem esse fluxo, o clique
+        // sem blur manual — regressão conhecida: sem esse fluxo, o clique
         // só validava o campo com autoFocus, escondendo o erro de "nome".
         await page.getByLabel(/potência/i).fill("0")
         await page.getByRole("button", { name: /criar dispositivo/i }).click()

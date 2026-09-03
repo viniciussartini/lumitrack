@@ -14,7 +14,7 @@ const mockTariffFlagConfig: TariffFlagConfig = {
     updatedAt: new Date().toISOString(),
 }
 
-// Bandeira vem de GET /api/tariff-flag (leitura pública, #143) — mock no
+// Bandeira vem de GET /api/tariff-flag (leitura pública) — mock no
 // nível do hook evita precisar de um QueryClientProvider real neste teste.
 vi.mock("@/hooks/queries/useTariffFlag", () => ({
     useTariffFlag: vi.fn(),
@@ -41,9 +41,9 @@ describe("LandingPage — rodapé", () => {
         expect(repoLink).toHaveAttribute("rel", "noopener noreferrer")
     })
 
-    // Issue #213: o ícone do GitHub vivia num bloco à parte (misturado com o
-    // link de e-mail), fora do rodapé de crédito — inconsistente com
-    // BrandPanel.tsx (Login/Registro), onde ele é a 3ª coluna da barra
+    // O ícone do GitHub vivia num bloco à parte (misturado com o link de
+    // e-mail), fora do rodapé de crédito — inconsistente com BrandPanel.tsx
+    // (Login/Registro), onde ele é a 3ª coluna da barra
     // "© ... · Logo desenhada por Magnific".
     it("mostra o ícone do GitHub na barra de crédito do rodapé, mesmo padrão do BrandPanel", async () => {
         renderWithProviders(<LandingPage />)
@@ -76,8 +76,8 @@ describe("LandingPage — rodapé", () => {
         }
     })
 
-    // Canal de comunicação com o titular (LGPD Art. 18, issue #155) —
-    // precisa estar visível a quem ainda não tem conta.
+    // Canal de comunicação com o titular (LGPD Art. 18) — precisa estar
+    // visível a quem ainda não tem conta.
     it("publica o canal de privacidade (mailto)", async () => {
         renderWithProviders(<LandingPage />)
 

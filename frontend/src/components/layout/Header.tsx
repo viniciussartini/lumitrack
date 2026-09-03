@@ -1,9 +1,10 @@
 import { Menu } from "lucide-react"
 import { useLocation } from "react-router"
 import { NotificationDropdown } from "@/components/layout/NotificationDropdown"
+import { LiveBadge } from "@/components/ui/LiveBadge"
 import { WarningBadge } from "@/components/layout/WarningBadge"
 import { useAuth } from "@/contexts/AuthContext"
-import { useRealtime } from "@/contexts/RealtimeContext"
+import { useRealtimeConnection } from "@/contexts/RealtimeContext"
 import { getPageTitle } from "@/config/pageTitles"
 import { getGreetingName } from "@/lib/userDisplay"
 
@@ -25,7 +26,7 @@ interface HeaderProps {
 export const Header = ({ onMenuClick }: HeaderProps) => {
     const location = useLocation()
     const { user } = useAuth()
-    const { isConnected } = useRealtime()
+    const { isConnected } = useRealtimeConnection()
 
     const { kicker, title } = getPageTitle(location.pathname)
     const isDashboard = location.pathname === "/dashboard"
@@ -34,7 +35,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
 
     return (
         <header
-            className="border-divider sticky top-0 z-10 flex flex-wrap items-center justify-between gap-4 border-b px-[clamp(20px,3vw,36px)] py-[18px] backdrop-blur-sm"
+            className="border-divider py-18px sticky top-0 z-10 flex flex-wrap items-center justify-between gap-4 border-b px-[clamp(20px,3vw,36px)] backdrop-blur-sm"
             style={{ background: "color-mix(in srgb, var(--color-bg) 92%, transparent)" }}
         >
             <div className="flex min-w-0 items-center gap-3">
@@ -45,7 +46,7 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
                     aria-label="Abrir menu"
                     className="lt-iconbtn shrink-0 md:hidden"
                 >
-                    <Menu className="h-[18px] w-[18px]" strokeWidth={1.5} aria-hidden="true" />
+                    <Menu className="h-18px w-18px" strokeWidth={1.5} aria-hidden="true" />
                 </button>
 
                 <div className="min-w-0">
@@ -60,14 +61,10 @@ export const Header = ({ onMenuClick }: HeaderProps) => {
 
             <div className="flex items-center gap-3">
                 {isConnected && (
-                    <span className="font-heading text-status-success inline-flex items-center gap-[7px] text-[11px] font-semibold tracking-[.07em] uppercase">
-                        <span
-                            aria-hidden="true"
-                            className="bg-status-success inline-block h-2 w-2 rounded-full"
-                            style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
-                        />
-                        Dados ao vivo
-                    </span>
+                    <LiveBadge
+                        label="Dados ao vivo"
+                        className="font-heading text-11 text-status-live gap-[7px] font-semibold tracking-[.07em] uppercase"
+                    />
                 )}
                 <WarningBadge />
                 <NotificationDropdown />

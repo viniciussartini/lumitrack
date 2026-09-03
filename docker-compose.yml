@@ -11,14 +11,33 @@ services:
   postgres:
     image: postgres:16
     restart: unless-stopped
+    # `shared_preload_libraries` só tem efeito com o servidor iniciado com a
+    # flag — não dá para ativar via `CREATE EXTENSION` depois.
+    # `pg_stat_statements.track=all` inclui queries chamadas de dentro de
+    # função, não só as de nível superior.
+    # NOTA para um volume já existente (produção já provisionada antes desta
+    # mudança): mudar este `command` exige `docker compose up -d postgres`
+    # (recria o container) E rodar manualmente
+    # `CREATE EXTENSION IF NOT EXISTS pg_stat_statements;` — o init script
+    # abaixo só roda sozinho em volume novo, vazio.
+    command:
+      [
+        "postgres",
+        "-c",
+        "shared_preload_libraries=pg_stat_statements",
+        "-c",
+        "pg_stat_statements.track=all",
+      ]
     env_file:
       - deploy/.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Roda uma única vez, no primeiro boot com volume vazio — cria o
-      # papel de runtime sem DDL (deploy/create-app-role.sql). Reprovisionar
-      # do zero (ex.: volume novo) recria a role automaticamente.
+      # Rodam uma única vez, no primeiro boot com volume vazio — criam o
+      # papel de runtime sem DDL (deploy/create-app-role.sql) e habilitam a
+      # extensão de instrumentação (deploy/enable-pg-stat-statements.sql).
+      # Reprovisionar do zero (ex.: volume novo) recria os dois automaticamente.
       - ./deploy/create-app-role.sql:/docker-entrypoint-initdb.d/10-create-app-role.sql:ro
+      - ./deploy/enable-pg-stat-statements.sql:/docker-entrypoint-initdb.d/20-enable-pg-stat-statements.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -54,16 +73,18 @@ services:
     restart: unless-stopped
     env_file:
       - iot-simulator/server/.env
-    # Compartilha o namespace de rede do container `backend` — preserva
-    # "localhost"/127.0.0.1 como o endereço já hardcoded em
-    # backend/prisma/seed-demo/topology.ts e no IOT_ALLOWED_HOSTS de
-    # backend/.env.example (ver nota na ADR-0008 e no DEPLOY.md). Consequência:
-    # a API do simulador (4100) e o broker MQTT (1883) não são alcançáveis
-    # nem do host, só de dentro do container `backend` — mais estrito que o
-    # antigo "bind 127.0.0.1".
-    network_mode: "service:backend"
-    depends_on:
-      - backend
+    # Rede própria (a mesma `lumitrack_default` dos demais serviços, por
+    # padrão do compose) — não mais `network_mode: "service:backend"` (ver
+    # ADR-0017, que revisa a decisão de co-localização de rede da ADR-0008).
+    # Sem `network_mode` compartilhado, `backend` alcança a API (4100) e o
+    # broker MQTT (1883) do simulador via DNS interno do compose, no
+    # hostname do serviço: `simulator:4100`/`simulator:1883` — exige
+    # `BROKER_HOST=0.0.0.0`/`API_HOST=0.0.0.0` no `iot-simulator/server/.env`
+    # de produção (o container escuta em todas as interfaces DELE; o que
+    # continua fechado é a ausência de `ports:` aqui, que impede qualquer
+    # alcance do host ou da internet — só outros containers desta rede
+    # interna chegam nele). Sem `depends_on: backend`: as duas conexões são
+    # independentes agora, e reiniciar uma não derruba a rede da outra.
 
   caddy:
     image: caddy:2

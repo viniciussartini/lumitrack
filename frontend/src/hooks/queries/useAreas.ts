@@ -5,7 +5,7 @@ import { DEFAULT_PAGE_SIZE } from "@/types/pagination.types"
 import type { Area } from "@/types/area.types"
 
 /**
- * Lista as áreas de uma propriedade (paginado — Fase 5).
+ * Lista as áreas de uma propriedade (paginado).
  *
  * `enabled: Boolean(propertyId)` evita disparar a query quando propertyId é
  * undefined/empty (rotas dinâmicas onde o param ainda não chegou).

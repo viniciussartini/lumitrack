@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma } from "@/generated/prisma/client.js"
 import type { AuditAction, AuditEntryInput, AuditOutcome } from "@/shared/audit/audit.types.js"
+import { withPurgeTimeout } from "@/shared/database/withPurgeTimeout.js"
 
 type PrismaAuditLog = NonNullable<Awaited<ReturnType<PrismaClient["auditLog"]["findUnique"]>>>
 
@@ -57,10 +58,12 @@ export class AuditRepository {
     // minimização do Art. 15/16 (não guardar dados além do necessário).
     // Remoção completa (não anonimização) — decisão registrada com o usuário.
     async deleteOlderThan(threshold: Date): Promise<number> {
-        const result = await this.prisma.auditLog.deleteMany({
-            where: { createdAt: { lt: threshold } },
+        return withPurgeTimeout(this.prisma, async (tx) => {
+            const result = await tx.auditLog.deleteMany({
+                where: { createdAt: { lt: threshold } },
+            })
+            return result.count
         })
-        return result.count
     }
 
     // Endpoint administrativo de consulta do audit log (A09/Art. 48).

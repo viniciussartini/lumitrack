@@ -1,7 +1,7 @@
 import type { TargetType } from "@/types/meter.types"
 
 /**
- * Consumo agregado — reformulação IoT (Fase 3). Substitui o antigo modelo de
+ * Consumo agregado. Substitui o antigo modelo de
  * registros manuais (`ConsumptionRecord`/`ConsumptionPeriod`) por buckets
  * agregados via `GET /api/consumption`, calculados a partir de `MeterReading`
  * (persistência minuto a minuto). Somente leitura — não há mais criação
@@ -61,4 +61,20 @@ export interface ListConsumptionParams {
     order?: BucketOrder
     page?: number
     pageSize?: number
+}
+
+/** Query params de `GET /api/consumption/summary`. */
+export interface ConsumptionSummaryParams {
+    targetType: TargetType
+    /** Um tipo só vale pra lista inteira — mistura não faz sentido. */
+    ids: string[]
+    granularity: BucketSize
+    from?: Date
+    to?: Date
+}
+
+/** Item de `GET /api/consumption/summary` — o bucket mais recente de 1 alvo. */
+export interface ConsumptionSummaryItem extends ConsumptionBucket {
+    id: string
+    targetType: TargetType
 }

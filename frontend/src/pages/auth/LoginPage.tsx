@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { loginSchema, type LoginFormData } from "@/schemas/auth.schema"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
+import { LiveBadge } from "@/components/ui/LiveBadge"
 import { MfaCodeForm } from "@/components/auth/MfaCodeForm"
 import { DEMO_PROFILE_LABELS } from "@/config/demoUsers"
 import type { DemoProfile } from "@/types/auth.types"
@@ -75,8 +76,8 @@ export const LoginPage = () => {
         void navigate(redirectTo, { replace: true })
     }
 
-    // POST /auth/demo-login (issue #179) — sem credencial no cliente, só o
-    // perfil escolhido; o backend resolve a conta demo internamente.
+    // POST /auth/demo-login — sem credencial no cliente, só o perfil
+    // escolhido; o backend resolve a conta demo internamente.
     const [isDemoLoading, setIsDemoLoading] = useState(false)
 
     const handleDemoLogin = async (profile: DemoProfile): Promise<void> => {
@@ -114,25 +115,22 @@ export const LoginPage = () => {
                     // simplesmente não aparece (sem chutar uma bandeira que
                     // pode não ser a real).
                     <div className="mt-7 flex flex-wrap gap-3.5">
-                        <div className="min-w-[120px] border border-white/22 px-[18px] py-3.5">
-                            <div className="font-heading flex items-center gap-[7px] text-[11px] leading-none font-semibold tracking-[.08em] text-[#e6ecf2]/66 uppercase">
-                                <span
-                                    className="h-2 w-2 rounded-full bg-[#3f8f52]"
-                                    style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
-                                />
-                                Ao vivo
-                            </div>
+                        <div className="px-18px min-w-[120px] border border-white/22 py-3.5">
+                            <LiveBadge
+                                label="Ao vivo"
+                                className="font-heading text-11 flex gap-[7px] leading-none font-semibold tracking-[.08em] text-[#e6ecf2]/66 uppercase"
+                            />
                             <div
                                 data-testid="login-live-kwh"
-                                className="font-heading mt-2 font-features-['tnum'_1] text-[30px] leading-none font-semibold"
+                                className="font-heading text-30 mt-2 font-features-['tnum'_1] leading-none font-semibold"
                             >
                                 {numberFormatter.format(kwh)}
                                 <span className="ml-1 text-sm text-[#e6ecf2]/60">kW</span>
                             </div>
                         </div>
                         {tariffFlag && (
-                            <div className="min-w-[120px] border border-white/22 px-[18px] py-3.5">
-                                <div className="font-heading text-[11px] leading-none font-semibold tracking-[.08em] text-[#e6ecf2]/66 uppercase">
+                            <div className="px-18px min-w-[120px] border border-white/22 py-3.5">
+                                <div className="font-heading text-11 leading-none font-semibold tracking-[.08em] text-[#e6ecf2]/66 uppercase">
                                     Bandeira
                                 </div>
                                 <div
@@ -142,7 +140,7 @@ export const LoginPage = () => {
                                     )}
                                 >
                                     <span
-                                        className="h-[9px] w-[9px] rounded-full"
+                                        className="h-9px w-9px rounded-full"
                                         style={{
                                             background:
                                                 TARIFF_FLAG_DARK_DOT_COLOR[tariffFlag.currentFlag],
@@ -173,13 +171,13 @@ export const LoginPage = () => {
                         </>
                     ) : (
                         <>
-                            <span className="text-accent-700 font-heading block text-[13px] font-semibold tracking-[.09em] uppercase">
+                            <span className="text-accent-700 font-heading text-13 block font-semibold tracking-[.09em] uppercase">
                                 Acesso à conta
                             </span>
                             <h2 className="font-heading mt-3 text-[clamp(28px,3vw,38px)] leading-[1.03] font-semibold uppercase">
                                 Entrar no LumiTrack
                             </h2>
-                            <p className="text-muted mt-3 text-[14.5px] leading-normal">
+                            <p className="text-muted text-14-5 mt-3 leading-normal">
                                 Bem-vindo de volta. Informe seus dados para continuar.
                             </p>
 
@@ -212,7 +210,7 @@ export const LoginPage = () => {
                                     labelExtra={
                                         <Link
                                             to="/esqueci-senha"
-                                            className="text-accent-700 text-[12.5px]"
+                                            className="text-accent-700 text-12-5"
                                         >
                                             Esqueceu a senha?
                                         </Link>
@@ -237,7 +235,7 @@ export const LoginPage = () => {
                                 <Button
                                     type="submit"
                                     isLoading={isSubmitting}
-                                    className="btn-block mt-1 min-h-[46px]"
+                                    className="btn-block min-h-46px mt-1"
                                 >
                                     Entrar
                                 </Button>

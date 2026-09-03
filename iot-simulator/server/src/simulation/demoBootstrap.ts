@@ -37,13 +37,12 @@ export const DEMO_NETWORK_NAME = "Demo"
  * (`z.number().min(0).max(100)`, usado como
  * `nominalPowerW * (noiseAmplitudePercent / 100)` em `signalGenerator.ts`).
  *
- * Valores calibrados para uma leitura ao vivo mais estável (achado de uso
- * real, sem issue própria — ruído gaussiano é independente a cada tick,
- * sem correlação entre leituras consecutivas; nos valores originais
- * (2–8%) o "Potência agora" oscilava visivelmente segundo a segundo,
- * sem transmitir sensação de medição real). Mantida a ordem relativa de
- * variabilidade entre perfis — cargas resistivas puras (chuveiro) mais
- * estáveis que motores/solda industrial.
+ * Valores calibrados para uma leitura ao vivo mais estável — ruído
+ * gaussiano é independente a cada tick, sem correlação entre leituras
+ * consecutivas; nos valores originais (2–8%) o "Potência agora" oscilava
+ * visivelmente segundo a segundo, sem transmitir sensação de medição
+ * real. Mantida a ordem relativa de variabilidade entre perfis — cargas
+ * resistivas puras (chuveiro) mais estáveis que motores/solda industrial.
  */
 export const DEMO_DEVICES: readonly NewDeviceInput[] = [
     // ── Casa Demo (residencial) ──────────────────────────────────────────
@@ -184,6 +183,9 @@ export interface DemoBootstrapResult {
  * devolve `null`. O store nasce vazio a cada processo, então na prática isso
  * só protege contra invocação dupla — mas é barato e evita duplicar devices
  * publicando no mesmo tópico, o que dobraria as leituras de um medidor.
+ *
+ * @param store Store da simulação onde a rede/devices são criados.
+ * @returns Os ids criados, ou `null` se a rede demo já existia.
  */
 export function bootstrapDemoDevices(store: SimulationStore): DemoBootstrapResult | null {
     const alreadyBootstrapped = store
@@ -217,6 +219,9 @@ export function bootstrapDemoDevices(store: SimulationStore): DemoBootstrapResul
  * marcado `poweredOn: true` nos dados mas nunca publica nada — sintoma
  * observado na demo pública: painel sempre sem leitura, em todo boot,
  * mesmo com a conexão MQTT do backend certa.
+ *
+ * @param engine Engine da simulação que efetivamente liga os devices.
+ * @param result Resultado de `bootstrapDemoDevices` (os ids a ligar).
  */
 export function startDemoDevices(engine: SimulationEngine, result: DemoBootstrapResult): void {
     for (const deviceId of result.deviceIds) {

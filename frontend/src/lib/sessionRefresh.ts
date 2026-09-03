@@ -1,7 +1,6 @@
-import { authService } from "@/services/auth.service"
+import { ensureFreshSession } from "@/services/api"
 
-// Duração da sessão WEB sincronizada com JWT_WEB_EXPIRES_IN do backend (1h,
-// issue #215 — sessão de demo expirava rápido demais em 15 min).
+// Duração da sessão WEB sincronizada com JWT_WEB_EXPIRES_IN do backend (1h).
 // Deve ser atualizado manualmente caso a env var do backend mude — gap
 // documentado: sem endpoint de descoberta dinâmica neste ciclo.
 const SESSION_DURATION_MS = 60 * 60 * 1000
@@ -10,20 +9,6 @@ const SESSION_DURATION_MS = 60 * 60 * 1000
 const PROACTIVE_REFRESH_AT_MS = SESSION_DURATION_MS * 0.8
 
 let refreshTimer: ReturnType<typeof setTimeout> | null = null
-
-// Singleton de Promise: se N chamadas concorrentes chegarem enquanto o
-// refresh está em voo, todas aguardam o mesmo POST — não disparam N.
-let refreshPromise: Promise<void> | null = null
-
-export async function ensureFreshSession(): Promise<void> {
-    if (refreshPromise) return refreshPromise
-
-    refreshPromise = authService.refresh().finally(() => {
-        refreshPromise = null
-    })
-
-    return refreshPromise
-}
 
 export function scheduleProactiveRefresh(): void {
     cancelProactiveRefresh()

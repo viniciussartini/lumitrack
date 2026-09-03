@@ -132,8 +132,8 @@ describe("ProfilePage — modo leitura", () => {
 })
 
 describe("ProfilePage — edição", () => {
-    // Issue #219: "Editar" passou a abrir um modal (FormDialog), não mais
-    // trocar o conteúdo do card inline.
+    // "Editar" passou a abrir um modal (FormDialog), não mais trocar o
+    // conteúdo do card inline.
     it("abre um modal (dialog) ao clicar em Editar, com o formulário dentro", async () => {
         const user = userEvent.setup()
         renderPage(mockUserPF)
@@ -227,8 +227,8 @@ describe("ProfilePage — edição", () => {
     })
 })
 
-// Issue #178: troca de e-mail exige senha atual + é confirmada por e-mail,
-// não efetivada na hora.
+// Troca de e-mail exige senha atual + é confirmada por e-mail, não
+// efetivada na hora.
 describe("ProfilePage — troca de e-mail", () => {
     it("não mostra o campo de senha atual quando o e-mail não muda", async () => {
         const user = userEvent.setup()
@@ -272,7 +272,7 @@ describe("ProfilePage — troca de e-mail", () => {
 
     it("envia currentPassword junto quando o e-mail muda, e mostra o toast de confirmação pendente", async () => {
         // A resposta continua trazendo o e-mail ANTIGO — a troca só vale
-        // após confirmação pelo novo endereço (issue #178).
+        // após confirmação pelo novo endereço.
         vi.mocked(userService.update).mockResolvedValue(mockUserPF)
         vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUserPF)
 

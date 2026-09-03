@@ -44,7 +44,7 @@ flowchart LR
 
     BACKEND["LumiTrack backend\nIoTConnectionManager → MqttConnection\nsubscribe no mesmo tópico, mesmas credenciais"]
 
-    BROKER -. "mqtt://127.0.0.1:1883\n(guard de SSRF do backend exige\nIOT_ALLOWED_HOSTS=127.0.0.1/32)" .-> BACKEND
+    BROKER -. "mqtt://127.0.0.1:1883\n(guard de SSRF do backend exige\nIOT_ALLOWED_HOSTS=localhost — não\n127.0.0.1/32, que deixa ::1 de fora)" .-> BACKEND
 
     style SIM fill:#f4f4f2,stroke:#999
     style BACKEND fill:#eef3ee,stroke:#3f8f52
@@ -178,7 +178,7 @@ Endurecido na issue [#180](https://github.com/viniciussartini/lumitrack/issues/1
 
 #### Estado (`SimulationStore`)
 
-Tudo em memória, num único processo — **reiniciar o servidor zera tudo** (aceitável: é ferramenta de dev, sem estado que precise sobreviver a um restart). `SimulationStore extends EventEmitter`: toda mutação (`createNetwork`, `createDevice`, `setPower`, `setAnomaly`, `recordSample`, ...) emite um evento `"changed"` que a rota SSE (`/api/status/stream`) escuta para empurrar um snapshot novo ao painel — não há polling em lugar nenhum do sistema.
+Tudo em memória, num único processo — **reiniciar o servidor zera tudo** (aceitável: é ferramenta de dev, sem estado que precise sobreviver a um restart). `SimulationStore extends EventEmitter`: toda mutação (`createNetwork`, `createDevice`, `setPower`, `setAnomaly`, ...) emite um evento `"changed"` que a rota SSE (`/api/status/stream`) escuta para empurrar um snapshot novo ao painel — não há polling em lugar nenhum do sistema. `recordSample` é exceção: como é chamado em rajada (1x/s por device ligado), suas notificações são coalescidas (`setImmediate`) numa única `"changed"` por rajada, em vez de uma por device.
 
 ```ts
 VirtualNetwork { id, name, devices: Map<string, VirtualDevice> }

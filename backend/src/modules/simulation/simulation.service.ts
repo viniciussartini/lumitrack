@@ -1,4 +1,3 @@
-import { z } from "zod"
 import { simulationInputSchema } from "@/modules/simulation/simulation.schema.js"
 import type {
     SimulationInput,
@@ -21,6 +20,7 @@ import {
 } from "@/modules/tariff-flag/tariff-flag.repository.js"
 import { TariffService } from "@/shared/tariff/tariff.service.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 
 const PROJECTED_DAYS: Record<"DAILY" | "MONTHLY" | "ANNUAL", number> = {
     DAILY: 1,
@@ -28,7 +28,20 @@ const PROJECTED_DAYS: Record<"DAILY" | "MONTHLY" | "ANNUAL", number> = {
     ANNUAL: 365,
 }
 
+/**
+ * Simula consumo e custo hipotéticos de energia para uma propriedade, área
+ * ou dispositivo, sem gravar nada — usa a mesma tarifação do consumo real
+ * (via {@link TariffService}), aplicada sobre entradas informadas pelo usuário.
+ */
 export class SimulationService {
+    /**
+     * @param propertyRepository - Acesso a propriedades, para validar ownership e resolver a distribuidora vinculada.
+     * @param distributorRepository - Acesso ao catálogo de distribuidoras, para resolver as tarifas aplicáveis.
+     * @param areaRepository - Acesso a áreas, para validar a cadeia de posse do alvo simulado.
+     * @param deviceRepository - Acesso a dispositivos, para validar a cadeia de posse e resolver potência cadastrada.
+     * @param tariffFlagRepository - Acesso à bandeira tarifária vigente.
+     * @param tariffService - Calculadora de tarifação, reaproveitada do consumo real.
+     */
     constructor(
         private readonly propertyRepository: PropertyRepository,
         private readonly distributorRepository: DistributorRepository,
@@ -38,14 +51,18 @@ export class SimulationService {
         private readonly tariffService: TariffService = new TariffService(),
     ) {}
 
+    /**
+     * Executa uma simulação de consumo e custo para o alvo e período
+     * informados, validando ownership da propriedade e a cadeia de posse do
+     * alvo antes de calcular.
+     *
+     * @param propertyId - Id da propriedade sob a qual a simulação é feita.
+     * @param userId - Id do usuário autenticado (dono da propriedade).
+     * @param input - Corpo bruto da requisição, validado aqui.
+     * @returns Resultado da simulação (consumo projetado e custo estimado).
+     */
     async simulate(propertyId: string, userId: string, input: unknown): Promise<SimulationResult> {
-        const parsed = simulationInputSchema.safeParse(input)
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        const data = parsed.data
+        const data = parseOrThrow(simulationInputSchema, input)
 
         const property = await this.validatePropertyOwnership(propertyId, userId)
         await this.validateTarget(data, propertyId)
@@ -103,9 +120,9 @@ export class SimulationService {
     }
 
     // Custo da simulação via TariffService — mesmo racional do
-    // ConsumptionService (Fase 3.3): piso de disponibilidade + CIP só fazem
-    // sentido para o alvo PROPERTY num período que representa um mês
-    // faturável inteiro.
+    // ConsumptionService: piso de disponibilidade + CIP só fazem sentido
+    // para o alvo PROPERTY num período que representa um mês faturável
+    // inteiro.
     //   MONTHLY + PROPERTY: kwhConsumed já é o total do mês → piso/CIP direto.
     //   ANNUAL + PROPERTY: sem leituras reais mês a mês (é uma simulação
     //     hipotética), então aproxima-se dividindo o total por 12 meses

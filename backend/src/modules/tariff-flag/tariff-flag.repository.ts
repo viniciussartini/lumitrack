@@ -25,9 +25,8 @@ function toResponse(raw: PrismaTariffFlagConfig): TariffFlagConfigResponse {
     }
 }
 
-// Extrai o valor em R$/100kWh correspondente à bandeira vigente — usado por
-// qualquer service que precise custear consumo (ConsumptionService,
-// SimulationService), evitando duplicar o mapeamento enum → campo.
+// Mapeamento enum de bandeira → campo de valor correspondente em
+// TariffFlagConfigResponse, usado por resolveFlagPer100Kwh abaixo.
 const FLAG_FIELD: Record<TariffFlagConfigResponse["currentFlag"], keyof TariffFlagConfigResponse> =
     {
         GREEN: "greenPer100Kwh",
@@ -36,21 +35,65 @@ const FLAG_FIELD: Record<TariffFlagConfigResponse["currentFlag"], keyof TariffFl
         RED_P2: "redP2Per100Kwh",
     }
 
+/**
+ * Extrai o valor em R$/100kWh correspondente à bandeira vigente — usado por
+ * qualquer service que precise custear consumo (`ConsumptionService`,
+ * `SimulationService`), evitando duplicar o mapeamento enum → campo.
+ *
+ * @param config - Configuração de bandeira tarifária vigente.
+ * @returns Valor em R$/100kWh da bandeira atualmente vigente.
+ */
 export function resolveFlagPer100Kwh(config: TariffFlagConfigResponse): number {
     return config[FLAG_FIELD[config.currentFlag]] as number
 }
 
-// Singleton (id fixo = 1) — populado pelo seed. `get()` nunca deveria
-// retornar null em ambiente seedado; ainda assim o service trata a ausência
-// como NotFoundError em vez de assumir.
+// Cache em nível de módulo, não de instância: várias rotas (consumption,
+// simulation, tariff-flag, o sync da ANEEL) instanciam seu próprio
+// `new TariffFlagRepository(prismaClient)` sobre o mesmo Postgres — um cache
+// por instância deixaria a invalidação feita por uma rota invisível às
+// outras. `update()` é o único caminho de escrita da aplicação (chamado
+// tanto pelo sync automático quanto pela rota admin manual), por isso
+// invalida ali. O TTL abaixo é só um backstop contra uma escrita fora da
+// aplicação (ex.: `prisma/seed.ts` reexecutado contra um processo já no
+// ar) — sem ele, uma bandeira trocada por fora do `update()` ficaria
+// presa em cache para sempre, até reiniciar o servidor.
+const CACHE_TTL_MS = 5 * 60 * 1000
+let cachedConfig: TariffFlagConfigResponse | null = null
+let cachedAt = 0
+
+/**
+ * Singleton (id fixo = 1) — populado pelo seed. `get()` nunca deveria
+ * retornar null em ambiente seedado; ainda assim o service trata a ausência
+ * como NotFoundError em vez de assumir.
+ */
 export class TariffFlagRepository {
+    /** @param prisma - Cliente Prisma usado para consultar e atualizar a configuração de bandeira tarifária. */
     constructor(private readonly prisma: PrismaClient) {}
 
+    /**
+     * Lê a configuração de bandeira tarifária vigente, servindo do cache em
+     * memória quando ainda dentro do TTL.
+     *
+     * @returns Configuração vigente, ou `null` se ainda não seedada.
+     */
     async get(): Promise<TariffFlagConfigResponse | null> {
+        if (cachedConfig && Date.now() - cachedAt < CACHE_TTL_MS) return cachedConfig
+
         const raw = await this.prisma.tariffFlagConfig.findUnique({ where: { id: 1 } })
-        return raw ? toResponse(raw) : null
+        if (!raw) return null
+
+        cachedConfig = toResponse(raw)
+        cachedAt = Date.now()
+        return cachedConfig
     }
 
+    /**
+     * Atualiza a configuração de bandeira tarifária, invalidando o cache em
+     * memória com o valor recém-gravado.
+     *
+     * @param data - Campos a atualizar (parciais).
+     * @returns Configuração de bandeira tarifária após a atualização.
+     */
     async update(data: UpdateTariffFlagInput): Promise<TariffFlagConfigResponse> {
         const cleanData = Object.fromEntries(
             Object.entries(data).filter(([, value]) => value !== undefined),
@@ -60,6 +103,19 @@ export class TariffFlagRepository {
             where: { id: 1 },
             data: cleanData,
         })
-        return toResponse(raw)
+        cachedConfig = toResponse(raw)
+        cachedAt = Date.now()
+        return cachedConfig
     }
+}
+
+/**
+ * Estado de módulo sobrevive entre testes do mesmo arquivo — sem isto, o
+ * primeiro `get()` bem-sucedido de uma suíte "vazaria" para os testes
+ * seguintes mesmo depois do `cleanDatabase()` recriar os dados. Chamado por
+ * `cleanDatabase()`, não pelos arquivos de teste individualmente.
+ */
+export function resetTariffFlagCacheForTests(): void {
+    cachedConfig = null
+    cachedAt = 0
 }

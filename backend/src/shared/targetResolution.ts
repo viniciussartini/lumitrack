@@ -18,6 +18,13 @@ export interface TargetResolutionRepositories {
 // distribuidora/sistema elétrico/CIP. Compartilhado entre `ConsumptionService`
 // e `MeterReadingService` — os dois precisam da mesma checagem de posse antes
 // de agregar `MeterReading` de um medidor vinculado a PROPERTY/AREA/DEVICE.
+//
+// Cada ramo é uma única query (`findByIdWithProperty` resolve o `include`
+// aninhado direto no repository) em vez dos até 3 round trips sequenciais
+// que existiam antes. `Area.propertyId` e `Device.areaId` são FKs
+// obrigatórias no schema — não existe estado em que a área/o device exista
+// mas a propriedade não; por isso a única falha possível em cada ramo é o
+// próprio id do alvo não existir, não um nível intermediário da cadeia.
 export async function resolveRootProperty(
     targetType: TargetType,
     targetId: string,
@@ -30,18 +37,12 @@ export async function resolveRootProperty(
     }
 
     if (targetType === "AREA") {
-        const area = await areaRepository.findById(targetId)
-        if (!area) throw new NotFoundError("Área não encontrada")
-        const property = await propertyRepository.findById(area.propertyId)
-        if (!property) throw new NotFoundError("Propriedade não encontrada")
-        return property
+        const result = await areaRepository.findByIdWithProperty(targetId)
+        if (!result) throw new NotFoundError("Área não encontrada")
+        return result.property
     }
 
-    const device = await deviceRepository.findById(targetId)
-    if (!device) throw new NotFoundError("Dispositivo não encontrado")
-    const area = await areaRepository.findById(device.areaId)
-    if (!area) throw new NotFoundError("Área não encontrada")
-    const property = await propertyRepository.findById(area.propertyId)
-    if (!property) throw new NotFoundError("Propriedade não encontrada")
-    return property
+    const result = await deviceRepository.findByIdWithProperty(targetId)
+    if (!result) throw new NotFoundError("Dispositivo não encontrado")
+    return result.property
 }

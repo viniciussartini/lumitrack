@@ -8,15 +8,20 @@ import { propertyService } from "@/services/property.service"
 import { distributorService } from "@/services/distributor.service"
 import { areaService } from "@/services/area.service"
 import { meterService } from "@/services/meter.service"
+import { meterReadingService } from "@/services/meterReading.service"
+import { useRealtimeReadings } from "@/contexts/RealtimeContext"
 import type { Property } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
 import type { Area } from "@/types/area.types"
+import type { Meter } from "@/types/meter.types"
 import type { Paginated } from "@/types/pagination.types"
+import type { ReadingPayload } from "@/lib/sse/appStream"
 import { consumptionService } from "@/services/consumption.service"
 
 vi.mock("@/services/consumption.service", () => ({
     consumptionService: {
         list: vi.fn(),
+        summary: vi.fn(),
     },
 }))
 
@@ -29,6 +34,14 @@ vi.mock("@/services/meter.service", () => ({
         update: vi.fn(),
         delete: vi.fn(),
     },
+}))
+
+vi.mock("@/services/meterReading.service", () => ({
+    meterReadingService: { list: vi.fn() },
+}))
+
+vi.mock("@/contexts/RealtimeContext", () => ({
+    useRealtimeReadings: vi.fn(() => ({ readingsByMeterId: {} })),
 }))
 
 vi.mock("@/services/area.service", () => ({
@@ -61,6 +74,7 @@ vi.mock("@/services/distributor.service", () => ({
 vi.mock("@/services/api", () => ({
     api: {},
     extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
+    ensureFreshSession: vi.fn(),
 }))
 
 vi.mock("sonner", () => ({
@@ -107,6 +121,32 @@ const mockProperty: Property = {
     updatedAt: new Date().toISOString(),
 }
 
+const mockMeter: Meter = {
+    id: "meter-1",
+    name: "Medidor da entrada",
+    targetType: "PROPERTY",
+    propertyId: "prop-1",
+    areaId: null,
+    deviceId: null,
+    protocol: "MQTT",
+    host: "broker.local",
+    port: 1883,
+    topic: "lumitrack/meter-1",
+    address: null,
+    extra: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+}
+
+const mockReading = (powerW: number): ReadingPayload => ({
+    meterId: "meter-1",
+    voltage: 220,
+    current: 10,
+    powerW,
+    powerFactor: 0.98,
+    receivedAt: new Date().toISOString(),
+})
+
 const mockArea: Area = {
     id: "area-1",
     propertyId: "prop-1",
@@ -138,6 +178,8 @@ const renderPage = () => {
 beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(meterService.byTarget).mockResolvedValue(null)
+    vi.mocked(meterReadingService.list).mockResolvedValue({ items: [], granularity: "minute" })
+    vi.mocked(useRealtimeReadings).mockReturnValue({ readingsByMeterId: {} })
     // Catálogo completo de distribuidoras — usado pelo modal de edição
     // (PropertyFormDialog), carregado incondicionalmente pela página.
     vi.mocked(distributorService.list).mockResolvedValue(paginated([mockDistributor]))
@@ -340,10 +382,12 @@ describe("PropertyDetailsPage — seção de áreas (vazia)", () => {
         expect(await screen.findByRole("dialog", { name: /adicionar área/i })).toBeInTheDocument()
     })
 
-    it("renderiza a marca 'Em breve' explicitamente", async () => {
+    it("não mostra 'Em breve' — a criação de área já está disponível (botão 'Adicionar área')", async () => {
         renderPage()
 
-        expect(await screen.findByTestId("areas-coming-soon")).toBeInTheDocument()
+        await screen.findByText(/nenhuma área cadastrada/i)
+
+        expect(screen.queryByText(/em breve/i)).not.toBeInTheDocument()
     })
 })
 
@@ -449,5 +493,19 @@ describe("PropertyDetailsPage — seção de medidor/consumo (integração)", ()
         await screen.findByRole("heading", { level: 2, name: /^histórico de consumo$/i })
 
         expect(consumptionService.list).not.toHaveBeenCalled()
+    })
+
+    it("mostra o KPI 'Potência agora' quando o medidor tem leitura", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+        vi.mocked(useRealtimeReadings).mockReturnValue({
+            readingsByMeterId: { "meter-1": mockReading(1500) },
+        })
+
+        renderPage()
+
+        expect(await screen.findByText("Potência agora")).toBeInTheDocument()
+        // MeterSection também mostra a potência atual — o mesmo valor
+        // aparece nos dois cards.
+        expect(screen.getAllByText("1,50kW").length).toBeGreaterThan(0)
     })
 })

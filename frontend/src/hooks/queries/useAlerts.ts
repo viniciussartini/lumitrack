@@ -4,9 +4,9 @@ import { queryKeys } from "@/lib/queryClient"
 import { DEFAULT_PAGE_SIZE } from "@/types/pagination.types"
 
 /**
- * Inbox de alertas (Fase 5) — recurso flat, paginado, vinculado direto a um
- * medidor (não mais aninhado sob property/area/device). Cada item já vem
- * com `status` ("firing"|"normal") e `target` resolvidos pelo backend.
+ * Inbox de alertas — recurso flat, paginado, vinculado direto a um medidor
+ * (não aninhado sob property/area/device). Cada item já vem com `status`
+ * ("firing"|"normal") e `target` resolvidos pelo backend.
  */
 export const useAlerts = (page: number = 1, pageSize: number = DEFAULT_PAGE_SIZE) =>
     useQuery({
@@ -22,6 +22,16 @@ export const useFiringAlerts = () =>
     useQuery({
         queryKey: queryKeys.alerts.firing(),
         queryFn: () => alertService.firing(),
+    })
+
+/**
+ * KPI "alertas ativos" — evita pedir uma segunda página cheia de alertas
+ * só para contar `enabled` no cliente.
+ */
+export const useAlertsStats = () =>
+    useQuery({
+        queryKey: queryKeys.alerts.stats(),
+        queryFn: () => alertService.stats(),
     })
 
 export const useAlert = (id: string | undefined) =>

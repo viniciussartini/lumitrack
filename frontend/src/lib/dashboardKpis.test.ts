@@ -26,11 +26,11 @@ const bucket = (bucketStart: string, kwhConsumed: number): ConsumptionBucket => 
 })
 
 /**
- * bucketStart no formato REAL que o backend produz pra bucket de dia
- * (issue #233): timestamp naive de meia-noite SP, cujos dígitos o driver
- * decodifica como se já fossem UTC — não um instante UTC de verdade. É
- * diferente (de propósito) de `new Date(...).toISOString()`, que aplicaria
- * a conversão de fuso real.
+ * bucketStart no formato REAL que o backend produz pra bucket de dia:
+ * timestamp naive de meia-noite SP, cujos dígitos o driver decodifica como
+ * se já fossem UTC — não um instante UTC de verdade. É diferente (de
+ * propósito) de `new Date(...).toISOString()`, que aplicaria a conversão de
+ * fuso real.
  */
 const spDayBucketStart = (isoDate: string): string => `${isoDate}T00:00:00.000Z`
 
@@ -113,7 +113,8 @@ describe("bucketMonthKey", () => {
 describe("findBucketForMonth", () => {
     it("acha o bucket do MÊS CORRENTE mesmo com a codificação real de dia 1 meia-noite SP (issue #234)", () => {
         // Fixture de meio-dia (local ou UTC) nunca cruza fronteira de mês em
-        // fuso nenhum — mascarava o bug, igual ao caso de dia da #233.
+        // fuso nenhum — mascarava o bug, igual ao caso equivalente do bucket
+        // de dia acima.
         const now = new Date(2026, 7, 21) // 21 de agosto de 2026, local
         const items = [bucket("2026-08-01T00:00:00.000Z", 120)]
 

@@ -6,13 +6,25 @@ import type { AuditService } from "@/shared/audit/audit.service.js"
 import { getRequestContext } from "@/shared/audit/requestContext.js"
 import { ValidationError } from "@/shared/errors/AppError.js"
 
+/** Camada HTTP dos logs de auditoria administrativos — acesso restrito a administradores. */
 export class AdminController {
+    /**
+     * @param adminService - Serviço de consulta a logs de auditoria.
+     * @param auditService - Registra o próprio acesso do admin como evento de auditoria.
+     */
     constructor(
         private readonly adminService: AdminService,
         private readonly auditService: AuditService,
     ) {}
 
-    // GET /api/admin/audit-logs — Autenticado + requireRole("ADMIN")
+    /**
+     * `GET /api/admin/audit-logs` — lista logs de auditoria de todos os
+     * usuários. Autenticado + `requireRole("ADMIN")`.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async listAuditLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const parsed = auditLogQuerySchema.safeParse(req.query)

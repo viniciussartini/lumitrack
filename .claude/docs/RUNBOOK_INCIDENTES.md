@@ -65,7 +65,7 @@ Passos imediatos conforme o tipo de incidente:
    - Resetar senhas dos afetados (aviso por e-mail).
 
 3. **Comunicação:**
-   - Art. 48 aplicável: "risco relevante aos titulares" = sim se dados confidenciais (CPF, padrão de consumo) foram expostos. Notificar em prazo razoável.
+   - Art. 48 aplicável: "risco relevante aos titulares" = sim se dados confidenciais (CPF, padrão de consumo) foram expostos. Notificar conforme a seção 4.1 deste runbook (3 dias úteis do conhecimento, dobrado no pequeno porte).
 
 ### 2.3 Incidente: Vulnerabilidade de dependência (npm audit / Dependabot)
 
@@ -144,7 +144,7 @@ O export em JSON traz **todos os `ConsumptionRecord`** do titular (sem paginaç�
 
 **ANPD (Autoridade Nacional de Proteção de Dados):**
 - Sempre que houver "risco relevante aos titulares" (vide 3.3).
-- Prazo: comunicação em prazo razoável (ANPD reconhece 72h como referência, mas "razoável" pode ser menos em caso de incidente ainda ativo).
+- Prazo: **3 (três) dias úteis contados do conhecimento do incidente** (Res. CD/ANPD 15/2024, Art. 6º) — **em dobro (6 dias úteis) no regime de agente de pequeno porte** (Res. CD/ANPD 2/2022, benefício mantido enquanto o LumiTrack se enquadrar nesse regime). A Resolução admite comunicação **preliminar**, com informação incompleta, complementada em até 20 dias úteis — não é preciso ter o quadro completo do incidente para iniciar a notificação dentro do prazo.
 
 **Titulares afetados:**
 - Quando há risco relevante E a ANPD foi notificada.
@@ -152,7 +152,19 @@ O export em JSON traz **todos os `ConsumptionRecord`** do titular (sem paginaç�
 
 ### 4.2 Comunicação com a ANPD
 
-**Canal:** https://www.gov.br/cidadania/pt-br/acesso-a-informacao/ouvidoria (formulário de notificação de incidente).
+**Canal:** Sistema **SEI!ANPD** (peticionamento eletrônico), login via conta gov.br:
+<https://sei.anpd.gov.br/sei/controlador_externo.php?acao=usuario_externo_logar&id_orgao_acesso_externo=0>
+
+**Procedimento:**
+
+1. Login no SEI!ANPD com credenciais gov.br (do encarregado ou de representante legalmente constituído do controlador).
+2. "Peticionamento" → "Processo Novo".
+3. Tipo de processo: *"ANPD – Comunicados de Incidentes à Agência Nacional de Proteção de Dados"*.
+4. Preencher o formulário de incidente de segurança (preliminar ou completo — ver Apêndice A) como "Documento Principal".
+5. Anexar documento comprovando legitimidade para representar o controlador.
+
+Página oficial (guia e formulário para download): <https://www.gov.br/anpd/pt-br/canais_atendimento/agente-de-tratamento/comunicado-de-incidente-de-seguranca-cis>
+Dúvidas: <incidentes@anpd.gov.br>
 
 **Conteúdo mínimo:**
 - Descrição factual do incidente.
@@ -203,7 +215,9 @@ LumiTrack — Proteção de Dados
 
 ### 5.1 Documentar o incidente
 
-Enquanto não há tabela formal `SecurityIncident` no banco (depende de RBAC/#16), registre o incidente em um arquivo/ticket externo:
+**Todo incidente avaliado nos passos 1-3 deste runbook precisa virar registro — inclusive o que, na etapa 3.3, foi avaliado como sem "risco relevante" e por isso não comunicado à ANPD/titulares.** O registro é obrigatório independentemente do desfecho da comunicação (Res. CD/ANPD 15/2024): a ausência de comunicação também precisa estar documentada, com o porquê.
+
+**Retenção: 5 (cinco) anos a partir do registro**, para todos os incidentes — comunicados e não comunicados. Enquanto não há tabela formal `SecurityIncident` no banco (depende de RBAC/#16), registre o incidente em um arquivo/ticket externo com essa retenção garantida (não usar um canal com política de expurgo automático mais curta, ex.: ticket que o provedor apaga após N meses de "resolvido").
 
 **Campos obrigatórios:**
 - ID único (ex.: INC-2024-001).
@@ -215,8 +229,9 @@ Enquanto não há tabela formal `SecurityIncident` no banco (depende de RBAC/#16
 - Medidas de contenção.
 - Lições aprendidas.
 - Status (Aberto / Mitigado / Fechado).
+- **Decisão de comunicação:** comunicado (ANPD + titulares, com data) **ou** não comunicado — e, neste caso, **a justificativa** (ex.: "avaliado na etapa 3.3 sem risco relevante — apenas metadata de requisição falha, sem exposição de dado pessoal").
 
-**Local:** Issue privada no GitHub / ticket no Jira / planilha compartilhada com DPO / conforme sua infraestrutura de gestão.
+**Local:** Issue privada no GitHub / ticket no Jira / planilha compartilhada com DPO / conforme sua infraestrutura de gestão — desde que a retenção de 5 anos seja garantida no canal escolhido.
 
 ### 5.2 Atualizar procedimentos
 

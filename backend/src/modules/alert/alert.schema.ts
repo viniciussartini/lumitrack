@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { paginationQuerySchema } from "@/shared/pagination.js"
 
-// Alerta por faixa de potência (Fase 4) — dispara quando a potência ativa do
+// Alerta por faixa de potência — dispara quando a potência ativa do
 // medidor sai de [referencePowerKw×1000×(1−tolerancePercent/100),
 // referencePowerKw×1000×(1+tolerancePercent/100)]. `meterId` só é informado
 // na criação — trocar o medidor de um alerta não é permitido (mesmo padrão

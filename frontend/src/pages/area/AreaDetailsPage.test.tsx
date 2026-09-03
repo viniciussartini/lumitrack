@@ -13,10 +13,15 @@ import { deviceService } from "@/services/device.service"
 import type { Device } from "@/types/device.types"
 import { consumptionService } from "@/services/consumption.service"
 import { meterService } from "@/services/meter.service"
+import { meterReadingService } from "@/services/meterReading.service"
+import { useRealtimeReadings } from "@/contexts/RealtimeContext"
+import type { Meter } from "@/types/meter.types"
+import type { ReadingPayload } from "@/lib/sse/appStream"
 
 vi.mock("@/services/consumption.service", () => ({
     consumptionService: {
         list: vi.fn(),
+        summary: vi.fn(),
     },
 }))
 
@@ -51,6 +56,14 @@ vi.mock("@/services/property.service", () => ({
     },
 }))
 
+vi.mock("@/services/meterReading.service", () => ({
+    meterReadingService: { list: vi.fn() },
+}))
+
+vi.mock("@/contexts/RealtimeContext", () => ({
+    useRealtimeReadings: vi.fn(() => ({ readingsByMeterId: {} })),
+}))
+
 vi.mock("@/services/device.service", () => ({
     deviceService: {
         list: vi.fn(),
@@ -64,6 +77,7 @@ vi.mock("@/services/device.service", () => ({
 vi.mock("@/services/api", () => ({
     api: {},
     extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
+    ensureFreshSession: vi.fn(),
 }))
 
 vi.mock("sonner", () => ({
@@ -116,6 +130,32 @@ const mockDevice: Device = {
     updatedAt: new Date().toISOString(),
 }
 
+const mockMeter: Meter = {
+    id: "meter-1",
+    name: "Medidor da área",
+    targetType: "AREA",
+    propertyId: "prop-1",
+    areaId: "area-1",
+    deviceId: null,
+    protocol: "MQTT",
+    host: "broker.local",
+    port: 1883,
+    topic: "lumitrack/meter-1",
+    address: null,
+    extra: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+}
+
+const mockReading = (powerW: number): ReadingPayload => ({
+    meterId: "meter-1",
+    voltage: 220,
+    current: 10,
+    powerW,
+    powerFactor: 0.98,
+    receivedAt: new Date().toISOString(),
+})
+
 const renderPage = () => {
     const queryClient = new QueryClient({
         defaultOptions: {
@@ -142,6 +182,8 @@ const renderPage = () => {
 beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(meterService.byTarget).mockResolvedValue(null)
+    vi.mocked(meterReadingService.list).mockResolvedValue({ items: [], granularity: "minute" })
+    vi.mocked(useRealtimeReadings).mockReturnValue({ readingsByMeterId: {} })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -355,9 +397,9 @@ describe("AreaDetailsPage — seção de dispositivos (vazia)", () => {
         ).toBeInTheDocument()
     })
 
-    // Issue #217: "Em breve" não faz sentido no estado vazio de uma
-    // funcionalidade que já existe (cadastro de dispositivo) — a mensagem
-    // ficou órfã de um estágio anterior da feature.
+    // "Em breve" não faz sentido no estado vazio de uma funcionalidade que
+    // já existe (cadastro de dispositivo) — a mensagem ficou órfã de um
+    // estágio anterior da feature.
     it("não renderiza a marca 'Em breve' no estado vazio", async () => {
         renderPage()
 
@@ -434,6 +476,20 @@ describe("AreaDetailsPage — seção de medidor/consumo (integração)", () => 
                 name: /^medidor$/i,
             }),
         ).toBeInTheDocument()
+    })
+
+    it("mostra o KPI 'Potência agora' quando o medidor tem leitura", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+        vi.mocked(useRealtimeReadings).mockReturnValue({
+            readingsByMeterId: { "meter-1": mockReading(1500) },
+        })
+
+        renderPage()
+
+        expect(await screen.findByText("Potência agora")).toBeInTheDocument()
+        // MeterSection também mostra a potência atual — o mesmo valor
+        // aparece nos dois cards.
+        expect(screen.getAllByText("1,50kW").length).toBeGreaterThan(0)
     })
 
     it("renderiza a seção 'Consumo'", async () => {

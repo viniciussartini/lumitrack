@@ -33,9 +33,7 @@ test.describe("Catálogo de distribuidoras", () => {
         await context.clearCookies()
     })
 
-    test("mostra o catálogo com distribuidoras cadastradas", async ({
-        page,
-    }) => {
+    test("mostra o catálogo com distribuidoras cadastradas", async ({ page }) => {
         await mockAppShellBackground(page)
         await setupAuth(page)
         await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
@@ -45,9 +43,7 @@ test.describe("Catálogo de distribuidoras", () => {
         await page.goto("/distribuidoras")
         await hideDevTools(page)
 
-        await expect(
-            page.getByRole("heading", { name: /distribuidoras/i, level: 1 }),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { name: /distribuidoras/i, level: 1 })).toBeVisible()
         await expect(page.getByTestId("distributors-grid")).toBeVisible()
 
         const cemigCard = page.getByTestId("distributor-card-dist-cemig")
@@ -63,41 +59,29 @@ test.describe("Catálogo de distribuidoras", () => {
         await expect(cemigCard).toContainText(/cofins/i)
         await expect(cemigCard).toContainText(/efetiva/i)
 
-        await expect(
-            page.getByTestId("distributor-card-dist-enel"),
-        ).toContainText(/enel são paulo/i)
+        await expect(page.getByTestId("distributor-card-dist-enel")).toContainText(
+            /enel são paulo/i,
+        )
 
         // Catálogo é somente leitura — nada de criar/editar/excluir
-        await expect(
-            page.getByRole("link", { name: /nova distribuidora/i }),
-        ).toHaveCount(0)
-        await expect(
-            page.getByRole("button", { name: /opções de/i }),
-        ).toHaveCount(0)
+        await expect(page.getByRole("link", { name: /nova distribuidora/i })).toHaveCount(0)
+        await expect(page.getByRole("button", { name: /opções de/i })).toHaveCount(0)
     })
 
-    test("mostra EmptyState quando o catálogo está vazio", async ({
-        page,
-    }) => {
+    test("mostra EmptyState quando o catálogo está vazio", async ({ page }) => {
         await mockAppShellBackground(page)
         await setupAuth(page)
-        await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
-            fulfillPaginated(route, []),
-        )
+        await page.route(/\/api\/distributors(\?.*)?$/, (route) => fulfillPaginated(route, []))
 
         await page.goto("/distribuidoras")
         await hideDevTools(page)
 
         await expect(page.getByText(/catálogo indisponível/i)).toBeVisible()
-        await expect(
-            page.getByText(/não há distribuidoras cadastradas no momento/i),
-        ).toBeVisible()
+        await expect(page.getByText(/não há distribuidoras cadastradas no momento/i)).toBeVisible()
         await expect(page.getByTestId("distributors-grid")).toHaveCount(0)
     })
 
-    test("mostra erro ao falhar em carregar o catálogo, com retry", async ({
-        page,
-    }) => {
+    test("mostra erro ao falhar em carregar o catálogo, com retry", async ({ page }) => {
         await mockAppShellBackground(page)
         await setupAuth(page)
 
@@ -119,9 +103,7 @@ test.describe("Catálogo de distribuidoras", () => {
         shouldFail = false
         await page.getByRole("button", { name: /tentar novamente/i }).click()
 
-        await expect(
-            page.getByTestId("distributor-card-dist-cemig"),
-        ).toBeVisible()
+        await expect(page.getByTestId("distributor-card-dist-cemig")).toBeVisible()
         await expect(page.getByText(/não foi possível carregar/i)).not.toBeVisible()
     })
 
@@ -140,25 +122,17 @@ test.describe("Catálogo de distribuidoras", () => {
         const search = page.getByLabel(/buscar distribuidora/i)
         await search.fill("cemig")
 
-        await expect(
-            page.getByTestId("distributor-card-dist-cemig"),
-        ).toBeVisible()
-        await expect(
-            page.getByTestId("distributor-card-dist-enel"),
-        ).not.toBeVisible()
+        await expect(page.getByTestId("distributor-card-dist-cemig")).toBeVisible()
+        await expect(page.getByTestId("distributor-card-dist-enel")).not.toBeVisible()
 
         await search.fill("nenhuma-distribuidora-com-esse-nome")
 
         await expect(page.getByText(/nenhuma distribuidora encontrada/i)).toBeVisible()
-        await expect(
-            page.getByText(/ajuste a busca ou o filtro de estado/i),
-        ).toBeVisible()
+        await expect(page.getByText(/ajuste a busca ou o filtro de estado/i)).toBeVisible()
         await expect(page.getByTestId("distributors-grid")).toHaveCount(0)
     })
 
-    test("filtro por estado mostra só as distribuidoras da UF selecionada", async ({
-        page,
-    }) => {
+    test("filtro por estado mostra só as distribuidoras da UF selecionada", async ({ page }) => {
         await mockAppShellBackground(page)
         await setupAuth(page)
         await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
@@ -168,26 +142,16 @@ test.describe("Catálogo de distribuidoras", () => {
         await page.goto("/distribuidoras")
         await hideDevTools(page)
 
-        await expect(
-            page.getByTestId("distributor-card-dist-cemig"),
-        ).toBeVisible()
-        await expect(
-            page.getByTestId("distributor-card-dist-enel"),
-        ).toBeVisible()
+        await expect(page.getByTestId("distributor-card-dist-cemig")).toBeVisible()
+        await expect(page.getByTestId("distributor-card-dist-enel")).toBeVisible()
 
         await page.getByRole("button", { name: /^mg$/i }).click()
 
-        await expect(
-            page.getByTestId("distributor-card-dist-cemig"),
-        ).toBeVisible()
-        await expect(
-            page.getByTestId("distributor-card-dist-enel"),
-        ).not.toBeVisible()
+        await expect(page.getByTestId("distributor-card-dist-cemig")).toBeVisible()
+        await expect(page.getByTestId("distributor-card-dist-enel")).not.toBeVisible()
 
         await page.getByRole("button", { name: /^todos$/i }).click()
 
-        await expect(
-            page.getByTestId("distributor-card-dist-enel"),
-        ).toBeVisible()
+        await expect(page.getByTestId("distributor-card-dist-enel")).toBeVisible()
     })
 })

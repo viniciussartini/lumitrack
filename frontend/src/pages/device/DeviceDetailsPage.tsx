@@ -1,17 +1,19 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import { AlertCircle, ArrowLeft, Cpu, Pencil } from "lucide-react"
 import { useDevice } from "@/hooks/queries/useDevices"
 import { useArea } from "@/hooks/queries/useAreas"
 import { useProperty } from "@/hooks/queries/useProperties"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
-import { useRealtime } from "@/contexts/RealtimeContext"
+import { useLiveMeterReading } from "@/hooks/useLiveMeterReading"
 import { Button } from "@/components/ui/Button"
 import { Tag } from "@/components/ui/Tag"
 import { DeviceMenu } from "@/components/device/DeviceMenu"
 import { DeviceFormDialog } from "@/components/device/DeviceFormDialog"
 import { DeviceConsumptionSection } from "@/components/consumption/ConsumptionSection"
 import { MeterSection } from "@/components/meter/MeterSection"
+import { IconCircle } from "@/components/ui/IconCircle"
+import { LiveKpiCard } from "@/components/dashboard/LiveKpiCard"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
 import { formatPowerKw } from "@/lib/format"
 import type { Device } from "@/types/device.types"
@@ -53,19 +55,10 @@ export const DeviceDetailsPage = () => {
     const areaQuery = useArea(propertyId, areaId)
     const propertyQuery = useProperty(propertyId)
     // KPI "Potência agora" — mesma fonte que MeterSection usa internamente
-    // (useMeterByTarget dedupe via cache do TanStack Query) + useRealtime
-    // (SSE) pra leitura ao vivo.
+    // (useMeterByTarget dedupe via cache do TanStack Query) + useLiveMeterReading
+    // (SSE, com fallback REST) pra potência mais recente conhecida.
     const meterQuery = useMeterByTarget("DEVICE", deviceId)
-    const { readingsByMeterId } = useRealtime()
-    // Estado (não Date.now() direto) pra recalcular a "idade" da leitura
-    // periodicamente sem violar a regra de pureza de render — mesmo padrão
-    // de MeterSection.tsx/PropertyDetailsPage.tsx/AreaDetailsPage.tsx.
-    const [now, setNow] = useState(() => Date.now())
-
-    useEffect(() => {
-        const interval = setInterval(() => setNow(Date.now()), 2_000)
-        return () => clearInterval(interval)
-    }, [])
+    const { lastKnownPowerW } = useLiveMeterReading("DEVICE", deviceId, meterQuery.data?.id)
 
     if (deviceQuery.isLoading) {
         return (
@@ -97,8 +90,6 @@ export const DeviceDetailsPage = () => {
     const area = areaQuery.data
     const property = propertyQuery.data
     const meter = meterQuery.data
-    const reading = meter ? readingsByMeterId[meter.id] : undefined
-    const isReadingStale = !reading || now - new Date(reading.receivedAt).getTime() > 10_000
 
     const handleAfterDelete = () => {
         // Após excluir, volta pra área pai. replace evita que o botão
@@ -122,27 +113,18 @@ export const DeviceDetailsPage = () => {
             />
 
             {meter && (
-                <div className="blueprint w-fit min-w-[220px] px-5 py-[18px]">
-                    <i className="corner tl" />
-                    <i className="corner tr" />
-                    <i className="corner bl" />
-                    <i className="corner br" />
-                    <div className="font-heading flex items-center gap-2 text-[11px] font-semibold tracking-[.07em] uppercase">
-                        <span
-                            className="h-2 w-2 rounded-full bg-[#3f8f52]"
-                            style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
-                            aria-hidden="true"
-                        />
-                        Potência agora
-                    </div>
-                    <div className="font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold">
-                        {!isReadingStale && reading ? (
-                            formatPowerKw(reading.powerW)
+                <LiveKpiCard
+                    label="Potência agora"
+                    value={
+                        lastKnownPowerW !== undefined ? (
+                            formatPowerKw(lastKnownPowerW)
                         ) : (
                             <span className="text-muted">—</span>
-                        )}
-                    </div>
-                </div>
+                        )
+                    }
+                    isLive
+                    className="w-fit min-w-[220px]"
+                />
             )}
 
             {meter && (
@@ -215,19 +197,14 @@ const DeviceHeaderCard = ({
     const brandModelLabel = [device.brand, device.model].filter(Boolean).join(" · ")
 
     return (
-        <div className="blueprint p-[26px]">
+        <div className="blueprint p-26px">
             <i className="corner tl" />
             <i className="corner tr" />
             <i className="corner bl" />
             <i className="corner br" />
 
-            <div className="flex min-w-0 items-start gap-[15px]">
-                <span
-                    className="border-accent text-accent flex h-[52px] w-[52px] shrink-0 items-center justify-center border-[1.5px]"
-                    aria-hidden="true"
-                >
-                    <Cpu className="h-[26px] w-[26px]" strokeWidth={1.5} />
-                </span>
+            <div className="gap-15px flex min-w-0 items-start">
+                <IconCircle icon={Cpu} tone="accent" strokeWidth={1.5} />
                 <div className="min-w-0 flex-1">
                     <h1 className="font-heading truncate text-[clamp(24px,2.6vw,32px)] leading-none font-semibold uppercase">
                         {device.name}
@@ -236,7 +213,7 @@ const DeviceHeaderCard = ({
             </div>
 
             {/* Tags — hierarquia (propriedade avó + área pai) e metadados */}
-            <div className="mt-[18px] flex flex-wrap gap-[9px]">
+            <div className="mt-18px gap-9px flex flex-wrap">
                 <HierarchyTag
                     isLoading={isPropertyLoading}
                     label={property?.name}
@@ -251,7 +228,7 @@ const DeviceHeaderCard = ({
                 {device.powerWatts !== null && <Tag variant="neutral">{device.powerWatts}W</Tag>}
             </div>
 
-            <div className="mt-[22px] flex flex-wrap items-center gap-2">
+            <div className="mt-22px flex flex-wrap items-center gap-2">
                 <Button variant="secondary" size="sm" onClick={() => setIsEditOpen(true)}>
                     <Pencil className="h-4 w-4" aria-hidden="true" />
                     Editar dispositivo

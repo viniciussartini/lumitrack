@@ -117,6 +117,43 @@ describe("useConsumption", () => {
         )
     })
 
+    it("uma consulta 'últimos N buckets' e uma de janela com o mesmo targetType/granularity/pageSize não compartilham cache", async () => {
+        vi.mocked(consumptionService.list).mockResolvedValue({
+            items: [],
+            total: 0,
+            page: 1,
+            pageSize: 3,
+            granularity: "hour",
+        })
+
+        // Mesmo QueryClient nos dois — se as chaves colidissem, a 2ª
+        // renderização reaproveitaria o cache da 1ª e `list` seria chamado
+        // só uma vez.
+        const queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+        })
+        const wrapper = ({ children }: { children: ReactNode }) => (
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        )
+
+        const from = new Date(2026, 7, 21, 19, 0)
+        const to = new Date(2026, 7, 21, 20, 0)
+
+        const { result: latestResult } = renderHook(
+            () => useConsumption("PROPERTY", "prop-1", "hour", 1, 3),
+            { wrapper },
+        )
+        const { result: windowResult } = renderHook(
+            () => useConsumption("PROPERTY", "prop-1", "hour", 1, 3, { from, to, order: "asc" }),
+            { wrapper },
+        )
+
+        await waitFor(() => expect(latestResult.current.isSuccess).toBe(true))
+        await waitFor(() => expect(windowResult.current.isSuccess).toBe(true))
+
+        expect(consumptionService.list).toHaveBeenCalledTimes(2)
+    })
+
     it("não dispara a query quando targetId é undefined", () => {
         renderHook(() => useConsumption("AREA", undefined, "day"), {
             wrapper: createWrapper(),

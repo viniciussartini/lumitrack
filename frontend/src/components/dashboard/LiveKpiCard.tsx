@@ -1,37 +1,44 @@
 import type { ReactNode } from "react"
+import { cn } from "@/lib/cn"
+import { LiveBadge } from "@/components/ui/LiveBadge"
 
 interface LiveKpiCardProps {
     label: string
-    value: string
+    value: ReactNode
     /** Linha pequena abaixo do valor (ex.: "≈ R$0,50/h", delta colorido). */
     subValue?: ReactNode
     /** Bolinha pulsante ao lado do label — só o KPI de dado ao vivo (SSE) usa. */
     isLive?: boolean
+    /**
+     * Composto com `blueprint py-18px px-5` via `cn` — as details pages de
+     * entidade (Propriedade/Área/Dispositivo) usam `w-fit min-w-[220px]`
+     * pra não esticar num card solto fora do grid do painel.
+     */
+    className?: string
 }
 
 /**
  * Card de KPI do Painel (bloco `isDashboard` do handoff) — `.blueprint` +
  * label uppercase + valor grande + linha secundária opcional. Promovido de
  * dentro de `RealtimeSection.tsx` para ser reaproveitado também por
- * `DashboardKpiRow`.
+ * `DashboardKpiRow` e pelas details pages de entidade.
  */
-export const LiveKpiCard = ({ label, value, subValue, isLive = false }: LiveKpiCardProps) => (
-    <div className="blueprint px-5 py-[18px]">
+export const LiveKpiCard = ({
+    label,
+    value,
+    subValue,
+    isLive = false,
+    className,
+}: LiveKpiCardProps) => (
+    <div className={cn("blueprint py-18px px-5", className)}>
         <i className="corner tl" />
         <i className="corner tr" />
         <i className="corner bl" />
         <i className="corner br" />
-        <div className="font-heading flex items-center gap-2 text-[11px] font-semibold tracking-[.07em] uppercase">
-            {isLive && (
-                <span
-                    className="h-2 w-2 rounded-full bg-[#3f8f52]"
-                    style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
-                    aria-hidden="true"
-                />
-            )}
-            {label}
+        <div className="font-heading text-11 flex items-center gap-2 font-semibold tracking-[.07em] uppercase">
+            {isLive ? <LiveBadge label={label} className="gap-2" /> : label}
         </div>
-        <div className="font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold">
+        <div className="font-heading text-30 mt-2.5 font-features-['tnum'_1] leading-none font-semibold">
             {value}
         </div>
         {subValue !== undefined && (

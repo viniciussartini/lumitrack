@@ -32,11 +32,11 @@ const now = new Date()
 // Bucket de MÊS: fixture de meio-dia local, só pra testar a matemática da
 // projeção (`computeMonthProjection`) isolada da decodificação do bucket —
 // a decodificação em si (`findBucketForMonth`) já tem cobertura própria com
-// a codificação real do backend logo abaixo (`currentMonthSpBucket`, #234).
+// a codificação real do backend logo abaixo (`currentMonthSpBucket`).
 const firstOfMonthNoon = new Date(now.getFullYear(), now.getMonth(), 1, 12, 0, 0)
 
 /**
- * bucketStart de DIA no formato REAL que o backend produz (issue #233):
+ * bucketStart de DIA no formato REAL que o backend produz:
  * timestamp naive de meia-noite SP, cujos dígitos o driver decodifica como
  * se já fossem UTC — não meio-dia local convertido de verdade via
  * `.toISOString()`. Os componentes de data vêm do próprio `date` local
@@ -55,7 +55,7 @@ const yesterdaySpBucket = spDayBucketStart(
 )
 
 /**
- * bucketStart de MÊS no formato REAL que o backend produz (issue #234):
+ * bucketStart de MÊS no formato REAL que o backend produz:
  * mesma codificação de `spDayBucketStart`, mas sempre no dia 1 — é como
  * `date_trunc('month', ...)` trunca no backend.
  */
@@ -104,8 +104,8 @@ const mockReading = (powerW: number): ReadingPayload => ({
  *
  * `BucketSize` (não `Granularity`): `consumptionService.list` aceita
  * "minute" também — `Record<Granularity, ...>` não tem essa chave e
- * `responses[params.granularity]` quebrava o `tsc` (pré-existente, achado
- * ao tocar este arquivo pela issue #233, sem relação com o bug de fuso).
+ * `responses[params.granularity]` quebrava o `tsc` (bug pré-existente,
+ * sem relação com o bug de fuso deste arquivo).
  */
 const mockConsumptionByGranularity = (
     responses: Partial<Record<BucketSize, ConsumptionBucket[]>>,
@@ -126,7 +126,13 @@ const createTestQueryClient = () =>
 const renderRow = (props: Partial<Parameters<typeof DashboardKpiRow>[0]> = {}) => {
     const queryClient = createTestQueryClient()
     return render(
-        <DashboardKpiRow propertyId="prop-1" reading={undefined} isStale={true} {...props} />,
+        <DashboardKpiRow
+            propertyId="prop-1"
+            reading={undefined}
+            isStale={true}
+            lastKnownPowerW={undefined}
+            {...props}
+        />,
         {
             wrapper: ({ children }) => (
                 <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
@@ -153,7 +159,7 @@ describe("DashboardKpiRow — Potência agora / custo estimado", () => {
             hour: [bucket(now.toISOString(), 2, 1)], // tarifa efetiva R$0,50/kWh
         })
 
-        renderRow({ reading: mockReading(1000), isStale: false }) // 1 kW
+        renderRow({ reading: mockReading(1000), isStale: false, lastKnownPowerW: 1000 }) // 1 kW
 
         expect(await screen.findByText("1,00kW")).toBeInTheDocument()
         expect(await screen.findByText(/≈ R\$\s?0,50\/h estimado/)).toBeInTheDocument()
@@ -224,8 +230,9 @@ describe("DashboardKpiRow — Custo projetado do mês", () => {
     it("acha o bucket do mês mesmo com a codificação real de dia 1 meia-noite SP (issue #234)", async () => {
         // Fixture de meio-dia local (teste acima) nunca cruza fronteira de
         // mês em fuso nenhum — mascarava a mesma classe de bug já
-        // confirmada na #233. Dia 1 meia-noite SP naive-como-UTC é a
-        // codificação real que o backend produz pra bucket de mês.
+        // confirmada no teste do bucket de dia, acima. Dia 1 meia-noite SP
+        // naive-como-UTC é a codificação real que o backend produz pra
+        // bucket de mês.
         const costSoFar = 30
         mockConsumptionByGranularity({
             month: [bucket(currentMonthSpBucket, 40, costSoFar)],

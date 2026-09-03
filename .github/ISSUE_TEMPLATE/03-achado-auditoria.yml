@@ -26,6 +26,14 @@ body:
         - "Baixa"
     validations:
       required: true
+  - type: input
+    id: priority-size
+    attributes:
+      label: "Priority · Size"
+      description: "Priority: P0 (bloqueia o MVP) · P1 (próximo ciclo) · P2 (depois). Size: XS · S · M · L · XL."
+      placeholder: "**Priority:** P1 · **Size:** M"
+    validations:
+      required: true
   - type: textarea
     id: achado
     attributes:

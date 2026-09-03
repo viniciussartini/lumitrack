@@ -6,7 +6,15 @@ body:
   - type: markdown
     attributes:
       value: |
-        Após criar, adicione a label de **prioridade** e de **área** — ver `.claude/project_context/08-convencoes-git.md`.
+        Prioridade e tamanho vão no campo abaixo (não são labels) — ver `.claude/project_context/08-convencoes-git.md`.
+  - type: input
+    id: priority-size
+    attributes:
+      label: "Priority · Size"
+      description: "Priority: P0 (bloqueia o MVP) · P1 (próximo ciclo) · P2 (depois). Size: XS · S · M · L · XL."
+      placeholder: "**Priority:** P1 · **Size:** M"
+    validations:
+      required: true
   - type: textarea
     id: problema
     attributes:

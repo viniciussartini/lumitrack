@@ -7,12 +7,17 @@ import { Pagination } from "@/components/ui/Pagination"
 import { AlertTable } from "@/components/alert/AlertTable"
 import { AlertEventTable } from "@/components/alert/AlertEventTable"
 import { AlertFormDialog } from "@/components/alert/AlertFormDialog"
-import { useAlerts, useFiringAlerts } from "@/hooks/queries/useAlerts"
+import { useAlerts, useAlertsStats, useFiringAlerts } from "@/hooks/queries/useAlerts"
 import { useAlertEvents } from "@/hooks/queries/useAlertEvents"
 import { useMeters } from "@/hooks/queries/useMeters"
 import { cn } from "@/lib/cn"
 import { DEFAULT_PAGE_SIZE } from "@/types/pagination.types"
 import type { AlertWithStatus } from "@/types/alert.types"
+
+// "—" enquanto a query do KPI ainda carrega, em vez de um 0 falso-positivo
+// até o primeiro fetch responder.
+const kpiValueOrDash = (isLoading: boolean, value: number): number | "—" =>
+    isLoading ? "—" : value
 
 /**
  * Inbox global de alertas — /alertas, conforme `isAlerts` de
@@ -33,10 +38,10 @@ import type { AlertWithStatus } from "@/types/alert.types"
 export const AlertsPage = () => {
     const [page, setPage] = useState(1)
     const alertsQuery = useAlerts(page, DEFAULT_PAGE_SIZE)
-    // Catálogo completo (pageSize máximo do backend) só pra computar os
-    // KPIs — useAlerts(page, DEFAULT_PAGE_SIZE) é paginado e só refletiria
-    // a página visível da tabela, não o total real de alertas habilitados.
-    const allAlertsQuery = useAlerts(1, 31)
+    // KPI "Alertas ativos" via GET /api/alerts/stats — antes pedia uma
+    // segunda página cheia (pageSize 31) só pra contar `enabled` no
+    // cliente, pagando o custo de resolução de target de cada alerta.
+    const statsQuery = useAlertsStats()
     // "Em disparo agora" reusa a mesma fonte do WarningBadge do header
     // (useFiringAlerts, GET /api/alerts/firing) — mesma query key, dedupe
     // automático do React Query, sem chamada HTTP extra.
@@ -59,10 +64,11 @@ export const AlertsPage = () => {
     const eventsQuery = useAlertEvents(effectiveAlertId, eventsPage, DEFAULT_PAGE_SIZE)
     const selectedAlert = alerts.find((a) => a.id === effectiveAlertId)
 
-    const activeAlertsCount = allAlertsQuery.isLoading
-        ? ("—" as const)
-        : (allAlertsQuery.data?.items ?? []).filter((a) => a.enabled).length
-    const firingCount = firingQuery.isLoading ? ("—" as const) : (firingQuery.data ?? []).length
+    const activeAlertsCount = kpiValueOrDash(
+        statsQuery.isLoading,
+        statsQuery.data?.enabledCount ?? 0,
+    )
+    const firingCount = kpiValueOrDash(firingQuery.isLoading, (firingQuery.data ?? []).length)
 
     const handleSelectAlertForHistory = (id: string) => {
         setSelectedAlertId(id)
@@ -97,114 +103,20 @@ export const AlertsPage = () => {
                 <KpiCard label="Em disparo agora" value={firingCount} highlight />
             </div>
 
-            {/* Área (a) — alertas criados */}
-            <section className="flex flex-col gap-3">
-                {alertsQuery.isLoading && <TableSkeleton />}
+            <CreatedAlertsSection
+                alertsQuery={alertsQuery}
+                onEdit={(alert) => setDialogMode({ kind: "edit", alert })}
+                onPageChange={setPage}
+            />
 
-                {alertsQuery.isError && (
-                    <ErrorState
-                        message={
-                            alertsQuery.error instanceof Error
-                                ? alertsQuery.error.message
-                                : "Não foi possível carregar os alertas."
-                        }
-                    />
-                )}
-
-                {alertsQuery.isSuccess && alerts.length === 0 && (
-                    <EmptyState
-                        icon={Bell}
-                        title="Nenhum alerta configurado"
-                        description="Crie um alerta para ser notificado quando a potência de um medidor sair da faixa esperada."
-                    />
-                )}
-
-                {alertsQuery.isSuccess && alerts.length > 0 && (
-                    <>
-                        <AlertTable
-                            alerts={alerts}
-                            onEdit={(alert) => setDialogMode({ kind: "edit", alert })}
-                        />
-                        <Pagination
-                            page={alertsQuery.data!.page}
-                            pageSize={alertsQuery.data!.pageSize}
-                            total={alertsQuery.data!.total}
-                            onPageChange={setPage}
-                        />
-                    </>
-                )}
-            </section>
-
-            {/* Área (b) — histórico de disparos */}
-            <section className="flex flex-col gap-3">
-                <header className="flex flex-wrap items-center justify-between gap-3">
-                    <h2 className="font-heading flex items-center gap-2 text-[17px] font-semibold uppercase">
-                        <History className="h-5 w-5" aria-hidden="true" />
-                        Histórico de disparos
-                    </h2>
-                    {alerts.length > 0 && (
-                        <Select
-                            aria-label="Selecionar alerta"
-                            value={effectiveAlertId ?? ""}
-                            onChange={(e) => handleSelectAlertForHistory(e.target.value)}
-                            className="w-56"
-                            data-testid="alert-events-select"
-                        >
-                            {alerts.map((alert) => (
-                                <option key={alert.id} value={alert.id}>
-                                    {alert.name}
-                                </option>
-                            ))}
-                        </Select>
-                    )}
-                </header>
-
-                {alerts.length === 0 && (
-                    <p className="text-muted text-sm">
-                        Crie um alerta para começar a acumular histórico de disparos.
-                    </p>
-                )}
-
-                {alerts.length > 0 && eventsQuery.isLoading && <TableSkeleton />}
-
-                {alerts.length > 0 && eventsQuery.isError && (
-                    <ErrorState
-                        message={
-                            eventsQuery.error instanceof Error
-                                ? eventsQuery.error.message
-                                : "Não foi possível carregar o histórico."
-                        }
-                    />
-                )}
-
-                {alerts.length > 0 &&
-                    eventsQuery.isSuccess &&
-                    eventsQuery.data.items.length === 0 && (
-                        <EmptyState
-                            icon={History}
-                            title="Nenhum episódio registrado"
-                            description="Quando a potência sair da faixa monitorada e voltar ao normal, o episódio aparece aqui."
-                        />
-                    )}
-
-                {alerts.length > 0 &&
-                    eventsQuery.isSuccess &&
-                    eventsQuery.data.items.length > 0 &&
-                    selectedAlert && (
-                        <>
-                            <AlertEventTable
-                                events={eventsQuery.data.items}
-                                alertName={selectedAlert.name}
-                            />
-                            <Pagination
-                                page={eventsQuery.data.page}
-                                pageSize={eventsQuery.data.pageSize}
-                                total={eventsQuery.data.total}
-                                onPageChange={setEventsPage}
-                            />
-                        </>
-                    )}
-            </section>
+            <AlertHistorySection
+                alerts={alerts}
+                effectiveAlertId={effectiveAlertId}
+                selectedAlert={selectedAlert}
+                eventsQuery={eventsQuery}
+                onSelectAlert={handleSelectAlertForHistory}
+                onPageChange={setEventsPage}
+            />
 
             {dialogMode !== null && (
                 <AlertFormDialog
@@ -218,6 +130,151 @@ export const AlertsPage = () => {
     )
 }
 
+interface CreatedAlertsSectionProps {
+    alertsQuery: ReturnType<typeof useAlerts>
+    onEdit: (alert: AlertWithStatus) => void
+    onPageChange: (page: number) => void
+}
+
+// Área (a) — alertas criados: CRUD flat, com seus próprios estados de
+// carregamento/erro/vazio/sucesso.
+const CreatedAlertsSection = ({ alertsQuery, onEdit, onPageChange }: CreatedAlertsSectionProps) => {
+    const alerts = alertsQuery.data?.items ?? []
+
+    return (
+        <section className="flex flex-col gap-3">
+            {alertsQuery.isLoading && <TableSkeleton />}
+
+            {alertsQuery.isError && (
+                <ErrorState
+                    message={
+                        alertsQuery.error instanceof Error
+                            ? alertsQuery.error.message
+                            : "Não foi possível carregar os alertas."
+                    }
+                />
+            )}
+
+            {alertsQuery.isSuccess && alerts.length === 0 && (
+                <EmptyState
+                    icon={Bell}
+                    title="Nenhum alerta configurado"
+                    description="Crie um alerta para ser notificado quando a potência de um medidor sair da faixa esperada."
+                />
+            )}
+
+            {alertsQuery.isSuccess && alerts.length > 0 && (
+                <>
+                    <AlertTable alerts={alerts} onEdit={onEdit} />
+                    <Pagination
+                        page={alertsQuery.data!.page}
+                        pageSize={alertsQuery.data!.pageSize}
+                        total={alertsQuery.data!.total}
+                        onPageChange={onPageChange}
+                    />
+                </>
+            )}
+        </section>
+    )
+}
+
+interface AlertHistorySectionProps {
+    alerts: AlertWithStatus[]
+    effectiveAlertId: string | undefined
+    selectedAlert: AlertWithStatus | undefined
+    eventsQuery: ReturnType<typeof useAlertEvents>
+    onSelectAlert: (id: string) => void
+    onPageChange: (page: number) => void
+}
+
+const HistoryHeading = () => (
+    <h2 className="font-heading text-17 flex items-center gap-2 font-semibold uppercase">
+        <History className="h-5 w-5" aria-hidden="true" />
+        Histórico de disparos
+    </h2>
+)
+
+// Área (b) — histórico de disparos: seletor de alerta + tabela paginada,
+// filtrada pelo alerta selecionado (o backend não tem endpoint agregado
+// entre alertas). Sem alerta nenhum ainda, não há o que filtrar — nem o
+// seletor faz sentido (guarda cedo, em vez de repetir `alerts.length > 0 &&`
+// em cada bloco do estado da query de eventos abaixo).
+const AlertHistorySection = ({
+    alerts,
+    effectiveAlertId,
+    selectedAlert,
+    eventsQuery,
+    onSelectAlert,
+    onPageChange,
+}: AlertHistorySectionProps) => {
+    if (alerts.length === 0) {
+        return (
+            <section className="flex flex-col gap-3">
+                <HistoryHeading />
+                <p className="text-muted text-sm">
+                    Crie um alerta para começar a acumular histórico de disparos.
+                </p>
+            </section>
+        )
+    }
+
+    return (
+        <section className="flex flex-col gap-3">
+            <header className="flex flex-wrap items-center justify-between gap-3">
+                <HistoryHeading />
+                <Select
+                    aria-label="Selecionar alerta"
+                    value={effectiveAlertId ?? ""}
+                    onChange={(e) => onSelectAlert(e.target.value)}
+                    className="w-56"
+                    data-testid="alert-events-select"
+                >
+                    {alerts.map((alert) => (
+                        <option key={alert.id} value={alert.id}>
+                            {alert.name}
+                        </option>
+                    ))}
+                </Select>
+            </header>
+
+            {eventsQuery.isLoading && <TableSkeleton />}
+
+            {eventsQuery.isError && (
+                <ErrorState
+                    message={
+                        eventsQuery.error instanceof Error
+                            ? eventsQuery.error.message
+                            : "Não foi possível carregar o histórico."
+                    }
+                />
+            )}
+
+            {eventsQuery.isSuccess && eventsQuery.data.items.length === 0 && (
+                <EmptyState
+                    icon={History}
+                    title="Nenhum episódio registrado"
+                    description="Quando a potência sair da faixa monitorada e voltar ao normal, o episódio aparece aqui."
+                />
+            )}
+
+            {eventsQuery.isSuccess && eventsQuery.data.items.length > 0 && selectedAlert && (
+                <>
+                    <AlertEventTable
+                        events={eventsQuery.data.items}
+                        alertName={selectedAlert.name}
+                    />
+                    <Pagination
+                        page={eventsQuery.data.page}
+                        pageSize={eventsQuery.data.pageSize}
+                        total={eventsQuery.data.total}
+                        onPageChange={onPageChange}
+                    />
+                </>
+            )}
+        </section>
+    )
+}
+
 interface KpiCardProps {
     label: string
     value: number | "—"
@@ -228,19 +285,16 @@ interface KpiCardProps {
 }
 
 const KpiCard = ({ label, value, highlight }: KpiCardProps) => (
-    <div className="blueprint px-5 py-[18px]">
+    <div className="blueprint py-18px px-5">
         <i className="corner tl" />
         <i className="corner tr" />
         <i className="corner bl" />
         <i className="corner br" />
-        <div className="font-heading flex items-center gap-2 text-[11px] font-semibold tracking-[.07em] uppercase">
+        <div className="font-heading text-11 flex items-center gap-2 font-semibold tracking-[.07em] uppercase">
             {highlight && (
                 <span
-                    className="h-2 w-2 rounded-full"
-                    style={{
-                        backgroundColor: "var(--color-status-warning)",
-                        animation: "lt-pulse 1.6s ease-in-out infinite",
-                    }}
+                    className="lt-live-dot"
+                    style={{ backgroundColor: "var(--color-status-warning)" }}
                     aria-hidden="true"
                 />
             )}
@@ -248,7 +302,7 @@ const KpiCard = ({ label, value, highlight }: KpiCardProps) => (
         </div>
         <div
             className={cn(
-                "font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold",
+                "font-heading text-30 mt-2.5 font-features-['tnum'_1] leading-none font-semibold",
                 highlight && "text-status-warning",
             )}
         >

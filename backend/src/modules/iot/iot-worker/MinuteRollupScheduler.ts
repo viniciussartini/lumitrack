@@ -10,15 +10,24 @@
  * Diferente do antigo scheduler, este flush NÃO resolve hierarquia (device →
  * area → property → distributor) nem calcula custo — só persiste as
  * grandezas elétricas cruas por medidor/minuto via MeterReadingRepository.
- * O custo é calculado sob demanda na agregação (Fase 3, TariffService).
- * Também não dispara verificação de alertas — isso passa a ser feito amostra
- * a amostra pelo AlertEvaluator (Fase 4), não mais no rollup.
+ * O custo é calculado sob demanda na agregação (TariffService). Também não
+ * dispara verificação de alertas — isso é feito amostra a amostra pelo
+ * AlertEvaluator, não no rollup.
  */
 import type { MinuteBuffer } from "@/modules/iot/iot-worker/MinuteBuffer.js"
 import type { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
+import type { PoolStats } from "@/shared/database/prisma.js"
 import { logger } from "@/shared/logger/logger.js"
 
 const log = logger.child({ module: "MinuteRollupScheduler" })
+
+/**
+ * Provedor de estatísticas do pool de conexões, injetado em vez de importado
+ * direto — mantém o scheduler testável sem abrir uma conexão real de banco
+ * (ver `shared/database/prisma.ts#getPoolStats`, injetado pelo composition
+ * root em `server.ts`).
+ */
+export type PoolStatsProvider = () => PoolStats | null
 
 export class MinuteRollupScheduler {
     private flushTimer: ReturnType<typeof setInterval> | null = null
@@ -27,6 +36,7 @@ export class MinuteRollupScheduler {
     constructor(
         private readonly buffer: MinuteBuffer,
         private readonly meterReadingRepository: MeterReadingRepository,
+        private readonly getPoolStats: PoolStatsProvider = () => null,
     ) {}
 
     /**
@@ -111,6 +121,15 @@ export class MinuteRollupScheduler {
                 // sem perder sampleCount/secondsCovered já acumulados.
                 this.buffer.merge(snapshot)
             }
+        }
+
+        // Instrumentação de desempenho — o flush do minuto é o ponto de
+        // maior concorrência de escrita do processo (até N upsertMinute
+        // simultâneos), então é onde a saturação do pool mais aparece.
+        // Nível debug: opt-in via LOG_LEVEL, sem custo em produção.
+        const poolStats = this.getPoolStats()
+        if (poolStats) {
+            log.debug(poolStats, "Estatísticas do pool de conexões após o flush")
         }
     }
 

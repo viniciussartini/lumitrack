@@ -2,11 +2,13 @@
 
 > Guia de onboarding do kit. O `CLAUDE.md` (raiz) é lido pelo Claude Code; **este arquivo é para você**.
 
-**Versão do kit: v14.**
+**Versão do kit: v16.**
 
 <details>
 <summary>O que mudou desde a v3</summary>
 
+- **v16** — **Priority e Size saem das labels** e passam a viver no corpo da issue, no mesmo formato do roadmap (`**Priority:** P0 · **Size:** M`) — labels de prioridade/tamanho removidas da taxonomia e do bootstrap; templates de issue ganham o campo. `revisao-codigo` **não grava arquivo de laudo**: publica comentário no PR aberto, devolve o laudo completo na conversa e pergunta o que corrigir antes de tocar em qualquer coisa.
+- **v15** — correções vindas de uso real: `tipo:`+prioridade+tamanho passam a ser obrigatórios em toda issue; `no-warning-comments` no ESLint bloqueia comentário de rastreabilidade mecanicamente; `revisao-codigo` ganha **Bash restrito** (sem ele não havia diff para revisar) e é proibido de reconstruir o diff a partir do CHANGELOG; laudo de agente passa a ser **gravado em arquivo** e a conversa principal deve **parar** após entregá-lo.
 - **v14** — correção: o hook `ativar-skills.sh` não tinha gatilho para **nenhum dos cinco agentes** (4 auditorias + `revisao-codigo` com rótulo errado) — adicionados. Desacoplamentos: **milestone vira entrega** (agrupa fases, não 1:1); `10` reescrito como **universal** com particularidades por ferramenta (Claude Design, Figma, Penpot, code-first); `07` **nasce vazio** (era pré-preenchido com decisões de outro projeto); `03` deixa de trazer "monólito modular" como decidido — vira decisão da entrevista + ADR — e ganha contratos entre módulos, consistência/transações, cross-cutting, visão C4, anti-corruption layer. Entrevista do scaffold ampliada (estratégia de credencial, MFA, OAuth, estilo arquitetural, ferramenta de design).
 - **v13** — bloco **Autenticação e credenciais** no `12` (JWT com confusão de algoritmo e `kid`/`jku`, sessão server-side, chaves de API, MFA/TOTP, hash de senha, webhooks, OAuth2/OIDC reagrupado); seis tecnologias que acompanham o stack (serverless/edge, SDKs de analytics com **session replay**, pagamentos, filas, CDN/WAF, APIs de LLM); passo a passo **"Migrar de solo para equipe"**.
 - **v12** — `05` reescrito como **universal** (sem React/Vite/Sentry no corpo das regras); novo `12-seguranca-por-tecnologia.md`, catálogo de particularidades de 25+ tecnologias lido **sob demanda** conforme o `04`, incluindo GraphQL, WebSocket, OAuth2/OIDC, containers, object storage e e-mail transacional.
@@ -75,7 +77,7 @@ README-DO-KIT.md       ← este guia
 
 Descreva a tarefa naturalmente — a skill certa dispara sozinha:
 - "Planeja a implementação / monta o roadmap" → `planejar-roadmap` (fases com fatias verticais, P0/P1/P2 e XS–XL; itens com UI dependem de design pronto; as fases são agrupadas em **entregas/milestones**; você aprova antes de gravar).
-- "Cria as issues do relatório/da fase" → `criar-issues`: analisa se o conjunto vira **épico + sub-issues** (3+ itens que só entregam valor juntos, contexto compartilhado, 1 PR faz sentido) ou **issues individuais** (o default), rascunha o lote com o agrupamento proposto, e após sua aprovação cria a **milestone da entrega** (Modo roadmap), as issues e a **branch** (`epic/{N}-...` ou `{tipo}/{N}-...`).
+- "Cria as issues do relatório/da fase" → `criar-issues`: analisa se o conjunto vira **épico + sub-issues** (3+ itens que só entregam valor juntos, contexto compartilhado, 1 PR faz sentido) ou **issues individuais** (o default), rascunha o lote com o agrupamento proposto, e após sua aprovação cria a **milestone da entrega** (Modo roadmap), as issues (com `**Priority:** · **Size:**` no corpo) e a **branch** (`epic/{N}-...` ou `{tipo}/{N}-...`).
 - "Implemente a feature de X" → `nova-feature` (test-first no domínio; **se tem UI, implementa a partir do handoff bundle** em `.claude/design/` — nunca improvisa layout; sem design para a tela → ela pergunta).
 - **Fluxo de design:** desenhe/refine no Claude Design → Export → **Handoff to Claude Code → Send to local coding agent** → bundle em `.claude/design/{data}-<tela>/` → "Implemente a tela X" dispara `nova-feature`. Criou componente reutilizável novo? Rode `/design-sync` para fechar o ciclo (regras em `10-design-system.md`).
 - "Está dando erro em Y" → `correcao-bugs` (reproduz com teste antes).
@@ -95,7 +97,7 @@ Toda skill de construção fecha com: entrada no `CHANGELOG.md` (com a branch) +
 
 0. **Planejar (pós-scaffold):** "Monta o roadmap de implementação" → `planejar-roadmap` lê os requisitos e propõe fases em fatias verticais, priorizadas por dependência + risco + valor; você aprova → `.claude/docs/roadmap.md`. Em seguida: "Cria as issues da fase 1" → `criar-issues` (Modo roadmap) abre o backlog inicial com labels e critérios de aceite. Ao concluir a fase: "Atualiza o roadmap" → replaneja a próxima com o que se aprendeu.
 1. **Auditar:** "Faz uma auditoria de segurança" → o subagent (somente-leitura) varre o código em contexto isolado e devolve o laudo; a conversa principal salva em `.claude/docs/2026-XX-XX-seguranca-audit.md` e registra no changelog.
-2. **Planejar:** "Cria as issues desse relatório" → `criar-issues` rascunha uma issue por achado (labels `origem: auditoria` + `tipo:` + `prioridade:` mapeada da severidade, com deduplicação), você aprova o lote, ela cria no GitHub.
+2. **Planejar:** "Cria as issues desse relatório" → `criar-issues` rascunha uma issue por achado (labels `origem: auditoria` + `tipo:`, com `**Priority:** · **Size:**` no corpo — Priority mapeada da severidade — e deduplicação), você aprova o lote, ela cria no GitHub.
 3. **Executar:** para cada issue — "Corrige a issue #12" → `correcao-bugs`/`refatoracao`/`nova-feature` implementa nos padrões do kit e entrega o texto de commit (`fix: ... Closes #12`). Você commita.
 4. **Entregar:** *"Revisa a branch"* → `revisao-codigo` (resolva os BLOQUEIA) → `git push -u origin <branch>` → *"Prepara o PR"* → `preparar-pr` **cria o PR**; você (ou o revisor, em equipe) aprova e mescla no GitHub.
 5. **Repetir:** rode `auditoria-qualidade` periodicamente — ela também detecta drift entre o `project_context/` e o código real.

@@ -16,9 +16,9 @@ export interface MeterReadingListResponse {
 }
 
 /**
- * Camada de acesso a `GET /api/meter-readings` (issue #211) — leituras
- * agregadas por minuto/hora, sem custo/tarifa. Ver `consumptionService`
- * para o equivalente de faturamento (granularidade hour+).
+ * Camada de acesso a `GET /api/meter-readings` — leituras agregadas por
+ * minuto/hora, sem custo/tarifa. Ver `consumptionService` para o
+ * equivalente de faturamento (granularidade hour+).
  */
 export const meterReadingService = {
     list: async (params: ListMeterReadingsParams): Promise<MeterReadingListResponse> => {

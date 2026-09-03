@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { renderWithProviders, screen } from "@/tests/test-utils"
 import { Header } from "@/components/layout/Header"
 import { authService } from "@/services/auth.service"
-import { useRealtime } from "@/contexts/RealtimeContext"
+import { useRealtimeConnection } from "@/contexts/RealtimeContext"
 import type { User } from "@/types/auth.types"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
@@ -42,11 +42,11 @@ vi.mock("@/services/notification.service", () => ({
 }))
 
 // Header não é envolvido por um RealtimeProvider neste teste (isso é papel
-// do AppShell) — useRealtime() cai no valor default do contexto
+// do AppShell) — useRealtimeConnection() cai no valor default do contexto
 // (isConnected: false); mockamos o módulo pra poder simular "conectado"
 // num teste específico.
 vi.mock("@/contexts/RealtimeContext", () => ({
-    useRealtime: vi.fn(() => ({ readingsByMeterId: {}, isConnected: false })),
+    useRealtimeConnection: vi.fn(() => ({ isConnected: false })),
 }))
 
 const mockUser: User = {
@@ -64,7 +64,7 @@ const mockUser: User = {
 beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser)
-    vi.mocked(useRealtime).mockReturnValue({ readingsByMeterId: {}, isConnected: false })
+    vi.mocked(useRealtimeConnection).mockReturnValue({ isConnected: false })
 })
 
 /**
@@ -121,7 +121,7 @@ describe("Header — renderização", () => {
     })
 
     it('mostra "Dados ao vivo" só quando o SSE está conectado', async () => {
-        vi.mocked(useRealtime).mockReturnValue({ readingsByMeterId: {}, isConnected: true })
+        vi.mocked(useRealtimeConnection).mockReturnValue({ isConnected: true })
 
         renderHeader(["/dashboard"])
         await screen.findByRole("heading", { level: 1 })

@@ -8,11 +8,10 @@ interface ApiEnvelope<T> {
 }
 
 /**
- * Camada de acesso à API de alertas — reescrita da Fase 4.
+ * Camada de acesso à API de alertas.
  *
  * Recurso top-level (`/api/alerts`), vinculado direto a um `meterId`
- * (que já carrega o alvo) — sem mais rotas aninhadas sob
- * property/area/device.
+ * (que já carrega o alvo) — sem rotas aninhadas sob property/area/device.
  */
 export const alertService = {
     list: async (params: PaginationParams = {}): Promise<Paginated<AlertWithStatus>> => {
@@ -24,6 +23,11 @@ export const alertService = {
 
     firing: async (): Promise<AlertWithStatus[]> => {
         const { data } = await api.get<ApiEnvelope<AlertWithStatus[]>>("/alerts/firing")
+        return data.data
+    },
+
+    stats: async (): Promise<{ enabledCount: number }> => {
+        const { data } = await api.get<ApiEnvelope<{ enabledCount: number }>>("/alerts/stats")
         return data.data
     },
 

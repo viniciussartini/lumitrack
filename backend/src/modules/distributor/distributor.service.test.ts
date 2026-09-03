@@ -22,7 +22,7 @@ afterAll(async () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SUITE: DistributorService — catálogo global somente leitura (Fase 3.2)
+// SUITE: DistributorService — catálogo global somente leitura
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("DistributorService", () => {

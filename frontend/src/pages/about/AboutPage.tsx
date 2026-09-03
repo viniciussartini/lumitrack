@@ -9,7 +9,7 @@ import { PRIVACY_CONTACT_EMAIL } from "@/config/privacy"
 
 // TODO(design): aguardando handoff — Sobre o projeto. Não existe tela
 // equivalente em `.claude/design/2026-07-31-lumitrack-completo/` (única
-// rota do roadmap sem handoff, decisão do usuário 2026-08-04) — versão
+// rota do roadmap sem handoff, decisão do usuário) — versão
 // provisória reaproveitando o vocabulário Industry já estabelecido
 // (mesmo tratamento de `LegalDocumentPage`/LGPD: markdown canônico +
 // `.blueprint` pra destaque), sem inventar nada fora dele.
@@ -25,7 +25,7 @@ export const AboutPage = () => (
             </ReactMarkdown>
         </article>
 
-        <div className="blueprint flex flex-wrap items-center justify-between gap-4 p-[26px]">
+        <div className="blueprint p-26px flex flex-wrap items-center justify-between gap-4">
             <i className="corner tl" />
             <i className="corner tr" />
             <i className="corner bl" />
@@ -51,11 +51,11 @@ export const AboutPage = () => (
         </div>
 
         {/* Canal de comunicação com o titular (LGPD Art. 18 §1º + Res.
-            CD/ANPD 2/2022, Art. 11) — issue #155. Precisa estar visível
-            dentro do shell autenticado, não só no rodapé público; "Sobre o
-            projeto" é o destino institucional já estabelecido (Fase 6), sem
-            precisar inventar um rodapé novo no AppShell. */}
-        <div className="blueprint flex flex-wrap items-center justify-between gap-4 p-[26px]">
+            CD/ANPD 2/2022, Art. 11). Precisa estar visível dentro do shell
+            autenticado, não só no rodapé público; "Sobre o projeto" é o
+            destino institucional já estabelecido, sem precisar inventar um
+            rodapé novo no AppShell. */}
+        <div className="blueprint p-26px flex flex-wrap items-center justify-between gap-4">
             <i className="corner tl" />
             <i className="corner tr" />
             <i className="corner bl" />

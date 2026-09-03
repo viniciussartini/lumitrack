@@ -26,11 +26,11 @@ import { QueryClient } from "@tanstack/react-query"
  *       TODAS as queries montadas de uma vez — inclui o fan-out de
  *       consumo do Painel (até 20 propriedades × ~8 queries no
  *       backend cada, ~160 queries por refetch). Enquanto esse endpoint
- *       não vira uma chamada em lote (Fase 15 do roadmap), `true`
- *       amplificaria exatamente esse custo. Os dados que realmente
- *       precisam de frescor "ao vivo" (potência, leituras) já chegam por
- *       SSE (RealtimeContext), não por refetch do TanStack Query —
- *       revisitar quando o fan-out for resolvido, se fizer sentido.
+ *       não vira uma chamada em lote, `true` amplificaria exatamente esse
+ *       custo. Os dados que realmente precisam de frescor "ao vivo"
+ *       (potência, leituras) já chegam por SSE (RealtimeContext), não por
+ *       refetch do TanStack Query — revisitar quando o fan-out for
+ *       resolvido, se fizer sentido.
  */
 export const queryClient = new QueryClient({
     defaultOptions: {
@@ -49,10 +49,10 @@ export const queryClient = new QueryClient({
 /**
  * Chaves de query — centralizadas para evitar typos e facilitar invalidação.
  *
- * Reformulação IoT (Fase 5): listagens paginadas (properties, areas, devices,
- * meters, distributors, alerts, alertEvents, consumption) incluem page/pageSize
- * na key — páginas diferentes são resultados diferentes que valem cache
- * próprio. `notifications` não é paginado (efêmero, cap de 100 no backend).
+ * Listagens paginadas (properties, areas, devices, meters, distributors,
+ * alerts, alertEvents, consumption) incluem page/pageSize na key — páginas
+ * diferentes são resultados diferentes que valem cache próprio.
+ * `notifications` não é paginado (efêmero, cap de 100 no backend).
  */
 export const queryKeys = {
     distributors: {
@@ -91,16 +91,17 @@ export const queryKeys = {
     },
     consumption: {
         all: ["consumption"] as const,
-        // `window` distingue consultas de janela (tabela/gráfico de consumo,
-        // que pedem from/to/order) das consultas "últimos N buckets" dos KPIs
-        // — mesmo alvo e mesmo bucket, resultados diferentes.
+        // Consulta de janela (tabela/gráfico de consumo, from/to/order) —
+        // `window` sempre um valor real aqui; a consulta "últimos N buckets"
+        // (sem janela) tem chave própria, `latest` abaixo, desde que colidiu
+        // de verdade com esta (Fase 4).
         list: (
             targetType: string,
             targetId: string,
             granularity: string,
             page: number,
             pageSize: number,
-            window: string = "all",
+            window: string,
         ) =>
             [
                 ...queryKeys.consumption.all,
@@ -112,6 +113,29 @@ export const queryKeys = {
                 pageSize,
                 window,
             ] as const,
+        // "Últimos N buckets" (KPIs do painel, comparação mensal de área) —
+        // não paginado; `count` é quantos buckets mais recentes, não um
+        // `pageSize` de verdade. Chave própria: nunca compartilha cache com
+        // `list`, mesmo que targetType/granularity/pageSize coincidam.
+        latest: (targetType: string, targetId: string, granularity: string, count: number) =>
+            [
+                ...queryKeys.consumption.all,
+                "latest",
+                targetType,
+                targetId,
+                granularity,
+                count,
+            ] as const,
+        // Endpoint batch — "último bucket de N alvos do mesmo tipo", não
+        // paginado. Chave própria pra não colidir com `list`.
+        summary: (targetType: string, ids: string[], granularity: string) =>
+            [
+                ...queryKeys.consumption.all,
+                "summary",
+                targetType,
+                [...ids].sort(),
+                granularity,
+            ] as const,
     },
     meterReadings: {
         all: ["meterReadings"] as const,
@@ -121,12 +145,18 @@ export const queryKeys = {
         // de refetch da mesma.
         history: (targetType: string, targetId: string) =>
             [...queryKeys.meterReadings.all, "history", targetType, targetId] as const,
+        // Fallback REST da potência mais recente — chave própria, não
+        // compartilha cache com `history` (janela e formato de retorno
+        // diferentes).
+        latest: (targetType: string, targetId: string) =>
+            [...queryKeys.meterReadings.all, "latest", targetType, targetId] as const,
     },
     alerts: {
         all: ["alerts"] as const,
         list: (page: number, pageSize: number) =>
             [...queryKeys.alerts.all, "list", page, pageSize] as const,
         firing: () => [...queryKeys.alerts.all, "firing"] as const,
+        stats: () => [...queryKeys.alerts.all, "stats"] as const,
         detail: (id: string) => [...queryKeys.alerts.all, "detail", id] as const,
     },
     alertEvents: {

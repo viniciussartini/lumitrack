@@ -1,6 +1,7 @@
 import express, { type RequestHandler } from "express"
 import cors from "cors"
 import helmet from "helmet"
+import compression from "compression"
 import cookieParser from "cookie-parser"
 import { pinoHttp } from "pino-http"
 import type { Logger } from "pino"
@@ -12,6 +13,8 @@ import { createGlobalRateLimiter, createAuthRateLimiter } from "@/shared/middlew
 import { decideHttpsRedirect } from "@/shared/security/httpsRedirect.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { AuditService } from "@/shared/audit/audit.service.js"
+import { createQueryCountMiddleware } from "@/shared/database/queryCounter.js"
+import { shouldCompress } from "@/shared/middlewares/compressionFilter.js"
 import { PrismaClient } from "@/generated/prisma/client.js"
 import { prisma } from "@/shared/database/prisma.js"
 import type { SendPasswordResetEmailFn } from "@/modules/auth/auth.service.js"
@@ -84,8 +87,8 @@ export function createApp(deps: AppDependencies = {}) {
         app.set("trust proxy", 1)
     }
 
-    // Host canônico (issue #183) — recusa Host fora do domínio real (400) e
-    // redireciona HTTP → HTTPS usando SEMPRE esse valor fixo, nunca o header
+    // Host canônico — recusa Host fora do domínio real (400) e redireciona
+    // HTTP → HTTPS usando SEMPRE esse valor fixo, nunca o header
     // do cliente (evita open redirect via Host forjado). Decisão pura em
     // shared/security/httpsRedirect.ts — no-op fora de produção.
     const canonicalUrl = new URL(env.PUBLIC_API_ORIGIN)
@@ -143,6 +146,13 @@ export function createApp(deps: AppDependencies = {}) {
         }),
     )
 
+    // Compressão HTTP — antes de qualquer rota, para que nenhuma resposta
+    // escape sem passar pelo filtro. `shouldCompress` exclui o stream SSE de
+    // ingestão IoT: comprimir segurar-ia os chunks até acumular um bloco,
+    // quebrando a entrega em tempo real (ver
+    // shared/middlewares/compressionFilter.ts).
+    app.use(compression({ filter: shouldCompress }))
+
     // Health check fica fora do rate limit (monitoramento / load balancer).
     app.get("/health", (_req, res) => {
         res.json({ status: "ok", timestamp: new Date().toISOString() })
@@ -172,6 +182,15 @@ export function createApp(deps: AppDependencies = {}) {
     app.use(express.json())
     app.use(express.urlencoded({ extended: true }))
 
+    // Instrumentação de desempenho — conta queries Prisma por requisição,
+    // restrita a /api/alerts e /api/consumption (N+1 e fan-out sob
+    // investigação). Fail-closed: env.ts proíbe DEBUG_QUERY_LOGGING_ENABLED
+    // em produção — este middleware só existe rodando com NODE_ENV=development
+    // e a flag ligada explicitamente, nunca em qualquer ambiente publicado.
+    if (env.DEBUG_QUERY_LOGGING_ENABLED) {
+        app.use(createQueryCountMiddleware(["/api/alerts", "/api/consumption"]))
+    }
+
     const authenticate = createAuthenticateMiddleware(prismaClient)
     const auditService = new AuditService(new AuditRepository(prismaClient))
 
@@ -185,11 +204,11 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/auth/demo-login", authRateLimiter)
     app.use("/api/auth/forgot-password", authRateLimiter)
     app.use("/api/auth/reset-password", authRateLimiter)
-    // Efetiva troca de e-mail (issue #178) — endpoint público consumidor de
-    // token, mesma classe de abuso dos outros 4.
+    // Efetiva troca de e-mail — endpoint público consumidor de token, mesma
+    // classe de abuso dos outros 4.
     app.use("/api/auth/confirm-email-change", authRateLimiter)
-    // Cadastro público (issue #181) — mesmo alvo de abuso/enumeração dos
-    // endpoints acima. `app.post` (não `app.use`) porque "/api/users" é
+    // Cadastro público — mesmo alvo de abuso/enumeração dos endpoints
+    // acima. `app.post` (não `app.use`) porque "/api/users" é
     // prefixo também de GET/PUT/DELETE /api/users/:id (autenticados, já
     // cobertos pelo rate limit global) — `app.use` aplicaria o limiter
     // estrito a esses também, o que não é o objetivo aqui.

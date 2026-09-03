@@ -6,8 +6,9 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["relationJoins"]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -33,7 +34,7 @@ enum TokenChannel {
   MOBILE
 }
 
-// RBAC mínimo (#16 — A01/Art. 48): distingue usuários comuns de
+// RBAC mínimo (A01/Art. 48): distingue usuários comuns de
 // administradores. Sempre lida do banco a cada requisição (nunca um claim do
 // JWT) — ver shared/middlewares/authenticate.ts — para que promover/rebaixar
 // um admin tenha efeito imediato, sem exigir novo login. Documento de design
@@ -45,7 +46,7 @@ enum Role {
   @@map("role")
 }
 
-// Eventos de segurança registrados no audit log (#08 — A09/Art. 46).
+// Eventos de segurança registrados no audit log (A09/Art. 46).
 enum AuditAction {
   LOGIN
   LOGOUT
@@ -123,7 +124,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // RBAC mínimo (#16 — A01/Art. 48). Ver enum Role acima.
+  // RBAC mínimo (A01/Art. 48). Ver enum Role acima.
   role Role @default(USER)
 
   // Consentimento LGPD (Art. 7º/8º) — registrado no cadastro.
@@ -133,8 +134,8 @@ model User {
   consentVersion String?
 
   // Campos exclusivos de pessoa física
-  firstName String?
-  lastName  String?
+  firstName     String?
+  lastName      String?
   // cpf armazena o valor criptografado (AES-256-GCM, ver shared/crypto/encryption.ts)
   // — não pode ser @unique porque o IV aleatório faz o mesmo CPF gerar
   // ciphertext diferente a cada criptografia. cpfBlindIndex (HMAC-SHA256,
@@ -143,13 +144,13 @@ model User {
   cpfBlindIndex String? @unique
 
   // Campos exclusivos de pessoa jurídica
-  companyName String?
+  companyName    String?
   // cnpj armazena o valor criptografado — mesma lógica do cpf acima.
   cnpj           String?
   cnpjBlindIndex String? @unique
   tradeName      String?
 
-  // MFA opcional via TOTP (#12 — A06/A07). mfaSecret armazena o segredo
+  // MFA opcional via TOTP (A06/A07). mfaSecret armazena o segredo
   // criptografado (AES-256-GCM, chave própria — ver
   // shared/crypto/mfaEncryption.ts), nunca em texto claro. mfaEnabled
   // controla se o segundo fator é exigido no login — fica false até o
@@ -191,7 +192,7 @@ model AuthToken {
   @@map("auth_tokens")
 }
 
-// Refresh token da sessão WEB (#14 — A06). Token opaco (randomBytes), nunca
+// Refresh token da sessão WEB (A06). Token opaco (randomBytes), nunca
 // um JWT — só é validado via lookup no banco, nunca decodificado client-side.
 // Rotacionado a cada uso: replacedByTokenId encadeia a linhagem, permitindo
 // detectar reuso de um token já trocado (sinal de roubo — ver auth.service.ts).
@@ -216,7 +217,7 @@ model RefreshToken {
 model PasswordReset {
   id        String    @id @default(uuid())
   userId    String
-  token     String    @unique // hash SHA-256 do valor opaco — nunca o valor puro (#10, mesmo padrão de AuthToken/RefreshToken)
+  token     String    @unique // hash SHA-256 do valor opaco — nunca o valor puro
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
@@ -226,7 +227,7 @@ model PasswordReset {
   @@map("password_resets")
 }
 
-// Troca de e-mail com verificação (#178 — A07): o e-mail só é efetivado
+// Troca de e-mail com verificação (A07): o e-mail só é efetivado
 // quando o link enviado a `newEmail` é confirmado — mesmo padrão de token
 // hasheado + TTL curto de PasswordReset, com a coluna extra `newEmail`
 // (o alvo pendente da troca, não persistido em `User.email` até a
@@ -245,7 +246,7 @@ model EmailChange {
   @@map("email_changes")
 }
 
-// Códigos de backup do MFA (#12) — uso único, gerados em lote no momento do
+// Códigos de backup do MFA — uso único, gerados em lote no momento do
 // setup e exibidos uma única vez ao usuário (só o hash bcrypt fica
 // persistido). Cobrem o caso de perda do dispositivo com o app autenticador.
 model MfaBackupCode {
@@ -258,10 +259,13 @@ model MfaBackupCode {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  // Suporte ao expurgo por retenção, que filtra só por usedAt (não userId) —
+  // ver AuthRepository.deleteUsedMfaBackupCodes.
+  @@index([usedAt])
   @@map("mfa_backup_codes")
 }
 
-// Trilha de auditoria (#08 — A09/Art. 46): login/logout, acesso negado (403)
+// Trilha de auditoria (A09/Art. 46): login/logout, acesso negado (403)
 // e CRUD de dados pessoais (User/Property). `userId` é nullable e usa
 // `onDelete: SetNull` — diferente das outras relações com User (que usam
 // Cascade) — de propósito: o registro de auditoria deve sobreviver à
@@ -302,9 +306,9 @@ model AuditLog {
 // concessionária). O custo por kWh agora é decomposto em TUSD + TE + tributos
 // (cálculo "por dentro"), aplicado pelo TariffService.
 model EnergyDistributor {
-  id   String @id @default(uuid())
-  name String
-  cnpj String @unique
+  id    String @id @default(uuid())
+  name  String
+  cnpj  String @unique
   state String // UF (ex.: "SP", "SC") — define a alíquota de ICMS aplicável
 
   // Parcelas da tarifa sem tributos, em BRL/kWh. TUSD = uso do sistema de
@@ -332,7 +336,7 @@ model EnergyDistributor {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Property {
-  id            String   @id @default(uuid())
+  id            String  @id @default(uuid())
   userId        String
   distributorId String
   name          String
@@ -360,6 +364,11 @@ model Property {
   areas       Area[]
   meter       Meter?
 
+  // O Prisma Migrate cria a constraint de FK, mas não o índice no Postgres
+  // (diferente do MySQL) — sem isto, toda travessia de posse (User→Property)
+  // e o filtro por distribuidora fazem seq scan.
+  @@index([userId])
+  @@index([distributorId])
   @@map("properties")
 }
 
@@ -375,6 +384,7 @@ model Area {
   devices  Device[]
   meter    Meter?
 
+  @@index([propertyId])
   @@map("areas")
 }
 
@@ -391,6 +401,7 @@ model Device {
   area  Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
   meter Meter?
 
+  @@index([areaId])
   @@map("devices")
 }
 
@@ -422,9 +433,9 @@ model Meter {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  property Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  area     Area?     @relation(fields: [areaId], references: [id], onDelete: Cascade)
-  device   Device?   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  property Property?      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  area     Area?          @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  device   Device?        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   readings MeterReading[]
   alerts   Alert[]
 
@@ -452,6 +463,11 @@ model MeterReading {
   meter Meter @relation(fields: [meterId], references: [id], onDelete: Cascade)
 
   @@unique([meterId, minuteStart])
+  // Índice isolado de suporte ao expurgo por retenção — o expurgo filtra só
+  // por minuteStart (`< threshold`), sem meterId; o índice único acima tem
+  // meterId como coluna mais à esquerda, então não serve para essa
+  // varredura por regra de prefixo esquerdo.
+  @@index([minuteStart])
   @@map("meter_readings")
 }
 
@@ -469,7 +485,7 @@ model TariffFlagConfig {
   @@map("tariff_flag_config")
 }
 
-// Origem de uma troca da bandeira/valores vigentes — #143.
+// Origem de uma troca da bandeira/valores vigentes.
 enum TariffFlagChangeSource {
   MANUAL
   AUTO
@@ -477,9 +493,9 @@ enum TariffFlagChangeSource {
   @@map("tariff_flag_change_source")
 }
 
-// Histórico de cada troca da bandeira ou dos valores vigentes (#143 —
-// sincronização automática a partir da fonte oficial ANEEL, ver
-// ADR-0007). Cada linha é um snapshot completo do config antes/depois
+// Histórico de cada troca da bandeira ou dos valores vigentes —
+// sincronização automática a partir da fonte oficial ANEEL, ver ADR-0007.
+// Cada linha é um snapshot completo do config antes/depois
 // (não só o campo que mudou), para nunca ficar ambíguo sobre o que
 // estava vigente no momento da troca. changedByUserId é nulo quando
 // source = AUTO (a sincronização automática não tem usuário agindo).
@@ -523,6 +539,7 @@ model Alert {
   events AlertTriggerEvent[]
 
   @@index([meterId])
+  @@index([userId])
   @@map("alerts")
 }
 
@@ -544,5 +561,10 @@ model AlertTriggerEvent {
   alert Alert @relation(fields: [alertId], references: [id], onDelete: Cascade)
 
   @@index([alertId, startedAt])
+  // Suporte ao expurgo por retenção, que filtra só por createdAt (sem
+  // alertId) — o índice acima tem alertId como coluna líder e não serve
+  // essa varredura, mesma regra de prefixo esquerdo do índice único de
+  // MeterReading.
+  @@index([createdAt])
   @@map("alert_trigger_events")
 }

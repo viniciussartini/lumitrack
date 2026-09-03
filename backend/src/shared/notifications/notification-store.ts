@@ -46,7 +46,7 @@ export class NotificationStore {
         return this.byUser.get(userId) ?? []
     }
 
-    // "Lida" = excluída (requisito da Fase 4 — não há estado read/unread).
+    // "Lida" = excluída — não há estado read/unread.
     // Retorna false se a notificação não existe (já removida, ou nunca existiu).
     remove(userId: string, notificationId: string): boolean {
         const list = this.byUser.get(userId)

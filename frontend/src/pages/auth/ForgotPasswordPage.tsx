@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { AUTH_LAYOUT_GRID_CLASS, BrandPanel } from "@/components/auth/BrandPanel"
+import { IconCircle } from "@/components/ui/IconCircle"
 import { RecoverySteps } from "@/components/auth/RecoverySteps"
 import { authService } from "@/services/auth.service"
 import { extractErrorMessage } from "@/services/api"
@@ -58,18 +59,18 @@ export const ForgotPasswordPage = () => {
                 <div className="w-full max-w-[400px]">
                     {step === "request" ? (
                         <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} noValidate>
-                            <span className="text-accent-700 font-heading block text-[13px] font-semibold tracking-[.09em] uppercase">
+                            <span className="text-accent-700 font-heading text-13 block font-semibold tracking-[.09em] uppercase">
                                 Recuperação de senha
                             </span>
                             <h2 className="font-heading mt-3 text-[clamp(26px,2.8vw,36px)] leading-[1.03] font-semibold uppercase">
                                 Esqueceu a senha?
                             </h2>
-                            <p className="text-muted mt-3 text-[14.5px] leading-normal">
+                            <p className="text-muted text-14-5 mt-3 leading-normal">
                                 Informe o e-mail da sua conta. Enviaremos um link para você criar
                                 uma nova senha.
                             </p>
 
-                            <div className="mt-[26px]">
+                            <div className="mt-26px">
                                 <Input
                                     label="E-mail cadastrado"
                                     type="email"
@@ -92,7 +93,7 @@ export const ForgotPasswordPage = () => {
                             <Button
                                 type="submit"
                                 isLoading={isSubmitting}
-                                className="btn-block mt-6 min-h-[46px]"
+                                className="btn-block min-h-46px mt-6"
                             >
                                 Enviar link de recuperação
                             </Button>
@@ -103,18 +104,17 @@ export const ForgotPasswordPage = () => {
                             </p>
                         </form>
                     ) : (
-                        <Blueprint className="px-[30px] py-[34px] text-center">
-                            <div className="border-accent mx-auto flex h-[52px] w-[52px] items-center justify-center border-[1.5px]">
-                                <Mail
-                                    className="text-accent h-[26px] w-[26px]"
-                                    strokeWidth={1.5}
-                                    aria-hidden="true"
-                                />
-                            </div>
-                            <h2 className="font-heading mt-5 text-[26px] leading-[1.05] font-semibold uppercase">
+                        <Blueprint className="px-30px py-10 text-center">
+                            <IconCircle
+                                icon={Mail}
+                                tone="accent"
+                                strokeWidth={1.5}
+                                className="mx-auto"
+                            />
+                            <h2 className="font-heading text-26 mt-5 leading-[1.05] font-semibold uppercase">
                                 Link enviado
                             </h2>
-                            <p className="text-muted mt-3 text-[14.5px] leading-[1.55]">
+                            <p className="text-muted text-14-5 mt-3 leading-[1.55]">
                                 Se houver uma conta associada a{" "}
                                 <strong className="text-text">
                                     {sentTo || getValues("email") || "seu e-mail"}
@@ -130,7 +130,7 @@ export const ForgotPasswordPage = () => {
                             >
                                 Reenviar para outro e-mail
                             </Button>
-                            <p className="text-muted mt-5 text-[12.5px] leading-normal">
+                            <p className="text-muted text-12-5 mt-5 leading-normal">
                                 Não recebeu? Verifique a caixa de spam ou aguarde alguns minutos
                                 antes de reenviar.
                             </p>

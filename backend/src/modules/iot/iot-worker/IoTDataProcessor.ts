@@ -8,15 +8,15 @@
  * Fluxo de dados:
  *   Medidor → IConnection.onData → IoTConnectionManager.dataHandler
  *          → IoTDataProcessor.process → MinuteBuffer.add
- *          → listeners (SSE, e futuramente AlertEvaluator na Fase 4)
+ *          → listeners (SSE, AlertEvaluator)
  *
- * Reformulação IoT (Fase 2): o payload deixou de ser um incremento de kWh
- * pronto (`{ value }`) e passou a ser uma leitura elétrica instantânea
- * (~1/s): `{ deviceTimestamp?, voltage, current, powerW, powerFactor }`.
- * A energia do intervalo é calculada aqui no backend a partir da potência e
- * do tempo decorrido desde a amostra anterior — o timestamp OFICIAL da
- * leitura é sempre o momento de recebimento (`new Date()`), nunca o
- * `deviceTimestamp` do payload, que é só metadado de diagnóstico (log).
+ * O payload é uma leitura elétrica instantânea (~1/s): `{ deviceTimestamp?,
+ * voltage, current, powerW, powerFactor }` — não um incremento de kWh
+ * pronto. A energia do intervalo é calculada aqui no backend a partir da
+ * potência e do tempo decorrido desde a amostra anterior — o timestamp
+ * OFICIAL da leitura é sempre o momento de recebimento (`new Date()`),
+ * nunca o `deviceTimestamp` do payload, que é só metadado de diagnóstico
+ * (log).
  *
  * Por que não lançar exceções aqui? Porque este código roda em um loop
  * assíncrono de background, fora do ciclo request/response do Express.
@@ -44,9 +44,9 @@ export interface MeterReadingSample {
     receivedAt: Date
 }
 
-// Listener genérico de amostras processadas. Usado hoje pela rota SSE
-// (evento "reading"); a Fase 4 registra aqui também o AlertEvaluator, sem
-// precisar mudar a API pública do processor.
+// Listener genérico de amostras processadas. Usado pela rota SSE (evento
+// "reading") e pelo AlertEvaluator, sem precisar mudar a API pública do
+// processor.
 export type SampleListener = (sample: MeterReadingSample) => void
 
 interface RawReadingPayload extends Record<string, unknown> {
@@ -57,17 +57,26 @@ interface RawReadingPayload extends Record<string, unknown> {
     powerFactor: number
 }
 
-function isFiniteNonNegative(value: unknown): value is number {
-    return typeof value === "number" && Number.isFinite(value) && value >= 0
+// Tetos de plausibilidade física — nenhum tem origem numa norma, são só uma
+// margem generosa acima do maior valor esperado numa instalação
+// residencial/comercial (Grupo B), para pegar erro grosseiro de leitura
+// (unidade errada, overflow de registrador, ruído) sem rejeitar instalação
+// legítima. Grupo A de grande porte (Fase 19+) pode exigir revisão.
+const MAX_PLAUSIBLE_VOLTAGE = 500 // V — cobre 127/220/380V com margem
+const MAX_PLAUSIBLE_CURRENT = 2000 // A
+const MAX_PLAUSIBLE_POWER_W = 1_000_000 // 1 MW
+
+function isFiniteInRange(value: unknown, max: number): value is number {
+    return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= max
 }
 
 function isValidPayload(raw: Record<string, unknown>): raw is RawReadingPayload {
     const { voltage, current, powerW, powerFactor } = raw
 
     return (
-        isFiniteNonNegative(voltage) &&
-        isFiniteNonNegative(current) &&
-        isFiniteNonNegative(powerW) &&
+        isFiniteInRange(voltage, MAX_PLAUSIBLE_VOLTAGE) &&
+        isFiniteInRange(current, MAX_PLAUSIBLE_CURRENT) &&
+        isFiniteInRange(powerW, MAX_PLAUSIBLE_POWER_W) &&
         typeof powerFactor === "number" &&
         Number.isFinite(powerFactor) &&
         powerFactor >= 0 &&

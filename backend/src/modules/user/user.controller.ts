@@ -5,13 +5,24 @@ import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
 import { getRequestContext } from "@/shared/audit/requestContext.js"
 
+/** Camada HTTP de contas de usuário — delega toda a regra a {@link UserService} e registra os eventos de auditoria de cada escrita. */
 export class UserController {
+    /**
+     * @param userService - Serviço de contas de usuário, composto manualmente nas rotas do módulo.
+     * @param auditService - Registro de eventos de auditoria das escritas do módulo.
+     */
     constructor(
         private readonly userService: UserService,
         private readonly auditService: AuditService,
     ) {}
 
-    // POST /api/users - Público
+    /**
+     * `POST /api/users` — cadastro público de uma nova conta.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async create(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const user = await this.userService.createUser(req.body)
@@ -31,7 +42,14 @@ export class UserController {
         }
     }
 
-    // GET /api/users/:id — Autenticado
+    /**
+     * `GET /api/users/:id` — detalhe da própria conta. Só o titular pode
+     * consultar seus dados; qualquer outro id é rejeitado.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async findById(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id } = req.params as { id: string }
@@ -49,7 +67,14 @@ export class UserController {
         }
     }
 
-    // PUT /api/users/:id — Autenticado
+    /**
+     * `PUT /api/users/:id` — atualiza a própria conta e registra, em
+     * auditoria, quais campos mudaram. Só o titular pode se atualizar.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async update(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id } = req.params as { id: string }
@@ -79,7 +104,14 @@ export class UserController {
         }
     }
 
-    // DELETE /api/users/:id — Autenticado
+    /**
+     * `DELETE /api/users/:id` — remove a própria conta. Só o titular pode
+     * se excluir.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { id } = req.params as { id: string }

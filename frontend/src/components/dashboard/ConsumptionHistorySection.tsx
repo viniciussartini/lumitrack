@@ -34,7 +34,7 @@ const MONTHLY_HISTORY_PAGE_SIZE = 31
  * página quando a propriedade selecionada não tem medidor, mas é a mesma
  * convenção já em produção em `PropertyDetailsPage` (MeterSection +
  * ConsumptionSection, cada um com seu próprio aviso) — não uma
- * inconsistência nova desta issue.
+ * inconsistência nova.
  */
 export const ConsumptionHistorySection = ({
     propertyId,
@@ -76,10 +76,10 @@ export const ConsumptionHistorySection = ({
 
             <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
                 <div>
-                    <span className="font-heading text-[17px] font-semibold uppercase">
+                    <span className="font-heading text-17 font-semibold uppercase">
                         Histórico de consumo
                     </span>
-                    <span className="text-muted mt-[3px] block text-[12.5px]">
+                    <span className="text-muted text-12-5 mt-[3px] block">
                         {propertyName} · consumo {isMonthly ? "diário do mês corrente" : "mensal"}{" "}
                         (kWh)
                     </span>

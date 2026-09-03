@@ -38,7 +38,7 @@ const validAreaBody = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // channel: "MOBILE" porque só precisamos de um Bearer token para autenticar
-// via header — WEB não devolve token no body (#06, cookie httpOnly).
+// via header — WEB não devolve token no body (cookie httpOnly).
 async function registerAndLogin(user = validUser) {
     await request(app).post("/api/users").send(user)
     const loginRes = await request(app).post("/api/auth/login").send({
@@ -49,8 +49,8 @@ async function registerAndLogin(user = validUser) {
     return loginRes.body.data.token as string
 }
 
-// Distribuidora agora é catálogo global (Fase 3.2) — inserida direto no
-// banco de teste, não existe mais POST /api/distributors.
+// Distribuidora é catálogo global — inserida direto no banco de teste, não
+// existe POST /api/distributors.
 async function createDistributor() {
     const dist = await createTestDistributor(prismaHttpTest)
     return { id: dist.id }

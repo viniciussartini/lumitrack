@@ -14,6 +14,12 @@
         "outDir": "dist",
         "rootDir": "src",
 
+        // Sem isto, `tsc --noEmit` (pre-commit) não tem cache — type-check
+        // completo a cada chamada. .tsbuildinfo em node_modules/.tmp (já
+        // gitignored), não na raiz do pacote.
+        "incremental": true,
+        "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo",
+
         "strict": true,
         "noUncheckedIndexedAccess": true,
         "noImplicitReturns": true,

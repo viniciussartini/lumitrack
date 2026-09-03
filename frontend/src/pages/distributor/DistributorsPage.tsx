@@ -19,7 +19,7 @@ const matchesQuery = (distributor: Distributor, query: string): boolean => {
 const ALL_STATES = "ALL"
 
 /**
- * Catálogo global de distribuidoras — somente leitura (Fase 3/5).
+ * Catálogo global de distribuidoras — somente leitura.
  * Populado via seed; sem CRUD pelo usuário (sem dono, sem create/edit/delete).
  *
  * Sem paginação: o catálogo é pequeno (~dezenas), então buscamos tudo de uma
@@ -71,7 +71,7 @@ export const DistribuidorsPage = () => {
 
             {!isLoading && !isError && distributors.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-heading text-muted mr-1 text-[11px] font-semibold tracking-[.08em] uppercase">
+                    <span className="font-heading text-muted text-11 mr-1 font-semibold tracking-[.08em] uppercase">
                         Estado
                     </span>
                     {states.map((state) => (

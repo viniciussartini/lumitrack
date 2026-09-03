@@ -8,8 +8,7 @@ import { hideDevTools } from "./support/devtools"
  * E2E focado em UI: mocka as respostas do backend via page.route(). Landing
  * pública é puramente apresentacional (sem chamada de API própria) — este
  * spec cobre só navegação: visitante vê a landing, os CTAs levam a /login e
- * /registro, e quem já está autenticado é redirecionado para /dashboard
- * (sub-issue #129 do épico #128).
+ * /registro, e quem já está autenticado é redirecionado para /dashboard.
  */
 
 test.describe("Landing pública", () => {
@@ -20,9 +19,7 @@ test.describe("Landing pública", () => {
     test("visitante não autenticado vê a landing em /", async ({ page }) => {
         await page.goto("/")
         await expect(page).toHaveURL("/")
-        await expect(
-            page.getByRole("heading", { name: /enxergue cada/i }),
-        ).toBeVisible()
+        await expect(page.getByRole("heading", { name: /enxergue cada/i })).toBeVisible()
     })
 
     test("CTA 'Criar conta' do hero leva a /registro", async ({ page }) => {
@@ -47,17 +44,13 @@ test.describe("Landing pública", () => {
         await expect(page).toHaveURL(/\/login/)
     })
 
-    test("usuário autenticado que acessa / é redirecionado para /dashboard", async ({
-        page,
-    }) => {
+    test("usuário autenticado que acessa / é redirecionado para /dashboard", async ({ page }) => {
         await setupAuth(page)
         await mockAppShellBackground(page)
-        // DashboardPage sempre chama useProperties ao montar (#115) — lista
+        // DashboardPage sempre chama useProperties ao montar — lista
         // vazia evita que RealtimeSection/etc. montem e disparem chamadas
         // próprias não mockadas (mesmo padrão de auth.spec.ts).
-        await page.route(/\/api\/properties(\?.*)?$/, (route) =>
-            fulfillPaginated(route, []),
-        )
+        await page.route(/\/api\/properties(\?.*)?$/, (route) => fulfillPaginated(route, []))
 
         await page.goto("/")
         await expect(page).toHaveURL(/\/dashboard/)

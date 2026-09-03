@@ -137,6 +137,57 @@ describe("MeterReadingRepository.upsertMinute", () => {
         expect(count).toBe(1)
     })
 
+    it("duas chamadas concorrentes para o mesmo minuto não perdem dado nem duplicam a linha (issue #313)", async () => {
+        const meterId = await setupMeter()
+        const minuteStart = new Date("2026-01-15T14:37:00.000Z")
+
+        // Dispara as duas ao mesmo tempo (sem await entre elas) — o cenário
+        // TOCTOU real: check-then-write teria as duas lendo "não existe" e
+        // as duas tentando create(), uma delas falhando por violação da
+        // constraint única (meterId, minuteStart).
+        const [a, b] = await Promise.allSettled([
+            meterReadingRepository.upsertMinute({
+                meterId,
+                minuteStart,
+                energyKwh: 0.01,
+                avgVoltage: 220,
+                avgCurrent: 5,
+                avgPowerW: 1100,
+                avgPowerFactor: 0.9,
+                sampleCount: 30,
+                secondsCovered: 30,
+            }),
+            meterReadingRepository.upsertMinute({
+                meterId,
+                minuteStart,
+                energyKwh: 0.012,
+                avgVoltage: 240,
+                avgCurrent: 5,
+                avgPowerW: 1200,
+                avgPowerFactor: 0.9,
+                sampleCount: 30,
+                secondsCovered: 30,
+            }),
+        ])
+
+        expect(a.status).toBe("fulfilled")
+        expect(b.status).toBe("fulfilled")
+
+        const count = await prismaTest.meterReading.count({ where: { meterId, minuteStart } })
+        expect(count).toBe(1)
+
+        const reading = await prismaTest.meterReading.findUniqueOrThrow({
+            where: { meterId_minuteStart: { meterId, minuteStart } },
+        })
+
+        // As duas contribuições precisam estar refletidas — nenhuma foi
+        // perdida por uma sobrescrever a outra.
+        expect(+reading.kwhConsumed).toBeCloseTo(0.022)
+        expect(reading.sampleCount).toBe(60)
+        expect(reading.secondsCovered).toBe(60)
+        expect(+reading.avgVoltage).toBeCloseTo(230) // (220*30 + 240*30) / 60
+    })
+
     it("mantém leituras de minutos diferentes separadas", async () => {
         const meterId = await setupMeter()
 

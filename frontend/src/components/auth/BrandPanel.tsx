@@ -7,9 +7,8 @@ import { GITHUB_REPO_URL, GitHubIcon } from "@/components/ui/GitHubIcon"
  * Grade das 4 telas de autenticação (Login/Registro/Esqueci senha/Redefinir
  * senha) — largura fixa para o painel de marca não "pular" na troca de
  * tela. Handoff diverge entre si (Login usa 1.05fr, Registro e Recuperar
- * Senha usam .95fr); decisão do usuário (2026-08-04): padronizar em .95fr
- * (maioria do handoff e do código já existente) em vez de seguir a
- * divergência.
+ * Senha usam .95fr); padronizado em .95fr (maioria do handoff e do código
+ * já existente) em vez de seguir a divergência.
  */
 export const AUTH_LAYOUT_GRID_CLASS = "grid min-h-screen lg:grid-cols-[.95fr_1fr]"
 
@@ -32,7 +31,7 @@ interface BrandPanelProps {
  * óbvia é o formulário ocupar a tela inteira, que é o que resta ao
  * esconder este painel.
  *
- * `lg:self-start lg:h-screen lg:sticky lg:top-0` (issue #214): sem isso,
+ * `lg:self-start lg:h-screen lg:sticky lg:top-0`: sem isso,
  * a altura do painel é a da linha do grid (`AUTH_LAYOUT_GRID_CLASS`,
  * `align-items: stretch` padrão), que muda com o conteúdo da coluna
  * irmã — visível no Registro ao trocar Pessoa Física/Jurídica (o
@@ -61,18 +60,18 @@ export const BrandPanel = ({ eyebrow, headline, description, extra }: BrandPanel
         </svg>
 
         <Link to="/" className="relative inline-block no-underline">
-            <LumiTrackWordmark textClassName="text-[20px]" />
+            <LumiTrackWordmark textClassName="text-20" />
         </Link>
 
         <div className="relative">
-            <span className="font-heading text-status-highlight block text-[13px] leading-none font-semibold tracking-[.09em] uppercase">
+            <span className="font-heading text-status-highlight text-13 block leading-none font-semibold tracking-[.09em] uppercase">
                 {eyebrow}
             </span>
             <h1 className="font-heading mt-4 max-w-[16ch] text-[clamp(30px,3.4vw,46px)] leading-[1.04] font-semibold uppercase">
                 {headline}
             </h1>
             {description && (
-                <p className="mt-[18px] max-w-[42ch] text-[15px] leading-[1.55] text-[#e6ecf2]/78">
+                <p className="text-15 mt-18px max-w-[42ch] leading-[1.55] text-[#e6ecf2]/78">
                     {description}
                 </p>
             )}

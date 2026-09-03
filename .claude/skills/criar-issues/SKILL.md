@@ -14,8 +14,31 @@ Transforma achados de auditoria (ou demandas avulsas) em issues no GitHub — **
 1. `gh auth status` — se não autenticado, pare e informe (o usuário roda `gh auth login`).
 2. Confirme o repositório alvo (`gh repo view --json nameWithOwner -q .nameWithOwner`).
 3. Leia a taxonomia de labels em `.claude/project_context/08-convencoes-git.md`.
-4. **Milestone da entrega (Modo roadmap):** leia no roadmap a **entrega** a que a fase pertence (`MVP`, `Beta fechado`…) — milestone é por entrega, não por fase, e várias fases compartilham a mesma. Verifique se existe (`gh api repos/{owner}/{repo}/milestones --jq '.[].title'`); se não, inclua a criação no rascunho para aprovação (`gh api repos/{owner}/{repo}/milestones -f title="{entrega}" -f description="..."`). Toda issue — épicos e sub-issues — recebe `--milestone "{entrega}"`. Ver `08-convencoes-git.md`.
-5. `gh --version` — sub-issues nativas exigem **gh ≥ 2.94.0**. Se for menor, avise: as issues serão criadas planas, com a hierarquia representada por checklist no corpo do épico (`- [ ] #N`), e sugira `gh extension upgrade --all` ou atualização do gh.
+
+> **Obrigatório em TODA issue criada — épico, sub-issue ou avulsa:** 1 label `tipo:` + 1 label `prioridade:` + a notação P0–P2/XS–XL **no corpo**, primeira linha, no mesmo formato do roadmap. **Não existe label `size:` nem `prioridade: P0`** — a notação serve para você transpor aos campos do Projects.
+>
+> ```
+> **Priority:** P0 · **Size:** M
+> ```
+>
+> | Corpo | Label correspondente (obrigatória) | Quando |
+> |---|---|---|
+> | `P0` | `prioridade: crítica` | Bloqueia o MVP/release; achado [CRÍTICA] |
+> | `P0` | `prioridade: alta` | Achado [ALTA] |
+> | `P1` | `prioridade: média` | Importante, próximo ciclo; achado [MÉDIA] |
+> | `P2` | `prioridade: baixa` | Desejável, depois; achado [BAIXA] |
+>
+> A notação do corpo e a label saem do **mesmo** item — nunca divergem.
+>
+> | Size | Referência |
+> |---|---|
+> | `XS` | Ajuste pontual, poucas linhas |
+> | `S` | Uma camada, sem efeito colateral |
+> | `M` | Fatia vertical fina (banco → API → UI) |
+> | `L` | Várias camadas ou integração externa |
+> | `XL` | Quebre em issues menores **antes** de criar |
+>
+> **De onde tirar:** Modo roadmap → copie Priority e Size do item do roadmap, sem reestimar. Modo auditoria → Priority vem da severidade do achado; Size você estima. Modo avulso → proponha ambos e confirme no rascunho.
 
 ## Decisão: épico + sub-issues ou issues individuais?
 
@@ -40,7 +63,8 @@ Apresente a **classificação proposta** no rascunho ("estas 4 viram o épico X;
 1. Leia o relatório indicado em `.claude/docs/` (se o usuário não indicar, use o mais recente e confirme).
 2. Extraia cada achado e rascunhe uma issue:
    - **Título:** `[Auditoria] {título do achado}`
-   - **Labels:** `origem: auditoria` + `prioridade:` mapeada da severidade (Crítica→crítica, Alta→alta, Média→média, Baixa→baixa) + `tipo:` conforme a auditoria (segurança→`tipo: segurança`; conformidade→`tipo: conformidade`; desempenho→`tipo: desempenho`; qualidade→`tipo: refactor`, ou `tipo: chore` p/ tooling) + `área:` quando inferível pelo local do achado.
+   - **Labels:** `origem: auditoria` + `prioridade:` mapeada da severidade + `tipo:` conforme a auditoria (segurança→`tipo: segurança`; conformidade→`tipo: conformidade`; desempenho→`tipo: desempenho`; qualidade→`tipo: refactor`, ou `tipo: chore` p/ tooling) + `área:` quando inferível pelo local do achado.
+   - **Corpo:** abre com `**Priority:** · **Size:**` — Priority mapeada da severidade (Crítica/Alta→P0, Média→P1, Baixa→P2), Size estimado por você.
    - **Corpo:** relatório de origem (nome do arquivo), severidade, achado com local (arquivo:linha), evidência e recomendação — mesmo formato do template `03-achado-auditoria`.
 3. **Deduplicação:** antes de incluir no lote, busque issues existentes (`gh issue list --state open --search "{termos do achado}"`); se já houver issue equivalente, marque como "já existe: #N" no rascunho e não recrie.
 4. Se houver 3+ achados de prioridade **baixa**, ofereça agrupá-los numa única issue "melhorias de baixa prioridade — {tipo}" para não poluir o backlog.
@@ -50,43 +74,50 @@ Apresente a **classificação proposta** no rascunho ("estas 4 viram o épico X;
 1. Leia `.claude/docs/roadmap.md` e identifique a **fase atual**.
 2. Rascunhe uma issue por item da fase — **somente da fase atual**; issues de fases futuras são backlog-cadáver (as fases vão mudar).
    - **Título:** `[Feature] {item do roadmap}`
-   - **Labels:** `tipo: feature` + `prioridade:` mapeada da Priority do item (**P0 → `prioridade: crítica`** · **P1 → `prioridade: alta`** · **P2 → `prioridade: média`**) + `área:` quando inferível.
+   - **Labels:** `tipo: feature` + `prioridade:` correspondente à Priority do item + `área:` quando inferível.
+   - **Corpo:** abre com `**Priority:** · **Size:**` **copiados do item do roadmap** — não reestime aqui; o roadmap é a fonte de verdade.
    - **Corpo:** comportamento entregue, RFs cobertos, **critérios de aceite** (copiados do roadmap — a `nova-feature` os transforma nos primeiros testes), dependências, e `Priority: PX · Size: XX` (para preencher os campos do GitHub Projects, se usado — `gh issue create` não seta campos de Project).
 3. Deduplicação e checkpoint de aprovação valem igual (ver abaixo).
 
 ## Modo 3 — Issue avulsa (da conversa)
 
-Rascunhe a issue a partir do que foi discutido: `tipo:` conforme a natureza (bug/feature/refactor/chore), `prioridade:` proposta, corpo no formato do template correspondente em `.github/ISSUE_TEMPLATE/` (bug: reprodução + esperado vs. atual; feature: motivação + RF + critérios de aceite).
+Rascunhe a issue a partir do que foi discutido: `tipo:` conforme a natureza (bug/feature/refactor/chore) + `prioridade:` proposta, corpo abrindo com `**Priority:** · **Size:**` propostos, no formato do template correspondente em `.github/ISSUE_TEMPLATE/` (bug: reprodução + esperado vs. atual; feature: motivação + RF + critérios de aceite).
 
 ## Checkpoint de aprovação (OBRIGATÓRIO)
 
-Apresente o lote completo — **agrupamento proposto (épicos × individuais) com justificativa**, títulos, labels, corpos resumidos e **branches que serão criadas** — e **pergunte explicitamente** se pode criar. Aguarde o "aprovado" (total ou parcial: o usuário pode cortar, editar ou reagrupar itens). **Nunca execute `gh issue create` nem `git checkout -b` antes disso.**
+Apresente o lote completo — **agrupamento proposto (épicos × individuais) com justificativa**, títulos, **a linha `**Priority:** · **Size:**` de cada issue e suas labels (`tipo:`, `prioridade:`, `área:`)**, corpos resumidos e **branches que serão criadas** — e **pergunte explicitamente** se pode criar. Aguarde o "aprovado" (total ou parcial: o usuário pode cortar, editar ou reagrupar itens). **Nunca execute `gh issue create` nem `git checkout -b` antes disso.**
+
+> **Antes de executar, confira item por item:** o corpo de toda issue do lote abre com `**Priority:** · **Size:**`, tem 1 label `tipo:` e 1 label `prioridade:` **coerente com a notação do corpo**? Faltou em alguma → complete antes de rodar `gh`, não depois.
 
 ## Execução
 
 ### A. Issues individuais
 
 ```bash
-gh issue create --title "..." --body "..." --label "origem: auditoria" --label "tipo: ..." --label "prioridade: ..."
+gh issue create --title "..." --body-file /tmp/issue.md \
+  --label "origem: auditoria" --label "tipo: ..." --label "prioridade: ..."
 ```
+O corpo abre com a linha `**Priority:** · **Size:**`.
 
 ### B. Épico + sub-issues
 
 1. **Crie o épico primeiro** (ele precisa existir para ser referenciado como pai):
    ```bash
    gh issue create --title "[Épico] {nome do agrupamento}" \
-     --body "..." --label "tipo: feature" --label "prioridade: ..." --label "épico"
+     --body-file /tmp/epico.md --label "épico" --label "tipo: feature" \
+     --label "prioridade: {crítica|alta|média|baixa}"
    ```
-   Corpo do épico: objetivo da fatia vertical, RFs cobertos, critérios de aceite **do conjunto**, contexto compartilhado, e a branch de implementação (preenchida no passo 3).
+   O corpo começa com `**Priority:** P0 · **Size:** L` — o **Size do épico é o esforço do conjunto** (normalmente L ou XL). Depois: objetivo da fatia vertical, RFs cobertos, critérios de aceite **do conjunto**, contexto compartilhado, e a branch de implementação (preenchida no passo 3).
 
 2. **Crie cada sub-issue vinculada ao pai** (gh ≥ 2.94.0):
    ```bash
    gh issue create --title "..." --body "..." --parent {N-do-épico} \
-     --label "tipo: ..." --label "prioridade: ..." --label "área: ..."
+     --label "tipo: ..." --label "prioridade: {herdada do épico}" --label "área: ..."
    ```
+   O corpo de cada sub-issue começa com `**Priority:** {herdada do épico} · **Size:** {próprio dela}`.
    - Para vincular issue **já existente** ao épico: `gh issue edit {N-do-épico} --add-sub-issue {M}`.
    - **Fallback (gh < 2.94.0):** crie as issues normalmente e edite o corpo do épico com checklist `- [ ] #M` — o GitHub renderiza o progresso, sem hierarquia nativa.
-   - Herança de labels: a sub-issue herda `prioridade:` do épico, salvo justificativa; `tipo:` e `área:` são próprios de cada sub-issue.
+   - Herança: a sub-issue herda a **Priority** do épico, salvo justificativa; `tipo:`, `área:` e o **Size são próprios de cada sub-issue** (o tamanho do épico não se propaga).
 
 3. **Crie a branch do épico** (ver `08-convencoes-git.md`):
    ```bash

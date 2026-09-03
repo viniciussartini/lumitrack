@@ -2,8 +2,8 @@
 # deploy/provision-vm.sh
 #
 # Provisionamento inicial de uma VM Ubuntu 24.04 LTS com datacenter no
-# Brasil (Fase 13.5: Oracle Cloud Always Free; Fase 13.7/ADR-0012: VPS
-# Hostinger — o script é genérico, não depende do provedor) para rodar o
+# Brasil (já rodou em Oracle Cloud Always Free; hoje roda em VPS Hostinger,
+# ADR-0012 — o script é genérico, não depende do provedor) para rodar o
 # stack via Docker Compose. Rodar UMA VEZ, manualmente, via SSH na VM já
 # criada — este script não cria a VM em si (isso é console/CLI do provedor,
 # fora do repositório) nem cria o usuário administrativo com sudo (ver
@@ -75,8 +75,7 @@ ufw allow 443/tcp comment "HTTPS"
 # Deliberadamente NENHUMA regra para 5432 (Postgres), 1883 (MQTT do
 # simulador) ou 3001 (Uptime Kuma) — esses ficam só na rede interna do
 # Docker Compose ou em 127.0.0.1 do host (ver docker-compose.yml). Abrir
-# qualquer um deles aqui reintroduziria exatamente o que a issue #180 e a
-# ADR-0008 fecharam.
+# qualquer um deles aqui reintroduziria exatamente o que a ADR-0008 fechou.
 ufw --force enable
 
 cat <<'EOF'

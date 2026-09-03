@@ -1,4 +1,4 @@
-# LumiTrack — Guia do Projeto (Claude Code)
+# {NOME DO PROJETO} — Guia do Projeto (Claude Code)
 
 > Carregado automaticamente em toda sessão do Claude Code. Define **como trabalhar** neste projeto e indexa o contexto e as skills.
 
@@ -19,29 +19,29 @@
 **Qualidade**
 - TypeScript strict; **proibido `any`** (usar `unknown` + narrowing).
 - Direção de dependência: o domínio não importa framework/infra.
-- **YAGNI e KISS têm precedência** — sem abstração especulativa. Proporcionalidade é decidida pelo contexto do projeto (ver a calibragem no `06`), não por ritual.
+- **YAGNI e KISS têm precedência** — sem abstração especulativa. Proporcionalidade é decidida pelo contexto do projeto (equipe, criticidade, dado tratado), não por ritual.
 - **Comentários são funcionais**: Javadoc/JSDoc em classes, funções públicas e lógica complexa. **Proibido comentário de rastreabilidade** (issue, PR, auditoria, achado, data, autor) — isso vive no git, nos ADRs, no CHANGELOG e nas issues (`06`).
 
 **UI/UX**
-- A interface vem do **handoff do Claude Design** (`.claude/design/`) — **proibido inventar layout** quando existe design para a tela; sem design → pergunte (regras em `10-design-system.md`).
-- Design tokens do bundle são a autoridade sobre o tema Tailwind/shadcn — nada de cor/espaçamento hardcodado fora da escala.
+- A interface vem da **fonte de design declarada no `10`** — **proibido inventar layout** quando existe design para a tela; sem design → pergunte.
+- Design tokens são a autoridade sobre o tema do frontend — nada de cor/espaçamento hardcodado fora da escala.
 
-> Detalhes completos em `.claude/project_context/05-security-standards.md` (segurança de aplicação), `06-code-quality-standards.md` (qualidade), `09-conformidade-legal.md` (LGPD/legislação BR) e `11-seguranca-infraestrutura.md` (banco, CI/CD, deploy, segredos). As skills referenciam esses arquivos — leia-os antes de implementar qualquer coisa que toque segurança, estrutura ou dados pessoais.
+> Detalhes completos em `.claude/project_context/05-security-standards.md` (segurança), `06-code-quality-standards.md` (qualidade) e `09-conformidade-legal.md` (LGPD/legislação BR). As skills referenciam esses arquivos — leia-os antes de implementar qualquer coisa que toque segurança, estrutura ou dados pessoais.
 
 ## Contexto do projeto (`.claude/project_context/`)
 
-- `01-descricao.md` — o que é o projeto, problema, usuário-alvo, **modo de trabalho** (solo).
+- `01-descricao.md` — o que é o projeto, problema, usuário-alvo.
 - `02-requisitos.md` — RF / RNF / Funcionamento.
-- `03-arquitetura.md` — princípios do kit (fronteiras, linguagem ubíqua, DIP, contratos entre módulos, consistência, cross-cutting, visão documentada) + a arquitetura real do LumiTrack: monorepo, monólito modular por domínio, 16 módulos, `shared/`, posse e autorização, ADRs.
-- `04-tech-stack.md` — stack decidido, o que está de fato em `package.json`, os dois caminhos de deploy e as ADRs que os fixam.
-- `05-security-standards.md` — OWASP 2025 + hardening de runtime + segurança de cliente + PII/observabilidade. **ASVS 5.0 como profundidade de referência (alvo L2).**
+- `03-arquitetura.md` — princípios do kit (fronteiras, linguagem ubíqua, DIP), contratos entre módulos, consistência, cross-cutting e visão documentada. **Estilo arquitetural é decisão de projeto**, definida na entrevista do `scaffold-projeto` + ADR.
+- `04-tech-stack.md` — stack do projeto, definida na entrevista do `scaffold-projeto` (traz uma referência de partida recomendada).
+- `05-security-standards.md` — OWASP 2025 + segurança de frontend/observabilidade.
 - `06-code-quality-standards.md` — SOLID, clean code, **comentários (Javadoc/JSDoc)**, eficiência, testes, enforcement.
-- `07-decisoes-em-aberto.md` — decisões pendentes; pergunte antes de assumir.
-- `08-convencoes-git.md` — commits (Conventional Commits), branches (incl. `epic/`), labels de issues, **milestones (por entrega, não por fase)**, changelog, revisão de código e convenções de PR. **O corpo do PR mora em `.github/PULL_REQUEST_TEMPLATE.md`** (fonte única).
+- `07-decisoes-em-aberto.md` — decisões pendentes; pergunte antes de assumir. **Nasce vazio** — é populado pela entrevista do `scaffold-projeto` e por features que esbarrem em escolha não feita.
+- `08-convencoes-git.md` — commits (Conventional Commits), branches (incl. `epic/`), labels de issues, **milestones (uma por fase do roadmap)**, changelog e convenções de PR. **O corpo do PR mora em `.github/PULL_REQUEST_TEMPLATE.md`** (fonte única).
 - `09-conformidade-legal.md` — LGPD + legislação BR (bases legais, direitos, incidentes, transferência internacional).
-- `10-design-system.md` — UI/UX via Claude Design: regras universais (spec é autoridade, tokens são contrato, divergência, ausência, WCAG 2.2 AA), bundle vigente, estado da migração para o Industry e `/design-sync`.
-- `11-seguranca-infraestrutura.md` — banco de dados, CI/CD, deploy e ciclo de vida de segredos; ASVS 5.0 como referência de profundidade (alvo L2). Lido pela `auditoria-seguranca` e por qualquer mudança que toque migração, pipeline, ambiente ou segredo.
-- `12-seguranca-por-tecnologia.md` — **catálogo de particularidades** por tecnologia. **Leia só as seções do stack do `04`** — é consulta sob demanda, nunca leitura integral. Para este projeto: React, Express, REST, WebSocket/SSE, JWT, MFA/TOTP, hash de senha, Prisma, PostgreSQL, containers e e-mail transacional.
+- `10-design-system.md` — UI/UX: regras **universais** (spec é autoridade, tokens são contrato, divergência, ausência, WCAG 2.2 AA) + particularidades da ferramenta escolhida (Claude Design, Figma, Penpot, code-first).
+- `11-seguranca-infraestrutura.md` — banco de dados, CI/CD, deploy e ciclo de vida de segredos; ASVS 5.0 como referência de profundidade (alvo L2). Lido pelo `scaffold-projeto` e pela `auditoria-seguranca`.
+- `12-seguranca-por-tecnologia.md` — **catálogo de particularidades** (frontend, mobile, backend, estilos de API, **autenticação e credenciais — JWT, sessão, chaves de API, MFA, hash de senha, webhooks, OAuth2/OIDC**, ORMs, bancos, cache, infra, serverless, analytics, pagamentos, filas, CDN/WAF, APIs de LLM). **Leia só as seções do stack do `04`** — é consulta sob demanda, nunca leitura integral.
 
 ## Skills (`.claude/skills/`)
 
@@ -49,23 +49,29 @@
 - `planejar-roadmap` — cria/atualiza o roadmap (`.claude/docs/roadmap.md`): fatias verticais, P0/P1/P2, XS–XL, e agrupamento das fases em **entregas (milestones)**.
 
 **Construção**
-- `scaffold-projeto` — setup de repositório greenfield. **Não se aplica a este projeto** (não é greenfield; `03` e `04` já estão preenchidos e a entrevista de fundação não roda).
+- `scaffold-projeto` — **entrevista de fundação** (arquitetura → stack, com opções e trade-offs; preenche o `03` e o `04`, registra ADRs) e depois o setup do repositório greenfield.
 - `nova-feature` — construir uma feature nova seguindo os padrões.
 - `refatoracao` — refatorar preservando comportamento.
 - `correcao-bugs` — corrigir bugs (muda o comportamento de errado para certo).
 
 **Fluxo Git**
-- `onboarding` — gera `.claude/docs/onboarding.md` (setup verificado, ordem de leitura, mapa dos módulos, armadilhas, primeira tarefa). Em modo solo, serve como guia de retomada.
+- `onboarding` — gera `.claude/docs/onboarding.md` (setup verificado, ordem de leitura, mapa dos módulos, armadilhas, primeira tarefa).
 - `preparar-pr` — mapeia as alterações da branch, preenche o `.github/PULL_REQUEST_TEMPLATE.md` conforme o `08` e **cria o PR** pronto para revisão (exige branch publicada; push e merge continuam manuais).
-- `criar-issues` — cria issues no GitHub (de um laudo de auditoria, da **fase atual do roadmap** ou avulsas). Decide entre **épico + sub-issues** (`gh issue create --parent`, exige gh ≥ 2.94.0) e issues individuais, e cria a **branch** (`epic/{N}-...` ou `{tipo}/{N}-...`). **Sempre com aprovação em lote** antes de executar.
+- `criar-issues` — cria issues no GitHub (de um laudo de auditoria, da **fase atual do roadmap** ou avulsas). Decide entre **épico + sub-issues** (`gh issue create --parent`, exige gh ≥ 2.94.0) e issues individuais, e cria a **branch** (`epic/{N}-...` ou `{tipo}/{N}-...`). Todo corpo abre com `**Priority:** · **Size:**` (notação P0–P2/XS–XL só no corpo, para transpor ao Projects) e toda issue leva `tipo:` + `prioridade:` como labels. **Sempre com aprovação em lote** antes de executar.
 
 ## Auditorias e revisão (subagents somente-leitura em `.claude/agents/`)
 
-- `auditoria-seguranca` — OWASP 2025 + ASVS L2, incluindo infraestrutura (`11`) e particularidades do stack (`12`).
+> **Laudo é entregue, não executado.** Ao receber o resultado de qualquer agente, **pare** — não aplique correções, nem as "óbvias", antes de perguntar ao usuário o que ele quer que entre.
+>
+> - **Auditorias:** grave o laudo em `.claude/docs/{YYYY-MM-DD}-{tipo}-audit.md` e informe o caminho.
+> - **`revisao-codigo`:** **não grava arquivo**. O laudo é publicado como comentário no PR (pelo próprio agente) e **reproduzido por completo na conversa** — é ali que o usuário lê. Em seguida, pergunte o que corrigir.
+
+
+- `auditoria-seguranca` — OWASP 2025 (segurança técnica).
 - `auditoria-conformidade` — LGPD + legislação BR.
-- `auditoria-qualidade` — SOLID / clean code / fronteiras / comentários / drift de documentação.
+- `auditoria-qualidade` — SOLID / clean code / fronteiras / drift de documentação.
+- `revisao-codigo` — revisa **o diff** de uma branch/PR contra os padrões do kit, separando **BLOQUEIA** de **SUGERE**. Lado revisor; a `preparar-pr` é o lado autor.
 - `auditoria-desempenho` — queries, índices, bundle, render, complexidade.
-- `revisao-codigo` — revisa **o diff** de uma branch/PR contra os padrões do kit, separando **BLOQUEIA** de **SUGERE**. Lado revisor; a `preparar-pr` é o lado autor. **Em modo solo, é a única camada de revisão antes do merge** — rodar não é formalidade.
 
 Os auditores têm apenas Read/Grep/Glob (garantia mecânica de que auditoria **não corrige**) e **retornam o laudo como resultado** — eles não gravam arquivos.
 
@@ -83,7 +89,7 @@ Cada skill e subagente fixa `model` e `effort` no frontmatter, sobrescrevendo o 
 
 Regras impostas deterministicamente, independentes de instrução:
 - **`git commit` / `git push` / `gh pr merge` são bloqueados** — o usuário commita, faz push e mescla PRs manualmente; gere o texto do commit em vez de executar.
-- **`gh pr create` é permitido**, via skill `preparar-pr`: ela exige a branch já publicada (o push continua do usuário) e cria o PR pronto para revisão. `gh issue create` é permitido via `criar-issues`, com aprovação.
+- **`gh pr create` é permitido**, via skill `preparar-pr`: ela exige a branch já publicada (o push continua seu) e cria o PR pronto para revisão. `gh issue create` é permitido via `criar-issues`, com aprovação.
 - **Arquivos `.env*` são bloqueados** para leitura/edição (exceto `.env.example`) — segredos não passam pelo agente.
 - **Criar branch é permitido** (`git checkout -b`): reversível e nada é publicado. A skill `criar-issues` cria a branch do épico/issue após aprovação.
 - **Ativação de skills (`UserPromptSubmit`):** o hook `ativar-skills.sh` detecta palavras-gatilho no prompt e instrui explicitamente o uso da skill correspondente — a ativação automática por descrição é inconsistente. Se a instrução não fizer sentido para o pedido, ignore-a e siga normalmente.
@@ -92,11 +98,8 @@ Se um hook bloquear uma ação sua, siga a orientação da mensagem — não ten
 
 ## Convenções de pastas
 
-- **Monorepo:** `backend/` (Express + Prisma + PostgreSQL), `frontend/` (React + Vite) e `iot-simulator/` (server + ui) são pacotes independentes, cada um com seu próprio `package.json`, lint e testes — ver `03-arquitetura.md`.
-- `docker-compose.yml` (raiz) + `deploy/` — infraestrutura de go-live (Fase 13.5): orquestração Docker Compose, `Caddyfile`, scripts de provisionamento/backup/seed e as unidades `systemd` do backup agendado. Passo a passo completo em `.claude/docs/DEPLOY.md`.
-- `.claude/docs/` — documentação técnica: os documentos históricos do projeto migrados de `docs/` (auditoria, runbook, planos e logs — nomes originais preservados, ver `.claude/docs/README.md`), relatórios de auditoria **novos** do kit (`YYYY-MM-DD-<tipo>-audit.md`), o roadmap vivo (`roadmap.md`), o guia de entrada (`onboarding.md`), o procedimento de deploy (`DEPLOY.md`) e ADRs em `.claude/docs/adr/` (numerados `0001-titulo.md`).
-- `.claude/design/` — handoff bundles do Claude Design, um diretório por tela/fluxo (`{YYYY-MM-DD}-<tela>/`); o mais recente é o vigente (ver `10-design-system.md`).
+- `.claude/docs/` — relatórios de auditoria datados (`YYYY-MM-DD-<tipo>-audit.md`), o roadmap vivo (`roadmap.md`) e ADRs em `.claude/docs/adr/` (numerados `0001-titulo.md`).
+- `.claude/design/` — entregas de design versionadas, um diretório por tela/fluxo (`{YYYY-MM-DD}-<tela>/`); a mais recente é a vigente (ver `10-design-system.md`).
 - `.claude/log/CHANGELOG.md` — histórico append-only de implementações.
 - `.claude/hooks/` — `block-git-commit-push.sh`, `block-env-files.sh` e `ativar-skills.sh`, registrados em `.claude/settings.json`.
-- `.github/` — templates de issue, `PULL_REQUEST_TEMPLATE.md` (**fonte única do corpo do PR**), `CODEOWNERS`, `dependabot.yml` (cobre os três pacotes) e os workflows (`ci.yml`, `keep-alive.yml`).
-- **Wiki do projeto** — repositório git **separado**, clonado em `~/Development/lumitrack.wiki/` (é o `lumitrack.wiki.git` do GitHub, não um diretório deste repo). Edite os arquivos lá diretamente; o commit e o push são do usuário, como no repositório principal. `O-Sistema-Eletrico-Brasileiro.md` existe nos dois lugares: **a cópia em `.claude/docs/` é a fonte de verdade**, a do wiki é cópia sincronizada — ao alterar um, alterar o outro no mesmo trabalho.
+- `.github/` — templates de issue, `PULL_REQUEST_TEMPLATE.md` (**fonte única do corpo do PR**) e `dependabot.yml`.

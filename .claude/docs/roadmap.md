@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-07-31-lumitrack-completo/`.
-> Última atualização: 2026-08-22 · Fases 1–13.5 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187 e issue #127. Fase atual: **13.6** (correções críticas pós-go-live) — planejada, detalhe abaixo.
+> Última atualização: 2026-09-02 · Fases 1–18 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, #290, #305, #322, #334, #335, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15), #300 (épico #290, Fase 15.5), #304 (#296–#299, Fase 15.5), #314 (épico #305: #306–#309, Fase 16), #317 (#310–#313, #168, Fase 16), #321 (#255, #257, #316, Fase 16), #333 (épico #322: #323–#328, Fase 17), #354 (épico #334: #336–#341, #353, Fase 18), #355 (épico #335: #342–#345, Fase 18), #357 (#346–#351, #318, #329, #356, #269, #272, #289, #303, Fase 18). Dos itens fora do escopo declarado da Fase 18, quatro acabaram fechados dentro dela mesma (#269, #272, #289, #303 — ver replanejamento de 2026-09-02, abaixo); #302 foi fechada como adiada (destino já previsto pela ADR-0014); só #315 (fator de escala Modbus/Profinet) segue genuinamente em aberto. Fase atual: **19** (Grupo A — fundação tarifária + Horária Verde/A4) — já detalhada em 5 itens desde o planejamento de 2026-08-05, sem alteração. Entre o fechamento da Fase 18 e o início da 19, duas correções não planejadas entraram por pedido direto do usuário, fora da estrutura de fases (ver replanejamento de 2026-09-02): PR #358 (leituras de medidor em tempo real não chegavam ao painel — SSE, credencial IoT, formulário MQTT) e PR #361 (issues #359/#360 — wordmark e seletor de janela de hora no histórico de consumo — mais os achados da própria revisão de código do PR).
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das auditorias** — as quatro de 2026-08-05 e, a partir da Fase 13.6, as quatro de 2026-08-22 (pós-deploy) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **A Fase 13.7 separa os ambientes:** VPS Hostinger (São Paulo) vira produção real (branch `main`), Render+Neon é rebaixado a staging/integração (branch `staging`) — ver **ADR-0012**. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário.
 
@@ -25,14 +25,13 @@
 | 13.5 | Primeiro deploy — infraestrutura de go-live + documentação pública | **Concluída** (épico #187) |
 | 13.6 | Correções críticas pós-go-live — canal do titular, aviso de privacidade, contas demo, privilégio de banco, backup | **Concluída** (PR #250) |
 | 13.7 | Separação de ambientes — VPS Hostinger (produção) + Render/Neon (staging) | **Concluída** (PR #254 → staging, PR #256 → main; em produção na VPS) |
-| **14** | **Conformidade P1** — governança (ROPA/RIPD), retenção, DSAR, consentimento e documentos legais | **Planejada — fase atual, detalhe abaixo** |
-| 14 | Conformidade P1 — governança (ROPA/RIPD), retenção, DSAR, consentimento e documentos legais | Planejada — objetivo revisado abaixo |
-| 15 | Desempenho — instrumentação, índices, multiplicadores, compressão e pool de conexões | Planejada — objetivo revisado abaixo |
-| **15.5** | **Enforcement de qualidade + comentários de rastreabilidade** | **Planejada — objetivo abaixo** |
-| 16 | Worker IoT — robustez, estrutura e cobertura | Planejada — objetivo revisado abaixo |
-| 17 | Frontend — tempo real e bundle | Planejada — objetivo abaixo |
-| 18 | Design system, cobertura de testes e polimento | Planejada — objetivo revisado abaixo |
-| 19 | Grupo A — fundação tarifária (subgrupos, modalidades, postos, demanda) + Horária Verde | Planejada — detalhe abaixo |
+| 14 | Conformidade P1 — formalizar a postura permanentemente demo (ADR-0014), ROPA/RIPD atualizados, monitor externo de disponibilidade | **Concluída** (#260, #261, #265, épico #259, PR #274) |
+| 15 | Desempenho — instrumentação, compressão, índices, retenção, cache, N+1 e endpoint batch | **Concluída** (épicos #275, #279, issues #284/#285 — PRs #286, #287, #288) |
+| 15.5 | Enforcement de qualidade + comentários de rastreabilidade | **Concluída** (épico #290, #296–#299, PRs #300/#304) — issue #168 dobrada para a Fase 16 |
+| 16 | Worker IoT — robustez, estrutura e cobertura | **Concluída** (épico #305 — PR #314; PR #317; PR #321) |
+| 17 | Frontend — tempo real e bundle | **Concluída** (épico #322 — #323–#328; PR #333 mesclado em staging) |
+| 18 | Design system, cobertura de testes e polimento | **Concluída** (épicos #334, #335, PRs #354/#355/#357) |
+| **19** | **Grupo A — fundação tarifária (subgrupos, modalidades, postos, demanda) + Horária Verde** | Planejada — fase atual, detalhada em 5 itens |
 | 20 | Grupo A — Horária Azul, ultrapassagem de demanda e energia reativa excedente | Planejada — objetivo abaixo |
 | 21 | Mercado Livre de Energia (ACL) | Planejada — objetivo abaixo |
 | 22 | Tarifa Branca (Grupo B) — reaproveita a fundação de postos tarifários | Planejada — objetivo abaixo |
@@ -444,6 +443,8 @@ Segunda rodada, feita **depois** do go-live da Fase 13.5 — por isso encontra u
 | Compressão HTTP ausente | — | — | — | A-05 (Novo) |
 | DEMO_PASSWORD no código-fonte | Média | Baixo | — | — |
 
+> **Atualização de 2026-08-23 — a primeira linha encolheu.** A **ADR-0013** removeu os dois mecanismos de keep-alive: o ambiente deixou de ser demo pública (ADR-0012) e passou a hibernar por desenho, então não processa mais requisição 24/7 sem uso real. Isso reduz materialmente o achado de conformidade (registro de acesso acumulado o tempo todo) e o de desempenho A-04, e tira a data de validade da pressão sobre o limite de 0,5 GB do Neon. **Não fecha o item** — a política de retenção de `meter_readings` passa a ser escopo da **Fase 15** (desempenho/armazenamento) / issue #236, reclassificada pela ADR-0014 (deixou de ser conformidade — sem titular real, não há prazo LGPD a cumprir) — e o drift Q-29 (ADR-0011 não indexada) foi corrigido junto, com a `0011`, a `0012` e a `0013` agora presentes nos quatro índices de ADR. As demais linhas da tabela permanecem como o laudo as registrou.
+
 ## Fase 10 — Bloqueadores de segurança
 
 > **Gate que esta fase destrava:** deploy público. Os cinco itens são o bloco "P0 — bloqueio antes de qualquer deploy público" do laudo de segurança, na íntegra. Todos são backend, todos exigem teste que **falhe se o controle for removido** (DoD do `05-security-standards.md`).
@@ -573,7 +574,7 @@ Segunda rodada, feita **depois** do go-live da Fase 13.5 — por isso encontra u
 
 - **#155 — canal do titular:** endereço de privacidade configurável por deploy (`VITE_PRIVACY_CONTACT_EMAIL`, placeholder documentado), publicado no rodapé da Landing, em "Sobre o projeto" e no Perfil, que ganhou o bloco "Exercer meus direitos" mapeando os 9 incisos do Art. 18 entre autoatendidos e "pelo canal". As três referências vagas do `privacy-policy.md` viraram o endereço literal. Procedimento interno em `.claude/docs/PROCEDIMENTO_DIREITOS_TITULAR.md` (prazo de 30 dias, dobro do pequeno porte).
 - **#156 — ROPA:** `.claude/docs/ROPA.md` com 7 operações levantadas do schema real, não genéricas. Manutenção acrescentada ao Definition of Done da skill `nova-feature`, para o documento não nascer desatualizado.
-- **#157 — RIPD:** `.claude/docs/RIPD.md`. A pergunta central ("por que minuto, e não 15 min?") foi respondida por requisito, não por conveniência: RF10/RF11 justificam a **coleta** por minuto, mas RF12 — a única leitura de histórico — nunca consulta granularidade mais fina que hora (`granularitySchema = z.enum(["hour","day","month","year"])`). Logo, a **retenção** indefinida por minuto não tem lastro em nenhum RF. Recomendação concreta (60–90 dias + compactação horária) entregue como insumo obrigatório da política de retenção da Fase 14. *(Registro histórico — a issue #226 (épico #225, 2026-08-22) adicionou `"minute"` ao `granularitySchema` e a UI passou a consultar histórico por minuto na aba "Hora"; a premissa "RF12 nunca consulta granularidade mais fina que hora" **deixou de valer**. Não derruba a recomendação de retenção limitada por si só — ver a nota de atualização no próprio `RIPD.md` §3.2 — mas a reavaliação da Fase 14 precisa partir da premissa nova, não desta.)*
+- **#157 — RIPD:** `.claude/docs/RIPD.md`. A pergunta central ("por que minuto, e não 15 min?") foi respondida por requisito, não por conveniência: RF10/RF11 justificam a **coleta** por minuto, mas RF12 — a única leitura de histórico — nunca consulta granularidade mais fina que hora (`granularitySchema = z.enum(["hour","day","month","year"])`). Logo, a **retenção** indefinida por minuto não tem lastro em nenhum RF. Recomendação concreta (60–90 dias + compactação horária) entregue como insumo obrigatório da política de retenção da Fase 14. *(Registro histórico — a issue #226 (épico #225, 2026-08-22) adicionou `"minute"` ao `granularitySchema` e a UI passou a consultar histórico por minuto na aba "Hora"; a premissa "RF12 nunca consulta granularidade mais fina que hora" **deixou de valer**. Não derruba a recomendação de retenção limitada por si só — ver a nota de atualização no próprio `RIPD.md` §3.2. *Atualização adicional (2026-08-23, ADR-0014):* sem titular real nos ambientes publicados, a retenção de `meter_readings` deixou de ser questão de conformidade e virou questão de armazenamento/performance — reclassificada para a **Fase 15**, issue #236/#267.)*
 - **#158 — hospedagem e transferência internacional:** **ADR-0008** — tudo numa VM Oracle Cloud Always Free em **São Paulo** (backend, frontend estático, PostgreSQL e o iot-simulator co-locados, broker MQTT em `127.0.0.1`), **sem nenhum operador estrangeiro**. Resultado: as SCCs da Res. 19/2024 não se aplicam por inexistência do fato gerador, e não há DPA a assinar (Art. 39) — exatamente a mitigação que esta fase recomendava ("elimina o problema em vez de contratá-lo"). O item "Hospedagem e infra de produção" saiu do `07`. `privacy-policy.md` § 4 reescrito com a tabela de processamento nominal e `CURRENT_CONSENT_VERSION` incrementada para 1.1. *(Registro histórico — em 2026-08-09 a **ADR-0010** trocou o provedor da demo pública para free tier fora do Brasil, com escopo restrito a demonstração; a conclusão de "nenhuma transferência internacional" registrada aqui **deixou de valer** para o ambiente publicado. O stack brasileiro continua implementado no repositório como o Caminho B do `DEPLOY.md`, e é o destino da migração antes de qualquer usuário real.)*
 
 **Dívida deixada explicitamente — a premissa da ADR-0008 ainda não tem controle.** A conclusão de conformidade de #158 vale **enquanto o ambiente público não tratar dado pessoal real**, o que exige o cadastro público fechado (só contas de demonstração sobre o seed sintético). Esse controle é item da **Fase 13** e ainda não existe: até lá, a ADR-0008 não autoriza o deploy público. Os demais gates de go-live (credenciais demo fora do bundle, perímetro do simulador, CSP, redirect HTTPS, `pg_dump` agendado, rotação de chaves) estão listados na própria ADR e majoritariamente já alocados na Fase 13.
@@ -840,7 +841,7 @@ Com a Fase 13 fechada, os gates de go-live #1–#5 da ADR-0008 estão implementa
 - **Priority:** P0 · **Size:** S
 - **Critérios de aceite:** `REGISTRATION_ENABLED=false`, `DEMO_LOGIN_ENABLED=true`, `IOT_ALLOWED_HOSTS=127.0.0.1/32`, `CORS_ORIGIN` e `PUBLIC_API_ORIGIN` com o domínio real; `JWT_SECRET` e as **cinco** chaves de cifra geradas novas, nenhuma delas vinda do `.env.example`; `POST /api/users` responde 403 em produção; `POST /api/auth/demo-login` funciona; o checklist fica versionado no `DEPLOY.md`.
 - **Depende de:** Provisionamento da VM.
-- **Risco/observações:** `REGISTRATION_ENABLED` tem default `true` — subir sem trocá-lo derruba a conclusão de conformidade inteira da ADR-0008 no primeiro cadastro de uma pessoa real. É o item da fase com maior consequência e menor esforço.
+- **Risco/observações:** à época desta fase, `REGISTRATION_ENABLED` tinha default `true` no código — subir sem trocá-lo derrubaria a conclusão de conformidade inteira da ADR-0008 no primeiro cadastro de uma pessoa real. Era o item da fase com maior consequência e menor esforço. *(Nota de 2026-08-23: o default do código passou a ser `false` pela ADR-0014 — o risco descrito aqui não se aplica mais a partir dela, registro histórico preservado.)*
 
 #### Backup do PostgreSQL com restauração testada
 
@@ -1011,9 +1012,9 @@ Depois do fechamento, o uso real da demo pública expôs bugs que nenhuma audito
 Itens de custo trivial, empacotados por já estarem tocando os mesmos arquivos/contexto — não justificam item próprio:
 
 - `DEMO_PASSWORD` sai do código-fonte para env var sem default (fecha a regra + o allowlist correspondente no `.gitleaks.toml`).
-- Drift de documentação viva encontrado pela auditoria de qualidade (Q-29 a Q-36): indexar ADR-0011 (e, ao concluir esta fase, ADR-0012) em `03`/`04`/`07`/`.claude/docs/README.md`; corrigir "15 jobs" → 14; corrigir "um adaptador por protocolo"; listar as 4 feature flags (não 1); acrescentar ANEEL/UptimeRobot em "integrações externas"; remover a pendência já resolvida do `07`; completar os inventários de `shared/`.
+- Drift de documentação viva encontrado pela auditoria de qualidade (Q-29 a Q-36): ~~indexar ADR-0011 (e, ao concluir esta fase, ADR-0012) em `03`/`04`/`07`/`.claude/docs/README.md`~~ **feito** (2026-08-23, junto da ADR-0013 — os três ADRs estão presentes nos quatro índices); corrigir "15 jobs" → 14; corrigir "um adaptador por protocolo"; listar as 4 feature flags (não 1); acrescentar ANEEL em "integrações externas" (**não** o UptimeRobot — o monitor foi removido pela ADR-0013, e `03` já reflete isso); remover a pendência já resolvida do `07`; completar os inventários de `shared/`.
 
-**Não detalhada como fechamento porque ainda não foi executada** — segue como a fase atual do roadmap até a implementação.
+**Concluída (PR #250)** — a nota acima ("não detalhada como fechamento") descrevia o momento do planejamento, anterior à execução; corrigida em 2026-08-23 junto da tabela de status, que já registrava a fase como concluída.
 
 ## Fase 13.7 — Separação de ambientes: VPS Hostinger (produção) + Render/Neon (staging)
 
@@ -1099,31 +1100,644 @@ Itens de custo trivial, empacotados por já estarem tocando os mesmos arquivos/c
 - **Critérios de aceite:** `DEPLOY.md` reescrito com a VPS como produção; `04-tech-stack.md` com os dois ambientes e suas URLs; `07-decisoes-em-aberto.md` recebe a ADR-0012 na lista de resolvidas.
 - **Depende de:** todos os itens anteriores.
 
-### Fase 14 — Conformidade P1: governança, retenção, DSAR e consentimento (P1)
+## Fase 14 — Conformidade P1: formalizar a postura permanentemente demo + monitor externo (P1)
 
-Cobre o escopo original (retenção de `MeterReading`/`AlertTriggerEvent`/`MfaBackupCode`/`TariffFlagHistory` + política de conta inativa; export DSAR completo — consumo agregado, medidores, disparos — + PDF na UI + limite de janela do audit log; base legal por operação, aceites separados e reaceite via `consentVersion`; `RUNBOOK_INCIDENTES.md` corrigido; guarda de registros de acesso; TLS obrigatório no SMTP), **revisado com evidência concreta do laudo de 2026-08-22**: **ROPA reescrito** — hoje autocontraditório (as 7 operações afirmam "sem operador, sem transferência internacional" enquanto a tabela de operadores da mesma página lista Render/Neon nos EUA); acrescentar `email_changes`, backups e os serviços avaliados sem dado pessoal (ANEEL, UptimeRobot). **RIPD reavaliado** — risco 6.2 (credencial de medidor em claro) fechar, já corrigido; risco 6.3 (transferência internacional) reabrir com a natureza correta. **Adesão aos DPAs de autoatendimento** de Render/Neon **e** avaliação de manter ou não o Neon como staging de longo prazo, agora que a produção real está na VPS (issue #236 do épico #238 — retenção de `MeterReading` — já criada, entra aqui). Aviso de privacidade completado (cookies, prazos reais, Art. 20, Art. 14) — a autocontradição do § 5 já foi corrigida na Fase 13.6, isto é o restante.
+**Rescopada em 2026-08-23 pela [ADR-0014](adr/0014-ambientes-permanentemente-demonstracao.md).** O escopo original desta fase (retenção de `MeterReading`/`AlertTriggerEvent`/`MfaBackupCode`/`TariffFlagHistory` por titular, export DSAR completo, base legal formal por operação, reaceite de consentimento, DPA de Render/Neon/VPS, SCC do staging) foi desenhado assumindo que a produção do LumiTrack poderia um dia operar com titular real. O dono do projeto decidiu que **os dois ambientes publicados (VPS produção + Render/Neon staging) nunca vão tratar dado real de titular — é permanentemente demonstração.** Isso reduz a fase a formalizar essa decisão e fechar a documentação de conformidade em torno dela, em vez de executar o trabalho operacional que só se justificaria havendo titular real.
 
-### Fase 15 — Desempenho: instrumentação, índices, multiplicadores e infraestrutura (P1)
+Escopo atual:
 
-Escopo original preservado (instrumentação primeiro — `pg_stat_statements`, `EXPLAIN`, `prisma.$on('query')`, React DevTools Profiler, `rollup-plugin-visualizer` — só então índices de FK, cache in-process de bandeira/distribuidoras, N+1 do `AlertService.findAll`, endpoint batch de consumo, `countBuckets` com `COUNT(*) OVER ()`), acrescido pelo laudo de 2026-08-22 de dois achados "zero risco, uma linha", isentos de medição prévia pelo próprio laudo: **compressão HTTP** (nem `compression` no Express nem `encode` no Caddy — bundle e JSON trafegam crus nos dois ambientes) e **pool de conexões do Prisma/pg sem configuração explícita** (`max`/`connectionTimeoutMillis` nunca definidos, com 3 consumidores concorrentes já confirmados no código). A retenção de `meter_readings` é a mesma migração do item de retenção da Fase 14 — coordenar para não duplicar a alteração de schema.
+- **ADR-0014** registrada: os dois ambientes são declarados permanentemente demonstração; o risco residual já existente (registro de acesso de visitante no staging, sem SCC) é assumido explícita e permanentemente; `REGISTRATION_ENABLED` passa a ter default `false` no código (fail-closed); abrir cadastro real um dia exigiria uma `auditoria-conformidade` completa antes de `REGISTRATION_ENABLED=true` — não está planejado.
+- **ROPA reescrito** — corrige a autocontradição que o laudo de 2026-08-22 apontou (7 operações afirmavam "sem operador, sem transferência internacional" enquanto a tabela de operadores lista Render/Neon nos EUA); passa a declarar os 3 operadores (VPS, Render, Neon) com DPA/SCC deliberadamente não celebrados, por decisão permanente, não por pendência.
+- **RIPD reavaliado** — risco 6.2 (credencial de medidor em claro) fechado (issue #182, já corrigido); risco 6.3 (transferência internacional) passa de "a reavaliar" para "aceito permanentemente"; risco 6.1 (retenção de `MeterReading`) reclassificado para a Fase 15 como questão de armazenamento/performance, não mais conformidade; 6.4/6.5 (base legal, DSAR) deferidos pela ADR-0014.
+- **`09-conformidade-legal.md` e `privacy-policy.md`** atualizados para não sugerir mais uma trajetória "ainda não, mas em breve" rumo a titular real — a ressalva jurídica de completar o documento antes de operar com dado real passa a valer para quem fizer **fork**, não para o roadmap deste projeto. `CURRENT_CONSENT_VERSION` incrementada (1.4 → 1.5).
+- **Monitor externo de disponibilidade para a produção — decidido ([ADR-0015](adr/0015-monitor-externo-producao-vps.md)).** Reaproveita o raciocínio de conformidade da ADR-0011 (ping não-autenticado em `/health` não configura transferência internacional), verificado no código (`app.ts`: sem auth, sem PII, sem log de acesso) antes de reaplicar a conclusão. `deploy/Caddyfile` passou a expor `/health` (antes só `handle /api/*`, com `/health` caindo no fallback do SPA). Falta só ação do usuário fora do repositório: aplicar a mudança em produção (deploy) e criar o monitor externo (ex.: UptimeRobot) apontando para `https://lumitrack.app.br/health`.
 
-### Fase 15.5 — Enforcement de qualidade + comentários de rastreabilidade (P1)
+**Fora de escopo, deferido pela ADR-0014 (não reaberto sem decisão nova):** DPA de Render/Neon/provedor da VPS; SCC do staging; retenção de dado pessoal por titular; export DSAR completo; atribuição formal de base legal; reaceite de consentimento via `consentVersion`.
+
+**Não coberto por esta fase, achado próprio (issue #269 reaberta):** guarda de registros de acesso (Marco Civil Art. 15) — `audit_logs` (730 dias) cobre eventos de autenticação/CRUD, **não** o conjunto de registros de acesso à aplicação (`pinoHttp` vai para stdout sem retenção garantida). Diferente do resto desta fase, o titular aqui é o visitante real — não depende de cadastro fechado, então a ADR-0014 não resolve isso sozinha. Correção registrada em `.claude/log/CHANGELOG.md` (revisão de código do PR #274).
+
+**Fechamento (2026-08-24):** entregue nas 3 sub-issues que sobraram do rescopo (#260 ROPA, #261 RIPD, #265 monitor externo), épico #259, branch `epic/259-governanca-dados-ropa-ripd-dpa`, PR #274. **Fecha a Fase 14.** A fase não teve redução de escopo durante a execução — o escopo já tinha sido reduzido *antes* dela começar, pela ADR-0014, que fechou #262/#263/#264 (DPA/SCC) sem objeto. Duas observações que não cabem em nenhuma sub-issue:
+
+- **Duas ações permanecem pendentes, ambas fora do repositório e ambas do usuário** (ADR-0015): aplicar o `deploy/Caddyfile` novo na VPS de produção (deploy + restart do Caddy) e criar o monitor externo apontando para `https://lumitrack.app.br/health`. A fase é dada por concluída porque tudo que é código e documentação está entregue e mesclado — o mesmo critério que fechou a Fase 13.5 com itens operacionais em aberto. Até a primeira ação acontecer, `/health` continua devolvendo o HTML do SPA em produção e o monitor não teria o que vigiar.
+- **Duas issues de conformidade P1 ficam abertas sem fase atribuída, por decisão do usuário:** #272 (correções do `RUNBOOK_INCIDENTES.md` — prazo em dobro do regime de pequeno porte, canal vigente da ANPD, guarda de 5 anos incluindo incidentes não comunicados) e #269 (guarda de registros de acesso, Marco Civil Art. 15). Nenhuma das duas é resolvida pela ADR-0014 e nenhuma bloqueia a Fase 15; serão alocadas quando houver uma próxima fase de conformidade a detalhar.
+
+## Fase 15 — Desempenho: instrumentação, índices, multiplicadores e infraestrutura (P1)
+
+**Entrega (milestone):** `Conformidade P1, desempenho e robustez`
+
+Remediação dos achados de desempenho de 2026-08-22 (6 Alto · 13 Médio · 12 Baixo), na ordem de ataque que o próprio laudo sugere: medir, depois desligar o que cresce sozinho, depois reduzir o custo unitário, depois eliminar a multiplicação. Nenhum RF novo.
+
+**Três correções de premissa em relação ao parágrafo-objetivo que esta seção substitui**, apuradas no detalhamento de 2026-08-24:
+
+1. **O objetivo anterior afirmava que o laudo isentava de medição prévia tanto a compressão HTTP quanto o pool de conexões. Não é o que o laudo diz.** A §6 isenta apenas **A-05** (compressão/cache — "configuração ausente, não trade-off"); **M-12** (pool) aparece na tabela da mesma §6 *exigindo* medição (`pool.totalCount`/`idleCount`/`waitingCount` durante um flush do minuto) e na §7 item 7, entre os "só com número na mão". O pool foi reposicionado como P2 dependente da instrumentação.
+2. **Não existe volume para medir.** A produção na VPS subiu em 2026-08-23 — são ~1–2 dias de `meter_readings`, e o staging hiberna por desenho desde a ADR-0013. `EXPLAIN` nesse volume responde "seq scan" para tudo e não decide nada. Por isso a instrumentação **inclui geração de massa sintética** num banco descartável: sem isso a fase mede o nada e otimiza no escuro.
+3. **A premissa do A-04 (retenção) mudou de lugar, não de tamanho.** O laudo elevou o achado a Alto por causa do teto de 0,5 GB do Neon com o keep-alive mantendo tudo acordado. A ADR-0013 removeu o keep-alive e a ADR-0012 moveu a produção para a VPS, onde `docker-compose.yml` roda `postgres` + `simulator` com `restart: unless-stopped` — o acúmulo de ~15.840 linhas/dia agora é no disco da VPS, não contra o teto do Neon. Continua real; deixou de ter data de validade curta.
+
+A retenção de `meter_readings` (issues #236/#267) é escopo próprio desta fase desde a ADR-0014 — deixou de ser conformidade (sem titular real, sem prazo LGPD a cumprir) e passou a ser questão de armazenamento/performance.
+
+### Instrumental de medição de banco + massa sintética
+
+- **Comportamento:** passa a ser possível responder com número, e não com opinião, quantas queries cada requisição faz e quanto custa cada agregação sobre volume realista.
+- **Cobre:** decide A-01, A-02, A-03, A-04, M-02, M-11, M-12 (laudo de desempenho 2026-08-22, §6).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:** `pg_stat_statements` habilitado no Postgres da VPS e no banco local; script que gera N meses de `meter_readings` sintéticas num banco descartável, com o mesmo perfil do simulador (11 medidores × 1.440 linhas/dia); `EXPLAIN (ANALYZE, BUFFERS)` de `findAggregated` e `countBuckets` (`consumption.repository.ts`) sobre 1 ano de dados de 1 medidor; `prisma.$on('query')` atrás de flag de ambiente, contando queries por requisição de `/api/alerts` e `/api/consumption`; `pool.totalCount`/`idleCount`/`waitingCount` logados durante um flush do `MinuteRollupScheduler`; `pg_total_relation_size('meter_readings')` e taxa de crescimento/dia medidos na VPS. Consolidado em `.claude/docs/{DATA}-baseline-desempenho.md`.
+- **Depende de:** —
+- **Risco/observações:** o log de query **não pode ir para produção ligado** — `prisma.$on('query')` em caminho quente vira o próprio gargalo. Flag desligada por padrão, fail-closed, no mesmo padrão das demais variáveis de ambiente do `env.ts`.
+
+### Compressão HTTP + cache de assets
+
+- **Comportamento:** bundle e JSON passam a trafegar comprimidos nos dois ambientes; assets com hash de conteúdo são servidos do cache em vez de revalidados a cada carregamento.
+- **Cobre:** A-05.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** `encode zstd gzip` no bloco do site do `deploy/Caddyfile`; `@static path /assets/*` com `Cache-Control: public, max-age=31536000, immutable` (seguro — o Vite gera nome com hash); `compression()` no Express **antes das rotas**, com `filter` excluindo `/api/iot/stream`; teste garantindo que o SSE continua entregando chunk a chunk; `curl -H "Accept-Encoding: gzip,br" -I` contra os dois ambientes confirmando o cabeçalho.
+- **Depende de:** —
+- **Risco/observações:** único item da fase que não depende da instrumentação — o laudo o isenta explicitamente. O risco real é comprimir SSE e quebrar o streaming (o buffer de compressão segura o chunk); por isso o filtro tem teste próprio, não confiança.
+
+### Índices de FK
+
+- **Comportamento:** nenhuma mudança visível ao usuário; as travessias de posse e as cascatas `ON DELETE` deixam de fazer seq scan.
+- **Cobre:** A-01, B-05.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** `@@index([userId])` em `Property` e `Alert`; `@@index([distributorId])` em `Property`; `@@index([propertyId])` em `Area`; `@@index([areaId])` em `Device`; índice de suporte ao expurgo em `MeterReading.minuteStart` isolado. Migração puramente aditiva e reversível; `EXPLAIN` de `resolveUserMeterIds` antes e depois sobre a massa sintética, anexado à issue.
+- **Depende de:** Instrumental de medição.
+- **Risco/observações:** o Prisma Migrate cria a *constraint* de FK mas não o índice no PostgreSQL (difere do MySQL) — é a razão de nenhuma dessas colunas estar indexada hoje, confirmada na varredura das migrações.
+
+### Retenção de `meter_readings` e das outras três entidades
+
+- **Comportamento:** o banco para de crescer indefinidamente; `PurgeSummary` ganha uma entrada por entidade nova.
+- **Cobre:** A-04 etapa 1 · issues #236, #267.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:** `RetentionService` estendido para `MeterReading`, `AlertTriggerEvent`, `MfaBackupCode` e `TariffFlagHistory`, cada uma com seu `DATA_RETENTION_*_DAYS` em `env.ts` (nunca hardcoded, mesmo padrão das quatro já cobertas); prazo de `MeterReading` decidido a partir do crescimento real medido na instrumentação; `RIPD.md` §3.3 atualizado com o resultado; testes por entidade no padrão de `retention.service.test.ts`; `RetentionPurgeScheduler` sem mudança de contrato para as entidades já cobertas.
+- **Depende de:** Instrumental de medição; Índices de FK (índice de suporte ao expurgo).
+- **Risco/observações:** as duas issues foram reescritas na criação do épico #275 (removido o apoio jurídico e a política de conta inativa, sem objeto sem titular real). **#236 concluído (2026-08-24):** prazo decidido em **365 dias**, com o crescimento real medido em #276 (~2 GiB/ano, teto conhecido e estável) — `RIPD.md` §3.2/§3.3 atualizados com a decisão final. Falta só #267 implementar `DATA_RETENTION_METER_READING_DAYS=365` e estender o `RetentionService`.
+
+### Cache in-process de bandeira tarifária e distribuidoras
+
+- **Comportamento:** o custo por requisição de consumo cai sem mudar nenhuma resposta.
+- **Cobre:** M-03.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:** `TariffFlagConfig` e o catálogo de distribuidoras servidos de cache em processo, com invalidação amarrada ao job de sincronização da ANEEL; teste de que a mudança de bandeira propaga sem reiniciar o processo.
+- **Depende de:** Instrumental de medição.
+- **Risco/observações:** elimina 2 das 6–8 queries de *cada* chamada de consumo — o ganho é multiplicativo sobre o fan-out, e é a razão de vir antes dos itens que atacam o fan-out em si.
+
+### `resolveRootProperty` / `resolveMeterTarget` em uma query
+
+- **Comportamento:** a resolução de posse deixa de custar até 3 round trips sequenciais.
+- **Cobre:** M-11.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:** `include` aninhado no lugar dos lookups encadeados device → area → property; contagem de queries por requisição medida antes e depois; **teste dedicado de `resolveRootProperty`** entregue junto.
+- **Depende de:** Instrumental de medição.
+- **Risco/observações:** `resolveRootProperty` é a primitiva central de autorização de posse e hoje não tem cobertura dedicada — o teste que a Fase 15.5 prevê é **antecipado para cá**, não deixado para depois. Refatorar sem rede uma primitiva de autorização troca risco de performance por risco de segurança, que é o pior negócio possível.
+
+### N+1 de `AlertService.findAll` + `enabledCount` no envelope
+
+- **Comportamento:** listar alertas deixa de custar até 124 queries por página; a `AlertsPage` para de fazer uma segunda listagem só para contar um KPI.
+- **Cobre:** A-02, B-08.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:** `resolveMeterTarget` resolvido em lote (`findMany({ where: { id: { in: meterIds } } })` + `Map<meterId, target>`) ou `include` aninhado único; `enabledCount` exposto no envelope paginado (ou `GET /api/alerts/stats`); `AlertsPage` passa a consumir esse campo e a segunda chamada `useAlerts(1, 31)` é removida; contagem de queries por requisição medida antes e depois.
+- **Depende de:** Instrumental de medição; `resolveRootProperty`/`resolveMeterTarget` em uma query.
+- **Risco/observações:** a amplificação real vem do `RealtimeContext`, que invalida `queryKeys.alerts.all` a **todo** evento `alert-firing` — ~150 queries por episódio, por aba aberta. Sem este item, cada alerta que dispara é uma tempestade de queries.
+
+### Endpoint batch de consumo
+
+- **Comportamento:** o painel e as páginas de propriedade/área param de disparar uma requisição por filho e passam a resolver a comparação inteira numa chamada.
+- **Cobre:** A-03.
+- **Priority:** P1 · **Size:** L
+- **Critérios de aceite:** `GET /api/consumption/summary?targetType=&ids=&granularity=` resolvendo em 1 requisição e 1 query com `GROUP BY "meterId", bucket`; validação Zod na borda incluindo teto de itens em `ids`; **autorização de posse verificada por id da lista**, não só para o primeiro; adoção nos três pontos de fan-out (`PropertyComparisonSection`, `PropertyDetailsPage`, `AreaDetailsPage`); o `pageSize: 3` que existe só para não colidir `queryKey` desaparece junto.
+- **Depende de:** Instrumental de medição; cache in-process; `resolveRootProperty`/`resolveMeterTarget` em uma query.
+- **Risco/observações:** maior ganho da fase e maior superfície — **endpoint novo é superfície de autorização nova**, não só de performance. Se ficar grande demais na execução, quebrar em "endpoint + testes" e "adoção no frontend"; é o único item L da fase e a trava de tamanho do `06` se aplica.
+
+### `countBuckets` com `COUNT(*) OVER ()`
+
+- **Comportamento:** paginar consumo deixa de custar uma segunda varredura agregada idêntica.
+- **Cobre:** M-02.
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:** contagem obtida via window function na própria `findAggregated` em vez da subquery duplicada de `countBuckets`; resultado idêntico ao atual verificado por teste; `EXPLAIN` antes e depois.
+- **Depende de:** Instrumental de medição.
+- **Risco/observações:** classificado pelo laudo como "só com número na mão" — se a medição mostrar que a segunda varredura é barata no volume real, o item vira YAGNI e é fechado com justificativa, não implementado por ritual.
+
+### Pool de conexões explícito
+
+- **Comportamento:** o pool passa a ter tamanho e timeout deliberados em vez de default implícito.
+- **Cobre:** M-12.
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:** `max`, `connectionTimeoutMillis` e `idleTimeoutMillis` configurados no `PrismaPg` (`shared/database/prisma.ts`, hoje instanciado só com `connectionString`), vindos de `env.ts`, dimensionados pelo número medido na instrumentação — não por chute.
+- **Depende de:** Instrumental de medição.
+- **Risco/observações:** dimensionar pool sem medir troca um default razoável por um número inventado. É por isso que é P2 e depende da medição, ao contrário do que o objetivo anterior desta fase afirmava.
+
+**Fora do escopo desta fase, com destino:**
+
+| Achado | Destino | Por quê |
+|---|---|---|
+| A-06 (React Compiler), M-04 (code-splitting), B-02, B-07, B-11, B-12 | **Fase 17** | Já é o escopo declarado da 17 — e o baseline de bundle/render (`rollup-plugin-visualizer`, React DevTools Profiler) vai junto, para medir e corrigir na mesma fase |
+| M-01, M-05, M-06, M-07, M-09, M-13 | **Fase 16** | Worker IoT e simulador, escopo declarado da 16 |
+| A-04 **etapa 2** (rollup materializado por hora/dia) | **Adiado, com gate** | Tabela/componente novo exige ADR (`03-arquitetura.md`). Só se `findAggregated` sobre 1 ano medido estourar o orçamento de latência — senão a etapa 1 sozinha resolve e o resto é YAGNI |
+| M-10 (export LGPD sem limite, PDF síncrono) | **Adiado sem fase** | Sem titular real (ADR-0014), o export não tem volume que justifique o trabalho |
+| B-01, B-03, B-04, B-06, B-09, B-10 | **Fase 18** | Polimento de baixo impacto |
+
+**Justificativa de sequenciamento (o que não é óbvio):** a compressão vem antes de tudo apesar de não ser o maior ganho, porque é a única coisa da fase que não depende de medição e entrega no primeiro dia. Os índices e o expurgo vêm antes de cache, N+1 e endpoint batch porque são o que impede o custo de **crescer** — otimizar query antes de indexar mede o cenário errado e leva à conclusão errada sobre o que otimizar depois.
+
+**Fechamento (2026-08-26):** os 10 itens da fase entregues em três branches. **Épico #275** (fundação — instrumental de medição #276, compressão HTTP + cache #277, índices de FK #278, retenção de `meter_readings` e as outras três entidades #236/#267), branch `epic/275-fundacao-desempenho`, PR #286. **Épico #279** (redução de custo unitário — cache in-process de bandeira/distribuidoras #280, `resolveRootProperty`/`resolveMeterTarget` em uma query #281, N+1 de `AlertService.findAll` + `enabledCount` #282, endpoint batch de consumo #283), branch `epic/279-reducao-custo-unitario`, PR #287. **Issues avulsas #284/#285** (`countBuckets` via `COUNT(*) OVER ()` e pool de conexões explícito — as duas P2, sem épico próprio, dependentes do instrumental do #275), branch `perf/284-285-countbuckets-pool-conexoes`, PR #288. **Fecha a Fase 15.**
+
+- Nenhum item da fase virou YAGNI na execução — `countBuckets`/`COUNT(*) OVER()`, o único candidato explicitamente sinalizado como "só com número na mão", mediu ~3,4× mais rápido e ~8,4× menos buffer, então foi implementado.
+- **Achado próprio da revisão de código do PR #288, issue nova sem fase atribuída:** #289 (`statement_timeout`/`query_timeout` explícito no pool — a outra metade do controle P1 do `11-seguranca-infraestrutura.md` sobre exaustão de conexões, que o #285 só cobriu pela metade). Não bloqueia a Fase 15 nem tem medição própria feita ainda; mesmo tratamento dado a #269/#272 ao fim da Fase 14 — fica em aberto até uma fase de robustez/infra futura reivindicá-la.
+
+## Fase 15.5 — Enforcement de qualidade + comentários de rastreabilidade
+
+**Entrega (milestone):** `Conformidade P1, desempenho e robustez` (mesma milestone da Fase 15 — fecha com ela).
 
 > Mesmo raciocínio que já colocou a Fase 12 antes das Fases 16–18: fechar a lacuna entre o que os padrões declaram enforçado e o que a ferramenta de fato verifica, **antes** que mais código complexo (Fase 16, Fases 19–22) se acumule por trás de travas que não travam.
+>
+> **Correção de premissa em relação ao parágrafo-objetivo que esta seção substitui (detalhamento de 2026-08-26):** o objetivo anterior listava "teste de `resolveRootProperty` (hoje sem cobertura dedicada)" como parte do escopo. Não é mais verdade — o critério de aceite do item `resolveRootProperty`/`resolveMeterTarget` em uma query da Fase 15 (issue #281) já antecipou esse teste, entregue em `backend/src/shared/targetResolution.test.ts` (6 casos, PROPERTY/AREA/DEVICE × happy-path/`NotFoundError`). **Este item sai do escopo da 15.5.** Os números do laudo de qualidade de 2026-08-22 também mudaram ao medir de novo agora: comentários de rastreabilidade eram ~310/192 arquivos, hoje são 266 ocorrências em 159 arquivos nos 4 diretórios `src/` dos pacotes (+59 ocorrências em 17 arquivos fora de `src/`, se o épico incluir esse escopo auxiliar); arquivos com regra de complexidade desligada eram 54, hoje são 57 (48 frontend, 7 backend, 2 `iot-simulator/ui`).
 
-Cobre: decisões de enforcement do laudo de qualidade de 2026-08-22 — instalar `eslint-plugin-jsdoc` (ou corrigir o `06` para não afirmar que existe); `complexity`/`max-lines-per-function` hoje desligadas em 54 arquivos (~metade do frontend) — trocar por teto decrescente com prazo em vez de `off` puro; `dependency-cruiser` com a regra de ciclo que o `03` já promete, ausente no backend e inexistente no frontend; decidir sobre type-check no pre-commit; ADR sobre o padrão real de acesso cross-módulo (service → repository de outro módulo). **Comentário de rastreabilidade** — ~310 ocorrências (issue/PR/Fase N) em 192 arquivos, violando a regra inegociável do `06`/`CLAUDE.md`; épico próprio (o laudo recomenda), quebrado por diretório/pacote na execução. Teste de `resolveRootProperty` (primitiva central de autorização de posse, hoje sem cobertura dedicada).
+### JSDoc real: instalar `eslint-plugin-jsdoc` ou corrigir o `06`
 
-### Fase 16 — Worker IoT: robustez, estrutura e cobertura (P2)
+- **Comportamento:** nenhum para o usuário final — ferramenta de qualidade interna.
+- **Cobre:** Q-04 (laudo de qualidade 2026-08-22, Alta) — fecha a lacuna entre o `06` (afirma "`eslint-plugin-jsdoc` valida presença e forma dos blocos em exports públicos") e a realidade: o pacote não consta em nenhum dos 5 `package.json` nem em nenhuma `eslint.config.js`.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - Medir primeiro (mesmo princípio "meça antes de otimizar" já aplicado na Fase 15): contar quantos exports públicos hoje não têm bloco JSDoc, por pacote, antes de decidir a severidade da regra.
+  - `eslint-plugin-jsdoc` instalado nos 4 `package.json`; `jsdoc/require-jsdoc`/`require-param`/`require-returns` configuradas em cada `eslint.config.js`, escopadas a exports públicos (classes, funções/métodos exportados de `service`/`repository`/`controller` — não cada helper interno, para não gerar ruído desproporcional ao valor).
+  - Débito pré-existente tratado no mesmo padrão já usado para a regra de complexidade: override explícito e catalogado por arquivo, nunca a regra inteira desligada globalmente — se o volume for grande, abre o mesmo tipo de issue de acompanhamento que a #168 já é para complexidade.
+  - Se a medição mostrar que o custo de anotar o débito existente é desproporcional ao valor imediato, a alternativa é corrigir o `06` para não afirmar o que a ferramenta não faz — decisão a registrar no fechamento desta fase, não assumida agora.
+- **Depende de:** —
+- **Risco/observações:** baixo tecnicamente (config), mas é a mesma armadilha da regra de complexidade: ligar a regra `error` sem debitar o legado quebra o build inteiro no primeiro commit.
 
-Cobre o escopo original (quebrar `ModbusTcpConnection.ts` em um arquivo por adaptador + `serialLineParser.ts` compartilhado; schema Zod por protocolo eliminando os non-null assertions; polling com reentrância/timeout/backoff/reconexão; mapeamento de payload dos adaptadores não-MQTT; tetos plausíveis no payload IoT; SSE com serialização única e backpressure; `upsertMinute` em `INSERT ... ON CONFLICT`; cobertura dos 6 adaptadores), acrescido do achado novo de 2026-08-22: **MQTT com `reconnectPeriod: 0`** — desabilita reconexão automática, contradizendo o próprio comentário do `demo-entrypoint.sh` que promete reconexão; modo de falha mais caro de diagnosticar (painel que parece funcionar mas nunca mais atualiza). E o simulador: coalescer notificações de snapshot (hoje O(D²×C) materializações/segundo).
+### Complexidade: teto decrescente com prazo (issue #168) em vez de `off` puro
 
-### Fase 17 — Frontend: tempo real e bundle (P2)
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** issue #168 (aberta na Fase 12), débito de complexidade real em **57 arquivos** (número atualizado — o laudo antigo dizia 54: 47 frontend, 5 backend, 2 simulador).
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - Substituir os overrides `"off"` por um teto acima do valor real de cada arquivo hoje, mas abaixo do desligamento total, com uma data/fase de revisão registrada no próprio comentário do override (ex.: "teto 25 até a Fase 18, então reavaliar") — não fixar a refatoração em si, que é escopo das Fases 16/18.
+  - `IoTConnectionManager.ts` e `consumption.service.ts` (backend) citados explicitamente por já terem fase de destino conhecida (16 e 18, respectivamente, conforme comentário existente no config) — o teto desses dois pode já refletir essa data.
+  - Issue #168 atualizada com a contagem real (57, não 54) e a lista por arquivo.
+- **Depende de:** —
+- **Risco/observações:** baixo — é mudança de configuração, não de código; risco é só escolher um teto tão frouxo que equivale a `off` disfarçado.
 
-Cobre: React Compiler habilitado (o código já é compiler-clean por lint e vários comentários citam o compilador — **colhe zero benefício dele hoje**) + separação do `RealtimeContext` em conexão/leituras; buffer de potência circular com downsampling (hoje O(n) por amostra sobre até 86.400 pontos, com o `useMemo` do gráfico nunca acertando); `useLiveMeterReading` sem render a cada 2 s; code-splitting por rota + `manualChunks` isolando `recharts` e a stack markdown (hoje `/login` baixa as duas dependências mais pesadas do projeto). Achados de 2026-08-22 confirmam este escopo sem item novo.
+### `dependency-cruiser`: regra de ciclo no backend + cobertura no frontend
 
-### Fase 18 — Design system, cobertura e polimento (P2)
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** promessa não cumprida do `03-arquitetura.md` ("sem dependência circular entre módulos... verificável por regra do dependency-cruiser"); achado Q-20 do laudo de qualidade.
+- **Priority:** P1 · **Size:** S/M
+- **Critérios de aceite:**
+  - `no-circular` adicionado a `backend/.dependency-cruiser.cjs` (hoje só tem 1 regra, `no-express-in-domain`), rodando limpo — a arquitetura já é modular, a expectativa é que entre verde.
+  - `frontend/.dependency-cruiser.cjs` novo, com pelo menos a regra de ciclo e uma regra direcional equivalente (ex.: `services`/`hooks` não importar de `pages`/`components`).
+  - Decidir na execução se os 2 pacotes do `iot-simulator` recebem config própria ou ficam de fora por proporcionalidade — registrar a decisão, não assumir.
+  - CI (`ci.yml`) ganha o job de `depcruise` para o frontend, no mesmo padrão do `backend-lint` já existente (hoje o dependency-cruiser só roda para o backend).
+- **Depende de:** —
+- **Risco/observações:** baixo-médio — se houver ciclo real hoje "escondido" pela ausência da regra, corrigi-lo pode tocar imports em múltiplos arquivos; medir o tamanho real do problema faz parte do próprio item antes de estimar o esforço final.
 
-Cobre: **decisão de token primeiro** — mapear no `@theme` a escala tipográfica e de espaçamento que o protótipo de fato usa (**291 valores arbitrários em 44 arquivos**, medição de 2026-08-22 — dobrou desde a nota de 2026-08-09) e promover o verde `#3f8f52` a token, com `/design-sync` de volta; **cor hardcodada como achado distinto do débito de espaçamento** — 54 ocorrências de hex em 17 arquivos, incluindo o mapa de cores de bandeira tarifária inteiramente arbitrário; depois a limpeza mecânica — tokens pré-Industry em ~16 arquivos, `.lt-live-dot` no lugar da animação inline replicada 10×, ramo morto do `UserMenu`, `LiveKpiCard` adotado nas 3 páginas que o copiaram, decisão única sobre `Blueprint` vs. cantos manuais, e lint anti-regressão. Mais: namespace próprio de `queryKey` para "último bucket"; cobertura de Alertas, do SSE client e do CRUD de Medidor; `parseOrThrow` eliminando as 31 repetições; drift de documentação viva restante; e o restante do polimento.
+### Type-check no pre-commit — decisão + correção do `06`
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** `06` afirma que o pre-commit roda "lint, format e type-check"; hoje o `.husky/pre-commit`/`lint-staged.config.js` roda só `eslint --fix` + `prettier --write` (`scripts/lint-staged-run.mjs`) — type-check só acontece no CI.
+- **Priority:** P2 · **Size:** XS/S
+- **Critérios de aceite:**
+  - Decisão a tomar na execução, documentada com o porquê: (a) adicionar `tsc -b`/`tsc --noEmit` ao pre-commit, aceitando o custo de latência por commit num projeto solo; ou (b) corrigir o `06` para refletir que type-check é só gate de CI.
+  - Se (a): usar build incremental (`tsconfig.tsbuildinfo`) para não pagar o custo de type-check completo a cada commit.
+  - Se (b): `06-code-quality-standards.md` editado para remover a afirmação incorreta.
+- **Depende de:** —
+- **Risco/observações:** baixo — decisão de ergonomia de desenvolvimento, sem risco técnico em qualquer dos dois caminhos.
+
+### ADR: padrão de acesso cross-módulo (service → repository de outro módulo)
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** lacuna entre o `03-arquitetura.md` (não documenta o padrão) e o código real — 14 arquivos `*.service.ts` importam `*.repository.ts` de outro módulo diretamente (`consumption`, `simulation`, `meter-reading`, `meter`, `area`, `property`, `alert-event`, `device`, `export`).
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  - ADR registrando que o padrão já em uso pervasivamente (service de um módulo lendo repository de outro diretamente, incluindo os helpers compartilhados `resolveRootProperty`/`resolveMeterTarget` desenhados exatamente para isso) é o padrão sancionado — não um desvio a corrigir.
+  - `03-arquitetura.md` atualizado para documentar essa regra explicitamente, com um exemplo real (`consumption.service.ts`) citado.
+  - Critério negativo: o que continua proibido é service importar framework/infra de outro módulo ou pular a camada de repository (acessar Prisma direto) — a regra `no-express-in-domain` já cobre a primeira parte; não é escopo deste item recriar essa regra.
+- **Depende de:** —
+- **Risco/observações:** baixo — é documentação alcançando a realidade do código, não mudança de código.
+
+### Épico: limpeza de comentários de rastreabilidade
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** regra inegociável do `06`/`CLAUDE.md` — proibição de comentário de rastreabilidade (issue/PR/achado/auditoria/Fase N/data/autor no código-fonte).
+- **Priority:** P1 · **Size:** L (épico com sub-issues por módulo/pacote)
+- **Critérios de aceite:**
+  - Escopo confirmado: **266 ocorrências em 159 arquivos** nos 4 diretórios `src/` dos pacotes (backend 144/70 arquivos, frontend 110/79, `iot-simulator/server` 10/8, `iot-simulator/ui` 2/2). Decisão a bater na criação das issues: incluir ou não as **+59 ocorrências em 17 arquivos** fora de `src/` (`backend/scripts/`, `backend/prisma/seed-demo/`, `frontend/tests/e2e/**`, `iot-simulator/server/vitest.config.ts`).
+  - Sub-issues por módulo/diretório, agrupando os menores para não fragmentar demais:
+    - Backend: `auth` (31 ocorrências, maior concentração), `user` (18), `meter`+`iot` (16 cada), `export` (8); módulos com 1-4 ocorrências (`property`, `alert`, `consumption`, `tariff-flag`, `simulation`, `distributor`, `area`, `admin`, `device`, `notification`) agrupados em 1-2 sub-issues "módulos menores"; `shared`/`config`/raiz (15 arquivos) como sub-issue própria.
+    - Frontend: 79 arquivos/110 ocorrências — quebrar por diretório (`components/`, `pages/`, `hooks/`, `types/`) na criação das issues.
+    - `iot-simulator/server` (10/8) e `iot-simulator/ui` (2/2): 1 sub-issue cada, dado o volume pequeno.
+  - **Cada sub-issue exige revisão manual linha a linha antes de remover** — um grep automatizado gera ruído real (12 falsos positivos confirmados na medição de 2026-08-26: cor hex capturada por `#\d+`, data de exemplo em docstring de formatação, "auditoria" como termo de domínio/trilha de auditoria do sistema, não laudo). Nada de `sed` em massa.
+  - `TODO(design)` (1 ocorrência, `AboutPage.tsx`) preservado — é categoria própria do kit, não rastreabilidade.
+  - Cada comentário removido some ou vira comentário funcional (explica o quê/como/por quê) — não é "apagar tudo", é diferenciar rastro (proibido) de contexto funcional (permitido) linha a linha.
+- **Depende de:** nenhuma dependência técnica com os itens de enforcement acima — pode rodar em paralelo. Ordem sugerida (não obrigatória): depois de fechar as configs de enforcement, para as sub-issues já nascerem sob as travas novas.
+- **Risco/observações:** maior item da fase em volume, mas risco técnico baixo (é remoção/reescrita de comentário, não lógica) — o risco real é humano: decidir mal o que é "rastro" vs. "contexto funcional" em massa. Por isso a revisão linha a linha é critério, não sugestão.
+
+## Fase 16 — Worker IoT: robustez, estrutura e cobertura
+
+**Entrega (milestone):** `Robustez e Polimento` (nova — cobre as Fases 16, 17 e 18; fecha antes da maior expansão de domínio do roadmap, a Fase 19).
+
+> **Correção de premissa em relação ao parágrafo-objetivo que esta seção substitui (detalhamento de 2026-08-28):** a investigação desta rodada encontrou a realidade **mais grave** do que o achado de 2026-08-22 registrava. São **8 adaptadores de protocolo**, não 6 (o stub de Profibus e o Profinet não tinham sido contados). E o mapeamento de payload dos adaptadores não-MQTT não é "ad hoc" — é **estruturalmente quebrado**: `IoTDataProcessor.isValidPayload` (`backend/src/modules/iot/iot-worker/IoTDataProcessor.ts:64-76`) só aceita `{voltage, current, powerW, powerFactor}`, formato que só o MQTT emite (por coincidência, porque bate com o payload do simulador). Modbus TCP/RTU, EtherNet/IP, Profibus, Profinet, RS232 e RS485 emitem formatos nativos (`{register, value}`, `{tag, value}`, `{db, data: number[]}`...) que a validação rejeita — **toda leitura desses 6 protocolos é descartada silenciosamente hoje** (`log.warn("Leitura inválida descartada")`). Isso eleva o item de mapeamento/schema de "estrutura" para "correção de bug ativo" e muda sua prioridade de P2 para P0.
+>
+> **Issue #168 (tetos de complexidade, 57 arquivos) dobrada para esta fase** por decisão do usuário em 2026-08-28 — não fazia parte da branch que fechou o resto da Fase 15.5 (#296–#299) e continuava aberta. Ver item 6 abaixo.
+
+### 1. Fix isolado: MQTT `reconnectPeriod: 0`
+
+- **Comportamento:** nenhum para o usuário final diretamente — mas evita o modo de falha mais caro de diagnosticar do worker: painel que parece funcionar e nunca mais atualiza.
+- **Cobre:** achado de 2026-08-22, confirmado em `backend/src/modules/iot/iot-worker/protocols/MqttConnection.ts:52` — `reconnectPeriod: 0` desabilita a reconexão automática, contradizendo o comentário do `deploy/demo-entrypoint.sh:60-62` ("o cliente MQTT do backend reconecta sozinho quando o broker subir"). Contraste: o publisher MQTT do próprio simulador (`iot-simulator/server/src/mqtt/internalPublisher.ts:38`) já usa `reconnectPeriod: 1000` corretamente.
+- **Priority:** P0 · **Size:** XS
+- **Critérios de aceite:**
+  - `reconnectPeriod` do `MqttConnection` passa a ter um valor positivo (alinhado ao do simulador, 1000ms, salvo razão em contrário encontrada na execução).
+  - Teste pinando o valor da opção passada ao client MQTT — mesmo padrão já usado para travar comportamento de configuração em outras partes do worker.
+- **Depende de:** — (isolado, mesmo tratamento que o bug do RS-485 recebeu na Fase 12 — bug funcional confirmado não espera o resto da fase).
+- **Risco/observações:** baixo — mudança de uma constante, com teste de regressão.
+
+### 2. Caracterização + split do `ModbusTcpConnection.ts`
+
+- **Comportamento:** nenhum para o usuário final — pré-requisito estrutural para os itens 3–5.
+- **Cobre:** `backend/src/modules/iot/iot-worker/protocols/ModbusTcpConnection.ts`, 805 linhas, 7 classes num arquivo só (`ModbusTcpConnection`, `ModbusRtuConnection`, `EthernetIpConnection`, `ProfibusConnection` — stub que só lança erro —, `ProfinetConnection`, `Rs232Connection`, `Rs485Connection`); `Rs232Connection._handleSerialData` e `Rs485Connection._handleSerialData` duplicam a mesma lógica de buffering de linha.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - **Caracterizar antes de mover** (regra do skill `refatoracao`): hoje só `ModbusTcpConnection.test.ts` (116 linhas) existe, cobrindo `EthernetIpConnection` e o buffering de `Rs232Connection`/`Rs485Connection` — não cobre `ModbusTcpConnection`, `ModbusRtuConnection`, `ProfibusConnection` nem `ProfinetConnection`. Escrever teste de caracterização do comportamento atual dessas 4 classes **antes** de tocar no arquivo.
+  - Split em 1 arquivo por adaptador (8 arquivos, incluindo o já isolado `MqttConnection.ts` como modelo) + `serialLineParser.ts` compartilhado, absorvendo o buffering hoje duplicado entre RS232/RS485.
+  - Nenhuma mudança de comportamento neste item — verificado pelos testes de caracterização passando antes e depois do split. A correção do payload (item 3) é item separado de propósito, para não misturar refactor estrutural com bugfix no mesmo diff.
+- **Depende de:** —
+- **Risco/observações:** médio — é o arquivo mais complexo do worker IoT sendo movido com cobertura ainda fina; a caracterização é o que torna o risco aceitável.
+
+### 3. Schema Zod por protocolo + correção do mapeamento de payload (bug crítico)
+
+- **Comportamento:** os 6 protocolos não-MQTT passam a entregar leitura de verdade ao invés de serem descartados silenciosamente — pré-condição para qualquer medidor não-MQTT funcionar de ponta a ponta.
+- **Cobre:** as 12 non-null assertions de `IoTConnectionManager.createConnection()` (uma por campo obrigatório por protocolo — MQTT `host!`/`port!`/`topic!`, MODBUS_RTU `address!`, ETHERNET_IP `host!`, PROFIBUS `address!`, PROFINET `host!`, RS232/RS485 `address!`) e o mapeamento real do payload nativo de cada adaptador para `{voltage, current, powerW, powerFactor}`, hoje inexistente para os 6 protocolos não-MQTT. Inclui teto de sanidade (upper bound) nos valores — `isFiniteNonNegative`/`isValidPayload` (`IoTDataProcessor.ts:60-76`) hoje só validam `Number.isFinite` e `>= 0` (fora `powerFactor`, já limitado a 0–1); não há teto superior para voltagem/corrente/potência.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Schema Zod por protocolo validando o payload nativo antes do mapeamento (substitui as non-null assertions por validação real, com erro claro se um campo obrigatório faltar).
+  - Mapeamento de cada um dos 6 formatos nativos (`{register, value}`, `{port, value}`, `{tag, value}`, `{db, data: number[]}`, `{raw}` para RS232/RS485 quando a linha não é JSON) para o formato interno — decisão de execução sobre onde esse mapeamento é físico/unidade-dependente (ex.: registrador Modbus para tensão pode exigir escala) vs. onde é estrutural.
+  - Teto de sanidade adicionado a `isValidPayload` para voltagem/corrente/potência, com valor plausível para instalação residencial/comercial (a definir na execução, documentado no código).
+  - Teste cobrindo pelo menos um payload real de cada um dos 8 protocolos chegando íntegro em `IoTDataProcessor`, e um payload fora do teto sendo rejeitado.
+- **Depende de:** item 2 (fix limpo, em arquivo por adaptador, não no monólito de 805 linhas).
+- **Risco/observações:** alto valor, risco médio — é o item que efetivamente liga 6 de 8 protocolos que hoje não funcionam; o risco é mapear a unidade/escala errada de um registrador e produzir leitura plausível porém incorreta (pior que descartar, porque não é visível).
+
+### 4. Polling robusto: reentrância por tick, timeout, backoff, reconexão
+
+- **Comportamento:** medidor que fica temporariamente inacessível (rede lenta, timeout, queda de conexão) volta a reportar sozinho, sem intervenção manual.
+- **Cobre:** hoje a reentrância só é tratada no nível de conexão (`IoTConnectionManager.start()` recusa reabrir uma conexão já registrada), não no tick do `setInterval` de cada adaptador — uma leitura mais lenta que o intervalo de polling empilha execuções concorrentes. Não há timeout no `await` das chamadas de leitura (um socket travado bloqueia o tick indefinidamente). Não há backoff nem reconexão automática se o transporte cair depois de estabelecido.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - Guard de reentrância por tick em cada adaptador (skip ou fila, decisão de execução — skip é mais simples e alinhado ao padrão de polling já usado).
+  - Timeout explícito envolvendo cada chamada de leitura, com erro tratado (não exceção não capturada).
+  - Backoff exponencial com teto e reconexão automática ao detectar queda do transporte, mesmo espírito do fix do item 1 para o MQTT.
+  - Teste cobrindo: tick sobreposto sendo descartado, timeout disparando, reconexão acontecendo após queda simulada.
+- **Depende de:** item 2 (adaptadores já em arquivos próprios).
+- **Risco/observações:** médio — toca o coração do worker; mitigado pela cobertura de teste do item 5 vindo logo em seguida.
+
+### 5. Cobertura de teste dos 8 adaptadores
+
+- **Comportamento:** nenhum para o usuário final — rede de segurança para os itens 2–4 e para mudanças futuras.
+- **Cobre:** hoje só `ModbusTcpConnection.test.ts` existe, cobrindo parcialmente `EthernetIpConnection` e o buffering de `Rs232Connection`/`Rs485Connection`. Sem teste: `ModbusTcpConnection`, `ModbusRtuConnection`, `ProfibusConnection`, `ProfinetConnection`, `MqttConnection`.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - Um arquivo de teste por adaptador (acompanhando o split do item 2), cobrindo pelo menos: conexão bem-sucedida, leitura válida chegando ao listener, comportamento do item 3 (payload mapeado) e do item 4 (timeout/reconexão) para aquele protocolo especificamente.
+  - `ProfibusConnection` (stub que só lança erro): teste confirmando o comportamento de stub documentado, não implementação especulativa do protocolo.
+- **Depende de:** itens 2, 3 e 4 (evita escrever teste que seria reescrito).
+- **Risco/observações:** baixo — é teste, não mudança de comportamento.
+
+### 6. Complexidade: tetos por arquivo (issue #168, 57 arquivos)
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** issue #168 — substituir os 57 overrides `"off"` de `complexity`/`max-lines-per-function` por um teto numérico acima do valor real de hoje, com data/fase de revisão registrada no comentário. Dentro do escopo desta fase está só `IoTConnectionManager.ts` (o único dos 57 arquivos que pertence ao worker IoT); os outros 56 (48 frontend, 6 backend restantes, 2 `iot-simulator/ui`) seguem o mesmo tratamento em paralelo, sem dependência técnica com o resto da Fase 16.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - `IoTConnectionManager.ts` recebe teto refletindo o tamanho **depois** dos itens 3–4 (schema + polling robusto vão alterar esse arquivo) — medir de novo antes de fixar o número, não usar o valor pré-mudança.
+  - Os demais 56 arquivos recebem teto acima do valor real medido em cada um, abaixo do que equivaleria a desligar a regra, com comentário citando a fase de reavaliação (`consumption.service.ts` já tem destino conhecido, Fase 18).
+  - Issue #168 fechada com a lista final por arquivo.
+- **Depende de:** item 4 (para o teto do `IoTConnectionManager.ts`).
+- **Risco/observações:** baixo — mudança de configuração, não de código.
+
+### 7. SSE: serialização única + backpressure
+
+- **Comportamento:** o painel em tempo real continua responsivo mesmo com múltiplas abas abertas ou uma conexão lenta.
+- **Cobre:** `iot-stream.routes.ts:139-143` — cada assinante SSE faz seu próprio `JSON.stringify(sample)`, ao invés de serializar uma vez e reusar entre assinantes. `res.write()` nunca verifica o retorno — sem tratamento de `drain`, um consumidor lento não é freado (backpressure ausente).
+- **Priority:** P1 · **Size:** S/M
+- **Critérios de aceite:**
+  - Serialização do payload uma vez por amostra, compartilhada entre todos os assinantes daquele evento.
+  - Tratamento do retorno de `res.write()` — pelo menos detectar e desconectar um consumidor persistentemente lento, para não acumular memória em buffer.
+  - Teste cobrindo múltiplos assinantes recebendo a mesma amostra sem re-serialização (verificável por contagem de chamadas a `JSON.stringify`, ou reestruturação equivalente que torne o comportamento testável).
+- **Depende de:** —
+- **Risco/observações:** baixo-médio — é caminho quente (toda leitura passa por aqui), mas mudança isolada ao roteamento SSE.
+
+### 8. Simulador: coalescer notificações de snapshot
+
+- **Comportamento:** o simulador continua respondendo com o mesmo número de devices/clientes simultâneos sem degradar.
+- **Cobre:** confirmado O(D²×C) — `iot-simulator/server/src/simulation/store.ts` `recordSample()` emite 1 evento `"changed"` por device por tick (D eventos/segundo); `status.routes.ts:20-25` registra 1 listener por cliente SSE, cada um reconstruindo o snapshot completo (`store.snapshot()`, O(D)) e serializando de novo a cada evento — D eventos × C listeners × O(D) por segundo.
+- **Priority:** P1 · **Size:** S/M
+- **Critérios de aceite:**
+  - Coalescer eventos de múltiplos devices no mesmo tick numa única notificação (debounce/batch por ciclo de simulação), reduzindo para O(D) + O(C) por tick.
+  - Teste cobrindo múltiplos devices atualizando no mesmo tick gerando 1 notificação por cliente, não D.
+- **Depende de:** —
+- **Risco/observações:** baixo — isolado ao simulador (ferramenta de dev/demo, não produto final).
+
+### 9. `upsertMinute` em `INSERT ... ON CONFLICT`
+
+- **Comportamento:** nenhum para o usuário final — corrige uma janela de corrida interna.
+- **Cobre:** `backend/src/modules/meter/meter-reading.repository.ts:30-79` — hoje é check-then-write (`findUnique` seguido de `create`/`update` com média ponderada), padrão TOCTOU-prone. A lógica de média ponderada (documentada nas linhas 23-28, para o caso de reinício do servidor no meio do minuto) é legítima e deve ser preservada.
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:**
+  - Reescrito como `INSERT ... ON CONFLICT DO UPDATE`, preservando a média ponderada dentro da cláusula de conflito.
+  - Testes existentes de `upsertMinute` continuam verdes sem alteração de resultado.
+- **Depende de:** —
+- **Risco/observações:** baixo — Prisma suporta `ON CONFLICT` via `$queryRaw` ou `upsert` nativo, dependendo de como a chave de conflito está modelada; verificar na execução qual API do Prisma cobre o caso sem SQL cru.
+
+### 10. Issues #255, #257 e #316 (topologia de rede do simulador, script de deploy e campos do MeterForm) — Concluído
+
+- **Comportamento:** reiniciar o `backend` sozinho não derruba a rede do `simulator`; promover `staging`→`main` deixa de ser procedimento manual de 5 comandos; MODBUS_TCP/MODBUS_RTU/ETHERNET_IP/PROFINET voltam a ser configuráveis pela UI.
+- **Cobre:** #255/#257 já detalhadas com critérios de aceite completos nas próprias issues. **#316 entrou nesta mesma branch por decisão do usuário (2026-08-29)** — não fazia parte do item 10 original; nasceu como achado da revisão do PR #314 (issue #307): `MeterForm.tsx` nunca expôs os campos de `extra` que o schema do backend passou a exigir para esses 4 protocolos, tornando-os impossíveis de criar/editar pela interface.
+- **Priority:** P2 (herdada de #255/#257) · **Size:** conforme as issues
+- **Status:** Concluído — PR #321. #255: `docker-compose.yml` com rede própria para o `simulator` + ADR-0017. #257: `deploy/update-production.sh` novo. #316: campos de endereço por grandeza no `MeterForm.tsx` (versão utilitária provisória, `TODO(design)` — sem handoff no bundle para esses campos).
+- **Depende de:** #255 antes de #257 (a automação de deploy assume a topologia de rede corrigida) — respeitado na execução.
+- **Risco/observações:** validação real contra a VPS de produção fica pendente para #255/#257 (sem ambiente disponível nesta execução, como as próprias issues já registravam); #316 sem cobertura e2e contra o backend real (mocks via `page.route()`, mesmo padrão já em uso no arquivo).
+
+## Fase 17 — Frontend: tempo real e bundle
+
+**Entrega (milestone):** `Robustez e Polimento` (mesma das Fases 16 e 18).
+
+> **Correção de premissa em relação ao esboço de 2026-08-24 que esta seção substitui:** o item "buffer de potência circular com downsampling, até 86.400 pontos" está desatualizado — o backend já resolveu isso (`useMeterReadingHistory.ts`/`buildDenseWindowBuckets` entregam ≤60 baldes agregados por minuto; o `useMemo` de `RealtimePowerChart.tsx` já acerta), confirmado pelo próprio achado A-06 do laudo de 2026-08-22 ("o que já melhorou"). O item 5 abaixo substitui isso pelo achado real remanescente (B-07: reconciliação do recharts sem memo). **As issues #319 e #320, abertas na mesma janela do fechamento da Fase 16, entram no escopo** (decisão do usuário, 2026-08-29) — ver itens 3 e 6.
+
+### 1. Baseline de medição (movido da Fase 15)
+
+- **Comportamento:** nenhum para o usuário final — mede antes de decidir, para não separar o número da correção que ele orienta.
+- **Cobre:** M-04 (nenhum `manualChunks`/visualizer hoje) e A-06 (medir renders antes do React Compiler).
+- **Priority:** P2 · **Size:** XS
+- **Critérios de aceite:**
+  - `rollup-plugin-visualizer` instalado e configurado no `vite.config.ts`, gerando relatório no build.
+  - Gzip do chunk inicial registrado como baseline (documento de fechamento da fase).
+  - Sessão do React DevTools Profiler ("why did this render", 60s no Painel) gravada, com contagem de renders de `Header.tsx`, `MeterSection.tsx` e `RealtimeChartCard.tsx` como baseline.
+- **Depende de:** —
+- **Risco/observações:** baixo — é só instrumentação, sem mudança de comportamento.
+
+### 2. React Compiler habilitado
+
+- **Comportamento:** nenhum direto — mas é o que resolve a maior parte dos itens seguintes por baixo, conforme ordem de recomendação do laudo.
+- **Cobre:** achado A-06 (`RealtimeContext.tsx` mistura `readingsByMeterId`/`isConnected` num único `value` recriado a cada render; todo consumidor de `useRealtime()` re-renderiza a 1Hz) — recomendação (1) do laudo.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  - `babel-plugin-react-compiler` instalado e configurado via `@vitejs/plugin-react` no `vite.config.ts`; `eslint-plugin-react-compiler` ativado (formaliza o gate — o lint já era compiler-clean, mas nada verificava isso).
+  - Build, lint e suíte de testes existente permanecem verdes.
+  - Nova sessão do Profiler mostra queda mensurável de renders em `Header.tsx` (que só lê `isConnected`) comparado ao baseline do item 1.
+- **Depende de:** item 1.
+- **Risco/observações:** médio — primeira adoção do compiler no projeto; risco de memoização incorreta em algum componente não coberto por teste. Mitigado por comparar comportamento antes/depois via a suíte existente.
+
+### 3. Separar `RealtimeContext` em conexão/leituras + fallback REST (fecha #319)
+
+- **Comportamento:** o card "Potência agora" e a seção "Medidor" mostram a última leitura conhecida mesmo quando o SSE ainda não entregou o primeiro evento (hoje ficam em "sem leitura" indefinidamente).
+- **Cobre:** issue #319 (prioridade alta) + achado A-06. Arquivos: `RealtimeContext.tsx`, `useLiveMeterReading.ts`, `MeterSection.tsx`, `DeviceDetailsPage.tsx`.
+- **Priority:** P1 (herda a prioridade alta da issue — é bug de comportamento visível, não só desempenho) · **Size:** M
+- **Critérios de aceite:**
+  - `RealtimeConnectionContext` (`isConnected`) e `RealtimeReadingsContext` (`readingsByMeterId`) separados; `Header.tsx` passa a consumir só o de conexão.
+  - `MeterSection`/`DeviceDetailsPage` buscam a leitura mais recente via REST quando ainda não há entrada em `readingsByMeterId` para aquele medidor, e trocam para o valor do SSE assim que chegar (confirmar na execução se já existe endpoint reutilizável de "última leitura" ou se precisa criar um).
+  - Teste cobrindo: `Header` não re-renderiza quando chega leitura de um medidor (só quando `isConnected` muda); `MeterSection` mostra valor do REST antes do primeiro evento SSE.
+  - Issue #319 fechável pelos critérios acima.
+- **Depende de:** item 2 (evita reconstruir a separação de um jeito que o compiler tornaria redundante).
+- **Risco/observações:** médio-alto — é o item que mais toca arquivos compartilhados entre 4 telas; a existência (ou não) do endpoint REST de última leitura só se confirma na execução.
+
+### 4. `useLiveMeterReading` sem render a cada 2s (B-02)
+
+- **Comportamento:** nenhum direto — elimina uma segunda fonte constante de re-render nas 3 páginas que usam o hook.
+- **Cobre:** `setInterval(() => setNow(Date.now()), 2_000)` incondicional (linha do hook).
+- **Priority:** P2 · **Size:** XS/S
+- **Critérios de aceite:**
+  - `setInterval` trocado por `setTimeout` agendado para `receivedAt + 10s` (expiração exata), reagendado a cada leitura nova.
+  - Teste com fake timers garantindo zero disparos enquanto a leitura está fresca.
+- **Depende de:** item 3 (mesmo hook).
+- **Risco/observações:** baixo.
+
+### 5. Memoização dos gráficos de tempo real (B-07 — substitui o item desatualizado do buffer circular)
+
+- **Comportamento:** nenhum direto.
+- **Cobre:** B-07 — `RealtimePowerChart`/`ConsumptionChart` reconciliados pelo recharts a cada render mesmo com `buckets` idênticos (o `useMemo` já acerta; o problema é a falta de memo no componente).
+- **Priority:** P2 · **Size:** XS
+- **Critérios de aceite:**
+  - Medir via Profiler se o item 2 (compiler) já eliminou o re-render redundante dos dois gráficos.
+  - Só adicionar `React.memo` explícito se ainda houver reconciliação sem mudança de props após o item 2.
+- **Depende de:** item 2.
+- **Risco/observações:** baixo.
+
+### 6. Corrigir retenção de cache na virada de hora (#320)
+
+- **Comportamento:** o gráfico "Consumo em tempo real" deixa de mostrar "aguardando leituras" por ~1min na virada de hora.
+- **Cobre:** issue #320 — `useMeterReadingHistory.ts`/`RETENTION_MAX_AGE_MS` e `buildDenseWindowBuckets`.
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:**
+  - Teste reproduzindo o bug (simulação de virada de hora).
+  - Correção da causa raiz na janela de retenção/geração de baldes.
+  - Teste de regressão cobrindo a virada de hora.
+- **Depende de:** — (arquivos isolados dos itens 2-5, pode ser feito em paralelo).
+- **Risco/observações:** baixo.
+
+### 7. Code-splitting por rota + `manualChunks` (M-04)
+
+- **Comportamento:** `/login` e as rotas que não usam gráfico/markdown carregam mais rápido (bundle inicial menor).
+- **Cobre:** 22 rotas estáticas em `AppRouter.tsx`; `recharts` e `react-markdown`+`remark-gfm` inteiros no bundle inicial mesmo sem uso em `/login`.
+- **Priority:** P2 · **Size:** M
+- **Critérios de aceite:**
+  - `React.lazy`+`Suspense` nas rotas do `AppRouter.tsx`, reaproveitando um padrão de fallback (spinner/skeleton) já existente no app.
+  - `manualChunks` no `vite.config.ts` isolando `recharts` e a stack markdown.
+  - Relatório do visualizer mostra queda no chunk inicial comparado ao baseline do item 1.
+- **Depende de:** item 1 (comparação).
+- **Risco/observações:** baixo-médio.
+
+### 8. Fechamento: re-medição
+
+- **Comportamento:** nenhum.
+- **Cobre:** fecha o baseline do item 1.
+- **Priority:** P2 · **Size:** XS
+- **Critérios de aceite:** novo relatório do visualizer + nova sessão do Profiler; números antes/depois registrados no "Estado final" do fechamento da fase.
+- **Depende de:** todos os anteriores.
+- **Risco/observações:** baixo.
+
+### Estado final (fechamento da Fase 17)
+
+Mesma metodologia do baseline do item 1 (`.claude/docs/2026-08-30-fase17-baseline-frontend.md`), reaplicada após os 8 itens: `ANALYZE=true npm run build` para o bundle, `<Profiler>` temporário (revertido em seguida) + backend descartável simulando 60 leituras reais de SSE em 60s para os renders de `Header.tsx`/`MeterSection.tsx`/`RealtimeChartCard.tsx` em `/propriedades/prop-1`.
+
+**Bundle (chunk inicial, gzip):**
+
+| Momento | Tamanho |
+|---|---|
+| Antes da fase (baseline, item 1) | 382,84 kB |
+| Após o React Compiler (item 2) | 418,77 kB |
+| **Após code-splitting + `manualChunks` (item 7, estado final)** | **103,55 kB** |
+
+Queda de ~75% em relação ao pico pós-compiler, e ~73% em relação ao baseline original — `recharts` (`vendor-charts`, 111,65 kB gzip) e `react-markdown`+`remark-gfm` (`vendor-markdown`, 45,90 kB gzip) saíram do bundle inicial, carregados só nas rotas que os usam.
+
+**Contagem de renders (60 leituras SSE em 60s, `/propriedades/prop-1`):**
+
+| Componente | Baseline (sem compiler) | Pós-compiler (item 2) | Estado final (após itens 3-7) |
+|---|---|---|---|
+| `Header.tsx` | 64 | 4 | 4 |
+| `MeterSection.tsx` | 124 | 94 | 64 |
+| `RealtimeChartCard.tsx` | 189 | 10 | 9 |
+
+`Header` e `RealtimeChartCard` já tinham despencado com o compiler sozinho (achado A-06) e seguem estáveis. `MeterSection` continuou caindo depois do compiler (94→64) — o item 4 (fim do `setInterval` incondicional de 2s) e o item 3 (contexto separado) removeram as duas fontes de re-render que não vinham de dado genuinamente novo; os ~64 renders restantes correspondem 1:1 às 60 leituras reais recebidas (a parte que só uma leitura nova pode explicar, não mais desperdício de reconciliação).
+
+**Fechamento:** os 8 itens da fase (issues #323–#328, épico #322) estão implementados, testados e mesclados em `staging` via PR #333 (revisado pela `revisao-codigo`, com 4 bloqueios corrigidos e 5 sugestões aplicadas antes do merge). Duas falhas E2E pré-existentes de `page.clock.install()` (não relacionadas ao escopo desta fase, investigadas e confirmadas por A/B) ficaram registradas como issue própria (#329) em vez de bloquear o fechamento.
+
+## Fase 18 — Design system, cobertura e polimento
+
+**Entrega (milestone):** `Robustez e Polimento` (mesma das Fases 16 e 17 — fecha o milestone).
+
+> **Detalhamento de 2026-08-30, que substitui o parágrafo-objetivo anterior.** Os números do laudo de 2026-08-22 mudaram ao medir de novo agora: valores arbitrários eram 291 em 44 arquivos, hoje são **372 em 44 arquivos** (mesmos arquivos, dívida cresceu dentro deles); hex hardcodado segue em **66 ocorrências/17 arquivos**, igual ao laudo; a paleta pré-Industry encolheu de ~15-16 para **13 arquivos**; o idioma `parseOrThrow` (Q-12) é hoje **35 repetições em 15 arquivos** (o laudo dizia 33/14 — `env.ts` entrou na contagem). O ramo morto do `UserMenu` foi confirmado por grep: `variant="header"` (default) só é exercitado por `UserMenu.test.tsx` — o único consumidor de produção é `Sidebar.tsx` com `variant="sidebar"`, desde que o menu de usuário migrou pro rodapé da Sidebar na Fase 6.
+>
+> **Issues abertas absorvidas por decisão do usuário (2026-08-30):** #329 (E2E `page.clock.install()` não processa corpo de SSE mockada — diferida do fechamento da Fase 17 exatamente para cá) e #318 (tetos de complexidade sem plano de redução real em `AlertsPage`/`RegisterPage` — mesmo alvo da recomendação Q-06 desta fase). Avaliadas e mantidas **fora** do escopo, com destino registrado: #315 (fator de escala Modbus/Profinet — IoT/backend, fora do escopo de design/cobertura desta fase, fica como débito próprio); #303 (JSDoc — 48 arquivos backend — já tem decisão própria da Fase 15.5/Q-04, épico grande demais para entrar de carona); #289 (`statement_timeout`/`query_timeout` no pool — infra/backend, mesmo tratamento do fechamento da Fase 15: fica em aberto para uma fase de robustez/infra futura); #302, #272, #269 (conformidade/LGPD — fora do escopo declarado da fase; #302 já tem destino explícito, adiado pela ADR-0014).
+
+### 1. Escala de tokens (tipografia/espaçamento) no `@theme` + promoção de cor
+
+- **Comportamento:** nenhum para o usuário final — decisão de token que destrava os itens 2–4.
+- **Cobre:** Q-26 do laudo de qualidade 2026-08-22 (372 valores arbitrários/44 arquivos — o `@theme` já mapeia cor/fonte/raio/sombra, mas não a escala tipográfica e de espaçamento que o protótipo de fato usa); Q-25 parte 2 (`#3f8f52`, cor órfã do ponto "ao vivo" em 9 pontos, promovida a `--color-status-live`; as 4 cores da bandeira tarifária em `tariff-flag.types.ts:66-76`, hoje hex arbitrário puro, promovidas a `--color-flag-green/yellow/red-p1/red-p2`); Q-36 (nota do `10-design-system.md:69`, datada de 2026-08-09, subestima a dívida em ~2,5×).
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - Levantar no bundle (`design-system/styles.css`/`.dc.html`) a escala de espaçamento e tipografia que o protótipo de fato usa — não inventar uma nova.
+  - Mapear a escala no `@theme` (`frontend/src/styles/industry.css`); `--color-status-live` e as 4 `--color-flag-*` criadas e documentadas.
+  - `/design-sync` executado, refletindo os tokens novos de volta no Claude Design.
+  - `10-design-system.md:69` reescrito com os números reais (372/44, 66/17) e a nota de que a dívida de espaçamento foi resolvida na raiz — não mais "~143 valores".
+- **Depende de:** —
+- **Risco/observações:** baixo-médio — é decisão + infraestrutura de token, a aplicação em massa é o item seguinte.
+
+### 2. Épico: aplicar a escala nos arquivos com valor arbitrário/hex
+
+- **Comportamento:** nenhum direto — as telas passam a usar só a escala de tokens, sem hex nem valor arbitrário entre colchetes.
+- **Cobre:** os 372 valores arbitrários (Q-26, 44 arquivos) e o restante das 66 ocorrências de hex (Q-25, 17 arquivos) depois das 5 substituições mecânicas (hex com token equivalente já existente) e das cores promovidas no item 1.
+- **Priority:** P1/P2 · **Size:** L (épico com sub-issues por concentração — mesmo padrão de fragmentação já usado no épico de comentários de rastreabilidade da Fase 15.5)
+- **Critérios de aceite:**
+  - Sub-issues por arquivo/concentração: `LandingPage` (55 valores) · `ProfilePage` (26) · `PropertyDetailsPage` (18) · `ConfirmEmailChangePage` (16) · `ResetPasswordPage` (14) · `AreaDetailsPage` (13) · `LoginPage` (12) · `ForgotPasswordPage` (12) · `RegisterPage` (11) · `MeterSection` (10) · resto (34 arquivos) agrupado por diretório.
+  - `frontend/src/types/tariff-flag.types.ts:66-76` migrado para os 4 tokens `--color-flag-*` do item 1 — é o caso mais grave por ser dado, não markup.
+  - Nenhuma mudança de comportamento — só substituição de valor por token/classe equivalente; conferido visualmente contra o bundle onde houver handoff.
+- **Depende de:** item 1 (escala definida antes de aplicar — evita escrever o que seria reescrito).
+- **Risco/observações:** maior volume de arquivos tocados da fase, mas puramente mecânico/visual — mesma classe de risco baixo do épico de comentários da Fase 15.5.
+
+### 3. Paleta pré-Industry restante (13 arquivos)
+
+- **Comportamento:** nenhum direto.
+- **Cobre:** Q-27 — `slate-*`/`gray-*`/`amber-*` em `ConsumptionChart.tsx`, `ConsumptionTable.tsx`, `AlertRowMenu.tsx`, `AreaForm.tsx`, `AreaMenu.tsx`, `PropertyForm.tsx`, `PropertyMenu.tsx`, `DeviceMenu.tsx`, `DeviceForm.tsx`, `MeterForm.tsx`, `UserMenu.tsx`, `ReportsPage.tsx`, `PlaceholderPage.tsx` (medição atual — encolheu de ~15-16 para 13 desde o laudo).
+- **Priority:** P2 · **Size:** M
+- **Critérios de aceite:** `ConsumptionChart`/`ConsumptionTable` primeiro (miolo do Histórico de Consumo, acabou de ser retrabalhado — custo marginal baixo de migrar agora); os demais 11 arquivos migrados para os tokens Industry equivalentes; `UserMenu.tsx` coordenado no mesmo PR do item 5 (mesmo arquivo).
+- **Depende de:** item 1 (tokens).
+- **Risco/observações:** baixo — migração já repetida 4 fases seguidas, padrão conhecido.
+
+### 4. `.lt-live-dot` compartilhado + `LiveKpiCard` adotado nas details pages
+
+- **Comportamento:** nenhum direto — elimina 8 cópias textualmente idênticas do bloco do ponto verde "ao vivo".
+- **Cobre:** Q-13 — `PropertyDetailsPage.tsx:117`, `AreaDetailsPage.tsx:135`, `DeviceDetailsPage.tsx:132`, `LoginPage.tsx:120`, `LandingPage.tsx:174`, `LiveKpiCard.tsx:27`, `MeterSection.tsx:168`, `RealtimeChartCard.tsx:57`.
+- **Priority:** P2 · **Size:** S/M
+- **Critérios de aceite:** `<LiveBadge label="..." />` extraído (classe `.lt-live-dot` em `industry.css` + componente React fino); `PropertyDetailsPage`/`AreaDetailsPage`/`DeviceDetailsPage` — as 3 páginas que copiaram o padrão do `LiveKpiCard` — passam a consumir o componente central em vez de reimplementar; `LandingPage`/`LoginPage`/`MeterSection`/`RealtimeChartCard` migrados junto, já que a extração cobre os 8 pontos de uma vez.
+- **Depende de:** item 1 (`--color-status-live`).
+- **Risco/observações:** baixo — resolve Q-13 e parte de Q-25 no mesmo movimento, como o próprio laudo recomenda.
+
+### 5. Remover o ramo morto do `UserMenu` (`variant="header"`)
+
+- **Comportamento:** nenhum funcional — código morto confirmado por grep: desde a Fase 6, `UserMenu` só é montado com `variant="sidebar"` (`Sidebar.tsx:97`); o branch `variant === "header"` (o default do componente) não tem nenhum consumidor de produção — só `UserMenu.test.tsx`, que hoje valida exclusivamente o ramo morto.
+- **Cobre:** achado do detalhamento desta fase (não estava em nenhum dos 4 laudos — a Fase 6 introduziu o resíduo ao migrar o trigger para a Sidebar sem remover o branch antigo).
+- **Priority:** P2 · **Size:** XS/S
+- **Critérios de aceite:** prop `variant` e o branch `"header"` removidos do componente; `UserMenu.test.tsx` reescrito para cobrir o único comportamento real (`sidebar`); nenhuma referência residual a `rounded-md`/`bg-slate-100`/`bg-accent rounded-full`/`focus-visible:ring-brand-500` (tokens pré-Industry do branch morto).
+- **Depende de:** —
+- **Risco/observações:** baixo — exclusão de código morto verificado, não refatoração especulativa.
+
+### 6. Decisão única: `Blueprint` vs. cantos manuais
+
+- **Comportamento:** nenhum direto.
+- **Cobre:** 29 arquivos usam a classe `.blueprint` hoje, sem critério documentado no `10-design-system.md` sobre quando usá-la vs. compor o efeito de canto cortado manualmente — divergência que cresce a cada tela nova sem uma regra explícita.
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:** levantamento dos casos que hoje implementam o efeito manualmente (fora de `.blueprint`); decisão registrada — um critério só (ex.: `.blueprint` sempre que o elemento for um cartão/painel de destaque) — documentada no `10-design-system.md`; arquivos divergentes migrados para o critério escolhido.
+- **Depende de:** —
+- **Risco/observações:** baixo — decisão de convenção + migração pontual dos divergentes.
+
+### 7. Lint anti-regressão de tokens
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** protege o investimento dos itens 1–4 — a dívida de valor arbitrário já dobrou uma vez sem trava nenhuma (143 → 291 → 372 em 3 semanas, notas de 2026-08-09 e 2026-08-22).
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:** regra de lint (ESLint customizada ou equivalente) bloqueando `\[\d+(px|rem|em|%)\]` e hex de 6 dígitos em `.tsx` de produção fora de `industry.css`, com exceção catalogada por arquivo onde necessário (mesmo padrão de override explícito já usado para complexidade/JSDoc); regra rodando no CI.
+- **Depende de:** itens 1–4 fechados — ligar a regra antes quebra o build no débito legado, mesma armadilha já registrada para `eslint-plugin-jsdoc` e para a trava de complexidade na Fase 15.5.
+- **Risco/observações:** baixo — configuração, não código de produto.
+
+### 8. Namespace próprio de `queryKey` para "último(s) bucket(s)"
+
+- **Comportamento:** nenhum direto — reduz o risco de um bug de cache já visto se repetir.
+- **Cobre:** `DashboardKpiRow.tsx:54-56` chama `useConsumption("PROPERTY", propertyId, "hour", 1, 3)` / `(..., "day", 1, 5)` / `(..., "month", 1, 1)` — reaproveitando o namespace `list` (paginação) da `queryKey` para um propósito diferente ("me dê os últimos N baldes"), com `pageSize` arbitrário fazendo esse papel. É a mesma classe do bug real corrigido às pressas no fechamento da Fase 4 (colisão de `queryKey` entre `PropertyComparisonSection` e `DashboardKpiRow`, resolvida alinhando `pageSize` a 3 em vez de separar por propósito).
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:** nova entrada em `queryKeys.consumption` (ex.: `latest(targetType, targetId, granularity, count)`), distinta de `list`, consumida pelo `DashboardKpiRow`; teste garantindo que um consumidor "latest" e um "list" com a mesma combinação targetType/granularity/pageSize não compartilham cache.
+- **Depende de:** —
+- **Risco/observações:** baixo-médio — já causou 1 bug real; hoje é mitigado só por convenção (`pageSize` coincidindo), não por estrutura.
+
+### 9. Cobertura de Alertas (RF14–RF16)
+
+- **Comportamento:** nenhum novo para o usuário final — rede de segurança para o único mecanismo que avisa sobre consumo anômalo.
+- **Cobre:** `AlertsPage.tsx` sem teste próprio — hoje só `AlertRowMenu.test.tsx` (menu de contexto) e `useAlerts.test.tsx` (hook) existem; nada cobre o fluxo de criar/editar/habilitar/excluir alerta via `AlertFormDialog`, nem a página inteira.
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:** `AlertsPage.test.tsx` novo cobrindo listar, criar, editar, habilitar/desabilitar e excluir; teste de `AlertFormDialog` isolado se a página ficar grande demais para um arquivo só.
+- **Depende de:** —
+- **Risco/observações:** baixo tecnicamente, mas é a maior lacuna de sinal da fase — RF14–16 sem nenhum teste de fluxo até aqui.
+
+### 10. Cobertura do cliente SSE (`appStream.ts`)
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** `frontend/src/lib/sse/appStream.ts` (parsing de evento, reconexão) sem teste próprio — hoje só exercitado indiretamente via `RealtimeContext.test.tsx`.
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:** teste unitário do client isolado (mock de `EventSource`) cobrindo evento válido, evento malformado e reconexão.
+- **Depende de:** —
+- **Risco/observações:** baixo.
+
+### 11. Cobertura do CRUD de Medidor
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** os hooks relacionados a medidor já têm teste (`useLiveMeterReading`, `useLatestMeterReading`, `useMeterReadingHistory`), mas `MeterForm`/`MeterFormDialog` (criar/editar/excluir medidor) não tem teste de fluxo.
+- **Priority:** P2 · **Size:** S/M
+- **Critérios de aceite:** teste cobrindo criar, editar e excluir medidor pelo formulário, incluindo os campos de `extra` por protocolo adicionados em #316 (Fase 16).
+- **Depende de:** —
+- **Risco/observações:** baixo.
+
+### 12. `parseOrThrow` — eliminar as repetições (Q-12)
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** Q-12 — idioma `safeParse`→`ValidationError` repetido **35× em 15 arquivos** backend (contagem atual — o laudo dizia 33/14; `env.ts` passou a repetir o padrão também).
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:** `parseOrThrow<T>(schema: ZodType<T>, input: unknown): T` em `shared/validation/`; os 15 arquivos migrados; nenhuma mudança na mensagem de erro que chega ao usuário (a decisão de qual erro do Zod vira mensagem continua a mesma, só centralizada); testes de erro de validação existentes continuam verdes.
+- **Depende de:** —
+- **Risco/observações:** baixo — mudança mecânica, mas toca 15 arquivos de validação; a suíte existente é o critério de regressão.
+
+### 13. Complexidade: `consumption.service.ts` (issue #168, parte prometida para esta fase)
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** o override de complexidade em `backend/eslint.config.js` já cita este arquivo com destino "até a Fase 18, então reavaliar" (registrado nas Fases 15.5 e 16). Q-09 já recomenda o caminho: extrair `computeYearlyPropertyCosts()` e `resolveBucketCost()` como métodos privados de `ConsumptionService.list()` (117 linhas, 5 responsabilidades em sequência).
+- **Priority:** P1 · **Size:** S/M
+- **Critérios de aceite:** os 2 métodos extraídos e testados em isolamento; teto de complexidade do arquivo revisado para refletir o tamanho real pós-extração — se não sair da lista de exceção, o teto é numérico (nunca `off`) com nova data registrada no comentário; issue #168 fechada para este arquivo.
+- **Depende de:** —
+- **Risco/observações:** baixo-médio — é a regra de negócio de custo (RF13); extrair sem mudar comportamento é o próprio critério de aceite, verificado pelos testes existentes.
+
+### 14. Complexidade: `AlertsPage`/`RegisterPage` (fecha #318)
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** issue #318 — os 2 arquivos frontend têm teto de complexidade sem plano de redução real, mesmo alvo da recomendação Q-06 desta fase ("mover as ~15 telas de maior valor para fora da lista na Fase 18").
+- **Priority:** P2 · **Size:** S/M
+- **Critérios de aceite:** sub-componentes/hooks extraídos que reduzam a complexidade ciclomática real dos 2 arquivos — não só levantar o teto; issue #318 fechável pelos critérios acima.
+- **Depende de:** item 9 (cobertura de Alertas) — mexer em `AlertsPage` sem teste de fluxo antes é o mesmo risco que a Fase 16 evitou ao caracterizar antes de mover.
+- **Risco/observações:** baixo-médio — extração de UI, mitigada pela cobertura do item 9 vindo antes.
+
+### 15. Fix isolado: E2E `page.clock.install()` não processa SSE mockada (fecha #329)
+
+- **Comportamento:** nenhum para o usuário final — infraestrutura de teste.
+- **Cobre:** issue #329, registrada no fechamento da Fase 17 como "não relacionada ao escopo daquela fase, investigada e confirmada por A/B", diferida explicitamente para cá.
+- **Priority:** P2 · **Size:** S
+- **Critérios de aceite:** causa raiz corrigida (mock de SSE compatível com `page.clock.install()`); as 2 falhas E2E pré-existentes voltam a passar; issue #329 fechada.
+- **Depende de:** —
+- **Risco/observações:** baixo — isolado à infraestrutura de teste E2E, não ao produto.
+
+### 16. Drift de documentação viva remanescente
+
+- **Comportamento:** nenhum para o usuário final.
+- **Cobre:** Q-35 — `.claude/docs/README.md` não lista `DEPLOY.md` nem `O-Sistema-Eletrico-Brasileiro.md`; `03-arquitetura.md:107-109` inventaria `shared/` mas omite `errors/`, `targetResolution.ts`, `database/timeBucket.ts` e `test/`. (A nota do `10-design-system.md:69`, Q-36, já é critério de aceite do item 1 — não repetida aqui.)
+- **Priority:** P2 · **Size:** XS
+- **Critérios de aceite:** os 2 inventários completados conforme Q-35.
+- **Depende de:** —
+- **Risco/observações:** baixo — edição de texto.
+
+**Justificativa de sequenciamento (o que não é óbvio):** o token (item 1) vem antes de tudo porque aplicar em massa (2–4) sem a escala definida seria escrever o que será reescrito — mesmo raciocínio já usado nas Fases 13–18 antes desta. O lint anti-regressão (7) só entra depois de 1–4 fecharem, pela mesma armadilha já vivida com `eslint-plugin-jsdoc` e a trava de complexidade na Fase 15.5: ligar a regra `error` sem debitar o legado quebra o build no primeiro commit. Os itens de cobertura (9–11), `parseOrThrow` (12) e os dois itens de complexidade (13–14, exceto a dependência de 14 em 9) são independentes entre si e do bloco de design — podem rodar em paralelo ou em qualquer ordem dentro da fase.
+
+**Fechamento:** os 16 itens fecharam em 3 PRs. #354 (épico #334: itens 1–2, issues #336–#341 e #353 — a última fechando um achado próprio, colisão dos tokens de espaçamento com o namespace numérico do Tailwind, encontrado ao aplicar a escala). #355 (épico #335: itens 3–5, issues #342–#345). #357 (itens 6–16 remanescentes — issues #346–#351, #318, #329 — mais quatro itens que o detalhamento de 2026-08-30 tinha registrado como fora do escopo declarado da fase, mas couberam no mesmo PR por serem pequenos e independentes: #269, #272, #289, #303. #356 foi achado durante a verificação de #329 e fechado no mesmo PR, não estava em nenhum dos 16 itens originais). #302 foi fechada à parte como adiada, formalizando a decisão que a ADR-0014 já cobria — não foi implementada. #315 (fator de escala Modbus/Profinet) segue em aberto, sem destino ainda. Cada PR passou pela `revisao-codigo` antes do merge (#355 com 1 bloqueio + 7 sugestões corrigidos; #357 com 1 bloqueio + 11 sugestões, mais 3 falhas de CI resolvidas à parte). Milestone `Robustez e Polimento` (Fases 16–18) fechada.
 
 ---
 
@@ -1315,3 +1929,30 @@ Candidatos conhecidos, ainda sem fase:
 - **13.7 aplica a lição da 13.6 na fundação, não como remendo:** a separação de privilégio do usuário do banco e a cifra do backup entram *desde a primeira subida* da VPS, porque o banco nasce vazio — mais barato do que a correção equivalente no Neon (Fase 13.6), que precisa lidar com um ambiente já em produção.
 - **15.5 entre 15 e 16, não dentro da 18:** mesmo raciocínio que já colocou a Fase 12 antes das Fases 16–18 — as decisões de enforcement (JSDoc, complexidade, dependency-cruiser, padrão de acesso cross-módulo) vão apontar exatamente o que refatorar no split do `ModbusTcpConnection.ts` (Fase 16); instalar a trava depois paga o trabalho duas vezes. O comentário de rastreabilidade (~310 ocorrências) entra na mesma fase por ser a mesma categoria de achado — lacuna entre padrão declarado e padrão enforçado — mesmo sendo P1 e não bloqueante: fechar antes das Fases 19–22 evita que o volume de comentários a limpar cresça junto com a maior expansão de domínio do roadmap.
 - **14, 15, 16 e 18 revisados, não substituídos:** os quatro laudos de 2026-08-22 confirmaram o escopo já planejado em 2026-08-05 na quase totalidade dos itens (mesma causa raiz, evidência mais concreta) — a revisão troca a generalidade da rodada anterior por arquivo:linha e acrescenta só os achados genuinamente novos (compressão HTTP, pool de conexões, bug do `reconnectPeriod`, contagens atualizadas de design system). Não há motivo para reescrever o que já estava certo.
+
+### Replanejamento de 2026-08-28 (detalhamento da Fase 16)
+
+**O que mudou:** a Fase 15.5 fechou (épico #290 + #296–#299, PRs #300/#304) e a Fase 16 foi detalhada de objetivo para itens completos, com investigação direta do código do worker IoT em vez de reaproveitar a medição de 2026-08-22.
+
+- **Issue #168 dobrada para a Fase 16, não fechada dentro da 15.5:** a branch que fechou #296–#299 não incluiu #168 (decisão do usuário, 2026-08-28) — o item "teto decrescente de complexidade" que o detalhamento de 2026-08-26 da 15.5 previa continua pendente. Como o único dos 57 arquivos de #168 que pertence ao worker IoT é `IoTConnectionManager.ts`, e esse arquivo já é o centro da Fase 16, dobrar a issue inteira para cá (item 6) custa menos do que reabrir a 15.5 para um item isolado.
+- **Achado que mudou a prioridade do item de schema/payload — de P2 para P0:** o parágrafo-objetivo de 2026-08-22/23 descrevia "mapeamento de payload dos adaptadores não-MQTT" como item de estrutura. A investigação de 2026-08-28 (leitura direta de `IoTDataProcessor.isValidPayload` e dos 8 adaptadores) encontrou que não é inconsistência — é descarte silencioso de toda leitura de 6 dos 8 protocolos, porque o formato que a validação aceita só o MQTT produz. Bug ativo, não dívida estrutural; motivo do item 3 ter subido para P0, logo depois só do fix isolado do `reconnectPeriod` (item 1).
+- **Contagem de adaptadores corrigida de 6 para 8:** a medição anterior não contava o stub de `ProfibusConnection` nem `ProfinetConnection`, ambos dentro do mesmo `ModbusTcpConnection.ts`. Isso também eleva o tamanho real do item de cobertura de teste (item 5) e do split estrutural (item 2).
+- **Ordem separando split (item 2) de correção de bug (item 3), com caracterização entre os dois:** a regra do skill `refatoracao` ("caracterizar antes de mover") se aplica diretamente aqui — `ModbusTcpConnection.ts` tem 805 linhas e cobertura de teste hoje fina. Misturar o split estrutural com a correção do payload no mesmo diff dificultaria isolar qual mudança causou qual efeito, caso algo quebre.
+- **Milestone nova `Robustez e Polimento` criada para as Fases 16–18:** decisão do usuário, 2026-08-28 — as três fases não tinham entrega nomeada; juntas formam o marco reconhecível de "sistema estabilizado antes da expansão para Grupo A" (Fase 19), que é justamente o próximo marco do roadmap.
+
+### Replanejamento de 2026-08-29 (detalhamento da Fase 17)
+
+**O que mudou:** a Fase 16 fechou (épico #305, PRs #314/#317/#321) e a Fase 17 foi detalhada de objetivo para 8 itens completos, com investigação direta do código (`RealtimeContext.tsx`, `useLiveMeterReading.ts`, `RealtimePowerChart.tsx`, `useMeterReadingHistory.ts`, `vite.config.ts`) em vez de reaproveitar cegamente o esboço de 2026-08-24.
+
+- **Item do "buffer de potência circular" corrigido:** a premissa de "downsampling sobre até 86.400 pontos" não corresponde mais ao código — o backend já entrega ≤60 baldes agregados por minuto, e o `useMemo` do gráfico já acerta (o próprio achado A-06 do laudo de 2026-08-22 registra essa melhoria). O item 5 da fase passou a cobrir o achado real remanescente (B-07: `RealtimePowerChart`/`ConsumptionChart` sem memo, reconciliados pelo recharts a cada render).
+- **Issues #319 e #320 incorporadas ao escopo** (decisão do usuário, 2026-08-29): #319 (prioridade alta — card "Potência agora" sem fallback REST quando o SSE atrasa) vira o item 3, fundido com a separação do `RealtimeContext` por tocar exatamente os mesmos arquivos; #320 (bug de retenção de cache na virada de hora) vira o item 6, independente por tocar arquivos distintos.
+- **Item 3 elevado a P1 dentro da fase:** é o único item com comportamento de usuário real e bug ativo (herdado da prioridade alta da issue #319); os demais permanecem P2, mantendo o caráter de "endurecimento" da fase (mesma lógica das Fases 10–18).
+- **Ordem de dependência (medir → otimizar → medir de novo):** o item 1 (baseline) vem antes de tudo para não separar o número da decisão que ele orienta; os itens 3-5 dependem do item 2 (React Compiler) para não reconstruir mitigações que o compilador pode tornar redundantes.
+
+### Replanejamento de 2026-09-02 (fechamento da Fase 18)
+
+**O que mudou:** a Fase 18 fechou (épicos #334/#335, PRs #354/#355/#357) e a Fase 19 — já detalhada em 5 itens desde o planejamento de 2026-08-05 — passa a ser a fase atual, sem alteração no que já estava escrito. A milestone `Robustez e Polimento` (Fases 16–18) fecha junto.
+
+- **Itens "fora do escopo" acabaram resolvidos dentro da própria fase:** o detalhamento de 2026-08-30 tinha registrado #303 (JSDoc, 48 arquivos), #289 (`statement_timeout` do pool), #272 (`RUNBOOK_INCIDENTES.md`) e #269 (ADR-0018, guarda de registros do Marco Civil) como fora dos 16 itens da fase — mas os quatro couberam no mesmo PR #357 por serem pequenos e independentes; não fazia sentido adiar mecanicamente o que já estava pronto para entrar no mesmo lote. #302 (exportação de histórico de consumo, LGPD) foi fechada à parte como adiada, só formalizando a decisão que a ADR-0014 já cobria — não foi implementada, ao contrário dos outros quatro. #315 (fator de escala Modbus/Profinet) segue sem destino, genuinamente em aberto.
+- **Duas correções não planejadas entraram entre o fechamento da 18 e o início da 19, fora da estrutura de fases:** PR #358 (leituras de medidor em tempo real não chegavam ao painel — um medidor com credencial indecifrável derrubava a reconexão IoT de *todos* os medidores no boot, filtro de compressão não excluía de fato o stream SSE, e o formulário de Medidor não expunha os campos de credencial de MODBUS_RTU/ETHERNET_IP/PROFINET) e PR #361 (issues #359/#360, reportadas diretamente pelo usuário: cor do wordmark "LumiTrack" divergente do ícone da logo em uso real — cuja causa raiz só apareceu na validação visual, `cn()`/tailwind-merge descartando a classe de cor ao combinar com tamanho de fonte do Industry — e ausência de seletor de janela de hora no histórico de consumo; mais um texto "Em breve" indevido e a cor das barras do gráfico de consumo, achados/pedidos na mesma branch, mais os bloqueios e sugestões da própria revisão de código do PR). Nenhuma das duas tem RF associado nem abre fase nova — é manutenção reativa (bug relatado pelo usuário), tratada fora do roadmap como correção de bug, e registrada aqui só para o histórico não ficar incompleto.
+- **Por que não viraram uma fase fracionária (ex.: 18.5):** ao contrário da Fase 13.6 (lote coeso de achados de auditoria pós-go-live), PR #358 e PR #361 não compartilham tema entre si — um é IoT/tempo real, o outro é UI de consumo/design system — e cada um já é uma unidade de trabalho fechada e rastreável pelo próprio número de PR e pelas entradas do `CHANGELOG.md`. Agrupar duas correções não relacionadas numa fase seria fase artificial — a mesma armadilha que a Fase 10 já evitou ao separar por gate em vez de forçar fatiamento vertical onde não há.

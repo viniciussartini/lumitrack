@@ -14,10 +14,7 @@ interface LumiTrackWordmarkProps {
     variant?: "dark" | "light"
 }
 
-const GRADIENT_BY_VARIANT = {
-    dark: "from-[#8fb0d6] via-[#a9c6a2] to-[#e2ef8f]",
-    light: "from-[#5980A6] via-[#96B18F] to-[#D4E277]",
-} as const
+const TRACK_GRADIENT = "from-accent via-brand-gradient-mid to-brand-gradient-end"
 
 /**
  * Logo + wordmark "Lumi/Track" com gradiente no "Track" — tratamento visual
@@ -40,22 +37,17 @@ export const LumiTrackWordmark = ({
         <img
             src="/lumitrack-logo.svg"
             alt=""
-            className={cn("block h-[29px] w-[26px]", variant === "dark" && "brightness-125")}
+            className={cn("w-26px block h-[29px]", variant === "dark" && "brightness-125")}
         />
         <span
             className={cn(
                 "font-heading font-semibold",
-                variant === "dark" ? "text-[#e6ecf2]" : "text-text",
+                variant === "dark" ? "text-white" : "text-text",
                 textClassName,
             )}
         >
             Lumi
-            <span
-                className={cn(
-                    "bg-linear-to-r bg-clip-text text-transparent",
-                    GRADIENT_BY_VARIANT[variant],
-                )}
-            >
+            <span className={cn("bg-linear-to-r bg-clip-text text-transparent", TRACK_GRADIENT)}>
                 Track
             </span>
         </span>

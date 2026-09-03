@@ -18,9 +18,9 @@
 // O service notifica o manager via start/stop/restart. O manager não toca
 // no banco — só mantém o Map<meterId, IConnection> atualizado.
 //
-// Reformulação IoT (Fase 2): a chave passou de deviceId para meterId — a
-// config de conexão agora vem do Meter, não mais do antigo IoTDeviceConfig
-// 1:1 com Device. Um medidor pode estar vinculado a Property, Area ou Device.
+// A chave do Map é meterId, não deviceId — a config de conexão vem do
+// Meter, que pode estar vinculado a Property, Area ou Device (não é 1:1
+// com Device).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { IConnection } from "@/modules/iot/iot-worker/protocols/IConnection.js"
@@ -28,18 +28,17 @@ import { IoTProtocol } from "@/generated/prisma/client.js"
 import { logger } from "@/shared/logger/logger.js"
 import { checkOutboundHost } from "@/shared/security/outboundHost.js"
 import { env } from "@/config/env.js"
+import { connectionConfigSchema } from "@/modules/iot/iot-worker/connectionConfigSchema.js"
 
 const log = logger.child({ module: "IoTManager" })
 import { MqttConnection } from "@/modules/iot/iot-worker/protocols/MqttConnection.js"
-import {
-    ModbusTcpConnection,
-    ModbusRtuConnection,
-    EthernetIpConnection,
-    ProfibusConnection,
-    ProfinetConnection,
-    Rs232Connection,
-    Rs485Connection,
-} from "@/modules/iot/iot-worker/protocols/ModbusTcpConnection.js"
+import { ModbusTcpConnection } from "@/modules/iot/iot-worker/protocols/ModbusTcpConnection.js"
+import { ModbusRtuConnection } from "@/modules/iot/iot-worker/protocols/ModbusRtuConnection.js"
+import { EthernetIpConnection } from "@/modules/iot/iot-worker/protocols/EthernetIpConnection.js"
+import { ProfibusConnection } from "@/modules/iot/iot-worker/protocols/ProfibusConnection.js"
+import { ProfinetConnection } from "@/modules/iot/iot-worker/protocols/ProfinetConnection.js"
+import { Rs232Connection } from "@/modules/iot/iot-worker/protocols/Rs232Connection.js"
+import { Rs485Connection } from "@/modules/iot/iot-worker/protocols/Rs485Connection.js"
 
 // Config de conexão de um medidor — subconjunto do MeterResponse do módulo
 // meter, mantido aqui para não acoplar o worker ao módulo de negócio.
@@ -53,198 +52,131 @@ export interface MeterConnectionConfig {
     extra: Record<string, unknown> | null
 }
 
-// Extrai campos opcionais do extra de forma segura.
-// Retorna undefined (nao null) para respeitar exactOptionalPropertyTypes
-// das interfaces de config dos protocolos.
-function extraField<T>(extra: Record<string, unknown>, key: string): T | undefined {
-    const val = extra[key]
-    return val !== undefined && val !== null ? (val as T) : undefined
+// Com exactOptionalPropertyTypes: true, não podemos espalhar um valor
+// possivelmente undefined num objeto cujo tipo não aceita undefined
+// explícito — os helpers abaixo constroem cada config condicionalmente,
+// só com os campos opcionais que de fato vieram definidos.
+function withOptional<T, K extends keyof T>(target: T, key: K, value: T[K] | undefined): void {
+    if (value !== undefined) {
+        target[key] = value
+    }
 }
 
 function createConnection(config: MeterConnectionConfig): IConnection {
-    const extra = (config.extra ?? {}) as Record<string, unknown>
+    // Substitui os non-null assertions que existiam aqui — um Meter
+    // restaurado do banco no boot (server.ts) não passa pela validação de
+    // escrita (createMeterSchema/updateMeterSchema, módulo `meter`)
+    // nenhuma vez; um registro corrompido ou desatualizado agora falha com
+    // erro claro em vez de coagir `null` para `string` silenciosamente.
+    const parsed = connectionConfigSchema.parse(config)
 
-    switch (config.protocol) {
+    switch (parsed.protocol) {
         case "MQTT": {
-            // Com exactOptionalPropertyTypes: true, nao podemos espalhar
-            //  num objeto cujo tipo nao aceita undefined explicito.
-            // Construimos o config condicionalmente.
             const mqttConfig: ConstructorParameters<typeof MqttConnection>[0] = {
-                meterId: config.meterId,
-                host: config.host!,
-                port: config.port!,
-                topic: config.topic!,
+                meterId: parsed.meterId,
+                host: parsed.host,
+                port: parsed.port,
+                topic: parsed.topic,
             }
-            const username = extraField<string>(extra, "username")
-            const password = extraField<string>(extra, "password")
-
-            if (username !== undefined) {
-                mqttConfig.username = username
-            }
-
-            if (password !== undefined) {
-                mqttConfig.password = password
-            }
+            withOptional(mqttConfig, "username", parsed.extra?.username)
+            withOptional(mqttConfig, "password", parsed.extra?.password)
 
             return new MqttConnection(mqttConfig)
         }
 
         case "MODBUS_TCP": {
             const modbusTcpConfig: ConstructorParameters<typeof ModbusTcpConnection>[0] = {
-                meterId: config.meterId,
-                host: config.host!,
-                port: config.port!,
-                address: config.address!,
+                meterId: parsed.meterId,
+                host: parsed.host,
+                port: parsed.port,
+                address: parsed.address,
+                currentAddress: parsed.extra.currentAddress,
+                powerAddress: parsed.extra.powerAddress,
+                powerFactorAddress: parsed.extra.powerFactorAddress,
             }
-            const pollingIntervalMs = extraField<number>(extra, "pollingIntervalMs")
-            const unitId = extraField<number>(extra, "unitId")
-
-            if (pollingIntervalMs !== undefined) {
-                modbusTcpConfig.pollingIntervalMs = pollingIntervalMs
-            }
-
-            if (unitId !== undefined) {
-                modbusTcpConfig.unitId = unitId
-            }
+            withOptional(modbusTcpConfig, "pollingIntervalMs", parsed.extra.pollingIntervalMs)
+            withOptional(modbusTcpConfig, "unitId", parsed.extra.unitId)
 
             return new ModbusTcpConnection(modbusTcpConfig)
         }
 
         case "MODBUS_RTU": {
             const modbusRtuConfig: ConstructorParameters<typeof ModbusRtuConnection>[0] = {
-                meterId: config.meterId,
-                address: config.address!,
+                meterId: parsed.meterId,
+                address: parsed.address,
+                voltageAddress: parsed.extra.voltageAddress,
+                currentAddress: parsed.extra.currentAddress,
+                powerAddress: parsed.extra.powerAddress,
+                powerFactorAddress: parsed.extra.powerFactorAddress,
             }
-            const baudRate = extraField<number>(extra, "baudRate")
-            const pollingIntervalMs = extraField<number>(extra, "pollingIntervalMs")
-            const unitId = extraField<number>(extra, "unitId")
-
-            if (baudRate !== undefined) {
-                modbusRtuConfig.baudRate = baudRate
-            }
-
-            if (pollingIntervalMs !== undefined) {
-                modbusRtuConfig.pollingIntervalMs = pollingIntervalMs
-            }
-
-            if (unitId !== undefined) {
-                modbusRtuConfig.unitId = unitId
-            }
+            withOptional(modbusRtuConfig, "baudRate", parsed.extra.baudRate)
+            withOptional(modbusRtuConfig, "pollingIntervalMs", parsed.extra.pollingIntervalMs)
+            withOptional(modbusRtuConfig, "unitId", parsed.extra.unitId)
 
             return new ModbusRtuConnection(modbusRtuConfig)
         }
 
         case "ETHERNET_IP": {
             const ethernetConfig: ConstructorParameters<typeof EthernetIpConnection>[0] = {
-                meterId: config.meterId,
-                host: config.host!,
+                meterId: parsed.meterId,
+                host: parsed.host,
+                address: parsed.address,
+                currentAddress: parsed.extra.currentAddress,
+                powerAddress: parsed.extra.powerAddress,
+                powerFactorAddress: parsed.extra.powerFactorAddress,
             }
-            const port = config.port !== null ? config.port : undefined
-            const address = config.address !== null ? config.address : undefined
-            const pollingIntervalMs = extraField<number>(extra, "pollingIntervalMs")
-
-            if (port !== undefined) {
-                ethernetConfig.port = port
-            }
-
-            if (address !== undefined) {
-                ethernetConfig.address = address
-            }
-
-            if (pollingIntervalMs !== undefined) {
-                ethernetConfig.pollingIntervalMs = pollingIntervalMs
-            }
+            withOptional(ethernetConfig, "port", parsed.port ?? undefined)
+            withOptional(ethernetConfig, "pollingIntervalMs", parsed.extra.pollingIntervalMs)
 
             return new EthernetIpConnection(ethernetConfig)
         }
 
         case "PROFIBUS": {
             const profibusConfig: ConstructorParameters<typeof ProfibusConnection>[0] = {
-                meterId: config.meterId,
-                address: config.address!,
+                meterId: parsed.meterId,
+                address: parsed.address,
             }
-            const slaveAddress = extraField<number>(extra, "slaveAddress")
-            const pollingIntervalMs = extraField<number>(extra, "pollingIntervalMs")
-
-            if (slaveAddress !== undefined) {
-                profibusConfig.slaveAddress = slaveAddress
-            }
-
-            if (pollingIntervalMs !== undefined) {
-                profibusConfig.pollingIntervalMs = pollingIntervalMs
-            }
+            withOptional(profibusConfig, "slaveAddress", parsed.extra?.slaveAddress)
+            withOptional(profibusConfig, "pollingIntervalMs", parsed.extra?.pollingIntervalMs)
 
             return new ProfibusConnection(profibusConfig)
         }
 
         case "PROFINET": {
             const profinetConfig: ConstructorParameters<typeof ProfinetConnection>[0] = {
-                meterId: config.meterId,
-                host: config.host!,
+                meterId: parsed.meterId,
+                host: parsed.host,
+                address: parsed.address,
+                currentAddress: parsed.extra.currentAddress,
+                powerAddress: parsed.extra.powerAddress,
+                powerFactorAddress: parsed.extra.powerFactorAddress,
             }
-            const port = config.port !== null ? config.port : undefined
-            const address = config.address !== null ? config.address : undefined
-            const pollingIntervalMs = extraField<number>(extra, "pollingIntervalMs")
-            const rack = extraField<number>(extra, "rack")
-            const slot = extraField<number>(extra, "slot")
-
-            if (port !== undefined) {
-                profinetConfig.port = port
-            }
-
-            if (address !== undefined) {
-                profinetConfig.address = address
-            }
-
-            if (pollingIntervalMs !== undefined) {
-                profinetConfig.pollingIntervalMs = pollingIntervalMs
-            }
-
-            if (rack !== undefined) {
-                profinetConfig.rack = rack
-            }
-
-            if (slot !== undefined) {
-                profinetConfig.slot = slot
-            }
+            withOptional(profinetConfig, "port", parsed.port ?? undefined)
+            withOptional(profinetConfig, "pollingIntervalMs", parsed.extra.pollingIntervalMs)
+            withOptional(profinetConfig, "rack", parsed.extra.rack)
+            withOptional(profinetConfig, "slot", parsed.extra.slot)
 
             return new ProfinetConnection(profinetConfig)
         }
 
         case "RS232": {
             const rs232Config: ConstructorParameters<typeof Rs232Connection>[0] = {
-                meterId: config.meterId,
-                address: config.address!,
+                meterId: parsed.meterId,
+                address: parsed.address,
             }
-            const baudRate = extraField<number>(extra, "baudRate")
-            const pollingIntervalMs = extraField<number>(extra, "pollingIntervalMs")
-
-            if (baudRate !== undefined) {
-                rs232Config.baudRate = baudRate
-            }
-
-            if (pollingIntervalMs !== undefined) {
-                rs232Config.pollingIntervalMs = pollingIntervalMs
-            }
+            withOptional(rs232Config, "baudRate", parsed.extra?.baudRate)
+            withOptional(rs232Config, "pollingIntervalMs", parsed.extra?.pollingIntervalMs)
 
             return new Rs232Connection(rs232Config)
         }
 
         case "RS485": {
             const rs485Config: ConstructorParameters<typeof Rs485Connection>[0] = {
-                meterId: config.meterId,
-                address: config.address!,
+                meterId: parsed.meterId,
+                address: parsed.address,
             }
-            const baudRate = extraField<number>(extra, "baudRate")
-            const pollingIntervalMs = extraField<number>(extra, "pollingIntervalMs")
-
-            if (baudRate !== undefined) {
-                rs485Config.baudRate = baudRate
-            }
-
-            if (pollingIntervalMs !== undefined) {
-                rs485Config.pollingIntervalMs = pollingIntervalMs
-            }
+            withOptional(rs485Config, "baudRate", parsed.extra?.baudRate)
+            withOptional(rs485Config, "pollingIntervalMs", parsed.extra?.pollingIntervalMs)
 
             return new Rs485Connection(rs485Config)
         }
@@ -307,7 +239,17 @@ export class IoTConnectionManager {
             return
         }
 
-        const connection = createConnection(config)
+        let connection: IConnection
+        try {
+            connection = createConnection(config)
+        } catch (err) {
+            log.error(
+                { meterId: config.meterId, protocol: config.protocol, err },
+                "Config de conexão inválida — recusando iniciar",
+            )
+            return
+        }
+
         connection.onData((data) => {
             this.dataHandler?.(config.meterId, data)
         })

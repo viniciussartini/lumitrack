@@ -95,8 +95,9 @@ Todo módulo em `backend/src/modules/<nome>/` segue a mesma cadeia de camadas:
 - **`*.schema.ts`** — validação Zod na borda (parseia `req.body`/`req.query`/`req.params` antes de qualquer lógica).
 - **`*.controller.ts`** — tradução HTTP ↔ domínio; sem regra de negócio.
 - **`*.service.ts`** — regra de negócio, testável sem Express nem banco (mockando o repository).
-- **`*.repository.ts`** — único ponto de acesso ao Prisma para aquele módulo; módulos não leem tabelas uns dos outros diretamente.
+- **`*.repository.ts`** — único ponto de acesso ao Prisma para aquele módulo; módulos não leem tabelas uns dos outros diretamente (nenhum módulo acessa o Prisma de outro — só o repository dono lê a tabela).
 - Módulos sem estado próprio persistido (ex.: `simulation`) omitem `*.repository.ts`.
+- **Acesso cross-módulo:** um `*.service.ts` **pode** importar e chamar o `*.repository.ts` de outro módulo diretamente — é o padrão sancionado para consultas agregadas ou de resolução de posse que precisam ler mais de um domínio (ex.: `ConsumptionService` lendo `MeterRepository`/`PropertyRepository`/`AreaRepository`/`DeviceRepository`; os helpers `resolveRootProperty`/`resolveMeterTarget` de `shared/targetResolution.ts` existem exatamente para isso). O que continua proibido: importar framework/infra de outro módulo (`no-express-in-domain`) ou pular a camada de repository acessando Prisma direto fora do módulo dono. Ver ADR-0016.
 
 16 módulos ativos: `admin`, `alert`, `alert-event`, `area`, `auth`, `consumption`, `device`, `distributor`, `export`, `iot` (worker de ingestão, sem rota própria além do stream SSE), `meter`, `notification`, `property`, `simulation`, `tariff-flag`, `user`.
 
@@ -113,7 +114,7 @@ Todo módulo em `backend/src/modules/<nome>/` segue a mesma cadeia de camadas:
 - **SMTP** (nodemailer) — recuperação de senha.
 - **Protocolos IoT** — MQTT, Modbus TCP/RTU, EtherNet/IP, Profibus, PROFINET, RS232, RS485 (adaptadores em `modules/iot/iot-worker/protocols/`).
 - **API de Dados Abertos da ANEEL** (`AneelTariffFlagSource.ts`) — a única chamada de saída não-IoT do backend: `fetch` para `https://dadosabertos.aneel.gov.br` no boot e a cada 24h, com schema de anti-corrupção próprio (ADR-0007). Relevante para quem mexer em SSRF/allowlist de saída.
-- **UptimeRobot** (ADR-0011) — integração externa de *entrada*: monitor de terceiro fazendo polling do `/health`.
+- O UptimeRobot que fazia polling do `/health` no staging foi removido pela ADR-0013. A ADR-0015 decidiu (re)expor `/health` na produção via Caddy para um futuro monitor externo (ex.: UptimeRobot) — a exposição já está versionada (`deploy/Caddyfile`); criar o monitor em si é ação pendente do usuário fora do repositório. A produção também tem monitoramento **interno** (Uptime Kuma auto-hospedado, ADR-0009), que não é integração externa.
 - Nenhuma integração de pagamento, mapa ou terceiro de observability (Sentry/APM) está implementada — ver `07-decisoes-em-aberto.md`.
 
 ### Posse e autorização
@@ -132,5 +133,9 @@ Toda autorização é por posse de recurso, resolvida bottom-up: `MeterReading/A
 - `adr/0008-hospedagem-brasil-oracle-always-free.md` — hospedagem numa máquina única no Brasil, sem operador estrangeiro. Tomada como decisão de **conformidade**, não só técnica. **Provedor e conclusão de conformidade substituídos pela ADR-0010**; continuam vigentes as restrições técnicas (por que serverless/scale-to-zero são inviáveis), a **condição de validade** (cadastro público fechado) e os **gates de go-live**.
 - `adr/0009-observabilidade-uptime-kuma-autohospedado.md` — monitor de uptime auto-hospedado, para o caminho self-hosted.
 - `adr/0010-demo-publica-free-tier-render-neon.md` — a demo pública roda em **Render + Neon**, fora do Brasil, com **escopo restrito a demonstração** (cadastro fechado, só contas sintéticas). Registra a transferência internacional que passou a existir (registros de acesso, sem SCC), o risco assumido e o **compromisso de migrar para o Brasil** antes de qualquer operação com usuário real.
-- `adr/0011-keep-alive-monitor-externo-uptimerobot.md` — keep-alive da demo via UptimeRobot (monitor externo), aceitando o custo de não detectar a VM/serviço inteiro fora do ar.
+- `adr/0011-keep-alive-monitor-externo-uptimerobot.md` — keep-alive da demo via UptimeRobot (monitor externo). **Substituída pela ADR-0013**; permanece como registro do raciocínio de que um ping externo em `/health` não configura transferência internacional — precedente ainda utilizável.
 - `adr/0012-separacao-producao-vps-staging-render-neon.md` — produção migra para VPS Hostinger em São Paulo (branch `main`, retoma a conclusão de conformidade da ADR-0008); Render+Neon é rebaixado a staging/integração (branch `staging`, ADR-0010 continua vigente para esse ambiente).
+- `adr/0013-fim-do-keep-alive-staging-hiberna-por-desenho.md` — os dois mecanismos de keep-alive são removidos e o staging hiberna por desenho, consequência do papel que a ADR-0012 lhe deu: ambiente de validação não tem visitante inesperado a proteger de cold start.
+- `adr/0014-ambientes-permanentemente-demonstracao.md` — os dois ambientes publicados (produção VPS + staging Render/Neon) são declarados permanentemente demonstração, sem titular real; `REGISTRATION_ENABLED` ganha default `false` no código (fail-closed); trabalho de conformidade que só se justifica com titular real fica deferido enquanto a ADR vigorar.
+- `adr/0015-monitor-externo-producao-vps.md` — reaproveita o raciocínio da ADR-0011 (ping não-autenticado em `/health` não configura transferência internacional) para a produção; `deploy/Caddyfile` passa a expor `/health`.
+- `adr/0016-service-le-repository-de-outro-modulo.md` — `*.service.ts` pode importar o `*.repository.ts` de outro módulo diretamente (padrão já em uso em 9 services); formaliza o que os helpers de `shared/targetResolution.ts` já pressupõem.

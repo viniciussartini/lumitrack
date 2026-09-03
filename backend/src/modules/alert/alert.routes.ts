@@ -4,15 +4,12 @@ import { AlertController } from "@/modules/alert/alert.controller.js"
 import { AlertRepository } from "@/modules/alert/alert.repository.js"
 import { AlertService } from "@/modules/alert/alert.service.js"
 import { MeterRepository } from "@/modules/meter/meter.repository.js"
-import { PropertyRepository } from "@/modules/property/property.repository.js"
-import { AreaRepository } from "@/modules/area/area.repository.js"
-import { DeviceRepository } from "@/modules/device/device.repository.js"
 import type { AlertEvaluator } from "@/modules/alert/alert-evaluator.js"
 import { blockDemoWrite } from "@/shared/middlewares/blockDemoWrite.js"
 
 // Rota top-level: /api/alerts — alerta é um recurso independente vinculado a
-// um medidor (via meterId no corpo da criação), não mais aninhado sob
-// property/area/device (Fase 4 — a hierarquia do alvo já está no Meter).
+// um medidor (via meterId no corpo da criação), não aninhado sob
+// property/area/device (a hierarquia do alvo já está no Meter).
 // `alertEvaluator` é opcional: sem ele (ex.: alguns testes), o status vem
 // sempre "normal" e /firing sempre vazio — nunca um 500.
 export function alertRoutes(
@@ -23,12 +20,7 @@ export function alertRoutes(
     const router = Router()
 
     const alertRepository = new AlertRepository(prismaClient)
-    const meterTargetRepos = {
-        meterRepository: new MeterRepository(prismaClient),
-        propertyRepository: new PropertyRepository(prismaClient),
-        areaRepository: new AreaRepository(prismaClient),
-        deviceRepository: new DeviceRepository(prismaClient),
-    }
+    const meterTargetRepos = { meterRepository: new MeterRepository(prismaClient) }
     const alertService = new AlertService(alertRepository, meterTargetRepos, alertEvaluator)
     const controller = new AlertController(alertService)
 
@@ -37,9 +29,10 @@ export function alertRoutes(
     )
     router.get("/", authenticate, (req, res, next) => controller.findAll(req, res, next))
 
-    // "/firing" precisa vir ANTES de "/:id" — senão o Express casaria
-    // "firing" como se fosse o valor do param :id.
+    // "/firing" e "/stats" precisam vir ANTES de "/:id" — senão o Express
+    // casaria "firing"/"stats" como se fossem o valor do param :id.
     router.get("/firing", authenticate, (req, res, next) => controller.findFiring(req, res, next))
+    router.get("/stats", authenticate, (req, res, next) => controller.stats(req, res, next))
 
     router.get("/:id", authenticate, (req, res, next) => controller.findById(req, res, next))
     router.put("/:id", authenticate, blockDemoWrite, (req, res, next) =>

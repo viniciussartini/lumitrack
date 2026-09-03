@@ -6,8 +6,6 @@ import { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
-import { AreaRepository } from "@/modules/area/area.repository.js"
-import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { UserEventHub } from "@/shared/sse/user-event-hub.js"
@@ -22,12 +20,10 @@ const meterRepository = new MeterRepository(prismaTest)
 const propertyRepository = new PropertyRepository(prismaTest)
 const distributorRepository = new DistributorRepository(prismaTest)
 const propertyService = new PropertyService(propertyRepository, distributorRepository)
-const areaRepository = new AreaRepository(prismaTest)
-const deviceRepository = new DeviceRepository(prismaTest)
 const userRepository = new UserRepository(prismaTest)
 const userService = new UserService(userRepository)
 
-const meterTargetRepos = { meterRepository, propertyRepository, areaRepository, deviceRepository }
+const meterTargetRepos = { meterRepository }
 
 async function setupMeterAndAlert(
     overrides: { referencePowerKw?: number; tolerancePercent?: number; enabled?: boolean } = {},

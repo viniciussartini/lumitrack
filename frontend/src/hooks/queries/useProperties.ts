@@ -5,7 +5,7 @@ import { DEFAULT_PAGE_SIZE } from "@/types/pagination.types"
 import type { Property } from "@/types/property.types"
 
 /**
- * Lista as propriedades do usuário autenticado (paginado — Fase 5).
+ * Lista as propriedades do usuário autenticado (paginado).
  */
 export const useProperties = (page: number = 1, pageSize: number = DEFAULT_PAGE_SIZE) =>
     useQuery({

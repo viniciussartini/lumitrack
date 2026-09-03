@@ -8,9 +8,13 @@ import { areaService } from "@/services/area.service"
 import { propertyService } from "@/services/property.service"
 import { consumptionService } from "@/services/consumption.service"
 import { meterService } from "@/services/meter.service"
+import { meterReadingService } from "@/services/meterReading.service"
+import { useRealtimeReadings } from "@/contexts/RealtimeContext"
 import type { Device } from "@/types/device.types"
 import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
+import type { Meter } from "@/types/meter.types"
+import type { ReadingPayload } from "@/lib/sse/appStream"
 
 vi.mock("@/services/consumption.service", () => ({
     consumptionService: {
@@ -28,6 +32,14 @@ vi.mock("@/services/meter.service", () => ({
         update: vi.fn(),
         delete: vi.fn(),
     },
+}))
+
+vi.mock("@/services/meterReading.service", () => ({
+    meterReadingService: { list: vi.fn() },
+}))
+
+vi.mock("@/contexts/RealtimeContext", () => ({
+    useRealtimeReadings: vi.fn(() => ({ readingsByMeterId: {} })),
 }))
 
 vi.mock("@/services/device.service", () => ({
@@ -63,6 +75,7 @@ vi.mock("@/services/property.service", () => ({
 vi.mock("@/services/api", () => ({
     api: {},
     extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
+    ensureFreshSession: vi.fn(),
 }))
 
 const mockDevice: Device = {
@@ -101,6 +114,32 @@ const mockProperty: Property = {
     updatedAt: new Date().toISOString(),
 }
 
+const mockMeter: Meter = {
+    id: "meter-1",
+    name: "Medidor do dispositivo",
+    targetType: "DEVICE",
+    propertyId: "prop-1",
+    areaId: "area-1",
+    deviceId: "device-1",
+    protocol: "MQTT",
+    host: "broker.local",
+    port: 1883,
+    topic: "lumitrack/meter-1",
+    address: null,
+    extra: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+}
+
+const mockReading = (powerW: number): ReadingPayload => ({
+    meterId: "meter-1",
+    voltage: 220,
+    current: 10,
+    powerW,
+    powerFactor: 0.98,
+    receivedAt: new Date().toISOString(),
+})
+
 const renderPage = () => {
     const queryClient = new QueryClient({
         defaultOptions: {
@@ -131,6 +170,8 @@ beforeEach(() => {
     // Sem medidor vinculado por padrão — MeterSection/ConsumptionSection
     // caem no EmptyState "Nenhum medidor vinculado" sem ficar em loading.
     vi.mocked(meterService.byTarget).mockResolvedValue(null)
+    vi.mocked(meterReadingService.list).mockResolvedValue({ items: [], granularity: "minute" })
+    vi.mocked(useRealtimeReadings).mockReturnValue({ readingsByMeterId: {} })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -254,6 +295,20 @@ describe("DeviceDetailsPage — seções", () => {
         ).toBeInTheDocument()
 
         expect(await screen.findByText(/nenhum medidor vinculado/i)).toBeInTheDocument()
+    })
+
+    it("mostra o KPI 'Potência agora' quando o medidor tem leitura", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+        vi.mocked(useRealtimeReadings).mockReturnValue({
+            readingsByMeterId: { "meter-1": mockReading(1500) },
+        })
+
+        renderPage()
+
+        expect(await screen.findByText("Potência agora")).toBeInTheDocument()
+        // MeterSection também mostra a potência atual — o mesmo valor
+        // aparece nos dois cards.
+        expect(screen.getAllByText("1,50kW").length).toBeGreaterThan(0)
     })
 
     it("renderiza seção 'Consumo'", async () => {

@@ -82,7 +82,7 @@ export const SecurityPage = () => {
                 Gerencie a autenticação de dois fatores da sua conta.
             </p>
 
-            <div className="blueprint p-[26px]">
+            <div className="blueprint p-26px">
                 <i className="corner tl" />
                 <i className="corner tr" />
                 <i className="corner bl" />
@@ -108,7 +108,7 @@ export const SecurityPage = () => {
                         <h2 className="font-heading text-lg font-semibold uppercase">
                             Autenticação de dois fatores (2FA)
                         </h2>
-                        <p className="text-muted mt-1.5 text-[13.5px] leading-relaxed">
+                        <p className="text-muted text-13-5 mt-1.5 leading-relaxed">
                             {user.mfaEnabled
                                 ? "Ativada — um código do seu aplicativo autenticador é exigido a cada login."
                                 : "Desativada — adicione uma camada extra de segurança exigindo um código do seu aplicativo autenticador a cada login."}
@@ -222,7 +222,7 @@ const BackupCodesReveal = ({ codes, onFinish }: BackupCodesRevealProps) => {
                 role="alert"
                 className="border-status-warning/40 bg-status-warning/10 text-status-warning flex items-start gap-2.5 border px-3.5 py-3 text-sm leading-relaxed"
             >
-                <AlertTriangle className="mt-0.5 h-[18px] w-[18px] shrink-0" aria-hidden="true" />
+                <AlertTriangle className="h-18px w-18px mt-0.5 shrink-0" aria-hidden="true" />
                 2FA ativado com sucesso. Guarde estes códigos de backup em um lugar seguro — eles
                 não serão exibidos novamente, e cada um pode ser usado uma única vez para entrar
                 caso você perca acesso ao aplicativo autenticador.
@@ -230,7 +230,7 @@ const BackupCodesReveal = ({ codes, onFinish }: BackupCodesRevealProps) => {
 
             <ul
                 className={cn(
-                    "border-divider font-heading grid grid-cols-2 gap-2 border p-4 text-[15px] font-semibold tracking-wide",
+                    "border-divider font-heading text-15 grid grid-cols-2 gap-2 border p-4 font-semibold tracking-wide",
                     "font-features-['tnum'_1]",
                 )}
             >
@@ -295,7 +295,7 @@ const MfaDisableForm = ({ onSubmit, onCancel, isLoading }: MfaDisableFormProps) 
             className="flex flex-col gap-4"
             noValidate
         >
-            <p className="text-muted text-[13.5px]">
+            <p className="text-muted text-13-5">
                 Confirme sua senha e um código válido do aplicativo autenticador (ou um código de
                 backup) para desativar o 2FA.
             </p>

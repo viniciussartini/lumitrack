@@ -1,6 +1,7 @@
 import js from "@eslint/js"
 import globals from "globals"
 import tseslint from "typescript-eslint"
+import jsdoc from "eslint-plugin-jsdoc"
 
 export default tseslint.config(
     { ignores: ["dist", "coverage"] },
@@ -42,6 +43,33 @@ export default tseslint.config(
             ],
             "@typescript-eslint/no-floating-promises": "error",
             "@typescript-eslint/no-misused-promises": "error",
+            // Mecaniza a proibição de comentário de rastreabilidade
+            // (06-code-quality-standards.md) — issue/PR/laudo/achado de
+            // revisão pertencem ao git, aos ADRs, ao CHANGELOG e às issues,
+            // nunca ao código-fonte. Termos de auditoria são específicos
+            // ("laudo de auditoria" etc.), não a palavra solta — ela também
+            // nomeia a feature de trilha de auditoria (audit trail) do
+            // sistema, uso legítimo que a regra não deve barrar.
+            "no-warning-comments": [
+                "error",
+                {
+                    terms: [
+                        "issue #",
+                        "closes #",
+                        "fixes #",
+                        "pr #",
+                        "laudo de auditoria",
+                        "achado de auditoria",
+                        "relatório de auditoria",
+                        "achado",
+                        "conforme revisão",
+                        "solicitado na revisão",
+                        "ver issue",
+                        "ref #",
+                    ],
+                    location: "anywhere",
+                },
+            ],
         },
     },
     {
@@ -50,6 +78,37 @@ export default tseslint.config(
         files: ["**/*.test.ts"],
         rules: {
             "max-lines-per-function": "off",
+        },
+    },
+    {
+        // JSDoc real em exports públicos da camada de simulação/broker/MQTT
+        // (06-code-quality-standards.md) — equivalente da camada de service
+        // neste pacote (sem convenção service/repository/controller). Medido
+        // antes de ligar: débito pequeno, corrigido junto — zero débito
+        // para catalogar.
+        files: ["src/simulation/*.ts", "src/broker/*.ts", "src/mqtt/*.ts"],
+        ignores: ["**/*.test.ts"],
+        plugins: { jsdoc },
+        rules: {
+            "jsdoc/require-jsdoc": [
+                "error",
+                {
+                    publicOnly: true,
+                    require: {
+                        ClassDeclaration: true,
+                        MethodDefinition: true,
+                        FunctionDeclaration: true,
+                    },
+                    contexts: [
+                        "ExportNamedDeclaration > ClassDeclaration",
+                        "ExportNamedDeclaration > FunctionDeclaration",
+                        "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > ArrowFunctionExpression",
+                        "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > FunctionExpression",
+                    ],
+                },
+            ],
+            "jsdoc/require-param": "error",
+            "jsdoc/require-returns": "error",
         },
     },
 )

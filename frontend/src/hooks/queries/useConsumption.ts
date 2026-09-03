@@ -14,12 +14,14 @@ export interface ConsumptionRange {
 }
 
 /**
- * Consumo agregado de um alvo (Fase 5 — substitui `useConsumptionBy*`).
+ * Consumo agregado de um alvo.
  *
  * `bucketSize` é o tamanho do bucket, não a granularidade escolhida na UI:
  * quem traduz uma na outra é `resolveConsumptionWindow`, e o resultado dessa
  * tradução entra aqui como `range`. Sem `range`, a chamada é "os últimos N
- * buckets" (KPIs e comparação do painel), com a ordem `desc` do backend.
+ * buckets" (KPIs e comparação do painel), com a ordem `desc` do backend —
+ * chaveada em `queryKeys.consumption.latest`, não `list`, mesmo que
+ * targetType/granularity/pageSize coincidam com uma consulta de janela.
  *
  * `enabled: Boolean(targetId)` evita disparar a query quando o param de rota
  * ainda não chegou. O 404 "alvo sem medidor" propaga como erro normal do
@@ -34,15 +36,16 @@ export const useConsumption = (
     range?: ConsumptionRange,
 ) =>
     useQuery({
-        queryKey: queryKeys.consumption.list(
-            targetType,
-            targetId ?? "",
-            bucketSize,
-            page,
-            pageSize,
-            range &&
-                `${range.from.toISOString()}|${range.to.toISOString()}|${range.order ?? "desc"}`,
-        ),
+        queryKey: range
+            ? queryKeys.consumption.list(
+                  targetType,
+                  targetId ?? "",
+                  bucketSize,
+                  page,
+                  pageSize,
+                  `${range.from.toISOString()}|${range.to.toISOString()}|${range.order ?? "desc"}`,
+              )
+            : queryKeys.consumption.latest(targetType, targetId ?? "", bucketSize, pageSize),
         queryFn: () =>
             consumptionService.list({
                 targetType,
@@ -53,4 +56,23 @@ export const useConsumption = (
                 ...range,
             }),
         enabled: Boolean(targetId),
+    })
+
+/**
+ * Endpoint batch — o último bucket de N alvos do mesmo `targetType`,
+ * substituindo o padrão `useQueries` (1 chamada por alvo) que
+ * `PropertyComparisonSection`, `AreasSection` e `DevicesSection` usavam.
+ *
+ * `enabled: ids.length > 0` evita disparar a query com lote vazio (a lista
+ * de propriedades/áreas/dispositivos ainda pode não ter carregado).
+ */
+export const useConsumptionSummary = (
+    targetType: TargetType,
+    ids: string[],
+    granularity: BucketSize,
+) =>
+    useQuery({
+        queryKey: queryKeys.consumption.summary(targetType, ids, granularity),
+        queryFn: () => consumptionService.summary({ targetType, ids, granularity }),
+        enabled: ids.length > 0,
     })

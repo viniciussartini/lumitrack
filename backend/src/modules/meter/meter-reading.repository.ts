@@ -1,7 +1,9 @@
+import { randomUUID } from "crypto"
 import { Prisma, PrismaClient } from "@/generated/prisma/client.js"
 import type { MinuteBucketSnapshot } from "@/modules/iot/iot-worker/MinuteBuffer.js"
 import type { MeterReadingGranularity } from "@/modules/meter/meter-reading.schema.js"
 import { localTsExpr, rangeFilter } from "@/shared/database/timeBucket.js"
+import { withPurgeTimeout } from "@/shared/database/withPurgeTimeout.js"
 
 const TRUNC_UNIT: Record<MeterReadingGranularity, string> = {
     minute: "minute",
@@ -13,11 +15,14 @@ export type MeterReadingBucket = {
     avgPowerW: number
 }
 
-// Persistência das leituras minuto a minuto (MeterReading). Deliberadamente
-// simples: ao contrário do antigo HourlyRollupScheduler, não resolve
-// hierarquia nem calcula custo — grava só as grandezas elétricas cruas. O
-// custo é calculado sob demanda na agregação (Fase 3, TariffService).
+/**
+ * Persistência das leituras minuto a minuto (MeterReading). Deliberadamente
+ * simples: ao contrário do antigo HourlyRollupScheduler, não resolve
+ * hierarquia nem calcula custo — grava só as grandezas elétricas cruas. O
+ * custo é calculado sob demanda na agregação (TariffService).
+ */
 export class MeterReadingRepository {
+    /** @param prisma - Cliente Prisma usado para ler e gravar leituras de medidor. */
     constructor(private readonly prisma: PrismaClient) {}
 
     /**
@@ -26,64 +31,81 @@ export class MeterReadingRepository {
      * scheduler rodou o flush duas vezes — faz merge ponderado por
      * secondsCovered em vez de sobrescrever, preservando as amostras já
      * persistidas (nem perde, nem duplica energia).
+     *
+     * `INSERT ... ON CONFLICT DO UPDATE` atômico, não check-then-write:
+     * duas chamadas concorrentes para o mesmo (meterId, minuteStart) — ex.
+     * dois flushes do `MinuteBuffer` disparando quase juntos — faziam
+     * `findUnique` e as duas viam "não existe", e a segunda `create()`
+     * falhava por violar a constraint única (`meterId_minuteStart`). A
+     * média ponderada só pode ser expressa dentro do próprio SQL porque
+     * depende do valor JÁ PERSISTIDO no exato momento do conflito —
+     * calculá-la no client antes de saber se há conflito (como o `upsert()`
+     * nativo do Prisma faria) reintroduziria a mesma corrida. `EXCLUDED`
+     * refere-se à linha que esta chamada tentou inserir; `"meter_readings"`
+     * (sem alias) refere-se à linha já existente antes deste conflito.
+     *
+     * @param snapshot - Amostra agregada de um minuto, pronta para persistir.
      */
     async upsertMinute(snapshot: MinuteBucketSnapshot): Promise<void> {
-        const existing = await this.prisma.meterReading.findUnique({
-            where: {
-                meterId_minuteStart: {
-                    meterId: snapshot.meterId,
-                    minuteStart: snapshot.minuteStart,
-                },
-            },
-        })
-
-        if (!existing) {
-            await this.prisma.meterReading.create({
-                data: {
-                    meterId: snapshot.meterId,
-                    minuteStart: snapshot.minuteStart,
-                    kwhConsumed: snapshot.energyKwh,
-                    avgVoltage: snapshot.avgVoltage,
-                    avgCurrent: snapshot.avgCurrent,
-                    avgPowerW: snapshot.avgPowerW,
-                    avgPowerFactor: snapshot.avgPowerFactor,
-                    sampleCount: snapshot.sampleCount,
-                    secondsCovered: snapshot.secondsCovered,
-                },
-            })
-            return
-        }
-
-        // Combina duas médias ponderadas: soma (média × peso) de cada lado e
-        // divide pela soma dos pesos (secondsCovered). Energia e sampleCount
-        // apenas somam — não são médias.
-        const totalSeconds = existing.secondsCovered + snapshot.secondsCovered
-        const weighted = (existingAvg: number, newAvg: number): number =>
-            totalSeconds > 0
-                ? (existingAvg * existing.secondsCovered + newAvg * snapshot.secondsCovered) /
-                  totalSeconds
-                : newAvg
-
-        await this.prisma.meterReading.update({
-            where: { id: existing.id },
-            data: {
-                kwhConsumed: existing.kwhConsumed + snapshot.energyKwh,
-                avgVoltage: weighted(existing.avgVoltage, snapshot.avgVoltage),
-                avgCurrent: weighted(existing.avgCurrent, snapshot.avgCurrent),
-                avgPowerW: weighted(existing.avgPowerW, snapshot.avgPowerW),
-                avgPowerFactor: weighted(existing.avgPowerFactor, snapshot.avgPowerFactor),
-                sampleCount: existing.sampleCount + snapshot.sampleCount,
-                secondsCovered: totalSeconds,
-            },
-        })
+        await this.prisma.$executeRaw`
+            INSERT INTO "meter_readings" (
+                "id", "meterId", "minuteStart", "kwhConsumed", "avgVoltage", "avgCurrent",
+                "avgPowerW", "avgPowerFactor", "sampleCount", "secondsCovered", "updatedAt"
+            )
+            VALUES (
+                ${randomUUID()}, ${snapshot.meterId}, ${snapshot.minuteStart},
+                ${snapshot.energyKwh}, ${snapshot.avgVoltage}, ${snapshot.avgCurrent},
+                ${snapshot.avgPowerW}, ${snapshot.avgPowerFactor}, ${snapshot.sampleCount},
+                ${snapshot.secondsCovered}, now()
+            )
+            ON CONFLICT ("meterId", "minuteStart") DO UPDATE SET
+                "kwhConsumed" = "meter_readings"."kwhConsumed" + EXCLUDED."kwhConsumed",
+                "avgVoltage" = CASE
+                    WHEN "meter_readings"."secondsCovered" + EXCLUDED."secondsCovered" > 0 THEN
+                        ("meter_readings"."avgVoltage" * "meter_readings"."secondsCovered"
+                            + EXCLUDED."avgVoltage" * EXCLUDED."secondsCovered")
+                        / ("meter_readings"."secondsCovered" + EXCLUDED."secondsCovered")
+                    ELSE EXCLUDED."avgVoltage"
+                END,
+                "avgCurrent" = CASE
+                    WHEN "meter_readings"."secondsCovered" + EXCLUDED."secondsCovered" > 0 THEN
+                        ("meter_readings"."avgCurrent" * "meter_readings"."secondsCovered"
+                            + EXCLUDED."avgCurrent" * EXCLUDED."secondsCovered")
+                        / ("meter_readings"."secondsCovered" + EXCLUDED."secondsCovered")
+                    ELSE EXCLUDED."avgCurrent"
+                END,
+                "avgPowerW" = CASE
+                    WHEN "meter_readings"."secondsCovered" + EXCLUDED."secondsCovered" > 0 THEN
+                        ("meter_readings"."avgPowerW" * "meter_readings"."secondsCovered"
+                            + EXCLUDED."avgPowerW" * EXCLUDED."secondsCovered")
+                        / ("meter_readings"."secondsCovered" + EXCLUDED."secondsCovered")
+                    ELSE EXCLUDED."avgPowerW"
+                END,
+                "avgPowerFactor" = CASE
+                    WHEN "meter_readings"."secondsCovered" + EXCLUDED."secondsCovered" > 0 THEN
+                        ("meter_readings"."avgPowerFactor" * "meter_readings"."secondsCovered"
+                            + EXCLUDED."avgPowerFactor" * EXCLUDED."secondsCovered")
+                        / ("meter_readings"."secondsCovered" + EXCLUDED."secondsCovered")
+                    ELSE EXCLUDED."avgPowerFactor"
+                END,
+                "sampleCount" = "meter_readings"."sampleCount" + EXCLUDED."sampleCount",
+                "secondsCovered" = "meter_readings"."secondsCovered" + EXCLUDED."secondsCovered",
+                "updatedAt" = now()
+        `
     }
 
     /**
      * Agrega leituras por minuto/hora numa janela — usada pelo gráfico "ao
-     * vivo" (issue #211), não pelo faturamento (isso é `ConsumptionRepository`).
+     * vivo", não pelo faturamento (isso é `ConsumptionRepository`).
      * `avgPowerW` ponderado por `secondsCovered`, mesma receita de
      * `ConsumptionRepository.findAggregated` — sem soma de kWh nem
      * paginação, só a grandeza que o gráfico plota.
+     *
+     * @param meterId - Id do medidor.
+     * @param granularity - Granularidade dos buckets (minuto ou hora).
+     * @param from - Início da janela (inclusive).
+     * @param to - Fim da janela (inclusive).
+     * @returns Buckets ordenados por início, com a potência média de cada um.
      */
     async findAggregated(
         meterId: string,
@@ -110,5 +132,23 @@ export class MeterReadingRepository {
             bucketStart: r.bucket,
             avgPowerW: Number(r.avgpower ?? 0),
         }))
+    }
+
+    /**
+     * Expurgo por retenção — remove leituras mais antigas que `threshold`
+     * por `minuteStart` (não `createdAt`): é o instante da leitura em si que
+     * define a janela de retenção, não quando a linha foi persistida.
+     * Suportado pelo índice `meter_readings_minuteStart_idx`.
+     *
+     * @param threshold - Leituras com `minuteStart` anterior a este instante são removidas.
+     * @returns Quantidade de leituras removidas.
+     */
+    async deleteOlderThan(threshold: Date): Promise<number> {
+        return withPurgeTimeout(this.prisma, async (tx) => {
+            const result = await tx.meterReading.deleteMany({
+                where: { minuteStart: { lt: threshold } },
+            })
+            return result.count
+        })
     }
 }

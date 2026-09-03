@@ -114,7 +114,7 @@ DATABASE_URL='<connection-string-administrativa-do-neon>' \
 
 > **As 5 chaves de cifra têm que ser EXATAMENTE as mesmas do painel do Render.** O seed roda da sua máquina, mas grava no mesmo banco (Neon) que o backend em produção lê depois. Se as chaves não baterem, tudo que foi cifrado no seed (CPF/CNPJ, endereço, credencial do medidor) fica ilegível em runtime — `AES-256-GCM` falha com `Unsupported state or unable to authenticate data` (tag de autenticação não bate), não com uma mensagem óbvia de "chave errada". Gere as chaves **uma vez**, salve-as no Render primeiro, e só então rode o seed reaproveitando os mesmos valores — nunca o contrário.
 >
-> **Sobre o volume no Neon (0,5 GB no plano gratuito):** o seed de demonstração **não gera histórico** — cria só a topologia (11 medidores, submedição por cômodo/equipamento) e os alertas, já configurados. Todo `MeterReading` nasce da ingestão IoT real a partir do deploy. Isso resolve na origem o estouro de volume que um seed com bulk insert causaria; o que resta acompanhar é o **crescimento das leituras ao vivo** ao longo do tempo — o `RetentionService` ainda não cobre `MeterReading` (item da Fase 14), então vale revisar o volume periodicamente.
+> **Sobre o volume no Neon (0,5 GB no plano gratuito):** o seed de demonstração **não gera histórico** — cria só a topologia (11 medidores, submedição por cômodo/equipamento) e os alertas, já configurados. Todo `MeterReading` nasce da ingestão IoT real a partir do deploy. Isso resolve na origem o estouro de volume que um seed com bulk insert causaria; o que resta acompanhar é o **crescimento das leituras ao vivo** ao longo do tempo — o `RetentionService` ainda não cobre `MeterReading` (item da Fase 15, reclassificado de conformidade para armazenamento/performance pela ADR-0014), então vale revisar o volume periodicamente.
 
 ### 4. Criar os serviços no Render
 
@@ -143,7 +143,7 @@ Definidas em `render.yaml` (não precisa fazer nada):
 | Variável | Valor | Por quê |
 |---|---|---|
 | `NODE_ENV` | `production` | Liga as validações fail-closed de `config/env.ts`. |
-| `REGISTRATION_ENABLED` | `false` | **A premissa de conformidade inteira da ADR-0010.** O default do código é `true`. |
+| `REGISTRATION_ENABLED` | `false` | **A premissa de conformidade inteira da ADR-0010/ADR-0014.** O default do código já é `false` (fail-closed) — esta linha fixa explicitamente, sem depender do default. |
 | `DEMO_LOGIN_ENABLED` | `true` | Mantém o botão de demonstração funcional com o cadastro fechado. |
 | `IOT_ALLOWED_HOSTS` | `localhost,127.0.0.1/32` | Simulador no mesmo container = loopback. **`localhost` precisa entrar como hostname, não só o CIDR:** dentro do container o nome resolve para IPv4 **e** IPv6, e um CIDR só de IPv4 deixa o `::1` de fora, fazendo a checagem de SSRF negar a conexão do medidor (mesmo achado documentado no Caminho B). Não afrouxa a proteção. |
 | `DEMO_BOOTSTRAP_ENABLED` | `true` | Recria os devices do simulador a cada despertar — sem isso o painel acorda sem dado ao vivo. |
@@ -196,19 +196,21 @@ O rewrite `/api/*` do site estático **não sustenta conexão de longa duração
 - **Hibernação após 15 min** sem tráfego, com cold start de ~60–90s. Comportamento esperado, não incidente.
 - **0,5 GB no Neon** — ver o aviso de volume do passo 3.
 
-## Keep-alive (evitar hibernação)
+## Hibernação: comportamento esperado, não problema a resolver
 
-**Decisão:** [ADR-0011](adr/0011-keep-alive-monitor-externo-uptimerobot.md) — dois mecanismos independentes de ping em `/health`, o suficiente para reduzir (não eliminar) a chance de a demo hibernar entre visitas.
+**Decisão:** [ADR-0013](adr/0013-fim-do-keep-alive-staging-hiberna-por-desenho.md) — **não há mais keep-alive**, e o staging hiberna por desenho.
 
-1. **UptimeRobot** (primário) — a cada 5 min. Configuração manual, fora do repositório:
-   - Criar conta gratuita em [uptimerobot.com](https://uptimerobot.com), sem cartão.
-   - Novo monitor **HTTP(s)**, URL `https://lumitrack-api.onrender.com/health`, intervalo **5 minutos**.
-   - Alerta por e-mail (ou Telegram) para o autor quando o monitor detectar `down`.
-2. **`.github/workflows/keep-alive.yml`** (redundância) — a cada 10 min, cron deslocado para minutos não-redondos. Já implementado; nenhuma ação manual.
+Houve, até 2026-08-23, dois mecanismos mantendo este ambiente acordado 24/7 (um monitor no UptimeRobot e o `.github/workflows/keep-alive.yml`) — ambos removidos. A justificativa deles era o papel antigo deste ambiente: **demo pública de portfólio**, onde um cold start no primeiro clique de um visitante inesperado custava caro. A ADR-0012 mudou esse papel para **staging/validação**, cujo público é o próprio autor, num momento em que ele sabe que está validando. Manter acordado um ambiente que ninguém visita por acaso é custo sem contrapartida.
 
-`/health` é público, sem autenticação, e **excluído do log de acesso** (`backend/src/app.ts`, `autoLogging.ignore`) — nenhum dos dois mecanismos processa dado pessoal, então esta decisão não abre a tabela de operadores do `ROPA.md` (ver ADR-0011 para o raciocínio completo).
+**O que isso significa na prática, ao validar um PR aqui:**
 
-**Limite conhecido:** `schedule` do GitHub Actions é melhor-esforço — pode atrasar ou descartar disparos sob carga (issue #222). A redundância reduz o impacto; não garante zero gap. Se gaps grandes continuarem incomodando na prática, a correção definitiva é o upgrade pago do Render (Starter, ~US$ 7/mês) — não adotado por falta de necessidade demonstrada.
+- A primeira requisição depois de um período de silêncio leva **60–90s** (cold start). Espere — não é falha, não adianta recarregar.
+- O site estático (`lumitrack`) **não hiberna**: a interface carrega na hora, e só os dados esperam a API acordar.
+- Os 11 medidores do simulador são recriados a cada despertar (`DEMO_BOOTSTRAP_ENABLED=true`), então o painel volta com dado ao vivo sozinho — nenhum passo manual.
+
+**Efeito colateral bem-vindo:** com a hibernação restaurada, o simulador só gera leitura enquanto alguém está de fato usando o ambiente. `meter_readings` para de crescer 24/7, o que tira a data de validade da pressão sobre o limite de 0,5 GB do Neon (a política de retenção em si continua sendo escopo da Fase 15 / issues #236, #267 — armazenamento/performance, não mais conformidade, pela ADR-0014).
+
+**Custo aceito:** o staging fica **sem nenhum monitoramento de disponibilidade** — o UptimeRobot também alertava quando `/health` parava de responder. Uma queda aqui passa a ser descoberta no momento em que se for usar o ambiente. Aceitável porque nada depende dele; ver ADR-0013 para o raciocínio e para o gate que reverteria a decisão.
 
 ---
 
@@ -225,20 +227,23 @@ Tudo numa única máquina, orquestrado via Docker Compose (`docker-compose.yml` 
 │  VM Ubuntu 24.04 — datacenter no Brasil                           │
 │                                                                    │
 │   caddy (80/443, TLS automático) ── publicado no host             │
-│     ├── /api/*  → backend:3333                                    │
-│     └── /*      → /srv (bind mount de frontend/dist, build local) │
+│     ├── /api/*    → backend:3333                                  │
+│     ├── /health   → backend:3333 (monitor externo, ADR-0015)       │
+│     └── /*        → /srv (bind mount de frontend/dist, build local)│
 │                                                                    │
 │   backend:3333 (rede interna) ── /health monitorado pelo Kuma     │
-│     └── network_mode: service:backend ← simulator (1883, 4100)    │
-│                                          só alcançável de dentro   │
-│                                          do container backend     │
+│   simulator:1883,4100 (rede interna, própria — ADR-0017)          │
+│     alcançável só por outros containers desta rede (backend);     │
+│     nenhum `ports:` publicado, sem alcance do host nem da internet │
 │                                                                    │
 │   postgres:5432 (rede interna, sem porta publicada)                │
 │   uptime-kuma:3001 (só 127.0.0.1 do host — via túnel SSH)           │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-Ver [ADR-0008](adr/0008-hospedagem-brasil-oracle-always-free.md) para o racional (por que máquina única, por que sem operador estrangeiro) e [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a escolha do Uptime Kuma.
+Ver [ADR-0008](adr/0008-hospedagem-brasil-oracle-always-free.md) para o racional (por que máquina única, por que sem operador estrangeiro), [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a escolha do Uptime Kuma, [ADR-0015](adr/0015-monitor-externo-producao-vps.md) para a decisão de expor `/health` publicamente via Caddy, e [ADR-0017](adr/0017-simulador-rede-propria-docker-compose.md) para a rede própria do `simulator` (revisão da co-localização de rede da ADR-0008) — o Kuma monitora o backend por dentro (detecta o processo parar), o monitor externo monitora de fora (detecta a VM inteira cair, o que o Kuma sozinho não consegue).
+
+**Efeito colateral desta mudança:** `curl https://{$DOMAIN}/health` agora devolve o JSON do backend (`{"status":"ok",...}`), não mais o HTML do SPA — o `Caddyfile` passou a rotear `/health` explicitamente (antes só roteava `/api/*`, e `/health` caía no fallback do SPA). Aplicar em produção exige o mesmo procedimento de sempre para mudança de `Caddyfile` (deploy + `docker compose restart caddy` ou equivalente) e, do lado do usuário, criar o monitor externo (ex.: UptimeRobot) apontando para essa URL.
 
 ## Pré-requisitos
 
@@ -372,6 +377,15 @@ sed -i "s|^LUMITRACK_APP_PASSWORD=.*|LUMITRACK_APP_PASSWORD=\"$(openssl rand -he
 sed -i "s|^SIMULATOR_API_TOKEN=.*|SIMULATOR_API_TOKEN=\"$(openssl rand -hex 32)\"|" iot-simulator/server/.env
 sed -i "s|^BROKER_USERNAME=.*|BROKER_USERNAME=\"$(openssl rand -hex 16)\"|" iot-simulator/server/.env
 sed -i "s|^BROKER_PASSWORD=.*|BROKER_PASSWORD=\"$(openssl rand -hex 32)\"|" iot-simulator/server/.env
+
+# O simulador tem rede própria nesta topologia (ADR-0017, ver "Topologia"
+# acima) — escutar só em 127.0.0.1 (o default do .env.example, pensado para
+# rodar fora de container) o deixaria alcançável só por ele mesmo, e o
+# backend nunca conseguiria falar com ele. 0.0.0.0 = escuta em todas as
+# interfaces DO CONTAINER; ainda não alcançável de fora, porque o
+# docker-compose.yml não publica `ports:` para este serviço.
+sed -i "s|^BROKER_HOST=.*|BROKER_HOST=0.0.0.0|" iot-simulator/server/.env
+sed -i "s|^API_HOST=.*|API_HOST=0.0.0.0|" iot-simulator/server/.env
 ```
 
 Confira que nenhum `sed` silenciosamente "não bateu" com nada (o que deixaria a variável com o valor de exemplo do `.env.example`, inseguro):
@@ -386,7 +400,8 @@ Cada linha deve mostrar uma string longa e aleatória — nunca vazia, nunca igu
 
 **As demais variáveis não são segredo — são configuração, e o valor certo depende do estado do seu domínio:**
 
-- `IOT_ALLOWED_HOSTS=localhost` em `backend/.env` — a lista de hosts que o backend tem permissão de contatar como cliente de saída (proteção contra SSRF, OWASP A10 — o backend nunca deve poder ser instruído a bater em endereço arbitrário). Como o simulador roda dentro do mesmo namespace de rede do backend (ver "Topologia" acima), o único host que precisa estar liberado é o loopback — mas escreva `localhost` por extenso, **não** `127.0.0.1/32`: dentro do container, "localhost" resolve tanto para IPv4 (`127.0.0.1`) quanto para IPv6 (`::1`), e um CIDR só de IPv4 deixaria a metade IPv6 bloqueada — foi exatamente esse bug que apareceu na primeira execução real desta VPS (medidor caía por SSRF mesmo com tudo "certo" no IPv4).
+- `IOT_ALLOWED_HOSTS=simulator` em `backend/.env` — a lista de hosts que o backend tem permissão de contatar como cliente de saída (proteção contra SSRF, OWASP A10 — o backend nunca deve poder ser instruído a bater em endereço arbitrário). O simulador tem rede própria nesta topologia (ADR-0017), alcançável pelo hostname do serviço Docker — `simulator` casa por comparação textual, antes de qualquer resolução de DNS, então não precisa da dobra IPv4/IPv6 que o antigo caso `localhost` exigia.
+- `DEMO_METER_HOST=simulator` em `backend/.env` — lido só por `npm run db:seed:demo` (passo 7.4), grava esse hostname no `host` dos 11 medidores de demonstração. Precisa bater com o valor acima.
 - `DEMO_LOGIN_ENABLED=true` em `backend/.env` — liga a rota `POST /api/auth/demo-login` no backend (os botões "entrar com conta de demonstração"). Sem isso `true`, a rota responde 404/403 mesmo que o frontend mostre o botão.
 - `REGISTRATION_ENABLED=false` em `backend/.env` — mantém o cadastro de novos usuários fechado. É a premissa que sustenta toda a análise de conformidade LGPD deste ambiente de demonstração (`09-conformidade-legal.md`) — **não mude para `true`** sem reler aquele documento primeiro.
 - `DEMO_BOOTSTRAP_ENABLED=false` em `iot-simulator/server/.env` — aqui o simulador não hiberna como no Render, então os 11 devices são criados **uma vez só**, manualmente, pelo script do passo 7 — não a cada boot.
@@ -435,6 +450,8 @@ docker compose exec postgres psql -U lumitrack_app -d "$POSTGRES_DB" -c 'CREATE 
 
 Essa mensagem de erro é o resultado *correto* — confirma que o usuário de runtime realmente não consegue alterar a estrutura do banco, mesmo que o backend inteiro seja comprometido por alguma falha futura.
 
+**Nota para migrações futuras contra o banco já em produção (não se aplica ao primeiro deploy, com o banco vazio):** o Prisma Migrate usa `CREATE INDEX` simples, não `CREATE INDEX CONCURRENTLY` — a criação toma lock `SHARE` na tabela, bloqueando escrita por alguns instantes. Em tabelas pequenas isso é imperceptível; numa tabela grande com ingestão contínua (`meter_readings`, alimentada pelo `MinuteRollupScheduler` a cada minuto), planeje a janela: o flush que cair durante a criação do índice falha, mas é reprocessado automaticamente no próximo minuto (`MinuteRollupScheduler` devolve o balde ao buffer em caso de erro) — sem perda de dado, só um erro pontual no log.
+
 **7.2 — Buildar o frontend.**
 
 O frontend é um site estático (HTML/CSS/JS puro depois de compilado) — não roda como container próprio, o Caddy só serve os arquivos direto de uma pasta (`frontend/dist`). Como a VPS não tem Node.js instalado no sistema (só dentro dos containers), o build roda dentro de um container Node **descartável**, criado só para essa tarefa:
@@ -456,15 +473,7 @@ docker compose exec backend node -e "require('http').get('http://localhost:3333/
 
 Por que **sem** o Caddy ainda: o Caddy, ao subir, tenta imediatamente obter um certificado TLS (Let's Encrypt) para o `DOMAIN` configurado — se o domínio ainda não existir ou não estiver apontando para esta VPS, essa tentativa falha repetidamente e, em excesso, pode esbarrar no limite de tentativas do Let's Encrypt (rate limit, que fica bloqueado por horas). Se você já tem domínio configurado, pode pular direto para o passo 8 depois desta etapa.
 
-> **Atenção — este é o ponto mais frágil de todo o processo, vale ler com calma.** O `simulator` está configurado (`docker-compose.yml`, `network_mode: "service:backend"`) para **compartilhar a rede interna do container `backend`**, em vez de ter a sua própria — é assim que o backend consegue falar com o broker MQTT do simulador em `localhost:1883` como se fosse parte de si mesmo, sem expor essa porta para fora. Essa amarração é decidida no exato instante em que o `simulator` liga, e trava até ele ligar de novo — **isso inclui até um `docker compose restart backend` sozinho**, sem `--force-recreate`: confirmado na prática, um restart comum do backend já é suficiente para o simulador ficar "conversando sozinho" com uma versão antiga da rede, mesmo que os dois containers continuem de pé e aparentemente saudáveis.
->
-> **A regra prática, sem exceção: sempre que precisar reiniciar o `backend` por qualquer motivo (reler `.env`, aplicar mudança, o que for), reinicie o `simulator` JUNTO, no mesmo comando — nunca um separado do outro:**
->
-> ```bash
-> docker compose up -d --force-recreate backend simulator
-> ```
->
-> Reiniciar o `simulator` sempre apaga a lista de medidores dele (fica só em memória, de propósito — não é um bug) — depois deste comando, **sempre** rode de novo o script do passo 7.5 (`seed-simulator-devices.sh`) para recriá-los.
+> **Nota (ADR-0017):** `backend` e `simulator` têm rede própria cada um — reiniciar um não afeta o alcance de rede do outro. **Ainda assim, `simulator` não persiste nada entre reinícios** (a lista de medidores dele fica só em memória, de propósito — não é um bug): sempre que **ele** reiniciar, rode de novo o passo 7.5 (`seed-simulator-devices.sh`). Reiniciar só o `backend` (ex.: passo 7.6, para reler configuração) não exige tocar no `simulator`.
 
 **7.4 — Popular o catálogo e os dados de demonstração.**
 
@@ -485,20 +494,14 @@ Este script fala com a API de controle do simulador (não com o banco) e cria, u
 
 **7.6 — Fazer o backend "descobrir" os medidores recém-criados.**
 
-A conexão MQTT de cada medidor só é estabelecida **uma vez, no boot do processo** (não existe reconexão automática em segundo plano neste código) — então o backend, que já estava rodando desde o passo 7.3, não sabe que esses 11 medidores agora existem. Ele precisa reiniciar para "descobri-los" de novo — e, pela mesma regra do aviso acima, **nunca sozinho**:
+A conexão MQTT de cada medidor só é estabelecida **uma vez, no boot do processo** (não existe reconexão automática em segundo plano neste código) — então o backend, que já estava rodando desde o passo 7.3, não sabe que esses 11 medidores agora existem. Ele precisa reiniciar para "descobri-los" de novo. Com a rede própria do `simulator` (ADR-0017), isso é **só o `backend`** — o `simulator` não precisa ser tocado, e a lista de devices que você acabou de criar no passo 7.5 sobrevive:
 
 ```bash
-docker compose up -d --force-recreate backend simulator
-```
-
-Sim — isso apaga de novo a lista de devices do simulador que você acabou de criar no passo 7.5. É por isso que a ordem correta, sem ciclo infinito, é: **(a)** subir backend+simulator juntos pela primeira vez (7.3) → **(b)** popular banco e criar devices (7.4, 7.5) → **(c)** subir backend+simulator juntos **de novo**, uma segunda vez (este passo) → **(d)** rodar `seed-simulator-devices.sh` **de novo**, agora pela última vez:
-
-```bash
-./deploy/seed-simulator-devices.sh
+docker compose up -d --force-recreate backend
 docker compose logs --tail=20 backend   # confirme "[Boot] Conexões restauradas: 11 ok, 0 falha(s)."
 ```
 
-Depois disso, não toque mais em `backend`/`simulator` até o passo 8 (e, mesmo lá, sempre os dois juntos). Confirme que as leituras estão realmente sendo gravadas (aguarde ~1 min — o `MinuteRollupScheduler` agrega por minuto antes de persistir):
+Confirme que as leituras estão realmente sendo gravadas (aguarde ~1 min — o `MinuteRollupScheduler` agrega por minuto antes de persistir):
 
 ```bash
 docker compose exec -T postgres psql -U lumitrack_app -d "$POSTGRES_DB" -c "SELECT count(*) FROM meter_readings;"
@@ -515,8 +518,7 @@ sed -i "s|^DOMAIN=.*|DOMAIN=<seu-dominio-real>|" deploy/.env
 sed -i "s|^CORS_ORIGIN=.*|CORS_ORIGIN=https://<seu-dominio-real>|" backend/.env
 sed -i "s|^FRONTEND_URL=.*|FRONTEND_URL=https://<seu-dominio-real>|" backend/.env
 sed -i "s|^PUBLIC_API_ORIGIN=.*|PUBLIC_API_ORIGIN=https://<seu-dominio-real>|" backend/.env
-docker compose up -d --force-recreate backend simulator   # backend precisa reler o .env; recria o simulador junto (ver aviso do passo 7) — rode seed-simulator-devices.sh de novo depois
-./deploy/seed-simulator-devices.sh
+docker compose up -d --force-recreate backend   # backend precisa reler o .env; simulator não é afetado (ADR-0017), lista de devices sobrevive
 docker compose --env-file deploy/.env up -d caddy
 docker compose ps
 ```
@@ -574,6 +576,26 @@ ssh -f -N -L 3001:localhost:3001 <usuario>@<ip-da-vm>
 
 Ver [ADR-0009](adr/0009-observabilidade-uptime-kuma-autohospedado.md) para a limitação estrutural aceita: como o Kuma roda na mesma máquina que monitora, **ele não detecta a VM inteira fora do ar** — se ela cair, o monitor cai junto e nenhum alerta sai. É um risco assumido, não um esquecimento.
 
+**`pg_stat_statements` (Fase 15, instrumentação de desempenho).** `docker-compose.yml` já sobe o serviço `postgres` com `shared_preload_libraries=pg_stat_statements` e monta `deploy/enable-pg-stat-statements.sql` — em volume **novo**, isso basta (o init script roda sozinho no primeiro boot). No volume **já provisionado** desta VPS (existe desde a Fase 13.7, antes desta mudança), a extensão exige dois passos manuais depois de atualizar o `docker-compose.yml`:
+
+```bash
+# 0. Carrega POSTGRES_USER/POSTGRES_DB de deploy/.env na sessão (mesmo padrão
+#    já usado no passo 7) — só nesta sessão SSH, não persiste.
+set -a && source deploy/.env && set +a
+
+# 1. Recria o container postgres com o command: novo (shared_preload_libraries
+#    só tem efeito com o servidor reiniciado — CREATE EXTENSION sozinho não basta)
+docker compose up -d postgres
+
+# 2. Confirma que o preload pegou, então habilita a extensão (idempotente)
+docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -c "SHOW shared_preload_libraries;"
+docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -f /docker-entrypoint-initdb.d/20-enable-pg-stat-statements.sql
+```
+
+Consultar depois: `SELECT query, calls, mean_exec_time, total_exec_time FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 20;` — o método completo (massa sintética, `EXPLAIN`, contagem de query por requisição) está em `.claude/docs/{DATA}-baseline-desempenho.md`.
+
 ### 11. Verificação ponta a ponta
 
 - [ ] Login com conta de demonstração funciona (`POST /api/auth/demo-login`).
@@ -624,11 +646,13 @@ Guia para quem nunca fez isso. Numera os cliques porque cada registrador muda a 
 | `CORS_ORIGIN` | `backend/.env` | `https://<seu-dominio>` | Nunca `*` em produção. |
 | `PUBLIC_API_ORIGIN` | `backend/.env` | `https://<seu-dominio>` | Gate de go-live #5 — host canônico do redirect HTTPS e da checagem de `Host` forjado. |
 | `FRONTEND_URL` | `backend/.env` | `https://<seu-dominio>` | Compõe o link de e-mails transacionais. |
-| `REGISTRATION_ENABLED` | `backend/.env` | `false` enquanto for demonstração | Default do código é `true`. Ao abrir para usuários reais, este caminho é o pré-requisito. |
+| `REGISTRATION_ENABLED` | `backend/.env` | `false` enquanto for demonstração | Default do código já é `false` (fail-closed, ADR-0014). Ao abrir para usuários reais — não planejado —, este caminho é o pré-requisito. |
 | `DEMO_LOGIN_ENABLED` | `backend/.env` | `true` | Mantém o botão de demo funcional com o cadastro fechado. |
-| `IOT_ALLOWED_HOSTS` | `backend/.env` | `localhost` | O simulador compartilha o namespace de rede do container `backend` — o broker está em loopback, e os medidores de demo apontam pro host `"localhost"` (não IP literal). **Não** `127.0.0.1/32` sozinho: "localhost" resolve IPv4 e IPv6 (`::1`) dentro do container, um CIDR só de IPv4 deixa o `::1` de fora e a checagem SSRF nega a conexão (achado da Fase 13.7 — confirmado em produção real). |
+| `IOT_ALLOWED_HOSTS` | `backend/.env` | `simulator` | O simulador tem rede própria nesta topologia (ADR-0017), alcançável pelo hostname do serviço Docker. `simulator` casa por comparação textual de hostname, antes de qualquer resolução de DNS — não precisa da dobra IPv4/IPv6 que o antigo caso `localhost` exigia. |
+| `DEMO_METER_HOST` | `backend/.env` | `simulator` | Lido só por `npm run db:seed:demo` (passo 7.4) — grava esse hostname no `host` dos 11 medidores de demonstração. Deve bater com `IOT_ALLOWED_HOSTS` acima. |
 | `SMTP_*` | `backend/.env` | Sandbox, salvo se contratar provedor | Sem provedor, "esqueci minha senha" não é funcional. Contratar um cria um **operador** (DPA no ROPA). |
 | `SIMULATOR_API_TOKEN`, `BROKER_USERNAME`, `BROKER_PASSWORD` | `iot-simulator/server/.env` | Valores novos gerados | Devem bater com `SIMULATOR_BROKER_USERNAME`/`SIMULATOR_BROKER_PASSWORD` do `db:seed:demo`. |
+| `BROKER_HOST`, `API_HOST` | `iot-simulator/server/.env` | `0.0.0.0` | O simulador tem rede própria (ADR-0017) — `127.0.0.1` (default do `.env.example`, pensado para rodar fora de container) escutaria só dentro do próprio container do simulador, inalcançável pelo `backend`. `0.0.0.0` escuta em todas as interfaces do container; ainda não alcançável de fora, pois nenhum `ports:` é publicado para este serviço. |
 | `DEMO_BOOTSTRAP_ENABLED` | `iot-simulator/server/.env` | `false` | Aqui o serviço não hiberna; os devices são criados uma vez por `deploy/seed-simulator-devices.sh`. |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | `deploy/.env` | Valores novos gerados | Usuário administrativo — só para migração (passo 7), nunca para `DATABASE_URL` do backend. |
 | `LUMITRACK_APP_PASSWORD` | `deploy/.env` | Valor novo gerado, distinto de `POSTGRES_PASSWORD` | Senha do papel de runtime sem DDL. Deve bater com o `DATABASE_URL` acima. |
@@ -710,9 +734,9 @@ docker compose exec backend sh       # shell dentro do container, se precisar de
 
 **A potência ao vivo (SSE) não atualiza, mesmo com login funcionando.**
 
-- **Causa mais provável nesta topologia: o backend e o simulador ficaram com a rede dessincronizada** (ver o aviso detalhado no passo 7.3) — normalmente porque um dos dois foi reiniciado sem o outro em algum momento depois do deploy inicial (por exemplo, ao aplicar uma atualização só no backend).
-- **Diagnóstico:** veja os logs do backend logo após ele subir: `docker compose logs backend --since 5m | grep -iE "mqtt|conectad|falha"`. Se aparecer `"Falha ao conectar"` com `ECONNREFUSED 127.0.0.1:1883` para os medidores, é exatamente isso — o backend não está mesmo enxergando o broker do simulador, apesar dos dois containers estarem "up".
-- **Correção:** suba os dois juntos, no mesmo comando (nunca separado): `docker compose up -d --force-recreate backend simulator`, depois rode `./deploy/seed-simulator-devices.sh` de novo (o simulador perde a lista de medidores toda vez que reinicia). Confirme com `docker compose logs backend --tail 15 | grep Conectado` — devem aparecer 11 linhas.
+- **Causa mais provável (topologia ADR-0017): `BROKER_HOST`/`API_HOST` do simulador ainda em `127.0.0.1`, ou `DEMO_METER_HOST`/`IOT_ALLOWED_HOSTS` ainda em `localhost`** — o simulador tem rede própria, e qualquer um desses quatro valores "de dev" faz o backend não alcançar o broker, mesmo com os dois containers "up".
+- **Diagnóstico:** veja os logs do backend logo após ele subir: `docker compose logs backend --since 5m | grep -iE "mqtt|conectad|falha"`. Se aparecer `"Falha ao conectar"` com `ECONNREFUSED` para os medidores, confira nesta ordem: `docker exec lumitrack-simulator-1 printenv BROKER_HOST API_HOST` (esperado `0.0.0.0` nos dois), depois `grep -E "^(DEMO_METER_HOST|IOT_ALLOWED_HOSTS)=" backend/.env` (esperado `simulator` nos dois).
+- **Correção:** ajuste o(s) valor(es) errado(s) e reinicie só o serviço afetado (`docker compose up -d --force-recreate backend` e/ou `simulator`, conforme o arquivo `.env` corrigido) — se o `simulator` reiniciar, rode `./deploy/seed-simulator-devices.sh` de novo (ele perde a lista de medidores toda vez que reinicia; o `backend` sozinho não afeta o `simulator`, ver "Topologia"). Confirme com `docker compose logs backend --tail 15 | grep Conectado` — devem aparecer 11 linhas.
 
 **O Caddy sobe, mas o certificado nunca é emitido / o site responde sem HTTPS.**
 

@@ -44,7 +44,7 @@ describe("Rate limiting — endpoints de autenticação", () => {
         expect(blocked.body.status).toBe("error")
     })
 
-    // #12 — /api/auth/login/mfa é o alvo natural de brute force de um código
+    // /api/auth/login/mfa é o alvo natural de brute force de um código
     // TOTP de 6 dígitos (baixa entropia) e precisa do mesmo limiter estrito.
     // Confirma que o mount point "/api/auth/login" (semântica de prefixo do
     // Express) cobre "/api/auth/login/mfa" também, sem precisar de uma
@@ -79,9 +79,9 @@ describe("Rate limiting — endpoints de autenticação", () => {
         expect(other.status).toBe(401)
     })
 
-    // Issue #181 — cadastro público (POST /api/users) ganhou o mesmo rate
-    // limit estrito dos endpoints de auth acima (abuso de criação em massa /
-    // enumeração de contas).
+    // Cadastro público (POST /api/users) ganhou o mesmo rate limit estrito
+    // dos endpoints de auth acima (abuso de criação em massa / enumeração
+    // de contas).
     it("deve retornar 429 após exceder o limite de tentativas de cadastro", async () => {
         const body = {
             email: "bruteforce-cadastro@example.com",

@@ -40,7 +40,7 @@ import type { UpdateUserInput, User } from "@/types/auth.types"
  * também precisa ver/editar o próprio perfil, mesma ramificação por
  * `userType` já usada em RegisterPage/registerSchema.
  *
- * "Editar" abre `FormDialog` (issue #219) — diverge de propósito do
+ * "Editar" abre `FormDialog` — diverge de propósito do
  * protótipo (`LumiTrack Home.dc.html`, `profIsEditing`), que troca o
  * conteúdo do card inline; escolha deliberada de manter o mesmo padrão de
  * modal já usado por Propriedade/Área/Dispositivo/Medidor, em vez de um
@@ -59,9 +59,9 @@ export const ProfilePage = () => {
 
     const handleSave = async (input: UpdateUserInput): Promise<void> => {
         // A resposta de PUT /api/users/:id continua trazendo o e-mail ANTIGO
-        // quando o e-mail muda (issue #178 — só efetiva após confirmação
-        // pelo novo endereço) — sem este aviso diferente, o usuário acharia
-        // que a troca já valeu, quando na verdade nada mudou ainda.
+        // quando o e-mail muda (só efetiva após confirmação pelo novo
+        // endereço) — sem este aviso diferente, o usuário acharia que a
+        // troca já valeu, quando na verdade nada mudou ainda.
         const isChangingEmail = Boolean(input.email && input.email !== user.email)
 
         try {
@@ -84,16 +84,16 @@ export const ProfilePage = () => {
 
     return (
         <div className="flex flex-col gap-6">
-            <div className="blueprint p-[26px]">
+            <div className="blueprint p-26px">
                 <i className="corner tl" />
                 <i className="corner tr" />
                 <i className="corner bl" />
                 <i className="corner br" />
 
-                <div className="flex flex-wrap items-center gap-[18px]">
+                <div className="gap-18px flex flex-wrap items-center">
                     <span
                         aria-hidden="true"
-                        className="border-accent text-accent font-heading flex h-18 w-18 shrink-0 items-center justify-center border-[1.5px] text-[28px] font-semibold"
+                        className="border-accent text-accent font-heading text-28 flex h-18 w-18 shrink-0 items-center justify-center border-[1.5px] font-semibold"
                     >
                         {initials}
                     </span>
@@ -102,7 +102,7 @@ export const ProfilePage = () => {
                             {name}
                         </h1>
                         <p className="text-muted mt-2 flex items-center gap-2 text-sm">
-                            <Mail className="h-[15px] w-[15px]" aria-hidden="true" />
+                            <Mail className="h-15px w-15px" aria-hidden="true" />
                             {user.email}
                         </p>
                     </div>
@@ -119,7 +119,7 @@ export const ProfilePage = () => {
                 <i className="corner br" />
 
                 <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-                    <span className="font-heading text-[17px] font-semibold uppercase">
+                    <span className="font-heading text-17 font-semibold uppercase">
                         Dados pessoais
                     </span>
                     <Button
@@ -179,42 +179,42 @@ const AccountSummaryCard = ({ user }: { user: User }) => {
             <i className="corner br" />
 
             <div className="border-divider border-b px-5 py-4">
-                <span className="font-heading text-[17px] font-semibold uppercase">Conta</span>
+                <span className="font-heading text-17 font-semibold uppercase">Conta</span>
             </div>
 
             <div className="divide-divider grid grid-cols-1 divide-y sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-                <div className="px-5 py-[18px]">
-                    <div className="font-heading text-muted text-[10px] font-semibold tracking-[.07em] uppercase">
+                <div className="py-18px px-5">
+                    <div className="font-heading text-muted text-10 font-semibold tracking-[.07em] uppercase">
                         Membro desde
                     </div>
-                    <div className="mt-2 text-[14.5px]" style={{ fontFeatureSettings: "'tnum' 1" }}>
+                    <div className="text-14-5 mt-2" style={{ fontFeatureSettings: "'tnum' 1" }}>
                         {formatDate(user.createdAt)}
                     </div>
                 </div>
-                <div className="px-5 py-[18px]">
-                    <div className="font-heading text-muted text-[10px] font-semibold tracking-[.07em] uppercase">
+                <div className="py-18px px-5">
+                    <div className="font-heading text-muted text-10 font-semibold tracking-[.07em] uppercase">
                         Propriedades
                     </div>
-                    <div className="mt-2 text-[14.5px]" style={{ fontFeatureSettings: "'tnum' 1" }}>
+                    <div className="text-14-5 mt-2" style={{ fontFeatureSettings: "'tnum' 1" }}>
                         {propertiesCount !== undefined
                             ? `${propertiesCount} vinculada${propertiesCount === 1 ? "" : "s"}`
                             : "—"}
                     </div>
                 </div>
-                <div className="px-5 py-[18px]">
-                    <div className="font-heading text-muted text-[10px] font-semibold tracking-[.07em] uppercase">
+                <div className="py-18px px-5">
+                    <div className="font-heading text-muted text-10 font-semibold tracking-[.07em] uppercase">
                         2FA
                     </div>
                     <div
                         className={cn(
-                            "mt-2 flex items-center gap-1.5 text-[14.5px] font-semibold",
+                            "text-14-5 mt-2 flex items-center gap-1.5 font-semibold",
                             user.mfaEnabled ? "text-status-success" : "text-muted",
                         )}
                     >
                         {user.mfaEnabled ? (
-                            <ShieldCheck className="h-[15px] w-[15px]" aria-hidden="true" />
+                            <ShieldCheck className="h-15px w-15px" aria-hidden="true" />
                         ) : (
-                            <ShieldOff className="h-[15px] w-[15px]" aria-hidden="true" />
+                            <ShieldOff className="h-15px w-15px" aria-hidden="true" />
                         )}
                         {user.mfaEnabled ? "Ativado" : "Desativado"}
                     </div>
@@ -228,7 +228,7 @@ interface DataSubjectRight {
     label: string
     /** `true` quando já dá pra exercer sem sair desta página (ou do fluxo de
      * exportação/exclusão abaixo); os demais passam pelo canal de
-     * privacidade (Fase 11). */
+     * privacidade. */
     selfService: boolean
     note?: string
 }
@@ -289,14 +289,14 @@ const PrivacyDataCard = ({ userId }: { userId: string }) => {
             <i className="corner br" />
 
             <div className="border-divider border-b px-5 py-4">
-                <span className="font-heading text-[17px] font-semibold uppercase">
+                <span className="font-heading text-17 font-semibold uppercase">
                     Privacidade & dados
                 </span>
             </div>
 
             <div className="border-divider border-b px-5 pt-3.5 pb-4">
                 <div className="text-sm font-semibold">Exercer meus direitos</div>
-                <p className="text-muted mt-0.5 text-[12.5px]">
+                <p className="text-muted text-12-5 mt-0.5">
                     Direitos do Art. 18 da LGPD. Os já autoatendidos estão marcados abaixo; os
                     demais são atendidos pelo canal de privacidade em até 30 dias (prazo em dobro do
                     regime de agente de pequeno porte).
@@ -311,13 +311,13 @@ const PrivacyDataCard = ({ userId }: { userId: string }) => {
                 <ul className="mt-3 flex flex-col gap-2">
                     {DATA_SUBJECT_RIGHTS.map((right) => (
                         <li key={right.label} className="flex items-start justify-between gap-3">
-                            <span className="text-text/80 text-[12.5px] leading-[1.4]">
+                            <span className="text-text/80 text-12-5 leading-[1.4]">
                                 {right.label}
                                 {right.note && <span className="text-muted"> — {right.note}</span>}
                             </span>
                             <Tag
                                 variant={right.selfService ? "accent" : "neutral"}
-                                className="shrink-0 text-[10px]"
+                                className="text-10 shrink-0"
                             >
                                 {right.selfService ? "Autoatendido" : "Pelo canal"}
                             </Tag>
@@ -330,7 +330,7 @@ const PrivacyDataCard = ({ userId }: { userId: string }) => {
                 <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b py-3.5">
                     <div className="min-w-0">
                         <div className="text-sm font-semibold">Exportar meus dados</div>
-                        <div className="text-muted mt-0.5 text-[12.5px]">
+                        <div className="text-muted text-12-5 mt-0.5">
                             Baixe uma cópia dos seus dados pessoais (LGPD Art. 18).
                         </div>
                     </div>
@@ -347,7 +347,7 @@ const PrivacyDataCard = ({ userId }: { userId: string }) => {
                         <div className="text-status-danger text-sm font-semibold">
                             Excluir minha conta
                         </div>
-                        <div className="text-muted mt-0.5 text-[12.5px]">
+                        <div className="text-muted text-12-5 mt-0.5">
                             Remove permanentemente sua conta e todos os dados associados.
                         </div>
                     </div>
@@ -381,7 +381,7 @@ const ProfileReadView = ({ user }: { user: User }) => {
     const isIndividual = user.userType === "INDIVIDUAL"
 
     return (
-        <div className="grid grid-cols-1 gap-x-6 gap-y-4 px-5 pt-1.5 pb-[18px] sm:grid-cols-2">
+        <div className="pb-18px grid grid-cols-1 gap-x-6 gap-y-4 px-5 pt-1.5 sm:grid-cols-2">
             {isIndividual ? (
                 <>
                     <ProfileField label="Nome" value={user.firstName ?? "—"} />
@@ -420,11 +420,11 @@ interface ProfileFieldProps {
 
 const ProfileField = ({ label, value, tabularNums = false }: ProfileFieldProps) => (
     <div>
-        <dt className="font-heading text-muted text-[10px] font-semibold tracking-[.07em] uppercase">
+        <dt className="font-heading text-muted text-10 font-semibold tracking-[.07em] uppercase">
             {label}
         </dt>
         <dd
-            className="mt-1.5 text-[14.5px]"
+            className="text-14-5 mt-1.5"
             style={tabularNums ? { fontFeatureSettings: "'tnum' 1" } : undefined}
         >
             {value}
@@ -460,8 +460,8 @@ const IndividualProfileForm = ({
         },
     })
 
-    // Senha atual só é pedida quando o e-mail muda de fato (issue #178) —
-    // trocar nome/sobrenome não exige reautenticação.
+    // Senha atual só é pedida quando o e-mail muda de fato — trocar
+    // nome/sobrenome não exige reautenticação.
     const isChangingEmail = watch("email") !== user.email
 
     const handleFormSubmit = async (data: IndividualProfileFormData): Promise<void> => {
@@ -550,7 +550,7 @@ const CompanyProfileForm = ({ user, onCancel, onSave, isSaving }: CompanyProfile
         },
     })
 
-    // Senha atual só é pedida quando o e-mail muda de fato (issue #178).
+    // Senha atual só é pedida quando o e-mail muda de fato.
     const isChangingEmail = watch("email") !== user.email
 
     const handleFormSubmit = async (data: CompanyProfileFormData): Promise<void> => {

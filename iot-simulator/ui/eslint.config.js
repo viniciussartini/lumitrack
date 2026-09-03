@@ -3,6 +3,7 @@ import globals from "globals"
 import reactHooks from "eslint-plugin-react-hooks"
 import reactRefresh from "eslint-plugin-react-refresh"
 import tseslint from "typescript-eslint"
+import jsdoc from "eslint-plugin-jsdoc"
 
 export default tseslint.config(
     { ignores: ["dist"] },
@@ -39,6 +40,33 @@ export default tseslint.config(
             ],
             "@typescript-eslint/no-floating-promises": "error",
             "@typescript-eslint/no-misused-promises": "error",
+            // Mecaniza a proibição de comentário de rastreabilidade
+            // (06-code-quality-standards.md) — issue/PR/laudo/achado de
+            // revisão pertencem ao git, aos ADRs, ao CHANGELOG e às issues,
+            // nunca ao código-fonte. Termos de auditoria são específicos
+            // ("laudo de auditoria" etc.), não a palavra solta — ela também
+            // nomeia a feature de trilha de auditoria (audit trail) do
+            // sistema, uso legítimo que a regra não deve barrar.
+            "no-warning-comments": [
+                "error",
+                {
+                    terms: [
+                        "issue #",
+                        "closes #",
+                        "fixes #",
+                        "pr #",
+                        "laudo de auditoria",
+                        "achado de auditoria",
+                        "relatório de auditoria",
+                        "achado",
+                        "conforme revisão",
+                        "solicitado na revisão",
+                        "ver issue",
+                        "ref #",
+                    ],
+                    location: "anywhere",
+                },
+            ],
         },
     },
     {
@@ -47,13 +75,54 @@ export default tseslint.config(
             "max-lines-per-function": "off",
         },
     },
+    // Débito pré-existente descoberto ao ligar a trava, mesma classe do
+    // achado catalogado no frontend principal — ver eslint.config.js de
+    // frontend/. Complexidade já está dentro do limite global nos dois.
+    // Revisar na Fase 18 (roadmap.md, polimento).
     {
-        // Débito pré-existente descoberto ao ligar a trava nesta issue
-        // (#160), mesma classe do achado catalogado no frontend principal —
-        // ver eslint.config.js de frontend/. Rastreado em #168.
-        files: ["src/components/network/NetworkCard.tsx", "src/pages/Dashboard.tsx"],
+        // 184 linhas.
+        files: ["src/components/network/NetworkCard.tsx"],
         rules: {
-            "max-lines-per-function": "off",
+            "max-lines-per-function": [
+                "error",
+                { max: 190, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // 180 linhas.
+        files: ["src/pages/Dashboard.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 190, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // JSDoc real em exports públicos de services/hooks
+        // (06-code-quality-standards.md) — equivalente da camada de service
+        // neste pacote (só componentes de UI e alguns hooks/services, sem
+        // convenção service/repository/controller). Medido antes de ligar:
+        // débito pequeno, corrigido junto — zero débito para catalogar.
+        files: ["src/services/*.ts", "src/hooks/*.ts"],
+        ignores: ["**/*.test.ts"],
+        plugins: { jsdoc },
+        rules: {
+            "jsdoc/require-jsdoc": [
+                "error",
+                {
+                    publicOnly: true,
+                    require: { FunctionDeclaration: true },
+                    contexts: [
+                        "ExportNamedDeclaration > FunctionDeclaration",
+                        "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > ArrowFunctionExpression",
+                        "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > FunctionExpression",
+                    ],
+                },
+            ],
+            "jsdoc/require-param": "error",
+            "jsdoc/require-returns": "error",
         },
     },
 )

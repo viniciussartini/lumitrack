@@ -26,3 +26,31 @@ export const listConsumptionQuerySchema = z
     .extend(paginationQuerySchema.shape)
 
 export type ListConsumptionQuery = z.infer<typeof listConsumptionQuerySchema>
+
+// Teto de ids do lote — protege o GROUP BY de custo não limitado. 50 é
+// generoso para o uso real (nenhuma tela do
+// produto lista mais que algumas dezenas de propriedades/áreas/dispositivos
+// por usuário) sem ser um número tão pequeno a ponto de estourar em contas
+// legítimas.
+const MAX_SUMMARY_IDS = 50
+
+// GET /api/consumption/summary — um tipo de alvo só vale pra lista inteira
+// de `ids` (não faz sentido misturar PROPERTY e DEVICE no mesmo lote: são
+// comparações diferentes). `ids` chega como CSV na query string.
+export const consumptionSummaryQuerySchema = z.object({
+    targetType: targetTypeSchema,
+    ids: z
+        .string()
+        .transform((s) => s.split(","))
+        .pipe(
+            z
+                .array(z.string().uuid({ message: "id inválido em ids" }))
+                .min(1)
+                .max(MAX_SUMMARY_IDS),
+        ),
+    granularity: granularitySchema,
+    from: z.coerce.date().optional(),
+    to: z.coerce.date().optional(),
+})
+
+export type ConsumptionSummaryQuery = z.infer<typeof consumptionSummaryQuerySchema>

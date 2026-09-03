@@ -62,18 +62,56 @@ function mergeDefined<T extends object>(
     return result
 }
 
-// Estado em memória do simulador. Reiniciar o servidor zera tudo — aceitável
-// (ferramenta de dev, sem estado que precise sobreviver a um restart).
+/**
+ * Estado em memória do simulador. Reiniciar o servidor zera tudo —
+ * aceitável (ferramenta de dev, sem estado que precise sobreviver a um
+ * restart). Emite `"changed"` a cada mutação, para os consumidores SSE.
+ */
 export class SimulationStore extends EventEmitter {
     private readonly networks = new Map<string, VirtualNetwork>()
     // Índice reverso: as rotas /api/devices/:id não recebem networkId no
     // path, então precisamos localizar a rede dona de um device em O(1).
     private readonly deviceIndex = new Map<string, string>()
 
+    // Só o caminho de recordSample() precisa de coalescência — é o único
+    // chamado em rajada (1x/s por device ligado, via DeviceRunner.tick(),
+    // um setInterval por device). Os demais (CRUD de rede/device, power,
+    // anomalia) são ações do usuário via API, uma de cada vez, sem rajada —
+    // continuam síncronos, como o teste existente já espera.
+    private sampleNotifyScheduled = false
+
     private emitChanged(event: ChangeEvent): void {
         this.emit("changed", event)
     }
 
+    /**
+     * Agenda uma única notificação "changed" coalescendo N chamadas de
+     * `recordSample()` da mesma rajada — vários devices publicam amostra
+     * quase ao mesmo tempo (cada um com seu próprio `setInterval` de
+     * `DeviceRunner`, mas alinhados no mesmo período). Sem isto, cada
+     * amostra dispara "changed" individualmente, e cada disparo faz todo
+     * assinante SSE reconstruir e serializar o snapshot inteiro de novo
+     * (O(D) por disparo × D disparos × C assinantes = O(D²×C) por ciclo).
+     *
+     * `setImmediate` (fase "check" do event loop) só roda depois que TODOS
+     * os timers vencidos na mesma volta do event loop (fase "timers") já
+     * dispararam — ao contrário de `process.nextTick`, que rodaria entre um
+     * timer e o próximo, sem esperar os demais. Isso garante que as N
+     * amostras da mesma rajada caiam na mesma notificação coalescida.
+     */
+    private scheduleCoalescedSampleNotification(): void {
+        if (this.sampleNotifyScheduled) return
+        this.sampleNotifyScheduled = true
+        setImmediate(() => {
+            this.sampleNotifyScheduled = false
+            this.emitChanged({ reason: "device-sample" })
+        })
+    }
+
+    /**
+     * @param name Nome da rede.
+     * @returns A rede criada, vazia.
+     */
     createNetwork(name: string): VirtualNetwork {
         const network: VirtualNetwork = { id: randomUUID(), name, devices: new Map() }
         this.networks.set(network.id, network)
@@ -81,6 +119,13 @@ export class SimulationStore extends EventEmitter {
         return network
     }
 
+    /**
+     * Remove a rede e todos os seus devices (e seus registros no índice
+     * reverso).
+     *
+     * @param id Id da rede a remover.
+     * @returns `true` se a rede existia e foi removida.
+     */
     deleteNetwork(id: string): boolean {
         const network = this.networks.get(id)
         if (!network) return false
@@ -93,14 +138,26 @@ export class SimulationStore extends EventEmitter {
         return true
     }
 
+    /**
+     * @returns Um array novo com todas as redes — snapshot seguro pra
+     *   iterar/filtrar sem expor o `Map` interno nem o mutar por engano.
+     */
     listNetworks(): VirtualNetwork[] {
         return [...this.networks.values()]
     }
 
+    /**
+     * Lookup direto por id (O(1)) — usado internamente por `createDevice`
+     * pra validar que a rede existe antes de criar o device nela.
+     *
+     * @param id Id da rede.
+     * @returns A rede, ou `undefined` se não existir.
+     */
     getNetwork(id: string): VirtualNetwork | undefined {
         return this.networks.get(id)
     }
 
+    /** @returns Todas as redes com seus devices, em formato de resposta de API. */
     snapshot(): NetworkSnapshot[] {
         return this.listNetworks().map((network) => ({
             id: network.id,
@@ -109,6 +166,13 @@ export class SimulationStore extends EventEmitter {
         }))
     }
 
+    /**
+     * Cria um device desligado numa rede existente.
+     *
+     * @param networkId Id da rede dona do device.
+     * @param input Nome, tópico e params (mesclados sobre os defaults).
+     * @returns O device criado, ou `undefined` se a rede não existir.
+     */
     createDevice(networkId: string, input: NewDeviceInput): VirtualDevice | undefined {
         const network = this.networks.get(networkId)
         if (!network) return undefined
@@ -133,12 +197,23 @@ export class SimulationStore extends EventEmitter {
         return device
     }
 
+    /**
+     * @param deviceId Id do device.
+     * @returns O device, ou `undefined` se não existir (usa o índice reverso).
+     */
     getDevice(deviceId: string): VirtualDevice | undefined {
         const networkId = this.deviceIndex.get(deviceId)
         if (!networkId) return undefined
         return this.networks.get(networkId)?.devices.get(deviceId)
     }
 
+    /**
+     * Atualiza só os campos presentes em `patch` — os demais ficam intactos.
+     *
+     * @param deviceId Id do device a atualizar.
+     * @param patch Campos a mudar (nome/tópico/params, parcial).
+     * @returns O device atualizado, ou `undefined` se não existir.
+     */
     updateDevice(deviceId: string, patch: UpdateDeviceInput): VirtualDevice | undefined {
         const device = this.getDevice(deviceId)
         if (!device) return undefined
@@ -151,6 +226,10 @@ export class SimulationStore extends EventEmitter {
         return device
     }
 
+    /**
+     * @param deviceId Id do device a remover.
+     * @returns `true` se o device existia e foi removido.
+     */
     deleteDevice(deviceId: string): boolean {
         const networkId = this.deviceIndex.get(deviceId)
         if (!networkId) return false
@@ -161,6 +240,14 @@ export class SimulationStore extends EventEmitter {
         return true
     }
 
+    /**
+     * Liga ou desliga um device (não inicia/para o `DeviceRunner` — isso é
+     * responsabilidade de `SimulationEngine`).
+     *
+     * @param deviceId Id do device.
+     * @param on `true` para ligar, `false` para desligar.
+     * @returns O device atualizado, ou `undefined` se não existir.
+     */
     setPower(deviceId: string, on: boolean): VirtualDevice | undefined {
         const device = this.getDevice(deviceId)
         if (!device) return undefined
@@ -170,6 +257,16 @@ export class SimulationStore extends EventEmitter {
         return device
     }
 
+    /**
+     * Persiste o estado de anomalia como está — não valida nem calcula
+     * `endsAt`, isso é responsabilidade de quem chama (`SimulationEngine`,
+     * que sabe a duração pedida). Primitivo compartilhado: `clearAnomaly`
+     * é só um atalho pra este método com o estado neutro.
+     *
+     * @param deviceId Id do device.
+     * @param anomaly Novo estado de anomalia.
+     * @returns O device atualizado, ou `undefined` se não existir.
+     */
     setAnomaly(deviceId: string, anomaly: AnomalyState): VirtualDevice | undefined {
         const device = this.getDevice(deviceId)
         if (!device) return undefined
@@ -179,10 +276,28 @@ export class SimulationStore extends EventEmitter {
         return device
     }
 
+    /**
+     * Reaproveita `setAnomaly` com `DEFAULT_ANOMALY_STATE` em vez de
+     * duplicar a lógica de persistência/emissão de evento — única fonte de
+     * verdade pra "o que é um device sem anomalia".
+     *
+     * @param deviceId Id do device.
+     * @returns O device atualizado, ou `undefined` se não existir.
+     */
     clearAnomaly(deviceId: string): VirtualDevice | undefined {
         return this.setAnomaly(deviceId, { ...DEFAULT_ANOMALY_STATE })
     }
 
+    /**
+     * Registra a leitura mais recente de um device (`DeviceRunner` chama a
+     * cada tick publicado). A notificação "changed" desta chamada é
+     * coalescida com a de outros devices da mesma rajada — ver
+     * `scheduleCoalescedSampleNotification`.
+     *
+     * @param deviceId Id do device.
+     * @param sample Amostra elétrica gerada.
+     * @param publishedAtMs Timestamp (epoch ms) da publicação.
+     */
     recordSample(deviceId: string, sample: ElectricalSample, publishedAtMs: number): void {
         const device = this.getDevice(deviceId)
         if (!device) return
@@ -191,6 +306,6 @@ export class SimulationStore extends EventEmitter {
         device.lastPublishedAt = publishedAtMs
         device.publishCount += 1
         device.connected = true
-        this.emitChanged({ reason: "device-sample", networkId: device.networkId, deviceId })
+        this.scheduleCoalescedSampleNotification()
     }
 }

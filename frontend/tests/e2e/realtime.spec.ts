@@ -3,6 +3,7 @@ import { test, expect, type Page } from "@playwright/test"
 import { fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
+import { mockSseStream, sseEvent } from "./support/sse"
 import { ALERT_1, DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
 
 /**
@@ -12,8 +13,8 @@ import { ALERT_1, DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
  * SSE (`/api/iot/stream`, `RealtimeContext` → `createAppStream`) — os três
  * eventos que o backend emite além de `connected`:
  *   - `reading`      → `MeterSection` (via `readingsByMeterId` de
- *     `useRealtime()`) — desde #99 a leitura entra inline no card do
- *     medidor (`meter-connection-card`/`meter-status-stale`), não mais no
+ *     `useRealtime()`) — a leitura entra inline no card do medidor
+ *     (`meter-connection-card`/`meter-status-stale`), não mais no
  *     antigo `RealTimeCard` (removido)
  *   - `alert-firing` → invalida `alerts.firing`/`alerts.all` (o REST
  *     re-resolve status/target; SSE só avisa "algo mudou")
@@ -25,36 +26,12 @@ import { ALERT_1, DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
  * API pública de mock do Playwright) — por isso o evento fica todo no corpo
  * inicial da resposta, e a passagem de tempo (para o caso "stale") é
  * simulada com `page.clock`, nunca com espera real.
+ *
+ * `sseEvent`/`mockSseStream` vêm de `./support/sse` — ver ali o porquê da
+ * janela de graça contra o duplo-mount do `React.StrictMode`.
  */
 
 const CLOCK_TIME = "2026-07-17T12:00:00.000Z"
-
-const sseEvent = (event: string, data: unknown) =>
-    `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
-
-/**
- * Registra `GET /api/iot/stream` com um corpo SSE fixo — sobrescreve o
- * stream vazio de `mockAppShellBackground` (registrado depois, então vence).
- *
- * `route.fulfill()` entrega o corpo inteiro e fecha a conexão — a lib
- * `fetch-event-source` trata isso como uma desconexão e reconecta sozinha.
- * Sem tratar isso, cada reconexão reentrega o MESMO corpo, disparando os
- * eventos de novo (ex.: um segundo toast de `notification`, uma segunda
- * leitura). Só a primeira conexão recebe o script; reconexões (se
- * acontecerem antes do teste terminar) recebem só `connected`.
- */
-const mockSseStream = async (page: Page, initialBody: string) => {
-    let alreadyConnected = false
-    await page.route("**/api/iot/stream", (route) => {
-        const body = alreadyConnected ? sseEvent("connected", { meterCount: 1 }) : initialBody
-        alreadyConnected = true
-        return route.fulfill({
-            status: 200,
-            contentType: "text/event-stream",
-            body,
-        })
-    })
-}
 
 /** Medidor de nível PROPERTY (METER_1 é DEVICE por fixture — o mock não
  * precisa manter a consistência do alvo, só o `id` bater com o `meterId`
@@ -93,7 +70,7 @@ const setupAuthAndProperty = async (page: Page) => {
     await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
         fulfillJson(route, PROPERTY_METER),
     )
-    // Card "Consumo em tempo real" (issue #211) — monta na mesma página
+    // Card "Consumo em tempo real" — monta na mesma página
     // sempre que há medidor, como PROPERTY_METER acima sempre garante.
     await page.route(/\/api\/meter-readings(\?.*)?$/, (route) =>
         fulfillJson(route, { items: [], granularity: "minute" }),
@@ -193,8 +170,8 @@ test.describe("SSE — RealtimeContext (reading, alert-firing, notification)", (
         // conexão SSE pode "vencer a corrida" contra o fetch de montagem —
         // `invalidateQueries` numa query que ainda está em andamento não
         // garante uma segunda ida à rede, e o teste passa a depender de
-        // timing (achado real rodando a suíte inteira em paralelo, não
-        // reproduzia isolado).
+        // timing: rodando a suíte inteira em paralelo, esse problema não
+        // reproduzia isolado.
         let resolveFirstFiringCall: () => void
         const firstFiringCallDone = new Promise<void>((resolve) => {
             resolveFirstFiringCall = resolve

@@ -1,6 +1,7 @@
 import js from "@eslint/js"
 import globals from "globals"
 import tseslint from "typescript-eslint"
+import jsdoc from "eslint-plugin-jsdoc"
 
 export default tseslint.config(
     { ignores: ["dist", "src/generated/prisma", "coverage"] },
@@ -61,6 +62,33 @@ export default tseslint.config(
             ],
             "@typescript-eslint/no-floating-promises": "error",
             "@typescript-eslint/no-misused-promises": "error",
+            // Mecaniza a proibição de comentário de rastreabilidade
+            // (06-code-quality-standards.md) — issue/PR/laudo/achado de
+            // revisão pertencem ao git, aos ADRs, ao CHANGELOG e às issues,
+            // nunca ao código-fonte. Termos de auditoria são específicos
+            // ("laudo de auditoria" etc.), não a palavra solta — ela também
+            // nomeia a feature de trilha de auditoria (audit trail) do
+            // sistema, uso legítimo que a regra não deve barrar.
+            "no-warning-comments": [
+                "error",
+                {
+                    terms: [
+                        "issue #",
+                        "closes #",
+                        "fixes #",
+                        "pr #",
+                        "laudo de auditoria",
+                        "achado de auditoria",
+                        "relatório de auditoria",
+                        "achado",
+                        "conforme revisão",
+                        "solicitado na revisão",
+                        "ver issue",
+                        "ref #",
+                    ],
+                    location: "anywhere",
+                },
+            ],
         },
     },
     {
@@ -73,39 +101,113 @@ export default tseslint.config(
         },
     },
     {
-        // Violações pré-existentes na entrada da trava, catalogadas em vez de
-        // silenciadas. Cada uma tem endereçamento já previsto no roadmap ou
-        // foi reportada como achado novo.
+        // `createConnection` — mesmo depois do schema Zod por protocolo o
+        // switch por protocolo ainda passa do teto global. Teto acima do
+        // valor medido (complexidade 19, 99 linhas), abaixo do que
+        // equivaleria a desligar a regra — revisar na Fase 18 (roadmap.md,
+        // polimento) se o arquivo crescer.
         files: ["src/modules/iot/iot-worker/IoTConnectionManager.ts"],
         rules: {
-            // `createConnection` — endereçado na Fase 16 (`.claude/docs/roadmap.md`),
-            // que já prevê schema Zod por protocolo eliminando este switch monolítico.
-            complexity: "off",
-            "max-lines-per-function": "off",
+            complexity: ["error", 20],
+            "max-lines-per-function": [
+                "error",
+                { max: 110, skipBlankLines: true, skipComments: true },
+            ],
         },
     },
     {
+        // `summary()` (82 linhas) — `list()` saiu desta exceção depois de
+        // `computeYearlyPropertyCosts`/`resolveBucketCost` serem extraídos
+        // pra métodos próprios, agora dentro do teto global sem override.
+        // `summary()` não foi tocado por aquela extração — já tem seu
+        // próprio equivalente em `calculateYearlyPropertyCost`, um método à
+        // parte — e seu tamanho vem de orquestrar autorização em lote
+        // (resolver posse de cada id, montar os mapas de medidor/bucket),
+        // não de lógica de custo repetida. Teto acima do valor medido;
+        // revisitar se o arquivo crescer.
         files: ["src/modules/consumption/consumption.service.ts"],
         rules: {
-            // `list()` — endereçado na Fase 18.
-            "max-lines-per-function": "off",
+            "max-lines-per-function": [
+                "error",
+                { max: 90, skipBlankLines: true, skipComments: true },
+            ],
         },
     },
     {
-        files: [
-            "src/shared/middlewares/authenticate.ts",
-            "src/app.ts",
-            "prisma/seed-demo/readings.ts",
-            "prisma/seed-demo/topology.ts",
-            "scripts/backfill-address-encryption.ts",
-        ],
+        // Código de autenticação — teto (não extração) por cautela: mudar a
+        // estrutura deste arquivo exige o cuidado dedicado de uma mudança
+        // própria, não um efeito colateral de configuração. Teto acima do
+        // valor medido (complexidade 17, 66 linhas) — revisar na Fase 18.
+        files: ["src/shared/middlewares/authenticate.ts"],
         rules: {
-            // Achados novos ao ligar a trava, sem item de roadmap prévio —
-            // catalogados em vez de reescritos às pressas fora de escopo
-            // (`authenticate.ts` é código de autenticação: risco de
-            // introduzir regressão de segurança sem o cuidado dedicado).
-            complexity: "off",
-            "max-lines-per-function": "off",
+            complexity: ["error", 20],
+            "max-lines-per-function": [
+                "error",
+                { max: 70, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // Ponto de composição único do app — teto acima do valor medido
+        // (complexidade 14, 129 linhas). Revisar na Fase 18 se justificar
+        // quebrar o ponto de composição.
+        files: ["src/app.ts"],
+        rules: {
+            complexity: ["error", 15],
+            "max-lines-per-function": [
+                "error",
+                { max: 140, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // Teto acima do valor medido (61 linhas, 1 acima do teto global);
+        // complexidade já está dentro do limite. Revisar na Fase 18.
+        files: ["prisma/seed-demo/topology.ts"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 70, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
+        // `main` — teto acima do valor medido (complexidade 14); linhas por
+        // função já estão dentro do limite global. Revisar na Fase 18.
+        files: ["scripts/backfill-address-encryption.ts"],
+        rules: {
+            complexity: ["error", 15],
+        },
+    },
+    {
+        // JSDoc real em exports públicos de service/repository/controller
+        // (06-code-quality-standards.md), sem exceções.
+        files: [
+            "src/modules/*/*.service.ts",
+            "src/modules/*/*.repository.ts",
+            "src/modules/*/*.controller.ts",
+        ],
+        plugins: { jsdoc },
+        rules: {
+            "jsdoc/require-jsdoc": [
+                "error",
+                {
+                    publicOnly: true,
+                    require: {
+                        ClassDeclaration: true,
+                        MethodDefinition: true,
+                        FunctionDeclaration: true,
+                    },
+                    contexts: [
+                        "ExportNamedDeclaration > ClassDeclaration",
+                        "ExportNamedDeclaration > FunctionDeclaration",
+                        "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > ArrowFunctionExpression",
+                        "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > FunctionExpression",
+                    ],
+                },
+            ],
+            "jsdoc/require-param": "error",
+            "jsdoc/require-returns": "error",
         },
     },
 )

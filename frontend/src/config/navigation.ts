@@ -26,9 +26,8 @@ export interface NavItem {
  * último — item institucional, sem handoff, fora do conjunto dos itens
  * funcionais do protótipo.
  *
- * "Segurança" não está aqui de propósito (issue #216) — vive só no menu
- * do usuário (`UserMenu.tsx`), não duplicado também na navegação
- * principal.
+ * "Segurança" não está aqui de propósito — vive só no menu do usuário
+ * (`UserMenu.tsx`), não duplicado também na navegação principal.
  *
  * Adicionar um novo módulo? Adicione aqui + crie a rota no AppRouter.
  */

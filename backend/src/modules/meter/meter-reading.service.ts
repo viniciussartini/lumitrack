@@ -1,4 +1,3 @@
-import { z } from "zod"
 import {
     listMeterReadingsQuerySchema,
     type MeterReadingGranularity,
@@ -12,17 +11,27 @@ import type { PropertyRepository } from "@/modules/property/property.repository.
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
 import { resolveRootProperty } from "@/shared/targetResolution.js"
-import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { ForbiddenError, NotFoundError } from "@/shared/errors/AppError.js"
+import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 
 export type MeterReadingListResponse = {
     items: MeterReadingBucket[]
     granularity: MeterReadingGranularity
 }
 
-// Leituras agregadas por minuto/hora — só o que o gráfico "ao vivo" precisa
-// (issue #211): sem custo/tarifa, sem paginação (a janela já vem limitada
-// por from/to). Ver ConsumptionService para o equivalente de faturamento.
+/**
+ * Leituras agregadas por minuto/hora — só o que o gráfico "ao vivo" precisa:
+ * sem custo/tarifa, sem paginação (a janela já vem limitada por from/to).
+ * Ver `ConsumptionService` para o equivalente de faturamento.
+ */
 export class MeterReadingService {
+    /**
+     * @param meterReadingRepository - Acesso às leituras agregadas persistidas.
+     * @param meterRepository - Resolve o medidor vinculado ao alvo consultado.
+     * @param propertyRepository - Usado para checar ownership subindo até a propriedade.
+     * @param areaRepository - Usado para resolver a propriedade-mãe de um alvo do tipo área.
+     * @param deviceRepository - Usado para resolver a área-mãe de um alvo do tipo dispositivo.
+     */
     constructor(
         private readonly meterReadingRepository: MeterReadingRepository,
         private readonly meterRepository: MeterRepository,
@@ -31,14 +40,18 @@ export class MeterReadingService {
         private readonly deviceRepository: DeviceRepository,
     ) {}
 
+    /**
+     * Série agregada de leituras do alvo informado, restrita ao titular.
+     *
+     * @param userId - Id do usuário autenticado (dono do alvo).
+     * @param query - Query string bruta (alvo, granularidade e janela), validada aqui.
+     * @returns Pontos agregados e a granularidade efetivamente aplicada.
+     */
     async list(userId: string, query: unknown): Promise<MeterReadingListResponse> {
-        const parsed = listMeterReadingsQuerySchema.safeParse(query)
-        if (!parsed.success) {
-            const firstError = Object.values(z.flattenError(parsed.error).fieldErrors).flat()[0]
-            throw new ValidationError(firstError ?? "Dados inválidos")
-        }
-
-        const { targetType, targetId, granularity, from, to } = parsed.data
+        const { targetType, targetId, granularity, from, to } = parseOrThrow(
+            listMeterReadingsQuerySchema,
+            query,
+        )
 
         const property = await resolveRootProperty(targetType, targetId, {
             propertyRepository: this.propertyRepository,

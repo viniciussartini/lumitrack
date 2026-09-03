@@ -2,10 +2,19 @@ import type { Request, Response, NextFunction } from "express"
 import type { AreaService } from "@/modules/area/area.service.js"
 import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
 
+/** Camada HTTP de áreas de uma propriedade — delega toda a regra a {@link AreaService}. */
 export class AreaController {
+    /** @param areaService - Serviço de CRUD de áreas. */
     constructor(private readonly areaService: AreaService) {}
 
-    // POST /api/properties/:propertyId/areas
+    /**
+     * `POST /api/properties/:propertyId/areas` — cria uma área na
+     * propriedade do titular.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async create(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { propertyId } = req.params as { propertyId: string }
@@ -18,7 +27,14 @@ export class AreaController {
         }
     }
 
-    // GET /api/properties/:propertyId/areas?page=&pageSize=
+    /**
+     * `GET /api/properties/:propertyId/areas?page=&pageSize=` — lista
+     * paginada das áreas da propriedade do titular.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async findAll(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { propertyId } = req.params as { propertyId: string }
@@ -31,7 +47,14 @@ export class AreaController {
         }
     }
 
-    // GET /api/properties/:propertyId/areas/:areaId
+    /**
+     * `GET /api/properties/:propertyId/areas/:areaId` — detalhe de uma
+     * área do titular.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async findById(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { propertyId, areaId } = req.params as { propertyId: string; areaId: string }
@@ -44,7 +67,14 @@ export class AreaController {
         }
     }
 
-    // PUT /api/properties/:propertyId/areas/:areaId
+    /**
+     * `PUT /api/properties/:propertyId/areas/:areaId` — atualiza uma área
+     * do titular.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async update(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { propertyId, areaId } = req.params as { propertyId: string; areaId: string }
@@ -57,7 +87,14 @@ export class AreaController {
         }
     }
 
-    // DELETE /api/properties/:propertyId/areas/:areaId
+    /**
+     * `DELETE /api/properties/:propertyId/areas/:areaId` — remove uma área
+     * do titular.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
     async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { propertyId, areaId } = req.params as { propertyId: string; areaId: string }

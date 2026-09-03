@@ -16,17 +16,17 @@ import { NotFoundError } from "@/shared/errors/AppError.js"
 // Payload agregado com todos os dados pessoais que o LumiTrack guarda sobre
 // o titular (Art. 18 LGPD).
 //
-// Reformulação IoT (Fase 2): o histórico de consumo (antigo
-// `consumptionRecords`, baseado em ConsumptionRecord) foi removido daqui —
-// esse modelo não existe mais (schema v2). A exportação de consumo agregado
-// via MeterReading fica para quando a agregação (TariffService/Fase 3)
-// existir.
+// O histórico de consumo (antigo `consumptionRecords`, baseado em
+// ConsumptionRecord) foi removido daqui — esse modelo não existe mais. A
+// exportação de consumo agregado via MeterReading ainda não foi incluída
+// aqui, apesar do TariffService já existir — fica para quando entrar no
+// escopo do export.
 //
-// Reformulação IoT (Fase 3): `distributors` deixou de vir de
-// `findAllByUser` — a distribuidora agora é um catálogo global sem dono
-// (Fase 3.2). Aqui buscamos só as distribuidoras efetivamente vinculadas às
-// propriedades do titular (via `findAllByIds`), que é a informação que de
-// fato compõe o dado pessoal exportado (a propriedade aponta pra elas).
+// `distributors` não vem de `findAllByUser` — a distribuidora é um
+// catálogo global sem dono. Aqui buscamos só as distribuidoras
+// efetivamente vinculadas às propriedades do titular (via `findAllByIds`),
+// que é a informação que de fato compõe o dado pessoal exportado (a
+// propriedade aponta pra elas).
 export type DataExportPayload = {
     generatedAt: Date
     user: UserWithoutPassword
@@ -38,7 +38,20 @@ export type DataExportPayload = {
     auditLogs: AuditLogResponse[]
 }
 
+/**
+ * Agrega, num único payload, todos os dados pessoais que o LumiTrack guarda
+ * sobre um titular (Art. 18 LGPD), para exportação em JSON ou PDF.
+ */
 export class ExportService {
+    /**
+     * @param userRepository - Dados cadastrais do titular.
+     * @param propertyRepository - Propriedades do titular.
+     * @param distributorRepository - Catálogo de distribuidoras, para resolver as vinculadas às propriedades do titular.
+     * @param alertRepository - Alertas configurados pelo titular.
+     * @param areaRepository - Áreas das propriedades do titular.
+     * @param deviceRepository - Dispositivos das áreas do titular.
+     * @param auditRepository - Trilha de auditoria de acesso a dados do titular.
+     */
     constructor(
         private readonly userRepository: UserRepository,
         private readonly propertyRepository: PropertyRepository,
@@ -49,9 +62,15 @@ export class ExportService {
         private readonly auditRepository: AuditRepository,
     ) {}
 
-    // userId vem sempre do middleware authenticate (GET /api/users/me/data-export,
-    // sem :id na URL) — não há checagem de ownership a fazer aqui, cada
-    // repositório já filtra nativamente por userId.
+    /**
+     * Monta o payload completo de exportação de dados do titular. `userId`
+     * vem sempre do middleware `authenticate` (`GET /api/users/me/data-export`,
+     * sem `:id` na URL) — não há checagem de ownership a fazer aqui, cada
+     * repositório já filtra nativamente por `userId`.
+     *
+     * @param userId - Id do usuário autenticado (titular dos dados).
+     * @returns Payload agregado com todos os dados pessoais do titular.
+     */
     async generate(userId: string): Promise<DataExportPayload> {
         const user = await this.userRepository.findById(userId)
         if (!user) {

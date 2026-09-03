@@ -2,9 +2,9 @@ import { Calculator } from "lucide-react"
 import { PlaceholderPage } from "@/components/PlaceholderPage"
 
 /**
- * Simulação — /simulacao (Fase 5, placeholder). O backend já reescreveu
- * `SimulationService` para usar o `TariffService` novo (Fase 3), mas a UI
- * de simulação em si fica para uma fase futura.
+ * Simulação — /simulacao (placeholder). O backend já reescreveu
+ * `SimulationService` para usar o `TariffService` novo, mas a UI de
+ * simulação em si fica para uma fase futura.
  */
 export const SimulationPage = () => (
     <PlaceholderPage

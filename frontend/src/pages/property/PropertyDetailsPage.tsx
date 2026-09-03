@@ -1,12 +1,12 @@
 import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
-import { useQueries } from "@tanstack/react-query"
 import { AlertCircle, ArrowLeft, Home, LayoutGrid, MapPin, Pencil, Plus } from "lucide-react"
 import { useProperty } from "@/hooks/queries/useProperties"
 import { useDistributor, useDistributors } from "@/hooks/queries/useDistributors"
 import { useAreas } from "@/hooks/queries/useAreas"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
 import { useLiveMeterReading } from "@/hooks/useLiveMeterReading"
+import { useConsumptionSummary } from "@/hooks/queries/useConsumption"
 import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Tag } from "@/components/ui/Tag"
@@ -17,9 +17,9 @@ import { AreaCard } from "@/components/area/AreaCard"
 import { PropertyConsumptionSection } from "@/components/consumption/ConsumptionSection"
 import { ComparisonBars } from "@/components/consumption/ComparisonBars"
 import { MeterSection } from "@/components/meter/MeterSection"
+import { IconCircle } from "@/components/ui/IconCircle"
+import { LiveKpiCard } from "@/components/dashboard/LiveKpiCard"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
-import { consumptionService } from "@/services/consumption.service"
-import { queryKeys } from "@/lib/queryClient"
 import { formatPowerKw, formatKwhPrice, formatBrl } from "@/lib/format"
 import {
     BILLING_CLASS_LABELS,
@@ -27,7 +27,7 @@ import {
     type Property,
 } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
-import type { ConsumptionBucket } from "@/types/consumption.types"
+import type { ConsumptionSummaryItem } from "@/types/consumption.types"
 
 /**
  * Página de detalhes de uma propriedade — LumiTrack Home.dc.html,
@@ -39,7 +39,7 @@ import type { ConsumptionBucket } from "@/types/consumption.types"
  *      sistema/faturamento/CIP) + ações (Editar / ⋯)
  *   3. KPI "Potência agora" (só quando há medidor com leitura real — sem
  *      inventar dado; ver 07-decisoes-em-aberto / ADR sobre os KPIs
- *      omitidos nesta issue: Consumo hoje, Custo projetado, Bandeira)
+ *      omitidos: Consumo hoje, Custo projetado, Bandeira)
  *   4. Seção de Medidor
  *   5. Seção de Consumo (histórico real — ocupa o lugar do gráfico "ao vivo"
  *      bespoke do protótipo, que foi omitido por não ter dado/lógica real)
@@ -59,9 +59,10 @@ export const PropertyDetailsPage = () => {
     const distributorsQuery = useDistributors(1, 31)
     // KPI "Potência agora" — mesma fonte que MeterSection usa internamente
     // (useMeterByTarget dedupe via cache do TanStack Query, sem query extra
-    // de verdade) + useLiveMeterReading (SSE) pra leitura ao vivo.
+    // de verdade) + useLiveMeterReading (SSE, com fallback REST) pra
+    // potência mais recente conhecida.
     const meterQuery = useMeterByTarget("PROPERTY", id)
-    const { reading, isStale: isReadingStale } = useLiveMeterReading(meterQuery.data?.id)
+    const { lastKnownPowerW } = useLiveMeterReading("PROPERTY", id, meterQuery.data?.id)
 
     // Loading só do primeiro nível (property). Distributor carregando depois
     // não bloqueia a página inteira — mostramos um placeholder local.
@@ -107,27 +108,18 @@ export const PropertyDetailsPage = () => {
             />
 
             {meter && (
-                <div className="blueprint w-fit min-w-[220px] px-5 py-[18px]">
-                    <i className="corner tl" />
-                    <i className="corner tr" />
-                    <i className="corner bl" />
-                    <i className="corner br" />
-                    <div className="font-heading flex items-center gap-2 text-[11px] font-semibold tracking-[.07em] uppercase">
-                        <span
-                            className="h-2 w-2 rounded-full bg-[#3f8f52]"
-                            style={{ animation: "lt-pulse 1.6s ease-in-out infinite" }}
-                            aria-hidden="true"
-                        />
-                        Potência agora
-                    </div>
-                    <div className="font-heading mt-2.5 font-features-['tnum'_1] text-[30px] leading-none font-semibold">
-                        {!isReadingStale && reading ? (
-                            formatPowerKw(reading.powerW)
+                <LiveKpiCard
+                    label="Potência agora"
+                    value={
+                        lastKnownPowerW !== undefined ? (
+                            formatPowerKw(lastKnownPowerW)
                         ) : (
                             <span className="text-muted">—</span>
-                        )}
-                    </div>
-                </div>
+                        )
+                    }
+                    isLive
+                    className="w-fit min-w-[220px]"
+                />
             )}
 
             {meter && (
@@ -166,7 +158,7 @@ const PropertyHeaderCard = ({
     const [isEditOpen, setIsEditOpen] = useState(false)
 
     return (
-        <div className="blueprint p-[26px]">
+        <div className="blueprint p-26px">
             <i className="corner tl" />
             <i className="corner tr" />
             <i className="corner bl" />
@@ -174,13 +166,8 @@ const PropertyHeaderCard = ({
 
             {/* Linha superior: ícone + título/endereço + ações */}
             <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="flex min-w-0 items-start gap-[15px]">
-                    <span
-                        className="border-accent text-accent flex h-[52px] w-[52px] shrink-0 items-center justify-center border-[1.5px]"
-                        aria-hidden="true"
-                    >
-                        <Home className="h-[26px] w-[26px]" strokeWidth={1.5} />
-                    </span>
+                <div className="gap-15px flex min-w-0 items-start">
+                    <IconCircle icon={Home} tone="accent" strokeWidth={1.5} />
                     <div className="min-w-0">
                         <h1 className="font-heading truncate text-[clamp(24px,2.6vw,32px)] leading-none font-semibold uppercase">
                             {property.name}
@@ -215,19 +202,19 @@ const PropertyHeaderCard = ({
             </div>
 
             {/* Tags — distribuidora vinculada */}
-            <div className="border-divider mt-[22px] border-t pt-[18px]">
-                <div className="font-heading text-muted mb-3 text-[11px] font-semibold tracking-[.08em] uppercase">
+            <div className="border-divider mt-22px pt-18px border-t">
+                <div className="font-heading text-muted text-11 mb-3 font-semibold tracking-[.08em] uppercase">
                     Distribuidora vinculada
                 </div>
                 <DistributorTags distributor={distributor} isLoading={isDistributorLoading} />
             </div>
 
             {/* Tags — faturamento da própria propriedade */}
-            <div className="border-divider mt-[18px] border-t pt-[18px]">
-                <div className="font-heading text-muted mb-3 text-[11px] font-semibold tracking-[.08em] uppercase">
+            <div className="border-divider mt-18px pt-18px border-t">
+                <div className="font-heading text-muted text-11 mb-3 font-semibold tracking-[.08em] uppercase">
                     Faturamento
                 </div>
-                <div className="flex flex-wrap gap-[9px]">
+                <div className="gap-9px flex flex-wrap">
                     <Tag variant="outline">
                         {ELECTRICAL_SYSTEM_LABELS[property.electricalSystem]}
                     </Tag>
@@ -257,7 +244,7 @@ const DistributorTags = ({ distributor, isLoading }: DistributorTagsProps) => {
     if (isLoading) {
         return (
             <div
-                className="flex flex-wrap gap-[9px]"
+                className="gap-9px flex flex-wrap"
                 aria-busy="true"
                 aria-label="Carregando dados da distribuidora"
             >
@@ -273,7 +260,7 @@ const DistributorTags = ({ distributor, isLoading }: DistributorTagsProps) => {
     }
 
     return (
-        <div className="flex flex-wrap gap-[9px]">
+        <div className="gap-9px flex flex-wrap">
             <Tag variant="accent" className="font-semibold">
                 {distributor.name}
             </Tag>
@@ -292,14 +279,10 @@ interface AreasSectionProps {
  * Lista as áreas da propriedade + comparação de consumo entre elas.
  *
  * O consumo mensal por área (usado tanto no kWh/mês de cada AreaCard quanto
- * nas barras de comparação) é buscado UMA vez aqui via `useQueries` — uma
- * query por área, dinâmica conforme a lista carrega. `useQueries` (não N
- * chamadas de `useConsumption` em loop) é o jeito correto de disparar um
- * número variável de queries sem violar a regra de hooks.
- *
- * Sem medidor na área, a chamada de consumo 404 — capturado e tratado como
- * "sem dado" (null), não como erro: não é uma falha, é uma área que ainda
- * não tem leitura pra comparar.
+ * nas barras de comparação) é buscado numa única chamada via
+ * `useConsumptionSummary` — substitui o `useQueries` de N chamadas, uma
+ * por área. Área sem medidor/sem leitura simplesmente não aparece no
+ * resultado — não é erro, só fica de fora da comparação.
  */
 const AreasSection = ({ propertyId }: AreasSectionProps) => {
     const areasQuery = useAreas(propertyId)
@@ -307,35 +290,17 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
     const [comparisonUnit, setComparisonUnit] = useState<"kwh" | "reais">("kwh")
     const areas = areasQuery.data?.items ?? []
 
-    const consumptionQueries = useQueries({
-        queries: areas.map((area) => ({
-            queryKey: queryKeys.consumption.list("AREA", area.id, "month", 1, 3),
-            queryFn: async (): Promise<ConsumptionBucket | null> => {
-                try {
-                    const res = await consumptionService.list({
-                        targetType: "AREA",
-                        targetId: area.id,
-                        granularity: "month",
-                        page: 1,
-                        pageSize: 3,
-                    })
-                    if (res.items.length === 0) return null
-                    return res.items.reduce((latest, bucket) =>
-                        new Date(bucket.bucketStart) > new Date(latest.bucketStart)
-                            ? bucket
-                            : latest,
-                    )
-                } catch {
-                    return null
-                }
-            },
-        })),
-    })
+    const summaryQuery = useConsumptionSummary(
+        "AREA",
+        areas.map((a) => a.id),
+        "month",
+    )
+    const bucketById = new Map((summaryQuery.data?.items ?? []).map((item) => [item.id, item]))
 
     const comparisonRows = areas
-        .map((area, i) => ({ id: area.id, label: area.name, bucket: consumptionQueries[i]?.data }))
+        .map((area) => ({ id: area.id, label: area.name, bucket: bucketById.get(area.id) }))
         .filter(
-            (row): row is { id: string; label: string; bucket: ConsumptionBucket } =>
+            (row): row is { id: string; label: string; bucket: ConsumptionSummaryItem } =>
                 row.bucket != null,
         )
 
@@ -348,12 +313,12 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
                 <i className="corner br" />
 
                 <div className="border-divider flex items-center justify-between border-b px-5 py-4">
-                    <h2 className="font-heading text-[17px] font-semibold uppercase">Áreas</h2>
+                    <h2 className="font-heading text-17 font-semibold uppercase">Áreas</h2>
                     <Button
                         variant="secondary"
                         size="sm"
                         onClick={() => setIsCreateOpen(true)}
-                        className="min-h-9 text-[13px]"
+                        className="text-13 min-h-9"
                     >
                         <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                         Adicionar área
@@ -381,19 +346,11 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
                     )}
 
                     {areasQuery.isSuccess && areas.length === 0 && (
-                        <>
-                            <EmptyState
-                                icon={LayoutGrid}
-                                title="Nenhuma área cadastrada"
-                                description="O cadastro de áreas estará disponível em breve. Por aqui você poderá organizar dispositivos por cômodo, setor ou unidade."
-                            />
-                            <p
-                                className="text-muted mt-3 text-center text-xs italic"
-                                data-testid="areas-coming-soon"
-                            >
-                                Em breve
-                            </p>
-                        </>
+                        <EmptyState
+                            icon={LayoutGrid}
+                            title="Nenhuma área cadastrada"
+                            description="Organize os dispositivos da propriedade por cômodo, setor ou unidade — comece adicionando a primeira área."
+                        />
                     )}
 
                     {areasQuery.isSuccess && areas.length > 0 && (
@@ -401,11 +358,11 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
                             className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3"
                             data-testid="areas-grid"
                         >
-                            {areas.map((area, i) => (
+                            {areas.map((area) => (
                                 <AreaCard
                                     key={area.id}
                                     area={area}
-                                    monthlyConsumption={consumptionQueries[i]?.data}
+                                    monthlyConsumption={bucketById.get(area.id)}
                                 />
                             ))}
                         </div>
@@ -422,10 +379,10 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
 
                     <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
                         <div>
-                            <span className="font-heading text-[17px] font-semibold uppercase">
+                            <span className="font-heading text-17 font-semibold uppercase">
                                 Comparação de áreas
                             </span>
-                            <span className="text-muted mt-[3px] block text-[12.5px]">
+                            <span className="text-muted text-12-5 mt-[3px] block">
                                 Consumo por área neste mês (
                                 {comparisonUnit === "kwh" ? "kWh" : "R$"})
                             </span>

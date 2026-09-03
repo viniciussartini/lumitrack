@@ -26,8 +26,8 @@ export const envSchema = z
             .optional(),
 
         JWT_SECRET: z.string().min(32, { message: "JWT_SECRET deve ter ao menos 32 caracteres" }),
-        // Render não define esta env var (fora do render.yaml, ver #215) —
-        // o default abaixo é o que efetivamente vale em produção.
+        // Render não define esta env var (fora do render.yaml) — o default
+        // abaixo é o que efetivamente vale em produção.
         JWT_WEB_EXPIRES_IN: z.string().default("1h"),
         // Tokens MOBILE não tinham expiração por tempo (apenas revogação manual
         // via logout) — um token vazado tinha validade indefinida. Agora expiram
@@ -45,8 +45,8 @@ export const envSchema = z
 
         FRONTEND_URL: z.string().default("http://localhost:3000"),
 
-        // Host canônico do redirect HTTP→HTTPS em produção (issue #183) —
-        // NUNCA o `Host` do cliente (ver shared/security/httpsRedirect.ts):
+        // Host canônico do redirect HTTP→HTTPS em produção — NUNCA o `Host`
+        // do cliente (ver shared/security/httpsRedirect.ts):
         // um Host forjado usado como destino do redirect é open redirect via
         // Host header. Default de dev inofensivo; `.refine` abaixo barra o
         // default em produção, mesmo padrão já usado para CORS_ORIGIN="*".
@@ -89,9 +89,37 @@ export const envSchema = z
         // AuditLog usa um prazo mais longo de propósito — equilíbrio entre o
         // Art. 48 (capacidade de reconstruir incidentes) e o Art. 15/16
         // (minimização: não guardar dados além do necessário).
-        DATA_RETENTION_AUTH_TOKEN_DAYS: z.coerce.number().default(30),
-        DATA_RETENTION_PASSWORD_RESET_DAYS: z.coerce.number().default(30),
-        DATA_RETENTION_AUDIT_LOG_DAYS: z.coerce.number().default(730), // ~2 anos
+        // `.int().positive()` em todas — sem isso, `z.coerce.number()` aceita
+        // string vazia/zero/negativo (`Number("") === 0`) e o expurgo vira
+        // `deleteMany({ where: { data: { lt: now } } })`: a tabela inteira.
+        // Falha fechado no boot em vez de apagar dado em produção por uma
+        // variável mal configurada.
+        DATA_RETENTION_AUTH_TOKEN_DAYS: z.coerce.number().int().positive().default(30),
+        DATA_RETENTION_PASSWORD_RESET_DAYS: z.coerce.number().int().positive().default(30),
+        DATA_RETENTION_AUDIT_LOG_DAYS: z.coerce.number().int().positive().default(730), // ~2 anos
+
+        // Extensão que deixou de ser Art. 15/16 (sem titular real, sem prazo
+        // LGPD a cumprir) e passou a ser armazenamento/performance: as 4
+        // tabelas abaixo cresciam sem nenhum expurgo.
+        //
+        // MeterReading: 365 dias, com o crescimento real medido (~2 GiB/ano
+        // para os 11 medidores da demo, teto conhecido e estável pela
+        // ADR-0014). Ver RIPD.md §3.3.
+        DATA_RETENTION_METER_READING_DAYS: z.coerce.number().int().positive().default(365),
+        // AlertTriggerEvent: mesmo prazo de MeterReading — histórico de
+        // episódios de alerta, volume ínfimo perto de MeterReading (só cresce
+        // quando um alerta dispara e termina), sem motivo para ser mais curto.
+        DATA_RETENTION_ALERT_TRIGGER_EVENT_DAYS: z.coerce.number().int().positive().default(365),
+        // MfaBackupCode: mesma família de AUTH_TOKEN/PASSWORD_RESET (30 dias)
+        // — é um credencial, não um histórico. Conta a partir de `usedAt`,
+        // NUNCA de `createdAt`: um código ainda não usado continua válido
+        // para recuperação de conta indefinidamente, até o usuário regerar o
+        // conjunto (ver RetentionService — só expurga usedAt != null).
+        DATA_RETENTION_MFA_BACKUP_CODE_DAYS: z.coerce.number().int().positive().default(30),
+        // TariffFlagHistory: mesmo prazo de AUDIT_LOG (730 dias) — é a mesma
+        // categoria de coisa (log histórico imutável de um evento do
+        // sistema), não um credencial nem dado de alto volume.
+        DATA_RETENTION_TARIFF_FLAG_HISTORY_DAYS: z.coerce.number().int().positive().default(730),
 
         // MFA opcional via TOTP (A06/A07).
         // Chave própria (separada de CPF_CNPJ_ENCRYPTION_KEY) para cifrar o
@@ -117,8 +145,8 @@ export const envSchema = z
         }),
 
         // Criptografia da credencial de protocolo do medidor em repouso
-        // (issue #182 — Meter.extra.password, ex.: senha MQTT). Chave própria
-        // (separada das 3 acima) — mesma compartimentalização de risco.
+        // (Meter.extra.password, ex.: senha MQTT). Chave própria (separada
+        // das 3 acima) — mesma compartimentalização de risco.
         // Mesmo formato (64 caracteres hex / 32 bytes). Gerar com:
         //   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
         METER_CREDENTIAL_ENCRYPTION_KEY: z.string().regex(/^[0-9a-f]{64}$/i, {
@@ -134,22 +162,24 @@ export const envSchema = z
         REFRESH_COOKIE_NAME: z.string().default("lumitrack_refresh"),
         REFRESH_CSRF_COOKIE_NAME: z.string().default("lumitrack_refresh_csrf"),
         REFRESH_CSRF_HEADER_NAME: z.string().default("x-refresh-csrf-token"),
-        DATA_RETENTION_REFRESH_TOKEN_DAYS: z.coerce.number().default(30),
+        DATA_RETENTION_REFRESH_TOKEN_DAYS: z.coerce.number().int().positive().default(30),
 
         // Cadastro público (A06/ADR-0008). Desligar em ambiente de demo
         // pública: `POST /api/users` passa a recusar contas novas — é a
-        // premissa da ADR-0008 (hospedagem), que só garante ausência de
-        // transferência internacional enquanto o ambiente público não trata
-        // dado pessoal real. Default `true`: nenhum ambiente de
-        // desenvolvimento/produção normal perde a função sem opt-in explícito.
+        // premissa da ADR-0008 (hospedagem) e da ADR-0014 (ambientes
+        // permanentemente demonstração), que só garantem ausência de
+        // transferência internacional/dado real enquanto o cadastro público
+        // não trata titular real. Default `false` (fail-closed, ADR-0014):
+        // um ambiente novo que suba sem configurar a variável nasce fechado,
+        // não aberto — ligar exige opt-in explícito, nunca o contrário.
         // `z.stringbool()` (não `z.coerce.boolean()`) de propósito — coerce
         // faz `Boolean("false") === true`, o que tornaria impossível
         // desligar a flag via env; stringbool interpreta a string "false".
-        REGISTRATION_ENABLED: z.stringbool().default(true),
+        REGISTRATION_ENABLED: z.stringbool().default(false),
 
-        // Login de demonstração sem senha no cliente (issue #179 — o
-        // frontend não embarca mais e-mail/senha das contas demo no
-        // bundle). `POST /api/auth/demo-login` só funciona com esta flag
+        // Login de demonstração sem senha no cliente — o frontend não
+        // embarca e-mail/senha das contas demo no bundle.
+        // `POST /api/auth/demo-login` só funciona com esta flag
         // ligada — independente de REGISTRATION_ENABLED: o deploy público
         // liga as duas (cadastro fechado + login demo aberto), mas
         // dev/CI podem querer testar o botão de demo sem fechar o
@@ -165,6 +195,65 @@ export const envSchema = z
         // (ex.: "broker.local,192.168.0.0/16,10.0.5.20/32"). Vazio = nenhuma
         // exceção liberada, só destino público de fato alcançável na internet.
         IOT_ALLOWED_HOSTS: z.string().optional(),
+
+        // Instrumentação de desempenho — conta quantas queries Prisma cada
+        // requisição de /api/alerts e /api/consumption dispara, via
+        // prisma.$on('query') + AsyncLocalStorage (ver
+        // shared/database/queryCounter.ts). Nunca pode ir para produção
+        // ligada: o log de query em caminho quente vira o próprio gargalo que
+        // deveria medir. Default `false` (fail-closed, mesmo padrão de
+        // REGISTRATION_ENABLED) — o `.refine` abaixo barra `true` em produção
+        // mesmo que alguém configure a variável por engano.
+        DEBUG_QUERY_LOGGING_ENABLED: z.stringbool().default(false),
+
+        // Pool de conexões `pg` — antes implícito no default do driver, agora
+        // explícito e mensurável. Mesma regra fail-closed de `.int().positive()`
+        // das DATA_RETENTION_*: sem ela, `z.coerce.number()` aceita "" ou
+        // negativo, e um pool com `max <= 0` derruba toda conexão ao banco no boot.
+        //
+        // DB_POOL_MAX: default 10 documenta o comportamento real observado —
+        // medição local (backend + iot-simulator com 11 medidores demo
+        // rodando simultâneos) mostrou o pool se estabilizando neste teto
+        // (o default implícito do driver `pg`) sem nunca saturar sob essa carga.
+        DB_POOL_MAX: z.coerce.number().int().positive().default(10),
+        // DB_POOL_CONNECTION_TIMEOUT_MS: o default do `pg` é 0 (espera
+        // indefinidamente por uma conexão livre) — sob saturação real isso
+        // trava a requisição em vez de falhar visivelmente, incoerente com o
+        // padrão fail-closed do resto deste arquivo.
+        DB_POOL_CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+        // DB_POOL_IDLE_TIMEOUT_MS: o default do `pg` é 10000ms — curto demais
+        // frente ao ciclo de 60s do MinuteRollupScheduler/RetentionPurgeScheduler,
+        // que reconectaria a cada execução em vez de reaproveitar a conexão.
+        DB_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
+        // DB_POOL_STATEMENT_TIMEOUT_MS: enforçado pelo próprio Postgres
+        // (`SET statement_timeout`, via config nativo do driver `pg` —
+        // sobrevive mesmo se o processo Node travar em outra coisa antes de
+        // cancelar a query). Sem timeout, uma query presa (lock, plano ruim,
+        // bug) segura a conexão indefinidamente — com `DB_POOL_MAX` finito,
+        // é o jeito mais barato de esgotar o pool inteiro e derrubar a API
+        // (DoS). Este é o teto do POOL — vale por padrão para toda conexão,
+        // inclusive as que servem rota HTTP. Default de 15s: generoso para
+        // qualquer query legítima de rota (a mais pesada medida nos
+        // baselines de desempenho da Fase 15 ficou na casa de centenas de
+        // ms), mas curto o bastante para não deixar `DB_POOL_MAX` conexões
+        // presas segurando a API por minutos. O `RetentionPurgeScheduler`
+        // usa um teto PRÓPRIO, maior — ver `RETENTION_PURGE_STATEMENT_TIMEOUT_MS`
+        // logo abaixo — porque o pior caso legítimo dele (expurgo represado)
+        // é sabidamente mais lento que qualquer rota HTTP.
+        DB_POOL_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
+        // RETENTION_PURGE_STATEMENT_TIMEOUT_MS: teto PRÓPRIO do expurgo de
+        // retenção (`shared/database/withPurgeTimeout.ts`), aplicado via
+        // `SET LOCAL statement_timeout` só dentro da transação de cada
+        // delete de expurgo — não afeta nenhuma outra conexão do pool.
+        // Existe separado do `DB_POOL_STATEMENT_TIMEOUT_MS` porque o pior
+        // caso legítimo dos dois é de naturezas diferentes: uma rota HTTP
+        // nunca deveria demorar minutos, mas um `DELETE` represado sobre
+        // `meter_readings` em escala de produção, sim (medido em ~48s contra
+        // uma massa sintética de 5,7M linhas — ver
+        // `.claude/docs/2026-08-31-baseline-desempenho-statement-timeout.md`).
+        // Default de 120s mantém a margem de ~2,5× já medida sobre esse
+        // pior caso.
+        RETENTION_PURGE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
     })
     .refine((data) => !(data.NODE_ENV === "production" && data.CORS_ORIGIN === "*"), {
         message:
@@ -201,6 +290,11 @@ export const envSchema = z
             path: ["DATABASE_HTTP_TEST_URL"],
         },
     )
+    .refine((data) => !(data.NODE_ENV === "production" && data.DEBUG_QUERY_LOGGING_ENABLED), {
+        message:
+            "DEBUG_QUERY_LOGGING_ENABLED não pode ser true em produção — contar/logar toda query Prisma em caminho quente é o próprio gargalo que a instrumentação deveria medir",
+        path: ["DEBUG_QUERY_LOGGING_ENABLED"],
+    })
 
 const parsed = envSchema.safeParse(process.env)
 

@@ -1,25 +1,18 @@
 import { useRef, useState, useEffect } from "react"
 import { useNavigate } from "react-router"
-import { ChevronDown, LogOut, Shield, User as UserIcon } from "lucide-react"
+import { LogOut, Shield, User as UserIcon } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useClickOutside } from "@/lib/hooks/useClickOutside"
 import { getDisplayInfo } from "@/lib/userDisplay"
-import { cn } from "@/lib/cn"
 
-interface UserMenuProps {
-    /**
-     * "header": pill compacto do Header (avatar + nome + chevron), trigger original.
-     * "sidebar": bloco de identidade do rodapé da Sidebar (avatar maior +
-     * nome + tipo de conta), LumiTrack Home.dc.html linhas 69-76 — o
-     * protótipo só navega direto pro Perfil nesse bloco, mas aqui ele vira
-     * o trigger deste mesmo menu (decisão do usuário, 2026-08-04): o
-     * protótipo não tem logout em lugar nenhum, então precisa continuar
-     * acessível por Perfil / Segurança / Sair.
-     */
-    variant?: "header" | "sidebar"
-}
-
-export const UserMenu = ({ variant = "header" }: UserMenuProps) => {
+/**
+ * Trigger: bloco de identidade do rodapé da Sidebar (avatar maior + nome +
+ * tipo de conta), LumiTrack Home.dc.html linhas 69-76 — o protótipo só
+ * navega direto pro Perfil nesse bloco, mas aqui ele vira o trigger deste
+ * mesmo menu, por decisão deliberada: o protótipo não tem logout em lugar
+ * nenhum, então precisa continuar acessível por Perfil / Segurança / Sair.
+ */
+export const UserMenu = () => {
     const { user, logout } = useAuth()
     const navigate = useNavigate()
     const [isOpen, setIsOpen] = useState(false)
@@ -58,71 +51,36 @@ export const UserMenu = ({ variant = "header" }: UserMenuProps) => {
     return (
         <div ref={containerRef} className="relative">
             {/* Trigger */}
-            {variant === "sidebar" ? (
-                <button
-                    type="button"
-                    onClick={() => setIsOpen((prev) => !prev)}
-                    aria-haspopup="menu"
-                    aria-expanded={isOpen}
-                    aria-label={`Menu do usuário ${name}`}
-                    className="flex w-full items-center gap-[11px] text-left transition-colors hover:bg-white/6"
+            <button
+                type="button"
+                onClick={() => setIsOpen((prev) => !prev)}
+                aria-haspopup="menu"
+                aria-expanded={isOpen}
+                aria-label={`Menu do usuário ${name}`}
+                className="flex w-full items-center gap-[11px] text-left transition-colors hover:bg-white/6"
+            >
+                <span
+                    aria-hidden="true"
+                    className="font-heading text-15 flex h-9 w-9 shrink-0 items-center justify-center border border-white/26 font-semibold text-[#e6ecf2]"
                 >
-                    <span
-                        aria-hidden="true"
-                        className="font-heading flex h-9 w-9 shrink-0 items-center justify-center border border-white/26 text-[15px] font-semibold text-[#e6ecf2]"
-                    >
-                        {initials}
+                    {initials}
+                </span>
+                <span className="min-w-0 flex-1">
+                    <span className="text-13-5 block truncate font-semibold text-[#e6ecf2]">
+                        {name}
                     </span>
-                    <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13.5px] font-semibold text-[#e6ecf2]">
-                            {name}
-                        </span>
-                        <span className="block truncate text-[11.5px] text-[#d7e0ea]/55">
-                            {accountTypeLabel}
-                        </span>
+                    <span className="text-11-5 block truncate text-[#d7e0ea]/55">
+                        {accountTypeLabel}
                     </span>
-                </button>
-            ) : (
-                <button
-                    type="button"
-                    onClick={() => setIsOpen((prev) => !prev)}
-                    aria-haspopup="menu"
-                    aria-expanded={isOpen}
-                    aria-label={`Menu do usuário ${name}`}
-                    className={cn(
-                        "inline-flex items-center gap-2 rounded-md px-2 py-1.5",
-                        "text-sm text-slate-700 hover:bg-slate-100",
-                        "dark:text-slate-200 dark:hover:bg-slate-800",
-                        "transition-colors",
-                        "focus-visible:ring-brand-500 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
-                        "dark:focus-visible:ring-offset-slate-950",
-                    )}
-                >
-                    {/* Avatar com iniciais */}
-                    <span
-                        aria-hidden="true"
-                        className="bg-accent flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
-                    >
-                        {initials}
-                    </span>
-                    {/* Nome — escondido em telas muito pequenas */}
-                    <span className="hidden max-w-35 truncate font-medium sm:inline">{name}</span>
-                    <ChevronDown
-                        className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")}
-                        aria-hidden="true"
-                    />
-                </button>
-            )}
+                </span>
+            </button>
 
             {/* Dropdown */}
             {isOpen && (
                 <div
                     role="menu"
                     aria-label="Opções do usuário"
-                    className={cn(
-                        "lt-menu w-56",
-                        variant === "sidebar" ? "bottom-full left-0 mb-2" : "top-full right-0 mt-1",
-                    )}
+                    className="lt-menu bottom-full left-0 mb-2 w-56"
                 >
                     {/* Header com email — não-clicável, contexto */}
                     <div className="border-divider border-b px-4 py-3">

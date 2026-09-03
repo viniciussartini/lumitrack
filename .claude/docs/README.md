@@ -59,7 +59,13 @@ Decisões arquiteturais relevantes, numeradas sequencialmente a partir do templa
 | `0008-hospedagem-brasil-oracle-always-free.md` | Hospedagem no Brasil, máquina única, sem operador estrangeiro (Caminho B) |
 | `0009-observabilidade-uptime-kuma-autohospedado.md` | Uptime Kuma auto-hospedado (Caminho B) |
 | `0010-demo-publica-free-tier-render-neon.md` | Demo pública em Render + Neon, escopo restrito a demonstração (Caminho A) |
-| `0011-keep-alive-monitor-externo-uptimerobot.md` | Keep-alive da demo via UptimeRobot (monitor externo) |
+| `0011-keep-alive-monitor-externo-uptimerobot.md` | Keep-alive da demo via UptimeRobot (monitor externo) — **substituída pela `0013`** |
 | `0012-separacao-producao-vps-staging-render-neon.md` | Separação de ambientes — produção na VPS Hostinger (`main`), Render+Neon rebaixado a staging (`staging`) |
+| `0013-fim-do-keep-alive-staging-hiberna-por-desenho.md` | Fim do keep-alive — o staging hiberna por desenho |
+| `0014-ambientes-permanentemente-demonstracao.md` | Ambientes permanentemente de demonstração — nunca dado real de titular |
+| `0015-monitor-externo-producao-vps.md` | Monitor externo de disponibilidade para a produção (VPS) — `/health` exposto via Caddy |
+| `0016-service-le-repository-de-outro-modulo.md` | `*.service.ts` pode importar o `*.repository.ts` de outro módulo diretamente |
+| `0017-simulador-rede-propria-docker-compose.md` | Simulador com rede própria no Docker Compose — revisa a co-localização de rede da ADR-0008 |
+| `0018-guarda-registro-acesso-marco-civil-nao-implementada.md` | Guarda formal de registros de acesso (Marco Civil Art. 15) não será implementada — estende a ADR-0014 |
 
 Um ADR nunca é apagado — se a decisão mudar, crie um novo e marque o antigo como "substituída por". Se a decisão resolve um item de `../project_context/07-decisoes-em-aberto.md`, atualize aquele arquivo.

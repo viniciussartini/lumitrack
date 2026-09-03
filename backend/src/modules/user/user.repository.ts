@@ -32,12 +32,20 @@ const READ_OMIT = {
     mfaSecret: true,
 } as const
 
+/** Acesso a contas de usuário persistidas — decifra CPF/CNPJ na borda e nunca expõe senha, blind index ou segredo de MFA fora deste módulo. */
 export class UserRepository {
-    // Injeção de dependência: o PrismaClient é recebido pelo construtor,
-    // não instanciado aqui dentro. Isso permite que os testes passem
-    // o prismaTest (banco de testes) sem nenhuma alteração no código.
+    /**
+     * @param prisma - Cliente Prisma usado para acessar a tabela de usuários. Recebido pelo construtor (não instanciado aqui dentro) para que os testes possam passar o prismaTest (banco de testes) sem nenhuma alteração no código.
+     */
     constructor(private readonly prisma: PrismaClient) {}
 
+    /**
+     * Busca um usuário pelo e-mail, sem os campos sensíveis internos
+     * (senha, blind index, segredo de MFA).
+     *
+     * @param email - E-mail da conta.
+     * @returns O usuário, com CPF/CNPJ decifrados, ou `null` se não existir.
+     */
     async findByEmail(email: string): Promise<UserWithoutPassword | null> {
         const user = await this.prisma.user.findUnique({
             where: { email },
@@ -46,6 +54,13 @@ export class UserRepository {
         return user && decryptSensitiveFields(user)
     }
 
+    /**
+     * Busca um usuário pelo e-mail incluindo a senha com hash — usado
+     * exclusivamente pelo fluxo de autenticação.
+     *
+     * @param email - E-mail da conta.
+     * @returns O usuário com senha, CPF/CNPJ decifrados, ou `null` se não existir.
+     */
     async findByEmailWithPassword(email: string) {
         const user = await this.prisma.user.findUnique({
             where: { email },
@@ -54,9 +69,14 @@ export class UserRepository {
         return user && decryptSensitiveFields(user)
     }
 
-    // Usado só para verificar a senha atual antes de aceitar troca de
-    // e-mail (issue #178) — sem cpf/cnpj no select, então sem necessidade
-    // de decrypt.
+    /**
+     * Busca só id e senha com hash de um usuário — usado para verificar a
+     * senha atual antes de aceitar troca de e-mail (sem cpf/cnpj no
+     * select, então sem necessidade de decrypt).
+     *
+     * @param id - Id do usuário.
+     * @returns Id e senha com hash, ou `null` se não existir.
+     */
     async findByIdWithPassword(id: string): Promise<{ id: string; password: string } | null> {
         return this.prisma.user.findUnique({
             where: { id },
@@ -64,10 +84,15 @@ export class UserRepository {
         })
     }
 
-    // Recebe o CPF em texto claro (ex: vindo do form de cadastro) e busca
-    // pelo blind index — não é possível buscar pela coluna `cpf` diretamente
-    // porque ela guarda ciphertext com IV aleatório (nunca repete, mesmo
-    // para o mesmo CPF).
+    /**
+     * Busca um usuário pelo CPF em texto claro (ex.: vindo do form de
+     * cadastro), traduzindo-o para o blind index antes de consultar — não
+     * é possível buscar pela coluna `cpf` diretamente porque ela guarda
+     * ciphertext com IV aleatório (nunca repete, mesmo para o mesmo CPF).
+     *
+     * @param cpf - CPF em texto claro.
+     * @returns O usuário, com CPF/CNPJ decifrados, ou `null` se não existir.
+     */
     async findByCpf(cpf: string): Promise<UserWithoutPassword | null> {
         const user = await this.prisma.user.findUnique({
             where: { cpfBlindIndex: generateBlindIndex(cpf) },
@@ -76,6 +101,13 @@ export class UserRepository {
         return user && decryptSensitiveFields(user)
     }
 
+    /**
+     * Busca um usuário pelo CNPJ em texto claro, traduzindo-o para o
+     * blind index antes de consultar — mesmo raciocínio de {@link findByCpf}.
+     *
+     * @param cnpj - CNPJ em texto claro.
+     * @returns O usuário, com CPF/CNPJ decifrados, ou `null` se não existir.
+     */
     async findByCnpj(cnpj: string): Promise<UserWithoutPassword | null> {
         const user = await this.prisma.user.findUnique({
             where: { cnpjBlindIndex: generateBlindIndex(cnpj) },
@@ -84,6 +116,12 @@ export class UserRepository {
         return user && decryptSensitiveFields(user)
     }
 
+    /**
+     * Busca um usuário pelo id, sem os campos sensíveis internos.
+     *
+     * @param id - Id do usuário.
+     * @returns O usuário, com CPF/CNPJ decifrados, ou `null` se não existir.
+     */
     async findById(id: string): Promise<UserWithoutPassword | null> {
         const user = await this.prisma.user.findUnique({
             where: { id },
@@ -92,6 +130,13 @@ export class UserRepository {
         return user && decryptSensitiveFields(user)
     }
 
+    /**
+     * Cria um usuário, cifrando CPF/CNPJ e derivando os respectivos blind
+     * index antes de persistir.
+     *
+     * @param data - Dados do usuário a criar, já validados, com a senha já com hash e o consentimento já resolvido.
+     * @returns O usuário criado, com CPF/CNPJ decifrados.
+     */
     async create(
         data: Omit<CreateUserInput, "acceptedTerms"> & {
             password: string
@@ -119,6 +164,13 @@ export class UserRepository {
         return decryptSensitiveFields(user)
     }
 
+    /**
+     * Atualiza os campos informados de um usuário.
+     *
+     * @param id - Id do usuário a atualizar.
+     * @param data - Campos a atualizar, já validados.
+     * @returns O usuário atualizado, com CPF/CNPJ decifrados.
+     */
     async update(id: string, data: UpdateUserInput): Promise<UserWithoutPassword> {
         const cleanData = Object.fromEntries(
             Object.entries(data).filter(([, value]) => value !== undefined),
@@ -133,6 +185,11 @@ export class UserRepository {
         return decryptSensitiveFields(user)
     }
 
+    /**
+     * Remove um usuário definitivamente.
+     *
+     * @param id - Id do usuário a remover.
+     */
     async delete(id: string): Promise<void> {
         await this.prisma.user.delete({
             where: { id },

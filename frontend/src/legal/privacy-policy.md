@@ -1,6 +1,6 @@
 # Política de Privacidade do LumiTrack
 
-**Versão 1.4 — vigente desde 23/08/2026**
+**Versão 1.5 — vigente desde 23/08/2026**
 
 Esta Política de Privacidade descreve como o LumiTrack ("nós", "plataforma")
 coleta, utiliza, armazena e protege os dados pessoais dos seus usuários
@@ -17,9 +17,14 @@ Dúvidas, solicitações ou exercício de direitos podem ser enviados para o
 canal de privacidade: **{{PRIVACY_CONTACT_EMAIL}}**.
 
 > Aviso: este é um documento-modelo gerado como parte de uma auditoria de
-> segurança e conformidade. Antes do uso em produção com usuários reais, os
-> dados de identificação do controlador e do encarregado (DPO) devem ser
-> completados e o texto revisado por um profissional jurídico.
+> segurança e conformidade. **O LumiTrack, tal como publicado por nós, é
+> permanentemente um ambiente de demonstração e nunca vai operar com
+> usuários reais** — não há previsão de "uso em produção" para este
+> projeto. Se você fez um fork deste repositório e pretende operar com
+> usuários reais, os dados de identificação do controlador e do encarregado
+> (DPO) devem ser completados e o texto revisado por um profissional
+> jurídico antes de qualquer cadastro real — essa responsabilidade é sua a
+> partir do fork, não nossa.
 
 ## 2. Quais dados coletamos
 
@@ -81,12 +86,14 @@ O LumiTrack roda em **dois ambientes**, com infraestrutura diferente:
   publicidade, venda ou qualquer finalidade não descrita nesta Política.
 - Não utilizamos cookies de análise, rastreadores de terceiros ou
   ferramentas de analytics.
-- **Envio de e-mail:** nenhum provedor de e-mail (SMTP) está contratado no
-  ambiente atual. Como consequência, a redefinição de senha por e-mail não
-  está operante. Caso um provedor venha a ser contratado, ele passará a ser
-  um operador nos termos do Art. 39 da LGPD, esta seção será atualizada com
-  o nome e o país de processamento, e uma nova versão desta Política será
-  publicada.
+- **Envio de e-mail:** nenhum provedor de e-mail (SMTP) está contratado nos
+  ambientes atuais. Como consequência, a redefinição de senha por e-mail não
+  está operante. Isso não está planejado para mudar — os ambientes
+  publicados por nós permanecem demonstração. Se isso mudar, ou se você
+  operar um fork deste projeto com um provedor SMTP, ele passa a ser um
+  operador nos termos do Art. 39 da LGPD e esta seção precisa ser
+  atualizada com o nome e o país de processamento antes do primeiro e-mail
+  real enviado.
 
 ## 5. Como protegemos seus dados
 

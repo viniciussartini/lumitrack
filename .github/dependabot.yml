@@ -2,6 +2,7 @@ version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/backend"
+    target-branch: "staging"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
@@ -9,7 +10,7 @@ updates:
       # Minor/patch são normalmente compatíveis entre si — agrupa num PR só.
       # Major fica de fora do grupo (PR individual) porque costuma exigir
       # revisão manual: já vimos major bump quebrar build por conflito de
-      # peer dependency (ver PR #35, typescript 5→7 x typescript-eslint).
+      # peer dependency (ex.: typescript 5→7 x typescript-eslint).
       backend-dependencies:
         update-types: ["minor", "patch"]
     # Alinha os PRs do Dependabot à taxonomia do kit
@@ -22,6 +23,7 @@ updates:
 
   - package-ecosystem: "npm"
     directory: "/frontend"
+    target-branch: "staging"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
@@ -35,6 +37,7 @@ updates:
 
   - package-ecosystem: "npm"
     directory: "/iot-simulator"
+    target-branch: "staging"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
@@ -50,6 +53,7 @@ updates:
 
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "staging"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5

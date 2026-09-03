@@ -1,4 +1,4 @@
-# Caddyfile — reverse proxy + TLS do go-live (Fase 13.5 Bloco A, issue #190).
+# Caddyfile — reverse proxy + TLS do go-live.
 # {$DOMAIN} vem da variável de ambiente DOMAIN (deploy/.env, repassada pelo
 # docker-compose.yml) — nunca hardcode o domínio real aqui.
 #
@@ -8,7 +8,29 @@
 # em deploy/provision-vm.sh).
 
 {$DOMAIN} {
+    # Compressão HTTP — cobre o bundle estático e, quando a resposta de
+    # /api/* chega sem Content-Encoding do backend, também a API (o backend
+    # já comprime por conta própria, ver app.ts; encode aqui é defesa em
+    # profundidade e o que cobre o ambiente Render/staging, que não passa
+    # pelo Caddy). Nunca duplica: Caddy não recomprime resposta que já
+    # chegou com Content-Encoding. Exclui /api/iot/stream (SSE) pelo mesmo
+    # motivo do filtro equivalente no Express (shouldCompress, ver
+    # shared/middlewares/compressionFilter.ts): comprimir segura os chunks
+    # no buffer até acumular um bloco, quebrando a entrega em tempo real.
+    @nao_sse not path /api/iot/stream
+    encode @nao_sse zstd gzip
+
     handle /api/* {
+        reverse_proxy backend:3333
+    }
+
+    # Exposto de propósito para monitor externo de disponibilidade
+    # (ADR-0015) — sem autenticação, sem dado pessoal no payload
+    # (`{"status","timestamp"}`) e sem log de acesso (`app.ts` ignora
+    # `/health` no pinoHttp). Reaproveita o raciocínio de conformidade da
+    # ADR-0011: um ping não-autenticado aqui não configura transferência
+    # internacional.
+    handle /health {
         reverse_proxy backend:3333
     }
 
@@ -16,6 +38,14 @@
         root * /srv
         try_files {path} /index.html
         file_server
+
+        # Cache longo e imutável para os assets com hash de conteúdo que o
+        # Vite gera (ex.: index-C7g-RjOv.js) — seguro porque um conteúdo
+        # novo sempre vem com um nome de arquivo novo, nunca reaproveita o
+        # mesmo caminho. Sem isto, o navegador revalida (304) a cada
+        # carregamento em vez de servir do cache local.
+        @static path /assets/*
+        header @static Cache-Control "public, max-age=31536000, immutable"
     }
 
     header {

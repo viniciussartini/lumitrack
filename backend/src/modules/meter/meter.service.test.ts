@@ -37,11 +37,10 @@ const meterService = new MeterService(
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
 //
-// Property e EnergyDistributor ainda não têm seus módulos atualizados para o
-// schema v2 (isso é Fase 3 — catálogo de distribuidoras, electricalSystem em
-// Property). Por isso o setup de teste aqui cria essas entidades direto via
-// Prisma, sem passar pelos services (que continuam quebrados nesta fase,
-// como documentado no plano).
+// EnergyDistributor é catálogo somente leitura (populado por seed, RF08),
+// sem service de criação — por isso o setup de teste cria a distribuidora
+// direto via Prisma. Property é criada no mesmo bloco por conveniência, já
+// que os dois setups andam juntos aqui.
 
 let distributorSeq = 0
 
@@ -238,9 +237,9 @@ describe("MeterService", () => {
             ).rejects.toThrow(ValidationError)
         })
 
-        // #10 — OWASP A01 (SSRF): antes desta correção, qualquer host/port era
-        // aceito sem checagem — este é o teste que reproduz o bug e falha se o
-        // controle for removido (DoD do 05-security-standards.md).
+        // OWASP A01 (SSRF): sem esta checagem, qualquer host/port seria
+        // aceito. Este teste reproduz o cenário e falha se o controle for
+        // removido (DoD do 05-security-standards.md).
         describe("proteção SSRF (allowlist de destino)", () => {
             it("lança ValidationError ao apontar para rede privada (RFC1918) sem allowlist", async () => {
                 const { user, property } = await setupUserAndProperty()
@@ -304,9 +303,162 @@ describe("MeterService", () => {
                     address: "/dev/ttyUSB0",
                     targetType: "PROPERTY",
                     propertyId: property.id,
+                    extra: {
+                        voltageAddress: "10",
+                        currentAddress: "11",
+                        powerAddress: "12",
+                        powerFactorAddress: "13",
+                    },
                 })
 
                 expect(meter.address).toBe("/dev/ttyUSB0")
+            })
+
+            // Regressão: antes desta correção, MODBUS_TCP/RTU,
+            // ETHERNET_IP e PROFINET aceitavam config incompleta — o worker
+            // IoT só descobria em runtime, descartando toda leitura em
+            // silêncio (IoTDataProcessor.isValidPayload nunca validava).
+            // Agora a falta dos endereços das 3 grandezas restantes é
+            // rejeitada já na criação do medidor.
+            it("rejeita MODBUS_TCP sem extra.currentAddress/powerAddress/powerFactorAddress", async () => {
+                const { user, property } = await setupUserAndProperty()
+
+                await expect(
+                    meterService.create(user.id, {
+                        name: "Medidor Modbus incompleto",
+                        protocol: "MODBUS_TCP",
+                        host: "localhost",
+                        port: 502,
+                        address: "10",
+                        targetType: "PROPERTY",
+                        propertyId: property.id,
+                    }),
+                ).rejects.toThrow(ValidationError)
+            })
+
+            it("rejeita ETHERNET_IP sem address (tag de voltagem, agora obrigatória)", async () => {
+                const { user, property } = await setupUserAndProperty()
+
+                await expect(
+                    meterService.create(user.id, {
+                        name: "Medidor EtherNet/IP incompleto",
+                        protocol: "ETHERNET_IP",
+                        host: "localhost",
+                        targetType: "PROPERTY",
+                        propertyId: property.id,
+                        extra: {
+                            currentAddress: "Current.Tag",
+                            powerAddress: "Power.Tag",
+                            powerFactorAddress: "PowerFactor.Tag",
+                        },
+                    }),
+                ).rejects.toThrow(ValidationError)
+            })
+
+            it("aceita ETHERNET_IP completo (address + os 3 endereços em extra)", async () => {
+                const { user, property } = await setupUserAndProperty()
+
+                const meter = await meterService.create(user.id, {
+                    name: "Medidor EtherNet/IP completo",
+                    protocol: "ETHERNET_IP",
+                    host: "localhost",
+                    address: "Voltage.Tag",
+                    targetType: "PROPERTY",
+                    propertyId: property.id,
+                    extra: {
+                        currentAddress: "Current.Tag",
+                        powerAddress: "Power.Tag",
+                        powerFactorAddress: "PowerFactor.Tag",
+                    },
+                })
+
+                expect(meter.address).toBe("Voltage.Tag")
+            })
+
+            it("rejeita PROFINET sem address (DB de voltagem, agora obrigatório)", async () => {
+                const { user, property } = await setupUserAndProperty()
+
+                await expect(
+                    meterService.create(user.id, {
+                        name: "Medidor Profinet incompleto",
+                        protocol: "PROFINET",
+                        host: "localhost",
+                        targetType: "PROPERTY",
+                        propertyId: property.id,
+                        extra: {
+                            currentAddress: "DB2",
+                            powerAddress: "DB3",
+                            powerFactorAddress: "DB4",
+                        },
+                    }),
+                ).rejects.toThrow(ValidationError)
+            })
+
+            // Regressão: antes só a presença do endereço era validada — um
+            // registrador Modbus não numérico (`parseInt("abc", 10)` = NaN)
+            // ou um DB Profinet fora do formato (`"DB0"` virava DB1 por
+            // engano, `parseInt("0") || 1`) só seriam descobertos em
+            // runtime, na primeira leitura. Agora falham na criação.
+            it("rejeita MODBUS_TCP com endereço de registrador não numérico", async () => {
+                const { user, property } = await setupUserAndProperty()
+
+                await expect(
+                    meterService.create(user.id, {
+                        name: "Medidor Modbus endereço inválido",
+                        protocol: "MODBUS_TCP",
+                        host: "localhost",
+                        port: 502,
+                        address: "abc",
+                        targetType: "PROPERTY",
+                        propertyId: property.id,
+                        extra: {
+                            currentAddress: "11",
+                            powerAddress: "12",
+                            powerFactorAddress: "13",
+                        },
+                    }),
+                ).rejects.toThrow(ValidationError)
+            })
+
+            it("rejeita MODBUS_TCP com registrador acima de 65535", async () => {
+                const { user, property } = await setupUserAndProperty()
+
+                await expect(
+                    meterService.create(user.id, {
+                        name: "Medidor Modbus registrador fora do range",
+                        protocol: "MODBUS_TCP",
+                        host: "localhost",
+                        port: 502,
+                        address: "70000",
+                        targetType: "PROPERTY",
+                        propertyId: property.id,
+                        extra: {
+                            currentAddress: "11",
+                            powerAddress: "12",
+                            powerFactorAddress: "13",
+                        },
+                    }),
+                ).rejects.toThrow(ValidationError)
+            })
+
+            it("rejeita PROFINET com DB fora do formato DB<N> — não coage 'DB0' para DB1 silenciosamente", async () => {
+                const { user, property } = await setupUserAndProperty()
+
+                await expect(
+                    meterService.create(user.id, {
+                        name: "Medidor Profinet DB inválido",
+                        protocol: "PROFINET",
+                        host: "localhost",
+                        address: "DB0",
+                        targetType: "PROPERTY",
+                        propertyId: property.id,
+                        extra: {
+                            currentAddress: "DB2",
+                            powerAddress: "DB3",
+                            powerFactorAddress: "DB4",
+                        },
+                    }),
+                ).rejects.toThrow(ValidationError)
             })
         })
     })
@@ -428,9 +580,9 @@ describe("MeterService", () => {
             ).rejects.toThrow(ForbiddenError)
         })
 
-        // #10 — OWASP A01 (SSRF): `PUT /api/meters/:id` dispara `restart` da
-        // conexão (meter.controller.ts) — segundo caminho igualmente aberto
-        // antes desta correção, hoje coberto pela mesma checagem do create.
+        // OWASP A01 (SSRF): `PUT /api/meters/:id` dispara `restart` da
+        // conexão (meter.controller.ts) — segundo caminho de entrada, coberto
+        // pela mesma checagem do create.
         it("lança ValidationError ao atualizar host para rede privada sem allowlist", async () => {
             const { user, property } = await setupUserAndProperty()
             const meter = await meterService.create(user.id, {

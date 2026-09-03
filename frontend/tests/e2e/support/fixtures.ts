@@ -33,7 +33,7 @@ const TIMESTAMP = "2026-07-15T12:00:00.000Z"
 /**
  * Usuário autenticado devolvido por `GET /api/auth/me`.
  *
- * Sem campo `role`: o backend o devolve (RBAC, #16), mas o `User` do frontend
+ * Sem campo `role`: o backend o devolve (RBAC), mas o `User` do frontend
  * não o modela e nenhuma tela o lê — incluí-lo aqui só criaria um campo que o
  * type-check não protege.
  */
@@ -50,8 +50,8 @@ export const FAKE_USER: User = {
 }
 
 /**
- * Distribuidora do catálogo global (somente leitura desde a Fase 1/3 do
- * rework): sem `userId`, sem `kwhPrice` — a tarifa virou TUSD + TE + as três
+ * Distribuidora do catálogo global — somente leitura, resultado do rework:
+ * sem `userId`, sem `kwhPrice` — a tarifa virou TUSD + TE + as três
  * alíquotas aplicadas "por dentro" pelo TariffService.
  */
 export const DIST_CEMIG: Distributor = {
@@ -68,7 +68,7 @@ export const DIST_CEMIG: Distributor = {
     updatedAt: TIMESTAMP,
 }
 
-/** Propriedade com os campos que migraram da distribuidora na Fase 1. */
+/** Propriedade com os campos que migraram da distribuidora. */
 export const PROP_1: Property = {
     id: "prop-1",
     userId: FAKE_USER.id,
