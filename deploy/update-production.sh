@@ -207,12 +207,22 @@ if [ "$rebuild_frontend" = true ]; then
     # nesse estado até intervenção manual).
     echo "==> Frontend mudou — buildando (container descartável, diretório temporário)..."
     BUILD_TMP="$(mktemp -d)"
+    # mktemp -d cria com 700 — sem isso, o Caddy (bind mount, UID diferente
+    # de lumitrack) não consegue nem listar o diretório depois do `mv`
+    # abaixo, e o site responde 403 até alguém notar e corrigir na mão.
+    chmod 755 "$BUILD_TMP"
     # --user "$(id -u):$(id -g)" (o próprio lumitrack, sem sudo — ele não
     # tem) em vez de rodar como root e depois `chown`: `lumitrack` não tem
     # sudo (deploy/provision-vm.sh cria com --shell /usr/sbin/nologin), e
     # um `chown` sem privilégio sobre arquivos gravados como root sempre
     # falharia, derrubando o deploy toda vez que o frontend mudasse.
-    docker run --rm --user "$(id -u):$(id -g)" \
+    # -e HOME=/tmp: a imagem node:24-slim não tem entrada de /etc/passwd
+    # para o UID numérico de lumitrack — sem HOME, o npm cai em usar `/`
+    # como base do cache (`/.npm`), e a raiz do container não é gravável
+    # por um UID não-root. Achado ao vivo na promoção da Fase 14-19
+    # (2026-09-03): o build falhava com EACCES/ENOENT em cascata, sempre
+    # nesse mesmo ponto.
+    docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
         -v "$REPO_DIR/frontend:/app" -v "$BUILD_TMP:/app/dist-build" -w /app \
         node:24-slim sh -c "npm ci && npm run build -- --outDir /app/dist-build"
     rm -rf "$REPO_DIR/frontend/dist"
