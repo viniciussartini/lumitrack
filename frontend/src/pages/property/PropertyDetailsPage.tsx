@@ -346,19 +346,11 @@ const AreasSection = ({ propertyId }: AreasSectionProps) => {
                     )}
 
                     {areasQuery.isSuccess && areas.length === 0 && (
-                        <>
-                            <EmptyState
-                                icon={LayoutGrid}
-                                title="Nenhuma área cadastrada"
-                                description="O cadastro de áreas estará disponível em breve. Por aqui você poderá organizar dispositivos por cômodo, setor ou unidade."
-                            />
-                            <p
-                                className="text-muted mt-3 text-center text-xs italic"
-                                data-testid="areas-coming-soon"
-                            >
-                                Em breve
-                            </p>
-                        </>
+                        <EmptyState
+                            icon={LayoutGrid}
+                            title="Nenhuma área cadastrada"
+                            description="Organize os dispositivos da propriedade por cômodo, setor ou unidade — comece adicionando a primeira área."
+                        />
                     )}
 
                     {areasQuery.isSuccess && areas.length > 0 && (

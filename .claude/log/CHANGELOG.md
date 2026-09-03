@@ -3190,3 +3190,74 @@
 - **Arquivos principais:** `backend/package-lock.json`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** aplicado nesta branch (em vez de uma branch `chore/` separada a partir de `staging`) por decisão do usuário, para destravar o CI da PR #358 imediatamente.
+
+## [2026-09-02] fix: cores do wordmark "LumiTrack" na variante escura
+
+- **Branch:** fix/359-360-wordmark-e-seletor-hora-consumo
+- **Tipo:** fix
+- **O quê:** na variante `dark` do wordmark (Login, Registro e Sidebar), "Lumi" usava `text-[#e6ecf2]` (cinza-azulado claro) em vez de branco puro, e "Track" usava um gradiente (`#8fb0d6 → #a9c6a2 → #e2ef8f`) diferente do gradiente do ícone SVG da logo. Corrigido "Lumi" para `text-white` e unificado o gradiente de "Track" com o do ícone (`#5980A6 → #96B18F → #D4E277`) em ambas as variantes — a variante `light` já usava essas cores, então o `GRADIENT_BY_VARIANT` por variante virou uma única constante `TRACK_GRADIENT`.
+- **Arquivos principais:** `frontend/src/components/ui/LumiTrackWordmark.tsx`, `frontend/src/components/ui/LumiTrackWordmark.test.tsx` (novo).
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** cobre a issue #359. A issue #360 (seletor de janela de hora no histórico de consumo) segue pendente na mesma branch.
+
+## [2026-09-02] fix: seletor de janela de hora no histórico de consumo
+
+- **Branch:** fix/359-360-wordmark-e-seletor-hora-consumo
+- **Tipo:** fix
+- **O quê:** na granularidade "Hora" do histórico de consumo (propriedades, áreas, dispositivos e /relatorios), a janela consultada travava sempre na hora corrente do relógio local, sem nenhum controle para o usuário escolher outra hora já passada do dia. Adicionado `HourWindowSelect` (novo componente, `select` nativo com as opções 0h-1h até a hora corrente) exibido ao lado do `GranularityTabs` só quando "Hora" está ativa; `resolveConsumptionWindow` ganhou o parâmetro opcional `selectedHour` (default: hora corrente, comportamento inalterado quando ausente) para montar a janela a partir da hora escolhida em vez de sempre `now.getHours()`. A legenda (`describeConsumptionWindow`, substitui o antigo `CONSUMPTION_WINDOW_DESCRIPTION` estático) agora varia com a hora selecionada. Trocar de granularidade e voltar pra "Hora" reseta o seletor pra hora corrente. `ConsumptionSection` extraiu o cabeçalho pro subcomponente `ConsumptionSectionHeader` pra caber no limite de linhas por função do lint depois da nova prop.
+- **Arquivos principais:** `frontend/src/lib/consumptionWindow.ts`, `frontend/src/lib/consumptionWindow.test.ts`, `frontend/src/components/consumption/HourWindowSelect.tsx` (novo), `frontend/src/components/consumption/HourWindowSelect.test.tsx` (novo), `frontend/src/components/consumption/ConsumptionSection.tsx`, `frontend/src/components/consumption/ConsumptionSection.test.tsx`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** cobre a issue #360, encerrando a branch `fix/359-360-wordmark-e-seletor-hora-consumo` (issues #359 e #360). Sem entrega de design (`.claude/design/`) para as details pages/`/relatorios` — o `select` reaproveita as classes `.input`/`.lt-input` já usadas por `Select.tsx`, seguindo o mesmo padrão ad-hoc de `GranularityTabs`/`HistoryRangeToggle`, que também não têm handoff próprio.
+
+## [2026-09-02] fix: `cn()` descartava a cor do texto ao combinar com o tamanho de fonte do Industry (regressão do wordmark)
+
+- **Branch:** fix/359-360-wordmark-e-seletor-hora-consumo
+- **Tipo:** fix
+- **O quê:** a correção anterior do wordmark (`text-white` em `LumiTrackWordmark.tsx`) continuava renderizando "Lumi" com a cor errada em uso real — preto na Sidebar, cinza-azulado (`#e6ecf2`, cor herdada do `BrandPanel`) no Login/Registro — mesmo com o teste do componente isolado passando. Causa raiz: `lib/cn.ts` usa `tailwind-merge` sem estender o tema do projeto; a escala de fonte do Industry (`text-10`...`text-44`, sufixos puramente numéricos como `text-19`/`text-20`/`text-12-5`) não é reconhecida por padrão, e a heurística do tailwind-merge para sufixos desconhecidos de `text-` os trata como possível nome de cor — `cn("text-white", "text-19")` (uso real do `LumiTrackWordmark` via `textClassName`) descartava `text-white` por achar que as duas classes definiam a mesma propriedade. Corrigido estendendo `tailwind-merge` (`extendTailwindMerge`) para reconhecer sufixos puramente numéricos (`/^\d+(-\d+)?$/`) como tamanho de fonte, não cor.
+- **Arquivos principais:** `frontend/src/lib/cn.ts`, `frontend/src/lib/cn.test.ts` (novo), `frontend/src/components/ui/LumiTrackWordmark.test.tsx`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** bug sistêmico — qualquer combinação de um tamanho de fonte do Industry com uma classe de cor de texto via `cn()` estava sujeita ao mesmo descarte silencioso, dependendo da ordem dos argumentos; a correção em `cn.ts` cobre todo o projeto, não só o wordmark. Reportado pelo usuário após validação visual da issue #359 (o teste automatizado do componente isolado não pegava o bug porque só reproduz visualmente na composição real com `textClassName`).
+
+## [2026-09-02] fix: remove texto "Em breve" indevido nos detalhes de propriedade sem áreas
+
+- **Branch:** fix/359-360-wordmark-e-seletor-hora-consumo
+- **Tipo:** fix
+- **O quê:** o `EmptyState` de "Nenhuma área cadastrada" em `PropertyDetailsPage.tsx` trazia um parágrafo extra "Em breve" e uma descrição dizendo "o cadastro de áreas estará disponível em breve" — cópia esquecida de antes da feature existir. A criação de área já está disponível (botão "Adicionar área" abre `AreaFormDialog`, funcional). Removido o parágrafo "Em breve" e reescrita a descrição do `EmptyState` para refletir que a criação já é possível.
+- **Arquivos principais:** `frontend/src/pages/property/PropertyDetailsPage.tsx`, `frontend/src/pages/property/PropertyDetailsPage.test.tsx`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** o teste que antes travava a presença da marca "Em breve" (`renderiza a marca 'Em breve' explicitamente`) foi substituído por um teste que garante sua ausência.
+
+## [2026-09-02] refactor: barras do gráfico de histórico de consumo em âmbar
+
+- **Branch:** fix/359-360-wordmark-e-seletor-hora-consumo
+- **Tipo:** refactor
+- **O quê:** `Bar` do `ConsumptionChart` (recharts) trocou `fill="var(--color-accent)"` por `fill="var(--color-status-highlight)"` — token âmbar (`#d98a1e`) já usado no projeto como cor de destaque (nav ativa da Sidebar, eyebrow do `BrandPanel`, marcadores da Landing), não um hex novo. Os tokens legados `--color-brand-*`/`--color-energy` (tema âmbar pré-Industry, `index.css`) foram descartados de propósito — o próprio arquivo os marca como "nenhum uso novo deve ser adicionado a partir daqui". Puramente visual: sem mudança de dado, estrutura ou lógica do gráfico.
+- **Arquivos principais:** `frontend/src/components/consumption/ConsumptionChart.tsx`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** sem teste de regressão — nenhum teste do projeto (nem `ConsumptionChart.test.tsx`, nem o análogo `RealtimePowerChart.test.tsx`) verifica cor de preenchimento do recharts, porque `ResponsiveContainer` não recebe dimensões reais em jsdom e as barras não chegam a renderizar no ambiente de teste; verificado via build/lint/depcruise/prettier, sem regressão.
+
+## [2026-09-02] fix: aplica bloqueios da revisão de código do PR #361 (contraste do gráfico, testes de hora com relógio real, divergência de `now`, seletor em branco na virada do dia)
+
+- **Branch:** fix/359-360-wordmark-e-seletor-hora-consumo
+- **Tipo:** fix
+- **O quê:** resposta aos 2 bloqueios + 2 sugestões de correção do laudo `revisao-codigo` do PR #361:
+  - **Contraste insuficiente no tema claro (bloqueio, WCAG 2.2 1.4.11):** `ConsumptionChart` usava `--color-status-highlight` (~2,5:1 contra `--color-bg` no claro, abaixo do mínimo 3:1) — token semântico de "destaque de navegação", não pensado para preenchimento de gráfico. Criado token dedicado `--color-chart-amber` em `industry.css` (`#a86a12` no claro, 3,96:1/3,66:1 contra bg/surface; `#d98a1e` no escuro, inalterado, 5,81:1/5,14:1), mapeado em `index.css` e usado no `Bar`.
+  - **Testes que passavam sem asserção (bloqueio):** os 2 testes do seletor de hora liam `new Date()` real e tinham `if (...) return` que os tornava no-op entre 00:00-00:59 (~4% das execuções de CI). Corrigido com `vi.useFakeTimers()`/`vi.setSystemTime` (mesmo padrão de `NOW` fixo de `consumptionWindow.test.ts`), removendo os `return` condicionais.
+  - **Duas leituras independentes de `new Date()` podendo divergir na virada da hora (sugestão de correção real):** `currentHour` e a janela consultada por `resolveConsumptionWindow` liam o relógio em momentos diferentes do render. `ConsumptionSection` agora captura `now` uma única vez por render e reaproveita nos dois — o `useMemo` da janela também saiu (a função é barata e determinística a partir de `granularity`/`now`/hora efetiva; memoizar exigiria incluir `now` nas deps, o que recalcularia a cada render de qualquer forma).
+  - **`<select>` em branco na virada do dia (sugestão de correção real):** se a aba "Hora" ficasse aberta durante a virada, `selectedHour` podia ficar maior que a nova `currentHour` (ex.: 23h após a virada pra 0h), e o `<select>` renderizava um `value` sem `<option>` correspondente. Corrigido clampando a hora efetivamente exibida/consultada a `Math.min(selectedHour, currentHour)`.
+- **Arquivos principais:** `frontend/src/styles/industry.css`, `frontend/src/index.css`, `frontend/src/components/consumption/ConsumptionChart.tsx`, `frontend/src/components/consumption/ConsumptionSection.tsx`, `frontend/src/components/consumption/ConsumptionSection.test.tsx`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** cálculo de contraste (luminância relativa WCAG) conferido à mão para os dois temas antes de escolher `#a86a12`. Suíte completa (797 testes), build/type-check, lint e depcruise sem apontamentos.
+
+## [2026-09-02] refactor: aplica sugestões de qualidade da revisão do PR #361 (reuso de Select, token do gradiente da marca, comentários)
+
+- **Branch:** fix/359-360-wordmark-e-seletor-hora-consumo
+- **Tipo:** refactor
+- **O quê:** resposta às sugestões de qualidade do laudo `revisao-codigo` do PR #361, todas preservando comportamento:
+  - **Duplicação de UI:** `HourWindowSelect` reimplementava um `<select>` nativo com as mesmas classes de `components/ui/Select.tsx`, que já existe. Passou a usar `<Select>` internamente.
+  - **YAGNI:** removida a prop `className` de `HourWindowSelect` — não tinha nenhum call site passando um valor.
+  - **Token de design:** os 2 stops do gradiente de "Track" que ainda não tinham token (`#96B18F`/`#D4E277` — o 1º, `#5980A6`, já era `--color-accent`) viraram `--color-brand-gradient-mid`/`--color-brand-gradient-end` em `industry.css`, mapeados em `index.css`. `TRACK_GRADIENT` trocou os valores arbitrários entre colchetes pelas classes Tailwind dos tokens (`from-accent via-brand-gradient-mid to-brand-gradient-end`). `LumiTrackWordmark.tsx` saiu da exceção de hex hardcoded no `eslint.config.js` (moveu pro grupo que só ainda tem dívida de espaçonamento arbitrário, por causa de `h-[29px]`) — não sobra mais hex no arquivo.
+  - **Comentários narrando o estado anterior:** reescritos para descrever o comportamento atual em vez de contar a história da mudança (`consumptionWindow.ts`, `ConsumptionSection.tsx`, `LumiTrackWordmark.test.tsx`) — a história já vive no git/CHANGELOG.
+- **Arquivos principais:** `frontend/src/components/consumption/HourWindowSelect.tsx`, `frontend/src/styles/industry.css`, `frontend/src/index.css`, `frontend/src/components/ui/LumiTrackWordmark.tsx`, `frontend/src/components/ui/LumiTrackWordmark.test.tsx`, `frontend/eslint.config.js`, `frontend/src/lib/consumptionWindow.ts`, `frontend/src/components/consumption/ConsumptionSection.tsx`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** duas sugestões do laudo não foram aplicadas — o commit `f416a20` classificado como `refactor` quando mudou comportamento visível (deveria ser `fix`/`style`) não pode ser corrigido sem reescrever histórico já publicado (`git commit --amend` + force-push), operação destrutiva fora do que a skill de refatoração faz sozinha; e a sugestão de abrir uma issue própria para a cor do gráfico (em vez de entrar de carona no PR das issues #359/#360) é uma decisão de processo, não de código — repassada ao usuário. Suíte completa (797 testes), build/type-check, lint, depcruise e prettier sem apontamentos.

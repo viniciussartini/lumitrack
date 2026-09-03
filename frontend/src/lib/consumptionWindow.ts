@@ -14,15 +14,30 @@ const BUCKET_BY_GRANULARITY: Record<Granularity, BucketSize> = {
 }
 
 /**
- * Legenda da janela ativa, por granularidade — mesma tradução janela/bucket
- * de `BUCKET_BY_GRANULARITY` acima, em texto pro usuário (`ConsumptionSection`,
- * exibida abaixo do título "Histórico de consumo").
+ * Legenda das granularidades sem seletor de janela própria — dia/mês/ano
+ * sempre cobrem o período corrente, sem escolha do usuário.
  */
-export const CONSUMPTION_WINDOW_DESCRIPTION: Record<Granularity, string> = {
-    hour: "Consumo da hora corrente, minuto a minuto",
+const WINDOW_DESCRIPTION_BY_GRANULARITY: Record<Exclude<Granularity, "hour">, string> = {
     day: "Consumo do dia corrente, hora a hora",
     month: "Consumo do mês corrente, dia a dia",
     year: "Consumo do ano corrente, mês a mês",
+}
+
+/**
+ * Legenda da janela ativa (`ConsumptionSection`, exibida abaixo do título
+ * "Histórico de consumo"). Em "Hora" varia com a hora escolhida no
+ * `HourWindowSelect`: texto genérico quando a hora escolhida é a corrente,
+ * e cita a janela quando o usuário escolheu outra hora já passada do dia.
+ */
+export const describeConsumptionWindow = (
+    granularity: Granularity,
+    selectedHour: number,
+    currentHour: number,
+): string => {
+    if (granularity !== "hour") return WINDOW_DESCRIPTION_BY_GRANULARITY[granularity]
+    return selectedHour === currentHour
+        ? "Consumo da hora corrente, minuto a minuto"
+        : `Consumo de ${selectedHour}h às ${selectedHour + 1}h, minuto a minuto`
 }
 
 export interface ConsumptionWindow {
@@ -43,15 +58,20 @@ export interface ConsumptionWindow {
  *
  * `to` cai no início da janela seguinte (exclusivo, como o filtro do backend)
  * e por isso fica no futuro — inofensivo, já que não há leitura futura.
+ *
+ * `selectedHour` sobrepõe a hora de `now` só na granularidade "hora" —
+ * qualquer outra hora já passada do dia corrente, escolhida no
+ * `HourWindowSelect`; sem `selectedHour`, a janela usa a hora de `now`.
  */
 export const resolveConsumptionWindow = (
     granularity: Granularity,
     now: Date = new Date(),
+    selectedHour?: number,
 ): ConsumptionWindow => {
     const year = now.getFullYear()
     const month = now.getMonth()
     const day = now.getDate()
-    const hour = now.getHours()
+    const hour = selectedHour ?? now.getHours()
     const bucketSize = BUCKET_BY_GRANULARITY[granularity]
 
     // O construtor de Date normaliza o estouro de cada campo (hora 24 vira o

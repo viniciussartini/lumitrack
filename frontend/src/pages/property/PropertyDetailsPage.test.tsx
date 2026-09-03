@@ -382,10 +382,12 @@ describe("PropertyDetailsPage — seção de áreas (vazia)", () => {
         expect(await screen.findByRole("dialog", { name: /adicionar área/i })).toBeInTheDocument()
     })
 
-    it("renderiza a marca 'Em breve' explicitamente", async () => {
+    it("não mostra 'Em breve' — a criação de área já está disponível (botão 'Adicionar área')", async () => {
         renderPage()
 
-        expect(await screen.findByTestId("areas-coming-soon")).toBeInTheDocument()
+        await screen.findByText(/nenhuma área cadastrada/i)
+
+        expect(screen.queryByText(/em breve/i)).not.toBeInTheDocument()
     })
 })
 

@@ -116,6 +116,7 @@
     --color-status-danger-strong: var(--color-status-danger-strong);
     --color-status-highlight: var(--color-status-highlight);
     --color-status-live: var(--color-status-live);
+    --color-chart-amber: var(--color-chart-amber);
 
     --color-flag-green: var(--color-flag-green);
     --color-flag-yellow: var(--color-flag-yellow);
@@ -124,6 +125,9 @@
     --color-flag-red-p1-dot: var(--color-flag-red-p1-dot);
     --color-flag-red-p2: var(--color-flag-red-p2);
     --color-flag-red-p2-dot: var(--color-flag-red-p2-dot);
+
+    --color-brand-gradient-mid: var(--color-brand-gradient-mid);
+    --color-brand-gradient-end: var(--color-brand-gradient-end);
 
     /* Escala tipográfica — ver styles/industry.css (adaptação do projeto).
        Aditiva à escala padrão do Tailwind (text-xs/sm/base/lg/xl...), que
