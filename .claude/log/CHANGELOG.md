@@ -3261,3 +3261,12 @@
 - **Arquivos principais:** `frontend/src/components/consumption/HourWindowSelect.tsx`, `frontend/src/styles/industry.css`, `frontend/src/index.css`, `frontend/src/components/ui/LumiTrackWordmark.tsx`, `frontend/src/components/ui/LumiTrackWordmark.test.tsx`, `frontend/eslint.config.js`, `frontend/src/lib/consumptionWindow.ts`, `frontend/src/components/consumption/ConsumptionSection.tsx`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** duas sugestões do laudo não foram aplicadas — o commit `f416a20` classificado como `refactor` quando mudou comportamento visível (deveria ser `fix`/`style`) não pode ser corrigido sem reescrever histórico já publicado (`git commit --amend` + force-push), operação destrutiva fora do que a skill de refatoração faz sozinha; e a sugestão de abrir uma issue própria para a cor do gráfico (em vez de entrar de carona no PR das issues #359/#360) é uma decisão de processo, não de código — repassada ao usuário. Suíte completa (797 testes), build/type-check, lint, depcruise e prettier sem apontamentos.
+
+## [2026-09-02] docs: roadmap atualizado — Fase 18 concluída, Fase 19 atual
+
+- **Branch:** fix/359-360-wordmark-e-seletor-hora-consumo
+- **Tipo:** docs
+- **O quê:** `.claude/docs/roadmap.md` atualizado: Fase 18 (design system, cobertura e polimento) marcada concluída — os 16 itens fecharam em 3 PRs (#354 épico #334, #355 épico #335, #357 itens 6–16), mais 4 issues que o detalhamento tinha registrado como fora do escopo mas couberam no mesmo lote (#269, #272, #289, #303); #302 fechada à parte como adiada (ADR-0014); #315 segue em aberto, sem destino. Fase 19 (Grupo A — fundação tarifária + Horária Verde/A4), já detalhada desde 2026-08-05, passa a ser a fase atual — sem alteração no conteúdo, só no ponteiro. Registradas também, fora da estrutura de fases, as duas correções não planejadas que entraram entre o fechamento da 18 e agora: PR #358 (medidor em tempo real) e PR #361 (issues #359/#360 — wordmark e seletor de hora — mais os achados da própria revisão de código). Nova seção "Replanejamento de 2026-09-02" registra a justificativa completa.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova — só cross-referência à ADR-0014 já existente.
+- **Notas:** cruzado com `gh issue list`/`gh pr list` para confirmar os números antes de escrever (não presumido a partir do plano antigo).
