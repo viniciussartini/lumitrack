@@ -371,6 +371,13 @@ model EnergyDistributor {
   pisRate    Decimal @db.Decimal(5, 4)
   cofinsRate Decimal @db.Decimal(5, 4)
 
+  // Janela de ponta do Grupo A (RN24) — hora local, início inclusivo e fim
+  // exclusivo (ex.: 18/21 = 18h–21h). Configurável por distribuidora porque
+  // varia por local/estado; nulo até uma distribuidora oferecer Grupo A.
+  // Não usado pelo Grupo B (que é monômio, sem posto horário).
+  peakWindowStartHour Int?
+  peakWindowEndHour   Int?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

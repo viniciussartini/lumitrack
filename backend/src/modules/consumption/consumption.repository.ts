@@ -1,6 +1,7 @@
-import { Prisma, PrismaClient } from "@/generated/prisma/client.js"
+import { Prisma, PrismaClient, type TariffPost } from "@/generated/prisma/client.js"
 import type { BucketOrder, Granularity } from "@/modules/consumption/consumption.schema.js"
 import { localTsExpr, rangeFilter } from "@/shared/database/timeBucket.js"
+import type { PeakWindowConfig } from "@/shared/tariff/tariffPost.js"
 
 // Whitelist explícita do argumento de date_trunc — o valor já vem validado
 // pelo zod (enum fechado), mas mapear em vez de interpolar a string do
@@ -33,6 +34,11 @@ export type MonthlyKwhForYear = {
 }
 
 export type LatestBucketForMeter = ConsumptionBucket & { meterId: string }
+
+export type ConsumptionByPost = {
+    post: TariffPost
+    kwhConsumed: number
+}
 
 /**
  * Recorte comum das duas agregações: qual medidor, que bucket, que janela.
@@ -237,5 +243,59 @@ export class ConsumptionRepository {
             kwhConsumed: Number(r.kwh),
             avgPowerW: Number(r.avgpower ?? 0),
         }))
+    }
+
+    /**
+     * Consumo agregado por posto tarifário (RN24/RN25) — fundação da
+     * tarifação binômia do Grupo A (RN17: soma o consumo de cada posto pela
+     * tarifa daquele posto). Classificação inteira em SQL (fim de semana,
+     * feriado e janela de ponta), nunca em JS: `meter_readings` é a maior
+     * tabela do sistema, e puxar linha por linha para classificar no
+     * Node inflaria exatamente a consulta que o laudo de desempenho já
+     * identifica como a mais cara do produto.
+     *
+     * `holidayDates` é calculado fora daqui (`shared/time/holidays.ts`) —
+     * datas móveis (Carnaval, Sexta-Feira Santa, Corpus Christi) são cálculo,
+     * não uma tabela no banco.
+     *
+     * @param meterId - Id do medidor.
+     * @param from - Início da janela (inclusive).
+     * @param to - Fim da janela (exclusive).
+     * @param peakWindow - Janela de ponta da distribuidora (RN24).
+     * @param holidayDates - Feriados nacionais que caem dentro da janela (RN25).
+     * @returns O consumo (kWh) somado por posto — só os postos com alguma leitura aparecem.
+     */
+    async findKwhByPost(
+        meterId: string,
+        from: Date,
+        to: Date,
+        peakWindow: PeakWindowConfig,
+        holidayDates: Date[],
+    ): Promise<ConsumptionByPost[]> {
+        const { peakWindowStartHour, peakWindowEndHour } = peakWindow
+
+        const rows = await this.prisma.$queryRaw<{ post: TariffPost; kwh: number }[]>(
+            Prisma.sql`
+                SELECT post, SUM(kwh) AS kwh
+                FROM (
+                    SELECT
+                        CASE
+                            WHEN EXTRACT(DOW FROM ${localTsExpr()}) IN (0, 6) THEN 'OFF_PEAK'
+                            WHEN (${localTsExpr()})::date = ANY(${holidayDates}::date[]) THEN 'OFF_PEAK'
+                            WHEN EXTRACT(HOUR FROM ${localTsExpr()}) >= ${peakWindowStartHour}
+                                AND EXTRACT(HOUR FROM ${localTsExpr()}) < ${peakWindowEndHour}
+                                THEN 'PEAK'
+                            ELSE 'OFF_PEAK'
+                        END AS post,
+                        "kwhConsumed" AS kwh
+                    FROM "meter_readings"
+                    WHERE "meterId" = ${meterId}
+                    ${rangeFilter(from, to)}
+                ) classified
+                GROUP BY post
+            `,
+        )
+
+        return rows.map((r) => ({ post: r.post, kwhConsumed: Number(r.kwh) }))
     }
 }

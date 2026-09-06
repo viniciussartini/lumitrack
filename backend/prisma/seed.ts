@@ -23,6 +23,13 @@ import { prisma } from "@/shared/database/prisma.js"
 const PIS_RATE = 0.0165 // ~1,65%
 const COFINS_RATE = 0.076 // ~7,6%
 
+// Janela de ponta (RN24) — "geralmente 18h–21h" é o próprio padrão nacional
+// citado no documento de referência; aplicada às 11 distribuidoras do seed
+// pela mesma ressalva de aproximação já registrada acima (RF45, catálogo
+// editável com vigência, é quem permitirá diferenciar por distribuidora).
+const PEAK_WINDOW_START_HOUR = 18
+const PEAK_WINDOW_END_HOUR = 21
+
 // Reaproveitada pelo catálogo Grupo A (seedGroupATariffCatalog) — mesma
 // distribuidora já semeada abaixo, sem duplicar registro.
 const CELESC_CNPJ = "08.336.783/0001-90"
@@ -148,6 +155,8 @@ async function seedDistributors(): Promise<void> {
                 icmsRate: d.icmsRate,
                 pisRate: PIS_RATE,
                 cofinsRate: COFINS_RATE,
+                peakWindowStartHour: PEAK_WINDOW_START_HOUR,
+                peakWindowEndHour: PEAK_WINDOW_END_HOUR,
             },
             create: {
                 name: d.name,
@@ -158,6 +167,8 @@ async function seedDistributors(): Promise<void> {
                 icmsRate: d.icmsRate,
                 pisRate: PIS_RATE,
                 cofinsRate: COFINS_RATE,
+                peakWindowStartHour: PEAK_WINDOW_START_HOUR,
+                peakWindowEndHour: PEAK_WINDOW_END_HOUR,
             },
         })
     }
