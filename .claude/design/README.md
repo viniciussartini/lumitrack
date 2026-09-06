@@ -10,6 +10,7 @@ Regras completas (tokens como contrato, divergência, ausência, acessibilidade 
 
 | Diretório | Escopo | Design system |
 |---|---|---|
-| `2026-07-31-lumitrack-completo/` | Produto inteiro — 8 telas (landing, auth, LGPD, app logado, simulador IoT). **Vigente.** | Industry (ADR-0005) |
+| `2026-09-06-lumitrack-completo/` | Produto inteiro — 10 telas: as 8 do export anterior (byte-idênticas) mais `LumiTrack Home v2` (app logado redesenhado, com Grupo A) e `LumiTrack Relatório A4` (template do relatório exportado). **Vigente.** | Industry (ADR-0005) |
+| `2026-07-31-lumitrack-completo/` | Produto inteiro — 8 telas (landing, auth, LGPD, app logado, simulador IoT). Histórico: superado pelo bundle acima, que contém as mesmas 8 telas. | Industry (ADR-0005) |
 
 Índice das telas, mapeamento para o código e como abrir os protótipos: seção "Bundle vigente" do `10-design-system.md`.

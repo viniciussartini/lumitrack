@@ -43,26 +43,36 @@ Alvo **WCAG 2.2 AA**: contraste, foco visível, navegação por teclado, rótulo
 
 ## Bundle vigente
 
-**`.claude/design/2026-07-31-lumitrack-completo/`** — export do produto inteiro, fidelidade **hifi** (cores, tipografia, espaçamentos, estados e microinterações são finais). Design system: **Industry** (ver ADR-0005).
+**`.claude/design/2026-09-06-lumitrack-completo/`** — export do produto inteiro, fidelidade **hifi** (cores, tipografia, espaçamentos, estados e microinterações são finais). Design system: **Industry** (ver ADR-0005).
 
-| Tela | Arquivo em `design/` | Equivalente no código |
+Este bundle é o export de 2026-07-31 **mais duas telas novas** — as 8 telas anteriores vieram byte-idênticas, conferido por comparação arquivo a arquivo. O que mudou de fato:
+
+- **`LumiTrack Home v2.dc.html` substitui `LumiTrack Home.dc.html` como alvo do app logado.** Essa declaração é necessária porque a regra "o mais recente vale por tela" não resolve sozinha o caso: as duas telas cobrem a mesma superfície, e a v2 redesenha a arquitetura de informação inteira. Navegação-alvo: **Painel · Análise · Histórico · Relatórios · Alertas · Distribuidoras · Sobre o projeto**, mais **Configurações** (Cadastro, Relatórios, Metas, Conta). "Propriedades" deixa de ser item de menu e vira a tela de **Análise**; o CRUD da hierarquia migra para Configurações → Cadastro.
+- **A v2 traz o handoff de Grupo A** (demanda contratada, postos horários, ultrapassagem, tarifas com vigência) que o roadmap ainda registra como inexistente no item "UI: cadastro Grupo A" da Fase 19 — a ressalva "sem handoff de design" daquele item deixou de valer. A v2 também alcança escopo das Fases 20–22 (demanda de ponta e fora de ponta, PLD/submercado/comercializadora do mercado livre).
+- **`LumiTrack Relatório A4.dc.html`** é o template do relatório exportado (capa, consumo diário, consumo por ambiente, detalhamento por dispositivo, alertas do período, observações, paginação) — a primeira especificação de saída em documento do produto.
+
+| Tela | Arquivo | Equivalente no código |
 |---|---|---|
 | Landing pública | `LumiTrack Landing.dc.html` | `pages/landing/LandingPage.tsx` |
 | Login | `LumiTrack Login.dc.html` | `pages/auth/LoginPage.tsx` |
 | Registro | `LumiTrack Registro.dc.html` | `pages/auth/RegisterPage.tsx` |
 | Recuperar senha | `LumiTrack Recuperar Senha.dc.html` | `pages/auth/ForgotPasswordPage.tsx`, `pages/auth/ResetPasswordPage.tsx` |
 | LGPD / privacidade | `LumiTrack LGPD.dc.html` | `pages/legal/` |
-| App logado (dashboard, propriedades, alertas, distribuidoras, perfil, segurança/MFA, modais) | `LumiTrack Home.dc.html` | `pages/dashboard/`, `pages/property/`, `pages/alert/`, `pages/distributor/`, `pages/profile/`, `pages/settings/` |
-| Chrome do app logado (sidebar, topbar) | `LumiTrack Home.dc.html` (linhas 61–148) | `components/layout/` — migrado na Fase 6 (#135, #136) |
+| **App logado — alvo** (Painel, Análise, Histórico, Relatórios, Alertas, Distribuidoras, Sobre, Configurações, Perfil, Segurança/MFA, modais) | **`LumiTrack Home v2.dc.html`** | `pages/dashboard/`, `pages/property/`, `pages/alert/`, `pages/distributor/`, `pages/report/`, `pages/profile/`, `pages/settings/` |
+| Chrome do app logado (sidebar, topbar) | `LumiTrack Home v2.dc.html` | `components/layout/` |
+| App logado — versão anterior, **histórico** | `LumiTrack Home.dc.html` | o que está implementado hoje (migrado nas Fases 1–7) |
+| Relatório exportado (template A4) | `LumiTrack Relatório A4.dc.html` | — (não existe ainda; RF40/FNC007 do `02`) |
 | Login do simulador IoT | `LumiTrack IoT Login.dc.html` | — (não existe ainda; desde a Fase 13/#180 o perímetro do simulador é protegido por token estático, então uma tela de login é decisão de UX, não lacuna de segurança) |
 | Dashboard do simulador IoT | `LumiTrack IoT Simulator.dc.html` | `iot-simulator/ui/` |
 
-> Telas do código **sem** handoff no bundle: `pages/report/` (Relatórios), `pages/simulation/` (Simulações, hoje placeholder) e "Sobre o projeto" (`/sobre`) — as três caem na **regra de ausência** abaixo. As duas primeiras estão registradas como adiadas no `.claude/docs/roadmap.md`; a terceira foi entregue na Fase 6 como versão provisória, marcada com `TODO(design)` e aguardando um export dedicado.
+> Telas do código **sem** handoff no bundle: `pages/simulation/` (Simulações, hoje placeholder) e "Sobre o projeto" (`/sobre`, entregue na Fase 6 como versão provisória com `TODO(design)`) — as duas caem na **regra de ausência** abaixo. Relatórios saiu desta lista: passou a ter handoff (a view `reports` da v2 e o template A4).
+>
+> **A v2 é design-alvo, não descrição do que existe.** Boa parte dela ainda não tem implementação nenhuma (Histórico, Metas, Configurações, aba de grandezas elétricas, relatórios agendados) e ainda não foi sequenciada em fase — o `02-requisitos.md` marca cada item com o status correspondente. Trabalho de UI numa tela **já implementada** segue a v2 direto; construir tela nova a partir dela é feature nova, com o rito normal de roadmap/issue.
 
-- O `README.md` do bundle é a especificação: mapa de telas, tokens, vocabulário de classes (`.lt-*`), estado mínimo e comportamento esperado.
-- `design-system/styles.css` é a **fonte única** de tokens e classes do Industry.
+- O `README.md` do bundle (em `design_handoff_lumitrack/`) é a especificação: mapa de telas, tokens, vocabulário de classes (`.lt-*`), estado mínimo e comportamento esperado. **Ele descreve o export anterior** — não cobre `Home v2` nem `Relatório A4`; para essas duas, a especificação é o próprio `.dc.html`.
+- `design-system/styles.css` é a **fonte única** de tokens e classes do Industry. O bundle traz também `_ds/modernist-*` e `_ds/classical-*`, que **não** são usados pelo projeto — o design system do produto é o Industry (ADR-0005).
 - Os `.dc.html` são protótipos autocontidos (markup = layout, `renderVals()` = dados mock, `<style>` = tokens locais) — **referência de design, não código de produção para copiar**. A implementação recria em React seguindo os padrões do codebase.
-- Para abrir: `npx serve .claude/design/2026-07-31-lumitrack-completo/design`.
+- Para abrir: `npx serve .claude/design/2026-09-06-lumitrack-completo`.
 
 > **Estado da migração (atualizado em 2026-08-09):** a migração do frontend para o Industry está **concluída** — telas nas Fases 1–5, chrome do app autenticado (Sidebar, Header, AppShell) na Fase 6 e consistência das telas públicas na Fase 7. O tema anterior (âmbar/slate, dark mode por classe `.dark`) não existe mais; o dark mode é por `data-theme` e os tokens vêm de `frontend/src/styles/industry.css`. A decisão deixou de ser um item em aberto do `07` (ver ADR-0005 e ADR-0006). Trabalho de UI em tela já migrada segue o bundle direto, sem perguntar antes.
 >
