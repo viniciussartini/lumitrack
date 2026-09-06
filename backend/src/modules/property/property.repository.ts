@@ -31,6 +31,7 @@ export type ResolvedTariffGroupFields = {
     billingClass: BillingClass | null
     tariffSubgroup: TariffSubgroup | null
     tariffModality: TariffModality | null
+    contractedDemandKw: number | null
 }
 
 /**
@@ -145,6 +146,7 @@ export class PropertyRepository {
                 billingClass: tariffGroupFields.billingClass,
                 tariffSubgroup: tariffGroupFields.tariffSubgroup,
                 tariffModality: tariffGroupFields.tariffModality,
+                contractedDemandKw: tariffGroupFields.contractedDemandKw,
                 publicLightingFeeBrl: data.publicLightingFeeBrl ?? null,
             },
         })
@@ -199,6 +201,7 @@ export class PropertyRepository {
                     billingClass: tariffGroupFields.billingClass,
                     tariffSubgroup: tariffGroupFields.tariffSubgroup,
                     tariffModality: tariffGroupFields.tariffModality,
+                    contractedDemandKw: tariffGroupFields.contractedDemandKw,
                 }),
             },
         })

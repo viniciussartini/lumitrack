@@ -474,11 +474,14 @@ model Property {
   billingClass BillingClass? @default(B1)
 
   // Subgrupo e modalidade do Grupo A (RF25) — nulos para Grupo B.
-  // contractedDemandKw (demanda contratada) não mora aqui: é consumida pelo
-  // cálculo binômio, então entra junto dele (Fase 19, item "Tarifação
-  // binômia Horária Verde").
   tariffSubgroup TariffSubgroup?
   tariffModality TariffModality?
+
+  // Demanda contratada (kW, RF25) — obrigatória para Grupo A (validada em
+  // property.service.ts, mesmo padrão de tariffSubgroup/tariffModality),
+  // null para Grupo B. Verde/Convencional usam 1 valor só; Azul (2 demandas,
+  // ponta/fora-ponta) é extensão de modelo da Fase 20, fora de escopo aqui.
+  contractedDemandKw Float?
 
   // CIP/COSIP municipal (contribuição de iluminação pública) em BRL — valor fixo
   // somado FORA da base de tributos. Opcional: nem todo município cobra.

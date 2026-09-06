@@ -42,6 +42,7 @@ export class PropertyService {
         billingClass: BillingClass | undefined
         tariffSubgroup: TariffSubgroup | undefined
         tariffModality: TariffModality | undefined
+        contractedDemandKw: number | undefined
     }): ResolvedTariffGroupFields {
         if (fields.tariffGroup === "GROUP_A") {
             if (!fields.tariffSubgroup) {
@@ -57,10 +58,16 @@ export class PropertyService {
                     "Classe de faturamento não se aplica a propriedades do Grupo A",
                 )
             }
+            if (fields.contractedDemandKw === undefined) {
+                throw new ValidationError(
+                    "Demanda contratada é obrigatória para propriedades do Grupo A",
+                )
+            }
             return {
                 billingClass: null,
                 tariffSubgroup: fields.tariffSubgroup,
                 tariffModality: fields.tariffModality,
+                contractedDemandKw: fields.contractedDemandKw,
             }
         }
 
@@ -70,10 +77,14 @@ export class PropertyService {
         if (fields.tariffModality) {
             throw new ValidationError("Modalidade tarifária só se aplica a propriedades do Grupo A")
         }
+        if (fields.contractedDemandKw !== undefined) {
+            throw new ValidationError("Demanda contratada só se aplica a propriedades do Grupo A")
+        }
         return {
             billingClass: fields.billingClass ?? "B1",
             tariffSubgroup: null,
             tariffModality: null,
+            contractedDemandKw: null,
         }
     }
 
@@ -95,6 +106,7 @@ export class PropertyService {
             billingClass: data.billingClass,
             tariffSubgroup: data.tariffSubgroup,
             tariffModality: data.tariffModality,
+            contractedDemandKw: data.contractedDemandKw,
         })
 
         return this.propertyRepository.create(userId, data, tariffGroupFields)
@@ -157,7 +169,8 @@ export class PropertyService {
             data.tariffGroup !== undefined ||
             data.billingClass !== undefined ||
             data.tariffSubgroup !== undefined ||
-            data.tariffModality !== undefined
+            data.tariffModality !== undefined ||
+            data.contractedDemandKw !== undefined
 
         if (!touchesTariffGroup) {
             return undefined
@@ -181,6 +194,11 @@ export class PropertyService {
             tariffModality: this.carryOverIfSameGroup(
                 data.tariffModality,
                 existing.tariffModality,
+                keepsExistingGroup,
+            ),
+            contractedDemandKw: this.carryOverIfSameGroup(
+                data.contractedDemandKw,
+                existing.contractedDemandKw,
                 keepsExistingGroup,
             ),
         })

@@ -8,6 +8,7 @@ import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
+import { TariffCatalogRepository } from "@/modules/distributor/tariff-catalog.repository.js"
 import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
 
 // Rota top-level: /api/consumption — consumo agregado via MeterReading,
@@ -26,6 +27,7 @@ export function consumptionRoutes(
     const deviceRepository = new DeviceRepository(prismaClient)
     const distributorRepository = new DistributorRepository(prismaClient)
     const tariffFlagRepository = new TariffFlagRepository(prismaClient)
+    const tariffCatalogRepository = new TariffCatalogRepository(prismaClient)
 
     const consumptionService = new ConsumptionService(
         consumptionRepository,
@@ -35,6 +37,7 @@ export function consumptionRoutes(
         deviceRepository,
         distributorRepository,
         tariffFlagRepository,
+        tariffCatalogRepository,
     )
     const controller = new ConsumptionController(consumptionService)
 

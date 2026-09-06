@@ -56,11 +56,11 @@
 
 ### Tarifação — Grupo A e modalidades horárias
 
-- RF25 `[planejado — Fase 19]`: o sistema deve permitir cadastrar uma Propriedade do Grupo A com subgrupo (A1–A4, AS), modalidade tarifária e demanda contratada em kW, validando a demanda como obrigatória conforme a modalidade.
-- RF26 `[planejado — Fase 19]`: o catálogo tarifário deve comportar valores por distribuidora × subgrupo × modalidade × posto, com tarifa de energia (TUSD + TE) e de demanda (TUSD demanda), preservando sem perda os dados de Grupo B existentes.
-- RF27 `[planejado — Fase 19]`: o sistema deve classificar o consumo por posto tarifário (ponta, intermediário, fora de ponta) conforme horário e dia, com janela de ponta configurável por distribuidora e calendário de feriados nacionais, incluindo os móveis.
-- RF28 `[planejado — Fase 19]`: o sistema deve apurar a demanda medida (kW) por posto a partir das próprias leituras do medidor, sem exigir que o usuário informe qualquer valor.
-- RF29 `[planejado — Fase 19]`: o sistema deve calcular a conta binômia da modalidade Horária Verde, devolvendo a decomposição separada de demanda, consumo por posto, bandeira, tributos e CIP.
+- RF25 `[implementado]`: o sistema deve permitir cadastrar uma Propriedade do Grupo A com subgrupo (A1–A4, AS), modalidade tarifária e demanda contratada em kW, validando a demanda como obrigatória conforme a modalidade.
+- RF26 `[implementado]`: o catálogo tarifário deve comportar valores por distribuidora × subgrupo × modalidade × posto, com tarifa de energia (TUSD + TE) e de demanda (TUSD demanda), preservando sem perda os dados de Grupo B existentes.
+- RF27 `[implementado]`: o sistema deve classificar o consumo por posto tarifário (ponta, intermediário, fora de ponta) conforme horário e dia, com janela de ponta configurável por distribuidora e calendário de feriados nacionais, incluindo os móveis.
+- RF28 `[implementado]`: o sistema deve apurar a demanda medida (kW) por posto a partir das próprias leituras do medidor, sem exigir que o usuário informe qualquer valor.
+- RF29 `[implementado]`: o sistema deve calcular a conta binômia da modalidade Horária Verde, devolvendo a decomposição separada de demanda, consumo por posto, bandeira, tributos e CIP.
 - RF30 `[planejado — Fase 20]`: o sistema deve suportar a modalidade Horária Azul, com duas demandas contratadas (ponta e fora de ponta) e quatro tarifas distintas.
 - RF31 `[planejado — Fase 20]`: o sistema deve calcular a ultrapassagem de demanda e permitir que um usuário do Grupo A configure alerta de ultrapassagem da demanda contratada. *(Substitui o item anteriormente registrado sem número como "RFXX".)*
 - RF32 `[planejado — Fase 20]`: o sistema deve calcular a energia reativa excedente quando o fator de potência ficar abaixo do mínimo regulatório.
@@ -184,7 +184,7 @@ Fórmulas conferidas contra `backend/src/shared/tariff/tariff.service.ts`, não 
 
 Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exemplo 6 (A4 Verde, R$ 22.464,75) e Exemplo 7 (A4 Azul com ERE, R$ 101.496,36).
 
-- RN17 `[planejado — Fase 19]`: **conta binômia** — demanda e consumo são cobrados separadamente, e os tributos incidem por dentro sobre o conjunto:
+- RN17 `[implementado — Verde; ERE/ultrapassagem planejados — Fase 20]`: **conta binômia** — demanda e consumo são cobrados separadamente, e os tributos incidem por dentro sobre o conjunto:
 
   ```text
   parcelaConsumo = Σ_posto (consumoPosto × (TUSDenergiaPosto + TEenergiaPosto))
@@ -193,14 +193,14 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
   total = totalComTributos + CIP
   ```
 
-- RN18 `[planejado — Fase 19 / Fase 20]`: **parcela de demanda** varia com a modalidade:
+- RN18 `[implementado — Verde; Azul planejado — Fase 20]`: **parcela de demanda** varia com a modalidade:
 
   ```text
   Verde: parcelaDemanda = demandaContratada × TUSDdemanda
   Azul:  parcelaDemanda = Σ_posto (demandaContratadaPosto × TUSDdemandaPosto)   // ponta e fora de ponta
   ```
 
-- RN19 `[planejado — Fase 19]`: **demanda medida** é a maior potência média em janelas de 15 minutos, apurada por posto — derivada das próprias leituras, não informada pelo usuário:
+- RN19 `[implementado]`: **demanda medida** é a maior potência média em janelas de 15 minutos, apurada por posto — derivada das próprias leituras, não informada pelo usuário:
 
   ```text
   demandaPosto = max( média(potênciaAtiva) em cada janela de 15 min do posto )
@@ -218,12 +218,12 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
   ```
 
 - RN21 `[planejado — Fase 20]`: **energia reativa excedente (ERE)** é cobrada quando o fator de potência fica abaixo de 0,92 — indutivo medido entre 6h e 24h, capacitivo entre 0h e 6h, tarifado em R$/kVArh.
-- RN22 `[planejado — Fase 19]`: a **bandeira incide sobre o consumo medido, nunca sobre a demanda**.
-- RN23 `[planejado — Fase 19]`: **não há piso de disponibilidade no Grupo A** — o papel equivalente é da demanda contratada, que é paga integralmente mesmo se não utilizada. O caminho de cálculo ramifica por grupo em vez de aplicar o piso incondicionalmente.
+- RN22 `[implementado]`: a **bandeira incide sobre o consumo medido, nunca sobre a demanda**.
+- RN23 `[implementado]`: **não há piso de disponibilidade no Grupo A** — o papel equivalente é da demanda contratada, que é paga integralmente mesmo se não utilizada. O caminho de cálculo ramifica por grupo em vez de aplicar o piso incondicionalmente.
 
 ### Postos tarifários e calendário
 
-- RN24 `[planejado — Fase 19]`: o consumo é classificado em **ponta, intermediário e fora de ponta** conforme o horário. A janela de ponta é configurável **por distribuidora** — tipicamente 18h–21h, mas varia por local e estado; um valor fixo no código estaria errado para parte do catálogo.
+- RN24 `[implementado]`: o consumo é classificado em **ponta e fora de ponta** conforme o horário (intermediário é particularidade da Tarifa Branca — Fase 22, fora do Grupo A). A janela de ponta é configurável **por distribuidora** — tipicamente 18h–21h, mas varia por local e estado; um valor fixo no código estaria errado para parte do catálogo.
 - RN25 `[planejado — Fase 19]`: **fim de semana e feriado contam integralmente como fora de ponta.** O calendário inclui os feriados móveis derivados da Páscoa (Carnaval, Sexta-Feira Santa, Corpus Christi) — é cálculo, não lista fixa: uma lista fixa funciona por um ano e silenciosamente cobra ponta num feriado no ano seguinte.
 - RN26 `[implementado]`: o Brasil não tem horário de verão desde 2019 — premissa registrada, a revisar se voltar a existir.
 - RN27 `[planejado — Fase 22]`: na Tarifa Branca, o **custo de disponibilidade é calculado com a tarifa Convencional**, não com as horárias (REN 1.098/2024) — armadilha que uma implementação ingênua erra.

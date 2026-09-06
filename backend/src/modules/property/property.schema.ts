@@ -81,6 +81,12 @@ const publicLightingFeeBrlSchema = z
     .number()
     .min(0, { message: "Contribuição de iluminação pública não pode ser negativa" })
 
+// Demanda contratada (kW) — obrigatória para Grupo A (RF25), validada em
+// property.service.ts (regra cruzada, mesmo padrão de tariffSubgroup/tariffModality).
+const contractedDemandKwSchema = z
+    .number()
+    .positive({ message: "Demanda contratada deve ser maior que zero" })
+
 // Schema de criação
 
 export const createPropertySchema = z.object({
@@ -115,6 +121,8 @@ export const createPropertySchema = z.object({
 
     tariffModality: tariffModalitySchema.optional(),
 
+    contractedDemandKw: contractedDemandKwSchema.optional(),
+
     publicLightingFeeBrl: publicLightingFeeBrlSchema.optional(),
 })
 
@@ -147,6 +155,8 @@ export const updatePropertySchema = z.object({
     tariffSubgroup: tariffSubgroupSchema.optional(),
 
     tariffModality: tariffModalitySchema.optional(),
+
+    contractedDemandKw: contractedDemandKwSchema.optional(),
 
     publicLightingFeeBrl: publicLightingFeeBrlSchema.optional(),
 })

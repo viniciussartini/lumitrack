@@ -253,12 +253,14 @@ describe("PropertyService", () => {
                 tariffGroup: "GROUP_A",
                 tariffSubgroup: "A4",
                 tariffModality: "GREEN",
+                contractedDemandKw: 200,
             })
 
             expect(property.tariffGroup).toBe("GROUP_A")
             expect(property.tariffSubgroup).toBe("A4")
             expect(property.tariffModality).toBe("GREEN")
             expect(property.billingClass).toBeNull()
+            expect(property.contractedDemandKw).toBe(200)
         })
 
         it("deve lançar ValidationError ao criar Grupo A sem subgrupo", async () => {
@@ -270,6 +272,7 @@ describe("PropertyService", () => {
                     distributorId: distributor.id,
                     tariffGroup: "GROUP_A",
                     tariffModality: "GREEN",
+                    contractedDemandKw: 200,
                 }),
             ).rejects.toThrow(ValidationError)
         })
@@ -283,6 +286,7 @@ describe("PropertyService", () => {
                     distributorId: distributor.id,
                     tariffGroup: "GROUP_A",
                     tariffSubgroup: "A4",
+                    contractedDemandKw: 200,
                 }),
             ).rejects.toThrow(ValidationError)
         })
@@ -297,7 +301,34 @@ describe("PropertyService", () => {
                     tariffGroup: "GROUP_A",
                     tariffSubgroup: "A4",
                     tariffModality: "GREEN",
+                    contractedDemandKw: 200,
                     billingClass: "B1",
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("deve lançar ValidationError ao criar Grupo A sem demanda contratada", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await expect(
+                propertyService.create(user.id, {
+                    ...validPropertyInput,
+                    distributorId: distributor.id,
+                    tariffGroup: "GROUP_A",
+                    tariffSubgroup: "A4",
+                    tariffModality: "GREEN",
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("deve lançar ValidationError ao informar demanda contratada numa propriedade Grupo B", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await expect(
+                propertyService.create(user.id, {
+                    ...validPropertyInput,
+                    distributorId: distributor.id,
+                    contractedDemandKw: 100,
                 }),
             ).rejects.toThrow(ValidationError)
         })
@@ -545,12 +576,14 @@ describe("PropertyService", () => {
                 tariffGroup: "GROUP_A",
                 tariffSubgroup: "A4",
                 tariffModality: "GREEN",
+                contractedDemandKw: 200,
             })
 
             expect(updated.tariffGroup).toBe("GROUP_A")
             expect(updated.tariffSubgroup).toBe("A4")
             expect(updated.tariffModality).toBe("GREEN")
             expect(updated.billingClass).toBeNull()
+            expect(updated.contractedDemandKw).toBe(200)
         })
 
         it("deve lançar ValidationError ao migrar para Grupo A sem informar subgrupo", async () => {
@@ -576,6 +609,7 @@ describe("PropertyService", () => {
                 tariffGroup: "GROUP_A",
                 tariffSubgroup: "A4",
                 tariffModality: "GREEN",
+                contractedDemandKw: 200,
             })
 
             const updated = await propertyService.update(property.id, user.id, {
@@ -585,6 +619,23 @@ describe("PropertyService", () => {
             expect(updated.name).toBe("Indústria Renovada")
             expect(updated.tariffSubgroup).toBe("A4") // preservado
             expect(updated.tariffModality).toBe("GREEN") // preservado
+            expect(updated.contractedDemandKw).toBe(200) // preservado
+        })
+
+        it("deve lançar ValidationError ao migrar para Grupo A sem informar demanda contratada", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+            })
+
+            await expect(
+                propertyService.update(property.id, user.id, {
+                    tariffGroup: "GROUP_A",
+                    tariffSubgroup: "A4",
+                    tariffModality: "GREEN",
+                }),
+            ).rejects.toThrow(ValidationError)
         })
     })
 

@@ -15,6 +15,7 @@ import { AreaRepository } from "@/modules/area/area.repository.js"
 import { AreaService } from "@/modules/area/area.service.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
+import { TariffCatalogRepository } from "@/modules/distributor/tariff-catalog.repository.js"
 import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
 import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
@@ -34,6 +35,7 @@ const areaRepository = new AreaRepository(prismaTest)
 const areaService = new AreaService(areaRepository, propertyRepository)
 const deviceRepository = new DeviceRepository(prismaTest)
 const tariffFlagRepository = new TariffFlagRepository(prismaTest)
+const tariffCatalogRepository = new TariffCatalogRepository(prismaTest)
 const consumptionRepository = new ConsumptionRepository(prismaTest)
 
 const userRepository = new UserRepository(prismaTest)
@@ -47,6 +49,7 @@ const consumptionService = new ConsumptionService(
     deviceRepository,
     distributorRepository,
     tariffFlagRepository,
+    tariffCatalogRepository,
 )
 
 // tusdPerKwh=0.3 + tePerKwh=0.3 = 0.6 R$/kWh; tributos 27,25%; bandeira
@@ -143,6 +146,7 @@ function callComputeYearlyPropertyCosts(
 
 function callResolveBucketCost(
     service: ConsumptionService,
+    meterId: string,
     bucket: ConsumptionBucket,
     granularity: Granularity,
     targetType: TargetType,
@@ -150,10 +154,11 @@ function callResolveBucketCost(
     distributor: DistributorResponse,
     flagPer100Kwh: number,
     yearlyPropertyCostByBucketMs: Map<number, number>,
-): number {
+): Promise<number> {
     return (
         service as unknown as {
             resolveBucketCost: (
+                meterId: string,
                 bucket: ConsumptionBucket,
                 granularity: Granularity,
                 targetType: TargetType,
@@ -161,9 +166,10 @@ function callResolveBucketCost(
                 distributor: DistributorResponse,
                 flagPer100Kwh: number,
                 yearlyPropertyCostByBucketMs: Map<number, number>,
-            ) => number
+            ) => Promise<number>
         }
     ).resolveBucketCost(
+        meterId,
         bucket,
         granularity,
         targetType,
@@ -645,6 +651,147 @@ describe("ConsumptionService.summary", () => {
     })
 })
 
+describe("ConsumptionService.list — Grupo A binômio (RF29)", () => {
+    // Exemplo 6 do documento de referência (metalúrgica A4 Verde em
+    // Joinville/SC): 200 kW contratados, 800 kWh Ponta + 28.000 kWh Fora de
+    // Ponta, ICMS 17%, bandeira amarela, CIP R$ 250,00 — mesmo oráculo do
+    // TariffService.calculateForGroupA (ajustado para R$ 22.464,07, ver
+    // comentário lá: o documento tem um pequeno erro de arredondamento).
+    // 2026-08-04 é terça-feira, sem feriado nacional — leitura de ponta às
+    // 19h local (dentro de 18h-21h) e fora de ponta às 10h local.
+    async function setupGroupAPropertyMeter() {
+        const user = await userService.createUser({
+            email: "metalurgica@example.com",
+            password: "Senha@123",
+            userType: "COMPANY",
+            acceptedTerms: true,
+            companyName: "Metalúrgica Joinville Ltda",
+            cnpj: "11.222.333/0001-81",
+        })
+        const distributor = await createTestDistributor(prismaTest, {
+            icmsRate: 0.17,
+            pisRate: 0.0165,
+            cofinsRate: 0.076,
+        })
+        await prismaTest.energyDistributor.update({
+            where: { id: distributor.id },
+            data: { peakWindowStartHour: 18, peakWindowEndHour: 21 },
+        })
+        await prismaTest.tariffFlagConfig.upsert({
+            where: { id: 1 },
+            update: { currentFlag: "YELLOW" },
+            create: {
+                id: 1,
+                currentFlag: "YELLOW",
+                greenPer100Kwh: 0,
+                yellowPer100Kwh: 1.885,
+                redP1Per100Kwh: 4.463,
+                redP2Per100Kwh: 7.877,
+            },
+        })
+        await prismaTest.tariffEnergyRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "GREEN",
+                post: "PEAK",
+                tusdPerKwh: 0.75,
+                tePerKwh: 0.55,
+            },
+        })
+        await prismaTest.tariffEnergyRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "GREEN",
+                post: "OFF_PEAK",
+                tusdPerKwh: 0.12,
+                tePerKwh: 0.28,
+            },
+        })
+        await prismaTest.tariffDemandRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "GREEN",
+                post: null,
+                tusdPerKw: 18.0,
+            },
+        })
+
+        const property = await propertyService.create(user.id, {
+            name: "Metalúrgica",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC",
+            tariffGroup: "GROUP_A",
+            tariffSubgroup: "A4",
+            tariffModality: "GREEN",
+            contractedDemandKw: 200,
+            publicLightingFeeBrl: 250,
+        })
+        const meter = await prismaTest.meter.create({
+            data: {
+                name: "Medidor",
+                targetType: "PROPERTY",
+                propertyId: property.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "metalurgica/medidor",
+            },
+        })
+
+        return { user, property, meter }
+    }
+
+    it("reproduz o Exemplo 6 do documento de referência ponta-a-ponta", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 800, 100_000) // 19h SP — ponta
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 28_000, 100_000) // 10h SP — fora de ponta
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0]!.kwhConsumed).toBeCloseTo(28_800)
+        expect(result.items[0]!.costBrl).toBeCloseTo(22_464.07, 2)
+    })
+
+    it("falha fechado ao calcular conta de uma modalidade Grupo A ainda não suportada (Azul)", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+        await prismaTest.property.update({
+            where: { id: property.id },
+            data: { tariffModality: "BLUE" },
+        })
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 1000, 100_000)
+
+        await expect(
+            consumptionService.list(user.id, {
+                targetType: "PROPERTY",
+                targetId: property.id,
+                granularity: "month",
+            }),
+        ).rejects.toThrow(/modalidade/i)
+    })
+
+    it("falha fechado ao pedir detalhamento por hora de uma propriedade Grupo A", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 10, 100_000)
+
+        await expect(
+            consumptionService.list(user.id, {
+                targetType: "PROPERTY",
+                targetId: property.id,
+                granularity: "hour",
+            }),
+        ).rejects.toThrow(/Grupo A/)
+    })
+})
+
 // Os dois métodos extraídos de `list()` — a maior parte dos casos já sai
 // coberta indiretamente pelos testes de `ConsumptionService.list` acima
 // (year+PROPERTY em "granularidade month/year", year+AREA em "alvo
@@ -736,8 +883,9 @@ describe("ConsumptionService — resolveBucketCost (privado, extraído de list()
             avgPowerW: 0,
         }
 
-        const cost = callResolveBucketCost(
+        const cost = await callResolveBucketCost(
             consumptionService,
+            "medidor-inexistente", // guard sai antes de tocar o repositório
             bucket,
             "year",
             "PROPERTY",

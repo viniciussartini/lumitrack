@@ -1,6 +1,7 @@
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { resetTariffFlagCacheForTests } from "@/modules/tariff-flag/tariff-flag.repository.js"
 import { resetDistributorCacheForTests } from "@/modules/distributor/distributor.repository.js"
+import { resetTariffCatalogCacheForTests } from "@/modules/distributor/tariff-catalog.repository.js"
 
 // Apaga todos os dados do banco de teste na ordem correta das dependências.
 //   User
@@ -61,4 +62,5 @@ export async function cleanDatabase(): Promise<void> {
     // banco e vazaria dado obsoleto para o teste seguinte.
     resetTariffFlagCacheForTests()
     resetDistributorCacheForTests()
+    resetTariffCatalogCacheForTests()
 }

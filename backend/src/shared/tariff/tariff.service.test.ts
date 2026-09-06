@@ -150,4 +150,74 @@ describe("TariffService", () => {
             expect(result.totalBrl).toBeCloseTo(expectedTotal, 6)
         })
     })
+
+    describe("calculateForGroupA", () => {
+        // Exemplo 6 do documento de referência — metalúrgica A4 Verde em
+        // Joinville/SC (Celesc): 200 kW contratados, consumo 800 kWh Ponta +
+        // 28.000 kWh Fora de Ponta, ICMS SC 17%, bandeira amarela, CIP
+        // R$ 250,00. O documento publica R$ 22.464,75, mas refazendo a
+        // divisão "por dentro" com precisão total (16.382,88 / 0,7375) o
+        // valor correto é R$ 22.464,07 — a diferença de R$ 0,68 é um
+        // arredondamento manual do próprio documento, não um erro desta
+        // fórmula (subtotal antes dos tributos bate exatamente: demanda
+        // R$ 3.600,00 + energia R$ 12.240,00 + bandeira R$ 542,88 =
+        // R$ 16.382,88, igual ao documento). Oráculo ajustado ao valor
+        // matematicamente correto.
+        it("reproduz o Exemplo 6 do documento de referência (A4 Verde)", () => {
+            const result = service.calculateForGroupA({
+                contractedDemandKw: 200,
+                tusdPerKw: 18.0,
+                energyByPost: [
+                    { post: "PEAK", kwhConsumed: 800, tusdPerKwh: 0.75, tePerKwh: 0.55 },
+                    { post: "OFF_PEAK", kwhConsumed: 28_000, tusdPerKwh: 0.12, tePerKwh: 0.28 },
+                ],
+                icmsRate: 0.17,
+                pisRate: 0.0165,
+                cofinsRate: 0.076,
+                flagPer100Kwh: 1.885,
+                publicLightingFeeBrl: 250,
+            })
+
+            expect(result.demandBrl).toBeCloseTo(3600, 2)
+            expect(result.energyBrl).toBeCloseTo(12_240, 2)
+            expect(result.flagBrl).toBeCloseTo(542.88, 2)
+            expect(result.publicLightingFeeBrl).toBe(250)
+            expect(result.totalBrl).toBeCloseTo(22_464.07, 2)
+        })
+
+        it("bandeira incide só sobre o consumo total, nunca sobre a demanda (RN22)", () => {
+            const withZeroConsumption = service.calculateForGroupA({
+                contractedDemandKw: 100,
+                tusdPerKw: 18.0,
+                energyByPost: [
+                    { post: "OFF_PEAK", kwhConsumed: 0, tusdPerKwh: 0.12, tePerKwh: 0.28 },
+                ],
+                icmsRate: 0.18,
+                pisRate: 0.0165,
+                cofinsRate: 0.076,
+                flagPer100Kwh: 1.885,
+                publicLightingFeeBrl: null,
+            })
+
+            expect(withZeroConsumption.flagBrl).toBe(0)
+            expect(withZeroConsumption.demandBrl).toBeCloseTo(1800, 2) // demanda cobrada mesmo sem consumo
+        })
+
+        it("CIP nulo vira zero, sem quebrar o total", () => {
+            const result = service.calculateForGroupA({
+                contractedDemandKw: 50,
+                tusdPerKw: 18.0,
+                energyByPost: [
+                    { post: "OFF_PEAK", kwhConsumed: 1000, tusdPerKwh: 0.4, tePerKwh: 0 },
+                ],
+                icmsRate: 0.18,
+                pisRate: 0.0165,
+                cofinsRate: 0.076,
+                flagPer100Kwh: 0,
+                publicLightingFeeBrl: null,
+            })
+
+            expect(result.publicLightingFeeBrl).toBe(0)
+        })
+    })
 })
