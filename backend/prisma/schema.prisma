@@ -83,11 +83,59 @@ enum TargetType {
 
 // Classe de faturamento do Grupo B (baixa tensão) — REN 1.000/2021.
 // B1 residencial, B2 rural, B3 demais (comércio/serviços/pequena indústria).
-// Grupo A (alta/média tensão, tarifa binômia) fica para uma fase futura.
+// Exclusivo do Grupo B — Grupo A usa TariffSubgroup (ver abaixo), definido por
+// tensão de fornecimento, não por classe de uso (ADR-0019 separa os dois
+// conceitos que este enum conflacionava antes da Fase 19).
 enum BillingClass {
   B1
   B2
   B3
+}
+
+// Grupo tarifário — definido pela tensão de fornecimento (ADR-0019).
+// Property.tariffGroup é o campo que o TariffService ramifica por ele
+// (monômio Grupo B × binômio Grupo A).
+enum TariffGroup {
+  GROUP_A
+  GROUP_B
+
+  @@map("tariff_group")
+}
+
+// Subgrupo do Grupo A (alta/média tensão) — REN 1.000/2021. B1/B2/B3
+// (Grupo B) continuam em BillingClass; unificar os dois não tem consumidor
+// real hoje (ADR-0019).
+enum TariffSubgroup {
+  A1
+  A2
+  A3
+  A3A
+  A4
+  AS
+
+  @@map("tariff_subgroup")
+}
+
+// Modalidade tarifária do Grupo A. Verde é a única implementada na Fase 19
+// (fatiamento por modalidade); Azul chega na Fase 20; Convencional Binômia
+// está em extinção gradual (avaliada na Fase 20). As 3 já são vocabulário
+// fixado em 02-requisitos.md — não é especulação incluir o enum completo.
+enum TariffModality {
+  CONVENTIONAL_BINOMIAL
+  GREEN
+  BLUE
+
+  @@map("tariff_modality")
+}
+
+// Posto tarifário horário. INTERMEDIATE é exclusivo da Tarifa Branca
+// (Grupo B, Fase 22) — Verde/Azul do Grupo A só usam ponta e fora de ponta;
+// adicionar o valor então é migração aditiva trivial (ADR-0019).
+enum TariffPost {
+  PEAK
+  OFF_PEAK
+
+  @@map("tariff_post")
 }
 
 // Bandeira tarifária vigente (sinal mensal de custo de geração da ANEEL).
@@ -326,9 +374,67 @@ model EnergyDistributor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  properties Property[]
+  properties        Property[]
+  energyRates       TariffEnergyRate[]
+  demandRates       TariffDemandRate[]
 
   @@map("energy_distributors")
+}
+
+// Catálogo de tarifa de ENERGIA do Grupo A, por distribuidora × subgrupo ×
+// modalidade × posto (RF26) — sempre por posto, ao contrário da demanda
+// (ver TariffDemandRate). tusdPerKwh/tePerKwh somados formam a tarifa de
+// energia do posto (RN17), mesmo padrão de decomposição de EnergyDistributor.
+model TariffEnergyRate {
+  id            String         @id @default(uuid())
+  distributorId String
+  subgroup      TariffSubgroup
+  modality      TariffModality
+  post          TariffPost
+
+  tusdPerKwh Decimal @db.Decimal(10, 6)
+  tePerKwh   Decimal @db.Decimal(10, 6)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  distributor EnergyDistributor @relation(fields: [distributorId], references: [id])
+
+  @@unique([distributorId, subgroup, modality, post])
+  @@map("tariff_energy_rates")
+}
+
+// Catálogo de tarifa de DEMANDA do Grupo A (RF26). `post` nulo representa
+// demanda única (Horária Verde, RN18); Azul (Fase 20) popula PEAK/OFF_PEAK
+// sem exigir migração nova — a coluna já comporta as duas formas.
+// Nota 1: o Postgres trata cada NULL como distinto em índice único, então o
+// `@@unique` abaixo não impede duas linhas com post nulo para a mesma
+// distribuidora/subgrupo/modalidade. Sem risco hoje — o único gravador é o
+// seed idempotente; reforçar em banco só se um caminho de escrita além do
+// seed existir (RF45, catálogo editável, ainda sem fase).
+// Nota 2: por causa da Nota 1, o Prisma **recusa em runtime** usar `post:
+// null` numa cláusula where de chave composta (`upsert`/`findUnique` via
+// `distributorId_subgroup_modality_post`) — "Argument `post` must not be
+// null". Gravar/ler a linha de demanda única da Verde exige `findFirst` +
+// create/update manual (ver `seedGroupATariffCatalog` em `prisma/seed.ts`),
+// não `upsert`. O `@@unique` continua útil para as linhas com post
+// preenchido (Azul, Fase 20).
+model TariffDemandRate {
+  id            String          @id @default(uuid())
+  distributorId String
+  subgroup      TariffSubgroup
+  modality      TariffModality
+  post          TariffPost?
+
+  tusdPerKw Decimal @db.Decimal(10, 6)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  distributor EnergyDistributor @relation(fields: [distributorId], references: [id])
+
+  @@unique([distributorId, subgroup, modality, post])
+  @@map("tariff_demand_rates")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -349,8 +455,23 @@ model Property {
   // piso de disponibilidade (30/50/100 kWh) aplicado na tarifação mensal.
   electricalSystem ElectricalSystemType
 
-  // Classe de faturamento Grupo B (default residencial B1).
-  billingClass BillingClass @default(B1)
+  // Grupo tarifário (ADR-0019) — Property.tariffGroup é o discriminador
+  // explícito que o TariffService ramifica por ele. Default GROUP_B preserva
+  // todas as propriedades existentes sem migração de dado.
+  tariffGroup TariffGroup @default(GROUP_B)
+
+  // Classe de faturamento Grupo B (default residencial B1). Opcional porque
+  // uma propriedade Grupo A não tem B1/B2/B3 — obrigatório/proibido conforme
+  // tariffGroup é validado em property.schema.ts, não aqui (mesmo padrão de
+  // RN01 do Medidor: regra cruzada fica no service/schema).
+  billingClass BillingClass? @default(B1)
+
+  // Subgrupo e modalidade do Grupo A (RF25) — nulos para Grupo B.
+  // contractedDemandKw (demanda contratada) não mora aqui: é consumida pelo
+  // cálculo binômio, então entra junto dele (Fase 19, item "Tarifação
+  // binômia Horária Verde").
+  tariffSubgroup TariffSubgroup?
+  tariffModality TariffModality?
 
   // CIP/COSIP municipal (contribuição de iluminação pública) em BRL — valor fixo
   // somado FORA da base de tributos. Opcional: nem todo município cobra.

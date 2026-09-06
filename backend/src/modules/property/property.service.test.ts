@@ -241,6 +241,78 @@ describe("PropertyService", () => {
                 }),
             ).rejects.toThrow(ValidationError)
         })
+
+        // ─ Grupo A (RF25/ADR-0019) ──────────────────────────────────────────
+
+        it("deve criar uma propriedade Grupo A com subgrupo e modalidade", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+                tariffGroup: "GROUP_A",
+                tariffSubgroup: "A4",
+                tariffModality: "GREEN",
+            })
+
+            expect(property.tariffGroup).toBe("GROUP_A")
+            expect(property.tariffSubgroup).toBe("A4")
+            expect(property.tariffModality).toBe("GREEN")
+            expect(property.billingClass).toBeNull()
+        })
+
+        it("deve lançar ValidationError ao criar Grupo A sem subgrupo", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await expect(
+                propertyService.create(user.id, {
+                    ...validPropertyInput,
+                    distributorId: distributor.id,
+                    tariffGroup: "GROUP_A",
+                    tariffModality: "GREEN",
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("deve lançar ValidationError ao criar Grupo A sem modalidade", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await expect(
+                propertyService.create(user.id, {
+                    ...validPropertyInput,
+                    distributorId: distributor.id,
+                    tariffGroup: "GROUP_A",
+                    tariffSubgroup: "A4",
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("deve lançar ValidationError ao criar Grupo A com classe de faturamento do Grupo B", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await expect(
+                propertyService.create(user.id, {
+                    ...validPropertyInput,
+                    distributorId: distributor.id,
+                    tariffGroup: "GROUP_A",
+                    tariffSubgroup: "A4",
+                    tariffModality: "GREEN",
+                    billingClass: "B1",
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("deve lançar ValidationError ao informar subgrupo numa propriedade Grupo B", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await expect(
+                propertyService.create(user.id, {
+                    ...validPropertyInput,
+                    distributorId: distributor.id,
+                    tariffSubgroup: "A4",
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
     })
 
     // ─── findById ─────────────────────────────────────────────────────────────
@@ -458,6 +530,61 @@ describe("PropertyService", () => {
                     state: "ZZ" as unknown as CreatePropertyInput["state"],
                 }),
             ).rejects.toThrow(ValidationError)
+        })
+
+        // ─ Grupo A (RF25/ADR-0019) ──────────────────────────────────────────
+
+        it("deve migrar uma propriedade Grupo B para o Grupo A informando subgrupo e modalidade", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+            })
+
+            const updated = await propertyService.update(property.id, user.id, {
+                tariffGroup: "GROUP_A",
+                tariffSubgroup: "A4",
+                tariffModality: "GREEN",
+            })
+
+            expect(updated.tariffGroup).toBe("GROUP_A")
+            expect(updated.tariffSubgroup).toBe("A4")
+            expect(updated.tariffModality).toBe("GREEN")
+            expect(updated.billingClass).toBeNull()
+        })
+
+        it("deve lançar ValidationError ao migrar para Grupo A sem informar subgrupo", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+            })
+
+            await expect(
+                propertyService.update(property.id, user.id, {
+                    tariffGroup: "GROUP_A",
+                    tariffModality: "GREEN",
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("não exige subgrupo/modalidade ao atualizar campo alheio ao grupo tarifário de uma propriedade Grupo A", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+                tariffGroup: "GROUP_A",
+                tariffSubgroup: "A4",
+                tariffModality: "GREEN",
+            })
+
+            const updated = await propertyService.update(property.id, user.id, {
+                name: "Indústria Renovada",
+            })
+
+            expect(updated.name).toBe("Indústria Renovada")
+            expect(updated.tariffSubgroup).toBe("A4") // preservado
+            expect(updated.tariffModality).toBe("GREEN") // preservado
         })
     })
 

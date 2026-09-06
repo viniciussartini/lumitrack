@@ -2,6 +2,9 @@ import {
     PrismaClient,
     type ElectricalSystemType,
     type BillingClass,
+    type TariffGroup,
+    type TariffSubgroup,
+    type TariffModality,
 } from "@/generated/prisma/client.js"
 import type {
     CreatePropertyInput,
@@ -18,6 +21,16 @@ type PrismaProperty = NonNullable<Awaited<ReturnType<PrismaClient["property"]["f
 // repository, mesmo padrão usado por Distributor/TariffFlagConfig.
 export type PropertyResponse = Omit<PrismaProperty, "publicLightingFeeBrl"> & {
     publicLightingFeeBrl: number | null
+}
+
+// Campos de grupo tarifário já resolvidos e validados pelo PropertyService
+// (regra cruzada de RF25/ADR-0019) — `null` explícito, nunca `undefined`,
+// porque para GROUP_A/GROUP_B o valor de cada campo é sempre determinado
+// (aplicável com valor, ou inaplicável e limpo).
+export type ResolvedTariffGroupFields = {
+    billingClass: BillingClass | null
+    tariffSubgroup: TariffSubgroup | null
+    tariffModality: TariffModality | null
 }
 
 /**
@@ -110,9 +123,14 @@ export class PropertyRepository {
      *
      * @param userId - Id do usuário dono do imóvel.
      * @param data - Dados do imóvel a criar, já validados.
+     * @param tariffGroupFields - Classe/subgrupo/modalidade já resolvidos e validados pelo PropertyService (RF25/ADR-0019).
      * @returns O imóvel criado, decifrado.
      */
-    async create(userId: string, data: CreatePropertyInput): Promise<PropertyResponse> {
+    async create(
+        userId: string,
+        data: CreatePropertyInput,
+        tariffGroupFields: ResolvedTariffGroupFields,
+    ): Promise<PropertyResponse> {
         const property = await this.prisma.property.create({
             data: {
                 userId,
@@ -123,7 +141,10 @@ export class PropertyRepository {
                 state: data.state ? encryptAddress(data.state) : null,
                 zipCode: data.zipCode ? encryptAddress(data.zipCode) : null,
                 electricalSystem: data.electricalSystem as ElectricalSystemType,
-                billingClass: data.billingClass as BillingClass,
+                tariffGroup: data.tariffGroup as TariffGroup,
+                billingClass: tariffGroupFields.billingClass,
+                tariffSubgroup: tariffGroupFields.tariffSubgroup,
+                tariffModality: tariffGroupFields.tariffModality,
                 publicLightingFeeBrl: data.publicLightingFeeBrl ?? null,
             },
         })
@@ -136,9 +157,14 @@ export class PropertyRepository {
      *
      * @param id - Id do imóvel a atualizar.
      * @param data - Campos a atualizar, já validados.
+     * @param tariffGroupFields - Classe/subgrupo/modalidade já resolvidos e validados pelo PropertyService (RF25/ADR-0019), só quando a requisição toca algum desses campos — omitido, os 3 ficam como estavam.
      * @returns O imóvel atualizado, decifrado.
      */
-    async update(id: string, data: UpdatePropertyInput): Promise<PropertyResponse> {
+    async update(
+        id: string,
+        data: UpdatePropertyInput,
+        tariffGroupFields?: ResolvedTariffGroupFields,
+    ): Promise<PropertyResponse> {
         // Spread condicional requerido por exactOptionalPropertyTypes: true —
         // evita sobrescrever campos existentes com undefined.
         const encryptedFields = {
@@ -164,7 +190,17 @@ export class PropertyRepository {
 
         const property = await this.prisma.property.update({
             where: { id },
-            data: { ...nonAddressFields, ...encryptedFields },
+            data: {
+                ...nonAddressFields,
+                ...encryptedFields,
+                // Sobrescreve o que veio de nonAddressFields para os 3 campos:
+                // o valor já resolvido/validado pelo service é sempre o que vale.
+                ...(tariffGroupFields && {
+                    billingClass: tariffGroupFields.billingClass,
+                    tariffSubgroup: tariffGroupFields.tariffSubgroup,
+                    tariffModality: tariffGroupFields.tariffModality,
+                }),
+            },
         })
         return toPropertyResponse(property)
     }

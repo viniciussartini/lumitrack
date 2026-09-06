@@ -20,6 +20,10 @@ export async function cleanHttpDatabase(): Promise<void> {
         prismaHttpTest.device.deleteMany(),
         prismaHttpTest.area.deleteMany(),
         prismaHttpTest.property.deleteMany(),
+        // Catálogo tarifário Grupo A (ADR-0019) — referencia EnergyDistributor
+        // com onDelete padrão (RESTRICT), precisa ser limpo antes dele.
+        prismaHttpTest.tariffEnergyRate.deleteMany(),
+        prismaHttpTest.tariffDemandRate.deleteMany(),
         prismaHttpTest.energyDistributor.deleteMany(),
         prismaHttpTest.tariffFlagConfig.deleteMany(),
         prismaHttpTest.authToken.deleteMany(),

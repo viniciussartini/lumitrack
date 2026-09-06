@@ -51,9 +51,29 @@ const electricalSystemSchema = z.enum(["MONOPHASIC", "BIPHASIC", "TRIPHASIC"], {
     error: "Sistema elétrico deve ser MONOPHASIC, BIPHASIC ou TRIPHASIC",
 })
 
-// Classe de faturamento Grupo B — REN 1.000/2021.
+// Classe de faturamento Grupo B — REN 1.000/2021. Opcional no schema: a
+// obrigatoriedade condicional por grupo tarifário (RF25/ADR-0019) é regra
+// cruzada, validada em property.service.ts — mesmo padrão de RN01 do Medidor.
 const billingClassSchema = z.enum(["B1", "B2", "B3"], {
     error: "Classe de faturamento deve ser B1, B2 ou B3",
+})
+
+// Grupo tarifário (ADR-0019) — define a tensão de fornecimento e o caminho de
+// cálculo (monômio Grupo B × binômio Grupo A).
+const tariffGroupSchema = z.enum(["GROUP_A", "GROUP_B"], {
+    error: "Grupo tarifário deve ser GROUP_A ou GROUP_B",
+})
+
+// Subgrupo do Grupo A — REN 1.000/2021. B1/B2/B3 do Grupo B continuam em
+// billingClass (ADR-0019).
+const tariffSubgroupSchema = z.enum(["A1", "A2", "A3", "A3A", "A4", "AS"], {
+    error: "Subgrupo deve ser A1, A2, A3, A3A, A4 ou AS",
+})
+
+// Modalidade tarifária do Grupo A — só Horária Verde tem cálculo implementado
+// na Fase 19; Azul/Convencional Binômia chegam na Fase 20.
+const tariffModalitySchema = z.enum(["CONVENTIONAL_BINOMIAL", "GREEN", "BLUE"], {
+    error: "Modalidade deve ser CONVENTIONAL_BINOMIAL, GREEN ou BLUE",
 })
 
 // CIP/COSIP municipal — valor fixo em BRL, opcional (nem todo município cobra).
@@ -84,8 +104,16 @@ export const createPropertySchema = z.object({
 
     electricalSystem: electricalSystemSchema,
 
-    // default residencial B1 — mesmo default do banco.
-    billingClass: billingClassSchema.default("B1"),
+    // default GROUP_B preserva o comportamento anterior à Fase 19.
+    tariffGroup: tariffGroupSchema.default("GROUP_B"),
+
+    // Sem default aqui: o default "B1" só se aplica quando o grupo é GROUP_B,
+    // e essa ramificação é resolvida em property.service.ts.
+    billingClass: billingClassSchema.optional(),
+
+    tariffSubgroup: tariffSubgroupSchema.optional(),
+
+    tariffModality: tariffModalitySchema.optional(),
 
     publicLightingFeeBrl: publicLightingFeeBrlSchema.optional(),
 })
@@ -112,7 +140,13 @@ export const updatePropertySchema = z.object({
 
     electricalSystem: electricalSystemSchema.optional(),
 
+    tariffGroup: tariffGroupSchema.optional(),
+
     billingClass: billingClassSchema.optional(),
+
+    tariffSubgroup: tariffSubgroupSchema.optional(),
+
+    tariffModality: tariffModalitySchema.optional(),
 
     publicLightingFeeBrl: publicLightingFeeBrlSchema.optional(),
 })

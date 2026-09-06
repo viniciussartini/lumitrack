@@ -23,6 +23,10 @@ import { prisma } from "@/shared/database/prisma.js"
 const PIS_RATE = 0.0165 // ~1,65%
 const COFINS_RATE = 0.076 // ~7,6%
 
+// Reaproveitada pelo catálogo Grupo A (seedGroupATariffCatalog) — mesma
+// distribuidora já semeada abaixo, sem duplicar registro.
+const CELESC_CNPJ = "08.336.783/0001-90"
+
 interface DistributorSeed {
     name: string
     cnpj: string // aproximado — verificar
@@ -65,7 +69,7 @@ const DISTRIBUTORS: DistributorSeed[] = [
     },
     {
         name: "Celesc Distribuição",
-        cnpj: "08.336.783/0001-90",
+        cnpj: CELESC_CNPJ,
         state: "SC",
         icmsRate: 0.17,
         targetEffectiveTariff: 0.53,
@@ -161,6 +165,75 @@ async function seedDistributors(): Promise<void> {
     console.log(`Distribuidoras: ${DISTRIBUTORS.length} registros garantidos (upsert por CNPJ).`)
 }
 
+// Tarifas de energia (TUSD+TE por posto) do Exemplo 6 de
+// `.claude/docs/O-Sistema-Eletrico-Brasileiro.md` — Fora de Ponta TUSD 0,12
+// + TE 0,28 = R$ 0,40/kWh; Ponta TUSD 0,75 + TE 0,55 = R$ 1,30/kWh.
+async function seedGreenA4EnergyRates(distributorId: string): Promise<void> {
+    const rates = [
+        { post: "PEAK", tusdPerKwh: 0.75, tePerKwh: 0.55 },
+        { post: "OFF_PEAK", tusdPerKwh: 0.12, tePerKwh: 0.28 },
+    ] as const
+
+    for (const rate of rates) {
+        await prisma.tariffEnergyRate.upsert({
+            where: {
+                distributorId_subgroup_modality_post: {
+                    distributorId,
+                    subgroup: "A4",
+                    modality: "GREEN",
+                    post: rate.post,
+                },
+            },
+            update: { tusdPerKwh: rate.tusdPerKwh, tePerKwh: rate.tePerKwh },
+            create: {
+                distributorId,
+                subgroup: "A4",
+                modality: "GREEN",
+                post: rate.post,
+                tusdPerKwh: rate.tusdPerKwh,
+                tePerKwh: rate.tePerKwh,
+            },
+        })
+    }
+}
+
+// Demanda única da Verde (post nulo, RN18) — R$ 18,00/kW, Exemplo 6.
+// upsert() não serve aqui: o Prisma recusa `null` num membro de chave única
+// composta na cláusula where ("Argument `post` must not be null"), então o
+// find-then-write manual abaixo é o que mantém a operação idempotente.
+async function seedGreenA4DemandRate(distributorId: string): Promise<void> {
+    const existing = await prisma.tariffDemandRate.findFirst({
+        where: { distributorId, subgroup: "A4", modality: "GREEN", post: null },
+    })
+
+    if (existing) {
+        await prisma.tariffDemandRate.update({
+            where: { id: existing.id },
+            data: { tusdPerKw: 18.0 },
+        })
+    } else {
+        await prisma.tariffDemandRate.create({
+            data: { distributorId, subgroup: "A4", modality: "GREEN", post: null, tusdPerKw: 18.0 },
+        })
+    }
+}
+
+// Catálogo tarifário Grupo A (ADR-0019/RF26) — Celesc, subgrupo A4, Horária
+// Verde, valores citados do Exemplo 6 (metalúrgica A4 Verde em Joinville/SC,
+// mesma UF/ICMS 17% já usada na Celesc do Grupo B acima).
+async function seedGroupATariffCatalog(): Promise<void> {
+    const celesc = await prisma.energyDistributor.findUniqueOrThrow({
+        where: { cnpj: CELESC_CNPJ },
+    })
+
+    await seedGreenA4EnergyRates(celesc.id)
+    await seedGreenA4DemandRate(celesc.id)
+
+    console.log(
+        "Catálogo tarifário Grupo A: Celesc/A4/Horária Verde garantido (upsert, Exemplo 6).",
+    )
+}
+
 async function seedTariffFlag(): Promise<void> {
     // Bandeira vigente = verde. Valores de acréscimo em R$/100 kWh (2026).
     const flagValues = {
@@ -183,6 +256,7 @@ async function seedTariffFlag(): Promise<void> {
 async function main(): Promise<void> {
     try {
         await seedDistributors()
+        await seedGroupATariffCatalog()
         await seedTariffFlag()
         console.log("Seed concluído.")
     } finally {
