@@ -1,6 +1,6 @@
 # ⚡ LumiTrack — Backend
 
-API REST + worker de ingestão IoT do LumiTrack. Node.js 24, Express 5, TypeScript strict, Prisma 7, PostgreSQL 16 — monólito modular por domínio, 16 módulos com fronteiras impostas mecanicamente por dependency-cruiser.
+API REST + worker de ingestão IoT do LumiTrack. Node.js, Express, TypeScript strict, Prisma, PostgreSQL — monólito modular por domínio, 16 módulos com fronteiras impostas mecanicamente por dependency-cruiser.
 
 ## Índice
 
@@ -14,6 +14,7 @@ API REST + worker de ingestão IoT do LumiTrack. Node.js 24, Express 5, TypeScri
   - [Ciclo de vida de um alerta (FNC002)](#4-ciclo-de-vida-de-um-alerta-fnc002)
   - [Fluxo de autenticação, refresh rotacionado e MFA](#5-fluxo-de-autenticação-refresh-rotacionado-e-mfa)
   - [Pipeline de CI](#6-pipeline-de-ci)
+  - [Autenticação do stream SSE — mesma origem vs. cross-origin (ticket)](#7-autenticação-do-stream-sse--mesma-origem-vs-cross-origin-ticket)
 - [Como executar (desenvolvimento)](#como-executar-desenvolvimento)
 - [Deploy em produção](#deploy-em-produção)
 - [Variáveis de ambiente](#variáveis-de-ambiente)
@@ -46,11 +47,11 @@ Injeção de dependência manual via `createApp(deps: AppDependencies)` ([`src/a
 | Camada | Tecnologia |
 | --- | --- |
 | Linguagem | TypeScript (strict, sem `any`) |
-| Runtime | Node.js 24 |
-| Framework HTTP | Express 5 |
-| ORM | Prisma 7 (client custom gerado em `src/generated/prisma`) |
-| Banco de dados | PostgreSQL 16 |
-| Validação | Zod 4, na borda de toda rota |
+| Runtime | Node.js |
+| Framework HTTP | Express |
+| ORM | Prisma (client custom gerado em `src/generated/prisma`) |
+| Banco de dados | PostgreSQL |
+| Validação | Zod, na borda de toda rota |
 | Autenticação | JWT (jsonwebtoken) + refresh token opaco rotacionado + bcryptjs |
 | MFA | TOTP (`otplib`) + QR code (`qrcode`) + backup codes |
 | Criptografia de PII | AES-256-GCM própria + blind index HMAC-SHA256 (busca por igualdade sem decifrar) |
@@ -82,9 +83,9 @@ Injeção de dependência manual via `createApp(deps: AppDependencies)` ([`src/a
 | `alert-event` | Histórico somente-leitura dos episódios de disparo de um alerta |
 | `notification` | Notificações do usuário (armazenamento em memória, não persistido no Postgres) |
 | `simulation` | Simulador de custo (kWh direto ou Watts×horas), sem persistência |
-| `iot` | Worker de ingestão (sem rotas CRUD próprias — o CRUD de conexão vive em `meter`) + o endpoint SSE `/api/iot/stream` |
+| `iot` | Worker de ingestão (sem rotas CRUD próprias — o CRUD de conexão vive em `meter`) + o endpoint SSE `/api/iot/stream` + `POST /api/iot/stream-ticket` (autenticação cross-origin do stream, ver [diagrama 7](#7-autenticação-do-stream-sse--mesma-origem-vs-cross-origin-ticket)) |
 
-`shared/` concentra o que não pertence a um módulo específico: `crypto` (AES-256-GCM + blind index + TOTP + hash de token), `audit` (trilha OWASP A09 / Art. 46), `sse` (`UserEventHub`), `notifications`, `tariff` (`TariffService`), `retention` (expurgo agendado), `middlewares` (`authenticate`, `requireRole`, rate limiters, error handler), `security` (CSRF, guard de SSRF, redirect HTTPS com host canônico), `logger`, `database` (singleton do `PrismaClient`), `pdf`, `legal` (versão de consentimento), `time`, `validation`, `pagination`.
+`shared/` concentra o que não pertence a um módulo específico: `crypto` (AES-256-GCM + blind index + TOTP + hash de token), `audit` (trilha OWASP A09 / Art. 46), `sse` (`UserEventHub`), `notifications`, `tariff` (`TariffService`), `retention` (expurgo agendado), `middlewares` (`authenticate`, `requireRole`, rate limiters, error handler), `security` (CSRF, guard de SSRF, redirect HTTPS com host canônico), `logger`, `database` (singleton do `PrismaClient`), `pdf`, `legal` (versão de consentimento), `errors` (`AppError`), `config` (contas de demonstração), `time`, `validation`, `pagination`.
 
 ## Diagramas
 
@@ -131,7 +132,7 @@ flowchart TB
 
     subgraph INFRA["Infraestrutura"]
         PRISMA[("PrismaClient")]
-        PG[(PostgreSQL 16)]
+        PG[(PostgreSQL)]
         SMTP["Nodemailer / SMTP"]
         HUB["UserEventHub (SSE)"]
     end
@@ -480,6 +481,7 @@ sequenceDiagram
 flowchart LR
     subgraph Standalone
         SS["secret-scan<br/>gitleaks, histórico completo"]
+        RF["root-format<br/>prettier --check na raiz do monorepo"]
     end
 
     subgraph FE["frontend-*"]
@@ -503,14 +505,41 @@ flowchart LR
     style E2E fill:#eef3ee,stroke:#3f8f52
 ```
 
-Todos os jobs bloqueiam o merge — `npm audit --audit-level=high` é bloqueante em cada pacote, seguido de um `npm audit` completo não-bloqueante só para visibilidade. `backend-test` e `e2e` sobem um container `postgres:16-alpine` de verdade (não mock) e aplicam `prisma migrate deploy` antes da suíte.
+Todos os jobs bloqueiam o merge — `npm audit --audit-level=high` é bloqueante em cada pacote, seguido de um `npm audit` completo não-bloqueante só para visibilidade. `backend-test` e `e2e` sobem um container PostgreSQL real (não mock) e aplicam `prisma migrate deploy` antes da suíte.
+
+### 7. Autenticação do stream SSE — mesma origem vs. cross-origin (ticket)
+
+Cookie de sessão não atravessa domínio: quando a SPA e a API são servidas de origens diferentes (demo pública, ADR-0010), o navegador nunca envia o cookie `HttpOnly` na conexão SSE. `GET /api/iot/stream` aceita duas formas de autenticação para cobrir os dois cenários sem enfraquecer nenhuma delas.
+
+```mermaid
+sequenceDiagram
+    actor C as Cliente (SPA)
+    participant API as API
+
+    Note over C,API: Cenário 1 — mesma origem (dev, self-hosted)
+    C->>API: GET /api/iot/stream<br/>(cookie de sessão, mesmo domínio)
+    API-->>C: 200 — handshake SSE, autenticado pelo `authenticate` normal
+
+    Note over C,API: Cenário 2 — cross-origin (demo pública, ADR-0010)
+    C->>API: POST /api/iot/stream-ticket<br/>(cookie de sessão same-origin, via rewrite)
+    API-->>C: 201 {ticket} — uso único, TTL 30s
+    C->>API: GET /api/iot/stream?ticket=...<br/>(direto na origem da API, sem cookie)
+    API->>API: consome o ticket (uma vez só) — resolve o usuário autenticado
+    API-->>C: 200 — handshake SSE
+
+    Note over C,API: Reconexão cross-origin
+    C->>API: (nova tentativa) POST /stream-ticket → novo ticket → GET /stream
+    Note left of C: cada tentativa pede um ticket NOVO —<br/>o anterior já foi consumido, reusar a mesma<br/>URL falharia com 401
+```
+
+Do lado do cliente (`frontend/src/lib/sse/appStream.ts`), a escolha de cenário é automática: se a URL do stream configurada for cross-origin, o cliente busca um ticket antes de cada tentativa de conexão (inclusive em reconexões, já que o ticket é de uso único) em vez de depender do backoff automático da biblioteca de SSE.
 
 ## Como executar (desenvolvimento)
 
 ### Pré-requisitos
 
-- Node.js 24
-- PostgreSQL 16 (local ou container)
+- Node.js (versão fixada em `.github/workflows/ci.yml` → `NODE_VERSION`)
+- PostgreSQL (local ou container)
 
 ### Passo a passo
 
@@ -550,20 +579,20 @@ npx prisma migrate deploy
 NODE_ENV=production node dist/server.js
 ```
 
-Checklist de `.env` de produção (documentado por completo no bloco final de [`.env.example`](.env.example), issue #191 da Fase 13.5):
+Checklist de `.env` de produção (documentado por completo no bloco final de [`.env.example`](.env.example)):
 
 | Variável | Valor em produção | Por quê |
 | --- | --- | --- |
 | `NODE_ENV` | `production` | Habilita `trust proxy`, guardas de `.refine()` no schema de env |
 | `REGISTRATION_ENABLED` | `false` | Gate de go-live #1 — premissa de conformidade da ADR-0008 |
 | `DEMO_LOGIN_ENABLED` | `true` | Mantém o botão de demo funcional sem reabrir cadastro |
-| `PUBLIC_API_ORIGIN` | `https://<domínio-real>` | Bloqueado por validação se deixado em `localhost` (gate #5 — issue #183) |
+| `PUBLIC_API_ORIGIN` | `https://<domínio-real>` | Bloqueado por validação se deixado em `localhost`|
 | `CORS_ORIGIN` | `https://<domínio-real>` | Nunca `"*"` — bloqueado por validação em produção |
-| `IOT_ALLOWED_HOSTS` | `127.0.0.1/32` (topologia ADR-0008) | Permite o backend alcançar o broker do `iot-simulator` co-locado, sem afrouxar o guard de SSRF |
+| `IOT_ALLOWED_HOSTS` | `127.0.0.1/32` (topologia de máquina única, ADR-0012) | Permite o backend alcançar o broker do `iot-simulator` co-locado, sem afrouxar o guard de SSRF |
 | `JWT_SECRET` + as 5 chaves de criptografia | regeradas | Nunca reaproveitar os valores do `.env.example` |
 | `SMTP_*` | sandbox / não contratado | Consequência aceita: "esqueci minha senha" não é funcional na demo pública |
 
-Procedimento completo de deploy (os dois caminhos: demo pública em free tier e self-hosted no Brasil), checklist de variáveis, backup e rotação: `.claude/docs/DEPLOY.md`. Decisões de hospedagem: `.claude/docs/adr/0010-demo-publica-free-tier-render-neon.md` (vigente) e `.claude/docs/adr/0008-hospedagem-brasil-oracle-always-free.md` (topologia e gates de go-live).
+Procedimento completo de deploy (os dois ambientes: produção self-hosted no Brasil e staging/demo pública em free tier), checklist de variáveis, backup e rotação: `.claude/docs/DEPLOY.md`. Decisões de hospedagem: `.claude/docs/adr/0012-separacao-producao-vps-staging-render-neon.md` (topologia vigente de produção — VPS própria em São Paulo, retomando a conclusão de conformidade de `.claude/docs/adr/0008-hospedagem-brasil-oracle-always-free.md`) e `.claude/docs/adr/0010-demo-publica-free-tier-render-neon.md` (staging/demo pública, escopo redefinido pela ADR-0012).
 
 ## Variáveis de ambiente
 
@@ -580,7 +609,7 @@ Schema completo em [`src/config/env.ts`](src/config/env.ts) (Zod, `safeParse` fa
 | `CPF_CNPJ_BLIND_INDEX_KEY` | 64 hex | Chave **separada** para o índice cego (HMAC-SHA256) que permite buscar por CPF/CNPJ sem decifrar |
 | `MFA_SECRET_ENCRYPTION_KEY` | 64 hex | Cifra o segredo TOTP — chave própria, nunca compartilhada com as outras |
 | `ADDRESS_ENCRYPTION_KEY` | 64 hex | Cifra o endereço da Propriedade — sem blind index (endereço nunca é filtro de busca) |
-| `METER_CREDENTIAL_ENCRYPTION_KEY` | 64 hex | Cifra `Meter.extra.password` (ex.: senha MQTT) — issue #182 |
+| `METER_CREDENTIAL_ENCRYPTION_KEY` | 64 hex | Cifra `Meter.extra.password` (ex.: senha MQTT)|
 
 São **6 segredos obrigatórios sem default** (`JWT_SECRET` + as 5 chaves de criptografia acima) — cada categoria de dado sensível (CPF/CNPJ, índice de busca, MFA, endereço, credencial de medidor) tem chave própria, para compartimentalizar o risco de um vazamento de chave a uma única categoria de dado.
 
@@ -783,9 +812,14 @@ Armazenamento em memória (`NotificationStore`), não persistido no Postgres.
 
 ### IoT Stream (SSE) — `/api/iot/stream`
 
+| Método | Rota | Auth | Descrição |
+| --- | --- | --- | --- |
+| POST | `/stream-ticket` | `authenticate` (cookie/CSRF, mesma origem) | Emite um ticket de uso único, TTL 30s — `{ticket}` — para autenticar o `GET /stream` quando ele precisa ser aberto cross-origin (ver [diagrama 7](#7-autenticação-do-stream-sse--mesma-origem-vs-cross-origin-ticket)) |
+| GET | `/stream` | cookie/Bearer (mesma origem) **ou** `?ticket=` de uso único (cross-origin) | Abre a conexão SSE |
+
 ```text
 GET /api/iot/stream
-Authorization: Bearer <token>   (ou cookie de sessão)
+Authorization: Bearer <token>   (ou cookie de sessão, ou ?ticket=<ticket> — ver diagrama 7)
 Accept: text/event-stream
 ```
 
@@ -814,24 +848,33 @@ backend/
 │   │   ├── device/  distributor/  export/  meter/  notification/
 │   │   ├── property/  simulation/  tariff-flag/  user/
 │   │   └── iot/
-│   │       ├── iot-stream.routes.ts        # único arquivo de rota do módulo
+│   │       ├── iot-stream.routes.ts        # rotas do módulo — GET /stream + POST /stream-ticket
+│   │       ├── sse-ticket.service.ts       # ticket de uso único p/ auth cross-origin do stream (ADR-0010)
 │   │       └── iot-worker/
 │   │           ├── IoTConnectionManager.ts # singleton, 1 conexão por medidor
 │   │           ├── IoTDataProcessor.ts     # normaliza + fan-out síncrono
 │   │           ├── MinuteBuffer.ts         # acumulador em memória
 │   │           ├── MinuteRollupScheduler.ts
 │   │           └── protocols/
-│   │               ├── IConnection.ts      # interface comum
+│   │               ├── IConnection.ts          # interface comum
+│   │               ├── connectionConfigSchema.ts
+│   │               ├── pollingLoop.ts          # loop de polling compartilhado
+│   │               ├── reconnectBackoff.ts     # backoff de reconexão compartilhado
+│   │               ├── serialLineParser.ts     # parser compartilhado (RS-232/RS-485)
 │   │               ├── MqttConnection.ts
-│   │               └── ModbusTcpConnection.ts  # + RTU, EtherNet/IP, PROFINET,
-│   │                                            # PROFIBUS (stub), RS232, RS485 —
-│   │                                            # 7 classes no mesmo arquivo,
-│   │                                            # dívida técnica registrada
-│   │                                            # (Fase 16 do roadmap)
+│   │               ├── ModbusTcpConnection.ts
+│   │               ├── ModbusRtuConnection.ts
+│   │               ├── EthernetIpConnection.ts
+│   │               ├── ProfinetConnection.ts
+│   │               ├── ProfibusConnection.ts
+│   │               ├── Rs232Connection.ts
+│   │               └── Rs485Connection.ts      # 1 classe por protocolo (Fase 16 do roadmap)
 │   └── shared/
 │       ├── audit/            # trilha OWASP A09 / Art. 46
+│       ├── config/            # contas de demonstração
 │       ├── crypto/            # AES-256-GCM, blind index, TOTP, hash de token
 │       ├── database/          # singleton do PrismaClient
+│       ├── errors/             # AppError
 │       ├── legal/              # versão de consentimento
 │       ├── logger/             # pino
 │       ├── middlewares/        # authenticate, requireRole, rate limiters, error handler

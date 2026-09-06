@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/industry-8749171c-4e79-453a-b637-03ea6e7b4c9a/styles.css">
+<script src="_ds/industry-8749171c-4e79-453a-b637-03ea6e7b4c9a/_ds_bundle.js"></script>
+<style>
+  body { margin:0; background:var(--color-bg); color:var(--color-text); font-family:var(--font-body); text-wrap:pretty; }
+  a { color:var(--color-accent-700); text-decoration:none; }
+  a:hover { color:var(--color-accent); }
+  .lt-legal h3 { font-family:var(--font-heading); text-transform:uppercase; font-weight:600; font-size:20px; letter-spacing:.01em; margin:34px 0 0; scroll-margin-top:96px; }
+  .lt-legal h3:first-child { margin-top:0; }
+  .lt-legal p { font-size:15px; line-height:1.62; margin:12px 0 0; color:color-mix(in srgb,var(--color-text) 84%,transparent); }
+  .lt-legal ul { margin:12px 0 0; padding-left:0; list-style:none; display:flex; flex-direction:column; gap:9px; }
+  .lt-legal ul li { position:relative; padding-left:20px; font-size:15px; line-height:1.55; color:color-mix(in srgb,var(--color-text) 84%,transparent); }
+  .lt-legal ul li::before { content:""; position:absolute; left:0; top:9px; width:7px; height:7px; background:var(--color-accent); }
+  .lt-legal strong { color:var(--color-text); font-weight:600; }
+  .lt-toc a { display:block; padding:6px 0 6px 14px; border-left:2px solid var(--color-divider); font-size:13px; line-height:1.35; color:color-mix(in srgb,var(--color-text) 62%,transparent); }
+  .lt-toc a:hover { border-left-color:var(--color-accent); color:var(--color-accent-700); }
+  .lt-tab { padding:10px 18px; border:1px solid var(--color-divider); background:transparent; font-family:var(--font-heading); font-weight:600; font-size:14px; text-transform:uppercase; letter-spacing:.03em; color:color-mix(in srgb,var(--color-text) 70%,transparent); cursor:pointer; }
+  .lt-tab[data-on="true"] { border-color:var(--color-accent); color:var(--color-accent-700); background:var(--color-accent-100); box-shadow:inset 0 0 0 1px var(--color-accent); }
+  .lt-tab:hover { border-color:var(--color-accent); }
+  .lt-nav-link { color:var(--color-text); opacity:.78; }
+  .lt-nav-link:hover { color:var(--color-accent-700); opacity:1; }
+</style>
+</helmet>
+<div style="min-height:100%">
+
+  <nav class="nav" style="position:sticky;top:0;z-index:20;background:color-mix(in srgb, var(--color-bg) 90%, transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--color-divider);gap:24px">
+    <a href="#" style="display:inline-flex;align-items:center;gap:10px;font-family:var(--font-heading);font-weight:600;font-size:18px;letter-spacing:-.01em;color:var(--color-text)">
+      <img src="uploads/lumitrack-logo-2.svg" alt="" style="width:24px;height:27px;display:block">
+      <span style="white-space:nowrap">Lumi<span style="background:linear-gradient(105deg,#5980A6 0%,#96B18F 60%,#D4E277 100%);-webkit-background-clip:text;background-clip:text;color:transparent">Track</span></span>
+    </a>
+    <span style="flex:1"></span>
+    <a class="lt-nav-link" href="#">← Voltar ao site</a>
+    <button type="button" class="btn btn-primary">Entrar</button>
+  </nav>
+
+  <!-- Header band -->
+  <div style="border-bottom:1px solid var(--color-divider)">
+    <div style="max-width:1080px;margin:0 auto;padding:clamp(32px,4vw,56px) clamp(20px,5vw,48px) 0">
+      <span style="display:block;font:600 13px/1 var(--font-heading);letter-spacing:.09em;text-transform:uppercase;color:var(--color-accent-700)">Central de privacidade · LGPD</span>
+      <h1 style="font-family:var(--font-heading);text-transform:uppercase;font-weight:600;font-size:clamp(32px,4vw,52px);line-height:1.02;margin:14px 0 0">{{ pageTitle }}</h1>
+      <p style="font-size:14px;margin:12px 0 0;color:color-mix(in srgb,var(--color-text) 60%,transparent);font-feature-settings:'tnum' 1">Versão 1.0 — vigente desde 27/06/2026 · Conforme a Lei nº 13.709/2018</p>
+      <div style="display:flex;gap:10px;margin:26px 0 -1px">
+        <button type="button" class="lt-tab" data-on="{{ isPriv }}" onClick="{{ showPriv }}">Política de Privacidade</button>
+        <button type="button" class="lt-tab" data-on="{{ isTerms }}" onClick="{{ showTerms }}">Termos de Uso</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width:1080px;margin:0 auto;padding:clamp(32px,4vw,52px) clamp(20px,5vw,48px) 80px;display:grid;grid-template-columns:200px minmax(0,1fr);gap:clamp(32px,5vw,64px);align-items:start">
+
+    <!-- TOC -->
+    <aside class="lt-toc" style="position:sticky;top:96px;display:flex;flex-direction:column;gap:2px">
+      <span style="font:600 11px/1 var(--font-heading);letter-spacing:.08em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 50%,transparent);margin-bottom:10px;padding-left:14px">Nesta página</span>
+      {{ toc }}
+    </aside>
+
+    <!-- Content -->
+    <article class="lt-legal">
+
+      <!-- PRIVACY -->
+      <sc-if value="{{ isPriv }}" hint-placeholder-val="{{ true }}">
+        <div class="blueprint" style="padding:18px 20px;margin-bottom:32px;display:flex;gap:13px;align-items:flex-start">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9a5f14" stroke-width="1.5" style="flex-shrink:0;margin-top:1px"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+          <p style="margin:0;font-size:13.5px;color:color-mix(in srgb,var(--color-text) 74%,transparent)">Documento-modelo gerado como parte de uma auditoria de segurança e conformidade. Antes do uso em produção, os dados do controlador e do encarregado (DPO) devem ser completados e o texto revisado por profissional jurídico.</p>
+        </div>
+
+        <p style="margin-top:0">Esta Política de Privacidade descreve como o LumiTrack ("nós", "plataforma") coleta, utiliza, armazena e protege os dados pessoais dos seus usuários ("você", "titular"), em conformidade com a Lei Geral de Proteção de Dados Pessoais — LGPD (Lei nº 13.709/2018). Ao marcar a caixa de aceite no cadastro, você declara ter lido e concordado com os termos abaixo.</p>
+
+        <h3 id="p1">1 · Quem trata os seus dados</h3>
+        <p>O LumiTrack é o controlador dos dados pessoais tratados na plataforma. Dúvidas, solicitações ou exercício de direitos podem ser enviados para o e-mail de contato do encarregado (DPO) informado no rodapé da plataforma.</p>
+
+        <h3 id="p2">2 · Quais dados coletamos</h3>
+        <table class="table" style="margin-top:16px;width:100%">
+          <thead><tr><th>Categoria</th><th>Dados</th><th>Finalidade</th></tr></thead>
+          <tbody>
+            <tr><td>Identificação</td><td>Nome, sobrenome ou razão social/nome fantasia, e-mail</td><td>Criar e gerenciar sua conta, autenticação</td></tr>
+            <tr><td>Documentos</td><td>CPF (pessoa física) ou CNPJ (pessoa jurídica)</td><td>Identificação única do titular, prevenção a fraude</td></tr>
+            <tr><td>Senha</td><td>Hash da senha (nunca em texto claro)</td><td>Autenticação segura</td></tr>
+            <tr><td>Localização</td><td>Endereço, cidade, estado e CEP das propriedades</td><td>Vincular o consumo ao imóvel monitorado</td></tr>
+            <tr><td>Consumo de energia</td><td>Histórico de consumo (kWh) e custo estimado (R$) por propriedade, área ou dispositivo</td><td>Relatórios, simulações e alertas de consumo</td></tr>
+            <tr><td>Dispositivos e IoT</td><td>Nome, marca, modelo, potência; configuração de conectividade</td><td>Monitoramento de consumo em tempo real</td></tr>
+            <tr><td>Sessão</td><td>Tokens de autenticação, data de login/logout</td><td>Manter a sessão segura e permitir revogação</td></tr>
+            <tr><td>Consentimento</td><td>Data do aceite e versão da Política aceita</td><td>Comprovar a base legal (Art. 7º/8º)</td></tr>
+          </tbody>
+        </table>
+        <p>Não coletamos dados sensíveis (saúde, biometria, origem racial, convicção religiosa ou política, etc.).</p>
+
+        <h3 id="p3">3 · Base legal do tratamento</h3>
+        <ul>
+          <li><strong>Consentimento</strong> (Art. 7º, I): obtido no cadastro, mediante aceite explícito desta Política e dos Termos de Uso.</li>
+          <li><strong>Execução de contrato</strong> (Art. 7º, V): necessário para prestar o serviço de monitoramento de consumo que você contratou.</li>
+          <li><strong>Cumprimento de obrigação legal/regulatória</strong> (Art. 7º, II): quando aplicável, para fins fiscais ou de auditoria.</li>
+        </ul>
+
+        <h3 id="p4">4 · Com quem compartilhamos</h3>
+        <ul>
+          <li><strong>Provedor de e-mail (SMTP)</strong>: usado exclusivamente para envio de e-mails de recuperação de senha; atua como operador nos termos do Art. 39 da LGPD.</li>
+          <li>Não compartilhamos seus dados com terceiros para publicidade, venda ou finalidade não descrita aqui.</li>
+          <li>Não realizamos transferência internacional além do necessário ao provedor de e-mail, quando aplicável.</li>
+        </ul>
+
+        <h3 id="p5">5 · Como protegemos seus dados</h3>
+        <ul>
+          <li>Senhas armazenadas com hash criptográfico (bcrypt), nunca em texto claro.</li>
+          <li>Conexões protegidas por cabeçalhos de segurança HTTP e TLS/HTTPS em produção.</li>
+          <li>Controle de acesso: cada usuário só acessa os próprios dados — verificado em toda requisição.</li>
+          <li>Limitação de tentativas (rate limiting) em endpoints de autenticação.</li>
+          <li>Tokens de sessão podem ser revogados a qualquer momento (logout).</li>
+        </ul>
+
+        <h3 id="p6">6 · Seus direitos (Art. 18)</h3>
+        <p>Você pode, a qualquer momento:</p>
+        <ul>
+          <li><strong>Confirmar e acessar</strong> os dados que mantemos sobre você;</li>
+          <li><strong>Corrigir</strong> dados incompletos, inexatos ou desatualizados;</li>
+          <li><strong>Eliminar</strong> sua conta e os dados associados (sujeito a hipóteses de retenção legal);</li>
+          <li><strong>Solicitar a portabilidade</strong> dos dados a outro fornecedor;</li>
+          <li><strong>Revogar o consentimento</strong> e se opor a tratamentos baseados nele;</li>
+          <li><strong>Solicitar informações</strong> sobre o compartilhamento dos seus dados.</li>
+        </ul>
+        <p>Acesso, retificação e eliminação podem ser exercidos direto na plataforma, nas configurações da conta. Para os demais, contate o encarregado (DPO).</p>
+
+        <h3 id="p7">7 · Retenção e eliminação</h3>
+        <p>Mantemos seus dados enquanto a conta estiver ativa e pelo tempo necessário às finalidades descritas. Ao excluir a conta, os dados pessoais e de consumo associados são removidos, exceto quando a retenção for exigida por obrigação legal.</p>
+
+        <h3 id="p8">8 · Alterações nesta Política</h3>
+        <p>Esta Política pode ser atualizada para refletir mudanças no serviço ou na legislação. Alterações materiais terão nova versão registrada nesta página, e poderemos solicitar novo aceite.</p>
+
+        <h3 id="p9">9 · Contato</h3>
+        <p>Em caso de dúvidas sobre esta Política ou sobre o tratamento dos seus dados, contate o encarregado de proteção de dados (DPO) do LumiTrack pelo e-mail informado na plataforma.</p>
+      </sc-if>
+
+      <!-- TERMS -->
+      <sc-if value="{{ isTerms }}" hint-placeholder-val="{{ false }}">
+        <div class="blueprint" style="padding:18px 20px;margin-bottom:32px;display:flex;gap:13px;align-items:flex-start">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9a5f14" stroke-width="1.5" style="flex-shrink:0;margin-top:1px"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+          <p style="margin:0;font-size:13.5px;color:color-mix(in srgb,var(--color-text) 74%,transparent)">Documento-modelo gerado como parte de uma auditoria de segurança e conformidade. Antes do uso em produção, o texto deve ser revisado por profissional jurídico e os dados da empresa responsável completados.</p>
+        </div>
+
+        <p style="margin-top:0">Estes Termos de Uso regulam o acesso e a utilização da plataforma LumiTrack ("nós", "plataforma"). Ao criar uma conta, você concorda integralmente com estes Termos e com a <a href="#" onClick="{{ showPriv }}">Política de Privacidade</a>.</p>
+
+        <h3 id="t1">1 · Sobre o serviço</h3>
+        <p>O LumiTrack é uma plataforma de monitoramento de consumo de energia elétrica que permite cadastrar propriedades, áreas e dispositivos, registrar e acompanhar o consumo (kWh) e o custo estimado (R$), configurar alertas e gerar relatórios e simulações de consumo.</p>
+
+        <h3 id="t2">2 · Cadastro e conta</h3>
+        <ul>
+          <li>Você deve fornecer informações verdadeiras, completas e atualizadas (e-mail, senha e, conforme o tipo de conta, CPF ou CNPJ).</li>
+          <li>Você é responsável por manter a confidencialidade da senha e por todas as atividades realizadas com a sua conta.</li>
+          <li>O cadastro exige o aceite explícito da Política de Privacidade e destes Termos, conforme a LGPD.</li>
+          <li>Cada pessoa ou empresa deve manter apenas uma conta — duplicidades por e-mail, CPF ou CNPJ são rejeitadas automaticamente.</li>
+        </ul>
+
+        <h3 id="t3">3 · Uso aceitável</h3>
+        <p>Ao usar o LumiTrack, você concorda em <strong>não</strong>:</p>
+        <ul>
+          <li>Utilizar a plataforma para fins ilícitos ou não autorizados;</li>
+          <li>Tentar acessar contas, dados ou propriedades de outros usuários;</li>
+          <li>Tentar burlar mecanismos de segurança, autenticação ou rate limiting;</li>
+          <li>Realizar engenharia reversa, copiar ou redistribuir partes da plataforma sem autorização.</li>
+        </ul>
+
+        <h3 id="t4">4 · Dados de consumo e precisão</h3>
+        <p>Os valores de consumo (kWh) e custo (R$) exibidos — incluindo relatórios e simulações — são calculados a partir dos dados informados por você (tarifas, potência dos dispositivos, leituras manuais ou de IoT) e têm caráter informativo. O LumiTrack não se responsabiliza por divergências entre os valores exibidos e a fatura emitida pela sua distribuidora de energia.</p>
+
+        <h3 id="t5">5 · Disponibilidade do serviço</h3>
+        <p>Empregamos esforços razoáveis para manter a plataforma disponível, mas não garantimos operação ininterrupta ou livre de erros. Manutenções programadas ou emergenciais podem causar indisponibilidade temporária.</p>
+
+        <h3 id="t6">6 · Encerramento da conta</h3>
+        <p>Você pode encerrar sua conta a qualquer momento nas configurações. O encerramento remove seus dados pessoais e os associados à conta, conforme a Política de Privacidade, exceto quando a retenção for exigida por obrigação legal. Podemos suspender ou encerrar contas que violem estes Termos, especialmente em casos de uso indevido, acesso não autorizado a dados de terceiros ou fraude.</p>
+
+        <h3 id="t7">7 · Propriedade intelectual</h3>
+        <p>A plataforma, sua marca, design e código-fonte pertencem ao LumiTrack ou a seus licenciantes. Os dados que você insere (propriedades, dispositivos, registros de consumo) continuam sendo seus — usamos esses dados apenas para prestar o serviço a você, conforme a Política de Privacidade.</p>
+
+        <h3 id="t8">8 · Limitação de responsabilidade</h3>
+        <p>Na máxima extensão permitida pela lei aplicável, o LumiTrack não se responsabiliza por danos indiretos, incidentais ou consequenciais decorrentes do uso ou da impossibilidade de uso da plataforma.</p>
+
+        <h3 id="t9">9 · Alterações destes Termos</h3>
+        <p>Podemos atualizar estes Termos para refletir mudanças no serviço ou na legislação. Alterações materiais terão nova versão registrada nesta página, e poderemos solicitar novo aceite.</p>
+
+        <h3 id="t10">10 · Contato</h3>
+        <p>Em caso de dúvidas sobre estes Termos, entre em contato pelo e-mail informado na plataforma.</p>
+      </sc-if>
+
+    </article>
+  </div>
+
+  <footer style="border-top:1px solid var(--color-divider)">
+    <div style="max-width:1080px;margin:0 auto;padding:18px clamp(20px,5vw,48px);font-size:12px;color:color-mix(in srgb,var(--color-text) 55%,transparent);display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">© 2026 LumiTrack · Todos os direitos reservados · Feito no Brasil<span>Logo desenhada por <a href="https://www.magnific.com" target="_blank" rel="noopener">Magnific</a></span></div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1120,&quot;height&quot;:900},&quot;doc&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;priv&quot;,&quot;terms&quot;],&quot;default&quot;:&quot;priv&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Documento&quot;}}">
+class Component extends DCLogic {
+  state = { doc: (this.props.doc === 'terms' ? 'terms' : 'priv') };
+  renderVals() {
+    const isPriv = this.state.doc === 'priv';
+    const mk = (items) => items.map((it, i) => React.createElement('a', { key: i, href: '#' + it.id }, it.t));
+    const privToc = [
+      {id:'p1',t:'1 · Quem trata os dados'},{id:'p2',t:'2 · Dados coletados'},{id:'p3',t:'3 · Base legal'},
+      {id:'p4',t:'4 · Compartilhamento'},{id:'p5',t:'5 · Segurança'},{id:'p6',t:'6 · Seus direitos'},
+      {id:'p7',t:'7 · Retenção'},{id:'p8',t:'8 · Alterações'},{id:'p9',t:'9 · Contato'}
+    ];
+    const termsToc = [
+      {id:'t1',t:'1 · Sobre o serviço'},{id:'t2',t:'2 · Cadastro e conta'},{id:'t3',t:'3 · Uso aceitável'},
+      {id:'t4',t:'4 · Dados e precisão'},{id:'t5',t:'5 · Disponibilidade'},{id:'t6',t:'6 · Encerramento'},
+      {id:'t7',t:'7 · Propriedade intelectual'},{id:'t8',t:'8 · Responsabilidade'},{id:'t9',t:'9 · Alterações'},{id:'t10',t:'10 · Contato'}
+    ];
+    return {
+      isPriv, isTerms: !isPriv,
+      pageTitle: isPriv ? 'Política de Privacidade' : 'Termos de Uso',
+      toc: mk(isPriv ? privToc : termsToc),
+      showPriv: () => this.setState({ doc: 'priv' }),
+      showTerms: () => this.setState({ doc: 'terms' })
+    };
+  }
+}
+</script>
+</body>
+</html>

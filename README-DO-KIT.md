@@ -113,14 +113,14 @@ Cada skill e subagente declara `model` e `effort` no próprio frontmatter, **sob
 | `auditoria-qualidade` | opus | high | Nenhum detalhe pode escapar na revisão de arquitetura e code smells. |
 | `auditoria-desempenho` | opus | high | Gargalo não detectado só aparece com o sistema em carga. |
 | `scaffold-projeto` | opus | xhigh | Entrevista de arquitetura + stack: decisões caras de reverter. |
-| `planejar-roadmap` | opus | high | Erro de sequenciamento contamina o backlog inteiro. |
+| `planejar-roadmap` | opus | max | Erro de sequenciamento contamina o backlog inteiro. |
 | `nova-feature` | sonnet | high | Implementação real, com effort alto para respeitar os padrões do kit. |
 | `refatoracao` | sonnet | high | Preservar comportamento exige raciocínio, não só reescrita. |
 | `correcao-bugs` | sonnet | high | Diagnóstico costuma ser localizado; effort alto cobre bugs difíceis. |
 | `revisao-codigo` | opus | high | Revisão é o último filtro antes do merge — falso negativo entra em produção. |
-| `onboarding` | opus | high | Sintetiza onze context files em um caminho sequencial e verificável. |
+| `onboarding` | opus | xhigh | Sintetiza onze context files em um caminho sequencial e verificável. |
 | `criar-issues` | sonnet | medium | Transforma material pronto (laudo/roadmap) em issues. |
-| `preparar-pr` | sonnet | low | Lê diff, monta a descrição e cria o PR; executa `gh` com pré-condições a verificar. |
+| `preparar-pr` | sonnet | medium | Lê diff, monta a descrição e cria o PR; executa `gh` com pré-condições a verificar. |
 
 **Mental model:** o *modelo* são os pesos fixos (saber mais); o *effort* é quanto trabalho o Claude faz no pedido (tentar mais).
 
