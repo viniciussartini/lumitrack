@@ -29,30 +29,30 @@
 - RF06 `[implementado]`: a sessão WEB deve renovar-se via refresh token opaco rotacionado, detectando e reagindo ao reuso de um token já trocado.
 - RF20 `[implementado]`: o sistema deve exigir a senha atual para iniciar uma troca de e-mail e só efetivá-la após confirmação pelo novo endereço (token hasheado, com expiração), revogando todas as sessões da conta na confirmação.
 - RF21 `[implementado]`: o sistema deve permitir entrar em contas de demonstração (residencial e comercial) sem e-mail nem senha, com o backend resolvendo a conta internamente, quando `DEMO_LOGIN_ENABLED` estiver ligado — independente de `REGISTRATION_ENABLED`.
-- RF44 `[planejado — sem fase]`: o sistema deve permitir que um usuário veja suas sessões ativas (dispositivo, origem, último acesso) e encerre qualquer uma delas, individualmente ou todas as outras de uma vez.
+- RF44 `[planejado — Fase 30]`: o sistema deve permitir que um usuário veja suas sessões ativas (dispositivo, origem, último acesso) e encerre qualquer uma delas, individualmente ou todas as outras de uma vez. `AuthToken`/`RefreshToken` hoje não guardam device/IP/user-agent — só canal e datas; a granularidade real de "dispositivo, origem" depende de decisão na execução da Fase 30.
 
 ### Hierarquia do consumidor
 
 - RF07 `[implementado]`: o sistema deve permitir que um usuário cadastre Propriedades (endereço, distribuidora, sistema elétrico, classe de faturamento B1/B2/B3), Áreas dentro de uma Propriedade e Aparelhos dentro de uma Área.
 - RF08 `[implementado]`: o sistema deve permitir que um usuário consulte o catálogo de distribuidoras de energia (somente leitura, dados tarifários reais) e a bandeira tarifária vigente.
 - RF24 `[implementado]`: o sistema deve manter a bandeira tarifária vigente sincronizada automaticamente com a fonte oficial da ANEEL (ADR-0007), permitindo override manual por usuário `ADMIN` — a sincronização automática nunca é o único caminho para corrigir um valor errado.
-- RF46 `[planejado — sem fase]`: o sistema deve concentrar a gestão do cadastro (Propriedade, Área, Dispositivo, Medidor) numa tela única de Configurações, exibindo a estrutura hierárquica completa com ações de edição e exclusão em cada nível.
+- RF46 `[planejado — Fase 23]`: o sistema deve concentrar a gestão do cadastro (Propriedade, Área, Dispositivo, Medidor) numa tela única de Configurações, exibindo a estrutura hierárquica completa com ações de edição e exclusão em cada nível.
 
 ### Medição IoT
 
 - RF09 `[implementado]`: o sistema deve permitir que um usuário vincule um Medidor a exatamente um alvo (Propriedade, Área ou Aparelho), configurando o protocolo de conexão (MQTT, Modbus TCP/RTU, EtherNet/IP, Profibus, PROFINET, RS232, RS485).
 - RF10 `[implementado]`: o sistema deve ingerir amostras elétricas (tensão, corrente, potência, fator de potência) do medidor e agregá-las em leituras por minuto, com médias ponderadas por tempo de vigência de cada amostra.
 - RF11 `[implementado]`: o sistema deve expor as leituras e disparos de alerta em tempo real via SSE, por usuário autenticado.
-- RF37 `[planejado — sem fase]`: o sistema deve ingerir e persistir o conjunto ampliado de grandezas elétricas por fase — tensão por fase e fase-neutro média, desequilíbrio, corrente por fase e de neutro, potência ativa total e por fase, reativa, aparente, frequência, fator de potência por fase, e THD de tensão e de corrente por fase.
-- RF47 `[planejado — sem fase]`: o simulador IoT deve permitir que o administrador da aplicação gerencie redes e medidores de demonstração, publicando pelos protocolos suportados, com acesso restrito (não público e não divulgado na documentação).
+- RF37 `[planejado — Fase 25]`: o sistema deve ingerir e persistir o conjunto ampliado de grandezas elétricas por fase — tensão por fase e fase-neutro média, desequilíbrio, corrente por fase e de neutro, potência ativa total e por fase, reativa, aparente, frequência, fator de potência por fase, e THD de tensão e de corrente por fase.
+- RF47 `[implementado]`: o simulador IoT deve permitir que o administrador da aplicação gerencie redes e medidores de demonstração, publicando pelo protocolo MQTT, com acesso restrito (não público e não divulgado na documentação). Suporte a Modbus TCP/RTU é `[planejado — Fase 31]` — hoje o simulador só emula MQTT.
 
 ### Consumo, custo e análise
 
 - RF12 `[implementado]`: o sistema deve permitir que um usuário consulte consumo (kWh) agregado por minuto, hora, dia, mês ou ano, em qualquer nível da hierarquia (Propriedade/Área/Aparelho).
 - RF13 `[implementado]`: o sistema deve calcular o custo em reais de cada agregação para o Grupo B, devolvendo a decomposição completa (energia, bandeira, tributos, CIP, total) — ver RN10–RN16. O caminho binômio do Grupo A não amplia este requisito: é RF29, porque o cálculo ramifica por grupo em vez de generalizar (RN23).
 - RF22 `[implementado]`: o sistema deve permitir simular o custo de um consumo hipotético, informado em kWh direto ou em watts × horas de uso, sem persistir a simulação.
-- RF38 `[planejado — sem fase]`: o sistema deve permitir que um usuário analise as grandezas elétricas de um item selecionado — em tempo real e em série histórica, escolhendo grandeza, janela (hora/dia) e agregação.
-- RF39 `[planejado — sem fase]`: o sistema deve permitir comparar dois períodos arbitrários (A e B) de um mesmo alvo e grandeza, apresentando o gráfico e as diferenças entre eles.
+- RF38 `[planejado — Fase 24]`: o sistema deve permitir que um usuário analise as grandezas elétricas de um item selecionado — em tempo real e em série histórica, escolhendo grandeza, janela (hora/dia) e agregação. A cobertura completa de grandeza depende de RF37 (Fase 25); até lá, a análise opera sobre o que já é medido hoje.
+- RF39 `[planejado — Fase 26]`: o sistema deve permitir comparar dois períodos arbitrários (A e B) de um mesmo alvo e grandeza, apresentando o gráfico e as diferenças entre eles.
 
 ### Tarifação — Grupo A e modalidades horárias
 
@@ -65,7 +65,7 @@
 - RF31 `[planejado — Fase 20]`: o sistema deve calcular a ultrapassagem de demanda e permitir que um usuário do Grupo A configure alerta de ultrapassagem da demanda contratada. *(Substitui o item anteriormente registrado sem número como "RFXX".)*
 - RF32 `[planejado — Fase 20]`: o sistema deve calcular a energia reativa excedente quando o fator de potência ficar abaixo do mínimo regulatório.
 - RF33 `[planejado — Fase 21]`: o sistema deve distinguir o ambiente de contratação da Propriedade (ACR cativo × ACL livre) e registrar o contrato de energia do ACL — comercializadora, volume contratado, submercado, fonte e vigência.
-- RF34 `[planejado — sem fase]`: o sistema deve permitir registrar e consultar o PLD (Preço de Liquidação das Diferenças) por submercado, usado na análise econômica do mercado livre.
+- RF34 `[planejado — Fase 21]`: o sistema deve permitir registrar e consultar o PLD (Preço de Liquidação das Diferenças) por submercado, usado na análise econômica do mercado livre.
 - RF35 `[planejado — Fase 21]`: o sistema deve comparar o custo no mercado cativo com o custo no mercado livre a partir do consumo real do próprio usuário, respondendo "vale a pena migrar?".
 - RF36 `[planejado — Fase 22]`: o sistema deve suportar a modalidade Tarifa Branca para o Grupo B, incluindo o alerta de quando ela sai mais cara que a Convencional para o perfil de consumo do usuário.
 - RF45 `[planejado — sem fase]`: o sistema deve permitir manter os parâmetros tarifários da distribuidora com vigência (tarifas por posto, tributos, postos horários e regra de feriados), preservando o histórico para recálculo de períodos anteriores.
@@ -76,13 +76,13 @@
 - RF15 `[implementado]`: o sistema deve avaliar cada amostra recebida contra os alertas habilitados do medidor e abrir/fechar episódios de disparo conforme a histerese de RN32.
 - RF16 `[implementado]`: o sistema deve persistir cada episódio de disparo encerrado (início, fim, duração, potência mín./máx./média, nº de amostras) e notificar o usuário.
 - RF23 `[implementado]`: o sistema deve permitir que um usuário consulte suas notificações e as remova, individualmente ou todas de uma vez.
-- RF43 `[planejado — sem fase]`: o sistema deve permitir configurar alerta de meta, disparado ao atingir um percentual definido da meta, visível junto dos demais alertas.
+- RF43 `[planejado — Fase 28]`: o sistema deve permitir configurar alerta de meta, disparado ao atingir um percentual definido da meta, visível junto dos demais alertas.
 
 ### Relatórios e metas
 
-- RF40 `[planejado — sem fase]`: o sistema deve permitir emitir um relatório sob demanda escolhendo escopo (propriedade, área, dispositivo), tipo (mensal, consumo, alertas, qualidade de energia, demanda), período e formato (PDF ou CSV), registrando-o no histórico.
-- RF41 `[planejado — sem fase]`: o sistema deve permitir agendar relatórios automáticos (periodicidade, dia de envio, destinatários), listar os envios agendados e gerenciar as configurações criadas.
-- RF42 `[planejado — sem fase]`: o sistema deve permitir que um usuário cadastre metas anuais de consumo (kWh) e custo (R$) — e de demanda, no Grupo A — com meta mês a mês, ano de referência e acompanhamento de realizado, desvio e situação.
+- RF40 `[planejado — Fase 27]`: o sistema deve permitir emitir um relatório sob demanda escolhendo escopo (propriedade, área, dispositivo), tipo (mensal, consumo, alertas, qualidade de energia, demanda), período e formato (PDF ou CSV), registrando-o no histórico.
+- RF41 `[planejado — Fase 27]`: o sistema deve permitir agendar relatórios automáticos (periodicidade, dia de envio, destinatários), listar os envios agendados e gerenciar as configurações criadas.
+- RF42 `[planejado — Fase 28]`: o sistema deve permitir que um usuário cadastre metas anuais de consumo (kWh) e custo (R$) — e de demanda, no Grupo A — com meta mês a mês, ano de referência e acompanhamento de realizado, desvio e situação.
 
 ### Dados pessoais e administração
 
@@ -243,13 +243,13 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
   ```
 
 - RN33 `[implementado]`: alerta desabilitado ou excluído durante um episódio em curso **encerra e persiste** o episódio no estado em que estava — não o descarta.
-- RN34 `[planejado — sem fase]`: o sistema aceita medidores que não medem todas as grandezas; grandeza ausente é exibida como "-", nunca como zero — zero é uma medição, ausência não é. *(Quais grandezas o medidor real entrega medidas e quais são calculadas é decisão em aberto — ver `07-decisoes-em-aberto.md`.)*
+- RN34 `[planejado — Fase 25]`: o sistema aceita medidores que não medem todas as grandezas; grandeza ausente é exibida como "-", nunca como zero — zero é uma medição, ausência não é. *(Quais grandezas o medidor real entrega medidas e quais são calculadas é decisão em aberto — ver `07-decisoes-em-aberto.md`; bloqueia a Fase 25.)*
 
 ### Relatórios e metas
 
-- RN35 `[planejado — sem fase]`: relatório gerado é **imutável** — para obter informação diferente, gera-se outro. Todos seguem template padronizado com a identidade visual do projeto.
-- RN36 `[planejado — sem fase]`: no agendamento, o dia de envio aceita 1 a 31, mas meses mais curtos não têm todos eles — quando o dia escolhido não existe no mês (fevereiro, meses de 30 dias, ano bissexto), o envio ocorre no **último dia do mês**.
-- RN37 `[planejado — sem fase]`: só a meta do ano vigente pode ser editada. Metas de anos anteriores são imutáveis, não podem ser excluídas e podem ser usadas como base de referência para uma meta nova.
+- RN35 `[planejado — Fase 27]`: relatório gerado é **imutável** — para obter informação diferente, gera-se outro. Todos seguem template padronizado com a identidade visual do projeto.
+- RN36 `[planejado — Fase 27]`: no agendamento, o dia de envio aceita 1 a 31, mas meses mais curtos não têm todos eles — quando o dia escolhido não existe no mês (fevereiro, meses de 30 dias, ano bissexto), o envio ocorre no **último dia do mês**.
+- RN37 `[planejado — Fase 28]`: só a meta do ano vigente pode ser editada. Metas de anos anteriores são imutáveis, não podem ser excluídas e podem ser usadas como base de referência para uma meta nova.
 
 ## 2.4 Funcionamento
 
@@ -278,7 +278,7 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
 
 > As telas descritas de FNC004 a FNC013 nascem do handoff `2026-09-06-lumitrack-completo` (tela `LumiTrack Home v2`), que **substitui a `Home` anterior como design-alvo do app logado**. A navegação passa a ser Painel · Análise · Histórico · Relatórios · Alertas · Distribuidoras · Sobre, mais Configurações. Cada FNC registra o que já existe hoje, para o planejamento não confundir "redesenhar" com "construir do zero".
 
-**FNC004 — Painel** `[planejado — sem fase]`
+**FNC004 — Painel** `[planejado — Fase 29]` *(estrutura de navegação: Fase 23)*
 
 Tela inicial com o panorama geral, filtrada pela propriedade selecionada no seletor da topbar. Seções:
 
@@ -291,7 +291,7 @@ Tela inicial com o panorama geral, filtrada pela propriedade selecionada no sele
 
 **Hoje:** o Painel já entrega bandeira vigente, alertas em disparo, KPIs de consumo/custo e gráfico de potência em tempo real. Faltam a tabela hierarquizada, o peso por medidor, a meta e a demanda.
 
-**FNC005 — Análise** `[planejado — sem fase]`
+**FNC005 — Análise** `[planejado — Fase 24 (Consumo e Custos); Fase 25 (Grandezas Elétricas)]`
 
 Onde o usuário examina em detalhe consumo, custo e medições de cada item cadastrado.
 
@@ -304,13 +304,13 @@ Onde o usuário examina em detalhe consumo, custo e medições de cada item cada
 
 **Hoje:** existe a rota `/propriedades` com detalhes por nível e gráfico em tempo real, mas sem a aba de grandezas elétricas (que depende de RF37) e sem a área de análise configurável.
 
-**FNC006 — Histórico e comparações** `[planejado — sem fase]`
+**FNC006 — Histórico e comparações** `[planejado — Fase 26]`
 
 1. O usuário seleciona o alvo (Propriedade, Área ou Dispositivo) e a grandeza medida.
 2. Define dois períodos — A (início e fim) e B (início e fim).
 3. O sistema plota o gráfico comparativo e uma seção com as diferenças entre os períodos, incluindo a variação de B sobre A.
 
-**FNC007 — Relatórios** `[planejado — sem fase]`
+**FNC007 — Relatórios** `[planejado — Fase 27]`
 
 Gestão e agendamento de relatórios em PDF e CSV, com template padronizado (referência: tela `LumiTrack Relatório A4` do handoff) e imutabilidade conforme RN35.
 
@@ -321,7 +321,7 @@ Gestão e agendamento de relatórios em PDF e CSV, com template padronizado (ref
 
 **Hoje:** a rota `/relatorios` entrega consulta de consumo com seletor em cascata e granularidades — não há emissão de arquivo, template, histórico nem agendamento.
 
-**FNC008 — Configurações** `[planejado — sem fase]`
+**FNC008 — Configurações** `[planejado — Fase 23 (estrutura); Fase 27 (sub-página Relatórios); Fase 28 (sub-página Metas)]`
 
 Menu à esquerda com as configurações disponíveis e, à direita, a página da configuração selecionada.
 
@@ -330,32 +330,32 @@ Menu à esquerda com as configurações disponíveis e, à direita, a página da
 - **Metas:** gestão das metas descritas em FNC011.
 - **Conta:** dados pessoais, troca de senha, exportação de dados (RF17), exclusão da conta e 2FA.
 
-**FNC009 — Simulador IoT** `[planejado — sem fase]`
+**FNC009 — Simulador IoT** `[implementado (item 2); planejado — Fase 31 (item 1)]`
 
-1. O simulador provê os protocolos MQTT e Modbus TCP/RTU. *(A viabilidade de um simulador Modbus embutido, em vez de integração com simulador externo, é decisão em aberto — ver `07-decisoes-em-aberto.md`.)*
-2. A interface permite ao administrador criar redes e adicionar dispositivos (nome, tópico MQTT, parâmetros iniciais), ligar/desligar cada dispositivo com indicação de "publicando há X segundos", injetar parâmetros (tensão, potência, fator de potência, ruído, perfil) e disparar anomalias.
-3. O acesso é restrito ao administrador da aplicação: o endereço não é público nem aparece em nenhum ponto da documentação.
+1. O simulador provê os protocolos MQTT `[implementado]` e Modbus TCP/RTU `[planejado — Fase 31]`. *(A viabilidade de um simulador Modbus embutido, em vez de integração com simulador externo, é decisão em aberto — ver `07-decisoes-em-aberto.md`; bloqueia a Fase 31.)*
+2. A interface permite ao administrador criar redes e adicionar dispositivos (nome, tópico MQTT, parâmetros iniciais), ligar/desligar cada dispositivo com indicação de "publicando há X segundos", injetar parâmetros (tensão, potência, fator de potência, ruído, perfil) e disparar anomalias. `[implementado]`
+3. O acesso é restrito ao administrador da aplicação: o endereço não é público nem aparece em nenhum ponto da documentação. `[implementado]`
 
-**FNC010 — Grandezas fornecidas pelo medidor** `[planejado — sem fase]`
+**FNC010 — Grandezas fornecidas pelo medidor** `[planejado — Fase 25]`
 
 O medidor envia ao sistema: tensão (por fase, fase-neutro média, desequilíbrio); corrente (por fase e de neutro); potência (ativa total, reativa, aparente, ativa por fase, frequência); fator de potência por fase; THD de tensão por fase; THD de corrente por fase.
 
 O sistema opera com qualquer medidor, inclusive os que não medem todas as grandezas — a ausência é exibida conforme RN34. *(Quais dessas grandezas um medidor real mede e quais ele calcula internamente é decisão em aberto — ver `07-decisoes-em-aberto.md`; a resposta define o que o `MeterReading` persiste.)*
 
-**FNC011 — Metas** `[planejado — sem fase]`
+**FNC011 — Metas** `[planejado — Fase 28]`
 
 1. O usuário cadastra metas de consumo (kWh) e custo (R$); propriedades do Grupo A têm também meta de demanda.
 2. A tela mostra: card "Metas de consumo anual" com a meta vigente e botão de nova meta; seção com gráfico de barras de meta versus realizado, acompanhada dos cards Meta do ano, Realizado até o mês corrente, Desvio acumulado em % e Consumo específico alvo em kWh; e o histórico de metas em tabela (ano, meta, realizado, desvio, base de referência e situação).
 3. O histórico oferece as ações: usar como referência, editar (só a meta vigente) e excluir — conforme RN37.
 4. O formulário de nova meta pede: ano da meta, ano de referência, consumo específico alvo em kWh, meta mês a mês em kWh e o percentual de alerta ao atingir (RF43).
 
-**FNC012 — Sessões ativas** `[planejado — sem fase]`
+**FNC012 — Sessões ativas** `[planejado — Fase 30]`
 
 1. O usuário consulta em quais dispositivos sua conta está autenticada.
 2. Pode encerrar qualquer sessão individualmente, ou todas as outras de uma vez.
 3. Em modo de demonstração, a listagem é apenas representativa.
 
-**FNC013 — Alertas (ampliação)** `[planejado — Fase 20 / sem fase]`
+**FNC013 — Alertas (ampliação)** `[planejado — Fase 20 (item 1); Fase 28 (item 2)]`
 
 1. Para verificação de ultrapassagem de demanda contratada, a demanda atual considerada é o agregado de 15 minutos (RN19) — `[planejado — Fase 20]`.
-2. O usuário pode configurar alerta de meta, que aparece na página de alertas junto dos demais — `[planejado — sem fase]`.
+2. O usuário pode configurar alerta de meta, que aparece na página de alertas junto dos demais — `[planejado — Fase 28]`.
