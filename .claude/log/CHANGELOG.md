@@ -3280,3 +3280,21 @@
 - **Arquivos principais:** `.github/dependabot.yml`.
 - **Decisões/ADRs:** nenhuma nova — é correção de configuração pra bater com o ADR-0012 já existente, não uma decisão nova.
 - **Notas:** os 3 PRs seguros fechados (#330/#331/#332) cobriam ~52 atualizações patch/minor já validadas (SO seguras, CI verde, sem major, bases em cima do `main` atual) — o retrabalho de re-triagem contra o novo diff em `staging` fica para quando o dependabot reabrir.
+
+## [2026-09-04] docs: atualiza READMEs de backend/frontend — status atual, novo diagrama de SSE cross-origin, remove versão de ferramenta
+
+- **Branch:** main
+- **Tipo:** docs
+- **O quê:** revisão completa de `backend/README.md` e `frontend/README.md` contra o código/roadmap/CHANGELOG/ADRs atuais. Corrigido desvio acumulado desde a última redação: árvore de `iot-worker/protocols/` (Fase 16 já separou os 7 adaptadores em arquivos próprios, nota de dívida técnica removida), pastas novas `shared/config/` e `shared/errors/`, contagem de arquivos de teste do frontend (71 → 95), componente `HourWindowSelect` ausente da árvore, e a referência de hospedagem de produção — que apontava só para a ADR-0008 (Oracle Always Free) e ficou desatualizada desde a ADR-0012 (VPS Hostinger, topologia vigente). Documentado pela primeira vez o mecanismo de autenticação do stream SSE por ticket de uso único para o cenário cross-origin da demo pública (`sse-ticket.service.ts` + `POST /api/iot/stream-ticket`, ADR-0010) — novo diagrama 7 (sequência) no `backend/README.md`, referenciado a partir do `frontend/README.md` em vez de duplicado; corrigida a tabela de variáveis de ambiente do frontend, que afirmava (incorretamente) que `VITE_SSE_URL` não era lida em código algum. Diagrama de CI ganhou o job `root-format`. Removido, a pedido do usuário, todo número de versão major de ferramenta (Node.js, Express, Prisma, PostgreSQL, React, Vite, Zod, Vitest, Playwright etc.) do texto e das tabelas de stack dos dois READMEs — dado que facilita busca de CVE por versão específica; a versão exata continua rastreável via `package.json`/lockfile, fora da superfície pública da documentação.
+- **Arquivos principais:** `backend/README.md`, `frontend/README.md`.
+- **Decisões/ADRs:** nenhuma nova — só correção de atribuição (ADR-0008 → ADR-0012 como topologia vigente de produção) e documentação de mecanismo já implementado (ticket SSE, ADR-0010).
+- **Notas:** ERD, árvore de rotas, hierarquia de contexts, fluxo TanStack Query, ciclo de vida de alerta e fluxo de autenticação/MFA/refresh foram conferidos contra o schema/código atual e não tinham desvio — não foram alterados além da remoção de versão (que não se aplica a nenhum deles).
+
+## [2026-09-04] docs: corrige tabela "Modelo e effort" do README-DO-KIT.md
+
+- **Branch:** main
+- **Tipo:** docs
+- **O quê:** a tabela de `model`/`effort` por skill em `README-DO-KIT.md` estava dessincronizada do frontmatter real dos arquivos em `.claude/skills/` desde a migração para a v14 (nenhum dos dois nunca tinha sido comparado depois). Corrigidas 3 linhas: `planejar-roadmap` (tabela dizia `high`, frontmatter é `max`), `onboarding` (tabela dizia `high`, frontmatter é `xhigh`), `preparar-pr` (tabela dizia `low`, frontmatter é `medium`). Conferido também o restante do arquivo contra o estado atual de `.claude/` (8 skills, 5 agentes, 3 hooks, estrutura de `.github/`) e contra o pedido de não expor versão de ferramenta para busca de CVE — sem mais desvio nem dado sensível encontrado (o único número de versão do arquivo, `gh ≥ 2.94.0`, é requisito mínimo de uma ferramenta de desenvolvimento local, não superfície de ataque de produção — mantido).
+- **Arquivos principais:** `README-DO-KIT.md`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** não foi um bump de versão do kit (`v16` inalterado) — é correção de tabela que já estava errada antes da v16, não uma mudança de capacidade do kit.
