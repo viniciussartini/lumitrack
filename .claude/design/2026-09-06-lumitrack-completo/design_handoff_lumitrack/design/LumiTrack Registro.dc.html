@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/industry-8749171c-4e79-453a-b637-03ea6e7b4c9a/styles.css">
+<script src="_ds/industry-8749171c-4e79-453a-b637-03ea6e7b4c9a/_ds_bundle.js"></script>
+<style>
+  body { margin:0; background:var(--color-bg); color:var(--color-text); font-family:var(--font-body); text-wrap:pretty; }
+  a { color:var(--color-accent-700); text-decoration:none; }
+  a:hover { color:var(--color-accent); }
+  @keyframes lt-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.72)} }
+  .lt-input:focus-visible { outline:2px solid var(--color-accent); outline-offset:2px; }
+  .lt-typebtn { flex:1; display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:46px; border:1px solid var(--color-divider); background:transparent; color:color-mix(in srgb,var(--color-text) 72%,transparent); font-family:var(--font-heading); font-weight:600; font-size:15px; text-transform:uppercase; letter-spacing:.02em; cursor:pointer; }
+  .lt-typebtn[data-on="true"] { border-color:var(--color-accent); color:var(--color-accent-700); background:var(--color-accent-100); box-shadow:inset 0 0 0 1px var(--color-accent); }
+  .lt-typebtn:hover { border-color:var(--color-accent); }
+</style>
+</helmet>
+<div style="min-height:100vh;display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1fr)">
+
+  <!-- LEFT: brand panel -->
+  <aside style="position:relative;background:var(--color-accent-900);color:#e6ecf2;padding:clamp(32px,4vw,56px);display:flex;flex-direction:column;justify-content:space-between;overflow:hidden">
+    <svg viewBox="0 0 400 400" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;opacity:.14" aria-hidden="true">
+      <g stroke="#fff" stroke-width="1" fill="none">
+        <line x1="0" y1="80" x2="400" y2="80"/><line x1="0" y1="160" x2="400" y2="160"/><line x1="0" y1="240" x2="400" y2="240"/><line x1="0" y1="320" x2="400" y2="320"/>
+        <line x1="80" y1="0" x2="80" y2="400"/><line x1="160" y1="0" x2="160" y2="400"/><line x1="240" y1="0" x2="240" y2="400"/><line x1="320" y1="0" x2="320" y2="400"/>
+      </g>
+    </svg>
+    <a href="#" style="position:relative;display:inline-flex;align-items:center;gap:10px;font-family:var(--font-heading);font-weight:600;font-size:20px;color:#e6ecf2;letter-spacing:-.01em">
+      <img src="uploads/lumitrack-logo-2.svg" alt="" style="width:26px;height:29px;display:block;filter:brightness(1.25)">
+      <span>Lumi<span style="background:linear-gradient(105deg,#8fb0d6 0%,#a9c6a2 55%,#e2ef8f 100%);-webkit-background-clip:text;background-clip:text;color:transparent">Track</span></span>
+    </a>
+
+    <div style="position:relative">
+      <span style="display:block;font:600 13px/1 var(--font-heading);letter-spacing:.09em;text-transform:uppercase;color:#d98a1e">Comece agora</span>
+      <h1 style="font-family:var(--font-heading);text-transform:uppercase;font-weight:600;font-size:clamp(30px,3.2vw,44px);line-height:1.04;margin:16px 0 0;max-width:16ch">Sua energia, medida e sob controle.</h1>
+      <p style="font-size:15px;line-height:1.55;margin:18px 0 0;max-width:42ch;color:color-mix(in srgb,#e6ecf2 78%,transparent)">Crie uma conta para pessoa física ou jurídica e comece a monitorar o consumo de todas as suas unidades.</p>
+      <ul style="list-style:none;padding:0;margin:28px 0 0;display:flex;flex-direction:column;gap:13px">
+        <li style="display:flex;gap:11px;font-size:14px;color:color-mix(in srgb,#e6ecf2 85%,transparent)"><span style="color:#d98a1e;font-weight:700">→</span>Consumo em tempo real por unidade</li>
+        <li style="display:flex;gap:11px;font-size:14px;color:color-mix(in srgb,#e6ecf2 85%,transparent)"><span style="color:#d98a1e;font-weight:700">→</span>Histórico, comparação e bandeiras tarifárias</li>
+        <li style="display:flex;gap:11px;font-size:14px;color:color-mix(in srgb,#e6ecf2 85%,transparent)"><span style="color:#d98a1e;font-weight:700">→</span>Dados protegidos conforme a LGPD</li>
+      </ul>
+    </div>
+
+    <div style="position:relative;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;font-size:12px;color:color-mix(in srgb,#e6ecf2 55%,transparent)"><span>© 2026 LumiTrack · Feito no Brasil</span><span>Logo desenhada por <a href="https://www.magnific.com" target="_blank" rel="noopener" style="color:#a9c6a2">Magnific</a></span></div>
+  </aside>
+
+  <!-- RIGHT: form -->
+  <main style="display:flex;align-items:center;justify-content:center;padding:clamp(28px,4vw,56px)">
+    <form style="width:100%;max-width:440px" onSubmit="{{ onSubmit }}">
+      <span style="display:block;font:600 13px/1 var(--font-heading);letter-spacing:.09em;text-transform:uppercase;color:var(--color-accent-700)">Criar conta</span>
+      <h2 style="font-family:var(--font-heading);text-transform:uppercase;font-weight:600;font-size:clamp(26px,2.8vw,36px);line-height:1.03;margin:12px 0 0">Nova conta LumiTrack</h2>
+      <p style="font-size:14.5px;line-height:1.5;margin:12px 0 0;color:color-mix(in srgb,var(--color-text) 72%,transparent)">Escolha o tipo de conta e preencha seus dados.</p>
+
+      <!-- Tipo de conta -->
+      <div style="margin-top:26px">
+        <span style="display:block;font:600 11px/1 var(--font-heading);letter-spacing:.08em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 62%,transparent);margin-bottom:10px">Tipo de conta</span>
+        <div style="display:flex;gap:10px">
+          <button type="button" class="lt-typebtn" data-on="{{ isPF }}" onClick="{{ setPF }}">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+            Pessoa Física
+          </button>
+          <button type="button" class="lt-typebtn" data-on="{{ isPJ }}" onClick="{{ setPJ }}">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21V7l7-4v18M10 21V11l8-4v14M3 21h18"/><path d="M6 10h1M6 13h1M6 16h1M14 12h1M14 15h1"/></svg>
+            Pessoa Jurídica
+          </button>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:20px">
+        <label for="lt-email">E-mail</label>
+        <input id="lt-email" class="input lt-input" type="email" inputmode="email" autocomplete="email" placeholder="voce@empresa.com.br" required>
+      </div>
+
+      <!-- Campos PF -->
+      <sc-if value="{{ isPF }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px">
+          <div class="field" style="margin:0">
+            <label for="lt-first">Nome</label>
+            <input id="lt-first" class="input lt-input" type="text" autocomplete="given-name" placeholder="João">
+          </div>
+          <div class="field" style="margin:0">
+            <label for="lt-last">Sobrenome</label>
+            <input id="lt-last" class="input lt-input" type="text" autocomplete="family-name" placeholder="Silva">
+          </div>
+        </div>
+        <div class="field" style="margin-top:18px">
+          <label for="lt-cpf">CPF</label>
+          <input id="lt-cpf" class="input lt-input" type="text" inputmode="numeric" placeholder="000.000.000-00" maxlength="14" value="{{ cpf }}" onInput="{{ onCpf }}">
+        </div>
+      </sc-if>
+
+      <!-- Campos PJ -->
+      <sc-if value="{{ isPJ }}" hint-placeholder-val="{{ false }}">
+        <div class="field" style="margin-top:18px">
+          <label for="lt-razao">Razão social</label>
+          <input id="lt-razao" class="input lt-input" type="text" autocomplete="organization" placeholder="Empresa Ltda">
+        </div>
+        <div class="field" style="margin-top:18px">
+          <label for="lt-fantasia">Nome fantasia <span style="font-weight:400;color:color-mix(in srgb,var(--color-text) 50%,transparent)">(opcional)</span></label>
+          <input id="lt-fantasia" class="input lt-input" type="text" placeholder="Empresa">
+        </div>
+        <div class="field" style="margin-top:18px">
+          <label for="lt-cnpj">CNPJ</label>
+          <input id="lt-cnpj" class="input lt-input" type="text" inputmode="numeric" placeholder="00.000.000/0000-00" maxlength="18" value="{{ cnpj }}" onInput="{{ onCnpj }}">
+        </div>
+      </sc-if>
+
+      <!-- Senha -->
+      <div class="field" style="margin-top:18px">
+        <label for="lt-pass">Senha</label>
+        <div style="position:relative;display:flex;align-items:center">
+          <input id="lt-pass" class="input lt-input" type="{{ passType }}" autocomplete="new-password" placeholder="Crie uma senha forte" value="{{ pass }}" onInput="{{ onPass }}" style="padding-right:44px;width:100%">
+          <button type="button" onClick="{{ togglePass }}" aria-label="Mostrar ou ocultar senha" style="position:absolute;right:6px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;cursor:pointer;color:color-mix(in srgb,var(--color-text) 55%,transparent)">{{ eyeIcon }}</button>
+        </div>
+      </div>
+
+      <!-- Requisitos de senha -->
+      <ul style="list-style:none;padding:0;margin:12px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:7px">
+        {{ reqList }}
+      </ul>
+
+      <div class="field" style="margin-top:18px">
+        <label for="lt-confirm">Confirmar senha</label>
+        <input id="lt-confirm" class="input lt-input" type="{{ passType }}" autocomplete="new-password" placeholder="Repita a senha" value="{{ confirm }}" onInput="{{ onConfirm }}">
+        <span style="display:{{ mismatchDisplay }};font-size:12.5px;color:#a53b2c;margin-top:6px">As senhas não coincidem.</span>
+      </div>
+
+      <!-- LGPD -->
+      <label style="display:flex;align-items:flex-start;gap:10px;margin-top:22px;font-size:13.5px;line-height:1.5;cursor:pointer;color:color-mix(in srgb,var(--color-text) 82%,transparent)">
+        <input type="checkbox" checked="{{ accepted }}" onChange="{{ onAccept }}" style="width:16px;height:16px;margin-top:2px;accent-color:var(--color-accent);flex-shrink:0">
+        <span>Li e concordo com a <a href="#">Política de Privacidade</a> e os <a href="#">Termos de Uso</a>.</span>
+      </label>
+
+      <button type="submit" class="btn btn-primary btn-block" style="margin-top:24px;min-height:46px" disabled="{{ submitDisabled }}">Criar conta</button>
+
+      <p style="text-align:center;font-size:14px;margin:24px 0 0;color:color-mix(in srgb,var(--color-text) 72%,transparent)">
+        Já tem conta? <a href="#" style="font-weight:600">Entrar</a>
+      </p>
+    </form>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = { type: 'PF', pass: '', confirm: '', cpf: '', cnpj: '', showPass: false, accepted: false };
+
+  maskCpf(v) {
+    v = v.replace(/\D/g, '').slice(0, 11);
+    return v.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+  }
+  maskCnpj(v) {
+    v = v.replace(/\D/g, '').slice(0, 14);
+    return v.replace(/(\d{2})(\d)/, '$1.$2').replace(/(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/(\d{2})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3/$4').replace(/(\d{4})(\d)/, '$1-$2');
+  }
+
+  renderVals() {
+    const p = this.state.pass;
+    const reqs = [
+      { ok: p.length >= 8, label: '8+ caracteres' },
+      { ok: /[A-Z]/.test(p), label: 'Uma maiúscula' },
+      { ok: /[a-z]/.test(p), label: 'Uma minúscula' },
+      { ok: /[0-9]/.test(p), label: 'Um número' },
+      { ok: /[^A-Za-z0-9]/.test(p), label: 'Um caractere especial' }
+    ];
+    const reqList = reqs.map((r, i) => React.createElement('li', {
+      key: i,
+      style: { display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12.5px', color: r.ok ? '#2f6f3f' : 'color-mix(in srgb, var(--color-text) 52%, transparent)' }
+    },
+      React.createElement('span', {
+        style: { width: '14px', height: '14px', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '1px solid ' + (r.ok ? '#2f6f3f' : 'color-mix(in srgb, var(--color-text) 30%, transparent)'), background: r.ok ? '#2f6f3f' : 'transparent', color: '#fff', fontSize: '9px', lineHeight: 1 }
+      }, r.ok ? '✓' : ''),
+      r.label
+    ));
+
+    const show = this.state.showPass;
+    const eye = show
+      ? React.createElement('svg',{width:18,height:18,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:1.5},React.createElement('path',{d:'M3 3l18 18'}),React.createElement('path',{d:'M10.6 10.6a2 2 0 0 0 2.8 2.8'}),React.createElement('path',{d:'M9.4 5.2A9 9 0 0 1 21 12a13 13 0 0 1-2.2 3M6.3 6.3A13 13 0 0 0 3 12a9 9 0 0 0 12 5.7'}))
+      : React.createElement('svg',{width:18,height:18,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:1.5},React.createElement('path',{d:'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z'}),React.createElement('circle',{cx:12,cy:12,r:3}));
+
+    const allReqs = reqs.every(r => r.ok);
+    const match = this.state.confirm.length > 0 && this.state.pass === this.state.confirm;
+    const mismatch = this.state.confirm.length > 0 && !match;
+
+    return {
+      isPF: this.state.type === 'PF',
+      isPJ: this.state.type === 'PJ',
+      setPF: () => this.setState({ type: 'PF' }),
+      setPJ: () => this.setState({ type: 'PJ' }),
+      cpf: this.state.cpf, cnpj: this.state.cnpj,
+      onCpf: (e) => this.setState({ cpf: this.maskCpf(e.target.value) }),
+      onCnpj: (e) => this.setState({ cnpj: this.maskCnpj(e.target.value) }),
+      pass: this.state.pass, confirm: this.state.confirm,
+      onPass: (e) => this.setState({ pass: e.target.value }),
+      onConfirm: (e) => this.setState({ confirm: e.target.value }),
+      passType: show ? 'text' : 'password',
+      eyeIcon: eye,
+      togglePass: () => this.setState(s => ({ showPass: !s.showPass })),
+      reqList,
+      mismatchDisplay: mismatch ? 'block' : 'none',
+      accepted: this.state.accepted,
+      onAccept: (e) => this.setState({ accepted: e.target.checked }),
+      submitDisabled: !(allReqs && match && this.state.accepted),
+      onSubmit: (e) => e.preventDefault()
+    };
+  }
+}
+</script>
+</body>
+</html>

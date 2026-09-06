@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/industry-8749171c-4e79-453a-b637-03ea6e7b4c9a/styles.css">
+<script src="_ds/industry-8749171c-4e79-453a-b637-03ea6e7b4c9a/_ds_bundle.js"></script>
+<style>
+  body { margin:0; background:var(--color-bg); color:var(--color-text); font-family:var(--font-body); text-wrap:pretty; }
+  a { color:var(--color-accent-700); text-decoration:none; }
+  a:hover { color:var(--color-accent); }
+  @keyframes lt-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.72)} }
+  code { font-family:var(--font-heading); font-weight:600; font-feature-settings:'tnum' 1; }
+  .sim-field label { display:block; font:600 10.5px/1 var(--font-heading); letter-spacing:.06em; text-transform:uppercase; color:color-mix(in srgb,var(--color-text) 58%,transparent); margin-bottom:6px; }
+  .sim-input { width:100%; min-height:40px; padding:0 12px; border:1px solid var(--color-divider); background:var(--color-bg); color:var(--color-text); font-family:var(--font-body); font-size:14px; }
+  .sim-input:focus-visible { outline:2px solid var(--color-accent); outline-offset:2px; }
+  select.sim-input { min-height:40px; }
+  .sim-iconbtn { width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--color-divider); background:transparent; color:color-mix(in srgb,var(--color-text) 60%,transparent); cursor:pointer; }
+  .sim-iconbtn:hover { border-color:var(--color-accent); color:var(--color-accent-700); }
+  @keyframes lt-fade { from{opacity:0} to{opacity:1} }
+  @keyframes lt-rise { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  .sim-overlay { position:fixed; inset:0; z-index:100; background:color-mix(in srgb,#0b1622 62%,transparent); backdrop-filter:blur(3px); display:flex; align-items:flex-start; justify-content:center; padding:clamp(20px,7vh,80px) 20px; overflow-y:auto; animation:lt-fade .16s ease-out; }
+  .sim-modal { position:relative; width:100%; max-width:480px; background:var(--color-bg); animation:lt-rise .2s ease-out; }
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column">
+
+  <!-- TOPBAR -->
+  <header style="position:sticky;top:0;z-index:10;background:var(--color-accent-900);color:#e6ecf2;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;padding:16px clamp(20px,4vw,44px)">
+    <div style="display:flex;align-items:center;gap:13px">
+      <img src="uploads/lumitrack-logo-2.svg" alt="" style="width:26px;height:29px;display:block;filter:brightness(1.25)">
+      <div style="line-height:1.1">
+        <div style="font-family:var(--font-heading);font-weight:600;font-size:19px;color:#e6ecf2">Lumi<span style="background:linear-gradient(105deg,#8fb0d6 0%,#a9c6a2 55%,#e2ef8f 100%);-webkit-background-clip:text;background-clip:text;color:transparent">Track</span> <span style="font-weight:600;color:color-mix(in srgb,#e6ecf2 60%,transparent);font-size:14px">/ Simulador IoT</span></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:color-mix(in srgb,#e6ecf2 78%,transparent)">
+        <span style="font:600 10px/1 var(--font-heading);letter-spacing:.07em;text-transform:uppercase;color:color-mix(in srgb,#e6ecf2 55%,transparent)">Broker MQTT</span>
+        <code style="font-size:13.5px;color:#e6ecf2">{{ broker }}</code>
+        <button type="button" class="sim-iconbtn" onClick="{{ copyBroker }}" title="Copiar endereço do broker" aria-label="Copiar" style="border-color:color-mix(in srgb,#fff 24%,transparent);color:#c5d3e2">{{ brokerCopyIcon }}</button>
+      </div>
+      <span style="display:inline-flex;align-items:center;gap:7px;font:600 11px/1 var(--font-heading);letter-spacing:.07em;text-transform:uppercase;color:{{ connColor }}"><span style="width:8px;height:8px;border-radius:50%;background:{{ connColor }};animation:lt-pulse 1.6s ease-in-out infinite"></span>{{ connLabel }}</span>
+    </div>
+  </header>
+
+  <!-- CONTENT -->
+  <div style="width:100%;max-width:960px;margin:0 auto;padding:clamp(22px,3vw,36px) clamp(20px,4vw,44px);display:flex;flex-direction:column;gap:clamp(18px,2.2vw,26px)">
+
+    <!-- intro -->
+    <div>
+      <span style="display:block;font:600 12px/1 var(--font-heading);letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-700)">Painel de simulação</span>
+      <h1 style="font-family:var(--font-heading);text-transform:uppercase;font-weight:600;font-size:clamp(24px,2.6vw,32px);line-height:1.05;margin:8px 0 0">Redes e dispositivos virtuais</h1>
+      <p style="font-size:14.5px;line-height:1.55;margin:10px 0 0;max-width:70ch;color:color-mix(in srgb,var(--color-text) 72%,transparent)">Crie redes, adicione medidores virtuais e ligue-os para publicar amostras elétricas no broker. Injete anomalias para produzir picos de potência visíveis no LumiTrack.</p>
+    </div>
+
+    <!-- stat row -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(12px,1.4vw,18px)">
+      <div class="blueprint" style="padding:16px 18px">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div style="font:600 10.5px/1 var(--font-heading);letter-spacing:.07em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 55%,transparent)">Redes</div>
+        <div style="font-family:var(--font-heading);font-weight:600;font-size:30px;line-height:1;margin-top:9px;font-feature-settings:'tnum' 1">{{ statNetworks }}</div>
+      </div>
+      <div class="blueprint" style="padding:16px 18px">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div style="font:600 10.5px/1 var(--font-heading);letter-spacing:.07em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 55%,transparent)">Dispositivos</div>
+        <div style="font-family:var(--font-heading);font-weight:600;font-size:30px;line-height:1;margin-top:9px;font-feature-settings:'tnum' 1">{{ statDevices }}</div>
+      </div>
+      <div class="blueprint" style="padding:16px 18px">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div style="display:flex;align-items:center;gap:7px;font:600 10.5px/1 var(--font-heading);letter-spacing:.07em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 55%,transparent)"><span style="width:7px;height:7px;border-radius:50%;background:#3f8f52;animation:lt-pulse 1.6s ease-in-out infinite"></span>Publicando</div>
+        <div style="font-family:var(--font-heading);font-weight:600;font-size:30px;line-height:1;margin-top:9px;font-feature-settings:'tnum' 1;color:#3f8f52">{{ statPublishing }}</div>
+      </div>
+    </div>
+
+    <!-- create network -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <span style="font:600 11px/1 var(--font-heading);letter-spacing:.08em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 55%,transparent)">Redes de simulação</span>
+      <button type="button" class="btn btn-primary" style="min-height:40px;gap:7px" onClick="{{ openNetworkModal }}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg>
+        Criar rede
+      </button>
+    </div>
+
+    <!-- empty state -->
+    <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}">
+      <p style="border:1px dashed var(--color-divider);padding:36px;text-align:center;font-size:14px;color:color-mix(in srgb,var(--color-text) 58%,transparent)">Nenhuma rede criada ainda. Crie uma rede acima para começar a simular dispositivos.</p>
+    </sc-if>
+
+    <!-- networks -->
+    <div style="display:flex;flex-direction:column;gap:clamp(14px,1.6vw,20px)">
+      <sc-for list="{{ networks }}" as="network" hint-placeholder-count="2">
+        <div class="blueprint" style="padding:0">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+
+          <!-- network header -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;cursor:pointer" onClick="{{ network.onToggle }}">
+            <div style="display:flex;align-items:center;gap:11px;min-width:0">
+              <span style="color:color-mix(in srgb,var(--color-text) 45%,transparent);transition:transform .15s;transform:{{ network.chevronRotate }}">{{ network.chevronIcon }}</span>
+              <span style="font-family:var(--font-heading);font-weight:600;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ network.name }}</span>
+              <span style="font-size:13px;color:color-mix(in srgb,var(--color-text) 52%,transparent)">({{ network.deviceCount }})</span>
+            </div>
+            <button type="button" class="btn btn-ghost" onClick="{{ network.onRemove }}" style="min-height:32px;font-size:12.5px">Remover rede</button>
+          </div>
+
+          <sc-if value="{{ network.open }}" hint-placeholder-val="{{ true }}">
+            <div style="border-top:1px solid var(--color-divider);padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+
+              <!-- devices -->
+              <sc-for list="{{ network.devices }}" as="device" hint-placeholder-count="2">
+                <div style="border:1px solid var(--color-divider);padding:16px;display:flex;flex-direction:column;gap:14px">
+
+                  <!-- device header -->
+                  <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
+                    <div style="min-width:0">
+                      <div style="font-family:var(--font-heading);font-weight:600;font-size:15.5px">{{ device.name }}</div>
+                      <div style="display:flex;align-items:center;gap:7px;margin-top:3px">
+                        <code style="font-size:12.5px;color:color-mix(in srgb,var(--color-text) 60%,transparent)">{{ device.topic }}</code>
+                        <button type="button" class="sim-iconbtn" onClick="{{ device.onCopyTopic }}" title="Copiar tópico" aria-label="Copiar tópico">{{ device.copyIcon }}</button>
+                      </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                      <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:color-mix(in srgb,var(--color-text) 70%,transparent)">
+                        <span style="width:8px;height:8px;border-radius:50%;background:{{ device.statusDot }}"></span>{{ device.statusLabel }}
+                      </span>
+                      <button type="button" onClick="{{ device.onPower }}" class="{{ device.powerBtnClass }}" style="min-height:34px;min-width:92px;font-size:13px">{{ device.powerLabel }}</button>
+                      <button type="button" class="btn btn-ghost" onClick="{{ device.onRemove }}" style="min-height:34px;font-size:12.5px">Remover</button>
+                    </div>
+                  </div>
+
+                  <!-- params -->
+                  <form onSubmit="{{ device.onSaveParams }}" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:end">
+                    <div class="sim-field"><label>Tensão (V)</label><input name="nominalVoltage" type="number" class="sim-input" defaultValue="{{ device.params.nominalVoltage }}"></div>
+                    <div class="sim-field"><label>Potência (W)</label><input name="nominalPowerW" type="number" class="sim-input" defaultValue="{{ device.params.nominalPowerW }}"></div>
+                    <div class="sim-field"><label>Fator pot.</label><input name="powerFactorBase" type="number" min="0" max="1" step="0.01" class="sim-input" defaultValue="{{ device.params.powerFactorBase }}"></div>
+                    <div class="sim-field"><label>Ruído (%)</label><input name="noiseAmplitudePercent" type="number" min="0" max="100" class="sim-input" defaultValue="{{ device.params.noiseAmplitudePercent }}"></div>
+                    <div class="sim-field" style="grid-column:span 2">
+                      <label>Perfil</label>
+                      <select name="profile" class="sim-input" defaultValue="{{ device.params.profile }}">
+                        <option value="RESIDENTIAL_STEADY">Residencial estável</option>
+                        <option value="COMMERCIAL_HVAC">Comercial (HVAC)</option>
+                        <option value="INDUSTRIAL_MOTOR">Industrial (motor)</option>
+                        <option value="CUSTOM">Customizado</option>
+                      </select>
+                    </div>
+                    <div style="grid-column:span 2;display:flex;align-items:flex-end;height:100%">
+                      <button type="submit" class="btn btn-secondary" style="min-height:40px;font-size:13px">{{ device.saveLabel }}</button>
+                    </div>
+                  </form>
+
+                  <!-- anomaly -->
+                  <sc-if value="{{ device.anomaly.active }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;border:1px solid #c14a38;background:color-mix(in srgb,#c14a38 8%,transparent);padding:10px 14px">
+                      <span style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#a83c2c">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+                        anomalia ativa ({{ device.anomaly.multiplier }}×) — encerra em {{ device.anomalyRemaining }}s
+                      </span>
+                      <button type="button" class="btn btn-ghost" onClick="{{ device.onClearAnomaly }}" style="min-height:30px;font-size:12.5px">Cancelar</button>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ device.anomalyInactive }}" hint-placeholder-val="{{ true }}">
+                    <form onSubmit="{{ device.onTriggerAnomaly }}" style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px">
+                      <div class="sim-field" style="width:110px"><label>Multiplicador</label><input name="multiplier" type="number" min="1" step="0.1" class="sim-input" defaultValue="3"></div>
+                      <div class="sim-field" style="width:110px"><label>Duração (s)</label><input name="durationSeconds" type="number" min="1" class="sim-input" defaultValue="30"></div>
+                      <button type="submit" class="btn btn-secondary" style="min-height:40px;font-size:13px;border-color:#c14a38;color:#a83c2c;gap:7px">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg>
+                        Injetar anomalia
+                      </button>
+                    </form>
+                  </sc-if>
+                </div>
+              </sc-for>
+
+              <!-- empty devices -->
+              <sc-if value="{{ network.noDevices }}" hint-placeholder-val="{{ false }}">
+                <p style="font-size:13px;color:color-mix(in srgb,var(--color-text) 55%,transparent);padding:4px 2px">Nenhum dispositivo nesta rede ainda.</p>
+              </sc-if>
+
+              <!-- add device -->
+              <div style="border-top:1px dashed var(--color-divider);padding-top:14px">
+                <button type="button" class="btn btn-secondary" style="min-height:40px;font-size:13px;gap:7px" onClick="{{ network.onOpenDeviceModal }}">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg>
+                  Adicionar dispositivo
+                </button>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- MODAL: create network -->
+    <sc-if value="{{ showNetworkModal }}" hint-placeholder-val="{{ false }}">
+      <div class="sim-overlay" onClick="{{ closeModal }}">
+        <form class="sim-modal blueprint" onClick="{{ stopProp }}" onSubmit="{{ onCreateNetwork }}">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:20px 22px;border-bottom:1px solid var(--color-divider)">
+            <div>
+              <span style="display:block;font:600 11px/1 var(--font-heading);letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-700)">Nova rede</span>
+              <h2 style="font-family:var(--font-heading);text-transform:uppercase;font-weight:600;font-size:22px;line-height:1.05;margin:8px 0 0">Criar rede</h2>
+            </div>
+            <button type="button" class="sim-iconbtn" onClick="{{ closeModal }}" title="Fechar" aria-label="Fechar" style="width:32px;height:32px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+          </div>
+          <div style="padding:22px">
+            <div class="sim-field">
+              <label for="sim-modal-netname">Nome da rede</label>
+              <input id="sim-modal-netname" name="netname" class="sim-input" placeholder="Casa Teste" autocomplete="off" autofocus>
+            </div>
+            <p style="font-size:12.5px;line-height:1.5;margin:12px 0 0;color:color-mix(in srgb,var(--color-text) 58%,transparent)">Uma rede agrupa medidores virtuais que publicam no mesmo broker.</p>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--color-divider)">
+            <button type="button" class="btn btn-ghost" onClick="{{ closeModal }}" style="min-height:40px">Cancelar</button>
+            <button type="submit" class="btn btn-primary" style="min-height:40px">Criar rede</button>
+          </div>
+        </form>
+      </div>
+    </sc-if>
+
+    <!-- MODAL: add device -->
+    <sc-if value="{{ showDeviceModal }}" hint-placeholder-val="{{ false }}">
+      <div class="sim-overlay" onClick="{{ closeModal }}">
+        <form class="sim-modal blueprint" onClick="{{ stopProp }}" onSubmit="{{ onAddDeviceSubmit }}" style="max-width:560px">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:20px 22px;border-bottom:1px solid var(--color-divider)">
+            <div>
+              <span style="display:block;font:600 11px/1 var(--font-heading);letter-spacing:.08em;text-transform:uppercase;color:var(--color-accent-700)">Novo dispositivo em {{ modalNetworkName }}</span>
+              <h2 style="font-family:var(--font-heading);text-transform:uppercase;font-weight:600;font-size:22px;line-height:1.05;margin:8px 0 0">Adicionar dispositivo</h2>
+            </div>
+            <button type="button" class="sim-iconbtn" onClick="{{ closeModal }}" title="Fechar" aria-label="Fechar" style="width:32px;height:32px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:18px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+              <div class="sim-field"><label>Nome do dispositivo</label><input name="devname" class="sim-input" placeholder="Medidor 1" autocomplete="off" autofocus></div>
+              <div class="sim-field"><label>Tópico MQTT</label><input name="devtopic" class="sim-input" placeholder="lumitrack/sim/dev1" autocomplete="off"></div>
+            </div>
+            <div>
+              <span style="display:block;font:600 10.5px/1 var(--font-heading);letter-spacing:.06em;text-transform:uppercase;color:color-mix(in srgb,var(--color-text) 45%,transparent);margin-bottom:10px">Parâmetros iniciais</span>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+                <div class="sim-field"><label>Tensão (V)</label><input name="nominalVoltage" type="number" class="sim-input" defaultValue="220"></div>
+                <div class="sim-field"><label>Potência (W)</label><input name="nominalPowerW" type="number" class="sim-input" defaultValue="1000"></div>
+                <div class="sim-field"><label>Fator pot.</label><input name="powerFactorBase" type="number" min="0" max="1" step="0.01" class="sim-input" defaultValue="0.92"></div>
+                <div class="sim-field"><label>Ruído (%)</label><input name="noiseAmplitudePercent" type="number" min="0" max="100" class="sim-input" defaultValue="5"></div>
+              </div>
+              <div class="sim-field" style="margin-top:12px">
+                <label>Perfil</label>
+                <select name="profile" class="sim-input" defaultValue="RESIDENTIAL_STEADY">
+                  <option value="RESIDENTIAL_STEADY">Residencial estável</option>
+                  <option value="COMMERCIAL_HVAC">Comercial (HVAC)</option>
+                  <option value="INDUSTRIAL_MOTOR">Industrial (motor)</option>
+                  <option value="CUSTOM">Customizado</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--color-divider)">
+            <button type="button" class="btn btn-ghost" onClick="{{ closeModal }}" style="min-height:40px">Cancelar</button>
+            <button type="submit" class="btn btn-secondary" style="min-height:40px">Adicionar dispositivo</button>
+          </div>
+        </form>
+      </div>
+    </sc-if>
+
+    <p style="font-size:12px;line-height:1.5;margin-top:6px;color:color-mix(in srgb,var(--color-text) 48%,transparent)">Ferramenta de desenvolvimento local · sem autenticação de rede · não exponha publicamente.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1100,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = {
+    connected: true,
+    tick: 0,
+    copied: false,
+    modal: null,
+    networks: [
+      { id: 'n1', name: 'Casa Teste', open: true, devices: [
+        this.mkDevice('d1', 'Medidor Entrada', 'lumitrack/sim/casa/entrada', true, {nominalVoltage:127,nominalPowerW:3500,powerFactorBase:0.95,noiseAmplitudePercent:4,profile:'RESIDENTIAL_STEADY'}),
+        this.mkDevice('d2', 'Ar-condicionado', 'lumitrack/sim/casa/ac', true, {nominalVoltage:220,nominalPowerW:1400,powerFactorBase:0.88,noiseAmplitudePercent:8,profile:'COMMERCIAL_HVAC'}),
+      ]},
+      { id: 'n2', name: 'Prédio Comercial', open: true, devices: [
+        this.mkDevice('d3', 'QGBT Térreo', 'lumitrack/sim/predio/qgbt', false, {nominalVoltage:380,nominalPowerW:22000,powerFactorBase:0.92,noiseAmplitudePercent:6,profile:'INDUSTRIAL_MOTOR'}),
+      ]},
+    ],
+  };
+
+  mkDevice(id, name, topic, poweredOn, params) {
+    return { id, name, topic, poweredOn, connected: poweredOn, params, anomaly: { active:false, multiplier:1, endsAt:null }, publishCount: poweredOn ? Math.floor(Math.random()*400+40) : 0 };
+  }
+
+  componentDidMount() {
+    this._timer = setInterval(() => {
+      // clear expired anomalies
+      const now = Date.now();
+      let changed = false;
+      const networks = this.state.networks.map(n => ({ ...n, devices: n.devices.map(d => {
+        if (d.anomaly.active && d.anomaly.endsAt !== null && d.anomaly.endsAt <= now) { changed = true; return { ...d, anomaly:{ active:false, multiplier:1, endsAt:null } }; }
+        return d;
+      })}));
+      if (changed) this.setState({ networks, tick: this.state.tick + 1 });
+      else this.setState(s => ({ tick: s.tick + 1 }));
+    }, 1000);
+  }
+  componentWillUnmount() { clearInterval(this._timer); }
+
+  uid() { return 'x' + Math.random().toString(36).slice(2, 9); }
+
+  setDevice(devId, fn) {
+    this.setState(s => ({ networks: s.networks.map(n => ({ ...n, devices: n.devices.map(d => d.id === devId ? fn(d) : d) })) }));
+  }
+
+  icon(paths, size) {
+    return React.createElement('svg', { width:size||15, height:size||15, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:1.5 },
+      ...paths.map((p,i) => p.c ? React.createElement('circle',{key:i,cx:p.cx,cy:p.cy,r:p.r}) : React.createElement('path',{key:i,d:p})));
+  }
+
+  renderVals() {
+    const s = this.state;
+    const copy = (t) => { try { navigator.clipboard && navigator.clipboard.writeText(t); } catch(e){} this.setState({ copied:true }); setTimeout(()=>this.setState({copied:false}), 1200); };
+    const checkIcon = this.icon(['M20 6 9 17l-5-5']);
+    const copyIcon = this.icon(['M8 4h10v14', 'M6 8h10v12H6z']);
+
+    const totalDevices = s.networks.reduce((a,n) => a + n.devices.length, 0);
+    const publishing = s.networks.reduce((a,n) => a + n.devices.filter(d => d.poweredOn && d.connected).length, 0);
+
+    const networks = s.networks.map(net => ({
+      id: net.id,
+      name: net.name,
+      open: net.open,
+      deviceCount: net.devices.length + (net.devices.length === 1 ? ' dispositivo' : ' dispositivos'),
+      noDevices: net.devices.length === 0,
+      chevronIcon: this.icon(['M6 9l6 6 6-6'], 18),
+      chevronRotate: net.open ? 'rotate(0deg)' : 'rotate(-90deg)',
+      onToggle: () => this.setState(st => ({ networks: st.networks.map(n => n.id === net.id ? { ...n, open: !n.open } : n) })),
+      onRemove: (e) => { e.stopPropagation(); this.setState(st => ({ networks: st.networks.filter(n => n.id !== net.id) })); },
+      onOpenDeviceModal: () => this.setState({ modal: { type:'device', networkId: net.id } }),
+      devices: net.devices.map(dev => {
+        const isPublishing = dev.poweredOn && dev.connected;
+        const secs = isPublishing ? (s.tick % 5) : 0;
+        return {
+          id: dev.id,
+          name: dev.name,
+          topic: dev.topic,
+          params: dev.params,
+          anomaly: dev.anomaly,
+          anomalyInactive: !dev.anomaly.active,
+          anomalyRemaining: dev.anomaly.endsAt ? Math.max(0, Math.ceil((dev.anomaly.endsAt - Date.now())/1000)) : 0,
+          statusDot: isPublishing ? '#3f8f52' : 'color-mix(in srgb,var(--color-text) 25%,transparent)',
+          statusLabel: isPublishing ? ('publicando — há ' + secs + 's') : 'desligado',
+          powerLabel: dev.poweredOn ? 'Desligar' : 'Ligar',
+          powerBtnClass: dev.poweredOn ? 'btn btn-secondary' : 'btn btn-primary',
+          copyIcon,
+          saveLabel: 'Salvar parâmetros',
+          onCopyTopic: () => copy(dev.topic),
+          onPower: () => this.setDevice(dev.id, d => ({ ...d, poweredOn: !d.poweredOn, connected: !d.poweredOn, publishCount: d.poweredOn ? d.publishCount : d.publishCount })),
+          onRemove: () => this.setState(st => ({ networks: st.networks.map(n => ({ ...n, devices: n.devices.filter(d => d.id !== dev.id) })) })),
+          onSaveParams: (e) => {
+            e.preventDefault();
+            const f = e.target;
+            const params = {
+              nominalVoltage: Number(f.elements.nominalVoltage.value),
+              nominalPowerW: Number(f.elements.nominalPowerW.value),
+              powerFactorBase: Number(f.elements.powerFactorBase.value),
+              noiseAmplitudePercent: Number(f.elements.noiseAmplitudePercent.value),
+              profile: f.elements.profile.value,
+            };
+            this.setDevice(dev.id, d => ({ ...d, params }));
+          },
+          onTriggerAnomaly: (e) => {
+            e.preventDefault();
+            const f = e.target;
+            const multiplier = Number(f.elements.multiplier.value) || 3;
+            const durationSeconds = Number(f.elements.durationSeconds.value) || 30;
+            this.setDevice(dev.id, d => ({ ...d, anomaly: { active:true, multiplier, endsAt: Date.now() + durationSeconds*1000 } }));
+          },
+          onClearAnomaly: () => this.setDevice(dev.id, d => ({ ...d, anomaly: { active:false, multiplier:1, endsAt:null } })),
+        };
+      }),
+    }));
+
+    const modalNet = s.modal && s.modal.networkId ? s.networks.find(n => n.id === s.modal.networkId) : null;
+
+    return {
+      broker: 'localhost:1883',
+      brokerCopyIcon: s.copied ? checkIcon : copyIcon,
+      copyBroker: () => copy('localhost:1883'),
+      connColor: s.connected ? '#3f8f52' : '#c14a38',
+      connLabel: s.connected ? 'conectado' : 'desconectado',
+      statNetworks: s.networks.length,
+      statDevices: totalDevices,
+      statPublishing: publishing,
+      isEmpty: s.networks.length === 0,
+      networks,
+      showNetworkModal: !!(s.modal && s.modal.type === 'network'),
+      showDeviceModal: !!(s.modal && s.modal.type === 'device'),
+      modalNetworkName: modalNet ? modalNet.name : '',
+      openNetworkModal: () => this.setState({ modal: { type:'network' } }),
+      closeModal: () => this.setState({ modal: null }),
+      stopProp: (e) => e.stopPropagation(),
+      onCreateNetwork: (e) => {
+        e.preventDefault();
+        const f = e.target; const name = f.elements.netname.value.trim();
+        if (!name) return;
+        this.setState(st => ({ networks: [...st.networks, { id: this.uid(), name, open: true, devices: [] }], modal: null }));
+      },
+      onAddDeviceSubmit: (e) => {
+        e.preventDefault();
+        const f = e.target; const name = f.elements.devname.value.trim(); const topic = f.elements.devtopic.value.trim();
+        if (!name || !topic) return;
+        const netId = s.modal && s.modal.networkId;
+        const dev = this.mkDevice(this.uid(), name, topic, false, {
+          nominalVoltage: Number(f.elements.nominalVoltage.value) || 220,
+          nominalPowerW: Number(f.elements.nominalPowerW.value) || 1000,
+          powerFactorBase: Number(f.elements.powerFactorBase.value) || 0.92,
+          noiseAmplitudePercent: Number(f.elements.noiseAmplitudePercent.value) || 5,
+          profile: f.elements.profile.value || 'RESIDENTIAL_STEADY',
+        });
+        this.setState(st => ({ networks: st.networks.map(n => n.id === netId ? { ...n, devices: [...n.devices, dev] } : n), modal: null }));
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>
