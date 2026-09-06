@@ -3343,3 +3343,12 @@
 - **Arquivos principais:** `backend/src/shared/time/localTime.ts` (novo) + `.test.ts`, `backend/src/shared/tariff/demandRollup.ts` (novo) + `.test.ts`, `backend/src/modules/iot/iot-worker/DemandRollupScheduler.ts` (novo) + `.test.ts` + `.integration.test.ts`, `backend/src/modules/meter/meter-demand-rollup.repository.ts` (novo), `meter-reading.repository.ts`, `backend/src/modules/distributor/distributor.repository.ts`, `backend/prisma/schema.prisma`, `backend/prisma/migrations/20260906205443_grupo_a_rollup_demanda_medida/`, `backend/src/server.ts`.
 - **Decisões/ADRs:** nenhuma nova.
 - **Notas:** achado corrigido — a #381 tinha adicionado `peakWindowStartHour`/`peakWindowEndHour` ao schema mas esqueceu de expor os campos em `DistributorResponse`/`toDistributorResponse`; corrigido nesta entrada (`dataExportPdf.test.ts` ajustado). Retenção/expurgo de `MeterDemandRollup` fica fora de escopo por ora — tabela pequena (medidores × postos × meses), corte consciente, não esquecido. Suíte completa do backend verde (102 arquivos, 1153 testes).
+
+## [2026-09-06] fix: Caddy com mount de `frontend/dist` obsoleto após rebuild — lumitrack.app.br fora do ar
+
+- **Branch:** main
+- **Tipo:** fix
+- **O quê:** `lumitrack.app.br` respondia 404 vazio em qualquer rota (`/health` continuava 200 — backend saudável). Causa: `deploy/update-production.sh` reconstrói o frontend trocando o diretório inteiro (`rm -rf frontend/dist` + `mv "$BUILD_TMP" frontend/dist`), o que troca o inode do diretório; o bind mount do Caddy (`./frontend/dist:/srv:ro`) fica preso ao inode antigo — já apagado — até o container ser recriado, e o `handle` do Caddyfile só forçava essa recriação quando `deploy/Caddyfile` mudava, nunca quando só o frontend mudava. O deploy mais recente (backend + frontend, sem tocar o Caddyfile) recriou `backend`/`simulator` normalmente e deixou o `caddy` órfão, servindo o diretório apagado. Corrigido fazendo `rebuild_frontend=true` também disparar `rebuild_caddy=true`. Restauração imediata em produção: `docker compose --env-file deploy/.env up -d --force-recreate caddy` (verificado via SSH — `/` voltou a 200 com os headers do `Caddyfile`).
+- **Arquivos principais:** `deploy/update-production.sh`.
+- **Decisões/ADRs:** nenhuma — correção de bug do script, não uma decisão de arquitetura.
+- **Notas:** mesma classe de problema que o `Caddyfile` já tratava (bind mount não repropaga mudança de conteúdo sozinho) — só que via troca do diretório inteiro em vez de edição de arquivo. Nenhum dado ou schema foi afetado; o backend nunca ficou fora do ar.
