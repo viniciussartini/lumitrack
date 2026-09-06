@@ -561,13 +561,44 @@ model Meter {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  property Property?      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  area     Area?          @relation(fields: [areaId], references: [id], onDelete: Cascade)
-  device   Device?        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  readings MeterReading[]
-  alerts   Alert[]
+  property      Property?           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  area          Area?               @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  device        Device?             @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  readings      MeterReading[]
+  alerts        Alert[]
+  demandRollups MeterDemandRollup[]
 
   @@map("meters")
+}
+
+// Demanda medida do Grupo A (RN19) — maior potência média em janelas de 15
+// min, mantida por rollup incremental (DemandRollupScheduler), nunca
+// recalculada varrendo `meter_readings` sob demanda. Uma linha por
+// medidor × mês (hora local) × posto tarifário.
+model MeterDemandRollup {
+  id      String @id @default(uuid())
+  meterId String
+
+  // Início do mês em hora local — RN19/demanda contratada é por ciclo de
+  // faturamento mensal, mesmo período usado pelo cálculo de custo do Grupo A.
+  periodStart DateTime
+
+  post TariffPost
+
+  // Potência média (W) da janela de 15 min vencedora até agora.
+  maxAvgPowerW Float
+
+  // minuteStart do fim da janela vencedora — rastreabilidade/depuração, e
+  // insumo natural para uma futura tela mostrar quando o pico ocorreu.
+  windowEndAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meter Meter @relation(fields: [meterId], references: [id], onDelete: Cascade)
+
+  @@unique([meterId, periodStart, post])
+  @@map("meter_demand_rollups")
 }
 
 // Uma linha por medidor por minuto. `minuteStart` é o instante truncado ao

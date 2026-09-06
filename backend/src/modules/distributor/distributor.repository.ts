@@ -16,6 +16,10 @@ export type DistributorResponse = {
     icmsRate: number
     pisRate: number
     cofinsRate: number
+    // Janela de ponta do Grupo A (RN24) — nulo até a distribuidora ter
+    // valores configurados (ver ADR-0019/#381).
+    peakWindowStartHour: number | null
+    peakWindowEndHour: number | null
     createdAt: Date
     updatedAt: Date
 }
@@ -38,6 +42,8 @@ function toDistributorResponse(raw: PrismaDistributor): DistributorResponse {
         icmsRate: raw.icmsRate.toNumber(),
         pisRate: raw.pisRate.toNumber(),
         cofinsRate: raw.cofinsRate.toNumber(),
+        peakWindowStartHour: raw.peakWindowStartHour,
+        peakWindowEndHour: raw.peakWindowEndHour,
         createdAt: raw.createdAt,
         updatedAt: raw.updatedAt,
     }

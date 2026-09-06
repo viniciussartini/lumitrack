@@ -151,4 +151,50 @@ export class MeterReadingRepository {
             return result.count
         })
     }
+
+    /**
+     * Medidores com pelo menos uma leitura na janela — usado por
+     * `DemandRollupScheduler` a cada tick para saber quais medidores
+     * reprocessar, sem varrer `meter_readings` inteira (índice único tem
+     * `meterId` como coluna líder, mas aqui filtramos só por `minuteStart`;
+     * o índice de suporte ao expurgo, `meter_readings_minuteStart_idx`,
+     * cobre esta consulta).
+     *
+     * @param from - Início da janela (inclusive).
+     * @param to - Fim da janela (inclusive).
+     * @returns Ids distintos de medidores com leitura na janela.
+     */
+    async findMeterIdsWithReadingsSince(from: Date, to: Date): Promise<string[]> {
+        const rows = await this.prisma.meterReading.findMany({
+            where: { minuteStart: { gte: from, lte: to } },
+            select: { meterId: true },
+            distinct: ["meterId"],
+        })
+        return rows.map((r) => r.meterId)
+    }
+
+    /**
+     * As leituras mais recentes de um medidor até `endMinute`, mais novas
+     * primeiro — matéria-prima de `computeTrailingWindowAverage`
+     * (`shared/tariff/demandRollup.ts`). Usa o índice único
+     * `(meterId, minuteStart)` como coluna líder — sempre um acesso pequeno
+     * e indexado, nunca uma varredura da tabela inteira.
+     *
+     * @param meterId - Id do medidor.
+     * @param endMinute - Fim da janela (inclusive) — normalmente o minuto mais recente já persistido.
+     * @param count - Quantas leituras buscar (RN19 = 15).
+     * @returns As leituras, ordenadas da mais recente para a mais antiga.
+     */
+    async findTrailingReadings(
+        meterId: string,
+        endMinute: Date,
+        count = 15,
+    ): Promise<{ minuteStart: Date; avgPowerW: number; secondsCovered: number }[]> {
+        return this.prisma.meterReading.findMany({
+            where: { meterId, minuteStart: { lte: endMinute } },
+            select: { minuteStart: true, avgPowerW: true, secondsCovered: true },
+            orderBy: { minuteStart: "desc" },
+            take: count,
+        })
+    }
 }

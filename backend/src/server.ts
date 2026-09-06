@@ -5,8 +5,11 @@ import { prisma, getPoolStats } from "@/shared/database/prisma.js"
 import { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
 import { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import { MinuteRollupScheduler } from "@/modules/iot/iot-worker/MinuteRollupScheduler.js"
+import { DemandRollupScheduler } from "@/modules/iot/iot-worker/DemandRollupScheduler.js"
 import { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
 import { MeterRepository } from "@/modules/meter/meter.repository.js"
+import { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
+import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { AlertRepository } from "@/modules/alert/alert.repository.js"
 import { AlertTriggerEventRepository } from "@/modules/alert/alert-trigger-event.repository.js"
 import { AlertEvaluator } from "@/modules/alert/alert-evaluator.js"
@@ -66,10 +69,22 @@ const scheduler = new MinuteRollupScheduler(
     getPoolStats,
 )
 
+// Rollup incremental de demanda medida do Grupo A (RN19) — scheduler IRMÃO
+// do MinuteRollupScheduler, não uma extensão dele: precisa resolver
+// medidor→propriedade→distribuidora (janela de ponta), responsabilidade que
+// o comentário de MinuteRollupScheduler declara propositalmente fora dele.
+const demandRollupScheduler = new DemandRollupScheduler(
+    new MeterReadingRepository(prisma),
+    meterRepository,
+    new DistributorRepository(prisma),
+    new MeterDemandRollupRepository(prisma),
+)
+
 // Registra o processor no manager ANTES de restaurar as conexões,
 // garantindo que nenhuma leitura seja perdida durante o boot.
 processor.start()
 scheduler.start()
+demandRollupScheduler.start()
 
 // Registra o AlertEvaluator como mais um listener de amostras processadas —
 // cada leitura elétrica recebida é avaliada contra os alertas habilitados
@@ -214,6 +229,7 @@ async function shutdown(signal: string): Promise<void> {
 
     // Para o scheduler — evita que um flush parcial aconteça durante o shutdown.
     scheduler.stop()
+    demandRollupScheduler.stop()
     retentionScheduler.stop()
     tariffFlagSyncScheduler.stop()
 
