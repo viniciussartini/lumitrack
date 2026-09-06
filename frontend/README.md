@@ -1,6 +1,6 @@
 # ⚡ LumiTrack — Frontend
 
-SPA React 19 + Vite 8 + TypeScript strict, consumindo a API do `backend/` e recebendo leituras/alertas em tempo real via SSE. Design system próprio (**Industry**), migração concluída nas Fases 1–7 do roadmap — todo o app usa os tokens e componentes do Industry, sem resíduo do tema anterior.
+SPA React + Vite + TypeScript strict, consumindo a API do `backend/` e recebendo leituras/alertas em tempo real via SSE.
 
 ## Índice
 
@@ -25,20 +25,20 @@ SPA React 19 + Vite 8 + TypeScript strict, consumindo a API do `backend/` e rece
 
 | Camada | Tecnologia |
 | --- | --- |
-| UI | React 19, TypeScript strict |
-| Build/dev server | Vite 8 |
-| Roteamento | `react-router` 8 (pacote `react-router`, **não** `react-router-dom`) |
-| Estado servidor | TanStack Query 5 |
+| UI | React, TypeScript strict |
+| Build/dev server | Vite |
+| Roteamento | `react-router` (pacote `react-router`, **não** `react-router-dom`) |
+| Estado servidor | TanStack Query |
 | Estado local persistido | Context API (Auth, Theme, Realtime) + `localStorage` — sem Zustand/Redux |
-| Formulários | React Hook Form 7 + `@hookform/resolvers` + Zod 4 (schemas compartilhados com o backend onde faz sentido) |
-| Estilo | Tailwind CSS 4 (`@tailwindcss/vite`) + componentes próprios em `components/ui/` (Radix UI por baixo — `Dialog`, `Slot`) |
+| Formulários | React Hook Form + `@hookform/resolvers` + Zod (schemas compartilhados com o backend onde faz sentido) |
+| Estilo | Tailwind CSS (`@tailwindcss/vite`) + componentes próprios em `components/ui/` (Radix UI por baixo — `Dialog`, `Slot`) |
 | Ícones | Lucide React |
 | Gráficos | Recharts |
 | Toasts | Sonner |
 | HTTP | Axios (`withCredentials: true` — sessão via cookie, não Bearer) |
 | Tempo real | `@microsoft/fetch-event-source` — SSE com cookie + header customizado, algo que o `EventSource` nativo não suporta |
 | Markdown | `react-markdown` + `remark-gfm` (só a página "Sobre o projeto") |
-| Testes | Vitest 4 + Testing Library 16 (unidade/integração), Playwright 1 (E2E) |
+| Testes | Vitest + Testing Library (unidade/integração), Playwright (E2E) |
 
 ## Estrutura de pastas
 
@@ -55,7 +55,8 @@ frontend/
 │   │   ├── dashboard/               # RealtimeSection, RealtimePowerChart, DashboardKpiRow
 │   │   ├── meter/                    # MeterSection, MeterForm, MeterFormDialog
 │   │   ├── auth/                      # MfaCodeForm
-│   │   └── consumption/ · alert/       # componentes de tabela/formulário por domínio
+│   │   └── consumption/ · alert/       # componentes de tabela/formulário por domínio,
+│   │                                    # inclui HourWindowSelect (seletor de janela de hora)
 │   ├── contexts/
 │   │   ├── AuthContext.tsx             # sessão do usuário, login/MFA/logout
 │   │   ├── ThemeContext.tsx            # light/dark/system, data-theme
@@ -141,7 +142,7 @@ flowchart TB
     style PROT fill:#eef3ee,stroke:#3f8f52
 ```
 
-Criação/edição de Propriedade, Área, Aparelho e Medidor acontece por **modal**, não por rota dedicada — decisão que substituiu rotas antigas do tipo `/propriedades/nova`. `ProtectedRoute` renderiza um placeholder de carregamento enquanto `AuthContext` ainda não resolveu a sessão (evita o flash de `/login` num refresh de página com sessão válida); só então decide navegar ou renderizar `<Outlet/>`. Não existe hoje nenhuma rota admin-only no roteador — a distinção é binária (autenticado ou não); o controle de papel (`ADMIN`) que existe no backend (`/api/admin/audit-logs`) não tem UI correspondente no frontend.
+Criação/edição de Propriedade, Área, Aparelho e Medidor acontece por **modal**, não por rota dedicada. `ProtectedRoute` renderiza um placeholder de carregamento enquanto `AuthContext` ainda não resolveu a sessão (evita o flash de `/login` num refresh de página com sessão válida); só então decide navegar ou renderizar `<Outlet/>`. Não existe hoje nenhuma rota admin-only no roteador — a distinção é binária (autenticado ou não); o controle de papel (`ADMIN`) que existe no backend (`/api/admin/audit-logs`) não tem UI correspondente no frontend.
 
 ### 2. Hierarquia de contexts
 
@@ -165,7 +166,7 @@ flowchart TD
     style RP fill:#eef3ee,stroke:#3f8f52
 ```
 
-`RealtimeProvider` fica de fora da árvore global de propósito: só existe enquanto uma rota protegida com `AppShell` está montada — em `/login` ou `/registro` não há conexão SSE aberta. Um comentário em `main.tsx` documenta um bug de performance já corrigido: havia um **segundo** `QueryClientProvider` (código morto, nunca efetivamente usado — o de `App.tsx` sempre vencia via contexto React) removido no achado M-11 da auditoria de qualidade.
+`RealtimeProvider` fica de fora da árvore global de propósito: só existe enquanto uma rota protegida com `AppShell` está montada — em `/login` ou `/registro` não há conexão SSE aberta.
 
 ### 3. Fluxo de dados, TanStack Query e API
 
@@ -252,6 +253,8 @@ sequenceDiagram
 
 `openWhenHidden: true` é deliberado: leituras e alertas continuam chegando com a aba em segundo plano, porque o badge "Dados ao vivo" e o badge de alerta disparado existem justamente para serem conferidos quando o usuário volta à aba. `isConnected` é um booleano derivado simples (sem estado intermediário de "reconectando") — nunca fica "preso" mostrando conectado quando o stream de fato caiu.
 
+**Cross-origin (demo pública, ADR-0010):** o diagrama acima é o caminho same-origin (dev, self-hosted) — cookie de sessão viaja com a requisição normalmente. Quando `VITE_SSE_URL` aponta para uma origem diferente da SPA, o cookie não atravessa domínio; `lib/sse/appStream.ts` detecta o caso e troca um ticket de uso único (`POST /api/iot/stream-ticket`, same-origin via rewrite) por conexão, em vez de contar com o reconnect automático do `fetch-event-source` — cada tentativa (inclusive reconexão) busca um ticket novo, porque o anterior já foi consumido. Sequência completa: [diagrama 7 do `backend/README.md`](../backend/README.md#7-autenticação-do-stream-sse--mesma-origem-vs-cross-origin-ticket).
+
 ## Autenticação
 
 Sessão **por cookie `HttpOnly`**, nunca por token em `localStorage` — o JWT em si nunca é lido nem manipulado pelo JavaScript do cliente (`api.ts` usa `withCredentials: true`, sem header `Authorization` jamais setado a partir de storage). `AuthContext` descobre se há sessão chamando `GET /api/auth/me` no boot; `isLoading` só vira `false` depois dessa resposta.
@@ -275,12 +278,11 @@ Uso de `@microsoft/fetch-event-source` em vez do `EventSource` nativo: o nativo 
 
 ## Design system (Industry)
 
-Migração **concluída nas Fases 1–7** do roadmap: fundação de tokens, componentes base, todas as telas existentes, o chrome do app autenticado (Sidebar/Header) e a consistência das telas públicas. Nenhuma tela usa mais o tema anterior (`.dark` como classe, cores âmbar/slate).
+Fundação de tokens, componentes base, todas as telas existentes, o chrome do app autenticado (Sidebar/Header) e a consistência das telas públicas.
 
 - **Dark mode** via atributo `data-theme` em `<html>` (`ThemeContext`, não mais classe CSS) — `light`, `dark` ou `system` (resolvido por `prefers-color-scheme`). O `index.html` tem um script anti-FOUC inline que replica a mesma resolução **antes** do React montar, para não piscar claro antes de aplicar o tema escuro; o conteúdo exato desse script é travado por um hash SHA-256 na CSP (ver abaixo) — mudar o script exige recalcular o hash.
 - **Fontes self-hospedadas** — Barlow e Barlow Condensed, 10 arquivos `.woff2` em `public/fonts/`, nenhuma requisição a `fonts.googleapis.com` em runtime.
 - **`Blueprint`** é o componente-assinatura do Industry: moldura com marcas de canto (`<i className="corner tl/tr/bl/br">`), usado de forma pervasiva nas telas.
-- Dívida conhecida, não escondida (Fase 18 do roadmap): o `@theme` do Tailwind mapeia cor/fonte/raio/sombra, mas não a escala tipográfica/espaçamento real do protótipo — por isso ~143 valores arbitrários entre colchetes ainda aparecem pelo código.
 
 ## CSP e `index.html`
 
@@ -295,9 +297,9 @@ base-uri 'none';
 object-src 'none';
 ```
 
-O único `<script>` inline (o anti-FOUC do tema) é liberado por **hash**, não por `'unsafe-inline'` — o Vite não transforma script inline não-module durante o build, então o hash é estável entre `index.html` e `dist/index.html`. Um comentário no próprio arquivo documenta o comando para recalcular o hash se o script mudar.
+O único `<script>` inline (o anti-FOUC do tema) é liberado por **hash**, não por `'unsafe-inline'` — o Vite não transforma script inline não-module durante o build, então o hash é estável entre `index.html` e `dist/index.html`.
 
-**Nota técnica preservada do arquivo**: `frame-ancestors`, `base-uri` e `object-src` **não têm efeito via `<meta>`** — só via header HTTP. Ficam documentados aqui como intenção; o reverse proxy de produção (ADR-0008) precisa enviar o header `Content-Security-Policy` equivalente incluindo essas três diretivas para valerem de fato.
+**Nota técnica preservada do arquivo**: `frame-ancestors`, `base-uri` e `object-src` **não têm efeito via `<meta>`** — só via header HTTP. Ficam documentados aqui como intenção; o reverse proxy de produção (topologia da ADR-0012) precisa enviar o header `Content-Security-Policy` equivalente incluindo essas três diretivas para valerem de fato.
 
 ## Variáveis de ambiente
 
@@ -306,9 +308,9 @@ O único `<script>` inline (o anti-FOUC do tema) é liberado por **hash**, não 
 | `VITE_DEMO_MODE` | `false` | **Sim** — `LoginPage` mostra os botões de login de demonstração só quando `"true"` |
 | `VITE_PRIVACY_CONTACT_EMAIL` | `privacidade@seu-dominio.com.br` | **Sim** — `config/privacy.ts`, exibido no rodapé/política de privacidade. Placeholder de portfólio — trocar antes de qualquer uso com titular real |
 | `VITE_API_BASE_URL` | `http://localhost:3000` | **Não.** Declarada no `.env.example`, mas a base real da API é `"/api"` hardcoded em `services/api.ts` (depende do proxy do Vite/reverse proxy same-origin) |
-| `VITE_SSE_URL` | `http://localhost:3000/iot/stream` | **Não.** O endpoint real é `"/api/iot/stream"` hardcoded em `lib/sse/appStream.ts` |
+| `VITE_SSE_URL` | `http://localhost:3000/iot/stream` | **Sim, condicionalmente.** `lib/sse/appStream.ts` usa `import.meta.env.VITE_SSE_URL \|\| "/api/iot/stream"` — default relativo (same-origin, dev/self-hosted); só é preenchida quando a API está numa origem diferente da SPA (demo pública, ADR-0010), caso em que o cliente também passa a autenticar o stream por ticket de uso único em vez de cookie (ver [seção 4](#4-ciclo-do-sse-no-cliente)) |
 
-As duas últimas ficam registradas aqui porque **existem no `.env.example`**, mas documentá-las como configuração viva seria falso — nenhuma delas é lida em lugar nenhum do código hoje.
+`VITE_API_BASE_URL` fica registrada aqui porque **existe no `.env.example`**, mas documentá-la como configuração viva seria falso — não é lida em lugar nenhum do código hoje.
 
 ## Como executar
 
@@ -347,8 +349,8 @@ test:e2e:ui    → playwright test --ui
 
 | Tipo | Ferramenta | Quantidade |
 | --- | --- | --- |
-| Unidade + integração | Vitest 4 + Testing Library 16 (jsdom) | 71 arquivos `*.test.ts(x)` |
-| E2E | Playwright 1 | 13 specs em `tests/e2e/` |
+| Unidade + integração | Vitest + Testing Library (jsdom) | 95 arquivos `*.test.ts(x)` |
+| E2E | Playwright | 13 specs em `tests/e2e/` |
 
 Config do Vitest (`vite.config.ts`, bloco `test`): `environment: "jsdom"`, `setupFiles: "./src/tests/setup.ts"`, exclui `tests/e2e/**`. O setup global mocka `window.matchMedia` (jsdom não implementa — necessário para `ThemeContext` resolver `prefers-color-scheme`), roda `cleanup()` da Testing Library após cada teste e limpa `localStorage` entre testes (evita vazar tema persistido de um teste para o outro).
 
