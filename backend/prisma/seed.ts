@@ -23,10 +23,11 @@ import { prisma } from "@/shared/database/prisma.js"
 const PIS_RATE = 0.0165 // ~1,65%
 const COFINS_RATE = 0.076 // ~7,6%
 
-// Janela de ponta (RN24) — "geralmente 18h–21h" é o próprio padrão nacional
+// Janela de ponta — "geralmente 18h–21h" é o próprio padrão nacional
 // citado no documento de referência; aplicada às 11 distribuidoras do seed
-// pela mesma ressalva de aproximação já registrada acima (RF45, catálogo
-// editável com vigência, é quem permitirá diferenciar por distribuidora).
+// pela mesma ressalva de aproximação já registrada acima (um catálogo
+// editável com vigência, ainda sem fase, é quem permitirá diferenciar por
+// distribuidora).
 const PEAK_WINDOW_START_HOUR = 18
 const PEAK_WINDOW_END_HOUR = 21
 
@@ -208,7 +209,7 @@ async function seedGreenA4EnergyRates(distributorId: string): Promise<void> {
     }
 }
 
-// Demanda única da Verde (post nulo, RN18) — R$ 18,00/kW, Exemplo 6.
+// Demanda única da Verde (post nulo) — R$ 18,00/kW, Exemplo 6.
 // upsert() não serve aqui: o Prisma recusa `null` num membro de chave única
 // composta na cláusula where ("Argument `post` must not be null"), então o
 // find-then-write manual abaixo é o que mantém a operação idempotente.
@@ -229,7 +230,7 @@ async function seedGreenA4DemandRate(distributorId: string): Promise<void> {
     }
 }
 
-// Catálogo tarifário Grupo A (ADR-0019/RF26) — Celesc, subgrupo A4, Horária
+// Catálogo tarifário Grupo A (ADR-0019) — Celesc, subgrupo A4, Horária
 // Verde, valores citados do Exemplo 6 (metalúrgica A4 Verde em Joinville/SC,
 // mesma UF/ICMS 17% já usada na Celesc do Grupo B acima).
 async function seedGroupATariffCatalog(): Promise<void> {

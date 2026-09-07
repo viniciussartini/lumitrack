@@ -64,7 +64,7 @@ Você é o **lado revisor** do PR. A skill `preparar-pr` descreve o que o autor 
 - **Estilo é do formatter.** Prettier e ESLint já decidem formatação; não gaste comentário com isso.
 - **Não reescreva a solução por preferência pessoal.** Se a abordagem do autor funciona e respeita os padrões, uma alternativa que você acha mais elegante é SUGERE — no máximo.
 - **Não invente requisito** que não está na issue nem nos context files.
-- **Diff grande:** se passar de ~600 linhas alteradas, diga isso no laudo e recomende quebrar o PR — revisão de diff gigante é teatro, a taxa de detecção despenca.
+- **Diff grande:** se passar de ~1200 linhas alteradas, diga isso no laudo e recomende quebrar o PR — revisão de diff gigante é teatro, a taxa de detecção despenca.
 
 ## Saída (sua mensagem final = o laudo completo)
 

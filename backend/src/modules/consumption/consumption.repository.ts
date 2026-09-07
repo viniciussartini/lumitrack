@@ -40,6 +40,10 @@ export type ConsumptionByPost = {
     kwhConsumed: number
 }
 
+export type MonthlyConsumptionByPost = ConsumptionByPost & {
+    monthBucket: Date
+}
+
 /**
  * Recorte comum das duas agregações: qual medidor, que bucket, que janela.
  * `from`/`to` são explicitamente `Date | undefined` (e não opcionais) porque
@@ -297,5 +301,60 @@ export class ConsumptionRepository {
         )
 
         return rows.map((r) => ({ post: r.post, kwhConsumed: Number(r.kwh) }))
+    }
+
+    /**
+     * Mesma classificação por posto de `findKwhByPost`, agrupada também por
+     * mês (hora local) — usada para calcular o custo anual do Grupo A com
+     * 1 query para o intervalo inteiro, em vez de 1 chamada de
+     * `findKwhByPost` por mês (o que inflaria a mesma leitura linha-a-linha
+     * de `meter_readings` que este módulo evita em todo o resto).
+     *
+     * @param meterId - Id do medidor.
+     * @param from - Início da janela (inclusive).
+     * @param to - Fim da janela (exclusive).
+     * @param peakWindow - Janela de ponta da distribuidora.
+     * @param holidayDates - Feriados nacionais que caem dentro da janela.
+     * @returns O consumo (kWh) somado por mês × posto — só combinações com alguma leitura aparecem.
+     */
+    async findKwhByPostGroupedByMonth(
+        meterId: string,
+        from: Date,
+        to: Date,
+        peakWindow: PeakWindowConfig,
+        holidayDates: Date[],
+    ): Promise<MonthlyConsumptionByPost[]> {
+        const { peakWindowStartHour, peakWindowEndHour } = peakWindow
+
+        const rows = await this.prisma.$queryRaw<
+            { monthbucket: Date; post: TariffPost; kwh: number }[]
+        >(
+            Prisma.sql`
+                SELECT monthbucket, post, SUM(kwh) AS kwh
+                FROM (
+                    SELECT
+                        date_trunc('month', ${localTsExpr()}) AS monthbucket,
+                        CASE
+                            WHEN EXTRACT(DOW FROM ${localTsExpr()}) IN (0, 6) THEN 'OFF_PEAK'
+                            WHEN (${localTsExpr()})::date = ANY(${holidayDates}::date[]) THEN 'OFF_PEAK'
+                            WHEN EXTRACT(HOUR FROM ${localTsExpr()}) >= ${peakWindowStartHour}
+                                AND EXTRACT(HOUR FROM ${localTsExpr()}) < ${peakWindowEndHour}
+                                THEN 'PEAK'
+                            ELSE 'OFF_PEAK'
+                        END AS post,
+                        "kwhConsumed" AS kwh
+                    FROM "meter_readings"
+                    WHERE "meterId" = ${meterId}
+                    ${rangeFilter(from, to)}
+                ) classified
+                GROUP BY monthbucket, post
+            `,
+        )
+
+        return rows.map((r) => ({
+            monthBucket: r.monthbucket,
+            post: r.post,
+            kwhConsumed: Number(r.kwh),
+        }))
     }
 }

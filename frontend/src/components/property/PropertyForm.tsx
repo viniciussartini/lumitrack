@@ -355,6 +355,10 @@ interface GroupAFieldsProps {
  */
 const GroupAFields = ({ register, errors }: GroupAFieldsProps) => (
     <div className="flex flex-col gap-4">
+        <span className="font-heading text-accent-700 border-divider text-11 border-b pb-1.5 font-semibold tracking-[.07em] uppercase">
+            Exclusivo do Grupo A
+        </span>
+
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Select
                 label="Subgrupo"
@@ -386,11 +390,11 @@ const GroupAFields = ({ register, errors }: GroupAFieldsProps) => (
         </div>
 
         <Input
-            label="Demanda contratada (kW)"
+            label="Demanda contratada · kW"
             type="number"
             step="1"
-            min="1"
-            placeholder="200"
+            min="30"
+            placeholder="250"
             error={errors.contractedDemandKw?.message}
             {...register("contractedDemandKw")}
         />

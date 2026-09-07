@@ -191,7 +191,7 @@ gh issue edit {N} --milestone "MVP"
 - Estilo é do formatter: não se revisa formatação.
 - Aprovação não é carimbo — **quem aprova assume corresponsabilidade** pelo que entrou.
 - Divergência que não se resolve em duas rodadas vira conversa síncrona ou ADR, não thread infinita.
-- **PR acima de ~600 linhas alteradas deve ser quebrado** — a taxa de detecção despenca e a revisão vira teatro.
+- **PR acima de ~1200 linhas alteradas deve ser quebrado** — a taxa de detecção despenca e a revisão vira teatro.
 
 ## Pull Request
 

@@ -371,7 +371,7 @@ model EnergyDistributor {
   pisRate    Decimal @db.Decimal(5, 4)
   cofinsRate Decimal @db.Decimal(5, 4)
 
-  // Janela de ponta do Grupo A (RN24) — hora local, início inclusivo e fim
+  // Janela de ponta do Grupo A — hora local, início inclusivo e fim
   // exclusivo (ex.: 18/21 = 18h–21h). Configurável por distribuidora porque
   // varia por local/estado; nulo até uma distribuidora oferecer Grupo A.
   // Não usado pelo Grupo B (que é monômio, sem posto horário).
@@ -389,9 +389,9 @@ model EnergyDistributor {
 }
 
 // Catálogo de tarifa de ENERGIA do Grupo A, por distribuidora × subgrupo ×
-// modalidade × posto (RF26) — sempre por posto, ao contrário da demanda
+// modalidade × posto — sempre por posto, ao contrário da demanda
 // (ver TariffDemandRate). tusdPerKwh/tePerKwh somados formam a tarifa de
-// energia do posto (RN17), mesmo padrão de decomposição de EnergyDistributor.
+// energia do posto, mesmo padrão de decomposição de EnergyDistributor.
 model TariffEnergyRate {
   id            String         @id @default(uuid())
   distributorId String
@@ -411,14 +411,16 @@ model TariffEnergyRate {
   @@map("tariff_energy_rates")
 }
 
-// Catálogo de tarifa de DEMANDA do Grupo A (RF26). `post` nulo representa
-// demanda única (Horária Verde, RN18); Azul (Fase 20) popula PEAK/OFF_PEAK
+// Catálogo de tarifa de DEMANDA do Grupo A. `post` nulo representa
+// demanda única (Horária Verde); Azul (Fase 20) popula PEAK/OFF_PEAK
 // sem exigir migração nova — a coluna já comporta as duas formas.
 // Nota 1: o Postgres trata cada NULL como distinto em índice único, então o
 // `@@unique` abaixo não impede duas linhas com post nulo para a mesma
-// distribuidora/subgrupo/modalidade. Sem risco hoje — o único gravador é o
-// seed idempotente; reforçar em banco só se um caminho de escrita além do
-// seed existir (RF45, catálogo editável, ainda sem fase).
+// distribuidora/subgrupo/modalidade. Fechado em banco por um índice único
+// PARCIAL (`WHERE post IS NULL`, migração `grupo_a_indice_unico_demanda_unica`)
+// — o Prisma não tem sintaxe para índice parcial no schema, então ele só
+// existe na migração SQL, sem representação aqui (drift consciente e
+// documentado, não esquecido).
 // Nota 2: por causa da Nota 1, o Prisma **recusa em runtime** usar `post:
 // null` numa cláusula where de chave composta (`upsert`/`findUnique` via
 // `distributorId_subgroup_modality_post`) — "Argument `post` must not be
@@ -469,15 +471,15 @@ model Property {
 
   // Classe de faturamento Grupo B (default residencial B1). Opcional porque
   // uma propriedade Grupo A não tem B1/B2/B3 — obrigatório/proibido conforme
-  // tariffGroup é validado em property.schema.ts, não aqui (mesmo padrão de
-  // RN01 do Medidor: regra cruzada fica no service/schema).
+  // tariffGroup é validado em property.schema.ts, não aqui: regra cruzada
+  // entre campos fica no service/schema, não é uma constraint de coluna.
   billingClass BillingClass? @default(B1)
 
-  // Subgrupo e modalidade do Grupo A (RF25) — nulos para Grupo B.
+  // Subgrupo e modalidade do Grupo A — nulos para Grupo B.
   tariffSubgroup TariffSubgroup?
   tariffModality TariffModality?
 
-  // Demanda contratada (kW, RF25) — obrigatória para Grupo A (validada em
+  // Demanda contratada (kW) — obrigatória para Grupo A (validada em
   // property.service.ts, mesmo padrão de tariffSubgroup/tariffModality),
   // null para Grupo B. Verde/Convencional usam 1 valor só; Azul (2 demandas,
   // ponta/fora-ponta) é extensão de modelo da Fase 20, fora de escopo aqui.
@@ -574,7 +576,7 @@ model Meter {
   @@map("meters")
 }
 
-// Demanda medida do Grupo A (RN19) — maior potência média em janelas de 15
+// Demanda medida do Grupo A — maior potência média em janelas de 15
 // min, mantida por rollup incremental (DemandRollupScheduler), nunca
 // recalculada varrendo `meter_readings` sob demanda. Uma linha por
 // medidor × mês (hora local) × posto tarifário.
@@ -582,8 +584,8 @@ model MeterDemandRollup {
   id      String @id @default(uuid())
   meterId String
 
-  // Início do mês em hora local — RN19/demanda contratada é por ciclo de
-  // faturamento mensal, mesmo período usado pelo cálculo de custo do Grupo A.
+  // Início do mês em hora local — a demanda contratada é apurada por ciclo
+  // de faturamento mensal, mesmo período usado pelo cálculo de custo do Grupo A.
   periodStart DateTime
 
   post TariffPost

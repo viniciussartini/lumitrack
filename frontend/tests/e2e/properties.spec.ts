@@ -4,7 +4,7 @@ import { fulfillError, fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
 import { DIST_CEMIG } from "./support/fixtures"
-import type { Property } from "../../src/types/property.types"
+import type { CreatePropertyInput, Property } from "../../src/types/property.types"
 
 /**
  * E2E focado em UI: mocka as respostas do backend via page.route().
@@ -37,8 +37,7 @@ const DIST_ENEL = {
  * extraído do handler de rota só por causa do teto de complexidade do lint
  * (cada `?? null` conta como um branch).
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const buildCreatedProperty = (body: any): Property => ({
+const buildCreatedProperty = (body: CreatePropertyInput): Property => ({
     id: "prop-1",
     userId: "user-123",
     distributorId: body.distributorId,

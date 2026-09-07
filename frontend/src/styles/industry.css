@@ -607,7 +607,7 @@ textarea.input {
        tom que já valia pra --color-status-highlight passa sem ajuste. */
     --color-chart-amber: #d98a1e;
 
-    /* Segunda série de gráfico (Fora de Ponta, RF27/RF29) — tom de azul já
+    /* Segunda série de gráfico (Fora de Ponta) — tom de azul já
        usado no bundle para a linha "Medida" do widget de demanda do Grupo A
        (LumiTrack Home v2.dc.html), clareado aqui pra manter contraste no
        tema escuro (mesmo raciocínio de --color-chart-amber). */

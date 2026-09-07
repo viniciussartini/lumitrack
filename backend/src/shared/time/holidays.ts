@@ -77,8 +77,13 @@ export function getNationalHolidays(year: number): Date[] {
  * Feriados nacionais de todos os anos tocados por um intervalo — uma
  * agregação de consumo frequentemente atravessa a virada do ano.
  *
- * @param from - Início do intervalo (inclusive).
- * @param to - Fim do intervalo (inclusive, mesma convenção do `to` usado pelo restante do módulo de consumo).
+ * @param from - Início do intervalo.
+ * @param to - Fim do intervalo. O ano de `to` é sempre incluído, mesmo
+ * quando o chamador trata `to` como exclusivo (convenção do restante do
+ * módulo de consumo, ver `rangeFilter`) — incluir um ano de feriados a mais
+ * do que o estritamente necessário é inofensivo (datas que nunca vão bater
+ * contra nenhum timestamp do intervalo), então não vale a complexidade de
+ * tratar o caso exato da virada.
  * @returns Os feriados nacionais de `from.getUTCFullYear()` até `to.getUTCFullYear()`.
  */
 export function getNationalHolidaysInRange(from: Date, to: Date): Date[] {

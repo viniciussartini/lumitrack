@@ -23,15 +23,22 @@ import {
     type TariffFlagRepository,
 } from "@/modules/tariff-flag/tariff-flag.repository.js"
 import { TariffCatalogRepository } from "@/modules/distributor/tariff-catalog.repository.js"
+import type {
+    TariffEnergyRateResponse,
+    TariffSingleDemandRateResponse,
+} from "@/modules/distributor/tariff-catalog.repository.js"
 import { TariffService } from "@/shared/tariff/tariff.service.js"
 import type { PeakWindowConfig } from "@/shared/tariff/tariffPost.js"
-import { getNationalHolidays } from "@/shared/time/holidays.js"
+import { getNationalHolidaysInRange } from "@/shared/time/holidays.js"
 import { fromSaoPauloLocal } from "@/shared/time/localTime.js"
 import { toSkipTake, type Paginated } from "@/shared/pagination.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 import { resolveRootProperty } from "@/shared/targetResolution.js"
-import type { TargetType, TariffPost } from "@/generated/prisma/client.js"
+import { logger } from "@/shared/logger/logger.js"
+import type { TargetType, TariffPost, TariffSubgroup } from "@/generated/prisma/client.js"
+
+const log = logger.child({ module: "ConsumptionService" })
 
 // Decomposição da conta binômia do Grupo A — presente só no bucket
 // mensal de uma Propriedade Grupo A; ausente (undefined) para Grupo B e para
@@ -268,37 +275,17 @@ export class ConsumptionService {
             const distributor = await this.distributorRepository.findById(property.distributorId)
             if (!distributor) continue
 
-            // Grupo A só calcula custo em mês/ano + Propriedade — uma
-            // Área/Aparelho de uma propriedade Grupo A lança ao tentar
-            // qualquer outra combinação (`calculateBucketCost`). Isso não
-            // pode derrubar o lote inteiro: mesma tolerância já aplicada
-            // acima a "sem medidor"/"sem distribuidora" — o item some do
-            // resultado, os demais alvos do lote continuam respondendo.
-            let costBrl: number
-            try {
-                costBrl =
-                    granularity === "year" && targetType === "PROPERTY"
-                        ? await this.calculateYearlyPropertyCost(
-                              meter.id,
-                              bucket.bucketStart,
-                              property,
-                              distributor,
-                              flagPer100Kwh,
-                          )
-                        : (
-                              await this.calculateBucketCost(
-                                  meter.id,
-                                  bucket,
-                                  granularity,
-                                  targetType,
-                                  property,
-                                  distributor,
-                                  flagPer100Kwh,
-                              )
-                          ).totalBrl
-            } catch {
-                continue
-            }
+            const costBrl = await this.resolveSummaryItemCost(
+                id,
+                meter.id,
+                bucket,
+                granularity,
+                targetType,
+                property,
+                distributor,
+                flagPer100Kwh,
+            )
+            if (costBrl === null) continue
 
             items.push({
                 id,
@@ -311,6 +298,56 @@ export class ConsumptionService {
         }
 
         return { items }
+    }
+
+    // Custo de 1 item de `summary()` — `null` quando o cálculo falha (mesma
+    // tolerância já aplicada acima a "sem medidor"/"sem distribuidora": o
+    // item some do resultado, os demais alvos do lote continuam
+    // respondendo). Grupo A só calcula custo em mês/ano + Propriedade —
+    // uma Área/Aparelho de uma propriedade Grupo A lança `ValidationError`
+    // ao tentar qualquer outra combinação (`calculateBucketCost`), o caso
+    // esperado e silencioso; qualquer outro erro é logado antes de excluir
+    // o item, para não mascarar uma falha real (catálogo ausente, timeout).
+    private async resolveSummaryItemCost(
+        targetId: string,
+        meterId: string,
+        bucket: { bucketStart: Date; kwhConsumed: number },
+        granularity: Granularity,
+        targetType: TargetType,
+        property: PropertyResponse,
+        distributor: DistributorResponse,
+        flagPer100Kwh: number,
+    ): Promise<number | null> {
+        try {
+            if (granularity === "year" && targetType === "PROPERTY") {
+                return await this.calculateYearlyPropertyCost(
+                    meterId,
+                    bucket.bucketStart,
+                    property,
+                    distributor,
+                    flagPer100Kwh,
+                )
+            }
+            return (
+                await this.calculateBucketCost(
+                    meterId,
+                    bucket,
+                    granularity,
+                    targetType,
+                    property,
+                    distributor,
+                    flagPer100Kwh,
+                )
+            ).totalBrl
+        } catch (err) {
+            if (!(err instanceof ValidationError)) {
+                log.warn(
+                    { err, targetId },
+                    "Falha inesperada ao calcular custo — item excluído do resumo",
+                )
+            }
+            return null
+        }
     }
 
     // Granularidade "year" + alvo PROPERTY: o piso de disponibilidade é
@@ -339,6 +376,30 @@ export class ConsumptionService {
             meterId,
             buckets.map((b) => b.bucketStart),
         )
+
+        // Grupo A: 1 única consulta batching todos os meses da página (ver
+        // calculateGroupAMonthlyCosts), em vez de 1 findKwhByPost por mês —
+        // até 12 por bucket de ano, ~372 numa página cheia (31 anos).
+        if (property.tariffGroup === "GROUP_A") {
+            const monthlyCostByMonthMs = await this.calculateGroupAMonthlyCosts(
+                meterId,
+                monthlyRows.map((r) => r.monthBucket),
+                property,
+                distributor,
+                flagPer100Kwh,
+            )
+
+            for (const row of monthlyRows) {
+                const key = row.yearBucket.getTime()
+                const monthCost = monthlyCostByMonthMs.get(row.monthBucket.getTime())?.totalBrl ?? 0
+                yearlyPropertyCostByBucketMs.set(
+                    key,
+                    (yearlyPropertyCostByBucketMs.get(key) ?? 0) + monthCost,
+                )
+            }
+
+            return yearlyPropertyCostByBucketMs
+        }
 
         for (const row of monthlyRows) {
             const monthCost = await this.calculateMonthCost(
@@ -434,6 +495,10 @@ export class ConsumptionService {
     // implementada; Azul/Convencional falham fechado (Fase 20).
     // Falha fechada também sem janela de ponta configurada ou sem demanda
     // contratada, em vez de silenciosamente aplicar a fórmula errada.
+    // Wrapper de 1 mês só sobre `calculateGroupAMonthlyCosts` — usado pelo
+    // caminho de granularidade "month" (list()/summary() de um único mês),
+    // que não tem o problema de N+1 que o caminho "year" tinha (era 1
+    // `findKwhByPost` por mês, até 12 por ano por alvo).
     private async calculateGroupAMonthCost(
         meterId: string,
         monthStartLocal: Date,
@@ -441,6 +506,38 @@ export class ConsumptionService {
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<MonthCostResult> {
+        const resultByMonthMs = await this.calculateGroupAMonthlyCosts(
+            meterId,
+            [monthStartLocal],
+            property,
+            distributor,
+            flagPer100Kwh,
+        )
+        // Sempre presente: calculateGroupAMonthlyCosts preenche 1 entrada
+        // para cada mês pedido, mesmo sem nenhuma leitura naquele mês (kWh
+        // 0 em todos os postos — ainda assim paga demanda contratada).
+        return resultByMonthMs.get(monthStartLocal.getTime())!
+    }
+
+    // Núcleo do cálculo binômio do Grupo A, batching por mês: 1 única
+    // consulta agregada (`findKwhByPostGroupedByMonth`) para todos os meses
+    // pedidos, em vez de 1 `findKwhByPost` por mês. Compartilhado por 3
+    // chamadores — `calculateGroupAMonthCost` (1 mês), `computeYearlyPropertyCosts`
+    // (todos os buckets de ano de uma página de list()) e `calculateYearlyPropertyCost`
+    // (os até 12 meses de 1 bucket de ano de summary()) — os dois últimos
+    // eram, antes desta função existir, uma consulta por mês por alvo.
+    // Valida os 4 pré-requisitos do cálculo binômio e devolve os campos já
+    // estreitados (`PropertyResponse` os declara nullable) — extraído para
+    // que `calculateGroupAMonthlyCosts` não acumule complexidade com os 4
+    // `if` de guarda inline.
+    private assertGroupACalculable(
+        property: PropertyResponse,
+        distributor: DistributorResponse,
+    ): {
+        peakWindow: PeakWindowConfig
+        contractedDemandKw: number
+        tariffSubgroup: TariffSubgroup
+    } {
         if (distributor.peakWindowStartHour === null || distributor.peakWindowEndHour === null) {
             throw new ValidationError(
                 "Distribuidora sem janela de ponta configurada — não é possível calcular a conta do Grupo A",
@@ -458,34 +555,102 @@ export class ConsumptionService {
             throw new ValidationError("Propriedade do Grupo A sem subgrupo cadastrado")
         }
 
-        const peakWindow: PeakWindowConfig = {
-            peakWindowStartHour: distributor.peakWindowStartHour,
-            peakWindowEndHour: distributor.peakWindowEndHour,
+        return {
+            peakWindow: {
+                peakWindowStartHour: distributor.peakWindowStartHour,
+                peakWindowEndHour: distributor.peakWindowEndHour,
+            },
+            contractedDemandKw: property.contractedDemandKw,
+            tariffSubgroup: property.tariffSubgroup,
         }
+    }
 
-        // `monthStartLocal` vem de date_trunc('month', localTsExpr()) — os
+    // Custo de 1 mês do Grupo A a partir do catálogo/consumo já resolvidos —
+    // extraído do corpo de `calculateGroupAMonthlyCosts` (que resolve isso
+    // em lote para vários meses) só para manter o teto de linhas/complexidade.
+    private buildGroupAMonthResult(
+        kwhByPostMap: Map<TariffPost, number>,
+        contractedDemandKw: number,
+        energyRates: TariffEnergyRateResponse[],
+        demandRate: TariffSingleDemandRateResponse,
+        distributor: DistributorResponse,
+        flagPer100Kwh: number,
+        publicLightingFeeBrl: number | null,
+    ): MonthCostResult {
+        const energyByPost = energyRates.map((rate) => ({
+            post: rate.post,
+            kwhConsumed: kwhByPostMap.get(rate.post) ?? 0,
+            tusdPerKwh: rate.tusdPerKwh,
+            tePerKwh: rate.tePerKwh,
+        }))
+
+        const result = this.tariffService.calculateForGroupA({
+            contractedDemandKw,
+            tusdPerKw: demandRate.tusdPerKw,
+            energyByPost,
+            icmsRate: distributor.icmsRate,
+            pisRate: distributor.pisRate,
+            cofinsRate: distributor.cofinsRate,
+            flagPer100Kwh,
+            publicLightingFeeBrl,
+        })
+
+        return {
+            totalBrl: result.totalBrl,
+            groupA: {
+                contractedDemandKw,
+                demandBrl: result.demandBrl,
+                energyByPost: result.energyByPost,
+                flagBrl: result.flagBrl,
+                taxesBrl: result.taxesBrl,
+                publicLightingFeeBrl: result.publicLightingFeeBrl,
+            },
+        }
+    }
+
+    private async calculateGroupAMonthlyCosts(
+        meterId: string,
+        monthStarts: Date[],
+        property: PropertyResponse,
+        distributor: DistributorResponse,
+        flagPer100Kwh: number,
+    ): Promise<Map<number, MonthCostResult>> {
+        const resultByMonthMs = new Map<number, MonthCostResult>()
+        if (monthStarts.length === 0) return resultByMonthMs
+
+        const { peakWindow, contractedDemandKw, tariffSubgroup } = this.assertGroupACalculable(
+            property,
+            distributor,
+        )
+
+        // `monthStarts` vêm de date_trunc('month', localTsExpr()) — os
         // campos de calendário (ano/mês) já são os locais corretos, só
         // rotulados como UTC (mesmo truque de consumption.repository.ts).
         // `fromSaoPauloLocal` converte para o instante UTC real que
-        // findKwhByPost espera (mesmo idioma do DemandRollupScheduler).
-        const monthEndLocal = new Date(
-            Date.UTC(monthStartLocal.getUTCFullYear(), monthStartLocal.getUTCMonth() + 1, 1),
+        // findKwhByPostGroupedByMonth espera (mesmo idioma do DemandRollupScheduler).
+        const monthMs = monthStarts.map((d) => d.getTime())
+        const minMonthStart = new Date(Math.min(...monthMs))
+        const maxMonthStart = new Date(Math.max(...monthMs))
+        const maxMonthEnd = new Date(
+            Date.UTC(maxMonthStart.getUTCFullYear(), maxMonthStart.getUTCMonth() + 1, 1),
         )
-        const from = fromSaoPauloLocal(monthStartLocal)
-        const to = fromSaoPauloLocal(monthEndLocal)
-        const holidays = getNationalHolidays(monthStartLocal.getUTCFullYear())
+        const from = fromSaoPauloLocal(minMonthStart)
+        const to = fromSaoPauloLocal(maxMonthEnd)
+        const holidays = getNationalHolidaysInRange(from, to)
 
-        const [kwhByPost, energyRates, demandRate] = await Promise.all([
-            this.consumptionRepository.findKwhByPost(meterId, from, to, peakWindow, holidays),
-            this.tariffCatalogRepository.findEnergyRates(
-                distributor.id,
-                property.tariffSubgroup,
-                property.tariffModality,
+        const [kwhByPostByMonth, energyRates, demandRate] = await Promise.all([
+            this.consumptionRepository.findKwhByPostGroupedByMonth(
+                meterId,
+                from,
+                to,
+                peakWindow,
+                holidays,
             ),
+            this.tariffCatalogRepository.findEnergyRates(distributor.id, tariffSubgroup, "GREEN"),
             this.tariffCatalogRepository.findSingleDemandRate(
                 distributor.id,
-                property.tariffSubgroup,
-                property.tariffModality,
+                tariffSubgroup,
+                "GREEN",
             ),
         ])
 
@@ -495,36 +660,30 @@ export class ConsumptionService {
             )
         }
 
-        const kwhByPostMap = new Map(kwhByPost.map((k) => [k.post, k.kwhConsumed]))
-        const energyByPost = energyRates.map((rate) => ({
-            post: rate.post,
-            kwhConsumed: kwhByPostMap.get(rate.post) ?? 0,
-            tusdPerKwh: rate.tusdPerKwh,
-            tePerKwh: rate.tePerKwh,
-        }))
-
-        const result = this.tariffService.calculateForGroupA({
-            contractedDemandKw: property.contractedDemandKw,
-            tusdPerKw: demandRate.tusdPerKw,
-            energyByPost,
-            icmsRate: distributor.icmsRate,
-            pisRate: distributor.pisRate,
-            cofinsRate: distributor.cofinsRate,
-            flagPer100Kwh,
-            publicLightingFeeBrl: property.publicLightingFeeBrl,
-        })
-
-        return {
-            totalBrl: result.totalBrl,
-            groupA: {
-                contractedDemandKw: property.contractedDemandKw,
-                demandBrl: result.demandBrl,
-                energyByPost: result.energyByPost,
-                flagBrl: result.flagBrl,
-                taxesBrl: result.taxesBrl,
-                publicLightingFeeBrl: result.publicLightingFeeBrl,
-            },
+        const kwhByPostByMonthKey = new Map<number, Map<TariffPost, number>>()
+        for (const row of kwhByPostByMonth) {
+            const postMap = kwhByPostByMonthKey.get(row.monthBucket.getTime()) ?? new Map()
+            postMap.set(row.post, row.kwhConsumed)
+            kwhByPostByMonthKey.set(row.monthBucket.getTime(), postMap)
         }
+
+        for (const monthStart of monthStarts) {
+            const kwhByPostMap = kwhByPostByMonthKey.get(monthStart.getTime()) ?? new Map()
+            resultByMonthMs.set(
+                monthStart.getTime(),
+                this.buildGroupAMonthResult(
+                    kwhByPostMap,
+                    contractedDemandKw,
+                    energyRates,
+                    demandRate,
+                    distributor,
+                    flagPer100Kwh,
+                    property.publicLightingFeeBrl,
+                ),
+            )
+        }
+
+        return resultByMonthMs
     }
 
     private calculateSubTargetCost(
@@ -600,6 +759,24 @@ export class ConsumptionService {
         const monthlyRows = await this.consumptionRepository.findMonthlyKwhForYears(meterId, [
             yearBucketStart,
         ])
+
+        // Mesmo batching de computeYearlyPropertyCosts: 1 consulta para os
+        // até 12 meses do ano, em vez de 1 findKwhByPost por mês — aqui
+        // importa ainda mais, porque summary() chama isto por ALVO da lista
+        // comparada (N alvos × até 12 meses, sem o batch).
+        if (property.tariffGroup === "GROUP_A") {
+            const monthlyCostByMonthMs = await this.calculateGroupAMonthlyCosts(
+                meterId,
+                monthlyRows.map((r) => r.monthBucket),
+                property,
+                distributor,
+                flagPer100Kwh,
+            )
+
+            let sum = 0
+            for (const cost of monthlyCostByMonthMs.values()) sum += cost.totalBrl
+            return sum
+        }
 
         let sum = 0
         for (const row of monthlyRows) {

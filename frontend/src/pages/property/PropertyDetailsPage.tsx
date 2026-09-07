@@ -21,6 +21,7 @@ import { IconCircle } from "@/components/ui/IconCircle"
 import { LiveKpiCard } from "@/components/dashboard/LiveKpiCard"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
 import { formatPowerKw, formatKwhPrice, formatBrl } from "@/lib/format"
+import { formatKw as formatContractedDemandKw } from "@/lib/formatters/consumption"
 import {
     BILLING_CLASS_LABELS,
     ELECTRICAL_SYSTEM_LABELS,
@@ -237,7 +238,8 @@ const PropertyHeaderCard = ({
                             )}
                             {property.contractedDemandKw !== null && (
                                 <Tag variant="outline">
-                                    Demanda contratada: {property.contractedDemandKw} kW
+                                    Demanda contratada:{" "}
+                                    {formatContractedDemandKw(property.contractedDemandKw)}
                                 </Tag>
                             )}
                         </>

@@ -217,3 +217,85 @@ describe("ConsumptionRepository.findKwhByPost", () => {
         expect(result).toEqual([])
     })
 })
+
+describe("ConsumptionRepository.findKwhByPostGroupedByMonth", () => {
+    it("agrupa por mês × posto num intervalo de vários meses, numa única consulta", async () => {
+        const meterId = await setupMeter()
+
+        // Setembro/2026: terça 19h (PEAK) + sábado 19h (OFF_PEAK).
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 19)), 5)
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 5, 19)), 3)
+        // Outubro/2026: quinta 19h (PEAK).
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 9, 1, 19)), 8)
+
+        const result = await consumptionRepository.findKwhByPostGroupedByMonth(
+            meterId,
+            new Date(Date.UTC(2026, 0, 1)),
+            new Date(Date.UTC(2027, 0, 1)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+        )
+
+        const byMonthPost = Object.fromEntries(
+            result.map((r) => [
+                `${r.monthBucket.toISOString().slice(0, 7)}-${r.post}`,
+                r.kwhConsumed,
+            ]),
+        )
+        expect(byMonthPost["2026-09-PEAK"]).toBe(5)
+        expect(byMonthPost["2026-09-OFF_PEAK"]).toBe(3)
+        expect(byMonthPost["2026-10-PEAK"]).toBe(8)
+        expect(byMonthPost["2026-10-OFF_PEAK"]).toBeUndefined()
+    })
+
+    it("bate com a soma de findKwhByPost mês a mês (mesma regra de classificação)", async () => {
+        const meterId = await setupMeter()
+
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 19)), 5)
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 10)), 7)
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 9, 1, 19)), 8)
+
+        const from = new Date(Date.UTC(2026, 8, 1))
+        const to = new Date(Date.UTC(2026, 10, 1))
+
+        const grouped = await consumptionRepository.findKwhByPostGroupedByMonth(
+            meterId,
+            from,
+            to,
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+        )
+        const flat = await consumptionRepository.findKwhByPost(
+            meterId,
+            from,
+            to,
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+        )
+
+        const groupedTotalByPost = new Map<string, number>()
+        for (const row of grouped) {
+            groupedTotalByPost.set(
+                row.post,
+                (groupedTotalByPost.get(row.post) ?? 0) + row.kwhConsumed,
+            )
+        }
+        for (const row of flat) {
+            expect(groupedTotalByPost.get(row.post)).toBe(row.kwhConsumed)
+        }
+    })
+
+    it("retorna lista vazia quando não há leituras no período", async () => {
+        const meterId = await setupMeter()
+
+        const result = await consumptionRepository.findKwhByPostGroupedByMonth(
+            meterId,
+            new Date(Date.UTC(2026, 0, 1)),
+            new Date(Date.UTC(2026, 0, 2)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+        )
+
+        expect(result).toEqual([])
+    })
+})

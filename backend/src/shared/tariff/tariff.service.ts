@@ -1,4 +1,5 @@
 import type { ElectricalSystemType, TariffPost } from "@/generated/prisma/client.js"
+import { ValidationError } from "@/shared/errors/AppError.js"
 
 // Piso de disponibilidade (Grupo B, REN 1.000/2021): custo mínimo faturável
 // em kWh, cobrado mesmo quando o consumo real fica abaixo dele — o "custo de
@@ -85,6 +86,11 @@ export class TariffService {
         cofinsRate: number,
     ): { taxesBrl: number; totalWithTaxes: number } {
         const taxRateSum = icmsRate + pisRate + cofinsRate
+        if (taxRateSum >= 1) {
+            throw new ValidationError(
+                "Soma das alíquotas de ICMS/PIS/COFINS da distribuidora é inválida (≥ 100%)",
+            )
+        }
         const totalWithTaxes = baseBrl / (1 - taxRateSum)
         const taxesBrl = totalWithTaxes - baseBrl
 

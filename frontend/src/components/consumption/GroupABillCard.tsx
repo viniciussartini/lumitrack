@@ -9,7 +9,7 @@ import {
     XAxis,
     YAxis,
 } from "recharts"
-import { formatCostBrl, formatKwh } from "@/lib/formatters/consumption"
+import { formatCostBrl, formatKw, formatKwh } from "@/lib/formatters/consumption"
 import {
     TARIFF_POST_LABELS,
     type ConsumptionBucket,
@@ -41,8 +41,7 @@ const isRechartsPayloadEntry = (v: unknown): v is RechartsPayloadEntry =>
 
 interface ChartTooltipProps {
     active?: boolean
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    payload?: any[]
+    payload?: unknown[]
 }
 
 const PostChartTooltip = ({ active, payload }: ChartTooltipProps) => {
@@ -71,9 +70,13 @@ const PostChartTooltip = ({ active, payload }: ChartTooltipProps) => {
 
 /**
  * Decomposição da conta binômia do Grupo A — demanda contratada, consumo por
- * posto (tabela + mini gráfico Ponta×Fora de Ponta) e o total. Sem mockup no
- * bundle de design para esta tela — layout segue a linguagem visual do
- * Industry (grid de estatísticas + tabela), não inventa uma estética nova.
+ * posto (tabela + mini gráfico Ponta×Fora de Ponta) e o total. O bundle de
+ * design tem handoff de Grupo A (campos de cadastro, widget "Demanda atual
+ * vs. contratada" do Painel), mas nenhum mockup especificamente para um
+ * cartão de conta mensal detalhada por posto na página de detalhes da
+ * propriedade — layout segue a linguagem visual já usada pelos widgets do
+ * bundle (cabeçalho com legenda de cor + grid de estatísticas em `.blueprint`),
+ * sem inventar uma estética nova.
  */
 export const GroupABillCard = ({ bucket }: GroupABillCardProps) => {
     const groupA = bucket.groupA
@@ -85,7 +88,7 @@ export const GroupABillCard = ({ bucket }: GroupABillCardProps) => {
                 className="grid grid-cols-2 gap-px md:grid-cols-4"
                 data-testid="group-a-bill-stats"
             >
-                <Stat label="Demanda contratada" value={`${groupA.contractedDemandKw} kW`} />
+                <Stat label="Demanda contratada" value={formatKw(groupA.contractedDemandKw)} />
                 <Stat label="Parcela de demanda" value={formatCostBrl(groupA.demandBrl)} />
                 <Stat label="Bandeira" value={formatCostBrl(groupA.flagBrl)} />
                 <Stat label="Total da conta" value={formatCostBrl(bucket.costBrl)} accent />
