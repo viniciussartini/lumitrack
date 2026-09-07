@@ -63,7 +63,7 @@
 - RF29 `[implementado]`: o sistema deve calcular a conta binômia da modalidade Horária Verde, devolvendo a decomposição separada de demanda, consumo por posto, bandeira, tributos e CIP.
 - RF30 `[planejado — Fase 20]`: o sistema deve suportar a modalidade Horária Azul, com duas demandas contratadas (ponta e fora de ponta) e quatro tarifas distintas.
 - RF31 `[implementado — cálculo; alerta de configuração planejado — Fase 20]`: o sistema deve calcular a ultrapassagem de demanda e permitir que um usuário do Grupo A configure alerta de ultrapassagem da demanda contratada. *(Substitui o item anteriormente registrado sem número como "RFXX".)*
-- RF32 `[planejado — Fase 20]`: o sistema deve calcular a energia reativa excedente quando o fator de potência ficar abaixo do mínimo regulatório.
+- RF32 `[implementado]`: o sistema deve calcular a energia reativa excedente quando o fator de potência ficar abaixo do mínimo regulatório.
 - RF33 `[planejado — Fase 21]`: o sistema deve distinguir o ambiente de contratação da Propriedade (ACR cativo × ACL livre) e registrar o contrato de energia do ACL — comercializadora, volume contratado, submercado, fonte e vigência.
 - RF34 `[planejado — Fase 21]`: o sistema deve permitir registrar e consultar o PLD (Preço de Liquidação das Diferenças) por submercado, usado na análise econômica do mercado livre.
 - RF35 `[planejado — Fase 21]`: o sistema deve comparar o custo no mercado cativo com o custo no mercado livre a partir do consumo real do próprio usuário, respondendo "vale a pena migrar?".
@@ -184,7 +184,7 @@ Fórmulas conferidas contra `backend/src/shared/tariff/tariff.service.ts`, não 
 
 Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exemplo 6 (A4 Verde, R$ 22.464,75) e Exemplo 7 (A4 Azul com ERE, R$ 101.496,36).
 
-- RN17 `[implementado — Verde, com ultrapassagem; ERE planejada — Fase 20]`: **conta binômia** — demanda e consumo são cobrados separadamente, e os tributos incidem por dentro sobre o conjunto:
+- RN17 `[implementado — Verde, com ultrapassagem e ERE]`: **conta binômia** — demanda e consumo são cobrados separadamente, e os tributos incidem por dentro sobre o conjunto:
 
   ```text
   parcelaConsumo = Σ_posto (consumoPosto × (TUSDenergiaPosto + TEenergiaPosto))
@@ -217,7 +217,7 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
       ultrapassagem = 0
   ```
 
-- RN21 `[planejado — Fase 20]`: **energia reativa excedente (ERE)** é cobrada quando o fator de potência fica abaixo de 0,92 — indutivo medido entre 6h e 24h, capacitivo entre 0h e 6h, tarifado em R$/kVArh.
+- RN21 `[implementado]`: **energia reativa excedente (ERE)** é cobrada quando o fator de potência fica abaixo de 0,92 — indutivo medido entre 6h e 24h, capacitivo entre 0h e 6h, tarifado em R$/kVArh (validado no `tariff.service.ts`; a agregação por janela em `consumption.repository.ts`). Fórmula: excedente (kVArh) = energia reativa medida − energia ativa × tan(acos(0,92)); tarifa usada é a TUSD de energia fora de ponta (o documento de referência não diferencia a tarifa reativa por posto).
 - RN22 `[implementado]`: a **bandeira incide sobre o consumo medido, nunca sobre a demanda**.
 - RN23 `[implementado]`: **não há piso de disponibilidade no Grupo A** — o papel equivalente é da demanda contratada, que é paga integralmente mesmo se não utilizada. O caminho de cálculo ramifica por grupo em vez de aplicar o piso incondicionalmente.
 

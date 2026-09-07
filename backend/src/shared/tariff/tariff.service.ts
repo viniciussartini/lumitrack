@@ -70,9 +70,31 @@ export type GroupADemandPostResult = {
     ultrapassagemBrl: number
 }
 
+// Janela horária de apuração de energia reativa excedente (RN21) — ver
+// `ConsumptionRepository.findReactiveEnergyByWindow`, que soma `activeKwh`/
+// `reactiveKvarh` inteiramente em SQL. `tusdPerKvarh` é a tarifa cobrada
+// sobre o excedente — o documento de referência diz "mesma tarifa de TUSD",
+// sem diferenciar por posto; corte de execução: usa a TUSD de energia fora
+// de ponta (cobre integralmente a janela capacitiva e a maior parte da
+// indutiva), citado explicitamente por não haver tarifa reativa própria no
+// catálogo nem posto que corresponda 1:1 às janelas de RN21.
+export type GroupAReactiveWindowInput = {
+    window: "INDUCTIVE" | "CAPACITIVE"
+    activeKwh: number
+    reactiveKvarh: number
+    tusdPerKvarh: number
+}
+
+export type GroupAReactiveWindowResult = {
+    window: "INDUCTIVE" | "CAPACITIVE"
+    excessKvarh: number
+    ereBrl: number
+}
+
 export type GroupATariffInput = {
     demandPosts: GroupADemandPostInput[]
     energyByPost: GroupAEnergyPostInput[]
+    reactiveWindows: GroupAReactiveWindowInput[]
     icmsRate: number
     pisRate: number
     cofinsRate: number
@@ -86,6 +108,8 @@ export type GroupATariffResult = {
     ultrapassagemBrl: number // soma dos postos — RN20, entra antes dos tributos
     energyByPost: { post: TariffPost; kwhConsumed: number; brl: number }[]
     energyBrl: number // soma dos postos, sem tributos
+    ereByWindow: GroupAReactiveWindowResult[]
+    ereBrl: number // soma das janelas — RN21, entra antes dos tributos
     flagBrl: number
     taxesBrl: number
     publicLightingFeeBrl: number
@@ -97,6 +121,13 @@ export type GroupATariffResult = {
 // tarifa própria de penalidade.
 const DEMAND_OVERAGE_TOLERANCE = 1.05
 const DEMAND_OVERAGE_MULTIPLIER = 3
+
+// RN21: fator de potência de referência (mínimo regulatório antes de gerar
+// excedente de reativo). A razão reativa/ativa correspondente a esse FP —
+// tan(acos(0,92)) ≈ 0,4260 — é o quanto de energia reativa (kVArh) é
+// "gratuita" para cada kWh ativo; só o que passar disso é excedente.
+const REFERENCE_POWER_FACTOR = 0.92
+const REFERENCE_REACTIVE_RATIO = Math.tan(Math.acos(REFERENCE_POWER_FACTOR))
 
 export class TariffService {
     // Cálculo "por dentro": os tributos incidem sobre o próprio preço final,
@@ -169,16 +200,33 @@ export class TariffService {
         }
     }
 
+    // Excedente de uma janela: a energia reativa que passa da razão de
+    // referência (RN21) para a energia ativa da mesma janela, cobrada em
+    // R$/kVArh. Tratar ativa/reativa como quantidades somáveis (em vez de
+    // calcular um FP médio da janela e comparar) evita o erro de agregar uma
+    // razão não-aditiva — a soma dos kWh/kVArh de cada minuto é exata, a
+    // média dos FPs de cada minuto não representa o FP do período.
+    private calculateReactiveWindow(input: GroupAReactiveWindowInput): GroupAReactiveWindowResult {
+        const referenceReactiveKvarh = input.activeKwh * REFERENCE_REACTIVE_RATIO
+        const excessKvarh = Math.max(0, input.reactiveKvarh - referenceReactiveKvarh)
+
+        return {
+            window: input.window,
+            excessKvarh,
+            ereBrl: excessKvarh * input.tusdPerKvarh,
+        }
+    }
+
     /**
      * Conta binômia do Grupo A: demanda(s) contratada(s) + ultrapassagem
      * (RN20, quando a demanda medida excede em mais de 5% a contratada) +
-     * consumo por posto + bandeira (só sobre o consumo, nunca sobre a
-     * demanda) + tributos por dentro + CIP. `demandPosts` tem 1 entrada na
-     * Horária Verde/Convencional Binômia e 2 na Azul (Fase 20). Energia
-     * reativa excedente não é modelada aqui.
+     * consumo por posto + energia reativa excedente (RN21, quando o fator de
+     * potência fica abaixo de 0,92) + bandeira (só sobre o consumo, nunca
+     * sobre a demanda) + tributos por dentro + CIP. `demandPosts` tem 1
+     * entrada na Horária Verde/Convencional Binômia e 2 na Azul (Fase 20).
      *
-     * @param input - Demanda(s) contratada(s)/medida(s) e tarifa de demanda por posto, consumo e tarifa de cada posto de energia, tributos, bandeira vigente e CIP.
-     * @returns A decomposição completa da conta do Grupo A (demanda, ultrapassagem, consumo por posto, bandeira, tributos, CIP) e o total.
+     * @param input - Demanda(s), consumo por posto, energia ativa/reativa por janela, tributos, bandeira vigente e CIP.
+     * @returns A decomposição completa da conta do Grupo A (demanda, ultrapassagem, consumo por posto, ERE, bandeira, tributos, CIP) e o total.
      */
     calculateForGroupA(input: GroupATariffInput): GroupATariffResult {
         const demandByPost = input.demandPosts.map((p) => this.calculateDemandPost(p))
@@ -192,10 +240,13 @@ export class TariffService {
         }))
         const energyBrl = energyByPost.reduce((sum, p) => sum + p.brl, 0)
 
+        const ereByWindow = input.reactiveWindows.map((w) => this.calculateReactiveWindow(w))
+        const ereBrl = ereByWindow.reduce((sum, w) => sum + w.ereBrl, 0)
+
         const totalKwhConsumed = input.energyByPost.reduce((sum, p) => sum + p.kwhConsumed, 0)
         const flagBrl = totalKwhConsumed * (input.flagPer100Kwh / 100)
 
-        const totalBeforeTaxes = demandBrl + ultrapassagemBrl + energyBrl + flagBrl
+        const totalBeforeTaxes = demandBrl + ultrapassagemBrl + energyBrl + ereBrl + flagBrl
         const { taxesBrl, totalWithTaxes } = this.applyTaxesByDentro(
             totalBeforeTaxes,
             input.icmsRate,
@@ -211,6 +262,8 @@ export class TariffService {
             ultrapassagemBrl,
             energyByPost,
             energyBrl,
+            ereByWindow,
+            ereBrl,
             flagBrl,
             taxesBrl,
             publicLightingFeeBrl,

@@ -172,6 +172,7 @@ describe("TariffService", () => {
                     { post: "PEAK", kwhConsumed: 800, tusdPerKwh: 0.75, tePerKwh: 0.55 },
                     { post: "OFF_PEAK", kwhConsumed: 28_000, tusdPerKwh: 0.12, tePerKwh: 0.28 },
                 ],
+                reactiveWindows: [],
                 icmsRate: 0.17,
                 pisRate: 0.0165,
                 cofinsRate: 0.076,
@@ -194,6 +195,7 @@ describe("TariffService", () => {
                 energyByPost: [
                     { post: "OFF_PEAK", kwhConsumed: 0, tusdPerKwh: 0.12, tePerKwh: 0.28 },
                 ],
+                reactiveWindows: [],
                 icmsRate: 0.18,
                 pisRate: 0.0165,
                 cofinsRate: 0.076,
@@ -213,6 +215,7 @@ describe("TariffService", () => {
                 energyByPost: [
                     { post: "OFF_PEAK", kwhConsumed: 1000, tusdPerKwh: 0.4, tePerKwh: 0 },
                 ],
+                reactiveWindows: [],
                 icmsRate: 0.18,
                 pisRate: 0.0165,
                 cofinsRate: 0.076,
@@ -229,6 +232,7 @@ describe("TariffService", () => {
             energyByPost: [
                 { post: "OFF_PEAK" as const, kwhConsumed: 0, tusdPerKwh: 0, tePerKwh: 0 },
             ],
+            reactiveWindows: [],
             icmsRate: 0.18,
             pisRate: 0.0165,
             cofinsRate: 0.076,
@@ -321,6 +325,127 @@ describe("TariffService", () => {
             const taxRateSum = 0.18 + 0.0165 + 0.076
             const expectedDelta = 1620 / (1 - taxRateSum)
             expect(withOverage.totalBrl - withoutOverage.totalBrl).toBeCloseTo(expectedDelta, 2)
+        })
+    })
+
+    describe("calculateForGroupA — energia reativa excedente (RN21)", () => {
+        const baseInput = {
+            demandPosts: [] as never[],
+            energyByPost: [
+                { post: "OFF_PEAK" as const, kwhConsumed: 0, tusdPerKwh: 0, tePerKwh: 0 },
+            ],
+            icmsRate: 0.18,
+            pisRate: 0.0165,
+            cofinsRate: 0.076,
+            flagPer100Kwh: 0,
+            publicLightingFeeBrl: null,
+        }
+
+        // Razão reativa/ativa de referência (FP = 0,92): tan(acos(0,92)).
+        // Recalculada aqui de forma independente da constante interna do
+        // serviço, para o teste não ficar acoplado a um detalhe de implementação.
+        const REFERENCE_RATIO = Math.tan(Math.acos(0.92))
+
+        it("não cobra ERE quando a energia reativa está exatamente na razão de referência (FP = 0,92)", () => {
+            const activeKwh = 1000
+            const result = service.calculateForGroupA({
+                ...baseInput,
+                reactiveWindows: [
+                    {
+                        window: "INDUCTIVE",
+                        activeKwh,
+                        reactiveKvarh: activeKwh * REFERENCE_RATIO,
+                        tusdPerKvarh: 0.3,
+                    },
+                ],
+            })
+
+            expect(result.ereBrl).toBe(0)
+            expect(result.ereByWindow[0]?.excessKvarh).toBe(0)
+        })
+
+        it("cobra ERE proporcional ao excedente quando o fator de potência fica abaixo de 0,92", () => {
+            // FP ≈ 0,894 (tan(acos(FP)) = 0,5) — bem abaixo do mínimo de 0,92.
+            const activeKwh = 1000
+            const reactiveKvarh = activeKwh * 0.5
+            const result = service.calculateForGroupA({
+                ...baseInput,
+                reactiveWindows: [
+                    { window: "INDUCTIVE", activeKwh, reactiveKvarh, tusdPerKvarh: 0.3 },
+                ],
+            })
+
+            const expectedExcessKvarh = activeKwh * (0.5 - REFERENCE_RATIO)
+            expect(result.ereByWindow[0]?.excessKvarh).toBeCloseTo(expectedExcessKvarh, 6)
+            expect(result.ereBrl).toBeCloseTo(expectedExcessKvarh * 0.3, 6)
+        })
+
+        it("soma o excedente das duas janelas (indutivo + capacitivo)", () => {
+            const result = service.calculateForGroupA({
+                ...baseInput,
+                reactiveWindows: [
+                    {
+                        window: "INDUCTIVE",
+                        activeKwh: 1000,
+                        reactiveKvarh: 1000 * 0.5,
+                        tusdPerKvarh: 0.3,
+                    },
+                    {
+                        window: "CAPACITIVE",
+                        activeKwh: 100,
+                        reactiveKvarh: 100 * 0.5,
+                        tusdPerKvarh: 0.3,
+                    },
+                ],
+            })
+
+            expect(result.ereByWindow).toHaveLength(2)
+            const totalExpected = (1000 + 100) * (0.5 - REFERENCE_RATIO) * 0.3
+            expect(result.ereBrl).toBeCloseTo(totalExpected, 6)
+        })
+
+        it("aproxima o exemplo do documento de referência (frigorífico A4 Azul, FP 0,91)", () => {
+            // Exemplo 7: FP médio 0,91 sobre o consumo total do mês (96.500 kWh),
+            // ERE aproximado no próprio documento como "~2% do consumo" ≈ R$ 772,00
+            // — o documento não fecha a fórmula exata nem separa TUSD/TE da
+            // tarifa fora de ponta usada aqui (R$ 0,57/kWh ÷ 2). A fórmula desta
+            // função usa a razão reativa/ativa exata (tan(acos(FP))), então o
+            // resultado só se aproxima do valor do documento, não bate exato.
+            const activeKwh = 96_500
+            const measuredRatio = Math.tan(Math.acos(0.91))
+            const reactiveKvarh = activeKwh * measuredRatio
+
+            const result = service.calculateForGroupA({
+                ...baseInput,
+                reactiveWindows: [
+                    { window: "INDUCTIVE", activeKwh, reactiveKvarh, tusdPerKvarh: 0.285 },
+                ],
+            })
+
+            expect(Math.abs(result.ereBrl - 772)).toBeLessThan(100)
+        })
+
+        it("entra em baseSemTributos antes dos tributos (RN17) — não é somada depois", () => {
+            const withoutEre = service.calculateForGroupA({
+                ...baseInput,
+                reactiveWindows: [],
+            })
+            const withEre = service.calculateForGroupA({
+                ...baseInput,
+                reactiveWindows: [
+                    {
+                        window: "INDUCTIVE",
+                        activeKwh: 1000,
+                        reactiveKvarh: 1000 * 0.5,
+                        tusdPerKvarh: 0.3,
+                    },
+                ],
+            })
+
+            const ereBrl = 1000 * (0.5 - REFERENCE_RATIO) * 0.3
+            const taxRateSum = 0.18 + 0.0165 + 0.076
+            const expectedDelta = ereBrl / (1 - taxRateSum)
+            expect(withEre.totalBrl - withoutEre.totalBrl).toBeCloseTo(expectedDelta, 6)
         })
     })
 })

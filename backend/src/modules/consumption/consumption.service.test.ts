@@ -782,6 +782,9 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
             kwhConsumed: 28_000,
             brl: 11_200,
         })
+        // FP = 1 nas duas leituras (helper insertReading) — sem energia
+        // reativa excedente.
+        expect(groupA!.ereBrl).toBe(0)
     })
 
     it("cobra ultrapassagem de demanda (RN20) quando a demanda medida excede 5% da contratada", async () => {
@@ -876,6 +879,123 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
         // (211 - 200) × 3 × 18 = 594 — se somasse os postos (326 kW), o
         // valor seria bem maior: (326 - 200) × 3 × 18 = 6.804.
         expect(result.items[0]!.groupA!.ultrapassagemBrl).toBeCloseTo(594, 2)
+    })
+
+    it("cobra energia reativa excedente (RN21) quando o fator de potência fica abaixo de 0,92", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+        // 10h SP (13h UTC) — janela indutiva (6h-24h). FP 0,85, bem abaixo do
+        // mínimo regulatório de 0,92.
+        await prismaTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date("2026-08-04T13:00:00Z"),
+                kwhConsumed: 1000,
+                avgVoltage: 220,
+                avgCurrent: 100_000 / 220,
+                avgPowerW: 100_000,
+                avgPowerFactor: 0.85,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        const groupA = result.items[0]!.groupA!
+        const referenceRatio = Math.tan(Math.acos(0.92))
+        const measuredRatio = Math.tan(Math.acos(0.85))
+        const expectedExcessKvarh = 1000 * (measuredRatio - referenceRatio)
+        // Tarifa usada: TUSD fora de ponta da Celesc/A4/Verde (R$ 0,12/kWh).
+        const expectedEreBrl = expectedExcessKvarh * 0.12
+
+        expect(groupA.ereByWindow).toHaveLength(1)
+        expect(groupA.ereByWindow[0]?.window).toBe("INDUCTIVE")
+        expect(groupA.ereBrl).toBeCloseTo(expectedEreBrl, 6)
+
+        // Conta completa: demanda (200 × 18) + consumo (1.000 × 0,40, fora de
+        // ponta) + ERE + bandeira amarela (1.000 × 1,885%), por dentro + CIP.
+        const demandBrl = 3600
+        const energyBrl = 400
+        const flagBrl = 1000 * (1.885 / 100)
+        const taxRateSum = 0.17 + 0.0165 + 0.076
+        const expectedTotal =
+            (demandBrl + energyBrl + expectedEreBrl + flagBrl) / (1 - taxRateSum) + 250
+        expect(result.items[0]!.costBrl).toBeCloseTo(expectedTotal, 2)
+    })
+
+    it("não cobra energia reativa quando o fator de potência está exatamente em 0,92", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+        await prismaTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date("2026-08-04T13:00:00Z"),
+                kwhConsumed: 1000,
+                avgVoltage: 220,
+                avgCurrent: 100_000 / 220,
+                avgPowerW: 100_000,
+                avgPowerFactor: 0.92,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        expect(result.items[0]!.groupA!.ereBrl).toBe(0)
+    })
+
+    it("soma o excedente das duas janelas quando há leitura indutiva e capacitiva no mesmo mês", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+        // 10h SP (13h UTC) — indutiva.
+        await prismaTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date("2026-08-04T13:00:00Z"),
+                kwhConsumed: 1000,
+                avgVoltage: 220,
+                avgCurrent: 100_000 / 220,
+                avgPowerW: 100_000,
+                avgPowerFactor: 0.85,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+        // 2h SP (5h UTC) — capacitiva (0h-6h).
+        await prismaTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date("2026-08-04T05:00:00Z"),
+                kwhConsumed: 500,
+                avgVoltage: 220,
+                avgCurrent: 50_000 / 220,
+                avgPowerW: 50_000,
+                avgPowerFactor: 0.85,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        const groupA = result.items[0]!.groupA!
+        expect(groupA.ereByWindow.map((w) => w.window).sort()).toEqual(["CAPACITIVE", "INDUCTIVE"])
+
+        const referenceRatio = Math.tan(Math.acos(0.92))
+        const measuredRatio = Math.tan(Math.acos(0.85))
+        const expectedTotal = (1000 + 500) * (measuredRatio - referenceRatio) * 0.12
+        expect(groupA.ereBrl).toBeCloseTo(expectedTotal, 6)
     })
 
     it("não carrega groupA no bucket mensal de uma propriedade Grupo B", async () => {

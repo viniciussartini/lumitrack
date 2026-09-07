@@ -44,6 +44,22 @@ export type MonthlyConsumptionByPost = ConsumptionByPost & {
     monthBucket: Date
 }
 
+// Janela horária de apuração de energia reativa excedente (RN21) — indutivo
+// medido das 6h às 24h, capacitivo das 0h às 6h. Diferente do posto
+// ponta/fora-ponta (RN24): fixo por hora do dia, sem exceção de fim de
+// semana ou feriado.
+export type ReactiveWindow = "INDUCTIVE" | "CAPACITIVE"
+
+export type ReactiveEnergyByWindow = {
+    window: ReactiveWindow
+    activeKwh: number
+    reactiveKvarh: number
+}
+
+export type MonthlyReactiveEnergyByWindow = ReactiveEnergyByWindow & {
+    monthBucket: Date
+}
+
 /**
  * Recorte comum das duas agregações: qual medidor, que bucket, que janela.
  * `from`/`to` são explicitamente `Date | undefined` (e não opcionais) porque
@@ -355,6 +371,69 @@ export class ConsumptionRepository {
             monthBucket: r.monthbucket,
             post: r.post,
             kwhConsumed: Number(r.kwh),
+        }))
+    }
+
+    /**
+     * Energia ativa e reativa por janela de RN21 (indutivo 6h-24h, capacitivo
+     * 0h-6h) e por mês, somadas inteiramente em SQL — mesmo padrão de
+     * `findKwhByPostGroupedByMonth` (1 query para o intervalo inteiro, em vez
+     * de 1 por mês). A energia reativa de cada minuto é derivada de
+     * `kwhConsumed` e `avgPowerFactor` (o medidor não persiste reativa
+     * direto): tratando o minuto como um triângulo de potência,
+     * `reativa = ativa × tan(acos(FP))`. `avgPowerFactor` é limitado a
+     * [0,01; 1] antes do `ACOS` — RN29 já garante [0,1] na ingestão, a
+     * cláusula aqui é só defesa contra o polo (FP=0 tornaria a tangente
+     * infinita) sem descartar a linha.
+     *
+     * @param meterId - Id do medidor.
+     * @param from - Início da janela (inclusive).
+     * @param to - Fim da janela (exclusive).
+     * @returns Energia ativa (kWh) e reativa (kVArh) somadas por mês × janela — só combinações com alguma leitura aparecem.
+     */
+    async findReactiveEnergyByWindowGroupedByMonth(
+        meterId: string,
+        from: Date,
+        to: Date,
+    ): Promise<MonthlyReactiveEnergyByWindow[]> {
+        // Alias "reactive_window", não "window" — palavra reservada do
+        // Postgres (cláusula OVER/WINDOW), quebraria o SQL.
+        const rows = await this.prisma.$queryRaw<
+            {
+                monthbucket: Date
+                reactive_window: ReactiveWindow
+                activekwh: number
+                reactivekvarh: number
+            }[]
+        >(
+            Prisma.sql`
+                SELECT
+                    monthbucket,
+                    reactive_window,
+                    SUM(kwh) AS activekwh,
+                    SUM(kwh * TAN(ACOS(pf))) AS reactivekvarh
+                FROM (
+                    SELECT
+                        date_trunc('month', ${localTsExpr()}) AS monthbucket,
+                        CASE
+                            WHEN EXTRACT(HOUR FROM ${localTsExpr()}) >= 6 THEN 'INDUCTIVE'
+                            ELSE 'CAPACITIVE'
+                        END AS reactive_window,
+                        "kwhConsumed" AS kwh,
+                        LEAST(GREATEST("avgPowerFactor", 0.01), 1) AS pf
+                    FROM "meter_readings"
+                    WHERE "meterId" = ${meterId}
+                    ${rangeFilter(from, to)}
+                ) classified
+                GROUP BY monthbucket, reactive_window
+            `,
+        )
+
+        return rows.map((r) => ({
+            monthBucket: r.monthbucket,
+            window: r.reactive_window,
+            activeKwh: Number(r.activekwh),
+            reactiveKvarh: Number(r.reactivekvarh),
         }))
     }
 }

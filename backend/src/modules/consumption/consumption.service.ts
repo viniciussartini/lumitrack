@@ -6,6 +6,7 @@ import {
 import type {
     ConsumptionBucket,
     ConsumptionRepository,
+    ReactiveEnergyByWindow,
 } from "@/modules/consumption/consumption.repository.js"
 import type { MeterRepository } from "@/modules/meter/meter.repository.js"
 import type {
@@ -53,6 +54,8 @@ export type GroupABreakdown = {
     demandBrl: number
     ultrapassagemBrl: number
     energyByPost: { post: TariffPost; kwhConsumed: number; brl: number }[]
+    ereByWindow: { window: "INDUCTIVE" | "CAPACITIVE"; excessKvarh: number; ereBrl: number }[]
+    ereBrl: number
     flagBrl: number
     taxesBrl: number
     publicLightingFeeBrl: number
@@ -583,6 +586,35 @@ export class ConsumptionService {
         return Math.max(...rows.map((r) => r.maxAvgPowerW)) / 1000
     }
 
+    // Agrupa uma lista de linhas por um instante (em ms) — mesmo formato de
+    // lookup usado para o kWh por posto×mês, extraído para não repetir o
+    // laço a cada nova fonte de dado agregada por mês (demanda medida,
+    // energia reativa).
+    private groupRowsByMs<T>(rows: T[], getMs: (row: T) => number): Map<number, T[]> {
+        const map = new Map<number, T[]>()
+        for (const row of rows) {
+            const ms = getMs(row)
+            const bucket = map.get(ms) ?? []
+            bucket.push(row)
+            map.set(ms, bucket)
+        }
+        return map
+    }
+
+    // RN21 usa "a mesma tarifa de TUSD" sem diferenciar por posto — corte de
+    // execução (ver tariff.service.ts): a TUSD de energia fora de ponta cobre
+    // integralmente a janela capacitiva (0h-6h) e a maior parte da indutiva
+    // (6h-24h), e o catálogo não tem uma tarifa reativa própria.
+    private resolveReactiveTusdPerKvarh(energyRates: TariffEnergyRateResponse[]): number {
+        const offPeakRate = energyRates.find((rate) => rate.post === "OFF_PEAK")
+        if (!offPeakRate) {
+            throw new NotFoundError(
+                "Catálogo tarifário do Grupo A não cadastrado para esta distribuidora/subgrupo/modalidade",
+            )
+        }
+        return offPeakRate.tusdPerKwh
+    }
+
     // Custo de 1 mês do Grupo A a partir do catálogo/consumo já resolvidos —
     // extraído do corpo de `calculateGroupAMonthlyCosts` (que resolve isso
     // em lote para vários meses) só para manter o teto de linhas/complexidade.
@@ -590,6 +622,8 @@ export class ConsumptionService {
         kwhByPostMap: Map<TariffPost, number>,
         contractedDemandKw: number,
         measuredDemandKw: number,
+        reactiveRowsForMonth: ReactiveEnergyByWindow[],
+        tusdPerKvarh: number,
         energyRates: TariffEnergyRateResponse[],
         demandRate: TariffSingleDemandRateResponse,
         distributor: DistributorResponse,
@@ -603,6 +637,13 @@ export class ConsumptionService {
             tePerKwh: rate.tePerKwh,
         }))
 
+        const reactiveWindows = reactiveRowsForMonth.map((row) => ({
+            window: row.window,
+            activeKwh: row.activeKwh,
+            reactiveKvarh: row.reactiveKvarh,
+            tusdPerKvarh,
+        }))
+
         const result = this.tariffService.calculateForGroupA({
             demandPosts: [
                 {
@@ -613,6 +654,7 @@ export class ConsumptionService {
                 },
             ],
             energyByPost,
+            reactiveWindows,
             icmsRate: distributor.icmsRate,
             pisRate: distributor.pisRate,
             cofinsRate: distributor.cofinsRate,
@@ -627,6 +669,8 @@ export class ConsumptionService {
                 demandBrl: result.demandBrl,
                 ultrapassagemBrl: result.ultrapassagemBrl,
                 energyByPost: result.energyByPost,
+                ereByWindow: result.ereByWindow,
+                ereBrl: result.ereBrl,
                 flagBrl: result.flagBrl,
                 taxesBrl: result.taxesBrl,
                 publicLightingFeeBrl: result.publicLightingFeeBrl,
@@ -670,28 +714,39 @@ export class ConsumptionService {
         // o `fromSaoPauloLocal` por mês, igual ao par `from`/`to` acima.
         const periodStarts = monthStarts.map((d) => fromSaoPauloLocal(d))
 
-        const [kwhByPostByMonth, energyRates, demandRate, demandRollups] = await Promise.all([
-            this.consumptionRepository.findKwhByPostGroupedByMonth(
-                meterId,
-                from,
-                to,
-                peakWindow,
-                holidays,
-            ),
-            this.tariffCatalogRepository.findEnergyRates(distributor.id, tariffSubgroup, "GREEN"),
-            this.tariffCatalogRepository.findSingleDemandRate(
-                distributor.id,
-                tariffSubgroup,
-                "GREEN",
-            ),
-            this.meterDemandRollupRepository.findByMeterAndPeriods(meterId, periodStarts),
-        ])
+        const [kwhByPostByMonth, energyRates, demandRate, demandRollups, reactiveByMonth] =
+            await Promise.all([
+                this.consumptionRepository.findKwhByPostGroupedByMonth(
+                    meterId,
+                    from,
+                    to,
+                    peakWindow,
+                    holidays,
+                ),
+                this.tariffCatalogRepository.findEnergyRates(
+                    distributor.id,
+                    tariffSubgroup,
+                    "GREEN",
+                ),
+                this.tariffCatalogRepository.findSingleDemandRate(
+                    distributor.id,
+                    tariffSubgroup,
+                    "GREEN",
+                ),
+                this.meterDemandRollupRepository.findByMeterAndPeriods(meterId, periodStarts),
+                this.consumptionRepository.findReactiveEnergyByWindowGroupedByMonth(
+                    meterId,
+                    from,
+                    to,
+                ),
+            ])
 
         if (energyRates.length === 0 || !demandRate) {
             throw new NotFoundError(
                 "Catálogo tarifário do Grupo A não cadastrado para esta distribuidora/subgrupo/modalidade",
             )
         }
+        const tusdPerKvarh = this.resolveReactiveTusdPerKvarh(energyRates)
 
         const kwhByPostByMonthKey = new Map<number, Map<TariffPost, number>>()
         for (const row of kwhByPostByMonth) {
@@ -700,23 +755,26 @@ export class ConsumptionService {
             kwhByPostByMonthKey.set(row.monthBucket.getTime(), postMap)
         }
 
-        const demandRollupsByPeriodMs = new Map<number, MeterDemandRollupResponse[]>()
-        for (const row of demandRollups) {
-            const rows = demandRollupsByPeriodMs.get(row.periodStart.getTime()) ?? []
-            rows.push(row)
-            demandRollupsByPeriodMs.set(row.periodStart.getTime(), rows)
-        }
+        const demandRollupsByPeriodMs = this.groupRowsByMs(demandRollups, (r) =>
+            r.periodStart.getTime(),
+        )
+        const reactiveByMonthMs = this.groupRowsByMs(reactiveByMonth, (r) =>
+            r.monthBucket.getTime(),
+        )
 
         for (const monthStart of monthStarts) {
             const kwhByPostMap = kwhByPostByMonthKey.get(monthStart.getTime()) ?? new Map()
             const rowsForMonth =
                 demandRollupsByPeriodMs.get(fromSaoPauloLocal(monthStart).getTime()) ?? []
+            const reactiveRowsForMonth = reactiveByMonthMs.get(monthStart.getTime()) ?? []
             resultByMonthMs.set(
                 monthStart.getTime(),
                 this.buildGroupAMonthResult(
                     kwhByPostMap,
                     contractedDemandKw,
                     this.measuredDemandKwForMonth(rowsForMonth),
+                    reactiveRowsForMonth,
+                    tusdPerKvarh,
                     energyRates,
                     demandRate,
                     distributor,
