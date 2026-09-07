@@ -12,6 +12,45 @@ import type { Distributor } from "@/types/distributor.types"
 
 type DialogMode = { kind: "create" } | { kind: "edit"; property: Property }
 
+// Extraídos do componente — mesmo corte de `resolveTariffGroupFields` no
+// backend, aqui só pra caber no teto de linhas/complexidade do arquivo.
+
+const buildCreateInput = (data: PropertyFormData): CreatePropertyInput => ({
+    distributorId: data.distributorId,
+    name: data.name,
+    electricalSystem: data.electricalSystem,
+    tariffGroup: data.tariffGroup,
+    ...(data.address !== undefined && { address: data.address }),
+    ...(data.city !== undefined && { city: data.city }),
+    ...(data.state !== undefined && { state: data.state }),
+    ...(data.zipCode !== undefined && { zipCode: data.zipCode }),
+    ...(data.billingClass !== undefined && { billingClass: data.billingClass }),
+    ...(data.tariffSubgroup !== undefined && { tariffSubgroup: data.tariffSubgroup }),
+    ...(data.tariffModality !== undefined && { tariffModality: data.tariffModality }),
+    ...(data.contractedDemandKw !== undefined && {
+        contractedDemandKw: data.contractedDemandKw,
+    }),
+    ...(data.publicLightingFeeBrl !== undefined && {
+        publicLightingFeeBrl: data.publicLightingFeeBrl,
+    }),
+})
+
+const buildUpdateInput = (data: PropertyFormData): UpdatePropertyInput => ({
+    distributorId: data.distributorId,
+    name: data.name,
+    address: data.address,
+    city: data.city,
+    state: data.state,
+    zipCode: data.zipCode,
+    electricalSystem: data.electricalSystem,
+    tariffGroup: data.tariffGroup,
+    billingClass: data.billingClass,
+    tariffSubgroup: data.tariffSubgroup,
+    tariffModality: data.tariffModality,
+    contractedDemandKw: data.contractedDemandKw,
+    publicLightingFeeBrl: data.publicLightingFeeBrl,
+})
+
 interface PropertyFormDialogProps {
     isOpen: boolean
     onClose: () => void
@@ -58,22 +97,8 @@ export const PropertyFormDialog = ({
 
     const handleSubmit = async (data: PropertyFormData) => {
         if (mode.kind === "create") {
-            const input: CreatePropertyInput = {
-                distributorId: data.distributorId,
-                name: data.name,
-                electricalSystem: data.electricalSystem,
-                billingClass: data.billingClass,
-                ...(data.address !== undefined && { address: data.address }),
-                ...(data.city !== undefined && { city: data.city }),
-                ...(data.state !== undefined && { state: data.state }),
-                ...(data.zipCode !== undefined && { zipCode: data.zipCode }),
-                ...(data.publicLightingFeeBrl !== undefined && {
-                    publicLightingFeeBrl: data.publicLightingFeeBrl,
-                }),
-            }
-
             try {
-                await createProperty.mutateAsync(input)
+                await createProperty.mutateAsync(buildCreateInput(data))
                 onClose()
             } catch (error) {
                 toast.error("Erro ao criar propriedade", {
@@ -83,20 +108,11 @@ export const PropertyFormDialog = ({
             return
         }
 
-        const input: UpdatePropertyInput = {
-            distributorId: data.distributorId,
-            name: data.name,
-            address: data.address,
-            city: data.city,
-            state: data.state,
-            zipCode: data.zipCode,
-            electricalSystem: data.electricalSystem,
-            billingClass: data.billingClass,
-            publicLightingFeeBrl: data.publicLightingFeeBrl,
-        }
-
         try {
-            await updateProperty.mutateAsync({ id: mode.property.id, input })
+            await updateProperty.mutateAsync({
+                id: mode.property.id,
+                input: buildUpdateInput(data),
+            })
             onClose()
         } catch (error) {
             toast.error("Erro ao atualizar propriedade", {

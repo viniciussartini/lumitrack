@@ -46,6 +46,20 @@ const optionalNonNegativeNumber = z
     .pipe(z.number().min(0, "Não pode ser negativo").optional())
 
 /**
+ * Demanda contratada (kW, Grupo A) — mesma técnica de `optionalNonNegativeNumber`,
+ * mas exige > 0 (uma UC não tem demanda contratada zero).
+ */
+const optionalPositiveNumber = z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((val) => {
+        if (val === "" || val === undefined || val === null) return undefined
+        const parsed = Number(val)
+        return Number.isNaN(parsed) ? undefined : parsed
+    })
+    .pipe(z.number().positive("Deve ser maior que zero").optional())
+
+/**
  * Schema do form de Property.
  *
  * Diferenças em relação ao backend:
@@ -57,36 +71,124 @@ const optionalNonNegativeNumber = z
  *     de validar (vide emptyToUndefined acima).
  *   - `electricalSystem`/`billingClass`/`publicLightingFeeBrl` pertencem à
  *     propriedade, não à distribuidora.
+ *
+ * Regra cruzada de grupo tarifário (espelha
+ * `PropertyService.resolveTariffGroupFields` do backend): Grupo A exige
+ * subgrupo + modalidade + demanda contratada e não aceita `billingClass`;
+ * Grupo B exige `billingClass` (default B1) e não aceita os 3 campos do
+ * Grupo A. O schema sozinho (campos individualmente opcionais) não expressa
+ * essa obrigatoriedade condicional — por isso o `.superRefine` abaixo, com
+ * as mesmas mensagens do backend.
  */
-export const propertyFormSchema = z.object({
-    distributorId: z.string().min(1, { message: "Selecione uma distribuidora" }),
+export const propertyFormSchema = z
+    .object({
+        distributorId: z.string().min(1, { message: "Selecione uma distribuidora" }),
 
-    name: z.string().min(1, "Nome é obrigatório").max(200, "Nome muito longo"),
+        name: z.string().min(1, "Nome é obrigatório").max(200, "Nome muito longo"),
 
-    address: emptyToUndefined.pipe(z.string().max(500, "Endereço muito longo").optional()),
+        address: emptyToUndefined.pipe(z.string().max(500, "Endereço muito longo").optional()),
 
-    city: emptyToUndefined.pipe(z.string().max(100, "Cidade muito longa").optional()),
+        city: emptyToUndefined.pipe(z.string().max(100, "Cidade muito longa").optional()),
 
-    state: emptyToUndefined.pipe(
-        z.enum(VALID_UFS, { message: "Selecione um estado válido" }).optional(),
-    ),
+        state: emptyToUndefined.pipe(
+            z.enum(VALID_UFS, { message: "Selecione um estado válido" }).optional(),
+        ),
 
-    zipCode: emptyToUndefined.pipe(
-        z
-            .string()
-            .regex(cepRegex, "CEP deve estar no formato 00000-000")
-            .refine(isValidCep, "CEP inválido")
-            .optional(),
-    ),
+        zipCode: emptyToUndefined.pipe(
+            z
+                .string()
+                .regex(cepRegex, "CEP deve estar no formato 00000-000")
+                .refine(isValidCep, "CEP inválido")
+                .optional(),
+        ),
 
-    electricalSystem: z.enum(["MONOPHASIC", "BIPHASIC", "TRIPHASIC"], {
-        message: "Selecione o sistema elétrico",
-    }),
+        electricalSystem: z.enum(["MONOPHASIC", "BIPHASIC", "TRIPHASIC"], {
+            message: "Selecione o sistema elétrico",
+        }),
 
-    billingClass: z.enum(["B1", "B2", "B3"]).default("B1"),
+        tariffGroup: z.enum(["GROUP_A", "GROUP_B"]).default("GROUP_B"),
 
-    publicLightingFeeBrl: optionalNonNegativeNumber,
-})
+        billingClass: z.enum(["B1", "B2", "B3"]).optional(),
+
+        // Só GREEN tem cálculo de conta implementado no backend — Azul/
+        // Convencional ficam pra Fase 20 (ver TARIFF_MODALITY_LABELS).
+        // emptyToUndefined: o placeholder do <select> ("Selecione") tem
+        // value="" — sem essa conversão, "" falha o enum como valor inválido
+        // em vez de cair no "obrigatório" do superRefine abaixo.
+        tariffSubgroup: emptyToUndefined.pipe(
+            z.enum(["A1", "A2", "A3", "A3A", "A4", "AS"]).optional(),
+        ),
+
+        tariffModality: emptyToUndefined.pipe(
+            z.enum(["CONVENTIONAL_BINOMIAL", "GREEN", "BLUE"]).optional(),
+        ),
+
+        contractedDemandKw: optionalPositiveNumber,
+
+        publicLightingFeeBrl: optionalNonNegativeNumber,
+    })
+    .superRefine((data, ctx) => {
+        if (data.tariffGroup === "GROUP_A") {
+            if (!data.tariffSubgroup) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["tariffSubgroup"],
+                    message: "Subgrupo é obrigatório para propriedades do Grupo A",
+                })
+            }
+            if (!data.tariffModality) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["tariffModality"],
+                    message: "Modalidade tarifária é obrigatória para propriedades do Grupo A",
+                })
+            }
+            if (data.contractedDemandKw === undefined) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["contractedDemandKw"],
+                    message: "Demanda contratada é obrigatória para propriedades do Grupo A",
+                })
+            }
+            if (data.billingClass) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["billingClass"],
+                    message: "Classe de faturamento não se aplica a propriedades do Grupo A",
+                })
+            }
+            return
+        }
+
+        if (data.tariffSubgroup) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["tariffSubgroup"],
+                message: "Subgrupo só se aplica a propriedades do Grupo A",
+            })
+        }
+        if (data.tariffModality) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["tariffModality"],
+                message: "Modalidade tarifária só se aplica a propriedades do Grupo A",
+            })
+        }
+        if (data.contractedDemandKw !== undefined) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["contractedDemandKw"],
+                message: "Demanda contratada só se aplica a propriedades do Grupo A",
+            })
+        }
+    })
+    .transform((data) => ({
+        ...data,
+        // Default B1 só se aplica ao Grupo B — mesma regra do backend
+        // (resolveTariffGroupFields), aplicada aqui pós-refine pra não
+        // conflitar com a validação "billingClass não se aplica ao Grupo A".
+        billingClass: data.tariffGroup === "GROUP_B" ? (data.billingClass ?? "B1") : undefined,
+    }))
 
 /** Tipo de SAÍDA — o que onSubmit recebe (já transformado) */
 export type PropertyFormData = z.output<typeof propertyFormSchema>

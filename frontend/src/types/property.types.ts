@@ -65,6 +65,39 @@ export const BILLING_CLASS_LABELS: Record<BillingClass, string> = {
     B3: "B3 — Demais classes",
 }
 
+/**
+ * Grupo tarifário (ADR-0019 do backend) — GROUP_B é o monômio de sempre
+ * (billingClass); GROUP_A é o binômio (subgrupo + modalidade + demanda
+ * contratada).
+ */
+export type TariffGroup = "GROUP_A" | "GROUP_B"
+
+/** Subgrupo do Grupo A — REN 1.000/2021, definido pela tensão de fornecimento. */
+export type TariffSubgroup = "A1" | "A2" | "A3" | "A3A" | "A4" | "AS"
+
+export const TARIFF_SUBGROUP_LABELS: Record<TariffSubgroup, string> = {
+    A1: "A1 — 230 kV ou mais",
+    A2: "A2 — 88 a 138 kV",
+    A3: "A3 — 69 kV",
+    A3A: "A3a — 30 a 44 kV",
+    A4: "A4 — 2,3 a 25 kV",
+    AS: "AS — sistema subterrâneo",
+}
+
+/**
+ * Modalidade tarifária do Grupo A. Só GREEN tem cálculo de conta implementado
+ * no backend (ConsumptionService lança erro claro para as outras) — o mapa de
+ * labels cobre as 3 para exibição, mas o formulário só oferece GREEN até a
+ * Fase 20 trazer Azul/Convencional.
+ */
+export type TariffModality = "CONVENTIONAL_BINOMIAL" | "GREEN" | "BLUE"
+
+export const TARIFF_MODALITY_LABELS: Record<TariffModality, string> = {
+    CONVENTIONAL_BINOMIAL: "Convencional Binômia",
+    GREEN: "Horária Verde",
+    BLUE: "Horária Azul",
+}
+
 /** Property retornada pela API */
 export interface Property {
     id: string
@@ -80,7 +113,15 @@ export interface Property {
     state: string | null
     zipCode: string | null
     electricalSystem: ElectricalSystem
-    billingClass: BillingClass
+    tariffGroup: TariffGroup
+    /** Null para propriedades do Grupo A. */
+    billingClass: BillingClass | null
+    /** Null para propriedades do Grupo B. */
+    tariffSubgroup: TariffSubgroup | null
+    /** Null para propriedades do Grupo B. */
+    tariffModality: TariffModality | null
+    /** Demanda contratada (kW) — null para propriedades do Grupo B. */
+    contractedDemandKw: number | null
     /** CIP/COSIP municipal (R$) — opcional, nem todo município cobra. */
     publicLightingFeeBrl: number | null
     createdAt: string
@@ -100,7 +141,11 @@ export interface CreatePropertyInput {
     state?: Uf
     zipCode?: string
     electricalSystem: ElectricalSystem
+    tariffGroup?: TariffGroup
     billingClass?: BillingClass
+    tariffSubgroup?: TariffSubgroup
+    tariffModality?: TariffModality
+    contractedDemandKw?: number
     publicLightingFeeBrl?: number
 }
 

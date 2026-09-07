@@ -116,6 +116,10 @@ const mockProperty: Property = {
     zipCode: "30000-000",
     electricalSystem: "TRIPHASIC",
     billingClass: "B1",
+    tariffGroup: "GROUP_B",
+    tariffSubgroup: null,
+    tariffModality: null,
+    contractedDemandKw: null,
     publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -344,6 +348,24 @@ describe("PropertyDetailsPage — chips de distribuidora e faturamento", () => {
         await waitFor(() => {
             expect(screen.getByText(/distribuidora não disponível/i)).toBeInTheDocument()
         })
+    })
+
+    it("propriedade Grupo A mostra subgrupo, modalidade e demanda contratada — não a classe de faturamento", async () => {
+        vi.mocked(propertyService.getById).mockResolvedValue({
+            ...mockProperty,
+            tariffGroup: "GROUP_A",
+            billingClass: null,
+            tariffSubgroup: "A4",
+            tariffModality: "GREEN",
+            contractedDemandKw: 200,
+        })
+
+        renderPage()
+
+        expect(await screen.findByText(/A4 — 2,3 a 25 kV/i)).toBeInTheDocument()
+        expect(screen.getByText(/Horária Verde/i)).toBeInTheDocument()
+        expect(screen.getByText(/Demanda contratada: 200 kW/i)).toBeInTheDocument()
+        expect(screen.queryByText(/B1 — Residencial/i)).not.toBeInTheDocument()
     })
 })
 

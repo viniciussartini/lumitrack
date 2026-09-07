@@ -606,6 +606,12 @@ textarea.input {
        3:1 de contraste contra --color-bg/--color-surface — no escuro o mesmo
        tom que já valia pra --color-status-highlight passa sem ajuste. */
     --color-chart-amber: #d98a1e;
+
+    /* Segunda série de gráfico (Fora de Ponta) — tom de azul já
+       usado no bundle para a linha "Medida" do widget de demanda do Grupo A
+       (LumiTrack Home v2.dc.html), clareado aqui pra manter contraste no
+       tema escuro (mesmo raciocínio de --color-chart-amber). */
+    --color-chart-blue: #8ab4d9;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -630,6 +636,11 @@ textarea.input {
        contra --color-bg/--color-surface, que o tom de --color-status-highlight
        não atinge. Variante escura em :root[data-theme="dark"] acima. */
     --color-chart-amber: #a86a12;
+
+    /* Ver :root[data-theme="dark"] acima — mesmo par claro/escuro de
+       --color-chart-amber, tom de origem do bundle escurecido pra 3:1 de
+       contraste contra fundo claro. */
+    --color-chart-blue: #4d7ca3;
 
     /* Indicador "dado ao vivo" — cor própria, não reaproveita
        --color-status-success apesar do tom próximo: papel semântico

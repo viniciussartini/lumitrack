@@ -55,18 +55,24 @@
 
 **Proibido — comentário de rastreabilidade:**
 
-Nada de referências a **issues, PRs, relatórios de auditoria, achados, sprints, datas ou autores**. Não é funcional, não explica o código e envelhece mal.
+Nada de referências a **issues, PRs, relatórios de auditoria, achados, sprints, datas, autores ou números de RF/RNF/RN/FNC**. Não é funcional, não explica o código e envelhece mal.
 
 ```typescript
 // ❌ Corrigido conforme achado A-03 da auditoria de segurança de 12/03
 // ❌ Ver issue #142
 // ❌ Adicionado no PR #87 por solicitação da revisão
 // ❌ TODO(#55): refatorar depois
+// ❌ RN23 — Grupo A não tem piso de disponibilidade
+// ❌ Implementa RF25 (subgrupo/modalidade/demanda contratada obrigatórios)
 
 // ✅ Compara os hashes em tempo constante para não vazar o tamanho do prefixo correto.
+// ✅ Grupo A não tem piso de disponibilidade — o papel equivalente é da
+//    demanda contratada, paga integralmente mesmo sem uso.
 ```
 
-**Por quê:** rastreabilidade já tem lugar próprio no kit — histórico no **git** (Conventional Commits com `Closes #N`), o que foi decidido nos **ADRs**, o que foi entregue no **CHANGELOG**, o que falta nas **issues**. Repetir isso no código cria uma quinta fonte, que ninguém atualiza e que sobrevive ao contexto que a originou: seis meses depois, "achado A-03" não significa nada para quem lê, enquanto a explicação do *porquê* continua valendo.
+**Por quê:** rastreabilidade já tem lugar próprio no kit — histórico no **git** (Conventional Commits com `Closes #N`), o que foi decidido nos **ADRs**, o que foi entregue no **CHANGELOG**, o que falta nas **issues**, e o que cada **RF/RNF/RN/FNC** exige no `02-requisitos.md`. Repetir isso no código cria uma quinta (ou sexta) fonte, que ninguém atualiza e que sobrevive ao contexto que a originou: seis meses depois, "achado A-03" não significa nada para quem lê, e "RN23" exige abrir outro arquivo para descobrir o que a regra realmente diz — enquanto a explicação do *porquê*, escrita por extenso, continua valendo sozinha.
+
+RF/RNF/RN/FNC são um caso à parte dos demais: não são artefato de processo de desenvolvimento (isso morreria mesmo sem a regra), são identificadores **estáveis e append-only** do `02-requisitos.md` — por isso é tentador tratá-los como uma citação normativa legítima (a exemplo de "REN 1.000/2021 art. 291", que é sobre a *norma externa*, não sobre o *documento interno do kit*, e continua permitida). A direção da citação, porém, é sempre **do `02-requisitos.md` para o código** ("RN01: regra cruzada validada no `meter.service.ts`"), nunca o inverso — o código explica a regra por extenso, sem precisar do número para ser entendido. Um comentário como "mesmo padrão de RN01 do Medidor" ainda é comentário de rastreabilidade: quem lê o código não tem por que saber o que é "RN01" sem abrir outro arquivo, e o `02-requisitos.md` já registra esse mesmo apontamento na direção certa.
 
 **Higiene:**
 
@@ -89,6 +95,8 @@ Nada de referências a **issues, PRs, relatórios de auditoria, achados, sprints
 ```
 
 Coerente com o princípio do topo: o que pode virar lint, vira lint. Se um termo legítimo cair na regra, a saída é reescrever o comentário em termos funcionais — não adicionar exceção.
+
+**Limite conhecido do lint:** `no-warning-comments` casa **substring literal**, não regex — não há como listar "RF", "RN", "RNF" e "FNC" como termos sem também barrar toda ocorrência legítima dessas duas letras em prosa comum. Comentário citando RF/RNF/RN/FNC **não é pego mecanicamente** — depende de revisão (própria ou de código) até existir uma regra customizada capaz de casar o padrão `\b(RF|RNF|RN|FNC)\d+\b`. Mesma lacuna que já existe para issue number abreviado (`(issues #323/#328)` escapa de `"issue #"`) — não presumir que "o lint não acusou" significa "está limpo".
 
 ## DRY · KISS · YAGNI
 

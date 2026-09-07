@@ -10,6 +10,7 @@ import type { Paginated } from "@/types/pagination.types"
 import {
     REPORT_GRANULARITIES,
     type ConsumptionBucket,
+    type GroupABreakdown,
     type Granularity,
 } from "@/types/consumption.types"
 
@@ -195,5 +196,68 @@ describe("ConsumptionSection — seletor de janela de hora", () => {
         expect(
             await screen.findByText("Consumo da hora corrente, minuto a minuto"),
         ).toBeInTheDocument()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Grupo A — ramifica antes de qualquer dado ser buscado
+// ─────────────────────────────────────────────────────────────────────────────
+
+const mockGroupABreakdown: GroupABreakdown = {
+    contractedDemandKw: 200,
+    demandBrl: 3600,
+    energyByPost: [
+        { post: "PEAK", kwhConsumed: 800, brl: 1040 },
+        { post: "OFF_PEAK", kwhConsumed: 28_000, brl: 11_200 },
+    ],
+    flagBrl: 542.88,
+    taxesBrl: 5831.87,
+    publicLightingFeeBrl: 250,
+}
+
+describe("ConsumptionSection — Grupo A", () => {
+    it("Propriedade Grupo A mostra a conta do mês, sem abas de granularidade", async () => {
+        vi.mocked(consumptionService.list).mockResolvedValue(
+            paginated([
+                {
+                    bucketStart: "2026-08-01T03:00:00.000Z",
+                    kwhConsumed: 28_800,
+                    costBrl: 22_464.07,
+                    avgPowerW: 100_000,
+                    groupA: mockGroupABreakdown,
+                },
+            ]),
+        )
+        const queryClient = createTestQueryClient()
+
+        render(
+            <ConsumptionSection targetType="PROPERTY" targetId="prop-1" tariffGroup="GROUP_A" />,
+            {
+                wrapper: ({ children }) => (
+                    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+                ),
+            },
+        )
+
+        expect(await screen.findByText("Conta do mês")).toBeInTheDocument()
+        expect(await screen.findByTestId("group-a-bill-card")).toBeInTheDocument()
+        expect(screen.getByText("200 kW")).toBeInTheDocument() // demanda contratada
+        expect(screen.queryByTestId("granularity-tabs")).not.toBeInTheDocument()
+    })
+
+    it("Área de propriedade Grupo A mostra aviso, sem consultar o backend", async () => {
+        const queryClient = createTestQueryClient()
+
+        render(<ConsumptionSection targetType="AREA" targetId="area-1" tariffGroup="GROUP_A" />, {
+            wrapper: ({ children }) => (
+                <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+            ),
+        })
+
+        expect(
+            await screen.findByText("Detalhamento não disponível para o Grupo A"),
+        ).toBeInTheDocument()
+        expect(meterService.byTarget).not.toHaveBeenCalled()
+        expect(consumptionService.list).not.toHaveBeenCalled()
     })
 })

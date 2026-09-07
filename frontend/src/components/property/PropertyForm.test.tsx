@@ -37,6 +37,10 @@ const mockProperty: Property = {
     zipCode: "30000-000",
     electricalSystem: "TRIPHASIC",
     billingClass: "B1",
+    tariffGroup: "GROUP_B",
+    tariffSubgroup: null,
+    tariffModality: null,
+    contractedDemandKw: null,
     publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -270,6 +274,7 @@ describe("PropertyForm — submit", () => {
                 name: "Casa Principal",
                 distributorId: "dist-1",
                 electricalSystem: "TRIPHASIC",
+                tariffGroup: "GROUP_B",
                 billingClass: "B2",
                 publicLightingFeeBrl: undefined,
                 address: "Rua das Flores, 100",
@@ -285,6 +290,74 @@ describe("PropertyForm — submit", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Cancelar
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Grupo A
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("PropertyForm — Grupo A", () => {
+    it("mostra os campos do Grupo A e esconde a classe de faturamento ao trocar o grupo tarifário", async () => {
+        const user = userEvent.setup()
+        renderForm()
+
+        expect(screen.getByLabelText(/classe de faturamento/i)).toBeInTheDocument()
+        expect(screen.queryByLabelText(/^subgrupo/i)).not.toBeInTheDocument()
+
+        await user.selectOptions(screen.getByLabelText(/grupo tarifário/i), "GROUP_A")
+
+        expect(screen.queryByLabelText(/classe de faturamento/i)).not.toBeInTheDocument()
+        expect(screen.getByLabelText(/^subgrupo/i)).toBeInTheDocument()
+        expect(screen.getByLabelText(/modalidade tarifária/i)).toBeInTheDocument()
+        expect(screen.getByLabelText(/demanda contratada/i)).toBeInTheDocument()
+    })
+
+    it("envia tariffGroup/tariffSubgroup/tariffModality/contractedDemandKw e omite billingClass", async () => {
+        const user = userEvent.setup()
+        const onSubmit = vi.fn().mockResolvedValue(undefined)
+        renderForm({ onSubmit })
+
+        await user.type(screen.getByLabelText(/nome/i), "Metalúrgica")
+        await user.selectOptions(screen.getByLabelText(/distribuidora vinculada/i), "dist-1")
+        await user.selectOptions(screen.getByLabelText(/grupo tarifário/i), "GROUP_A")
+        await user.selectOptions(screen.getByLabelText(/^subgrupo/i), "A4")
+        await user.type(screen.getByLabelText(/demanda contratada/i), "200")
+
+        await user.click(screen.getByRole("button", { name: /salvar/i }))
+
+        await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+
+        expect(onSubmit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tariffGroup: "GROUP_A",
+                tariffSubgroup: "A4",
+                tariffModality: "GREEN",
+                contractedDemandKw: 200,
+                billingClass: undefined,
+            }),
+            expect.anything(),
+        )
+    })
+
+    it("exige subgrupo e demanda contratada ao submeter uma propriedade Grupo A incompleta", async () => {
+        const user = userEvent.setup()
+        const onSubmit = vi.fn()
+        renderForm({ onSubmit })
+
+        await user.type(screen.getByLabelText(/nome/i), "Metalúrgica")
+        await user.selectOptions(screen.getByLabelText(/distribuidora vinculada/i), "dist-1")
+        await user.selectOptions(screen.getByLabelText(/grupo tarifário/i), "GROUP_A")
+
+        await user.click(screen.getByRole("button", { name: /salvar/i }))
+
+        expect(
+            await screen.findByText(/subgrupo é obrigatório para propriedades do grupo a/i),
+        ).toBeInTheDocument()
+        expect(
+            screen.getByText(/demanda contratada é obrigatória para propriedades do grupo a/i),
+        ).toBeInTheDocument()
+        expect(onSubmit).not.toHaveBeenCalled()
+    })
+})
 
 describe("PropertyForm — cancelar", () => {
     it("chama onCancel ao clicar em Cancelar", async () => {

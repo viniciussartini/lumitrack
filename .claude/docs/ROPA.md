@@ -61,9 +61,9 @@ Uma linha por operação identificável no schema (`backend/prisma/schema.prisma
 | Campo | Conteúdo |
 |---|---|
 | Tabelas | `properties` (`areas`/`devices` não têm campo de PII estruturado — só nome/descrição livres definidos pelo usuário). |
-| Finalidade | Vincular o consumo de energia ao imóvel monitorado; base para cálculo de tarifa (classe de faturamento, distribuidora). |
+| Finalidade | Vincular o consumo de energia ao imóvel monitorado; base para cálculo de tarifa (classe de faturamento Grupo B, ou grupo/subgrupo/modalidade/demanda contratada do Grupo A; distribuidora). |
 | Titulares | Usuários donos da propriedade. |
-| Categorias de dados | Endereço, cidade, estado, CEP (campos opcionais — cifrados em repouso, ver "Medidas de segurança"). |
+| Categorias de dados | Endereço, cidade, estado, CEP (campos opcionais — cifrados em repouso, ver "Medidas de segurança"); grupo/subgrupo/modalidade tarifária e demanda contratada (kW) — enquadramento comercial da unidade consumidora, não dado sensível, mas ainda vinculado ao titular via a mesma linha. |
 | Base legal (Art. 7º) | Execução de contrato (V). |
 | Retenção | Enquanto a conta/propriedade existir; removida em cascata (`onDelete: Cascade`) na exclusão do usuário. Sem prazo de purga independente — não é uma das 4 entidades cobertas pelo `RetentionService`. |
 | Operadores | **Produção:** nenhum. **Staging:** Render + Neon (ver item 1 e Tabela de operadores) — mesma lógica de infraestrutura, não de conteúdo (sem titular real hoje). |
@@ -74,12 +74,12 @@ Uma linha por operação identificável no schema (`backend/prisma/schema.prisma
 
 | Campo | Conteúdo |
 |---|---|
-| Tabelas | `meters`, `meter_readings` |
-| Finalidade | Monitorar consumo de energia em tempo real e histórico; base de relatórios, simulações e alertas. |
+| Tabelas | `meters`, `meter_readings`, `meter_demand_rollups` |
+| Finalidade | Monitorar consumo de energia em tempo real e histórico; base de relatórios, simulações, alertas e — para o Grupo A — do cálculo de demanda medida usado na tarifação binômia. |
 | Titulares | Usuários (via cadeia `meter` → alvo → `property` → `user`). |
-| Categorias de dados | Leituras por minuto (kWh, tensão, corrente, potência ativa, fator de potência); configuração técnica de conectividade do medidor (protocolo, host, porta, tópico, endereço; `extra` pode incluir credencial do dispositivo). |
+| Categorias de dados | Leituras por minuto (kWh, tensão, corrente, potência ativa, fator de potência); configuração técnica de conectividade do medidor (protocolo, host, porta, tópico, endereço; `extra` pode incluir credencial do dispositivo); para medidores de propriedade Grupo A, `meter_demand_rollups` guarda a maior potência média por janela de 15 min, agregada por mês × posto tarifário (ponta/fora de ponta) — mesma cadeia de titularidade que `meter_readings`, e mais reveladora de rotina que o kWh agregado (é, por definição, o pico de uso). |
 | Base legal (Art. 7º) | Execução de contrato (V) — é o núcleo do serviço. |
-| Retenção | **Sem prazo definido hoje.** `meter_readings` cresce indefinidamente; não é uma das 4 entidades cobertas pelo `RetentionService`. Achado registrado no roadmap como o maior gap de retenção do produto — reclassificado para a **Fase 15** (armazenamento/performance, não mais conformidade, pela ADR-0014). |
+| Retenção | **Sem prazo definido hoje.** `meter_readings` cresce indefinidamente; `meter_demand_rollups` tem uma linha por medidor × mês × posto (não cresce por leitura), mas também não é uma das 4 entidades cobertas pelo `RetentionService`. Achado registrado no roadmap como o maior gap de retenção do produto — reclassificado para a **Fase 15** (armazenamento/performance, não mais conformidade, pela ADR-0014); `meter_demand_rollups` entra na mesma reclassificação. |
 | Operadores | **Produção:** nenhum externo direto — o dado fica no próprio banco na VPS; a rede IoT do titular não é operador de dados pessoais do LumiTrack. **Staging:** Render + Neon (ver item 1). |
 | Transferência internacional | **Produção:** nenhuma. **Staging:** ver item 1 — risco aceito permanentemente pela ADR-0014. |
 | Medidas de segurança | Acesso por posse. **A granularidade por minuto é, em si, o risco central identificado pela issue #157 (RIPD)** — a cadeia `MeterReading → Meter → Device/Area/Property → User` liga uma leitura por minuto a um CPF e a um endereço, permitindo inferir presença/rotina. **Gap identificado, não corrigido nesta issue:** `Meter.extra` pode conter a senha do dispositivo em texto claro no JSON (já listado na Fase 13 do roadmap como pendência de cifragem). |
@@ -147,7 +147,11 @@ vinculação a um titular específico: `energy_distributors` (catálogo público
 somente leitura), `tariff_flag_config`/`tariff_flag_history` (configuração
 tarifária global; `changedByUserId` em `tariff_flag_history` identifica um
 administrador agindo, não um titular sendo tratado — mesma natureza de um
-log de admin, não repetido aqui para não duplicar o item 5).
+log de admin, não repetido aqui para não duplicar o item 5), `tariff_energy_rates`/
+`tariff_demand_rates` (catálogo tarifário binômio do Grupo A, por
+distribuidora × subgrupo × modalidade × posto — mesma natureza de
+`energy_distributors`: público, somente leitura, sem `userId` nem qualquer
+vínculo a um titular).
 
 ## Tabela de operadores (Art. 39)
 

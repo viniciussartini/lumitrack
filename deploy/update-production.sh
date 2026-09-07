@@ -167,9 +167,14 @@ fi
 
 # Caddyfile é bind mount (docker-compose.yml) — o compose não detecta
 # mudança de CONTEÚDO de um arquivo montado (só mudança na config do
-# serviço em si), então precisa de recriação explícita.
+# serviço em si), então precisa de recriação explícita. O rebuild do
+# frontend (mais abaixo) tem o mesmo sintoma por um motivo diferente: ele
+# troca o diretório inteiro (rm -rf + mv) por um novo, com inode novo — o
+# mount do Caddy fica preso ao inode antigo (agora apagado) até o
+# container ser recriado, servindo 404 em qualquer rota estática mesmo com
+# o build novo já no disco.
 rebuild_caddy=false
-if echo "$CHANGED_FILES" | grep -q '^deploy/Caddyfile$'; then
+if echo "$CHANGED_FILES" | grep -q '^deploy/Caddyfile$' || [ "$rebuild_frontend" = true ]; then
     rebuild_caddy=true
 fi
 
@@ -240,7 +245,7 @@ echo "==> Sincronizando serviços com a configuração e as imagens atuais..."
 docker compose "${COMPOSE_ENV[@]}" up -d
 
 if [ "$rebuild_caddy" = true ]; then
-    echo "==> Caddyfile mudou — forçando recriação do Caddy (bind mount, o compose não detecta sozinho)..."
+    echo "==> Caddyfile mudou e/ou frontend foi rebuildado — forçando recriação do Caddy (bind mount, o compose não detecta sozinho)..."
     docker compose "${COMPOSE_ENV[@]}" up -d --force-recreate caddy
 fi
 

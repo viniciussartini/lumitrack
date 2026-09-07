@@ -20,7 +20,7 @@
 - TypeScript strict; **proibido `any`** (usar `unknown` + narrowing).
 - Direção de dependência: o domínio não importa framework/infra.
 - **YAGNI e KISS têm precedência** — sem abstração especulativa. Proporcionalidade é decidida pelo contexto do projeto (equipe, criticidade, dado tratado), não por ritual.
-- **Comentários são funcionais**: Javadoc/JSDoc em classes, funções públicas e lógica complexa. **Proibido comentário de rastreabilidade** (issue, PR, auditoria, achado, data, autor) — isso vive no git, nos ADRs, no CHANGELOG e nas issues (`06`).
+- **Comentários são funcionais**: Javadoc/JSDoc em classes, funções públicas e lógica complexa. **Proibido comentário de rastreabilidade** (issue, PR, auditoria, achado, data, autor, **número de RF/RNF/RN/FNC**) — issue/PR/auditoria vivem no git, nos ADRs, no CHANGELOG e nas issues; RF/RNF/RN/FNC vivem no `02-requisitos.md`, que cita o arquivo/serviço que implementa cada um — nunca o inverso (`06`).
 
 **UI/UX**
 - A interface vem da **fonte de design declarada no `10`** — **proibido inventar layout** quando existe design para a tela; sem design → pergunte.

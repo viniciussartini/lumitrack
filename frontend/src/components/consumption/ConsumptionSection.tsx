@@ -1,11 +1,12 @@
 import { useState } from "react"
-import { AlertCircle, LineChart } from "lucide-react"
+import { AlertCircle, LineChart, ReceiptText } from "lucide-react"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Pagination } from "@/components/ui/Pagination"
 import { GranularityTabs } from "@/components/consumption/GranularityTabs"
 import { HourWindowSelect } from "@/components/consumption/HourWindowSelect"
 import { ConsumptionChart } from "@/components/consumption/ConsumptionChart"
 import { ConsumptionTable } from "@/components/consumption/ConsumptionTable"
+import { GroupABillCard } from "@/components/consumption/GroupABillCard"
 import { useConsumption } from "@/hooks/queries/useConsumption"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
 import { describeConsumptionWindow, resolveConsumptionWindow } from "@/lib/consumptionWindow"
@@ -15,38 +16,53 @@ import {
     type Granularity,
 } from "@/types/consumption.types"
 import type { TargetType } from "@/types/meter.types"
+import type { TariffGroup } from "@/types/property.types"
 
 // Wrappers "smart" — mesmo padrão de 3 por target usado no resto do app
 // (AlertSection, DeviceAlertSection, etc). propertyId/areaId
 // continuam na assinatura para não obrigar as details pages a mudar como
 // chamam o componente — só targetId (o id do próprio nível) é usado de fato,
 // já que /api/consumption resolve a propriedade raiz internamente.
+//
+// `tariffGroup` (da Propriedade raiz, carregada pela details page) decide o
+// ramo de renderização — ver `ConsumptionSection` abaixo. Opcional: enquanto
+// a query da propriedade ainda não resolveu, cai no ramo Grupo B (mesmo
+// comportamento de sempre) até o valor real chegar.
 
 interface PropertyConsumptionSectionProps {
     propertyId: string
+    tariffGroup?: TariffGroup
 }
 
-export const PropertyConsumptionSection = ({ propertyId }: PropertyConsumptionSectionProps) => (
-    <ConsumptionSection targetType="PROPERTY" targetId={propertyId} />
+export const PropertyConsumptionSection = ({
+    propertyId,
+    tariffGroup,
+}: PropertyConsumptionSectionProps) => (
+    <ConsumptionSection targetType="PROPERTY" targetId={propertyId} tariffGroup={tariffGroup} />
 )
 
 interface AreaConsumptionSectionProps {
     propertyId: string
     areaId: string
+    tariffGroup?: TariffGroup
 }
 
-export const AreaConsumptionSection = ({ areaId }: AreaConsumptionSectionProps) => (
-    <ConsumptionSection targetType="AREA" targetId={areaId} />
+export const AreaConsumptionSection = ({ areaId, tariffGroup }: AreaConsumptionSectionProps) => (
+    <ConsumptionSection targetType="AREA" targetId={areaId} tariffGroup={tariffGroup} />
 )
 
 interface DeviceConsumptionSectionProps {
     propertyId: string
     areaId: string
     deviceId: string
+    tariffGroup?: TariffGroup
 }
 
-export const DeviceConsumptionSection = ({ deviceId }: DeviceConsumptionSectionProps) => (
-    <ConsumptionSection targetType="DEVICE" targetId={deviceId} />
+export const DeviceConsumptionSection = ({
+    deviceId,
+    tariffGroup,
+}: DeviceConsumptionSectionProps) => (
+    <ConsumptionSection targetType="DEVICE" targetId={deviceId} tariffGroup={tariffGroup} />
 )
 
 // Presentational + orquestração de dados
@@ -54,16 +70,72 @@ export const DeviceConsumptionSection = ({ deviceId }: DeviceConsumptionSectionP
 interface ConsumptionSectionProps {
     targetType: TargetType
     targetId: string
+    tariffGroup?: TariffGroup
     /** Granularidades disponíveis — Hora|Dia nas details pages (default),
      * os 4 níveis em /relatorios. */
     granularities?: readonly Granularity[]
 }
 
+/**
+ * Dispatcher sem hooks próprios — ramifica por grupo tarifário antes de
+ * qualquer dado ser buscado, então cada ramo vira um componente próprio com
+ * seus próprios hooks (troca de subárvore inteira, nunca hook condicional
+ * dentro de um mesmo componente). Grupo B é o comportamento de sempre,
+ * inalterado; Grupo A só faz sentido no nível Propriedade (demanda
+ * contratada é conceito mensal da UC inteira) — Área/Aparelho mostram um
+ * aviso em vez de consultar uma granularidade que o backend rejeitaria.
+ *
+ * `"use no memo"`: `GroupBConsumptionSection` lê `new Date()` diretamente no
+ * corpo do componente (não é um valor rastreável por dependências). Se o
+ * React Compiler memoizar o elemento retornado aqui por identidade de props,
+ * um re-render deste dispatcher com as mesmas props (ex.: só o relógio
+ * mudou, sem nenhuma prop/estado novo) reaproveitaria o elemento antigo e
+ * pularia a re-execução do filho — a hora "atual" ficaria presa no valor de
+ * quando a virada de dia ainda não tinha acontecido — reproduzível só depois
+ * que este dispatcher passou a existir acima do componente que lê o relógio.
+ */
 export const ConsumptionSection = ({
     targetType,
     targetId,
+    tariffGroup,
     granularities = DETAILS_GRANULARITIES,
 }: ConsumptionSectionProps) => {
+    "use no memo"
+
+    if (tariffGroup === "GROUP_A" && targetType !== "PROPERTY") {
+        return (
+            <EmptyState
+                icon={ReceiptText}
+                title="Detalhamento não disponível para o Grupo A"
+                description="Demanda contratada e consumo por posto são apurados para a propriedade inteira — consulte a conta na página da propriedade."
+            />
+        )
+    }
+
+    if (tariffGroup === "GROUP_A") {
+        return <GroupABillSection targetType={targetType} targetId={targetId} />
+    }
+
+    return (
+        <GroupBConsumptionSection
+            targetType={targetType}
+            targetId={targetId}
+            granularities={granularities}
+        />
+    )
+}
+
+interface GroupBConsumptionSectionProps {
+    targetType: TargetType
+    targetId: string
+    granularities: readonly Granularity[]
+}
+
+const GroupBConsumptionSection = ({
+    targetType,
+    targetId,
+    granularities,
+}: GroupBConsumptionSectionProps) => {
     const [granularity, setGranularity] = useState<Granularity>(granularities[0]!)
     const [page, setPage] = useState(1)
     // `now` capturado uma única vez por render e reaproveitado em tudo que
@@ -196,6 +268,87 @@ export const ConsumptionSection = ({
                             />
                         </div>
                     )}
+                </div>
+            </div>
+        </section>
+    )
+}
+
+interface GroupABillSectionProps {
+    targetType: TargetType
+    targetId: string
+}
+
+/**
+ * Conta binômia do Grupo A — só existe no nível Propriedade (o
+ * dispatcher acima garante isso). Sem seletor de mês/histórico ainda: mostra
+ * sempre o mês mais recente com leitura (`page=1, pageSize=1`, sem `range` —
+ * mesmo idioma de "últimos N buckets" já usado pelos KPIs do painel), não
+ * necessariamente o mês corrente do calendário se ainda não há consumo nele.
+ */
+const GroupABillSection = ({ targetType, targetId }: GroupABillSectionProps) => {
+    const meterQuery = useMeterByTarget(targetType, targetId)
+    const hasMeter = Boolean(meterQuery.data)
+
+    const query = useConsumption(targetType, hasMeter ? targetId : undefined, "month", 1, 1)
+    const bucket = query.data?.items[0]
+
+    return (
+        <section className="flex flex-col gap-3" data-testid="consumption-section">
+            <div className="blueprint">
+                <i className="corner tl" />
+                <i className="corner tr" />
+                <i className="corner bl" />
+                <i className="corner br" />
+
+                <div className="border-divider flex items-center justify-between border-b px-5 py-4">
+                    <div>
+                        <h2 className="font-heading text-17 font-semibold uppercase">
+                            Conta do mês
+                        </h2>
+                        <span className="text-muted text-12-5 mt-[3px] block">
+                            Demanda contratada e consumo por posto tarifário
+                        </span>
+                    </div>
+                </div>
+
+                <div className="py-18px px-5">
+                    {!meterQuery.isLoading && !hasMeter && (
+                        <EmptyState
+                            icon={LineChart}
+                            title="Sem consumo para exibir"
+                            description="Configure um medidor na seção acima para começar a acompanhar o consumo automaticamente."
+                        />
+                    )}
+
+                    {hasMeter && query.isLoading && <SectionSkeleton />}
+
+                    {hasMeter && query.isError && (
+                        <div
+                            role="alert"
+                            className="border-status-danger/40 flex items-start gap-3 border p-4"
+                        >
+                            <AlertCircle
+                                className="text-status-danger h-5 w-5 shrink-0"
+                                aria-hidden="true"
+                            />
+                            <p className="text-status-danger/85 text-sm">
+                                {query.error instanceof Error
+                                    ? query.error.message
+                                    : "Não foi possível carregar a conta."}
+                            </p>
+                        </div>
+                    )}
+
+                    {hasMeter && query.isSuccess && !bucket && (
+                        <EmptyState
+                            icon={ReceiptText}
+                            title="Sem conta apurada ainda"
+                            description="Ainda não há consumo neste mês para calcular a conta."
+                        />
+                    )}
+
+                    {hasMeter && bucket && <GroupABillCard bucket={bucket} />}
                 </div>
             </div>
         </section>

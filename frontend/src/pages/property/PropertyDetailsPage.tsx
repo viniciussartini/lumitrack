@@ -21,9 +21,12 @@ import { IconCircle } from "@/components/ui/IconCircle"
 import { LiveKpiCard } from "@/components/dashboard/LiveKpiCard"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
 import { formatPowerKw, formatKwhPrice, formatBrl } from "@/lib/format"
+import { formatKw as formatContractedDemandKw } from "@/lib/formatters/consumption"
 import {
     BILLING_CLASS_LABELS,
     ELECTRICAL_SYSTEM_LABELS,
+    TARIFF_MODALITY_LABELS,
+    TARIFF_SUBGROUP_LABELS,
     type Property,
 } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
@@ -133,7 +136,10 @@ export const PropertyDetailsPage = () => {
             )}
 
             <MeterSection targetType="PROPERTY" targetId={property.id} />
-            <PropertyConsumptionSection propertyId={property.id} />
+            <PropertyConsumptionSection
+                propertyId={property.id}
+                tariffGroup={property.tariffGroup}
+            />
             <AreasSection propertyId={property.id} />
         </div>
     )
@@ -218,7 +224,32 @@ const PropertyHeaderCard = ({
                     <Tag variant="outline">
                         {ELECTRICAL_SYSTEM_LABELS[property.electricalSystem]}
                     </Tag>
-                    <Tag variant="outline">{BILLING_CLASS_LABELS[property.billingClass]}</Tag>
+                    {property.tariffGroup === "GROUP_A" ? (
+                        <>
+                            {property.tariffSubgroup && (
+                                <Tag variant="outline">
+                                    {TARIFF_SUBGROUP_LABELS[property.tariffSubgroup]}
+                                </Tag>
+                            )}
+                            {property.tariffModality && (
+                                <Tag variant="outline">
+                                    {TARIFF_MODALITY_LABELS[property.tariffModality]}
+                                </Tag>
+                            )}
+                            {property.contractedDemandKw !== null && (
+                                <Tag variant="outline">
+                                    Demanda contratada:{" "}
+                                    {formatContractedDemandKw(property.contractedDemandKw)}
+                                </Tag>
+                            )}
+                        </>
+                    ) : (
+                        property.billingClass && (
+                            <Tag variant="outline">
+                                {BILLING_CLASS_LABELS[property.billingClass]}
+                            </Tag>
+                        )
+                    )}
                     {property.publicLightingFeeBrl !== null && (
                         <Tag variant="outline">CIP: {formatBrl(property.publicLightingFeeBrl)}</Tag>
                     )}
