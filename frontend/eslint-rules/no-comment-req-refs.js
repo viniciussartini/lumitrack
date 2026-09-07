@@ -13,13 +13,11 @@ export default {
             meta: {
                 type: "problem",
                 docs: {
-                    description:
-                        "Proíbe comentário citar RF/RN/RNF/FNC do 02-requisitos.md",
+                    description: "Proíbe comentário citar RF/RN/RNF/FNC do 02-requisitos.md",
                 },
                 schema: [],
                 messages: {
-                    reqRef:
-                        'Comentário cita "{{ref}}" — proibido (06-code-quality-standards.md). Explique a regra por extenso; a citação vai do 02-requisitos.md para o código, nunca o inverso.',
+                    reqRef: 'Comentário cita "{{ref}}" — proibido (06-code-quality-standards.md). Explique a regra por extenso; a citação vai do 02-requisitos.md para o código, nunca o inverso.',
                 },
             },
             create(context) {
