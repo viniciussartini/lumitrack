@@ -321,6 +321,90 @@ describe("PropertyService", () => {
             ).rejects.toThrow(ValidationError)
         })
 
+        // ─ Grupo A — Horária Azul (Fase 20) ────────────────────────────
+
+        it("deve criar uma propriedade Grupo A Azul com as duas demandas contratadas", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+                tariffGroup: "GROUP_A",
+                tariffSubgroup: "A4",
+                tariffModality: "BLUE",
+                contractedDemandPeakKw: 150,
+                contractedDemandOffPeakKw: 400,
+            })
+
+            expect(property.tariffModality).toBe("BLUE")
+            expect(property.contractedDemandKw).toBeNull()
+            expect(property.contractedDemandPeakKw).toBe(150)
+            expect(property.contractedDemandOffPeakKw).toBe(400)
+        })
+
+        it("deve lançar ValidationError ao criar Azul sem demanda contratada na ponta", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await expect(
+                propertyService.create(user.id, {
+                    ...validPropertyInput,
+                    distributorId: distributor.id,
+                    tariffGroup: "GROUP_A",
+                    tariffSubgroup: "A4",
+                    tariffModality: "BLUE",
+                    contractedDemandOffPeakKw: 400,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("deve lançar ValidationError ao criar Azul sem demanda contratada fora de ponta", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await expect(
+                propertyService.create(user.id, {
+                    ...validPropertyInput,
+                    distributorId: distributor.id,
+                    tariffGroup: "GROUP_A",
+                    tariffSubgroup: "A4",
+                    tariffModality: "BLUE",
+                    contractedDemandPeakKw: 150,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("deve lançar ValidationError ao criar Azul informando demanda contratada única junto com as duas por posto", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await expect(
+                propertyService.create(user.id, {
+                    ...validPropertyInput,
+                    distributorId: distributor.id,
+                    tariffGroup: "GROUP_A",
+                    tariffSubgroup: "A4",
+                    tariffModality: "BLUE",
+                    contractedDemandKw: 200,
+                    contractedDemandPeakKw: 150,
+                    contractedDemandOffPeakKw: 400,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("deve lançar ValidationError ao criar Verde informando demanda por posto (ponta/fora de ponta)", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await expect(
+                propertyService.create(user.id, {
+                    ...validPropertyInput,
+                    distributorId: distributor.id,
+                    tariffGroup: "GROUP_A",
+                    tariffSubgroup: "A4",
+                    tariffModality: "GREEN",
+                    contractedDemandKw: 200,
+                    contractedDemandPeakKw: 150,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
         it("deve lançar ValidationError ao informar demanda contratada numa propriedade Grupo B", async () => {
             const { user, distributor } = await setupUserAndDistributor()
 
@@ -636,6 +720,75 @@ describe("PropertyService", () => {
                     tariffModality: "GREEN",
                 }),
             ).rejects.toThrow(ValidationError)
+        })
+
+        // ─ Grupo A — Horária Azul (Fase 20) ────────────────────────────
+
+        it("deve trocar de Verde para Azul reenviando as duas demandas por posto", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+                tariffGroup: "GROUP_A",
+                tariffSubgroup: "A4",
+                tariffModality: "GREEN",
+                contractedDemandKw: 200,
+            })
+
+            const updated = await propertyService.update(property.id, user.id, {
+                tariffModality: "BLUE",
+                contractedDemandPeakKw: 150,
+                contractedDemandOffPeakKw: 400,
+            })
+
+            expect(updated.tariffModality).toBe("BLUE")
+            expect(updated.contractedDemandKw).toBeNull()
+            expect(updated.contractedDemandPeakKw).toBe(150)
+            expect(updated.contractedDemandOffPeakKw).toBe(400)
+        })
+
+        it("deve lançar ValidationError ao trocar de Verde para Azul sem reenviar as duas demandas no novo formato", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+                tariffGroup: "GROUP_A",
+                tariffSubgroup: "A4",
+                tariffModality: "GREEN",
+                contractedDemandKw: 200,
+            })
+
+            // A demanda única antiga (Verde) não pode ser aproveitada como se
+            // fosse uma das demandas por posto da Azul — falha fechado em vez
+            // de misturar formatos, mesma classe de bug que o formulário do
+            // frontend corrige ao trocar de grupo tarifário.
+            await expect(
+                propertyService.update(property.id, user.id, {
+                    tariffModality: "BLUE",
+                    contractedDemandPeakKw: 150,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("não exige demanda ao atualizar campo alheio de uma propriedade Grupo A Azul", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+                tariffGroup: "GROUP_A",
+                tariffSubgroup: "A4",
+                tariffModality: "BLUE",
+                contractedDemandPeakKw: 150,
+                contractedDemandOffPeakKw: 400,
+            })
+
+            const updated = await propertyService.update(property.id, user.id, {
+                name: "Frigorífico Renovado",
+            })
+
+            expect(updated.name).toBe("Frigorífico Renovado")
+            expect(updated.contractedDemandPeakKw).toBe(150) // preservado
+            expect(updated.contractedDemandOffPeakKw).toBe(400) // preservado
         })
     })
 

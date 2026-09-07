@@ -479,11 +479,17 @@ model Property {
   tariffSubgroup TariffSubgroup?
   tariffModality TariffModality?
 
-  // Demanda contratada (kW) — obrigatória para Grupo A (validada em
-  // property.service.ts, mesmo padrão de tariffSubgroup/tariffModality),
-  // null para Grupo B. Verde/Convencional usam 1 valor só; Azul (2 demandas,
-  // ponta/fora-ponta) é extensão de modelo da Fase 20, fora de escopo aqui.
+  // Demanda contratada (kW) — obrigatória para Grupo A nas modalidades de
+  // demanda única (Verde, Convencional Binômia), validada em
+  // property.service.ts, mesmo padrão de tariffSubgroup/tariffModality.
+  // Nula para Grupo B e para a Azul, que usa os dois campos abaixo.
   contractedDemandKw Float?
+
+  // Demandas contratadas da Horária Azul (kW) — ponta e fora de ponta,
+  // exigidas juntas quando tariffModality = BLUE; nulas em qualquer outro
+  // caso (Verde/Convencional usam contractedDemandKw acima, Grupo B nenhum).
+  contractedDemandPeakKw    Float?
+  contractedDemandOffPeakKw Float?
 
   // CIP/COSIP municipal (contribuição de iluminação pública) em BRL — valor fixo
   // somado FORA da base de tributos. Opcional: nem todo município cobra.
