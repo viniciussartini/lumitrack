@@ -52,8 +52,9 @@ const electricalSystemSchema = z.enum(["MONOPHASIC", "BIPHASIC", "TRIPHASIC"], {
 })
 
 // Classe de faturamento Grupo B — REN 1.000/2021. Opcional no schema: a
-// obrigatoriedade condicional por grupo tarifário (RF25/ADR-0019) é regra
-// cruzada, validada em property.service.ts — mesmo padrão de RN01 do Medidor.
+// obrigatoriedade condicional por grupo tarifário (ADR-0019) é regra
+// cruzada, validada em property.service.ts — mesmo padrão de validação
+// cruzada em serviço já usado para a posse exclusiva do Medidor.
 const billingClassSchema = z.enum(["B1", "B2", "B3"], {
     error: "Classe de faturamento deve ser B1, B2 ou B3",
 })
@@ -81,7 +82,7 @@ const publicLightingFeeBrlSchema = z
     .number()
     .min(0, { message: "Contribuição de iluminação pública não pode ser negativa" })
 
-// Demanda contratada (kW) — obrigatória para Grupo A (RF25), validada em
+// Demanda contratada (kW) — obrigatória para Grupo A, validada em
 // property.service.ts (regra cruzada, mesmo padrão de tariffSubgroup/tariffModality).
 const contractedDemandKwSchema = z
     .number()

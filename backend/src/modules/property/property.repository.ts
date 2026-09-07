@@ -24,7 +24,7 @@ export type PropertyResponse = Omit<PrismaProperty, "publicLightingFeeBrl"> & {
 }
 
 // Campos de grupo tarifário já resolvidos e validados pelo PropertyService
-// (regra cruzada de RF25/ADR-0019) — `null` explícito, nunca `undefined`,
+// (regra cruzada de grupo tarifário, ADR-0019) — `null` explícito, nunca `undefined`,
 // porque para GROUP_A/GROUP_B o valor de cada campo é sempre determinado
 // (aplicável com valor, ou inaplicável e limpo).
 export type ResolvedTariffGroupFields = {
@@ -124,7 +124,7 @@ export class PropertyRepository {
      *
      * @param userId - Id do usuário dono do imóvel.
      * @param data - Dados do imóvel a criar, já validados.
-     * @param tariffGroupFields - Classe/subgrupo/modalidade já resolvidos e validados pelo PropertyService (RF25/ADR-0019).
+     * @param tariffGroupFields - Classe/subgrupo/modalidade já resolvidos e validados pelo PropertyService (ADR-0019).
      * @returns O imóvel criado, decifrado.
      */
     async create(
@@ -159,7 +159,7 @@ export class PropertyRepository {
      *
      * @param id - Id do imóvel a atualizar.
      * @param data - Campos a atualizar, já validados.
-     * @param tariffGroupFields - Classe/subgrupo/modalidade já resolvidos e validados pelo PropertyService (RF25/ADR-0019), só quando a requisição toca algum desses campos — omitido, os 3 ficam como estavam.
+     * @param tariffGroupFields - Classe/subgrupo/modalidade já resolvidos e validados pelo PropertyService (ADR-0019), só quando a requisição toca algum desses campos — omitido, os 3 ficam como estavam.
      * @returns O imóvel atualizado, decifrado.
      */
     async update(

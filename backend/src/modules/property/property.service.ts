@@ -30,13 +30,14 @@ export class PropertyService {
         }
     }
 
-    // Regra cruzada por grupo tarifário (RF25/ADR-0019): Grupo A exige
-    // subgrupo+modalidade e não aceita classe de faturamento Grupo B; Grupo B
-    // exige classe de faturamento (default B1, preservando o comportamento
-    // anterior à Fase 19) e não aceita subgrupo/modalidade do Grupo A. O
-    // schema sozinho (campos individualmente opcionais) não expressa essa
-    // obrigatoriedade condicional — mesmo padrão de RN01 do Medidor
-    // (meter.service.ts).
+    // Regra cruzada por grupo tarifário (ADR-0019): Grupo A exige
+    // subgrupo+modalidade+demanda contratada e não aceita classe de
+    // faturamento Grupo B; Grupo B exige classe de faturamento (default B1,
+    // preservando o comportamento anterior à Fase 19) e não aceita
+    // subgrupo/modalidade/demanda do Grupo A. O schema sozinho (campos
+    // individualmente opcionais) não expressa essa obrigatoriedade
+    // condicional — mesmo padrão de validação cruzada em serviço já usado
+    // para a posse exclusiva do Medidor (`meter.service.ts`), não no schema.
     private resolveTariffGroupFields(fields: {
         tariffGroup: "GROUP_A" | "GROUP_B"
         billingClass: BillingClass | undefined

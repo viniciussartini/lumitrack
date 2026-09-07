@@ -1,8 +1,8 @@
-// Calendário de feriados nacionais brasileiros (RN25) — usado para classificar
-// consumo por posto tarifário (Grupo A, Fase 19). Datas móveis são CALCULADAS
+// Calendário de feriados nacionais brasileiros — usado para classificar
+// consumo por posto tarifário (Grupo A). Datas móveis são CALCULADAS
 // a partir da Páscoa a cada chamada, nunca uma tabela copiada: uma lista fixa
 // funciona um ano e erra silenciosamente no seguinte, cobrando ponta num
-// feriado (RN25) — o mesmo raciocínio já registrado no roadmap.
+// feriado — o mesmo raciocínio já registrado no roadmap.
 //
 // Todas as datas são meia-noite UTC (o "dia" do feriado, não um instante) —
 // comparação com uma leitura é sempre feita pela data local já convertida
@@ -43,8 +43,8 @@ export function getEasterDate(year: number): Date {
 
 /**
  * Feriados nacionais de um ano — fixos (REN 1.000/2021 + calendário civil) e
- * móveis (derivados da Páscoa). Feriados estaduais/municipais ficam fora:
- * RN25 só cobre o calendário nacional.
+ * móveis (derivados da Páscoa). Feriados estaduais/municipais ficam fora de
+ * propósito: só o calendário nacional é coberto.
  *
  * @param year - Ano a calcular.
  * @returns Todos os feriados nacionais do ano, meia-noite UTC.

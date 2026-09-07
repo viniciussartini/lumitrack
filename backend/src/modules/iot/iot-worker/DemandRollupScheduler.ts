@@ -1,6 +1,6 @@
 /**
  * DemandRollupScheduler — rollup incremental da demanda medida do Grupo A
- * (RN19: maior potência média em janelas de 15 min, por posto tarifário).
+ * (maior potência média em janelas de 15 min, por posto tarifário).
  *
  * Deliberadamente um scheduler IRMÃO do `MinuteRollupScheduler`, não uma
  * extensão dele — o comentário de topo daquela classe já declara que ela é
@@ -85,7 +85,7 @@ export class DemandRollupScheduler {
     /**
      * Processa o minuto mais recentemente completado: descobre quais
      * medidores tiveram leitura na janela de lookback, filtra os do Grupo A
-     * (RN23 — só ele tem demanda) e atualiza o rollup de cada um. Público
+     * (só ele tem demanda contratada) e atualiza o rollup de cada um. Público
      * para testes e para o tick periódico.
      *
      * @param now - Instante de referência (injetável para teste).
@@ -138,7 +138,7 @@ export class DemandRollupScheduler {
             return
         }
 
-        // Fail-closed (RN24): sem janela de ponta configurada, não há como
+        // Fail-closed: sem janela de ponta configurada, não há como
         // classificar o posto — não adivinha 18h-21h por padrão.
         if (distributor.peakWindowStartHour === null || distributor.peakWindowEndHour === null) {
             log.warn(

@@ -16,8 +16,8 @@ export type DistributorResponse = {
     icmsRate: number
     pisRate: number
     cofinsRate: number
-    // Janela de ponta do Grupo A (RN24) — nulo até a distribuidora ter
-    // valores configurados (ver ADR-0019/#381).
+    // Janela de ponta do Grupo A — nulo até a distribuidora ter
+    // valores configurados (ver ADR-0019).
     peakWindowStartHour: number | null
     peakWindowEndHour: number | null
     createdAt: Date

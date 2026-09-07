@@ -1,4 +1,4 @@
-// Demanda medida (RN19): a maior potência média em janelas de 15 minutos.
+// Demanda medida: a maior potência média em janelas de 15 minutos.
 // Esta função calcula UMA janela — o rollup incremental
 // (`DemandRollupScheduler`) chama ela a cada minuto novo e mantém o máximo.
 
@@ -24,7 +24,7 @@ export type TrailingReading = {
  *
  * @param readings - As leituras mais recentes do medidor, ordenadas DESC por `minuteStart` (índice 0 = mais recente).
  * @param windowEndMinute - O minuto em que a janela termina (inclusive).
- * @param windowSizeMinutes - Tamanho da janela em minutos (RN19 = 15; parametrizado só para teste).
+ * @param windowSizeMinutes - Tamanho da janela em minutos (15 na definição de demanda medida; parametrizado só para teste).
  * @returns A potência média (W) da janela, ou `null` se incompleta.
  */
 export function computeTrailingWindowAverage(

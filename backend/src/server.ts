@@ -69,7 +69,7 @@ const scheduler = new MinuteRollupScheduler(
     getPoolStats,
 )
 
-// Rollup incremental de demanda medida do Grupo A (RN19) — scheduler IRMÃO
+// Rollup incremental de demanda medida do Grupo A — scheduler IRMÃO
 // do MinuteRollupScheduler, não uma extensão dele: precisa resolver
 // medidor→propriedade→distribuidora (janela de ponta), responsabilidade que
 // o comentário de MinuteRollupScheduler declara propositalmente fora dele.

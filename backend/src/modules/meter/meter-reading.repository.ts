@@ -182,7 +182,7 @@ export class MeterReadingRepository {
      *
      * @param meterId - Id do medidor.
      * @param endMinute - Fim da janela (inclusive) — normalmente o minuto mais recente já persistido.
-     * @param count - Quantas leituras buscar (RN19 = 15).
+     * @param count - Quantas leituras buscar (15 na definição de demanda medida).
      * @returns As leituras, ordenadas da mais recente para a mais antiga.
      */
     async findTrailingReadings(

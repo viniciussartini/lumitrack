@@ -154,7 +154,7 @@ function callResolveBucketCost(
     distributor: DistributorResponse,
     flagPer100Kwh: number,
     yearlyPropertyCostByBucketMs: Map<number, number>,
-): Promise<number> {
+): Promise<{ totalBrl: number }> {
     return (
         service as unknown as {
             resolveBucketCost: (
@@ -166,7 +166,7 @@ function callResolveBucketCost(
                 distributor: DistributorResponse,
                 flagPer100Kwh: number,
                 yearlyPropertyCostByBucketMs: Map<number, number>,
-            ) => Promise<number>
+            ) => Promise<{ totalBrl: number }>
         }
     ).resolveBucketCost(
         meterId,
@@ -651,7 +651,7 @@ describe("ConsumptionService.summary", () => {
     })
 })
 
-describe("ConsumptionService.list — Grupo A binômio (RF29)", () => {
+describe("ConsumptionService.list — Grupo A binômio", () => {
     // Exemplo 6 do documento de referência (metalúrgica A4 Verde em
     // Joinville/SC): 200 kW contratados, 800 kWh Ponta + 28.000 kWh Fora de
     // Ponta, ICMS 17%, bandeira amarela, CIP R$ 250,00 — mesmo oráculo do
@@ -759,6 +759,39 @@ describe("ConsumptionService.list — Grupo A binômio (RF29)", () => {
         expect(result.items).toHaveLength(1)
         expect(result.items[0]!.kwhConsumed).toBeCloseTo(28_800)
         expect(result.items[0]!.costBrl).toBeCloseTo(22_464.07, 2)
+
+        // Decomposição do binômio — o bucket mensal de uma Propriedade
+        // Grupo A carrega a conta detalhada, não só o total.
+        const groupA = result.items[0]!.groupA
+        expect(groupA).toBeDefined()
+        expect(groupA!.contractedDemandKw).toBe(200)
+        expect(groupA!.demandBrl).toBeCloseTo(3600, 2)
+        expect(groupA!.flagBrl).toBeCloseTo(542.88, 2)
+        expect(groupA!.energyByPost).toHaveLength(2)
+        expect(groupA!.energyByPost.find((p) => p.post === "PEAK")).toEqual({
+            post: "PEAK",
+            kwhConsumed: 800,
+            brl: 1040,
+        })
+        expect(groupA!.energyByPost.find((p) => p.post === "OFF_PEAK")).toEqual({
+            post: "OFF_PEAK",
+            kwhConsumed: 28_000,
+            brl: 11_200,
+        })
+    })
+
+    it("não carrega groupA no bucket mensal de uma propriedade Grupo B", async () => {
+        const { user, meter, property } = await setupPropertyMeter()
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 150, 1000)
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0]!.groupA).toBeUndefined()
     })
 
     it("falha fechado ao calcular conta de uma modalidade Grupo A ainda não suportada (Azul)", async () => {
@@ -789,6 +822,31 @@ describe("ConsumptionService.list — Grupo A binômio (RF29)", () => {
                 granularity: "hour",
             }),
         ).rejects.toThrow(/Grupo A/)
+    })
+
+    it("summary() exclui silenciosamente uma Área de propriedade Grupo A, sem derrubar o lote", async () => {
+        const { user, property } = await setupGroupAPropertyMeter()
+        const area = await areaService.create(property.id, user.id, { name: "Setor Produtivo" })
+        const areaMeter = await prismaTest.meter.create({
+            data: {
+                name: "Medidor Setor",
+                targetType: "AREA",
+                areaId: area.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "setor/medidor",
+            },
+        })
+        await insertReading(areaMeter.id, "2026-08-04T13:00:00Z", 10, 100_000)
+
+        const result = await consumptionService.summary(user.id, {
+            targetType: "AREA",
+            ids: area.id,
+            granularity: "month",
+        })
+
+        expect(result.items).toEqual([])
     })
 })
 
@@ -895,6 +953,6 @@ describe("ConsumptionService — resolveBucketCost (privado, extraído de list()
             new Map(),
         )
 
-        expect(cost).toBe(0)
+        expect(cost.totalBrl).toBe(0)
     })
 })

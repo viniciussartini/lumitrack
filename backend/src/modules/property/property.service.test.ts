@@ -242,7 +242,7 @@ describe("PropertyService", () => {
             ).rejects.toThrow(ValidationError)
         })
 
-        // ─ Grupo A (RF25/ADR-0019) ──────────────────────────────────────────
+        // ─ Grupo A (ADR-0019) ──────────────────────────────────────────
 
         it("deve criar uma propriedade Grupo A com subgrupo e modalidade", async () => {
             const { user, distributor } = await setupUserAndDistributor()
@@ -563,7 +563,7 @@ describe("PropertyService", () => {
             ).rejects.toThrow(ValidationError)
         })
 
-        // ─ Grupo A (RF25/ADR-0019) ──────────────────────────────────────────
+        // ─ Grupo A (ADR-0019) ──────────────────────────────────────────
 
         it("deve migrar uma propriedade Grupo B para o Grupo A informando subgrupo e modalidade", async () => {
             const { user, distributor } = await setupUserAndDistributor()

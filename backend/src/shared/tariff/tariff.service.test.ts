@@ -185,7 +185,7 @@ describe("TariffService", () => {
             expect(result.totalBrl).toBeCloseTo(22_464.07, 2)
         })
 
-        it("bandeira incide só sobre o consumo total, nunca sobre a demanda (RN22)", () => {
+        it("bandeira incide só sobre o consumo total, nunca sobre a demanda", () => {
             const withZeroConsumption = service.calculateForGroupA({
                 contractedDemandKw: 100,
                 tusdPerKw: 18.0,

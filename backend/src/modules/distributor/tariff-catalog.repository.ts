@@ -34,7 +34,7 @@ function cacheKey(
 }
 
 /**
- * Catálogo tarifário do Grupo A (RF26) — tarifas de energia por posto e de
+ * Catálogo tarifário do Grupo A — tarifas de energia por posto e de
  * demanda por distribuidora × subgrupo × modalidade, somente leitura.
  */
 export class TariffCatalogRepository {
@@ -76,7 +76,8 @@ export class TariffCatalogRepository {
 
     /**
      * Tarifa de demanda única (posto nulo) — Horária Verde e Convencional
-     * Binômia (RN18). A Horária Azul (demanda por posto) é extensão de
+     * Binômia, que cobram uma única demanda contratada por mês. A Horária
+     * Azul (demanda por posto, ponta e fora de ponta) é extensão de
      * modelo da Fase 20, fora do escopo deste método.
      *
      * `post: null` não pode entrar na cláusula `where` de uma chave composta

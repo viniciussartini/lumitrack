@@ -26,26 +26,26 @@ describe("classifyPost", () => {
         expect(classifyPost(timestamp, PEAK_WINDOW, [])).toBe("OFF_PEAK")
     })
 
-    it("classifica como OFF_PEAK um sábado mesmo dentro do horário de ponta (RN25)", () => {
+    it("classifica como OFF_PEAK um sábado mesmo dentro do horário de ponta", () => {
         // 2026-09-05 é sábado
         const timestamp = new Date(Date.UTC(2026, 8, 5, 19, 30))
         expect(classifyPost(timestamp, PEAK_WINDOW, [])).toBe("OFF_PEAK")
     })
 
-    it("classifica como OFF_PEAK um domingo mesmo dentro do horário de ponta (RN25)", () => {
+    it("classifica como OFF_PEAK um domingo mesmo dentro do horário de ponta", () => {
         // 2026-09-06 é domingo
         const timestamp = new Date(Date.UTC(2026, 8, 6, 19, 30))
         expect(classifyPost(timestamp, PEAK_WINDOW, [])).toBe("OFF_PEAK")
     })
 
-    it("classifica como OFF_PEAK um feriado fixo mesmo dentro do horário de ponta (RN25)", () => {
+    it("classifica como OFF_PEAK um feriado fixo mesmo dentro do horário de ponta", () => {
         // 2026-09-07 é segunda-feira, Independência — seria dia útil se não fosse feriado
         const holidays = getNationalHolidays(2026)
         const timestamp = new Date(Date.UTC(2026, 8, 7, 19, 30))
         expect(classifyPost(timestamp, PEAK_WINDOW, holidays)).toBe("OFF_PEAK")
     })
 
-    it("classifica como OFF_PEAK um feriado móvel (Carnaval) mesmo dentro do horário de ponta (RN25)", () => {
+    it("classifica como OFF_PEAK um feriado móvel (Carnaval) mesmo dentro do horário de ponta", () => {
         // Carnaval 2026: 2026-02-17 (terça), dia que seria útil se não fosse feriado
         const holidays = getNationalHolidays(2026)
         const timestamp = new Date(Date.UTC(2026, 1, 17, 19, 30))

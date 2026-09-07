@@ -10,7 +10,7 @@ export type MeterDemandRollupResponse = {
 }
 
 /**
- * Persistência do rollup incremental de demanda medida (RN19) — uma linha
+ * Persistência do rollup incremental de demanda medida — uma linha
  * por medidor × mês (hora local) × posto tarifário, mantendo só o máximo já
  * observado. Nunca lido/escrito por varredura de `meter_readings`: quem
  * calcula a janela de 15 min é `DemandRollupScheduler`, este repository só

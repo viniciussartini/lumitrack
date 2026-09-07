@@ -33,6 +33,32 @@ const DIST_ENEL = {
 }
 
 /**
+ * Espelha a resposta de criação do backend a partir do corpo do POST —
+ * extraído do handler de rota só por causa do teto de complexidade do lint
+ * (cada `?? null` conta como um branch).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const buildCreatedProperty = (body: any): Property => ({
+    id: "prop-1",
+    userId: "user-123",
+    distributorId: body.distributorId,
+    name: body.name,
+    address: body.address ?? null,
+    city: body.city ?? null,
+    state: body.state ?? null,
+    zipCode: body.zipCode ?? null,
+    electricalSystem: body.electricalSystem,
+    tariffGroup: body.tariffGroup ?? "GROUP_B",
+    billingClass: body.billingClass ?? null,
+    tariffSubgroup: body.tariffSubgroup ?? null,
+    tariffModality: body.tariffModality ?? null,
+    contractedDemandKw: body.contractedDemandKw ?? null,
+    publicLightingFeeBrl: body.publicLightingFeeBrl ?? null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+})
+
+/**
  * Configura mocks compartilhados (auth + AppShell + distribuidoras).
  *
  * Não mocka /api/properties aqui — cada teste configura suas próprias
@@ -95,21 +121,7 @@ test.describe("Fluxo CRUD de propriedades", () => {
 
             if (method === "POST") {
                 const body = JSON.parse(route.request().postData() ?? "{}")
-                const created: Property = {
-                    id: "prop-1",
-                    userId: "user-123",
-                    distributorId: body.distributorId,
-                    name: body.name,
-                    address: body.address ?? null,
-                    city: body.city ?? null,
-                    state: body.state ?? null,
-                    zipCode: body.zipCode ?? null,
-                    electricalSystem: body.electricalSystem,
-                    billingClass: body.billingClass,
-                    publicLightingFeeBrl: body.publicLightingFeeBrl ?? null,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                }
+                const created = buildCreatedProperty(body)
                 properties = [created]
                 return fulfillJson(route, created, 201)
             }

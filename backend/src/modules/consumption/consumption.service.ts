@@ -31,13 +31,35 @@ import { toSkipTake, type Paginated } from "@/shared/pagination.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 import { resolveRootProperty } from "@/shared/targetResolution.js"
-import type { TargetType } from "@/generated/prisma/client.js"
+import type { TargetType, TariffPost } from "@/generated/prisma/client.js"
+
+// Decomposição da conta binômia do Grupo A — presente só no bucket
+// mensal de uma Propriedade Grupo A; ausente (undefined) para Grupo B e para
+// qualquer outra combinação de granularidade/alvo, sem mudar o contrato de
+// quem já consome `costBrl` sozinho.
+export type GroupABreakdown = {
+    contractedDemandKw: number
+    demandBrl: number
+    energyByPost: { post: TariffPost; kwhConsumed: number; brl: number }[]
+    flagBrl: number
+    taxesBrl: number
+    publicLightingFeeBrl: number
+}
 
 export type ConsumptionBucketResponse = {
     bucketStart: Date
     kwhConsumed: number
     costBrl: number
     avgPowerW: number
+    groupA?: GroupABreakdown
+}
+
+// Retorno interno do cálculo de custo de um bucket — carrega a decomposição
+// do Grupo A só quando ela existe (mês + Propriedade); os demais caminhos
+// (Grupo B, ano, Área/Aparelho) só populam `totalBrl`.
+type MonthCostResult = {
+    totalBrl: number
+    groupA?: GroupABreakdown
 }
 
 export type ConsumptionListResponse = Paginated<ConsumptionBucketResponse> & {
@@ -68,7 +90,7 @@ export class ConsumptionService {
      * @param deviceRepository - Usado por {@link resolveRootProperty} para subir a árvore até a propriedade.
      * @param distributorRepository - Resolve a distribuidora vinculada à propriedade, com suas tarifas.
      * @param tariffFlagRepository - Resolve a configuração vigente da bandeira tarifária.
-     * @param tariffCatalogRepository - Resolve o catálogo de tarifas de energia/demanda do Grupo A (RF26).
+     * @param tariffCatalogRepository - Resolve o catálogo de tarifas de energia/demanda do Grupo A.
      * @param tariffService - Calcula o custo em reais a partir do consumo em kWh.
      */
     constructor(
@@ -144,10 +166,8 @@ export class ConsumptionService {
         )
 
         const items: ConsumptionBucketResponse[] = await Promise.all(
-            buckets.map(async (bucket) => ({
-                bucketStart: bucket.bucketStart,
-                kwhConsumed: bucket.kwhConsumed,
-                costBrl: await this.resolveBucketCost(
+            buckets.map(async (bucket) => {
+                const cost = await this.resolveBucketCost(
                     meter.id,
                     bucket,
                     granularity,
@@ -156,9 +176,15 @@ export class ConsumptionService {
                     distributor,
                     flagPer100Kwh,
                     yearlyPropertyCostByBucketMs,
-                ),
-                avgPowerW: bucket.avgPowerW,
-            })),
+                )
+                return {
+                    bucketStart: bucket.bucketStart,
+                    kwhConsumed: bucket.kwhConsumed,
+                    costBrl: cost.totalBrl,
+                    avgPowerW: bucket.avgPowerW,
+                    ...(cost.groupA && { groupA: cost.groupA }),
+                }
+            }),
         )
 
         return { items, total, page: pagination.page, pageSize: pagination.pageSize, granularity }
@@ -242,24 +268,37 @@ export class ConsumptionService {
             const distributor = await this.distributorRepository.findById(property.distributorId)
             if (!distributor) continue
 
-            const costBrl =
-                granularity === "year" && targetType === "PROPERTY"
-                    ? await this.calculateYearlyPropertyCost(
-                          meter.id,
-                          bucket.bucketStart,
-                          property,
-                          distributor,
-                          flagPer100Kwh,
-                      )
-                    : await this.calculateBucketCost(
-                          meter.id,
-                          bucket,
-                          granularity,
-                          targetType,
-                          property,
-                          distributor,
-                          flagPer100Kwh,
-                      )
+            // Grupo A só calcula custo em mês/ano + Propriedade — uma
+            // Área/Aparelho de uma propriedade Grupo A lança ao tentar
+            // qualquer outra combinação (`calculateBucketCost`). Isso não
+            // pode derrubar o lote inteiro: mesma tolerância já aplicada
+            // acima a "sem medidor"/"sem distribuidora" — o item some do
+            // resultado, os demais alvos do lote continuam respondendo.
+            let costBrl: number
+            try {
+                costBrl =
+                    granularity === "year" && targetType === "PROPERTY"
+                        ? await this.calculateYearlyPropertyCost(
+                              meter.id,
+                              bucket.bucketStart,
+                              property,
+                              distributor,
+                              flagPer100Kwh,
+                          )
+                        : (
+                              await this.calculateBucketCost(
+                                  meter.id,
+                                  bucket,
+                                  granularity,
+                                  targetType,
+                                  property,
+                                  distributor,
+                                  flagPer100Kwh,
+                              )
+                          ).totalBrl
+            } catch {
+                continue
+            }
 
             items.push({
                 id,
@@ -314,7 +353,7 @@ export class ConsumptionService {
             const key = row.yearBucket.getTime()
             yearlyPropertyCostByBucketMs.set(
                 key,
-                (yearlyPropertyCostByBucketMs.get(key) ?? 0) + monthCost,
+                (yearlyPropertyCostByBucketMs.get(key) ?? 0) + monthCost.totalBrl,
             )
         }
 
@@ -334,9 +373,9 @@ export class ConsumptionService {
         distributor: DistributorResponse,
         flagPer100Kwh: number,
         yearlyPropertyCostByBucketMs: Map<number, number>,
-    ): Promise<number> {
+    ): Promise<MonthCostResult> {
         if (granularity === "year" && targetType === "PROPERTY") {
-            return yearlyPropertyCostByBucketMs.get(bucket.bucketStart.getTime()) ?? 0
+            return { totalBrl: yearlyPropertyCostByBucketMs.get(bucket.bucketStart.getTime()) ?? 0 }
         }
 
         return this.calculateBucketCost(
@@ -353,7 +392,7 @@ export class ConsumptionService {
     // Custo de um único mês (a unidade que sustenta o piso/CIP de PROPERTY)
     // — compartilhado entre o batching por página de `list()` e o cálculo
     // por alvo de `summary()`.
-    // RN23 — o cálculo ramifica por grupo tarifário em vez de generalizar:
+    // O cálculo ramifica por grupo tarifário em vez de generalizar:
     // Grupo B usa o monômio de sempre (piso + tarifa plana da distribuidora);
     // Grupo A precisa do consumo por posto e da demanda contratada, então
     // delega a `calculateGroupAMonthCost` (que faz suas próprias consultas,
@@ -365,7 +404,7 @@ export class ConsumptionService {
         property: PropertyResponse,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
-    ): Promise<number> {
+    ): Promise<MonthCostResult> {
         if (property.tariffGroup === "GROUP_A") {
             return this.calculateGroupAMonthCost(
                 meterId,
@@ -376,21 +415,23 @@ export class ConsumptionService {
             )
         }
 
-        return this.tariffService.calculateForProperty({
-            kwhConsumed,
-            electricalSystem: property.electricalSystem,
-            publicLightingFeeBrl: property.publicLightingFeeBrl,
-            tusdPerKwh: distributor.tusdPerKwh,
-            tePerKwh: distributor.tePerKwh,
-            icmsRate: distributor.icmsRate,
-            pisRate: distributor.pisRate,
-            cofinsRate: distributor.cofinsRate,
-            flagPer100Kwh,
-        }).totalBrl
+        return {
+            totalBrl: this.tariffService.calculateForProperty({
+                kwhConsumed,
+                electricalSystem: property.electricalSystem,
+                publicLightingFeeBrl: property.publicLightingFeeBrl,
+                tusdPerKwh: distributor.tusdPerKwh,
+                tePerKwh: distributor.tePerKwh,
+                icmsRate: distributor.icmsRate,
+                pisRate: distributor.pisRate,
+                cofinsRate: distributor.cofinsRate,
+                flagPer100Kwh,
+            }).totalBrl,
+        }
     }
 
-    // Conta binômia do Grupo A (RF29/RN17/RN18-Verde) — só a modalidade
-    // Verde está implementada; Azul/Convencional falham fechado (Fase 20).
+    // Conta binômia do Grupo A, modalidade Horária Verde — só ela está
+    // implementada; Azul/Convencional falham fechado (Fase 20).
     // Falha fechada também sem janela de ponta configurada ou sem demanda
     // contratada, em vez de silenciosamente aplicar a fórmula errada.
     private async calculateGroupAMonthCost(
@@ -399,7 +440,7 @@ export class ConsumptionService {
         property: PropertyResponse,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
-    ): Promise<number> {
+    ): Promise<MonthCostResult> {
         if (distributor.peakWindowStartHour === null || distributor.peakWindowEndHour === null) {
             throw new ValidationError(
                 "Distribuidora sem janela de ponta configurada — não é possível calcular a conta do Grupo A",
@@ -462,7 +503,7 @@ export class ConsumptionService {
             tePerKwh: rate.tePerKwh,
         }))
 
-        return this.tariffService.calculateForGroupA({
+        const result = this.tariffService.calculateForGroupA({
             contractedDemandKw: property.contractedDemandKw,
             tusdPerKw: demandRate.tusdPerKw,
             energyByPost,
@@ -471,7 +512,19 @@ export class ConsumptionService {
             cofinsRate: distributor.cofinsRate,
             flagPer100Kwh,
             publicLightingFeeBrl: property.publicLightingFeeBrl,
-        }).totalBrl
+        })
+
+        return {
+            totalBrl: result.totalBrl,
+            groupA: {
+                contractedDemandKw: property.contractedDemandKw,
+                demandBrl: result.demandBrl,
+                energyByPost: result.energyByPost,
+                flagBrl: result.flagBrl,
+                taxesBrl: result.taxesBrl,
+                publicLightingFeeBrl: result.publicLightingFeeBrl,
+            },
+        }
     }
 
     private calculateSubTargetCost(
@@ -502,7 +555,7 @@ export class ConsumptionService {
         property: PropertyResponse,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
-    ): Promise<number> {
+    ): Promise<MonthCostResult> {
         if (granularity === "month" && targetType === "PROPERTY") {
             return this.calculateMonthCost(
                 meterId,
@@ -528,7 +581,9 @@ export class ConsumptionService {
         // minute/hour/day (qualquer alvo) e month/year (AREA/DEVICE): sem
         // piso nem CIP — apenas energia + bandeira + tributos sobre o
         // consumo real do bucket.
-        return this.calculateSubTargetCost(bucket.kwhConsumed, distributor, flagPer100Kwh)
+        return {
+            totalBrl: this.calculateSubTargetCost(bucket.kwhConsumed, distributor, flagPer100Kwh),
+        }
     }
 
     // Usado só por `summary()` — o bucket "year" de um único alvo PROPERTY.
@@ -548,7 +603,7 @@ export class ConsumptionService {
 
         let sum = 0
         for (const row of monthlyRows) {
-            sum += await this.calculateMonthCost(
+            const monthCost = await this.calculateMonthCost(
                 meterId,
                 row.monthBucket,
                 row.kwhConsumed,
@@ -556,6 +611,7 @@ export class ConsumptionService {
                 distributor,
                 flagPer100Kwh,
             )
+            sum += monthCost.totalBrl
         }
         return sum
     }

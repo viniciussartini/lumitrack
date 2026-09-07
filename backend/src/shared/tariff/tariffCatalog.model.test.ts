@@ -3,11 +3,10 @@ import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 import { createTestDistributor } from "@/shared/test/distributorFixture.js"
 
-// Cobre o modelo de dados novo da Fase 19 (ADR-0019/RF26): TariffEnergyRate
-// e TariffDemandRate, catálogo do Grupo A por distribuidora × subgrupo ×
-// modalidade × posto. Não há repository/service para estas tabelas ainda
-// (chega no item "Tarifação binômia Horária Verde", #383) — este teste
-// valida o schema/migração em si, o artefato novo e arriscado desta issue.
+// Cobre o modelo de dados novo do catálogo tarifário do Grupo A (ADR-0019):
+// TariffEnergyRate e TariffDemandRate, por distribuidora × subgrupo ×
+// modalidade × posto. Não há repository/service para estas tabelas ainda —
+// este teste valida o schema/migração em si, o artefato novo e arriscado.
 
 beforeEach(async () => {
     await cleanDatabase()
@@ -85,7 +84,7 @@ describe("Catálogo tarifário Grupo A (TariffEnergyRate/TariffDemandRate)", () 
     })
 
     describe("TariffDemandRate", () => {
-        it("persiste demanda única (post nulo) — Horária Verde, RN18", async () => {
+        it("persiste demanda única (post nulo) — Horária Verde", async () => {
             const distributor = await createTestDistributor(prismaTest)
 
             const created = await prismaTest.tariffDemandRate.create({
@@ -102,7 +101,7 @@ describe("Catálogo tarifário Grupo A (TariffEnergyRate/TariffDemandRate)", () 
             expect(created.tusdPerKw.toNumber()).toBe(18)
         })
 
-        it("permite demanda por posto (Ponta e Fora de Ponta) — Horária Azul, RN18", async () => {
+        it("permite demanda por posto (Ponta e Fora de Ponta) — Horária Azul", async () => {
             const distributor = await createTestDistributor(prismaTest)
 
             await prismaTest.tariffDemandRate.create({

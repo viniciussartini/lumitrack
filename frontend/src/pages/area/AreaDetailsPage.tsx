@@ -60,7 +60,18 @@ export const AreaDetailsPage = () => {
     // + useRealtime (SSE) pra leitura ao vivo.
     const meterQuery = useMeterByTarget("AREA", areaId)
     const hasMeter = Boolean(meterQuery.data)
-    const monthlyQuery = useConsumption("AREA", hasMeter ? areaId : undefined, "month", 1, 3)
+    // Grupo A só calcula custo em mês/ano + Propriedade — pedir esse
+    // KPI pra uma Área de propriedade Grupo A é rejeitado pelo backend, então
+    // nem consultamos: a tag de kWh/mês simplesmente não aparece (mesmo
+    // tratamento de "sem medidor").
+    const isGroupA = propertyQuery.data?.tariffGroup === "GROUP_A"
+    const monthlyQuery = useConsumption(
+        "AREA",
+        hasMeter && !isGroupA ? areaId : undefined,
+        "month",
+        1,
+        3,
+    )
     const { lastKnownPowerW } = useLiveMeterReading("AREA", areaId, meterQuery.data?.id)
 
     if (areaQuery.isLoading) {
@@ -138,7 +149,11 @@ export const AreaDetailsPage = () => {
             )}
 
             <MeterSection targetType="AREA" targetId={areaId!} />
-            <AreaConsumptionSection propertyId={propertyId!} areaId={areaId!} />
+            <AreaConsumptionSection
+                propertyId={propertyId!}
+                areaId={areaId!}
+                tariffGroup={property?.tariffGroup}
+            />
             <DevicesSection propertyId={propertyId!} areaId={areaId!} />
         </div>
     )

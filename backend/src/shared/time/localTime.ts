@@ -1,6 +1,6 @@
 // Equivalente em JS do `localTsExpr()` (shared/database/timeBucket.ts), que
 // faz a mesma conversão em SQL. São Paulo é UTC-3 o ano inteiro — sem horário
-// de verão desde 2019 (RN26); se ele voltar, esta premissa precisa ser
+// de verão desde 2019; se ele voltar, esta premissa precisa ser
 // revisitada nos dois lugares.
 const SP_OFFSET_MS = 3 * 60 * 60 * 1000
 

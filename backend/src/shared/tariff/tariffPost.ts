@@ -1,10 +1,10 @@
 import type { TariffPost } from "@/generated/prisma/client.js"
 
-// Sem horário de verão no Brasil desde 2019 (RN26) — América/São_Paulo tem
+// Sem horário de verão no Brasil desde 2019 — América/São_Paulo tem
 // deslocamento fixo o ano inteiro. Não há lógica de DST aqui de propósito;
 // se o horário de verão voltar, esta premissa precisa ser revisitada.
 
-/** Janela de ponta configurável por distribuidora (RN24). */
+/** Janela de ponta — configurável por distribuidora porque varia por local/estado. */
 export type PeakWindowConfig = {
     peakWindowStartHour: number
     peakWindowEndHour: number
@@ -21,9 +21,10 @@ function isHoliday(localTimestamp: Date, holidays: Date[]): boolean {
 }
 
 /**
- * Classifica um instante de consumo em posto tarifário (RN24/RN25) — só
+ * Classifica um instante de consumo em posto tarifário — só
  * `PEAK`/`OFF_PEAK`: `INTERMEDIATE` é exclusivo da Tarifa Branca (Grupo B,
- * Fase 22), que ainda não existe.
+ * Fase 22), que ainda não existe. Fim de semana e feriado contam
+ * integralmente como fora de ponta.
  *
  * **Convenção do parâmetro:** `localTimestamp` já deve estar na hora de
  * parede da distribuidora (mesma conversão de `localTsExpr()` em SQL) — os
@@ -32,8 +33,8 @@ function isHoliday(localTimestamp: Date, holidays: Date[]): boolean {
  * armadilha "virada de dia" que este módulo existe para evitar.
  *
  * @param localTimestamp - Instante já convertido para hora local.
- * @param peakWindow - Janela de ponta da distribuidora (RN24).
- * @param holidays - Feriados nacionais do período (RN25) — ver `shared/time/holidays.ts`.
+ * @param peakWindow - Janela de ponta da distribuidora.
+ * @param holidays - Feriados nacionais do período — ver `shared/time/holidays.ts`.
  * @returns O posto tarifário do instante.
  */
 export function classifyPost(

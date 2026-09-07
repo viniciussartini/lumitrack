@@ -14,7 +14,7 @@ const userService = new UserService(userRepository)
 const PEAK_WINDOW: PeakWindowConfig = { peakWindowStartHour: 18, peakWindowEndHour: 21 }
 const HOLIDAYS_2026 = getNationalHolidays(2026)
 
-// São Paulo é UTC-3 o ano inteiro (RN26, sem horário de verão desde 2019).
+// São Paulo é UTC-3 o ano inteiro (sem horário de verão desde 2019).
 // `minuteStart` é persistido em UTC (é isso que `localTsExpr()` converte na
 // consulta) — estes helpers evitam confundir "hora local pretendida" com
 // "hora UTC bruta" ao montar as fixtures do teste, o mesmo tipo de erro que
@@ -119,7 +119,7 @@ describe("ConsumptionRepository.findKwhByPost", () => {
         // 2026-09-08 (terça, dia útil): 19h dentro da ponta, 10h fora dela.
         await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 19)), 5)
         await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 10)), 7)
-        // 2026-09-05 (sábado): mesmo dentro do horário de ponta, é OFF_PEAK (RN25).
+        // 2026-09-05 (sábado): mesmo dentro do horário de ponta, é OFF_PEAK.
         await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 5, 19)), 3)
         // Carnaval 2026 (2026-02-17, terça): seria PEAK se não fosse feriado móvel.
         await createReading(meterId, toStoredUtc(localWallClock(2026, 1, 17, 19)), 11)
@@ -149,7 +149,7 @@ describe("ConsumptionRepository.findKwhByPost", () => {
         // 2026-09-05 01h em UTC (sábado) na coluna `minuteStart`. Uma janela
         // de ponta que alcança 22h-24h expõe a armadilha: se o dia da semana
         // fosse extraído do timestamp UTC bruto em vez de `localTsExpr()`, a
-        // leitura viraria "sábado" (fim de semana, RN25) e seria classificada
+        // leitura viraria "sábado" (fim de semana) e seria classificada
         // OFF_PEAK por engano — a leitura é, na verdade, sexta-feira às 22h,
         // dentro da ponta.
         const LATE_PEAK_WINDOW: PeakWindowConfig = {

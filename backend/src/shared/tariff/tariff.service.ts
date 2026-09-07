@@ -41,8 +41,8 @@ export type TariffResult = {
     totalBrl: number
 }
 
-// Consumo por posto tarifário (RN24) com a tarifa de energia do catálogo do
-// Grupo A já resolvida — ver TariffCatalogRepository.
+// Consumo por posto tarifário (ponta/fora de ponta) com a tarifa de energia
+// do catálogo do Grupo A já resolvida — ver TariffCatalogRepository.
 export type GroupAEnergyPostInput = {
     post: TariffPost
     kwhConsumed: number
@@ -62,7 +62,7 @@ export type GroupATariffInput = {
 }
 
 export type GroupATariffResult = {
-    demandBrl: number // demanda contratada × TUSD demanda (RN18, Verde)
+    demandBrl: number // demanda contratada × TUSD demanda (Horária Verde: 1 demanda única)
     energyByPost: { post: TariffPost; kwhConsumed: number; brl: number }[]
     energyBrl: number // soma dos postos, sem tributos
     flagBrl: number
@@ -114,13 +114,13 @@ export class TariffService {
     }
 
     /**
-     * Conta binômia do Grupo A, modalidade Horária Verde (RN17/RN18/RN22/RN23):
+     * Conta binômia do Grupo A, modalidade Horária Verde:
      * demanda contratada + consumo por posto + bandeira (só sobre o consumo,
-     * nunca sobre a demanda) + tributos por dentro + CIP. ERE e ultrapassagem
-     * (RN20/RN21) não são modelados aqui — Fase 20.
+     * nunca sobre a demanda) + tributos por dentro + CIP. Energia reativa
+     * excedente e ultrapassagem de demanda não são modelados aqui — Fase 20.
      *
      * @param input - Demanda contratada e tarifa de demanda, consumo e tarifa de cada posto, tributos, bandeira vigente e CIP.
-     * @returns A decomposição completa da conta (RN15-equivalente para o Grupo A) e o total.
+     * @returns A decomposição completa da conta do Grupo A (demanda, consumo por posto, bandeira, tributos, CIP) e o total.
      */
     calculateForGroupA(input: GroupATariffInput): GroupATariffResult {
         const demandBrl = input.contractedDemandKw * input.tusdPerKw

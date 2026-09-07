@@ -98,7 +98,7 @@ describe("DemandRollupScheduler.tick", () => {
         expect(fakes.meterRepository.findManyByIdsWithTarget).not.toHaveBeenCalled()
     })
 
-    it("pula medidores do Grupo B (RN23 — só Grupo A tem demanda)", async () => {
+    it("pula medidores do Grupo B — só o Grupo A tem demanda contratada", async () => {
         const targets = new Map([
             ["meter-b", fakeTargetRow(fakeProperty({ tariffGroup: "GROUP_B" }))],
         ])

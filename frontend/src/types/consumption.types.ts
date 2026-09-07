@@ -40,12 +40,35 @@ export const DETAILS_GRANULARITIES: readonly Granularity[] = ["hour", "day"]
 /** Granularidades disponíveis na página /relatorios — os 4 níveis. */
 export const REPORT_GRANULARITIES: readonly Granularity[] = ["hour", "day", "month", "year"]
 
+/** Posto tarifário (Grupo A) — janela de ponta configurável por distribuidora. */
+export type TariffPost = "PEAK" | "OFF_PEAK"
+
+export const TARIFF_POST_LABELS: Record<TariffPost, string> = {
+    PEAK: "Ponta",
+    OFF_PEAK: "Fora de ponta",
+}
+
+/**
+ * Decomposição da conta binômia do Grupo A — presente só no bucket
+ * mensal de uma Propriedade do Grupo A; ausente para Grupo B e para
+ * qualquer outro alvo/granularidade.
+ */
+export interface GroupABreakdown {
+    contractedDemandKw: number
+    demandBrl: number
+    energyByPost: { post: TariffPost; kwhConsumed: number; brl: number }[]
+    flagBrl: number
+    taxesBrl: number
+    publicLightingFeeBrl: number
+}
+
 /** Um bucket agregado de consumo — item de `GET /api/consumption`. */
 export interface ConsumptionBucket {
     bucketStart: string
     kwhConsumed: number
     costBrl: number
     avgPowerW: number
+    groupA?: GroupABreakdown
 }
 
 /** Query params de `GET /api/consumption`. */

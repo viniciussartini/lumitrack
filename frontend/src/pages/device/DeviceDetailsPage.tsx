@@ -142,6 +142,7 @@ export const DeviceDetailsPage = () => {
                 propertyId={propertyId!}
                 areaId={areaId!}
                 deviceId={deviceId!}
+                tariffGroup={property?.tariffGroup}
             />
         </div>
     )

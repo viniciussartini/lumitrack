@@ -224,7 +224,7 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
 ### Postos tarifários e calendário
 
 - RN24 `[implementado]`: o consumo é classificado em **ponta e fora de ponta** conforme o horário (intermediário é particularidade da Tarifa Branca — Fase 22, fora do Grupo A). A janela de ponta é configurável **por distribuidora** — tipicamente 18h–21h, mas varia por local e estado; um valor fixo no código estaria errado para parte do catálogo.
-- RN25 `[planejado — Fase 19]`: **fim de semana e feriado contam integralmente como fora de ponta.** O calendário inclui os feriados móveis derivados da Páscoa (Carnaval, Sexta-Feira Santa, Corpus Christi) — é cálculo, não lista fixa: uma lista fixa funciona por um ano e silenciosamente cobra ponta num feriado no ano seguinte.
+- RN25 `[implementado]`: **fim de semana e feriado contam integralmente como fora de ponta.** O calendário inclui os feriados móveis derivados da Páscoa (Carnaval, Sexta-Feira Santa, Corpus Christi) — é cálculo, não lista fixa: uma lista fixa funciona por um ano e silenciosamente cobra ponta num feriado no ano seguinte.
 - RN26 `[implementado]`: o Brasil não tem horário de verão desde 2019 — premissa registrada, a revisar se voltar a existir.
 - RN27 `[planejado — Fase 22]`: na Tarifa Branca, o **custo de disponibilidade é calculado com a tarifa Convencional**, não com as horárias (REN 1.098/2024) — armadilha que uma implementação ingênua erra.
 - RN28 `[planejado — Fase 22]`: a Tarifa Branca é **vedada** a B4, à baixa renda e a quem recebe outros descontos; é voluntária para B1 e B3.

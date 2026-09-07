@@ -246,13 +246,13 @@ export class ConsumptionRepository {
     }
 
     /**
-     * Consumo agregado por posto tarifário (RN24/RN25) — fundação da
-     * tarifação binômia do Grupo A (RN17: soma o consumo de cada posto pela
-     * tarifa daquele posto). Classificação inteira em SQL (fim de semana,
-     * feriado e janela de ponta), nunca em JS: `meter_readings` é a maior
-     * tabela do sistema, e puxar linha por linha para classificar no
-     * Node inflaria exatamente a consulta que o laudo de desempenho já
-     * identifica como a mais cara do produto.
+     * Consumo agregado por posto tarifário — fundação da tarifação binômia
+     * do Grupo A, que soma o consumo de cada posto pela tarifa daquele
+     * posto. Classificação inteira em SQL (fim de semana, feriado e janela
+     * de ponta), nunca em JS: `meter_readings` é a maior tabela do sistema,
+     * e puxar linha por linha para classificar no Node inflaria exatamente
+     * a consulta que o laudo de desempenho já identifica como a mais cara
+     * do produto.
      *
      * `holidayDates` é calculado fora daqui (`shared/time/holidays.ts`) —
      * datas móveis (Carnaval, Sexta-Feira Santa, Corpus Christi) são cálculo,
@@ -261,8 +261,8 @@ export class ConsumptionRepository {
      * @param meterId - Id do medidor.
      * @param from - Início da janela (inclusive).
      * @param to - Fim da janela (exclusive).
-     * @param peakWindow - Janela de ponta da distribuidora (RN24).
-     * @param holidayDates - Feriados nacionais que caem dentro da janela (RN25).
+     * @param peakWindow - Janela de ponta da distribuidora.
+     * @param holidayDates - Feriados nacionais que caem dentro da janela.
      * @returns O consumo (kWh) somado por posto — só os postos com alguma leitura aparecem.
      */
     async findKwhByPost(
