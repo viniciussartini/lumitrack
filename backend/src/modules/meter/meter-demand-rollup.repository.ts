@@ -82,4 +82,33 @@ export class MeterDemandRollupRepository {
             windowEndAt: r.windowEndAt,
         }))
     }
+
+    /**
+     * Mesma leitura que {@link findByMeterAndPeriod}, em lote para vários
+     * meses de uma vez — evita 1 consulta por mês ao calcular ultrapassagem
+     * de um intervalo (`granularity=year`), mesmo cuidado de N+1 já aplicado
+     * a `ConsumptionRepository.findKwhByPostGroupedByMonth`.
+     *
+     * @param meterId - Id do medidor.
+     * @param periodStarts - Início de cada mês (hora local) a consultar.
+     * @returns As linhas de demanda de todos os períodos pedidos, sem agrupar.
+     */
+    async findByMeterAndPeriods(
+        meterId: string,
+        periodStarts: Date[],
+    ): Promise<MeterDemandRollupResponse[]> {
+        if (periodStarts.length === 0) return []
+
+        const rows = await this.prisma.meterDemandRollup.findMany({
+            where: { meterId, periodStart: { in: periodStarts } },
+        })
+
+        return rows.map((r) => ({
+            meterId: r.meterId,
+            periodStart: r.periodStart,
+            post: r.post,
+            maxAvgPowerW: r.maxAvgPowerW,
+            windowEndAt: r.windowEndAt,
+        }))
+    }
 }

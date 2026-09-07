@@ -165,8 +165,9 @@ describe("TariffService", () => {
         // matematicamente correto.
         it("reproduz o Exemplo 6 do documento de referência (A4 Verde)", () => {
             const result = service.calculateForGroupA({
-                contractedDemandKw: 200,
-                tusdPerKw: 18.0,
+                demandPosts: [
+                    { post: null, contractedDemandKw: 200, measuredDemandKw: 195, tusdPerKw: 18.0 },
+                ],
                 energyByPost: [
                     { post: "PEAK", kwhConsumed: 800, tusdPerKwh: 0.75, tePerKwh: 0.55 },
                     { post: "OFF_PEAK", kwhConsumed: 28_000, tusdPerKwh: 0.12, tePerKwh: 0.28 },
@@ -187,8 +188,9 @@ describe("TariffService", () => {
 
         it("bandeira incide só sobre o consumo total, nunca sobre a demanda", () => {
             const withZeroConsumption = service.calculateForGroupA({
-                contractedDemandKw: 100,
-                tusdPerKw: 18.0,
+                demandPosts: [
+                    { post: null, contractedDemandKw: 100, measuredDemandKw: 90, tusdPerKw: 18.0 },
+                ],
                 energyByPost: [
                     { post: "OFF_PEAK", kwhConsumed: 0, tusdPerKwh: 0.12, tePerKwh: 0.28 },
                 ],
@@ -205,8 +207,9 @@ describe("TariffService", () => {
 
         it("CIP nulo vira zero, sem quebrar o total", () => {
             const result = service.calculateForGroupA({
-                contractedDemandKw: 50,
-                tusdPerKw: 18.0,
+                demandPosts: [
+                    { post: null, contractedDemandKw: 50, measuredDemandKw: 40, tusdPerKw: 18.0 },
+                ],
                 energyByPost: [
                     { post: "OFF_PEAK", kwhConsumed: 1000, tusdPerKwh: 0.4, tePerKwh: 0 },
                 ],
@@ -218,6 +221,106 @@ describe("TariffService", () => {
             })
 
             expect(result.publicLightingFeeBrl).toBe(0)
+        })
+    })
+
+    describe("calculateForGroupA — ultrapassagem de demanda (RN20)", () => {
+        const baseInput = {
+            energyByPost: [
+                { post: "OFF_PEAK" as const, kwhConsumed: 0, tusdPerKwh: 0, tePerKwh: 0 },
+            ],
+            icmsRate: 0.18,
+            pisRate: 0.0165,
+            cofinsRate: 0.076,
+            flagPer100Kwh: 0,
+            publicLightingFeeBrl: null,
+        }
+
+        it("não cobra ultrapassagem quando a demanda medida fica dentro da tolerância de 5%", () => {
+            const result = service.calculateForGroupA({
+                ...baseInput,
+                demandPosts: [
+                    // 5% de 200 = 210 — exatamente no limite, não deve ultrapassar.
+                    { post: null, contractedDemandKw: 200, measuredDemandKw: 210, tusdPerKw: 18.0 },
+                ],
+            })
+
+            expect(result.ultrapassagemBrl).toBe(0)
+            expect(result.demandByPost[0]?.ultrapassagemBrl).toBe(0)
+        })
+
+        it("cobra ultrapassagem ao triplo da tarifa assim que passa de 5% acima da contratada", () => {
+            const result = service.calculateForGroupA({
+                ...baseInput,
+                demandPosts: [
+                    // 5% de 200 = 210 — 211 já ultrapassa.
+                    { post: null, contractedDemandKw: 200, measuredDemandKw: 211, tusdPerKw: 18.0 },
+                ],
+            })
+
+            // (211 - 200) × 3 × 18 = 594
+            expect(result.ultrapassagemBrl).toBeCloseTo(594, 2)
+            expect(result.demandByPost[0]?.ultrapassagemBrl).toBeCloseTo(594, 2)
+        })
+
+        it("reproduz o exemplo do documento de referência (metalúrgica A4 Verde, 230 kW medidos)", () => {
+            const result = service.calculateForGroupA({
+                ...baseInput,
+                demandPosts: [
+                    { post: null, contractedDemandKw: 200, measuredDemandKw: 230, tusdPerKw: 18.0 },
+                ],
+            })
+
+            // Ultrapassagem = (230 − 200) × 3 × 18,00 = R$ 1.620,00, antes dos tributos.
+            expect(result.ultrapassagemBrl).toBeCloseTo(1620, 2)
+        })
+
+        it("soma a ultrapassagem de cada posto quando mais de um ultrapassa simultaneamente (Azul)", () => {
+            const result = service.calculateForGroupA({
+                ...baseInput,
+                demandPosts: [
+                    // (160 − 150) × 3 × 45 = 1.350
+                    {
+                        post: "PEAK",
+                        contractedDemandKw: 150,
+                        measuredDemandKw: 160,
+                        tusdPerKw: 45.0,
+                    },
+                    // (430 − 400) × 3 × 15 = 1.350
+                    {
+                        post: "OFF_PEAK",
+                        contractedDemandKw: 400,
+                        measuredDemandKw: 430,
+                        tusdPerKw: 15.0,
+                    },
+                ],
+            })
+
+            expect(result.demandByPost).toHaveLength(2)
+            expect(result.demandByPost[0]?.ultrapassagemBrl).toBeCloseTo(1350, 2)
+            expect(result.demandByPost[1]?.ultrapassagemBrl).toBeCloseTo(1350, 2)
+            expect(result.ultrapassagemBrl).toBeCloseTo(2700, 2)
+        })
+
+        it("entra em baseSemTributos antes dos tributos (RN17) — não é somada depois", () => {
+            const withoutOverage = service.calculateForGroupA({
+                ...baseInput,
+                demandPosts: [
+                    { post: null, contractedDemandKw: 200, measuredDemandKw: 200, tusdPerKw: 18.0 },
+                ],
+            })
+            const withOverage = service.calculateForGroupA({
+                ...baseInput,
+                demandPosts: [
+                    { post: null, contractedDemandKw: 200, measuredDemandKw: 230, tusdPerKw: 18.0 },
+                ],
+            })
+
+            // Diferença no total deve refletir a ultrapassagem já "por dentro"
+            // dos tributos (dividida por 1 − alíquotas), não somada crua.
+            const taxRateSum = 0.18 + 0.0165 + 0.076
+            const expectedDelta = 1620 / (1 - taxRateSum)
+            expect(withOverage.totalBrl - withoutOverage.totalBrl).toBeCloseTo(expectedDelta, 2)
         })
     })
 })

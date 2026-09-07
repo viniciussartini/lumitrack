@@ -86,16 +86,7 @@ export class PropertyService {
         }
     }
 
-    // Regra cruzada por grupo tarifário (ADR-0019): Grupo A exige
-    // subgrupo+modalidade+demanda contratada e não aceita classe de
-    // faturamento Grupo B; Grupo B exige classe de faturamento (default B1,
-    // preservando o comportamento anterior à Fase 19) e não aceita
-    // subgrupo/modalidade/demanda do Grupo A. O schema sozinho (campos
-    // individualmente opcionais) não expressa essa obrigatoriedade
-    // condicional — mesmo padrão de validação cruzada em serviço já usado
-    // para a posse exclusiva do Medidor (`meter.service.ts`), não no schema.
-    private resolveTariffGroupFields(fields: {
-        tariffGroup: "GROUP_A" | "GROUP_B"
+    private resolveGroupAFields(fields: {
         billingClass: BillingClass | undefined
         tariffSubgroup: TariffSubgroup | undefined
         tariffModality: TariffModality | undefined
@@ -103,34 +94,41 @@ export class PropertyService {
         contractedDemandPeakKw: number | undefined
         contractedDemandOffPeakKw: number | undefined
     }): ResolvedTariffGroupFields {
-        if (fields.tariffGroup === "GROUP_A") {
-            if (!fields.tariffSubgroup) {
-                throw new ValidationError("Subgrupo é obrigatório para propriedades do Grupo A")
-            }
-            if (!fields.tariffModality) {
-                throw new ValidationError(
-                    "Modalidade tarifária é obrigatória para propriedades do Grupo A",
-                )
-            }
-            if (fields.billingClass) {
-                throw new ValidationError(
-                    "Classe de faturamento não se aplica a propriedades do Grupo A",
-                )
-            }
-            const contractedDemandFields = this.resolveContractedDemandFields({
-                tariffModality: fields.tariffModality,
-                contractedDemandKw: fields.contractedDemandKw,
-                contractedDemandPeakKw: fields.contractedDemandPeakKw,
-                contractedDemandOffPeakKw: fields.contractedDemandOffPeakKw,
-            })
-            return {
-                billingClass: null,
-                tariffSubgroup: fields.tariffSubgroup,
-                tariffModality: fields.tariffModality,
-                ...contractedDemandFields,
-            }
+        if (!fields.tariffSubgroup) {
+            throw new ValidationError("Subgrupo é obrigatório para propriedades do Grupo A")
         }
+        if (!fields.tariffModality) {
+            throw new ValidationError(
+                "Modalidade tarifária é obrigatória para propriedades do Grupo A",
+            )
+        }
+        if (fields.billingClass) {
+            throw new ValidationError(
+                "Classe de faturamento não se aplica a propriedades do Grupo A",
+            )
+        }
+        const contractedDemandFields = this.resolveContractedDemandFields({
+            tariffModality: fields.tariffModality,
+            contractedDemandKw: fields.contractedDemandKw,
+            contractedDemandPeakKw: fields.contractedDemandPeakKw,
+            contractedDemandOffPeakKw: fields.contractedDemandOffPeakKw,
+        })
+        return {
+            billingClass: null,
+            tariffSubgroup: fields.tariffSubgroup,
+            tariffModality: fields.tariffModality,
+            ...contractedDemandFields,
+        }
+    }
 
+    private resolveGroupBFields(fields: {
+        billingClass: BillingClass | undefined
+        tariffSubgroup: TariffSubgroup | undefined
+        tariffModality: TariffModality | undefined
+        contractedDemandKw: number | undefined
+        contractedDemandPeakKw: number | undefined
+        contractedDemandOffPeakKw: number | undefined
+    }): ResolvedTariffGroupFields {
         if (fields.tariffSubgroup) {
             throw new ValidationError("Subgrupo só se aplica a propriedades do Grupo A")
         }
@@ -156,6 +154,28 @@ export class PropertyService {
             contractedDemandPeakKw: null,
             contractedDemandOffPeakKw: null,
         }
+    }
+
+    // Regra cruzada por grupo tarifário (ADR-0019): Grupo A exige
+    // subgrupo+modalidade+demanda contratada e não aceita classe de
+    // faturamento Grupo B; Grupo B exige classe de faturamento (default B1,
+    // preservando o comportamento anterior à Fase 19) e não aceita
+    // subgrupo/modalidade/demanda do Grupo A. O schema sozinho (campos
+    // individualmente opcionais) não expressa essa obrigatoriedade
+    // condicional — mesmo padrão de validação cruzada em serviço já usado
+    // para a posse exclusiva do Medidor (`meter.service.ts`), não no schema.
+    private resolveTariffGroupFields(fields: {
+        tariffGroup: "GROUP_A" | "GROUP_B"
+        billingClass: BillingClass | undefined
+        tariffSubgroup: TariffSubgroup | undefined
+        tariffModality: TariffModality | undefined
+        contractedDemandKw: number | undefined
+        contractedDemandPeakKw: number | undefined
+        contractedDemandOffPeakKw: number | undefined
+    }): ResolvedTariffGroupFields {
+        return fields.tariffGroup === "GROUP_A"
+            ? this.resolveGroupAFields(fields)
+            : this.resolveGroupBFields(fields)
     }
 
     /**

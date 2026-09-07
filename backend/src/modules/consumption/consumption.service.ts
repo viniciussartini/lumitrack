@@ -27,6 +27,10 @@ import type {
     TariffEnergyRateResponse,
     TariffSingleDemandRateResponse,
 } from "@/modules/distributor/tariff-catalog.repository.js"
+import type {
+    MeterDemandRollupRepository,
+    MeterDemandRollupResponse,
+} from "@/modules/meter/meter-demand-rollup.repository.js"
 import { TariffService } from "@/shared/tariff/tariff.service.js"
 import type { PeakWindowConfig } from "@/shared/tariff/tariffPost.js"
 import { getNationalHolidaysInRange } from "@/shared/time/holidays.js"
@@ -47,6 +51,7 @@ const log = logger.child({ module: "ConsumptionService" })
 export type GroupABreakdown = {
     contractedDemandKw: number
     demandBrl: number
+    ultrapassagemBrl: number
     energyByPost: { post: TariffPost; kwhConsumed: number; brl: number }[]
     flagBrl: number
     taxesBrl: number
@@ -98,6 +103,7 @@ export class ConsumptionService {
      * @param distributorRepository - Resolve a distribuidora vinculada à propriedade, com suas tarifas.
      * @param tariffFlagRepository - Resolve a configuração vigente da bandeira tarifária.
      * @param tariffCatalogRepository - Resolve o catálogo de tarifas de energia/demanda do Grupo A.
+     * @param meterDemandRollupRepository - Resolve a demanda medida por posto (RN19), usada para apurar ultrapassagem (RN20).
      * @param tariffService - Calcula o custo em reais a partir do consumo em kWh.
      */
     constructor(
@@ -109,6 +115,7 @@ export class ConsumptionService {
         private readonly distributorRepository: DistributorRepository,
         private readonly tariffFlagRepository: TariffFlagRepository,
         private readonly tariffCatalogRepository: TariffCatalogRepository,
+        private readonly meterDemandRollupRepository: MeterDemandRollupRepository,
         private readonly tariffService: TariffService = new TariffService(),
     ) {}
 
@@ -565,12 +572,24 @@ export class ConsumptionService {
         }
     }
 
+    // Maior potência média (W) entre os postos do mês, convertida para kW —
+    // RN19 já apura o máximo por posto; a demanda medida da Verde (1 só
+    // demanda contratada, sem distinção de posto) é o maior valor entre eles,
+    // não a soma. Mês sem nenhuma janela completa observada (medidor sem
+    // leitura suficiente) mede 0 kW — nunca gera ultrapassagem por ausência
+    // de dado, mesmo cuidado de RN19 contra janela incompleta.
+    private measuredDemandKwForMonth(rows: MeterDemandRollupResponse[]): number {
+        if (rows.length === 0) return 0
+        return Math.max(...rows.map((r) => r.maxAvgPowerW)) / 1000
+    }
+
     // Custo de 1 mês do Grupo A a partir do catálogo/consumo já resolvidos —
     // extraído do corpo de `calculateGroupAMonthlyCosts` (que resolve isso
     // em lote para vários meses) só para manter o teto de linhas/complexidade.
     private buildGroupAMonthResult(
         kwhByPostMap: Map<TariffPost, number>,
         contractedDemandKw: number,
+        measuredDemandKw: number,
         energyRates: TariffEnergyRateResponse[],
         demandRate: TariffSingleDemandRateResponse,
         distributor: DistributorResponse,
@@ -585,8 +604,14 @@ export class ConsumptionService {
         }))
 
         const result = this.tariffService.calculateForGroupA({
-            contractedDemandKw,
-            tusdPerKw: demandRate.tusdPerKw,
+            demandPosts: [
+                {
+                    post: null,
+                    contractedDemandKw,
+                    measuredDemandKw,
+                    tusdPerKw: demandRate.tusdPerKw,
+                },
+            ],
             energyByPost,
             icmsRate: distributor.icmsRate,
             pisRate: distributor.pisRate,
@@ -600,6 +625,7 @@ export class ConsumptionService {
             groupA: {
                 contractedDemandKw,
                 demandBrl: result.demandBrl,
+                ultrapassagemBrl: result.ultrapassagemBrl,
                 energyByPost: result.energyByPost,
                 flagBrl: result.flagBrl,
                 taxesBrl: result.taxesBrl,
@@ -638,7 +664,13 @@ export class ConsumptionService {
         const to = fromSaoPauloLocal(maxMonthEnd)
         const holidays = getNationalHolidaysInRange(from, to)
 
-        const [kwhByPostByMonth, energyRates, demandRate] = await Promise.all([
+        // MeterDemandRollup.periodStart é o instante UTC real do início do
+        // mês local (mesma conversão que DemandRollupScheduler usa para
+        // escrever), não o valor "rotulado como UTC" de `monthStarts" — daí
+        // o `fromSaoPauloLocal` por mês, igual ao par `from`/`to` acima.
+        const periodStarts = monthStarts.map((d) => fromSaoPauloLocal(d))
+
+        const [kwhByPostByMonth, energyRates, demandRate, demandRollups] = await Promise.all([
             this.consumptionRepository.findKwhByPostGroupedByMonth(
                 meterId,
                 from,
@@ -652,6 +684,7 @@ export class ConsumptionService {
                 tariffSubgroup,
                 "GREEN",
             ),
+            this.meterDemandRollupRepository.findByMeterAndPeriods(meterId, periodStarts),
         ])
 
         if (energyRates.length === 0 || !demandRate) {
@@ -667,13 +700,23 @@ export class ConsumptionService {
             kwhByPostByMonthKey.set(row.monthBucket.getTime(), postMap)
         }
 
+        const demandRollupsByPeriodMs = new Map<number, MeterDemandRollupResponse[]>()
+        for (const row of demandRollups) {
+            const rows = demandRollupsByPeriodMs.get(row.periodStart.getTime()) ?? []
+            rows.push(row)
+            demandRollupsByPeriodMs.set(row.periodStart.getTime(), rows)
+        }
+
         for (const monthStart of monthStarts) {
             const kwhByPostMap = kwhByPostByMonthKey.get(monthStart.getTime()) ?? new Map()
+            const rowsForMonth =
+                demandRollupsByPeriodMs.get(fromSaoPauloLocal(monthStart).getTime()) ?? []
             resultByMonthMs.set(
                 monthStart.getTime(),
                 this.buildGroupAMonthResult(
                     kwhByPostMap,
                     contractedDemandKw,
+                    this.measuredDemandKwForMonth(rowsForMonth),
                     energyRates,
                     demandRate,
                     distributor,

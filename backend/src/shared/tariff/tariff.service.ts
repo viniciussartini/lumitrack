@@ -51,9 +51,27 @@ export type GroupAEnergyPostInput = {
     tePerKwh: number
 }
 
-export type GroupATariffInput = {
+// Uma demanda contratada do Grupo A, com a demanda medida do mesmo posto já
+// resolvida (MeterDemandRollup) para apurar ultrapassagem (RN20). `post` é
+// `null` para demanda única (Verde, Convencional Binômia — 1 entrada só);
+// Azul passa 2 entradas, uma por posto (PEAK/OFF_PEAK).
+export type GroupADemandPostInput = {
+    post: TariffPost | null
     contractedDemandKw: number
+    measuredDemandKw: number
     tusdPerKw: number
+}
+
+export type GroupADemandPostResult = {
+    post: TariffPost | null
+    contractedDemandKw: number
+    measuredDemandKw: number
+    demandBrl: number
+    ultrapassagemBrl: number
+}
+
+export type GroupATariffInput = {
+    demandPosts: GroupADemandPostInput[]
     energyByPost: GroupAEnergyPostInput[]
     icmsRate: number
     pisRate: number
@@ -63,7 +81,9 @@ export type GroupATariffInput = {
 }
 
 export type GroupATariffResult = {
-    demandBrl: number // demanda contratada × TUSD demanda (Horária Verde: 1 demanda única)
+    demandByPost: GroupADemandPostResult[]
+    demandBrl: number // soma dos postos — demanda contratada × TUSD demanda
+    ultrapassagemBrl: number // soma dos postos — RN20, entra antes dos tributos
     energyByPost: { post: TariffPost; kwhConsumed: number; brl: number }[]
     energyBrl: number // soma dos postos, sem tributos
     flagBrl: number
@@ -71,6 +91,12 @@ export type GroupATariffResult = {
     publicLightingFeeBrl: number
     totalBrl: number
 }
+
+// RN20: acima de 5% de tolerância, o excedente é cobrado ao triplo da
+// tarifa de demanda — mesma tarifa usada na parcela contratada, não uma
+// tarifa própria de penalidade.
+const DEMAND_OVERAGE_TOLERANCE = 1.05
+const DEMAND_OVERAGE_MULTIPLIER = 3
 
 export class TariffService {
     // Cálculo "por dentro": os tributos incidem sobre o próprio preço final,
@@ -119,17 +145,45 @@ export class TariffService {
         return { energyBrl, flagBrl, taxesBrl, totalWithTaxes }
     }
 
+    // Uma entrada de demanda: a parcela contratada (sempre cobrada) e a
+    // ultrapassagem (RN20, só acima de 5% da contratada, ao triplo da
+    // tarifa). Extraído para que `calculateForGroupA` some a lista em vez de
+    // repetir a fórmula por entrada.
+    private calculateDemandPost(input: GroupADemandPostInput): GroupADemandPostResult {
+        const demandBrl = input.contractedDemandKw * input.tusdPerKw
+
+        const exceedsThreshold =
+            input.measuredDemandKw > DEMAND_OVERAGE_TOLERANCE * input.contractedDemandKw
+        const ultrapassagemBrl = exceedsThreshold
+            ? (input.measuredDemandKw - input.contractedDemandKw) *
+              DEMAND_OVERAGE_MULTIPLIER *
+              input.tusdPerKw
+            : 0
+
+        return {
+            post: input.post,
+            contractedDemandKw: input.contractedDemandKw,
+            measuredDemandKw: input.measuredDemandKw,
+            demandBrl,
+            ultrapassagemBrl,
+        }
+    }
+
     /**
-     * Conta binômia do Grupo A, modalidade Horária Verde:
-     * demanda contratada + consumo por posto + bandeira (só sobre o consumo,
-     * nunca sobre a demanda) + tributos por dentro + CIP. Energia reativa
-     * excedente e ultrapassagem de demanda não são modelados aqui — Fase 20.
+     * Conta binômia do Grupo A: demanda(s) contratada(s) + ultrapassagem
+     * (RN20, quando a demanda medida excede em mais de 5% a contratada) +
+     * consumo por posto + bandeira (só sobre o consumo, nunca sobre a
+     * demanda) + tributos por dentro + CIP. `demandPosts` tem 1 entrada na
+     * Horária Verde/Convencional Binômia e 2 na Azul (Fase 20). Energia
+     * reativa excedente não é modelada aqui.
      *
-     * @param input - Demanda contratada e tarifa de demanda, consumo e tarifa de cada posto, tributos, bandeira vigente e CIP.
-     * @returns A decomposição completa da conta do Grupo A (demanda, consumo por posto, bandeira, tributos, CIP) e o total.
+     * @param input - Demanda(s) contratada(s)/medida(s) e tarifa de demanda por posto, consumo e tarifa de cada posto de energia, tributos, bandeira vigente e CIP.
+     * @returns A decomposição completa da conta do Grupo A (demanda, ultrapassagem, consumo por posto, bandeira, tributos, CIP) e o total.
      */
     calculateForGroupA(input: GroupATariffInput): GroupATariffResult {
-        const demandBrl = input.contractedDemandKw * input.tusdPerKw
+        const demandByPost = input.demandPosts.map((p) => this.calculateDemandPost(p))
+        const demandBrl = demandByPost.reduce((sum, p) => sum + p.demandBrl, 0)
+        const ultrapassagemBrl = demandByPost.reduce((sum, p) => sum + p.ultrapassagemBrl, 0)
 
         const energyByPost = input.energyByPost.map((p) => ({
             post: p.post,
@@ -141,7 +195,7 @@ export class TariffService {
         const totalKwhConsumed = input.energyByPost.reduce((sum, p) => sum + p.kwhConsumed, 0)
         const flagBrl = totalKwhConsumed * (input.flagPer100Kwh / 100)
 
-        const totalBeforeTaxes = demandBrl + energyBrl + flagBrl
+        const totalBeforeTaxes = demandBrl + ultrapassagemBrl + energyBrl + flagBrl
         const { taxesBrl, totalWithTaxes } = this.applyTaxesByDentro(
             totalBeforeTaxes,
             input.icmsRate,
@@ -152,7 +206,9 @@ export class TariffService {
         const publicLightingFeeBrl = input.publicLightingFeeBrl ?? 0
 
         return {
+            demandByPost,
             demandBrl,
+            ultrapassagemBrl,
             energyByPost,
             energyBrl,
             flagBrl,

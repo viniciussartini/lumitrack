@@ -62,7 +62,7 @@
 - RF28 `[implementado]`: o sistema deve apurar a demanda medida (kW) por posto a partir das próprias leituras do medidor, sem exigir que o usuário informe qualquer valor.
 - RF29 `[implementado]`: o sistema deve calcular a conta binômia da modalidade Horária Verde, devolvendo a decomposição separada de demanda, consumo por posto, bandeira, tributos e CIP.
 - RF30 `[planejado — Fase 20]`: o sistema deve suportar a modalidade Horária Azul, com duas demandas contratadas (ponta e fora de ponta) e quatro tarifas distintas.
-- RF31 `[planejado — Fase 20]`: o sistema deve calcular a ultrapassagem de demanda e permitir que um usuário do Grupo A configure alerta de ultrapassagem da demanda contratada. *(Substitui o item anteriormente registrado sem número como "RFXX".)*
+- RF31 `[implementado — cálculo; alerta de configuração planejado — Fase 20]`: o sistema deve calcular a ultrapassagem de demanda e permitir que um usuário do Grupo A configure alerta de ultrapassagem da demanda contratada. *(Substitui o item anteriormente registrado sem número como "RFXX".)*
 - RF32 `[planejado — Fase 20]`: o sistema deve calcular a energia reativa excedente quando o fator de potência ficar abaixo do mínimo regulatório.
 - RF33 `[planejado — Fase 21]`: o sistema deve distinguir o ambiente de contratação da Propriedade (ACR cativo × ACL livre) e registrar o contrato de energia do ACL — comercializadora, volume contratado, submercado, fonte e vigência.
 - RF34 `[planejado — Fase 21]`: o sistema deve permitir registrar e consultar o PLD (Preço de Liquidação das Diferenças) por submercado, usado na análise econômica do mercado livre.
@@ -184,7 +184,7 @@ Fórmulas conferidas contra `backend/src/shared/tariff/tariff.service.ts`, não 
 
 Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exemplo 6 (A4 Verde, R$ 22.464,75) e Exemplo 7 (A4 Azul com ERE, R$ 101.496,36).
 
-- RN17 `[implementado — Verde; ERE/ultrapassagem planejados — Fase 20]`: **conta binômia** — demanda e consumo são cobrados separadamente, e os tributos incidem por dentro sobre o conjunto:
+- RN17 `[implementado — Verde, com ultrapassagem; ERE planejada — Fase 20]`: **conta binômia** — demanda e consumo são cobrados separadamente, e os tributos incidem por dentro sobre o conjunto:
 
   ```text
   parcelaConsumo = Σ_posto (consumoPosto × (TUSDenergiaPosto + TEenergiaPosto))
@@ -208,7 +208,7 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
 
   Janela incompleta (medidor offline em parte do intervalo) não pode ser tratada como janela cheia: uma janela de 3 minutos virando "demanda" infla a conta.
 
-- RN20 `[planejado — Fase 20]`: **ultrapassagem de demanda** só existe acima da tolerância de 5%, é cobrada ao triplo e entra **antes** dos tributos:
+- RN20 `[implementado]`: **ultrapassagem de demanda** só existe acima da tolerância de 5%, é cobrada ao triplo e entra **antes** dos tributos (validado no `tariff.service.ts` e no `consumption.service.ts`, que resolve a demanda medida via `MeterDemandRollupRepository`):
 
   ```text
   se demandaMedida > 1,05 × demandaContratada:
