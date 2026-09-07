@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-09-06-lumitrack-completo/`.
-> Última atualização: 2026-09-07 · Fases 1–20 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, #290, #305, #322, #334, #335, #379, #386, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15), #300 (épico #290, Fase 15.5), #304 (#296–#299, Fase 15.5), #314 (épico #305: #306–#309, Fase 16), #317 (#310–#313, #168, Fase 16), #321 (#255, #257, #316, Fase 16), #333 (épico #322: #323–#328, Fase 17), #354 (épico #334: #336–#341, #353, Fase 18), #355 (épico #335: #342–#345, Fase 18), #357 (#346–#351, #318, #329, #356, #269, #272, #289, #303, Fase 18), #385 (épico #379: #380–#384, Fase 19). Dos itens fora do escopo declarado da Fase 18, quatro acabaram fechados dentro dela mesma (#269, #272, #289, #303); #302 foi fechada como adiada (destino já previsto pela ADR-0014); só #315 (fator de escala Modbus/Profinet) segue genuinamente em aberto. **A Fase 19 fechou em `staging` (PR #385, 2026-09-07); o épico #379 segue formalmente *open* no GitHub até a próxima promoção `staging → main`, convenção já observada nas fases anteriores.** **A Fase 20 fechou na mesma sessão de implementação (2026-09-07), sem PR próprio ainda** — épico #386 (issues #387–#391) mais as duas issues avulsas #392 (alerta de ultrapassagem, implementado) e #393 (Convencional Binômia, decisão de escopo: adiada — ver item da fase). Fase atual: **21** (Mercado Livre de Energia — ACL) — já tem o épico #394 e as sub-issues #395–#400 criadas no GitHub (detalhamento antecipado de 2026-09-07), mas **esta branch não tem o commit desse detalhamento** (feito direto em `staging` enquanto esta branch já existia — ver nota de divergência na entrada de 2026-09-07 do CHANGELOG); a seção "Fases 21–22" abaixo, nesta cópia do arquivo, ainda está em nível de objetivo. Entre o fechamento da Fase 18 e o início da 19, duas correções não planejadas entraram por pedido direto do usuário, fora da estrutura de fases: PR #358 (leituras de medidor em tempo real não chegavam ao painel — SSE, credencial IoT, formulário MQTT) e PR #361 (issues #359/#360 — wordmark e seletor de janela de hora no histórico de consumo — mais os achados da própria revisão de código do PR). **Replanejamento de 2026-09-06** (ver seção própria no fim do documento): revisão completa do `02-requisitos.md` (categoria RN, status por item) a partir de um novo handoff de design (`2026-09-06-lumitrack-completo`) que substitui `Home` por `Home v2` como alvo do app logado — inseridas as **Fases 23–31**, um bloco novo de 9 fases cobrindo a navegação redesenhada (Painel · Análise · Histórico · Relatórios · Configurações), Metas, Sessões ativas, telemetria ampliada e suporte a Modbus no simulador.
+> Última atualização: 2026-09-07 · Fases 1–20 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, #290, #305, #322, #334, #335, #379, #386, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15), #300 (épico #290, Fase 15.5), #304 (#296–#299, Fase 15.5), #314 (épico #305: #306–#309, Fase 16), #317 (#310–#313, #168, Fase 16), #321 (#255, #257, #316, Fase 16), #333 (épico #322: #323–#328, Fase 17), #354 (épico #334: #336–#341, #353, Fase 18), #355 (épico #335: #342–#345, Fase 18), #357 (#346–#351, #318, #329, #356, #269, #272, #289, #303, Fase 18), #385 (épico #379: #380–#384, Fase 19). Dos itens fora do escopo declarado da Fase 18, quatro acabaram fechados dentro dela mesma (#269, #272, #289, #303); #302 foi fechada como adiada (destino já previsto pela ADR-0014); só #315 (fator de escala Modbus/Profinet) segue genuinamente em aberto. **A Fase 19 fechou em `staging` (PR #385, 2026-09-07); o épico #379 segue formalmente *open* no GitHub até a próxima promoção `staging → main`, convenção já observada nas fases anteriores.** **A Fase 20 fechou na mesma sessão de implementação (2026-09-07), sem PR próprio ainda** — épico #386 (issues #387–#391) mais as duas issues avulsas #392 (alerta de ultrapassagem, implementado) e #393 (Convencional Binômia, decisão de escopo: adiada — ver item da fase). Fase atual: **21** (Mercado Livre de Energia — ACL), detalhada em 6 itens (detalhamento antecipado de 2026-09-07, feito em `staging` enquanto esta branch já existia — reconciliado nesta branch pelo merge de `staging` que fecha a divergência antes flagrada aqui), com o épico #394 e as sub-issues #395–#400 já criadas no GitHub. Entre o fechamento da Fase 18 e o início da 19, duas correções não planejadas entraram por pedido direto do usuário, fora da estrutura de fases: PR #358 (leituras de medidor em tempo real não chegavam ao painel — SSE, credencial IoT, formulário MQTT) e PR #361 (issues #359/#360 — wordmark e seletor de janela de hora no histórico de consumo — mais os achados da própria revisão de código do PR). **Replanejamento de 2026-09-06** (ver seção própria no fim do documento): revisão completa do `02-requisitos.md` (categoria RN, status por item) a partir de um novo handoff de design (`2026-09-06-lumitrack-completo`) que substitui `Home` por `Home v2` como alvo do app logado — inseridas as **Fases 23–31**, um bloco novo de 9 fases cobrindo a navegação redesenhada (Painel · Análise · Histórico · Relatórios · Configurações), Metas, Sessões ativas, telemetria ampliada e suporte a Modbus no simulador.
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das auditorias** — as quatro de 2026-08-05 e, a partir da Fase 13.6, as quatro de 2026-08-22 (pós-deploy) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **A Fase 13.7 separa os ambientes:** VPS Hostinger (São Paulo) vira produção real (branch `main`), Render+Neon é rebaixado a staging/integração (branch `staging`) — ver **ADR-0012**. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário. **Fases 23–31 (2026-09-06) são o segundo bloco de expansão**, independente do primeiro: redesenho de navegação e features novas do handoff `Home v2` — sem mudança no modelo tarifário.
 
@@ -33,7 +33,7 @@
 | 18 | Design system, cobertura de testes e polimento | **Concluída** (épicos #334, #335, PRs #354/#355/#357) |
 | 19 | Grupo A — fundação tarifária (subgrupos, modalidades, postos, demanda) + Horária Verde | **Concluída** (épico #379: #380–#384, PR #385 → staging) |
 | 20 | Grupo A — Horária Azul, ultrapassagem de demanda e energia reativa excedente | **Concluída** (épico #386: #387–#391, issues #392, #393) |
-| **21** | **Mercado Livre de Energia (ACL)** | Planejada — fase atual, épico #394 já criado (#395–#400) |
+| **21** | **Mercado Livre de Energia (ACL)** | Planejada — fase atual, detalhada em 6 itens, épico #394 criado (#395–#400) |
 | 22 | Tarifa Branca (Grupo B) — reaproveita a fundação de postos tarifários | Planejada — objetivo abaixo |
 | 23 | Shell v2 — navegação redesenhada (Painel · Análise · Histórico · Relatórios · Configurações) | Planejada — objetivo abaixo |
 | 24 | Análise — consumo e custos (reestruturação de `/propriedades`) | Planejada — objetivo abaixo |
@@ -1941,11 +1941,77 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
 - **Risco/observações:** nenhum — a modalidade está em extinção gradual segundo o documento de referência e restrita a A3a/A4/AS com demanda < 300 kW, o que reduz a urgência.
 - **Decisão (2026-09-07, issue #393): adiada.** Justificativa: apesar de ser tarifariamente a modalidade mais simples do Grupo A (demanda única + tarifa de energia única, sem distinção ponta/fora de ponta), não é "religar infraestrutura pronta" como foi a Azul — `TariffEnergyRate.post` é `NOT NULL` (sempre `PEAK`/`OFF_PEAK`) e dar suporte à ausência de distinção horária exige tornar o campo nulável (mirror de `TariffDemandRate.post`) mais um caminho de código novo em `ConsumptionRepository`/`ConsumptionService` para somar kWh sem split de posto e aplicar tarifa única — modelagem nova, não wiring. Nenhum RF numerado do `02-requisitos.md` exige a modalidade (Verde/RF29 e Azul/RF30 cobrem os dois casos reais do produto hoje), e o documento de referência já a trata como em extinção gradual, segmento restrito e encolhendo. Sem ADR — decisão de escopo, não estrutural.
 
-## Fases 21–22 (objetivo — serão detalhadas ao chegar)
+## Fase 21 — Mercado Livre de Energia (ACL)
 
-### Fase 21 — Mercado Livre de Energia (ACL)
+**Entrega (milestone):** `Tarifação Grupo A, Mercado Livre e Tarifa Branca` (mesma das Fases 19 e 20).
 
-Abre com o **spike de validação da incidência de bandeira no ACL** (ver "Ponto de validação obrigatório" acima) e as regras de elegibilidade de migração, fechando em ADR antes de qualquer cálculo. Depois: `Property` passa a distinguir **ACR (cativo) × ACL (livre)**; contrato de energia com preço da TE negociado e vigência; cálculo ACL (TUSD da distribuidora + TE contratada, em vez da TE do catálogo); e a **comparação ACR × ACL** — "vale a pena migrar?" — que é o maior valor de produto da fase, porque responde com o consumo real do próprio usuário em vez de estimativa. Elegibilidade a registrar: A1/A2/A3 sempre; A3a/A4/AS desde jan/2024 sem restrição de demanda; pequenos consumidores e residências a partir de jan/2028 (proposta) — este último é premissa datada, revisar na chegada.
+> **Ressalva de sequenciamento (2026-09-07):** detalhada antes da conclusão da Fase 20, a pedido do usuário. O item 4 (cálculo ACL) depende de como a Fase 20 vier a estruturar ultrapassagem/ERE dentro de `calculateForGroupA` — um consumidor ACL continua pagando essas duas parcelas do lado da TUSD. Se a composição interna do `TariffService` mudar na Fase 20, este item pode precisar de ajuste antes de codar — os demais itens (1, 2, 3, 6) não têm essa dependência.
+>
+> **Lacuna de oráculo:** diferente das Fases 19/20, o documento de referência não traz nenhum exemplo numérico de ACL (sem PLD, submercado ou comparação ACR×ACL resolvidos ponta-a-ponta) — os testes desta fase não têm número externo para conferir contra, só a lógica de composição da fórmula.
+
+### Spike: incidência de bandeira no ACL + ADR
+
+- **Comportamento:** nenhum — é decisão, registrada em ADR antes de qualquer cálculo.
+- **Cobre:** pré-requisito de todo RF de cálculo desta fase.
+- **Priority:** P0 · **Size:** XS
+- **Critérios de aceite:** confirmar contra a REN vigente se a bandeira tarifária incide sobre a TUSD no Mercado Livre (o documento de referência afirma que sim, linha 335, mas isso destoa do mecanismo — a bandeira recompõe custo de compra de energia, que o consumidor ACL não tem; a TUSD é encargo de fio). ADR registrando a fonte normativa consultada e a decisão.
+- **Depende de:** —.
+- **Risco/observações:** o item existe justamente para eliminar risco antes dele se espalhar pelo cálculo — mesma disciplina de risco/incerteza primeiro já aplicada pela Fase 8 (bandeira na fonte oficial).
+
+### Modelo de dados: ambiente de contratação (ACR × ACL) e contrato de energia
+
+- **Comportamento:** o usuário marca uma propriedade Grupo A como ACL e registra o contrato de energia — comercializadora, volume contratado, submercado, fonte, vigência.
+- **Cobre:** RF33.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:**
+  - `Property` ganha `contractingEnvironment` (`ACR` default, `ACL`).
+  - Novo modelo `AclContract` (comercializadora, volume contratado em MWh, submercado — Norte/Nordeste/Sudeste-CO/Sul —, fonte, vigência `validFrom`/`validTo`).
+  - Validação de elegibilidade por subgrupo: A1/A2/A3 sempre; A3a/A4/AS sem restrição de demanda desde jan/2024. A regra "residencial a partir de 2028" é proposta, não vigente — não implementar ainda.
+  - Sem ADR nova — mudança aditiva, mesmo padrão da Fase 19/20.
+- **Depende de:** —.
+- **Risco/observações:** baixo — mesmo padrão aditivo já usado nas duas fases anteriores.
+
+### PLD por submercado — catálogo e consulta
+
+- **Comportamento:** o sistema registra e consulta o PLD (Preço de Liquidação das Diferenças) por submercado e período, usado como contexto na comparação da fase.
+- **Cobre:** RF34.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** novo modelo `PldQuote` (submercado, período de referência, valor R$/MWh); rota de consulta; sem ingestão automática da CCEE nesta fase — carga manual/seed, mesmo padrão do catálogo tarifário de Grupo A.
+- **Depende de:** —.
+- **Risco/observações:** baixo — tabela de apoio, sem lógica de cálculo acoplada.
+
+### Cálculo binômio ACL (TUSD da distribuidora + TE contratada)
+
+- **Comportamento:** uma propriedade Grupo A em ACL tem a conta calculada com a TUSD do catálogo regulado e a TE do contrato negociado, em vez da TE do catálogo.
+- **Cobre:** RF novo a registrar no `02` (RN a numerar, resultado do spike).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Extensão de `calculateForGroupA` substitui `tePerKwh` do catálogo pelo valor negociado do `AclContract` — TE única para o contrato, não diferenciada por posto (simplificação a registrar como corte de escopo, não RN).
+  - Bandeira aplicada conforme a decisão do spike.
+  - Reaproveita ultrapassagem/ERE da Fase 20 sem duplicar `applyTaxesByDentro`.
+  - **Sem oráculo externo** — teste construído a partir da fórmula documentada, não de um exemplo numérico de terceiros (diferente das Fases 19/20); revisão cuidadosa da fórmula é o único controle de qualidade disponível aqui.
+- **Depende de:** spike de bandeira; modelo de dados — e da forma final que a Fase 20 (`calculateForGroupA`) assumir para ultrapassagem/ERE.
+- **Risco/observações:** médio-alto — herda tanto o risco de especificação (sem oráculo) quanto o risco de integração com uma fase que ainda não fechou.
+
+### Comparação ACR × ACL — "vale a pena migrar?"
+
+- **Comportamento:** o usuário compara o custo real do próprio consumo no mercado cativo (ACR, cálculo já existente) contra o mercado livre (ACL), respondendo se migrar compensa.
+- **Cobre:** RF35 — o maior valor de produto da fase, porque responde com o consumo real do próprio usuário em vez de estimativa.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:** usa o consumo real medido do usuário (não estimativa) nos dois cálculos; resultado mostra a diferença e o veredito; considera o PLD como contexto informativo da análise, não como insumo direto da fórmula de custo.
+- **Depende de:** modelo de dados; PLD; cálculo ACL.
+- **Risco/observações:** médio — depende inteiramente do item de cálculo estar correto; sem oráculo externo, a revisão da fórmula é o único controle de qualidade disponível.
+
+### UI: contrato ACL e comparação ACR × ACL
+
+- **Comportamento:** o usuário cadastra o contrato ACL (comercializadora, volume, submercado, PLD) e vê a comparação de custo.
+- **Cobre:** os RFs desta fase, na camada de apresentação.
+- **Priority:** P1 · **Size:** L
+- **Critérios de aceite:** handoff disponível — `10-design-system.md` confirma que a v2 cobre "contrato ACL — comercializadora, volume contratado, submercado, PLD"; a tela de comparação não tem mockup específico registrado, cai na regra de ausência do `10`.
+- **Depende de:** os quatro itens anteriores.
+- **Risco/observações:** médio — normal de tela nova.
+
+## Fase 22 (objetivo — será detalhada ao chegar)
 
 ### Fase 22 — Tarifa Branca (Grupo B)
 
@@ -2124,10 +2190,19 @@ Candidatos conhecidos, ainda sem fase:
 - **Risco de fórmula sinalizado no item de ERE:** o documento de referência (`O-Sistema-Eletrico-Brasileiro.md`) só dá uma aproximação para o Exemplo 7 ("~2% do consumo"), não a fórmula exata de energia reativa excedente a partir do fator de potência de referência — diferente da ultrapassagem e do cálculo binômio, que têm fórmula fechada. Registrado como o maior risco de especificação da fase (não um bloqueio do `07`, porque não impede começar — o item pode e deve pesquisar a fórmula normativa exata como parte do próprio trabalho).
 - **"Convencional Binômia" mantida como item de decisão de escopo (P2/XS)**, como o objetivo original já sinalizava — sem novidade, só formalizada como item da fase em vez de nota solta.
 
+### Replanejamento de 2026-09-07 (detalhamento antecipado da Fase 21)
+
+**O que mudou:** a pedido do usuário, a Fase 21 (Mercado Livre de Energia — ACL) foi detalhada de objetivo para 6 itens completos **antes** da conclusão da Fase 20 — desvio do planejamento just-in-time que o roadmap normalmente segue (detalhar só a fase atual). Decisão registrada aqui, não como exceção silenciosa.
+
+- **Por que foi possível adiantar:** o ACL depende tecnicamente só da fundação da Fase 19 (já concluída), não da Fase 20 — a sequência 20-antes-de-21 é uma decisão de **conteúdo** (entregar uma conta de mercado livre completa, com ultrapassagem/ERE incluídos), não um bloqueio técnico de planejamento.
+- **Ressalva registrada na própria Fase 21:** o item "Cálculo binômio ACL" depende de como a Fase 20 vier a estruturar ultrapassagem/ERE dentro de `calculateForGroupA` — se a composição interna mudar durante a implementação da Fase 20, esse item específico pode precisar de ajuste antes de codar. Os outros cinco itens (spike de bandeira, modelo de dados, PLD, comparação ACR×ACL, UI) não têm essa dependência e podem seguir sem retrabalho esperado.
+- **Lacuna de oráculo, diferente das Fases 19/20:** o documento de referência não traz nenhum exemplo numérico de ACL — nem PLD, nem submercado, nem comparação ACR×ACL resolvida ponta-a-ponta. Os itens de cálculo e comparação desta fase não têm número externo para conferir contra (ao contrário do Exemplo 6/7 usados até aqui); a fórmula precisa ser validada por revisão cuidadosa, não por oráculo.
+- **Elegibilidade "residencial a partir de 2028" tratada como premissa datada, não implementada:** é proposta da ANEEL, não regra vigente — registrada no item de modelo de dados só como nota de acompanhamento futuro.
+
 ### Replanejamento de 2026-09-07 (fechamento da Fase 20)
 
-**O que mudou:** os 7 itens da Fase 20 concluíram na mesma sessão de implementação que a detalhou — épico #386 (issues #387–#391: demanda contratada Azul, ultrapassagem RN20, ERE RN21, parcela de demanda dupla, UI de cadastro/detalhamento) mais as duas issues avulsas #392 e #393. A Fase 21 (Mercado Livre — ACL) passa a ser a fase atual.
+**O que mudou:** os 7 itens da Fase 20 concluíram na mesma sessão de implementação que a detalhou — épico #386 (issues #387–#391: demanda contratada Azul, ultrapassagem RN20, ERE RN21, parcela de demanda dupla, UI de cadastro/detalhamento) mais as duas issues avulsas #392 e #393. A Fase 21 (Mercado Livre — ACL, detalhada acima) passa a ser a fase atual.
 
 - **#392 (alerta de ultrapassagem, RF31) implementado com um mecanismo próprio, não reaproveitando `Alert`/`AlertEvaluator`:** a decisão que o item já deixava em aberto (histerese de RN32, pensada para potência instantânea amostra a amostra, não serve a um agregado mensal que só cresce dentro do ciclo de faturamento) foi resolvida a favor de um scheduler novo (`DemandAlertScheduler`, irmão do `DemandRollupScheduler`) com idempotência por `lastNotifiedPeriodStart` em vez de máquina de episódio — notificando pelo mesmo canal já existente (`NotificationStore`/`UserEventHub`), sem inventar infraestrutura nova. Detalhe registrado no `CHANGELOG.md`, não em ADR (decisão de módulo, não estrutural).
 - **#393 (Convencional Binômia) decidida como adiada** — ver a justificativa completa no próprio item da fase, acima. Resumo: apesar de ser tarifariamente a modalidade mais simples do Grupo A, implementar exigiria tornar `TariffEnergyRate.post` nulável e um caminho de código novo para consumo sem distinção de posto — modelagem nova, não wiring de infraestrutura já pronta (diferença chave em relação à Azul). Nenhum RF numerado exige a modalidade, e o documento de referência já a trata como em extinção gradual.
-- **Divergência de branch não resolvida nesta sessão:** toda a Fase 20 (épico #386 e as issues avulsas #392/#393) foi implementada em `epic/386-grupo-a-azul-ultrapassagem-ere`, criada a partir de `staging` entre dois commits diretos do usuário no roadmap — a branch tem o fechamento da Fase 19/detalhamento da Fase 20 (commit anterior), mas não o detalhamento da Fase 21 (commit posterior, épico #394 e sub-issues #395–#400 já existem no GitHub, só não neste arquivo nesta branch). Fica para reconciliar no momento do(s) PR(s) desta branch — sinalizado também no cabeçalho deste documento e no `CHANGELOG.md`.
+- **Divergência de branch resolvida por este mesmo merge:** toda a Fase 20 (épico #386 e as issues avulsas #392/#393) foi implementada em `epic/386-grupo-a-azul-ultrapassagem-ere`, criada a partir de `staging` entre dois commits diretos do usuário no roadmap — a branch tinha o fechamento da Fase 19/detalhamento da Fase 20, mas não o detalhamento da Fase 21 (feito só em `staging`). Reconciliado via merge de `staging` nesta branch antes do PR fechar — as duas seções de replanejamento acima convivem porque nenhuma invalida a outra.

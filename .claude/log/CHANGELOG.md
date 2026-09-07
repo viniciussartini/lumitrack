@@ -3416,6 +3416,15 @@
 - **Decisões/ADRs:** nenhuma nova — planejamento, não implementação.
 - **Notas:** achado registrado no próprio roadmap (seção "Replanejamento de 2026-09-07"): a fundação da Fase 19 (catálogo por posto, demanda medida por posto) já deixa o item de modelo de dados da Azul muito menor do que o equivalente da Fase 19 (S em vez de L). Maior risco sinalizado: a fórmula exata de energia reativa excedente (RN21) não está fechada no documento de referência, só uma aproximação para o Exemplo 7 — fica registrado como trabalho de pesquisa dentro do próprio item, não como bloqueio do `07`.
 
+## [2026-09-07] docs: roadmap ganha o detalhamento antecipado da Fase 21 (ACL)
+
+- **Branch:** epic/386-grupo-a-azul-ultrapassagem-ere
+- **Tipo:** docs
+- **O quê:** `.claude/docs/roadmap.md` detalha a Fase 21 (Mercado Livre de Energia — ACL) em 6 itens verticais (spike de bandeira + ADR, modelo de dados de ambiente de contratação, catálogo de PLD, cálculo binômio ACL, comparação ACR×ACL, UI), a pedido do usuário — antes da conclusão da Fase 20, atual, num desvio explícito do planejamento just-in-time do kit.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova — planejamento, não implementação. O item 1 da própria Fase 21 é quem vai gerar a próxima ADR (incidência de bandeira no ACL).
+- **Notas:** duas ressalvas registradas no roadmap: (1) o item de cálculo ACL depende de como a Fase 20 estruturar ultrapassagem/ERE em `calculateForGroupA` — pode exigir ajuste quando a 20 fechar; (2) diferente das Fases 19/20, o documento de referência não tem exemplo numérico de ACL — os testes desta fase não terão oráculo externo, só revisão de fórmula.
+
 ## [2026-09-07] feature: modelo de dados — demanda contratada por posto (Azul)
 
 - **Branch:** epic/386-grupo-a-azul-ultrapassagem-ere
