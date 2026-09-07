@@ -6,6 +6,8 @@ import { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionMana
 import { IoTDataProcessor } from "@/modules/iot/iot-worker/IoTDataProcessor.js"
 import { MinuteRollupScheduler } from "@/modules/iot/iot-worker/MinuteRollupScheduler.js"
 import { DemandRollupScheduler } from "@/modules/iot/iot-worker/DemandRollupScheduler.js"
+import { DemandAlertScheduler } from "@/modules/iot/iot-worker/DemandAlertScheduler.js"
+import { DemandAlertRepository } from "@/modules/demand-alert/demand-alert.repository.js"
 import { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
 import { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
@@ -73,11 +75,27 @@ const scheduler = new MinuteRollupScheduler(
 // do MinuteRollupScheduler, não uma extensão dele: precisa resolver
 // medidor→propriedade→distribuidora (janela de ponta), responsabilidade que
 // o comentário de MinuteRollupScheduler declara propositalmente fora dele.
+const meterDemandRollupRepository = new MeterDemandRollupRepository(prisma)
+
 const demandRollupScheduler = new DemandRollupScheduler(
     new MeterReadingRepository(prisma),
     meterRepository,
     new DistributorRepository(prisma),
-    new MeterDemandRollupRepository(prisma),
+    meterDemandRollupRepository,
+)
+
+// Alerta de ultrapassagem de demanda contratada (Grupo A, RF31) — scheduler
+// IRMÃO do DemandRollupScheduler, rodando com uma folga maior para sempre ler
+// o rollup do minuto já atualizado. Sem motor de episódio: MeterDemandRollup
+// é um agregado que só cresce dentro do ciclo de faturamento, então
+// idempotência por lastNotifiedPeriodStart basta (ver DemandAlertScheduler).
+const demandAlertScheduler = new DemandAlertScheduler(
+    new DemandAlertRepository(prisma),
+    meterRepository,
+    meterDemandRollupRepository,
+    { meterRepository },
+    userEventHub,
+    notificationStore,
 )
 
 // Registra o processor no manager ANTES de restaurar as conexões,
@@ -85,6 +103,7 @@ const demandRollupScheduler = new DemandRollupScheduler(
 processor.start()
 scheduler.start()
 demandRollupScheduler.start()
+demandAlertScheduler.start()
 
 // Registra o AlertEvaluator como mais um listener de amostras processadas —
 // cada leitura elétrica recebida é avaliada contra os alertas habilitados
@@ -230,6 +249,7 @@ async function shutdown(signal: string): Promise<void> {
     // Para o scheduler — evita que um flush parcial aconteça durante o shutdown.
     scheduler.stop()
     demandRollupScheduler.stop()
+    demandAlertScheduler.stop()
     retentionScheduler.stop()
     tariffFlagSyncScheduler.stop()
 

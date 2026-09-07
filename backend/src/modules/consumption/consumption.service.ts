@@ -31,6 +31,11 @@ import type {
 } from "@/modules/meter/meter-demand-rollup.repository.js"
 import { TariffService } from "@/shared/tariff/tariff.service.js"
 import type { GroupADemandPostResult } from "@/shared/tariff/tariff.service.js"
+import {
+    resolveContractedDemands,
+    measuredDemandKwFor,
+    type ContractedDemand,
+} from "@/shared/tariff/contractedDemand.js"
 import type { PeakWindowConfig } from "@/shared/tariff/tariffPost.js"
 import { getNationalHolidaysInRange } from "@/shared/time/holidays.js"
 import { fromSaoPauloLocal } from "@/shared/time/localTime.js"
@@ -528,55 +533,13 @@ export class ConsumptionService {
         return resultByMonthMs.get(monthStartLocal.getTime())!
     }
 
-    // Núcleo do cálculo binômio do Grupo A, batching por mês: 1 única
-    // consulta agregada (`findKwhByPostGroupedByMonth`) para todos os meses
-    // pedidos, em vez de 1 `findKwhByPost` por mês. Compartilhado por 3
-    // chamadores — `calculateGroupAMonthCost` (1 mês), `computeYearlyPropertyCosts`
-    // (todos os buckets de ano de uma página de list()) e `calculateYearlyPropertyCost`
-    // (os até 12 meses de 1 bucket de ano de summary()) — os dois últimos
-    // eram, antes desta função existir, uma consulta por mês por alvo.
-    // Valida os 4 pré-requisitos do cálculo binômio e devolve os campos já
-    // estreitados (`PropertyResponse` os declara nullable) — extraído para
-    // que `calculateGroupAMonthlyCosts` não acumule complexidade com os 4
-    // `if` de guarda inline.
-    // Verde/Convencional Binômia têm 1 demanda contratada só (post null);
-    // Azul tem 2 (ponta e fora de ponta) — mesma forma que `demandPosts` do
-    // `TariffService` espera, já resolvida aqui para não espalhar a
-    // ramificação por modalidade pelo resto do cálculo.
-    private resolveContractedDemands(
-        property: PropertyResponse,
-        modality: "GREEN" | "BLUE",
-    ): { post: TariffPost | null; contractedDemandKw: number }[] {
-        if (modality === "GREEN") {
-            if (property.contractedDemandKw === null) {
-                throw new ValidationError(
-                    "Propriedade do Grupo A sem demanda contratada cadastrada",
-                )
-            }
-            return [{ post: null, contractedDemandKw: property.contractedDemandKw }]
-        }
-
-        if (
-            property.contractedDemandPeakKw === null ||
-            property.contractedDemandOffPeakKw === null
-        ) {
-            throw new ValidationError(
-                "Propriedade do Grupo A Azul sem as duas demandas contratadas cadastradas",
-            )
-        }
-        return [
-            { post: "PEAK", contractedDemandKw: property.contractedDemandPeakKw },
-            { post: "OFF_PEAK", contractedDemandKw: property.contractedDemandOffPeakKw },
-        ]
-    }
-
     private assertGroupACalculable(
         property: PropertyResponse,
         distributor: DistributorResponse,
     ): {
         peakWindow: PeakWindowConfig
         tariffModality: "GREEN" | "BLUE"
-        contractedDemands: { post: TariffPost | null; contractedDemandKw: number }[]
+        contractedDemands: ContractedDemand[]
         tariffSubgroup: TariffSubgroup
     } {
         if (distributor.peakWindowStartHour === null || distributor.peakWindowEndHour === null) {
@@ -599,35 +562,9 @@ export class ConsumptionService {
                 peakWindowEndHour: distributor.peakWindowEndHour,
             },
             tariffModality: property.tariffModality,
-            contractedDemands: this.resolveContractedDemands(property, property.tariffModality),
+            contractedDemands: resolveContractedDemands(property, property.tariffModality),
             tariffSubgroup: property.tariffSubgroup,
         }
-    }
-
-    // Maior potência média (W) entre os postos do mês, convertida para kW —
-    // RN19 já apura o máximo por posto; a demanda medida da Verde (1 só
-    // demanda contratada, sem distinção de posto) é o maior valor entre eles,
-    // não a soma. Mês sem nenhuma janela completa observada (medidor sem
-    // leitura suficiente) mede 0 kW — nunca gera ultrapassagem por ausência
-    // de dado, mesmo cuidado de RN19 contra janela incompleta.
-    private measuredDemandKwForMonth(rows: MeterDemandRollupResponse[]): number {
-        if (rows.length === 0) return 0
-        return Math.max(...rows.map((r) => r.maxAvgPowerW)) / 1000
-    }
-
-    // Demanda medida (kW) para uma entrada de `contractedDemands`: `null`
-    // (Verde) usa o maior valor entre os postos do mês; um posto concreto
-    // (Azul) usa só o rollup daquele posto — cada demanda contratada da Azul
-    // só é comparada com a medição do mesmo posto, nunca com a do outro.
-    private measuredDemandKwFor(
-        post: TariffPost | null,
-        rows: MeterDemandRollupResponse[],
-    ): number {
-        if (post === null) {
-            return this.measuredDemandKwForMonth(rows)
-        }
-        const row = rows.find((r) => r.post === post)
-        return row ? row.maxAvgPowerW / 1000 : 0
     }
 
     // Agrupa uma lista de linhas por um instante (em ms) — mesmo formato de
@@ -668,7 +605,7 @@ export class ConsumptionService {
     // não tiver a tarifa de algum posto contratado (nunca calcula com tarifa
     // ausente silenciosamente tratada como zero).
     private resolveDemandPostsForMonth(
-        contractedDemands: { post: TariffPost | null; contractedDemandKw: number }[],
+        contractedDemands: ContractedDemand[],
         demandRates: Map<TariffPost | null, number>,
         rowsForMonth: MeterDemandRollupResponse[],
     ): {
@@ -687,7 +624,7 @@ export class ConsumptionService {
             return {
                 post: cd.post,
                 contractedDemandKw: cd.contractedDemandKw,
-                measuredDemandKw: this.measuredDemandKwFor(cd.post, rowsForMonth),
+                measuredDemandKw: measuredDemandKwFor(cd.post, rowsForMonth),
                 tusdPerKw,
             }
         })
@@ -698,7 +635,7 @@ export class ConsumptionService {
     // em lote para vários meses) só para manter o teto de linhas/complexidade.
     private buildGroupAMonthResult(
         kwhByPostMap: Map<TariffPost, number>,
-        contractedDemands: { post: TariffPost | null; contractedDemandKw: number }[],
+        contractedDemands: ContractedDemand[],
         demandRates: Map<TariffPost | null, number>,
         rowsForMonth: MeterDemandRollupResponse[],
         reactiveRowsForMonth: ReactiveEnergyByWindow[],

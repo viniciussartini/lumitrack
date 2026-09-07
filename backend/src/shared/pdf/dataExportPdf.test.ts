@@ -27,6 +27,7 @@ function buildFakePayload(overrides: Partial<DataExportPayload> = {}): DataExpor
         areas: [],
         devices: [],
         alerts: [],
+        demandAlerts: [],
         auditLogs: [],
         ...overrides,
     }
