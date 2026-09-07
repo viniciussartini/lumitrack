@@ -33,7 +33,7 @@
 | 18 | Design system, cobertura de testes e polimento | **Concluída** (épicos #334, #335, PRs #354/#355/#357) |
 | 19 | Grupo A — fundação tarifária (subgrupos, modalidades, postos, demanda) + Horária Verde | **Concluída** (épico #379: #380–#384, PR #385 → staging) |
 | **20** | **Grupo A — Horária Azul, ultrapassagem de demanda e energia reativa excedente** | Planejada — fase atual, detalhada em 7 itens |
-| 21 | Mercado Livre de Energia (ACL) | Planejada — objetivo abaixo |
+| 21 | Mercado Livre de Energia (ACL) | Planejada — detalhada em 6 itens (antes da conclusão da Fase 20, ver ressalva) |
 | 22 | Tarifa Branca (Grupo B) — reaproveita a fundação de postos tarifários | Planejada — objetivo abaixo |
 | 23 | Shell v2 — navegação redesenhada (Painel · Análise · Histórico · Relatórios · Configurações) | Planejada — objetivo abaixo |
 | 24 | Análise — consumo e custos (reestruturação de `/propriedades`) | Planejada — objetivo abaixo |
@@ -1940,11 +1940,77 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
 - **Depende de:** —.
 - **Risco/observações:** nenhum — a modalidade está em extinção gradual segundo o documento de referência e restrita a A3a/A4/AS com demanda < 300 kW, o que reduz a urgência.
 
-## Fases 21–22 (objetivo — serão detalhadas ao chegar)
+## Fase 21 — Mercado Livre de Energia (ACL)
 
-### Fase 21 — Mercado Livre de Energia (ACL)
+**Entrega (milestone):** `Tarifação Grupo A, Mercado Livre e Tarifa Branca` (mesma das Fases 19 e 20).
 
-Abre com o **spike de validação da incidência de bandeira no ACL** (ver "Ponto de validação obrigatório" acima) e as regras de elegibilidade de migração, fechando em ADR antes de qualquer cálculo. Depois: `Property` passa a distinguir **ACR (cativo) × ACL (livre)**; contrato de energia com preço da TE negociado e vigência; cálculo ACL (TUSD da distribuidora + TE contratada, em vez da TE do catálogo); e a **comparação ACR × ACL** — "vale a pena migrar?" — que é o maior valor de produto da fase, porque responde com o consumo real do próprio usuário em vez de estimativa. Elegibilidade a registrar: A1/A2/A3 sempre; A3a/A4/AS desde jan/2024 sem restrição de demanda; pequenos consumidores e residências a partir de jan/2028 (proposta) — este último é premissa datada, revisar na chegada.
+> **Ressalva de sequenciamento (2026-09-07):** detalhada antes da conclusão da Fase 20, a pedido do usuário. O item 4 (cálculo ACL) depende de como a Fase 20 vier a estruturar ultrapassagem/ERE dentro de `calculateForGroupA` — um consumidor ACL continua pagando essas duas parcelas do lado da TUSD. Se a composição interna do `TariffService` mudar na Fase 20, este item pode precisar de ajuste antes de codar — os demais itens (1, 2, 3, 6) não têm essa dependência.
+>
+> **Lacuna de oráculo:** diferente das Fases 19/20, o documento de referência não traz nenhum exemplo numérico de ACL (sem PLD, submercado ou comparação ACR×ACL resolvidos ponta-a-ponta) — os testes desta fase não têm número externo para conferir contra, só a lógica de composição da fórmula.
+
+### Spike: incidência de bandeira no ACL + ADR
+
+- **Comportamento:** nenhum — é decisão, registrada em ADR antes de qualquer cálculo.
+- **Cobre:** pré-requisito de todo RF de cálculo desta fase.
+- **Priority:** P0 · **Size:** XS
+- **Critérios de aceite:** confirmar contra a REN vigente se a bandeira tarifária incide sobre a TUSD no Mercado Livre (o documento de referência afirma que sim, linha 335, mas isso destoa do mecanismo — a bandeira recompõe custo de compra de energia, que o consumidor ACL não tem; a TUSD é encargo de fio). ADR registrando a fonte normativa consultada e a decisão.
+- **Depende de:** —.
+- **Risco/observações:** o item existe justamente para eliminar risco antes dele se espalhar pelo cálculo — mesma disciplina de risco/incerteza primeiro já aplicada pela Fase 8 (bandeira na fonte oficial).
+
+### Modelo de dados: ambiente de contratação (ACR × ACL) e contrato de energia
+
+- **Comportamento:** o usuário marca uma propriedade Grupo A como ACL e registra o contrato de energia — comercializadora, volume contratado, submercado, fonte, vigência.
+- **Cobre:** RF33.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:**
+  - `Property` ganha `contractingEnvironment` (`ACR` default, `ACL`).
+  - Novo modelo `AclContract` (comercializadora, volume contratado em MWh, submercado — Norte/Nordeste/Sudeste-CO/Sul —, fonte, vigência `validFrom`/`validTo`).
+  - Validação de elegibilidade por subgrupo: A1/A2/A3 sempre; A3a/A4/AS sem restrição de demanda desde jan/2024. A regra "residencial a partir de 2028" é proposta, não vigente — não implementar ainda.
+  - Sem ADR nova — mudança aditiva, mesmo padrão da Fase 19/20.
+- **Depende de:** —.
+- **Risco/observações:** baixo — mesmo padrão aditivo já usado nas duas fases anteriores.
+
+### PLD por submercado — catálogo e consulta
+
+- **Comportamento:** o sistema registra e consulta o PLD (Preço de Liquidação das Diferenças) por submercado e período, usado como contexto na comparação da fase.
+- **Cobre:** RF34.
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:** novo modelo `PldQuote` (submercado, período de referência, valor R$/MWh); rota de consulta; sem ingestão automática da CCEE nesta fase — carga manual/seed, mesmo padrão do catálogo tarifário de Grupo A.
+- **Depende de:** —.
+- **Risco/observações:** baixo — tabela de apoio, sem lógica de cálculo acoplada.
+
+### Cálculo binômio ACL (TUSD da distribuidora + TE contratada)
+
+- **Comportamento:** uma propriedade Grupo A em ACL tem a conta calculada com a TUSD do catálogo regulado e a TE do contrato negociado, em vez da TE do catálogo.
+- **Cobre:** RF novo a registrar no `02` (RN a numerar, resultado do spike).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Extensão de `calculateForGroupA` substitui `tePerKwh` do catálogo pelo valor negociado do `AclContract` — TE única para o contrato, não diferenciada por posto (simplificação a registrar como corte de escopo, não RN).
+  - Bandeira aplicada conforme a decisão do spike.
+  - Reaproveita ultrapassagem/ERE da Fase 20 sem duplicar `applyTaxesByDentro`.
+  - **Sem oráculo externo** — teste construído a partir da fórmula documentada, não de um exemplo numérico de terceiros (diferente das Fases 19/20); revisão cuidadosa da fórmula é o único controle de qualidade disponível aqui.
+- **Depende de:** spike de bandeira; modelo de dados — e da forma final que a Fase 20 (`calculateForGroupA`) assumir para ultrapassagem/ERE.
+- **Risco/observações:** médio-alto — herda tanto o risco de especificação (sem oráculo) quanto o risco de integração com uma fase que ainda não fechou.
+
+### Comparação ACR × ACL — "vale a pena migrar?"
+
+- **Comportamento:** o usuário compara o custo real do próprio consumo no mercado cativo (ACR, cálculo já existente) contra o mercado livre (ACL), respondendo se migrar compensa.
+- **Cobre:** RF35 — o maior valor de produto da fase, porque responde com o consumo real do próprio usuário em vez de estimativa.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:** usa o consumo real medido do usuário (não estimativa) nos dois cálculos; resultado mostra a diferença e o veredito; considera o PLD como contexto informativo da análise, não como insumo direto da fórmula de custo.
+- **Depende de:** modelo de dados; PLD; cálculo ACL.
+- **Risco/observações:** médio — depende inteiramente do item de cálculo estar correto; sem oráculo externo, a revisão da fórmula é o único controle de qualidade disponível.
+
+### UI: contrato ACL e comparação ACR × ACL
+
+- **Comportamento:** o usuário cadastra o contrato ACL (comercializadora, volume, submercado, PLD) e vê a comparação de custo.
+- **Cobre:** os RFs desta fase, na camada de apresentação.
+- **Priority:** P1 · **Size:** L
+- **Critérios de aceite:** handoff disponível — `10-design-system.md` confirma que a v2 cobre "contrato ACL — comercializadora, volume contratado, submercado, PLD"; a tela de comparação não tem mockup específico registrado, cai na regra de ausência do `10`.
+- **Depende de:** os quatro itens anteriores.
+- **Risco/observações:** médio — normal de tela nova.
+
+## Fase 22 (objetivo — será detalhada ao chegar)
 
 ### Fase 22 — Tarifa Branca (Grupo B)
 
@@ -2122,3 +2188,12 @@ Candidatos conhecidos, ainda sem fase:
 - **Item novo, ausente do objetivo original:** "Alerta de ultrapassagem de demanda contratada" (RF31) — o objetivo de 2026-08-05 citava só o cálculo (RN20); a leitura do `02-requisitos.md` mostrou que RF31 pede explicitamente a *configuração* de um alerta pelo usuário, capacidade distinta do cálculo em si e que não se encaixa diretamente no modelo `Alert` existente (histerese de série contínua, RN32) — decisão de como implementar fica registrada no próprio item, por não bloquear nada.
 - **Risco de fórmula sinalizado no item de ERE:** o documento de referência (`O-Sistema-Eletrico-Brasileiro.md`) só dá uma aproximação para o Exemplo 7 ("~2% do consumo"), não a fórmula exata de energia reativa excedente a partir do fator de potência de referência — diferente da ultrapassagem e do cálculo binômio, que têm fórmula fechada. Registrado como o maior risco de especificação da fase (não um bloqueio do `07`, porque não impede começar — o item pode e deve pesquisar a fórmula normativa exata como parte do próprio trabalho).
 - **"Convencional Binômia" mantida como item de decisão de escopo (P2/XS)**, como o objetivo original já sinalizava — sem novidade, só formalizada como item da fase em vez de nota solta.
+
+### Replanejamento de 2026-09-07 (detalhamento antecipado da Fase 21)
+
+**O que mudou:** a pedido do usuário, a Fase 21 (Mercado Livre de Energia — ACL) foi detalhada de objetivo para 6 itens completos **antes** da conclusão da Fase 20 — desvio do planejamento just-in-time que o roadmap normalmente segue (detalhar só a fase atual). Decisão registrada aqui, não como exceção silenciosa.
+
+- **Por que foi possível adiantar:** o ACL depende tecnicamente só da fundação da Fase 19 (já concluída), não da Fase 20 — a sequência 20-antes-de-21 é uma decisão de **conteúdo** (entregar uma conta de mercado livre completa, com ultrapassagem/ERE incluídos), não um bloqueio técnico de planejamento.
+- **Ressalva registrada na própria Fase 21:** o item "Cálculo binômio ACL" depende de como a Fase 20 vier a estruturar ultrapassagem/ERE dentro de `calculateForGroupA` — se a composição interna mudar durante a implementação da Fase 20, esse item específico pode precisar de ajuste antes de codar. Os outros cinco itens (spike de bandeira, modelo de dados, PLD, comparação ACR×ACL, UI) não têm essa dependência e podem seguir sem retrabalho esperado.
+- **Lacuna de oráculo, diferente das Fases 19/20:** o documento de referência não traz nenhum exemplo numérico de ACL — nem PLD, nem submercado, nem comparação ACR×ACL resolvida ponta-a-ponta. Os itens de cálculo e comparação desta fase não têm número externo para conferir contra (ao contrário do Exemplo 6/7 usados até aqui); a fórmula precisa ser validada por revisão cuidadosa, não por oráculo.
+- **Elegibilidade "residencial a partir de 2028" tratada como premissa datada, não implementada:** é proposta da ANEEL, não regra vigente — registrada no item de modelo de dados só como nota de acompanhamento futuro.
