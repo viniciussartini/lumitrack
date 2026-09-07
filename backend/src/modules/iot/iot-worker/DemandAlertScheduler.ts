@@ -1,6 +1,6 @@
 /**
  * DemandAlertScheduler — avalia, 1x/minuto, os alertas de ultrapassagem de
- * demanda contratada (Grupo A, RF31) habilitados contra o agregado mensal de
+ * demanda contratada (Grupo A) habilitados contra o agregado mensal de
  * `MeterDemandRollup`.
  *
  * Scheduler IRMÃO do `DemandRollupScheduler`, não uma extensão dele (mesmo
@@ -9,7 +9,8 @@
  * um offset MAIOR que o do `DemandRollupScheduler` (que atualiza o rollup),
  * garantindo que este tick sempre lê o valor já corrigido do minuto.
  *
- * Deliberadamente sem o motor de episódio/histerese do `AlertEvaluator`:
+ * Deliberadamente sem o motor de episódio/histerese do `AlertEvaluator`
+ * (ver ADR-0020):
  * `MeterDemandRollup` é um agregado que só cresce dentro do ciclo de
  * faturamento (nunca "volta pra dentro da faixa" a tempo de precisar de
  * anti-flapping) — idempotência via `lastNotifiedPeriodStart` (no máximo 1
@@ -20,8 +21,15 @@ import type {
     DemandAlertResponse,
 } from "@/modules/demand-alert/demand-alert.repository.js"
 import type { MeterRepository, MeterWithTargetRow } from "@/modules/meter/meter.repository.js"
-import type { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
-import { resolveContractedDemands, measuredDemandKwFor } from "@/shared/tariff/contractedDemand.js"
+import type {
+    MeterDemandRollupRepository,
+    MeterDemandRollupResponse,
+} from "@/modules/meter/meter-demand-rollup.repository.js"
+import {
+    resolveContractedDemands,
+    measuredDemandKwFor,
+    type ContractedDemand,
+} from "@/shared/tariff/contractedDemand.js"
 import { resolveMeterTarget, type MeterTargetRepos } from "@/modules/meter/meter-target.js"
 import type { UserEventHub } from "@/shared/sse/user-event-hub.js"
 import type { NotificationStore } from "@/shared/notifications/notification-store.js"
@@ -92,18 +100,41 @@ export class DemandAlertScheduler {
             return
         }
 
-        const meterIds = [...new Set(alerts.map((a) => a.meterId))]
-        const targets = await this.meterRepository.findManyByIdsWithTarget(meterIds)
+        const periodStart = this.currentPeriodStart(now)
+        // Alerta já notificado neste ciclo nunca precisa de rollup nem de
+        // resolução de alvo — filtrar aqui evita 2 consultas em lote inúteis
+        // quando a maioria dos alertas já disparou no mês corrente.
+        const pendingAlerts = alerts.filter(
+            (a) =>
+                !a.lastNotifiedPeriodStart ||
+                a.lastNotifiedPeriodStart.getTime() !== periodStart.getTime(),
+        )
+        if (pendingAlerts.length === 0) {
+            return
+        }
+
+        const meterIds = [...new Set(pendingAlerts.map((a) => a.meterId))]
+        const [targets, rollupsByMeter] = await Promise.all([
+            this.meterRepository.findManyByIdsWithTarget(meterIds),
+            this.meterDemandRollupRepository.findByMetersAndPeriod(meterIds, periodStart),
+        ])
 
         const results = await Promise.allSettled(
-            alerts.map((alert) => this.processOne(alert, targets.get(alert.meterId), now)),
+            pendingAlerts.map((alert) =>
+                this.processOne(
+                    alert,
+                    targets.get(alert.meterId),
+                    rollupsByMeter.get(alert.meterId) ?? [],
+                    periodStart,
+                ),
+            ),
         )
 
         for (let i = 0; i < results.length; i++) {
             const result = results[i]!
             if (result.status === "rejected") {
                 log.error(
-                    { demandAlertId: alerts[i]!.id, err: result.reason },
+                    { demandAlertId: pendingAlerts[i]!.id, err: result.reason },
                     "Falha ao avaliar alerta de ultrapassagem de demanda — seguindo para os demais",
                 )
             }
@@ -113,7 +144,8 @@ export class DemandAlertScheduler {
     private async processOne(
         alert: DemandAlertResponse,
         target: MeterWithTargetRow | undefined,
-        now: Date,
+        rows: MeterDemandRollupResponse[],
+        periodStart: Date,
     ): Promise<void> {
         const property = target?.property
         if (!property) {
@@ -141,20 +173,21 @@ export class DemandAlertScheduler {
             return
         }
 
-        const contractedDemands = resolveContractedDemands(property, property.tariffModality)
-        const periodStart = this.currentPeriodStart(now)
-
-        if (
-            alert.lastNotifiedPeriodStart &&
-            alert.lastNotifiedPeriodStart.getTime() === periodStart.getTime()
-        ) {
-            return // já notificado neste ciclo de faturamento
+        // Mesmo tratamento fail-closed dos 3 casos acima: propriedade Grupo A
+        // pode ficar sem demanda contratada cadastrada num estado transitório
+        // (ex.: em edição) — pula em vez de deixar a exceção subir e virar
+        // `log.error` recorrente a cada tick.
+        let contractedDemands: ContractedDemand[]
+        try {
+            contractedDemands = resolveContractedDemands(property, property.tariffModality)
+        } catch (err) {
+            log.warn(
+                { demandAlertId: alert.id, meterId: alert.meterId, err },
+                "Propriedade sem demanda contratada cadastrada — alerta pulado",
+            )
+            return
         }
 
-        const rows = await this.meterDemandRollupRepository.findByMeterAndPeriod(
-            alert.meterId,
-            periodStart,
-        )
         if (rows.length === 0) {
             return // sem dado ainda neste ciclo — nunca dispara por ausência
         }

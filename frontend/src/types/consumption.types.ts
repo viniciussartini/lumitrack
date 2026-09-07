@@ -48,7 +48,7 @@ export const TARIFF_POST_LABELS: Record<TariffPost, string> = {
     OFF_PEAK: "Fora de ponta",
 }
 
-/** Janela de energia reativa excedente (RN21) — indutiva (ponta) ou capacitiva (fora de ponta). */
+/** Janela de energia reativa excedente — indutiva (ponta) ou capacitiva (fora de ponta). */
 export type ReactiveWindow = "INDUCTIVE" | "CAPACITIVE"
 
 /**

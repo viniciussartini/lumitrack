@@ -741,7 +741,7 @@ model AlertTriggerEvent {
   @@map("alert_trigger_events")
 }
 
-// Alerta de ultrapassagem de demanda contratada (Grupo A, RF31/RN20).
+// Alerta de ultrapassagem de demanda contratada (Grupo A).
 // Diferente de Alert: avaliado 1x/minuto pelo DemandAlertScheduler contra o
 // agregado mensal de MeterDemandRollup, não amostra a amostra — um agregado
 // que só cresce dentro do ciclo de faturamento não tem flapping para uma

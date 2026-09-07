@@ -111,4 +111,40 @@ export class MeterDemandRollupRepository {
             windowEndAt: r.windowEndAt,
         }))
     }
+
+    /**
+     * Mesma leitura que {@link findByMeterAndPeriod}, em lote para vários
+     * medidores no mesmo período — evita 1 consulta por medidor ao avaliar
+     * um lote de alertas de ultrapassagem no mesmo tick (mesmo cuidado de
+     * N+1 de {@link findByMeterAndPeriods}, só que batchando o eixo oposto:
+     * 1 período, N medidores, em vez de 1 medidor, N períodos).
+     *
+     * @param meterIds - Ids dos medidores a consultar.
+     * @param periodStart - Início do mês (hora local) a consultar.
+     * @returns Mapa de medidor para suas linhas de demanda do período — medidor sem nenhuma janela observada não aparece no mapa.
+     */
+    async findByMetersAndPeriod(
+        meterIds: string[],
+        periodStart: Date,
+    ): Promise<Map<string, MeterDemandRollupResponse[]>> {
+        const result = new Map<string, MeterDemandRollupResponse[]>()
+        if (meterIds.length === 0) return result
+
+        const rows = await this.prisma.meterDemandRollup.findMany({
+            where: { meterId: { in: meterIds }, periodStart },
+        })
+
+        for (const r of rows) {
+            const bucket = result.get(r.meterId) ?? []
+            bucket.push({
+                meterId: r.meterId,
+                periodStart: r.periodStart,
+                post: r.post,
+                maxAvgPowerW: r.maxAvgPowerW,
+                windowEndAt: r.windowEndAt,
+            })
+            result.set(r.meterId, bucket)
+        }
+        return result
+    }
 }

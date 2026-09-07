@@ -4,6 +4,7 @@ import reactHooks from "eslint-plugin-react-hooks"
 import reactRefresh from "eslint-plugin-react-refresh"
 import tseslint from "typescript-eslint"
 import jsdoc from "eslint-plugin-jsdoc"
+import noCommentReqRefs from "./eslint-rules/no-comment-req-refs.js"
 
 export default tseslint.config(
     { ignores: ["dist", "playwright-report", "test-results"] },
@@ -24,6 +25,7 @@ export default tseslint.config(
         plugins: {
             "react-hooks": reactHooks,
             "react-refresh": reactRefresh,
+            local: noCommentReqRefs,
         },
         rules: {
             ...reactHooks.configs.recommended.rules,
@@ -40,6 +42,8 @@ export default tseslint.config(
             ],
             "@typescript-eslint/no-floating-promises": "error",
             "@typescript-eslint/no-misused-promises": "error",
+            // RF/RN/RNF/FNC seguido de número — ver eslint-rules/no-comment-req-refs.js.
+            "local/no-comment-req-refs": "error",
             // Mecaniza a proibição de comentário de rastreabilidade
             // (06-code-quality-standards.md) — issue/PR/laudo/achado de
             // revisão pertencem ao git, aos ADRs, ao CHANGELOG e às issues,

@@ -2,6 +2,7 @@ import { Prisma, PrismaClient, type TariffPost } from "@/generated/prisma/client
 import type { BucketOrder, Granularity } from "@/modules/consumption/consumption.schema.js"
 import { localTsExpr, rangeFilter } from "@/shared/database/timeBucket.js"
 import type { PeakWindowConfig } from "@/shared/tariff/tariffPost.js"
+import { REFERENCE_REACTIVE_RATIO } from "@/shared/tariff/tariff.service.js"
 
 // Whitelist explícita do argumento de date_trunc — o valor já vem validado
 // pelo zod (enum fechado), mas mapear em vez de interpolar a string do
@@ -44,16 +45,15 @@ export type MonthlyConsumptionByPost = ConsumptionByPost & {
     monthBucket: Date
 }
 
-// Janela horária de apuração de energia reativa excedente (RN21) — indutivo
-// medido das 6h às 24h, capacitivo das 0h às 6h. Diferente do posto
-// ponta/fora-ponta (RN24): fixo por hora do dia, sem exceção de fim de
-// semana ou feriado.
+// Janela horária de apuração de energia reativa excedente — indutivo medido
+// das 6h às 24h, capacitivo das 0h às 6h. Diferente da classificação de posto
+// ponta/fora-ponta: fixo por hora do dia, sem exceção de fim de semana ou
+// feriado.
 export type ReactiveWindow = "INDUCTIVE" | "CAPACITIVE"
 
 export type ReactiveEnergyByWindow = {
     window: ReactiveWindow
-    activeKwh: number
-    reactiveKvarh: number
+    excessKvarh: number
 }
 
 export type MonthlyReactiveEnergyByWindow = ReactiveEnergyByWindow & {
@@ -375,21 +375,28 @@ export class ConsumptionRepository {
     }
 
     /**
-     * Energia ativa e reativa por janela de RN21 (indutivo 6h-24h, capacitivo
-     * 0h-6h) e por mês, somadas inteiramente em SQL — mesmo padrão de
-     * `findKwhByPostGroupedByMonth` (1 query para o intervalo inteiro, em vez
-     * de 1 por mês). A energia reativa de cada minuto é derivada de
+     * Excedente de energia reativa por janela horária (indutivo 6h-24h,
+     * capacitivo 0h-6h) e por mês, somado inteiramente em SQL — mesmo padrão
+     * de `findKwhByPostGroupedByMonth` (1 query para o intervalo inteiro, em
+     * vez de 1 por mês). A energia reativa de cada minuto é derivada de
      * `kwhConsumed` e `avgPowerFactor` (o medidor não persiste reativa
      * direto): tratando o minuto como um triângulo de potência,
      * `reativa = ativa × tan(acos(FP))`. `avgPowerFactor` é limitado a
-     * [0,01; 1] antes do `ACOS` — RN29 já garante [0,1] na ingestão, a
+     * [0,01; 1] antes do `ACOS` — a ingestão já garante a faixa [0,1], a
      * cláusula aqui é só defesa contra o polo (FP=0 tornaria a tangente
      * infinita) sem descartar a linha.
+     *
+     * O excedente é apurado por HORA, não sobre o total do mês: cada hora
+     * que exceder a razão de referência (`REFERENCE_REACTIVE_RATIO`) soma seu
+     * próprio excedente; uma hora com fator de potência bom nunca compensa
+     * uma hora ruim (a norma apura por intervalo, não pela média do mês —
+     * apurar só no total do mês subestimaria o excedente sempre que houvesse
+     * qualquer variação de FP ao longo do período).
      *
      * @param meterId - Id do medidor.
      * @param from - Início da janela (inclusive).
      * @param to - Fim da janela (exclusive).
-     * @returns Energia ativa (kWh) e reativa (kVArh) somadas por mês × janela — só combinações com alguma leitura aparecem.
+     * @returns Excedente de energia reativa (kVArh) somado por mês × janela — só combinações com alguma leitura aparecem.
      */
     async findReactiveEnergyByWindowGroupedByMonth(
         meterId: string,
@@ -402,29 +409,29 @@ export class ConsumptionRepository {
             {
                 monthbucket: Date
                 reactive_window: ReactiveWindow
-                activekwh: number
-                reactivekvarh: number
+                excesskvarh: number
             }[]
         >(
             Prisma.sql`
                 SELECT
                     monthbucket,
                     reactive_window,
-                    SUM(kwh) AS activekwh,
-                    SUM(kwh * TAN(ACOS(pf))) AS reactivekvarh
+                    SUM(GREATEST(0, kvarh - kwh * ${REFERENCE_REACTIVE_RATIO})) AS excesskvarh
                 FROM (
                     SELECT
+                        date_trunc('hour', ${localTsExpr()}) AS hourbucket,
                         date_trunc('month', ${localTsExpr()}) AS monthbucket,
                         CASE
                             WHEN EXTRACT(HOUR FROM ${localTsExpr()}) >= 6 THEN 'INDUCTIVE'
                             ELSE 'CAPACITIVE'
                         END AS reactive_window,
-                        "kwhConsumed" AS kwh,
-                        LEAST(GREATEST("avgPowerFactor", 0.01), 1) AS pf
+                        SUM("kwhConsumed") AS kwh,
+                        SUM("kwhConsumed" * TAN(ACOS(LEAST(GREATEST("avgPowerFactor", 0.01), 1)))) AS kvarh
                     FROM "meter_readings"
                     WHERE "meterId" = ${meterId}
                     ${rangeFilter(from, to)}
-                ) classified
+                    GROUP BY hourbucket, monthbucket, reactive_window
+                ) hourly
                 GROUP BY monthbucket, reactive_window
             `,
         )
@@ -432,8 +439,7 @@ export class ConsumptionRepository {
         return rows.map((r) => ({
             monthBucket: r.monthbucket,
             window: r.reactive_window,
-            activeKwh: Number(r.activekwh),
-            reactiveKvarh: Number(r.reactivekvarh),
+            excessKvarh: Number(r.excesskvarh),
         }))
     }
 }

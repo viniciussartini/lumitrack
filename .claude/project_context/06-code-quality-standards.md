@@ -96,7 +96,9 @@ RF/RNF/RN/FNC são um caso à parte dos demais: não são artefato de processo d
 
 Coerente com o princípio do topo: o que pode virar lint, vira lint. Se um termo legítimo cair na regra, a saída é reescrever o comentário em termos funcionais — não adicionar exceção.
 
-**Limite conhecido do lint:** `no-warning-comments` casa **substring literal**, não regex — não há como listar "RF", "RN", "RNF" e "FNC" como termos sem também barrar toda ocorrência legítima dessas duas letras em prosa comum. Comentário citando RF/RNF/RN/FNC **não é pego mecanicamente** — depende de revisão (própria ou de código) até existir uma regra customizada capaz de casar o padrão `\b(RF|RNF|RN|FNC)\d+\b`. Mesma lacuna que já existe para issue number abreviado (`(issues #323/#328)` escapa de `"issue #"`) — não presumir que "o lint não acusou" significa "está limpo".
+**`RF`/`RN`/`RNF`/`FNC` seguido de número é pego por uma regra local própria**, não pelo `no-warning-comments` nativo: `no-warning-comments` só casa substring literal, e não há como listar "RF"/"RN"/"RNF"/"FNC" como termos sem também barrar toda ocorrência legítima dessas letras em prosa comum. A regra `local/no-comment-req-refs` (`eslint-rules/no-comment-req-refs.js`, um arquivo por pacote — `backend`, `frontend`, `iot-simulator/server`, `iot-simulator/ui`) varre todo comentário do arquivo contra o padrão `\b(RF|RN|RNF|FNC)\d+\b` e falha o lint na primeira ocorrência. Achado real (Fase 20, PR #401, revisão de código): a lacuna documentada aqui por muito tempo — "não é pego mecanicamente, depende de revisão" — se provou real: ~25 comentários de produção citando RN/RF entraram numa única branch sem o lint acusar nada, porque o texto desta seção dizia que o `no-warning-comments` "barra" sem qualificar que RF/RN/RNF/FNC ficavam de fora. As três skills de implementação citavam a mesma frase incompleta — corrigidas junto.
+
+**Gap que continua exigindo revisão, não lint:** issue number abreviado dentro de parênteses (`(issues #323/#328)`) ainda escapa de `"issue #"` — não presumir que "o lint não acusou" significa "está limpo" para esse caso.
 
 ## DRY · KISS · YAGNI
 

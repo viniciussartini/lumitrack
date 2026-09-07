@@ -9,8 +9,8 @@ const app = createApp({ prismaClient: prismaHttpTest })
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
 //
-// EnergyDistributor é catálogo somente leitura via API (populado por seed,
-// RF08), sem endpoint de criação — por isso o setup de teste cria a
+// EnergyDistributor é catálogo somente leitura via API (populado por seed),
+// sem endpoint de criação — por isso o setup de teste cria a
 // distribuidora direto via Prisma. Property também via Prisma por
 // conveniência, já que os testes aqui exercitam o módulo `meter`, não o
 // fluxo HTTP de property.

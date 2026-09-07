@@ -72,17 +72,28 @@ const PostChartTooltip = ({ active, payload }: ChartTooltipProps) => {
  * Decomposição da conta binômia do Grupo A — demanda contratada, consumo por
  * posto (tabela + mini gráfico Ponta×Fora de Ponta) e o total, com
  * ultrapassagem de demanda e energia reativa excedente exibidas só quando
- * há valor a cobrar (a maioria das contas não tem nenhuma das duas). O
- * bundle de design tem handoff de Grupo A (campos de cadastro, widget
- * "Demanda atual vs. contratada" do Painel), mas nenhum mockup
- * especificamente para um cartão de conta mensal detalhada por posto na
- * página de detalhes da propriedade — layout segue a linguagem visual já
- * usada pelos widgets do bundle (cabeçalho com legenda de cor + grid de
- * estatísticas em `.blueprint`), sem inventar uma estética nova.
+ * há valor a cobrar (a maioria das contas não tem nenhuma das duas). Verde
+ * (1 demanda contratada) mostra o stat único de sempre; Azul (2 demandas,
+ * ponta/fora de ponta) troca esse stat por uma tabela decompondo cada posto
+ * — nunca soma as duas numa única "demanda contratada". O bundle de design
+ * tem handoff de Grupo A (campos de cadastro, widget "Demanda atual vs.
+ * contratada" do Painel), mas nenhum mockup especificamente para um cartão
+ * de conta mensal detalhada por posto na página de detalhes da propriedade —
+ * layout segue a linguagem visual já usada pelos widgets do bundle
+ * (cabeçalho com legenda de cor + grid de estatísticas em `.blueprint`), sem
+ * inventar uma estética nova.
  */
 export const GroupABillCard = ({ bucket }: GroupABillCardProps) => {
     const groupA = bucket.groupA
     if (!groupA) return null
+
+    // Azul tem 2 demandas contratadas (ponta/fora de ponta) — `contractedDemandKw`
+    // aqui é a SOMA das duas (ver ConsumptionService), um número que não
+    // corresponde a nenhum contrato real. Mostrar "Demanda contratada" como
+    // stat único nesse caso rotularia a soma como se fosse *a* demanda
+    // contratada — em vez disso, a tabela por posto abaixo decompõe cada
+    // demanda contratada/medida/parcela individualmente.
+    const hasSingleDemandPost = groupA.demandByPost.length <= 1
 
     return (
         <div className="flex flex-col gap-4" data-testid="group-a-bill-card">
@@ -90,7 +101,9 @@ export const GroupABillCard = ({ bucket }: GroupABillCardProps) => {
                 className="grid grid-cols-2 gap-px md:grid-cols-4"
                 data-testid="group-a-bill-stats"
             >
-                <Stat label="Demanda contratada" value={formatKw(groupA.contractedDemandKw)} />
+                {hasSingleDemandPost && (
+                    <Stat label="Demanda contratada" value={formatKw(groupA.contractedDemandKw)} />
+                )}
                 <Stat label="Parcela de demanda" value={formatCostBrl(groupA.demandBrl)} />
                 {groupA.ultrapassagemBrl > 0 && (
                     <Stat
@@ -105,11 +118,57 @@ export const GroupABillCard = ({ bucket }: GroupABillCardProps) => {
                 <Stat label="Total da conta" value={formatCostBrl(bucket.costBrl)} accent />
             </div>
 
+            {!hasSingleDemandPost && <DemandPostTable demandByPost={groupA.demandByPost} />}
+
             <PostTable energyByPost={groupA.energyByPost} />
             <PostChart energyByPost={groupA.energyByPost} />
         </div>
     )
 }
+
+interface DemandPostTableProps {
+    demandByPost: NonNullable<ConsumptionBucket["groupA"]>["demandByPost"]
+}
+
+/** Decomposição da demanda por posto (Azul) — cada posto tem sua própria demanda contratada/medida/parcela, nunca somadas na mesma linha. */
+const DemandPostTable = ({ demandByPost }: DemandPostTableProps) => (
+    <div className="overflow-x-auto">
+        <table className="w-full text-sm" data-testid="group-a-demand-post-table">
+            <thead className="bg-surface">
+                <tr className="text-muted text-left text-xs tracking-wide uppercase">
+                    <th scope="col" className="px-4 py-3 font-medium">
+                        Posto
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-right font-medium">
+                        Contratada
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-right font-medium">
+                        Medida
+                    </th>
+                    <th scope="col" className="px-4 py-3 text-right font-medium">
+                        Parcela
+                    </th>
+                </tr>
+            </thead>
+            <tbody className="divide-divider divide-y">
+                {demandByPost.map((d) => (
+                    <tr key={d.post ?? "single"} className="text-text">
+                        <td className="px-4 py-3">{d.post ? TARIFF_POST_LABELS[d.post] : "—"}</td>
+                        <td className="px-4 py-3 text-right font-mono tabular-nums">
+                            {formatKw(d.contractedDemandKw)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono tabular-nums">
+                            {formatKw(d.measuredDemandKw)}
+                        </td>
+                        <td className="text-text/80 px-4 py-3 text-right font-mono tabular-nums">
+                            {formatCostBrl(d.demandBrl)}
+                        </td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    </div>
+)
 
 interface PostTableProps {
     energyByPost: NonNullable<ConsumptionBucket["groupA"]>["energyByPost"]

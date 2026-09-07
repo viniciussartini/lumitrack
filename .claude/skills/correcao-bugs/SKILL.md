@@ -22,7 +22,7 @@ Corrige comportamento **incorreto**. Distinção importante: `refatoracao` prese
 ## Definition of Done
 - Teste de regressão cobrindo o bug, verde.
 - Suíte completa, type-check, lint e dependency-cruiser passam.
-- **Comentários:** funcionais — Javadoc/JSDoc em classes, funções públicas e lógica não óbvia, explicando o **porquê**. **Nunca** referencie issue, PR, auditoria, achado, data ou autor no comentário (`06`): rastreabilidade vive no git, nos ADRs e nas issues, e o lint (`no-warning-comments`) barra. Corrigir bug é onde mais aparece `// fix da issue #N` — o comentário deve explicar **a causa**, não a origem do relato.
+- **Comentários:** funcionais — Javadoc/JSDoc em classes, funções públicas e lógica não óbvia, explicando o **porquê**. **Nunca** referencie issue, PR, auditoria, achado, data, autor ou número de RF/RNF/RN/FNC no comentário (`06`): rastreabilidade vive no git, nos ADRs, no CHANGELOG e nas issues; RF/RNF/RN/FNC vivem no `02-requisitos.md`. O lint barra os dois casos (`no-warning-comments` para issue/PR/auditoria; `local/no-comment-req-refs` para RF/RN/RNF/FNC seguido de número) — mas releia antes de finalizar, o lint pega o padrão exato, não paráfrase. Corrigir bug é onde mais aparece `// fix da issue #N` — o comentário deve explicar **a causa**, não a origem do relato.
 
 ## Ao concluir
 Siga `.claude/project_context/08-convencoes-git.md`:

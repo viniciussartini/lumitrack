@@ -183,6 +183,19 @@ describe("DemandAlertService", () => {
                 service.create(user.id, { ...validInput, meterId: meter.id, thresholdPercent: 0 }),
             ).rejects.toThrow(ValidationError)
         })
+
+        it("lança ValidationError para thresholdPercent acima do teto", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const service = new DemandAlertService(demandAlertRepository, meterRepository)
+
+            await expect(
+                service.create(user.id, {
+                    ...validInput,
+                    meterId: meter.id,
+                    thresholdPercent: 501,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
     })
 
     describe("findAll", () => {
@@ -288,6 +301,24 @@ describe("DemandAlertService", () => {
             await expect(
                 service.update(alert.id, user.id, { thresholdPercent: -1 }),
             ).rejects.toThrow(ValidationError)
+        })
+
+        it("lança ValidationError para thresholdPercent acima do teto", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const service = new DemandAlertService(demandAlertRepository, meterRepository)
+            const alert = await service.create(user.id, { ...validInput, meterId: meter.id })
+
+            await expect(
+                service.update(alert.id, user.id, { thresholdPercent: 501 }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("lança ValidationError para corpo vazio — PUT sem nenhum campo não é um no-op silencioso", async () => {
+            const { user, meter } = await setupUserAndMeter()
+            const service = new DemandAlertService(demandAlertRepository, meterRepository)
+            const alert = await service.create(user.id, { ...validInput, meterId: meter.id })
+
+            await expect(service.update(alert.id, user.id, {})).rejects.toThrow(ValidationError)
         })
     })
 

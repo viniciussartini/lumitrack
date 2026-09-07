@@ -84,7 +84,7 @@ const demandRollupScheduler = new DemandRollupScheduler(
     meterDemandRollupRepository,
 )
 
-// Alerta de ultrapassagem de demanda contratada (Grupo A, RF31) — scheduler
+// Alerta de ultrapassagem de demanda contratada (Grupo A) — scheduler
 // IRMÃO do DemandRollupScheduler, rodando com uma folga maior para sempre ler
 // o rollup do minuto já atualizado. Sem motor de episódio: MeterDemandRollup
 // é um agregado que só cresce dentro do ciclo de faturamento, então

@@ -2,6 +2,7 @@ import js from "@eslint/js"
 import globals from "globals"
 import tseslint from "typescript-eslint"
 import jsdoc from "eslint-plugin-jsdoc"
+import noCommentReqRefs from "./eslint-rules/no-comment-req-refs.js"
 
 export default tseslint.config(
     { ignores: ["dist", "src/generated/prisma", "coverage"] },
@@ -38,6 +39,7 @@ export default tseslint.config(
                 tsconfigRootDir: import.meta.dirname,
             },
         },
+        plugins: { local: noCommentReqRefs },
         rules: {
             // Convenção já usada no projeto: prefixo `_` sinaliza "intencionalmente
             // não usado" (ex.: `_next` em assinaturas de error handler do Express,
@@ -62,6 +64,8 @@ export default tseslint.config(
             ],
             "@typescript-eslint/no-floating-promises": "error",
             "@typescript-eslint/no-misused-promises": "error",
+            // RF/RN/RNF/FNC seguido de número — ver eslint-rules/no-comment-req-refs.js.
+            "local/no-comment-req-refs": "error",
             // Mecaniza a proibição de comentário de rastreabilidade
             // (06-code-quality-standards.md) — issue/PR/laudo/achado de
             // revisão pertencem ao git, aos ADRs, ao CHANGELOG e às issues,

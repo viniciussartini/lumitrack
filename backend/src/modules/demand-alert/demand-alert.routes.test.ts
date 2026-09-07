@@ -370,6 +370,18 @@ describe("PUT /api/demand-alerts/:id", () => {
 
         expect(response.status).toBe(422)
     })
+
+    it("deve retornar 422 para corpo vazio", async () => {
+        const { token, meterId } = await setupUserWithGroupAMeter()
+        const alert = await createDemandAlert(token, meterId)
+
+        const response = await request(app)
+            .put(`/api/demand-alerts/${alert.id}`)
+            .set("Authorization", `Bearer ${token}`)
+            .send({})
+
+        expect(response.status).toBe(422)
+    })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────

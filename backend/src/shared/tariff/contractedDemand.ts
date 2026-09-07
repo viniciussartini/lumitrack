@@ -37,7 +37,8 @@ export function resolveContractedDemands(
 
 // Maior potência média (W) entre os postos do mês, convertida para kW — mês
 // sem nenhuma janela completa observada mede 0 kW, nunca gera ultrapassagem
-// por ausência de dado (mesmo cuidado de RN19 contra janela incompleta).
+// por ausência de dado (mesma cautela contra janela incompleta aplicada ao
+// apurar a demanda medida).
 function measuredDemandKwForMonth(rows: MeterDemandRollupResponse[]): number {
     if (rows.length === 0) return 0
     return Math.max(...rows.map((r) => r.maxAvgPowerW)) / 1000

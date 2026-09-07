@@ -96,8 +96,17 @@ function buildFakes(overrides: {
             .mockImplementation((meterId: string) => Promise.resolve(targets.get(meterId) ?? null)),
     } as unknown as MeterRepository
 
+    // Agrupa por meterId — o scheduler lê o rollup em lote (1 medidor, N
+    // linhas por posto) desde a otimização de N+1 que substituiu o antigo
+    // findByMeterAndPeriod por alerta.
+    const rollupsByMeter = new Map<string, MeterDemandRollupResponse[]>()
+    for (const row of overrides.rollupRows ?? []) {
+        const bucket = rollupsByMeter.get(row.meterId) ?? []
+        bucket.push(row)
+        rollupsByMeter.set(row.meterId, bucket)
+    }
     const meterDemandRollupRepository = {
-        findByMeterAndPeriod: vi.fn().mockResolvedValue(overrides.rollupRows ?? []),
+        findByMetersAndPeriod: vi.fn().mockResolvedValue(rollupsByMeter),
     } as unknown as MeterDemandRollupRepository
 
     const userEventHub = { emit: emitMock } as unknown as UserEventHub
@@ -195,7 +204,7 @@ describe("DemandAlertScheduler.tick", () => {
         await scheduler.tick(NOW)
 
         expect(fakes.addMock).not.toHaveBeenCalled()
-        expect(fakes.meterDemandRollupRepository.findByMeterAndPeriod).not.toHaveBeenCalled()
+        expect(fakes.meterDemandRollupRepository.findByMetersAndPeriod).not.toHaveBeenCalled()
     })
 
     it("Azul: dispara pelo posto que cruzou o limiar mesmo com o outro dentro do contratado", async () => {
@@ -247,6 +256,22 @@ describe("DemandAlertScheduler.tick", () => {
         expect(fakes.addMock).not.toHaveBeenCalled()
     })
 
+    it("pula (fail-closed) quando a propriedade Grupo A está sem demanda contratada cadastrada", async () => {
+        const targets = new Map([
+            ["meter-1", fakeTargetRow(fakeProperty({ contractedDemandKw: null }))],
+        ])
+        const fakes = buildFakes({
+            alerts: [fakeAlert()],
+            targets,
+            rollupRows: [fakeRollupRow({ maxAvgPowerW: 999_000 })],
+        })
+        const scheduler = buildScheduler(fakes)
+
+        await scheduler.tick(NOW)
+
+        expect(fakes.addMock).not.toHaveBeenCalled()
+    })
+
     it("pula (fail-closed) quando a modalidade não tem cálculo de demanda implementado", async () => {
         const targets = new Map([
             ["meter-1", fakeTargetRow(fakeProperty({ tariffModality: "CONVENTIONAL_BINOMIAL" }))],
@@ -264,6 +289,10 @@ describe("DemandAlertScheduler.tick", () => {
     })
 
     it("continua avaliando os demais alertas quando um deles falha", async () => {
+        // A falha injetada precisa ser POR ALERTA (não na leitura em lote do
+        // rollup, que agora é uma única consulta para todos os medidores do
+        // tick): aqui o medidor de "meter-fail" falha ao resolver o alvo
+        // dentro de `notify()`, depois de já ter cruzado o limiar.
         const targets = new Map([
             ["meter-ok", fakeTargetRow(fakeProperty())],
             ["meter-fail", fakeTargetRow(fakeProperty())],
@@ -274,13 +303,15 @@ describe("DemandAlertScheduler.tick", () => {
                 fakeAlert({ id: "alert-fail", meterId: "meter-fail", thresholdPercent: 100 }),
             ],
             targets,
+            rollupRows: [
+                fakeRollupRow({ meterId: "meter-ok", post: "PEAK", maxAvgPowerW: 300_000 }),
+                fakeRollupRow({ meterId: "meter-fail", post: "PEAK", maxAvgPowerW: 300_000 }),
+            ],
         })
-        fakes.meterDemandRollupRepository.findByMeterAndPeriod = vi
-            .fn()
-            .mockImplementation((meterId: string) => {
-                if (meterId === "meter-fail") return Promise.reject(new Error("timeout"))
-                return Promise.resolve([fakeRollupRow({ post: "PEAK", maxAvgPowerW: 300_000 })])
-            })
+        fakes.meterRepository.findByIdWithTarget = vi.fn().mockImplementation((meterId: string) => {
+            if (meterId === "meter-fail") return Promise.reject(new Error("timeout"))
+            return Promise.resolve(targets.get(meterId) ?? null)
+        })
         const scheduler = buildScheduler(fakes)
 
         await scheduler.tick(NOW)

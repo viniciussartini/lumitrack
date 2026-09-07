@@ -14,10 +14,10 @@ import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 import type { Paginated } from "@/shared/pagination.js"
 
 /**
- * CRUD de alertas de ultrapassagem de demanda contratada (Grupo A, RF31) —
- * cada alerta é uma configuração de limiar por medidor, avaliada 1x/minuto
- * pelo `DemandAlertScheduler` contra `MeterDemandRollup`, sem motor de
- * episódio (diferente de `AlertService`/`AlertEvaluator`, ver ADR no CHANGELOG).
+ * CRUD de alertas de ultrapassagem de demanda contratada (Grupo A) — cada
+ * alerta é uma configuração de limiar por medidor, avaliada 1x/minuto pelo
+ * `DemandAlertScheduler` contra `MeterDemandRollup`, sem motor de episódio
+ * (diferente de `AlertService`/`AlertEvaluator` — ver ADR-0020).
  */
 export class DemandAlertService {
     /**

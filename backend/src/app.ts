@@ -60,7 +60,7 @@ export interface AppDependencies {
     authRateLimiter?: RequestHandler
     // Injeção só usada em teste — permite capturar o stream do pino com
     // `level` habilitado (o logger singleton fica "silent" em NODE_ENV=test)
-    // para asserção de não-vazamento de dado sensível (RNF05).
+    // para asserção de não-vazamento de dado sensível no log estruturado.
     logger?: Logger
 }
 

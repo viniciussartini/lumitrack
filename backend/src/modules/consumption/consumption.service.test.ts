@@ -787,7 +787,7 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
         expect(groupA!.ereBrl).toBe(0)
     })
 
-    it("cobra ultrapassagem de demanda (RN20) quando a demanda medida excede 5% da contratada", async () => {
+    it("cobra ultrapassagem de demanda quando a demanda medida excede 5% da contratada", async () => {
         const { user, meter, property } = await setupGroupAPropertyMeter()
         await insertReading(meter.id, "2026-08-04T22:00:00Z", 800, 100_000)
         await insertReading(meter.id, "2026-08-04T13:00:00Z", 28_000, 100_000)
@@ -881,7 +881,7 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
         expect(result.items[0]!.groupA!.ultrapassagemBrl).toBeCloseTo(594, 2)
     })
 
-    it("cobra energia reativa excedente (RN21) quando o fator de potência fica abaixo de 0,92", async () => {
+    it("cobra energia reativa excedente quando o fator de potência fica abaixo de 0,92", async () => {
         const { user, meter, property } = await setupGroupAPropertyMeter()
         // 10h SP (13h UTC) — janela indutiva (6h-24h). FP 0,85, bem abaixo do
         // mínimo regulatório de 0,92.
@@ -952,7 +952,58 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
         expect(result.items[0]!.groupA!.ereBrl).toBe(0)
     })
 
-    it("soma o excedente das duas janelas quando há leitura indutiva e capacitiva no mesmo mês", async () => {
+    it("apura o excedente por hora — uma hora com FP perfeito não compensa uma hora ruim na mesma janela", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+        // 10h SP (13h UTC) — FP perfeito (1,0), reativa zero nessa hora.
+        await prismaTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date("2026-08-04T13:00:00Z"),
+                kwhConsumed: 500,
+                avgVoltage: 220,
+                avgCurrent: 500_000 / 220,
+                avgPowerW: 500_000,
+                avgPowerFactor: 1,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+        // 11h SP (14h UTC) — mesma janela indutiva, FP 0,85.
+        await prismaTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date("2026-08-04T14:00:00Z"),
+                kwhConsumed: 500,
+                avgVoltage: 220,
+                avgCurrent: 500_000 / 220,
+                avgPowerW: 500_000,
+                avgPowerFactor: 0.85,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        // Se o excedente fosse apurado sobre o total do mês (500+500 kWh,
+        // reativa só da hora ruim), a hora boa "diluiria" o excedente da
+        // hora ruim: 500×tan(acos(0,85)) − 1000×referência ≈ −116 → zero
+        // (esconderia o excedente real). Apurado por hora, a hora boa
+        // contribui 0 e a hora ruim contribui seu próprio excedente.
+        const referenceRatio = Math.tan(Math.acos(0.92))
+        const measuredRatio = Math.tan(Math.acos(0.85))
+        const expectedExcessKvarh = 500 * (measuredRatio - referenceRatio)
+        expect(expectedExcessKvarh).toBeGreaterThan(0) // a hora ruim excede sozinha
+
+        const expectedEreBrl = expectedExcessKvarh * 0.12 // TUSD fora de ponta
+        expect(result.items[0]!.groupA!.ereBrl).toBeCloseTo(expectedEreBrl, 6)
+    })
+
+    it("cobra só a janela indutiva quando há leitura indutiva e capacitiva no mesmo mês — capacitiva sempre zero", async () => {
         const { user, meter, property } = await setupGroupAPropertyMeter()
         // 10h SP (13h UTC) — indutiva.
         await prismaTest.meterReading.create({
@@ -991,10 +1042,13 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
 
         const groupA = result.items[0]!.groupA!
         expect(groupA.ereByWindow.map((w) => w.window).sort()).toEqual(["CAPACITIVE", "INDUCTIVE"])
+        const capacitive = groupA.ereByWindow.find((w) => w.window === "CAPACITIVE")
+        expect(capacitive?.ereBrl).toBe(0)
+        expect(capacitive?.excessKvarh).toBe(0)
 
         const referenceRatio = Math.tan(Math.acos(0.92))
         const measuredRatio = Math.tan(Math.acos(0.85))
-        const expectedTotal = (1000 + 500) * (measuredRatio - referenceRatio) * 0.12
+        const expectedTotal = 1000 * (measuredRatio - referenceRatio) * 0.12
         expect(groupA.ereBrl).toBeCloseTo(expectedTotal, 6)
     })
 

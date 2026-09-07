@@ -227,7 +227,7 @@ describe("TariffService", () => {
         })
     })
 
-    describe("calculateForGroupA — ultrapassagem de demanda (RN20)", () => {
+    describe("calculateForGroupA — ultrapassagem de demanda", () => {
         const baseInput = {
             energyByPost: [
                 { post: "OFF_PEAK" as const, kwhConsumed: 0, tusdPerKwh: 0, tePerKwh: 0 },
@@ -306,7 +306,7 @@ describe("TariffService", () => {
             expect(result.ultrapassagemBrl).toBeCloseTo(2700, 2)
         })
 
-        it("entra em baseSemTributos antes dos tributos (RN17) — não é somada depois", () => {
+        it("entra em baseSemTributos antes dos tributos — não é somada depois", () => {
             const withoutOverage = service.calculateForGroupA({
                 ...baseInput,
                 demandPosts: [
@@ -328,7 +328,7 @@ describe("TariffService", () => {
         })
     })
 
-    describe("calculateForGroupA — energia reativa excedente (RN21)", () => {
+    describe("calculateForGroupA — energia reativa excedente", () => {
         const baseInput = {
             demandPosts: [] as never[],
             energyByPost: [
@@ -380,7 +380,11 @@ describe("TariffService", () => {
             expect(result.ereBrl).toBeCloseTo(expectedExcessKvarh * 0.3, 6)
         })
 
-        it("soma o excedente das duas janelas (indutivo + capacitivo)", () => {
+        it("ignora a janela capacitiva mesmo com fator de potência abaixo do de referência — falha fechado por falta do sinal do reativo", () => {
+            // `avgPowerFactor` guarda só a magnitude do fator de potência, sem a
+            // direção (indutivo × capacitivo) que distingue as duas janelas — sem
+            // esse sinal, cobrar excedente capacitivo arriscaria confundi-lo com
+            // indutivo. A janela indutiva soma normalmente.
             const result = service.calculateForGroupA({
                 ...baseInput,
                 reactiveWindows: [
@@ -400,8 +404,11 @@ describe("TariffService", () => {
             })
 
             expect(result.ereByWindow).toHaveLength(2)
-            const totalExpected = (1000 + 100) * (0.5 - REFERENCE_RATIO) * 0.3
-            expect(result.ereBrl).toBeCloseTo(totalExpected, 6)
+            const capacitive = result.ereByWindow.find((w) => w.window === "CAPACITIVE")
+            expect(capacitive).toEqual({ window: "CAPACITIVE", excessKvarh: 0, ereBrl: 0 })
+
+            const inductiveExpected = 1000 * (0.5 - REFERENCE_RATIO) * 0.3
+            expect(result.ereBrl).toBeCloseTo(inductiveExpected, 6)
         })
 
         it("aproxima o exemplo do documento de referência (frigorífico A4 Azul, FP 0,91)", () => {
@@ -425,7 +432,7 @@ describe("TariffService", () => {
             expect(Math.abs(result.ereBrl - 772)).toBeLessThan(100)
         })
 
-        it("entra em baseSemTributos antes dos tributos (RN17) — não é somada depois", () => {
+        it("entra em baseSemTributos antes dos tributos — não é somada depois", () => {
             const withoutEre = service.calculateForGroupA({
                 ...baseInput,
                 reactiveWindows: [],

@@ -110,7 +110,7 @@ export class ConsumptionService {
      * @param distributorRepository - Resolve a distribuidora vinculada à propriedade, com suas tarifas.
      * @param tariffFlagRepository - Resolve a configuração vigente da bandeira tarifária.
      * @param tariffCatalogRepository - Resolve o catálogo de tarifas de energia/demanda do Grupo A.
-     * @param meterDemandRollupRepository - Resolve a demanda medida por posto (RN19), usada para apurar ultrapassagem (RN20).
+     * @param meterDemandRollupRepository - Resolve a demanda medida por posto, usada para apurar ultrapassagem de demanda contratada.
      * @param tariffService - Calcula o custo em reais a partir do consumo em kWh.
      */
     constructor(
@@ -582,10 +582,10 @@ export class ConsumptionService {
         return map
     }
 
-    // RN21 usa "a mesma tarifa de TUSD" sem diferenciar por posto — corte de
-    // execução (ver tariff.service.ts): a TUSD de energia fora de ponta cobre
-    // integralmente a janela capacitiva (0h-6h) e a maior parte da indutiva
-    // (6h-24h), e o catálogo não tem uma tarifa reativa própria.
+    // A norma de energia reativa excedente não diferencia a tarifa por posto
+    // — corte de execução (ver tariff.service.ts): a TUSD de energia fora de
+    // ponta cobre integralmente a janela capacitiva (0h-6h) e a maior parte
+    // da indutiva (6h-24h), e o catálogo não tem uma tarifa reativa própria.
     private resolveReactiveTusdPerKvarh(energyRates: TariffEnergyRateResponse[]): number {
         const offPeakRate = energyRates.find((rate) => rate.post === "OFF_PEAK")
         if (!offPeakRate) {
@@ -652,10 +652,16 @@ export class ConsumptionService {
             tePerKwh: rate.tePerKwh,
         }))
 
+        // `ConsumptionRepository` já apura o excedente por hora e soma só as
+        // horas que excederam a razão de referência (uma hora boa nunca
+        // compensa uma ruim). `TariffService.calculateReactiveWindow` espera
+        // ativa/reativa separadas para aplicar essa mesma subtração — como o
+        // excedente já vem pronto, `activeKwh: 0` faz `max(0, excedente − 0)`
+        // devolver o próprio excedente sem recalcular nada.
         const reactiveWindows = reactiveRowsForMonth.map((row) => ({
             window: row.window,
-            activeKwh: row.activeKwh,
-            reactiveKvarh: row.reactiveKvarh,
+            activeKwh: 0,
+            reactiveKvarh: row.excessKvarh,
             tusdPerKvarh,
         }))
 
