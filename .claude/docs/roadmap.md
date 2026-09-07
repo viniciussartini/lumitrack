@@ -1,7 +1,7 @@
 # Roadmap de Implementação — LumiTrack
 
 > Documento vivo. Atualizado ao fim de cada fase. Fonte: `02-requisitos.md` + ADR-0005 + `.claude/design/2026-09-06-lumitrack-completo/`.
-> Última atualização: 2026-09-06 · Fases 1–18 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, #290, #305, #322, #334, #335, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15), #300 (épico #290, Fase 15.5), #304 (#296–#299, Fase 15.5), #314 (épico #305: #306–#309, Fase 16), #317 (#310–#313, #168, Fase 16), #321 (#255, #257, #316, Fase 16), #333 (épico #322: #323–#328, Fase 17), #354 (épico #334: #336–#341, #353, Fase 18), #355 (épico #335: #342–#345, Fase 18), #357 (#346–#351, #318, #329, #356, #269, #272, #289, #303, Fase 18). Dos itens fora do escopo declarado da Fase 18, quatro acabaram fechados dentro dela mesma (#269, #272, #289, #303); #302 foi fechada como adiada (destino já previsto pela ADR-0014); só #315 (fator de escala Modbus/Profinet) segue genuinamente em aberto. Fase atual: **19** (Grupo A — fundação tarifária + Horária Verde/A4) — detalhada desde 2026-08-05, com uma correção registrada no replanejamento de 2026-09-06 (o item de UI deixou de estar sem handoff de design). Entre o fechamento da Fase 18 e o início da 19, duas correções não planejadas entraram por pedido direto do usuário, fora da estrutura de fases: PR #358 (leituras de medidor em tempo real não chegavam ao painel — SSE, credencial IoT, formulário MQTT) e PR #361 (issues #359/#360 — wordmark e seletor de janela de hora no histórico de consumo — mais os achados da própria revisão de código do PR). **Replanejamento de 2026-09-06** (ver seção própria no fim do documento): revisão completa do `02-requisitos.md` (categoria RN, status por item) a partir de um novo handoff de design (`2026-09-06-lumitrack-completo`) que substitui `Home` por `Home v2` como alvo do app logado — inseridas as **Fases 23–31**, um bloco novo de 9 fases cobrindo a navegação redesenhada (Painel · Análise · Histórico · Relatórios · Configurações), Metas, Sessões ativas, telemetria ampliada e suporte a Modbus no simulador.
+> Última atualização: 2026-09-07 · Fases 1–19 concluídas — épicos #94, #104, #110, #114, #128, #132, #133, #134, #148, #154, #159, #185, #187, #259, #275, #279, #290, #305, #322, #334, #335, #379, issue #127 e PRs #250 (13.6), #254/#256 (13.7), #274 (14), #286 (épico #275, Fase 15), #287 (épico #279, Fase 15), #288 (#284/#285, Fase 15), #300 (épico #290, Fase 15.5), #304 (#296–#299, Fase 15.5), #314 (épico #305: #306–#309, Fase 16), #317 (#310–#313, #168, Fase 16), #321 (#255, #257, #316, Fase 16), #333 (épico #322: #323–#328, Fase 17), #354 (épico #334: #336–#341, #353, Fase 18), #355 (épico #335: #342–#345, Fase 18), #357 (#346–#351, #318, #329, #356, #269, #272, #289, #303, Fase 18), #385 (épico #379: #380–#384, Fase 19). Dos itens fora do escopo declarado da Fase 18, quatro acabaram fechados dentro dela mesma (#269, #272, #289, #303); #302 foi fechada como adiada (destino já previsto pela ADR-0014); só #315 (fator de escala Modbus/Profinet) segue genuinamente em aberto. **A Fase 19 fechou em `staging` (PR #385, 2026-09-07); o épico #379 segue formalmente *open* no GitHub até a próxima promoção `staging → main`, convenção já observada nas fases anteriores.** Fase atual: **20** (Grupo A — Horária Azul, ultrapassagem de demanda e energia reativa excedente) — detalhada em 7 itens no replanejamento de 2026-09-07, que também registra o quanto da fundação da Fase 19 (catálogo por posto, demanda medida por posto) já deixa a Azul mais barata do que o objetivo original previa. Entre o fechamento da Fase 18 e o início da 19, duas correções não planejadas entraram por pedido direto do usuário, fora da estrutura de fases: PR #358 (leituras de medidor em tempo real não chegavam ao painel — SSE, credencial IoT, formulário MQTT) e PR #361 (issues #359/#360 — wordmark e seletor de janela de hora no histórico de consumo — mais os achados da própria revisão de código do PR). **Replanejamento de 2026-09-06** (ver seção própria no fim do documento): revisão completa do `02-requisitos.md` (categoria RN, status por item) a partir de um novo handoff de design (`2026-09-06-lumitrack-completo`) que substitui `Home` por `Home v2` como alvo do app logado — inseridas as **Fases 23–31**, um bloco novo de 9 fases cobrindo a navegação redesenhada (Painel · Análise · Histórico · Relatórios · Configurações), Metas, Sessões ativas, telemetria ampliada e suporte a Modbus no simulador.
 >
 > Escopo: guia geral de implementação do projeto, não mais restrito a uma área. Fases 1–5 cobrem a migração do frontend para o design system Industry e a construção das telas do handoff que ainda não existem (nenhuma delas altera RF de backend). Fases 6–9 ampliam para fidelidade do chrome, consistência das telas públicas, integração externa e dívida técnica de backend. **Fases 10–18 são a remediação das auditorias** — as quatro de 2026-08-05 e, a partir da Fase 13.6, as quatro de 2026-08-22 (pós-deploy) — nenhum RF novo; o produto passa a ser endurecido em vez de ampliado. **A Fase 13.7 separa os ambientes:** VPS Hostinger (São Paulo) vira produção real (branch `main`), Render+Neon é rebaixado a staging/integração (branch `staging`) — ver **ADR-0012**. **Fases 19–22 abrem a maior expansão de domínio desde o MVP:** Grupo A (alta/média tensão, tarifa binômia), Mercado Livre (ACL) e Tarifa Branca — RFs novos, ADR estrutural e mudança no modelo de dados tarifário. **Fases 23–31 (2026-09-06) são o segundo bloco de expansão**, independente do primeiro: redesenho de navegação e features novas do handoff `Home v2` — sem mudança no modelo tarifário.
 
@@ -31,8 +31,8 @@
 | 16 | Worker IoT — robustez, estrutura e cobertura | **Concluída** (épico #305 — PR #314; PR #317; PR #321) |
 | 17 | Frontend — tempo real e bundle | **Concluída** (épico #322 — #323–#328; PR #333 mesclado em staging) |
 | 18 | Design system, cobertura de testes e polimento | **Concluída** (épicos #334, #335, PRs #354/#355/#357) |
-| **19** | **Grupo A — fundação tarifária (subgrupos, modalidades, postos, demanda) + Horária Verde** | Planejada — fase atual, detalhada em 5 itens |
-| 20 | Grupo A — Horária Azul, ultrapassagem de demanda e energia reativa excedente | Planejada — objetivo abaixo |
+| 19 | Grupo A — fundação tarifária (subgrupos, modalidades, postos, demanda) + Horária Verde | **Concluída** (épico #379: #380–#384, PR #385 → staging) |
+| **20** | **Grupo A — Horária Azul, ultrapassagem de demanda e energia reativa excedente** | Planejada — fase atual, detalhada em 7 itens |
 | 21 | Mercado Livre de Energia (ACL) | Planejada — objetivo abaixo |
 | 22 | Tarifa Branca (Grupo B) — reaproveita a fundação de postos tarifários | Planejada — objetivo abaixo |
 | 23 | Shell v2 — navegação redesenhada (Painel · Análise · Histórico · Relatórios · Configurações) | Planejada — objetivo abaixo |
@@ -1848,11 +1848,99 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
 - **Depende de:** tarifação binômia Verde.
 - **Risco/observações:** médio — reduzido em relação à avaliação original (2026-08-05), que classificava este item como "o mais afetado pela ausência de design" do roadmap; o handoff de 2026-09-06 resolveu essa lacuna. Risco remanescente é o normal de qualquer tela nova: fidelidade ao protótipo e ausência de regressão no Grupo B.
 
-## Fases 20–22 (objetivo — serão detalhadas ao chegar)
+## Fase 20 — Grupo A: Azul, ultrapassagem e energia reativa excedente
 
-### Fase 20 — Grupo A: Azul, ultrapassagem e energia reativa excedente
+**Entrega (milestone):** `Tarifação Grupo A, Mercado Livre e Tarifa Branca` (mesma da Fase 19, no GitHub).
 
-Completa o Grupo A sobre a fundação da Fase 19. Cobre: **modalidade Horária Azul** (2 demandas contratadas — ponta e fora de ponta — e 4 tarifas distintas; obrigatória para A1/A2/A3 e para demanda ≥ 300 kW); **ultrapassagem de demanda** (tolerância de 5%, acima disso `(medida − contratada) × 3 × tarifa`, aplicada **antes** dos tributos); **energia reativa excedente** (FP mínimo 0,92, indutivo medido entre 6h–24h e capacitivo entre 0h–6h, cobrado em R$/kVArh) — viável porque `MeterReading` já persiste `avgPowerFactor` por minuto. Oráculo de teste disponível: **Exemplo 7** do documento de referência (frigorífico A4 Azul em Cuiabá, FP 0,91, total R$ 101.496,36). A **Convencional Binômia** entra aqui como decisão de escopo: está em extinção gradual segundo o documento e restrita a A3a/A4/AS com demanda < 300 kW — avaliar na chegada se vale implementar ou registrar como adiada com justificativa.
+> Completa o Grupo A sobre a fundação construída na Fase 19. O achado do replanejamento de 2026-09-07: o catálogo (`TariffEnergyRate`/`TariffDemandRate`, ambos já com coluna `post`) e a demanda medida por posto (`MeterDemandRollup`, escrita pelo `DemandRollupScheduler` desde a Fase 19 sem leitor de produção) já existem — o comentário do schema desde o PR #385 já previa "Azul popula PEAK/OFF_PEAK". Esta fase é mais sobre **ligar** o que já está persistido do que sobre criar modelo novo.
+
+### Modelo de dados: demanda contratada por posto (Azul)
+
+- **Comportamento:** nenhum diretamente — habilita o restante da fase. `Property` passa a aceitar duas demandas contratadas (ponta e fora de ponta) para a modalidade Azul.
+- **Cobre:** habilita RF30 e RN18 (Azul).
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:**
+  - `Property` ganha `contractedDemandPeakKw`/`contractedDemandOffPeakKw` (nullable), obrigatórios quando `tariffModality = BLUE`; `contractedDemandKw` (Verde) permanece intocado.
+  - Validação cruzada por modalidade em `property.service.ts`, mesmo padrão já usado para subgrupo/modalidade desde a Fase 19.
+  - Seed do catálogo Azul de uma distribuidora real (Energisa MT — mesma fonte do Exemplo 7: TUSD demanda R$ 45,00/kW ponta, R$ 15,00/kW fora ponta).
+  - Testes de Grupo B e da Verde continuam verdes sem alteração — mesmo contrato de regressão da Fase 19.
+- **Depende de:** —.
+- **Risco/observações:** baixo — diferente do item equivalente da Fase 19 (risco alto, mudança estrutural), aqui o catálogo binômio e a agregação por posto já existem; o trabalho é aditivo (2 colunas + seed), sem ADR nova.
+
+### Ultrapassagem de demanda (RN20)
+
+- **Comportamento:** um consumidor Grupo A — Verde ou Azul — vê a multa de ultrapassagem discriminada na conta quando a demanda medida do mês excede em mais de 5% a contratada, por posto quando houver mais de uma.
+- **Cobre:** RF31 (cálculo), RN20.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - `ultrapassagem = (demandaMedida − demandaContratada) × 3 × TUSDdemanda` quando `demandaMedida > 1,05 × demandaContratada`, senão zero — por posto.
+  - Lê `MeterDemandRollup` (existe desde a Fase 19; este é o primeiro leitor de produção).
+  - Entra em `baseSemTributos` **antes** dos tributos (RN17), sem duplicar a extração já usada por Verde/bandeira/CIP.
+  - Implementado de forma genérica (lista de postos, não um único valor) para já servir a Azul sem retrabalho quando o item seguinte a ligar.
+  - Teste cobrindo a fronteira dos 5% (justo abaixo não cobra, justo acima cobra) e o caso de mais de um posto simultaneamente ultrapassado.
+- **Depende de:** modelo de dados (para o caminho Azul; Verde já tem `contractedDemandKw` desde a Fase 19).
+- **Risco/observações:** médio-alto — mesma classe de risco da demanda medida (Fase 19): uma leitura imprecisa de `MeterDemandRollup` agora é multiplicada por 3, então o erro de cobrança é maior que o da parcela normal.
+
+### Energia reativa excedente — ERE (RN21)
+
+- **Comportamento:** um consumidor Grupo A com fator de potência abaixo de 0,92 vê a parcela de energia reativa excedente na conta.
+- **Cobre:** RF32, RN21.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - FP mínimo 0,92; indutivo medido entre 6h–24h, capacitivo entre 0h–6h — é regra de **janela horária de faturamento**, não de sinal medido, então não depende da decisão em aberto do `07` sobre grandezas medidas × calculadas (diferente da Fase 25): dá para calcular só com `avgPowerFactor` e `kwhConsumed`, já persistidos por minuto desde a fundação do produto.
+  - **Fórmula a derivar e documentar:** o documento de referência só dá uma aproximação para o Exemplo 7 ("~2% do consumo... kVArh × tarifa"), não a fórmula exata de energia reativa excedente a partir do FP de referência (ANEEL, REN 1.000/2021). Este item cita a fonte normativa consultada no código/ADR-lite do PR, não só no roadmap.
+  - Teste reproduzindo o **Exemplo 7** (FP 0,91, ERE ≈ R$ 772,00) com tolerância, registrando explicitamente que o valor de referência já é aproximado no documento-fonte.
+  - Entra em `baseSemTributos` (RN17), mesmo ponto de entrada da ultrapassagem.
+- **Depende de:** —.
+- **Risco/observações:** médio — é o item de maior risco de especificação da fase (fórmula exata não está no documento de referência); o de menor risco de dado (as grandezas necessárias já existem).
+
+### Modalidade Horária Azul — parcela de demanda dupla (RF30/RN18-Azul)
+
+- **Comportamento:** um consumidor A4 (ou A1/A2/A3, onde a Azul é obrigatória) na modalidade Azul vê a conta calculada com duas parcelas de demanda (ponta e fora de ponta) e quatro tarifas distintas.
+- **Cobre:** RF30, RN18 (ramo Azul).
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - `TariffService.calculateForGroupA` ramifica por modalidade: `parcelaDemanda = Σ_posto (demandaContratadaPosto × TUSDdemandaPosto)` para Azul, mantendo o caminho Verde intocado.
+  - Reaproveita a ultrapassagem (item anterior) e a ERE por posto, sem duplicar `applyTaxesByDentro` — mesmo cuidado de não degradar o `TariffService` já registrado como "o melhor arquivo do repositório" nos critérios da Fase 19.
+  - `ConsumptionService.calculateMonthCost` deixa de falhar fechado para `BLUE` (guarda existente desde o PR #385, que rejeitava explicitamente esta modalidade para a Fase 20 resolver).
+  - Teste reproduzindo o **Exemplo 7** ponta-a-ponta (frigorífico A4 Azul, Cuiabá, FP 0,91, total R$ 101.496,36) — mesmo padrão de oráculo externo da Fase 19.
+- **Depende de:** modelo de dados; ultrapassagem; ERE.
+- **Risco/observações:** médio — é composição de peças já testadas isoladamente (demanda dupla, ultrapassagem, ERE), não lógica nova; o risco residual é de integração, não de fórmula.
+
+### UI: cadastro Azul e detalhamento (ultrapassagem + ERE)
+
+- **Comportamento:** o usuário cadastra uma propriedade Azul (duas demandas contratadas) e vê a conta detalhada com ultrapassagem e ERE quando houver.
+- **Cobre:** os RFs desta fase, na camada de apresentação.
+- **Priority:** P1 · **Size:** L
+- **Critérios de aceite:**
+  - `PropertyForm` ganha os dois campos de demanda quando a modalidade selecionada é Azul, reaproveitando a ramificação por grupo já existente desde a Fase 19.
+  - `GroupABillCard` ganha as linhas de ultrapassagem e ERE, exibidas só quando o valor for maior que zero.
+  - **Handoff parcial:** o `10-design-system.md` confirma que a v2 cobre demanda ponta/fora-ponta e ultrapassagem, mas não menciona ERE explicitamente — onde a tela não especificar, vale a regra de ausência do `10` (mesma saída que o `GroupABillCard` já usou na Fase 19 para a decomposição por posto).
+  - Nenhuma tela de Grupo B ou de Verde sofre regressão.
+- **Depende de:** os quatro itens anteriores.
+- **Risco/observações:** médio — risco normal de tela nova, reaproveitando um dispatcher (`ConsumptionSection`) já existente.
+
+### Alerta de ultrapassagem de demanda contratada (RF31)
+
+- **Comportamento:** um usuário Grupo A configura um alerta e é avisado quando a demanda medida se aproxima ou ultrapassa a contratada.
+- **Cobre:** RF31 (configuração do alerta — o cálculo em si é o item de ultrapassagem acima).
+- **Priority:** P1 · **Size:** M
+- **Critérios de aceite:**
+  - Decisão a registrar no próprio item (não é decisão do `07` — não bloqueia nada): estender o modelo `Alert` existente (hoje por medidor/potência instantânea com histerese, RN32) ou usar um mecanismo mais simples direto sobre `MeterDemandRollup` (um agregado por mês, não uma série contínua — a histerese de RN32 foi desenhada para outro tipo de sinal).
+  - Notificação (mesmo canal já usado pelos alertas existentes) quando o agregado do mês corrente ultrapassar o limiar configurado.
+- **Depende de:** ultrapassagem de demanda (item 2).
+- **Risco/observações:** baixo-médio — escopo pequeno se a decisão for não reaproveitar o padrão de episódio/histerese do `Alert` atual.
+
+### Convencional Binômia — decisão de escopo
+
+- **Comportamento:** nenhum ainda — item de decisão, não de código.
+- **Cobre:** avaliação de escopo, sem RF associado até a decisão.
+- **Priority:** P2 · **Size:** XS
+- **Critérios de aceite:** decisão registrada — implementar (com plano próprio de tamanho a estimar então) ou adiar com justificativa (não é ADR, por não ser decisão estrutural).
+- **Depende de:** —.
+- **Risco/observações:** nenhum — a modalidade está em extinção gradual segundo o documento de referência e restrita a A3a/A4/AS com demanda < 300 kW, o que reduz a urgência.
+
+## Fases 21–22 (objetivo — serão detalhadas ao chegar)
 
 ### Fase 21 — Mercado Livre de Energia (ACL)
 
@@ -2023,3 +2111,14 @@ Candidatos conhecidos, ainda sem fase:
 - **Relatórios saiu de "RFs/telas adiados do MVP"**: a justificativa ali era "sem handoff de design no bundle atual" — resolvida pelo template `LumiTrack Relatório A4`. Virou a Fase 27.
 - **RF45 (catálogo tarifário com vigência) permanece sem fase**, registrado como candidato: é transversal às Fases 19 e 22 (edição versionada do que essas fases só semeiam) e maior escopo do que caberia como item de qualquer uma delas — decidir a fase quando a 19 estiver mais perto.
 - **Duas correções de status no `02`, sem impacto de fase:** RF47 (gestão de redes/medidores do simulador) estava `[planejado — sem fase]` mas já está implementado desde a Fase 5 (`iot-simulator/server/src/api/routes/networks.routes.ts`, `devices.routes.ts`); RF34 (PLD) ganhou `[planejado — Fase 21]` em vez de "sem fase", por ser insumo direto da comparação ACR×ACL.
+
+### Replanejamento de 2026-09-07 (fechamento da Fase 19; detalhamento da Fase 20)
+
+**O que mudou:** a Fase 19 fechou (épico #379: sub-issues #380–#384, PR #385 — modelo de dados, postos tarifários, demanda medida, cálculo binômio Verde e a UI de cadastro/detalhamento) e a Fase 20 foi detalhada de objetivo para 7 itens completos, com investigação direta do código (`schema.prisma`, `TariffService`, `MeterDemandRollup`) em vez de reaproveitar cegamente o esboço de 2026-08-05/2026-09-06.
+
+- **Épico #379 segue *open* no GitHub apesar do PR #385 mesclado e das 5 sub-issues fechadas:** o PR foi mesclado em `staging`, não em `main` (a branch default do repositório) — o `Closes #379` de um PR só fecha a issue automaticamente quando o merge acontece na branch default. Mesma convenção já observada nas fases anteriores (ex.: PR #354/#355/#357 da Fase 18); o épico fecha sozinho na próxima promoção `staging → main`. Registrado aqui para não ser confundido com pendência real de escopo.
+- **Achado que reduz o tamanho do item "modelo de dados" da Fase 20 de L (na Fase 19) para S:** o PR #385 já deixou `TariffEnergyRate.post` e `TariffDemandRate.post` prontos para `PEAK`/`OFF_PEAK` (o próprio comentário do schema, escrito na Fase 19, já previa "Azul popula PEAK/OFF_PEAK") e o `MeterDemandRollup` já persiste demanda medida por posto desde o `DemandRollupScheduler` (#382) — sem leitor de produção até agora. A Fase 20 portanto liga infraestrutura pronta em vez de construir modelo novo, ao contrário do que o objetivo original (2026-08-05) previa implicitamente ao tratá-la como extensão simétrica da Fase 19.
+- **Ultrapassagem (RN20) desacoplada da modalidade Azul:** o objetivo original descrevia ultrapassagem e ERE como parte do pacote "Azul" da fase, mas a regra vale igualmente para a Verde (nenhuma modalidade cobra ultrapassagem hoje) — por isso virou item próprio, implementado de forma genérica por posto, para servir as duas modalidades sem retrabalho quando a Azul ligar.
+- **Item novo, ausente do objetivo original:** "Alerta de ultrapassagem de demanda contratada" (RF31) — o objetivo de 2026-08-05 citava só o cálculo (RN20); a leitura do `02-requisitos.md` mostrou que RF31 pede explicitamente a *configuração* de um alerta pelo usuário, capacidade distinta do cálculo em si e que não se encaixa diretamente no modelo `Alert` existente (histerese de série contínua, RN32) — decisão de como implementar fica registrada no próprio item, por não bloquear nada.
+- **Risco de fórmula sinalizado no item de ERE:** o documento de referência (`O-Sistema-Eletrico-Brasileiro.md`) só dá uma aproximação para o Exemplo 7 ("~2% do consumo"), não a fórmula exata de energia reativa excedente a partir do fator de potência de referência — diferente da ultrapassagem e do cálculo binômio, que têm fórmula fechada. Registrado como o maior risco de especificação da fase (não um bloqueio do `07`, porque não impede começar — o item pode e deve pesquisar a fórmula normativa exata como parte do próprio trabalho).
+- **"Convencional Binômia" mantida como item de decisão de escopo (P2/XS)**, como o objetivo original já sinalizava — sem novidade, só formalizada como item da fase em vez de nota solta.

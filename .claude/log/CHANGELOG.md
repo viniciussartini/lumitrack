@@ -3406,3 +3406,12 @@
 - **Arquivos principais:** `.claude/project_context/08-convencoes-git.md`, `.claude/agents/revisao-codigo.md`; `backend/prisma/schema.prisma`, `seed.ts`, migração nova `20260907095254_grupo_a_indice_unico_demanda_unica`; `backend/src/modules/consumption/consumption.service.ts`, `consumption.repository.ts` + `.test.ts`; `backend/src/shared/tariff/tariff.service.ts`; `backend/src/shared/time/holidays.ts`; `.claude/docs/ROPA.md`; `frontend/src/styles/industry.css`; `frontend/src/components/consumption/GroupABillCard.tsx`; `frontend/src/components/property/PropertyForm.tsx`; `frontend/src/lib/formatters/consumption.ts`; `frontend/src/pages/property/PropertyDetailsPage.tsx`; `frontend/tests/e2e/properties.spec.ts`.
 - **Decisões/ADRs:** nenhuma nova.
 - **Notas:** suíte completa verde — backend 103 arquivos/**1173** testes (+3, os testes novos de `findKwhByPostGroupedByMonth`), frontend 96 arquivos/806 testes (contagem idêntica — as mudanças de frontend foram só de tipo/label/formatação). `tsc -b` e lint sem erros nos dois lados. Migração aplicada e `prisma generate` rodado localmente para validar contra o Postgres de desenvolvimento.
+
+## [2026-09-07] docs: roadmap atualizado — fechamento da Fase 19, detalhamento da Fase 20
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** `.claude/docs/roadmap.md` marca a Fase 19 como concluída (épico #379: sub-issues #380–#384, PR #385) e detalha a Fase 20 (Grupo A — Horária Azul, ultrapassagem de demanda, energia reativa excedente) em 7 itens verticais, promovendo-a de objetivo para itens completos com prioridade, tamanho, critérios de aceite e dependências.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova — planejamento, não implementação.
+- **Notas:** achado registrado no próprio roadmap (seção "Replanejamento de 2026-09-07"): a fundação da Fase 19 (catálogo por posto, demanda medida por posto) já deixa o item de modelo de dados da Azul muito menor do que o equivalente da Fase 19 (S em vez de L). Maior risco sinalizado: a fórmula exata de energia reativa excedente (RN21) não está fechada no documento de referência, só uma aproximação para o Exemplo 7 — fica registrado como trabalho de pesquisa dentro do próprio item, não como bloqueio do `07`.
