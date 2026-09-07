@@ -48,6 +48,28 @@ export const TARIFF_POST_LABELS: Record<TariffPost, string> = {
     OFF_PEAK: "Fora de ponta",
 }
 
+/** Janela de energia reativa excedente (RN21) — indutiva (ponta) ou capacitiva (fora de ponta). */
+export type ReactiveWindow = "INDUCTIVE" | "CAPACITIVE"
+
+/**
+ * Parcela de demanda de um posto horário — um item para Verde (post null),
+ * dois para Azul (PEAK e OFF_PEAK).
+ */
+export interface GroupADemandPost {
+    post: TariffPost | null
+    contractedDemandKw: number
+    measuredDemandKw: number
+    demandBrl: number
+    ultrapassagemBrl: number
+}
+
+/** Excedente de energia reativa (R$) apurado numa janela indutiva/capacitiva. */
+export interface GroupAReactiveWindowBreakdown {
+    window: ReactiveWindow
+    excessKvarh: number
+    ereBrl: number
+}
+
 /**
  * Decomposição da conta binômia do Grupo A — presente só no bucket
  * mensal de uma Propriedade do Grupo A; ausente para Grupo B e para
@@ -55,8 +77,12 @@ export const TARIFF_POST_LABELS: Record<TariffPost, string> = {
  */
 export interface GroupABreakdown {
     contractedDemandKw: number
+    demandByPost: GroupADemandPost[]
     demandBrl: number
+    ultrapassagemBrl: number
     energyByPost: { post: TariffPost; kwhConsumed: number; brl: number }[]
+    ereByWindow: GroupAReactiveWindowBreakdown[]
+    ereBrl: number
     flagBrl: number
     taxesBrl: number
     publicLightingFeeBrl: number

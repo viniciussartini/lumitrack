@@ -23,6 +23,7 @@ import {
     type ElectricalSystem,
     type Property,
     type TariffGroup,
+    type TariffModality,
     type TariffSubgroup,
 } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
@@ -74,6 +75,8 @@ const buildDefaultValues = (initialData: Property | undefined): Partial<Property
               tariffSubgroup: initialData.tariffSubgroup ?? undefined,
               tariffModality: initialData.tariffModality ?? undefined,
               contractedDemandKw: initialData.contractedDemandKw ?? undefined,
+              contractedDemandPeakKw: initialData.contractedDemandPeakKw ?? undefined,
+              contractedDemandOffPeakKw: initialData.contractedDemandOffPeakKw ?? undefined,
               publicLightingFeeBrl: initialData.publicLightingFeeBrl ?? undefined,
           }
         : {
@@ -110,6 +113,7 @@ export const PropertyForm = ({
 
     const tariffGroup = watch("tariffGroup") as TariffGroup
     const isGroupA = tariffGroup === "GROUP_A"
+    const isBlue = (watch("tariffModality") as TariffModality | undefined) === "BLUE"
 
     return (
         <form
@@ -152,6 +156,7 @@ export const PropertyForm = ({
                     setValue={setValue}
                     initialData={initialData}
                     isGroupA={isGroupA}
+                    isBlue={isBlue}
                 />
             </Section>
 
@@ -189,6 +194,7 @@ interface BillingFieldsProps {
     setValue: UseFormSetValue<PropertyFormInput>
     initialData: Property | undefined
     isGroupA: boolean
+    isBlue: boolean
 }
 
 /**
@@ -209,6 +215,7 @@ const BillingFields = ({
     setValue,
     initialData,
     isGroupA,
+    isBlue,
 }: BillingFieldsProps) => (
     <>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -240,6 +247,8 @@ const BillingFields = ({
                             setValue("tariffSubgroup", undefined)
                             setValue("tariffModality", undefined)
                             setValue("contractedDemandKw", undefined)
+                            setValue("contractedDemandPeakKw", undefined)
+                            setValue("contractedDemandOffPeakKw", undefined)
                         }
                     },
                 })}
@@ -251,7 +260,7 @@ const BillingFields = ({
         </div>
 
         {isGroupA ? (
-            <GroupAFields register={register} errors={errors} />
+            <GroupAFields register={register} errors={errors} setValue={setValue} isBlue={isBlue} />
         ) : (
             <Select
                 label="Classe de faturamento"
@@ -341,6 +350,8 @@ const AddressFields = ({ register, errors, setValue, initialData }: AddressField
 interface GroupAFieldsProps {
     register: UseFormRegister<PropertyFormInput>
     errors: FieldErrors<PropertyFormData>
+    setValue: UseFormSetValue<PropertyFormInput>
+    isBlue: boolean
 }
 
 /**
@@ -348,12 +359,14 @@ interface GroupAFieldsProps {
  * "GROUP_A" (ver `isGroupA` em `PropertyForm`), mesmo padrão de subcomponente
  * condicional de `MeterForm.tsx` (`MqttCredentialFields`).
  *
- * Modalidade oferece só "Horária Verde": é a única com cálculo de conta
- * implementado no backend hoje (`ConsumptionService` lança erro claro para
- * Azul/Convencional) — Azul chega na Fase 20, junto da segunda demanda
- * contratada (ponta/fora de ponta) que ela exige.
+ * Modalidade oferece Verde e Azul — Convencional Binômia ainda não tem
+ * cálculo de conta implementado no backend. Azul substitui a demanda única
+ * por duas (ponta/fora de ponta): o onChange abaixo limpa o formato anterior
+ * ao trocar de modalidade, mesmo motivo do onChange de `tariffGroup` acima
+ * (RHF não desregistra campo desmontado, e o backend rejeita os dois
+ * formatos preenchidos ao mesmo tempo).
  */
-const GroupAFields = ({ register, errors }: GroupAFieldsProps) => (
+const GroupAFields = ({ register, errors, setValue, isBlue }: GroupAFieldsProps) => (
     <div className="flex flex-col gap-4">
         <span className="font-heading text-accent-700 border-divider text-11 border-b pb-1.5 font-semibold tracking-[.07em] uppercase">
             Exclusivo do Grupo A
@@ -380,24 +393,57 @@ const GroupAFields = ({ register, errors }: GroupAFieldsProps) => (
 
             <Select
                 label="Modalidade tarifária"
-                helperText="Azul e Convencional Binômia chegam na Fase 20."
+                helperText="Convencional Binômia ainda não está disponível."
                 error={errors.tariffModality?.message}
-                {...register("tariffModality")}
+                {...register("tariffModality", {
+                    onChange: (e) => {
+                        if (e.target.value === "BLUE") {
+                            setValue("contractedDemandKw", undefined)
+                        } else {
+                            setValue("contractedDemandPeakKw", undefined)
+                            setValue("contractedDemandOffPeakKw", undefined)
+                        }
+                    },
+                })}
                 defaultValue="GREEN"
             >
                 <option value="GREEN">Horária Verde</option>
+                <option value="BLUE">Horária Azul</option>
             </Select>
         </div>
 
-        <Input
-            label="Demanda contratada · kW"
-            type="number"
-            step="1"
-            min="30"
-            placeholder="250"
-            error={errors.contractedDemandKw?.message}
-            {...register("contractedDemandKw")}
-        />
+        {isBlue ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Input
+                    label="Demanda contratada · ponta (kW)"
+                    type="number"
+                    step="1"
+                    min="30"
+                    placeholder="180"
+                    error={errors.contractedDemandPeakKw?.message}
+                    {...register("contractedDemandPeakKw")}
+                />
+                <Input
+                    label="Demanda contratada · fora ponta (kW)"
+                    type="number"
+                    step="1"
+                    min="30"
+                    placeholder="250"
+                    error={errors.contractedDemandOffPeakKw?.message}
+                    {...register("contractedDemandOffPeakKw")}
+                />
+            </div>
+        ) : (
+            <Input
+                label="Demanda contratada · kW"
+                type="number"
+                step="1"
+                min="30"
+                placeholder="250"
+                error={errors.contractedDemandKw?.message}
+                {...register("contractedDemandKw")}
+            />
+        )}
     </div>
 )
 

@@ -70,13 +70,15 @@ const PostChartTooltip = ({ active, payload }: ChartTooltipProps) => {
 
 /**
  * Decomposição da conta binômia do Grupo A — demanda contratada, consumo por
- * posto (tabela + mini gráfico Ponta×Fora de Ponta) e o total. O bundle de
- * design tem handoff de Grupo A (campos de cadastro, widget "Demanda atual
- * vs. contratada" do Painel), mas nenhum mockup especificamente para um
- * cartão de conta mensal detalhada por posto na página de detalhes da
- * propriedade — layout segue a linguagem visual já usada pelos widgets do
- * bundle (cabeçalho com legenda de cor + grid de estatísticas em `.blueprint`),
- * sem inventar uma estética nova.
+ * posto (tabela + mini gráfico Ponta×Fora de Ponta) e o total, com
+ * ultrapassagem de demanda e energia reativa excedente exibidas só quando
+ * há valor a cobrar (a maioria das contas não tem nenhuma das duas). O
+ * bundle de design tem handoff de Grupo A (campos de cadastro, widget
+ * "Demanda atual vs. contratada" do Painel), mas nenhum mockup
+ * especificamente para um cartão de conta mensal detalhada por posto na
+ * página de detalhes da propriedade — layout segue a linguagem visual já
+ * usada pelos widgets do bundle (cabeçalho com legenda de cor + grid de
+ * estatísticas em `.blueprint`), sem inventar uma estética nova.
  */
 export const GroupABillCard = ({ bucket }: GroupABillCardProps) => {
     const groupA = bucket.groupA
@@ -90,7 +92,16 @@ export const GroupABillCard = ({ bucket }: GroupABillCardProps) => {
             >
                 <Stat label="Demanda contratada" value={formatKw(groupA.contractedDemandKw)} />
                 <Stat label="Parcela de demanda" value={formatCostBrl(groupA.demandBrl)} />
+                {groupA.ultrapassagemBrl > 0 && (
+                    <Stat
+                        label="Ultrapassagem de demanda"
+                        value={formatCostBrl(groupA.ultrapassagemBrl)}
+                    />
+                )}
                 <Stat label="Bandeira" value={formatCostBrl(groupA.flagBrl)} />
+                {groupA.ereBrl > 0 && (
+                    <Stat label="Energia reativa excedente" value={formatCostBrl(groupA.ereBrl)} />
+                )}
                 <Stat label="Total da conta" value={formatCostBrl(bucket.costBrl)} accent />
             </div>
 

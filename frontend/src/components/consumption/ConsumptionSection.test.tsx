@@ -205,11 +205,23 @@ describe("ConsumptionSection — seletor de janela de hora", () => {
 
 const mockGroupABreakdown: GroupABreakdown = {
     contractedDemandKw: 200,
+    demandByPost: [
+        {
+            post: null,
+            contractedDemandKw: 200,
+            measuredDemandKw: 190,
+            demandBrl: 3600,
+            ultrapassagemBrl: 0,
+        },
+    ],
     demandBrl: 3600,
+    ultrapassagemBrl: 0,
     energyByPost: [
         { post: "PEAK", kwhConsumed: 800, brl: 1040 },
         { post: "OFF_PEAK", kwhConsumed: 28_000, brl: 11_200 },
     ],
+    ereByWindow: [],
+    ereBrl: 0,
     flagBrl: 542.88,
     taxesBrl: 5831.87,
     publicLightingFeeBrl: 250,

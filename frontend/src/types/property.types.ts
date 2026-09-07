@@ -120,8 +120,12 @@ export interface Property {
     tariffSubgroup: TariffSubgroup | null
     /** Null para propriedades do Grupo B. */
     tariffModality: TariffModality | null
-    /** Demanda contratada (kW) — null para propriedades do Grupo B. */
+    /** Demanda contratada (kW) — Verde/Convencional; null nas demais combinações. */
     contractedDemandKw: number | null
+    /** Demanda contratada na ponta (kW) — só modalidade Azul; null nas demais. */
+    contractedDemandPeakKw: number | null
+    /** Demanda contratada fora de ponta (kW) — só modalidade Azul; null nas demais. */
+    contractedDemandOffPeakKw: number | null
     /** CIP/COSIP municipal (R$) — opcional, nem todo município cobra. */
     publicLightingFeeBrl: number | null
     createdAt: string
@@ -146,6 +150,8 @@ export interface CreatePropertyInput {
     tariffSubgroup?: TariffSubgroup
     tariffModality?: TariffModality
     contractedDemandKw?: number
+    contractedDemandPeakKw?: number
+    contractedDemandOffPeakKw?: number
     publicLightingFeeBrl?: number
 }
 
