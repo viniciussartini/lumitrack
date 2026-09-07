@@ -998,6 +998,185 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
         expect(groupA.ereBrl).toBeCloseTo(expectedTotal, 6)
     })
 
+    // Exemplo 7 do documento de referência (frigorífico A4 Azul em
+    // Cuiabá/MT, Energisa MT): 150 kW contratados na ponta + 400 kW fora de
+    // ponta, consumo 1.500 kWh ponta + 95.000 kWh fora de ponta, FP 0,91,
+    // ICMS MT 19,5%, CIP R$ 850,00. 2026-08-04 é terça-feira, sem feriado —
+    // leitura de ponta às 19h local (dentro de 18h-21h) e fora de ponta às 10h.
+    async function setupBlueGroupAPropertyMeter() {
+        const user = await userService.createUser({
+            email: "frigorifico@example.com",
+            password: "Senha@123",
+            userType: "COMPANY",
+            acceptedTerms: true,
+            companyName: "Frigorífico Cuiabá Ltda",
+            cnpj: "22.333.444/0001-81",
+        })
+        const distributor = await createTestDistributor(prismaTest, {
+            icmsRate: 0.195,
+            pisRate: 0.0165,
+            cofinsRate: 0.076,
+        })
+        await prismaTest.energyDistributor.update({
+            where: { id: distributor.id },
+            data: { peakWindowStartHour: 18, peakWindowEndHour: 21 },
+        })
+        await prismaTest.tariffFlagConfig.upsert({
+            where: { id: 1 },
+            update: { currentFlag: "YELLOW" },
+            create: {
+                id: 1,
+                currentFlag: "YELLOW",
+                greenPer100Kwh: 0,
+                yellowPer100Kwh: 1.885,
+                redP1Per100Kwh: 4.463,
+                redP2Per100Kwh: 7.877,
+            },
+        })
+        // TUSD+TE combinado do Exemplo 7 (o documento não separa as duas
+        // parcelas) — dividido meio a meio, mesma aproximação do seed real.
+        await prismaTest.tariffEnergyRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "BLUE",
+                post: "PEAK",
+                tusdPerKwh: 0.74,
+                tePerKwh: 0.74,
+            },
+        })
+        await prismaTest.tariffEnergyRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "BLUE",
+                post: "OFF_PEAK",
+                tusdPerKwh: 0.285,
+                tePerKwh: 0.285,
+            },
+        })
+        await prismaTest.tariffDemandRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "BLUE",
+                post: "PEAK",
+                tusdPerKw: 45.0,
+            },
+        })
+        await prismaTest.tariffDemandRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "BLUE",
+                post: "OFF_PEAK",
+                tusdPerKw: 15.0,
+            },
+        })
+
+        const property = await propertyService.create(user.id, {
+            name: "Frigorífico",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC",
+            tariffGroup: "GROUP_A",
+            tariffSubgroup: "A4",
+            tariffModality: "BLUE",
+            contractedDemandPeakKw: 150,
+            contractedDemandOffPeakKw: 400,
+            publicLightingFeeBrl: 850,
+        })
+        const meter = await prismaTest.meter.create({
+            data: {
+                name: "Medidor",
+                targetType: "PROPERTY",
+                propertyId: property.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "frigorifico/medidor",
+            },
+        })
+
+        return { user, property, meter }
+    }
+
+    it("reproduz o Exemplo 7 do documento de referência (A4 Azul, frigorífico)", async () => {
+        const { user, meter, property } = await setupBlueGroupAPropertyMeter()
+        await prismaTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date("2026-08-04T22:00:00Z"), // 19h SP — ponta
+                kwhConsumed: 1500,
+                avgVoltage: 220,
+                avgCurrent: 100_000 / 220,
+                avgPowerW: 100_000,
+                avgPowerFactor: 0.91,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+        await prismaTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date("2026-08-04T13:00:00Z"), // 10h SP — fora de ponta
+                kwhConsumed: 95_000,
+                avgVoltage: 220,
+                avgCurrent: 100_000 / 220,
+                avgPowerW: 100_000,
+                avgPowerFactor: 0.91,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+        await prismaTest.meterDemandRollup.createMany({
+            data: [
+                {
+                    meterId: meter.id,
+                    periodStart: fromSaoPauloLocal(new Date(Date.UTC(2026, 7, 1))),
+                    post: "PEAK",
+                    maxAvgPowerW: 145_000, // dentro dos 150 kW contratados
+                    windowEndAt: new Date("2026-08-04T22:15:00Z"),
+                },
+                {
+                    meterId: meter.id,
+                    periodStart: fromSaoPauloLocal(new Date(Date.UTC(2026, 7, 1))),
+                    post: "OFF_PEAK",
+                    maxAvgPowerW: 395_000, // dentro dos 400 kW contratados
+                    windowEndAt: new Date("2026-08-04T13:15:00Z"),
+                },
+            ],
+        })
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0]!.kwhConsumed).toBeCloseTo(96_500)
+
+        const groupA = result.items[0]!.groupA!
+        expect(groupA.demandByPost).toHaveLength(2)
+        // Demanda contratada Ponta (150 × 45) + Fora Ponta (400 × 15) = R$ 12.750,00.
+        expect(groupA.demandBrl).toBeCloseTo(12_750, 2)
+        expect(groupA.contractedDemandKw).toBeCloseTo(550, 2) // soma agregada (150 + 400)
+        // Sem ultrapassagem — medida abaixo da contratada nos dois postos.
+        expect(groupA.ultrapassagemBrl).toBe(0)
+        // Consumo Ponta (1.500 × 1,48) + Fora Ponta (95.000 × 0,57) = R$ 56.370,00.
+        expect(groupA.energyByPost.find((p) => p.post === "PEAK")?.brl).toBeCloseTo(2220, 2)
+        expect(groupA.energyByPost.find((p) => p.post === "OFF_PEAK")?.brl).toBeCloseTo(54_150, 2)
+        // Bandeira amarela sobre os 96.500 kWh totais.
+        expect(groupA.flagBrl).toBeCloseTo(1819.03, 1)
+
+        // Total: o documento usa uma ERE aproximada (~R$ 772,00, "~2% do
+        // consumo") que não fecha a fórmula exata — a nossa (tan(acos(FP)),
+        // ver tariff.service.test.ts) resulta em ~R$ 814, por isso o total
+        // fica próximo de R$ 101.496,36, mas não idêntico. Tolerância larga
+        // aqui é proposital, documentada, não um teste frouxo por descuido.
+        expect(Math.abs(result.items[0]!.costBrl - 101_496.36)).toBeLessThan(100)
+    })
+
     it("não carrega groupA no bucket mensal de uma propriedade Grupo B", async () => {
         const { user, meter, property } = await setupPropertyMeter()
         await insertReading(meter.id, "2026-08-04T13:00:00Z", 150, 1000)
@@ -1012,11 +1191,11 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
         expect(result.items[0]!.groupA).toBeUndefined()
     })
 
-    it("falha fechado ao calcular conta de uma modalidade Grupo A ainda não suportada (Azul)", async () => {
+    it("falha fechado ao calcular conta de uma modalidade Grupo A ainda não suportada (Convencional Binômia)", async () => {
         const { user, meter, property } = await setupGroupAPropertyMeter()
         await prismaTest.property.update({
             where: { id: property.id },
-            data: { tariffModality: "BLUE" },
+            data: { tariffModality: "CONVENTIONAL_BINOMIAL" },
         })
         await insertReading(meter.id, "2026-08-04T13:00:00Z", 1000, 100_000)
 

@@ -165,4 +165,74 @@ describe("TariffCatalogRepository", () => {
             expect(rate).toBeNull()
         })
     })
+
+    describe("findDemandRatesByPost", () => {
+        it("devolve as duas tarifas de demanda da Azul (ponta e fora de ponta)", async () => {
+            const distributor = await createTestDistributor(prismaTest)
+            await prismaTest.tariffDemandRate.create({
+                data: {
+                    distributorId: distributor.id,
+                    subgroup: "A4",
+                    modality: "BLUE",
+                    post: "PEAK",
+                    tusdPerKw: 45.0,
+                },
+            })
+            await prismaTest.tariffDemandRate.create({
+                data: {
+                    distributorId: distributor.id,
+                    subgroup: "A4",
+                    modality: "BLUE",
+                    post: "OFF_PEAK",
+                    tusdPerKw: 15.0,
+                },
+            })
+
+            const rates = await tariffCatalogRepository.findDemandRatesByPost(
+                distributor.id,
+                "A4",
+                "BLUE",
+            )
+
+            expect(rates).toHaveLength(2)
+            expect(rates.find((r) => r.post === "PEAK")).toEqual({ post: "PEAK", tusdPerKw: 45 })
+            expect(rates.find((r) => r.post === "OFF_PEAK")).toEqual({
+                post: "OFF_PEAK",
+                tusdPerKw: 15,
+            })
+        })
+
+        it("ignora a tarifa de demanda única (Verde) — só considera as de posto não nulo", async () => {
+            const distributor = await createTestDistributor(prismaTest)
+            await prismaTest.tariffDemandRate.create({
+                data: {
+                    distributorId: distributor.id,
+                    subgroup: "A4",
+                    modality: "GREEN",
+                    post: null,
+                    tusdPerKw: 18.0,
+                },
+            })
+
+            const rates = await tariffCatalogRepository.findDemandRatesByPost(
+                distributor.id,
+                "A4",
+                "GREEN",
+            )
+
+            expect(rates).toEqual([])
+        })
+
+        it("devolve lista vazia quando a combinação não tem tarifa por posto cadastrada", async () => {
+            const distributor = await createTestDistributor(prismaTest)
+
+            const rates = await tariffCatalogRepository.findDemandRatesByPost(
+                distributor.id,
+                "A4",
+                "BLUE",
+            )
+
+            expect(rates).toEqual([])
+        })
+    })
 })

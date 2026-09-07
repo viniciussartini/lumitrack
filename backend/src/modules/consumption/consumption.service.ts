@@ -24,15 +24,13 @@ import {
     type TariffFlagRepository,
 } from "@/modules/tariff-flag/tariff-flag.repository.js"
 import { TariffCatalogRepository } from "@/modules/distributor/tariff-catalog.repository.js"
-import type {
-    TariffEnergyRateResponse,
-    TariffSingleDemandRateResponse,
-} from "@/modules/distributor/tariff-catalog.repository.js"
+import type { TariffEnergyRateResponse } from "@/modules/distributor/tariff-catalog.repository.js"
 import type {
     MeterDemandRollupRepository,
     MeterDemandRollupResponse,
 } from "@/modules/meter/meter-demand-rollup.repository.js"
 import { TariffService } from "@/shared/tariff/tariff.service.js"
+import type { GroupADemandPostResult } from "@/shared/tariff/tariff.service.js"
 import type { PeakWindowConfig } from "@/shared/tariff/tariffPost.js"
 import { getNationalHolidaysInRange } from "@/shared/time/holidays.js"
 import { fromSaoPauloLocal } from "@/shared/time/localTime.js"
@@ -51,6 +49,7 @@ const log = logger.child({ module: "ConsumptionService" })
 // quem já consome `costBrl` sozinho.
 export type GroupABreakdown = {
     contractedDemandKw: number
+    demandByPost: GroupADemandPostResult[]
     demandBrl: number
     ultrapassagemBrl: number
     energyByPost: { post: TariffPost; kwhConsumed: number; brl: number }[]
@@ -540,12 +539,44 @@ export class ConsumptionService {
     // estreitados (`PropertyResponse` os declara nullable) — extraído para
     // que `calculateGroupAMonthlyCosts` não acumule complexidade com os 4
     // `if` de guarda inline.
+    // Verde/Convencional Binômia têm 1 demanda contratada só (post null);
+    // Azul tem 2 (ponta e fora de ponta) — mesma forma que `demandPosts` do
+    // `TariffService` espera, já resolvida aqui para não espalhar a
+    // ramificação por modalidade pelo resto do cálculo.
+    private resolveContractedDemands(
+        property: PropertyResponse,
+        modality: "GREEN" | "BLUE",
+    ): { post: TariffPost | null; contractedDemandKw: number }[] {
+        if (modality === "GREEN") {
+            if (property.contractedDemandKw === null) {
+                throw new ValidationError(
+                    "Propriedade do Grupo A sem demanda contratada cadastrada",
+                )
+            }
+            return [{ post: null, contractedDemandKw: property.contractedDemandKw }]
+        }
+
+        if (
+            property.contractedDemandPeakKw === null ||
+            property.contractedDemandOffPeakKw === null
+        ) {
+            throw new ValidationError(
+                "Propriedade do Grupo A Azul sem as duas demandas contratadas cadastradas",
+            )
+        }
+        return [
+            { post: "PEAK", contractedDemandKw: property.contractedDemandPeakKw },
+            { post: "OFF_PEAK", contractedDemandKw: property.contractedDemandOffPeakKw },
+        ]
+    }
+
     private assertGroupACalculable(
         property: PropertyResponse,
         distributor: DistributorResponse,
     ): {
         peakWindow: PeakWindowConfig
-        contractedDemandKw: number
+        tariffModality: "GREEN" | "BLUE"
+        contractedDemands: { post: TariffPost | null; contractedDemandKw: number }[]
         tariffSubgroup: TariffSubgroup
     } {
         if (distributor.peakWindowStartHour === null || distributor.peakWindowEndHour === null) {
@@ -553,13 +584,10 @@ export class ConsumptionService {
                 "Distribuidora sem janela de ponta configurada — não é possível calcular a conta do Grupo A",
             )
         }
-        if (property.tariffModality !== "GREEN") {
+        if (property.tariffModality !== "GREEN" && property.tariffModality !== "BLUE") {
             throw new ValidationError(
                 "Cálculo de conta do Grupo A ainda não suportado para esta modalidade tarifária",
             )
-        }
-        if (property.contractedDemandKw === null) {
-            throw new ValidationError("Propriedade do Grupo A sem demanda contratada cadastrada")
         }
         if (!property.tariffSubgroup) {
             throw new ValidationError("Propriedade do Grupo A sem subgrupo cadastrado")
@@ -570,7 +598,8 @@ export class ConsumptionService {
                 peakWindowStartHour: distributor.peakWindowStartHour,
                 peakWindowEndHour: distributor.peakWindowEndHour,
             },
-            contractedDemandKw: property.contractedDemandKw,
+            tariffModality: property.tariffModality,
+            contractedDemands: this.resolveContractedDemands(property, property.tariffModality),
             tariffSubgroup: property.tariffSubgroup,
         }
     }
@@ -584,6 +613,21 @@ export class ConsumptionService {
     private measuredDemandKwForMonth(rows: MeterDemandRollupResponse[]): number {
         if (rows.length === 0) return 0
         return Math.max(...rows.map((r) => r.maxAvgPowerW)) / 1000
+    }
+
+    // Demanda medida (kW) para uma entrada de `contractedDemands`: `null`
+    // (Verde) usa o maior valor entre os postos do mês; um posto concreto
+    // (Azul) usa só o rollup daquele posto — cada demanda contratada da Azul
+    // só é comparada com a medição do mesmo posto, nunca com a do outro.
+    private measuredDemandKwFor(
+        post: TariffPost | null,
+        rows: MeterDemandRollupResponse[],
+    ): number {
+        if (post === null) {
+            return this.measuredDemandKwForMonth(rows)
+        }
+        const row = rows.find((r) => r.post === post)
+        return row ? row.maxAvgPowerW / 1000 : 0
     }
 
     // Agrupa uma lista de linhas por um instante (em ms) — mesmo formato de
@@ -618,14 +662,48 @@ export class ConsumptionService {
     // Custo de 1 mês do Grupo A a partir do catálogo/consumo já resolvidos —
     // extraído do corpo de `calculateGroupAMonthlyCosts` (que resolve isso
     // em lote para vários meses) só para manter o teto de linhas/complexidade.
+    // Junta cada demanda contratada com a tarifa do mesmo posto (catálogo) e
+    // a demanda medida do mesmo posto (rollup do mês) — a entrada que
+    // `TariffService.calculateForGroupA` espera. Falha fechado se o catálogo
+    // não tiver a tarifa de algum posto contratado (nunca calcula com tarifa
+    // ausente silenciosamente tratada como zero).
+    private resolveDemandPostsForMonth(
+        contractedDemands: { post: TariffPost | null; contractedDemandKw: number }[],
+        demandRates: Map<TariffPost | null, number>,
+        rowsForMonth: MeterDemandRollupResponse[],
+    ): {
+        post: TariffPost | null
+        contractedDemandKw: number
+        measuredDemandKw: number
+        tusdPerKw: number
+    }[] {
+        return contractedDemands.map((cd) => {
+            const tusdPerKw = demandRates.get(cd.post)
+            if (tusdPerKw === undefined) {
+                throw new NotFoundError(
+                    "Catálogo tarifário do Grupo A não cadastrado para esta distribuidora/subgrupo/modalidade",
+                )
+            }
+            return {
+                post: cd.post,
+                contractedDemandKw: cd.contractedDemandKw,
+                measuredDemandKw: this.measuredDemandKwFor(cd.post, rowsForMonth),
+                tusdPerKw,
+            }
+        })
+    }
+
+    // Custo de 1 mês do Grupo A a partir do catálogo/consumo já resolvidos —
+    // extraído do corpo de `calculateGroupAMonthlyCosts` (que resolve isso
+    // em lote para vários meses) só para manter o teto de linhas/complexidade.
     private buildGroupAMonthResult(
         kwhByPostMap: Map<TariffPost, number>,
-        contractedDemandKw: number,
-        measuredDemandKw: number,
+        contractedDemands: { post: TariffPost | null; contractedDemandKw: number }[],
+        demandRates: Map<TariffPost | null, number>,
+        rowsForMonth: MeterDemandRollupResponse[],
         reactiveRowsForMonth: ReactiveEnergyByWindow[],
         tusdPerKvarh: number,
         energyRates: TariffEnergyRateResponse[],
-        demandRate: TariffSingleDemandRateResponse,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
         publicLightingFeeBrl: number | null,
@@ -644,15 +722,14 @@ export class ConsumptionService {
             tusdPerKvarh,
         }))
 
+        const demandPosts = this.resolveDemandPostsForMonth(
+            contractedDemands,
+            demandRates,
+            rowsForMonth,
+        )
+
         const result = this.tariffService.calculateForGroupA({
-            demandPosts: [
-                {
-                    post: null,
-                    contractedDemandKw,
-                    measuredDemandKw,
-                    tusdPerKw: demandRate.tusdPerKw,
-                },
-            ],
+            demandPosts,
             energyByPost,
             reactiveWindows,
             icmsRate: distributor.icmsRate,
@@ -662,10 +739,20 @@ export class ConsumptionService {
             publicLightingFeeBrl,
         })
 
+        // Soma das demandas contratadas — mantém o contrato existente da
+        // Verde (1 posto, soma = o próprio valor) e dá um número agregado
+        // não enganoso para a Azul enquanto a UI dedicada (que lê
+        // `demandByPost`) não chega.
+        const contractedDemandKw = contractedDemands.reduce(
+            (sum, cd) => sum + cd.contractedDemandKw,
+            0,
+        )
+
         return {
             totalBrl: result.totalBrl,
             groupA: {
                 contractedDemandKw,
+                demandByPost: result.demandByPost,
                 demandBrl: result.demandBrl,
                 ultrapassagemBrl: result.ultrapassagemBrl,
                 energyByPost: result.energyByPost,
@@ -678,6 +765,42 @@ export class ConsumptionService {
         }
     }
 
+    // Verde/Convencional Binômia usam a demanda única do catálogo (post
+    // nulo); a Azul usa as duas tarifas por posto. `Map` com chave `post`
+    // (incluindo `null`) para o restante do cálculo tratar as duas formas
+    // de forma genérica, sem `if` por modalidade fora deste método.
+    private async resolveDemandRateMap(
+        modality: "GREEN" | "BLUE",
+        distributorId: string,
+        tariffSubgroup: TariffSubgroup,
+    ): Promise<Map<TariffPost | null, number>> {
+        if (modality === "GREEN") {
+            const rate = await this.tariffCatalogRepository.findSingleDemandRate(
+                distributorId,
+                tariffSubgroup,
+                "GREEN",
+            )
+            if (!rate) {
+                throw new NotFoundError(
+                    "Catálogo tarifário do Grupo A não cadastrado para esta distribuidora/subgrupo/modalidade",
+                )
+            }
+            return new Map([[null, rate.tusdPerKw]])
+        }
+
+        const rates = await this.tariffCatalogRepository.findDemandRatesByPost(
+            distributorId,
+            tariffSubgroup,
+            "BLUE",
+        )
+        if (rates.length === 0) {
+            throw new NotFoundError(
+                "Catálogo tarifário do Grupo A não cadastrado para esta distribuidora/subgrupo/modalidade",
+            )
+        }
+        return new Map(rates.map((r) => [r.post as TariffPost | null, r.tusdPerKw]))
+    }
+
     private async calculateGroupAMonthlyCosts(
         meterId: string,
         monthStarts: Date[],
@@ -688,10 +811,8 @@ export class ConsumptionService {
         const resultByMonthMs = new Map<number, MonthCostResult>()
         if (monthStarts.length === 0) return resultByMonthMs
 
-        const { peakWindow, contractedDemandKw, tariffSubgroup } = this.assertGroupACalculable(
-            property,
-            distributor,
-        )
+        const { peakWindow, tariffModality, contractedDemands, tariffSubgroup } =
+            this.assertGroupACalculable(property, distributor)
 
         // `monthStarts` vêm de date_trunc('month', localTsExpr()) — os
         // campos de calendário (ano/mês) já são os locais corretos, só
@@ -714,7 +835,7 @@ export class ConsumptionService {
         // o `fromSaoPauloLocal` por mês, igual ao par `from`/`to` acima.
         const periodStarts = monthStarts.map((d) => fromSaoPauloLocal(d))
 
-        const [kwhByPostByMonth, energyRates, demandRate, demandRollups, reactiveByMonth] =
+        const [kwhByPostByMonth, energyRates, demandRates, demandRollups, reactiveByMonth] =
             await Promise.all([
                 this.consumptionRepository.findKwhByPostGroupedByMonth(
                     meterId,
@@ -726,13 +847,9 @@ export class ConsumptionService {
                 this.tariffCatalogRepository.findEnergyRates(
                     distributor.id,
                     tariffSubgroup,
-                    "GREEN",
+                    tariffModality,
                 ),
-                this.tariffCatalogRepository.findSingleDemandRate(
-                    distributor.id,
-                    tariffSubgroup,
-                    "GREEN",
-                ),
+                this.resolveDemandRateMap(tariffModality, distributor.id, tariffSubgroup),
                 this.meterDemandRollupRepository.findByMeterAndPeriods(meterId, periodStarts),
                 this.consumptionRepository.findReactiveEnergyByWindowGroupedByMonth(
                     meterId,
@@ -741,7 +858,7 @@ export class ConsumptionService {
                 ),
             ])
 
-        if (energyRates.length === 0 || !demandRate) {
+        if (energyRates.length === 0) {
             throw new NotFoundError(
                 "Catálogo tarifário do Grupo A não cadastrado para esta distribuidora/subgrupo/modalidade",
             )
@@ -771,12 +888,12 @@ export class ConsumptionService {
                 monthStart.getTime(),
                 this.buildGroupAMonthResult(
                     kwhByPostMap,
-                    contractedDemandKw,
-                    this.measuredDemandKwForMonth(rowsForMonth),
+                    contractedDemands,
+                    demandRates,
+                    rowsForMonth,
                     reactiveRowsForMonth,
                     tusdPerKvarh,
                     energyRates,
-                    demandRate,
                     distributor,
                     flagPer100Kwh,
                     property.publicLightingFeeBrl,

@@ -15,6 +15,11 @@ export type TariffSingleDemandRateResponse = {
     tusdPerKw: number
 }
 
+export type TariffDemandRateByPostResponse = {
+    post: TariffPost
+    tusdPerKw: number
+}
+
 // Cache em nível de módulo, mesmo padrão de DistributorRepository (catálogo
 // somente leitura, sem caminho de escrita em runtime — TTL curto em vez de
 // invalidação por evento).
@@ -23,6 +28,10 @@ const energyRatesCache = new Map<string, { value: TariffEnergyRateResponse[]; ca
 const singleDemandRateCache = new Map<
     string,
     { value: TariffSingleDemandRateResponse | null; cachedAt: number }
+>()
+const demandRatesByPostCache = new Map<
+    string,
+    { value: TariffDemandRateByPostResponse[]; cachedAt: number }
 >()
 
 function cacheKey(
@@ -109,6 +118,39 @@ export class TariffCatalogRepository {
         singleDemandRateCache.set(key, { value, cachedAt: Date.now() })
         return value
     }
+
+    /**
+     * Tarifas de demanda por posto (ponta e fora de ponta) — Horária Azul,
+     * que cobra duas demandas contratadas distintas. Diferente de
+     * {@link findSingleDemandRate}, `post` nunca é nulo aqui, então o
+     * `findMany` padrão do Prisma serve sem o contorno de `findFirst`.
+     *
+     * @param distributorId - Id da distribuidora.
+     * @param subgroup - Subgrupo do Grupo A (A1-A4, AS).
+     * @param modality - Modalidade tarifária (tipicamente BLUE).
+     * @returns As tarifas de demanda cadastradas (uma por posto), servidas do cache quando ainda dentro do TTL.
+     */
+    async findDemandRatesByPost(
+        distributorId: string,
+        subgroup: TariffSubgroup,
+        modality: TariffModality,
+    ): Promise<TariffDemandRateByPostResponse[]> {
+        const key = cacheKey(distributorId, subgroup, modality)
+        const cached = demandRatesByPostCache.get(key)
+        if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
+            return cached.value
+        }
+
+        const rows = await this.prisma.tariffDemandRate.findMany({
+            where: { distributorId, subgroup, modality, post: { not: null } },
+        })
+        const value = rows
+            .filter((r): r is typeof r & { post: TariffPost } => r.post !== null)
+            .map((r) => ({ post: r.post, tusdPerKw: r.tusdPerKw.toNumber() }))
+
+        demandRatesByPostCache.set(key, { value, cachedAt: Date.now() })
+        return value
+    }
 }
 
 /**
@@ -118,4 +160,5 @@ export class TariffCatalogRepository {
 export function resetTariffCatalogCacheForTests(): void {
     energyRatesCache.clear()
     singleDemandRateCache.clear()
+    demandRatesByPostCache.clear()
 }
