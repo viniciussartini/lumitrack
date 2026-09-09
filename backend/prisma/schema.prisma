@@ -213,6 +213,7 @@ model User {
   passwordResets    PasswordReset[]
   emailChanges      EmailChange[]
   alerts            Alert[]
+  demandAlerts      DemandAlert[]
   auditLogs         AuditLog[]
   mfaBackupCodes    MfaBackupCode[]
   tariffFlagChanges TariffFlagHistory[]
@@ -381,9 +382,9 @@ model EnergyDistributor {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  properties        Property[]
-  energyRates       TariffEnergyRate[]
-  demandRates       TariffDemandRate[]
+  properties  Property[]
+  energyRates TariffEnergyRate[]
+  demandRates TariffDemandRate[]
 
   @@map("energy_distributors")
 }
@@ -429,7 +430,7 @@ model TariffEnergyRate {
 // não `upsert`. O `@@unique` continua útil para as linhas com post
 // preenchido (Azul, Fase 20).
 model TariffDemandRate {
-  id            String          @id @default(uuid())
+  id            String         @id @default(uuid())
   distributorId String
   subgroup      TariffSubgroup
   modality      TariffModality
@@ -479,11 +480,17 @@ model Property {
   tariffSubgroup TariffSubgroup?
   tariffModality TariffModality?
 
-  // Demanda contratada (kW) — obrigatória para Grupo A (validada em
-  // property.service.ts, mesmo padrão de tariffSubgroup/tariffModality),
-  // null para Grupo B. Verde/Convencional usam 1 valor só; Azul (2 demandas,
-  // ponta/fora-ponta) é extensão de modelo da Fase 20, fora de escopo aqui.
+  // Demanda contratada (kW) — obrigatória para Grupo A nas modalidades de
+  // demanda única (Verde, Convencional Binômia), validada em
+  // property.service.ts, mesmo padrão de tariffSubgroup/tariffModality.
+  // Nula para Grupo B e para a Azul, que usa os dois campos abaixo.
   contractedDemandKw Float?
+
+  // Demandas contratadas da Horária Azul (kW) — ponta e fora de ponta,
+  // exigidas juntas quando tariffModality = BLUE; nulas em qualquer outro
+  // caso (Verde/Convencional usam contractedDemandKw acima, Grupo B nenhum).
+  contractedDemandPeakKw    Float?
+  contractedDemandOffPeakKw Float?
 
   // CIP/COSIP municipal (contribuição de iluminação pública) em BRL — valor fixo
   // somado FORA da base de tributos. Opcional: nem todo município cobra.
@@ -571,6 +578,7 @@ model Meter {
   device        Device?             @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   readings      MeterReading[]
   alerts        Alert[]
+  demandAlerts  DemandAlert[]
   demandRollups MeterDemandRollup[]
 
   @@map("meters")
@@ -731,4 +739,30 @@ model AlertTriggerEvent {
   // MeterReading.
   @@index([createdAt])
   @@map("alert_trigger_events")
+}
+
+// Alerta de ultrapassagem de demanda contratada (Grupo A).
+// Diferente de Alert: avaliado 1x/minuto pelo DemandAlertScheduler contra o
+// agregado mensal de MeterDemandRollup, não amostra a amostra — um agregado
+// que só cresce dentro do ciclo de faturamento não tem flapping para uma
+// histerese proteger. Idempotência via lastNotifiedPeriodStart (1 notificação
+// por ciclo), em vez de uma máquina de episódio.
+model DemandAlert {
+  id                      String    @id @default(uuid())
+  userId                  String
+  meterId                 String
+  name                    String
+  thresholdPercent        Float // % da demanda contratada que dispara a notificação
+  enabled                 Boolean   @default(true)
+  lastNotifiedPeriodStart DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meter Meter @relation(fields: [meterId], references: [id], onDelete: Cascade)
+
+  @@index([meterId])
+  @@index([userId])
+  @@map("demand_alerts")
 }

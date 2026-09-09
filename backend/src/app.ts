@@ -35,6 +35,7 @@ import { distributorRoutes } from "./modules/distributor/distributor.routes.js"
 import { tariffFlagRoutes } from "./modules/tariff-flag/tariff-flag.routes.js"
 import { propertyRoutes } from "./modules/property/property.routes.js"
 import { alertRoutes } from "./modules/alert/alert.routes.js"
+import { demandAlertRoutes } from "./modules/demand-alert/demand-alert.routes.js"
 import { alertEventRoutes } from "./modules/alert-event/alert-event.routes.js"
 import { notificationRoutes } from "./modules/notification/notification.routes.js"
 import { meterRoutes } from "./modules/meter/meter.routes.js"
@@ -59,7 +60,7 @@ export interface AppDependencies {
     authRateLimiter?: RequestHandler
     // Injeção só usada em teste — permite capturar o stream do pino com
     // `level` habilitado (o logger singleton fica "silent" em NODE_ENV=test)
-    // para asserção de não-vazamento de dado sensível (RNF05).
+    // para asserção de não-vazamento de dado sensível no log estruturado.
     logger?: Logger
 }
 
@@ -241,6 +242,7 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/tariff-flag", tariffFlagRoutes(authenticate, prismaClient))
     app.use("/api/properties", propertyRoutes(authenticate, prismaClient, auditService))
     app.use("/api/alerts", alertRoutes(authenticate, prismaClient, alertEvaluator))
+    app.use("/api/demand-alerts", demandAlertRoutes(authenticate, prismaClient))
     app.use("/api/alert-events", alertEventRoutes(authenticate, prismaClient))
     app.use("/api/notifications", notificationRoutes(authenticate, notificationStore))
     app.use("/api/meters", meterRoutes(authenticate, prismaClient))

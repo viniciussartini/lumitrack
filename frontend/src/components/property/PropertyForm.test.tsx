@@ -41,6 +41,8 @@ const mockProperty: Property = {
     tariffSubgroup: null,
     tariffModality: null,
     contractedDemandKw: null,
+    contractedDemandPeakKw: null,
+    contractedDemandOffPeakKw: null,
     publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -354,6 +356,70 @@ describe("PropertyForm — Grupo A", () => {
         ).toBeInTheDocument()
         expect(
             screen.getByText(/demanda contratada é obrigatória para propriedades do grupo a/i),
+        ).toBeInTheDocument()
+        expect(onSubmit).not.toHaveBeenCalled()
+    })
+
+    it("mostra as demandas de ponta e fora de ponta e esconde o campo único ao selecionar Azul", async () => {
+        const user = userEvent.setup()
+        renderForm()
+
+        await user.selectOptions(screen.getByLabelText(/grupo tarifário/i), "GROUP_A")
+        expect(screen.getByLabelText(/^demanda contratada · kw$/i)).toBeInTheDocument()
+
+        await user.selectOptions(screen.getByLabelText(/modalidade tarifária/i), "BLUE")
+
+        expect(screen.queryByLabelText(/^demanda contratada · kw$/i)).not.toBeInTheDocument()
+        expect(screen.getByLabelText(/demanda contratada · ponta/i)).toBeInTheDocument()
+        expect(screen.getByLabelText(/demanda contratada · fora ponta/i)).toBeInTheDocument()
+    })
+
+    it("envia as duas demandas contratadas e omite a demanda única para Azul", async () => {
+        const user = userEvent.setup()
+        const onSubmit = vi.fn().mockResolvedValue(undefined)
+        renderForm({ onSubmit })
+
+        await user.type(screen.getByLabelText(/nome/i), "Frigorífico")
+        await user.selectOptions(screen.getByLabelText(/distribuidora vinculada/i), "dist-1")
+        await user.selectOptions(screen.getByLabelText(/grupo tarifário/i), "GROUP_A")
+        await user.selectOptions(screen.getByLabelText(/^subgrupo/i), "A4")
+        await user.selectOptions(screen.getByLabelText(/modalidade tarifária/i), "BLUE")
+        await user.type(screen.getByLabelText(/demanda contratada · ponta/i), "150")
+        await user.type(screen.getByLabelText(/demanda contratada · fora ponta/i), "400")
+
+        await user.click(screen.getByRole("button", { name: /salvar/i }))
+
+        await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+
+        expect(onSubmit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tariffModality: "BLUE",
+                contractedDemandKw: undefined,
+                contractedDemandPeakKw: 150,
+                contractedDemandOffPeakKw: 400,
+            }),
+            expect.anything(),
+        )
+    })
+
+    it("exige as duas demandas contratadas ao submeter Azul sem preenchê-las", async () => {
+        const user = userEvent.setup()
+        const onSubmit = vi.fn()
+        renderForm({ onSubmit })
+
+        await user.type(screen.getByLabelText(/nome/i), "Frigorífico")
+        await user.selectOptions(screen.getByLabelText(/distribuidora vinculada/i), "dist-1")
+        await user.selectOptions(screen.getByLabelText(/grupo tarifário/i), "GROUP_A")
+        await user.selectOptions(screen.getByLabelText(/^subgrupo/i), "A4")
+        await user.selectOptions(screen.getByLabelText(/modalidade tarifária/i), "BLUE")
+
+        await user.click(screen.getByRole("button", { name: /salvar/i }))
+
+        expect(
+            await screen.findByText(/demanda contratada na ponta é obrigatória/i),
+        ).toBeInTheDocument()
+        expect(
+            screen.getByText(/demanda contratada fora de ponta é obrigatória/i),
         ).toBeInTheDocument()
         expect(onSubmit).not.toHaveBeenCalled()
     })

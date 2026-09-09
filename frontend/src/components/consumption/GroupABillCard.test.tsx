@@ -12,11 +12,23 @@ const mockBucket: ConsumptionBucket = {
     avgPowerW: 100_000,
     groupA: {
         contractedDemandKw: 200,
+        demandByPost: [
+            {
+                post: null,
+                contractedDemandKw: 200,
+                measuredDemandKw: 190,
+                demandBrl: 3600,
+                ultrapassagemBrl: 0,
+            },
+        ],
         demandBrl: 3600,
+        ultrapassagemBrl: 0,
         energyByPost: [
             { post: "PEAK", kwhConsumed: 800, brl: 1040 },
             { post: "OFF_PEAK", kwhConsumed: 28_000, brl: 11_200 },
         ],
+        ereByWindow: [],
+        ereBrl: 0,
         flagBrl: 542.88,
         taxesBrl: 5831.87,
         publicLightingFeeBrl: 250,
@@ -49,5 +61,81 @@ describe("GroupABillCard", () => {
         )
 
         expect(container).toBeEmptyDOMElement()
+    })
+
+    it("não mostra as linhas de ultrapassagem e ERE quando os valores são zero", () => {
+        render(<GroupABillCard bucket={mockBucket} />)
+
+        expect(screen.queryByText(/ultrapassagem de demanda/i)).not.toBeInTheDocument()
+        expect(screen.queryByText(/energia reativa excedente/i)).not.toBeInTheDocument()
+    })
+
+    it("mostra a linha de ultrapassagem de demanda quando houver valor a cobrar", () => {
+        const bucketWithUltrapassagem: ConsumptionBucket = {
+            ...mockBucket,
+            groupA: { ...mockBucket.groupA!, ultrapassagemBrl: 187.5 },
+        }
+
+        render(<GroupABillCard bucket={bucketWithUltrapassagem} />)
+
+        expect(screen.getByText(/ultrapassagem de demanda/i)).toBeInTheDocument()
+        expect(screen.getByText(/R\$\s*187,50/)).toBeInTheDocument()
+    })
+
+    it("mostra a linha de energia reativa excedente quando houver valor a cobrar", () => {
+        const bucketWithEre: ConsumptionBucket = {
+            ...mockBucket,
+            groupA: { ...mockBucket.groupA!, ereBrl: 772.14 },
+        }
+
+        render(<GroupABillCard bucket={bucketWithEre} />)
+
+        expect(screen.getByText(/energia reativa excedente/i)).toBeInTheDocument()
+        expect(screen.getByText(/R\$\s*772,14/)).toBeInTheDocument()
+    })
+
+    describe("Azul — duas demandas contratadas", () => {
+        const azulBucket: ConsumptionBucket = {
+            ...mockBucket,
+            groupA: {
+                ...mockBucket.groupA!,
+                contractedDemandKw: 550, // soma — não deve aparecer como stat único
+                demandByPost: [
+                    {
+                        post: "PEAK",
+                        contractedDemandKw: 150,
+                        measuredDemandKw: 145,
+                        demandBrl: 6750,
+                        ultrapassagemBrl: 0,
+                    },
+                    {
+                        post: "OFF_PEAK",
+                        contractedDemandKw: 400,
+                        measuredDemandKw: 395,
+                        demandBrl: 6000,
+                        ultrapassagemBrl: 0,
+                    },
+                ],
+                demandBrl: 12_750,
+            },
+        }
+
+        it("não mostra a demanda contratada como stat único (evita rotular a soma como se fosse um contrato)", () => {
+            render(<GroupABillCard bucket={azulBucket} />)
+
+            expect(screen.queryByText("550 kW")).not.toBeInTheDocument()
+        })
+
+        it("decompõe a demanda contratada/medida/parcela por posto numa tabela própria", () => {
+            render(<GroupABillCard bucket={azulBucket} />)
+
+            const table = screen.getByTestId("group-a-demand-post-table")
+            expect(table).toHaveTextContent("Ponta")
+            expect(table).toHaveTextContent("150 kW")
+            expect(table).toHaveTextContent("145 kW")
+            expect(table).toHaveTextContent("Fora de ponta")
+            expect(table).toHaveTextContent("400 kW")
+            expect(table).toHaveTextContent("395 kW")
+        })
     })
 })

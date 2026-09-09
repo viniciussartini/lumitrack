@@ -6,6 +6,7 @@ import { UserRepository } from "@/modules/user/user.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { AlertRepository } from "@/modules/alert/alert.repository.js"
+import { DemandAlertRepository } from "@/modules/demand-alert/demand-alert.repository.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
@@ -27,6 +28,7 @@ export function exportRoutes(
         new PropertyRepository(prismaClient),
         new DistributorRepository(prismaClient),
         new AlertRepository(prismaClient),
+        new DemandAlertRepository(prismaClient),
         new AreaRepository(prismaClient),
         new DeviceRepository(prismaClient),
         new AuditRepository(prismaClient),

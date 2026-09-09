@@ -30,6 +30,132 @@ export class PropertyService {
         }
     }
 
+    // Regra cruzada de demanda contratada por modalidade (dentro do Grupo A):
+    // Azul usa duas demandas (ponta/fora de ponta), demanda única (Verde,
+    // Convencional Binômia) usa uma só — os dois formatos são mutuamente
+    // exclusivos, nunca os dois preenchidos nem os dois vazios.
+    private resolveContractedDemandFields(fields: {
+        tariffModality: TariffModality
+        contractedDemandKw: number | undefined
+        contractedDemandPeakKw: number | undefined
+        contractedDemandOffPeakKw: number | undefined
+    }): Pick<
+        ResolvedTariffGroupFields,
+        "contractedDemandKw" | "contractedDemandPeakKw" | "contractedDemandOffPeakKw"
+    > {
+        if (fields.tariffModality === "BLUE") {
+            if (fields.contractedDemandPeakKw === undefined) {
+                throw new ValidationError(
+                    "Demanda contratada na ponta é obrigatória para a modalidade Azul",
+                )
+            }
+            if (fields.contractedDemandOffPeakKw === undefined) {
+                throw new ValidationError(
+                    "Demanda contratada fora de ponta é obrigatória para a modalidade Azul",
+                )
+            }
+            if (fields.contractedDemandKw !== undefined) {
+                throw new ValidationError(
+                    "Demanda contratada única não se aplica à modalidade Azul",
+                )
+            }
+            return {
+                contractedDemandKw: null,
+                contractedDemandPeakKw: fields.contractedDemandPeakKw,
+                contractedDemandOffPeakKw: fields.contractedDemandOffPeakKw,
+            }
+        }
+
+        if (fields.contractedDemandKw === undefined) {
+            throw new ValidationError(
+                "Demanda contratada é obrigatória para propriedades do Grupo A",
+            )
+        }
+        if (
+            fields.contractedDemandPeakKw !== undefined ||
+            fields.contractedDemandOffPeakKw !== undefined
+        ) {
+            throw new ValidationError(
+                "Demanda contratada por posto (ponta/fora de ponta) só se aplica à modalidade Azul",
+            )
+        }
+        return {
+            contractedDemandKw: fields.contractedDemandKw,
+            contractedDemandPeakKw: null,
+            contractedDemandOffPeakKw: null,
+        }
+    }
+
+    private resolveGroupAFields(fields: {
+        billingClass: BillingClass | undefined
+        tariffSubgroup: TariffSubgroup | undefined
+        tariffModality: TariffModality | undefined
+        contractedDemandKw: number | undefined
+        contractedDemandPeakKw: number | undefined
+        contractedDemandOffPeakKw: number | undefined
+    }): ResolvedTariffGroupFields {
+        if (!fields.tariffSubgroup) {
+            throw new ValidationError("Subgrupo é obrigatório para propriedades do Grupo A")
+        }
+        if (!fields.tariffModality) {
+            throw new ValidationError(
+                "Modalidade tarifária é obrigatória para propriedades do Grupo A",
+            )
+        }
+        if (fields.billingClass) {
+            throw new ValidationError(
+                "Classe de faturamento não se aplica a propriedades do Grupo A",
+            )
+        }
+        const contractedDemandFields = this.resolveContractedDemandFields({
+            tariffModality: fields.tariffModality,
+            contractedDemandKw: fields.contractedDemandKw,
+            contractedDemandPeakKw: fields.contractedDemandPeakKw,
+            contractedDemandOffPeakKw: fields.contractedDemandOffPeakKw,
+        })
+        return {
+            billingClass: null,
+            tariffSubgroup: fields.tariffSubgroup,
+            tariffModality: fields.tariffModality,
+            ...contractedDemandFields,
+        }
+    }
+
+    private resolveGroupBFields(fields: {
+        billingClass: BillingClass | undefined
+        tariffSubgroup: TariffSubgroup | undefined
+        tariffModality: TariffModality | undefined
+        contractedDemandKw: number | undefined
+        contractedDemandPeakKw: number | undefined
+        contractedDemandOffPeakKw: number | undefined
+    }): ResolvedTariffGroupFields {
+        if (fields.tariffSubgroup) {
+            throw new ValidationError("Subgrupo só se aplica a propriedades do Grupo A")
+        }
+        if (fields.tariffModality) {
+            throw new ValidationError("Modalidade tarifária só se aplica a propriedades do Grupo A")
+        }
+        if (fields.contractedDemandKw !== undefined) {
+            throw new ValidationError("Demanda contratada só se aplica a propriedades do Grupo A")
+        }
+        if (
+            fields.contractedDemandPeakKw !== undefined ||
+            fields.contractedDemandOffPeakKw !== undefined
+        ) {
+            throw new ValidationError(
+                "Demanda contratada por posto só se aplica a propriedades do Grupo A",
+            )
+        }
+        return {
+            billingClass: fields.billingClass ?? "B1",
+            tariffSubgroup: null,
+            tariffModality: null,
+            contractedDemandKw: null,
+            contractedDemandPeakKw: null,
+            contractedDemandOffPeakKw: null,
+        }
+    }
+
     // Regra cruzada por grupo tarifário (ADR-0019): Grupo A exige
     // subgrupo+modalidade+demanda contratada e não aceita classe de
     // faturamento Grupo B; Grupo B exige classe de faturamento (default B1,
@@ -44,49 +170,12 @@ export class PropertyService {
         tariffSubgroup: TariffSubgroup | undefined
         tariffModality: TariffModality | undefined
         contractedDemandKw: number | undefined
+        contractedDemandPeakKw: number | undefined
+        contractedDemandOffPeakKw: number | undefined
     }): ResolvedTariffGroupFields {
-        if (fields.tariffGroup === "GROUP_A") {
-            if (!fields.tariffSubgroup) {
-                throw new ValidationError("Subgrupo é obrigatório para propriedades do Grupo A")
-            }
-            if (!fields.tariffModality) {
-                throw new ValidationError(
-                    "Modalidade tarifária é obrigatória para propriedades do Grupo A",
-                )
-            }
-            if (fields.billingClass) {
-                throw new ValidationError(
-                    "Classe de faturamento não se aplica a propriedades do Grupo A",
-                )
-            }
-            if (fields.contractedDemandKw === undefined) {
-                throw new ValidationError(
-                    "Demanda contratada é obrigatória para propriedades do Grupo A",
-                )
-            }
-            return {
-                billingClass: null,
-                tariffSubgroup: fields.tariffSubgroup,
-                tariffModality: fields.tariffModality,
-                contractedDemandKw: fields.contractedDemandKw,
-            }
-        }
-
-        if (fields.tariffSubgroup) {
-            throw new ValidationError("Subgrupo só se aplica a propriedades do Grupo A")
-        }
-        if (fields.tariffModality) {
-            throw new ValidationError("Modalidade tarifária só se aplica a propriedades do Grupo A")
-        }
-        if (fields.contractedDemandKw !== undefined) {
-            throw new ValidationError("Demanda contratada só se aplica a propriedades do Grupo A")
-        }
-        return {
-            billingClass: fields.billingClass ?? "B1",
-            tariffSubgroup: null,
-            tariffModality: null,
-            contractedDemandKw: null,
-        }
+        return fields.tariffGroup === "GROUP_A"
+            ? this.resolveGroupAFields(fields)
+            : this.resolveGroupBFields(fields)
     }
 
     /**
@@ -108,6 +197,8 @@ export class PropertyService {
             tariffSubgroup: data.tariffSubgroup,
             tariffModality: data.tariffModality,
             contractedDemandKw: data.contractedDemandKw,
+            contractedDemandPeakKw: data.contractedDemandPeakKw,
+            contractedDemandOffPeakKw: data.contractedDemandOffPeakKw,
         })
 
         return this.propertyRepository.create(userId, data, tariffGroupFields)
@@ -160,25 +251,50 @@ export class PropertyService {
     }
 
     // Só reavalia a regra cruzada de grupo tarifário quando a atualização toca
-    // algum dos 4 campos envolvidos — trocar só o nome, por exemplo, não deve
-    // exigir reenviar subgrupo/modalidade/classe já existentes.
-    private resolveUpdateTariffGroupFields(
-        data: UpdatePropertyInput,
-        existing: PropertyResponse,
-    ): ResolvedTariffGroupFields | undefined {
-        const touchesTariffGroup =
+    // algum dos 6 campos envolvidos — trocar só o nome, por exemplo, não deve
+    // exigir reenviar subgrupo/modalidade/classe/demanda já existentes.
+    private touchesTariffGroupFields(data: UpdatePropertyInput): boolean {
+        return (
             data.tariffGroup !== undefined ||
             data.billingClass !== undefined ||
             data.tariffSubgroup !== undefined ||
             data.tariffModality !== undefined ||
-            data.contractedDemandKw !== undefined
+            data.contractedDemandKw !== undefined ||
+            data.contractedDemandPeakKw !== undefined ||
+            data.contractedDemandOffPeakKw !== undefined
+        )
+    }
 
-        if (!touchesTariffGroup) {
+    // As 3 demandas (kw único, ponta, fora-ponta) só podem ser carregadas do
+    // que já estava gravado quando a modalidade também não mudou — o formato
+    // de demanda é definido pela modalidade (Azul usa 2 campos, as demais
+    // usam 1), então trocar de modalidade sem reenviar a demanda no novo
+    // formato falha fechado em vez de misturar valores do formato anterior
+    // (mesma classe de bug que o formulário do frontend já corrige ao trocar
+    // de grupo tarifário).
+    private keepsExistingModality(
+        data: UpdatePropertyInput,
+        existing: PropertyResponse,
+        keepsExistingGroup: boolean,
+    ): boolean {
+        if (!keepsExistingGroup) {
+            return false
+        }
+        const resolvedModality = data.tariffModality ?? existing.tariffModality ?? undefined
+        return resolvedModality === existing.tariffModality
+    }
+
+    private resolveUpdateTariffGroupFields(
+        data: UpdatePropertyInput,
+        existing: PropertyResponse,
+    ): ResolvedTariffGroupFields | undefined {
+        if (!this.touchesTariffGroupFields(data)) {
             return undefined
         }
 
         const resolvedGroup = data.tariffGroup ?? existing.tariffGroup
         const keepsExistingGroup = resolvedGroup === existing.tariffGroup
+        const keepsExistingModality = this.keepsExistingModality(data, existing, keepsExistingGroup)
 
         return this.resolveTariffGroupFields({
             tariffGroup: resolvedGroup,
@@ -200,7 +316,17 @@ export class PropertyService {
             contractedDemandKw: this.carryOverIfSameGroup(
                 data.contractedDemandKw,
                 existing.contractedDemandKw,
-                keepsExistingGroup,
+                keepsExistingModality,
+            ),
+            contractedDemandPeakKw: this.carryOverIfSameGroup(
+                data.contractedDemandPeakKw,
+                existing.contractedDemandPeakKw,
+                keepsExistingModality,
+            ),
+            contractedDemandOffPeakKw: this.carryOverIfSameGroup(
+                data.contractedDemandOffPeakKw,
+                existing.contractedDemandOffPeakKw,
+                keepsExistingModality,
             ),
         })
     }

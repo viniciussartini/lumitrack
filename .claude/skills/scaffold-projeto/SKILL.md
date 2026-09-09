@@ -70,7 +70,7 @@ Em **plan mode**, apresente um PLANO e aguarde aprovação. O plano deve conter:
 - Estrutura de pastas por domínio (fronteiras isoladas).
 - Schema Prisma inicial.
 - Tema do frontend gerado **a partir dos design tokens da fonte de design declarada** (`10-design-system.md`); sem entrega de design ainda, tema mínimo marcado `TODO(design)`.
-- `tsconfig` strict, ESLint + Prettier + `eslint-plugin-jsdoc` + `no-warning-comments` configurado conforme o `06` (bloqueia comentário de rastreabilidade), husky + lint-staged.
+- `tsconfig` strict, ESLint + Prettier + `eslint-plugin-jsdoc` + `no-warning-comments` configurado conforme o `06` (bloqueia comentário de rastreabilidade) **+ a regra local `local/no-comment-req-refs`** (`eslint-rules/no-comment-req-refs.js`, um arquivo por pacote do monorepo — ver `06`): `no-warning-comments` só casa substring literal e não pega RF/RN/RNF/FNC seguido de número sem também barrar as letras soltas em prosa comum; a regra local resolve isso desde o primeiro commit, em vez de descobrir a lacuna depois de dezenas de comentários já terem entrado no código (achado real do LumiTrack, Fase 20). husky + lint-staged.
 - **Fundação de infraestrutura conforme o `11` (itens `[P0]`):** usuário de banco sem DDL + usuário de migração separado, `sslmode=require`, seed sintético, workflows com `permissions:` mínimo e actions pinadas por SHA, secret scanning/push protection, `.env.example` sem valores reais, ambientes isolados.
 - Regras de dependency-cruiser (direção de dependência + fronteiras).
 - Middlewares de segurança (authz, validação, error handler, rate limit, helmet/CORS).

@@ -84,6 +84,8 @@ export const PROP_1: Property = {
     tariffSubgroup: null,
     tariffModality: null,
     contractedDemandKw: null,
+    contractedDemandPeakKw: null,
+    contractedDemandOffPeakKw: null,
     publicLightingFeeBrl: 12.5,
     createdAt: TIMESTAMP,
     updatedAt: TIMESTAMP,

@@ -82,11 +82,22 @@ const publicLightingFeeBrlSchema = z
     .number()
     .min(0, { message: "Contribuição de iluminação pública não pode ser negativa" })
 
-// Demanda contratada (kW) — obrigatória para Grupo A, validada em
+// Demanda contratada (kW) — obrigatória para Grupo A nas modalidades de
+// demanda única (Verde, Convencional Binômia), validada em
 // property.service.ts (regra cruzada, mesmo padrão de tariffSubgroup/tariffModality).
 const contractedDemandKwSchema = z
     .number()
     .positive({ message: "Demanda contratada deve ser maior que zero" })
+
+// Demandas contratadas da Horária Azul (kW) — ponta e fora de ponta, exigidas
+// juntas quando a modalidade é BLUE (regra cruzada em property.service.ts).
+const contractedDemandPeakKwSchema = z
+    .number()
+    .positive({ message: "Demanda contratada na ponta deve ser maior que zero" })
+
+const contractedDemandOffPeakKwSchema = z
+    .number()
+    .positive({ message: "Demanda contratada fora de ponta deve ser maior que zero" })
 
 // Schema de criação
 
@@ -124,6 +135,10 @@ export const createPropertySchema = z.object({
 
     contractedDemandKw: contractedDemandKwSchema.optional(),
 
+    contractedDemandPeakKw: contractedDemandPeakKwSchema.optional(),
+
+    contractedDemandOffPeakKw: contractedDemandOffPeakKwSchema.optional(),
+
     publicLightingFeeBrl: publicLightingFeeBrlSchema.optional(),
 })
 
@@ -158,6 +173,10 @@ export const updatePropertySchema = z.object({
     tariffModality: tariffModalitySchema.optional(),
 
     contractedDemandKw: contractedDemandKwSchema.optional(),
+
+    contractedDemandPeakKw: contractedDemandPeakKwSchema.optional(),
+
+    contractedDemandOffPeakKw: contractedDemandOffPeakKwSchema.optional(),
 
     publicLightingFeeBrl: publicLightingFeeBrlSchema.optional(),
 })

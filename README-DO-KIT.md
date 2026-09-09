@@ -2,11 +2,12 @@
 
 > Guia de onboarding do kit. O `CLAUDE.md` (raiz) é lido pelo Claude Code; **este arquivo é para você**.
 
-**Versão do kit: v16.**
+**Versão do kit: v17.**
 
 <details>
 <summary>O que mudou desde a v3</summary>
 
+- **v17** — achado de uso real (Fase 20 do LumiTrack, PR #401, revisão de código): `no-warning-comments` (v15) **não pega RF/RN/RNF/FNC seguido de número** — casa só substring literal, e listar "RF"/"RN" como termo bloquearia toda ocorrência legítima dessas letras em prosa comum. Uma branch inteira acumulou ~25 comentários de produção citando RN/RF sem o lint acusar nada, porque as skills de implementação afirmavam sem qualificação que "o lint barra" essa citação. Fechado com uma regra local (`eslint-rules/no-comment-req-refs.js`, um arquivo por pacote do monorepo, registrada em `eslint.config.js` como `local/no-comment-req-refs`) que casa o padrão exato `\b(RF|RN|RNF|FNC)\d+\b` em comentários — `scaffold-projeto` passa a instalar essa regra desde o primeiro commit de projeto novo; `nova-feature`/`correcao-bugs`/`refatoracao` corrigidas para não prometerem mais cobertura que o lint nativo não tinha.
 - **v16** — **Priority e Size saem das labels** e passam a viver no corpo da issue, no mesmo formato do roadmap (`**Priority:** P0 · **Size:** M`) — labels de prioridade/tamanho removidas da taxonomia e do bootstrap; templates de issue ganham o campo. `revisao-codigo` **não grava arquivo de laudo**: publica comentário no PR aberto, devolve o laudo completo na conversa e pergunta o que corrigir antes de tocar em qualquer coisa.
 - **v15** — correções vindas de uso real: `tipo:`+prioridade+tamanho passam a ser obrigatórios em toda issue; `no-warning-comments` no ESLint bloqueia comentário de rastreabilidade mecanicamente; `revisao-codigo` ganha **Bash restrito** (sem ele não havia diff para revisar) e é proibido de reconstruir o diff a partir do CHANGELOG; laudo de agente passa a ser **gravado em arquivo** e a conversa principal deve **parar** após entregá-lo.
 - **v14** — correção: o hook `ativar-skills.sh` não tinha gatilho para **nenhum dos cinco agentes** (4 auditorias + `revisao-codigo` com rótulo errado) — adicionados. Desacoplamentos: **milestone vira entrega** (agrupa fases, não 1:1); `10` reescrito como **universal** com particularidades por ferramenta (Claude Design, Figma, Penpot, code-first); `07` **nasce vazio** (era pré-preenchido com decisões de outro projeto); `03` deixa de trazer "monólito modular" como decidido — vira decisão da entrevista + ADR — e ganha contratos entre módulos, consistência/transações, cross-cutting, visão C4, anti-corruption layer. Entrevista do scaffold ampliada (estratégia de credencial, MFA, OAuth, estilo arquitetural, ferramenta de design).

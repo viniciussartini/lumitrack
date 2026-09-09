@@ -30,7 +30,7 @@ Para features que cruzam módulos ou tocam auth/dados sensíveis, use **plan mod
 - **Erros (A10):** falhar fechado; mensagem genérica ao usuário.
 - **PII (A09 + LGPD):** nada sensível em log; minimização.
 - **Qualidade:** TS strict, sem `any`; funções pequenas; nomes reveladores.
-- **Comentários:** funcionais — Javadoc/JSDoc em classes, funções públicas e lógica não óbvia, explicando o **porquê**. **Nunca** referencie issue, PR, auditoria, achado, data ou autor no comentário (`06`): rastreabilidade vive no git, nos ADRs e nas issues, e o lint (`no-warning-comments`) barra.
+- **Comentários:** funcionais — Javadoc/JSDoc em classes, funções públicas e lógica não óbvia, explicando o **porquê**. **Nunca** referencie issue, PR, auditoria, achado, data, autor ou número de RF/RNF/RN/FNC no comentário (`06`): rastreabilidade vive no git, nos ADRs, no CHANGELOG e nas issues; RF/RNF/RN/FNC vivem no `02-requisitos.md`. O lint barra os dois casos (`no-warning-comments` para issue/PR/auditoria; a regra local `local/no-comment-req-refs` para RF/RN/RNF/FNC seguido de número — achado real: essa segunda regra não existia antes da Fase 20/PR #401, e ~25 comentários citando RN/RF entraram numa branch inteira sem o lint acusar nada até então) — mas **não confie só nisso**: releia o que você escreveu antes de finalizar, o lint pega o padrão exato, não paráfrase.
 - **Testes (test-first no domínio):** comece pelos testes da regra de negócio, derivados dos **critérios de aceite** da issue (ATDD-lite); integração do contrato; E2E só se for fluxo crítico. UI/cola podem ser teste-depois.
 
 ## Definition of Done

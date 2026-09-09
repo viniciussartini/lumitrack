@@ -168,6 +168,22 @@ function drawAlertsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload):
     }
 }
 
+function drawDemandAlertsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
+    sectionTitle(doc, "Alertas de ultrapassagem de demanda")
+
+    if (payload.demandAlerts.length === 0) {
+        emptyNote(doc, "Nenhum alerta de ultrapassagem de demanda cadastrado.")
+        return
+    }
+
+    for (const alert of payload.demandAlerts) {
+        doc.text(
+            `• ${alert.name} — limiar ${alert.thresholdPercent}% da demanda contratada — ` +
+                (alert.enabled ? "habilitado" : "desabilitado"),
+        )
+    }
+}
+
 function drawAuditLogSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
     sectionTitle(doc, "Histórico de acesso e segurança (audit log)")
 
@@ -223,6 +239,7 @@ export async function generateDataExportPdf(payload: DataExportPayload): Promise
     drawPropertiesSection(doc, payload)
     drawAreasAndDevicesSection(doc, payload)
     drawAlertsSection(doc, payload)
+    drawDemandAlertsSection(doc, payload)
     drawAuditLogSection(doc, payload)
     drawFooterOnAllPages(doc)
 

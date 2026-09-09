@@ -37,8 +37,8 @@ const meterService = new MeterService(
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
 //
-// EnergyDistributor é catálogo somente leitura (populado por seed, RF08),
-// sem service de criação — por isso o setup de teste cria a distribuidora
+// EnergyDistributor é catálogo somente leitura (populado por seed), sem
+// service de criação — por isso o setup de teste cria a distribuidora
 // direto via Prisma. Property é criada no mesmo bloco por conveniência, já
 // que os dois setups andam juntos aqui.
 

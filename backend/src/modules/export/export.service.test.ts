@@ -6,6 +6,7 @@ import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { AlertRepository } from "@/modules/alert/alert.repository.js"
+import { DemandAlertRepository } from "@/modules/demand-alert/demand-alert.repository.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { AreaService } from "@/modules/area/area.service.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
@@ -33,6 +34,7 @@ const deviceRepository = new DeviceRepository(prismaTest)
 const deviceService = new DeviceService(deviceRepository, areaRepository, propertyRepository)
 
 const alertRepository = new AlertRepository(prismaTest)
+const demandAlertRepository = new DemandAlertRepository(prismaTest)
 
 const auditRepository = new AuditRepository(prismaTest)
 
@@ -41,6 +43,7 @@ const exportService = new ExportService(
     propertyRepository,
     distributorRepository,
     alertRepository,
+    demandAlertRepository,
     areaRepository,
     deviceRepository,
     auditRepository,
@@ -107,6 +110,14 @@ async function setupFull(userInput = validUserA) {
             tolerancePercent: 2,
         },
     })
+    await prismaTest.demandAlert.create({
+        data: {
+            userId: user.id,
+            meterId: meter.id,
+            name: "Ultrapassagem de demanda",
+            thresholdPercent: 105,
+        },
+    })
 
     await auditRepository.create({
         userId: user.id,
@@ -156,6 +167,7 @@ describe("ExportService.generate", () => {
         expect(payload.devices[0]!.id).toBe(device.id)
 
         expect(payload.alerts).toHaveLength(1)
+        expect(payload.demandAlerts).toHaveLength(1)
 
         expect(payload.auditLogs).toHaveLength(1)
         expect(payload.auditLogs[0]!.action).toBe("LOGIN")
@@ -189,6 +201,7 @@ describe("ExportService.generate", () => {
         expect(payload.areas).toEqual([])
         expect(payload.devices).toEqual([])
         expect(payload.alerts).toEqual([])
+        expect(payload.demandAlerts).toEqual([])
         expect(payload.auditLogs).toEqual([])
     })
 

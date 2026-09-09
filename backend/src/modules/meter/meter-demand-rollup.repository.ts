@@ -82,4 +82,69 @@ export class MeterDemandRollupRepository {
             windowEndAt: r.windowEndAt,
         }))
     }
+
+    /**
+     * Mesma leitura que {@link findByMeterAndPeriod}, em lote para vários
+     * meses de uma vez — evita 1 consulta por mês ao calcular ultrapassagem
+     * de um intervalo (`granularity=year`), mesmo cuidado de N+1 já aplicado
+     * a `ConsumptionRepository.findKwhByPostGroupedByMonth`.
+     *
+     * @param meterId - Id do medidor.
+     * @param periodStarts - Início de cada mês (hora local) a consultar.
+     * @returns As linhas de demanda de todos os períodos pedidos, sem agrupar.
+     */
+    async findByMeterAndPeriods(
+        meterId: string,
+        periodStarts: Date[],
+    ): Promise<MeterDemandRollupResponse[]> {
+        if (periodStarts.length === 0) return []
+
+        const rows = await this.prisma.meterDemandRollup.findMany({
+            where: { meterId, periodStart: { in: periodStarts } },
+        })
+
+        return rows.map((r) => ({
+            meterId: r.meterId,
+            periodStart: r.periodStart,
+            post: r.post,
+            maxAvgPowerW: r.maxAvgPowerW,
+            windowEndAt: r.windowEndAt,
+        }))
+    }
+
+    /**
+     * Mesma leitura que {@link findByMeterAndPeriod}, em lote para vários
+     * medidores no mesmo período — evita 1 consulta por medidor ao avaliar
+     * um lote de alertas de ultrapassagem no mesmo tick (mesmo cuidado de
+     * N+1 de {@link findByMeterAndPeriods}, só que batchando o eixo oposto:
+     * 1 período, N medidores, em vez de 1 medidor, N períodos).
+     *
+     * @param meterIds - Ids dos medidores a consultar.
+     * @param periodStart - Início do mês (hora local) a consultar.
+     * @returns Mapa de medidor para suas linhas de demanda do período — medidor sem nenhuma janela observada não aparece no mapa.
+     */
+    async findByMetersAndPeriod(
+        meterIds: string[],
+        periodStart: Date,
+    ): Promise<Map<string, MeterDemandRollupResponse[]>> {
+        const result = new Map<string, MeterDemandRollupResponse[]>()
+        if (meterIds.length === 0) return result
+
+        const rows = await this.prisma.meterDemandRollup.findMany({
+            where: { meterId: { in: meterIds }, periodStart },
+        })
+
+        for (const r of rows) {
+            const bucket = result.get(r.meterId) ?? []
+            bucket.push({
+                meterId: r.meterId,
+                periodStart: r.periodStart,
+                post: r.post,
+                maxAvgPowerW: r.maxAvgPowerW,
+                windowEndAt: r.windowEndAt,
+            })
+            result.set(r.meterId, bucket)
+        }
+        return result
+    }
 }

@@ -54,6 +54,8 @@ const mockPropertyA: Property = {
     tariffSubgroup: null,
     tariffModality: null,
     contractedDemandKw: null,
+    contractedDemandPeakKw: null,
+    contractedDemandOffPeakKw: null,
     publicLightingFeeBrl: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

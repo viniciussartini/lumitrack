@@ -59,6 +59,157 @@ const optionalPositiveNumber = z
     })
     .pipe(z.number().positive("Deve ser maior que zero").optional())
 
+const tariffGroupBaseFields = {
+    distributorId: z.string().min(1, { message: "Selecione uma distribuidora" }),
+
+    name: z.string().min(1, "Nome é obrigatório").max(200, "Nome muito longo"),
+
+    address: emptyToUndefined.pipe(z.string().max(500, "Endereço muito longo").optional()),
+
+    city: emptyToUndefined.pipe(z.string().max(100, "Cidade muito longa").optional()),
+
+    state: emptyToUndefined.pipe(
+        z.enum(VALID_UFS, { message: "Selecione um estado válido" }).optional(),
+    ),
+
+    zipCode: emptyToUndefined.pipe(
+        z
+            .string()
+            .regex(cepRegex, "CEP deve estar no formato 00000-000")
+            .refine(isValidCep, "CEP inválido")
+            .optional(),
+    ),
+
+    electricalSystem: z.enum(["MONOPHASIC", "BIPHASIC", "TRIPHASIC"], {
+        message: "Selecione o sistema elétrico",
+    }),
+
+    tariffGroup: z.enum(["GROUP_A", "GROUP_B"]).default("GROUP_B"),
+
+    billingClass: z.enum(["B1", "B2", "B3"]).optional(),
+
+    tariffSubgroup: emptyToUndefined.pipe(z.enum(["A1", "A2", "A3", "A3A", "A4", "AS"]).optional()),
+
+    tariffModality: emptyToUndefined.pipe(
+        z.enum(["CONVENTIONAL_BINOMIAL", "GREEN", "BLUE"]).optional(),
+    ),
+
+    contractedDemandKw: optionalPositiveNumber,
+
+    contractedDemandPeakKw: optionalPositiveNumber,
+
+    contractedDemandOffPeakKw: optionalPositiveNumber,
+
+    publicLightingFeeBrl: optionalNonNegativeNumber,
+}
+
+type TariffGroupFields = z.infer<z.ZodObject<typeof tariffGroupBaseFields>>
+
+/**
+ * Demanda contratada por modalidade (dentro do Grupo A): Azul usa duas
+ * (ponta/fora de ponta), as demais usam uma só — formatos mutuamente
+ * exclusivos, mesma regra cruzada de
+ * `PropertyService.resolveContractedDemandFields` no backend.
+ */
+const validateContractedDemandFields = (data: TariffGroupFields, ctx: z.RefinementCtx): void => {
+    if (data.tariffModality === "BLUE") {
+        if (data.contractedDemandPeakKw === undefined) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["contractedDemandPeakKw"],
+                message: "Demanda contratada na ponta é obrigatória para a modalidade Azul",
+            })
+        }
+        if (data.contractedDemandOffPeakKw === undefined) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["contractedDemandOffPeakKw"],
+                message: "Demanda contratada fora de ponta é obrigatória para a modalidade Azul",
+            })
+        }
+        if (data.contractedDemandKw !== undefined) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["contractedDemandKw"],
+                message: "Demanda contratada única não se aplica à modalidade Azul",
+            })
+        }
+        return
+    }
+
+    if (data.contractedDemandKw === undefined) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["contractedDemandKw"],
+            message: "Demanda contratada é obrigatória para propriedades do Grupo A",
+        })
+    }
+    if (data.contractedDemandPeakKw !== undefined || data.contractedDemandOffPeakKw !== undefined) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["contractedDemandPeakKw"],
+            message:
+                "Demanda contratada por posto (ponta/fora de ponta) só se aplica à modalidade Azul",
+        })
+    }
+}
+
+const validateGroupAFields = (data: TariffGroupFields, ctx: z.RefinementCtx): void => {
+    if (!data.tariffSubgroup) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["tariffSubgroup"],
+            message: "Subgrupo é obrigatório para propriedades do Grupo A",
+        })
+    }
+    if (!data.tariffModality) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["tariffModality"],
+            message: "Modalidade tarifária é obrigatória para propriedades do Grupo A",
+        })
+    }
+    if (data.billingClass) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["billingClass"],
+            message: "Classe de faturamento não se aplica a propriedades do Grupo A",
+        })
+    }
+    validateContractedDemandFields(data, ctx)
+}
+
+const validateGroupBFields = (data: TariffGroupFields, ctx: z.RefinementCtx): void => {
+    if (data.tariffSubgroup) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["tariffSubgroup"],
+            message: "Subgrupo só se aplica a propriedades do Grupo A",
+        })
+    }
+    if (data.tariffModality) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["tariffModality"],
+            message: "Modalidade tarifária só se aplica a propriedades do Grupo A",
+        })
+    }
+    if (data.contractedDemandKw !== undefined) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["contractedDemandKw"],
+            message: "Demanda contratada só se aplica a propriedades do Grupo A",
+        })
+    }
+    if (data.contractedDemandPeakKw !== undefined || data.contractedDemandOffPeakKw !== undefined) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["contractedDemandPeakKw"],
+            message: "Demanda contratada por posto só se aplica a propriedades do Grupo A",
+        })
+    }
+}
+
 /**
  * Schema do form de Property.
  *
@@ -81,106 +232,13 @@ const optionalPositiveNumber = z
  * as mesmas mensagens do backend.
  */
 export const propertyFormSchema = z
-    .object({
-        distributorId: z.string().min(1, { message: "Selecione uma distribuidora" }),
-
-        name: z.string().min(1, "Nome é obrigatório").max(200, "Nome muito longo"),
-
-        address: emptyToUndefined.pipe(z.string().max(500, "Endereço muito longo").optional()),
-
-        city: emptyToUndefined.pipe(z.string().max(100, "Cidade muito longa").optional()),
-
-        state: emptyToUndefined.pipe(
-            z.enum(VALID_UFS, { message: "Selecione um estado válido" }).optional(),
-        ),
-
-        zipCode: emptyToUndefined.pipe(
-            z
-                .string()
-                .regex(cepRegex, "CEP deve estar no formato 00000-000")
-                .refine(isValidCep, "CEP inválido")
-                .optional(),
-        ),
-
-        electricalSystem: z.enum(["MONOPHASIC", "BIPHASIC", "TRIPHASIC"], {
-            message: "Selecione o sistema elétrico",
-        }),
-
-        tariffGroup: z.enum(["GROUP_A", "GROUP_B"]).default("GROUP_B"),
-
-        billingClass: z.enum(["B1", "B2", "B3"]).optional(),
-
-        // Só GREEN tem cálculo de conta implementado no backend — Azul/
-        // Convencional ficam pra Fase 20 (ver TARIFF_MODALITY_LABELS).
-        // emptyToUndefined: o placeholder do <select> ("Selecione") tem
-        // value="" — sem essa conversão, "" falha o enum como valor inválido
-        // em vez de cair no "obrigatório" do superRefine abaixo.
-        tariffSubgroup: emptyToUndefined.pipe(
-            z.enum(["A1", "A2", "A3", "A3A", "A4", "AS"]).optional(),
-        ),
-
-        tariffModality: emptyToUndefined.pipe(
-            z.enum(["CONVENTIONAL_BINOMIAL", "GREEN", "BLUE"]).optional(),
-        ),
-
-        contractedDemandKw: optionalPositiveNumber,
-
-        publicLightingFeeBrl: optionalNonNegativeNumber,
-    })
+    .object(tariffGroupBaseFields)
     .superRefine((data, ctx) => {
         if (data.tariffGroup === "GROUP_A") {
-            if (!data.tariffSubgroup) {
-                ctx.addIssue({
-                    code: "custom",
-                    path: ["tariffSubgroup"],
-                    message: "Subgrupo é obrigatório para propriedades do Grupo A",
-                })
-            }
-            if (!data.tariffModality) {
-                ctx.addIssue({
-                    code: "custom",
-                    path: ["tariffModality"],
-                    message: "Modalidade tarifária é obrigatória para propriedades do Grupo A",
-                })
-            }
-            if (data.contractedDemandKw === undefined) {
-                ctx.addIssue({
-                    code: "custom",
-                    path: ["contractedDemandKw"],
-                    message: "Demanda contratada é obrigatória para propriedades do Grupo A",
-                })
-            }
-            if (data.billingClass) {
-                ctx.addIssue({
-                    code: "custom",
-                    path: ["billingClass"],
-                    message: "Classe de faturamento não se aplica a propriedades do Grupo A",
-                })
-            }
+            validateGroupAFields(data, ctx)
             return
         }
-
-        if (data.tariffSubgroup) {
-            ctx.addIssue({
-                code: "custom",
-                path: ["tariffSubgroup"],
-                message: "Subgrupo só se aplica a propriedades do Grupo A",
-            })
-        }
-        if (data.tariffModality) {
-            ctx.addIssue({
-                code: "custom",
-                path: ["tariffModality"],
-                message: "Modalidade tarifária só se aplica a propriedades do Grupo A",
-            })
-        }
-        if (data.contractedDemandKw !== undefined) {
-            ctx.addIssue({
-                code: "custom",
-                path: ["contractedDemandKw"],
-                message: "Demanda contratada só se aplica a propriedades do Grupo A",
-            })
-        }
+        validateGroupBFields(data, ctx)
     })
     .transform((data) => ({
         ...data,

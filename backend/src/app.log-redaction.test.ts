@@ -30,8 +30,9 @@ afterAll(async () => {
     await prismaHttpTest.$disconnect()
 })
 
-// A09 / RNF05: teste que precisa falhar se o `redact` for removido do
-// logger. NODE_ENV=test silencia o logger singleton (`resolveLogLevel`), então
+// A09: teste que precisa falhar se o `redact` for removido do
+// logger, vazando dado sensível em log estruturado. NODE_ENV=test silencia o
+// logger singleton (`resolveLogLevel`), então
 // não dá pra observar o output dele diretamente — aqui injetamos um pino
 // próprio via `AppDependencies.logger`, com `level: "info"` e o MESMO
 // `redact` de produção (`logRedactPaths`), escrevendo num stream capturado.

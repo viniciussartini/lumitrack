@@ -35,6 +35,10 @@ const PEAK_WINDOW_END_HOUR = 21
 // distribuidora já semeada abaixo, sem duplicar registro.
 const CELESC_CNPJ = "08.336.783/0001-90"
 
+// Reaproveitada pelo catálogo Grupo A Azul (seedBlueA4TariffCatalog, Fase 20)
+// — fonte do Exemplo 7 (frigorífico A4 Azul, Cuiabá/MT).
+const ENERGISA_MT_CNPJ = "03.467.321/0001-99"
+
 interface DistributorSeed {
     name: string
     cnpj: string // aproximado — verificar
@@ -123,6 +127,13 @@ const DISTRIBUTORS: DistributorSeed[] = [
         state: "DF",
         icmsRate: 0.18,
         targetEffectiveTariff: 0.69,
+    },
+    {
+        name: "Energisa Mato Grosso",
+        cnpj: ENERGISA_MT_CNPJ,
+        state: "MT",
+        icmsRate: 0.195,
+        targetEffectiveTariff: 0.8,
     },
 ]
 
@@ -230,9 +241,79 @@ async function seedGreenA4DemandRate(distributorId: string): Promise<void> {
     }
 }
 
+// Tarifas de energia (TUSD+TE por posto) do Exemplo 7 — o documento só dá o
+// valor combinado ("TUSD+TE energia Ponta: R$ 1,48/kWh", Fora Ponta R$ 0,57)
+// sem separar as duas parcelas; dividido meio a meio, mesma aproximação já
+// usada por `deriveTusdTe` para o catálogo Grupo B (a soma é o que entra na
+// fórmula de parcelaConsumo, então a divisão interna não afeta o cálculo).
+async function seedBlueA4EnergyRates(distributorId: string): Promise<void> {
+    const rates = [
+        { post: "PEAK", combined: 1.48 },
+        { post: "OFF_PEAK", combined: 0.57 },
+    ] as const
+
+    for (const rate of rates) {
+        const half = round6(rate.combined / 2)
+
+        await prisma.tariffEnergyRate.upsert({
+            where: {
+                distributorId_subgroup_modality_post: {
+                    distributorId,
+                    subgroup: "A4",
+                    modality: "BLUE",
+                    post: rate.post,
+                },
+            },
+            update: { tusdPerKwh: half, tePerKwh: half },
+            create: {
+                distributorId,
+                subgroup: "A4",
+                modality: "BLUE",
+                post: rate.post,
+                tusdPerKwh: half,
+                tePerKwh: half,
+            },
+        })
+    }
+}
+
+// Demandas contratadas da Azul (post PEAK/OFF_PEAK, nunca nulo) — R$ 45,00/kW
+// na ponta e R$ 15,00/kW fora de ponta, Exemplo 7. Diferente da Verde
+// (post nulo), o upsert nativo funciona aqui porque nenhum membro da chave
+// composta é `null`.
+async function seedBlueA4DemandRates(distributorId: string): Promise<void> {
+    const rates = [
+        { post: "PEAK", tusdPerKw: 45.0 },
+        { post: "OFF_PEAK", tusdPerKw: 15.0 },
+    ] as const
+
+    for (const rate of rates) {
+        await prisma.tariffDemandRate.upsert({
+            where: {
+                distributorId_subgroup_modality_post: {
+                    distributorId,
+                    subgroup: "A4",
+                    modality: "BLUE",
+                    post: rate.post,
+                },
+            },
+            update: { tusdPerKw: rate.tusdPerKw },
+            create: {
+                distributorId,
+                subgroup: "A4",
+                modality: "BLUE",
+                post: rate.post,
+                tusdPerKw: rate.tusdPerKw,
+            },
+        })
+    }
+}
+
 // Catálogo tarifário Grupo A (ADR-0019) — Celesc, subgrupo A4, Horária
 // Verde, valores citados do Exemplo 6 (metalúrgica A4 Verde em Joinville/SC,
-// mesma UF/ICMS 17% já usada na Celesc do Grupo B acima).
+// mesma UF/ICMS 17% já usada na Celesc do Grupo B acima). Energisa MT,
+// subgrupo A4, Horária Azul, valores citados do Exemplo 7 (frigorífico A4
+// Azul em Cuiabá/MT) — fundação de modelo da Fase 20.
 async function seedGroupATariffCatalog(): Promise<void> {
     const celesc = await prisma.energyDistributor.findUniqueOrThrow({
         where: { cnpj: CELESC_CNPJ },
@@ -243,6 +324,17 @@ async function seedGroupATariffCatalog(): Promise<void> {
 
     console.log(
         "Catálogo tarifário Grupo A: Celesc/A4/Horária Verde garantido (upsert, Exemplo 6).",
+    )
+
+    const energisaMt = await prisma.energyDistributor.findUniqueOrThrow({
+        where: { cnpj: ENERGISA_MT_CNPJ },
+    })
+
+    await seedBlueA4EnergyRates(energisaMt.id)
+    await seedBlueA4DemandRates(energisaMt.id)
+
+    console.log(
+        "Catálogo tarifário Grupo A: Energisa MT/A4/Horária Azul garantido (upsert, Exemplo 7).",
     )
 }
 

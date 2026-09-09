@@ -33,10 +33,31 @@ const DIST_ENEL = {
 }
 
 /**
- * Espelha a resposta de criação do backend a partir do corpo do POST —
- * extraído do handler de rota só por causa do teto de complexidade do lint
- * (cada `?? null` conta como um branch).
+ * Campos de grupo tarifário da resposta de criação — extraído só por causa
+ * do teto de complexidade do lint (cada `?? null` conta como um branch).
  */
+const buildTariffGroupFields = (
+    body: CreatePropertyInput,
+): Pick<
+    Property,
+    | "tariffGroup"
+    | "billingClass"
+    | "tariffSubgroup"
+    | "tariffModality"
+    | "contractedDemandKw"
+    | "contractedDemandPeakKw"
+    | "contractedDemandOffPeakKw"
+> => ({
+    tariffGroup: body.tariffGroup ?? "GROUP_B",
+    billingClass: body.billingClass ?? null,
+    tariffSubgroup: body.tariffSubgroup ?? null,
+    tariffModality: body.tariffModality ?? null,
+    contractedDemandKw: body.contractedDemandKw ?? null,
+    contractedDemandPeakKw: body.contractedDemandPeakKw ?? null,
+    contractedDemandOffPeakKw: body.contractedDemandOffPeakKw ?? null,
+})
+
+/** Espelha a resposta de criação do backend a partir do corpo do POST. */
 const buildCreatedProperty = (body: CreatePropertyInput): Property => ({
     id: "prop-1",
     userId: "user-123",
@@ -47,11 +68,7 @@ const buildCreatedProperty = (body: CreatePropertyInput): Property => ({
     state: body.state ?? null,
     zipCode: body.zipCode ?? null,
     electricalSystem: body.electricalSystem,
-    tariffGroup: body.tariffGroup ?? "GROUP_B",
-    billingClass: body.billingClass ?? null,
-    tariffSubgroup: body.tariffSubgroup ?? null,
-    tariffModality: body.tariffModality ?? null,
-    contractedDemandKw: body.contractedDemandKw ?? null,
+    ...buildTariffGroupFields(body),
     publicLightingFeeBrl: body.publicLightingFeeBrl ?? null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

@@ -17,8 +17,10 @@ import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { TariffCatalogRepository } from "@/modules/distributor/tariff-catalog.repository.js"
 import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
+import { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
 import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
+import { fromSaoPauloLocal } from "@/shared/time/localTime.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 import {
@@ -37,6 +39,7 @@ const deviceRepository = new DeviceRepository(prismaTest)
 const tariffFlagRepository = new TariffFlagRepository(prismaTest)
 const tariffCatalogRepository = new TariffCatalogRepository(prismaTest)
 const consumptionRepository = new ConsumptionRepository(prismaTest)
+const meterDemandRollupRepository = new MeterDemandRollupRepository(prismaTest)
 
 const userRepository = new UserRepository(prismaTest)
 const userService = new UserService(userRepository)
@@ -50,6 +53,7 @@ const consumptionService = new ConsumptionService(
     distributorRepository,
     tariffFlagRepository,
     tariffCatalogRepository,
+    meterDemandRollupRepository,
 )
 
 // tusdPerKwh=0.3 + tePerKwh=0.3 = 0.6 R$/kWh; tributos 27,25%; bandeira
@@ -778,6 +782,453 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
             kwhConsumed: 28_000,
             brl: 11_200,
         })
+        // FP = 1 nas duas leituras (helper insertReading) — sem energia
+        // reativa excedente.
+        expect(groupA!.ereBrl).toBe(0)
+    })
+
+    it("cobra ultrapassagem de demanda quando a demanda medida excede 5% da contratada", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 800, 100_000)
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 28_000, 100_000)
+
+        // Mesmo cenário do Exemplo 6, com a demanda medida hipotética do
+        // próprio documento de referência (230 kW, acima dos 200 contratados).
+        await prismaTest.meterDemandRollup.create({
+            data: {
+                meterId: meter.id,
+                periodStart: fromSaoPauloLocal(new Date(Date.UTC(2026, 7, 1))),
+                post: "OFF_PEAK",
+                maxAvgPowerW: 230_000,
+                windowEndAt: new Date("2026-08-04T13:15:00Z"),
+            },
+        })
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        const groupA = result.items[0]!.groupA
+        expect(groupA).toBeDefined()
+        // Ultrapassagem = (230 − 200) × 3 × 18,00 = R$ 1.620,00, antes dos tributos.
+        expect(groupA!.ultrapassagemBrl).toBeCloseTo(1620, 2)
+
+        const expectedTotal = (16_382.88 + 1620) / (1 - (0.17 + 0.0165 + 0.076)) + 250
+        expect(result.items[0]!.costBrl).toBeCloseTo(expectedTotal, 2)
+    })
+
+    it("não cobra ultrapassagem quando a demanda medida fica dentro da tolerância de 5%", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 800, 100_000)
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 28_000, 100_000)
+
+        await prismaTest.meterDemandRollup.create({
+            data: {
+                meterId: meter.id,
+                periodStart: fromSaoPauloLocal(new Date(Date.UTC(2026, 7, 1))),
+                post: "OFF_PEAK",
+                maxAvgPowerW: 195_000, // 195 kW, dentro dos 200 × 1,05 = 210
+                windowEndAt: new Date("2026-08-04T13:15:00Z"),
+            },
+        })
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        expect(result.items[0]!.groupA!.ultrapassagemBrl).toBe(0)
+        expect(result.items[0]!.costBrl).toBeCloseTo(22_464.07, 2) // idêntico ao Exemplo 6, sem ultrapassagem
+    })
+
+    it("usa o maior valor entre os postos como demanda medida da Verde, não a soma", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 800, 100_000)
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 28_000, 100_000)
+
+        // Verde tem 1 só demanda contratada — a demanda medida do mês é o
+        // maior valor entre os postos (211 kW), nunca a soma (326 kW).
+        await prismaTest.meterDemandRollup.createMany({
+            data: [
+                {
+                    meterId: meter.id,
+                    periodStart: fromSaoPauloLocal(new Date(Date.UTC(2026, 7, 1))),
+                    post: "PEAK",
+                    maxAvgPowerW: 115_000,
+                    windowEndAt: new Date("2026-08-04T22:15:00Z"),
+                },
+                {
+                    meterId: meter.id,
+                    periodStart: fromSaoPauloLocal(new Date(Date.UTC(2026, 7, 1))),
+                    post: "OFF_PEAK",
+                    maxAvgPowerW: 211_000,
+                    windowEndAt: new Date("2026-08-04T13:15:00Z"),
+                },
+            ],
+        })
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        // (211 - 200) × 3 × 18 = 594 — se somasse os postos (326 kW), o
+        // valor seria bem maior: (326 - 200) × 3 × 18 = 6.804.
+        expect(result.items[0]!.groupA!.ultrapassagemBrl).toBeCloseTo(594, 2)
+    })
+
+    it("cobra energia reativa excedente quando o fator de potência fica abaixo de 0,92", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+        // 10h SP (13h UTC) — janela indutiva (6h-24h). FP 0,85, bem abaixo do
+        // mínimo regulatório de 0,92.
+        await prismaTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date("2026-08-04T13:00:00Z"),
+                kwhConsumed: 1000,
+                avgVoltage: 220,
+                avgCurrent: 100_000 / 220,
+                avgPowerW: 100_000,
+                avgPowerFactor: 0.85,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        const groupA = result.items[0]!.groupA!
+        const referenceRatio = Math.tan(Math.acos(0.92))
+        const measuredRatio = Math.tan(Math.acos(0.85))
+        const expectedExcessKvarh = 1000 * (measuredRatio - referenceRatio)
+        // Tarifa usada: TUSD fora de ponta da Celesc/A4/Verde (R$ 0,12/kWh).
+        const expectedEreBrl = expectedExcessKvarh * 0.12
+
+        expect(groupA.ereByWindow).toHaveLength(1)
+        expect(groupA.ereByWindow[0]?.window).toBe("INDUCTIVE")
+        expect(groupA.ereBrl).toBeCloseTo(expectedEreBrl, 6)
+
+        // Conta completa: demanda (200 × 18) + consumo (1.000 × 0,40, fora de
+        // ponta) + ERE + bandeira amarela (1.000 × 1,885%), por dentro + CIP.
+        const demandBrl = 3600
+        const energyBrl = 400
+        const flagBrl = 1000 * (1.885 / 100)
+        const taxRateSum = 0.17 + 0.0165 + 0.076
+        const expectedTotal =
+            (demandBrl + energyBrl + expectedEreBrl + flagBrl) / (1 - taxRateSum) + 250
+        expect(result.items[0]!.costBrl).toBeCloseTo(expectedTotal, 2)
+    })
+
+    it("não cobra energia reativa quando o fator de potência está exatamente em 0,92", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+        await prismaTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date("2026-08-04T13:00:00Z"),
+                kwhConsumed: 1000,
+                avgVoltage: 220,
+                avgCurrent: 100_000 / 220,
+                avgPowerW: 100_000,
+                avgPowerFactor: 0.92,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        expect(result.items[0]!.groupA!.ereBrl).toBe(0)
+    })
+
+    it("apura o excedente por hora — uma hora com FP perfeito não compensa uma hora ruim na mesma janela", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+        // 10h SP (13h UTC) — FP perfeito (1,0), reativa zero nessa hora.
+        await prismaTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date("2026-08-04T13:00:00Z"),
+                kwhConsumed: 500,
+                avgVoltage: 220,
+                avgCurrent: 500_000 / 220,
+                avgPowerW: 500_000,
+                avgPowerFactor: 1,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+        // 11h SP (14h UTC) — mesma janela indutiva, FP 0,85.
+        await prismaTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date("2026-08-04T14:00:00Z"),
+                kwhConsumed: 500,
+                avgVoltage: 220,
+                avgCurrent: 500_000 / 220,
+                avgPowerW: 500_000,
+                avgPowerFactor: 0.85,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        // Se o excedente fosse apurado sobre o total do mês (500+500 kWh,
+        // reativa só da hora ruim), a hora boa "diluiria" o excedente da
+        // hora ruim: 500×tan(acos(0,85)) − 1000×referência ≈ −116 → zero
+        // (esconderia o excedente real). Apurado por hora, a hora boa
+        // contribui 0 e a hora ruim contribui seu próprio excedente.
+        const referenceRatio = Math.tan(Math.acos(0.92))
+        const measuredRatio = Math.tan(Math.acos(0.85))
+        const expectedExcessKvarh = 500 * (measuredRatio - referenceRatio)
+        expect(expectedExcessKvarh).toBeGreaterThan(0) // a hora ruim excede sozinha
+
+        const expectedEreBrl = expectedExcessKvarh * 0.12 // TUSD fora de ponta
+        expect(result.items[0]!.groupA!.ereBrl).toBeCloseTo(expectedEreBrl, 6)
+    })
+
+    it("cobra só a janela indutiva quando há leitura indutiva e capacitiva no mesmo mês — capacitiva sempre zero", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+        // 10h SP (13h UTC) — indutiva.
+        await prismaTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date("2026-08-04T13:00:00Z"),
+                kwhConsumed: 1000,
+                avgVoltage: 220,
+                avgCurrent: 100_000 / 220,
+                avgPowerW: 100_000,
+                avgPowerFactor: 0.85,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+        // 2h SP (5h UTC) — capacitiva (0h-6h).
+        await prismaTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date("2026-08-04T05:00:00Z"),
+                kwhConsumed: 500,
+                avgVoltage: 220,
+                avgCurrent: 50_000 / 220,
+                avgPowerW: 50_000,
+                avgPowerFactor: 0.85,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        const groupA = result.items[0]!.groupA!
+        expect(groupA.ereByWindow.map((w) => w.window).sort()).toEqual(["CAPACITIVE", "INDUCTIVE"])
+        const capacitive = groupA.ereByWindow.find((w) => w.window === "CAPACITIVE")
+        expect(capacitive?.ereBrl).toBe(0)
+        expect(capacitive?.excessKvarh).toBe(0)
+
+        const referenceRatio = Math.tan(Math.acos(0.92))
+        const measuredRatio = Math.tan(Math.acos(0.85))
+        const expectedTotal = 1000 * (measuredRatio - referenceRatio) * 0.12
+        expect(groupA.ereBrl).toBeCloseTo(expectedTotal, 6)
+    })
+
+    // Exemplo 7 do documento de referência (frigorífico A4 Azul em
+    // Cuiabá/MT, Energisa MT): 150 kW contratados na ponta + 400 kW fora de
+    // ponta, consumo 1.500 kWh ponta + 95.000 kWh fora de ponta, FP 0,91,
+    // ICMS MT 19,5%, CIP R$ 850,00. 2026-08-04 é terça-feira, sem feriado —
+    // leitura de ponta às 19h local (dentro de 18h-21h) e fora de ponta às 10h.
+    async function setupBlueGroupAPropertyMeter() {
+        const user = await userService.createUser({
+            email: "frigorifico@example.com",
+            password: "Senha@123",
+            userType: "COMPANY",
+            acceptedTerms: true,
+            companyName: "Frigorífico Cuiabá Ltda",
+            cnpj: "22.333.444/0001-81",
+        })
+        const distributor = await createTestDistributor(prismaTest, {
+            icmsRate: 0.195,
+            pisRate: 0.0165,
+            cofinsRate: 0.076,
+        })
+        await prismaTest.energyDistributor.update({
+            where: { id: distributor.id },
+            data: { peakWindowStartHour: 18, peakWindowEndHour: 21 },
+        })
+        await prismaTest.tariffFlagConfig.upsert({
+            where: { id: 1 },
+            update: { currentFlag: "YELLOW" },
+            create: {
+                id: 1,
+                currentFlag: "YELLOW",
+                greenPer100Kwh: 0,
+                yellowPer100Kwh: 1.885,
+                redP1Per100Kwh: 4.463,
+                redP2Per100Kwh: 7.877,
+            },
+        })
+        // TUSD+TE combinado do Exemplo 7 (o documento não separa as duas
+        // parcelas) — dividido meio a meio, mesma aproximação do seed real.
+        await prismaTest.tariffEnergyRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "BLUE",
+                post: "PEAK",
+                tusdPerKwh: 0.74,
+                tePerKwh: 0.74,
+            },
+        })
+        await prismaTest.tariffEnergyRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "BLUE",
+                post: "OFF_PEAK",
+                tusdPerKwh: 0.285,
+                tePerKwh: 0.285,
+            },
+        })
+        await prismaTest.tariffDemandRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "BLUE",
+                post: "PEAK",
+                tusdPerKw: 45.0,
+            },
+        })
+        await prismaTest.tariffDemandRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "BLUE",
+                post: "OFF_PEAK",
+                tusdPerKw: 15.0,
+            },
+        })
+
+        const property = await propertyService.create(user.id, {
+            name: "Frigorífico",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC",
+            tariffGroup: "GROUP_A",
+            tariffSubgroup: "A4",
+            tariffModality: "BLUE",
+            contractedDemandPeakKw: 150,
+            contractedDemandOffPeakKw: 400,
+            publicLightingFeeBrl: 850,
+        })
+        const meter = await prismaTest.meter.create({
+            data: {
+                name: "Medidor",
+                targetType: "PROPERTY",
+                propertyId: property.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "frigorifico/medidor",
+            },
+        })
+
+        return { user, property, meter }
+    }
+
+    it("reproduz o Exemplo 7 do documento de referência (A4 Azul, frigorífico)", async () => {
+        const { user, meter, property } = await setupBlueGroupAPropertyMeter()
+        await prismaTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date("2026-08-04T22:00:00Z"), // 19h SP — ponta
+                kwhConsumed: 1500,
+                avgVoltage: 220,
+                avgCurrent: 100_000 / 220,
+                avgPowerW: 100_000,
+                avgPowerFactor: 0.91,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+        await prismaTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date("2026-08-04T13:00:00Z"), // 10h SP — fora de ponta
+                kwhConsumed: 95_000,
+                avgVoltage: 220,
+                avgCurrent: 100_000 / 220,
+                avgPowerW: 100_000,
+                avgPowerFactor: 0.91,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+        await prismaTest.meterDemandRollup.createMany({
+            data: [
+                {
+                    meterId: meter.id,
+                    periodStart: fromSaoPauloLocal(new Date(Date.UTC(2026, 7, 1))),
+                    post: "PEAK",
+                    maxAvgPowerW: 145_000, // dentro dos 150 kW contratados
+                    windowEndAt: new Date("2026-08-04T22:15:00Z"),
+                },
+                {
+                    meterId: meter.id,
+                    periodStart: fromSaoPauloLocal(new Date(Date.UTC(2026, 7, 1))),
+                    post: "OFF_PEAK",
+                    maxAvgPowerW: 395_000, // dentro dos 400 kW contratados
+                    windowEndAt: new Date("2026-08-04T13:15:00Z"),
+                },
+            ],
+        })
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0]!.kwhConsumed).toBeCloseTo(96_500)
+
+        const groupA = result.items[0]!.groupA!
+        expect(groupA.demandByPost).toHaveLength(2)
+        // Demanda contratada Ponta (150 × 45) + Fora Ponta (400 × 15) = R$ 12.750,00.
+        expect(groupA.demandBrl).toBeCloseTo(12_750, 2)
+        expect(groupA.contractedDemandKw).toBeCloseTo(550, 2) // soma agregada (150 + 400)
+        // Sem ultrapassagem — medida abaixo da contratada nos dois postos.
+        expect(groupA.ultrapassagemBrl).toBe(0)
+        // Consumo Ponta (1.500 × 1,48) + Fora Ponta (95.000 × 0,57) = R$ 56.370,00.
+        expect(groupA.energyByPost.find((p) => p.post === "PEAK")?.brl).toBeCloseTo(2220, 2)
+        expect(groupA.energyByPost.find((p) => p.post === "OFF_PEAK")?.brl).toBeCloseTo(54_150, 2)
+        // Bandeira amarela sobre os 96.500 kWh totais.
+        expect(groupA.flagBrl).toBeCloseTo(1819.03, 1)
+
+        // Total: o documento usa uma ERE aproximada (~R$ 772,00, "~2% do
+        // consumo") que não fecha a fórmula exata — a nossa (tan(acos(FP)),
+        // ver tariff.service.test.ts) resulta em ~R$ 814, por isso o total
+        // fica próximo de R$ 101.496,36, mas não idêntico. Tolerância larga
+        // aqui é proposital, documentada, não um teste frouxo por descuido.
+        expect(Math.abs(result.items[0]!.costBrl - 101_496.36)).toBeLessThan(100)
     })
 
     it("não carrega groupA no bucket mensal de uma propriedade Grupo B", async () => {
@@ -794,11 +1245,11 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
         expect(result.items[0]!.groupA).toBeUndefined()
     })
 
-    it("falha fechado ao calcular conta de uma modalidade Grupo A ainda não suportada (Azul)", async () => {
+    it("falha fechado ao calcular conta de uma modalidade Grupo A ainda não suportada (Convencional Binômia)", async () => {
         const { user, meter, property } = await setupGroupAPropertyMeter()
         await prismaTest.property.update({
             where: { id: property.id },
-            data: { tariffModality: "BLUE" },
+            data: { tariffModality: "CONVENTIONAL_BINOMIAL" },
         })
         await insertReading(meter.id, "2026-08-04T13:00:00Z", 1000, 100_000)
 

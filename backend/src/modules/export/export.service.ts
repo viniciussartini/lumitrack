@@ -8,6 +8,10 @@ import type {
     DistributorResponse,
 } from "@/modules/distributor/distributor.repository.js"
 import type { AlertRepository, AlertResponse } from "@/modules/alert/alert.repository.js"
+import type {
+    DemandAlertRepository,
+    DemandAlertResponse,
+} from "@/modules/demand-alert/demand-alert.repository.js"
 import type { AreaRepository, AreaResponse } from "@/modules/area/area.repository.js"
 import type { DeviceRepository, DeviceResponse } from "@/modules/device/device.repository.js"
 import type { AuditRepository, AuditLogResponse } from "@/shared/audit/audit.repository.js"
@@ -35,6 +39,7 @@ export type DataExportPayload = {
     areas: AreaResponse[]
     devices: DeviceResponse[]
     alerts: AlertResponse[]
+    demandAlerts: DemandAlertResponse[]
     auditLogs: AuditLogResponse[]
 }
 
@@ -48,6 +53,7 @@ export class ExportService {
      * @param propertyRepository - Propriedades do titular.
      * @param distributorRepository - Catálogo de distribuidoras, para resolver as vinculadas às propriedades do titular.
      * @param alertRepository - Alertas configurados pelo titular.
+     * @param demandAlertRepository - Alertas de ultrapassagem de demanda configurados pelo titular.
      * @param areaRepository - Áreas das propriedades do titular.
      * @param deviceRepository - Dispositivos das áreas do titular.
      * @param auditRepository - Trilha de auditoria de acesso a dados do titular.
@@ -57,6 +63,7 @@ export class ExportService {
         private readonly propertyRepository: PropertyRepository,
         private readonly distributorRepository: DistributorRepository,
         private readonly alertRepository: AlertRepository,
+        private readonly demandAlertRepository: DemandAlertRepository,
         private readonly areaRepository: AreaRepository,
         private readonly deviceRepository: DeviceRepository,
         private readonly auditRepository: AuditRepository,
@@ -77,9 +84,10 @@ export class ExportService {
             throw new NotFoundError("Usuário não encontrado")
         }
 
-        const [properties, alerts, areas, devices, auditLogs] = await Promise.all([
+        const [properties, alerts, demandAlerts, areas, devices, auditLogs] = await Promise.all([
             this.propertyRepository.findAllByUser(userId),
             this.alertRepository.findAllByUser(userId),
+            this.demandAlertRepository.findAllByUser(userId),
             this.areaRepository.findAllByUser(userId),
             this.deviceRepository.findAllByUser(userId),
             this.auditRepository.findByUserId(userId),
@@ -96,6 +104,7 @@ export class ExportService {
             areas,
             devices,
             alerts,
+            demandAlerts,
             auditLogs,
         }
     }
