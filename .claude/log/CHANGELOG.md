@@ -3527,3 +3527,12 @@
 - **Arquivos principais:** ver `git diff --stat` da branch — toca praticamente todo módulo tarifário do backend (comentários), `GroupABillCard.tsx`/`.test.tsx`, `consumption.repository.ts`/`.service.ts`, `DemandAlertScheduler.ts`/`.test.ts`, `demand-alert.schema.ts`, `meter-demand-rollup.repository.ts`, `tariff.service.ts`/`.test.ts`, 4× `eslint.config.js` + `eslint-rules/`, `.claude/project_context/06-code-quality-standards.md`, 4 skills, `README-DO-KIT.md`, `ADR-0020`.
 - **Decisões/ADRs:** `ADR-0020` (novo, ver Sugestão 5).
 - **Notas:** suíte completa verde nos dois pacotes: backend 108 arquivos/1274 testes (+6), frontend 96 arquivos/814 testes (+2); lint (incluindo a regra nova nos 4 pacotes), `tsc -b`, `depcruise` e `build` sem erros nos dois. PR #401 ainda não republicado com estas correções — código commitado localmente pelo usuário, conforme convenção do kit.
+
+## [2026-09-09] docs: roadmap.md — fechamento formal da Fase 20 (PR #401) e ressalva de sequenciamento da Fase 21 resolvida
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** PR #401 mesclou em `staging`, fechando a Fase 20 com o artefato real do GitHub (a fase já estava marcada concluída no roadmap desde a sessão de implementação de 2026-09-07, sem PR próprio até agora). Cabeçalho e visão geral do `roadmap.md` atualizados com a referência ao PR #401. A ressalva de sequenciamento que a Fase 21 carregava desde o detalhamento antecipado (item "Cálculo binômio ACL", #398, dependente da forma final de `TariffService.calculateForGroupA`) foi resolvida: o PR #401 confirma que a generalização para `demandPosts`/`reactiveWindows` não exigiu mudança de assinatura ao ligar a Azul — o mesmo vale para o ACL, que só troca `tePerKwh` do catálogo pelo valor do contrato. Risco do item rebaixado de médio-alto para médio.
+- **Arquivos principais:** `.claude/docs/roadmap.md` (cabeçalho, linha da Fase 20 na visão geral, ressalva e item "Cálculo binômio ACL" da Fase 21, nova seção "Replanejamento de 2026-09-09").
+- **Decisões/ADRs:** nenhuma — atualização de status e reconciliação de uma ressalva já registrada, não decisão nova.
+- **Notas:** Fase 21 (ACL) segue como fase atual, ainda não iniciada — épico #394 e sub-issues #395–#400 já existem no GitHub (criados em 2026-09-07), todas abertas; branch `epic/394-mercado-livre-acl` ainda não criada.
