@@ -1957,6 +1957,7 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
 - **Critérios de aceite:** confirmar contra a REN vigente se a bandeira tarifária incide sobre a TUSD no Mercado Livre (o documento de referência afirma que sim, linha 335, mas isso destoa do mecanismo — a bandeira recompõe custo de compra de energia, que o consumidor ACL não tem; a TUSD é encargo de fio). ADR registrando a fonte normativa consultada e a decisão.
 - **Depende de:** —.
 - **Risco/observações:** o item existe justamente para eliminar risco antes dele se espalhar pelo cálculo — mesma disciplina de risco/incerteza primeiro já aplicada pela Fase 8 (bandeira na fonte oficial).
+- **Decisão (2026-09-09, issue #395, ADR-0021): bandeira tarifária não incide no ACL** — nem sobre a TUSD nem sobre a TE negociada. O documento de referência descrevia incidência sobre a TUSD, mas nenhuma fonte normativa (REN 1.000/2021, Art. 2º, II — bandeira veiculada "por meio da tarifa de energia") ou de mercado sustentava essa leitura; corrigido em `O-Sistema-Eletrico-Brasileiro.md`. Consequência para o item "Cálculo binômio ACL" (#398): não precisa portar `flagPer100Kwh` para o caminho ACL.
 
 ### Modelo de dados: ambiente de contratação (ACR × ACL) e contrato de energia
 
@@ -1987,7 +1988,7 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
 - **Priority:** P0 · **Size:** M
 - **Critérios de aceite:**
   - Extensão de `calculateForGroupA` substitui `tePerKwh` do catálogo pelo valor negociado do `AclContract` — TE única para o contrato, não diferenciada por posto (simplificação a registrar como corte de escopo, não RN).
-  - Bandeira aplicada conforme a decisão do spike.
+  - **Bandeira não aplicada** (ADR-0021, spike #395): `flagBrl` fica zerado/omitido no caminho ACL — nem sobre TUSD nem sobre a TE do contrato.
   - Reaproveita `demandPosts`/`reactiveWindows` (ultrapassagem/ERE, generalizados na Fase 20 — PR #401) sem duplicar `applyTaxesByDentro`.
   - **Sem oráculo externo** — teste construído a partir da fórmula documentada, não de um exemplo numérico de terceiros (diferente das Fases 19/20); revisão cuidadosa da fórmula é o único controle de qualidade disponível aqui.
 - **Depende de:** spike de bandeira; modelo de dados.

@@ -3536,3 +3536,15 @@
 - **Arquivos principais:** `.claude/docs/roadmap.md` (cabeçalho, linha da Fase 20 na visão geral, ressalva e item "Cálculo binômio ACL" da Fase 21, nova seção "Replanejamento de 2026-09-09").
 - **Decisões/ADRs:** nenhuma — atualização de status e reconciliação de uma ressalva já registrada, não decisão nova.
 - **Notas:** Fase 21 (ACL) segue como fase atual, ainda não iniciada — épico #394 e sub-issues #395–#400 já existem no GitHub (criados em 2026-09-07), todas abertas; branch `epic/394-mercado-livre-acl` ainda não criada.
+
+## [2026-09-09] docs: spike de bandeira tarifária no ACL + ADR-0021 (RF pré-requisito da Fase 21)
+
+- **Branch:** epic/394-mercado-livre-acl
+- **Tipo:** docs
+- **O quê:** issue #395 (sub-issue do épico #394, Fase 21, primeiro item da fase) — item de decisão, sem código de cálculo. Investigado se a bandeira tarifária incide sobre a TUSD no Mercado Livre de Energia (ACL), como o documento de referência do projeto afirmava (`O-Sistema-Eletrico-Brasileiro.md`, linha 335) sem fonte citada. Pesquisa (busca web, REN 1.000/2021 da ANEEL e fontes de mercado de comercializadoras/imprensa especializada) confirma que a bandeira **não incide no ACL de forma alguma** — nem sobre TUSD, nem sobre a TE negociada bilateralmente. Base normativa: REN 1.000/2021, Art. 2º, II, define bandeira como mecanismo veiculado "por meio da tarifa de energia" (TE), estruturalmente não ligado à TUSD; múltiplas fontes de mercado convergem sem dissenso para exclusão total.
+- **Decisão registrada em ADR-0021** (`.claude/docs/adr/0021-bandeira-nao-incide-no-acl.md`): `TariffService`/`ConsumptionService` não devem aplicar `flagBrl` quando `Property.contractingEnvironment = ACL` — nem sobre TUSD nem sobre a TE do contrato. Consequência prática para o item "Cálculo binômio ACL" (#398): a fórmula fica mais simples que o objetivo original presumia, sem precisar portar `flagPer100Kwh` para o caminho ACL.
+- **Documento de referência corrigido:** `O-Sistema-Eletrico-Brasileiro.md` — a linha 335 ("Mercado Livre: bandeira... se aplica à TUSD") e a seção "Mercado Livre de Energia (ACL)" atualizadas para refletir a exclusão total, com nota apontando para a ADR-0021.
+- **`roadmap.md` atualizado:** item "Spike: incidência de bandeira no ACL + ADR" da Fase 21 ganha a decisão registrada; item "Cálculo binômio ACL" ganha a nota de que `flagBrl` fica zerado/omitido no caminho ACL.
+- **Arquivos principais:** `.claude/docs/adr/0021-bandeira-nao-incide-no-acl.md` (novo), `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`, `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** ADR-0021 (novo). Não veio de `07-decisoes-em-aberto.md` — decisão nova, nenhuma atualização necessária lá.
+- **Notas:** nenhum código de produção alterado — item de decisão, conforme a própria issue definia ("Comportamento: nenhum — é decisão, registrada em ADR antes de qualquer cálculo"). Destrava os itens seguintes da fase (#396–#400), em especial #398 (cálculo binômio ACL), que dependia desta decisão antes de codar a fórmula.
