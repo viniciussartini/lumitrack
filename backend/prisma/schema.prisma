@@ -160,6 +160,39 @@ enum IoTProtocol {
   @@map("iot_protocol")
 }
 
+// Ambiente de contratação de energia da propriedade — cativo (regulado pela
+// distribuidora) ou livre (contrato bilateral com uma comercializadora).
+// ACL só é elegível para o Grupo A (validado em property.service.ts).
+enum ContractingEnvironment {
+  ACR
+  ACL
+
+  @@map("contracting_environment")
+}
+
+// Submercado de energia (CCEE/ONS) do contrato ACL — usado para localizar o
+// PLD de referência do período.
+enum AclSubmarket {
+  NORTH
+  NORTHEAST
+  SOUTHEAST_CENTER_WEST
+  SOUTH
+
+  @@map("acl_submarket")
+}
+
+// Classificação regulatória da fonte de energia contratada no ACL — fontes
+// incentivadas (renováveis de menor porte) têm desconto de TUSD/TE definido
+// em resolução própria, não modelado nesta fase; aqui só a classificação em
+// si é registrada.
+enum AclEnergySource {
+  CONVENTIONAL
+  INCENTIVIZED_50
+  INCENTIVIZED_100
+
+  @@map("acl_energy_source")
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // USUÁRIO
 // ─────────────────────────────────────────────────────────────────────────────
@@ -214,6 +247,7 @@ model User {
   emailChanges      EmailChange[]
   alerts            Alert[]
   demandAlerts      DemandAlert[]
+  aclContracts      AclContract[]
   auditLogs         AuditLog[]
   mfaBackupCodes    MfaBackupCode[]
   tariffFlagChanges TariffFlagHistory[]
@@ -470,6 +504,12 @@ model Property {
   // todas as propriedades existentes sem migração de dado.
   tariffGroup TariffGroup @default(GROUP_B)
 
+  // Ambiente de contratação (ACR cativo × ACL livre) — default ACR preserva
+  // todas as propriedades existentes. ACL só é permitido para tariffGroup
+  // GROUP_A, validado em property.service.ts (mesmo padrão de regra cruzada
+  // já usado para subgrupo/modalidade/demanda).
+  contractingEnvironment ContractingEnvironment @default(ACR)
+
   // Classe de faturamento Grupo B (default residencial B1). Opcional porque
   // uma propriedade Grupo A não tem B1/B2/B3 — obrigatório/proibido conforme
   // tariffGroup é validado em property.schema.ts, não aqui: regra cruzada
@@ -499,10 +539,11 @@ model Property {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  distributor EnergyDistributor @relation(fields: [distributorId], references: [id])
-  areas       Area[]
-  meter       Meter?
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  distributor  EnergyDistributor @relation(fields: [distributorId], references: [id])
+  areas        Area[]
+  meter        Meter?
+  aclContracts AclContract[]
 
   // O Prisma Migrate cria a constraint de FK, mas não o índice no Postgres
   // (diferente do MySQL) — sem isto, toda travessia de posse (User→Property)
@@ -765,4 +806,39 @@ model DemandAlert {
   @@index([meterId])
   @@index([userId])
   @@map("demand_alerts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MERCADO LIVRE DE ENERGIA (ACL)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Contrato de energia de uma propriedade em ACL — comercializadora, volume,
+// submercado, fonte e o preço da energia negociado bilateralmente (substitui
+// a TE do catálogo regulado no cálculo do Grupo A). Uma propriedade pode ter
+// mais de um contrato ao longo do tempo (troca de comercializadora, renovação);
+// validFrom/validTo delimitam a vigência de cada um, mesmo padrão de histórico
+// versionado já usado no catálogo tarifário (TariffEnergyRate/TariffDemandRate).
+model AclContract {
+  id         String @id @default(uuid())
+  userId     String
+  propertyId String
+
+  retailerName        String
+  submarket           AclSubmarket
+  energySource        AclEnergySource
+  energyPricePerMwh   Decimal         @db.Decimal(10, 2)
+  contractedVolumeMwh Decimal         @db.Decimal(10, 3)
+
+  validFrom DateTime
+  validTo   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+  @@index([userId])
+  @@map("acl_contracts")
 }

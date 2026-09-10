@@ -6,7 +6,12 @@ import type {
     ResolvedTariffGroupFields,
 } from "@/modules/property/property.repository.js"
 import type { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
-import type { BillingClass, TariffModality, TariffSubgroup } from "@/generated/prisma/client.js"
+import type {
+    BillingClass,
+    TariffModality,
+    TariffSubgroup,
+    ContractingEnvironment,
+} from "@/generated/prisma/client.js"
 import { NotFoundError, ForbiddenError, ValidationError } from "@/shared/errors/AppError.js"
 import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 import { paginationQuerySchema, type Paginated } from "@/shared/pagination.js"
@@ -27,6 +32,22 @@ export class PropertyService {
 
         if (!exists) {
             throw new NotFoundError("Distribuidora não encontrada")
+        }
+    }
+
+    // O Mercado Livre (ACL) só é elegível para o Grupo A — todo subgrupo do
+    // Grupo A já pode migrar hoje (A1/A2/A3 desde sempre, A3a/A4/AS sem
+    // restrição de demanda desde jan/2024), então a checagem se reduz ao
+    // grupo tarifário, sem discriminar por subgrupo. Grupo B permanece
+    // sempre cativo neste produto.
+    private assertContractingEnvironmentEligible(
+        tariffGroup: "GROUP_A" | "GROUP_B",
+        contractingEnvironment: ContractingEnvironment,
+    ): void {
+        if (contractingEnvironment === "ACL" && tariffGroup !== "GROUP_A") {
+            throw new ValidationError(
+                "Ambiente de contratação livre (ACL) só se aplica a propriedades do Grupo A",
+            )
         }
     }
 
@@ -191,6 +212,8 @@ export class PropertyService {
 
         await this.validateDistributorExists(data.distributorId)
 
+        this.assertContractingEnvironmentEligible(data.tariffGroup, data.contractingEnvironment)
+
         const tariffGroupFields = this.resolveTariffGroupFields({
             tariffGroup: data.tariffGroup,
             billingClass: data.billingClass,
@@ -348,6 +371,11 @@ export class PropertyService {
         if (data.distributorId !== undefined) {
             await this.validateDistributorExists(data.distributorId)
         }
+
+        this.assertContractingEnvironmentEligible(
+            data.tariffGroup ?? existing.tariffGroup,
+            data.contractingEnvironment ?? existing.contractingEnvironment,
+        )
 
         const tariffGroupFields = this.resolveUpdateTariffGroupFields(data, existing)
 

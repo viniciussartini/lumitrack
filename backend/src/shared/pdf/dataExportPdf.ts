@@ -184,6 +184,26 @@ function drawDemandAlertsSection(doc: PDFKit.PDFDocument, payload: DataExportPay
     }
 }
 
+function drawAclContractsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
+    sectionTitle(doc, "Contratos de energia — Mercado Livre (ACL)")
+
+    if (payload.aclContracts.length === 0) {
+        emptyNote(doc, "Nenhum contrato de energia do Mercado Livre cadastrado.")
+        return
+    }
+
+    for (const contract of payload.aclContracts) {
+        const validity = contract.validTo
+            ? `${contract.validFrom.toLocaleDateString("pt-BR")} a ${contract.validTo.toLocaleDateString("pt-BR")}`
+            : `desde ${contract.validFrom.toLocaleDateString("pt-BR")}`
+        doc.text(
+            `• ${contract.retailerName} — ${contract.submarket}/${contract.energySource} — ` +
+                `R$ ${contract.energyPricePerMwh.toFixed(2)}/MWh, ${contract.contractedVolumeMwh} MWh — ` +
+                `vigência ${validity}`,
+        )
+    }
+}
+
 function drawAuditLogSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
     sectionTitle(doc, "Histórico de acesso e segurança (audit log)")
 
@@ -240,6 +260,7 @@ export async function generateDataExportPdf(payload: DataExportPayload): Promise
     drawAreasAndDevicesSection(doc, payload)
     drawAlertsSection(doc, payload)
     drawDemandAlertsSection(doc, payload)
+    drawAclContractsSection(doc, payload)
     drawAuditLogSection(doc, payload)
     drawFooterOnAllPages(doc)
 

@@ -5,6 +5,7 @@ import {
     type TariffGroup,
     type TariffSubgroup,
     type TariffModality,
+    type ContractingEnvironment,
 } from "@/generated/prisma/client.js"
 import type {
     CreatePropertyInput,
@@ -152,6 +153,7 @@ export class PropertyRepository {
                 contractedDemandPeakKw: tariffGroupFields.contractedDemandPeakKw,
                 contractedDemandOffPeakKw: tariffGroupFields.contractedDemandOffPeakKw,
                 publicLightingFeeBrl: data.publicLightingFeeBrl ?? null,
+                contractingEnvironment: data.contractingEnvironment as ContractingEnvironment,
             },
         })
         return toPropertyResponse(property)
