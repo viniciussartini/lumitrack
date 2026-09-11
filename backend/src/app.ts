@@ -37,6 +37,7 @@ import { propertyRoutes } from "./modules/property/property.routes.js"
 import { alertRoutes } from "./modules/alert/alert.routes.js"
 import { demandAlertRoutes } from "./modules/demand-alert/demand-alert.routes.js"
 import { aclContractRoutes } from "./modules/acl-contract/acl-contract.routes.js"
+import { pldQuoteRoutes } from "./modules/pld-quote/pld-quote.routes.js"
 import { alertEventRoutes } from "./modules/alert-event/alert-event.routes.js"
 import { notificationRoutes } from "./modules/notification/notification.routes.js"
 import { meterRoutes } from "./modules/meter/meter.routes.js"
@@ -245,6 +246,7 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/alerts", alertRoutes(authenticate, prismaClient, alertEvaluator))
     app.use("/api/demand-alerts", demandAlertRoutes(authenticate, prismaClient))
     app.use("/api/acl-contracts", aclContractRoutes(authenticate, prismaClient))
+    app.use("/api/pld-quotes", pldQuoteRoutes(authenticate, prismaClient))
     app.use("/api/alert-events", alertEventRoutes(authenticate, prismaClient))
     app.use("/api/notifications", notificationRoutes(authenticate, notificationStore))
     app.use("/api/meters", meterRoutes(authenticate, prismaClient))

@@ -842,3 +842,23 @@ model AclContract {
   @@index([userId])
   @@map("acl_contracts")
 }
+
+// Catálogo global de PLD (Preço de Liquidação das Diferenças) por submercado
+// e mês de referência — somente leitura (populado via seed, sem ingestão
+// automática da CCEE nesta fase), mesmo padrão do catálogo tarifário
+// (EnergyDistributor/TariffEnergyRate). Contexto informativo da comparação
+// ACR × ACL, não insumo direto da fórmula de custo.
+model PldQuote {
+  id              String       @id @default(uuid())
+  submarket       AclSubmarket
+  // Início do mês em hora local — mesma convenção de período mensal já usada
+  // por MeterDemandRollup.periodStart.
+  referencePeriod DateTime
+  valuePerMwh     Decimal      @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([submarket, referencePeriod])
+  @@map("pld_quotes")
+}
