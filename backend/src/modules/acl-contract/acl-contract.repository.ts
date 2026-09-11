@@ -92,6 +92,36 @@ export class AclContractRepository {
     }
 
     /**
+     * Contratos de uma propriedade cuja vigência sobrepõe a janela
+     * [from, to] — usado para resolver, em lote, qual contrato vale em cada
+     * mês de uma consulta de custo do Grupo A/ACL (mesmo padrão de batching
+     * já usado pelo catálogo tarifário e pelo rollup de demanda: 1 consulta
+     * para todos os meses da página, não 1 por mês). Mais recentes primeiro
+     * — quando duas vigências se sobrepõem (não impedido no cadastro), o
+     * contrato mais recente prevalece.
+     *
+     * @param propertyId - Id da propriedade.
+     * @param from - Início da janela consultada (inclusive).
+     * @param to - Fim da janela consultada (inclusive).
+     * @returns Contratos sobrepostos, ordenados por `validFrom` decrescente.
+     */
+    async findOverlappingForProperty(
+        propertyId: string,
+        from: Date,
+        to: Date,
+    ): Promise<AclContractResponse[]> {
+        const contracts = await this.prisma.aclContract.findMany({
+            where: {
+                propertyId,
+                validFrom: { lte: to },
+                OR: [{ validTo: null }, { validTo: { gte: from } }],
+            },
+            orderBy: { validFrom: "desc" },
+        })
+        return contracts.map(toAclContractResponse)
+    }
+
+    /**
      * Cria um contrato.
      *
      * @param userId - Id do usuário dono do contrato.

@@ -5,6 +5,7 @@ import { ConsumptionRepository } from "@/modules/consumption/consumption.reposit
 import { ConsumptionService } from "@/modules/consumption/consumption.service.js"
 import { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
+import { AclContractRepository } from "@/modules/acl-contract/acl-contract.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
@@ -30,6 +31,7 @@ export function consumptionRoutes(
     const tariffFlagRepository = new TariffFlagRepository(prismaClient)
     const tariffCatalogRepository = new TariffCatalogRepository(prismaClient)
     const meterDemandRollupRepository = new MeterDemandRollupRepository(prismaClient)
+    const aclContractRepository = new AclContractRepository(prismaClient)
 
     const consumptionService = new ConsumptionService(
         consumptionRepository,
@@ -41,6 +43,7 @@ export function consumptionRoutes(
         tariffFlagRepository,
         tariffCatalogRepository,
         meterDemandRollupRepository,
+        aclContractRepository,
     )
     const controller = new ConsumptionController(consumptionService)
 

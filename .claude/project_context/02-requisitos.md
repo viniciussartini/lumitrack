@@ -64,9 +64,10 @@
 - RF30 `[implementado]`: o sistema deve suportar a modalidade Horária Azul, com duas demandas contratadas (ponta e fora de ponta) e quatro tarifas distintas.
 - RF31 `[implementado]`: o sistema deve calcular a ultrapassagem de demanda e permitir que um usuário do Grupo A configure alerta de ultrapassagem da demanda contratada. *(Substitui o item anteriormente registrado sem número como "RFXX".)*
 - RF32 `[implementado]`: o sistema deve calcular a energia reativa excedente quando o fator de potência ficar abaixo do mínimo regulatório.
-- RF33 `[planejado — Fase 21]`: o sistema deve distinguir o ambiente de contratação da Propriedade (ACR cativo × ACL livre) e registrar o contrato de energia do ACL — comercializadora, volume contratado, submercado, fonte e vigência.
-- RF34 `[planejado — Fase 21]`: o sistema deve permitir registrar e consultar o PLD (Preço de Liquidação das Diferenças) por submercado, usado na análise econômica do mercado livre.
+- RF33 `[implementado]`: o sistema deve distinguir o ambiente de contratação da Propriedade (ACR cativo × ACL livre) e registrar o contrato de energia do ACL — comercializadora, volume contratado, submercado, fonte e vigência.
+- RF34 `[implementado]`: o sistema deve permitir registrar e consultar o PLD (Preço de Liquidação das Diferenças) por submercado, usado na análise econômica do mercado livre. *(Catálogo somente leitura nesta fase — populado via seed, sem `POST`/`PUT`/`DELETE`; ver roadmap Fase 21.)*
 - RF35 `[planejado — Fase 21]`: o sistema deve comparar o custo no mercado cativo com o custo no mercado livre a partir do consumo real do próprio usuário, respondendo "vale a pena migrar?".
+- RF48 `[implementado]`: o sistema deve calcular a conta binômia de uma propriedade do Mercado Livre (ACL), substituindo a TE do catálogo regulado pela TE negociada no contrato de energia vigente, sem incidência de bandeira tarifária.
 - RF36 `[planejado — Fase 22]`: o sistema deve suportar a modalidade Tarifa Branca para o Grupo B, incluindo o alerta de quando ela sai mais cara que a Convencional para o perfil de consumo do usuário.
 - RF45 `[planejado — sem fase]`: o sistema deve permitir manter os parâmetros tarifários da distribuidora com vigência (tarifas por posto, tributos, postos horários e regra de feriados), preservando o histórico para recálculo de períodos anteriores.
 
@@ -220,6 +221,7 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
 - RN21 `[implementado]`: **energia reativa excedente (ERE)** é cobrada quando o fator de potência fica abaixo de 0,92 — indutivo medido entre 6h e 24h, capacitivo entre 0h e 6h, tarifado em R$/kVArh (validado no `tariff.service.ts`; a agregação por janela em `consumption.repository.ts`). Fórmula: excedente (kVArh) = energia reativa medida − energia ativa × tan(acos(0,92)); tarifa usada é a TUSD de energia fora de ponta (o documento de referência não diferencia a tarifa reativa por posto).
 - RN22 `[implementado]`: a **bandeira incide sobre o consumo medido, nunca sobre a demanda**.
 - RN23 `[implementado]`: **não há piso de disponibilidade no Grupo A** — o papel equivalente é da demanda contratada, que é paga integralmente mesmo se não utilizada. O caminho de cálculo ramifica por grupo em vez de aplicar o piso incondicionalmente.
+- RN38 `[implementado]`: no **Mercado Livre (ACL)**, a TE do catálogo regulado é substituída pela TE negociada no contrato de energia vigente no período — única para o contrato, sem diferenciar por posto (o documento de referência não modela preço negociado por posto horário); a TUSD permanece a do catálogo (encargo de fio, devido independente do ambiente de contratação). A **bandeira tarifária não incide** — nem sobre TUSD, nem sobre TE (ADR-0021). Demanda contratada, ultrapassagem (RN20) e energia reativa excedente (RN21) seguem a mesma regra do ACR, sem alteração. Validado em `consumption.service.ts` (`calculateGroupAMonthlyCosts`/`buildGroupAMonthResult`) — `tariff.service.ts` não precisou de nenhuma mudança.
 
 ### Postos tarifários e calendário
 
