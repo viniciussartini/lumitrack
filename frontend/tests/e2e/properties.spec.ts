@@ -47,6 +47,7 @@ const buildTariffGroupFields = (
     | "contractedDemandKw"
     | "contractedDemandPeakKw"
     | "contractedDemandOffPeakKw"
+    | "contractingEnvironment"
 > => ({
     tariffGroup: body.tariffGroup ?? "GROUP_B",
     billingClass: body.billingClass ?? null,
@@ -55,6 +56,7 @@ const buildTariffGroupFields = (
     contractedDemandKw: body.contractedDemandKw ?? null,
     contractedDemandPeakKw: body.contractedDemandPeakKw ?? null,
     contractedDemandOffPeakKw: body.contractedDemandOffPeakKw ?? null,
+    contractingEnvironment: body.contractingEnvironment ?? "ACR",
 })
 
 /** Espelha a resposta de criação do backend a partir do corpo do POST. */

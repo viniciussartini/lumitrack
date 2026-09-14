@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
-import { AlertCircle, ArrowLeft, Home, LayoutGrid, MapPin, Pencil, Plus } from "lucide-react"
+import { AlertCircle, ArrowLeft, Home, LayoutGrid, MapPin, Pencil, Plus, Scale } from "lucide-react"
 import { useProperty } from "@/hooks/queries/useProperties"
 import { useDistributor, useDistributors } from "@/hooks/queries/useDistributors"
 import { useAreas } from "@/hooks/queries/useAreas"
@@ -189,6 +189,14 @@ const PropertyHeaderCard = ({
 
                 {/* Ações */}
                 <div className="flex shrink-0 items-center gap-2">
+                    {property.contractingEnvironment === "ACL" && (
+                        <Button asChild variant="secondary" size="sm">
+                            <Link to={`/propriedades/${property.id}/comparacao-acl`}>
+                                <Scale className="h-4 w-4" aria-hidden="true" />
+                                Comparar ACR × ACL
+                            </Link>
+                        </Button>
+                    )}
                     <Button variant="secondary" size="sm" onClick={() => setIsEditOpen(true)}>
                         <Pencil className="h-4 w-4" aria-hidden="true" />
                         Editar
@@ -252,6 +260,9 @@ const PropertyHeaderCard = ({
                     )}
                     {property.publicLightingFeeBrl !== null && (
                         <Tag variant="outline">CIP: {formatBrl(property.publicLightingFeeBrl)}</Tag>
+                    )}
+                    {property.contractingEnvironment === "ACL" && (
+                        <Tag variant="accent-2">Mercado Livre (ACL)</Tag>
                     )}
                 </div>
             </div>

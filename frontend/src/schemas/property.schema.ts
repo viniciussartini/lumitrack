@@ -101,6 +101,24 @@ const tariffGroupBaseFields = {
     contractedDemandOffPeakKw: optionalPositiveNumber,
 
     publicLightingFeeBrl: optionalNonNegativeNumber,
+
+    contractingEnvironment: z.enum(["ACR", "ACL"]).default("ACR"),
+
+    aclRetailerName: emptyToUndefined.pipe(
+        z.string().min(1, "Comercializadora é obrigatória").max(200).optional(),
+    ),
+
+    aclSubmarket: emptyToUndefined.pipe(
+        z.enum(["NORTH", "NORTHEAST", "SOUTHEAST_CENTER_WEST", "SOUTH"]).optional(),
+    ),
+
+    aclEnergySource: emptyToUndefined.pipe(
+        z.enum(["CONVENTIONAL", "INCENTIVIZED_50", "INCENTIVIZED_100"]).optional(),
+    ),
+
+    aclEnergyPricePerMwh: optionalPositiveNumber,
+
+    aclContractedVolumeMwh: optionalPositiveNumber,
 }
 
 type TariffGroupFields = z.infer<z.ZodObject<typeof tariffGroupBaseFields>>
@@ -210,6 +228,83 @@ const validateGroupBFields = (data: TariffGroupFields, ctx: z.RefinementCtx): vo
     }
 }
 
+const ACL_FIELD_KEYS = [
+    "aclRetailerName",
+    "aclSubmarket",
+    "aclEnergySource",
+    "aclEnergyPricePerMwh",
+    "aclContractedVolumeMwh",
+] as const
+
+/**
+ * Regra cruzada do ambiente de contratação (espelha
+ * `PropertyService.assertContractingEnvironmentEligible` +
+ * `AclContractService.assertPropertyAcceptsAclContract` no backend): ACL só
+ * se aplica ao Grupo A, e exige os 5 campos do contrato; fora do ACL, os
+ * mesmos 5 campos não fazem sentido (mesmo padrão de
+ * `validateContractedDemandFields`, que zera o formato anterior ao trocar
+ * de grupo/modalidade).
+ */
+const validateAclFields = (data: TariffGroupFields, ctx: z.RefinementCtx): void => {
+    if (data.contractingEnvironment === "ACL" && data.tariffGroup !== "GROUP_A") {
+        ctx.addIssue({
+            code: "custom",
+            path: ["contractingEnvironment"],
+            message: "Ambiente de contratação livre (ACL) só se aplica a propriedades do Grupo A",
+        })
+        return
+    }
+
+    if (data.contractingEnvironment !== "ACL") {
+        for (const key of ACL_FIELD_KEYS) {
+            if (data[key] !== undefined) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: [key],
+                    message: "Só se aplica ao ambiente de contratação livre (ACL)",
+                })
+            }
+        }
+        return
+    }
+
+    if (!data.aclRetailerName) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["aclRetailerName"],
+            message: "Comercializadora é obrigatória no ACL",
+        })
+    }
+    if (!data.aclSubmarket) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["aclSubmarket"],
+            message: "Submercado é obrigatório no ACL",
+        })
+    }
+    if (!data.aclEnergySource) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["aclEnergySource"],
+            message: "Fonte contratada é obrigatória no ACL",
+        })
+    }
+    if (data.aclEnergyPricePerMwh === undefined) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["aclEnergyPricePerMwh"],
+            message: "Preço da energia é obrigatório no ACL",
+        })
+    }
+    if (data.aclContractedVolumeMwh === undefined) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["aclContractedVolumeMwh"],
+            message: "Volume contratado é obrigatório no ACL",
+        })
+    }
+}
+
 /**
  * Schema do form de Property.
  *
@@ -236,9 +331,10 @@ export const propertyFormSchema = z
     .superRefine((data, ctx) => {
         if (data.tariffGroup === "GROUP_A") {
             validateGroupAFields(data, ctx)
-            return
+        } else {
+            validateGroupBFields(data, ctx)
         }
-        validateGroupBFields(data, ctx)
+        validateAclFields(data, ctx)
     })
     .transform((data) => ({
         ...data,

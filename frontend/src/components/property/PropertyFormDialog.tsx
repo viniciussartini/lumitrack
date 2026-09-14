@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/Button"
 import { FormDialog } from "@/components/ui/FormDialog"
 import { PropertyForm } from "@/components/property/PropertyForm"
 import { useCreateProperty, useUpdateProperty } from "@/hooks/queries/usePropertyMutations"
+import { useCurrentAclContract } from "@/hooks/queries/useAclContracts"
+import { useCreateAclContract, useUpdateAclContract } from "@/hooks/queries/useAclContractMutations"
 import { extractErrorMessage } from "@/services/api"
 import type { PropertyFormData } from "@/schemas/property.schema"
 import type { CreatePropertyInput, Property, UpdatePropertyInput } from "@/types/property.types"
+import type { CreateAclContractInput, UpdateAclContractInput } from "@/types/acl-contract.types"
 import type { Distributor } from "@/types/distributor.types"
 
 type DialogMode = { kind: "create" } | { kind: "edit"; property: Property }
@@ -20,6 +23,7 @@ const buildCreateInput = (data: PropertyFormData): CreatePropertyInput => ({
     name: data.name,
     electricalSystem: data.electricalSystem,
     tariffGroup: data.tariffGroup,
+    contractingEnvironment: data.contractingEnvironment,
     ...(data.address !== undefined && { address: data.address }),
     ...(data.city !== undefined && { city: data.city }),
     ...(data.state !== undefined && { state: data.state }),
@@ -49,7 +53,161 @@ const buildUpdateInput = (data: PropertyFormData): UpdatePropertyInput => ({
     tariffModality: data.tariffModality,
     contractedDemandKw: data.contractedDemandKw,
     publicLightingFeeBrl: data.publicLightingFeeBrl,
+    contractingEnvironment: data.contractingEnvironment,
 })
+
+/**
+ * Corpo do contrato ACL a partir dos campos `acl*` do form — só chamado
+ * quando `data.contractingEnvironment === "ACL"` (o schema garante que os 5
+ * campos estão presentes nesse caso). `validFrom` não vem do form (o
+ * handoff de design não modela essa data aqui) — a criação usa a data
+ * corrente; a atualização não a reenvia, preservando a vigência já
+ * registrada.
+ */
+const buildAclContractCreateInput = (
+    data: PropertyFormData,
+    propertyId: string,
+): CreateAclContractInput => ({
+    propertyId,
+    retailerName: data.aclRetailerName!,
+    submarket: data.aclSubmarket!,
+    energySource: data.aclEnergySource!,
+    energyPricePerMwh: data.aclEnergyPricePerMwh!,
+    contractedVolumeMwh: data.aclContractedVolumeMwh!,
+    validFrom: new Date().toISOString().slice(0, 10),
+})
+
+const buildAclContractUpdateInput = (data: PropertyFormData): UpdateAclContractInput => ({
+    retailerName: data.aclRetailerName,
+    submarket: data.aclSubmarket,
+    energySource: data.aclEnergySource,
+    energyPricePerMwh: data.aclEnergyPricePerMwh,
+    contractedVolumeMwh: data.aclContractedVolumeMwh,
+})
+
+/** Textos do header do modal — extraído só pra caber no teto de complexidade do componente. */
+const resolveDialogCopy = (mode: DialogMode): { kicker: string; title: string } =>
+    mode.kind === "create"
+        ? { kicker: "Nova propriedade", title: "Adicionar propriedade" }
+        : { kicker: "Propriedade", title: "Editar propriedade" }
+
+interface FormVisibility {
+    isLoadingCatalog: boolean
+    isCreatingWithoutCatalog: boolean
+    isLoadingAclContract: boolean
+    loadingLabel: string
+    showForm: boolean
+}
+
+/**
+ * Guards de renderização do form — extraído só pra caber no teto de
+ * complexidade do componente (a lógica em si não mudou).
+ *
+ * `isLoadingAclContract` espera o contrato ACL corrente resolver antes de
+ * montar o form: RHF captura `defaultValues` só na primeira renderização
+ * (`useForm` não reage a mudanças posteriores em `initialAclContract`) —
+ * sem este guard, o contrato chegaria depois do form já montado e os
+ * campos ficariam em branco até o modal reabrir. Sempre `false` fora de
+ * edição de uma propriedade ACL (a query nem dispara — `enabled: false`).
+ */
+const resolveFormVisibility = (
+    mode: DialogMode,
+    isDistributorsLoading: boolean,
+    hasDistributors: boolean,
+    isLoadingAclContract: boolean,
+): FormVisibility => {
+    const isLoadingCatalog = mode.kind === "create" && isDistributorsLoading
+    const isCreatingWithoutCatalog =
+        mode.kind === "create" && !isDistributorsLoading && !hasDistributors
+    return {
+        isLoadingCatalog,
+        isCreatingWithoutCatalog,
+        isLoadingAclContract,
+        loadingLabel: isLoadingCatalog ? "Carregando distribuidoras" : "Carregando contrato ACL",
+        showForm: !isLoadingCatalog && !isCreatingWithoutCatalog && !isLoadingAclContract,
+    }
+}
+
+/**
+ * Orquestração de submit — extraída do componente (teto de linhas) num hook
+ * próprio, mesmo padrão de `usePropertyMutations`: o componente só chama e
+ * renderiza, a sequência de mutations fica aqui.
+ *
+ * Cria/atualiza a propriedade primeiro e só depois o contrato ACL — o
+ * backend exige a propriedade já marcada ACL para aceitar um contrato
+ * (`AclContractService.assertPropertyAcceptsAclContract`). Sem contrato
+ * prévio (criação, ou edição de uma propriedade que ainda não tinha um),
+ * cria; havendo um, atualiza o mesmo em vez de duplicar.
+ */
+const usePropertyFormSubmit = (mode: DialogMode, onClose: () => void) => {
+    const createProperty = useCreateProperty()
+    const updateProperty = useUpdateProperty()
+    const createAclContract = useCreateAclContract()
+    const updateAclContract = useUpdateAclContract()
+    // Só busca o contrato corrente quando há um pra buscar: edição de uma
+    // propriedade já em ACL. Criação (sem id ainda) e edição de propriedade
+    // ainda ACR (troca pra ACL aqui vira criação de contrato, não há um
+    // existente) deixam a query desabilitada — sem isso, toda edição pagaria
+    // o loading gate à toa, mesmo quem nunca teve contrato.
+    const currentAclContractQuery = useCurrentAclContract(
+        mode.kind === "edit" && mode.property.contractingEnvironment === "ACL"
+            ? mode.property.id
+            : undefined,
+    )
+
+    const syncAclContract = async (data: PropertyFormData, propertyId: string) => {
+        if (data.contractingEnvironment !== "ACL") return
+
+        if (currentAclContractQuery.data) {
+            await updateAclContract.mutateAsync({
+                id: currentAclContractQuery.data.id,
+                propertyId,
+                input: buildAclContractUpdateInput(data),
+            })
+            return
+        }
+        await createAclContract.mutateAsync(buildAclContractCreateInput(data, propertyId))
+    }
+
+    const handleSubmit = async (data: PropertyFormData) => {
+        const isCreate = mode.kind === "create"
+        let propertyId: string
+        try {
+            propertyId = isCreate
+                ? (await createProperty.mutateAsync(buildCreateInput(data))).id
+                : (
+                      await updateProperty.mutateAsync({
+                          id: mode.property.id,
+                          input: buildUpdateInput(data),
+                      })
+                  ).id
+        } catch (error) {
+            toast.error(isCreate ? "Erro ao criar propriedade" : "Erro ao atualizar propriedade", {
+                description: extractErrorMessage(error),
+            })
+            return
+        }
+
+        // Propriedade já salva com sucesso a esta altura — fecha o modal já
+        // aqui, antes de tentar o contrato ACL: se o passo seguinte falhar,
+        // reabrir o mesmo modal em modo "create" recriaria a propriedade do
+        // zero (duplicata) em vez de só reenviar o contrato. Uma falha do
+        // contrato vira toast próprio; o usuário corrige reabrindo em modo
+        // "edit" (que atualiza a propriedade já existente e só cria o
+        // contrato que ainda falta).
+        onClose()
+
+        try {
+            await syncAclContract(data, propertyId)
+        } catch (error) {
+            toast.error("Propriedade salva, mas o contrato ACL não foi salvo", {
+                description: extractErrorMessage(error),
+            })
+        }
+    }
+
+    return { currentAclContractQuery, handleSubmit }
+}
 
 interface PropertyFormDialogProps {
     isOpen: boolean
@@ -92,39 +250,21 @@ export const PropertyFormDialog = ({
     distributors,
     isDistributorsLoading = false,
 }: PropertyFormDialogProps) => {
-    const createProperty = useCreateProperty()
-    const updateProperty = useUpdateProperty()
+    const { currentAclContractQuery, handleSubmit } = usePropertyFormSubmit(mode, onClose)
 
-    const handleSubmit = async (data: PropertyFormData) => {
-        if (mode.kind === "create") {
-            try {
-                await createProperty.mutateAsync(buildCreateInput(data))
-                onClose()
-            } catch (error) {
-                toast.error("Erro ao criar propriedade", {
-                    description: extractErrorMessage(error),
-                })
-            }
-            return
-        }
-
-        try {
-            await updateProperty.mutateAsync({
-                id: mode.property.id,
-                input: buildUpdateInput(data),
-            })
-            onClose()
-        } catch (error) {
-            toast.error("Erro ao atualizar propriedade", {
-                description: extractErrorMessage(error),
-            })
-        }
-    }
-
-    const isLoadingCatalog = mode.kind === "create" && isDistributorsLoading
-    const isCreatingWithoutCatalog =
-        mode.kind === "create" && !isDistributorsLoading && distributors.length === 0
-    const showForm = !isLoadingCatalog && !isCreatingWithoutCatalog
+    const {
+        isLoadingCatalog,
+        isCreatingWithoutCatalog,
+        isLoadingAclContract,
+        loadingLabel,
+        showForm,
+    } = resolveFormVisibility(
+        mode,
+        isDistributorsLoading,
+        distributors.length > 0,
+        currentAclContractQuery.isLoading,
+    )
+    const { kicker, title } = resolveDialogCopy(mode)
 
     return (
         <FormDialog
@@ -132,14 +272,14 @@ export const PropertyFormDialog = ({
             onOpenChange={(open) => {
                 if (!open) onClose()
             }}
-            kicker={mode.kind === "create" ? "Nova propriedade" : "Propriedade"}
-            title={mode.kind === "create" ? "Adicionar propriedade" : "Editar propriedade"}
+            kicker={kicker}
+            title={title}
         >
-            {isLoadingCatalog && (
+            {(isLoadingCatalog || isLoadingAclContract) && (
                 <div
                     className="flex justify-center py-10"
                     aria-busy="true"
-                    aria-label="Carregando distribuidoras"
+                    aria-label={loadingLabel}
                 >
                     <div className="bg-divider h-6 w-48 animate-pulse" />
                 </div>
@@ -166,6 +306,7 @@ export const PropertyFormDialog = ({
             {showForm && (
                 <PropertyForm
                     initialData={mode.kind === "edit" ? mode.property : undefined}
+                    initialAclContract={currentAclContractQuery.data}
                     distributors={distributors}
                     onSubmit={handleSubmit}
                     onCancel={onClose}

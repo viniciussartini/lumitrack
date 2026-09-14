@@ -23,6 +23,7 @@ const property = (id: string, name: string): Property => ({
     electricalSystem: "TRIPHASIC",
     billingClass: "B1",
     tariffGroup: "GROUP_B",
+    contractingEnvironment: "ACR",
     tariffSubgroup: null,
     tariffModality: null,
     contractedDemandKw: null,

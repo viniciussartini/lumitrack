@@ -2011,6 +2011,7 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
 - **Critérios de aceite:** handoff disponível — `10-design-system.md` confirma que a v2 cobre "contrato ACL — comercializadora, volume contratado, submercado, PLD"; a tela de comparação não tem mockup específico registrado, cai na regra de ausência do `10`.
 - **Depende de:** os quatro itens anteriores.
 - **Risco/observações:** médio — normal de tela nova.
+- **Concluído (2026-09-14):** o contrato ACL foi implementado embutido no form de Propriedade (`PropertyForm`), seguindo o handoff — "Ambiente de contratação" ao lado de "Grupo tarifário", contrato colapsável quando Livre. A tela de comparação seguiu a regra de ausência do `10`: versão utilitária provisória (usuário optou por não aguardar handoff), com `// TODO(design)` no topo do arquivo — mesma linguagem visual já usada em `GroupABillCard.tsx` para o mesmo caso (`.blueprint` + grid de estatísticas + tabela).
 
 ## Fase 22 (objetivo — será detalhada ao chegar)
 
