@@ -1,4 +1,4 @@
-import { PrismaClient } from "@/generated/prisma/client.js"
+import { PrismaClient, type AclSubmarket } from "@/generated/prisma/client.js"
 import type { ListPldQuoteQuery } from "@/modules/pld-quote/pld-quote.schema.js"
 import { toSkipTake, type Paginated } from "@/shared/pagination.js"
 
@@ -57,5 +57,34 @@ export class PldQuoteRepository {
             page: query.page,
             pageSize: query.pageSize,
         }
+    }
+
+    /**
+     * Cotações de um ou mais submercados dentro de uma janela do período de
+     * referência, sem paginação — uso interno (composição da comparação
+     * ACR × ACL, contexto informativo do PLD), não uma listagem exposta ao
+     * usuário. Mesmo padrão não paginado de
+     * `AclContractRepository.findOverlappingForProperty`.
+     *
+     * @param submarkets - Submercados a incluir.
+     * @param from - Início da janela (inclusive).
+     * @param to - Fim da janela (inclusive).
+     * @returns Cotações do período, mais recente primeiro.
+     */
+    async findBySubmarketsInRange(
+        submarkets: AclSubmarket[],
+        from: Date,
+        to: Date,
+    ): Promise<PldQuoteResponse[]> {
+        if (submarkets.length === 0) return []
+
+        const quotes = await this.prisma.pldQuote.findMany({
+            where: {
+                submarket: { in: submarkets },
+                referencePeriod: { gte: from, lte: to },
+            },
+            orderBy: { referencePeriod: "desc" },
+        })
+        return quotes.map(toPldQuoteResponse)
     }
 }
