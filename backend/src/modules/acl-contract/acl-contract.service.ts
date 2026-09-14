@@ -2,6 +2,8 @@ import {
     createAclContractSchema,
     updateAclContractSchema,
     listAclContractQuerySchema,
+    validPeriod,
+    VALID_PERIOD_MESSAGE,
 } from "@/modules/acl-contract/acl-contract.schema.js"
 import type {
     AclContractRepository,
@@ -106,14 +108,27 @@ export class AclContractService {
      * Atualiza um contrato do titular. `propertyId` é imutável — trocar de
      * propriedade é criar um contrato novo.
      *
+     * A vigência resultante é validada contra o **registro já persistido**,
+     * mesclado com o corpo parcial — validar só os campos que chegaram no
+     * corpo (como o schema fazia antes) deixava passar `PUT` com só
+     * `validTo` no passado, porque não havia como comparar com o
+     * `validFrom` já gravado sem consultar o contrato primeiro.
+     *
      * @param id - Id do contrato.
      * @param userId - Id do usuário autenticado (dono do contrato).
      * @param input - Corpo bruto da requisição, validado aqui.
      * @returns O contrato atualizado.
      */
     async update(id: string, userId: string, input: unknown): Promise<AclContractResponse> {
-        await this.getOwnedContract(id, userId)
+        const existing = await this.getOwnedContract(id, userId)
         const data = parseOrThrow(updateAclContractSchema, input)
+
+        const validFrom = data.validFrom ?? existing.validFrom
+        const validTo = data.validTo !== undefined ? data.validTo : existing.validTo
+        if (!validPeriod({ validFrom, validTo })) {
+            throw new ValidationError(VALID_PERIOD_MESSAGE)
+        }
+
         return this.aclContractRepository.update(id, data)
     }
 

@@ -155,11 +155,14 @@ describe("PropertyFormDialog — criar", () => {
 })
 
 describe("PropertyFormDialog — editar", () => {
-    it("abre com o título 'Editar propriedade' e campos pré-preenchidos", () => {
+    it("abre com o título 'Editar propriedade' e campos pré-preenchidos", async () => {
         renderDialog({ mode: { kind: "edit", property: mockProperty } })
 
         expect(screen.getByRole("dialog", { name: /editar propriedade/i })).toBeInTheDocument()
-        expect(screen.getByLabelText(/nome da propriedade/i)).toHaveValue("Casa Principal")
+        // O form só monta depois que a busca do contrato ACL corrente resolve
+        // (guard de loading em PropertyFormDialog — roda pra qualquer edição,
+        // não só de propriedade já em ACL, ver usePropertyFormSubmit).
+        expect(await screen.findByLabelText(/nome da propriedade/i)).toHaveValue("Casa Principal")
     })
 
     it("atualiza a propriedade e fecha o modal ao submeter", async () => {
@@ -170,7 +173,7 @@ describe("PropertyFormDialog — editar", () => {
             mode: { kind: "edit", property: mockProperty },
         })
 
-        await user.click(screen.getByRole("button", { name: /salvar alterações/i }))
+        await user.click(await screen.findByRole("button", { name: /salvar alterações/i }))
 
         expect(propertyService.update).toHaveBeenCalledWith(
             "prop-1",
@@ -187,7 +190,7 @@ describe("PropertyFormDialog — editar", () => {
             mode: { kind: "edit", property: mockProperty },
         })
 
-        await user.click(screen.getByRole("button", { name: /salvar alterações/i }))
+        await user.click(await screen.findByRole("button", { name: /salvar alterações/i }))
 
         await screen.findByRole("dialog", { name: /editar propriedade/i })
         expect(onClose).not.toHaveBeenCalled()

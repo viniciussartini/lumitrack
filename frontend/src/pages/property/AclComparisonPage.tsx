@@ -23,9 +23,14 @@ import type { AclComparisonVerdict } from "@/types/acl-comparison.types"
 const toMonthInputValue = (date: Date): string =>
     `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`
 
-const fromMonthInputValue = (value: string): Date => {
-    const [year, month] = value.split("-").map(Number)
-    return new Date(Date.UTC(year!, month! - 1, 1))
+// `undefined` para "YYYY-MM" incompleto ou vazio (o usuário apagou o campo
+// enquanto digita um novo mês) — sem isso, `Invalid Date` passaria adiante
+// e só estouraria dentro de `toISOString()` no service, como um erro
+// genérico de rede em vez de "escolha um mês válido".
+const fromMonthInputValue = (value: string): Date | undefined => {
+    const match = /^(\d{4})-(\d{2})$/.exec(value)
+    if (!match) return undefined
+    return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1))
 }
 
 /** Janela default — últimos 6 meses até o mês corrente, dentro do teto de 24 meses do backend. */
@@ -170,6 +175,7 @@ const AclComparisonContent = ({ propertyId, propertyName }: AclComparisonContent
             {comparisonQuery.isSuccess && (
                 <>
                     <VerdictCard comparison={comparisonQuery.data} />
+                    <ComparisonCaveats />
                     <MonthsTable months={comparisonQuery.data.months} />
                     {comparisonQuery.data.pldContext.length > 0 && (
                         <PldContextTable pldContext={comparisonQuery.data.pldContext} />
@@ -261,6 +267,25 @@ const VerdictCard = ({ comparison }: VerdictCardProps) => (
             />
         </div>
     </Blueprint>
+)
+
+/**
+ * Cortes de execução do cálculo, explicitados ao lado do veredito para não
+ * passar a falsa impressão de precisão total — a comparação é uma
+ * aproximação útil, não uma fatura.
+ */
+const ComparisonCaveats = () => (
+    <ul className="text-muted flex list-none flex-col gap-1 text-xs">
+        <li>
+            · A bandeira tarifária aplicada ao cenário cativo (ACR) é a vigente hoje, para todos os
+            meses do período — não há reconstituição do histórico de bandeira mês a mês.
+        </li>
+        <li>
+            · O volume contratado do contrato ACL não entra no cálculo: o custo do Mercado Livre usa
+            o consumo medido × a TE contratada, sem o mecanismo de take-or-pay real do mercado
+            (diferença entre consumo e volume contratado liquidada ao PLD).
+        </li>
+    </ul>
 )
 
 interface StatProps {

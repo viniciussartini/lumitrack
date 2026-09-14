@@ -71,6 +71,17 @@ vi.mock("@/services/distributor.service", () => ({
     },
 }))
 
+// PropertyFormDialog busca o contrato ACL corrente em qualquer edição (ver
+// usePropertyFormSubmit) — sem mock explícito, a chamada cairia no `api`
+// vazio abaixo e resolveria em erro (funciona, mas silencioso e frágil).
+vi.mock("@/services/acl-contract.service", () => ({
+    aclContractService: {
+        listByProperty: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 31 }),
+        create: vi.fn(),
+        update: vi.fn(),
+    },
+}))
+
 vi.mock("@/services/api", () => ({
     api: {},
     extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),

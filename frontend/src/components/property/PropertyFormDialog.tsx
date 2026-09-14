@@ -57,12 +57,26 @@ const buildUpdateInput = (data: PropertyFormData): UpdatePropertyInput => ({
 })
 
 /**
+ * Primeiro dia do mês corrente, em hora local — não `new Date().toISOString()`
+ * (que travaria no dia de hoje). O backend resolve o contrato vigente de um
+ * mês comparando `validFrom` com o primeiro dia daquele mês
+ * (`ConsumptionService.resolveAclContractForMonth`); um contrato criado no
+ * meio do mês com `validFrom` = hoje nunca cobriria o próprio mês em que foi
+ * criado, derrubando a conta desse mês e a comparação ACR × ACL até o mês
+ * seguinte começar.
+ */
+const firstDayOfCurrentMonth = (): string => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
+}
+
+/**
  * Corpo do contrato ACL a partir dos campos `acl*` do form — só chamado
  * quando `data.contractingEnvironment === "ACL"` (o schema garante que os 5
  * campos estão presentes nesse caso). `validFrom` não vem do form (o
- * handoff de design não modela essa data aqui) — a criação usa a data
- * corrente; a atualização não a reenvia, preservando a vigência já
- * registrada.
+ * handoff de design não modela essa data aqui) — a criação usa o primeiro
+ * dia do mês corrente; a atualização não a reenvia, preservando a vigência
+ * já registrada.
  */
 const buildAclContractCreateInput = (
     data: PropertyFormData,
@@ -74,7 +88,7 @@ const buildAclContractCreateInput = (
     energySource: data.aclEnergySource!,
     energyPricePerMwh: data.aclEnergyPricePerMwh!,
     contractedVolumeMwh: data.aclContractedVolumeMwh!,
-    validFrom: new Date().toISOString().slice(0, 10),
+    validFrom: firstDayOfCurrentMonth(),
 })
 
 const buildAclContractUpdateInput = (data: PropertyFormData): UpdateAclContractInput => ({
@@ -144,15 +158,16 @@ const usePropertyFormSubmit = (mode: DialogMode, onClose: () => void) => {
     const updateProperty = useUpdateProperty()
     const createAclContract = useCreateAclContract()
     const updateAclContract = useUpdateAclContract()
-    // Só busca o contrato corrente quando há um pra buscar: edição de uma
-    // propriedade já em ACL. Criação (sem id ainda) e edição de propriedade
-    // ainda ACR (troca pra ACL aqui vira criação de contrato, não há um
-    // existente) deixam a query desabilitada — sem isso, toda edição pagaria
-    // o loading gate à toa, mesmo quem nunca teve contrato.
+    // Busca o contrato corrente em qualquer edição, não só de propriedade
+    // hoje em ACL — uma propriedade pode ter voltado pro cativo (ACR) e
+    // ainda ter um contrato antigo cadastrado (o modelo permite: só a
+    // CRIAÇÃO de contrato novo exige a propriedade já em ACL, nada apaga um
+    // contrato existente ao trocar de ambiente). Sem esta busca, reativar
+    // ACL numa propriedade assim criaria um segundo contrato sobreposto em
+    // vez de atualizar o que já existe. Criação (sem id ainda) deixa a
+    // query desabilitada — não há contrato pra buscar.
     const currentAclContractQuery = useCurrentAclContract(
-        mode.kind === "edit" && mode.property.contractingEnvironment === "ACL"
-            ? mode.property.id
-            : undefined,
+        mode.kind === "edit" ? mode.property.id : undefined,
     )
 
     const syncAclContract = async (data: PropertyFormData, propertyId: string) => {

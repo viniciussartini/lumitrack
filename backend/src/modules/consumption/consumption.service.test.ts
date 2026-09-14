@@ -29,7 +29,7 @@ import {
     createTestDistributor,
     createTestTariffFlagConfig,
 } from "@/shared/test/distributorFixture.js"
-import { ForbiddenError, NotFoundError } from "@/shared/errors/AppError.js"
+import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 
 const meterRepository = new MeterRepository(prismaTest)
 const propertyRepository = new PropertyRepository(prismaTest)
@@ -1451,35 +1451,52 @@ describe("ConsumptionService.list — Grupo A ACL (Mercado Livre)", () => {
         expect(result.items[0]!.costBrl).toBeCloseTo(expectedTotal, 2)
     })
 
-    it("lança NotFoundError quando não há contrato vigente para o período", async () => {
+    it("degrada para o catálogo regulado (TE + bandeira) quando o contrato ainda não começou no mês calculado", async () => {
         const { user, meter, property } = await setupAclPropertyMeter({
             validFrom: new Date("2026-09-01"), // começa depois do mês calculado
         })
-        await insertReading(meter.id, "2026-08-04T22:00:00Z", 800, 100_000)
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 800, 100_000) // ponta
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 28_000, 100_000) // fora de ponta
 
-        await expect(
-            consumptionService.list(user.id, {
-                targetType: "PROPERTY",
-                targetId: property.id,
-                granularity: "month",
-            }),
-        ).rejects.toThrow(NotFoundError)
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        // Sem contrato vigente em agosto, o mês usa a TE do catálogo (0,55/0,28)
+        // — nunca a TE do contrato (0,30) — e paga bandeira normalmente, como
+        // se a propriedade ainda estivesse no cativo naquele mês específico.
+        // A propriedade continua consultável: marcar ACL não derruba o
+        // histórico anterior ao contrato com 404.
+        const groupA = result.items[0]!.groupA!
+        expect(groupA.energyByPost.find((p) => p.post === "PEAK")).toEqual({
+            post: "PEAK",
+            kwhConsumed: 800,
+            brl: 800 * (0.75 + 0.55),
+        })
+        expect(groupA.flagBrl).toBeGreaterThan(0)
     })
 
-    it("não usa um contrato encerrado antes do período calculado", async () => {
+    it("degrada para o catálogo regulado quando o contrato já encerrou antes do período calculado", async () => {
         const { user, meter, property } = await setupAclPropertyMeter({
             validFrom: new Date("2026-01-01"),
             validTo: new Date("2026-07-31"), // encerra antes de agosto
         })
         await insertReading(meter.id, "2026-08-04T22:00:00Z", 800, 100_000)
 
-        await expect(
-            consumptionService.list(user.id, {
-                targetType: "PROPERTY",
-                targetId: property.id,
-                granularity: "month",
-            }),
-        ).rejects.toThrow(NotFoundError)
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        const groupA = result.items[0]!.groupA!
+        expect(groupA.energyByPost.find((p) => p.post === "PEAK")!.brl).toBeCloseTo(
+            800 * (0.75 + 0.55),
+            2,
+        )
+        expect(groupA.flagBrl).toBeGreaterThan(0)
     })
 
     it("usa o contrato mais recente quando há vigências sobrepostas", async () => {
@@ -1543,7 +1560,7 @@ describe("ConsumptionService.list — Grupo A ACL (Mercado Livre)", () => {
     })
 })
 
-describe("ConsumptionService.compareAclToAcr — comparação ACR × ACL (RF35)", () => {
+describe("ConsumptionService.compareAclToAcr — comparação ACR × ACL", () => {
     // Duas propriedades do mesmo usuário/distribuidora/catálogo — uma ACR
     // (sem contrato) e uma ACL (com contrato) — recebendo o MESMO consumo
     // real. `list()` de cada uma é o caminho já coberto acima; comparar o
@@ -1773,6 +1790,26 @@ describe("ConsumptionService.compareAclToAcr — comparação ACR × ACL (RF35)"
         expect(comparison.totalDiffBrl).toBeCloseTo(sumAcr - sumAcl, 6)
     })
 
+    it("exclui da comparação os meses sem contrato vigente, sem derrubar os meses que têm", async () => {
+        const { user, propertyAcl, meterAcl } = await setupComparisonFixture({
+            contractValidFrom: new Date("2026-08-01"), // só cobre agosto
+        })
+        await insertReading(meterAcl.id, "2026-07-04T13:00:00Z", 10_000, 100_000)
+        await insertComparisonReadings(meterAcl.id)
+
+        // Julho não tem contrato vigente — não pode aparecer como se fosse
+        // um mês "ACL" fictício (mentiria a diferença como zero); só agosto
+        // entra na comparação, sem lançar erro pela janela inteira.
+        const comparison = await consumptionService.compareAclToAcr(user.id, {
+            propertyId: propertyAcl.id,
+            from: new Date("2026-07-01"),
+            to: new Date("2026-08-01"),
+        })
+
+        expect(comparison.months).toHaveLength(1)
+        expect(comparison.months[0]!.monthStart).toEqual(new Date("2026-08-01"))
+    })
+
     it("lança ForbiddenError para propriedade de outro usuário", async () => {
         const { propertyAcl } = await setupComparisonFixture()
         const otherUser = await userService.createUser({
@@ -1792,6 +1829,18 @@ describe("ConsumptionService.compareAclToAcr — comparação ACR × ACL (RF35)"
                 to: new Date("2026-08-01"),
             }),
         ).rejects.toThrow(ForbiddenError)
+    })
+
+    it("lança ValidationError para propriedade que não está em ACL", async () => {
+        const { user, propertyAcr } = await setupComparisonFixture()
+
+        await expect(
+            consumptionService.compareAclToAcr(user.id, {
+                propertyId: propertyAcr.id,
+                from: new Date("2026-08-01"),
+                to: new Date("2026-08-01"),
+            }),
+        ).rejects.toThrow(ValidationError)
     })
 
     it("lança NotFoundError quando não há contrato ACL vigente cobrindo o período pedido", async () => {

@@ -2,6 +2,23 @@ import PDFDocument from "pdfkit"
 import { BRAND, ZAP_ICON_PATH, ZAP_ICON_VIEWBOX_SIZE } from "@/shared/pdf/brand.js"
 import type { DataExportPayload } from "@/modules/export/export.service.js"
 import type { UserWithoutPassword } from "@/modules/user/user.repository.js"
+import type { AclSubmarket, AclEnergySource } from "@/generated/prisma/client.js"
+
+// O PDF é lido por pessoa (Art. 18 LGPD), não por máquina — mostrar o valor
+// bruto do enum (`SOUTHEAST_CENTER_WEST`) no documento voltado ao titular é
+// pior do que o rótulo em português que o resto do produto já usa.
+const ACL_SUBMARKET_LABELS: Record<AclSubmarket, string> = {
+    NORTH: "Norte",
+    NORTHEAST: "Nordeste",
+    SOUTHEAST_CENTER_WEST: "Sudeste / Centro-Oeste",
+    SOUTH: "Sul",
+}
+
+const ACL_ENERGY_SOURCE_LABELS: Record<AclEnergySource, string> = {
+    CONVENTIONAL: "Convencional",
+    INCENTIVIZED_50: "Incentivada 50%",
+    INCENTIVIZED_100: "Incentivada 100%",
+}
 
 function userDisplayName(user: UserWithoutPassword): string {
     if (user.userType === "COMPANY") {
@@ -197,7 +214,7 @@ function drawAclContractsSection(doc: PDFKit.PDFDocument, payload: DataExportPay
             ? `${contract.validFrom.toLocaleDateString("pt-BR")} a ${contract.validTo.toLocaleDateString("pt-BR")}`
             : `desde ${contract.validFrom.toLocaleDateString("pt-BR")}`
         doc.text(
-            `• ${contract.retailerName} — ${contract.submarket}/${contract.energySource} — ` +
+            `• ${contract.retailerName} — ${ACL_SUBMARKET_LABELS[contract.submarket]}/${ACL_ENERGY_SOURCE_LABELS[contract.energySource]} — ` +
                 `R$ ${contract.energyPricePerMwh.toFixed(2)}/MWh, ${contract.contractedVolumeMwh} MWh — ` +
                 `vigência ${validity}`,
         )

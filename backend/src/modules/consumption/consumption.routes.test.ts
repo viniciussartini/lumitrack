@@ -390,4 +390,30 @@ describe("GET /api/consumption/acl-comparison", () => {
 
         expect(response.status).toBe(422)
     })
+
+    it("retorna 422 quando a janela passa de 24 meses", async () => {
+        const { token, propertyId } = await setupAclComparisonFixture()
+
+        // 2024-08 a 2026-09: 26 meses — acima do teto MAX_COMPARISON_MONTHS.
+        const response = await request(app)
+            .get(
+                `/api/consumption/acl-comparison?propertyId=${propertyId}&from=2024-08-01&to=2026-09-01`,
+            )
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(422)
+    })
+
+    it("retorna 200 para uma janela de exatamente 24 meses (teto, não acima dele)", async () => {
+        const { token, propertyId } = await setupAclComparisonFixture()
+
+        // 2024-09 a 2026-08: exatamente 24 meses.
+        const response = await request(app)
+            .get(
+                `/api/consumption/acl-comparison?propertyId=${propertyId}&from=2024-09-01&to=2026-08-01`,
+            )
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(200)
+    })
 })

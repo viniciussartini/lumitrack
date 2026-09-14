@@ -352,6 +352,35 @@ describe("PUT /api/acl-contracts/:id", () => {
 
         expect(response.status).toBe(422)
     })
+
+    it("deve retornar 422 quando o validTo enviado fica antes do validFrom já persistido", async () => {
+        const { token, propertyId } = await setupUserWithAclProperty()
+        const contract = await createAclContract(token, propertyId, {
+            ...validAclContractBody,
+            validFrom: "2026-06-01",
+        })
+
+        // Só validTo no corpo — sem mesclar com o validFrom já persistido
+        // (2026-06-01), este corpo pareceria válido isoladamente.
+        const response = await request(app)
+            .put(`/api/acl-contracts/${contract.id}`)
+            .set("Authorization", `Bearer ${token}`)
+            .send({ validTo: "2026-01-01" })
+
+        expect(response.status).toBe(422)
+    })
+
+    it("deve retornar 403 ao tentar atualizar contrato com conta demo", async () => {
+        const demoToken = await registerAndLogin({ ...validUser, email: DEMO_RESIDENTIAL_EMAIL })
+
+        const response = await request(app)
+            .put("/api/acl-contracts/00000000-0000-0000-0000-000000000000")
+            .set("Authorization", `Bearer ${demoToken}`)
+            .send({ energyPricePerMwh: 300 })
+
+        expect(response.status).toBe(403)
+        expect(response.body.message).toBe("Conta de demonstração é somente leitura")
+    })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -400,5 +429,16 @@ describe("DELETE /api/acl-contracts/:id", () => {
             "/api/acl-contracts/00000000-0000-0000-0000-000000000000",
         )
         expect(response.status).toBe(401)
+    })
+
+    it("deve retornar 403 ao tentar deletar contrato com conta demo", async () => {
+        const demoToken = await registerAndLogin({ ...validUser, email: DEMO_RESIDENTIAL_EMAIL })
+
+        const response = await request(app)
+            .delete("/api/acl-contracts/00000000-0000-0000-0000-000000000000")
+            .set("Authorization", `Bearer ${demoToken}`)
+
+        expect(response.status).toBe(403)
+        expect(response.body.message).toBe("Conta de demonstração é somente leitura")
     })
 })

@@ -16,10 +16,14 @@ const energySourceSchema = z.enum(["CONVENTIONAL", "INCENTIVIZED_50", "INCENTIVI
 
 // Valida que, quando informado, o fim da vigência é posterior ao início —
 // um contrato sem validTo é aberto (vigente até ser substituído por um novo).
-function validPeriod(data: { validFrom: Date; validTo?: Date | undefined }): boolean {
-    return data.validTo === undefined || data.validTo > data.validFrom
+// Exportada porque o update precisa validar contra o período já persistido
+// (mesclado no serviço, não aqui — o schema não tem acesso ao registro
+// existente para reconstituir o período completo a partir de um corpo
+// parcial).
+export function validPeriod(data: { validFrom: Date; validTo?: Date | undefined | null }): boolean {
+    return data.validTo == null || data.validTo > data.validFrom
 }
-const VALID_PERIOD_MESSAGE = "O fim da vigência deve ser posterior ao início"
+export const VALID_PERIOD_MESSAGE = "O fim da vigência deve ser posterior ao início"
 
 export const createAclContractSchema = z
     .object({
@@ -70,12 +74,6 @@ export const updateAclContractSchema = z
     .refine((data) => Object.values(data).some((value) => value !== undefined), {
         message: "Informe ao menos um campo para atualizar",
     })
-    .refine(
-        (data) =>
-            data.validFrom === undefined ||
-            validPeriod({ validFrom: data.validFrom, validTo: data.validTo }),
-        { message: VALID_PERIOD_MESSAGE, path: ["validTo"] },
-    )
 
 export const listAclContractQuerySchema = paginationQuerySchema.extend({
     propertyId: z.uuid({ message: "propertyId inválido" }).optional(),
