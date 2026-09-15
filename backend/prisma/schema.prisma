@@ -129,10 +129,11 @@ enum TariffModality {
 }
 
 // Posto tarifário horário. INTERMEDIATE é exclusivo da Tarifa Branca
-// (Grupo B, Fase 22) — Verde/Azul do Grupo A só usam ponta e fora de ponta;
-// adicionar o valor então é migração aditiva trivial (ADR-0019).
+// (Grupo B) — Verde/Azul do Grupo A só usam PEAK/OFF_PEAK, nunca produzem
+// INTERMEDIATE (classifyPost e as queries de agregação garantem isso).
 enum TariffPost {
   PEAK
+  INTERMEDIATE
   OFF_PEAK
 
   @@map("tariff_post")

@@ -216,6 +216,101 @@ describe("ConsumptionRepository.findKwhByPost", () => {
 
         expect(result).toEqual([])
     })
+
+    it("sem includeIntermediate (default), leituras na 1h antes/depois da ponta contam como OFF_PEAK — Grupo A intocado", async () => {
+        const meterId = await setupMeter()
+
+        // Terça, dia útil: 17h (1h antes) e 21h (1h depois) da ponta 18h–21h.
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 17)), 4)
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 21)), 6)
+
+        const result = await consumptionRepository.findKwhByPost(
+            meterId,
+            new Date(Date.UTC(2026, 8, 1)),
+            new Date(Date.UTC(2026, 8, 10)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+        )
+
+        const byPost = Object.fromEntries(result.map((r) => [r.post, r.kwhConsumed]))
+        expect(byPost["OFF_PEAK"]).toBe(10)
+        expect(byPost["INTERMEDIATE"]).toBeUndefined()
+    })
+
+    it("com includeIntermediate=true, classifica a 1h antes/depois da ponta como INTERMEDIATE (Tarifa Branca)", async () => {
+        const meterId = await setupMeter()
+
+        // Terça, dia útil: 17h (1h antes), 21h (1h depois) e 10h (fora de qualquer janela).
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 17)), 4)
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 21)), 6)
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 10)), 2)
+
+        const result = await consumptionRepository.findKwhByPost(
+            meterId,
+            new Date(Date.UTC(2026, 8, 1)),
+            new Date(Date.UTC(2026, 8, 10)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+            true,
+        )
+
+        const byPost = Object.fromEntries(result.map((r) => [r.post, r.kwhConsumed]))
+        expect(byPost["INTERMEDIATE"]).toBe(10)
+        expect(byPost["OFF_PEAK"]).toBe(2)
+        expect(byPost["PEAK"]).toBeUndefined()
+    })
+
+    it("com includeIntermediate=true, fim de semana na hora intermediária continua OFF_PEAK", async () => {
+        const meterId = await setupMeter()
+
+        // 2026-09-05 é sábado, 17h — seria INTERMEDIATE se fosse dia útil.
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 5, 17)), 8)
+
+        const result = await consumptionRepository.findKwhByPost(
+            meterId,
+            new Date(Date.UTC(2026, 8, 1)),
+            new Date(Date.UTC(2026, 8, 10)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+            true,
+        )
+
+        expect(result).toEqual([{ post: "OFF_PEAK", kwhConsumed: 8 }])
+    })
+
+    it("com includeIntermediate=true, usa classifyPost como oráculo (função pura) para um conjunto maior de leituras", async () => {
+        const meterId = await setupMeter()
+
+        const localTimestamps = [
+            localWallClock(2026, 8, 8, 17), // terça, 1h antes da ponta — INTERMEDIATE
+            localWallClock(2026, 8, 8, 18), // terça, início da ponta — PEAK
+            localWallClock(2026, 8, 8, 21), // terça, 1h depois da ponta — INTERMEDIATE
+            localWallClock(2026, 8, 8, 10), // terça, fora de qualquer janela — OFF_PEAK
+            localWallClock(2026, 8, 5, 17), // sábado — OFF_PEAK mesmo na hora intermediária
+        ]
+
+        const expectedTotals: Record<string, number> = {}
+        for (const [index, localTimestamp] of localTimestamps.entries()) {
+            const kwh = index + 1
+            await createReading(meterId, toStoredUtc(localTimestamp), kwh)
+            const expectedPost = classifyPost(localTimestamp, PEAK_WINDOW, HOLIDAYS_2026, true)
+            expectedTotals[expectedPost] = (expectedTotals[expectedPost] ?? 0) + kwh
+        }
+
+        const result = await consumptionRepository.findKwhByPost(
+            meterId,
+            new Date(Date.UTC(2026, 8, 1)),
+            new Date(Date.UTC(2026, 8, 10)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+            true,
+        )
+
+        const byPost = Object.fromEntries(result.map((r) => [r.post, r.kwhConsumed]))
+        for (const [post, total] of Object.entries(expectedTotals)) {
+            expect(byPost[post]).toBe(total)
+        }
+    })
 })
 
 describe("ConsumptionRepository.findKwhByPostGroupedByMonth", () => {
@@ -297,5 +392,49 @@ describe("ConsumptionRepository.findKwhByPostGroupedByMonth", () => {
         )
 
         expect(result).toEqual([])
+    })
+
+    it("sem includeIntermediate (default), leitura na hora intermediária conta como OFF_PEAK — Grupo A intocado", async () => {
+        const meterId = await setupMeter()
+
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 17)), 4)
+
+        const result = await consumptionRepository.findKwhByPostGroupedByMonth(
+            meterId,
+            new Date(Date.UTC(2026, 8, 1)),
+            new Date(Date.UTC(2026, 8, 10)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+        )
+
+        expect(result).toEqual([
+            { monthBucket: new Date(Date.UTC(2026, 8, 1)), post: "OFF_PEAK", kwhConsumed: 4 },
+        ])
+    })
+
+    it("com includeIntermediate=true, agrupa a hora intermediária por mês × posto", async () => {
+        const meterId = await setupMeter()
+
+        // Setembro/2026: terça 17h (INTERMEDIATE). Outubro/2026: quinta 21h (INTERMEDIATE).
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 17)), 4)
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 9, 1, 21)), 6)
+
+        const result = await consumptionRepository.findKwhByPostGroupedByMonth(
+            meterId,
+            new Date(Date.UTC(2026, 0, 1)),
+            new Date(Date.UTC(2027, 0, 1)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+            true,
+        )
+
+        const byMonthPost = Object.fromEntries(
+            result.map((r) => [
+                `${r.monthBucket.toISOString().slice(0, 7)}-${r.post}`,
+                r.kwhConsumed,
+            ]),
+        )
+        expect(byMonthPost["2026-09-INTERMEDIATE"]).toBe(4)
+        expect(byMonthPost["2026-10-INTERMEDIATE"]).toBe(6)
     })
 })
