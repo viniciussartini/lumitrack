@@ -117,6 +117,11 @@ const setupAuthAndDistributors = async (page: Parameters<typeof setupAuth>[0]) =
     await page.route(/\/api\/meter-readings(\?.*)?$/, (route) =>
         fulfillJson(route, { items: [], granularity: "minute" }),
     )
+
+    // PropertyFormDialog busca o contrato ACL corrente ao abrir em modo
+    // edição (useCurrentAclContract) — nenhum teste deste spec cobre ACL,
+    // então lista vazia é o estado normal.
+    await page.route(/\/api\/acl-contracts(\?.*)?$/, (route) => fulfillPaginated(route, []))
 }
 
 test.describe("Fluxo CRUD de propriedades", () => {

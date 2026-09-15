@@ -3627,3 +3627,13 @@
 - **Arquivos principais:** `backend/src/modules/consumption/consumption.service.ts` (+ `.test.ts`, `.routes.test.ts`), `backend/src/modules/acl-contract/acl-contract.schema.ts`, `acl-contract.service.ts` (+ `.routes.test.ts`), `backend/src/shared/pdf/dataExportPdf.ts`, `frontend/src/components/property/PropertyFormDialog.tsx` (+ `.test.ts`), `frontend/src/pages/property/AclComparisonPage.tsx`, `frontend/src/hooks/queries/useAclComparison.ts`/`useAclContracts.ts`, `.claude/project_context/02-requisitos.md`.
 - **Decisões/ADRs:** nenhuma nova.
 - **Notas:** suíte completa verde nos dois pacotes — backend 112 arquivos/1360 testes (+7 desta correção), frontend 101 arquivos/843 testes; lint (0 erros), `tsc -b`, `depcruise` e `npm run build` sem erros nos dois. Laudo de revisão publicado no PR #415; esta entrada fecha os 3 bloqueios e as 10 sugestões nele listados.
+
+## [2026-09-15] fix: regressão de e2e causada pela correção anterior (PR #415)
+
+- **Branch:** epic/394-mercado-livre-acl
+- **Tipo:** fix
+- **O quê:** o job `e2e` do CI da PR #415 quebrou (32 falhas, chromium + firefox) logo após o commit anterior desta branch. Causa: uma das sugestões daquele commit ampliou `useCurrentAclContract` em `PropertyFormDialog` para buscar o contrato ACL corrente em **qualquer** edição de propriedade — mas o diálogo fica sempre montado em `PropertyDetailsPage` (só oculto via `isOpen`), então a busca passou a disparar `GET /api/acl-contracts` a cada visita à página, não só ao abrir o modal. Nenhum spec de e2e mocka essa rota (o padrão do projeto é `page.route`, sem backend real por trás) — a chamada caía no proxy real, voltava 401 e disparava o redirect global de "não autorizado" no meio do teste, derrubando area/meter/consumption/properties/realtime.spec.ts.
+- **Correção:** a query do contrato ACL em `PropertyFormDialog` agora também exige `isOpen` (além de `mode.kind === "edit"`) — só dispara ao abrir o modal de fato, não a cada mount da página. `properties.spec.ts` (único spec que efetivamente abre o modal de edição de propriedade) ganhou o mock de `GET /api/acl-contracts` faltante.
+- **Arquivos principais:** `frontend/src/components/property/PropertyFormDialog.tsx`, `frontend/tests/e2e/properties.spec.ts`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** as 32 execuções antes falhas + o restante da suíte confirmados verdes localmente — 108 testes de e2e (chromium + firefox), todos passando; `tsc -b`, eslint e a suíte vitest afetada (`PropertyFormDialog.test.tsx`/`PropertyDetailsPage.test.tsx`, 35 testes) sem regressão. Achado fora do laudo de `revisao-codigo` — a suíte vitest ficou verde na correção anterior porque mocka o serviço diretamente; só o e2e real (mock de rede via `page.route`) expõe chamadas HTTP não previstas.

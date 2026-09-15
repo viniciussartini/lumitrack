@@ -153,7 +153,7 @@ const resolveFormVisibility = (
  * prévio (criação, ou edição de uma propriedade que ainda não tinha um),
  * cria; havendo um, atualiza o mesmo em vez de duplicar.
  */
-const usePropertyFormSubmit = (mode: DialogMode, onClose: () => void) => {
+const usePropertyFormSubmit = (mode: DialogMode, onClose: () => void, isOpen: boolean) => {
     const createProperty = useCreateProperty()
     const updateProperty = useUpdateProperty()
     const createAclContract = useCreateAclContract()
@@ -165,9 +165,12 @@ const usePropertyFormSubmit = (mode: DialogMode, onClose: () => void) => {
     // contrato existente ao trocar de ambiente). Sem esta busca, reativar
     // ACL numa propriedade assim criaria um segundo contrato sobreposto em
     // vez de atualizar o que já existe. Criação (sem id ainda) deixa a
-    // query desabilitada — não há contrato pra buscar.
+    // query desabilitada — não há contrato pra buscar. `isOpen` também
+    // entra na condição: o componente fica montado (só oculto) na página
+    // de detalhes o tempo todo, então sem este guard a busca disparia a
+    // cada visita à página, não só ao abrir o modal de edição.
     const currentAclContractQuery = useCurrentAclContract(
-        mode.kind === "edit" ? mode.property.id : undefined,
+        isOpen && mode.kind === "edit" ? mode.property.id : undefined,
     )
 
     const syncAclContract = async (data: PropertyFormData, propertyId: string) => {
@@ -265,7 +268,7 @@ export const PropertyFormDialog = ({
     distributors,
     isDistributorsLoading = false,
 }: PropertyFormDialogProps) => {
-    const { currentAclContractQuery, handleSubmit } = usePropertyFormSubmit(mode, onClose)
+    const { currentAclContractQuery, handleSubmit } = usePropertyFormSubmit(mode, onClose, isOpen)
 
     const {
         isLoadingCatalog,
