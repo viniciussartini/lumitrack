@@ -3637,3 +3637,14 @@
 - **Arquivos principais:** `frontend/src/components/property/PropertyFormDialog.tsx`, `frontend/tests/e2e/properties.spec.ts`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** as 32 execuções antes falhas + o restante da suíte confirmados verdes localmente — 108 testes de e2e (chromium + firefox), todos passando; `tsc -b`, eslint e a suíte vitest afetada (`PropertyFormDialog.test.tsx`/`PropertyDetailsPage.test.tsx`, 35 testes) sem regressão. Achado fora do laudo de `revisao-codigo` — a suíte vitest ficou verde na correção anterior porque mocka o serviço diretamente; só o e2e real (mock de rede via `page.route`) expõe chamadas HTTP não previstas.
+
+## [2026-09-15] docs: roadmap fecha a Fase 21 (PR #415) e detalha a Fase 22 (Tarifa Branca)
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** `planejar-roadmap` — marca a Fase 21 (Mercado Livre de Energia — ACL) como concluída (épico #394: #395–#400, PR #415 mesclado em `staging`) e detalha a Fase 22 (Tarifa Branca — Grupo B) de objetivo para 5 itens completos.
+- **Correção de convenção:** as entradas de replanejamento de 2026-09-07/09 presumiam que um épico só fecha no GitHub após a promoção `staging → main`. Verificado agora contra o GitHub real: os épicos #379, #386 e #394 já aparecem `CLOSED`, todos fechados no próprio merge do PR em `staging` — `Closes #N` fecha na branch-base do PR, não exige a branch default. Corrigido no cabeçalho do roadmap e na nova seção de replanejamento.
+- **Decisão tomada com o usuário:** RN28 (Branca vedada a B4, baixa renda e quem recebe outros descontos) não tinha como ser cumprida — nada disso existe no schema hoje. Perguntado diretamente, o usuário optou por modelar agora em vez de adiar: um booleano genérico de desconto em `Property` (RN28) e exclusão de B4 do `BillingClass` por ausência de caso de uso real no produto — sem taxonomia completa de subclasses. Registrado no item "Modelo de dados" da Fase 22.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova — decisão de modelagem pontual registrada no roadmap, não estrutural o suficiente para ADR própria.
+- **Notas:** Fase 22 é a última da entrega `Tarifação Grupo A, Mercado Livre e Tarifa Branca` (Fases 19–22) — fechar a milestone no GitHub quando concluir. Issues da Fase 22 ficam para um próximo ciclo (usuário optou por não abrir agora).
