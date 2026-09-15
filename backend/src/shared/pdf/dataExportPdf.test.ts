@@ -28,6 +28,7 @@ function buildFakePayload(overrides: Partial<DataExportPayload> = {}): DataExpor
         devices: [],
         alerts: [],
         demandAlerts: [],
+        aclContracts: [],
         auditLogs: [],
         ...overrides,
     }

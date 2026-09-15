@@ -357,11 +357,67 @@ async function seedTariffFlag(): Promise<void> {
     console.log("Bandeira tarifária: singleton (id=1) garantido, vigente = GREEN.")
 }
 
+// PLD (Preço de Liquidação das Diferenças) por submercado — catálogo de
+// apoio à comparação ACR × ACL (Fase 21), sem ingestão automática da CCEE
+// nesta fase. Valores ILUSTRATIVOS (mesma ressalva de aproximação do
+// catálogo tarifário acima) — a estrutura (SE/CO tipicamente mais líquido,
+// N/NE com maior variação hidrológica) é plausível, não homologada.
+interface PldQuoteSeed {
+    submarket: "NORTH" | "NORTHEAST" | "SOUTHEAST_CENTER_WEST" | "SOUTH"
+    referencePeriod: Date // primeiro dia do mês, hora local
+    valuePerMwh: number
+}
+
+const PLD_QUOTES: PldQuoteSeed[] = [
+    {
+        submarket: "SOUTHEAST_CENTER_WEST",
+        referencePeriod: new Date("2026-06-01"),
+        valuePerMwh: 98.75,
+    },
+    {
+        submarket: "SOUTHEAST_CENTER_WEST",
+        referencePeriod: new Date("2026-07-01"),
+        valuePerMwh: 154.22,
+    },
+    {
+        submarket: "SOUTHEAST_CENTER_WEST",
+        referencePeriod: new Date("2026-08-01"),
+        valuePerMwh: 186.4,
+    },
+    { submarket: "SOUTH", referencePeriod: new Date("2026-06-01"), valuePerMwh: 91.3 },
+    { submarket: "SOUTH", referencePeriod: new Date("2026-07-01"), valuePerMwh: 142.6 },
+    { submarket: "SOUTH", referencePeriod: new Date("2026-08-01"), valuePerMwh: 179.85 },
+    { submarket: "NORTHEAST", referencePeriod: new Date("2026-06-01"), valuePerMwh: 105.4 },
+    { submarket: "NORTHEAST", referencePeriod: new Date("2026-07-01"), valuePerMwh: 161.9 },
+    { submarket: "NORTHEAST", referencePeriod: new Date("2026-08-01"), valuePerMwh: 193.15 },
+    { submarket: "NORTH", referencePeriod: new Date("2026-06-01"), valuePerMwh: 88.6 },
+    { submarket: "NORTH", referencePeriod: new Date("2026-07-01"), valuePerMwh: 138.75 },
+    { submarket: "NORTH", referencePeriod: new Date("2026-08-01"), valuePerMwh: 172.3 },
+]
+
+async function seedPldQuotes(): Promise<void> {
+    for (const quote of PLD_QUOTES) {
+        await prisma.pldQuote.upsert({
+            where: {
+                submarket_referencePeriod: {
+                    submarket: quote.submarket,
+                    referencePeriod: quote.referencePeriod,
+                },
+            },
+            update: { valuePerMwh: quote.valuePerMwh },
+            create: quote,
+        })
+    }
+
+    console.log(`PLD: ${PLD_QUOTES.length} cotações garantidas (upsert, 4 submercados × 3 meses).`)
+}
+
 async function main(): Promise<void> {
     try {
         await seedDistributors()
         await seedGroupATariffCatalog()
         await seedTariffFlag()
+        await seedPldQuotes()
         console.log("Seed concluído.")
     } finally {
         await prisma.$disconnect()

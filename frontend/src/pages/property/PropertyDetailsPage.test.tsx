@@ -71,6 +71,17 @@ vi.mock("@/services/distributor.service", () => ({
     },
 }))
 
+// PropertyFormDialog busca o contrato ACL corrente em qualquer edição (ver
+// usePropertyFormSubmit) — sem mock explícito, a chamada cairia no `api`
+// vazio abaixo e resolveria em erro (funciona, mas silencioso e frágil).
+vi.mock("@/services/acl-contract.service", () => ({
+    aclContractService: {
+        listByProperty: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 31 }),
+        create: vi.fn(),
+        update: vi.fn(),
+    },
+}))
+
 vi.mock("@/services/api", () => ({
     api: {},
     extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
@@ -117,6 +128,7 @@ const mockProperty: Property = {
     electricalSystem: "TRIPHASIC",
     billingClass: "B1",
     tariffGroup: "GROUP_B",
+    contractingEnvironment: "ACR",
     tariffSubgroup: null,
     tariffModality: null,
     contractedDemandKw: null,
@@ -368,6 +380,45 @@ describe("PropertyDetailsPage — chips de distribuidora e faturamento", () => {
         expect(screen.getByText(/Horária Verde/i)).toBeInTheDocument()
         expect(screen.getByText(/Demanda contratada: 200 kW/i)).toBeInTheDocument()
         expect(screen.queryByText(/B1 — Residencial/i)).not.toBeInTheDocument()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mercado Livre (ACL) — entry point da comparação ACR × ACL
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("PropertyDetailsPage — Mercado Livre (ACL)", () => {
+    beforeEach(() => {
+        vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
+        vi.mocked(areaService.list).mockResolvedValue(paginated([]))
+    })
+
+    it("mostra o botão 'Comparar ACR × ACL' e a tag quando a propriedade está em ACL", async () => {
+        vi.mocked(propertyService.getById).mockResolvedValue({
+            ...mockProperty,
+            tariffGroup: "GROUP_A",
+            billingClass: null,
+            tariffSubgroup: "A4",
+            tariffModality: "GREEN",
+            contractedDemandKw: 200,
+            contractingEnvironment: "ACL",
+        })
+
+        renderPage()
+
+        const compareLink = await screen.findByRole("link", { name: /comparar acr × acl/i })
+        expect(compareLink).toHaveAttribute("href", "/propriedades/prop-1/comparacao-acl")
+        expect(screen.getByText(/mercado livre \(acl\)/i)).toBeInTheDocument()
+    })
+
+    it("não mostra o botão nem a tag para uma propriedade cativa (ACR)", async () => {
+        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+
+        renderPage()
+
+        await screen.findByRole("heading", { name: /casa principal/i })
+        expect(screen.queryByRole("link", { name: /comparar acr × acl/i })).not.toBeInTheDocument()
+        expect(screen.queryByText(/mercado livre \(acl\)/i)).not.toBeInTheDocument()
     })
 })
 

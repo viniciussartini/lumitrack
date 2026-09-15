@@ -172,4 +172,14 @@ export const queryKeys = {
         all: ["tariffFlag"] as const,
         current: () => [...queryKeys.tariffFlag.all, "current"] as const,
     },
+    aclContracts: {
+        all: ["aclContracts"] as const,
+        byProperty: (propertyId: string) =>
+            [...queryKeys.aclContracts.all, "by-property", propertyId] as const,
+    },
+    aclComparison: {
+        all: ["aclComparison"] as const,
+        detail: (propertyId: string, from: string, to: string) =>
+            [...queryKeys.aclComparison.all, propertyId, from, to] as const,
+    },
 } as const

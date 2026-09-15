@@ -2,6 +2,23 @@ import PDFDocument from "pdfkit"
 import { BRAND, ZAP_ICON_PATH, ZAP_ICON_VIEWBOX_SIZE } from "@/shared/pdf/brand.js"
 import type { DataExportPayload } from "@/modules/export/export.service.js"
 import type { UserWithoutPassword } from "@/modules/user/user.repository.js"
+import type { AclSubmarket, AclEnergySource } from "@/generated/prisma/client.js"
+
+// O PDF é lido por pessoa (Art. 18 LGPD), não por máquina — mostrar o valor
+// bruto do enum (`SOUTHEAST_CENTER_WEST`) no documento voltado ao titular é
+// pior do que o rótulo em português que o resto do produto já usa.
+const ACL_SUBMARKET_LABELS: Record<AclSubmarket, string> = {
+    NORTH: "Norte",
+    NORTHEAST: "Nordeste",
+    SOUTHEAST_CENTER_WEST: "Sudeste / Centro-Oeste",
+    SOUTH: "Sul",
+}
+
+const ACL_ENERGY_SOURCE_LABELS: Record<AclEnergySource, string> = {
+    CONVENTIONAL: "Convencional",
+    INCENTIVIZED_50: "Incentivada 50%",
+    INCENTIVIZED_100: "Incentivada 100%",
+}
 
 function userDisplayName(user: UserWithoutPassword): string {
     if (user.userType === "COMPANY") {
@@ -184,6 +201,26 @@ function drawDemandAlertsSection(doc: PDFKit.PDFDocument, payload: DataExportPay
     }
 }
 
+function drawAclContractsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
+    sectionTitle(doc, "Contratos de energia — Mercado Livre (ACL)")
+
+    if (payload.aclContracts.length === 0) {
+        emptyNote(doc, "Nenhum contrato de energia do Mercado Livre cadastrado.")
+        return
+    }
+
+    for (const contract of payload.aclContracts) {
+        const validity = contract.validTo
+            ? `${contract.validFrom.toLocaleDateString("pt-BR")} a ${contract.validTo.toLocaleDateString("pt-BR")}`
+            : `desde ${contract.validFrom.toLocaleDateString("pt-BR")}`
+        doc.text(
+            `• ${contract.retailerName} — ${ACL_SUBMARKET_LABELS[contract.submarket]}/${ACL_ENERGY_SOURCE_LABELS[contract.energySource]} — ` +
+                `R$ ${contract.energyPricePerMwh.toFixed(2)}/MWh, ${contract.contractedVolumeMwh} MWh — ` +
+                `vigência ${validity}`,
+        )
+    }
+}
+
 function drawAuditLogSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
     sectionTitle(doc, "Histórico de acesso e segurança (audit log)")
 
@@ -240,6 +277,7 @@ export async function generateDataExportPdf(payload: DataExportPayload): Promise
     drawAreasAndDevicesSection(doc, payload)
     drawAlertsSection(doc, payload)
     drawDemandAlertsSection(doc, payload)
+    drawAclContractsSection(doc, payload)
     drawAuditLogSection(doc, payload)
     drawFooterOnAllPages(doc)
 

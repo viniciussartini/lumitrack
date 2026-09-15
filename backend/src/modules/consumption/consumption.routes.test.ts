@@ -236,3 +236,184 @@ describe("GET /api/consumption/summary", () => {
         expect(response.status).toBe(422)
     })
 })
+
+// A regra de negócio (fórmula ACR × ACL, veredito, PLD de contexto) já está
+// coberta em consumption.service.test.ts — aqui só o contrato HTTP: auth,
+// validação de query, ownership e um smoke test do caminho feliz.
+describe("GET /api/consumption/acl-comparison", () => {
+    async function setupAclComparisonFixture(user = validUser) {
+        const token = await registerAndLogin(user)
+        const distributor = await createTestDistributor(prismaHttpTest)
+        await prismaHttpTest.energyDistributor.update({
+            where: { id: distributor.id },
+            data: { peakWindowStartHour: 18, peakWindowEndHour: 21 },
+        })
+        await createTestTariffFlagConfig(prismaHttpTest)
+        await prismaHttpTest.tariffEnergyRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "GREEN",
+                post: "PEAK",
+                tusdPerKwh: 0.75,
+                tePerKwh: 0.55,
+            },
+        })
+        await prismaHttpTest.tariffEnergyRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "GREEN",
+                post: "OFF_PEAK",
+                tusdPerKwh: 0.12,
+                tePerKwh: 0.28,
+            },
+        })
+        await prismaHttpTest.tariffDemandRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "GREEN",
+                post: null,
+                tusdPerKw: 18.0,
+            },
+        })
+
+        const propRes = await request(app)
+            .post("/api/properties")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                name: "Frigorífico",
+                distributorId: distributor.id,
+                electricalSystem: "TRIPHASIC",
+                tariffGroup: "GROUP_A",
+                tariffSubgroup: "A4",
+                tariffModality: "GREEN",
+                contractedDemandKw: 200,
+                contractingEnvironment: "ACL",
+            })
+        const propertyId = propRes.body.data.id as string
+
+        await request(app).post("/api/acl-contracts").set("Authorization", `Bearer ${token}`).send({
+            propertyId,
+            retailerName: "Comerc Energia",
+            submarket: "SOUTHEAST_CENTER_WEST",
+            energySource: "CONVENTIONAL",
+            energyPricePerMwh: 300,
+            contractedVolumeMwh: 30,
+            validFrom: "2026-01-01",
+        })
+
+        const meterRes = await request(app)
+            .post("/api/meters")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                name: "Medidor",
+                targetType: "PROPERTY",
+                propertyId,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "frigorifico/medidor",
+            })
+        const meterId = meterRes.body.data.id as string
+
+        await prismaHttpTest.meterReading.create({
+            data: {
+                meterId,
+                minuteStart: new Date("2026-08-04T13:00:00Z"),
+                kwhConsumed: 28,
+                avgVoltage: 220,
+                avgCurrent: 5,
+                avgPowerW: 100_000,
+                avgPowerFactor: 1,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+
+        return { token, propertyId }
+    }
+
+    it("retorna 401 sem token", async () => {
+        const response = await request(app).get(
+            "/api/consumption/acl-comparison?propertyId=00000000-0000-0000-0000-000000000000&from=2026-08-01&to=2026-08-01",
+        )
+        expect(response.status).toBe(401)
+    })
+
+    it("retorna 200 com a comparação ACR × ACL no caminho feliz", async () => {
+        const { token, propertyId } = await setupAclComparisonFixture()
+
+        const response = await request(app)
+            .get(
+                `/api/consumption/acl-comparison?propertyId=${propertyId}&from=2026-08-01&to=2026-08-01`,
+            )
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(200)
+        expect(response.body.data.months).toHaveLength(1)
+        expect(response.body.data.verdict).toMatch(/^(ACL_CHEAPER|ACR_CHEAPER|EQUIVALENT)$/)
+    })
+
+    it("retorna 403 para propriedade de outro usuário", async () => {
+        const { propertyId } = await setupAclComparisonFixture(validUser)
+        const tokenB = await registerAndLogin(anotherUser)
+
+        const response = await request(app)
+            .get(
+                `/api/consumption/acl-comparison?propertyId=${propertyId}&from=2026-08-01&to=2026-08-01`,
+            )
+            .set("Authorization", `Bearer ${tokenB}`)
+
+        expect(response.status).toBe(403)
+    })
+
+    it("retorna 422 quando faltam parâmetros obrigatórios", async () => {
+        const token = await registerAndLogin()
+
+        const response = await request(app)
+            .get("/api/consumption/acl-comparison?from=2026-08-01&to=2026-08-01")
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(422)
+    })
+
+    it("retorna 422 quando to é anterior a from", async () => {
+        const { token, propertyId } = await setupAclComparisonFixture()
+
+        const response = await request(app)
+            .get(
+                `/api/consumption/acl-comparison?propertyId=${propertyId}&from=2026-08-01&to=2026-07-01`,
+            )
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(422)
+    })
+
+    it("retorna 422 quando a janela passa de 24 meses", async () => {
+        const { token, propertyId } = await setupAclComparisonFixture()
+
+        // 2024-08 a 2026-09: 26 meses — acima do teto MAX_COMPARISON_MONTHS.
+        const response = await request(app)
+            .get(
+                `/api/consumption/acl-comparison?propertyId=${propertyId}&from=2024-08-01&to=2026-09-01`,
+            )
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(422)
+    })
+
+    it("retorna 200 para uma janela de exatamente 24 meses (teto, não acima dele)", async () => {
+        const { token, propertyId } = await setupAclComparisonFixture()
+
+        // 2024-09 a 2026-08: exatamente 24 meses.
+        const response = await request(app)
+            .get(
+                `/api/consumption/acl-comparison?propertyId=${propertyId}&from=2024-09-01&to=2026-08-01`,
+            )
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(200)
+    })
+})

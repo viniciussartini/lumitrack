@@ -54,3 +54,35 @@ export const consumptionSummaryQuerySchema = z.object({
 })
 
 export type ConsumptionSummaryQuery = z.infer<typeof consumptionSummaryQuerySchema>
+
+// GET /api/consumption/acl-comparison — janela de meses cujo consumo
+// real é recalculado nos dois cenários (ACR/ACL). Teto de meses, mesma razão
+// do MAX_SUMMARY_IDS acima: sem ele, o laço de mês e as duas consultas de
+// custo por mês (ACR + ACL) ficam ilimitados a partir só da query string.
+const MAX_COMPARISON_MONTHS = 24
+
+export const compareAclToAcrQuerySchema = z
+    .object({
+        propertyId: z.uuid({ message: "propertyId inválido" }),
+        from: z.coerce.date({ error: "from deve ser uma data válida" }),
+        to: z.coerce.date({ error: "to deve ser uma data válida" }),
+    })
+    .refine((data) => data.to >= data.from, {
+        message: "to deve ser maior ou igual a from",
+        path: ["to"],
+    })
+    .refine(
+        (data) => {
+            const months =
+                (data.to.getUTCFullYear() - data.from.getUTCFullYear()) * 12 +
+                (data.to.getUTCMonth() - data.from.getUTCMonth()) +
+                1
+            return months <= MAX_COMPARISON_MONTHS
+        },
+        {
+            message: `Janela de comparação limitada a ${MAX_COMPARISON_MONTHS} meses`,
+            path: ["to"],
+        },
+    )
+
+export type CompareAclToAcrQuery = z.infer<typeof compareAclToAcrQuerySchema>

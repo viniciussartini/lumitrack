@@ -26,6 +26,8 @@ export async function cleanHttpDatabase(): Promise<void> {
         prismaHttpTest.tariffDemandRate.deleteMany(),
         prismaHttpTest.energyDistributor.deleteMany(),
         prismaHttpTest.tariffFlagConfig.deleteMany(),
+        // Catálogo global de PLD (Fase 21) — sem dono, ver clean-database.ts.
+        prismaHttpTest.pldQuote.deleteMany(),
         prismaHttpTest.authToken.deleteMany(),
         prismaHttpTest.passwordReset.deleteMany(),
         prismaHttpTest.mfaBackupCode.deleteMany(),

@@ -4,6 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react"
 import { PropertyForm } from "@/components/property/PropertyForm"
 import type { Property } from "@/types/property.types"
 import type { Distributor } from "@/types/distributor.types"
+import type { AclContract } from "@/types/acl-contract.types"
 
 const mockDistributor1: Distributor = {
     id: "dist-1",
@@ -38,6 +39,7 @@ const mockProperty: Property = {
     electricalSystem: "TRIPHASIC",
     billingClass: "B1",
     tariffGroup: "GROUP_B",
+    contractingEnvironment: "ACR",
     tariffSubgroup: null,
     tariffModality: null,
     contractedDemandKw: null,
@@ -277,6 +279,7 @@ describe("PropertyForm — submit", () => {
                 distributorId: "dist-1",
                 electricalSystem: "TRIPHASIC",
                 tariffGroup: "GROUP_B",
+                contractingEnvironment: "ACR",
                 billingClass: "B2",
                 publicLightingFeeBrl: undefined,
                 address: "Rua das Flores, 100",
@@ -422,6 +425,137 @@ describe("PropertyForm — Grupo A", () => {
             screen.getByText(/demanda contratada fora de ponta é obrigatória/i),
         ).toBeInTheDocument()
         expect(onSubmit).not.toHaveBeenCalled()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mercado Livre (ACL)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const mockAclContract: AclContract = {
+    id: "contract-1",
+    userId: "user-1",
+    propertyId: "prop-1",
+    retailerName: "Comerc Energia",
+    submarket: "SOUTHEAST_CENTER_WEST",
+    energySource: "CONVENTIONAL",
+    energyPricePerMwh: 280,
+    contractedVolumeMwh: 120,
+    validFrom: "2026-01-01",
+    validTo: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+}
+
+describe("PropertyForm — Mercado Livre (ACL)", () => {
+    it("só mostra o ambiente de contratação e o contrato ACL no Grupo A", async () => {
+        const user = userEvent.setup()
+        renderForm()
+
+        expect(screen.queryByLabelText(/ambiente de contratação/i)).not.toBeInTheDocument()
+
+        await user.selectOptions(screen.getByLabelText(/grupo tarifário/i), "GROUP_A")
+        expect(screen.getByLabelText(/ambiente de contratação/i)).toBeInTheDocument()
+        expect(screen.queryByLabelText(/comercializadora/i)).not.toBeInTheDocument()
+
+        await user.selectOptions(screen.getByLabelText(/ambiente de contratação/i), "ACL")
+        expect(screen.getByLabelText(/comercializadora/i)).toBeInTheDocument()
+        expect(screen.getByLabelText(/^submercado/i)).toBeInTheDocument()
+        expect(screen.getByLabelText(/preço da energia/i)).toBeInTheDocument()
+        expect(screen.getByLabelText(/volume contratado/i)).toBeInTheDocument()
+        expect(screen.getByLabelText(/fonte contratada/i)).toBeInTheDocument()
+    })
+
+    it("esconde o ambiente de contratação e o contrato ACL ao voltar para o Grupo B", async () => {
+        const user = userEvent.setup()
+        renderForm()
+
+        await user.selectOptions(screen.getByLabelText(/grupo tarifário/i), "GROUP_A")
+        await user.selectOptions(screen.getByLabelText(/ambiente de contratação/i), "ACL")
+        expect(screen.getByLabelText(/comercializadora/i)).toBeInTheDocument()
+
+        await user.selectOptions(screen.getByLabelText(/grupo tarifário/i), "GROUP_B")
+
+        expect(screen.queryByLabelText(/ambiente de contratação/i)).not.toBeInTheDocument()
+        expect(screen.queryByLabelText(/comercializadora/i)).not.toBeInTheDocument()
+    })
+
+    it("exige os 5 campos do contrato ao submeter em ACL sem preenchê-los", async () => {
+        const user = userEvent.setup()
+        const onSubmit = vi.fn()
+        renderForm({ onSubmit })
+
+        await user.type(screen.getByLabelText(/nome/i), "Indústria")
+        await user.selectOptions(screen.getByLabelText(/distribuidora vinculada/i), "dist-1")
+        await user.selectOptions(screen.getByLabelText(/grupo tarifário/i), "GROUP_A")
+        await user.selectOptions(screen.getByLabelText(/^subgrupo/i), "A4")
+        await user.type(screen.getByLabelText(/demanda contratada/i), "200")
+        await user.selectOptions(screen.getByLabelText(/ambiente de contratação/i), "ACL")
+
+        await user.click(screen.getByRole("button", { name: /salvar/i }))
+
+        expect(
+            await screen.findByText(/comercializadora é obrigatória no acl/i),
+        ).toBeInTheDocument()
+        expect(screen.getByText(/submercado é obrigatório no acl/i)).toBeInTheDocument()
+        expect(screen.getByText(/fonte contratada é obrigatória no acl/i)).toBeInTheDocument()
+        expect(screen.getByText(/preço da energia é obrigatório no acl/i)).toBeInTheDocument()
+        expect(screen.getByText(/volume contratado é obrigatório no acl/i)).toBeInTheDocument()
+        expect(onSubmit).not.toHaveBeenCalled()
+    })
+
+    it("envia os campos do contrato ACL preenchidos", async () => {
+        const user = userEvent.setup()
+        const onSubmit = vi.fn().mockResolvedValue(undefined)
+        renderForm({ onSubmit })
+
+        await user.type(screen.getByLabelText(/nome/i), "Indústria")
+        await user.selectOptions(screen.getByLabelText(/distribuidora vinculada/i), "dist-1")
+        await user.selectOptions(screen.getByLabelText(/grupo tarifário/i), "GROUP_A")
+        await user.selectOptions(screen.getByLabelText(/^subgrupo/i), "A4")
+        await user.type(screen.getByLabelText(/demanda contratada/i), "200")
+        await user.selectOptions(screen.getByLabelText(/ambiente de contratação/i), "ACL")
+        await user.type(screen.getByLabelText(/comercializadora/i), "Comerc Energia")
+        await user.selectOptions(screen.getByLabelText(/^submercado/i), "SOUTHEAST_CENTER_WEST")
+        await user.type(screen.getByLabelText(/preço da energia/i), "280")
+        await user.type(screen.getByLabelText(/volume contratado/i), "120")
+        await user.selectOptions(screen.getByLabelText(/fonte contratada/i), "CONVENTIONAL")
+
+        await user.click(screen.getByRole("button", { name: /salvar/i }))
+
+        await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+
+        expect(onSubmit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                contractingEnvironment: "ACL",
+                aclRetailerName: "Comerc Energia",
+                aclSubmarket: "SOUTHEAST_CENTER_WEST",
+                aclEnergyPricePerMwh: 280,
+                aclContractedVolumeMwh: 120,
+                aclEnergySource: "CONVENTIONAL",
+            }),
+            expect.anything(),
+        )
+    })
+
+    it("preenche o contrato ACL a partir de initialAclContract em edição", () => {
+        const aclProperty: Property = {
+            ...mockProperty,
+            tariffGroup: "GROUP_A",
+            tariffSubgroup: "A4",
+            tariffModality: "GREEN",
+            contractedDemandKw: 200,
+            billingClass: null,
+            contractingEnvironment: "ACL",
+        }
+        renderForm({ initialData: aclProperty, initialAclContract: mockAclContract })
+
+        expect(screen.getByLabelText(/ambiente de contratação/i)).toHaveValue("ACL")
+        expect(screen.getByLabelText(/comercializadora/i)).toHaveValue("Comerc Energia")
+        expect(screen.getByLabelText(/^submercado/i)).toHaveValue("SOUTHEAST_CENTER_WEST")
+        expect(screen.getByLabelText(/preço da energia/i)).toHaveValue(280)
+        expect(screen.getByLabelText(/volume contratado/i)).toHaveValue(120)
+        expect(screen.getByLabelText(/fonte contratada/i)).toHaveValue("CONVENTIONAL")
     })
 })
 

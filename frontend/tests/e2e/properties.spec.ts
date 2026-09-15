@@ -47,6 +47,7 @@ const buildTariffGroupFields = (
     | "contractedDemandKw"
     | "contractedDemandPeakKw"
     | "contractedDemandOffPeakKw"
+    | "contractingEnvironment"
 > => ({
     tariffGroup: body.tariffGroup ?? "GROUP_B",
     billingClass: body.billingClass ?? null,
@@ -55,6 +56,7 @@ const buildTariffGroupFields = (
     contractedDemandKw: body.contractedDemandKw ?? null,
     contractedDemandPeakKw: body.contractedDemandPeakKw ?? null,
     contractedDemandOffPeakKw: body.contractedDemandOffPeakKw ?? null,
+    contractingEnvironment: body.contractingEnvironment ?? "ACR",
 })
 
 /** Espelha a resposta de criação do backend a partir do corpo do POST. */
@@ -115,6 +117,11 @@ const setupAuthAndDistributors = async (page: Parameters<typeof setupAuth>[0]) =
     await page.route(/\/api\/meter-readings(\?.*)?$/, (route) =>
         fulfillJson(route, { items: [], granularity: "minute" }),
     )
+
+    // PropertyFormDialog busca o contrato ACL corrente ao abrir em modo
+    // edição (useCurrentAclContract) — nenhum teste deste spec cobre ACL,
+    // então lista vazia é o estado normal.
+    await page.route(/\/api\/acl-contracts(\?.*)?$/, (route) => fulfillPaginated(route, []))
 }
 
 test.describe("Fluxo CRUD de propriedades", () => {

@@ -7,6 +7,7 @@ import { PropertyService } from "@/modules/property/property.service.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { AlertRepository } from "@/modules/alert/alert.repository.js"
 import { DemandAlertRepository } from "@/modules/demand-alert/demand-alert.repository.js"
+import { AclContractRepository } from "@/modules/acl-contract/acl-contract.repository.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { AreaService } from "@/modules/area/area.service.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
@@ -35,6 +36,7 @@ const deviceService = new DeviceService(deviceRepository, areaRepository, proper
 
 const alertRepository = new AlertRepository(prismaTest)
 const demandAlertRepository = new DemandAlertRepository(prismaTest)
+const aclContractRepository = new AclContractRepository(prismaTest)
 
 const auditRepository = new AuditRepository(prismaTest)
 
@@ -44,6 +46,7 @@ const exportService = new ExportService(
     distributorRepository,
     alertRepository,
     demandAlertRepository,
+    aclContractRepository,
     areaRepository,
     deviceRepository,
     auditRepository,
@@ -118,6 +121,18 @@ async function setupFull(userInput = validUserA) {
             thresholdPercent: 105,
         },
     })
+    await prismaTest.aclContract.create({
+        data: {
+            userId: user.id,
+            propertyId: property.id,
+            retailerName: "Comerc Energia",
+            submarket: "SOUTHEAST_CENTER_WEST",
+            energySource: "CONVENTIONAL",
+            energyPricePerMwh: 280,
+            contractedVolumeMwh: 120,
+            validFrom: new Date("2026-01-01"),
+        },
+    })
 
     await auditRepository.create({
         userId: user.id,
@@ -168,6 +183,8 @@ describe("ExportService.generate", () => {
 
         expect(payload.alerts).toHaveLength(1)
         expect(payload.demandAlerts).toHaveLength(1)
+        expect(payload.aclContracts).toHaveLength(1)
+        expect(payload.aclContracts[0]!.retailerName).toBe("Comerc Energia")
 
         expect(payload.auditLogs).toHaveLength(1)
         expect(payload.auditLogs[0]!.action).toBe("LOGIN")
@@ -202,6 +219,7 @@ describe("ExportService.generate", () => {
         expect(payload.devices).toEqual([])
         expect(payload.alerts).toEqual([])
         expect(payload.demandAlerts).toEqual([])
+        expect(payload.aclContracts).toEqual([])
         expect(payload.auditLogs).toEqual([])
     })
 

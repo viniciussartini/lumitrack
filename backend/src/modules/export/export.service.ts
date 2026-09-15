@@ -12,6 +12,10 @@ import type {
     DemandAlertRepository,
     DemandAlertResponse,
 } from "@/modules/demand-alert/demand-alert.repository.js"
+import type {
+    AclContractRepository,
+    AclContractResponse,
+} from "@/modules/acl-contract/acl-contract.repository.js"
 import type { AreaRepository, AreaResponse } from "@/modules/area/area.repository.js"
 import type { DeviceRepository, DeviceResponse } from "@/modules/device/device.repository.js"
 import type { AuditRepository, AuditLogResponse } from "@/shared/audit/audit.repository.js"
@@ -40,6 +44,7 @@ export type DataExportPayload = {
     devices: DeviceResponse[]
     alerts: AlertResponse[]
     demandAlerts: DemandAlertResponse[]
+    aclContracts: AclContractResponse[]
     auditLogs: AuditLogResponse[]
 }
 
@@ -54,6 +59,7 @@ export class ExportService {
      * @param distributorRepository - Catálogo de distribuidoras, para resolver as vinculadas às propriedades do titular.
      * @param alertRepository - Alertas configurados pelo titular.
      * @param demandAlertRepository - Alertas de ultrapassagem de demanda configurados pelo titular.
+     * @param aclContractRepository - Contratos de energia do Mercado Livre (ACL) configurados pelo titular.
      * @param areaRepository - Áreas das propriedades do titular.
      * @param deviceRepository - Dispositivos das áreas do titular.
      * @param auditRepository - Trilha de auditoria de acesso a dados do titular.
@@ -64,6 +70,7 @@ export class ExportService {
         private readonly distributorRepository: DistributorRepository,
         private readonly alertRepository: AlertRepository,
         private readonly demandAlertRepository: DemandAlertRepository,
+        private readonly aclContractRepository: AclContractRepository,
         private readonly areaRepository: AreaRepository,
         private readonly deviceRepository: DeviceRepository,
         private readonly auditRepository: AuditRepository,
@@ -84,14 +91,16 @@ export class ExportService {
             throw new NotFoundError("Usuário não encontrado")
         }
 
-        const [properties, alerts, demandAlerts, areas, devices, auditLogs] = await Promise.all([
-            this.propertyRepository.findAllByUser(userId),
-            this.alertRepository.findAllByUser(userId),
-            this.demandAlertRepository.findAllByUser(userId),
-            this.areaRepository.findAllByUser(userId),
-            this.deviceRepository.findAllByUser(userId),
-            this.auditRepository.findByUserId(userId),
-        ])
+        const [properties, alerts, demandAlerts, aclContracts, areas, devices, auditLogs] =
+            await Promise.all([
+                this.propertyRepository.findAllByUser(userId),
+                this.alertRepository.findAllByUser(userId),
+                this.demandAlertRepository.findAllByUser(userId),
+                this.aclContractRepository.findAllByUser(userId),
+                this.areaRepository.findAllByUser(userId),
+                this.deviceRepository.findAllByUser(userId),
+                this.auditRepository.findByUserId(userId),
+            ])
 
         const distributorIds = [...new Set(properties.map((p) => p.distributorId))]
         const distributors = await this.distributorRepository.findAllByIds(distributorIds)
@@ -105,6 +114,7 @@ export class ExportService {
             devices,
             alerts,
             demandAlerts,
+            aclContracts,
             auditLogs,
         }
     }

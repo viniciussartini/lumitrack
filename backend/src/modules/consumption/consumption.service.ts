@@ -1,6 +1,7 @@
 import {
     listConsumptionQuerySchema,
     consumptionSummaryQuerySchema,
+    compareAclToAcrQuerySchema,
     type Granularity,
 } from "@/modules/consumption/consumption.schema.js"
 import type {
@@ -29,6 +30,14 @@ import type {
     MeterDemandRollupRepository,
     MeterDemandRollupResponse,
 } from "@/modules/meter/meter-demand-rollup.repository.js"
+import type {
+    AclContractRepository,
+    AclContractResponse,
+} from "@/modules/acl-contract/acl-contract.repository.js"
+import type {
+    PldQuoteRepository,
+    PldQuoteResponse,
+} from "@/modules/pld-quote/pld-quote.repository.js"
 import { TariffService } from "@/shared/tariff/tariff.service.js"
 import type { GroupADemandPostResult } from "@/shared/tariff/tariff.service.js"
 import {
@@ -44,9 +53,19 @@ import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/
 import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 import { resolveRootProperty } from "@/shared/targetResolution.js"
 import { logger } from "@/shared/logger/logger.js"
-import type { TargetType, TariffPost, TariffSubgroup } from "@/generated/prisma/client.js"
+import type {
+    AclSubmarket,
+    ContractingEnvironment,
+    TargetType,
+    TariffPost,
+    TariffSubgroup,
+} from "@/generated/prisma/client.js"
 
 const log = logger.child({ module: "ConsumptionService" })
+
+// AclContract.energyPricePerMwh é negociado em R$/MWh (mesma unidade do
+// handoff de design); TariffService opera em R$/kWh.
+const MWH_TO_KWH = 1000
 
 // Decomposição da conta binômia do Grupo A — presente só no bucket
 // mensal de uma Propriedade Grupo A; ausente (undefined) para Grupo B e para
@@ -94,6 +113,33 @@ export type ConsumptionSummaryResponse = {
     items: ConsumptionSummaryItem[]
 }
 
+// Comparação ACR × ACL — o veredito nomeia quem sai mais barato no
+// consumo real do período pedido, não uma recomendação de ação (a
+// propriedade já precisa estar em ACL com contrato para chegar aqui — ver
+// `compareAclToAcr`); "EQUIVALENT" cobre o empate exato, que os dois
+// cálculos em reais tornam possível mesmo sendo raro na prática.
+export type AclComparisonVerdict = "ACL_CHEAPER" | "ACR_CHEAPER" | "EQUIVALENT"
+
+export type AclComparisonMonthResult = {
+    monthStart: Date
+    acrBrl: number
+    aclBrl: number
+    diffBrl: number
+}
+
+export type AclComparisonResponse = {
+    propertyId: string
+    from: Date
+    to: Date
+    months: AclComparisonMonthResult[]
+    totalAcrBrl: number
+    totalAclBrl: number
+    totalDiffBrl: number
+    diffPercent: number
+    verdict: AclComparisonVerdict
+    pldContext: PldQuoteResponse[]
+}
+
 /**
  * Consumo agregado — somente leitura, via MeterReading. Resolve o
  * medidor vinculado ao alvo diretamente (sem rollup de subárvore): agregar
@@ -111,6 +157,8 @@ export class ConsumptionService {
      * @param tariffFlagRepository - Resolve a configuração vigente da bandeira tarifária.
      * @param tariffCatalogRepository - Resolve o catálogo de tarifas de energia/demanda do Grupo A.
      * @param meterDemandRollupRepository - Resolve a demanda medida por posto, usada para apurar ultrapassagem de demanda contratada.
+     * @param aclContractRepository - Resolve o contrato de energia vigente de uma propriedade em ACL (TE negociada, no lugar da TE do catálogo).
+     * @param pldQuoteRepository - Resolve o PLD do(s) submercado(s) dos contratos ACL envolvidos — contexto informativo da comparação ACR × ACL, não insumo do cálculo.
      * @param tariffService - Calcula o custo em reais a partir do consumo em kWh.
      */
     constructor(
@@ -123,6 +171,8 @@ export class ConsumptionService {
         private readonly tariffFlagRepository: TariffFlagRepository,
         private readonly tariffCatalogRepository: TariffCatalogRepository,
         private readonly meterDemandRollupRepository: MeterDemandRollupRepository,
+        private readonly aclContractRepository: AclContractRepository,
+        private readonly pldQuoteRepository: PldQuoteRepository,
         private readonly tariffService: TariffService = new TariffService(),
     ) {}
 
@@ -401,6 +451,7 @@ export class ConsumptionService {
                 property,
                 distributor,
                 flagPer100Kwh,
+                property.contractingEnvironment,
             )
 
             for (const row of monthlyRows) {
@@ -526,6 +577,7 @@ export class ConsumptionService {
             property,
             distributor,
             flagPer100Kwh,
+            property.contractingEnvironment,
         )
         // Sempre presente: calculateGroupAMonthlyCosts preenche 1 entrada
         // para cada mês pedido, mesmo sem nenhuma leitura naquele mês (kWh
@@ -596,6 +648,29 @@ export class ConsumptionService {
         return offPeakRate.tusdPerKwh
     }
 
+    // Entre os contratos sobrepostos da propriedade (ver
+    // AclContractRepository.findOverlappingForProperty, já ordenados por
+    // validFrom decrescente), o primeiro cuja vigência cobre o mês é o
+    // vigente — havendo sobreposição de vigências (não impedida no
+    // cadastro), o contrato mais recente prevalece.
+    //
+    // `undefined`, não exceção: um mês sem contrato vigente não é um erro do
+    // pedido inteiro — é um mês em que a propriedade (hoje ACL) ainda não
+    // tinha o contrato (ex.: histórico anterior a `validFrom`, ou um buraco
+    // entre dois contratos). `resolveGroupAMonthEntry` decide o que fazer
+    // com a ausência: degradar aquele mês para o tratamento do catálogo
+    // regulado, não derrubar `calculateGroupAMonthlyCosts` inteiro — antes
+    // disso, marcar uma propriedade Grupo A existente como ACL quebrava com
+    // 404 a consulta de consumo de qualquer mês anterior ao contrato.
+    private resolveAclContractForMonth(
+        contracts: AclContractResponse[],
+        monthStart: Date,
+    ): AclContractResponse | undefined {
+        return contracts.find(
+            (c) => c.validFrom <= monthStart && (c.validTo === null || c.validTo >= monthStart),
+        )
+    }
+
     // Custo de 1 mês do Grupo A a partir do catálogo/consumo já resolvidos —
     // extraído do corpo de `calculateGroupAMonthlyCosts` (que resolve isso
     // em lote para vários meses) só para manter o teto de linhas/complexidade.
@@ -644,12 +719,19 @@ export class ConsumptionService {
         distributor: DistributorResponse,
         flagPer100Kwh: number,
         publicLightingFeeBrl: number | null,
+        aclTePerKwh: number | undefined,
     ): MonthCostResult {
+        // ACL substitui a TE do catálogo pela TE negociada no contrato — a
+        // TUSD continua vindo do catálogo regulado (encargo de fio, devido
+        // independente do ambiente de contratação). Corte de execução (ADR
+        // do spike de mercado livre): TE única para o contrato, sem
+        // diferenciar por posto — o documento de referência não modela um
+        // preço negociado por posto horário.
         const energyByPost = energyRates.map((rate) => ({
             post: rate.post,
             kwhConsumed: kwhByPostMap.get(rate.post) ?? 0,
             tusdPerKwh: rate.tusdPerKwh,
-            tePerKwh: rate.tePerKwh,
+            tePerKwh: aclTePerKwh ?? rate.tePerKwh,
         }))
 
         // `ConsumptionRepository` já apura o excedente por hora e soma só as
@@ -744,24 +826,20 @@ export class ConsumptionService {
         return new Map(rates.map((r) => [r.post as TariffPost | null, r.tusdPerKw]))
     }
 
-    private async calculateGroupAMonthlyCosts(
-        meterId: string,
-        monthStarts: Date[],
-        property: PropertyResponse,
-        distributor: DistributorResponse,
-        flagPer100Kwh: number,
-    ): Promise<Map<number, MonthCostResult>> {
-        const resultByMonthMs = new Map<number, MonthCostResult>()
-        if (monthStarts.length === 0) return resultByMonthMs
-
-        const { peakWindow, tariffModality, contractedDemands, tariffSubgroup } =
-            this.assertGroupACalculable(property, distributor)
-
-        // `monthStarts` vêm de date_trunc('month', localTsExpr()) — os
-        // campos de calendário (ano/mês) já são os locais corretos, só
-        // rotulados como UTC (mesmo truque de consumption.repository.ts).
-        // `fromSaoPauloLocal` converte para o instante UTC real que
-        // findKwhByPostGroupedByMonth espera (mesmo idioma do DemandRollupScheduler).
+    // `monthStarts` vêm de date_trunc('month', localTsExpr()) — os campos de
+    // calendário (ano/mês) já são os locais corretos, só rotulados como UTC
+    // (mesmo truque de consumption.repository.ts). `fromSaoPauloLocal`
+    // converte para o instante UTC real que findKwhByPostGroupedByMonth
+    // espera (mesmo idioma do DemandRollupScheduler). Extraído do corpo de
+    // `calculateGroupAMonthlyCosts` só para manter o teto de linhas/complexidade.
+    private resolveGroupAMonthWindow(monthStarts: Date[]): {
+        minMonthStart: Date
+        maxMonthEnd: Date
+        from: Date
+        to: Date
+        holidays: Date[]
+        periodStarts: Date[]
+    } {
         const monthMs = monthStarts.map((d) => d.getTime())
         const minMonthStart = new Date(Math.min(...monthMs))
         const maxMonthStart = new Date(Math.max(...monthMs))
@@ -778,28 +856,75 @@ export class ConsumptionService {
         // o `fromSaoPauloLocal` por mês, igual ao par `from`/`to` acima.
         const periodStarts = monthStarts.map((d) => fromSaoPauloLocal(d))
 
-        const [kwhByPostByMonth, energyRates, demandRates, demandRollups, reactiveByMonth] =
-            await Promise.all([
-                this.consumptionRepository.findKwhByPostGroupedByMonth(
-                    meterId,
-                    from,
-                    to,
-                    peakWindow,
-                    holidays,
-                ),
-                this.tariffCatalogRepository.findEnergyRates(
-                    distributor.id,
-                    tariffSubgroup,
-                    tariffModality,
-                ),
-                this.resolveDemandRateMap(tariffModality, distributor.id, tariffSubgroup),
-                this.meterDemandRollupRepository.findByMeterAndPeriods(meterId, periodStarts),
-                this.consumptionRepository.findReactiveEnergyByWindowGroupedByMonth(
-                    meterId,
-                    from,
-                    to,
-                ),
-            ])
+        return { minMonthStart, maxMonthEnd, from, to, holidays, periodStarts }
+    }
+
+    // `environment` é explícito (não lido de `property.contractingEnvironment`
+    // direto) para que `compareAclToAcr` recalcule o mesmo consumo real nos
+    // dois cenários — o cenário "e se fosse ACR"/"e se fosse ACL" não muda o
+    // cadastro da propriedade, só o parâmetro desta chamada. Os demais
+    // chamadores passam o ambiente real da propriedade, comportamento
+    // idêntico ao anterior.
+    private async calculateGroupAMonthlyCosts(
+        meterId: string,
+        monthStarts: Date[],
+        property: PropertyResponse,
+        distributor: DistributorResponse,
+        flagPer100Kwh: number,
+        environment: ContractingEnvironment,
+    ): Promise<Map<number, MonthCostResult>> {
+        const resultByMonthMs = new Map<number, MonthCostResult>()
+        if (monthStarts.length === 0) return resultByMonthMs
+
+        const { peakWindow, tariffModality, contractedDemands, tariffSubgroup } =
+            this.assertGroupACalculable(property, distributor)
+
+        const { minMonthStart, maxMonthEnd, from, to, holidays, periodStarts } =
+            this.resolveGroupAMonthWindow(monthStarts)
+
+        // ACL não incide bandeira (ADR-0021 — nem sobre TUSD, nem sobre TE) e
+        // troca a TE do catálogo pela TE negociada no `AclContract` vigente
+        // de cada mês — decidido por mês em `resolveGroupAMonthEntry`, não
+        // aqui: `isAcl` só controla se vale a pena buscar contratos (uma
+        // propriedade ACR nunca tem), o tratamento efetivo de cada mês
+        // depende de haver contrato cobrindo aquele mês especificamente.
+        // `validFrom`/`validTo` são datas de calendário (entrada do usuário,
+        // não convertidas por `fromSaoPauloLocal`), daí consultar com
+        // `minMonthStart`/`maxMonthEnd` — os mesmos "rotulados como UTC" que
+        // `monthStarts` já usa — em vez de `from`/`to`.
+        const isAcl = environment === "ACL"
+
+        const [
+            kwhByPostByMonth,
+            energyRates,
+            demandRates,
+            demandRollups,
+            reactiveByMonth,
+            aclContracts,
+        ] = await Promise.all([
+            this.consumptionRepository.findKwhByPostGroupedByMonth(
+                meterId,
+                from,
+                to,
+                peakWindow,
+                holidays,
+            ),
+            this.tariffCatalogRepository.findEnergyRates(
+                distributor.id,
+                tariffSubgroup,
+                tariffModality,
+            ),
+            this.resolveDemandRateMap(tariffModality, distributor.id, tariffSubgroup),
+            this.meterDemandRollupRepository.findByMeterAndPeriods(meterId, periodStarts),
+            this.consumptionRepository.findReactiveEnergyByWindowGroupedByMonth(meterId, from, to),
+            isAcl
+                ? this.aclContractRepository.findOverlappingForProperty(
+                      property.id,
+                      minMonthStart,
+                      maxMonthEnd,
+                  )
+                : Promise.resolve<AclContractResponse[]>([]),
+        ])
 
         if (energyRates.length === 0) {
             throw new NotFoundError(
@@ -823,28 +948,81 @@ export class ConsumptionService {
         )
 
         for (const monthStart of monthStarts) {
-            const kwhByPostMap = kwhByPostByMonthKey.get(monthStart.getTime()) ?? new Map()
-            const rowsForMonth =
-                demandRollupsByPeriodMs.get(fromSaoPauloLocal(monthStart).getTime()) ?? []
-            const reactiveRowsForMonth = reactiveByMonthMs.get(monthStart.getTime()) ?? []
             resultByMonthMs.set(
                 monthStart.getTime(),
-                this.buildGroupAMonthResult(
-                    kwhByPostMap,
+                this.resolveGroupAMonthEntry(monthStart, {
+                    kwhByPostByMonthKey,
+                    demandRollupsByPeriodMs,
+                    reactiveByMonthMs,
+                    aclContracts,
+                    isAcl,
                     contractedDemands,
                     demandRates,
-                    rowsForMonth,
-                    reactiveRowsForMonth,
                     tusdPerKvarh,
                     energyRates,
                     distributor,
                     flagPer100Kwh,
-                    property.publicLightingFeeBrl,
-                ),
+                    publicLightingFeeBrl: property.publicLightingFeeBrl,
+                }),
             )
         }
 
         return resultByMonthMs
+    }
+
+    // Corpo do laço de `calculateGroupAMonthlyCosts` — extraído só para
+    // manter o teto de linhas/complexidade, mesmo padrão de
+    // `resolveGroupAMonthWindow`/`resolveDemandPostsForMonth`. Um único
+    // parâmetro de contexto (em vez de 12 posicionais) porque tudo aqui já
+    // foi resolvido em lote por mês pelo chamador.
+    private resolveGroupAMonthEntry(
+        monthStart: Date,
+        ctx: {
+            kwhByPostByMonthKey: Map<number, Map<TariffPost, number>>
+            demandRollupsByPeriodMs: Map<number, MeterDemandRollupResponse[]>
+            reactiveByMonthMs: Map<number, ReactiveEnergyByWindow[]>
+            aclContracts: AclContractResponse[]
+            isAcl: boolean
+            contractedDemands: ContractedDemand[]
+            demandRates: Map<TariffPost | null, number>
+            tusdPerKvarh: number
+            energyRates: TariffEnergyRateResponse[]
+            distributor: DistributorResponse
+            flagPer100Kwh: number
+            publicLightingFeeBrl: number | null
+        },
+    ): MonthCostResult {
+        const kwhByPostMap = ctx.kwhByPostByMonthKey.get(monthStart.getTime()) ?? new Map()
+        const rowsForMonth =
+            ctx.demandRollupsByPeriodMs.get(fromSaoPauloLocal(monthStart).getTime()) ?? []
+        const reactiveRowsForMonth = ctx.reactiveByMonthMs.get(monthStart.getTime()) ?? []
+
+        // O mês só usa o tratamento ACL (TE do contrato, sem bandeira) se
+        // `isAcl` pediu e um contrato de fato cobre este mês — sem
+        // cobertura (histórico anterior a `validFrom`, ou um buraco entre
+        // dois contratos), o mês degrada para o catálogo regulado com
+        // bandeira normal, em vez de derrubar o lote inteiro com erro.
+        const contractForMonth = ctx.isAcl
+            ? this.resolveAclContractForMonth(ctx.aclContracts, monthStart)
+            : undefined
+        const aclTePerKwh = contractForMonth
+            ? contractForMonth.energyPricePerMwh / MWH_TO_KWH
+            : undefined
+        const monthFlagPer100Kwh = contractForMonth ? 0 : ctx.flagPer100Kwh
+
+        return this.buildGroupAMonthResult(
+            kwhByPostMap,
+            ctx.contractedDemands,
+            ctx.demandRates,
+            rowsForMonth,
+            reactiveRowsForMonth,
+            ctx.tusdPerKvarh,
+            ctx.energyRates,
+            ctx.distributor,
+            monthFlagPer100Kwh,
+            ctx.publicLightingFeeBrl,
+            aclTePerKwh,
+        )
     }
 
     private calculateSubTargetCost(
@@ -932,6 +1110,7 @@ export class ConsumptionService {
                 property,
                 distributor,
                 flagPer100Kwh,
+                property.contractingEnvironment,
             )
 
             let sum = 0
@@ -952,5 +1131,169 @@ export class ConsumptionService {
             sum += monthCost.totalBrl
         }
         return sum
+    }
+
+    // `from`/`to` chegam como datas de calendário (mesma convenção de
+    // AclContract.validFrom/validTo, não convertidas por `fromSaoPauloLocal`)
+    // — trunca cada ponta para o primeiro dia do mês e enumera os meses
+    // "rotulados como UTC" entre eles, o mesmo formato que `monthStarts` já
+    // usa em todo o resto do arquivo. Inclusive nas duas pontas: comparar
+    // jun–ago devolve [jun, jul, ago].
+    private monthStartsInRange(from: Date, to: Date): Date[] {
+        const starts: Date[] = []
+        let cursor = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1))
+        const end = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), 1))
+        while (cursor <= end) {
+            starts.push(cursor)
+            cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1))
+        }
+        return starts
+    }
+
+    private resolveAclComparisonVerdict(totalDiffBrl: number): AclComparisonVerdict {
+        if (totalDiffBrl > 0) return "ACL_CHEAPER"
+        if (totalDiffBrl < 0) return "ACR_CHEAPER"
+        return "EQUIVALENT"
+    }
+
+    // Extraído de `compareAclToAcr` só para caber no teto de linhas — a
+    // lógica em si não mudou: busca os contratos sobrepostos à janela
+    // inteira e filtra para os meses que de fato têm algum contrato vigente.
+    // Falha fechado só quando NENHUM mês do período pedido é comparável —
+    // um subconjunto vazio não tem o que responder.
+    private async resolveComparableMonths(
+        propertyId: string,
+        monthStarts: Date[],
+        minMonthStart: Date,
+        maxMonthEnd: Date,
+    ): Promise<{ comparableMonthStarts: Date[]; contractsInRange: AclContractResponse[] }> {
+        const contractsInRange = await this.aclContractRepository.findOverlappingForProperty(
+            propertyId,
+            minMonthStart,
+            maxMonthEnd,
+        )
+        const comparableMonthStarts = monthStarts.filter(
+            (monthStart) =>
+                this.resolveAclContractForMonth(contractsInRange, monthStart) !== undefined,
+        )
+        if (comparableMonthStarts.length === 0) {
+            throw new NotFoundError(
+                "Nenhum contrato de energia do Mercado Livre (ACL) vigente para o período",
+            )
+        }
+        return { comparableMonthStarts, contractsInRange }
+    }
+
+    /**
+     * `GET /api/consumption/acl-comparison` — recalcula o consumo
+     * real medido da propriedade nos dois cenários (TE do catálogo regulado
+     * com bandeira vs. TE do `AclContract` vigente sem bandeira), mês a mês,
+     * para a mesma janela. Meses sem contrato ACL vigente (histórico
+     * anterior ao contrato, ou um buraco entre dois contratos) ficam de fora
+     * de `months` — não há cenário ACL de verdade para comparar naquele mês,
+     * incluir um valor degradado para o catálogo regulado como se fosse "o
+     * ACL" mentiria a diferença como zero. Falha fechado só quando **nenhum**
+     * mês do período pedido tem contrato — aí não há comparação nenhuma a
+     * fazer.
+     *
+     * @param userId - Id do usuário autenticado (dono da propriedade).
+     * @param query - Query string bruta (propriedade e janela), validada aqui.
+     * @returns O custo mês a mês nos dois cenários, a diferença, o veredito e o PLD do período como contexto informativo.
+     */
+    async compareAclToAcr(userId: string, query: unknown): Promise<AclComparisonResponse> {
+        const { propertyId, from, to } = parseOrThrow(compareAclToAcrQuerySchema, query)
+
+        const property = await this.propertyRepository.findById(propertyId)
+        if (!property) {
+            throw new NotFoundError("Propriedade não encontrada")
+        }
+        if (property.userId !== userId) {
+            throw new ForbiddenError("Acesso negado")
+        }
+        if (property.contractingEnvironment !== "ACL") {
+            throw new ValidationError(
+                "Comparação ACR × ACL só está disponível para propriedades no ambiente de contratação livre (ACL)",
+            )
+        }
+
+        const meter = await this.meterRepository.findByTarget("PROPERTY", propertyId)
+        if (!meter) {
+            throw new NotFoundError("Esta propriedade não possui medidor vinculado")
+        }
+
+        const distributor = await this.distributorRepository.findById(property.distributorId)
+        if (!distributor) {
+            throw new NotFoundError("Distribuidora vinculada não encontrada")
+        }
+
+        const tariffFlagConfig = await this.tariffFlagRepository.get()
+        if (!tariffFlagConfig) {
+            throw new NotFoundError("Configuração de bandeira tarifária não encontrada")
+        }
+        const flagPer100Kwh = resolveFlagPer100Kwh(tariffFlagConfig)
+
+        const monthStarts = this.monthStartsInRange(from, to)
+        const lastMonthStart = monthStarts[monthStarts.length - 1]!
+        const minMonthStart = monthStarts[0]!
+        const maxMonthEnd = new Date(
+            Date.UTC(lastMonthStart.getUTCFullYear(), lastMonthStart.getUTCMonth() + 1, 1),
+        )
+
+        const { comparableMonthStarts, contractsInRange } = await this.resolveComparableMonths(
+            property.id,
+            monthStarts,
+            minMonthStart,
+            maxMonthEnd,
+        )
+
+        const [acrByMonth, aclByMonth] = await Promise.all([
+            this.calculateGroupAMonthlyCosts(
+                meter.id,
+                comparableMonthStarts,
+                property,
+                distributor,
+                flagPer100Kwh,
+                "ACR",
+            ),
+            this.calculateGroupAMonthlyCosts(
+                meter.id,
+                comparableMonthStarts,
+                property,
+                distributor,
+                flagPer100Kwh,
+                "ACL",
+            ),
+        ])
+
+        const months: AclComparisonMonthResult[] = comparableMonthStarts.map((monthStart) => {
+            const acrBrl = acrByMonth.get(monthStart.getTime())!.totalBrl
+            const aclBrl = aclByMonth.get(monthStart.getTime())!.totalBrl
+            return { monthStart, acrBrl, aclBrl, diffBrl: acrBrl - aclBrl }
+        })
+
+        const totalAcrBrl = months.reduce((sum, m) => sum + m.acrBrl, 0)
+        const totalAclBrl = months.reduce((sum, m) => sum + m.aclBrl, 0)
+        const totalDiffBrl = totalAcrBrl - totalAclBrl
+        const diffPercent = totalAcrBrl === 0 ? 0 : (totalDiffBrl / totalAcrBrl) * 100
+
+        const submarkets = [...new Set<AclSubmarket>(contractsInRange.map((c) => c.submarket))]
+        const pldContext = await this.pldQuoteRepository.findBySubmarketsInRange(
+            submarkets,
+            minMonthStart,
+            maxMonthEnd,
+        )
+
+        return {
+            propertyId,
+            from,
+            to,
+            months,
+            totalAcrBrl,
+            totalAclBrl,
+            totalDiffBrl,
+            diffPercent,
+            verdict: this.resolveAclComparisonVerdict(totalDiffBrl),
+            pldContext,
+        }
     }
 }

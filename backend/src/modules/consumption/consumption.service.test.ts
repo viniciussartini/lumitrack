@@ -18,6 +18,8 @@ import { DistributorRepository } from "@/modules/distributor/distributor.reposit
 import { TariffCatalogRepository } from "@/modules/distributor/tariff-catalog.repository.js"
 import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
 import { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
+import { AclContractRepository } from "@/modules/acl-contract/acl-contract.repository.js"
+import { PldQuoteRepository } from "@/modules/pld-quote/pld-quote.repository.js"
 import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { fromSaoPauloLocal } from "@/shared/time/localTime.js"
@@ -27,7 +29,7 @@ import {
     createTestDistributor,
     createTestTariffFlagConfig,
 } from "@/shared/test/distributorFixture.js"
-import { ForbiddenError, NotFoundError } from "@/shared/errors/AppError.js"
+import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 
 const meterRepository = new MeterRepository(prismaTest)
 const propertyRepository = new PropertyRepository(prismaTest)
@@ -40,6 +42,8 @@ const tariffFlagRepository = new TariffFlagRepository(prismaTest)
 const tariffCatalogRepository = new TariffCatalogRepository(prismaTest)
 const consumptionRepository = new ConsumptionRepository(prismaTest)
 const meterDemandRollupRepository = new MeterDemandRollupRepository(prismaTest)
+const aclContractRepository = new AclContractRepository(prismaTest)
+const pldQuoteRepository = new PldQuoteRepository(prismaTest)
 
 const userRepository = new UserRepository(prismaTest)
 const userService = new UserService(userRepository)
@@ -54,6 +58,8 @@ const consumptionService = new ConsumptionService(
     tariffFlagRepository,
     tariffCatalogRepository,
     meterDemandRollupRepository,
+    aclContractRepository,
+    pldQuoteRepository,
 )
 
 // tusdPerKwh=0.3 + tePerKwh=0.3 = 0.6 R$/kWh; tributos 27,25%; bandeira
@@ -1298,6 +1304,596 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
         })
 
         expect(result.items).toEqual([])
+    })
+})
+
+describe("ConsumptionService.list — Grupo A ACL (Mercado Livre)", () => {
+    // Mesmo catálogo/distribuidora do Exemplo 6 (metalúrgica A4 Verde), mas
+    // `contractingEnvironment: ACL` com a TE vinda de um `AclContract`, não
+    // do catálogo. Sem oráculo externo (o documento de referência não
+    // resolve um exemplo de ACL ponta-a-ponta) — os testes constroem o
+    // total esperado a partir da fórmula, não conferem contra um valor de
+    // terceiros.
+    async function setupAclPropertyMeter(
+        overrides: { validFrom?: Date; validTo?: Date | null } = {},
+    ) {
+        const user = await userService.createUser({
+            email: "aclempresa@example.com",
+            password: "Senha@123",
+            userType: "COMPANY",
+            acceptedTerms: true,
+            companyName: "Indústria Livre Ltda",
+            cnpj: "33.444.555/0001-81",
+        })
+        const distributor = await createTestDistributor(prismaTest, {
+            icmsRate: 0.17,
+            pisRate: 0.0165,
+            cofinsRate: 0.076,
+        })
+        await prismaTest.energyDistributor.update({
+            where: { id: distributor.id },
+            data: { peakWindowStartHour: 18, peakWindowEndHour: 21 },
+        })
+        // Bandeira vermelha proposital — os testes confirmam que o ACL não
+        // paga nada dela (ADR-0021), ao contrário do cativo (Exemplo 6).
+        await prismaTest.tariffFlagConfig.upsert({
+            where: { id: 1 },
+            update: { currentFlag: "RED_P2" },
+            create: {
+                id: 1,
+                currentFlag: "RED_P2",
+                greenPer100Kwh: 0,
+                yellowPer100Kwh: 1.885,
+                redP1Per100Kwh: 4.463,
+                redP2Per100Kwh: 7.877,
+            },
+        })
+        await prismaTest.tariffEnergyRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "GREEN",
+                post: "PEAK",
+                tusdPerKwh: 0.75,
+                tePerKwh: 0.55, // catálogo — não deve ser usado no ACL
+            },
+        })
+        await prismaTest.tariffEnergyRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "GREEN",
+                post: "OFF_PEAK",
+                tusdPerKwh: 0.12,
+                tePerKwh: 0.28, // catálogo — não deve ser usado no ACL
+            },
+        })
+        await prismaTest.tariffDemandRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "GREEN",
+                post: null,
+                tusdPerKw: 18.0,
+            },
+        })
+
+        const property = await propertyService.create(user.id, {
+            name: "Indústria",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC",
+            tariffGroup: "GROUP_A",
+            tariffSubgroup: "A4",
+            tariffModality: "GREEN",
+            contractedDemandKw: 200,
+            publicLightingFeeBrl: 250,
+            contractingEnvironment: "ACL",
+        })
+        const meter = await prismaTest.meter.create({
+            data: {
+                name: "Medidor",
+                targetType: "PROPERTY",
+                propertyId: property.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "industria/medidor",
+            },
+        })
+        await prismaTest.aclContract.create({
+            data: {
+                userId: user.id,
+                propertyId: property.id,
+                retailerName: "Comerc Energia",
+                submarket: "SOUTHEAST_CENTER_WEST",
+                energySource: "CONVENTIONAL",
+                energyPricePerMwh: 300, // R$ 0,30/kWh
+                contractedVolumeMwh: 30,
+                validFrom: overrides.validFrom ?? new Date("2026-01-01"),
+                validTo: overrides.validTo ?? null,
+            },
+        })
+
+        return { user, property, meter }
+    }
+
+    it("substitui a TE do catálogo pela TE do contrato e não cobra bandeira", async () => {
+        const { user, meter, property } = await setupAclPropertyMeter()
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 800, 100_000) // 19h SP — ponta
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 28_000, 100_000) // 10h SP — fora de ponta
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        const groupA = result.items[0]!.groupA
+        expect(groupA).toBeDefined()
+        // TUSD do catálogo (0,75/0,12) + TE do contrato (0,30) — nunca a TE
+        // do catálogo (0,55/0,28).
+        expect(groupA!.energyByPost.find((p) => p.post === "PEAK")).toEqual({
+            post: "PEAK",
+            kwhConsumed: 800,
+            brl: 800 * (0.75 + 0.3),
+        })
+        expect(groupA!.energyByPost.find((p) => p.post === "OFF_PEAK")).toEqual({
+            post: "OFF_PEAK",
+            kwhConsumed: 28_000,
+            brl: 28_000 * (0.12 + 0.3),
+        })
+        // Bandeira RED_P2 vigente, mas o ACL não paga (ADR-0021).
+        expect(groupA!.flagBrl).toBe(0)
+
+        const energyBrl = 800 * (0.75 + 0.3) + 28_000 * (0.12 + 0.3)
+        const demandBrl = 200 * 18
+        const expectedTotal = (demandBrl + energyBrl) / (1 - (0.17 + 0.0165 + 0.076)) + 250
+        expect(result.items[0]!.costBrl).toBeCloseTo(expectedTotal, 2)
+    })
+
+    it("degrada para o catálogo regulado (TE + bandeira) quando o contrato ainda não começou no mês calculado", async () => {
+        const { user, meter, property } = await setupAclPropertyMeter({
+            validFrom: new Date("2026-09-01"), // começa depois do mês calculado
+        })
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 800, 100_000) // ponta
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 28_000, 100_000) // fora de ponta
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        // Sem contrato vigente em agosto, o mês usa a TE do catálogo (0,55/0,28)
+        // — nunca a TE do contrato (0,30) — e paga bandeira normalmente, como
+        // se a propriedade ainda estivesse no cativo naquele mês específico.
+        // A propriedade continua consultável: marcar ACL não derruba o
+        // histórico anterior ao contrato com 404.
+        const groupA = result.items[0]!.groupA!
+        expect(groupA.energyByPost.find((p) => p.post === "PEAK")).toEqual({
+            post: "PEAK",
+            kwhConsumed: 800,
+            brl: 800 * (0.75 + 0.55),
+        })
+        expect(groupA.flagBrl).toBeGreaterThan(0)
+    })
+
+    it("degrada para o catálogo regulado quando o contrato já encerrou antes do período calculado", async () => {
+        const { user, meter, property } = await setupAclPropertyMeter({
+            validFrom: new Date("2026-01-01"),
+            validTo: new Date("2026-07-31"), // encerra antes de agosto
+        })
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 800, 100_000)
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        const groupA = result.items[0]!.groupA!
+        expect(groupA.energyByPost.find((p) => p.post === "PEAK")!.brl).toBeCloseTo(
+            800 * (0.75 + 0.55),
+            2,
+        )
+        expect(groupA.flagBrl).toBeGreaterThan(0)
+    })
+
+    it("usa o contrato mais recente quando há vigências sobrepostas", async () => {
+        const { user, meter, property } = await setupAclPropertyMeter({
+            validFrom: new Date("2026-01-01"),
+        })
+        // Segundo contrato, mais recente, sobrepõe o primeiro — deve
+        // prevalecer (renovação/troca de comercializadora).
+        await prismaTest.aclContract.create({
+            data: {
+                userId: user.id,
+                propertyId: property.id,
+                retailerName: "Nova Comercializadora",
+                submarket: "SOUTHEAST_CENTER_WEST",
+                energySource: "INCENTIVIZED_50",
+                energyPricePerMwh: 250, // R$ 0,25/kWh
+                contractedVolumeMwh: 30,
+                validFrom: new Date("2026-07-01"),
+                validTo: null,
+            },
+        })
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 800, 100_000)
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 28_000, 100_000)
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        const groupA = result.items[0]!.groupA!
+        expect(groupA.energyByPost.find((p) => p.post === "PEAK")!.brl).toBeCloseTo(
+            800 * (0.75 + 0.25),
+            2,
+        )
+    })
+
+    it("cobra ultrapassagem de demanda normalmente no ACL, reaproveitando o mesmo cálculo do cativo", async () => {
+        const { user, meter, property } = await setupAclPropertyMeter()
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 800, 100_000)
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 28_000, 100_000)
+        await prismaTest.meterDemandRollup.create({
+            data: {
+                meterId: meter.id,
+                periodStart: fromSaoPauloLocal(new Date(Date.UTC(2026, 7, 1))),
+                post: "OFF_PEAK",
+                maxAvgPowerW: 230_000,
+                windowEndAt: new Date("2026-08-04T13:15:00Z"),
+            },
+        })
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        // (230 − 200) × 3 × 18 = 1.620 — mesma fórmula do cativo, sem
+        // duplicar `applyTaxesByDentro`.
+        expect(result.items[0]!.groupA!.ultrapassagemBrl).toBeCloseTo(1620, 2)
+    })
+})
+
+describe("ConsumptionService.compareAclToAcr — comparação ACR × ACL", () => {
+    // Duas propriedades do mesmo usuário/distribuidora/catálogo — uma ACR
+    // (sem contrato) e uma ACL (com contrato) — recebendo o MESMO consumo
+    // real. `list()` de cada uma é o caminho já coberto acima; comparar o
+    // resultado de `compareAclToAcr` contra os dois `list()` prova que
+    // forçar o ambiente (parâmetro `environment`, em vez de ler
+    // `property.contractingEnvironment` direto) reproduz o mesmo cálculo
+    // que a propriedade real faria naquele ambiente — o único risco real
+    // introduzido por este método.
+    async function setupComparisonFixture(
+        overrides: { contractPricePerMwh?: number; contractValidFrom?: Date } = {},
+    ) {
+        const user = await userService.createUser({
+            email: "comparacao@example.com",
+            password: "Senha@123",
+            userType: "COMPANY",
+            acceptedTerms: true,
+            companyName: "Comparação Livre Ltda",
+            cnpj: "33.444.555/0001-81",
+        })
+        const distributor = await createTestDistributor(prismaTest, {
+            icmsRate: 0.17,
+            pisRate: 0.0165,
+            cofinsRate: 0.076,
+        })
+        await prismaTest.energyDistributor.update({
+            where: { id: distributor.id },
+            data: { peakWindowStartHour: 18, peakWindowEndHour: 21 },
+        })
+        // Bandeira vermelha proposital — só o cenário ACR paga (ADR-0021).
+        await prismaTest.tariffFlagConfig.upsert({
+            where: { id: 1 },
+            update: { currentFlag: "RED_P2" },
+            create: {
+                id: 1,
+                currentFlag: "RED_P2",
+                greenPer100Kwh: 0,
+                yellowPer100Kwh: 1.885,
+                redP1Per100Kwh: 4.463,
+                redP2Per100Kwh: 7.877,
+            },
+        })
+        await prismaTest.tariffEnergyRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "GREEN",
+                post: "PEAK",
+                tusdPerKwh: 0.75,
+                tePerKwh: 0.55,
+            },
+        })
+        await prismaTest.tariffEnergyRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "GREEN",
+                post: "OFF_PEAK",
+                tusdPerKwh: 0.12,
+                tePerKwh: 0.28,
+            },
+        })
+        await prismaTest.tariffDemandRate.create({
+            data: {
+                distributorId: distributor.id,
+                subgroup: "A4",
+                modality: "GREEN",
+                post: null,
+                tusdPerKw: 18.0,
+            },
+        })
+
+        const propertyAcr = await propertyService.create(user.id, {
+            name: "Indústria ACR",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC",
+            tariffGroup: "GROUP_A",
+            tariffSubgroup: "A4",
+            tariffModality: "GREEN",
+            contractedDemandKw: 200,
+            publicLightingFeeBrl: 250,
+        })
+        const meterAcr = await prismaTest.meter.create({
+            data: {
+                name: "Medidor ACR",
+                targetType: "PROPERTY",
+                propertyId: propertyAcr.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "industria/comparacao-acr",
+            },
+        })
+
+        const propertyAcl = await propertyService.create(user.id, {
+            name: "Indústria ACL",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC",
+            tariffGroup: "GROUP_A",
+            tariffSubgroup: "A4",
+            tariffModality: "GREEN",
+            contractedDemandKw: 200,
+            publicLightingFeeBrl: 250,
+            contractingEnvironment: "ACL",
+        })
+        const meterAcl = await prismaTest.meter.create({
+            data: {
+                name: "Medidor ACL",
+                targetType: "PROPERTY",
+                propertyId: propertyAcl.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "industria/comparacao-acl",
+            },
+        })
+        await prismaTest.aclContract.create({
+            data: {
+                userId: user.id,
+                propertyId: propertyAcl.id,
+                retailerName: "Comerc Energia",
+                submarket: "SOUTHEAST_CENTER_WEST",
+                energySource: "CONVENTIONAL",
+                energyPricePerMwh: overrides.contractPricePerMwh ?? 300,
+                contractedVolumeMwh: 30,
+                validFrom: overrides.contractValidFrom ?? new Date("2026-01-01"),
+                validTo: null,
+            },
+        })
+
+        return { user, propertyAcr, meterAcr, propertyAcl, meterAcl }
+    }
+
+    async function insertComparisonReadings(meterId: string) {
+        await insertReading(meterId, "2026-08-04T22:00:00Z", 800, 100_000) // ponta
+        await insertReading(meterId, "2026-08-04T13:00:00Z", 28_000, 100_000) // fora de ponta
+    }
+
+    it("reproduz o total que list() calcularia para cada propriedade no seu próprio ambiente, com o veredito coerente com a diferença real", async () => {
+        const { user, propertyAcr, meterAcr, propertyAcl, meterAcl } =
+            await setupComparisonFixture()
+        await insertComparisonReadings(meterAcr.id)
+        await insertComparisonReadings(meterAcl.id)
+
+        const [realAcr, realAcl] = await Promise.all([
+            consumptionService.list(user.id, {
+                targetType: "PROPERTY",
+                targetId: propertyAcr.id,
+                granularity: "month",
+            }),
+            consumptionService.list(user.id, {
+                targetType: "PROPERTY",
+                targetId: propertyAcl.id,
+                granularity: "month",
+            }),
+        ])
+
+        const comparison = await consumptionService.compareAclToAcr(user.id, {
+            propertyId: propertyAcl.id,
+            from: new Date("2026-08-01"),
+            to: new Date("2026-08-01"),
+        })
+
+        expect(comparison.months).toHaveLength(1)
+        expect(comparison.months[0]!.acrBrl).toBeCloseTo(realAcr.items[0]!.costBrl, 2)
+        expect(comparison.months[0]!.aclBrl).toBeCloseTo(realAcl.items[0]!.costBrl, 2)
+        expect(comparison.totalAcrBrl).toBeCloseTo(realAcr.items[0]!.costBrl, 2)
+        expect(comparison.totalAclBrl).toBeCloseTo(realAcl.items[0]!.costBrl, 2)
+
+        const expectedDiff = realAcr.items[0]!.costBrl - realAcl.items[0]!.costBrl
+        expect(comparison.totalDiffBrl).toBeCloseTo(expectedDiff, 2)
+        expect(comparison.diffPercent).toBeCloseTo(
+            (expectedDiff / realAcr.items[0]!.costBrl) * 100,
+            2,
+        )
+        expect(comparison.verdict).toBe(
+            expectedDiff > 0 ? "ACL_CHEAPER" : expectedDiff < 0 ? "ACR_CHEAPER" : "EQUIVALENT",
+        )
+    })
+
+    it("aponta ACR_CHEAPER quando o preço negociado no contrato é bem mais caro que o catálogo", async () => {
+        const { user, propertyAcr, meterAcr, propertyAcl, meterAcl } = await setupComparisonFixture(
+            { contractPricePerMwh: 1500 }, // R$ 1,50/kWh — bem acima do catálogo (0,55/0,28)
+        )
+        await insertComparisonReadings(meterAcr.id)
+        await insertComparisonReadings(meterAcl.id)
+
+        const [realAcr, realAcl] = await Promise.all([
+            consumptionService.list(user.id, {
+                targetType: "PROPERTY",
+                targetId: propertyAcr.id,
+                granularity: "month",
+            }),
+            consumptionService.list(user.id, {
+                targetType: "PROPERTY",
+                targetId: propertyAcl.id,
+                granularity: "month",
+            }),
+        ])
+
+        const comparison = await consumptionService.compareAclToAcr(user.id, {
+            propertyId: propertyAcl.id,
+            from: new Date("2026-08-01"),
+            to: new Date("2026-08-01"),
+        })
+
+        expect(realAcl.items[0]!.costBrl).toBeGreaterThan(realAcr.items[0]!.costBrl)
+        expect(comparison.verdict).toBe("ACR_CHEAPER")
+        expect(comparison.totalDiffBrl).toBeLessThan(0)
+    })
+
+    it("soma corretamente vários meses na mesma janela", async () => {
+        const { user, propertyAcl, meterAcl } = await setupComparisonFixture()
+        await insertReading(meterAcl.id, "2026-07-04T13:00:00Z", 10_000, 100_000)
+        await insertComparisonReadings(meterAcl.id)
+
+        const comparison = await consumptionService.compareAclToAcr(user.id, {
+            propertyId: propertyAcl.id,
+            from: new Date("2026-07-01"),
+            to: new Date("2026-08-01"),
+        })
+
+        expect(comparison.months).toHaveLength(2)
+        const sumAcl = comparison.months.reduce((sum, m) => sum + m.aclBrl, 0)
+        const sumAcr = comparison.months.reduce((sum, m) => sum + m.acrBrl, 0)
+        expect(comparison.totalAclBrl).toBeCloseTo(sumAcl, 6)
+        expect(comparison.totalAcrBrl).toBeCloseTo(sumAcr, 6)
+        expect(comparison.totalDiffBrl).toBeCloseTo(sumAcr - sumAcl, 6)
+    })
+
+    it("exclui da comparação os meses sem contrato vigente, sem derrubar os meses que têm", async () => {
+        const { user, propertyAcl, meterAcl } = await setupComparisonFixture({
+            contractValidFrom: new Date("2026-08-01"), // só cobre agosto
+        })
+        await insertReading(meterAcl.id, "2026-07-04T13:00:00Z", 10_000, 100_000)
+        await insertComparisonReadings(meterAcl.id)
+
+        // Julho não tem contrato vigente — não pode aparecer como se fosse
+        // um mês "ACL" fictício (mentiria a diferença como zero); só agosto
+        // entra na comparação, sem lançar erro pela janela inteira.
+        const comparison = await consumptionService.compareAclToAcr(user.id, {
+            propertyId: propertyAcl.id,
+            from: new Date("2026-07-01"),
+            to: new Date("2026-08-01"),
+        })
+
+        expect(comparison.months).toHaveLength(1)
+        expect(comparison.months[0]!.monthStart).toEqual(new Date("2026-08-01"))
+    })
+
+    it("lança ForbiddenError para propriedade de outro usuário", async () => {
+        const { propertyAcl } = await setupComparisonFixture()
+        const otherUser = await userService.createUser({
+            email: "outra@example.com",
+            password: "Senha@123",
+            userType: "INDIVIDUAL",
+            acceptedTerms: true,
+            firstName: "Outra",
+            lastName: "Pessoa",
+            cpf: "529.982.247-25",
+        })
+
+        await expect(
+            consumptionService.compareAclToAcr(otherUser.id, {
+                propertyId: propertyAcl.id,
+                from: new Date("2026-08-01"),
+                to: new Date("2026-08-01"),
+            }),
+        ).rejects.toThrow(ForbiddenError)
+    })
+
+    it("lança ValidationError para propriedade que não está em ACL", async () => {
+        const { user, propertyAcr } = await setupComparisonFixture()
+
+        await expect(
+            consumptionService.compareAclToAcr(user.id, {
+                propertyId: propertyAcr.id,
+                from: new Date("2026-08-01"),
+                to: new Date("2026-08-01"),
+            }),
+        ).rejects.toThrow(ValidationError)
+    })
+
+    it("lança NotFoundError quando não há contrato ACL vigente cobrindo o período pedido", async () => {
+        const { user, propertyAcl, meterAcl } = await setupComparisonFixture({
+            contractValidFrom: new Date("2026-09-01"), // começa depois do mês comparado
+        })
+        await insertComparisonReadings(meterAcl.id)
+
+        await expect(
+            consumptionService.compareAclToAcr(user.id, {
+                propertyId: propertyAcl.id,
+                from: new Date("2026-08-01"),
+                to: new Date("2026-08-01"),
+            }),
+        ).rejects.toThrow(NotFoundError)
+    })
+
+    it("retorna o PLD do submercado do contrato como contexto informativo, sem misturar outro submercado ou período fora da janela", async () => {
+        const { user, propertyAcl, meterAcl } = await setupComparisonFixture()
+        await insertComparisonReadings(meterAcl.id)
+        await prismaTest.pldQuote.create({
+            data: {
+                submarket: "SOUTHEAST_CENTER_WEST",
+                referencePeriod: new Date("2026-08-01"),
+                valuePerMwh: 186.4,
+            },
+        })
+        await prismaTest.pldQuote.create({
+            data: {
+                submarket: "SOUTH", // submercado diferente do contrato — não deve aparecer
+                referencePeriod: new Date("2026-08-01"),
+                valuePerMwh: 99.9,
+            },
+        })
+        await prismaTest.pldQuote.create({
+            data: {
+                submarket: "SOUTHEAST_CENTER_WEST",
+                referencePeriod: new Date("2025-01-01"), // fora da janela — não deve aparecer
+                valuePerMwh: 50,
+            },
+        })
+
+        const comparison = await consumptionService.compareAclToAcr(user.id, {
+            propertyId: propertyAcl.id,
+            from: new Date("2026-08-01"),
+            to: new Date("2026-08-01"),
+        })
+
+        expect(comparison.pldContext).toHaveLength(1)
+        expect(comparison.pldContext[0]).toMatchObject({
+            submarket: "SOUTHEAST_CENTER_WEST",
+            valuePerMwh: 186.4,
+        })
     })
 })
 
