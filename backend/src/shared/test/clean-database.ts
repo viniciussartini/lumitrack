@@ -51,6 +51,11 @@ export async function cleanDatabase(): Promise<void> {
         // (@unique).
         prismaTest.energyDistributor.deleteMany(),
         prismaTest.tariffFlagConfig.deleteMany(),
+        // Catálogo global de PLD (Fase 21) — sem dono e sem FK para nenhum
+        // dos modelos acima, mas precisa ser limpo entre testes pelo mesmo
+        // motivo do catálogo tarifário: os testes recriam cotações com a
+        // mesma chave única (submarket, referencePeriod).
+        prismaTest.pldQuote.deleteMany(),
         prismaTest.authToken.deleteMany(),
         prismaTest.passwordReset.deleteMany(),
         prismaTest.mfaBackupCode.deleteMany(),

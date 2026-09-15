@@ -428,6 +428,47 @@ describe("PropertyService", () => {
                 }),
             ).rejects.toThrow(ValidationError)
         })
+
+        // ─ Ambiente de contratação — ACR × ACL (Fase 21) ───────────────
+
+        it("deve criar uma propriedade Grupo B com o ambiente de contratação padrão (ACR)", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+            })
+
+            expect(property.contractingEnvironment).toBe("ACR")
+        })
+
+        it("deve criar uma propriedade Grupo A no ambiente de contratação livre (ACL)", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+                tariffGroup: "GROUP_A",
+                tariffSubgroup: "A4",
+                tariffModality: "GREEN",
+                contractedDemandKw: 200,
+                contractingEnvironment: "ACL",
+            })
+
+            expect(property.contractingEnvironment).toBe("ACL")
+        })
+
+        it("deve lançar ValidationError ao marcar uma propriedade Grupo B como ACL", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await expect(
+                propertyService.create(user.id, {
+                    ...validPropertyInput,
+                    distributorId: distributor.id,
+                    contractingEnvironment: "ACL",
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
     })
 
     // ─── findById ─────────────────────────────────────────────────────────────
@@ -789,6 +830,59 @@ describe("PropertyService", () => {
             expect(updated.name).toBe("Frigorífico Renovado")
             expect(updated.contractedDemandPeakKw).toBe(150) // preservado
             expect(updated.contractedDemandOffPeakKw).toBe(400) // preservado
+        })
+
+        // ─ Ambiente de contratação — ACR × ACL (Fase 21) ───────────────
+
+        it("deve migrar uma propriedade Grupo A existente para o ambiente de contratação livre (ACL)", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+                tariffGroup: "GROUP_A",
+                tariffSubgroup: "A4",
+                tariffModality: "GREEN",
+                contractedDemandKw: 200,
+            })
+
+            const updated = await propertyService.update(property.id, user.id, {
+                contractingEnvironment: "ACL",
+            })
+
+            expect(updated.contractingEnvironment).toBe("ACL")
+        })
+
+        it("deve lançar ValidationError ao marcar uma propriedade Grupo B existente como ACL", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+            })
+
+            await expect(
+                propertyService.update(property.id, user.id, {
+                    contractingEnvironment: "ACL",
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("deve lançar ValidationError ao migrar simultaneamente uma propriedade ACL de Grupo A para Grupo B", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+                tariffGroup: "GROUP_A",
+                tariffSubgroup: "A4",
+                tariffModality: "GREEN",
+                contractedDemandKw: 200,
+                contractingEnvironment: "ACL",
+            })
+
+            await expect(
+                propertyService.update(property.id, user.id, {
+                    tariffGroup: "GROUP_B",
+                }),
+            ).rejects.toThrow(ValidationError)
         })
     })
 

@@ -77,6 +77,14 @@ const tariffModalitySchema = z.enum(["CONVENTIONAL_BINOMIAL", "GREEN", "BLUE"], 
     error: "Modalidade deve ser CONVENTIONAL_BINOMIAL, GREEN ou BLUE",
 })
 
+// Ambiente de contratação — cativo (regulado pela distribuidora) ou livre
+// (contrato bilateral com uma comercializadora). Só ACL exige subgrupo do
+// Grupo A; a regra cruzada (ACL só se aplica ao Grupo A) é validada em
+// property.service.ts, mesmo padrão das demais regras cruzadas desta entidade.
+const contractingEnvironmentSchema = z.enum(["ACR", "ACL"], {
+    error: "Ambiente de contratação deve ser ACR ou ACL",
+})
+
 // CIP/COSIP municipal — valor fixo em BRL, opcional (nem todo município cobra).
 const publicLightingFeeBrlSchema = z
     .number()
@@ -140,6 +148,9 @@ export const createPropertySchema = z.object({
     contractedDemandOffPeakKw: contractedDemandOffPeakKwSchema.optional(),
 
     publicLightingFeeBrl: publicLightingFeeBrlSchema.optional(),
+
+    // default ACR preserva o comportamento anterior à Fase 21.
+    contractingEnvironment: contractingEnvironmentSchema.default("ACR"),
 })
 
 // Schema de atualização
@@ -179,6 +190,8 @@ export const updatePropertySchema = z.object({
     contractedDemandOffPeakKw: contractedDemandOffPeakKwSchema.optional(),
 
     publicLightingFeeBrl: publicLightingFeeBrlSchema.optional(),
+
+    contractingEnvironment: contractingEnvironmentSchema.optional(),
 })
 
 // Tipos inferidos

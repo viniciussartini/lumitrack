@@ -44,6 +44,7 @@ const baseProperty: Property = {
     electricalSystem: "MONOPHASIC",
     billingClass: "B1",
     tariffGroup: "GROUP_B",
+    contractingEnvironment: "ACR",
     tariffSubgroup: null,
     tariffModality: null,
     contractedDemandKw: null,

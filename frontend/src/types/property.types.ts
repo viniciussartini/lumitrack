@@ -98,6 +98,19 @@ export const TARIFF_MODALITY_LABELS: Record<TariffModality, string> = {
     BLUE: "Horária Azul",
 }
 
+/**
+ * Ambiente de contratação — cativo (distribuidora, tarifa do catálogo
+ * regulado) ou livre (comercializadora, tarifa negociada em `AclContract`).
+ * Só ACR está disponível fora do Grupo A (o backend rejeita ACL para
+ * Grupo B — `PropertyService.assertContractingEnvironmentEligible`).
+ */
+export type ContractingEnvironment = "ACR" | "ACL"
+
+export const CONTRACTING_ENVIRONMENT_LABELS: Record<ContractingEnvironment, string> = {
+    ACR: "Cativo — distribuidora",
+    ACL: "Livre — mercado livre (ACL)",
+}
+
 /** Property retornada pela API */
 export interface Property {
     id: string
@@ -128,6 +141,8 @@ export interface Property {
     contractedDemandOffPeakKw: number | null
     /** CIP/COSIP municipal (R$) — opcional, nem todo município cobra. */
     publicLightingFeeBrl: number | null
+    /** Cativo (ACR, default) ou Mercado Livre (ACL) — ver `ContractingEnvironment`. */
+    contractingEnvironment: ContractingEnvironment
     createdAt: string
     updatedAt: string
 }
@@ -153,6 +168,7 @@ export interface CreatePropertyInput {
     contractedDemandPeakKw?: number
     contractedDemandOffPeakKw?: number
     publicLightingFeeBrl?: number
+    contractingEnvironment?: ContractingEnvironment
 }
 
 /**

@@ -16,21 +16,37 @@ import {
 } from "@/schemas/property.schema"
 import {
     BILLING_CLASS_LABELS,
+    CONTRACTING_ENVIRONMENT_LABELS,
     ELECTRICAL_SYSTEM_LABELS,
     TARIFF_SUBGROUP_LABELS,
     VALID_UFS,
     type BillingClass,
+    type ContractingEnvironment,
     type ElectricalSystem,
     type Property,
     type TariffGroup,
     type TariffModality,
     type TariffSubgroup,
 } from "@/types/property.types"
+import {
+    ACL_ENERGY_SOURCE_LABELS,
+    ACL_SUBMARKET_LABELS,
+    type AclContract,
+    type AclEnergySource,
+    type AclSubmarket,
+} from "@/types/acl-contract.types"
 import type { Distributor } from "@/types/distributor.types"
 
 interface PropertyFormProps {
     /** Dados iniciais — quando presente, o form opera em modo edição */
     initialData?: Property
+    /**
+     * Contrato ACL corrente da propriedade, se houver — só relevante em
+     * edição de uma propriedade já em ACL. `undefined` em criação (nunca
+     * existe contrato ainda) e em edição de propriedade sem contrato
+     * cadastrado (o form cria um novo ao salvar).
+     */
+    initialAclContract?: AclContract
     /** Lista de distribuidoras para popular o select. Sempre obrigatória. */
     distributors: Distributor[]
     /** Callback de submit. Recebe os dados validados e transformados. */
@@ -58,7 +74,10 @@ interface PropertyFormProps {
  *   distribuidoras pra decidir se mostra o form ou o empty state.
  */
 /** Extraído por caber no teto de linhas/complexidade do componente. */
-const buildDefaultValues = (initialData: Property | undefined): Partial<PropertyFormInput> =>
+const buildDefaultValues = (
+    initialData: Property | undefined,
+    initialAclContract: AclContract | undefined,
+): Partial<PropertyFormInput> =>
     initialData
         ? {
               distributorId: initialData.distributorId,
@@ -78,6 +97,12 @@ const buildDefaultValues = (initialData: Property | undefined): Partial<Property
               contractedDemandPeakKw: initialData.contractedDemandPeakKw ?? undefined,
               contractedDemandOffPeakKw: initialData.contractedDemandOffPeakKw ?? undefined,
               publicLightingFeeBrl: initialData.publicLightingFeeBrl ?? undefined,
+              contractingEnvironment: initialData.contractingEnvironment,
+              aclRetailerName: initialAclContract?.retailerName ?? "",
+              aclSubmarket: initialAclContract?.submarket,
+              aclEnergySource: initialAclContract?.energySource,
+              aclEnergyPricePerMwh: initialAclContract?.energyPricePerMwh,
+              aclContractedVolumeMwh: initialAclContract?.contractedVolumeMwh,
           }
         : {
               distributorId: "",
@@ -90,10 +115,12 @@ const buildDefaultValues = (initialData: Property | undefined): Partial<Property
               tariffGroup: "GROUP_B",
               billingClass: "B1",
               publicLightingFeeBrl: undefined,
+              contractingEnvironment: "ACR",
           }
 
 export const PropertyForm = ({
     initialData,
+    initialAclContract,
     distributors,
     onSubmit,
     onCancel,
@@ -108,12 +135,13 @@ export const PropertyForm = ({
     } = useForm<PropertyFormInput, unknown, PropertyFormData>({
         resolver: zodResolver(propertyFormSchema),
         mode: "onBlur",
-        defaultValues: buildDefaultValues(initialData),
+        defaultValues: buildDefaultValues(initialData, initialAclContract),
     })
 
     const tariffGroup = watch("tariffGroup") as TariffGroup
     const isGroupA = tariffGroup === "GROUP_A"
     const isBlue = (watch("tariffModality") as TariffModality | undefined) === "BLUE"
+    const isAcl = (watch("contractingEnvironment") as ContractingEnvironment | undefined) === "ACL"
 
     return (
         <form
@@ -157,6 +185,7 @@ export const PropertyForm = ({
                     initialData={initialData}
                     isGroupA={isGroupA}
                     isBlue={isBlue}
+                    isAcl={isAcl}
                 />
             </Section>
 
@@ -195,6 +224,7 @@ interface BillingFieldsProps {
     initialData: Property | undefined
     isGroupA: boolean
     isBlue: boolean
+    isAcl: boolean
 }
 
 /**
@@ -216,6 +246,7 @@ const BillingFields = ({
     initialData,
     isGroupA,
     isBlue,
+    isAcl,
 }: BillingFieldsProps) => (
     <>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -249,6 +280,16 @@ const BillingFields = ({
                             setValue("contractedDemandKw", undefined)
                             setValue("contractedDemandPeakKw", undefined)
                             setValue("contractedDemandOffPeakKw", undefined)
+                            // ACL só se aplica ao Grupo A (assertContractingEnvironmentEligible,
+                            // no backend) — trocar pro Grupo B teria que voltar pro
+                            // cativo também, mesmo motivo dos outros campos exclusivos
+                            // do Grupo A acima.
+                            setValue("contractingEnvironment", "ACR")
+                            setValue("aclRetailerName", undefined)
+                            setValue("aclSubmarket", undefined)
+                            setValue("aclEnergySource", undefined)
+                            setValue("aclEnergyPricePerMwh", undefined)
+                            setValue("aclContractedVolumeMwh", undefined)
                         }
                     },
                 })}
@@ -277,6 +318,39 @@ const BillingFields = ({
                 )}
             </Select>
         )}
+
+        {isGroupA && (
+            <Select
+                label="Ambiente de contratação"
+                helperText="Livre (ACL) exige o contrato de energia da comercializadora abaixo."
+                error={errors.contractingEnvironment?.message}
+                {...register("contractingEnvironment", {
+                    onChange: (e) => {
+                        if (e.target.value !== "ACL") {
+                            setValue("aclRetailerName", undefined)
+                            setValue("aclSubmarket", undefined)
+                            setValue("aclEnergySource", undefined)
+                            setValue("aclEnergyPricePerMwh", undefined)
+                            setValue("aclContractedVolumeMwh", undefined)
+                        }
+                    },
+                })}
+                defaultValue={initialData?.contractingEnvironment ?? "ACR"}
+            >
+                {(
+                    Object.entries(CONTRACTING_ENVIRONMENT_LABELS) as [
+                        ContractingEnvironment,
+                        string,
+                    ][]
+                ).map(([value, label]) => (
+                    <option key={value} value={value}>
+                        {label}
+                    </option>
+                ))}
+            </Select>
+        )}
+
+        {isAcl && <AclContractFields register={register} errors={errors} />}
 
         <Input
             label="Contribuição de iluminação pública — CIP (R$)"
@@ -444,6 +518,94 @@ const GroupAFields = ({ register, errors, setValue, isBlue }: GroupAFieldsProps)
                 {...register("contractedDemandKw")}
             />
         )}
+    </div>
+)
+
+interface AclContractFieldsProps {
+    register: UseFormRegister<PropertyFormInput>
+    errors: FieldErrors<PropertyFormData>
+}
+
+/**
+ * Contrato de energia do Mercado Livre (ACL) — mostrado quando "Ambiente de
+ * contratação" é Livre (ver `isAcl` em `PropertyForm`), mesmo padrão de
+ * subcomponente condicional de `GroupAFields` acima.
+ *
+ * Sem campo de vigência (`validFrom`): o handoff de design não modela essa
+ * data no form de propriedade — `PropertyFormDialog` preenche com a data
+ * corrente ao criar o contrato, sem pedir isso ao usuário (contrato
+ * cadastrado agora vale a partir de agora); editar um contrato existente
+ * não altera a vigência já registrada.
+ */
+const AclContractFields = ({ register, errors }: AclContractFieldsProps) => (
+    <div className="flex flex-col gap-4">
+        <span className="font-heading text-accent-700 border-divider text-11 border-b pb-1.5 font-semibold tracking-[.07em] uppercase">
+            Contrato de energia — Mercado Livre
+        </span>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Input
+                label="Comercializadora"
+                placeholder="Ex.: Comerc Energia"
+                error={errors.aclRetailerName?.message}
+                {...register("aclRetailerName")}
+            />
+            <Select
+                label="Submercado"
+                error={errors.aclSubmarket?.message}
+                {...register("aclSubmarket")}
+                defaultValue=""
+            >
+                <option value="" disabled>
+                    Selecione
+                </option>
+                {(Object.entries(ACL_SUBMARKET_LABELS) as [AclSubmarket, string][]).map(
+                    ([value, label]) => (
+                        <option key={value} value={value}>
+                            {label}
+                        </option>
+                    ),
+                )}
+            </Select>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Input
+                label="Preço da energia · R$/MWh"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="280,00"
+                error={errors.aclEnergyPricePerMwh?.message}
+                {...register("aclEnergyPricePerMwh")}
+            />
+            <Input
+                label="Volume contratado · MWh/mês"
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder="120"
+                error={errors.aclContractedVolumeMwh?.message}
+                {...register("aclContractedVolumeMwh")}
+            />
+            <Select
+                label="Fonte contratada"
+                error={errors.aclEnergySource?.message}
+                {...register("aclEnergySource")}
+                defaultValue=""
+            >
+                <option value="" disabled>
+                    Selecione
+                </option>
+                {(Object.entries(ACL_ENERGY_SOURCE_LABELS) as [AclEnergySource, string][]).map(
+                    ([value, label]) => (
+                        <option key={value} value={value}>
+                            {label}
+                        </option>
+                    ),
+                )}
+            </Select>
+        </div>
     </div>
 )
 
