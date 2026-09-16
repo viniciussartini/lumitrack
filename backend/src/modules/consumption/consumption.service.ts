@@ -84,20 +84,35 @@ export type GroupABreakdown = {
     publicLightingFeeBrl: number
 }
 
+// Decomposição da conta da Tarifa Branca (Grupo B) — presente só no bucket
+// mensal de uma Propriedade Grupo B com groupBModality WHITE; ausente para
+// Convencional e para qualquer outra combinação de granularidade/alvo.
+export type GroupBWhiteBreakdown = {
+    belowAvailabilityFloor: boolean
+    energyByPost: { post: TariffPost; kwhConsumed: number; brl: number }[]
+    energyBrl: number
+    flagBrl: number
+    taxesBrl: number
+    publicLightingFeeBrl: number
+}
+
 export type ConsumptionBucketResponse = {
     bucketStart: Date
     kwhConsumed: number
     costBrl: number
     avgPowerW: number
     groupA?: GroupABreakdown
+    groupBWhite?: GroupBWhiteBreakdown
 }
 
 // Retorno interno do cálculo de custo de um bucket — carrega a decomposição
-// do Grupo A só quando ela existe (mês + Propriedade); os demais caminhos
-// (Grupo B, ano, Área/Aparelho) só populam `totalBrl`.
+// do Grupo A ou da Tarifa Branca só quando ela existe (mês + Propriedade);
+// os demais caminhos (Grupo B Convencional, ano, Área/Aparelho) só populam
+// `totalBrl`.
 type MonthCostResult = {
     totalBrl: number
     groupA?: GroupABreakdown
+    groupBWhite?: GroupBWhiteBreakdown
 }
 
 export type ConsumptionListResponse = Paginated<ConsumptionBucketResponse> & {
@@ -254,6 +269,7 @@ export class ConsumptionService {
                     costBrl: cost.totalBrl,
                     avgPowerW: bucket.avgPowerW,
                     ...(cost.groupA && { groupA: cost.groupA }),
+                    ...(cost.groupBWhite && { groupBWhite: cost.groupBWhite }),
                 }
             }),
         )
@@ -518,11 +534,13 @@ export class ConsumptionService {
     // Custo de um único mês (a unidade que sustenta o piso/CIP de PROPERTY)
     // — compartilhado entre o batching por página de `list()` e o cálculo
     // por alvo de `summary()`.
-    // O cálculo ramifica por grupo tarifário em vez de generalizar:
-    // Grupo B usa o monômio de sempre (piso + tarifa plana da distribuidora);
-    // Grupo A precisa do consumo por posto e da demanda contratada, então
-    // delega a `calculateGroupAMonthCost` (que faz suas próprias consultas,
-    // já que `kwhConsumed` aqui é um total do mês, não quebrado por posto).
+    // O cálculo ramifica por grupo tarifário/modalidade em vez de generalizar:
+    // Grupo B Convencional usa o monômio de sempre (piso + tarifa plana da
+    // distribuidora); Grupo B Branca precisa do consumo por posto, então
+    // delega a `calculateGroupBWhiteMonthCost`; Grupo A precisa do consumo
+    // por posto e da demanda contratada, então delega a
+    // `calculateGroupAMonthCost` (que faz suas próprias consultas, já que
+    // `kwhConsumed` aqui é um total do mês, não quebrado por posto).
     private async calculateMonthCost(
         meterId: string,
         monthStartLocal: Date,
@@ -533,6 +551,16 @@ export class ConsumptionService {
     ): Promise<MonthCostResult> {
         if (property.tariffGroup === "GROUP_A") {
             return this.calculateGroupAMonthCost(
+                meterId,
+                monthStartLocal,
+                property,
+                distributor,
+                flagPer100Kwh,
+            )
+        }
+
+        if (property.groupBModality === "WHITE") {
+            return this.calculateGroupBWhiteMonthCost(
                 meterId,
                 monthStartLocal,
                 property,
@@ -553,6 +581,81 @@ export class ConsumptionService {
                 cofinsRate: distributor.cofinsRate,
                 flagPer100Kwh,
             }).totalBrl,
+        }
+    }
+
+    // Conta da Tarifa Branca (Grupo B) de 1 mês: consumo por posto (reaproveita
+    // `findKwhByPost` com `includeIntermediate: true`, mesma extensão opt-in
+    // que o Grupo A nunca aciona) × tarifa do catálogo `GroupBEnergyRate`.
+    // Sem o piso de disponibilidade aplicado aqui — `TariffService.calculateForGroupBWhite`
+    // decide internamente se o mês cai nele (piso cobrado pela Convencional).
+    private async calculateGroupBWhiteMonthCost(
+        meterId: string,
+        monthStartLocal: Date,
+        property: PropertyResponse,
+        distributor: DistributorResponse,
+        flagPer100Kwh: number,
+    ): Promise<MonthCostResult> {
+        if (distributor.peakWindowStartHour === null || distributor.peakWindowEndHour === null) {
+            throw new ValidationError(
+                "Distribuidora sem janela de ponta configurada — não é possível calcular a conta da Tarifa Branca",
+            )
+        }
+        const peakWindow: PeakWindowConfig = {
+            peakWindowStartHour: distributor.peakWindowStartHour,
+            peakWindowEndHour: distributor.peakWindowEndHour,
+        }
+
+        const monthEndLocal = new Date(
+            Date.UTC(monthStartLocal.getUTCFullYear(), monthStartLocal.getUTCMonth() + 1, 1),
+        )
+        const from = fromSaoPauloLocal(monthStartLocal)
+        const to = fromSaoPauloLocal(monthEndLocal)
+        const holidays = getNationalHolidaysInRange(from, to)
+
+        const [kwhByPost, energyRates] = await Promise.all([
+            this.consumptionRepository.findKwhByPost(meterId, from, to, peakWindow, holidays, true),
+            this.tariffCatalogRepository.findGroupBEnergyRates(distributor.id, "WHITE"),
+        ])
+
+        const rateByPost = new Map(energyRates.map((r) => [r.post, r]))
+        const energyByPost = kwhByPost.map((row) => {
+            const rate = rateByPost.get(row.post)
+            if (!rate) {
+                throw new NotFoundError(
+                    "Catálogo da Tarifa Branca não cadastrado para esta distribuidora/posto",
+                )
+            }
+            return {
+                post: row.post,
+                kwhConsumed: row.kwhConsumed,
+                tusdPerKwh: rate.tusdPerKwh,
+                tePerKwh: rate.tePerKwh,
+            }
+        })
+
+        const result = this.tariffService.calculateForGroupBWhite({
+            energyByPost,
+            electricalSystem: property.electricalSystem,
+            conventionalTusdPerKwh: distributor.tusdPerKwh,
+            conventionalTePerKwh: distributor.tePerKwh,
+            icmsRate: distributor.icmsRate,
+            pisRate: distributor.pisRate,
+            cofinsRate: distributor.cofinsRate,
+            flagPer100Kwh,
+            publicLightingFeeBrl: property.publicLightingFeeBrl,
+        })
+
+        return {
+            totalBrl: result.totalBrl,
+            groupBWhite: {
+                belowAvailabilityFloor: result.belowAvailabilityFloor,
+                energyByPost: result.energyByPost,
+                energyBrl: result.energyBrl,
+                flagBrl: result.flagBrl,
+                taxesBrl: result.taxesBrl,
+                publicLightingFeeBrl: result.publicLightingFeeBrl,
+            },
         }
     }
 
@@ -1073,6 +1176,17 @@ export class ConsumptionService {
         if (property.tariffGroup === "GROUP_A") {
             throw new ValidationError(
                 "Detalhamento de sub-nível ou sub-período ainda não suportado para propriedades do Grupo A",
+            )
+        }
+
+        // Mesma disciplina de falha fechada da Azul acima: o consumo por
+        // posto da Branca só existe agregado pelo mês inteiro da Propriedade
+        // (caminho acima) — minuto/hora/dia e Área/Aparelho aplicariam a
+        // tarifa plana da Convencional a uma propriedade que não está nela,
+        // uma conta silenciosamente errada.
+        if (property.groupBModality === "WHITE") {
+            throw new ValidationError(
+                "Detalhamento de sub-nível ou sub-período ainda não suportado para propriedades na Tarifa Branca",
             )
         }
 

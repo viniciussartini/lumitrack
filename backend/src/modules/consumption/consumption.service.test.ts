@@ -1897,6 +1897,167 @@ describe("ConsumptionService.compareAclToAcr — comparação ACR × ACL", () =>
     })
 })
 
+describe("ConsumptionService.list — Tarifa Branca (Grupo B)", () => {
+    // Exemplo 3 do documento de referência (João, casa trifásica em Belo
+    // Horizonte/Cemig): 450 kWh (30 Ponta + 50 Intermediário + 370 Fora de
+    // Ponta), ICMS MG 18%, bandeira amarela, CIP R$ 18,00 — mesmo oráculo do
+    // TariffService.calculateForGroupBWhite (ajustado para R$ 359,5567, ver
+    // comentário lá: o documento tem um pequeno erro de arredondamento).
+    // 2026-08-04 é terça-feira, sem feriado nacional — mesma data do
+    // Exemplo 6 (Grupo A). Ponta 18h-21h: 17h SP é a 1h antes (Intermediário),
+    // 19h SP é dentro da ponta.
+    async function setupWhitePropertyMeter() {
+        const user = await userService.createUser({
+            email: "joao.branca@example.com",
+            password: "Senha@123",
+            userType: "INDIVIDUAL",
+            acceptedTerms: true,
+            firstName: "João",
+            lastName: "Silva",
+            cpf: "529.982.247-25",
+        })
+        const distributor = await createTestDistributor(prismaTest)
+        await prismaTest.energyDistributor.update({
+            where: { id: distributor.id },
+            data: { peakWindowStartHour: 18, peakWindowEndHour: 21 },
+        })
+        await prismaTest.tariffFlagConfig.upsert({
+            where: { id: 1 },
+            update: { currentFlag: "YELLOW" },
+            create: {
+                id: 1,
+                currentFlag: "YELLOW",
+                greenPer100Kwh: 0,
+                yellowPer100Kwh: 1.885,
+                redP1Per100Kwh: 4.463,
+                redP2Per100Kwh: 7.877,
+            },
+        })
+        await prismaTest.groupBEnergyRate.createMany({
+            data: [
+                {
+                    distributorId: distributor.id,
+                    modality: "WHITE",
+                    post: "PEAK",
+                    tusdPerKwh: 0.6,
+                    tePerKwh: 0.6,
+                },
+                {
+                    distributorId: distributor.id,
+                    modality: "WHITE",
+                    post: "INTERMEDIATE",
+                    tusdPerKwh: 0.375,
+                    tePerKwh: 0.375,
+                },
+                {
+                    distributorId: distributor.id,
+                    modality: "WHITE",
+                    post: "OFF_PEAK",
+                    tusdPerKwh: 0.225,
+                    tePerKwh: 0.225,
+                },
+            ],
+        })
+
+        const property = await propertyService.create(user.id, {
+            name: "Casa",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC", // piso de 100 kWh
+            billingClass: "B1",
+            groupBModality: "WHITE",
+            publicLightingFeeBrl: 18,
+        })
+        const meter = await prismaTest.meter.create({
+            data: {
+                name: "Medidor",
+                targetType: "PROPERTY",
+                propertyId: property.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "casa-branca/medidor",
+            },
+        })
+
+        return { user, property, meter }
+    }
+
+    it("reproduz o Exemplo 3 do documento de referência ponta-a-ponta", async () => {
+        const { user, meter, property } = await setupWhitePropertyMeter()
+
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 30, 10_000) // 19h SP — ponta
+        await insertReading(meter.id, "2026-08-04T20:00:00Z", 50, 10_000) // 17h SP — intermediário
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 370, 10_000) // 10h SP — fora de ponta
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0]!.kwhConsumed).toBeCloseTo(450)
+        expect(result.items[0]!.costBrl).toBeCloseTo(359.5567, 2)
+
+        const groupBWhite = result.items[0]!.groupBWhite
+        expect(groupBWhite).toBeDefined()
+        expect(groupBWhite!.belowAvailabilityFloor).toBe(false)
+        expect(groupBWhite!.energyByPost).toHaveLength(3)
+        expect(groupBWhite!.energyByPost.find((p) => p.post === "PEAK")).toEqual({
+            post: "PEAK",
+            kwhConsumed: 30,
+            brl: 36,
+        })
+        expect(groupBWhite!.energyByPost.find((p) => p.post === "INTERMEDIATE")).toEqual({
+            post: "INTERMEDIATE",
+            kwhConsumed: 50,
+            brl: 37.5,
+        })
+        expect(groupBWhite!.energyByPost.find((p) => p.post === "OFF_PEAK")).toEqual({
+            post: "OFF_PEAK",
+            kwhConsumed: 370,
+            brl: 166.5,
+        })
+        expect(groupBWhite!.flagBrl).toBeCloseTo(8.4825, 4)
+        expect(groupBWhite!.publicLightingFeeBrl).toBe(18)
+    })
+
+    it("abaixo do piso de disponibilidade, cobra pela tarifa Convencional em vez da Branca", async () => {
+        const { user, meter, property } = await setupWhitePropertyMeter()
+
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 80, 10_000) // 10h SP — fora de ponta, 80 kWh (< piso 100)
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        const groupBWhite = result.items[0]!.groupBWhite
+        expect(groupBWhite).toBeDefined()
+        expect(groupBWhite!.belowAvailabilityFloor).toBe(true)
+        expect(groupBWhite!.energyByPost).toEqual([])
+        // 100 kWh (piso) × R$0,60/kWh (tarifa Convencional da distribuidora), não a Branca.
+        expect(groupBWhite!.energyBrl).toBeCloseTo(60, 2)
+
+        const expectedTotal = (60 + 100 * (1.885 / 100)) / (1 - (0.18 + 0.0165 + 0.076)) + 18
+        expect(result.items[0]!.costBrl).toBeCloseTo(expectedTotal, 2)
+    })
+
+    it("falha fechada ao pedir detalhamento por hora de uma propriedade na Tarifa Branca", async () => {
+        const { user, meter, property } = await setupWhitePropertyMeter()
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 200, 10_000)
+
+        await expect(
+            consumptionService.list(user.id, {
+                targetType: "PROPERTY",
+                targetId: property.id,
+                granularity: "hour",
+            }),
+        ).rejects.toThrow(ValidationError)
+    })
+})
+
 // Os dois métodos extraídos de `list()` — a maior parte dos casos já sai
 // coberta indiretamente pelos testes de `ConsumptionService.list` acima
 // (year+PROPERTY em "granularidade month/year", year+AREA em "alvo

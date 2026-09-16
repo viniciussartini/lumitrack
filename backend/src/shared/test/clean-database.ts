@@ -41,11 +41,13 @@ export async function cleanDatabase(): Promise<void> {
         prismaTest.device.deleteMany(),
         prismaTest.area.deleteMany(),
         prismaTest.property.deleteMany(),
-        // Catálogo tarifário Grupo A (ADR-0019) — referencia EnergyDistributor
-        // com onDelete padrão (RESTRICT), então precisa ser limpo antes dele,
-        // senão o deleteMany de EnergyDistributor abaixo viola FK.
+        // Catálogo tarifário Grupo A (ADR-0019) e da Tarifa Branca do Grupo B
+        // (Fase 22) — referenciam EnergyDistributor com onDelete padrão
+        // (RESTRICT), então precisam ser limpos antes dele, senão o
+        // deleteMany de EnergyDistributor abaixo viola FK.
         prismaTest.tariffEnergyRate.deleteMany(),
         prismaTest.tariffDemandRate.deleteMany(),
+        prismaTest.groupBEnergyRate.deleteMany(),
         // Catálogo global — sem dono, mas precisa ser limpo entre testes
         // porque o seed/os testes recriam distribuidoras com CNPJ fixo
         // (@unique).

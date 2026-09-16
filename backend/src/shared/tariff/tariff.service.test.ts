@@ -455,4 +455,164 @@ describe("TariffService", () => {
             expect(withEre.totalBrl - withoutEre.totalBrl).toBeCloseTo(expectedDelta, 6)
         })
     })
+
+    describe("calculateForGroupBWhite", () => {
+        // Exemplo 3 do documento de referência — João, casa trifásica em Belo
+        // Horizonte (Cemig): 450 kWh (30 Ponta + 50 Intermediário + 370 Fora
+        // de Ponta), tarifas Ponta R$ 1,20/kWh, Intermediário R$ 0,75/kWh,
+        // Fora de Ponta R$ 0,45/kWh (TUSD+TE combinado, dividido meio a meio
+        // — mesma aproximação do seed), ICMS MG 18%, bandeira amarela,
+        // CIP R$ 18,00. O documento publica R$ 359,55, mas refazendo a
+        // divisão "por dentro" com precisão total (248,4825 / 0,7275) o
+        // valor correto é R$ 359,5567 — a diferença de menos de um centavo é
+        // o mesmo tipo de arredondamento manual do documento já registrado
+        // no Exemplo 6 (subtotal antes dos tributos bate exatamente: energia
+        // R$ 240,00 + bandeira R$ 8,4825 = R$ 248,4825, igual ao documento
+        // arredondado para R$ 248,48). Oráculo ajustado ao valor
+        // matematicamente correto.
+        it("reproduz o Exemplo 3 do documento de referência (B1 trifásico, acima do piso)", () => {
+            const result = service.calculateForGroupBWhite({
+                energyByPost: [
+                    { post: "PEAK", kwhConsumed: 30, tusdPerKwh: 0.6, tePerKwh: 0.6 },
+                    { post: "INTERMEDIATE", kwhConsumed: 50, tusdPerKwh: 0.375, tePerKwh: 0.375 },
+                    { post: "OFF_PEAK", kwhConsumed: 370, tusdPerKwh: 0.225, tePerKwh: 0.225 },
+                ],
+                electricalSystem: "TRIPHASIC",
+                conventionalTusdPerKwh: 0.3,
+                conventionalTePerKwh: 0.3,
+                ...BASE_RATES,
+                flagPer100Kwh: 1.885,
+                publicLightingFeeBrl: 18,
+            })
+
+            expect(result.belowAvailabilityFloor).toBe(false)
+            expect(result.energyBrl).toBeCloseTo(240, 2)
+            expect(result.flagBrl).toBeCloseTo(8.4825, 4)
+            expect(result.publicLightingFeeBrl).toBe(18)
+            expect(result.totalBrl).toBeCloseTo(359.5567, 2)
+        })
+
+        it("decompõe o consumo por posto na resposta", () => {
+            const result = service.calculateForGroupBWhite({
+                energyByPost: [
+                    { post: "PEAK", kwhConsumed: 30, tusdPerKwh: 0.6, tePerKwh: 0.6 },
+                    { post: "INTERMEDIATE", kwhConsumed: 50, tusdPerKwh: 0.375, tePerKwh: 0.375 },
+                    { post: "OFF_PEAK", kwhConsumed: 370, tusdPerKwh: 0.225, tePerKwh: 0.225 },
+                ],
+                electricalSystem: "TRIPHASIC",
+                conventionalTusdPerKwh: 0.3,
+                conventionalTePerKwh: 0.3,
+                ...BASE_RATES,
+                flagPer100Kwh: 0,
+                publicLightingFeeBrl: null,
+            })
+
+            expect(result.energyByPost).toEqual([
+                { post: "PEAK", kwhConsumed: 30, brl: 36 },
+                { post: "INTERMEDIATE", kwhConsumed: 50, brl: 37.5 },
+                { post: "OFF_PEAK", kwhConsumed: 370, brl: 166.5 },
+            ])
+        })
+
+        // O próprio documento de referência dá o contraexemplo: com o mesmo
+        // total de 450 kWh mas mais deslocado para a ponta, a Branca fica
+        // mais cara que a Convencional — não é o cenário testado aqui, mas
+        // confirma que a fórmula por posto (sem piso) está certa mesmo em
+        // um perfil desfavorável, matéria-prima do item de comparação (#420).
+        it("com consumo concentrado na ponta, o total é maior que com o mesmo consumo fora de ponta", () => {
+            const concentratedOnPeak = service.calculateForGroupBWhite({
+                energyByPost: [{ post: "PEAK", kwhConsumed: 100, tusdPerKwh: 0.6, tePerKwh: 0.6 }],
+                electricalSystem: "TRIPHASIC",
+                conventionalTusdPerKwh: 0.3,
+                conventionalTePerKwh: 0.3,
+                ...BASE_RATES,
+                flagPer100Kwh: 0,
+                publicLightingFeeBrl: null,
+            })
+            const concentratedOffPeak = service.calculateForGroupBWhite({
+                energyByPost: [
+                    { post: "OFF_PEAK", kwhConsumed: 100, tusdPerKwh: 0.225, tePerKwh: 0.225 },
+                ],
+                electricalSystem: "TRIPHASIC",
+                conventionalTusdPerKwh: 0.3,
+                conventionalTePerKwh: 0.3,
+                ...BASE_RATES,
+                flagPer100Kwh: 0,
+                publicLightingFeeBrl: null,
+            })
+
+            expect(concentratedOnPeak.totalBrl).toBeGreaterThan(concentratedOffPeak.totalBrl)
+        })
+
+        // REN 1.098/2024 — a particularidade que a fase existe para não
+        // errar: abaixo do piso de disponibilidade, a Branca some da conta
+        // e o piso inteiro (não o consumo real) é cobrado pela tarifa
+        // Convencional, mesmo com a modalidade ativa sendo a Branca.
+        it("abaixo do piso de disponibilidade, cobra o piso pela tarifa Convencional, não pela Branca", () => {
+            const result = service.calculateForGroupBWhite({
+                energyByPost: [
+                    { post: "OFF_PEAK", kwhConsumed: 80, tusdPerKwh: 0.225, tePerKwh: 0.225 },
+                ],
+                electricalSystem: "TRIPHASIC", // piso 100 kWh
+                conventionalTusdPerKwh: 0.3,
+                conventionalTePerKwh: 0.3,
+                ...BASE_RATES,
+                flagPer100Kwh: 0,
+                publicLightingFeeBrl: null,
+            })
+
+            expect(result.belowAvailabilityFloor).toBe(true)
+            expect(result.kwhBilled).toBe(100) // o piso, não os 80 kWh consumidos
+            expect(result.energyByPost).toEqual([])
+            expect(result.energyBrl).toBeCloseTo(100 * (0.3 + 0.3), 2) // tarifa Convencional, não a Branca
+        })
+
+        it("com consumo igual ao piso, usa a tarifa por posto normalmente (fronteira não é abaixo do piso)", () => {
+            const result = service.calculateForGroupBWhite({
+                energyByPost: [
+                    { post: "OFF_PEAK", kwhConsumed: 100, tusdPerKwh: 0.225, tePerKwh: 0.225 },
+                ],
+                electricalSystem: "TRIPHASIC",
+                conventionalTusdPerKwh: 0.3,
+                conventionalTePerKwh: 0.3,
+                ...BASE_RATES,
+                flagPer100Kwh: 0,
+                publicLightingFeeBrl: null,
+            })
+
+            expect(result.belowAvailabilityFloor).toBe(false)
+            expect(result.energyBrl).toBeCloseTo(100 * (0.225 + 0.225), 2)
+        })
+
+        it("sem nenhuma leitura no mês, cobra o piso inteiro pela Convencional", () => {
+            const result = service.calculateForGroupBWhite({
+                energyByPost: [],
+                electricalSystem: "MONOPHASIC", // piso 30 kWh
+                conventionalTusdPerKwh: 0.3,
+                conventionalTePerKwh: 0.3,
+                ...BASE_RATES,
+                flagPer100Kwh: 0,
+                publicLightingFeeBrl: null,
+            })
+
+            expect(result.belowAvailabilityFloor).toBe(true)
+            expect(result.kwhBilled).toBe(30)
+        })
+
+        it("CIP nulo vira zero, sem quebrar o total", () => {
+            const result = service.calculateForGroupBWhite({
+                energyByPost: [
+                    { post: "OFF_PEAK", kwhConsumed: 200, tusdPerKwh: 0.225, tePerKwh: 0.225 },
+                ],
+                electricalSystem: "TRIPHASIC",
+                conventionalTusdPerKwh: 0.3,
+                conventionalTePerKwh: 0.3,
+                ...BASE_RATES,
+                flagPer100Kwh: 0,
+                publicLightingFeeBrl: null,
+            })
+
+            expect(result.publicLightingFeeBrl).toBe(0)
+        })
+    })
 })
