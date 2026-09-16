@@ -2,6 +2,7 @@ import {
     PrismaClient,
     type ElectricalSystemType,
     type BillingClass,
+    type GroupBModality,
     type TariffGroup,
     type TariffSubgroup,
     type TariffModality,
@@ -30,6 +31,8 @@ export type PropertyResponse = Omit<PrismaProperty, "publicLightingFeeBrl"> & {
 // (aplicável com valor, ou inaplicável e limpo).
 export type ResolvedTariffGroupFields = {
     billingClass: BillingClass | null
+    groupBModality: GroupBModality | null
+    receivesBillingDiscount: boolean | null
     tariffSubgroup: TariffSubgroup | null
     tariffModality: TariffModality | null
     contractedDemandKw: number | null
@@ -127,7 +130,7 @@ export class PropertyRepository {
      *
      * @param userId - Id do usuário dono do imóvel.
      * @param data - Dados do imóvel a criar, já validados.
-     * @param tariffGroupFields - Classe/subgrupo/modalidade já resolvidos e validados pelo PropertyService (ADR-0019).
+     * @param tariffGroupFields - Classe/modalidade/subgrupo já resolvidos e validados pelo PropertyService (ADR-0019).
      * @returns O imóvel criado, decifrado.
      */
     async create(
@@ -147,6 +150,8 @@ export class PropertyRepository {
                 electricalSystem: data.electricalSystem as ElectricalSystemType,
                 tariffGroup: data.tariffGroup as TariffGroup,
                 billingClass: tariffGroupFields.billingClass,
+                groupBModality: tariffGroupFields.groupBModality,
+                receivesBillingDiscount: tariffGroupFields.receivesBillingDiscount,
                 tariffSubgroup: tariffGroupFields.tariffSubgroup,
                 tariffModality: tariffGroupFields.tariffModality,
                 contractedDemandKw: tariffGroupFields.contractedDemandKw,
@@ -165,7 +170,7 @@ export class PropertyRepository {
      *
      * @param id - Id do imóvel a atualizar.
      * @param data - Campos a atualizar, já validados.
-     * @param tariffGroupFields - Classe/subgrupo/modalidade já resolvidos e validados pelo PropertyService (ADR-0019), só quando a requisição toca algum desses campos — omitido, os 3 ficam como estavam.
+     * @param tariffGroupFields - Classe/modalidade/subgrupo já resolvidos e validados pelo PropertyService (ADR-0019), só quando a requisição toca algum desses campos — omitido, ficam como estavam.
      * @returns O imóvel atualizado, decifrado.
      */
     async update(
@@ -205,6 +210,8 @@ export class PropertyRepository {
                 // o valor já resolvido/validado pelo service é sempre o que vale.
                 ...(tariffGroupFields && {
                     billingClass: tariffGroupFields.billingClass,
+                    groupBModality: tariffGroupFields.groupBModality,
+                    receivesBillingDiscount: tariffGroupFields.receivesBillingDiscount,
                     tariffSubgroup: tariffGroupFields.tariffSubgroup,
                     tariffModality: tariffGroupFields.tariffModality,
                     contractedDemandKw: tariffGroupFields.contractedDemandKw,

@@ -159,6 +159,119 @@ describe("PropertyService", () => {
             expect(property.publicLightingFeeBrl).toBe(32.5)
         })
 
+        // ─ Tarifa Branca — modalidade do Grupo B (Fase 22) ─────────────
+
+        it("deve criar uma propriedade Grupo B com modalidade CONVENTIONAL por default", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+            })
+
+            expect(property.groupBModality).toBe("CONVENTIONAL")
+            expect(property.receivesBillingDiscount).toBe(false)
+        })
+
+        it("deve criar uma propriedade B1 com modalidade Branca (WHITE)", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+                billingClass: "B1",
+                groupBModality: "WHITE",
+            })
+
+            expect(property.groupBModality).toBe("WHITE")
+        })
+
+        it("deve criar uma propriedade B3 com modalidade Branca (WHITE)", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+                billingClass: "B3",
+                groupBModality: "WHITE",
+            })
+
+            expect(property.groupBModality).toBe("WHITE")
+        })
+
+        it("deve lançar ValidationError ao criar uma propriedade B2 com modalidade Branca", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await expect(
+                propertyService.create(user.id, {
+                    ...validPropertyInput,
+                    distributorId: distributor.id,
+                    billingClass: "B2",
+                    groupBModality: "WHITE",
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("deve lançar ValidationError ao criar Branca com desconto de faturamento", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await expect(
+                propertyService.create(user.id, {
+                    ...validPropertyInput,
+                    distributorId: distributor.id,
+                    billingClass: "B1",
+                    groupBModality: "WHITE",
+                    receivesBillingDiscount: true,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("deve criar uma propriedade Convencional com desconto de faturamento (só bloqueia a Branca)", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+                billingClass: "B1",
+                receivesBillingDiscount: true,
+            })
+
+            expect(property.groupBModality).toBe("CONVENTIONAL")
+            expect(property.receivesBillingDiscount).toBe(true)
+        })
+
+        it("deve lançar ValidationError ao criar Grupo A com modalidade do Grupo B", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await expect(
+                propertyService.create(user.id, {
+                    ...validPropertyInput,
+                    distributorId: distributor.id,
+                    tariffGroup: "GROUP_A",
+                    tariffSubgroup: "A4",
+                    tariffModality: "GREEN",
+                    contractedDemandKw: 200,
+                    groupBModality: "WHITE",
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("deve lançar ValidationError ao criar Grupo A com desconto de faturamento", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            await expect(
+                propertyService.create(user.id, {
+                    ...validPropertyInput,
+                    distributorId: distributor.id,
+                    tariffGroup: "GROUP_A",
+                    tariffSubgroup: "A4",
+                    tariffModality: "GREEN",
+                    contractedDemandKw: 200,
+                    receivesBillingDiscount: true,
+                }),
+            ).rejects.toThrow(ValidationError)
+        })
+
         it("deve lançar ValidationError quando electricalSystem está ausente", async () => {
             const { user, distributor } = await setupUserAndDistributor()
 
@@ -619,6 +732,69 @@ describe("PropertyService", () => {
 
             expect(updated.billingClass).toBe("B2")
             expect(updated.publicLightingFeeBrl).toBe(18.4)
+        })
+
+        // ─ Tarifa Branca — modalidade do Grupo B (Fase 22) ─────────────
+
+        it("deve migrar uma propriedade B1 existente para a modalidade Branca (WHITE)", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+                billingClass: "B1",
+            })
+
+            const updated = await propertyService.update(property.id, user.id, {
+                groupBModality: "WHITE",
+            })
+
+            expect(updated.groupBModality).toBe("WHITE")
+            expect(updated.billingClass).toBe("B1") // não reenviado — carregado do que já existia
+        })
+
+        it("deve lançar ValidationError ao migrar uma propriedade B2 existente para a Branca", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+                billingClass: "B2",
+            })
+
+            await expect(
+                propertyService.update(property.id, user.id, { groupBModality: "WHITE" }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("deve lançar ValidationError ao migrar uma propriedade com desconto de faturamento para a Branca", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+                billingClass: "B1",
+                receivesBillingDiscount: true,
+            })
+
+            await expect(
+                propertyService.update(property.id, user.id, { groupBModality: "WHITE" }),
+            ).rejects.toThrow(ValidationError)
+        })
+
+        it("não deve reavaliar a elegibilidade da Branca ao atualizar um campo alheio ao grupo tarifário", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+            const property = await propertyService.create(user.id, {
+                ...validPropertyInput,
+                distributorId: distributor.id,
+                billingClass: "B1",
+                groupBModality: "WHITE",
+            })
+
+            // Atualiza só o nome — não deve exigir reenviar billingClass/groupBModality.
+            const updated = await propertyService.update(property.id, user.id, {
+                name: "Casa Renovada",
+            })
+
+            expect(updated.groupBModality).toBe("WHITE")
+            expect(updated.billingClass).toBe("B1")
         })
 
         it("deve permitir trocar a distribuidora vinculada", async () => {

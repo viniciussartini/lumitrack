@@ -59,6 +59,13 @@ const billingClassSchema = z.enum(["B1", "B2", "B3"], {
     error: "Classe de faturamento deve ser B1, B2 ou B3",
 })
 
+// Modalidade tarifária do Grupo B — Convencional (monômio de sempre) ou
+// Branca (3 postos, REN 1.098/2024). Elegibilidade por billingClass e por
+// receivesBillingDiscount é regra cruzada em property.service.ts.
+const groupBModalitySchema = z.enum(["CONVENTIONAL", "WHITE"], {
+    error: "Modalidade do Grupo B deve ser CONVENTIONAL ou WHITE",
+})
+
 // Grupo tarifário (ADR-0019) — define a tensão de fornecimento e o caminho de
 // cálculo (monômio Grupo B × binômio Grupo A).
 const tariffGroupSchema = z.enum(["GROUP_A", "GROUP_B"], {
@@ -137,6 +144,14 @@ export const createPropertySchema = z.object({
     // e essa ramificação é resolvida em property.service.ts.
     billingClass: billingClassSchema.optional(),
 
+    // Sem default aqui pelo mesmo motivo de billingClass — o default
+    // CONVENTIONAL só se aplica quando o grupo é GROUP_B.
+    groupBModality: groupBModalitySchema.optional(),
+
+    // Sem default aqui pelo mesmo motivo — o default `false` só se aplica
+    // quando o grupo é GROUP_B (property.service.ts).
+    receivesBillingDiscount: z.boolean().optional(),
+
     tariffSubgroup: tariffSubgroupSchema.optional(),
 
     tariffModality: tariffModalitySchema.optional(),
@@ -178,6 +193,10 @@ export const updatePropertySchema = z.object({
     tariffGroup: tariffGroupSchema.optional(),
 
     billingClass: billingClassSchema.optional(),
+
+    groupBModality: groupBModalitySchema.optional(),
+
+    receivesBillingDiscount: z.boolean().optional(),
 
     tariffSubgroup: tariffSubgroupSchema.optional(),
 

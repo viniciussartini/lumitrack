@@ -154,6 +154,59 @@ describe("POST /api/properties", () => {
         expect(response.body.data.publicLightingFeeBrl).toBe(25.5)
     })
 
+    it("deve aceitar groupBModality WHITE para billingClass B1", async () => {
+        const { token } = await registerAndLogin()
+        const dist = await createDistributor()
+
+        const response = await request(app)
+            .post("/api/properties")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                ...validPropertyBody,
+                distributorId: dist.id,
+                billingClass: "B1",
+                groupBModality: "WHITE",
+            })
+
+        expect(response.status).toBe(201)
+        expect(response.body.data.groupBModality).toBe("WHITE")
+    })
+
+    it("deve retornar 422 ao criar Branca (WHITE) para billingClass B2", async () => {
+        const { token } = await registerAndLogin()
+        const dist = await createDistributor()
+
+        const response = await request(app)
+            .post("/api/properties")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                ...validPropertyBody,
+                distributorId: dist.id,
+                billingClass: "B2",
+                groupBModality: "WHITE",
+            })
+
+        expect(response.status).toBe(422)
+    })
+
+    it("deve retornar 422 ao criar Branca (WHITE) com desconto de faturamento", async () => {
+        const { token } = await registerAndLogin()
+        const dist = await createDistributor()
+
+        const response = await request(app)
+            .post("/api/properties")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                ...validPropertyBody,
+                distributorId: dist.id,
+                billingClass: "B1",
+                groupBModality: "WHITE",
+                receivesBillingDiscount: true,
+            })
+
+        expect(response.status).toBe(422)
+    })
+
     it("deve retornar 401 sem token", async () => {
         const response = await request(app)
             .post("/api/properties")

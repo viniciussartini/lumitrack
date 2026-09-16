@@ -8,6 +8,7 @@ import type {
 import type { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import type {
     BillingClass,
+    GroupBModality,
     TariffModality,
     TariffSubgroup,
     ContractingEnvironment,
@@ -109,6 +110,8 @@ export class PropertyService {
 
     private resolveGroupAFields(fields: {
         billingClass: BillingClass | undefined
+        groupBModality: GroupBModality | undefined
+        receivesBillingDiscount: boolean | undefined
         tariffSubgroup: TariffSubgroup | undefined
         tariffModality: TariffModality | undefined
         contractedDemandKw: number | undefined
@@ -128,6 +131,16 @@ export class PropertyService {
                 "Classe de faturamento não se aplica a propriedades do Grupo A",
             )
         }
+        if (fields.groupBModality) {
+            throw new ValidationError(
+                "Modalidade do Grupo B não se aplica a propriedades do Grupo A",
+            )
+        }
+        if (fields.receivesBillingDiscount !== undefined) {
+            throw new ValidationError(
+                "Desconto de faturamento não se aplica a propriedades do Grupo A",
+            )
+        }
         const contractedDemandFields = this.resolveContractedDemandFields({
             tariffModality: fields.tariffModality,
             contractedDemandKw: fields.contractedDemandKw,
@@ -136,14 +149,37 @@ export class PropertyService {
         })
         return {
             billingClass: null,
+            groupBModality: null,
+            receivesBillingDiscount: null,
             tariffSubgroup: fields.tariffSubgroup,
             tariffModality: fields.tariffModality,
             ...contractedDemandFields,
         }
     }
 
+    // Elegibilidade da Tarifa Branca: só B1/B3 (B2 fica de fora por corte de
+    // escopo — o documento de referência não caracteriza Branca rural — não
+    // por vedação normativa; B4 nunca chega aqui porque não é um valor de
+    // BillingClass) e nunca para quem recebe desconto de faturamento (baixa
+    // renda ou outro desconto, sem distinguir qual).
+    private assertWhiteModalityEligible(
+        billingClass: BillingClass,
+        receivesBillingDiscount: boolean,
+    ): void {
+        if (billingClass !== "B1" && billingClass !== "B3") {
+            throw new ValidationError("A Tarifa Branca só é permitida para as classes B1 e B3")
+        }
+        if (receivesBillingDiscount) {
+            throw new ValidationError(
+                "A Tarifa Branca não é permitida para propriedades que recebem desconto de faturamento",
+            )
+        }
+    }
+
     private resolveGroupBFields(fields: {
         billingClass: BillingClass | undefined
+        groupBModality: GroupBModality | undefined
+        receivesBillingDiscount: boolean | undefined
         tariffSubgroup: TariffSubgroup | undefined
         tariffModality: TariffModality | undefined
         contractedDemandKw: number | undefined
@@ -167,8 +203,19 @@ export class PropertyService {
                 "Demanda contratada por posto só se aplica a propriedades do Grupo A",
             )
         }
+
+        const billingClass = fields.billingClass ?? "B1"
+        const groupBModality = fields.groupBModality ?? "CONVENTIONAL"
+        const receivesBillingDiscount = fields.receivesBillingDiscount ?? false
+
+        if (groupBModality === "WHITE") {
+            this.assertWhiteModalityEligible(billingClass, receivesBillingDiscount)
+        }
+
         return {
-            billingClass: fields.billingClass ?? "B1",
+            billingClass,
+            groupBModality,
+            receivesBillingDiscount,
             tariffSubgroup: null,
             tariffModality: null,
             contractedDemandKw: null,
@@ -178,8 +225,8 @@ export class PropertyService {
     }
 
     // Regra cruzada por grupo tarifário (ADR-0019): Grupo A exige
-    // subgrupo+modalidade+demanda contratada e não aceita classe de
-    // faturamento Grupo B; Grupo B exige classe de faturamento (default B1,
+    // subgrupo+modalidade+demanda contratada e não aceita classe/modalidade
+    // do Grupo B; Grupo B exige classe de faturamento (default B1,
     // preservando o comportamento anterior à Fase 19) e não aceita
     // subgrupo/modalidade/demanda do Grupo A. O schema sozinho (campos
     // individualmente opcionais) não expressa essa obrigatoriedade
@@ -188,6 +235,8 @@ export class PropertyService {
     private resolveTariffGroupFields(fields: {
         tariffGroup: "GROUP_A" | "GROUP_B"
         billingClass: BillingClass | undefined
+        groupBModality: GroupBModality | undefined
+        receivesBillingDiscount: boolean | undefined
         tariffSubgroup: TariffSubgroup | undefined
         tariffModality: TariffModality | undefined
         contractedDemandKw: number | undefined
@@ -217,6 +266,8 @@ export class PropertyService {
         const tariffGroupFields = this.resolveTariffGroupFields({
             tariffGroup: data.tariffGroup,
             billingClass: data.billingClass,
+            groupBModality: data.groupBModality,
+            receivesBillingDiscount: data.receivesBillingDiscount,
             tariffSubgroup: data.tariffSubgroup,
             tariffModality: data.tariffModality,
             contractedDemandKw: data.contractedDemandKw,
@@ -280,6 +331,8 @@ export class PropertyService {
         return (
             data.tariffGroup !== undefined ||
             data.billingClass !== undefined ||
+            data.groupBModality !== undefined ||
+            data.receivesBillingDiscount !== undefined ||
             data.tariffSubgroup !== undefined ||
             data.tariffModality !== undefined ||
             data.contractedDemandKw !== undefined ||
@@ -324,6 +377,16 @@ export class PropertyService {
             billingClass: this.carryOverIfSameGroup(
                 data.billingClass,
                 existing.billingClass,
+                keepsExistingGroup,
+            ),
+            groupBModality: this.carryOverIfSameGroup(
+                data.groupBModality,
+                existing.groupBModality,
+                keepsExistingGroup,
+            ),
+            receivesBillingDiscount: this.carryOverIfSameGroup(
+                data.receivesBillingDiscount,
+                existing.receivesBillingDiscount,
                 keepsExistingGroup,
             ),
             tariffSubgroup: this.carryOverIfSameGroup(
