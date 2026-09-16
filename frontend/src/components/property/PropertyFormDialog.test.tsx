@@ -64,6 +64,8 @@ const mockProperty: Property = {
     zipCode: "30000-000",
     electricalSystem: "MONOPHASIC",
     billingClass: "B1",
+    groupBModality: "CONVENTIONAL",
+    receivesBillingDiscount: false,
     tariffGroup: "GROUP_B",
     contractingEnvironment: "ACR",
     tariffSubgroup: null,
@@ -81,6 +83,8 @@ const mockAclProperty: Property = {
     id: "prop-acl",
     tariffGroup: "GROUP_A",
     billingClass: null,
+    groupBModality: null,
+    receivesBillingDiscount: null,
     tariffSubgroup: "A4",
     tariffModality: "GREEN",
     contractedDemandKw: 200,
@@ -148,7 +152,12 @@ describe("PropertyFormDialog — criar", () => {
         await user.click(screen.getByRole("button", { name: /criar propriedade/i }))
 
         expect(propertyService.create).toHaveBeenCalledWith(
-            expect.objectContaining({ name: "Casa Nova", distributorId: "dist-1" }),
+            expect.objectContaining({
+                name: "Casa Nova",
+                distributorId: "dist-1",
+                groupBModality: "CONVENTIONAL",
+                receivesBillingDiscount: false,
+            }),
         )
         expect(onClose).toHaveBeenCalled()
     })

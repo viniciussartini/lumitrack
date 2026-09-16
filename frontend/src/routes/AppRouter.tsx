@@ -49,6 +49,11 @@ const AclComparisonPage = lazy(() =>
         default: m.AclComparisonPage,
     })),
 )
+const BrancaComparisonPage = lazy(() =>
+    import("@/pages/property/BrancaComparisonPage").then((m) => ({
+        default: m.BrancaComparisonPage,
+    })),
+)
 const AreaDetailsPage = lazy(() =>
     import("@/pages/area/AreaDetailsPage").then((m) => ({ default: m.AreaDetailsPage })),
 )
@@ -130,6 +135,10 @@ const AppRoutes = () => (
                 <Route path="/propriedades" element={<PropertiesPage />} />
                 <Route path="/propriedades/:id" element={<PropertyDetailsPage />} />
                 <Route path="/propriedades/:id/comparacao-acl" element={<AclComparisonPage />} />
+                <Route
+                    path="/propriedades/:id/comparacao-branca"
+                    element={<BrancaComparisonPage />}
+                />
 
                 {/* Áreas — rota aninhada espelha o padrão da API (/api/properties/:propertyId/areas/:areaId). */}
                 <Route

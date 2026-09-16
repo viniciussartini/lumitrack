@@ -18,11 +18,13 @@ import {
     BILLING_CLASS_LABELS,
     CONTRACTING_ENVIRONMENT_LABELS,
     ELECTRICAL_SYSTEM_LABELS,
+    GROUP_B_MODALITY_LABELS,
     TARIFF_SUBGROUP_LABELS,
     VALID_UFS,
     type BillingClass,
     type ContractingEnvironment,
     type ElectricalSystem,
+    type GroupBModality,
     type Property,
     type TariffGroup,
     type TariffModality,
@@ -91,6 +93,8 @@ const buildDefaultValues = (
               electricalSystem: initialData.electricalSystem,
               tariffGroup: initialData.tariffGroup,
               billingClass: initialData.billingClass ?? undefined,
+              groupBModality: initialData.groupBModality ?? undefined,
+              receivesBillingDiscount: initialData.receivesBillingDiscount ?? undefined,
               tariffSubgroup: initialData.tariffSubgroup ?? undefined,
               tariffModality: initialData.tariffModality ?? undefined,
               contractedDemandKw: initialData.contractedDemandKw ?? undefined,
@@ -114,6 +118,8 @@ const buildDefaultValues = (
               electricalSystem: "MONOPHASIC",
               tariffGroup: "GROUP_B",
               billingClass: "B1",
+              groupBModality: "CONVENTIONAL",
+              receivesBillingDiscount: false,
               publicLightingFeeBrl: undefined,
               contractingEnvironment: "ACR",
           }
@@ -142,6 +148,8 @@ export const PropertyForm = ({
     const isGroupA = tariffGroup === "GROUP_A"
     const isBlue = (watch("tariffModality") as TariffModality | undefined) === "BLUE"
     const isAcl = (watch("contractingEnvironment") as ContractingEnvironment | undefined) === "ACL"
+    const billingClass = watch("billingClass") as BillingClass | undefined
+    const isWhite = (watch("groupBModality") as GroupBModality | undefined) === "WHITE"
 
     return (
         <form
@@ -186,6 +194,8 @@ export const PropertyForm = ({
                     isGroupA={isGroupA}
                     isBlue={isBlue}
                     isAcl={isAcl}
+                    billingClass={billingClass}
+                    isWhite={isWhite}
                 />
             </Section>
 
@@ -225,6 +235,8 @@ interface BillingFieldsProps {
     isGroupA: boolean
     isBlue: boolean
     isAcl: boolean
+    billingClass: BillingClass | undefined
+    isWhite: boolean
 }
 
 /**
@@ -247,6 +259,8 @@ const BillingFields = ({
     isGroupA,
     isBlue,
     isAcl,
+    billingClass,
+    isWhite,
 }: BillingFieldsProps) => (
     <>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -274,6 +288,8 @@ const BillingFields = ({
                     onChange: (e) => {
                         if (e.target.value === "GROUP_A") {
                             setValue("billingClass", undefined)
+                            setValue("groupBModality", undefined)
+                            setValue("receivesBillingDiscount", undefined)
                         } else {
                             setValue("tariffSubgroup", undefined)
                             setValue("tariffModality", undefined)
@@ -303,20 +319,14 @@ const BillingFields = ({
         {isGroupA ? (
             <GroupAFields register={register} errors={errors} setValue={setValue} isBlue={isBlue} />
         ) : (
-            <Select
-                label="Classe de faturamento"
-                error={errors.billingClass?.message}
-                {...register("billingClass")}
-                defaultValue={initialData?.billingClass ?? "B1"}
-            >
-                {(Object.entries(BILLING_CLASS_LABELS) as [BillingClass, string][]).map(
-                    ([value, label]) => (
-                        <option key={value} value={value}>
-                            {label}
-                        </option>
-                    ),
-                )}
-            </Select>
+            <GroupBFields
+                register={register}
+                errors={errors}
+                setValue={setValue}
+                initialData={initialData}
+                billingClass={billingClass}
+                isWhite={isWhite}
+            />
         )}
 
         {isGroupA && (
@@ -420,6 +430,113 @@ const AddressFields = ({ register, errors, setValue, initialData }: AddressField
         </div>
     </div>
 )
+
+interface GroupBFieldsProps {
+    register: UseFormRegister<PropertyFormInput>
+    errors: FieldErrors<PropertyFormData>
+    setValue: UseFormSetValue<PropertyFormInput>
+    initialData: Property | undefined
+    billingClass: BillingClass | undefined
+    isWhite: boolean
+}
+
+/**
+ * Campos exclusivos do Grupo B — classe de faturamento, modalidade
+ * (Convencional/Branca) e o desconto que veda a Branca (baixa renda ou
+ * outro desconto de faturamento), mesmo padrão de subcomponente condicional
+ * de `GroupAFields` abaixo.
+ *
+ * Modalidade e desconto só aparecem para B1/B3 — B2 nunca teve Branca
+ * caracterizada pelo documento de referência (corte de escopo, não vedação
+ * normativa; ver roadmap Fase 22). Os dois onChange voltam a modalidade para
+ * Convencional ao perder a elegibilidade (troca pra B2, ou marca o
+ * desconto) — mesmo motivo dos onChange de `tariffGroup`/`tariffModality`
+ * acima: RHF não desregistra campo desmontado, e o backend rejeitaria
+ * "WHITE" com uma combinação que não é mais elegível.
+ */
+const GroupBFields = ({
+    register,
+    errors,
+    setValue,
+    initialData,
+    billingClass,
+    isWhite,
+}: GroupBFieldsProps) => {
+    const isWhiteEligible = billingClass === "B1" || billingClass === "B3"
+
+    return (
+        <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Select
+                    label="Classe de faturamento"
+                    error={errors.billingClass?.message}
+                    {...register("billingClass", {
+                        onChange: (e) => {
+                            if (e.target.value !== "B1" && e.target.value !== "B3") {
+                                setValue("groupBModality", "CONVENTIONAL")
+                            }
+                        },
+                    })}
+                    defaultValue={initialData?.billingClass ?? "B1"}
+                >
+                    {(Object.entries(BILLING_CLASS_LABELS) as [BillingClass, string][]).map(
+                        ([value, label]) => (
+                            <option key={value} value={value}>
+                                {label}
+                            </option>
+                        ),
+                    )}
+                </Select>
+
+                <Select
+                    label="Modalidade"
+                    helperText={
+                        isWhiteEligible
+                            ? "Tarifa Branca cobra por posto (Ponta/Intermediário/Fora de Ponta)."
+                            : "Tarifa Branca só está disponível para as classes B1 e B3."
+                    }
+                    disabled={!isWhiteEligible}
+                    error={errors.groupBModality?.message}
+                    {...register("groupBModality")}
+                    defaultValue={initialData?.groupBModality ?? "CONVENTIONAL"}
+                >
+                    {(Object.entries(GROUP_B_MODALITY_LABELS) as [GroupBModality, string][]).map(
+                        ([value, label]) => (
+                            <option
+                                key={value}
+                                value={value}
+                                disabled={value === "WHITE" && !isWhiteEligible}
+                            >
+                                {label}
+                            </option>
+                        ),
+                    )}
+                </Select>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm">
+                <input
+                    type="checkbox"
+                    className="accent-accent h-4 w-4"
+                    {...register("receivesBillingDiscount", {
+                        onChange: (e) => {
+                            if (e.target.checked) setValue("groupBModality", "CONVENTIONAL")
+                        },
+                    })}
+                    defaultChecked={initialData?.receivesBillingDiscount ?? false}
+                />
+                Recebe baixa renda ou outro desconto de faturamento
+            </label>
+
+            {isWhite && (
+                <p className="text-muted text-xs">
+                    A conta será decomposta por posto tarifário (Ponta/Intermediário/Fora de Ponta)
+                    em vez da tarifa plana — veja a decomposição na página da propriedade.
+                </p>
+            )}
+        </div>
+    )
+}
 
 interface GroupAFieldsProps {
     register: UseFormRegister<PropertyFormInput>

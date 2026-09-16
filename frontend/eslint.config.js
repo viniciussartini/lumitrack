@@ -220,6 +220,21 @@ export default tseslint.config(
         },
     },
     {
+        // Tabela de rotas — cada rota nova adiciona 1-4 linhas (path curto
+        // cabe numa linha, path/`element` longos quebram em `<Route>` de 4
+        // linhas pelo printWidth do Prettier). A rota da comparação
+        // Convencional × Branca (Fase 22) empurrou o total ligeiramente
+        // acima do teto global. Teto acima do valor medido; revisitar se
+        // crescer.
+        files: ["src/routes/AppRouter.tsx"],
+        rules: {
+            "max-lines-per-function": [
+                "error",
+                { max: 66, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
+    {
         files: ["src/pages/area/AreaDetailsPage.tsx"],
         rules: {
             complexity: ["error", 15],

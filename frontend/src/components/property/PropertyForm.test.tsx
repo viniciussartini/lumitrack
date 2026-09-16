@@ -38,6 +38,8 @@ const mockProperty: Property = {
     zipCode: "30000-000",
     electricalSystem: "TRIPHASIC",
     billingClass: "B1",
+    groupBModality: "CONVENTIONAL",
+    receivesBillingDiscount: false,
     tariffGroup: "GROUP_B",
     contractingEnvironment: "ACR",
     tariffSubgroup: null,
@@ -126,6 +128,7 @@ describe("PropertyForm — modo edição", () => {
         expect(screen.getByLabelText(/cidade/i)).toHaveValue("Belo Horizonte")
         expect(screen.getByLabelText(/sistema elétrico/i)).toHaveValue("TRIPHASIC")
         expect(screen.getByLabelText(/classe de faturamento/i)).toHaveValue("B1")
+        expect(screen.getByLabelText(/^modalidade$/i)).toHaveValue("CONVENTIONAL")
     })
 
     it("converte campos null em string vazia sem quebrar", () => {
@@ -281,6 +284,8 @@ describe("PropertyForm — submit", () => {
                 tariffGroup: "GROUP_B",
                 contractingEnvironment: "ACR",
                 billingClass: "B2",
+                groupBModality: "CONVENTIONAL",
+                receivesBillingDiscount: false,
                 publicLightingFeeBrl: undefined,
                 address: "Rua das Flores, 100",
                 city: "Belo Horizonte",
@@ -338,6 +343,8 @@ describe("PropertyForm — Grupo A", () => {
                 tariffModality: "GREEN",
                 contractedDemandKw: 200,
                 billingClass: undefined,
+                groupBModality: undefined,
+                receivesBillingDiscount: undefined,
             }),
             expect.anything(),
         )
@@ -425,6 +432,95 @@ describe("PropertyForm — Grupo A", () => {
             screen.getByText(/demanda contratada fora de ponta é obrigatória/i),
         ).toBeInTheDocument()
         expect(onSubmit).not.toHaveBeenCalled()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tarifa Branca (Grupo B)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("PropertyForm — Tarifa Branca", () => {
+    it("modalidade Branca fica desabilitada para B2 (não elegível)", async () => {
+        const user = userEvent.setup()
+        renderForm()
+
+        await user.selectOptions(screen.getByLabelText(/classe de faturamento/i), "B2")
+
+        expect(screen.getByLabelText(/^modalidade$/i)).toBeDisabled()
+        expect(screen.getByRole("option", { name: "Tarifa Branca" })).toBeDisabled()
+    })
+
+    it("modalidade Branca fica habilitada para B1 e B3", async () => {
+        const user = userEvent.setup()
+        renderForm()
+
+        expect(screen.getByLabelText(/^modalidade$/i)).toBeEnabled() // default B1
+
+        await user.selectOptions(screen.getByLabelText(/classe de faturamento/i), "B3")
+
+        expect(screen.getByLabelText(/^modalidade$/i)).toBeEnabled()
+    })
+
+    it("envia groupBModality WHITE quando selecionado para uma classe elegível", async () => {
+        const user = userEvent.setup()
+        const onSubmit = vi.fn().mockResolvedValue(undefined)
+        renderForm({ onSubmit })
+
+        await user.type(screen.getByLabelText(/nome/i), "Casa")
+        await user.selectOptions(screen.getByLabelText(/distribuidora vinculada/i), "dist-1")
+        await user.selectOptions(screen.getByLabelText(/^modalidade$/i), "WHITE")
+
+        await user.click(screen.getByRole("button", { name: /salvar/i }))
+
+        await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+
+        expect(onSubmit).toHaveBeenCalledWith(
+            expect.objectContaining({ billingClass: "B1", groupBModality: "WHITE" }),
+            expect.anything(),
+        )
+    })
+
+    it("trocar para uma classe não elegível (B2) volta a modalidade para Convencional", async () => {
+        const user = userEvent.setup()
+        const onSubmit = vi.fn().mockResolvedValue(undefined)
+        renderForm({ onSubmit })
+
+        await user.type(screen.getByLabelText(/nome/i), "Casa")
+        await user.selectOptions(screen.getByLabelText(/distribuidora vinculada/i), "dist-1")
+        await user.selectOptions(screen.getByLabelText(/^modalidade$/i), "WHITE")
+        await user.selectOptions(screen.getByLabelText(/classe de faturamento/i), "B2")
+
+        await user.click(screen.getByRole("button", { name: /salvar/i }))
+
+        await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+
+        expect(onSubmit).toHaveBeenCalledWith(
+            expect.objectContaining({ billingClass: "B2", groupBModality: "CONVENTIONAL" }),
+            expect.anything(),
+        )
+    })
+
+    it("marcar o desconto de faturamento volta a modalidade para Convencional", async () => {
+        const user = userEvent.setup()
+        const onSubmit = vi.fn().mockResolvedValue(undefined)
+        renderForm({ onSubmit })
+
+        await user.type(screen.getByLabelText(/nome/i), "Casa")
+        await user.selectOptions(screen.getByLabelText(/distribuidora vinculada/i), "dist-1")
+        await user.selectOptions(screen.getByLabelText(/^modalidade$/i), "WHITE")
+        await user.click(screen.getByLabelText(/recebe baixa renda/i))
+
+        await user.click(screen.getByRole("button", { name: /salvar/i }))
+
+        await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+
+        expect(onSubmit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                groupBModality: "CONVENTIONAL",
+                receivesBillingDiscount: true,
+            }),
+            expect.anything(),
+        )
     })
 })
 

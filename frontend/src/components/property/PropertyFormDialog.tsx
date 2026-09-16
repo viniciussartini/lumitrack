@@ -29,6 +29,10 @@ const buildCreateInput = (data: PropertyFormData): CreatePropertyInput => ({
     ...(data.state !== undefined && { state: data.state }),
     ...(data.zipCode !== undefined && { zipCode: data.zipCode }),
     ...(data.billingClass !== undefined && { billingClass: data.billingClass }),
+    ...(data.groupBModality !== undefined && { groupBModality: data.groupBModality }),
+    ...(data.receivesBillingDiscount !== undefined && {
+        receivesBillingDiscount: data.receivesBillingDiscount,
+    }),
     ...(data.tariffSubgroup !== undefined && { tariffSubgroup: data.tariffSubgroup }),
     ...(data.tariffModality !== undefined && { tariffModality: data.tariffModality }),
     ...(data.contractedDemandKw !== undefined && {
@@ -49,6 +53,8 @@ const buildUpdateInput = (data: PropertyFormData): UpdatePropertyInput => ({
     electricalSystem: data.electricalSystem,
     tariffGroup: data.tariffGroup,
     billingClass: data.billingClass,
+    groupBModality: data.groupBModality,
+    receivesBillingDiscount: data.receivesBillingDiscount,
     tariffSubgroup: data.tariffSubgroup,
     tariffModality: data.tariffModality,
     contractedDemandKw: data.contractedDemandKw,

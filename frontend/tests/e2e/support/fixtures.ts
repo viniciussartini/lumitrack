@@ -80,6 +80,8 @@ export const PROP_1: Property = {
     zipCode: "30130-100",
     electricalSystem: "BIPHASIC",
     billingClass: "B1",
+    groupBModality: "CONVENTIONAL",
+    receivesBillingDiscount: false,
     tariffGroup: "GROUP_B",
     contractingEnvironment: "ACR",
     tariffSubgroup: null,
