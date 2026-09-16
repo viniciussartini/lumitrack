@@ -2,6 +2,7 @@ import {
     listConsumptionQuerySchema,
     consumptionSummaryQuerySchema,
     compareAclToAcrQuerySchema,
+    compareBrancaToConvencionalQuerySchema,
     type Granularity,
 } from "@/modules/consumption/consumption.schema.js"
 import type {
@@ -153,6 +154,31 @@ export type AclComparisonResponse = {
     diffPercent: number
     verdict: AclComparisonVerdict
     pldContext: PldQuoteResponse[]
+}
+
+// Comparação Convencional × Branca — mesmo papel de AclComparisonVerdict: o
+// veredito nomeia quem sai mais barato no consumo real do período pedido
+// (a propriedade já precisa estar em WHITE para chegar aqui — ver
+// `compareBrancaToConvencional`), não uma recomendação de adesão.
+export type BrancaComparisonVerdict = "BRANCA_CHEAPER" | "CONVENCIONAL_CHEAPER" | "EQUIVALENT"
+
+export type BrancaComparisonMonthResult = {
+    monthStart: Date
+    convencionalBrl: number
+    brancaBrl: number
+    diffBrl: number
+}
+
+export type BrancaComparisonResponse = {
+    propertyId: string
+    from: Date
+    to: Date
+    months: BrancaComparisonMonthResult[]
+    totalConvencionalBrl: number
+    totalBrancaBrl: number
+    totalDiffBrl: number
+    diffPercent: number
+    verdict: BrancaComparisonVerdict
 }
 
 /**
@@ -1270,6 +1296,93 @@ export class ConsumptionService {
         return "EQUIVALENT"
     }
 
+    private resolveBrancaComparisonVerdict(totalDiffBrl: number): BrancaComparisonVerdict {
+        if (totalDiffBrl > 0) return "BRANCA_CHEAPER"
+        if (totalDiffBrl < 0) return "CONVENCIONAL_CHEAPER"
+        return "EQUIVALENT"
+    }
+
+    // Um mês da comparação Convencional × Branca: mesmo consumo real por
+    // posto nos dois cenários — o cenário Branca usa a decomposição por
+    // posto de `TariffService.calculateForGroupBWhite` (com o mesmo piso de
+    // disponibilidade pela Convencional que a conta real já aplica), o
+    // cenário "e se fosse Convencional" usa `calculateForProperty` com o
+    // mesmo total de kWh. Abaixo do piso, os dois cenários convergem para a
+    // mesma conta (a Branca já delega à Convencional nesse caso) — `diffBrl`
+    // fica exatamente zero, não uma aproximação.
+    private async calculateBrancaComparisonMonth(
+        meterId: string,
+        monthStart: Date,
+        property: PropertyResponse,
+        distributor: DistributorResponse,
+        peakWindow: PeakWindowConfig,
+        rateByPost: Map<TariffPost, TariffEnergyRateResponse>,
+        flagPer100Kwh: number,
+    ): Promise<BrancaComparisonMonthResult> {
+        const monthEndLocal = new Date(
+            Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 1),
+        )
+        const from = fromSaoPauloLocal(monthStart)
+        const to = fromSaoPauloLocal(monthEndLocal)
+        const holidays = getNationalHolidaysInRange(from, to)
+
+        const kwhByPost = await this.consumptionRepository.findKwhByPost(
+            meterId,
+            from,
+            to,
+            peakWindow,
+            holidays,
+            true,
+        )
+
+        const energyByPost = kwhByPost.map((row) => {
+            const rate = rateByPost.get(row.post)
+            if (!rate) {
+                throw new NotFoundError(
+                    "Catálogo da Tarifa Branca não cadastrado para esta distribuidora/posto",
+                )
+            }
+            return {
+                post: row.post,
+                kwhConsumed: row.kwhConsumed,
+                tusdPerKwh: rate.tusdPerKwh,
+                tePerKwh: rate.tePerKwh,
+            }
+        })
+        const totalKwh = kwhByPost.reduce((sum, row) => sum + row.kwhConsumed, 0)
+
+        const brancaResult = this.tariffService.calculateForGroupBWhite({
+            energyByPost,
+            electricalSystem: property.electricalSystem,
+            conventionalTusdPerKwh: distributor.tusdPerKwh,
+            conventionalTePerKwh: distributor.tePerKwh,
+            icmsRate: distributor.icmsRate,
+            pisRate: distributor.pisRate,
+            cofinsRate: distributor.cofinsRate,
+            flagPer100Kwh,
+            publicLightingFeeBrl: property.publicLightingFeeBrl,
+        })
+
+        const convencionalResult = this.tariffService.calculateForProperty({
+            kwhConsumed: totalKwh,
+            electricalSystem: property.electricalSystem,
+            publicLightingFeeBrl: property.publicLightingFeeBrl,
+            tusdPerKwh: distributor.tusdPerKwh,
+            tePerKwh: distributor.tePerKwh,
+            icmsRate: distributor.icmsRate,
+            pisRate: distributor.pisRate,
+            cofinsRate: distributor.cofinsRate,
+            flagPer100Kwh,
+        })
+
+        return {
+            monthStart,
+            convencionalBrl: convencionalResult.totalBrl,
+            brancaBrl: brancaResult.totalBrl,
+            diffBrl: convencionalResult.totalBrl - brancaResult.totalBrl,
+        }
+    }
+
     // Extraído de `compareAclToAcr` só para caber no teto de linhas — a
     // lógica em si não mudou: busca os contratos sobrepostos à janela
     // inteira e filtra para os meses que de fato têm algum contrato vigente.
@@ -1408,6 +1521,107 @@ export class ConsumptionService {
             diffPercent,
             verdict: this.resolveAclComparisonVerdict(totalDiffBrl),
             pldContext,
+        }
+    }
+
+    /**
+     * `GET /api/consumption/branca-comparison` — recalcula o mesmo consumo
+     * real medido da propriedade nos dois cenários (tarifa Convencional
+     * plana vs. decomposição por posto da Tarifa Branca), mês a mês, para a
+     * mesma janela. Só disponível para propriedade já na Tarifa Branca
+     * (`groupBModality` WHITE) — comparar exigiria primeiro migrar o
+     * cadastro para poder ter o catálogo por posto resolvido.
+     *
+     * @param userId - Id do usuário autenticado (dono da propriedade).
+     * @param query - Query string bruta (propriedade e janela), validada aqui.
+     * @returns O custo mês a mês nos dois cenários, a diferença, o percentual e o veredito.
+     */
+    async compareBrancaToConvencional(
+        userId: string,
+        query: unknown,
+    ): Promise<BrancaComparisonResponse> {
+        const { propertyId, from, to } = parseOrThrow(compareBrancaToConvencionalQuerySchema, query)
+
+        const property = await this.propertyRepository.findById(propertyId)
+        if (!property) {
+            throw new NotFoundError("Propriedade não encontrada")
+        }
+        if (property.userId !== userId) {
+            throw new ForbiddenError("Acesso negado")
+        }
+        if (property.groupBModality !== "WHITE") {
+            throw new ValidationError(
+                "Comparação Convencional × Branca só está disponível para propriedades na Tarifa Branca (Grupo B)",
+            )
+        }
+
+        const meter = await this.meterRepository.findByTarget("PROPERTY", propertyId)
+        if (!meter) {
+            throw new NotFoundError("Esta propriedade não possui medidor vinculado")
+        }
+
+        const distributor = await this.distributorRepository.findById(property.distributorId)
+        if (!distributor) {
+            throw new NotFoundError("Distribuidora vinculada não encontrada")
+        }
+        if (distributor.peakWindowStartHour === null || distributor.peakWindowEndHour === null) {
+            throw new ValidationError(
+                "Distribuidora sem janela de ponta configurada — não é possível calcular a conta da Tarifa Branca",
+            )
+        }
+        const peakWindow: PeakWindowConfig = {
+            peakWindowStartHour: distributor.peakWindowStartHour,
+            peakWindowEndHour: distributor.peakWindowEndHour,
+        }
+
+        const tariffFlagConfig = await this.tariffFlagRepository.get()
+        if (!tariffFlagConfig) {
+            throw new NotFoundError("Configuração de bandeira tarifária não encontrada")
+        }
+        const flagPer100Kwh = resolveFlagPer100Kwh(tariffFlagConfig)
+
+        const energyRates = await this.tariffCatalogRepository.findGroupBEnergyRates(
+            distributor.id,
+            "WHITE",
+        )
+        if (energyRates.length === 0) {
+            throw new NotFoundError(
+                "Catálogo da Tarifa Branca não cadastrado para esta distribuidora",
+            )
+        }
+        const rateByPost = new Map(energyRates.map((rate) => [rate.post, rate]))
+
+        const monthStarts = this.monthStartsInRange(from, to)
+        const months = await Promise.all(
+            monthStarts.map((monthStart) =>
+                this.calculateBrancaComparisonMonth(
+                    meter.id,
+                    monthStart,
+                    property,
+                    distributor,
+                    peakWindow,
+                    rateByPost,
+                    flagPer100Kwh,
+                ),
+            ),
+        )
+
+        const totalConvencionalBrl = months.reduce((sum, m) => sum + m.convencionalBrl, 0)
+        const totalBrancaBrl = months.reduce((sum, m) => sum + m.brancaBrl, 0)
+        const totalDiffBrl = totalConvencionalBrl - totalBrancaBrl
+        const diffPercent =
+            totalConvencionalBrl === 0 ? 0 : (totalDiffBrl / totalConvencionalBrl) * 100
+
+        return {
+            propertyId,
+            from,
+            to,
+            months,
+            totalConvencionalBrl,
+            totalBrancaBrl,
+            totalDiffBrl,
+            diffPercent,
+            verdict: this.resolveBrancaComparisonVerdict(totalDiffBrl),
         }
     }
 }

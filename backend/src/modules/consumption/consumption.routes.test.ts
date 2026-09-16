@@ -417,3 +417,151 @@ describe("GET /api/consumption/acl-comparison", () => {
         expect(response.status).toBe(200)
     })
 })
+
+describe("GET /api/consumption/branca-comparison", () => {
+    async function setupBrancaComparisonFixture(user = validUser) {
+        const token = await registerAndLogin(user)
+        const distributor = await createTestDistributor(prismaHttpTest)
+        await prismaHttpTest.energyDistributor.update({
+            where: { id: distributor.id },
+            data: { peakWindowStartHour: 18, peakWindowEndHour: 21 },
+        })
+        await createTestTariffFlagConfig(prismaHttpTest)
+        await prismaHttpTest.groupBEnergyRate.createMany({
+            data: [
+                {
+                    distributorId: distributor.id,
+                    modality: "WHITE",
+                    post: "PEAK",
+                    tusdPerKwh: 0.6,
+                    tePerKwh: 0.6,
+                },
+                {
+                    distributorId: distributor.id,
+                    modality: "WHITE",
+                    post: "INTERMEDIATE",
+                    tusdPerKwh: 0.375,
+                    tePerKwh: 0.375,
+                },
+                {
+                    distributorId: distributor.id,
+                    modality: "WHITE",
+                    post: "OFF_PEAK",
+                    tusdPerKwh: 0.225,
+                    tePerKwh: 0.225,
+                },
+            ],
+        })
+
+        const propRes = await request(app)
+            .post("/api/properties")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                name: "Casa",
+                distributorId: distributor.id,
+                electricalSystem: "TRIPHASIC",
+                billingClass: "B1",
+                groupBModality: "WHITE",
+                publicLightingFeeBrl: 18,
+            })
+        const propertyId = propRes.body.data.id as string
+
+        const meterRes = await request(app)
+            .post("/api/meters")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                name: "Medidor",
+                targetType: "PROPERTY",
+                propertyId,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "casa-branca/medidor",
+            })
+        const meterId = meterRes.body.data.id as string
+
+        await prismaHttpTest.meterReading.create({
+            data: {
+                meterId,
+                minuteStart: new Date("2026-08-04T13:00:00Z"),
+                kwhConsumed: 200,
+                avgVoltage: 220,
+                avgCurrent: 5,
+                avgPowerW: 100_000,
+                avgPowerFactor: 1,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+
+        return { token, propertyId }
+    }
+
+    it("retorna 401 sem token", async () => {
+        const response = await request(app).get(
+            "/api/consumption/branca-comparison?propertyId=00000000-0000-0000-0000-000000000000&from=2026-08-01&to=2026-08-01",
+        )
+        expect(response.status).toBe(401)
+    })
+
+    it("retorna 200 com a comparação Convencional × Branca no caminho feliz", async () => {
+        const { token, propertyId } = await setupBrancaComparisonFixture()
+
+        const response = await request(app)
+            .get(
+                `/api/consumption/branca-comparison?propertyId=${propertyId}&from=2026-08-01&to=2026-08-01`,
+            )
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(200)
+        expect(response.body.data.months).toHaveLength(1)
+        expect(response.body.data.verdict).toMatch(
+            /^(BRANCA_CHEAPER|CONVENCIONAL_CHEAPER|EQUIVALENT)$/,
+        )
+    })
+
+    it("retorna 403 para propriedade de outro usuário", async () => {
+        const { propertyId } = await setupBrancaComparisonFixture(validUser)
+        const tokenB = await registerAndLogin(anotherUser)
+
+        const response = await request(app)
+            .get(
+                `/api/consumption/branca-comparison?propertyId=${propertyId}&from=2026-08-01&to=2026-08-01`,
+            )
+            .set("Authorization", `Bearer ${tokenB}`)
+
+        expect(response.status).toBe(403)
+    })
+
+    it("retorna 422 quando faltam parâmetros obrigatórios", async () => {
+        const token = await registerAndLogin()
+
+        const response = await request(app)
+            .get("/api/consumption/branca-comparison?from=2026-08-01&to=2026-08-01")
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(422)
+    })
+
+    it("retorna 422 para propriedade que não está na Tarifa Branca", async () => {
+        const { token } = await setupPropertyWithMeter()
+        const propRes = await request(app)
+            .post("/api/properties")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                name: "Casa Convencional",
+                distributorId: (await createTestDistributor(prismaHttpTest)).id,
+                electricalSystem: "TRIPHASIC",
+                billingClass: "B1",
+            })
+        const propertyId = propRes.body.data.id as string
+
+        const response = await request(app)
+            .get(
+                `/api/consumption/branca-comparison?propertyId=${propertyId}&from=2026-08-01&to=2026-08-01`,
+            )
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(422)
+    })
+})

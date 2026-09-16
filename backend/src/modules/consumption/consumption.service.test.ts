@@ -2058,6 +2058,220 @@ describe("ConsumptionService.list — Tarifa Branca (Grupo B)", () => {
     })
 })
 
+describe("ConsumptionService.compareBrancaToConvencional — comparação Convencional × Branca", () => {
+    // Mesma distribuidora/catálogo do Exemplo 3 (ver "ConsumptionService.list
+    // — Tarifa Branca" acima): Ponta R$1,20/kWh, Intermediário R$0,75/kWh,
+    // Fora de Ponta R$0,45/kWh, Convencional R$0,60/kWh (tusd+te 0,30 cada),
+    // ICMS 18%/PIS 1,65%/COFINS 7,6% (defaults de createTestDistributor),
+    // bandeira amarela, CIP R$18. O documento de referência dá o oráculo
+    // qualitativo dos dois lados: 450 kWh deslocado (30 ponta + 50
+    // intermediário + 370 fora) sai mais barato na Branca; o mesmo total
+    // concentrado na ponta (100 ponta + 350 fora, sem intermediário) sai
+    // mais caro — é o contraexemplo explícito do documento.
+    async function setupBrancaComparisonFixture() {
+        const user = await userService.createUser({
+            email: "comparacao.branca@example.com",
+            password: "Senha@123",
+            userType: "INDIVIDUAL",
+            acceptedTerms: true,
+            firstName: "João",
+            lastName: "Silva",
+            cpf: "529.982.247-25",
+        })
+        const distributor = await createTestDistributor(prismaTest)
+        await prismaTest.energyDistributor.update({
+            where: { id: distributor.id },
+            data: { peakWindowStartHour: 18, peakWindowEndHour: 21 },
+        })
+        await prismaTest.tariffFlagConfig.upsert({
+            where: { id: 1 },
+            update: { currentFlag: "YELLOW" },
+            create: {
+                id: 1,
+                currentFlag: "YELLOW",
+                greenPer100Kwh: 0,
+                yellowPer100Kwh: 1.885,
+                redP1Per100Kwh: 4.463,
+                redP2Per100Kwh: 7.877,
+            },
+        })
+        await prismaTest.groupBEnergyRate.createMany({
+            data: [
+                {
+                    distributorId: distributor.id,
+                    modality: "WHITE",
+                    post: "PEAK",
+                    tusdPerKwh: 0.6,
+                    tePerKwh: 0.6,
+                },
+                {
+                    distributorId: distributor.id,
+                    modality: "WHITE",
+                    post: "INTERMEDIATE",
+                    tusdPerKwh: 0.375,
+                    tePerKwh: 0.375,
+                },
+                {
+                    distributorId: distributor.id,
+                    modality: "WHITE",
+                    post: "OFF_PEAK",
+                    tusdPerKwh: 0.225,
+                    tePerKwh: 0.225,
+                },
+            ],
+        })
+
+        const property = await propertyService.create(user.id, {
+            name: "Casa",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC", // piso de 100 kWh
+            billingClass: "B1",
+            groupBModality: "WHITE",
+            publicLightingFeeBrl: 18,
+        })
+        const meter = await prismaTest.meter.create({
+            data: {
+                name: "Medidor",
+                targetType: "PROPERTY",
+                propertyId: property.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "casa-branca/comparacao",
+            },
+        })
+
+        return { user, property, meter, distributor }
+    }
+
+    it("aponta BRANCA_CHEAPER para o perfil deslocado do Exemplo 3 (30 ponta + 50 intermediário + 370 fora)", async () => {
+        const { user, meter, property } = await setupBrancaComparisonFixture()
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 30, 10_000) // 19h SP — ponta
+        await insertReading(meter.id, "2026-08-04T20:00:00Z", 50, 10_000) // 17h SP — intermediário
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 370, 10_000) // 10h SP — fora de ponta
+
+        const comparison = await consumptionService.compareBrancaToConvencional(user.id, {
+            propertyId: property.id,
+            from: new Date("2026-08-01"),
+            to: new Date("2026-08-01"),
+        })
+
+        expect(comparison.months).toHaveLength(1)
+        expect(comparison.months[0]!.brancaBrl).toBeCloseTo(359.5567, 2)
+        const expectedConvencionalBrl =
+            (450 * 0.6 + 450 * (1.885 / 100)) / (1 - (0.18 + 0.0165 + 0.076)) + 18
+        expect(comparison.months[0]!.convencionalBrl).toBeCloseTo(expectedConvencionalBrl, 2)
+        expect(comparison.totalDiffBrl).toBeGreaterThan(0)
+        expect(comparison.verdict).toBe("BRANCA_CHEAPER")
+    })
+
+    it("aponta CONVENCIONAL_CHEAPER para o contraexemplo do documento (100 ponta + 350 fora, sem deslocar consumo)", async () => {
+        const { user, meter, property } = await setupBrancaComparisonFixture()
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 100, 10_000) // 19h SP — ponta
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 350, 10_000) // 10h SP — fora de ponta
+
+        const comparison = await consumptionService.compareBrancaToConvencional(user.id, {
+            propertyId: property.id,
+            from: new Date("2026-08-01"),
+            to: new Date("2026-08-01"),
+        })
+
+        // 100×1,20 + 350×0,45 = R$ 277,50 sem tributos — o próprio contraexemplo do documento.
+        expect(comparison.months[0]!.brancaBrl).toBeCloseTo(
+            (277.5 + 450 * (1.885 / 100)) / (1 - (0.18 + 0.0165 + 0.076)) + 18,
+            2,
+        )
+        expect(comparison.totalDiffBrl).toBeLessThan(0)
+        expect(comparison.verdict).toBe("CONVENCIONAL_CHEAPER")
+    })
+
+    it("abaixo do piso de disponibilidade, os dois cenários convergem para a mesma conta (diferença zero)", async () => {
+        const { user, meter, property } = await setupBrancaComparisonFixture()
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 80, 10_000) // fora de ponta, 80 kWh (< piso 100)
+
+        const comparison = await consumptionService.compareBrancaToConvencional(user.id, {
+            propertyId: property.id,
+            from: new Date("2026-08-01"),
+            to: new Date("2026-08-01"),
+        })
+
+        expect(comparison.months[0]!.diffBrl).toBeCloseTo(0, 6)
+        expect(comparison.verdict).toBe("EQUIVALENT")
+    })
+
+    it("soma corretamente vários meses na mesma janela", async () => {
+        const { user, meter, property } = await setupBrancaComparisonFixture()
+        await insertReading(meter.id, "2026-07-04T13:00:00Z", 300, 10_000) // fora de ponta
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 30, 10_000)
+        await insertReading(meter.id, "2026-08-04T20:00:00Z", 50, 10_000)
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 370, 10_000)
+
+        const comparison = await consumptionService.compareBrancaToConvencional(user.id, {
+            propertyId: property.id,
+            from: new Date("2026-07-01"),
+            to: new Date("2026-08-01"),
+        })
+
+        expect(comparison.months).toHaveLength(2)
+        const sumConvencional = comparison.months.reduce((sum, m) => sum + m.convencionalBrl, 0)
+        const sumBranca = comparison.months.reduce((sum, m) => sum + m.brancaBrl, 0)
+        expect(comparison.totalConvencionalBrl).toBeCloseTo(sumConvencional, 6)
+        expect(comparison.totalBrancaBrl).toBeCloseTo(sumBranca, 6)
+        expect(comparison.totalDiffBrl).toBeCloseTo(sumConvencional - sumBranca, 6)
+    })
+
+    it("lança ForbiddenError para propriedade de outro usuário", async () => {
+        const { property } = await setupBrancaComparisonFixture()
+        const otherUser = await userService.createUser({
+            email: "outra.branca@example.com",
+            password: "Senha@123",
+            userType: "INDIVIDUAL",
+            acceptedTerms: true,
+            firstName: "Outra",
+            lastName: "Pessoa",
+            cpf: "111.444.777-35",
+        })
+
+        await expect(
+            consumptionService.compareBrancaToConvencional(otherUser.id, {
+                propertyId: property.id,
+                from: new Date("2026-08-01"),
+                to: new Date("2026-08-01"),
+            }),
+        ).rejects.toThrow(ForbiddenError)
+    })
+
+    it("lança ValidationError para propriedade que não está na Tarifa Branca", async () => {
+        const { user, distributor } = await setupBrancaComparisonFixture()
+        const conventionalProperty = await propertyService.create(user.id, {
+            name: "Casa Convencional",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC",
+            billingClass: "B1",
+        })
+
+        await expect(
+            consumptionService.compareBrancaToConvencional(user.id, {
+                propertyId: conventionalProperty.id,
+                from: new Date("2026-08-01"),
+                to: new Date("2026-08-01"),
+            }),
+        ).rejects.toThrow(ValidationError)
+    })
+
+    it("lança NotFoundError para propriedade inexistente", async () => {
+        const { user } = await setupBrancaComparisonFixture()
+
+        await expect(
+            consumptionService.compareBrancaToConvencional(user.id, {
+                propertyId: "00000000-0000-0000-0000-000000000000",
+                from: new Date("2026-08-01"),
+                to: new Date("2026-08-01"),
+            }),
+        ).rejects.toThrow(NotFoundError)
+    })
+})
+
 // Os dois métodos extraídos de `list()` — a maior parte dos casos já sai
 // coberta indiretamente pelos testes de `ConsumptionService.list` acima
 // (year+PROPERTY em "granularidade month/year", year+AREA em "alvo
