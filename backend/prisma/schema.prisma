@@ -128,11 +128,25 @@ enum TariffModality {
   @@map("tariff_modality")
 }
 
+// Modalidade tarifária do Grupo B — Convencional (monômio de sempre, tarifa
+// plana em EnergyDistributor.tusdPerKwh/tePerKwh) ou Branca (3 postos —
+// Ponta/Intermediário/Fora de Ponta, REN 1.098/2024, catálogo em
+// GroupBEnergyRate). Enum próprio, não reaproveita TariffModality — aquele é
+// exclusivo do Grupo A desde a ADR-0019; reaproveitá-lo aqui reabriria a
+// conflação que aquela ADR corrigiu.
+enum GroupBModality {
+  CONVENTIONAL
+  WHITE
+
+  @@map("group_b_modality")
+}
+
 // Posto tarifário horário. INTERMEDIATE é exclusivo da Tarifa Branca
-// (Grupo B, Fase 22) — Verde/Azul do Grupo A só usam ponta e fora de ponta;
-// adicionar o valor então é migração aditiva trivial (ADR-0019).
+// (Grupo B) — Verde/Azul do Grupo A só usam PEAK/OFF_PEAK, nunca produzem
+// INTERMEDIATE (classifyPost e as queries de agregação garantem isso).
 enum TariffPost {
   PEAK
+  INTERMEDIATE
   OFF_PEAK
 
   @@map("tariff_post")
@@ -406,19 +420,22 @@ model EnergyDistributor {
   pisRate    Decimal @db.Decimal(5, 4)
   cofinsRate Decimal @db.Decimal(5, 4)
 
-  // Janela de ponta do Grupo A — hora local, início inclusivo e fim
-  // exclusivo (ex.: 18/21 = 18h–21h). Configurável por distribuidora porque
-  // varia por local/estado; nulo até uma distribuidora oferecer Grupo A.
-  // Não usado pelo Grupo B (que é monômio, sem posto horário).
+  // Janela de ponta — hora local, início inclusivo e fim exclusivo (ex.:
+  // 18/21 = 18h–21h). Configurável por distribuidora porque varia por
+  // local/estado; nulo até uma distribuidora oferecer Grupo A ou Tarifa
+  // Branca (Grupo B). Usada pelo Grupo A (Verde/Azul, PEAK/OFF_PEAK) e pela
+  // Tarifa Branca do Grupo B (PEAK/INTERMEDIATE/OFF_PEAK, `getIntermediateHours`)
+  // — o resto do Grupo B (Convencional) é monômio, sem posto horário.
   peakWindowStartHour Int?
   peakWindowEndHour   Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  properties  Property[]
-  energyRates TariffEnergyRate[]
-  demandRates TariffDemandRate[]
+  properties        Property[]
+  energyRates       TariffEnergyRate[]
+  demandRates       TariffDemandRate[]
+  groupBEnergyRates GroupBEnergyRate[]
 
   @@map("energy_distributors")
 }
@@ -481,6 +498,32 @@ model TariffDemandRate {
   @@map("tariff_demand_rates")
 }
 
+// Catálogo de tarifa por posto da Tarifa Branca (Grupo B). Modelo próprio,
+// não reaproveita TariffEnergyRate — aquela tabela é indexada por
+// TariffSubgroup, dimensão exclusiva do Grupo A (ADR-0019); o Grupo B não
+// tem subgrupo, só billingClass (B1/B2/B3), que não diferencia a tarifa
+// horária em si (só a elegibilidade, ver Property.receivesBillingDiscount).
+// `post` nunca é nulo aqui — ao contrário de TariffDemandRate (Grupo A), não
+// há "posto único" no Grupo B: a modalidade Convencional simplesmente não
+// usa esta tabela (mantém a tarifa plana de EnergyDistributor).
+model GroupBEnergyRate {
+  id            String         @id @default(uuid())
+  distributorId String
+  modality      GroupBModality
+  post          TariffPost
+
+  tusdPerKwh Decimal @db.Decimal(10, 6)
+  tePerKwh   Decimal @db.Decimal(10, 6)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  distributor EnergyDistributor @relation(fields: [distributorId], references: [id])
+
+  @@unique([distributorId, modality, post])
+  @@map("group_b_energy_rates")
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // HIERARQUIA: PROPRIEDADE → ÁREA → APARELHO
 // ─────────────────────────────────────────────────────────────────────────────
@@ -515,6 +558,27 @@ model Property {
   // tariffGroup é validado em property.schema.ts, não aqui: regra cruzada
   // entre campos fica no service/schema, não é uma constraint de coluna.
   billingClass BillingClass? @default(B1)
+
+  // Modalidade tarifária do Grupo B (Convencional × Branca) — nula para
+  // Grupo A, que usa tariffModality abaixo (enum separado, ADR-0019).
+  // Sem @default de coluna, de propósito: diferente de tariffGroup/billingClass
+  // acima (cujo default preserva propriedades existentes porque, quando esses
+  // campos foram criados, toda propriedade já existente era do próprio grupo
+  // que o default assume), aqui um default de coluna faria a migração
+  // backfillar CONVENTIONAL/false em propriedades Grupo A já existentes —
+  // que devem permanecer nulas. O valor correto (CONVENTIONAL só quando o
+  // grupo é B) é resolvido em property.service.ts, sempre escrito
+  // explicitamente em toda criação/atualização — nunca depende do default da
+  // coluna. Branca só é aceita para billingClass B1/B3 e quando
+  // receivesBillingDiscount é falso, validado no mesmo service.
+  groupBModality GroupBModality?
+
+  // Recebe desconto de faturamento (baixa renda ou outro desconto) — sem
+  // efeito para Grupo A. Bloqueia a adesão à Branca; sem taxonomia de
+  // subclasse (BPC, indígena, rural etc.) — corte de escopo, até haver caso
+  // real que a exija. Sem @default de coluna pelo mesmo motivo de
+  // groupBModality acima.
+  receivesBillingDiscount Boolean?
 
   // Subgrupo e modalidade do Grupo A — nulos para Grupo B.
   tariffSubgroup TariffSubgroup?

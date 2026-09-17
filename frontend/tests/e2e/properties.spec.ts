@@ -42,6 +42,8 @@ const buildTariffGroupFields = (
     Property,
     | "tariffGroup"
     | "billingClass"
+    | "groupBModality"
+    | "receivesBillingDiscount"
     | "tariffSubgroup"
     | "tariffModality"
     | "contractedDemandKw"
@@ -51,6 +53,8 @@ const buildTariffGroupFields = (
 > => ({
     tariffGroup: body.tariffGroup ?? "GROUP_B",
     billingClass: body.billingClass ?? null,
+    groupBModality: body.groupBModality ?? "CONVENTIONAL",
+    receivesBillingDiscount: body.receivesBillingDiscount ?? false,
     tariffSubgroup: body.tariffSubgroup ?? null,
     tariffModality: body.tariffModality ?? null,
     contractedDemandKw: body.contractedDemandKw ?? null,

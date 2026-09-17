@@ -31,6 +31,8 @@ const mockAclProperty: Property = {
     zipCode: null,
     electricalSystem: "TRIPHASIC",
     billingClass: null,
+    groupBModality: null,
+    receivesBillingDiscount: null,
     tariffGroup: "GROUP_A",
     contractingEnvironment: "ACL",
     tariffSubgroup: "A4",

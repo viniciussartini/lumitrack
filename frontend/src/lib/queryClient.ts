@@ -182,4 +182,9 @@ export const queryKeys = {
         detail: (propertyId: string, from: string, to: string) =>
             [...queryKeys.aclComparison.all, propertyId, from, to] as const,
     },
+    brancaComparison: {
+        all: ["brancaComparison"] as const,
+        detail: (propertyId: string, from: string, to: string) =>
+            [...queryKeys.brancaComparison.all, propertyId, from, to] as const,
+    },
 } as const

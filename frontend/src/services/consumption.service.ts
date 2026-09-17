@@ -7,6 +7,10 @@ import type {
     ListConsumptionParams,
 } from "@/types/consumption.types"
 import type { AclComparisonParams, AclComparisonResponse } from "@/types/acl-comparison.types"
+import type {
+    BrancaComparisonParams,
+    BrancaComparisonResponse,
+} from "@/types/branca-comparison.types"
 import type { Paginated } from "@/types/pagination.types"
 
 interface ApiEnvelope<T> {
@@ -80,6 +84,26 @@ export const consumptionService = {
     }: AclComparisonParams): Promise<AclComparisonResponse> => {
         const { data } = await api.get<ApiEnvelope<AclComparisonResponse>>(
             "/consumption/acl-comparison",
+            {
+                params: {
+                    propertyId,
+                    from: from.toISOString().slice(0, 10),
+                    to: to.toISOString().slice(0, 10),
+                },
+            },
+        )
+        return data.data
+    },
+
+    // Comparação Convencional × Branca — mesma convenção de data de
+    // calendário do compareAclToAcr acima.
+    compareBrancaToConvencional: async ({
+        propertyId,
+        from,
+        to,
+    }: BrancaComparisonParams): Promise<BrancaComparisonResponse> => {
+        const { data } = await api.get<ApiEnvelope<BrancaComparisonResponse>>(
+            "/consumption/branca-comparison",
             {
                 params: {
                     propertyId,

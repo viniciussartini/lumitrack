@@ -39,6 +39,11 @@ const CELESC_CNPJ = "08.336.783/0001-90"
 // — fonte do Exemplo 7 (frigorífico A4 Azul, Cuiabá/MT).
 const ENERGISA_MT_CNPJ = "03.467.321/0001-99"
 
+// Reaproveitada pelo catálogo da Tarifa Branca (seedGroupBTariffCatalog,
+// Fase 22) — mesma distribuidora já semeada abaixo, fonte do Exemplo 3
+// (casa trifásica em BH, Cemig Branca).
+const CEMIG_CNPJ = "06.981.180/0001-16"
+
 interface DistributorSeed {
     name: string
     cnpj: string // aproximado — verificar
@@ -67,7 +72,7 @@ const DISTRIBUTORS: DistributorSeed[] = [
     },
     {
         name: "Cemig Distribuição",
-        cnpj: "06.981.180/0001-16",
+        cnpj: CEMIG_CNPJ,
         state: "MG",
         icmsRate: 0.18,
         targetEffectiveTariff: 0.71,
@@ -338,6 +343,53 @@ async function seedGroupATariffCatalog(): Promise<void> {
     )
 }
 
+// Tarifas de energia por posto (TUSD+TE combinado, sem separar as duas
+// parcelas — mesma aproximação já usada por seedBlueA4EnergyRates) da Tarifa
+// Branca, Exemplo 3: Ponta R$ 1,20/kWh, Intermediário R$ 0,75/kWh, Fora de
+// Ponta R$ 0,45/kWh.
+async function seedWhiteEnergyRates(distributorId: string): Promise<void> {
+    const rates = [
+        { post: "PEAK", combined: 1.2 },
+        { post: "INTERMEDIATE", combined: 0.75 },
+        { post: "OFF_PEAK", combined: 0.45 },
+    ] as const
+
+    for (const rate of rates) {
+        const half = round6(rate.combined / 2)
+
+        await prisma.groupBEnergyRate.upsert({
+            where: {
+                distributorId_modality_post: {
+                    distributorId,
+                    modality: "WHITE",
+                    post: rate.post,
+                },
+            },
+            update: { tusdPerKwh: half, tePerKwh: half },
+            create: {
+                distributorId,
+                modality: "WHITE",
+                post: rate.post,
+                tusdPerKwh: half,
+                tePerKwh: half,
+            },
+        })
+    }
+}
+
+// Catálogo da Tarifa Branca (Grupo B) — Cemig, valores do Exemplo 3 (casa
+// trifásica em BH). A modalidade Convencional não tem linha nesta tabela:
+// continua usando a tarifa plana de EnergyDistributor, sem alteração.
+async function seedGroupBTariffCatalog(): Promise<void> {
+    const cemig = await prisma.energyDistributor.findUniqueOrThrow({
+        where: { cnpj: CEMIG_CNPJ },
+    })
+
+    await seedWhiteEnergyRates(cemig.id)
+
+    console.log("Catálogo Tarifa Branca: Cemig garantido (upsert, Exemplo 3).")
+}
+
 async function seedTariffFlag(): Promise<void> {
     // Bandeira vigente = verde. Valores de acréscimo em R$/100 kWh (2026).
     const flagValues = {
@@ -416,6 +468,7 @@ async function main(): Promise<void> {
     try {
         await seedDistributors()
         await seedGroupATariffCatalog()
+        await seedGroupBTariffCatalog()
         await seedTariffFlag()
         await seedPldQuotes()
         console.log("Seed concluído.")

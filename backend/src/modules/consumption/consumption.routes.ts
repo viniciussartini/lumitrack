@@ -50,13 +50,16 @@ export function consumptionRoutes(
     )
     const controller = new ConsumptionController(consumptionService)
 
-    // "/summary" e "/acl-comparison" precisam vir ANTES de "/" só por
-    // consistência de leitura com as outras rotas do módulo — não há
-    // conflito real aqui (não existe "/:id" em /api/consumption, o alvo
-    // sempre chega por query param).
+    // "/summary", "/acl-comparison" e "/branca-comparison" precisam vir
+    // ANTES de "/" só por consistência de leitura com as outras rotas do
+    // módulo — não há conflito real aqui (não existe "/:id" em
+    // /api/consumption, o alvo sempre chega por query param).
     router.get("/summary", authenticate, (req, res, next) => controller.summary(req, res, next))
     router.get("/acl-comparison", authenticate, (req, res, next) =>
         controller.compareAclToAcr(req, res, next),
+    )
+    router.get("/branca-comparison", authenticate, (req, res, next) =>
+        controller.compareBrancaToConvencional(req, res, next),
     )
     router.get("/", authenticate, (req, res, next) => controller.list(req, res, next))
 

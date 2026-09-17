@@ -115,6 +115,12 @@ export const GroupABillCard = ({ bucket }: GroupABillCardProps) => {
                 {groupA.ereBrl > 0 && (
                     <Stat label="Energia reativa excedente" value={formatCostBrl(groupA.ereBrl)} />
                 )}
+                {groupA.publicLightingFeeBrl > 0 && (
+                    <Stat
+                        label="Iluminação pública (CIP)"
+                        value={formatCostBrl(groupA.publicLightingFeeBrl)}
+                    />
+                )}
                 <Stat label="Total da conta" value={formatCostBrl(bucket.costBrl)} accent />
             </div>
 

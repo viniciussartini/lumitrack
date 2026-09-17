@@ -1,5 +1,8 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest"
-import { ConsumptionService } from "@/modules/consumption/consumption.service.js"
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest"
+import {
+    ConsumptionService,
+    resolveComparisonSign,
+} from "@/modules/consumption/consumption.service.js"
 import {
     ConsumptionRepository,
     type ConsumptionBucket,
@@ -1560,6 +1563,38 @@ describe("ConsumptionService.list — Grupo A ACL (Mercado Livre)", () => {
     })
 })
 
+describe("resolveComparisonSign", () => {
+    it("retorna 1 quando o primeiro cenário custa mais que meio centavo além do segundo", () => {
+        expect(resolveComparisonSign(0.01)).toBe(1)
+        expect(resolveComparisonSign(1000)).toBe(1)
+    })
+
+    it("retorna -1 quando o primeiro cenário custa mais que meio centavo abaixo do segundo", () => {
+        expect(resolveComparisonSign(-0.01)).toBe(-1)
+        expect(resolveComparisonSign(-1000)).toBe(-1)
+    })
+
+    it("retorna 0 para diferença exatamente zero", () => {
+        expect(resolveComparisonSign(0)).toBe(0)
+    })
+
+    // O caso real que motivou a tolerância: soma de vários meses deixando
+    // um resíduo de ponto flutuante em vez de zero exato — sem tolerância,
+    // isto seria classificado como "mais barato" por uma fração de
+    // centavo que não aparece na tela (formatada em 2 casas decimais).
+    it("retorna 0 para um resíduo de ponto flutuante abaixo de meio centavo", () => {
+        const residue = 0.1 + 0.2 - 0.3 // ≈ 5.55e-17 em JS
+        expect(resolveComparisonSign(residue)).toBe(0)
+        expect(resolveComparisonSign(0.004)).toBe(0)
+        expect(resolveComparisonSign(-0.004)).toBe(0)
+    })
+
+    it("não trata a própria tolerância como diferença relevante (limite exclusivo)", () => {
+        expect(resolveComparisonSign(0.005)).toBe(0)
+        expect(resolveComparisonSign(-0.005)).toBe(0)
+    })
+})
+
 describe("ConsumptionService.compareAclToAcr — comparação ACR × ACL", () => {
     // Duas propriedades do mesmo usuário/distribuidora/catálogo — uma ACR
     // (sem contrato) e uma ACL (com contrato) — recebendo o MESMO consumo
@@ -1894,6 +1929,422 @@ describe("ConsumptionService.compareAclToAcr — comparação ACR × ACL", () =>
             submarket: "SOUTHEAST_CENTER_WEST",
             valuePerMwh: 186.4,
         })
+    })
+})
+
+describe("ConsumptionService.list — Tarifa Branca (Grupo B)", () => {
+    // Exemplo 3 do documento de referência (João, casa trifásica em Belo
+    // Horizonte/Cemig): 450 kWh (30 Ponta + 50 Intermediário + 370 Fora de
+    // Ponta), ICMS MG 18%, bandeira amarela, CIP R$ 18,00 — mesmo oráculo do
+    // TariffService.calculateForGroupBWhite (ajustado para R$ 359,5567, ver
+    // comentário lá: o documento tem um pequeno erro de arredondamento).
+    // 2026-08-04 é terça-feira, sem feriado nacional — mesma data do
+    // Exemplo 6 (Grupo A). Ponta 18h-21h: 17h SP é a 1h antes (Intermediário),
+    // 19h SP é dentro da ponta.
+    async function setupWhitePropertyMeter() {
+        const user = await userService.createUser({
+            email: "joao.branca@example.com",
+            password: "Senha@123",
+            userType: "INDIVIDUAL",
+            acceptedTerms: true,
+            firstName: "João",
+            lastName: "Silva",
+            cpf: "529.982.247-25",
+        })
+        const distributor = await createTestDistributor(prismaTest)
+        await prismaTest.energyDistributor.update({
+            where: { id: distributor.id },
+            data: { peakWindowStartHour: 18, peakWindowEndHour: 21 },
+        })
+        await prismaTest.tariffFlagConfig.upsert({
+            where: { id: 1 },
+            update: { currentFlag: "YELLOW" },
+            create: {
+                id: 1,
+                currentFlag: "YELLOW",
+                greenPer100Kwh: 0,
+                yellowPer100Kwh: 1.885,
+                redP1Per100Kwh: 4.463,
+                redP2Per100Kwh: 7.877,
+            },
+        })
+        await prismaTest.groupBEnergyRate.createMany({
+            data: [
+                {
+                    distributorId: distributor.id,
+                    modality: "WHITE",
+                    post: "PEAK",
+                    tusdPerKwh: 0.6,
+                    tePerKwh: 0.6,
+                },
+                {
+                    distributorId: distributor.id,
+                    modality: "WHITE",
+                    post: "INTERMEDIATE",
+                    tusdPerKwh: 0.375,
+                    tePerKwh: 0.375,
+                },
+                {
+                    distributorId: distributor.id,
+                    modality: "WHITE",
+                    post: "OFF_PEAK",
+                    tusdPerKwh: 0.225,
+                    tePerKwh: 0.225,
+                },
+            ],
+        })
+
+        const property = await propertyService.create(user.id, {
+            name: "Casa",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC", // piso de 100 kWh
+            billingClass: "B1",
+            groupBModality: "WHITE",
+            publicLightingFeeBrl: 18,
+        })
+        const meter = await prismaTest.meter.create({
+            data: {
+                name: "Medidor",
+                targetType: "PROPERTY",
+                propertyId: property.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "casa-branca/medidor",
+            },
+        })
+
+        return { user, property, meter }
+    }
+
+    it("reproduz o Exemplo 3 do documento de referência ponta-a-ponta", async () => {
+        const { user, meter, property } = await setupWhitePropertyMeter()
+
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 30, 10_000) // 19h SP — ponta
+        await insertReading(meter.id, "2026-08-04T20:00:00Z", 50, 10_000) // 17h SP — intermediário
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 370, 10_000) // 10h SP — fora de ponta
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0]!.kwhConsumed).toBeCloseTo(450)
+        expect(result.items[0]!.costBrl).toBeCloseTo(359.5567, 2)
+
+        const groupBWhite = result.items[0]!.groupBWhite
+        expect(groupBWhite).toBeDefined()
+        expect(groupBWhite!.belowAvailabilityFloor).toBe(false)
+        expect(groupBWhite!.energyByPost).toHaveLength(3)
+        expect(groupBWhite!.energyByPost.find((p) => p.post === "PEAK")).toEqual({
+            post: "PEAK",
+            kwhConsumed: 30,
+            brl: 36,
+        })
+        expect(groupBWhite!.energyByPost.find((p) => p.post === "INTERMEDIATE")).toEqual({
+            post: "INTERMEDIATE",
+            kwhConsumed: 50,
+            brl: 37.5,
+        })
+        expect(groupBWhite!.energyByPost.find((p) => p.post === "OFF_PEAK")).toEqual({
+            post: "OFF_PEAK",
+            kwhConsumed: 370,
+            brl: 166.5,
+        })
+        expect(groupBWhite!.flagBrl).toBeCloseTo(8.4825, 4)
+        expect(groupBWhite!.publicLightingFeeBrl).toBe(18)
+    })
+
+    it("abaixo do piso de disponibilidade, cobra pela tarifa Convencional em vez da Branca", async () => {
+        const { user, meter, property } = await setupWhitePropertyMeter()
+
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 80, 10_000) // 10h SP — fora de ponta, 80 kWh (< piso 100)
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+        })
+
+        const groupBWhite = result.items[0]!.groupBWhite
+        expect(groupBWhite).toBeDefined()
+        expect(groupBWhite!.belowAvailabilityFloor).toBe(true)
+        expect(groupBWhite!.energyByPost).toEqual([])
+        // 100 kWh (piso) × R$0,60/kWh (tarifa Convencional da distribuidora), não a Branca.
+        expect(groupBWhite!.energyBrl).toBeCloseTo(60, 2)
+
+        const expectedTotal = (60 + 100 * (1.885 / 100)) / (1 - (0.18 + 0.0165 + 0.076)) + 18
+        expect(result.items[0]!.costBrl).toBeCloseTo(expectedTotal, 2)
+    })
+
+    it("falha fechada ao pedir detalhamento por hora de uma propriedade na Tarifa Branca", async () => {
+        const { user, meter, property } = await setupWhitePropertyMeter()
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 200, 10_000)
+
+        await expect(
+            consumptionService.list(user.id, {
+                targetType: "PROPERTY",
+                targetId: property.id,
+                granularity: "hour",
+            }),
+        ).rejects.toThrow(ValidationError)
+    })
+
+    // Regressão de N+1: sem o batching, granularidade "year" chamaria
+    // findKwhByPost 1 vez por mês do ano — o mesmo custo que o Grupo A já
+    // evita há duas fases (ver calculateGroupAMonthlyCosts). O findKwhByPost
+    // "solto" (1 chamada) continua existindo pra granularidade month/day, só
+    // não pode aparecer aqui.
+    it("granularidade year soma os meses da Branca com 1 única consulta em lote, não 1 por mês", async () => {
+        const { user, meter, property } = await setupWhitePropertyMeter()
+        await insertReading(meter.id, "2026-01-04T13:00:00Z", 370, 10_000) // fora de ponta
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 30, 10_000) // ponta
+        await insertReading(meter.id, "2026-08-04T20:00:00Z", 50, 10_000) // intermediário
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 370, 10_000) // fora de ponta
+
+        const findKwhByPostSpy = vi.spyOn(consumptionRepository, "findKwhByPost")
+        const findKwhByPostGroupedByMonthSpy = vi.spyOn(
+            consumptionRepository,
+            "findKwhByPostGroupedByMonth",
+        )
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "year",
+        })
+
+        expect(findKwhByPostSpy).not.toHaveBeenCalled()
+        expect(findKwhByPostGroupedByMonthSpy).toHaveBeenCalledTimes(1)
+
+        // Janeiro: 370 kWh, todo fora de ponta — acima do piso (100 kWh),
+        // então soma pela Branca (posto único) em vez da Convencional.
+        // Agosto: mesmo consumo do Exemplo 3 (359,5567) já validado em
+        // outros testes deste arquivo. O total do bucket de ano é a soma
+        // dos dois meses.
+        const expectedJanuary =
+            (370 * 0.45 + 370 * (1.885 / 100)) / (1 - (0.18 + 0.0165 + 0.076)) + 18
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0]!.costBrl).toBeCloseTo(expectedJanuary + 359.5567, 2)
+
+        findKwhByPostSpy.mockRestore()
+        findKwhByPostGroupedByMonthSpy.mockRestore()
+    })
+})
+
+describe("ConsumptionService.compareBrancaToConvencional — comparação Convencional × Branca", () => {
+    // Mesma distribuidora/catálogo do Exemplo 3 (ver "ConsumptionService.list
+    // — Tarifa Branca" acima): Ponta R$1,20/kWh, Intermediário R$0,75/kWh,
+    // Fora de Ponta R$0,45/kWh, Convencional R$0,60/kWh (tusd+te 0,30 cada),
+    // ICMS 18%/PIS 1,65%/COFINS 7,6% (defaults de createTestDistributor),
+    // bandeira amarela, CIP R$18. O documento de referência dá o oráculo
+    // qualitativo dos dois lados: 450 kWh deslocado (30 ponta + 50
+    // intermediário + 370 fora) sai mais barato na Branca; o mesmo total
+    // concentrado na ponta (100 ponta + 350 fora, sem intermediário) sai
+    // mais caro — é o contraexemplo explícito do documento.
+    async function setupBrancaComparisonFixture() {
+        const user = await userService.createUser({
+            email: "comparacao.branca@example.com",
+            password: "Senha@123",
+            userType: "INDIVIDUAL",
+            acceptedTerms: true,
+            firstName: "João",
+            lastName: "Silva",
+            cpf: "529.982.247-25",
+        })
+        const distributor = await createTestDistributor(prismaTest)
+        await prismaTest.energyDistributor.update({
+            where: { id: distributor.id },
+            data: { peakWindowStartHour: 18, peakWindowEndHour: 21 },
+        })
+        await prismaTest.tariffFlagConfig.upsert({
+            where: { id: 1 },
+            update: { currentFlag: "YELLOW" },
+            create: {
+                id: 1,
+                currentFlag: "YELLOW",
+                greenPer100Kwh: 0,
+                yellowPer100Kwh: 1.885,
+                redP1Per100Kwh: 4.463,
+                redP2Per100Kwh: 7.877,
+            },
+        })
+        await prismaTest.groupBEnergyRate.createMany({
+            data: [
+                {
+                    distributorId: distributor.id,
+                    modality: "WHITE",
+                    post: "PEAK",
+                    tusdPerKwh: 0.6,
+                    tePerKwh: 0.6,
+                },
+                {
+                    distributorId: distributor.id,
+                    modality: "WHITE",
+                    post: "INTERMEDIATE",
+                    tusdPerKwh: 0.375,
+                    tePerKwh: 0.375,
+                },
+                {
+                    distributorId: distributor.id,
+                    modality: "WHITE",
+                    post: "OFF_PEAK",
+                    tusdPerKwh: 0.225,
+                    tePerKwh: 0.225,
+                },
+            ],
+        })
+
+        const property = await propertyService.create(user.id, {
+            name: "Casa",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC", // piso de 100 kWh
+            billingClass: "B1",
+            groupBModality: "WHITE",
+            publicLightingFeeBrl: 18,
+        })
+        const meter = await prismaTest.meter.create({
+            data: {
+                name: "Medidor",
+                targetType: "PROPERTY",
+                propertyId: property.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "casa-branca/comparacao",
+            },
+        })
+
+        return { user, property, meter, distributor }
+    }
+
+    it("aponta BRANCA_CHEAPER para o perfil deslocado do Exemplo 3 (30 ponta + 50 intermediário + 370 fora)", async () => {
+        const { user, meter, property } = await setupBrancaComparisonFixture()
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 30, 10_000) // 19h SP — ponta
+        await insertReading(meter.id, "2026-08-04T20:00:00Z", 50, 10_000) // 17h SP — intermediário
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 370, 10_000) // 10h SP — fora de ponta
+
+        const comparison = await consumptionService.compareBrancaToConvencional(user.id, {
+            propertyId: property.id,
+            from: new Date("2026-08-01"),
+            to: new Date("2026-08-01"),
+        })
+
+        expect(comparison.months).toHaveLength(1)
+        expect(comparison.months[0]!.brancaBrl).toBeCloseTo(359.5567, 2)
+        const expectedConvencionalBrl =
+            (450 * 0.6 + 450 * (1.885 / 100)) / (1 - (0.18 + 0.0165 + 0.076)) + 18
+        expect(comparison.months[0]!.convencionalBrl).toBeCloseTo(expectedConvencionalBrl, 2)
+        expect(comparison.totalDiffBrl).toBeGreaterThan(0)
+        expect(comparison.verdict).toBe("BRANCA_CHEAPER")
+    })
+
+    it("aponta CONVENCIONAL_CHEAPER para o contraexemplo do documento (100 ponta + 350 fora, sem deslocar consumo)", async () => {
+        const { user, meter, property } = await setupBrancaComparisonFixture()
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 100, 10_000) // 19h SP — ponta
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 350, 10_000) // 10h SP — fora de ponta
+
+        const comparison = await consumptionService.compareBrancaToConvencional(user.id, {
+            propertyId: property.id,
+            from: new Date("2026-08-01"),
+            to: new Date("2026-08-01"),
+        })
+
+        // 100×1,20 + 350×0,45 = R$ 277,50 sem tributos — o próprio contraexemplo do documento.
+        expect(comparison.months[0]!.brancaBrl).toBeCloseTo(
+            (277.5 + 450 * (1.885 / 100)) / (1 - (0.18 + 0.0165 + 0.076)) + 18,
+            2,
+        )
+        expect(comparison.totalDiffBrl).toBeLessThan(0)
+        expect(comparison.verdict).toBe("CONVENCIONAL_CHEAPER")
+    })
+
+    it("abaixo do piso de disponibilidade, os dois cenários convergem para a mesma conta (diferença zero)", async () => {
+        const { user, meter, property } = await setupBrancaComparisonFixture()
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 80, 10_000) // fora de ponta, 80 kWh (< piso 100)
+
+        const comparison = await consumptionService.compareBrancaToConvencional(user.id, {
+            propertyId: property.id,
+            from: new Date("2026-08-01"),
+            to: new Date("2026-08-01"),
+        })
+
+        expect(comparison.months[0]!.diffBrl).toBeCloseTo(0, 6)
+        expect(comparison.verdict).toBe("EQUIVALENT")
+    })
+
+    it("soma corretamente vários meses na mesma janela", async () => {
+        const { user, meter, property } = await setupBrancaComparisonFixture()
+        await insertReading(meter.id, "2026-07-04T13:00:00Z", 300, 10_000) // fora de ponta
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 30, 10_000)
+        await insertReading(meter.id, "2026-08-04T20:00:00Z", 50, 10_000)
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 370, 10_000)
+
+        const comparison = await consumptionService.compareBrancaToConvencional(user.id, {
+            propertyId: property.id,
+            from: new Date("2026-07-01"),
+            to: new Date("2026-08-01"),
+        })
+
+        expect(comparison.months).toHaveLength(2)
+        const sumConvencional = comparison.months.reduce((sum, m) => sum + m.convencionalBrl, 0)
+        const sumBranca = comparison.months.reduce((sum, m) => sum + m.brancaBrl, 0)
+        expect(comparison.totalConvencionalBrl).toBeCloseTo(sumConvencional, 6)
+        expect(comparison.totalBrancaBrl).toBeCloseTo(sumBranca, 6)
+        expect(comparison.totalDiffBrl).toBeCloseTo(sumConvencional - sumBranca, 6)
+    })
+
+    it("lança ForbiddenError para propriedade de outro usuário", async () => {
+        const { property } = await setupBrancaComparisonFixture()
+        const otherUser = await userService.createUser({
+            email: "outra.branca@example.com",
+            password: "Senha@123",
+            userType: "INDIVIDUAL",
+            acceptedTerms: true,
+            firstName: "Outra",
+            lastName: "Pessoa",
+            cpf: "111.444.777-35",
+        })
+
+        await expect(
+            consumptionService.compareBrancaToConvencional(otherUser.id, {
+                propertyId: property.id,
+                from: new Date("2026-08-01"),
+                to: new Date("2026-08-01"),
+            }),
+        ).rejects.toThrow(ForbiddenError)
+    })
+
+    it("lança ValidationError para propriedade que não está na Tarifa Branca", async () => {
+        const { user, distributor } = await setupBrancaComparisonFixture()
+        const conventionalProperty = await propertyService.create(user.id, {
+            name: "Casa Convencional",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC",
+            billingClass: "B1",
+        })
+
+        await expect(
+            consumptionService.compareBrancaToConvencional(user.id, {
+                propertyId: conventionalProperty.id,
+                from: new Date("2026-08-01"),
+                to: new Date("2026-08-01"),
+            }),
+        ).rejects.toThrow(ValidationError)
+    })
+
+    it("lança NotFoundError para propriedade inexistente", async () => {
+        const { user } = await setupBrancaComparisonFixture()
+
+        await expect(
+            consumptionService.compareBrancaToConvencional(user.id, {
+                propertyId: "00000000-0000-0000-0000-000000000000",
+                from: new Date("2026-08-01"),
+                to: new Date("2026-08-01"),
+            }),
+        ).rejects.toThrow(NotFoundError)
     })
 })
 

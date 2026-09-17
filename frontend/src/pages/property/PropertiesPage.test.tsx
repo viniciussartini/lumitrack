@@ -59,6 +59,8 @@ const mockProperty1: Property = {
     zipCode: "30000-000",
     electricalSystem: "TRIPHASIC",
     billingClass: "B1",
+    groupBModality: "CONVENTIONAL",
+    receivesBillingDiscount: false,
     tariffGroup: "GROUP_B",
     contractingEnvironment: "ACR",
     tariffSubgroup: null,

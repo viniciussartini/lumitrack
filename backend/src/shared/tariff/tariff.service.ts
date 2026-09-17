@@ -95,6 +95,44 @@ export type GroupAReactiveWindowResult = {
     ereBrl: number
 }
 
+// Consumo por posto tarifário (Ponta/Intermediário/Fora de Ponta) da Tarifa
+// Branca, com a tarifa de energia do catálogo GroupBEnergyRate já resolvida.
+export type GroupBEnergyPostInput = {
+    post: TariffPost
+    kwhConsumed: number
+    tusdPerKwh: number
+    tePerKwh: number
+}
+
+export type GroupBWhiteTariffInput = {
+    energyByPost: GroupBEnergyPostInput[]
+    electricalSystem: ElectricalSystemType
+    // Tarifa Convencional da distribuidora (monômio de sempre) — usada só
+    // quando o consumo do mês fica abaixo do piso de disponibilidade, nunca
+    // a tarifa horária da Branca (REN 1.098/2024).
+    conventionalTusdPerKwh: number
+    conventionalTePerKwh: number
+    icmsRate: number
+    pisRate: number
+    cofinsRate: number
+    flagPer100Kwh: number
+    publicLightingFeeBrl: number | null
+}
+
+export type GroupBWhiteTariffResult = {
+    // true quando o piso de disponibilidade decidiu a conta pela tarifa
+    // Convencional em vez da Branca — energyByPost fica vazio nesse caso
+    // (o consumo por posto não entrou na conta, só o piso).
+    belowAvailabilityFloor: boolean
+    kwhBilled: number
+    energyByPost: { post: TariffPost; kwhConsumed: number; brl: number }[]
+    energyBrl: number
+    flagBrl: number
+    taxesBrl: number
+    publicLightingFeeBrl: number
+    totalBrl: number
+}
+
 export type GroupATariffInput = {
     demandPosts: GroupADemandPostInput[]
     energyByPost: GroupAEnergyPostInput[]
@@ -319,6 +357,76 @@ export class TariffService {
             taxesBrl: core.taxesBrl,
             publicLightingFeeBrl,
             totalBrl: core.totalWithTaxes + publicLightingFeeBrl,
+        }
+    }
+
+    /**
+     * Conta da Tarifa Branca (Grupo B): consumo por posto (Ponta/Intermediário/
+     * Fora de Ponta) × tarifa do posto + bandeira (incide normalmente, ao
+     * contrário do Mercado Livre) + tributos por dentro + CIP. Abaixo do
+     * piso de disponibilidade, a REN 1.098/2024 substitui inteiramente esse
+     * cálculo pela tarifa Convencional sobre o piso — reaproveita
+     * {@link calculateForProperty} para essa faixa, mesma fórmula que todo
+     * consumidor Convencional do Grupo B já usa.
+     *
+     * @param input - Consumo por posto com tarifa já resolvida, sistema elétrico (piso), tarifa Convencional de referência, tributos, bandeira vigente e CIP.
+     * @returns A decomposição da conta (por posto quando acima do piso, ou pela Convencional quando abaixo) e o total.
+     */
+    calculateForGroupBWhite(input: GroupBWhiteTariffInput): GroupBWhiteTariffResult {
+        const totalKwhConsumed = input.energyByPost.reduce((sum, p) => sum + p.kwhConsumed, 0)
+        const floorKwh = AVAILABILITY_FLOOR_KWH[input.electricalSystem]
+
+        if (totalKwhConsumed < floorKwh) {
+            const conventional = this.calculateForProperty({
+                kwhConsumed: totalKwhConsumed,
+                electricalSystem: input.electricalSystem,
+                publicLightingFeeBrl: input.publicLightingFeeBrl,
+                tusdPerKwh: input.conventionalTusdPerKwh,
+                tePerKwh: input.conventionalTePerKwh,
+                icmsRate: input.icmsRate,
+                pisRate: input.pisRate,
+                cofinsRate: input.cofinsRate,
+                flagPer100Kwh: input.flagPer100Kwh,
+            })
+
+            return {
+                belowAvailabilityFloor: true,
+                kwhBilled: conventional.kwhBilled,
+                energyByPost: [],
+                energyBrl: conventional.energyBrl,
+                flagBrl: conventional.flagBrl,
+                taxesBrl: conventional.taxesBrl,
+                publicLightingFeeBrl: conventional.publicLightingFeeBrl,
+                totalBrl: conventional.totalBrl,
+            }
+        }
+
+        const energyByPost = input.energyByPost.map((p) => ({
+            post: p.post,
+            kwhConsumed: p.kwhConsumed,
+            brl: p.kwhConsumed * (p.tusdPerKwh + p.tePerKwh),
+        }))
+        const energyBrl = energyByPost.reduce((sum, p) => sum + p.brl, 0)
+        const flagBrl = totalKwhConsumed * (input.flagPer100Kwh / 100)
+
+        const { taxesBrl, totalWithTaxes } = this.applyTaxesByDentro(
+            energyBrl + flagBrl,
+            input.icmsRate,
+            input.pisRate,
+            input.cofinsRate,
+        )
+
+        const publicLightingFeeBrl = input.publicLightingFeeBrl ?? 0
+
+        return {
+            belowAvailabilityFloor: false,
+            kwhBilled: totalKwhConsumed,
+            energyByPost,
+            energyBrl,
+            flagBrl,
+            taxesBrl,
+            publicLightingFeeBrl,
+            totalBrl: totalWithTaxes + publicLightingFeeBrl,
         }
     }
 

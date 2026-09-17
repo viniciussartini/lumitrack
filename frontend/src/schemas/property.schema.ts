@@ -88,6 +88,10 @@ const tariffGroupBaseFields = {
 
     billingClass: z.enum(["B1", "B2", "B3"]).optional(),
 
+    groupBModality: z.enum(["CONVENTIONAL", "WHITE"]).optional(),
+
+    receivesBillingDiscount: z.boolean().optional(),
+
     tariffSubgroup: emptyToUndefined.pipe(z.enum(["A1", "A2", "A3", "A3A", "A4", "AS"]).optional()),
 
     tariffModality: emptyToUndefined.pipe(
@@ -194,7 +198,46 @@ const validateGroupAFields = (data: TariffGroupFields, ctx: z.RefinementCtx): vo
             message: "Classe de faturamento não se aplica a propriedades do Grupo A",
         })
     }
+    if (data.groupBModality) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["groupBModality"],
+            message: "Modalidade do Grupo B não se aplica a propriedades do Grupo A",
+        })
+    }
+    if (data.receivesBillingDiscount !== undefined) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["receivesBillingDiscount"],
+            message: "Desconto de faturamento não se aplica a propriedades do Grupo A",
+        })
+    }
     validateContractedDemandFields(data, ctx)
+}
+
+/**
+ * Elegibilidade da Tarifa Branca (espelha
+ * `PropertyService.assertWhiteModalityEligible` no backend): vedada a B2 (o
+ * enum não tem B4 — vedação satisfeita pela ausência do valor) e a quem
+ * recebe desconto de faturamento (baixa renda ou outro).
+ */
+const validateWhiteModalityFields = (data: TariffGroupFields, ctx: z.RefinementCtx): void => {
+    if (data.groupBModality !== "WHITE") return
+
+    if (data.billingClass !== "B1" && data.billingClass !== "B3") {
+        ctx.addIssue({
+            code: "custom",
+            path: ["groupBModality"],
+            message: "Tarifa Branca só está disponível para as classes B1 e B3",
+        })
+    }
+    if (data.receivesBillingDiscount) {
+        ctx.addIssue({
+            code: "custom",
+            path: ["groupBModality"],
+            message: "Tarifa Branca não está disponível para quem recebe desconto de faturamento",
+        })
+    }
 }
 
 const validateGroupBFields = (data: TariffGroupFields, ctx: z.RefinementCtx): void => {
@@ -226,6 +269,7 @@ const validateGroupBFields = (data: TariffGroupFields, ctx: z.RefinementCtx): vo
             message: "Demanda contratada por posto só se aplica a propriedades do Grupo A",
         })
     }
+    validateWhiteModalityFields(data, ctx)
 }
 
 const ACL_FIELD_KEYS = [
@@ -342,6 +386,14 @@ export const propertyFormSchema = z
         // (resolveTariffGroupFields), aplicada aqui pós-refine pra não
         // conflitar com a validação "billingClass não se aplica ao Grupo A".
         billingClass: data.tariffGroup === "GROUP_B" ? (data.billingClass ?? "B1") : undefined,
+        // Mesma regra, agora pra groupBModality/receivesBillingDiscount
+        // (resolveGroupBFields no backend): default CONVENTIONAL/false só
+        // dentro do Grupo B — undefined no Grupo A, pra não reenviar um
+        // valor que o backend rejeita por "não se aplica ao Grupo A".
+        groupBModality:
+            data.tariffGroup === "GROUP_B" ? (data.groupBModality ?? "CONVENTIONAL") : undefined,
+        receivesBillingDiscount:
+            data.tariffGroup === "GROUP_B" ? (data.receivesBillingDiscount ?? false) : undefined,
     }))
 
 /** Tipo de SAÍDA — o que onSubmit recebe (já transformado) */

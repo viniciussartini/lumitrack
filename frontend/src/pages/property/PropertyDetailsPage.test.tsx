@@ -127,6 +127,8 @@ const mockProperty: Property = {
     zipCode: "30000-000",
     electricalSystem: "TRIPHASIC",
     billingClass: "B1",
+    groupBModality: "CONVENTIONAL",
+    receivesBillingDiscount: false,
     tariffGroup: "GROUP_B",
     contractingEnvironment: "ACR",
     tariffSubgroup: null,
@@ -369,6 +371,8 @@ describe("PropertyDetailsPage — chips de distribuidora e faturamento", () => {
             ...mockProperty,
             tariffGroup: "GROUP_A",
             billingClass: null,
+            groupBModality: null,
+            receivesBillingDiscount: null,
             tariffSubgroup: "A4",
             tariffModality: "GREEN",
             contractedDemandKw: 200,
@@ -398,6 +402,8 @@ describe("PropertyDetailsPage — Mercado Livre (ACL)", () => {
             ...mockProperty,
             tariffGroup: "GROUP_A",
             billingClass: null,
+            groupBModality: null,
+            receivesBillingDiscount: null,
             tariffSubgroup: "A4",
             tariffModality: "GREEN",
             contractedDemandKw: 200,
@@ -419,6 +425,44 @@ describe("PropertyDetailsPage — Mercado Livre (ACL)", () => {
         await screen.findByRole("heading", { name: /casa principal/i })
         expect(screen.queryByRole("link", { name: /comparar acr × acl/i })).not.toBeInTheDocument()
         expect(screen.queryByText(/mercado livre \(acl\)/i)).not.toBeInTheDocument()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tarifa Branca (Grupo B)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("PropertyDetailsPage — Tarifa Branca", () => {
+    beforeEach(() => {
+        vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
+        vi.mocked(areaService.list).mockResolvedValue(paginated([]))
+    })
+
+    it("mostra o botão 'Comparar Convencional × Branca' e a tag quando a propriedade está na Branca", async () => {
+        vi.mocked(propertyService.getById).mockResolvedValue({
+            ...mockProperty,
+            groupBModality: "WHITE",
+        })
+
+        renderPage()
+
+        const compareLink = await screen.findByRole("link", {
+            name: /comparar convencional × branca/i,
+        })
+        expect(compareLink).toHaveAttribute("href", "/propriedades/prop-1/comparacao-branca")
+        expect(screen.getByText("Tarifa Branca")).toBeInTheDocument()
+    })
+
+    it("não mostra o botão nem a tag para uma propriedade Convencional", async () => {
+        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+
+        renderPage()
+
+        await screen.findByRole("heading", { name: /casa principal/i })
+        expect(
+            screen.queryByRole("link", { name: /comparar convencional × branca/i }),
+        ).not.toBeInTheDocument()
+        expect(screen.queryByText("Tarifa Branca")).not.toBeInTheDocument()
     })
 })
 

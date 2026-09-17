@@ -36,13 +36,27 @@ const mockBucket: ConsumptionBucket = {
 }
 
 describe("GroupABillCard", () => {
-    it("mostra a demanda contratada, a parcela de demanda, a bandeira e o total", () => {
+    it("mostra a demanda contratada, a parcela de demanda, a bandeira, a CIP e o total", () => {
         render(<GroupABillCard bucket={mockBucket} />)
 
         expect(screen.getByText("200 kW")).toBeInTheDocument()
         expect(screen.getByText(/R\$\s*3\.600,00/)).toBeInTheDocument() // demandBrl
         expect(screen.getByText(/R\$\s*542,88/)).toBeInTheDocument() // flagBrl
+        expect(screen.getByText(/R\$\s*250,00/)).toBeInTheDocument() // publicLightingFeeBrl
         expect(screen.getByText(/R\$\s*22\.464,07/)).toBeInTheDocument() // costBrl total
+    })
+
+    it("não mostra a linha de CIP quando publicLightingFeeBrl é zero", () => {
+        render(
+            <GroupABillCard
+                bucket={{
+                    ...mockBucket,
+                    groupA: { ...mockBucket.groupA!, publicLightingFeeBrl: 0 },
+                }}
+            />,
+        )
+
+        expect(screen.queryByText(/iluminação pública/i)).not.toBeInTheDocument()
     })
 
     it("lista os dois postos na tabela com kWh e custo", () => {

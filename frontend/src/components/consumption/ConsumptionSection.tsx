@@ -7,6 +7,7 @@ import { HourWindowSelect } from "@/components/consumption/HourWindowSelect"
 import { ConsumptionChart } from "@/components/consumption/ConsumptionChart"
 import { ConsumptionTable } from "@/components/consumption/ConsumptionTable"
 import { GroupABillCard } from "@/components/consumption/GroupABillCard"
+import { GroupBWhiteBillCard } from "@/components/consumption/GroupBWhiteBillCard"
 import { useConsumption } from "@/hooks/queries/useConsumption"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
 import { describeConsumptionWindow, resolveConsumptionWindow } from "@/lib/consumptionWindow"
@@ -16,7 +17,7 @@ import {
     type Granularity,
 } from "@/types/consumption.types"
 import type { TargetType } from "@/types/meter.types"
-import type { TariffGroup } from "@/types/property.types"
+import type { GroupBModality, TariffGroup } from "@/types/property.types"
 
 // Wrappers "smart" — mesmo padrão de 3 por target usado no resto do app
 // (AlertSection, DeviceAlertSection, etc). propertyId/areaId
@@ -32,23 +33,40 @@ import type { TariffGroup } from "@/types/property.types"
 interface PropertyConsumptionSectionProps {
     propertyId: string
     tariffGroup?: TariffGroup
+    groupBModality?: GroupBModality | null
 }
 
 export const PropertyConsumptionSection = ({
     propertyId,
     tariffGroup,
+    groupBModality,
 }: PropertyConsumptionSectionProps) => (
-    <ConsumptionSection targetType="PROPERTY" targetId={propertyId} tariffGroup={tariffGroup} />
+    <ConsumptionSection
+        targetType="PROPERTY"
+        targetId={propertyId}
+        tariffGroup={tariffGroup}
+        groupBModality={groupBModality}
+    />
 )
 
 interface AreaConsumptionSectionProps {
     propertyId: string
     areaId: string
     tariffGroup?: TariffGroup
+    groupBModality?: GroupBModality | null
 }
 
-export const AreaConsumptionSection = ({ areaId, tariffGroup }: AreaConsumptionSectionProps) => (
-    <ConsumptionSection targetType="AREA" targetId={areaId} tariffGroup={tariffGroup} />
+export const AreaConsumptionSection = ({
+    areaId,
+    tariffGroup,
+    groupBModality,
+}: AreaConsumptionSectionProps) => (
+    <ConsumptionSection
+        targetType="AREA"
+        targetId={areaId}
+        tariffGroup={tariffGroup}
+        groupBModality={groupBModality}
+    />
 )
 
 interface DeviceConsumptionSectionProps {
@@ -56,13 +74,20 @@ interface DeviceConsumptionSectionProps {
     areaId: string
     deviceId: string
     tariffGroup?: TariffGroup
+    groupBModality?: GroupBModality | null
 }
 
 export const DeviceConsumptionSection = ({
     deviceId,
     tariffGroup,
+    groupBModality,
 }: DeviceConsumptionSectionProps) => (
-    <ConsumptionSection targetType="DEVICE" targetId={deviceId} tariffGroup={tariffGroup} />
+    <ConsumptionSection
+        targetType="DEVICE"
+        targetId={deviceId}
+        tariffGroup={tariffGroup}
+        groupBModality={groupBModality}
+    />
 )
 
 // Presentational + orquestração de dados
@@ -71,6 +96,7 @@ interface ConsumptionSectionProps {
     targetType: TargetType
     targetId: string
     tariffGroup?: TariffGroup
+    groupBModality?: GroupBModality | null
     /** Granularidades disponíveis — Hora|Dia nas details pages (default),
      * os 4 níveis em /relatorios. */
     granularities?: readonly Granularity[]
@@ -98,6 +124,7 @@ export const ConsumptionSection = ({
     targetType,
     targetId,
     tariffGroup,
+    groupBModality,
     granularities = DETAILS_GRANULARITIES,
 }: ConsumptionSectionProps) => {
     "use no memo"
@@ -114,6 +141,25 @@ export const ConsumptionSection = ({
 
     if (tariffGroup === "GROUP_A") {
         return <GroupABillSection targetType={targetType} targetId={targetId} />
+    }
+
+    // Mesma disciplina de falha fechada do Grupo A acima: o consumo por
+    // posto da Branca só existe agregado pelo mês inteiro da Propriedade
+    // (ConsumptionService.calculateBucketCost, no backend) — Área/Aparelho
+    // mostram o mesmo aviso em vez de uma conta calculada com a fórmula
+    // errada (ou uma chamada fadada ao 422).
+    if (groupBModality === "WHITE" && targetType !== "PROPERTY") {
+        return (
+            <EmptyState
+                icon={ReceiptText}
+                title="Detalhamento não disponível para a Tarifa Branca"
+                description="O consumo por posto é apurado para a propriedade inteira — consulte a conta na página da propriedade."
+            />
+        )
+    }
+
+    if (groupBModality === "WHITE") {
+        return <GroupBWhiteBillSection targetType={targetType} targetId={targetId} />
     }
 
     return (
@@ -349,6 +395,85 @@ const GroupABillSection = ({ targetType, targetId }: GroupABillSectionProps) => 
                     )}
 
                     {hasMeter && bucket && <GroupABillCard bucket={bucket} />}
+                </div>
+            </div>
+        </section>
+    )
+}
+
+interface GroupBWhiteBillSectionProps {
+    targetType: TargetType
+    targetId: string
+}
+
+/**
+ * Conta da Tarifa Branca (Grupo B) — só existe no nível Propriedade (o
+ * dispatcher acima garante isso), mesmo padrão de `GroupABillSection`: mostra
+ * sempre o mês mais recente com leitura, sem seletor de histórico ainda.
+ */
+const GroupBWhiteBillSection = ({ targetType, targetId }: GroupBWhiteBillSectionProps) => {
+    const meterQuery = useMeterByTarget(targetType, targetId)
+    const hasMeter = Boolean(meterQuery.data)
+
+    const query = useConsumption(targetType, hasMeter ? targetId : undefined, "month", 1, 1)
+    const bucket = query.data?.items[0]
+
+    return (
+        <section className="flex flex-col gap-3" data-testid="consumption-section">
+            <div className="blueprint">
+                <i className="corner tl" />
+                <i className="corner tr" />
+                <i className="corner bl" />
+                <i className="corner br" />
+
+                <div className="border-divider flex items-center justify-between border-b px-5 py-4">
+                    <div>
+                        <h2 className="font-heading text-17 font-semibold uppercase">
+                            Conta do mês
+                        </h2>
+                        <span className="text-muted text-12-5 mt-[3px] block">
+                            Tarifa Branca — consumo por posto tarifário
+                        </span>
+                    </div>
+                </div>
+
+                <div className="py-18px px-5">
+                    {!meterQuery.isLoading && !hasMeter && (
+                        <EmptyState
+                            icon={LineChart}
+                            title="Sem consumo para exibir"
+                            description="Configure um medidor na seção acima para começar a acompanhar o consumo automaticamente."
+                        />
+                    )}
+
+                    {hasMeter && query.isLoading && <SectionSkeleton />}
+
+                    {hasMeter && query.isError && (
+                        <div
+                            role="alert"
+                            className="border-status-danger/40 flex items-start gap-3 border p-4"
+                        >
+                            <AlertCircle
+                                className="text-status-danger h-5 w-5 shrink-0"
+                                aria-hidden="true"
+                            />
+                            <p className="text-status-danger/85 text-sm">
+                                {query.error instanceof Error
+                                    ? query.error.message
+                                    : "Não foi possível carregar a conta."}
+                            </p>
+                        </div>
+                    )}
+
+                    {hasMeter && query.isSuccess && !bucket && (
+                        <EmptyState
+                            icon={ReceiptText}
+                            title="Sem conta apurada ainda"
+                            description="Ainda não há consumo neste mês para calcular a conta."
+                        />
+                    )}
+
+                    {hasMeter && bucket && <GroupBWhiteBillCard bucket={bucket} />}
                 </div>
             </div>
         </section>

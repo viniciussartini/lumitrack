@@ -66,6 +66,19 @@ export const BILLING_CLASS_LABELS: Record<BillingClass, string> = {
 }
 
 /**
+ * Modalidade do Grupo B — Convencional (monômio plano de sempre) ou Tarifa
+ * Branca (decomposição por posto — Ponta/Intermediário/Fora de Ponta).
+ * Vedada a B4 (fora do enum `BillingClass`), à baixa renda e a quem recebe
+ * outros descontos (`receivesBillingDiscount`) — REN 1.098/2024.
+ */
+export type GroupBModality = "CONVENTIONAL" | "WHITE"
+
+export const GROUP_B_MODALITY_LABELS: Record<GroupBModality, string> = {
+    CONVENTIONAL: "Convencional",
+    WHITE: "Tarifa Branca",
+}
+
+/**
  * Grupo tarifário (ADR-0019 do backend) — GROUP_B é o monômio de sempre
  * (billingClass); GROUP_A é o binômio (subgrupo + modalidade + demanda
  * contratada).
@@ -129,6 +142,10 @@ export interface Property {
     tariffGroup: TariffGroup
     /** Null para propriedades do Grupo A. */
     billingClass: BillingClass | null
+    /** Null para propriedades do Grupo A; default "CONVENTIONAL" no Grupo B. */
+    groupBModality: GroupBModality | null
+    /** Null para propriedades do Grupo A. Recebe baixa renda ou outro desconto de faturamento — veda a Tarifa Branca (Grupo B). */
+    receivesBillingDiscount: boolean | null
     /** Null para propriedades do Grupo B. */
     tariffSubgroup: TariffSubgroup | null
     /** Null para propriedades do Grupo B. */
@@ -162,6 +179,8 @@ export interface CreatePropertyInput {
     electricalSystem: ElectricalSystem
     tariffGroup?: TariffGroup
     billingClass?: BillingClass
+    groupBModality?: GroupBModality
+    receivesBillingDiscount?: boolean
     tariffSubgroup?: TariffSubgroup
     tariffModality?: TariffModality
     contractedDemandKw?: number

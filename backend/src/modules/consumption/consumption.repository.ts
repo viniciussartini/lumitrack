@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient, type TariffPost } from "@/generated/prisma/client.js"
 import type { BucketOrder, Granularity } from "@/modules/consumption/consumption.schema.js"
 import { localTsExpr, rangeFilter } from "@/shared/database/timeBucket.js"
-import type { PeakWindowConfig } from "@/shared/tariff/tariffPost.js"
+import { getIntermediateHours, type PeakWindowConfig } from "@/shared/tariff/tariffPost.js"
 import { REFERENCE_REACTIVE_RATIO } from "@/shared/tariff/tariff.service.js"
 
 // Whitelist explícita do argumento de date_trunc — o valor já vem validado
@@ -21,6 +21,15 @@ const ORDER_DIRECTION: Record<BucketOrder, Prisma.Sql> = {
     asc: Prisma.sql`ASC`,
     desc: Prisma.sql`DESC`,
 }
+
+// Ordem canônica de exibição do posto (Ponta → Intermediário → Fora de
+// Ponta) — sem isto, o `GROUP BY post` das duas queries abaixo devolve a
+// ordem que o HashAggregate do Postgres escolher, que pode variar entre
+// execuções (e não coincide com a ordem do enum `tariff_post` no banco,
+// que tem INTERMEDIATE anexado no fim por ter sido adicionado depois via
+// `ALTER TYPE ... ADD VALUE`). A UI (tabela e gráfico por posto) depende
+// dessa ordem ser estável.
+const POST_ORDER = Prisma.sql`CASE post WHEN 'PEAK' THEN 0 WHEN 'INTERMEDIATE' THEN 1 ELSE 2 END`
 
 export type ConsumptionBucket = {
     bucketStart: Date
@@ -267,12 +276,17 @@ export class ConsumptionRepository {
 
     /**
      * Consumo agregado por posto tarifário — fundação da tarifação binômia
-     * do Grupo A, que soma o consumo de cada posto pela tarifa daquele
-     * posto. Classificação inteira em SQL (fim de semana, feriado e janela
-     * de ponta), nunca em JS: `meter_readings` é a maior tabela do sistema,
-     * e puxar linha por linha para classificar no Node inflaria exatamente
-     * a consulta que o laudo de desempenho já identifica como a mais cara
-     * do produto.
+     * do Grupo A e da Tarifa Branca do Grupo B, que somam o consumo de cada
+     * posto pela tarifa daquele posto. `INTERMEDIATE` (1h antes + 1h depois
+     * da ponta, `getIntermediateHours`) só entra na classificação com
+     * `includeIntermediate: true` — sem isso, a mesma hora-relógio conta
+     * como `OFF_PEAK`, mesmo comportamento de antes deste posto existir.
+     * O Grupo A nunca passa esse parâmetro (nenhuma de suas modalidades tem
+     * tarifa cadastrada para `INTERMEDIATE`). Classificação inteira em SQL
+     * (fim de semana, feriado e janela de ponta), nunca em JS:
+     * `meter_readings` é a maior tabela do sistema, e puxar linha por linha
+     * para classificar no Node inflaria exatamente a consulta que o laudo
+     * de desempenho já identifica como a mais cara do produto.
      *
      * `holidayDates` é calculado fora daqui (`shared/time/holidays.ts`) —
      * datas móveis (Carnaval, Sexta-Feira Santa, Corpus Christi) são cálculo,
@@ -283,6 +297,7 @@ export class ConsumptionRepository {
      * @param to - Fim da janela (exclusive).
      * @param peakWindow - Janela de ponta da distribuidora.
      * @param holidayDates - Feriados nacionais que caem dentro da janela.
+     * @param includeIntermediate - Habilita o posto `INTERMEDIATE` (Tarifa Branca). Default `false` — sem isso, a mesma hora-relógio cai em `OFF_PEAK`, preservando o Grupo A intocado.
      * @returns O consumo (kWh) somado por posto — só os postos com alguma leitura aparecem.
      */
     async findKwhByPost(
@@ -291,8 +306,16 @@ export class ConsumptionRepository {
         to: Date,
         peakWindow: PeakWindowConfig,
         holidayDates: Date[],
+        includeIntermediate = false,
     ): Promise<ConsumptionByPost[]> {
         const { peakWindowStartHour, peakWindowEndHour } = peakWindow
+        const { hourBeforePeak, hourAfterPeak } = getIntermediateHours(peakWindow)
+        const intermediateBranch = includeIntermediate
+            ? Prisma.sql`
+                            WHEN EXTRACT(HOUR FROM ${localTsExpr()}) = ${hourBeforePeak}
+                                OR EXTRACT(HOUR FROM ${localTsExpr()}) = ${hourAfterPeak}
+                                THEN 'INTERMEDIATE'`
+            : Prisma.empty
 
         const rows = await this.prisma.$queryRaw<{ post: TariffPost; kwh: number }[]>(
             Prisma.sql`
@@ -304,7 +327,7 @@ export class ConsumptionRepository {
                             WHEN (${localTsExpr()})::date = ANY(${holidayDates}::date[]) THEN 'OFF_PEAK'
                             WHEN EXTRACT(HOUR FROM ${localTsExpr()}) >= ${peakWindowStartHour}
                                 AND EXTRACT(HOUR FROM ${localTsExpr()}) < ${peakWindowEndHour}
-                                THEN 'PEAK'
+                                THEN 'PEAK'${intermediateBranch}
                             ELSE 'OFF_PEAK'
                         END AS post,
                         "kwhConsumed" AS kwh
@@ -313,6 +336,7 @@ export class ConsumptionRepository {
                     ${rangeFilter(from, to)}
                 ) classified
                 GROUP BY post
+                ORDER BY ${POST_ORDER}
             `,
         )
 
@@ -331,6 +355,7 @@ export class ConsumptionRepository {
      * @param to - Fim da janela (exclusive).
      * @param peakWindow - Janela de ponta da distribuidora.
      * @param holidayDates - Feriados nacionais que caem dentro da janela.
+     * @param includeIntermediate - Habilita o posto `INTERMEDIATE` (Tarifa Branca). Default `false` — sem isso, a mesma hora-relógio cai em `OFF_PEAK`, preservando o Grupo A intocado.
      * @returns O consumo (kWh) somado por mês × posto — só combinações com alguma leitura aparecem.
      */
     async findKwhByPostGroupedByMonth(
@@ -339,8 +364,16 @@ export class ConsumptionRepository {
         to: Date,
         peakWindow: PeakWindowConfig,
         holidayDates: Date[],
+        includeIntermediate = false,
     ): Promise<MonthlyConsumptionByPost[]> {
         const { peakWindowStartHour, peakWindowEndHour } = peakWindow
+        const { hourBeforePeak, hourAfterPeak } = getIntermediateHours(peakWindow)
+        const intermediateBranch = includeIntermediate
+            ? Prisma.sql`
+                            WHEN EXTRACT(HOUR FROM ${localTsExpr()}) = ${hourBeforePeak}
+                                OR EXTRACT(HOUR FROM ${localTsExpr()}) = ${hourAfterPeak}
+                                THEN 'INTERMEDIATE'`
+            : Prisma.empty
 
         const rows = await this.prisma.$queryRaw<
             { monthbucket: Date; post: TariffPost; kwh: number }[]
@@ -355,7 +388,7 @@ export class ConsumptionRepository {
                             WHEN (${localTsExpr()})::date = ANY(${holidayDates}::date[]) THEN 'OFF_PEAK'
                             WHEN EXTRACT(HOUR FROM ${localTsExpr()}) >= ${peakWindowStartHour}
                                 AND EXTRACT(HOUR FROM ${localTsExpr()}) < ${peakWindowEndHour}
-                                THEN 'PEAK'
+                                THEN 'PEAK'${intermediateBranch}
                             ELSE 'OFF_PEAK'
                         END AS post,
                         "kwhConsumed" AS kwh
@@ -364,6 +397,7 @@ export class ConsumptionRepository {
                     ${rangeFilter(from, to)}
                 ) classified
                 GROUP BY monthbucket, post
+                ORDER BY monthbucket, ${POST_ORDER}
             `,
         )
 

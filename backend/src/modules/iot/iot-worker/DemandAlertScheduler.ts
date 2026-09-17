@@ -43,7 +43,14 @@ const log = logger.child({ module: "DemandAlertScheduler" })
 // de atualizar o rollup do minuto antes deste tick ler o valor.
 const START_OFFSET_MS = 15_000
 
-const POST_LABELS: Record<TariffPost, string> = { PEAK: "ponta", OFF_PEAK: "fora de ponta" }
+// INTERMEDIATE nunca aparece na prática aqui (só Grupo A chega a este
+// scheduler, e nenhuma modalidade sua produz esse posto) — o label existe só
+// para o Record ficar exaustivo contra TariffPost.
+const POST_LABELS: Record<TariffPost, string> = {
+    PEAK: "ponta",
+    OFF_PEAK: "fora de ponta",
+    INTERMEDIATE: "intermediário",
+}
 
 export class DemandAlertScheduler {
     private flushTimer: ReturnType<typeof setInterval> | null = null

@@ -3,6 +3,7 @@ import type {
     TariffPost,
     TariffSubgroup,
     TariffModality,
+    GroupBModality,
 } from "@/generated/prisma/client.js"
 
 export type TariffEnergyRateResponse = {
@@ -33,6 +34,10 @@ const demandRatesByPostCache = new Map<
     string,
     { value: TariffDemandRateByPostResponse[]; cachedAt: number }
 >()
+const groupBEnergyRatesCache = new Map<
+    string,
+    { value: TariffEnergyRateResponse[]; cachedAt: number }
+>()
 
 function cacheKey(
     distributorId: string,
@@ -42,9 +47,15 @@ function cacheKey(
     return `${distributorId}:${subgroup}:${modality}`
 }
 
+function groupBCacheKey(distributorId: string, modality: GroupBModality): string {
+    return `${distributorId}:${modality}`
+}
+
 /**
- * Catálogo tarifário do Grupo A — tarifas de energia por posto e de
- * demanda por distribuidora × subgrupo × modalidade, somente leitura.
+ * Catálogo tarifário do Grupo A (tarifas de energia por posto e de demanda
+ * por distribuidora × subgrupo × modalidade) e da Tarifa Branca do Grupo B
+ * (tarifas de energia por posto por distribuidora × modalidade, sem
+ * subgrupo — dimensão exclusiva do Grupo A). Somente leitura.
  */
 export class TariffCatalogRepository {
     /** @param prisma - Cliente Prisma usado para consultar o catálogo tarifário do Grupo A. */
@@ -151,6 +162,38 @@ export class TariffCatalogRepository {
         demandRatesByPostCache.set(key, { value, cachedAt: Date.now() })
         return value
     }
+
+    /**
+     * Tarifas de energia (TUSD + TE) por posto da Tarifa Branca, para uma
+     * distribuidora × modalidade do Grupo B. A modalidade Convencional não
+     * tem linha aqui — usa a tarifa plana de `EnergyDistributor`.
+     *
+     * @param distributorId - Id da distribuidora.
+     * @param modality - Modalidade do Grupo B (na prática, sempre `WHITE` — Convencional não usa este catálogo).
+     * @returns As tarifas de energia cadastradas (uma por posto), servidas do cache quando ainda dentro do TTL.
+     */
+    async findGroupBEnergyRates(
+        distributorId: string,
+        modality: GroupBModality,
+    ): Promise<TariffEnergyRateResponse[]> {
+        const key = groupBCacheKey(distributorId, modality)
+        const cached = groupBEnergyRatesCache.get(key)
+        if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
+            return cached.value
+        }
+
+        const rows = await this.prisma.groupBEnergyRate.findMany({
+            where: { distributorId, modality },
+        })
+        const value = rows.map((r) => ({
+            post: r.post,
+            tusdPerKwh: r.tusdPerKwh.toNumber(),
+            tePerKwh: r.tePerKwh.toNumber(),
+        }))
+
+        groupBEnergyRatesCache.set(key, { value, cachedAt: Date.now() })
+        return value
+    }
 }
 
 /**
@@ -161,4 +204,5 @@ export function resetTariffCatalogCacheForTests(): void {
     energyRatesCache.clear()
     singleDemandRateCache.clear()
     demandRatesByPostCache.clear()
+    groupBEnergyRatesCache.clear()
 }

@@ -60,4 +60,30 @@ export class ConsumptionController {
             next(error)
         }
     }
+
+    /**
+     * `GET /api/consumption/branca-comparison?propertyId=&from=&to=` —
+     * comparação Convencional × Branca a partir do consumo real de uma
+     * propriedade.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
+    async compareBrancaToConvencional(
+        req: Request,
+        res: Response,
+        next: NextFunction,
+    ): Promise<void> {
+        try {
+            const { id: userId } = (req as AuthenticatedRequest).user
+            const result = await this.consumptionService.compareBrancaToConvencional(
+                userId,
+                req.query,
+            )
+            res.status(200).json({ status: "success", data: result })
+        } catch (error) {
+            next(error)
+        }
+    }
 }

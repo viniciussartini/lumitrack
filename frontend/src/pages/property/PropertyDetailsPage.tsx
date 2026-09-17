@@ -139,6 +139,7 @@ export const PropertyDetailsPage = () => {
             <PropertyConsumptionSection
                 propertyId={property.id}
                 tariffGroup={property.tariffGroup}
+                groupBModality={property.groupBModality}
             />
             <AreasSection propertyId={property.id} />
         </div>
@@ -194,6 +195,14 @@ const PropertyHeaderCard = ({
                             <Link to={`/propriedades/${property.id}/comparacao-acl`}>
                                 <Scale className="h-4 w-4" aria-hidden="true" />
                                 Comparar ACR × ACL
+                            </Link>
+                        </Button>
+                    )}
+                    {property.groupBModality === "WHITE" && (
+                        <Button asChild variant="secondary" size="sm">
+                            <Link to={`/propriedades/${property.id}/comparacao-branca`}>
+                                <Scale className="h-4 w-4" aria-hidden="true" />
+                                Comparar Convencional × Branca
                             </Link>
                         </Button>
                     )}
@@ -263,6 +272,9 @@ const PropertyHeaderCard = ({
                     )}
                     {property.contractingEnvironment === "ACL" && (
                         <Tag variant="accent-2">Mercado Livre (ACL)</Tag>
+                    )}
+                    {property.groupBModality === "WHITE" && (
+                        <Tag variant="accent-2">Tarifa Branca</Tag>
                     )}
                 </div>
             </div>

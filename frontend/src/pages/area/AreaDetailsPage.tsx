@@ -152,7 +152,7 @@ export const AreaDetailsPage = () => {
             <AreaConsumptionSection
                 propertyId={propertyId!}
                 areaId={areaId!}
-                tariffGroup={property?.tariffGroup}
+                {...resolvePropertyTariffFields(property)}
             />
             <DevicesSection propertyId={propertyId!} areaId={areaId!} />
         </div>
@@ -166,6 +166,16 @@ const latestBucket = (items: ConsumptionBucket[]): ConsumptionBucket | null => {
         new Date(bucket.bucketStart) > new Date(latest.bucketStart) ? bucket : latest,
     )
 }
+
+/**
+ * Campos de grupo tarifário da propriedade pai, para `AreaConsumptionSection`
+ * decidir o ramo de renderização — extraído do componente principal só pra
+ * não empurrar sua complexidade acima do teto do lint.
+ */
+const resolvePropertyTariffFields = (property: Property | undefined) => ({
+    tariffGroup: property?.tariffGroup,
+    groupBModality: property?.groupBModality,
+})
 
 interface BackLinkProps {
     propertyId: string | undefined
