@@ -518,7 +518,7 @@ describe("TariffService", () => {
         // total de 450 kWh mas mais deslocado para a ponta, a Branca fica
         // mais cara que a Convencional — não é o cenário testado aqui, mas
         // confirma que a fórmula por posto (sem piso) está certa mesmo em
-        // um perfil desfavorável, matéria-prima do item de comparação (#420).
+        // um perfil desfavorável.
         it("com consumo concentrado na ponta, o total é maior que com o mesmo consumo fora de ponta", () => {
             const concentratedOnPeak = service.calculateForGroupBWhite({
                 energyByPost: [{ post: "PEAK", kwhConsumed: 100, tusdPerKwh: 0.6, tePerKwh: 0.6 }],

@@ -1,5 +1,8 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest"
-import { ConsumptionService } from "@/modules/consumption/consumption.service.js"
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest"
+import {
+    ConsumptionService,
+    resolveComparisonSign,
+} from "@/modules/consumption/consumption.service.js"
 import {
     ConsumptionRepository,
     type ConsumptionBucket,
@@ -1560,6 +1563,38 @@ describe("ConsumptionService.list — Grupo A ACL (Mercado Livre)", () => {
     })
 })
 
+describe("resolveComparisonSign", () => {
+    it("retorna 1 quando o primeiro cenário custa mais que meio centavo além do segundo", () => {
+        expect(resolveComparisonSign(0.01)).toBe(1)
+        expect(resolveComparisonSign(1000)).toBe(1)
+    })
+
+    it("retorna -1 quando o primeiro cenário custa mais que meio centavo abaixo do segundo", () => {
+        expect(resolveComparisonSign(-0.01)).toBe(-1)
+        expect(resolveComparisonSign(-1000)).toBe(-1)
+    })
+
+    it("retorna 0 para diferença exatamente zero", () => {
+        expect(resolveComparisonSign(0)).toBe(0)
+    })
+
+    // O caso real que motivou a tolerância: soma de vários meses deixando
+    // um resíduo de ponto flutuante em vez de zero exato — sem tolerância,
+    // isto seria classificado como "mais barato" por uma fração de
+    // centavo que não aparece na tela (formatada em 2 casas decimais).
+    it("retorna 0 para um resíduo de ponto flutuante abaixo de meio centavo", () => {
+        const residue = 0.1 + 0.2 - 0.3 // ≈ 5.55e-17 em JS
+        expect(resolveComparisonSign(residue)).toBe(0)
+        expect(resolveComparisonSign(0.004)).toBe(0)
+        expect(resolveComparisonSign(-0.004)).toBe(0)
+    })
+
+    it("não trata a própria tolerância como diferença relevante (limite exclusivo)", () => {
+        expect(resolveComparisonSign(0.005)).toBe(0)
+        expect(resolveComparisonSign(-0.005)).toBe(0)
+    })
+})
+
 describe("ConsumptionService.compareAclToAcr — comparação ACR × ACL", () => {
     // Duas propriedades do mesmo usuário/distribuidora/catálogo — uma ACR
     // (sem contrato) e uma ACL (com contrato) — recebendo o MESMO consumo
@@ -2055,6 +2090,47 @@ describe("ConsumptionService.list — Tarifa Branca (Grupo B)", () => {
                 granularity: "hour",
             }),
         ).rejects.toThrow(ValidationError)
+    })
+
+    // Regressão de N+1: sem o batching, granularidade "year" chamaria
+    // findKwhByPost 1 vez por mês do ano — o mesmo custo que o Grupo A já
+    // evita há duas fases (ver calculateGroupAMonthlyCosts). O findKwhByPost
+    // "solto" (1 chamada) continua existindo pra granularidade month/day, só
+    // não pode aparecer aqui.
+    it("granularidade year soma os meses da Branca com 1 única consulta em lote, não 1 por mês", async () => {
+        const { user, meter, property } = await setupWhitePropertyMeter()
+        await insertReading(meter.id, "2026-01-04T13:00:00Z", 370, 10_000) // fora de ponta
+        await insertReading(meter.id, "2026-08-04T22:00:00Z", 30, 10_000) // ponta
+        await insertReading(meter.id, "2026-08-04T20:00:00Z", 50, 10_000) // intermediário
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 370, 10_000) // fora de ponta
+
+        const findKwhByPostSpy = vi.spyOn(consumptionRepository, "findKwhByPost")
+        const findKwhByPostGroupedByMonthSpy = vi.spyOn(
+            consumptionRepository,
+            "findKwhByPostGroupedByMonth",
+        )
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "year",
+        })
+
+        expect(findKwhByPostSpy).not.toHaveBeenCalled()
+        expect(findKwhByPostGroupedByMonthSpy).toHaveBeenCalledTimes(1)
+
+        // Janeiro: 370 kWh, todo fora de ponta — acima do piso (100 kWh),
+        // então soma pela Branca (posto único) em vez da Convencional.
+        // Agosto: mesmo consumo do Exemplo 3 (359,5567) já validado em
+        // outros testes deste arquivo. O total do bucket de ano é a soma
+        // dos dois meses.
+        const expectedJanuary =
+            (370 * 0.45 + 370 * (1.885 / 100)) / (1 - (0.18 + 0.0165 + 0.076)) + 18
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0]!.costBrl).toBeCloseTo(expectedJanuary + 359.5567, 2)
+
+        findKwhByPostSpy.mockRestore()
+        findKwhByPostGroupedByMonthSpy.mockRestore()
     })
 })
 

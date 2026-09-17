@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { formatBrl, formatPercent } from "@/lib/format"
 import { formatBucketLabel } from "@/lib/formatters/consumption"
+import { resolveDiffToneClass } from "@/lib/comparisonTone"
 import type { BrancaComparisonVerdict } from "@/types/branca-comparison.types"
 
 // TODO(design): aguardando handoff — Comparação Convencional × Branca. O
@@ -322,7 +323,7 @@ const MonthsTable = ({ months }: MonthsTableProps) => (
                                 {formatBrl(month.brancaBrl)}
                             </td>
                             <td
-                                className={`px-4 py-3 text-right font-mono tabular-nums ${month.diffBrl >= 0 ? "text-status-success" : "text-status-danger"}`}
+                                className={`px-4 py-3 text-right font-mono tabular-nums ${resolveDiffToneClass(month.diffBrl)}`}
                             >
                                 {formatBrl(month.diffBrl)}
                             </td>

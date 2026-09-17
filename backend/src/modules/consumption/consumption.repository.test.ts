@@ -260,6 +260,28 @@ describe("ConsumptionRepository.findKwhByPost", () => {
         expect(byPost["PEAK"]).toBeUndefined()
     })
 
+    it("com includeIntermediate=true, devolve os três postos em ordem canônica (Ponta, Intermediário, Fora de Ponta)", async () => {
+        const meterId = await setupMeter()
+
+        // Leituras inseridas fora da ordem canônica de propósito — a ordem
+        // de retorno não pode depender da ordem de inserção nem do plano de
+        // agregação escolhido pelo Postgres.
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 10)), 2) // OFF_PEAK
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 17)), 4) // INTERMEDIATE
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 19)), 6) // PEAK
+
+        const result = await consumptionRepository.findKwhByPost(
+            meterId,
+            new Date(Date.UTC(2026, 8, 1)),
+            new Date(Date.UTC(2026, 8, 10)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+            true,
+        )
+
+        expect(result.map((r) => r.post)).toEqual(["PEAK", "INTERMEDIATE", "OFF_PEAK"])
+    })
+
     it("com includeIntermediate=true, fim de semana na hora intermediária continua OFF_PEAK", async () => {
         const meterId = await setupMeter()
 
@@ -436,5 +458,24 @@ describe("ConsumptionRepository.findKwhByPostGroupedByMonth", () => {
         )
         expect(byMonthPost["2026-09-INTERMEDIATE"]).toBe(4)
         expect(byMonthPost["2026-10-INTERMEDIATE"]).toBe(6)
+    })
+
+    it("com includeIntermediate=true, devolve os postos em ordem canônica dentro de cada mês", async () => {
+        const meterId = await setupMeter()
+
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 10)), 2) // OFF_PEAK
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 17)), 4) // INTERMEDIATE
+        await createReading(meterId, toStoredUtc(localWallClock(2026, 8, 8, 19)), 6) // PEAK
+
+        const result = await consumptionRepository.findKwhByPostGroupedByMonth(
+            meterId,
+            new Date(Date.UTC(2026, 8, 1)),
+            new Date(Date.UTC(2026, 8, 10)),
+            PEAK_WINDOW,
+            HOLIDAYS_2026,
+            true,
+        )
+
+        expect(result.map((r) => r.post)).toEqual(["PEAK", "INTERMEDIATE", "OFF_PEAK"])
     })
 })

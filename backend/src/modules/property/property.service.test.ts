@@ -240,6 +240,34 @@ describe("PropertyService", () => {
             expect(property.receivesBillingDiscount).toBe(true)
         })
 
+        // Regressão: groupBModality/receivesBillingDiscount não podem ter
+        // @default de coluna no schema — um ADD COLUMN com default faz o
+        // Postgres backfillar todas as linhas já existentes, inclusive
+        // propriedades do Grupo A, que devem permanecer nulas nesses dois
+        // campos. Insere direto via Prisma Client, sem passar por
+        // PropertyService (que sempre escreve os dois campos explicitamente),
+        // pra provar que é a coluna em si — não a lógica do service — que
+        // não inventa valor.
+        it("não backfilla groupBModality/receivesBillingDiscount ao inserir uma propriedade sem esses campos", async () => {
+            const { user, distributor } = await setupUserAndDistributor()
+
+            const raw = await prismaTest.property.create({
+                data: {
+                    user: { connect: { id: user.id } },
+                    distributor: { connect: { id: distributor.id } },
+                    name: "Metalúrgica Legada",
+                    electricalSystem: "TRIPHASIC",
+                    tariffGroup: "GROUP_A",
+                    tariffSubgroup: "A4",
+                    tariffModality: "GREEN",
+                    contractedDemandKw: 200,
+                },
+            })
+
+            expect(raw.groupBModality).toBeNull()
+            expect(raw.receivesBillingDiscount).toBeNull()
+        })
+
         it("deve lançar ValidationError ao criar Grupo A com modalidade do Grupo B", async () => {
             const { user, distributor } = await setupUserAndDistributor()
 

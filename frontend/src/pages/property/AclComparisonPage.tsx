@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState"
 import { Tag } from "@/components/ui/Tag"
 import { formatBrl, formatPercent } from "@/lib/format"
 import { formatBucketLabel } from "@/lib/formatters/consumption"
+import { resolveDiffToneClass } from "@/lib/comparisonTone"
 import { ACL_SUBMARKET_LABELS } from "@/types/acl-contract.types"
 import type { AclComparisonVerdict } from "@/types/acl-comparison.types"
 
@@ -347,7 +348,7 @@ const MonthsTable = ({ months }: MonthsTableProps) => (
                                 {formatBrl(month.aclBrl)}
                             </td>
                             <td
-                                className={`px-4 py-3 text-right font-mono tabular-nums ${month.diffBrl >= 0 ? "text-status-success" : "text-status-danger"}`}
+                                className={`px-4 py-3 text-right font-mono tabular-nums ${resolveDiffToneClass(month.diffBrl)}`}
                             >
                                 {formatBrl(month.diffBrl)}
                             </td>

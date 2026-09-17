@@ -306,6 +306,38 @@ describe("PropertyForm — submit", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("PropertyForm — Grupo A", () => {
+    // Regressão: uma propriedade Grupo A com groupBModality/receivesBillingDiscount
+    // não-nulos (dado legado hipotético, ex.: backfill de migração) não pode
+    // travar o submit — o form ignora esses dois campos por tariffGroup, não
+    // por eles estarem nulos.
+    it("edita uma propriedade Grupo A mesmo quando groupBModality/receivesBillingDiscount chegam com valor não-nulo", async () => {
+        const user = userEvent.setup()
+        const onSubmit = vi.fn().mockResolvedValue(undefined)
+        const legacyGroupAProperty: Property = {
+            ...mockProperty,
+            tariffGroup: "GROUP_A",
+            billingClass: null,
+            groupBModality: "CONVENTIONAL",
+            receivesBillingDiscount: false,
+            tariffSubgroup: "A4",
+            tariffModality: "GREEN",
+            contractedDemandKw: 200,
+        }
+        renderForm({ initialData: legacyGroupAProperty, onSubmit })
+
+        await user.click(screen.getByRole("button", { name: /salvar/i }))
+
+        await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+        expect(onSubmit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tariffGroup: "GROUP_A",
+                groupBModality: undefined,
+                receivesBillingDiscount: undefined,
+            }),
+            expect.anything(),
+        )
+    })
+
     it("mostra os campos do Grupo A e esconde a classe de faturamento ao trocar o grupo tarifário", async () => {
         const user = userEvent.setup()
         renderForm()

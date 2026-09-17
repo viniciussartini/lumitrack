@@ -27,12 +27,26 @@ const mockBucket: ConsumptionBucket = {
 }
 
 describe("GroupBWhiteBillCard", () => {
-    it("mostra energia, bandeira e o total", () => {
+    it("mostra energia, bandeira, CIP e o total", () => {
         render(<GroupBWhiteBillCard bucket={mockBucket} />)
 
         expect(screen.getByText(/R\$\s*240,00/)).toBeInTheDocument() // energyBrl
         expect(screen.getByText(/R\$\s*8,48/)).toBeInTheDocument() // flagBrl
+        expect(screen.getByText(/R\$\s*18,00/)).toBeInTheDocument() // publicLightingFeeBrl
         expect(screen.getByText(/R\$\s*359,56/)).toBeInTheDocument() // costBrl total
+    })
+
+    it("não mostra a linha de CIP quando publicLightingFeeBrl é zero", () => {
+        render(
+            <GroupBWhiteBillCard
+                bucket={{
+                    ...mockBucket,
+                    groupBWhite: { ...mockBucket.groupBWhite!, publicLightingFeeBrl: 0 },
+                }}
+            />,
+        )
+
+        expect(screen.queryByText(/iluminação pública/i)).not.toBeInTheDocument()
     })
 
     it("lista os três postos na tabela com kWh e custo", () => {

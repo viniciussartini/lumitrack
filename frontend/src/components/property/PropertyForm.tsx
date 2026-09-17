@@ -92,9 +92,26 @@ const buildDefaultValues = (
               zipCode: initialData.zipCode ?? "",
               electricalSystem: initialData.electricalSystem,
               tariffGroup: initialData.tariffGroup,
-              billingClass: initialData.billingClass ?? undefined,
-              groupBModality: initialData.groupBModality ?? undefined,
-              receivesBillingDiscount: initialData.receivesBillingDiscount ?? undefined,
+              // Os três campos do Grupo B abaixo são ignorados por
+              // `tariffGroup`, não só por estarem nulos: um dado legado (ex.:
+              // backfill de migração) que chegasse com valor não-nulo numa
+              // propriedade Grupo A faria o formulário carregar um campo que
+              // `validateGroupAFields` rejeita, travando o submit sem
+              // mensagem visível (o erro cai dentro de `GroupBFields`, que
+              // nem é renderizado nesse ramo). Confiar em `tariffGroup` em
+              // vez de `?? undefined` protege mesmo se o dado vier errado.
+              billingClass:
+                  initialData.tariffGroup === "GROUP_B"
+                      ? (initialData.billingClass ?? undefined)
+                      : undefined,
+              groupBModality:
+                  initialData.tariffGroup === "GROUP_B"
+                      ? (initialData.groupBModality ?? undefined)
+                      : undefined,
+              receivesBillingDiscount:
+                  initialData.tariffGroup === "GROUP_B"
+                      ? (initialData.receivesBillingDiscount ?? undefined)
+                      : undefined,
               tariffSubgroup: initialData.tariffSubgroup ?? undefined,
               tariffModality: initialData.tariffModality ?? undefined,
               contractedDemandKw: initialData.contractedDemandKw ?? undefined,

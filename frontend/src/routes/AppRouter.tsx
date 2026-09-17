@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react"
+import { lazy, Suspense, type ReactNode } from "react"
 import { Navigate, Route, Routes } from "react-router"
 import { ProtectedRoute } from "@/routes/ProtectedRoute"
 import { PublicRoute } from "@/routes/PublicRoute"
@@ -85,6 +85,57 @@ const AboutPage = lazy(() =>
     import("@/pages/about/AboutPage").then((m) => ({ default: m.AboutPage })),
 )
 
+interface AppRouteConfig {
+    path: string
+    element: ReactNode
+}
+
+// Rotas dentro de ProtectedRoute + AppShell — o grupo que cresce a cada
+// fase do roadmap (1 entrada por página nova). Extraído da árvore JSX pra
+// `.map()` de propósito: sem isso, `AppRoutes` empurra o teto de
+// max-lines-per-function do lint a cada rota adicionada (override por
+// arquivo teria que subir de novo), porque cada `<Route>` com path longo
+// quebra em várias linhas pelo printWidth do Prettier.
+const APP_SHELL_ROUTES: AppRouteConfig[] = [
+    { path: "/dashboard", element: <DashboardPage /> },
+    { path: "/distribuidoras", element: <DistribuidorsPage /> },
+
+    // Criar/editar Propriedade/Área/Dispositivo acontece via modal
+    // (PropertyFormDialog/AreaFormDialog/DeviceFormDialog), não em rota
+    // dedicada.
+    { path: "/propriedades", element: <PropertiesPage /> },
+    { path: "/propriedades/:id", element: <PropertyDetailsPage /> },
+    { path: "/propriedades/:id/comparacao-acl", element: <AclComparisonPage /> },
+    { path: "/propriedades/:id/comparacao-branca", element: <BrancaComparisonPage /> },
+
+    // Áreas — rota aninhada espelha o padrão da API
+    // (/api/properties/:propertyId/areas/:areaId).
+    { path: "/propriedades/:propertyId/areas/:areaId", element: <AreaDetailsPage /> },
+
+    // Dispositivos — rota aninhada em DOIS níveis.
+    {
+        path: "/propriedades/:propertyId/areas/:areaId/devices/:deviceId",
+        element: <DeviceDetailsPage />,
+    },
+
+    // Alertas — inbox global.
+    { path: "/alertas", element: <AlertsPage /> },
+
+    // Relatórios — seletor cascata de alvo (propriedade → área → dispositivo)
+    // + 4 granularidades (hora/dia/mês/ano).
+    { path: "/relatorios", element: <ReportsPage /> },
+
+    // Simulação — placeholder.
+    { path: "/simulacao", element: <SimulationPage /> },
+
+    // Conta do usuário logado — acessível via UserMenu no Header.
+    { path: "/perfil", element: <ProfilePage /> },
+    { path: "/seguranca", element: <SecurityPage /> },
+
+    // Institucional — sem RF, versão provisória sem handoff.
+    { path: "/sobre", element: <AboutPage /> },
+]
+
 /**
  * Mapa de rotas
  *
@@ -125,49 +176,9 @@ const AppRoutes = () => (
         {/* Rotas privadas — exige autenticação */}
         <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
-                <Route path="/dashboard" element={<DashboardPage />} />
-
-                <Route path="/distribuidoras" element={<DistribuidorsPage />} />
-
-                {/* Criar/editar Propriedade/Área/Dispositivo acontece via modal
-                        (PropertyFormDialog/AreaFormDialog/DeviceFormDialog), não
-                        em rota dedicada. */}
-                <Route path="/propriedades" element={<PropertiesPage />} />
-                <Route path="/propriedades/:id" element={<PropertyDetailsPage />} />
-                <Route path="/propriedades/:id/comparacao-acl" element={<AclComparisonPage />} />
-                <Route
-                    path="/propriedades/:id/comparacao-branca"
-                    element={<BrancaComparisonPage />}
-                />
-
-                {/* Áreas — rota aninhada espelha o padrão da API (/api/properties/:propertyId/areas/:areaId). */}
-                <Route
-                    path="/propriedades/:propertyId/areas/:areaId"
-                    element={<AreaDetailsPage />}
-                />
-
-                {/*Dispositivos — rota aninhada em DOIS níveis. */}
-                <Route
-                    path="/propriedades/:propertyId/areas/:areaId/devices/:deviceId"
-                    element={<DeviceDetailsPage />}
-                />
-
-                {/* Alertas — inbox global. */}
-                <Route path="/alertas" element={<AlertsPage />} />
-
-                {/* Relatórios — seletor cascata de alvo (propriedade → área → dispositivo)
-                        + 4 granularidades (hora/dia/mês/ano). */}
-                <Route path="/relatorios" element={<ReportsPage />} />
-
-                {/* Simulação — placeholder. */}
-                <Route path="/simulacao" element={<SimulationPage />} />
-
-                {/* Conta do usuário logado — acessível via UserMenu no Header. */}
-                <Route path="/perfil" element={<ProfilePage />} />
-                <Route path="/seguranca" element={<SecurityPage />} />
-
-                {/* Institucional — sem RF, versão provisória sem handoff. */}
-                <Route path="/sobre" element={<AboutPage />} />
+                {APP_SHELL_ROUTES.map(({ path, element }) => (
+                    <Route key={path} path={path} element={element} />
+                ))}
             </Route>
         </Route>
 

@@ -560,17 +560,25 @@ model Property {
   billingClass BillingClass? @default(B1)
 
   // Modalidade tarifária do Grupo B (Convencional × Branca) — nula para
-  // Grupo A, que usa tariffModality abaixo (enum separado, ADR-0019). Default
-  // CONVENTIONAL preserva todas as propriedades existentes. Branca só é
-  // aceita para billingClass B1/B3 e quando receivesBillingDiscount é falso,
-  // validado em property.service.ts.
-  groupBModality GroupBModality? @default(CONVENTIONAL)
+  // Grupo A, que usa tariffModality abaixo (enum separado, ADR-0019).
+  // Sem @default de coluna, de propósito: diferente de tariffGroup/billingClass
+  // acima (cujo default preserva propriedades existentes porque, quando esses
+  // campos foram criados, toda propriedade já existente era do próprio grupo
+  // que o default assume), aqui um default de coluna faria a migração
+  // backfillar CONVENTIONAL/false em propriedades Grupo A já existentes —
+  // que devem permanecer nulas. O valor correto (CONVENTIONAL só quando o
+  // grupo é B) é resolvido em property.service.ts, sempre escrito
+  // explicitamente em toda criação/atualização — nunca depende do default da
+  // coluna. Branca só é aceita para billingClass B1/B3 e quando
+  // receivesBillingDiscount é falso, validado no mesmo service.
+  groupBModality GroupBModality?
 
   // Recebe desconto de faturamento (baixa renda ou outro desconto) — sem
   // efeito para Grupo A. Bloqueia a adesão à Branca; sem taxonomia de
   // subclasse (BPC, indígena, rural etc.) — corte de escopo, até haver caso
-  // real que a exija.
-  receivesBillingDiscount Boolean? @default(false)
+  // real que a exija. Sem @default de coluna pelo mesmo motivo de
+  // groupBModality acima.
+  receivesBillingDiscount Boolean?
 
   // Subgrupo e modalidade do Grupo A — nulos para Grupo B.
   tariffSubgroup TariffSubgroup?

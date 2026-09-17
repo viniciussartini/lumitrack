@@ -118,6 +118,12 @@ export const GroupBWhiteBillCard = ({ bucket }: GroupBWhiteBillCardProps) => {
                 <Stat label="Energia" value={formatCostBrl(groupBWhite.energyBrl)} />
                 <Stat label="Bandeira" value={formatCostBrl(groupBWhite.flagBrl)} />
                 <Stat label="Tributos" value={formatCostBrl(groupBWhite.taxesBrl)} />
+                {groupBWhite.publicLightingFeeBrl > 0 && (
+                    <Stat
+                        label="Iluminação pública (CIP)"
+                        value={formatCostBrl(groupBWhite.publicLightingFeeBrl)}
+                    />
+                )}
                 <Stat label="Total da conta" value={formatCostBrl(bucket.costBrl)} accent />
             </div>
 

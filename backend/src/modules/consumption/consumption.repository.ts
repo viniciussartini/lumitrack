@@ -22,6 +22,15 @@ const ORDER_DIRECTION: Record<BucketOrder, Prisma.Sql> = {
     desc: Prisma.sql`DESC`,
 }
 
+// Ordem canônica de exibição do posto (Ponta → Intermediário → Fora de
+// Ponta) — sem isto, o `GROUP BY post` das duas queries abaixo devolve a
+// ordem que o HashAggregate do Postgres escolher, que pode variar entre
+// execuções (e não coincide com a ordem do enum `tariff_post` no banco,
+// que tem INTERMEDIATE anexado no fim por ter sido adicionado depois via
+// `ALTER TYPE ... ADD VALUE`). A UI (tabela e gráfico por posto) depende
+// dessa ordem ser estável.
+const POST_ORDER = Prisma.sql`CASE post WHEN 'PEAK' THEN 0 WHEN 'INTERMEDIATE' THEN 1 ELSE 2 END`
+
 export type ConsumptionBucket = {
     bucketStart: Date
     kwhConsumed: number
@@ -327,6 +336,7 @@ export class ConsumptionRepository {
                     ${rangeFilter(from, to)}
                 ) classified
                 GROUP BY post
+                ORDER BY ${POST_ORDER}
             `,
         )
 
@@ -387,6 +397,7 @@ export class ConsumptionRepository {
                     ${rangeFilter(from, to)}
                 ) classified
                 GROUP BY monthbucket, post
+                ORDER BY monthbucket, ${POST_ORDER}
             `,
         )
 
