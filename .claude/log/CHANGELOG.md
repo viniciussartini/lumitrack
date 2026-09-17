@@ -3753,3 +3753,13 @@
 - **Arquivos principais:** `.claude/project_context/02-requisitos.md` (RF36, RF49), `.claude/docs/ROPA.md` (item 2).
 - **Decisões/ADRs:** nenhuma nova.
 - **Notas:** correção de texto — sem impacto em código, testes ou comportamento. Fecha o laudo de `revisao-codigo` do PR #422 (3 bloqueios + 7 sugestões, todos endereçados nesta e nas duas entradas anteriores do changelog).
+
+## [2026-09-17] docs: roadmap fecha a Fase 22 (PR #422); Fase 23 vira fase atual
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** `planejar-roadmap` — marca a Fase 22 (Tarifa Branca — Grupo B) como concluída (épico #416: #417–#421, PR #422 mesclado em `staging` em 2026-09-17T00:33:33Z) e passa a Fase 23 (Shell v2) a fase atual, ainda em nível de objetivo — detalhamento completo adiado para uma sessão dedicada de planejamento, por decisão do usuário. `02-requisitos.md` já estava correto (RF36, RF49, RN27, RN28, RN40, RN41 atualizados no próprio commit da feature, 1b01273) — sem alteração nesta entrada.
+- **Correção de convenção — épico não fecha sozinho ao mesclar em `staging`:** a entrada de 2026-09-15 do roadmap concluiu que `Closes #N` fecharia o épico automaticamente ao mesclar em qualquer branch-base, com base em #379/#386/#394 aparecerem `CLOSED`. Falso: o épico **#416 permaneceu `OPEN`** após o merge do PR #422 com `Closes #416` no corpo, mesmo padrão exato dos três anteriores. Checada a timeline do GitHub (`gh api repos/.../issues/394/timeline`): o `closed` de #394 tem `commit_id: null` e ator `viniciussartini` — fechamento manual, não automático. O comportamento padrão real do GitHub só fecha via `Closes #N` na branch **default** do repositório (`main`), nunca em `staging`. #416 foi fechado manualmente nesta sessão (`gh issue close 416`), e essa passa a ser a convenção: fechar o épico à mão após cada merge em `staging`, sem presumir automação.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova.
+- **Notas:** Fase 22 fecha a entrega `Tarifação Grupo A, Mercado Livre e Tarifa Branca` (Fases 19–22) — milestone a fechar no GitHub. Issues da Fase 23 ficam para um próximo ciclo (usuário optou por não detalhar agora).
