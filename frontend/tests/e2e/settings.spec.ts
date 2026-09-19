@@ -53,6 +53,24 @@ const TREE: PropertyTree = {
     ],
 }
 
+// Duas propriedades, cada uma com uma área: alimenta os seletores de pai dos
+// modais de Área e Dispositivo.
+const TWO_PROPERTIES_TREE: PropertyTree = {
+    total: 2,
+    items: [
+        {
+            id: PROP_1.id,
+            name: PROP_1.name,
+            areas: [{ id: AREA_1.id, name: AREA_1.name, devices: [] }],
+        },
+        {
+            id: PROP_2.id,
+            name: PROP_2.name,
+            areas: [{ id: AREA_2.id, name: AREA_2.name, devices: [] }],
+        },
+    ],
+}
+
 const renameArea = (tree: PropertyTree, name: string): PropertyTree => ({
     ...tree,
     items: tree.items.map((property) => ({
@@ -99,7 +117,7 @@ test.describe("Configurações → Cadastro", () => {
     })
 
     test("cria uma área na propriedade escolhida no modal", async ({ page }) => {
-        await setupCadastro(page)
+        await setupCadastro(page, [PROP_1, PROP_2], () => TWO_PROPERTIES_TREE)
         let postedTo = ""
         let postedBody: unknown
         await page.route(/\/api\/properties\/prop-\d\/areas$/, (route) => {
@@ -126,13 +144,7 @@ test.describe("Configurações → Cadastro", () => {
     test("cria um dispositivo na área escolhida no modal, agrupada por propriedade", async ({
         page,
     }) => {
-        await setupCadastro(page)
-        await page.route(/\/api\/properties\/prop-1\/areas(\?.*)?$/, (route) =>
-            fulfillPaginated(route, [AREA_1]),
-        )
-        await page.route(/\/api\/properties\/prop-2\/areas(\?.*)?$/, (route) =>
-            fulfillPaginated(route, [AREA_2]),
-        )
+        await setupCadastro(page, [PROP_1, PROP_2], () => TWO_PROPERTIES_TREE)
         let postedTo = ""
         await page.route(/\/api\/properties\/prop-\d\/areas\/area-\d\/devices$/, (route) => {
             postedTo = new URL(route.request().url()).pathname

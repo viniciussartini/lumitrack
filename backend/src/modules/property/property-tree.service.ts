@@ -2,7 +2,7 @@ import type { PropertyRepository } from "@/modules/property/property.repository.
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
 
-/** Teto padrão de imóveis por árvore — defesa contra resposta sem limite. */
+/** Teto padrão de imóveis por árvore — as áreas e os dispositivos lidos são só os desses imóveis. */
 export const TREE_MAX_PROPERTIES = 100
 
 /** Dispositivo na árvore de cadastro. */
@@ -47,10 +47,15 @@ export class PropertyTreeService {
      * @returns Os imóveis (até o teto) com áreas e dispositivos, e o total real de imóveis.
      */
     async findTree(userId: string): Promise<PropertyTree> {
-        const [roots, areas, devices] = await Promise.all([
-            this.propertyRepository.findTreeRootsByUser(userId, this.maxProperties),
-            this.areaRepository.findAllByUser(userId),
-            this.deviceRepository.findAllByUser(userId),
+        const roots = await this.propertyRepository.findTreeRootsByUser(userId, this.maxProperties)
+        if (roots.items.length === 0) return { items: [], total: roots.total }
+
+        // Áreas e dispositivos só das propriedades que ficaram na árvore: ler
+        // as do usuário inteiro ignoraria o teto e traria dados para descartar.
+        const propertyIds = roots.items.map((property) => property.id)
+        const [areas, devices] = await Promise.all([
+            this.areaRepository.findAllByUserInProperties(userId, propertyIds),
+            this.deviceRepository.findAllByUserInProperties(userId, propertyIds),
         ])
 
         const devicesByArea = groupBy(devices, (device) => device.areaId)

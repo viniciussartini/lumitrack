@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import { toast } from "sonner"
-import { Button } from "@/components/ui/Button"
+import { UnavailableDialogBody } from "@/components/ui/UnavailableDialogBody"
 import { FormDialog } from "@/components/ui/FormDialog"
 import { DeviceForm } from "@/components/device/DeviceForm"
 import { useCreateDevice, useUpdateDevice } from "@/hooks/queries/useDeviceMutations"
@@ -19,9 +19,9 @@ interface DeviceFormDialogProps {
     /** Campo exibido acima do formulário — o seletor de área quando o modal é
      * aberto fora do contexto de uma área. */
     parentField?: ReactNode
-    /** Quando presente, substitui o formulário por este conteúdo (com um botão
-     * Fechar) — carregando, erro ou nenhuma área onde criar o dispositivo. */
-    unavailable?: ReactNode
+    /** Quando presente, substitui o formulário por esta explicação (com um
+     * botão Fechar) — não há área onde criar o dispositivo. */
+    unavailableMessage?: string
 }
 
 /** Body de criação e de atualização: os opcionais só entram quando preenchidos. */
@@ -31,17 +31,6 @@ const toDeviceInput = (data: DeviceFormData): CreateDeviceInput => ({
     ...(data.model !== undefined && { model: data.model }),
     ...(data.powerWatts !== undefined && { powerWatts: data.powerWatts }),
 })
-
-const UnavailableBody = ({ children, onClose }: { children: ReactNode; onClose: () => void }) => (
-    <div className="flex flex-col gap-6">
-        {children}
-        <div className="border-divider flex justify-end border-t pt-4">
-            <Button type="button" variant="secondary" onClick={onClose}>
-                Fechar
-            </Button>
-        </div>
-    </div>
-)
 
 /**
  * Dialog (Radix, via FormDialog) que envolve o DeviceForm e orquestra
@@ -55,7 +44,7 @@ export const DeviceFormDialog = ({
     onClose,
     mode,
     parentField,
-    unavailable,
+    unavailableMessage,
 }: DeviceFormDialogProps) => {
     const createDevice = useCreateDevice()
     const updateDevice = useUpdateDevice()
@@ -105,8 +94,8 @@ export const DeviceFormDialog = ({
             kicker={mode.kind === "create" ? "Novo dispositivo" : "Editar dispositivo"}
             title={mode.kind === "create" ? "Adicionar dispositivo" : "Editar dispositivo"}
         >
-            {unavailable ? (
-                <UnavailableBody onClose={onClose}>{unavailable}</UnavailableBody>
+            {unavailableMessage ? (
+                <UnavailableDialogBody message={unavailableMessage} onClose={onClose} />
             ) : (
                 <div className="flex flex-col gap-4">
                     {parentField}

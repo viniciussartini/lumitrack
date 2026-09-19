@@ -2140,7 +2140,7 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
   - **Frontend:** uma requisição carrega a árvore (`usePropertyTree`, reaproveitável pela árvore de Análise na Fase 24); qualquer escrita em propriedade, área ou dispositivo invalida a chave da árvore.
   - Editar e excluir atualizam a árvore (invalidação de cache); estado vazio quando não há propriedades.
   - **Autorização:** teste provando que a árvore só devolve dados do próprio usuário e falha fechado sem autenticação; contas demo continuam com escrita bloqueada (`blockDemoWrite`) — a leitura é livre, como nas outras listagens.
-  - Teto defensivo de 100 propriedades na consulta; a resposta traz `total` com o número real e a tela avisa "Mostrando N de M propriedades" quando o teto corta. Propriedades e áreas sem filhos não expandem (linha sem botão de expandir), diferente do protótipo, que exibe um botão que não faz nada.
+  - Teto defensivo de 100 propriedades na consulta, com áreas e dispositivos lidos só das propriedades que entraram na árvore; a resposta traz `total` com o número real e a tela avisa "Mostrando N de M propriedades" quando o teto corta. Propriedades e áreas sem filhos não expandem (linha sem botão de expandir), diferente do protótipo, que exibe um botão que não faz nada.
   - Sem dado pessoal novo: a árvore expõe campos que o usuário já enxerga em `/propriedades` — sem impacto no ROPA.
 - **Depende de:** Configurações: casca + Cadastro.
 - **Risco/observações:** médio — único item com backend. Sem o endpoint, mostrar contagens com as linhas recolhidas exigiria 1 + N + M chamadas no cliente, o mesmo problema que a Fase 15 eliminou em outros pontos.

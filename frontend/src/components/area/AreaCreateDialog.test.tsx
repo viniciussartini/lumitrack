@@ -5,7 +5,7 @@ import { render, screen } from "@testing-library/react"
 import { AreaCreateDialog } from "@/components/area/AreaCreateDialog"
 import { areaService } from "@/services/area.service"
 import type { Area } from "@/types/area.types"
-import type { Property } from "@/types/property.types"
+import type { PropertyTreeNode } from "@/types/property.types"
 
 vi.mock("@/services/area.service", () => ({
     areaService: {
@@ -29,7 +29,7 @@ vi.mock("sonner", () => ({
     },
 }))
 
-const property = (id: string, name: string): Property => ({ id, name }) as Property
+const property = (id: string, name: string): PropertyTreeNode => ({ id, name, areas: [] })
 
 const PROPERTIES = [property("prop-1", "Casa Principal"), property("prop-2", "Loja Centro")]
 
@@ -111,5 +111,14 @@ describe("AreaCreateDialog", () => {
         rerender(tree(true))
 
         expect(screen.getByLabelText("Propriedade")).toHaveValue("prop-1")
+    })
+
+    it("sem nenhuma propriedade, explica e não oferece o formulário", () => {
+        renderDialog({ properties: [] })
+
+        expect(screen.getByText(/nenhuma propriedade cadastrada/i)).toBeInTheDocument()
+        expect(screen.queryByLabelText(/nome da área/i)).not.toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /criar área/i })).not.toBeInTheDocument()
+        expect(areaService.create).not.toHaveBeenCalled()
     })
 })

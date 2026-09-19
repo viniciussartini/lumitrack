@@ -106,6 +106,25 @@ export class AreaRepository {
     }
 
     /**
+     * Áreas de um conjunto de propriedades do usuário. O filtro por dono
+     * continua na consulta, além dos ids: um id de propriedade alheia devolve
+     * lista vazia em vez de dados de outro usuário.
+     *
+     * @param userId - Id do usuário dono das propriedades.
+     * @param propertyIds - Ids das propriedades cujas áreas se quer ler.
+     * @returns As áreas dessas propriedades que pertencem ao usuário, ordenadas por nome.
+     */
+    async findAllByUserInProperties(
+        userId: string,
+        propertyIds: readonly string[],
+    ): Promise<AreaResponse[]> {
+        return this.prisma.area.findMany({
+            where: { propertyId: { in: [...propertyIds] }, property: { userId } },
+            orderBy: { name: "asc" },
+        })
+    }
+
+    /**
      * Cria uma área numa propriedade.
      *
      * @param propertyId - Id da propriedade dona.

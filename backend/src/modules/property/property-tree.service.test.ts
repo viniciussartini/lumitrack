@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest"
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest"
 import { PropertyTreeService } from "@/modules/property/property-tree.service.js"
 import { PropertyService } from "@/modules/property/property.service.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
@@ -72,6 +72,7 @@ async function createDevice(areaId: string, name: string, powerWatts: number | n
 }
 
 beforeEach(async () => {
+    vi.restoreAllMocks()
     await cleanDatabase()
 })
 
@@ -193,5 +194,80 @@ describe("PropertyTreeService.findTree", () => {
         expect(tree.total).toBe(3)
         expect(tree.items.map((p) => p.name)).toEqual(["Casa A", "Casa B"])
         expect(JSON.stringify(tree)).not.toContain("Casa C")
+    })
+
+    it("lê áreas e dispositivos só das propriedades que entraram na árvore", async () => {
+        const { userId, distributorId } = await createUserWithDistributor()
+        const limited = new PropertyTreeService(
+            propertyRepository,
+            areaRepository,
+            deviceRepository,
+            2,
+        )
+        for (const name of ["Casa C", "Casa A", "Casa B"]) {
+            const property = await createProperty(userId, distributorId, name)
+            const area = await createArea(property.id, `Área de ${name}`)
+            await createDevice(area.id, `Aparelho de ${name}`)
+        }
+        const areaSpy = vi.spyOn(areaRepository, "findAllByUserInProperties")
+        const deviceSpy = vi.spyOn(deviceRepository, "findAllByUserInProperties")
+
+        const tree = await limited.findTree(userId)
+
+        const keptIds = tree.items.map((property) => property.id)
+        expect(keptIds).toHaveLength(2)
+        expect(areaSpy).toHaveBeenCalledWith(userId, keptIds)
+        expect(deviceSpy).toHaveBeenCalledWith(userId, keptIds)
+        const areasRead = await areaSpy.mock.results[0]!.value
+        const devicesRead = await deviceSpy.mock.results[0]!.value
+        expect(areasRead.map((area: { name: string }) => area.name).sort()).toEqual([
+            "Área de Casa A",
+            "Área de Casa B",
+        ])
+        expect(devicesRead).toHaveLength(2)
+    })
+
+    it("não consulta áreas nem dispositivos quando o usuário não tem propriedades", async () => {
+        const { userId } = await createUserWithDistributor()
+        const areaSpy = vi.spyOn(areaRepository, "findAllByUserInProperties")
+        const deviceSpy = vi.spyOn(deviceRepository, "findAllByUserInProperties")
+
+        await treeService.findTree(userId)
+
+        expect(areaSpy).not.toHaveBeenCalled()
+        expect(deviceSpy).not.toHaveBeenCalled()
+    })
+})
+
+describe("leitura de áreas e dispositivos por propriedades", () => {
+    it("ignora ids de propriedades que pertencem a outro usuário", async () => {
+        const a = await createUserWithDistributor(userA)
+        const b = await userService.createUser(userB)
+        const propB = await createProperty(b.id, a.distributorId, "Casa de B")
+        const areaB = await createArea(propB.id, "Sala de B")
+        await createDevice(areaB.id, "TV de B")
+
+        const areas = await areaRepository.findAllByUserInProperties(a.userId, [propB.id])
+        const devices = await deviceRepository.findAllByUserInProperties(a.userId, [propB.id])
+
+        expect(areas).toEqual([])
+        expect(devices).toEqual([])
+    })
+
+    it("devolve só as áreas e dispositivos das propriedades pedidas, por nome", async () => {
+        const { userId, distributorId } = await createUserWithDistributor()
+        const casa = await createProperty(userId, distributorId, "Casa")
+        const loja = await createProperty(userId, distributorId, "Loja")
+        const sala = await createArea(casa.id, "Sala")
+        const copa = await createArea(casa.id, "Copa")
+        const balcao = await createArea(loja.id, "Balcão")
+        await createDevice(sala.id, "TV")
+        await createDevice(balcao.id, "Caixa")
+
+        const areas = await areaRepository.findAllByUserInProperties(userId, [casa.id])
+        const devices = await deviceRepository.findAllByUserInProperties(userId, [casa.id])
+
+        expect(areas.map((area) => area.id)).toEqual([copa.id, sala.id])
+        expect(devices.map((device) => device.name)).toEqual(["TV"])
     })
 })

@@ -1,14 +1,13 @@
-import { useState, type ReactNode } from "react"
+import { useState } from "react"
 import { DeviceFormDialog } from "@/components/device/DeviceFormDialog"
 import { Select } from "@/components/ui/Select"
-import { useAreasByProperties, type PropertyAreas } from "@/hooks/queries/useAreasByProperties"
-import type { Property } from "@/types/property.types"
+import type { PropertyTreeNode } from "@/types/property.types"
 
 interface DeviceCreateDialogProps {
     isOpen: boolean
     onClose: () => void
-    /** Propriedades cujas áreas o usuário pode escolher. */
-    properties: readonly Property[]
+    /** Propriedades, já com suas áreas, entre as quais o usuário escolhe a área. */
+    properties: readonly PropertyTreeNode[]
 }
 
 interface AreaOption {
@@ -16,53 +15,30 @@ interface AreaOption {
     areaId: string
 }
 
-const findSelected = (groups: readonly PropertyAreas[], areaId: string): AreaOption | undefined => {
-    const options = groups.flatMap(({ property, areas }) =>
-        areas.map((area) => ({ propertyId: property.id, areaId: area.id })),
+const findSelected = (
+    properties: readonly PropertyTreeNode[],
+    areaId: string,
+): AreaOption | undefined => {
+    const options = properties.flatMap((property) =>
+        property.areas.map((area) => ({ propertyId: property.id, areaId: area.id })),
     )
     return options.find((option) => option.areaId === areaId) ?? options[0]
 }
-
-const UnavailableMessage = ({ children, role }: { children: ReactNode; role?: "alert" }) => (
-    <p
-        role={role}
-        className={role === "alert" ? "text-status-danger text-sm" : "text-muted text-sm"}
-    >
-        {children}
-    </p>
-)
 
 /**
  * Criação de dispositivo fora do contexto de uma área (Configurações →
  * Cadastro): o modal traz um seletor "Área" agrupado por propriedade — o grupo
  * diz de qual propriedade a área é —, com a primeira área pré-selecionada. As
- * áreas só são buscadas com o modal aberto. Carregando, com erro ou sem
- * nenhuma área, o formulário não é oferecido: não há onde criar o dispositivo.
+ * áreas vêm das próprias propriedades recebidas (a árvore de cadastro já as
+ * carregou), sem nova busca. Sem nenhuma área não há onde criar o
+ * dispositivo: o formulário não é oferecido.
  */
 export const DeviceCreateDialog = ({ isOpen, onClose, properties }: DeviceCreateDialogProps) => {
-    const { groups, isLoading, isError } = useAreasByProperties(properties, isOpen)
     const [chosenAreaId, setChosenAreaId] = useState("")
 
     if (!isOpen && chosenAreaId !== "") setChosenAreaId("")
 
-    const selected = findSelected(groups, chosenAreaId)
-
-    let unavailable: ReactNode
-    if (isError) {
-        unavailable = (
-            <UnavailableMessage role="alert">
-                Não foi possível carregar as áreas. Feche e tente novamente.
-            </UnavailableMessage>
-        )
-    } else if (isLoading) {
-        unavailable = <UnavailableMessage>Carregando áreas…</UnavailableMessage>
-    } else if (!selected) {
-        unavailable = (
-            <UnavailableMessage>
-                Nenhuma área cadastrada. Crie uma área primeiro para poder adicionar dispositivos.
-            </UnavailableMessage>
-        )
-    }
+    const selected = findSelected(properties, chosenAreaId)
 
     return (
         <DeviceFormDialog
@@ -73,17 +49,20 @@ export const DeviceCreateDialog = ({ isOpen, onClose, properties }: DeviceCreate
                 propertyId: selected?.propertyId ?? "",
                 areaId: selected?.areaId ?? "",
             }}
-            unavailable={unavailable}
+            {...(!selected && {
+                unavailableMessage:
+                    "Nenhuma área cadastrada. Crie uma área primeiro para poder adicionar dispositivos.",
+            })}
             parentField={
                 <Select
                     label="Área"
                     value={selected?.areaId ?? ""}
                     onChange={(event) => setChosenAreaId(event.target.value)}
                 >
-                    {groups
+                    {properties
                         .filter(({ areas }) => areas.length > 0)
-                        .map(({ property, areas }) => (
-                            <optgroup key={property.id} label={property.name}>
+                        .map(({ id, name, areas }) => (
+                            <optgroup key={id} label={name}>
                                 {areas.map((area) => (
                                     <option key={area.id} value={area.id}>
                                         {area.name}

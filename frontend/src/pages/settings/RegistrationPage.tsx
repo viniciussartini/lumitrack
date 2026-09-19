@@ -7,7 +7,7 @@ import { RegistrationTree } from "@/components/settings/RegistrationTree"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { Button } from "@/components/ui/Button"
 import { useDistributors } from "@/hooks/queries/useDistributors"
-import { useProperties } from "@/hooks/queries/useProperties"
+import { usePropertyTree } from "@/hooks/queries/usePropertyTree"
 import { MAX_PAGE_SIZE } from "@/types/pagination.types"
 
 type OpenDialog = "property" | "area" | "device" | null
@@ -55,7 +55,8 @@ const RegistrationCard = ({
 interface RegistrationCardsProps {
     /** Área e Dispositivo só podem ser criados quando há ao menos uma propriedade. */
     canCreateChildren: boolean
-    hintId: string
+    /** Id do texto que explica por que Área e Dispositivo estão indisponíveis, se houver. */
+    hintId: string | undefined
     onOpen: (dialog: Exclude<OpenDialog, null>) => void
 }
 
@@ -89,34 +90,39 @@ const RegistrationCards = ({ canCreateChildren, hintId, onOpen }: RegistrationCa
     </div>
 )
 
-const LoadError = ({ onRetry }: { onRetry: () => void }) => (
-    <div
-        role="alert"
-        className="border-status-danger/40 flex flex-wrap items-center justify-between gap-3 border p-4"
-    >
-        <p className="text-status-danger m-0 text-sm">Não foi possível carregar as propriedades.</p>
-        <Button variant="secondary" onClick={onRetry}>
-            Tentar novamente
-        </Button>
-    </div>
-)
+/**
+ * Explicação de por que Área e Dispositivo estão indisponíveis, ou `null`
+ * quando não há o que explicar — inclusive enquanto a árvore carrega, um
+ * estado passageiro que não pede texto.
+ */
+const resolveHint = (isError: boolean, hasLoadedNoProperties: boolean): string | null => {
+    if (isError) {
+        return "Áreas e dispositivos ficam indisponíveis até a estrutura cadastrada carregar."
+    }
+    if (hasLoadedNoProperties) {
+        return "Cadastre uma propriedade primeiro — áreas e dispositivos pertencem a uma propriedade."
+    }
+    return null
+}
 
 /**
  * Configurações → Cadastro: pontos de entrada para criar Propriedade, Área e
  * Dispositivo. Área e Dispositivo pertencem a uma propriedade, então ficam
- * desabilitados (com a explicação ligada por `aria-describedby`) enquanto não
- * há nenhuma — e também enquanto a lista carrega ou falha, para não abrir um
- * modal sem opções de pai.
+ * desabilitados — enquanto a estrutura carrega, se falha ou se está vazia — para
+ * não abrir um modal sem opções de pai. A explicação, quando existe, é ligada
+ * aos botões por `aria-describedby`. Os seletores de pai dos modais usam a
+ * mesma árvore que a lista "Estrutura cadastrada" mostra (uma só fonte, sem
+ * corte diferente entre a lista e os seletores).
  */
 export const RegistrationPage = () => {
     const [openDialog, setOpenDialog] = useState<OpenDialog>(null)
     const hintId = useId()
-    const propertiesQuery = useProperties(1, MAX_PAGE_SIZE)
+    const treeQuery = usePropertyTree()
     const distributorsQuery = useDistributors(1, MAX_PAGE_SIZE)
 
-    const properties = propertiesQuery.data?.items ?? []
+    const properties = treeQuery.data?.items ?? []
     const hasProperties = properties.length > 0
-    const hasNoProperties = propertiesQuery.isSuccess && !hasProperties
+    const hint = resolveHint(treeQuery.isError, treeQuery.isSuccess && !hasProperties)
     const close = () => setOpenDialog(null)
 
     return (
@@ -126,21 +132,16 @@ export const RegistrationPage = () => {
                 recebe os dispositivos medidos.
             </p>
 
-            {propertiesQuery.isError && (
-                <LoadError onRetry={() => void propertiesQuery.refetch()} />
-            )}
-
             <RegistrationCards
                 canCreateChildren={hasProperties}
-                hintId={hintId}
+                hintId={hint ? hintId : undefined}
                 onOpen={setOpenDialog}
             />
 
-            {hasNoProperties && (
+            {hint && (
                 <p id={hintId} className="text-muted m-0 flex items-center gap-2 text-sm">
                     <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    Cadastre uma propriedade primeiro — áreas e dispositivos pertencem a uma
-                    propriedade.
+                    {hint}
                 </p>
             )}
 
