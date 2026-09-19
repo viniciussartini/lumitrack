@@ -136,3 +136,24 @@ describe("propertyService.delete", () => {
         expect(api.delete).toHaveBeenCalledWith("/properties/prop-1")
     })
 })
+
+describe("propertyService.getTree", () => {
+    it("faz GET em /properties/tree e descasca o envelope", async () => {
+        const tree = {
+            items: [
+                {
+                    id: "prop-1",
+                    name: "Casa",
+                    areas: [{ id: "area-1", name: "Sala", devices: [] }],
+                },
+            ],
+            total: 1,
+        }
+        vi.mocked(api.get).mockResolvedValue({ data: { status: "success", data: tree } })
+
+        const result = await propertyService.getTree()
+
+        expect(api.get).toHaveBeenCalledWith("/properties/tree")
+        expect(result).toEqual(tree)
+    })
+})

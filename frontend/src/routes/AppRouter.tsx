@@ -66,9 +66,6 @@ const AlertsPage = lazy(() =>
 const ReportsPage = lazy(() =>
     import("@/pages/report/ReportsPage").then((m) => ({ default: m.ReportsPage })),
 )
-const SimulationPage = lazy(() =>
-    import("@/pages/simulation/SimulationPage").then((m) => ({ default: m.SimulationPage })),
-)
 const PrivacyPolicyPage = lazy(() =>
     import("@/pages/legal/PrivacyPolicyPage").then((m) => ({ default: m.PrivacyPolicyPage })),
 )
@@ -83,6 +80,12 @@ const ProfilePage = lazy(() =>
 )
 const AboutPage = lazy(() =>
     import("@/pages/about/AboutPage").then((m) => ({ default: m.AboutPage })),
+)
+const SettingsLayout = lazy(() =>
+    import("@/pages/settings/SettingsLayout").then((m) => ({ default: m.SettingsLayout })),
+)
+const RegistrationPage = lazy(() =>
+    import("@/pages/settings/RegistrationPage").then((m) => ({ default: m.RegistrationPage })),
 )
 
 interface AppRouteConfig {
@@ -125,9 +128,6 @@ const APP_SHELL_ROUTES: AppRouteConfig[] = [
     // + 4 granularidades (hora/dia/mês/ano).
     { path: "/relatorios", element: <ReportsPage /> },
 
-    // Simulação — placeholder.
-    { path: "/simulacao", element: <SimulationPage /> },
-
     // Conta do usuário logado — acessível via UserMenu no Header.
     { path: "/perfil", element: <ProfilePage /> },
     { path: "/seguranca", element: <SecurityPage /> },
@@ -135,6 +135,15 @@ const APP_SHELL_ROUTES: AppRouteConfig[] = [
     // Institucional — sem RF, versão provisória sem handoff.
     { path: "/sobre", element: <AboutPage /> },
 ]
+
+// Configurações — layout com sub-navegação lateral e uma rota filha por
+// sub-página. Fora do `.map()` acima porque é a única rota aninhada do grupo.
+const SETTINGS_ROUTES = (
+    <Route path="/configuracoes" element={<SettingsLayout />}>
+        <Route index element={<Navigate to="cadastro" replace />} />
+        <Route path="cadastro" element={<RegistrationPage />} />
+    </Route>
+)
 
 /**
  * Mapa de rotas
@@ -179,6 +188,7 @@ const AppRoutes = () => (
                 {APP_SHELL_ROUTES.map(({ path, element }) => (
                     <Route key={path} path={path} element={element} />
                 ))}
+                {SETTINGS_ROUTES}
             </Route>
         </Route>
 

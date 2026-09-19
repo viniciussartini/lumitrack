@@ -14,7 +14,7 @@ interface PageTitleRule extends PageTitle {
 
 /**
  * Par (kicker, título) por rota — fonte única de verdade consumida pelo
- * Header (`LumiTrack Home.dc.html`, mapa `titles` na linha ~1501). Ordem
+ * Header (`LumiTrack Home v2.dc.html`, mapa `titles` em `renderVals()`). Ordem
  * não importa para a correção: `matchPath` casa o pattern inteiro contra o
  * pathname, sem prefix-matching, então rotas aninhadas com o mesmo prefixo
  * (`/propriedades`, `/propriedades/:id`, `/propriedades/:propertyId/areas/:areaId`,
@@ -27,7 +27,7 @@ interface PageTitleRule extends PageTitle {
  */
 const PAGE_TITLE_RULES: readonly PageTitleRule[] = [
     { pattern: "/dashboard", kicker: "Painel geral", title: "Painel" },
-    { pattern: "/propriedades", kicker: "Suas unidades", title: "Propriedades" },
+    { pattern: "/propriedades", kicker: "Suas unidades", title: "Análise de propriedades" },
     {
         pattern: "/propriedades/:id",
         kicker: "Suas unidades",
@@ -44,15 +44,15 @@ const PAGE_TITLE_RULES: readonly PageTitleRule[] = [
         title: "Detalhe do dispositivo",
     },
     { pattern: "/relatorios", kicker: "Análises", title: "Relatórios" },
-    { pattern: "/simulacao", kicker: "Cenários", title: "Simulações" },
     { pattern: "/alertas", kicker: "Monitoramento", title: "Alertas" },
     { pattern: "/distribuidoras", kicker: "Catálogo", title: "Distribuidoras" },
+    { pattern: "/configuracoes/cadastro", kicker: "Configurações", title: "Cadastro" },
     { pattern: "/seguranca", kicker: "Conta", title: "Segurança" },
     { pattern: "/perfil", kicker: "Conta", title: "Perfil" },
-    { pattern: "/sobre", kicker: "Institucional", title: "Sobre o projeto" },
+    { pattern: "/sobre", kicker: "LumiTrack", title: "Sobre o projeto" },
 ] as const
 
-/** Mesmo fallback do protótipo (linha 1502): `titles[view] || ['LumiTrack','Painel']`. */
+/** Mesmo fallback do protótipo: `titles[view] || ['LumiTrack','Painel']`. */
 const FALLBACK_PAGE_TITLE: PageTitle = { kicker: "LumiTrack", title: "Painel" }
 
 export const getPageTitle = (pathname: string): PageTitle => {

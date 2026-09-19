@@ -107,6 +107,25 @@ export class DeviceRepository {
     }
 
     /**
+     * Dispositivos das áreas de um conjunto de propriedades do usuário. O
+     * filtro por dono continua na consulta, além dos ids: um id de propriedade
+     * alheia devolve lista vazia em vez de dados de outro usuário.
+     *
+     * @param userId - Id do usuário dono das propriedades.
+     * @param propertyIds - Ids das propriedades cujos dispositivos se quer ler.
+     * @returns Os dispositivos dessas propriedades que pertencem ao usuário, ordenados por nome.
+     */
+    async findAllByUserInProperties(
+        userId: string,
+        propertyIds: readonly string[],
+    ): Promise<DeviceResponse[]> {
+        return this.prisma.device.findMany({
+            where: { area: { propertyId: { in: [...propertyIds] }, property: { userId } } },
+            orderBy: { name: "asc" },
+        })
+    }
+
+    /**
      * Cria um dispositivo vinculado à área informada.
      *
      * @param areaId - Id da área dona do novo dispositivo.

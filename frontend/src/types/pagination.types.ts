@@ -18,3 +18,6 @@ export interface PaginationParams {
 
 /** Default de itens por página usado pelas listagens do app. */
 export const DEFAULT_PAGE_SIZE = 10
+
+/** Maior `pageSize` que o backend aceita — usado por seletores que precisam de todas as opções. */
+export const MAX_PAGE_SIZE = 31

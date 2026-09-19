@@ -752,6 +752,7 @@ Rate limit estrito (`AUTH_RATE_LIMIT_*`, default 10 req/15min por IP) se aplica 
 | Método | Rota | Descrição |
 | --- | --- | --- |
 | POST/GET | `/api/properties` | Criar / listar |
+| GET | `/api/properties/tree` | Árvore imóvel → área → dispositivo do usuário numa única resposta (só id, nome e potência; até 100 imóveis, `total` traz o número real) |
 | GET/PUT/DELETE | `/api/properties/:id` | — |
 | POST/GET | `/api/properties/:propertyId/areas` | — |
 | GET/PUT/DELETE | `/api/properties/:propertyId/areas/:areaId` | — |

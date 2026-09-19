@@ -156,6 +156,31 @@ describe("UserMenu — navegação", () => {
     })
 })
 
+describe("UserMenu — Configurações", () => {
+    it("lista Perfil · Segurança · Configurações · Sair, nessa ordem", async () => {
+        const user = userEvent.setup()
+        renderWithUser(mockUserPF)
+        await screen.findByText("João Silva")
+
+        await user.click(screen.getByRole("button", { name: /menu do usuário/i }))
+
+        const labels = screen.getAllByRole("menuitem").map((item) => item.textContent)
+        expect(labels).toEqual(["Perfil", "Segurança", "Configurações", "Sair"])
+    })
+
+    it("navega para /configuracoes ao clicar em Configurações e fecha o menu", async () => {
+        const user = userEvent.setup()
+        renderWithUser(mockUserPF)
+        await screen.findByText("João Silva")
+
+        await user.click(screen.getByRole("button", { name: /menu do usuário/i }))
+        await user.click(screen.getByRole("menuitem", { name: /configurações/i }))
+
+        expect(mockNavigate).toHaveBeenCalledWith("/configuracoes")
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument()
+    })
+})
+
 describe("UserMenu — logout", () => {
     it("chama authService.logout ao clicar em Sair", async () => {
         vi.mocked(authService.logout).mockResolvedValue(undefined)

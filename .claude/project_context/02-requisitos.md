@@ -36,7 +36,7 @@
 - RF07 `[implementado]`: o sistema deve permitir que um usuário cadastre Propriedades (endereço, distribuidora, sistema elétrico, classe de faturamento B1/B2/B3), Áreas dentro de uma Propriedade e Aparelhos dentro de uma Área.
 - RF08 `[implementado]`: o sistema deve permitir que um usuário consulte o catálogo de distribuidoras de energia (somente leitura, dados tarifários reais) e a bandeira tarifária vigente.
 - RF24 `[implementado]`: o sistema deve manter a bandeira tarifária vigente sincronizada automaticamente com a fonte oficial da ANEEL (ADR-0007), permitindo override manual por usuário `ADMIN` — a sincronização automática nunca é o único caminho para corrigir um valor errado.
-- RF46 `[planejado — Fase 23]`: o sistema deve concentrar a gestão do cadastro (Propriedade, Área, Dispositivo) numa tela única de Configurações, exibindo a estrutura hierárquica completa com ações de edição e exclusão em cada nível.
+- RF46 `[implementado]`: o sistema deve concentrar a gestão do cadastro (Propriedade, Área, Dispositivo) numa tela única de Configurações, exibindo a estrutura hierárquica completa com ações de edição e exclusão em cada nível. Implementado em `RegistrationPage.tsx` (criação) e `RegistrationTree.tsx` (estrutura, edição e exclusão), alimentada por `GET /api/properties/tree` (`property-tree.service.ts`), que devolve só id, nome e potência — sem endereço. **Corte de execução, não regra:** os pontos de entrada de criar/editar/excluir dentro de Análise (`/propriedades`) permanecem até a reconstrução dessa tela na Fase 24 — até lá o cadastro tem duas entradas.
 
 ### Medição IoT
 
@@ -327,7 +327,7 @@ Gestão e agendamento de relatórios em PDF e CSV, com template padronizado (ref
 
 **Hoje:** a rota `/relatorios` entrega consulta de consumo com seletor em cascata e granularidades — não há emissão de arquivo, template, histórico nem agendamento.
 
-**FNC008 — Configurações** `[planejado — Fase 23 (estrutura); Fase 27 (sub-página Relatórios); Fase 28 (sub-página Metas)]`
+**FNC008 — Configurações** `[implementado (estrutura e Cadastro); planejado — Fase 27 (sub-página Relatórios); Fase 28 (sub-página Metas)]`
 
 Menu à esquerda com as configurações disponíveis e, à direita, a página da configuração selecionada.
 

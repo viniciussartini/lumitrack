@@ -185,7 +185,9 @@ test.describe("Fluxo CRUD de propriedades", () => {
         await page.goto("/propriedades")
         await hideDevTools(page)
 
-        await expect(page.getByRole("heading", { name: /propriedades/i, level: 1 })).toBeVisible()
+        await expect(
+            page.getByRole("heading", { name: /análise de propriedades/i, level: 1 }),
+        ).toBeVisible()
         await expect(page.getByText(/nenhuma propriedade cadastrada/i)).toBeVisible()
 
         // ─── 2. Criar nova propriedade (via modal) ───────────────────────────

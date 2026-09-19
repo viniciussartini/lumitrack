@@ -343,6 +343,99 @@ describe("GET /api/properties", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/properties/tree
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("GET /api/properties/tree", () => {
+    it("deve retornar 401 sem token", async () => {
+        const response = await request(app).get("/api/properties/tree")
+        expect(response.status).toBe(401)
+    })
+
+    it("deve retornar 200 com a árvore vazia quando não há propriedades", async () => {
+        const { token } = await registerAndLogin()
+
+        const response = await request(app)
+            .get("/api/properties/tree")
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(200)
+        expect(response.body.status).toBe("success")
+        expect(response.body.data).toEqual({ items: [], total: 0 })
+    })
+
+    it("deve devolver propriedades, áreas e dispositivos do usuário sem confundir a rota com /:id", async () => {
+        const { token } = await registerAndLogin()
+        const dist = await createDistributor()
+        const property = await createProperty(token, dist.id)
+        const areaRes = await request(app)
+            .post(`/api/properties/${property.id}/areas`)
+            .set("Authorization", `Bearer ${token}`)
+            .send({ name: "Cozinha" })
+        const areaId = areaRes.body.data.id as string
+        await request(app)
+            .post(`/api/properties/${property.id}/areas/${areaId}/devices`)
+            .set("Authorization", `Bearer ${token}`)
+            .send({ name: "Geladeira", powerWatts: 150 })
+
+        const response = await request(app)
+            .get("/api/properties/tree")
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(200)
+        expect(response.body.data.total).toBe(1)
+        expect(response.body.data.items).toEqual([
+            {
+                id: property.id,
+                name: "Casa Principal",
+                areas: [
+                    {
+                        id: areaId,
+                        name: "Cozinha",
+                        devices: [{ id: expect.any(String), name: "Geladeira", powerWatts: 150 }],
+                    },
+                ],
+            },
+        ])
+    })
+
+    it("deve devolver só os dados do usuário autenticado e nenhum endereço", async () => {
+        const { token: tokenA } = await registerAndLogin(validUser)
+        const { token: tokenB } = await registerAndLogin(anotherUser)
+        const dist = await createDistributor()
+        await createProperty(tokenA, dist.id)
+        await createProperty(tokenB, dist.id, {
+            ...validPropertyBody,
+            name: "Casa de B",
+            address: "Avenida Secreta, 999",
+        })
+
+        const response = await request(app)
+            .get("/api/properties/tree")
+            .set("Authorization", `Bearer ${tokenA}`)
+
+        expect(response.status).toBe(200)
+        expect(response.body.data.items.map((p: { name: string }) => p.name)).toEqual([
+            "Casa Principal",
+        ])
+        const body = JSON.stringify(response.body)
+        expect(body).not.toContain("Casa de B")
+        expect(body).not.toContain("Avenida Secreta")
+        expect(body).not.toContain("Rua das Flores")
+    })
+
+    it("deve permitir a leitura para conta demo (a trava é só de escrita)", async () => {
+        const { token } = await registerAndLogin({ ...validUser, email: DEMO_RESIDENTIAL_EMAIL })
+
+        const response = await request(app)
+            .get("/api/properties/tree")
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(200)
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/properties/:id
 // ─────────────────────────────────────────────────────────────────────────────
 

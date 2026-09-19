@@ -67,6 +67,12 @@ export const queryKeys = {
             [...queryKeys.properties.all, "list", page, pageSize] as const,
         detail: (id: string) => [...queryKeys.properties.all, "detail", id] as const,
     },
+    // Árvore de cadastro: chave própria (fora de `properties`) porque muda com
+    // qualquer escrita em propriedade, área ou dispositivo — cada mutation a
+    // invalida explicitamente.
+    propertyTree: {
+        all: ["property-tree"] as const,
+    },
     areas: {
         all: ["areas"] as const,
         list: (propertyId: string, page: number, pageSize: number) =>

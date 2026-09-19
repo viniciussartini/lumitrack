@@ -1,8 +1,7 @@
 import {
     LayoutDashboard,
-    Home,
     FileText,
-    ChartNoAxesColumn,
+    ChartLine,
     Bell,
     Zap,
     Info,
@@ -21,13 +20,16 @@ export interface NavItem {
 /**
  * Itens da sidebar — fonte única de verdade.
  * A ordem aqui é a ordem de exibição, alinhada ao handoff (LumiTrack
- * Home.dc.html, linhas 1356-1364): Painel · Propriedades · Relatórios ·
- * Simulações · Alertas · Distribuidoras. "Sobre o projeto" entra por
- * último — item institucional, sem handoff, fora do conjunto dos itens
- * funcionais do protótipo.
+ * Home v2.dc.html, `renderVals()`): Painel · Análise · Relatórios ·
+ * Alertas · Distribuidoras. "Sobre o projeto" entra por último — item
+ * institucional, fora do conjunto dos itens funcionais do protótipo.
  *
- * "Segurança" não está aqui de propósito — vive só no menu do usuário
- * (`UserMenu.tsx`), não duplicado também na navegação principal.
+ * "Análise" aponta para `/propriedades` e cobre também as rotas filhas
+ * (detalhe de propriedade, área e dispositivo). "Histórico" ainda não
+ * consta: entra junto com a tela, não como rota vazia.
+ *
+ * "Segurança" e "Configurações" não estão aqui de propósito — vivem só no
+ * menu do usuário (`UserMenu.tsx`), não duplicados na navegação principal.
  *
  * Adicionar um novo módulo? Adicione aqui + crie a rota no AppRouter.
  */
@@ -39,18 +41,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
     },
     {
         to: "/propriedades",
-        label: "Propriedades",
-        icon: Home,
+        label: "Análise",
+        icon: ChartLine,
     },
     {
         to: "/relatorios",
         label: "Relatórios",
         icon: FileText,
-    },
-    {
-        to: "/simulacao",
-        label: "Simulações",
-        icon: ChartNoAxesColumn,
     },
     {
         to: "/alertas",

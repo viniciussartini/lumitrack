@@ -1061,6 +1061,34 @@ textarea.input {
     color: var(--color-status-highlight);
 }
 
+/* Linha de lista/árvore selecionável — LumiTrack Home v2.dc.html. Sub-navegação
+   de Configurações e árvore de Análise; ativa via aria-current (NavLink) ou
+   data-on. */
+.lt-tree-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 9px 12px;
+    border: 0;
+    border-left: 2px solid transparent;
+    background: transparent;
+    color: var(--color-text);
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    text-align: left;
+    cursor: pointer;
+}
+.lt-tree-row:hover {
+    background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+.lt-tree-row[aria-current="page"],
+.lt-tree-row[data-on="true"] {
+    border-left-color: var(--color-status-highlight);
+    background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    font-weight: 600;
+}
+
 /* Painel de dropdown (menu do usuário, notificações) — LumiTrack
    Home.dc.html, <style> local do protótipo. Sem width/position fixos aqui:
    o protótipo só abre esses menus para baixo, mas o rodapé da Sidebar
@@ -1118,6 +1146,85 @@ textarea.input {
 .lt-iconbtn:hover {
     border-color: var(--color-accent);
     color: var(--color-accent-700);
+}
+
+/* Variante compacta do `.lt-iconbtn` (32px) — ações por linha da árvore de
+   cadastro. Vem depois de `.lt-iconbtn` para sobrescrever o tamanho. */
+.lt-iconbtn-sm {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
+/* Recolher/expandir com transição de altura (grid 0fr → 1fr) — LumiTrack Home
+   v2.dc.html. O conteúdo recolhido segue no DOM; quem usa marca `inert` e
+   `aria-hidden` para tirá-lo do foco e da leitura. */
+.lt-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+        grid-template-rows 0.46s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.32s ease;
+}
+.lt-collapse[data-open="true"] {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    pointer-events: auto;
+}
+.lt-collapse > div {
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* Árvore de cadastro (Configurações → Cadastro) — LumiTrack Home v2.dc.html.
+   Uma linha por item; `data-level` (0 propriedade, 1 área, 2 dispositivo) define
+   recuo e tipografia. */
+.lt-cadtree-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-right: 20px;
+    border-top: 1px solid var(--color-divider);
+}
+.lt-cadtree-row[data-level="0"] {
+    background: color-mix(in srgb, var(--color-accent) 5%, transparent);
+}
+.lt-cadtree-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    border: 0;
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+}
+button.lt-cadtree-main {
+    cursor: pointer;
+}
+.lt-cadtree-row[data-level="1"] .lt-cadtree-main {
+    padding: 10px 20px 10px 46px;
+    font-size: 13.5px;
+    font-weight: 400;
+}
+.lt-cadtree-row[data-level="2"] .lt-cadtree-main {
+    padding: 9px 20px 9px 85px;
+    font-size: 13px;
+    font-weight: 400;
+    color: color-mix(in srgb, var(--color-text) 80%, transparent);
+}
+.lt-cadtree-meta {
+    font-size: 12px;
+    font-weight: 400;
+    color: color-mix(in srgb, var(--color-text) 55%, transparent);
+    font-feature-settings: "tnum" 1;
 }
 
 /* Contador numérico sobreposto no canto do `.lt-iconbtn` (alertas

@@ -65,7 +65,7 @@ Este bundle é o export de 2026-07-31 **mais duas telas novas** — as 8 telas a
 | Login do simulador IoT | `LumiTrack IoT Login.dc.html` | — (não existe ainda; desde a Fase 13/#180 o perímetro do simulador é protegido por token estático, então uma tela de login é decisão de UX, não lacuna de segurança) |
 | Dashboard do simulador IoT | `LumiTrack IoT Simulator.dc.html` | `iot-simulator/ui/` |
 
-> Telas do código **sem** handoff no bundle: `pages/simulation/` (Simulações, hoje placeholder) e "Sobre o projeto" (`/sobre`, entregue na Fase 6 como versão provisória com `TODO(design)`) — as duas caem na **regra de ausência** abaixo. Relatórios saiu desta lista: passou a ter handoff (a view `reports` da v2 e o template A4).
+> Telas do código **sem** handoff no bundle: "Sobre o projeto" (`/sobre`, entregue na Fase 6 como versão provisória com `TODO(design)`) — ela cai na **regra de ausência** abaixo. Simulações (que também não tem handoff) deixou de ter tela: a página placeholder foi apagada na Fase 23. Relatórios saiu desta lista: passou a ter handoff (a view `reports` da v2 e o template A4).
 >
 > **A v2 é design-alvo, não descrição do que existe.** Boa parte dela ainda não tem implementação nenhuma (Histórico, Metas, Configurações, aba de grandezas elétricas, relatórios agendados) e ainda não foi sequenciada em fase — o `02-requisitos.md` marca cada item com o status correspondente. Trabalho de UI numa tela **já implementada** segue a v2 direto; construir tela nova a partir dela é feature nova, com o rito normal de roadmap/issue.
 

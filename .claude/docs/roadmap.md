@@ -2124,11 +2124,11 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
 - **Critérios de aceite:**
   - Criar propriedade pelo card.
   - Criar área escolhendo a propriedade **dentro do modal** (seletor de pai, como no design).
-  - Criar dispositivo escolhendo propriedade e, dependente dela, área.
-  - Sem propriedade cadastrada, "Nova área" e "Novo dispositivo" ficam desabilitados com explicação; sem área na propriedade escolhida, idem para dispositivo.
+  - Criar dispositivo escolhendo a área num seletor **único "Área", agrupado por propriedade** (`optgroup`), como no design — a propriedade dona da área fica implícita no grupo.
+  - Sem propriedade cadastrada, "Nova área" e "Novo dispositivo" ficam desabilitados com explicação; com propriedades mas sem nenhuma área, o modal de dispositivo explica que é preciso criar uma área antes e não oferece o formulário. As áreas só são buscadas com o modal aberto (uma consulta por propriedade); o endpoint de árvore do item seguinte pode substituir essa busca.
   - WCAG 2.2 AA: foco visível, navegação por teclado, rótulos associados aos campos.
 - **Depende de:** Navegação v2. **Design:** `Home v2` → Configurações → Cadastro (pronto).
-- **Risco/observações:** médio-baixo. `AreaFormDialog` e `DeviceFormDialog` recebem `propertyId`/`areaId` do contexto da rota (`mode.propertyId`, `mode.areaId`); no Cadastro não há contexto de rota, então precisam de seletor de pai — adaptar os dialogs ou criar um wrapper, sem duplicar o formulário. Os seletores usam o mesmo teto de 31 itens já usado em `ReportsPage`.
+- **Risco/observações:** médio-baixo. `AreaFormDialog` e `DeviceFormDialog` recebem `propertyId`/`areaId` do contexto da rota (`mode.propertyId`, `mode.areaId`); no Cadastro não há contexto de rota, então precisam de seletor de pai — resolvido com um wrapper por entidade sobre o dialog existente, que ganhou um slot para o campo de pai, sem duplicar o formulário. Os seletores usam o mesmo teto de 31 itens já usado em `ReportsPage`.
 
 ### Cadastro: estrutura hierárquica com editar/excluir
 
@@ -2136,11 +2136,11 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
 - **Cobre:** RF46 (estrutura completa com edição e exclusão), FNC008 (Cadastro).
 - **Priority:** P0 · **Size:** L (backend S + frontend M)
 - **Critérios de aceite:**
-  - **Backend:** um endpoint único de leitura devolve a árvore do usuário (propriedades → áreas → dispositivos) já com as contagens — sem N+1 no servidor. Vive no módulo `property` e lê área/dispositivo conforme a ADR-0016 (sem ADR nova). **Não** inclui flag "tem medidor" (só a Fase 24 precisa dela).
-  - **Frontend:** uma requisição carrega a árvore; hook próprio de dados, reaproveitável pela árvore de Análise na Fase 24.
+  - **Backend:** um endpoint único de leitura (`GET /api/properties/tree`) devolve a árvore do usuário (propriedades → áreas → dispositivos) — as contagens de áreas e dispositivos saem do tamanho das listas, sem campo próprio — em número constante de consultas, sem N+1. Vive no módulo `property` (`PropertyTreeService`) e lê área/dispositivo pelos repositories existentes conforme a ADR-0016 (sem ADR nova). **Não** inclui flag "tem medidor" (só a Fase 24 precisa dela).
+  - **Frontend:** uma requisição carrega a árvore (`usePropertyTree`, reaproveitável pela árvore de Análise na Fase 24); qualquer escrita em propriedade, área ou dispositivo invalida a chave da árvore.
   - Editar e excluir atualizam a árvore (invalidação de cache); estado vazio quando não há propriedades.
   - **Autorização:** teste provando que a árvore só devolve dados do próprio usuário e falha fechado sem autenticação; contas demo continuam com escrita bloqueada (`blockDemoWrite`) — a leitura é livre, como nas outras listagens.
-  - Se o número de propriedades por usuário puder crescer sem limite, definir teto defensivo na consulta (a decisão de valor fica para a implementação).
+  - Teto defensivo de 100 propriedades na consulta, com áreas e dispositivos lidos só das propriedades que entraram na árvore; a resposta traz `total` com o número real e a tela avisa "Mostrando N de M propriedades" quando o teto corta. Propriedades e áreas sem filhos não expandem (linha sem botão de expandir), diferente do protótipo, que exibe um botão que não faz nada.
   - Sem dado pessoal novo: a árvore expõe campos que o usuário já enxerga em `/propriedades` — sem impacto no ROPA.
 - **Depende de:** Configurações: casca + Cadastro.
 - **Risco/observações:** médio — único item com backend. Sem o endpoint, mostrar contagens com as linhas recolhidas exigiria 1 + N + M chamadas no cliente, o mesmo problema que a Fase 15 eliminou em outros pontos.
@@ -2192,7 +2192,7 @@ Candidatos conhecidos, ainda sem fase:
 
 ## RFs/telas adiados do MVP (com justificativa)
 
-- **Simulações (UI)** — sem handoff **e** sem UI implementada (`SimulationPage` é placeholder hoje). Precisa de handoff + escopo de UX que ainda não foi definido — feature nova completa, não restyle.
+- **Simulações (UI)** — sem handoff **e** sem UI implementada (a página placeholder e o item de navegação foram removidos na Fase 23; o módulo `simulation` do backend segue existindo). Precisa de handoff + escopo de UX que ainda não foi definido — feature nova completa, não restyle.
 - **IoT Login** — tem handoff no bundle, mas `iot-simulator/server` não tem autenticação nenhuma hoje. É decisão de segurança (viraria ADR própria) antes de ser decisão de design; fica fora deste roadmap de UI.
 - **Mobile** — o bundle não especifica breakpoints; ver `07-decisoes-em-aberto.md` (app mobile em si nem existe ainda, item separado).
 
