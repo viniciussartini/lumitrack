@@ -36,7 +36,7 @@
 - RF07 `[implementado]`: o sistema deve permitir que um usuário cadastre Propriedades (endereço, distribuidora, sistema elétrico, classe de faturamento B1/B2/B3), Áreas dentro de uma Propriedade e Aparelhos dentro de uma Área.
 - RF08 `[implementado]`: o sistema deve permitir que um usuário consulte o catálogo de distribuidoras de energia (somente leitura, dados tarifários reais) e a bandeira tarifária vigente.
 - RF24 `[implementado]`: o sistema deve manter a bandeira tarifária vigente sincronizada automaticamente com a fonte oficial da ANEEL (ADR-0007), permitindo override manual por usuário `ADMIN` — a sincronização automática nunca é o único caminho para corrigir um valor errado.
-- RF46 `[planejado — Fase 23]`: o sistema deve concentrar a gestão do cadastro (Propriedade, Área, Dispositivo, Medidor) numa tela única de Configurações, exibindo a estrutura hierárquica completa com ações de edição e exclusão em cada nível.
+- RF46 `[planejado — Fase 23]`: o sistema deve concentrar a gestão do cadastro (Propriedade, Área, Dispositivo) numa tela única de Configurações, exibindo a estrutura hierárquica completa com ações de edição e exclusão em cada nível.
 
 ### Medição IoT
 
@@ -334,7 +334,9 @@ Menu à esquerda com as configurações disponíveis e, à direita, a página da
 - **Cadastro:** seções de cadastro e a estrutura hierárquica completa, com botões de edição e exclusão em cada componente. As três ações abrem janela modal; a exclusão exige confirmação.
 - **Relatórios:** gestão dos relatórios automáticos descritos em FNC007.
 - **Metas:** gestão das metas descritas em FNC011.
-- **Conta:** dados pessoais, troca de senha, exportação de dados (RF17), exclusão da conta e 2FA.
+- **Cálculos e tarifas:** catálogo tarifário editável com vigência, exclusivo do Grupo A `[planejado — sem fase]` (RF45).
+
+> **Conta (dados pessoais, troca de senha, exportação de dados — RF17 —, exclusão da conta e 2FA) não é sub-página de Configurações:** no design vigente Perfil e Segurança são telas próprias, acessadas pelo menu do usuário junto com Configurações. O **Medidor** também não é cadastrado aqui — é cadastrado nas páginas de detalhe da Análise (FNC005).
 
 **FNC009 — Simulador IoT** `[implementado (item 2); planejado — Fase 31 (item 1)]`
 

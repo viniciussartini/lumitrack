@@ -3763,3 +3763,12 @@
 - **Arquivos principais:** `.claude/docs/roadmap.md`.
 - **Decisões/ADRs:** nenhuma nova.
 - **Notas:** Fase 22 fecha a entrega `Tarifação Grupo A, Mercado Livre e Tarifa Branca` (Fases 19–22) — milestone a fechar no GitHub. Issues da Fase 23 ficam para um próximo ciclo (usuário optou por não detalhar agora).
+
+## [2026-09-19] docs: roadmap detalha a Fase 23 (Shell v2)
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** `planejar-roadmap` — detalha a Fase 23 em 3 itens verticais (Navegação v2 P0·S; Configurações: casca + Cadastro P0·M; Cadastro: estrutura hierárquica com editar/excluir P0·L, único com backend) e registra o replanejamento de 2026-09-19. O cruzamento do plano de 2026-09-06 com o handoff `Home v2` e o código atual corrigiu seis pontos: Perfil/Segurança ficam como telas próprias (o design não tem sub-página Conta) e sessões ativas (Fase 30) vive em Segurança; sem rotas-esqueleto (Histórico/Metas entram com o conteúdo); Simulações removida da nav com rota e página apagadas; Medidor sai do RF46 (cadastrado nas páginas de detalhe da Análise); o componente de árvore não é compartilhado — o que se compartilha é o endpoint e o hook de dados; `/relatorios` atual segue funcionando até a Fase 27. Fases 24, 26, 27, 28 e 30 ganharam as heranças correspondentes (destaque: a Fase 24 fecha o "concentrar" do RF46 removendo os pontos de entrada de CRUD de `/propriedades`).
+- **Arquivos principais:** `.claude/docs/roadmap.md`, `.claude/project_context/02-requisitos.md` (RF46: tira "Medidor"; FNC008: troca a sub-página "Conta" por "Cálculos e tarifas — sem fase" e registra por que Conta e Medidor não estão ali).
+- **Decisões/ADRs:** nenhuma nova — decisões de escopo e de fidelidade ao design, sem impacto arquitetural (endpoint de árvore segue a ADR-0016).
+- **Notas:** três perguntas respondidas pelo usuário (Conta como no design; só o que existe na nav; Simulações apagada). Três decisões de sequenciamento assumidas e registradas no roadmap para contestação: URL `/propriedades` preservada, dupla entrada de CRUD até a Fase 24, sub-nav de Configurações com uma entrada. Nenhum código alterado. Nenhuma decisão do `07` bloqueia a fase.
