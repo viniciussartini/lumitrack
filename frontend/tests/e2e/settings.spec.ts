@@ -4,6 +4,7 @@ import { fulfillError, fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
 import { AREA_1, DEVICE_1, DIST_CEMIG, PROP_1 } from "./support/fixtures"
+import type { PropertyTree } from "../../src/types/property.types"
 
 /**
  * E2E de Configurações → Cadastro: chegada pelo menu do usuário, redirect de
@@ -14,7 +15,13 @@ import { AREA_1, DEVICE_1, DIST_CEMIG, PROP_1 } from "./support/fixtures"
 const PROP_2 = { ...PROP_1, id: "prop-2", name: "Loja Centro" }
 const AREA_2 = { ...AREA_1, id: "area-2", propertyId: "prop-2", name: "Balcão" }
 
-const setupCadastro = async (page: Page, properties = [PROP_1, PROP_2]) => {
+const EMPTY_TREE: PropertyTree = { items: [], total: 0 }
+
+const setupCadastro = async (
+    page: Page,
+    properties = [PROP_1, PROP_2],
+    getTree: () => PropertyTree = () => EMPTY_TREE,
+) => {
     await mockAppShellBackground(page)
     await setupAuth(page)
 
@@ -24,7 +31,35 @@ const setupCadastro = async (page: Page, properties = [PROP_1, PROP_2]) => {
     await page.route(/\/api\/properties(\?.*)?$/, (route) =>
         route.request().method() === "GET" ? fulfillPaginated(route, properties) : route.fallback(),
     )
+    // Sem este mock a árvore vazaria para o backend real e o 401 devolveria
+    // o usuário ao login no meio do teste.
+    await page.route("**/api/properties/tree", (route) => fulfillJson(route, getTree()))
 }
+
+const TREE: PropertyTree = {
+    total: 1,
+    items: [
+        {
+            id: PROP_1.id,
+            name: "Casa",
+            areas: [
+                {
+                    id: AREA_1.id,
+                    name: "Cozinha",
+                    devices: [{ id: DEVICE_1.id, name: "Geladeira", powerWatts: 150 }],
+                },
+            ],
+        },
+    ],
+}
+
+const renameArea = (tree: PropertyTree, name: string): PropertyTree => ({
+    ...tree,
+    items: tree.items.map((property) => ({
+        ...property,
+        areas: property.areas.map((area) => ({ ...area, name })),
+    })),
+})
 
 test.describe("Configurações → Cadastro", () => {
     test.beforeEach(async ({ context }) => {
@@ -127,5 +162,77 @@ test.describe("Configurações → Cadastro", () => {
         await expect(page.getByRole("button", { name: /nova área/i })).toBeDisabled()
         await expect(page.getByRole("button", { name: /novo dispositivo/i })).toBeDisabled()
         await expect(page.getByRole("button", { name: /nova propriedade/i })).toBeEnabled()
+    })
+
+    test("mostra a estrutura cadastrada e expande até os dispositivos", async ({ page }) => {
+        await setupCadastro(page, [PROP_1], () => TREE)
+        await page.goto("/configuracoes/cadastro")
+        await hideDevTools(page)
+
+        const casa = page.getByRole("button", { name: /^casa/i })
+        await expect(casa).toHaveAttribute("aria-expanded", "false")
+        await expect(casa).toContainText("1 área · 1 dispositivo")
+        // Recolhido: fora da árvore de acessibilidade (aria-hidden + inert).
+        await expect(page.getByRole("button", { name: /^cozinha/i })).toHaveCount(0)
+
+        await casa.click()
+        await page.getByRole("button", { name: /^cozinha/i }).click()
+
+        await expect(page.getByText("Geladeira", { exact: true })).toBeVisible()
+        await expect(page.getByText("150 W")).toBeVisible()
+    })
+
+    test("edita uma área pela árvore e a árvore reflete o novo nome", async ({ page }) => {
+        let tree = TREE
+        await setupCadastro(page, [PROP_1], () => tree)
+        let putBody: unknown
+        await page.route("**/api/properties/prop-1/areas/area-1", (route) => {
+            if (route.request().method() === "PUT") {
+                putBody = JSON.parse(route.request().postData() ?? "{}")
+                tree = renameArea(TREE, "Copa")
+                return fulfillJson(route, { ...AREA_1, name: "Copa" })
+            }
+            return fulfillJson(route, AREA_1)
+        })
+        await page.goto("/configuracoes/cadastro")
+        await hideDevTools(page)
+
+        await page.getByRole("button", { name: /^casa/i }).click()
+        await page.getByRole("button", { name: "Editar área Cozinha" }).click()
+        const dialog = page.getByRole("dialog", { name: /editar área/i })
+        await dialog.getByLabel(/nome da área/i).fill("Copa")
+        await dialog.getByRole("button", { name: /salvar área/i }).click()
+
+        await expect(dialog).toBeHidden()
+        expect(putBody).toMatchObject({ name: "Copa" })
+        await expect(page.getByRole("button", { name: /^copa/i })).toBeVisible()
+    })
+
+    test("exclui uma área pela árvore só depois de confirmar", async ({ page }) => {
+        let tree = TREE
+        await setupCadastro(page, [PROP_1], () => tree)
+        let deleted = false
+        await page.route("**/api/properties/prop-1/areas/area-1", (route) => {
+            if (route.request().method() === "DELETE") {
+                deleted = true
+                tree = { ...TREE, items: [{ ...TREE.items[0]!, areas: [] }] }
+                return route.fulfill({ status: 204 })
+            }
+            return fulfillJson(route, AREA_1)
+        })
+        await page.goto("/configuracoes/cadastro")
+        await hideDevTools(page)
+
+        await page.getByRole("button", { name: /^casa/i }).click()
+        await page.getByRole("button", { name: "Excluir área Cozinha" }).click()
+        const dialog = page.getByRole("dialog", { name: /excluir área/i })
+        await expect(dialog).toContainText(/dispositivos/i)
+        expect(deleted).toBe(false)
+
+        await dialog.getByRole("button", { name: /^excluir$/i }).click()
+
+        await expect(dialog).toBeHidden()
+        expect(deleted).toBe(true)
+        await expect(page.getByText("0 áreas · 0 dispositivos")).toBeVisible()
     })
 })

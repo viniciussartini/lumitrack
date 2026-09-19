@@ -129,6 +129,7 @@ flowchart TB
         REP["/relatorios"]
         PERF["/perfil  (só acessível via UserMenu, fora do Sidebar)"]
         SEC["/seguranca  (MFA/TOTP)"]
+        CONF["/configuracoes → /configuracoes/cadastro  (só acessível via UserMenu)"]
         SOBRE["/sobre  (institucional, sem handoff de design)"]
     end
 
@@ -375,6 +376,7 @@ Specs E2E (Playwright, mockam o backend via `page.route()` — não dependem de 
 | `/relatorios` | Relatórios — seletor em cascata Propriedade→Área→Aparelho, 4 granularidades | `ProtectedRoute` |
 | `/perfil` | Perfil — dados pessoais, direitos LGPD (export/exclusão), só acessível via menu do usuário | `ProtectedRoute` |
 | `/seguranca` | MFA — setup, verificação, backup codes, desabilitar | `ProtectedRoute` |
+| `/configuracoes/cadastro` | Configurações → Cadastro — cards para criar Propriedade/Área/Dispositivo e a árvore "Estrutura cadastrada" (editar/excluir); `/configuracoes` redireciona para cá, só acessível via menu do usuário | `ProtectedRoute` |
 | `/sobre` | Sobre o projeto — institucional, sem handoff de design, renderiza `content/about.md` | `ProtectedRoute` |
 
 Não existe rota/página dedicada a Medidores fora do contexto de Propriedade/Área/Aparelho, nem UI para exportação DSAR além de um link direto em `/perfil` (`<a href="/api/users/me/data-export?format=json" download>`), nem UI para a trilha de auditoria (`/api/admin/audit-logs` do backend não tem tela correspondente).

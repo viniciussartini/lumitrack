@@ -13,6 +13,7 @@ import type { Property } from "@/types/property.types"
 vi.mock("@/services/property.service", () => ({
     propertyService: {
         list: vi.fn(),
+        getTree: vi.fn(),
         getById: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
@@ -64,6 +65,7 @@ const renderPage = () => {
 beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(distributorService.list).mockResolvedValue(paginated([]))
+    vi.mocked(propertyService.getTree).mockResolvedValue({ items: [], total: 0 })
     vi.mocked(areaService.list).mockResolvedValue(paginated([]))
 })
 
@@ -124,6 +126,20 @@ describe("RegistrationPage — com propriedades cadastradas", () => {
         await user.click(button)
 
         expect(await screen.findByText(/nenhuma área cadastrada/i)).toBeInTheDocument()
+    })
+})
+
+describe("RegistrationPage — estrutura cadastrada", () => {
+    it("mostra a árvore de cadastro abaixo dos cards", async () => {
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([PROPERTY]))
+        vi.mocked(propertyService.getTree).mockResolvedValue({
+            total: 1,
+            items: [{ id: "prop-1", name: "Casa Principal", areas: [] }],
+        })
+        renderPage()
+
+        expect(await screen.findByText("Estrutura cadastrada")).toBeInTheDocument()
+        expect(await screen.findByText("Casa Principal")).toBeInTheDocument()
     })
 })
 

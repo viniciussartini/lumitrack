@@ -3,6 +3,7 @@ import { AlertCircle, Cpu, Home, LayoutGrid, Plus, type LucideIcon } from "lucid
 import { AreaCreateDialog } from "@/components/area/AreaCreateDialog"
 import { DeviceCreateDialog } from "@/components/device/DeviceCreateDialog"
 import { PropertyFormDialog } from "@/components/property/PropertyFormDialog"
+import { RegistrationTree } from "@/components/settings/RegistrationTree"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { Button } from "@/components/ui/Button"
 import { useDistributors } from "@/hooks/queries/useDistributors"
@@ -88,6 +89,18 @@ const RegistrationCards = ({ canCreateChildren, hintId, onOpen }: RegistrationCa
     </div>
 )
 
+const LoadError = ({ onRetry }: { onRetry: () => void }) => (
+    <div
+        role="alert"
+        className="border-status-danger/40 flex flex-wrap items-center justify-between gap-3 border p-4"
+    >
+        <p className="text-status-danger m-0 text-sm">Não foi possível carregar as propriedades.</p>
+        <Button variant="secondary" onClick={onRetry}>
+            Tentar novamente
+        </Button>
+    </div>
+)
+
 /**
  * Configurações → Cadastro: pontos de entrada para criar Propriedade, Área e
  * Dispositivo. Área e Dispositivo pertencem a uma propriedade, então ficam
@@ -114,17 +127,7 @@ export const RegistrationPage = () => {
             </p>
 
             {propertiesQuery.isError && (
-                <div
-                    role="alert"
-                    className="border-status-danger/40 flex flex-wrap items-center justify-between gap-3 border p-4"
-                >
-                    <p className="text-status-danger m-0 text-sm">
-                        Não foi possível carregar as propriedades.
-                    </p>
-                    <Button variant="secondary" onClick={() => void propertiesQuery.refetch()}>
-                        Tentar novamente
-                    </Button>
-                </div>
+                <LoadError onRetry={() => void propertiesQuery.refetch()} />
             )}
 
             <RegistrationCards
@@ -140,6 +143,8 @@ export const RegistrationPage = () => {
                     propriedade.
                 </p>
             )}
+
+            <RegistrationTree />
 
             <PropertyFormDialog
                 isOpen={openDialog === "property"}

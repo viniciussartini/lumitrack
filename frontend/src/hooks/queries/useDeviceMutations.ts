@@ -39,6 +39,7 @@ export const useCreateDevice = () => {
             void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.devices.all, "list", propertyId, areaId],
             })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.propertyTree.all })
             toast.success("Dispositivo criado", {
                 description: `${created.name} foi adicionado com sucesso.`,
             })
@@ -65,6 +66,7 @@ export const useUpdateDevice = () => {
             void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.devices.all, "list", propertyId, areaId],
             })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.propertyTree.all })
             void queryClient.invalidateQueries({
                 queryKey: queryKeys.devices.detail(propertyId, areaId, updated.id),
             })
@@ -91,6 +93,7 @@ export const useDeleteDevice = () => {
             void queryClient.invalidateQueries({
                 queryKey: [...queryKeys.devices.all, "list", propertyId, areaId],
             })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.propertyTree.all })
             // Remove o detalhe do cache — não vai mais existir
             queryClient.removeQueries({
                 queryKey: queryKeys.devices.detail(propertyId, areaId, deviceId),

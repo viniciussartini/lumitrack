@@ -1,5 +1,10 @@
 import { api } from "@/services/api"
-import type { Property, CreatePropertyInput, UpdatePropertyInput } from "@/types/property.types"
+import type {
+    Property,
+    PropertyTree,
+    CreatePropertyInput,
+    UpdatePropertyInput,
+} from "@/types/property.types"
 import type { Paginated, PaginationParams } from "@/types/pagination.types"
 
 interface ApiEnvelope<T> {
@@ -17,6 +22,16 @@ interface ApiEnvelope<T> {
 export const propertyService = {
     list: async (params: PaginationParams = {}): Promise<Paginated<Property>> => {
         const { data } = await api.get<ApiEnvelope<Paginated<Property>>>("/properties", { params })
+        return data.data
+    },
+
+    /**
+     * Árvore Propriedade → Área → Dispositivo do usuário, numa única requisição.
+     *
+     * @returns As propriedades (até o teto do servidor) com áreas e dispositivos, e o total real.
+     */
+    getTree: async (): Promise<PropertyTree> => {
+        const { data } = await api.get<ApiEnvelope<PropertyTree>>("/properties/tree")
         return data.data
     },
 

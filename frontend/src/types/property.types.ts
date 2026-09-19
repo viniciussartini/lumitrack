@@ -197,3 +197,34 @@ export interface CreatePropertyInput {
  * vinculada.
  */
 export type UpdatePropertyInput = Partial<CreatePropertyInput>
+
+/** Dispositivo na árvore de cadastro — só o que a linha exibe. */
+export interface DeviceTreeNode {
+    id: string
+    name: string
+    powerWatts: number | null
+}
+
+/** Área na árvore de cadastro, com seus dispositivos. */
+export interface AreaTreeNode {
+    id: string
+    name: string
+    devices: DeviceTreeNode[]
+}
+
+/** Propriedade na árvore de cadastro, com suas áreas. */
+export interface PropertyTreeNode {
+    id: string
+    name: string
+    areas: AreaTreeNode[]
+}
+
+/**
+ * Resposta de `GET /api/properties/tree`. `total` é o número real de
+ * propriedades do usuário — maior que `items.length` quando o servidor limita
+ * a resposta.
+ */
+export interface PropertyTree {
+    items: PropertyTreeNode[]
+    total: number
+}

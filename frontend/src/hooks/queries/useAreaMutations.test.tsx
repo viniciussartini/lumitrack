@@ -283,3 +283,41 @@ describe("useDeleteArea", () => {
         expect(toast.error).not.toHaveBeenCalled()
     })
 })
+
+describe("invalidação da árvore de cadastro", () => {
+    it("criar área invalida a árvore", async () => {
+        vi.mocked(areaService.create).mockResolvedValue(mockArea)
+        const { queryClient, wrapper } = createWrapper()
+        const spy = vi.spyOn(queryClient, "invalidateQueries")
+        const { result } = renderHook(() => useCreateArea(), { wrapper })
+
+        result.current.mutate({ propertyId: "prop-1", input: { name: "Sala" } })
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true))
+        expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.propertyTree.all })
+    })
+
+    it("atualizar área invalida a árvore", async () => {
+        vi.mocked(areaService.update).mockResolvedValue(mockArea)
+        const { queryClient, wrapper } = createWrapper()
+        const spy = vi.spyOn(queryClient, "invalidateQueries")
+        const { result } = renderHook(() => useUpdateArea(), { wrapper })
+
+        result.current.mutate({ propertyId: "prop-1", areaId: "area-1", input: { name: "Nova" } })
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true))
+        expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.propertyTree.all })
+    })
+
+    it("excluir área invalida a árvore", async () => {
+        vi.mocked(areaService.delete).mockResolvedValue(undefined)
+        const { queryClient, wrapper } = createWrapper()
+        const spy = vi.spyOn(queryClient, "invalidateQueries")
+        const { result } = renderHook(() => useDeleteArea(), { wrapper })
+
+        result.current.mutate({ propertyId: "prop-1", areaId: "area-1" })
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true))
+        expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.propertyTree.all })
+    })
+})
