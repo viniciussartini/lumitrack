@@ -2124,11 +2124,11 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
 - **Critérios de aceite:**
   - Criar propriedade pelo card.
   - Criar área escolhendo a propriedade **dentro do modal** (seletor de pai, como no design).
-  - Criar dispositivo escolhendo propriedade e, dependente dela, área.
-  - Sem propriedade cadastrada, "Nova área" e "Novo dispositivo" ficam desabilitados com explicação; sem área na propriedade escolhida, idem para dispositivo.
+  - Criar dispositivo escolhendo a área num seletor **único "Área", agrupado por propriedade** (`optgroup`), como no design — a propriedade dona da área fica implícita no grupo.
+  - Sem propriedade cadastrada, "Nova área" e "Novo dispositivo" ficam desabilitados com explicação; com propriedades mas sem nenhuma área, o modal de dispositivo explica que é preciso criar uma área antes e não oferece o formulário. As áreas só são buscadas com o modal aberto (uma consulta por propriedade); o endpoint de árvore do item seguinte pode substituir essa busca.
   - WCAG 2.2 AA: foco visível, navegação por teclado, rótulos associados aos campos.
 - **Depende de:** Navegação v2. **Design:** `Home v2` → Configurações → Cadastro (pronto).
-- **Risco/observações:** médio-baixo. `AreaFormDialog` e `DeviceFormDialog` recebem `propertyId`/`areaId` do contexto da rota (`mode.propertyId`, `mode.areaId`); no Cadastro não há contexto de rota, então precisam de seletor de pai — adaptar os dialogs ou criar um wrapper, sem duplicar o formulário. Os seletores usam o mesmo teto de 31 itens já usado em `ReportsPage`.
+- **Risco/observações:** médio-baixo. `AreaFormDialog` e `DeviceFormDialog` recebem `propertyId`/`areaId` do contexto da rota (`mode.propertyId`, `mode.areaId`); no Cadastro não há contexto de rota, então precisam de seletor de pai — resolvido com um wrapper por entidade sobre o dialog existente, que ganhou um slot para o campo de pai, sem duplicar o formulário. Os seletores usam o mesmo teto de 31 itens já usado em `ReportsPage`.
 
 ### Cadastro: estrutura hierárquica com editar/excluir
 

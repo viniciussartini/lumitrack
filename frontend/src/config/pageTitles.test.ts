@@ -17,6 +17,13 @@ describe("getPageTitle", () => {
         expect(getPageTitle(pathname)).toEqual({ kicker: "Suas unidades", title })
     })
 
+    it("usa 'Configurações / Cadastro' em /configuracoes/cadastro", () => {
+        expect(getPageTitle("/configuracoes/cadastro")).toEqual({
+            kicker: "Configurações",
+            title: "Cadastro",
+        })
+    })
+
     it("usa o kicker 'LumiTrack' em /sobre", () => {
         expect(getPageTitle("/sobre")).toEqual({ kicker: "LumiTrack", title: "Sobre o projeto" })
     })

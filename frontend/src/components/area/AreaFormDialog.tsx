@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { toast } from "sonner"
 import { FormDialog } from "@/components/ui/FormDialog"
 import { AreaForm } from "@/components/area/AreaForm"
@@ -13,6 +14,9 @@ interface AreaFormDialogProps {
     isOpen: boolean
     onClose: () => void
     mode: DialogMode
+    /** Campo exibido acima do formulário — o seletor de propriedade quando o
+     * modal é aberto fora do contexto de uma propriedade. */
+    parentField?: ReactNode
 }
 
 /**
@@ -22,7 +26,7 @@ interface AreaFormDialogProps {
  * "Adicionar área" / "Criar área"; editar → "Editar área" / "Editar área" /
  * "Salvar área".
  */
-export const AreaFormDialog = ({ isOpen, onClose, mode }: AreaFormDialogProps) => {
+export const AreaFormDialog = ({ isOpen, onClose, mode, parentField }: AreaFormDialogProps) => {
     const createArea = useCreateArea()
     const updateArea = useUpdateArea()
 
@@ -72,12 +76,15 @@ export const AreaFormDialog = ({ isOpen, onClose, mode }: AreaFormDialogProps) =
             kicker={mode.kind === "create" ? "Nova área" : "Editar área"}
             title={mode.kind === "create" ? "Adicionar área" : "Editar área"}
         >
-            <AreaForm
-                initialData={mode.kind === "edit" ? mode.area : undefined}
-                onSubmit={handleSubmit}
-                onCancel={onClose}
-                submitLabel={mode.kind === "create" ? "Criar área" : "Salvar área"}
-            />
+            <div className="flex flex-col gap-4">
+                {parentField}
+                <AreaForm
+                    initialData={mode.kind === "edit" ? mode.area : undefined}
+                    onSubmit={handleSubmit}
+                    onCancel={onClose}
+                    submitLabel={mode.kind === "create" ? "Criar área" : "Salvar área"}
+                />
+            </div>
         </FormDialog>
     )
 }
