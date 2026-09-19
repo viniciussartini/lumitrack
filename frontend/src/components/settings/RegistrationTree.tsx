@@ -145,7 +145,8 @@ export const RegistrationTree = () => {
     const toggle = (id: string) =>
         setExpanded((current) => {
             const next = new Set(current)
-            if (!next.delete(id)) next.add(id)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
             return next
         })
 
