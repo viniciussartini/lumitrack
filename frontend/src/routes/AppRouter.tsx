@@ -66,9 +66,6 @@ const AlertsPage = lazy(() =>
 const ReportsPage = lazy(() =>
     import("@/pages/report/ReportsPage").then((m) => ({ default: m.ReportsPage })),
 )
-const SimulationPage = lazy(() =>
-    import("@/pages/simulation/SimulationPage").then((m) => ({ default: m.SimulationPage })),
-)
 const PrivacyPolicyPage = lazy(() =>
     import("@/pages/legal/PrivacyPolicyPage").then((m) => ({ default: m.PrivacyPolicyPage })),
 )
@@ -124,9 +121,6 @@ const APP_SHELL_ROUTES: AppRouteConfig[] = [
     // Relatórios — seletor cascata de alvo (propriedade → área → dispositivo)
     // + 4 granularidades (hora/dia/mês/ano).
     { path: "/relatorios", element: <ReportsPage /> },
-
-    // Simulação — placeholder.
-    { path: "/simulacao", element: <SimulationPage /> },
 
     // Conta do usuário logado — acessível via UserMenu no Header.
     { path: "/perfil", element: <ProfilePage /> },

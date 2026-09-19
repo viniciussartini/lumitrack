@@ -2192,7 +2192,7 @@ Candidatos conhecidos, ainda sem fase:
 
 ## RFs/telas adiados do MVP (com justificativa)
 
-- **Simulações (UI)** — sem handoff **e** sem UI implementada (`SimulationPage` é placeholder hoje). Precisa de handoff + escopo de UX que ainda não foi definido — feature nova completa, não restyle.
+- **Simulações (UI)** — sem handoff **e** sem UI implementada (a página placeholder e o item de navegação foram removidos na Fase 23; o módulo `simulation` do backend segue existindo). Precisa de handoff + escopo de UX que ainda não foi definido — feature nova completa, não restyle.
 - **IoT Login** — tem handoff no bundle, mas `iot-simulator/server` não tem autenticação nenhuma hoje. É decisão de segurança (viraria ADR própria) antes de ser decisão de design; fica fora deste roadmap de UI.
 - **Mobile** — o bundle não especifica breakpoints; ver `07-decisoes-em-aberto.md` (app mobile em si nem existe ainda, item separado).
 

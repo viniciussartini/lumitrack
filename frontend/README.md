@@ -121,13 +121,12 @@ flowchart TB
     subgraph PROT["ProtectedRoute → AppShell — exige sessão válida"]
         DASH["/dashboard  (nav: 'Painel')"]
         DIST["/distribuidoras"]
-        PROP["/propriedades"]
+        PROP["/propriedades  (nav: 'Análise')"]
         PROPD["/propriedades/:id"]
         AREAD["/propriedades/:propertyId/areas/:areaId"]
         DEVD["/propriedades/:propertyId/areas/:areaId/devices/:deviceId"]
         ALERT["/alertas"]
         REP["/relatorios"]
-        SIM["/simulacao  (placeholder — UI ainda não implementada)"]
         PERF["/perfil  (só acessível via UserMenu, fora do Sidebar)"]
         SEC["/seguranca  (MFA/TOTP)"]
         SOBRE["/sobre  (institucional, sem handoff de design)"]
@@ -368,13 +367,12 @@ Specs E2E (Playwright, mockam o backend via `page.route()` — não dependem de 
 | `/confirmar-email` | Confirmação de troca de e-mail (issue #178) | público, fora de qualquer guarda |
 | `/privacidade`, `/termos` | Documentos legais | público, fora de qualquer guarda |
 | `/dashboard` | Painel — KPIs + `RealtimeSection` com gráfico de potência ao vivo | `ProtectedRoute` |
-| `/propriedades`, `/propriedades/:id` | Propriedades (CRUD via modal + detalhe com Áreas/Medidor) | `ProtectedRoute` |
+| `/propriedades`, `/propriedades/:id` | Análise (nav) — lista de Propriedades (CRUD via modal) + detalhe com Áreas/Medidor | `ProtectedRoute` |
 | `/propriedades/:propertyId/areas/:areaId` | Detalhe de Área (CRUD de Aparelhos via modal) | `ProtectedRoute` |
 | `/propriedades/:propertyId/areas/:areaId/devices/:deviceId` | Detalhe de Aparelho (Medidor vinculado via modal) | `ProtectedRoute` |
 | `/distribuidoras` | Distribuidoras (catálogo) | `ProtectedRoute` |
 | `/alertas` | Alertas — CRUD + episódios disparados | `ProtectedRoute` |
 | `/relatorios` | Relatórios — seletor em cascata Propriedade→Área→Aparelho, 4 granularidades | `ProtectedRoute` |
-| `/simulacao` | Simulação — **placeholder**, UI ainda não implementada (backend já pronto) | `ProtectedRoute` |
 | `/perfil` | Perfil — dados pessoais, direitos LGPD (export/exclusão), só acessível via menu do usuário | `ProtectedRoute` |
 | `/seguranca` | MFA — setup, verificação, backup codes, desabilitar | `ProtectedRoute` |
 | `/sobre` | Sobre o projeto — institucional, sem handoff de design, renderiza `content/about.md` | `ProtectedRoute` |

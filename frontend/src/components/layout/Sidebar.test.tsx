@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
-import { renderWithProviders, screen } from "@/tests/test-utils"
+import { renderWithProviders, screen, within } from "@/tests/test-utils"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { NAV_ITEMS } from "@/config/navigation"
 import { authService } from "@/services/auth.service"
@@ -48,6 +48,39 @@ describe("Sidebar — renderização", () => {
         })
     })
 
+    it("mostra Painel · Análise · Relatórios · Alertas · Distribuidoras · Sobre, nessa ordem", () => {
+        renderWithProviders(<Sidebar isOpen={false} onClose={vi.fn()} />)
+
+        const labels = within(screen.getByRole("navigation"))
+            .getAllByRole("link")
+            .map((link) => link.textContent)
+
+        expect(labels).toEqual([
+            "Painel",
+            "Análise",
+            "Relatórios",
+            "Alertas",
+            "Distribuidoras",
+            "Sobre o projeto",
+        ])
+    })
+
+    it("Análise aponta para /propriedades", () => {
+        renderWithProviders(<Sidebar isOpen={false} onClose={vi.fn()} />)
+
+        expect(screen.getByRole("link", { name: "Análise" })).toHaveAttribute(
+            "href",
+            "/propriedades",
+        )
+    })
+
+    it("não tem mais link para Simulações nem para Propriedades", () => {
+        renderWithProviders(<Sidebar isOpen={false} onClose={vi.fn()} />)
+
+        expect(screen.queryByRole("link", { name: /simulações/i })).not.toBeInTheDocument()
+        expect(screen.queryByRole("link", { name: /^propriedades$/i })).not.toBeInTheDocument()
+    })
+
     // "Segurança" duplicado — já existe no menu do usuário
     // (UserMenu.tsx, role="menuitem", não "link"), não precisa também estar
     // na navegação principal da sidebar.
@@ -68,6 +101,34 @@ describe("Sidebar — renderização", () => {
         // Outros links NÃO devem estar marcados
         const painelLink = screen.getByRole("link", { name: /painel/i })
         expect(painelLink).not.toHaveAttribute("aria-current", "page")
+    })
+
+    it.each([
+        "/propriedades",
+        "/propriedades/prop-1",
+        "/propriedades/prop-1/comparacao-acl",
+        "/propriedades/prop-1/areas/area-1",
+        "/propriedades/prop-1/areas/area-1/devices/dev-1",
+    ])("mantém Análise ativa em %s", (pathname) => {
+        renderWithProviders(<Sidebar isOpen={false} onClose={vi.fn()} />, {
+            initialEntries: [pathname],
+        })
+
+        expect(screen.getByRole("link", { name: "Análise" })).toHaveAttribute(
+            "aria-current",
+            "page",
+        )
+    })
+
+    it("não marca Análise como ativa em outra rota", () => {
+        renderWithProviders(<Sidebar isOpen={false} onClose={vi.fn()} />, {
+            initialEntries: ["/alertas"],
+        })
+
+        expect(screen.getByRole("link", { name: "Análise" })).not.toHaveAttribute(
+            "aria-current",
+            "page",
+        )
     })
 
     it("renderiza o rodapé de identidade (nome, tipo de conta) e o alternador de tema", async () => {

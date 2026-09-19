@@ -1,16 +1,15 @@
 import { useRef, useState, useEffect } from "react"
 import { useNavigate } from "react-router"
-import { LogOut, Shield, User as UserIcon } from "lucide-react"
+import { LogOut, Settings, Shield, User as UserIcon } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useClickOutside } from "@/lib/hooks/useClickOutside"
 import { getDisplayInfo } from "@/lib/userDisplay"
 
 /**
  * Trigger: bloco de identidade do rodapé da Sidebar (avatar maior + nome +
- * tipo de conta), LumiTrack Home.dc.html linhas 69-76 — o protótipo só
- * navega direto pro Perfil nesse bloco, mas aqui ele vira o trigger deste
- * mesmo menu, por decisão deliberada: o protótipo não tem logout em lugar
- * nenhum, então precisa continuar acessível por Perfil / Segurança / Sair.
+ * tipo de conta), LumiTrack Home v2.dc.html. Menu: Perfil · Segurança ·
+ * Configurações · Sair — Configurações é o único ponto de entrada da área
+ * de configurações, que não consta na navegação principal.
  */
 export const UserMenu = () => {
     const { user, logout } = useAuth()
@@ -114,6 +113,20 @@ export const UserMenu = () => {
                     >
                         <Shield className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
                         Segurança
+                    </button>
+
+                    {/* Item: Configurações */}
+                    <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                            setIsOpen(false)
+                            void navigate("/configuracoes")
+                        }}
+                        className="lt-menu-item"
+                    >
+                        <Settings className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                        Configurações
                     </button>
 
                     {/* Item: Sair */}

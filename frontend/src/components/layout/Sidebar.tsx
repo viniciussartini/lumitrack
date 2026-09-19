@@ -19,7 +19,7 @@ interface SidebarProps {
 const SIDEBAR_DIVIDER = { borderColor: "color-mix(in srgb, #fff 12%, transparent)" }
 
 /**
- * Sidebar com nav vertical — LumiTrack Home.dc.html, linhas 61-77.
+ * Sidebar com nav vertical — LumiTrack Home v2.dc.html.
  *
  * Mobile (< md):
  *   - Off-canvas: fixed inset-y-0 left-0, fora da tela por padrão
@@ -79,7 +79,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => (
                 {NAV_ITEMS.map((item) => {
                     const Icon = item.icon
                     return (
-                        <NavLink key={item.to} to={item.to} end className="lt-navitem">
+                        <NavLink key={item.to} to={item.to} className="lt-navitem">
                             <Icon
                                 className="h-[17px] w-[17px] shrink-0"
                                 strokeWidth={1.5}
