@@ -4,6 +4,7 @@ import { fulfillError, fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
 import { DIST_CEMIG } from "./support/fixtures"
+import { letClicksPassThroughToasts } from "./support/toasts"
 import type { CreatePropertyInput, Property } from "../../src/types/property.types"
 
 /**
@@ -184,6 +185,9 @@ test.describe("Fluxo CRUD de propriedades", () => {
         // ─── 1. Lista vazia inicialmente ─────────────────────────────────────
         await page.goto("/propriedades")
         await hideDevTools(page)
+        // Os toasts de criar/editar empilham sobre o canto do header onde o menu
+        // ⋯ abre; sem isto interceptam o clique no item "Excluir".
+        await letClicksPassThroughToasts(page)
 
         await expect(
             page.getByRole("heading", { name: /análise de propriedades/i, level: 1 }),
