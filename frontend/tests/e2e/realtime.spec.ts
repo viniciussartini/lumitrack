@@ -222,15 +222,12 @@ test.describe("SSE — RealtimeContext (reading, alert-firing, notification)", (
         const streamBody =
             sseEvent("connected", { meterCount: 1 }) + sseEvent("notification", notification)
 
-        // Estado mutável usado por QUALQUER GET a partir de agora — não só a
-        // hidratação inicial. `refetchOnWindowFocus: true` (queryClient)
-        // refaz a query em qualquer foco de janela, inclusive o clique no
-        // botão "Close toast" logo abaixo. Começa vazio (hidratação inicial,
-        // antes do SSE ter entregue o evento) e só passa a incluir a
-        // notificação depois que a assertion do toast já confirmou que o
-        // `RealtimeContext` escreveu no cache via SSE — daí em diante, um
-        // refetch por foco de janela encontra a MESMA notificação já
-        // presente (substitui o cache por um valor igual, sem duplicar).
+        // Estado do "servidor" usado por qualquer GET: começa vazio (hidratação
+        // inicial) e passa a incluir a notificação assim que a conexão SSE a
+        // entrega — o backend guarda a notificação antes de emitir o evento,
+        // então toda busca iniciada depois dele já a devolve. Se o app cancelar
+        // a busca de montagem ao receber o evento e refazê-la, a resposta nova
+        // é coerente com o cache em vez de apagá-la.
         let notifications: (typeof notification)[] = []
 
         // Ordem garantida explicitamente, sem depender de timing: a conexão
@@ -264,6 +261,7 @@ test.describe("SSE — RealtimeContext (reading, alert-firing, notification)", (
         })
         await page.route("**/api/iot/stream", async (route) => {
             await firstNotificationsCallDone
+            notifications = [notification]
             return route.fulfill({
                 status: 200,
                 contentType: "text/event-stream",
@@ -277,7 +275,6 @@ test.describe("SSE — RealtimeContext (reading, alert-firing, notification)", (
         // Toast (sonner) com a mensagem da notificação — confirma que o
         // evento SSE já foi processado e o cache já tem a notificação.
         await expect(page.getByText(notification.message)).toBeVisible()
-        notifications = [notification]
 
         // Fecha o toast explicitamente (botão "Close toast", sonner com
         // closeButton habilitado em App.tsx) — sem isso, ele fica sobreposto

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import { useEffect } from "react"
 import { act, render, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { QueryClient, QueryClientProvider, QueryObserver } from "@tanstack/react-query"
 import {
     RealtimeProvider,
     useRealtimeConnection,
@@ -177,6 +177,44 @@ describe("RealtimeContext — notificação durante a hidratação da lista", ()
                 notification,
             ]),
         )
+    })
+
+    it("a busca em andamento cancelada é refeita e a lista final traz a nova e as antigas", async () => {
+        const { queryClient } = renderApp()
+        await waitFor(() => expect(mockedCreateAppStream).toHaveBeenCalled())
+        const capturedOptions = mockedCreateAppStream.mock.calls[0]?.[0] as AppStreamOptions
+        const older = { ...notification, id: "notif-0" }
+
+        // O servidor guarda a notificação antes de emitir o evento: a busca
+        // iniciada depois dele já a devolve; a que estava em andamento, não.
+        let resolveStale: (list: Notification[]) => void = () => {}
+        const queryFn = vi
+            .fn<() => Promise<Notification[]>>()
+            .mockImplementationOnce(
+                () =>
+                    new Promise<Notification[]>((resolve) => {
+                        resolveStale = resolve
+                    }),
+            )
+            .mockResolvedValue([notification, older])
+        const observer = new QueryObserver(queryClient, {
+            queryKey: queryKeys.notifications.list(),
+            queryFn,
+        })
+        const unsubscribe = observer.subscribe(() => {})
+
+        act(() => {
+            capturedOptions.onNotification?.(notification)
+        })
+        resolveStale([older])
+
+        await waitFor(() =>
+            expect(queryClient.getQueryData(queryKeys.notifications.list())).toEqual([
+                notification,
+                older,
+            ]),
+        )
+        unsubscribe()
     })
 
     it("sem busca em andamento, a notificação entra na frente das já existentes", async () => {
