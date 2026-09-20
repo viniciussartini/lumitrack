@@ -70,10 +70,15 @@ const buildStreamHandlers = ({
     },
 
     onNotification: (notification: Notification) => {
-        queryClient.setQueryData<Notification[]>(queryKeys.notifications.list(), (old = []) => [
-            notification,
-            ...old,
-        ])
+        const listKey = queryKeys.notifications.list()
+
+        // Uma busca da lista em andamento começou antes deste evento e traz a
+        // lista sem ele: se terminasse depois da escrita abaixo, sobrescreveria
+        // o cache e a notificação sumiria do sino enquanto o toast ainda está
+        // na tela. Cancelar a busca antes de escrever evita isso.
+        void queryClient.cancelQueries({ queryKey: listKey }).then(() => {
+            queryClient.setQueryData<Notification[]>(listKey, (old = []) => [notification, ...old])
+        })
 
         toast.warning(notification.message, {
             duration: 10_000,
