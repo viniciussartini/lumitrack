@@ -3942,3 +3942,24 @@
 - **Arquivos principais:** `frontend/src/App.tsx`, `frontend/tests/e2e/properties.spec.ts`, `frontend/tests/e2e/realtime.spec.ts`; removido `frontend/tests/e2e/support/toasts.ts`.
 - **Decisões/ADRs:** nenhuma nova (posição do toast não estava em nenhuma decisão registrada; escolha do usuário).
 - **Notas:** frontend verde — 112 arquivos, 948 testes; `tsc -b`, `eslint` (10 warnings do React Compiler já existentes), `prettier --check` nos arquivos alterados e `depcruise` sem erros. Risco aceito na escolha: toasts embaixo podem cobrir controles do canto inferior direito de telas longas (paginação) até sumirem. **Substitui, no que toca ao E2E de propriedades, a solução da entrada de "toasts empilhados" (helper `letClicksPassThroughToasts`), que era um contorno de teste para um defeito que era do produto.** Componente de UI alterado só na posição do toaster; não há componente novo para sincronizar de volta com a ferramenta de design.
+
+## [2026-09-20] perf: índice composto (createdAt, id) do audit log avaliado com EXPLAIN — não adicionado
+
+- **Branch:** fix/backlog-issues-abertas-428-433
+- **Tipo:** perf
+- **O quê:** item do laudo de `revisao-codigo` do PR da branch: com o desempate por `id`, `AuditRepository.findMany` passou a ordenar por `"createdAt" DESC, id DESC`, e o PostgreSQL depende de *incremental sort* sobre o `@@index([createdAt])` existente; o revisor sugeriu avaliar um `@@index([createdAt, id])`. Medido, não se justifica, e **nenhuma migração foi criada**. Medição no banco de teste (`lumitrack_test`), 500 mil linhas com ~30% delas em rajadas de 20 linhas de mesmo `createdAt` (o pior caso de empate) e o restante espalhado por 90 dias, `EXPLAIN (ANALYZE, BUFFERS)` das consultas reais do `findMany`, antes e depois de um índice `("createdAt", id)` temporário:
+
+  | Consulta (LIMIT 10) | Só `@@index([createdAt])` | Com `(createdAt, id)` |
+  |---|---|---|
+  | página 1, sem filtro | 0,032 ms (5 buffers) | 0,024 ms |
+  | janela dos últimos 7 dias, página 1 | 0,045 ms | 0,025 ms |
+  | filtro `action` (33%), página 1 | 0,132 ms | 0,049 ms |
+  | filtro `resourceType` (2%), página 1 | 0,048 ms | 0,055 ms (o planejador segue usando o índice antigo) |
+  | `OFFSET 30000` (página 3000) | 9,3 ms | 7,0 ms |
+  | `OFFSET 400000` (página 40000) | 129 ms | 96 ms |
+
+  O incremental sort é barato porque só ordena dentro de cada grupo de `createdAt` igual (12 mil grupos pequenos nos 400 mil primeiros, ~30 kB de memória): o uso real do endpoint administrativo — primeiras páginas, `pageSize` até 31, com ou sem filtro — já está em décimos de milissegundo, e o ganho do composto aparece só em `OFFSET` gigantesco (~25%), que ninguém percorre. O custo do índice é certo: 32 MB contra 12 MB do `createdAt` atual (o `id` é um uuid em texto), mantido a cada `INSERT` numa tabela que recebe uma linha por evento de autenticação e por mutação. Trocar o índice simples pelo composto (que atende os mesmos filtros por `createdAt`, inclusive o expurgo por retenção) evitaria o custo de escrita extra, mas triplicaria o índice para ganhar 25% em consultas que não acontecem.
+- **Testes:** medição, sem código. Banco de teste conferido depois: índice temporário removido e `audit_logs` vazia; o script de medição foi apagado (não está no repositório).
+- **Arquivos principais:** nenhum alterado (só este registro).
+- **Decisões/ADRs:** nenhuma nova — decisão de não criar o índice, com a evidência acima. **Quando reavaliar:** se a tabela passar de dezenas de milhões de linhas, se a listagem ganhar exportação ou paginação profunda por `OFFSET`, ou se a métrica de latência do endpoint mostrar o `ORDER BY` como gargalo; nesse caso o caminho é keyset pagination (`WHERE ("createdAt","id") < (…)`), que dispensa o `OFFSET`, e só então um índice composto — com `CREATE INDEX CONCURRENTLY` numa migração de um único comando, para não bloquear os `INSERT` do audit log, rodando com o papel administrativo (o de runtime é DML-only).
+- **Notas:** nenhum requisito, migração ou controle de segurança tocado.
