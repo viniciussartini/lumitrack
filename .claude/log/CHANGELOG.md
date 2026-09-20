@@ -3992,3 +3992,13 @@
 - **Arquivos principais:** `.claude/docs/roadmap.md`.
 - **Decisões/ADRs:** nenhuma nova. `02-requisitos.md` já estava correto (RF46 e FNC008 atualizados no próprio PR #427) — sem alteração nesta entrada.
 - **Notas:** o épico #423 já estava fechado (à mão, 30 s após o merge); a milestone `App v2` segue aberta até a Fase 30. Não detalhei a Fase 24 — mesmo precedente do fechamento da Fase 22, para uma sessão dedicada. Pendências fora do roadmap, que dependem do usuário: a milestone `Tarifação Grupo A, Mercado Livre e Tarifa Branca` continua aberta no GitHub (0 abertas, 30 fechadas) e `origin/staging` está 19 commits à frente de `origin/main`.
+
+## [2026-09-20] docs: roadmap detalha a Fase 24 (Análise — consumo e custos)
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** `planejar-roadmap` — a Fase 24, que estava só em nível de objetivo, foi detalhada em 3 itens verticais: árvore de seleção + detalhe da Propriedade (P0·L, com a única mudança de backend), detalhe da Área (P0·M) e detalhe do Dispositivo (P0·S). O cruzamento do roadmap e do `02` com o handoff `Home v2` e o código atual achou divergências, resolvidas com o usuário: (1) a área de análise configurável ("Gerar análise") vive só na aba Grandezas Elétricas no design, então RF38 e FNC005 itens 4–6 passam para a Fase 25; (2) o design mantém os botões "Editar" nas páginas de detalhe, então só criar e excluir saem de Análise; (3) histórico de consumo, fatura Grupo A/Branca e comparações ACR×ACL/Convencional×Branca não têm lugar no design e ficam preservados sob os blocos dele. Também registrado: `GET /api/consumption/summary` omite o item inteiro quando o custo não é calculável (área/dispositivo de Grupo A ou Branca), então `costBrl` passa a ser opcional; a flag "tem medidor" da árvore, prevista em 2026-09-19, foi descartada por redundante; `/propriedades` mantém a URL.
+- **Testes:** documentação, sem código.
+- **Arquivos principais:** `.claude/docs/roadmap.md` (seção da Fase 24, Fase 25, tabela, cabeçalho e "Replanejamento de 2026-09-20 (detalhamento da Fase 24)"), `.claude/project_context/02-requisitos.md` (RF38 → Fase 25, RF46, FNC005).
+- **Decisões/ADRs:** nenhuma nova — `costBrl` opcional é ajuste de contrato, não decisão estrutural. Nenhum item do `07` tocado.
+- **Notas:** nenhuma implementação começou. Próximo passo, se aprovado: `criar-issues` (Modo 3) para o épico e as três sub-issues, com a branch `epic/{N}-...` a partir de `staging`. A Fase 25 continua bloqueada pela decisão do `07` sobre grandezas medidas × calculadas.
