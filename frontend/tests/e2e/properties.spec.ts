@@ -272,6 +272,62 @@ test.describe("Fluxo CRUD de propriedades", () => {
         await expect(page.getByTestId("property-card-prop-1")).not.toBeVisible()
     })
 
+    test("o menu da propriedade continua alcançável com toasts empilhados", async ({ page }) => {
+        // Cada toast vive 4 s e o sonner pausa o descarte com o documento
+        // oculto. Sem isto, o teste depende de as três edições caberem nesses
+        // 4 s — o que não vale sob carga — e os toasts expiram antes de
+        // coexistirem. A expansão da pilha continua vindo do ponteiro, abaixo.
+        await page.addInitScript(() => {
+            Object.defineProperty(document, "hidden", { get: () => true })
+        })
+        await setupAuthAndDistributors(page)
+
+        let property: Property = buildCreatedProperty({
+            name: "Casa Principal",
+            distributorId: "dist-cemig",
+            electricalSystem: "MONOPHASIC",
+        } as CreatePropertyInput)
+        await page.route(/\/api\/properties(\?.*)?$/, (route) =>
+            fulfillPaginated(route, [property]),
+        )
+        await page.route("**/api/properties/prop-1", async (route) => {
+            if (route.request().method() === "PUT") {
+                property = { ...property, ...JSON.parse(route.request().postData() ?? "{}") }
+            }
+            return fulfillJson(route, property)
+        })
+
+        await page.goto("/propriedades/prop-1")
+        await hideDevTools(page)
+
+        // Três edições seguidas empilham três toasts de "atualizada" — a pilha
+        // (visibleToasts padrão do sonner) que, expandida, chega à altura do menu.
+        for (let edit = 0; edit < 3; edit++) {
+            await page.getByRole("button", { name: /^editar$/i }).click()
+            const dialog = page.getByRole("dialog", { name: /editar propriedade/i })
+            await page.getByRole("button", { name: /salvar alterações/i }).click()
+            await expect(dialog).not.toBeVisible()
+        }
+        const toasts = page.locator('[data-sonner-toast][data-removed="false"]')
+        await expect(toasts).toHaveCount(3)
+
+        // Ponteiro sobre o toast expande a pilha e pausa o descarte — o estado
+        // em que um usuário que mira no menu o encontra. O menu abre pelo
+        // teclado para não tirar o ponteiro de cima dos toasts.
+        await expect(async () => {
+            const front = await toasts.first().boundingBox()
+            expect(front!.y).toBeGreaterThanOrEqual(0)
+            expect(front!.y + front!.height).toBeLessThanOrEqual(page.viewportSize()!.height)
+            await page.mouse.move(front!.x + front!.width / 2, front!.y + front!.height / 2)
+            await expect(toasts.first()).toHaveAttribute("data-expanded", "true", { timeout: 500 })
+        }).toPass()
+        await page.getByRole("button", { name: /opções de casa principal/i }).focus()
+        await page.keyboard.press("Enter")
+
+        // `trial` confere a interceptação de ponteiro sem clicar de verdade.
+        await page.getByRole("menuitem", { name: /excluir/i }).click({ trial: true, timeout: 3000 })
+    })
+
     test("bloqueia criação de propriedade quando não há distribuidora cadastrada", async ({
         page,
     }) => {

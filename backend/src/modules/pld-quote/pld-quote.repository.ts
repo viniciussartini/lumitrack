@@ -44,7 +44,7 @@ export class PldQuoteRepository {
         const [items, total] = await Promise.all([
             this.prisma.pldQuote.findMany({
                 where,
-                orderBy: { referencePeriod: "desc" },
+                orderBy: [{ referencePeriod: "desc" }, { id: "desc" }],
                 skip,
                 take,
             }),

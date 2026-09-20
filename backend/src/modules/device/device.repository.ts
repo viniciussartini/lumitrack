@@ -82,7 +82,7 @@ export class DeviceRepository {
         const [devices, total] = await Promise.all([
             this.prisma.device.findMany({
                 where: { areaId },
-                orderBy: { name: "asc" },
+                orderBy: [{ name: "asc" }, { id: "asc" }],
                 skip,
                 take,
             }),

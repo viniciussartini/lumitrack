@@ -54,7 +54,7 @@ export class AlertTriggerEventRepository {
         const [items, total] = await Promise.all([
             this.prisma.alertTriggerEvent.findMany({
                 where: { alertId },
-                orderBy: { startedAt: "desc" },
+                orderBy: [{ startedAt: "desc" }, { id: "desc" }],
                 skip,
                 take,
             }),

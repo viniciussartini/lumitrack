@@ -134,7 +134,7 @@ export class PropertyRepository {
         const [properties, total] = await Promise.all([
             this.prisma.property.findMany({
                 where: { userId },
-                orderBy: { name: "asc" },
+                orderBy: [{ name: "asc" }, { id: "asc" }],
                 skip,
                 take,
             }),

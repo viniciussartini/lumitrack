@@ -92,7 +92,10 @@ export class AuditRepository {
         const [items, total] = await Promise.all([
             this.prisma.auditLog.findMany({
                 where,
-                orderBy: { createdAt: "desc" },
+                // `id` desempata registros com o mesmo createdAt (rajadas no mesmo
+                // milissegundo): sem ele o PostgreSQL não garante a mesma ordem entre
+                // duas consultas e skip/take repetem ou omitem linhas entre páginas.
+                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
                 skip: (page - 1) * pageSize,
                 take: pageSize,
             }),

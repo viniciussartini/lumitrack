@@ -95,7 +95,7 @@ psql 'postgresql://lumitrack_app:<LUMITRACK_APP_PASSWORD>@<mesmo-host-do-neon>/<
 
 ### 3. Aplicar as migrações e semear — da sua máquina
 
-O Neon é acessível pela internet, então migração e seed rodam localmente apontando para ele. Não há release hook a configurar no Render. **Sempre com a connection string administrativa do passo 1** — o papel `lumitrack_app` não tem `CREATE`, migração falharia com ele.
+O Neon é acessível pela internet, então migração e seed rodam localmente apontando para ele. Não há release hook a configurar no Render — por isso este passo se repete a cada merge em `staging` que traga migração nova (ver [Atualizar o staging depois de um merge](#atualizar-o-staging-depois-de-um-merge)). **Sempre com a connection string administrativa do passo 1** — o papel `lumitrack_app` não tem `CREATE`, migração falharia com ele.
 
 ```bash
 cd backend
@@ -135,6 +135,37 @@ Blueprints do Render não interpolam URL de serviço em destino de rota, então 
 ### 6. Verificar
 
 Abra a URL do site estático. Ver a seção "Verificação ponta a ponta", abaixo.
+
+## Atualizar o staging depois de um merge
+
+O Render redeploya sozinho a cada push em `staging`, mas **não aplica migração**: o `render.yaml` não tem `preDeployCommand` (release hook exige plano pago) e o container só sobe os processos. Uma migração nova em `staging` continua sendo um passo manual, da sua máquina, igual ao passo 3.
+
+**Quando.** Sempre que o merge trouxer migração nova. Duas formas de saber:
+
+```bash
+# o que mudou desde o último deploy (o commit dele aparece em Events, no painel do Render)
+git diff --stat <commit-do-deploy-anterior>..staging -- backend/prisma/migrations
+
+# o que o banco ainda não tem — pergunta ao próprio Neon
+cd backend
+DATABASE_URL='<connection-string-administrativa-do-neon>' npx prisma migrate status
+```
+
+**Como.** A partir de `backend/`, com a connection string **administrativa** do passo 1 (o papel `lumitrack_app` não tem `CREATE`):
+
+```bash
+cd backend
+DATABASE_URL='<connection-string-administrativa-do-neon>' npm run db:migrate:deploy
+DATABASE_URL='<connection-string-administrativa-do-neon>' npm run db:seed   # só se o catálogo de distribuidoras/tarifas mudou
+```
+
+O `db:seed` é idempotente (usa `upsert`), então repetir não duplica nada. O `db:seed:demo` não faz parte da atualização: a topologia da demo é recriada a cada despertar do serviço.
+
+**Ordem.** Aplique a migração **antes** de mesclar em `staging`, ou antes de o redeploy terminar. Uma migração aditiva (coluna, tabela, índice) mantém o código antigo funcionando, então migrar primeiro é seguro; o contrário não é: código novo contra um banco sem a migração falha em toda consulta que usa a estrutura nova. Migração destrutiva (remove ou renomeia coluna) inverte a ordem — só depois de o código novo estar no ar.
+
+**Como reconhecer a falta.** Nos logs do Render, `PrismaClientKnownRequestError` com código `P2022` e a mensagem `The column ... does not exist in the current database`. Se o serviço já caiu (container encerrado), aplique a migração e faça um **Manual Deploy**.
+
+**Permissões das tabelas novas.** Não reexecute o `create-app-role.sql`: ele configura `ALTER DEFAULT PRIVILEGES`, então toda tabela e sequência criada depois pela migração já nasce com as permissões de DML do `lumitrack_app`. Isso vale enquanto a migração rodar com o mesmo papel administrativo que executou o script no passo 2 — default privileges são por papel criador.
 
 ## Checklist de variáveis — Caminho A
 

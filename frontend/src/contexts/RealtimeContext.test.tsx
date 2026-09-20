@@ -2,14 +2,16 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import { useEffect } from "react"
 import { act, render, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { QueryClient, QueryClientProvider, QueryObserver } from "@tanstack/react-query"
 import {
     RealtimeProvider,
     useRealtimeConnection,
     useRealtimeReadings,
 } from "@/contexts/RealtimeContext"
 import { createAppStream, type AppStreamOptions } from "@/lib/sse/appStream"
+import { queryKeys } from "@/lib/queryClient"
 import type { User } from "@/types/auth.types"
+import type { Notification } from "@/types/notification.types"
 
 /**
  * Prova o contrato por trás de `RealtimeConnectionContext`/
@@ -76,7 +78,7 @@ const renderApp = () => {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
     })
-    return render(
+    const utils = render(
         <QueryClientProvider client={queryClient}>
             <MemoryRouter>
                 <RealtimeProvider>
@@ -86,6 +88,7 @@ const renderApp = () => {
             </MemoryRouter>
         </QueryClientProvider>,
     )
+    return { ...utils, queryClient }
 }
 
 beforeEach(() => {
@@ -124,5 +127,113 @@ describe("RealtimeContext — isolamento entre conexão e leituras", () => {
         })
 
         expect(renderCounts.connection).toBeGreaterThan(rendersAfterMount.connection)
+    })
+})
+
+describe("RealtimeContext — notificação durante a hidratação da lista", () => {
+    const notification: Notification = {
+        id: "notif-1",
+        alertId: "alert-1",
+        alertName: "Geladeira fora da faixa",
+        meterId: "meter-1",
+        targetType: "PROPERTY",
+        targetPath: "/propriedades/prop-1",
+        message: "Alerta Geladeira fora da faixa foi disparado.",
+        createdAt: "2026-07-17T12:00:00.000Z",
+    }
+
+    // Sem observador montado, `gcTime: 0` descartaria a query antes da
+    // asserção, e o teste leria `undefined` em vez do cache.
+    const keepNotificationsCached = (queryClient: QueryClient) =>
+        queryClient.setQueryDefaults(queryKeys.notifications.list(), { gcTime: Infinity })
+
+    it("a resposta antiga da busca em andamento não apaga a notificação que o SSE acabou de escrever", async () => {
+        const { queryClient } = renderApp()
+        await waitFor(() => expect(mockedCreateAppStream).toHaveBeenCalled())
+        const capturedOptions = mockedCreateAppStream.mock.calls[0]?.[0] as AppStreamOptions
+
+        keepNotificationsCached(queryClient)
+
+        let resolveList: (list: Notification[]) => void = () => {}
+        const hydration = queryClient
+            .fetchQuery({
+                queryKey: queryKeys.notifications.list(),
+                queryFn: () =>
+                    new Promise<Notification[]>((resolve) => {
+                        resolveList = resolve
+                    }),
+            })
+            .catch(() => undefined)
+
+        act(() => {
+            capturedOptions.onNotification?.(notification)
+        })
+        // A busca começou antes do evento: sua resposta traz a lista sem ele.
+        resolveList([])
+        await hydration
+
+        await waitFor(() =>
+            expect(queryClient.getQueryData(queryKeys.notifications.list())).toEqual([
+                notification,
+            ]),
+        )
+    })
+
+    it("a busca em andamento cancelada é refeita e a lista final traz a nova e as antigas", async () => {
+        const { queryClient } = renderApp()
+        await waitFor(() => expect(mockedCreateAppStream).toHaveBeenCalled())
+        const capturedOptions = mockedCreateAppStream.mock.calls[0]?.[0] as AppStreamOptions
+        const older = { ...notification, id: "notif-0" }
+
+        // O servidor guarda a notificação antes de emitir o evento: a busca
+        // iniciada depois dele já a devolve; a que estava em andamento, não.
+        let resolveStale: (list: Notification[]) => void = () => {}
+        const queryFn = vi
+            .fn<() => Promise<Notification[]>>()
+            .mockImplementationOnce(
+                () =>
+                    new Promise<Notification[]>((resolve) => {
+                        resolveStale = resolve
+                    }),
+            )
+            .mockResolvedValue([notification, older])
+        const observer = new QueryObserver(queryClient, {
+            queryKey: queryKeys.notifications.list(),
+            queryFn,
+        })
+        const unsubscribe = observer.subscribe(() => {})
+
+        act(() => {
+            capturedOptions.onNotification?.(notification)
+        })
+        resolveStale([older])
+
+        await waitFor(() =>
+            expect(queryClient.getQueryData(queryKeys.notifications.list())).toEqual([
+                notification,
+                older,
+            ]),
+        )
+        unsubscribe()
+    })
+
+    it("sem busca em andamento, a notificação entra na frente das já existentes", async () => {
+        const { queryClient } = renderApp()
+        await waitFor(() => expect(mockedCreateAppStream).toHaveBeenCalled())
+        const capturedOptions = mockedCreateAppStream.mock.calls[0]?.[0] as AppStreamOptions
+        const existing = { ...notification, id: "notif-0" }
+        keepNotificationsCached(queryClient)
+        queryClient.setQueryData(queryKeys.notifications.list(), [existing])
+
+        act(() => {
+            capturedOptions.onNotification?.(notification)
+        })
+
+        await waitFor(() =>
+            expect(queryClient.getQueryData(queryKeys.notifications.list())).toEqual([
+                notification,
+                existing,
+            ]),
+        )
     })
 })

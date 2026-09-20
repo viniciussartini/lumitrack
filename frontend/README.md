@@ -356,6 +356,23 @@ Config do Vitest (`vite.config.ts`, bloco `test`): `environment: "jsdom"`, `setu
 
 Specs E2E (Playwright, mockam o backend via `page.route()` — não dependem de backend real rodando): `auth`, `landing`, `dashboard`, `distributors`, `properties`, `area`, `device`, `meter`, `consumption`, `alerts`, `realtime`, `reports`, `profile`.
 
+### Testes E2E instáveis
+
+No CI, `retries: 2` faz um teste intermitente passar e deixar o job verde. Para não perder o sinal, o job de E2E lista no **resumo do job** (aba _Summary_ da execução) os testes que só passaram no retry, com arquivo, teste, projeto e número de tentativas. Isso não muda o critério de aprovação; a tabela só aparece quando há ao menos um teste instável. A lista sai do relatório JSON do Playwright (`test-results/report.json`, gerado só no CI) por `tests/e2e/support/flakySummary.ts`.
+
+Para caçar uma intermitência localmente, repita o teste sob carga, com nome de cada execução e trace só das falhas:
+
+```bash
+npx playwright test tests/e2e/<spec>.spec.ts -g "<parte do nome>" \
+  --project=chromium --repeat-each=50 --workers=16 \
+  --reporter=list --trace=retain-on-failure
+```
+
+- `--repeat-each` com muitas repetições precisa de `--trace=retain-on-failure`: `--trace on` grava todas as execuções e ocupa gigabytes. Use `--trace on` só com poucas repetições.
+- `--workers` acima do que a máquina aguenta gera falhas de _starvation_ (o servidor de desenvolvimento não responde a tempo), que não são a intermitência procurada; comece com o número de núcleos.
+- Para ler a causa, abra o trace de uma execução que falhou: `npx playwright show-trace test-results/<pasta-da-falha>/trace.zip`. As ações sem fim e o log de cada uma (por exemplo, "intercepts pointer events") dizem em qual passo o teste travou.
+- Para resumir várias falhas de uma vez, use `--reporter=json` com `PLAYWRIGHT_JSON_OUTPUT_NAME=<arquivo>.json` e agrupe as mensagens de erro.
+
 ## Rotas e páginas
 
 | Rota | Página | Guarda |

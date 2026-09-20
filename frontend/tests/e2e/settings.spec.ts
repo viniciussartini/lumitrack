@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test"
 
 import { fulfillError, fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
+import { expandAndSettle } from "./support/collapse"
 import { hideDevTools } from "./support/devtools"
 import { AREA_1, DEVICE_1, DIST_CEMIG, PROP_1 } from "./support/fixtures"
 import type { PropertyTree } from "../../src/types/property.types"
@@ -187,7 +188,7 @@ test.describe("Configurações → Cadastro", () => {
         // Recolhido: fora da árvore de acessibilidade (aria-hidden + inert).
         await expect(page.getByRole("button", { name: /^cozinha/i })).toHaveCount(0)
 
-        await casa.click()
+        await expandAndSettle(casa)
         await page.getByRole("button", { name: /^cozinha/i }).click()
 
         await expect(page.getByText("Geladeira", { exact: true })).toBeVisible()
@@ -209,7 +210,7 @@ test.describe("Configurações → Cadastro", () => {
         await page.goto("/configuracoes/cadastro")
         await hideDevTools(page)
 
-        await page.getByRole("button", { name: /^casa/i }).click()
+        await expandAndSettle(page.getByRole("button", { name: /^casa/i }))
         await page.getByRole("button", { name: "Editar área Cozinha" }).click()
         const dialog = page.getByRole("dialog", { name: /editar área/i })
         await dialog.getByLabel(/nome da área/i).fill("Copa")
@@ -235,7 +236,7 @@ test.describe("Configurações → Cadastro", () => {
         await page.goto("/configuracoes/cadastro")
         await hideDevTools(page)
 
-        await page.getByRole("button", { name: /^casa/i }).click()
+        await expandAndSettle(page.getByRole("button", { name: /^casa/i }))
         await page.getByRole("button", { name: "Excluir área Cozinha" }).click()
         const dialog = page.getByRole("dialog", { name: /excluir área/i })
         await expect(dialog).toContainText(/dispositivos/i)

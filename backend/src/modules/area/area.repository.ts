@@ -80,7 +80,7 @@ export class AreaRepository {
         const [areas, total] = await Promise.all([
             this.prisma.area.findMany({
                 where: { propertyId },
-                orderBy: { name: "asc" },
+                orderBy: [{ name: "asc" }, { id: "asc" }],
                 skip,
                 take,
             }),

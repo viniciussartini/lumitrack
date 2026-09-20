@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect, vi, beforeEach } from "vitest"
 import { DemandRollupScheduler } from "@/modules/iot/iot-worker/DemandRollupScheduler.js"
 import type { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
 import type { MeterRepository, MeterWithTargetRow } from "@/modules/meter/meter.repository.js"
@@ -6,6 +6,22 @@ import type { DistributorRepository } from "@/modules/distributor/distributor.re
 import type { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
 import type { PropertyResponse } from "@/modules/property/property.repository.js"
 import type { DistributorResponse } from "@/modules/distributor/distributor.repository.js"
+
+// Captura o `log.error` do scheduler: o logger real fica em nível "silent" nos
+// testes, então não há como observar o registro sem trocar o `child`.
+const logMock = vi.hoisted(() => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+}))
+
+vi.mock("@/shared/logger/logger.js", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/shared/logger/logger.js")>()
+    const patched = Object.create(actual.logger) as typeof actual.logger
+    patched.child = (() => logMock) as unknown as typeof actual.logger.child
+    return { ...actual, logger: patched }
+})
 
 const MINUTE_MS = 60 * 1000
 
@@ -251,5 +267,69 @@ describe("DemandRollupScheduler.tick", () => {
             5000,
             targetMinute,
         )
+    })
+})
+
+describe("DemandRollupScheduler.tick — falha de infraestrutura", () => {
+    const build = (fakes: Fakes) =>
+        new DemandRollupScheduler(
+            fakes.meterReadingRepository,
+            fakes.meterRepository,
+            fakes.distributorRepository,
+            fakes.demandRollupRepository,
+        )
+
+    beforeEach(() => {
+        logMock.error.mockClear()
+    })
+
+    it("não rejeita e registra o erro quando a consulta de medidores ativos falha", async () => {
+        const fakes = buildFakes({})
+        const dbError = new Error("The column t1.tariffGroup does not exist")
+        fakes.meterReadingRepository.findMeterIdsWithReadingsSince = vi
+            .fn()
+            .mockRejectedValue(dbError)
+
+        await expect(build(fakes).tick(NOW)).resolves.toBeUndefined()
+
+        expect(logMock.error).toHaveBeenCalledWith(
+            expect.objectContaining({ err: dbError }),
+            expect.any(String),
+        )
+    })
+
+    it("não rejeita e registra o erro quando a resolução dos alvos falha", async () => {
+        const fakes = buildFakes({ meterIds: ["meter-a"] })
+        const dbError = new Error("connection terminated")
+        fakes.meterRepository.findManyByIdsWithTarget = vi.fn().mockRejectedValue(dbError)
+
+        await expect(build(fakes).tick(NOW)).resolves.toBeUndefined()
+
+        expect(logMock.error).toHaveBeenCalledWith(
+            expect.objectContaining({ err: dbError }),
+            expect.any(String),
+        )
+    })
+
+    it("o tick seguinte processa normalmente depois de uma falha", async () => {
+        const targetMinute = new Date(Date.UTC(2026, 8, 8, 19, 4, 0))
+        const targets = new Map([["meter-a", fakeTargetRow(fakeProperty())]])
+        const fakes = buildFakes({
+            meterIds: ["meter-a"],
+            targets,
+            distributor: fakeDistributor(),
+            trailingReadings: contiguousReadings(targetMinute, 8000),
+        })
+        fakes.meterReadingRepository.findMeterIdsWithReadingsSince = vi
+            .fn()
+            .mockRejectedValueOnce(new Error("timeout"))
+            .mockResolvedValue(["meter-a"])
+        const scheduler = build(fakes)
+
+        await scheduler.tick(NOW)
+        expect(fakes.demandRollupRepository.upsertIfGreater).not.toHaveBeenCalled()
+
+        await scheduler.tick(NOW)
+        expect(fakes.demandRollupRepository.upsertIfGreater).toHaveBeenCalledTimes(1)
     })
 })
