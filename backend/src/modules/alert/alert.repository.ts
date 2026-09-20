@@ -37,7 +37,7 @@ export class AlertRepository {
         const [items, total] = await Promise.all([
             this.prisma.alert.findMany({
                 where: { userId },
-                orderBy: { createdAt: "desc" },
+                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
                 skip,
                 take,
             }),

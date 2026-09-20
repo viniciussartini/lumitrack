@@ -61,7 +61,7 @@ export class AclContractRepository {
         const [items, total] = await Promise.all([
             this.prisma.aclContract.findMany({
                 where,
-                orderBy: { validFrom: "desc" },
+                orderBy: [{ validFrom: "desc" }, { id: "desc" }],
                 skip,
                 take,
             }),

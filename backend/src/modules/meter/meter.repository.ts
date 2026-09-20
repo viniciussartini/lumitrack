@@ -315,7 +315,12 @@ export class MeterRepository {
         }
 
         const [rows, total] = await Promise.all([
-            this.prisma.meter.findMany({ where, orderBy: { name: "asc" }, skip, take }),
+            this.prisma.meter.findMany({
+                where,
+                orderBy: [{ name: "asc" }, { id: "asc" }],
+                skip,
+                take,
+            }),
             this.prisma.meter.count({ where }),
         ])
 

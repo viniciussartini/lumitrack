@@ -103,7 +103,7 @@ export class DistributorRepository {
 
         const [rows, total] = await Promise.all([
             this.prisma.energyDistributor.findMany({
-                orderBy: { name: "asc" },
+                orderBy: [{ name: "asc" }, { id: "asc" }],
                 skip,
                 take,
             }),

@@ -40,7 +40,7 @@ export class DemandAlertRepository {
         const [items, total] = await Promise.all([
             this.prisma.demandAlert.findMany({
                 where: { userId },
-                orderBy: { createdAt: "desc" },
+                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
                 skip,
                 take,
             }),
