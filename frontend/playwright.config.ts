@@ -5,7 +5,12 @@ export default defineConfig({
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
-    reporter: "html",
+    // No CI o JSON alimenta o resumo do job com os testes que só passaram no
+    // retry (ver .github/workflows/ci.yml); `list` deixa cada teste nominal no
+    // log em vez de só o resumo final.
+    reporter: process.env.CI
+        ? [["list"], ["html"], ["json", { outputFile: "test-results/report.json" }]]
+        : "html",
     use: {
         baseURL: "http://localhost:5173",
         trace: "on-first-retry",

@@ -405,6 +405,15 @@ jobs:
         working-directory: frontend
         run: npx playwright test
 
+      # `retries: 2` absorve intermitências e deixa o job verde; este passo as
+      # lista no resumo do job (nome do arquivo, teste e projeto) sem mudar o
+      # critério de aprovação. `always()` porque o passo acima falha quando há
+      # falha real, e o resumo ainda é útil nesse caso.
+      - name: Resumo dos testes instáveis (passaram só no retry)
+        if: always()
+        working-directory: frontend
+        run: node tests/e2e/support/flakySummary.ts test-results/report.json
+
       - name: Upload do log do backend (em caso de falha)
         if: failure()
         uses: actions/upload-artifact@v7
