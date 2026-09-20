@@ -3822,3 +3822,13 @@
 - **Arquivos principais:** `frontend/src/components/settings/RegistrationTree.tsx`.
 - **Decisões/ADRs:** nenhuma nova.
 - **Notas:** origem: sugestão de legibilidade do laudo de `revisao-codigo`. Nenhuma outra alteração de estrutura nesta entrada — as extrações em `AreaFormDialog` fazem parte da correção acima.
+
+## [2026-09-20] fix: paginação do audit log com desempate por id
+
+- **Branch:** fix/backlog-issues-abertas-428-433
+- **Tipo:** fix
+- **O quê:** `AuditRepository.findMany` paginava com `orderBy: { createdAt: "desc" }` e `skip`/`take`, sem critério de desempate. Registros criados no mesmo instante (rajadas de ações no mesmo milissegundo) empatam, e o PostgreSQL não garante a mesma ordem entre duas consultas para linhas empatadas — o mesmo registro podia aparecer em duas páginas e outro em nenhuma, justamente ao investigar um incidente. Passa a `orderBy: [{ createdAt: "desc" }, { id: "desc" }]`, ordem total e estável. Causa-raiz confirmada antes da correção: com 23 registros de `createdAt` idêntico, as páginas se sobrepunham e a ordem não era estável.
+- **Testes:** escritos antes e falhando pelo motivo esperado (2 falhas). Backend (+2): registros de `createdAt` explicitamente idêntico aparecem em exatamente uma página (23 registros, páginas de 5, cobertura completa e sem repetição) e o desempate é por `id` decrescente. O teste antigo de paginação, que dependia de o empate não acontecer, passou a ser coberto de forma determinística.
+- **Arquivos principais:** `backend/src/shared/audit/audit.repository.ts`, `backend/src/shared/audit/audit.repository.test.ts`.
+- **Decisões/ADRs:** nenhuma nova.
+- **Notas:** backend verde — 113 arquivos, 1438 testes (+2); `tsc`, `eslint`, `prettier --check` e `depcruise` sem erros. **Mesma classe de defeito, ainda aberta:** o levantamento das demais listagens paginadas do backend achou 10 com ordenação só por coluna não única — `property`, `area`, `device`, `meter` e `distributor` (por `name`), `alert` e `demand-alert` (por `createdAt`), `alert-trigger-event` (por `startedAt`), `acl-contract` (por `validFrom`) e `pld-quote` (por `referencePeriod`, empata entre submercados). A listagem de consumo (`findAggregated`) não é afetada: ordena por balde já agrupado, único.

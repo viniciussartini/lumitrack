@@ -133,4 +133,45 @@ describe("AuditRepository.findMany", () => {
         const allIds = [...page1.items, ...page2.items, ...page3.items].map((item) => item.id)
         expect(new Set(allIds).size).toBe(5)
     })
+
+    it("registros com o mesmo createdAt aparecem em exatamente uma página", async () => {
+        const sameInstant = new Date("2026-01-01T12:00:00.000Z")
+        await prismaTest.auditLog.createMany({
+            data: Array.from({ length: 23 }, () => ({
+                action: "LOGIN" as const,
+                outcome: "SUCCESS" as const,
+                createdAt: sameInstant,
+            })),
+        })
+
+        const pageSize = 5
+        const pages = await Promise.all(
+            [1, 2, 3, 4, 5].map((page) => auditRepository.findMany({}, page, pageSize)),
+        )
+
+        const allIds = pages.flatMap((result) => result.items.map((item) => item.id))
+        const everyId = (await prismaTest.auditLog.findMany({ select: { id: true } })).map(
+            (row) => row.id,
+        )
+
+        expect(allIds).toHaveLength(23)
+        expect(new Set(allIds).size).toBe(23)
+        expect([...allIds].sort()).toEqual([...everyId].sort())
+    })
+
+    it("desempata registros de mesmo createdAt por id decrescente", async () => {
+        const sameInstant = new Date("2026-01-01T12:00:00.000Z")
+        await prismaTest.auditLog.createMany({
+            data: Array.from({ length: 8 }, () => ({
+                action: "LOGIN" as const,
+                outcome: "SUCCESS" as const,
+                createdAt: sameInstant,
+            })),
+        })
+
+        const result = await auditRepository.findMany({}, 1, 50)
+        const ids = result.items.map((item) => item.id)
+
+        expect(ids).toEqual([...ids].sort().reverse())
+    })
 })
