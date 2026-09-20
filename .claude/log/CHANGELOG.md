@@ -3963,3 +3963,13 @@
 - **Arquivos principais:** nenhum alterado (só este registro).
 - **Decisões/ADRs:** nenhuma nova — decisão de não criar o índice, com a evidência acima. **Quando reavaliar:** se a tabela passar de dezenas de milhões de linhas, se a listagem ganhar exportação ou paginação profunda por `OFFSET`, ou se a métrica de latência do endpoint mostrar o `ORDER BY` como gargalo; nesse caso o caminho é keyset pagination (`WHERE ("createdAt","id") < (…)`), que dispensa o `OFFSET`, e só então um índice composto — com `CREATE INDEX CONCURRENTLY` numa migração de um único comando, para não bloquear os `INSERT` do audit log, rodando com o papel administrativo (o de runtime é DML-only).
 - **Notas:** nenhum requisito, migração ou controle de segurança tocado.
+
+## [2026-09-20] chore: Actions do ci.yml pinadas por SHA completo
+
+- **Branch:** fix/backlog-issues-abertas-428-433
+- **Tipo:** chore
+- **O quê:** a norma de infraestrutura (`11-seguranca-infraestrutura.md` §2, P0) exige Actions pinadas por SHA completo — tag é mutável, e foi o vetor de comprometimentos recentes de Actions populares —, e todo o `.github/workflows/ci.yml` usava tag (`@v7`), como já apontavam as entradas anteriores sobre o resumo de testes instáveis e o upload do relatório. As três Actions do workflow, em 31 usos, passam a `@<sha40> # versão`: `actions/checkout` `3d3c42e5…` (v7.0.1, 15 usos), `actions/setup-node` `82076278…` (v7.0.0, 14 usos) e `actions/upload-artifact` `043fb46d…` (v7.0.1, 2 usos). Cada SHA foi resolvido pela API do GitHub direto da ref de tag do repositório oficial (`repos/actions/<nome>/git/ref/tags/v7`, tags leves apontando para o commit), o que exclui um SHA de fork; conferido que o commit existe no repositório oficial e que a tag de patch exata (`v7.0.1`, `v7.0.0`, `v7.0.1`) aponta para o mesmo commit da `v7`, que vai como comentário no fim da linha. Só as linhas `uses:` mudaram (31 linhas, conferido no diff); o comportamento do pipeline é o mesmo.
+- **Testes:** infra de CI, sem teste unitário. YAML validado, nenhum `uses:` restante sem SHA de 40 caracteres, os três SHAs resolvem nos repositórios oficiais. O `dependabot.yml` já tem `package-ecosystem: "github-actions"` semanal, com todas agrupadas num PR e alvo `staging`: ele atualiza tanto o SHA quanto o comentário de versão, então o pin não envelhece em silêncio.
+- **Arquivos principais:** `.github/workflows/ci.yml`.
+- **Decisões/ADRs:** nenhuma nova — cumpre a norma existente.
+- **Notas:** só há um workflow no repositório (`ci.yml`). Fora do escopo: o `gitleaks` é baixado por versão (`GITLEAKS_VERSION`) e não é uma Action; a verificação de integridade desse download não foi tocada.
