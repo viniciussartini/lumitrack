@@ -88,9 +88,25 @@ export class DemandRollupScheduler {
      * (só ele tem demanda contratada) e atualiza o rollup de cada um. Público
      * para testes e para o tick periódico.
      *
+     * Nunca rejeita: `start()` dispara o tick sem quem aguarde a promise, e
+     * uma rejeição sem tratamento derruba o processo inteiro no Node moderno
+     * (`unhandledRejection`). Uma falha de banco no meio do tick é registrada
+     * e o minuto seguinte tenta de novo.
+     *
      * @param now - Instante de referência (injetável para teste).
      */
     async tick(now: Date = new Date()): Promise<void> {
+        try {
+            await this.processMinute(now)
+        } catch (err) {
+            log.error(
+                { err },
+                "Falha ao executar o tick do rollup de demanda — tenta de novo no próximo minuto",
+            )
+        }
+    }
+
+    private async processMinute(now: Date): Promise<void> {
         const targetMinute = new Date(this.truncateToMinute(now).getTime() - MINUTE_MS)
         const lookbackStart = new Date(targetMinute.getTime() - LOOKBACK_MINUTES * MINUTE_MS)
 

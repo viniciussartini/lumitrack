@@ -99,9 +99,25 @@ export class DemandAlertScheduler {
      * Avalia todos os alertas habilitados contra o rollup do ciclo corrente.
      * Público para testes e para o tick periódico.
      *
+     * Nunca rejeita: `start()` dispara o tick sem quem aguarde a promise, e
+     * uma rejeição sem tratamento derruba o processo inteiro no Node moderno
+     * (`unhandledRejection`). Uma falha de banco no meio do tick é registrada
+     * e o minuto seguinte tenta de novo.
+     *
      * @param now - Instante de referência (injetável para teste).
      */
     async tick(now: Date = new Date()): Promise<void> {
+        try {
+            await this.evaluateAlerts(now)
+        } catch (err) {
+            log.error(
+                { err },
+                "Falha ao executar o tick dos alertas de demanda — tenta de novo no próximo minuto",
+            )
+        }
+    }
+
+    private async evaluateAlerts(now: Date): Promise<void> {
         const alerts = await this.demandAlertRepository.findAllEnabled()
         if (alerts.length === 0) {
             return

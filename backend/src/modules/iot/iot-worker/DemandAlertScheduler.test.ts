@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect, vi, beforeEach } from "vitest"
 import { DemandAlertScheduler } from "@/modules/iot/iot-worker/DemandAlertScheduler.js"
 import type {
     DemandAlertRepository,
@@ -12,6 +12,22 @@ import type {
 import type { PropertyResponse } from "@/modules/property/property.repository.js"
 import type { UserEventHub } from "@/shared/sse/user-event-hub.js"
 import type { NotificationStore } from "@/shared/notifications/notification-store.js"
+
+// Captura o `log.error` do scheduler: o logger real fica em nível "silent" nos
+// testes, então não há como observar o registro sem trocar o `child`.
+const logMock = vi.hoisted(() => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+}))
+
+vi.mock("@/shared/logger/logger.js", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/shared/logger/logger.js")>()
+    const patched = Object.create(actual.logger) as typeof actual.logger
+    patched.child = (() => logMock) as unknown as typeof actual.logger.child
+    return { ...actual, logger: patched }
+})
 
 // Mesmo NOW de DemandRollupScheduler.test.ts — mês local é setembro/2026,
 // período começa em 2026-09-01T03:00:00Z (meia-noite SP em UTC).
@@ -321,5 +337,57 @@ describe("DemandAlertScheduler.tick", () => {
             "user-1",
             expect.objectContaining({ alertId: "alert-ok" }),
         )
+    })
+})
+
+describe("DemandAlertScheduler.tick — falha de infraestrutura", () => {
+    beforeEach(() => {
+        logMock.error.mockClear()
+    })
+
+    it("não rejeita e registra o erro quando a leitura dos alertas habilitados falha", async () => {
+        const fakes = buildFakes({})
+        const dbError = new Error("The column t1.tariffGroup does not exist")
+        fakes.demandAlertRepository.findAllEnabled = vi.fn().mockRejectedValue(dbError)
+
+        await expect(buildScheduler(fakes).tick(NOW)).resolves.toBeUndefined()
+
+        expect(logMock.error).toHaveBeenCalledWith(
+            expect.objectContaining({ err: dbError }),
+            expect.any(String),
+        )
+    })
+
+    it("não rejeita e registra o erro quando a leitura em lote de alvos e rollups falha", async () => {
+        const fakes = buildFakes({ alerts: [fakeAlert()] })
+        const dbError = new Error("connection terminated")
+        fakes.meterDemandRollupRepository.findByMetersAndPeriod = vi.fn().mockRejectedValue(dbError)
+
+        await expect(buildScheduler(fakes).tick(NOW)).resolves.toBeUndefined()
+
+        expect(logMock.error).toHaveBeenCalledWith(
+            expect.objectContaining({ err: dbError }),
+            expect.any(String),
+        )
+    })
+
+    it("o tick seguinte avalia normalmente depois de uma falha", async () => {
+        const targets = new Map([["meter-1", fakeTargetRow(fakeProperty())]])
+        const fakes = buildFakes({
+            alerts: [fakeAlert({ thresholdPercent: 100 })],
+            targets,
+            rollupRows: [fakeRollupRow({ post: "PEAK", maxAvgPowerW: 210_000 })],
+        })
+        fakes.demandAlertRepository.findAllEnabled = vi
+            .fn()
+            .mockRejectedValueOnce(new Error("timeout"))
+            .mockResolvedValue([fakeAlert({ thresholdPercent: 100 })])
+        const scheduler = buildScheduler(fakes)
+
+        await scheduler.tick(NOW)
+        expect(fakes.addMock).not.toHaveBeenCalled()
+
+        await scheduler.tick(NOW)
+        expect(fakes.addMock).toHaveBeenCalledTimes(1)
     })
 })
