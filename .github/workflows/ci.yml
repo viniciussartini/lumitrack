@@ -407,12 +407,25 @@ jobs:
 
       # `retries: 2` absorve intermitências e deixa o job verde; este passo as
       # lista no resumo do job (nome do arquivo, teste e projeto) sem mudar o
-      # critério de aprovação. `always()` porque o passo acima falha quando há
-      # falha real, e o resumo ainda é útil nesse caso.
+      # critério de aprovação. Roda também quando o passo acima falha (o
+      # resumo ainda é útil com falha real), mas não quando o job é cancelado.
       - name: Resumo dos testes instáveis (passaram só no retry)
-        if: always()
+        if: ${{ !cancelled() }}
         working-directory: frontend
         run: node tests/e2e/support/flakySummary.ts test-results/report.json
+
+      # O relatório HTML traz o trace de cada tentativa que falhou
+      # (`trace: on-first-retry`): a prova do porquê de uma intermitência, que
+      # o resumo acima só nomeia. Numa execução limpa o relatório é só o
+      # index.html, sem `data/`, e nada é enviado. Os traces só contêm os
+      # fixtures mockados dos specs — nenhum dado real.
+      - name: Upload do relatório do Playwright (falha ou instabilidade)
+        if: ${{ !cancelled() && hashFiles('frontend/playwright-report/data/**') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
 
       - name: Upload do log do backend (em caso de falha)
         if: failure()
