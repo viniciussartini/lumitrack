@@ -276,12 +276,6 @@ test.describe("SSE — RealtimeContext (reading, alert-firing, notification)", (
         // evento SSE já foi processado e o cache já tem a notificação.
         await expect(page.getByText(notification.message)).toBeVisible()
 
-        // Fecha o toast explicitamente (botão "Close toast", sonner com
-        // closeButton habilitado em App.tsx) — sem isso, ele fica sobreposto
-        // ao sino por até `duration: 10_000` (RealtimeContext), e o clique
-        // no sino ficaria retentando até o auto-dismiss em vez de agir.
-        await page.getByRole("button", { name: "Close toast" }).click()
-
         // Sino com contador
         const bell = page.getByTestId("notification-bell")
         await expect(bell).toHaveAttribute("data-count", "1")
