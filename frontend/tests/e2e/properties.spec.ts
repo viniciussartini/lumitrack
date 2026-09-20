@@ -273,6 +273,13 @@ test.describe("Fluxo CRUD de propriedades", () => {
     })
 
     test("o menu da propriedade continua alcançável com toasts empilhados", async ({ page }) => {
+        // Cada toast vive 4 s e o sonner pausa o descarte com o documento
+        // oculto. Sem isto, o teste depende de as três edições caberem nesses
+        // 4 s — o que não vale sob carga — e os toasts expiram antes de
+        // coexistirem. A expansão da pilha continua vindo do ponteiro, abaixo.
+        await page.addInitScript(() => {
+            Object.defineProperty(document, "hidden", { get: () => true })
+        })
         await setupAuthAndDistributors(page)
 
         let property: Property = buildCreatedProperty({
@@ -310,7 +317,7 @@ test.describe("Fluxo CRUD de propriedades", () => {
         await expect(async () => {
             const front = await toasts.first().boundingBox()
             expect(front!.y).toBeGreaterThanOrEqual(0)
-            expect(front!.y + front!.height).toBeLessThanOrEqual(720)
+            expect(front!.y + front!.height).toBeLessThanOrEqual(page.viewportSize()!.height)
             await page.mouse.move(front!.x + front!.width / 2, front!.y + front!.height / 2)
             await expect(toasts.first()).toHaveAttribute("data-expanded", "true", { timeout: 500 })
         }).toPass()
