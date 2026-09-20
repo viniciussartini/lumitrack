@@ -3912,3 +3912,13 @@
 - **Arquivos principais:** `frontend/src/contexts/RealtimeContext.tsx`, `frontend/src/contexts/RealtimeContext.test.tsx`, `frontend/tests/e2e/realtime.spec.ts`.
 - **Decisões/ADRs:** nenhuma nova.
 - **Notas:** frontend verde — 112 arquivos, 948 testes (+1); `tsc -b`, `eslint` (10 warnings do React Compiler já existentes), `prettier --check` e `depcruise` sem erros; `realtime.spec.ts` verde em Chromium e Firefox.
+
+## [2026-09-20] refactor: helper de expandir da árvore ignora animações infinitas; teste do audit log documenta o que garante o contrato
+
+- **Branch:** fix/backlog-issues-abertas-428-433
+- **Tipo:** refactor
+- **O quê:** duas sugestões do laudo de `revisao-codigo` do PR da branch, sem mudar o comportamento testado. (1) `frontend/tests/e2e/support/collapse.ts`: `expandAndSettle` esperava `finished` de **todas** as animações do painel, e uma animação infinita (`animate-pulse`/`animate-spin` de esqueletos de carregamento, que o app usa em vários lugares) nunca assenta — reusar o helper num painel com esqueleto trocaria a intermitência por um timeout duro. Passa a filtrar as de `iterations === Infinity`; o JSDoc registra o porquê e o resíduo conhecido (se a transição ainda não tiver começado no instante da consulta, `getAnimations()` volta vazia e o helper não espera nada — na prática ela já existe, porque `getAnimations()` força o recálculo de estilo do commit que trocou `aria-expanded`). (2) `backend/src/shared/audit/audit.repository.test.ts`: comentário no teste "registros com o mesmo createdAt aparecem em exatamente uma página" explicando que ele é probabilístico (sem o desempate pode passar por sorte, se o PostgreSQL devolver a mesma ordem nas cinco consultas) e que quem garante o contrato de forma confiável é o "desempata por id decrescente" — para que uma limpeza futura não apague o teste que prova a correção.
+- **Testes:** caracterização pelos testes existentes, verdes antes e depois: os 3 testes de `settings.spec.ts` que usam o helper (Chromium e Firefox, 16 passando) e os 12 do audit log. Para o filtro, spec temporário (removido) com um painel que tem uma animação infinita e uma transição de 0,6 s: o helper resolveu, esperou a transição (entre 0,4 s e 3 s) e não deixou animação finita pendente, em Chromium e Firefox.
+- **Arquivos principais:** `frontend/tests/e2e/support/collapse.ts`, `backend/src/shared/audit/audit.repository.test.ts`.
+- **Decisões/ADRs:** nenhuma nova.
+- **Notas:** `tsc -b`, `eslint` e `prettier --check` sem erros nos arquivos alterados; depcruise não se aplica (só teste e helper de teste). Faltam, do laudo: CI (`!cancelled()` e artefatos do Playwright) e as duas issues (toast sobre o menu; índice `(createdAt, id)` do audit log).

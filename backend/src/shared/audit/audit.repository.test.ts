@@ -134,6 +134,11 @@ describe("AuditRepository.findMany", () => {
         expect(new Set(allIds).size).toBe(5)
     })
 
+    // Este teste é probabilístico: sem o desempate por id ele pode passar por
+    // sorte, se o PostgreSQL devolver a mesma ordem nas cinco consultas. Quem
+    // garante o contrato de forma confiável é o teste seguinte (ordem por id
+    // decrescente entre registros de mesmo createdAt) — não remover nenhum dos
+    // dois: este cobre a paginação de ponta a ponta, o outro a ordem em si.
     it("registros com o mesmo createdAt aparecem em exatamente uma página", async () => {
         const sameInstant = new Date("2026-01-01T12:00:00.000Z")
         await prismaTest.auditLog.createMany({
