@@ -3983,3 +3983,12 @@
 - **Arquivos principais:** `frontend/tests/e2e/properties.spec.ts`, `frontend/tests/e2e/profile.spec.ts`, `backend/prisma/benchmarks/audit-log-pagination.sql` (novo).
 - **Decisões/ADRs:** nenhuma nova.
 - **Notas:** `tsc -b`, `eslint` e `prettier --check` sem erros; o Prettier do backend ignora `.sql`. O script fica em `prisma/benchmarks/`, fora de `prisma/migrations/`, então o Prisma nunca o executa como migração.
+
+## [2026-09-20] docs: roadmap fecha a Fase 23 (PR #427) e registra o PR #438; Fase 24 vira fase atual
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** `planejar-roadmap` — marca a Fase 23 (Shell v2) como concluída (épico #423: #424–#426, PR #427 mesclado em `staging` em 2026-09-19T19:20:27Z, com dois commits de remediação da `revisao-codigo` na mesma branch) e passa a Fase 24 (Análise — consumo e custos) a fase atual, ainda em nível de objetivo. Cabeçalho, tabela de visão geral e o texto dos itens da Fase 23 atualizados; nova seção "Replanejamento de 2026-09-20". Dois trechos do item "Configurações: casca + Cadastro" corrigidos porque a revisão do PR os tornou falsos: os seletores de pai passaram a ler `usePropertyTree()` (uma requisição, teto de 100) em vez de uma consulta de áreas por propriedade com teto de 31. O PR #438 (backlog #428–#433 e #437, mesclado em 2026-09-20T21:32:33Z) entra como correção fora das fases, com as quatro heranças que a Fase 24 recebe: toasts embaixo à direita (conferir "Gerar análise" e paginação), desempate por `id` em listagem paginada nova, helper `expandAndSettle` nos E2E e o índice `(createdAt, id)` do audit log avaliado e não adicionado.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova. `02-requisitos.md` já estava correto (RF46 e FNC008 atualizados no próprio PR #427) — sem alteração nesta entrada.
+- **Notas:** o épico #423 já estava fechado (à mão, 30 s após o merge); a milestone `App v2` segue aberta até a Fase 30. Não detalhei a Fase 24 — mesmo precedente do fechamento da Fase 22, para uma sessão dedicada. Pendências fora do roadmap, que dependem do usuário: a milestone `Tarifação Grupo A, Mercado Livre e Tarifa Branca` continua aberta no GitHub (0 abertas, 30 fechadas) e `origin/staging` está 19 commits à frente de `origin/main`.
