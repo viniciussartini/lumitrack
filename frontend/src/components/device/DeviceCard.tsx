@@ -12,8 +12,7 @@ interface DeviceCardProps {
 
 /**
  * Card de dispositivo — LumiTrack Home.dc.html, bloco "Dispositivos" da
- * areaDetailView (card minimalista: só borda, sem `.blueprint`/corners,
- * mesmo estilo do AreaCard).
+ * areaDetailView (card minimalista: só borda, sem `.blueprint`/corners).
  *
  * Comportamento:
  *   - Click no card → /propriedades/:propertyId/areas/:areaId/devices/:deviceId

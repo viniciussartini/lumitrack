@@ -36,8 +36,13 @@ const RegisterPage = lazy(() =>
 const DistribuidorsPage = lazy(() =>
     import("@/pages/distributor/DistributorsPage").then((m) => ({ default: m.DistribuidorsPage })),
 )
-const PropertiesPage = lazy(() =>
-    import("@/pages/property/PropertiesPage").then((m) => ({ default: m.PropertiesPage })),
+const AnalysisLayout = lazy(() =>
+    import("@/pages/analysis/AnalysisLayout").then((m) => ({ default: m.AnalysisLayout })),
+)
+const AnalysisEmptyState = lazy(() =>
+    import("@/pages/analysis/AnalysisEmptyState").then((m) => ({
+        default: m.AnalysisEmptyState,
+    })),
 )
 const PropertyDetailsPage = lazy(() =>
     import("@/pages/property/PropertyDetailsPage").then((m) => ({
@@ -103,23 +108,9 @@ const APP_SHELL_ROUTES: AppRouteConfig[] = [
     { path: "/dashboard", element: <DashboardPage /> },
     { path: "/distribuidoras", element: <DistribuidorsPage /> },
 
-    // Criar/editar Propriedade/Área/Dispositivo acontece via modal
-    // (PropertyFormDialog/AreaFormDialog/DeviceFormDialog), não em rota
-    // dedicada.
-    { path: "/propriedades", element: <PropertiesPage /> },
-    { path: "/propriedades/:id", element: <PropertyDetailsPage /> },
+    // Comparações de tarifa — páginas inteiras, sem a árvore de Análise.
     { path: "/propriedades/:id/comparacao-acl", element: <AclComparisonPage /> },
     { path: "/propriedades/:id/comparacao-branca", element: <BrancaComparisonPage /> },
-
-    // Áreas — rota aninhada espelha o padrão da API
-    // (/api/properties/:propertyId/areas/:areaId).
-    { path: "/propriedades/:propertyId/areas/:areaId", element: <AreaDetailsPage /> },
-
-    // Dispositivos — rota aninhada em DOIS níveis.
-    {
-        path: "/propriedades/:propertyId/areas/:areaId/devices/:deviceId",
-        element: <DeviceDetailsPage />,
-    },
 
     // Alertas — inbox global.
     { path: "/alertas", element: <AlertsPage /> },
@@ -136,8 +127,22 @@ const APP_SHELL_ROUTES: AppRouteConfig[] = [
     { path: "/sobre", element: <AboutPage /> },
 ]
 
+// Análise — árvore de seleção à esquerda e o detalhe do item à direita. A
+// rota filha espelha o padrão da API
+// (/api/properties/:propertyId/areas/:areaId/devices/:deviceId): cada nível da
+// hierarquia tem a sua. Criar/excluir vivem em Configurações → Cadastro;
+// editar é por modal (PropertyFormDialog/AreaFormDialog/DeviceFormDialog).
+const ANALYSIS_ROUTES = (
+    <Route path="/propriedades" element={<AnalysisLayout />}>
+        <Route index element={<AnalysisEmptyState />} />
+        <Route path=":id" element={<PropertyDetailsPage />} />
+        <Route path=":propertyId/areas/:areaId" element={<AreaDetailsPage />} />
+        <Route path=":propertyId/areas/:areaId/devices/:deviceId" element={<DeviceDetailsPage />} />
+    </Route>
+)
+
 // Configurações — layout com sub-navegação lateral e uma rota filha por
-// sub-página. Fora do `.map()` acima porque é a única rota aninhada do grupo.
+// sub-página. Fora do `.map()` acima porque, como Análise, é rota aninhada.
 const SETTINGS_ROUTES = (
     <Route path="/configuracoes" element={<SettingsLayout />}>
         <Route index element={<Navigate to="cadastro" replace />} />
@@ -188,6 +193,7 @@ const AppRoutes = () => (
                 {APP_SHELL_ROUTES.map(({ path, element }) => (
                     <Route key={path} path={path} element={element} />
                 ))}
+                {ANALYSIS_ROUTES}
                 {SETTINGS_ROUTES}
             </Route>
         </Route>

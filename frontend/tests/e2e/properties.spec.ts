@@ -1,28 +1,25 @@
-import { test, expect } from "@playwright/test"
+import { test, expect, type Page } from "@playwright/test"
 
 import { fulfillError, fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
-import { DIST_CEMIG } from "./support/fixtures"
-import type { CreatePropertyInput, Property } from "../../src/types/property.types"
+import { AREA_1, DIST_CEMIG, PROP_1 } from "./support/fixtures"
+import { mockPropertyTree } from "./support/propertyTree"
+import type { Area } from "../../src/types/area.types"
+import type { Property, PropertyTree } from "../../src/types/property.types"
 
 /**
  * E2E focado em UI: mocka as respostas do backend via page.route().
  * Vantagem: não depende do backend rodando — roda no CI sem coordenação.
  *
- * Este spec cobre o fluxo completo de Property:
- *   1. Listar (vazio inicial)
- *   2. Criar (via modal, sem navegação — as 6 rotas dedicadas de CRUD
- *      foram substituídas por PropertyFormDialog/AreaFormDialog/
- *      DeviceFormDialog)
- *   3. Editar (mudar nome, via modal aberto na própria PropertyDetailsPage)
- *   4. Trocar distribuidora vinculada (mesmo modal)
- *   5. Excluir
+ * Este spec cobre a Análise pelo lado da Propriedade:
+ *   1. Árvore de seleção + convite quando nada está selecionado
+ *   2. Detalhe da propriedade: dados, edição (nome e distribuidora)
+ *   3. Sem criar/excluir — vivem em Configurações → Cadastro
+ *   4. Busca na hierarquia, teto da árvore e usuário sem propriedades
+ *   5. "Comparação de áreas": kWh/R$, e R$ desabilitado sem custo
  *
- * Este spec foi reescrito — a versão anterior assumia rotas /nova e
- * /:id/editar que não existem mais, e labels de botão que divergiram por
- * entidade desde então (ver properties/area/device FormDialog.tsx: cada um
- * tem seu próprio texto de kicker/título/submit).
+ * Criar e excluir propriedade é coberto em settings.spec.ts.
  */
 
 const DIST_ENEL = {
@@ -32,340 +29,278 @@ const DIST_ENEL = {
     cnpj: "61.695.227/0001-93",
 }
 
-/**
- * Campos de grupo tarifário da resposta de criação — extraído só por causa
- * do teto de complexidade do lint (cada `?? null` conta como um branch).
- */
-const buildTariffGroupFields = (
-    body: CreatePropertyInput,
-): Pick<
-    Property,
-    | "tariffGroup"
-    | "billingClass"
-    | "groupBModality"
-    | "receivesBillingDiscount"
-    | "tariffSubgroup"
-    | "tariffModality"
-    | "contractedDemandKw"
-    | "contractedDemandPeakKw"
-    | "contractedDemandOffPeakKw"
-    | "contractingEnvironment"
-> => ({
-    tariffGroup: body.tariffGroup ?? "GROUP_B",
-    billingClass: body.billingClass ?? null,
-    groupBModality: body.groupBModality ?? "CONVENTIONAL",
-    receivesBillingDiscount: body.receivesBillingDiscount ?? false,
-    tariffSubgroup: body.tariffSubgroup ?? null,
-    tariffModality: body.tariffModality ?? null,
-    contractedDemandKw: body.contractedDemandKw ?? null,
-    contractedDemandPeakKw: body.contractedDemandPeakKw ?? null,
-    contractedDemandOffPeakKw: body.contractedDemandOffPeakKw ?? null,
-    contractingEnvironment: body.contractingEnvironment ?? "ACR",
+const PROP_2 = { ...PROP_1, id: "prop-2", name: "Loja Centro" }
+
+const treeOf = (properties: Property[], areas: Area[] = []): PropertyTree => ({
+    total: properties.length,
+    items: properties.map((property) => ({
+        id: property.id,
+        name: property.name,
+        areas: areas
+            .filter((area) => area.propertyId === property.id)
+            .map((area) => ({ id: area.id, name: area.name, devices: [] })),
+    })),
 })
 
-/** Espelha a resposta de criação do backend a partir do corpo do POST. */
-const buildCreatedProperty = (body: CreatePropertyInput): Property => ({
-    id: "prop-1",
-    userId: "user-123",
-    distributorId: body.distributorId,
-    name: body.name,
-    address: body.address ?? null,
-    city: body.city ?? null,
-    state: body.state ?? null,
-    zipCode: body.zipCode ?? null,
-    electricalSystem: body.electricalSystem,
-    ...buildTariffGroupFields(body),
-    publicLightingFeeBrl: body.publicLightingFeeBrl ?? null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-})
+interface SetupOptions {
+    properties?: Property[]
+    areas?: Area[]
+    getTree?: () => PropertyTree
+}
 
 /**
- * Configura mocks compartilhados (auth + AppShell + distribuidoras).
- *
- * Não mocka /api/properties aqui — cada teste configura suas próprias
- * respostas pra controlar o estado da lista.
+ * Mocks compartilhados: auth + AppShell + distribuidoras + árvore + o que o
+ * detalhe da propriedade dispara sozinho (áreas, medidor, consumo, resumo).
+ * O estado da "DB" simulada é da própria lista `properties`, mutável.
  */
-const setupAuthAndDistributors = async (page: Parameters<typeof setupAuth>[0]) => {
+const setupAnalysis = async (page: Page, options: SetupOptions = {}) => {
+    const { properties = [PROP_1], areas = [] } = options
     await mockAppShellBackground(page)
     await setupAuth(page)
+    await mockPropertyTree(page, options.getTree ?? (() => treeOf(properties, areas)))
 
-    // Catálogo de distribuidoras — usado pela PropertiesPage, NewPropertyPage
-    // e EditPropertyPage (todas com pageSize=31, cobrindo o catálogo inteiro
-    // numa página só). fulfillPaginated ignora os query params recebidos.
     await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
         fulfillPaginated(route, [DIST_CEMIG, DIST_ENEL]),
     )
-    // Detalhe por ID — usado pela PropertyDetailsPage via useDistributor.
     await page.route("**/api/distributors/dist-cemig", (route) => fulfillJson(route, DIST_CEMIG))
     await page.route("**/api/distributors/dist-enel", (route) => fulfillJson(route, DIST_ENEL))
 
-    // Áreas: lista vazia por default (testes de Property não mexem em áreas).
-    await page.route(/\/api\/properties\/.*\/areas(\?.*)?$/, (route) => {
-        if (route.request().method() === "GET") {
-            return fulfillPaginated(route, [])
-        }
-        return route.continue()
+    await page.route(/\/api\/properties(\?.*)?$/, (route) =>
+        route.request().method() === "GET" ? fulfillPaginated(route, properties) : route.fallback(),
+    )
+    await page.route(/\/api\/properties\/prop-\d+$/, (route) => {
+        const id = new URL(route.request().url()).pathname.split("/").pop()
+        const property = properties.find((candidate) => candidate.id === id)
+        return property
+            ? fulfillJson(route, property)
+            : fulfillError(route, "Propriedade não encontrada", 404)
     })
+    await page.route(/\/api\/properties\/prop-\d+\/areas(\?.*)?$/, (route) =>
+        fulfillPaginated(
+            route,
+            areas.filter((area) => route.request().url().includes(`/${area.propertyId}/`)),
+        ),
+    )
 
-    // MeterSection é renderizada em toda PropertyDetailsPage — sem medidor
-    // vinculado, 404 é o estado normal (meterService.byTarget trata como
-    // null). Nenhum teste deste spec cobre medidor.
+    // Sem medidor vinculado, 404 é o estado normal (meterService.byTarget trata como null).
     await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
         fulfillError(route, "Alvo sem medidor vinculado", 404),
     )
-
-    // Sem medidor, o fallback REST de potência (`useLatestMeterReading`) não
-    // deveria nem disparar — mas a rota precisa de resposta de qualquer
-    // forma (senão vaza pro proxy do Vite pro backend real).
     await page.route(/\/api\/meter-readings(\?.*)?$/, (route) =>
         fulfillJson(route, { items: [], granularity: "minute" }),
     )
-
-    // PropertyFormDialog busca o contrato ACL corrente ao abrir em modo
-    // edição (useCurrentAclContract) — nenhum teste deste spec cobre ACL,
-    // então lista vazia é o estado normal.
+    await page.route(/\/api\/consumption(\?.*)?$/, (route) => fulfillPaginated(route, []))
+    await page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) =>
+        fulfillJson(route, { items: [] }),
+    )
+    // PropertyFormDialog busca o contrato ACL corrente ao abrir em modo edição.
     await page.route(/\/api\/acl-contracts(\?.*)?$/, (route) => fulfillPaginated(route, []))
 }
 
-test.describe("Fluxo CRUD de propriedades", () => {
+const routeProperty = async (page: Page, state: { property: Property }) => {
+    await page.route(`**/api/properties/${state.property.id}`, async (route) => {
+        if (route.request().method() === "PUT") {
+            const body = JSON.parse(route.request().postData() ?? "{}")
+            state.property = { ...state.property, ...body, updatedAt: new Date().toISOString() }
+        }
+        return fulfillJson(route, state.property)
+    })
+}
+
+const summaryItem = (id: string, kwhConsumed: number, costBrl?: number) => ({
+    id,
+    targetType: "AREA",
+    bucketStart: "2026-09-01T00:00:00.000Z",
+    kwhConsumed,
+    avgPowerW: 300,
+    ...(costBrl !== undefined && { costBrl }),
+})
+
+test.describe("Análise — árvore e detalhe da propriedade", () => {
     test.beforeEach(async ({ context }) => {
         await context.clearCookies()
     })
 
-    test("cria, edita, troca distribuidora e exclui uma propriedade", async ({ page }) => {
-        await setupAuthAndDistributors(page)
+    test("sem seleção, mostra a hierarquia e o convite para escolher o que analisar", async ({
+        page,
+    }) => {
+        await setupAnalysis(page)
 
-        // Estado da "DB" simulada — começa vazio, evolui ao longo do teste
-        let properties: Property[] = []
-
-        await page.route(/\/api\/properties(\?.*)?$/, async (route) => {
-            const method = route.request().method()
-
-            if (method === "GET") {
-                return fulfillPaginated(route, properties)
-            }
-
-            if (method === "POST") {
-                const body = JSON.parse(route.request().postData() ?? "{}")
-                const created = buildCreatedProperty(body)
-                properties = [created]
-                return fulfillJson(route, created, 201)
-            }
-
-            return route.continue()
-        })
-
-        await page.route("**/api/properties/prop-1", async (route) => {
-            const method = route.request().method()
-
-            if (method === "GET") {
-                return fulfillJson(route, properties[0])
-            }
-
-            if (method === "PUT") {
-                const body = JSON.parse(route.request().postData() ?? "{}")
-                properties[0] = {
-                    ...properties[0]!,
-                    ...body,
-                    updatedAt: new Date().toISOString(),
-                }
-                return fulfillJson(route, properties[0])
-            }
-
-            if (method === "DELETE") {
-                properties = []
-                return route.fulfill({ status: 204 })
-            }
-
-            return route.continue()
-        })
-
-        // ─── 1. Lista vazia inicialmente ─────────────────────────────────────
         await page.goto("/propriedades")
         await hideDevTools(page)
 
         await expect(
             page.getByRole("heading", { name: /análise de propriedades/i, level: 1 }),
         ).toBeVisible()
-        await expect(page.getByText(/nenhuma propriedade cadastrada/i)).toBeVisible()
-
-        // ─── 2. Criar nova propriedade (via modal) ───────────────────────────
-        await page.getByRole("button", { name: /cadastrar primeira propriedade/i }).click()
-        const createDialog = page.getByRole("dialog", {
-            name: /adicionar propriedade/i,
-        })
-        await expect(createDialog).toBeVisible()
-
-        await page.getByLabel(/nome da propriedade/i).fill("Casa Principal")
-        await page.getByLabel(/distribuidora vinculada/i).selectOption("dist-cemig")
-        await page.getByLabel(/logradouro/i).fill("Rua das Flores, 100")
-        await page.getByLabel(/cidade/i).fill("Belo Horizonte")
-        await page.getByLabel(/^uf$/i).selectOption("MG")
-        await page.getByLabel(/cep/i).fill("30000000")
-
-        await page.getByRole("button", { name: /criar propriedade/i }).click()
-
-        // Modal fecha, sem navegação — o card aparece na mesma /propriedades
-        await expect(createDialog).not.toBeVisible()
-        await expect(page).toHaveURL(/\/propriedades$/)
-        await expect(page.getByTestId("property-card-prop-1")).toBeVisible()
-        await expect(page.getByText(/cemig/i).first()).toBeVisible()
-
-        // ─── 3. Detalhes → Editar (via botão "Editar" no header, modal) ──────
-        // Click no card vai pra detalhes.
-        await page.getByTestId("property-card-prop-1").click()
-        await expect(page).toHaveURL(/\/propriedades\/prop-1$/)
-
-        // Header da details mostra o nome e a distribuidora
-        await expect(page.getByRole("heading", { level: 1, name: /casa principal/i })).toBeVisible()
-        await expect(page.getByText(/cemig/i).first()).toBeVisible()
-        // Faturamento migrado da distribuidora pra propriedade —
-        // não selecionamos electricalSystem/billingClass no form, então
-        // valem os defaults do PropertyForm (MONOPHASIC/B1).
-        await expect(page.getByText(/monofásico/i)).toBeVisible()
-        await expect(page.getByText(/b1 — residencial/i)).toBeVisible()
-        // Seção de áreas — EmptyState
-        await expect(page.getByText(/nenhuma área cadastrada/i)).toBeVisible()
-
-        // Botão "Editar" (só o verbo) abre o modal de edição — sem navegar,
-        // o título do dialog é que diz "Editar propriedade".
-        await page.getByRole("button", { name: /^editar$/i }).click()
-        const editDialog = page.getByRole("dialog", {
-            name: /editar propriedade/i,
-        })
-        await expect(editDialog).toBeVisible()
-
-        const nameInput = page.getByLabel(/nome da propriedade/i)
-        await nameInput.fill("Casa Renovada")
-        await page.getByRole("button", { name: /salvar alterações/i }).click()
-
-        // Modal fecha, permanece na details (não navega pra lista)
-        await expect(editDialog).not.toBeVisible()
-        await expect(page).toHaveURL(/\/propriedades\/prop-1$/)
-        await expect(page.getByRole("heading", { level: 1, name: /casa renovada/i })).toBeVisible()
-
-        // ─── 4. Trocar distribuidora (mesmo botão "Editar", ainda na details) ─
-        await page.getByRole("button", { name: /^editar$/i }).click()
-        await expect(editDialog).toBeVisible()
-
-        await page.getByLabel(/distribuidora vinculada/i).selectOption("dist-enel")
-        await page.getByRole("button", { name: /salvar alterações/i }).click()
-
-        await expect(editDialog).not.toBeVisible()
-        await expect(page).toHaveURL(/\/propriedades\/prop-1$/)
-        // Tag da distribuidora na details agora mostra ENEL
-        await expect(page.getByText(/enel são paulo/i)).toBeVisible()
-
-        // ─── 5. Excluir (via menu ⋯ no header da details) ────────────────────
-        await page.getByRole("button", { name: /opções de Casa Renovada/i }).click()
-        await page.getByRole("menuitem", { name: /excluir/i }).click()
-
-        // ConfirmDialog abre
-        await expect(page.getByRole("heading", { name: /excluir propriedade/i })).toBeVisible()
-
-        await page.getByRole("button", { name: "Excluir" }).click()
-
-        // onAfterDelete navega de volta pra lista, empty state restaurado
-        await expect(page).toHaveURL(/\/propriedades$/)
-        await expect(page.getByText(/nenhuma propriedade cadastrada/i)).toBeVisible()
-        await expect(page.getByTestId("property-card-prop-1")).not.toBeVisible()
+        await expect(page.getByRole("tree")).toBeVisible()
+        await expect(page.getByRole("treeitem", { name: "Casa Principal" })).toBeVisible()
+        await expect(
+            page.getByRole("heading", { name: "Selecione o que deseja analisar" }),
+        ).toBeVisible()
+        // Criar propriedade saiu daqui — vive em Configurações → Cadastro.
+        await expect(page.getByRole("button", { name: /nova propriedade/i })).toHaveCount(0)
+        await expect(
+            page.getByRole("button", { name: /cadastrar primeira propriedade/i }),
+        ).toHaveCount(0)
     })
 
-    test("o menu da propriedade continua alcançável com toasts empilhados", async ({ page }) => {
-        // Cada toast vive 4 s e o sonner pausa o descarte com o documento
-        // oculto. Sem isto, o teste depende de as três edições caberem nesses
-        // 4 s — o que não vale sob carga — e os toasts expiram antes de
-        // coexistirem. A expansão da pilha continua vindo do ponteiro, abaixo.
-        await page.addInitScript(() => {
-            Object.defineProperty(document, "hidden", { get: () => true })
-        })
-        await setupAuthAndDistributors(page)
-
-        let property: Property = buildCreatedProperty({
-            name: "Casa Principal",
-            distributorId: "dist-cemig",
-            electricalSystem: "MONOPHASIC",
-        } as CreatePropertyInput)
-        await page.route(/\/api\/properties(\?.*)?$/, (route) =>
-            fulfillPaginated(route, [property]),
-        )
-        await page.route("**/api/properties/prop-1", async (route) => {
-            if (route.request().method() === "PUT") {
-                property = { ...property, ...JSON.parse(route.request().postData() ?? "{}") }
-            }
-            return fulfillJson(route, property)
-        })
-
-        await page.goto("/propriedades/prop-1")
-        await hideDevTools(page)
-
-        // Três edições seguidas empilham três toasts de "atualizada" — a pilha
-        // (visibleToasts padrão do sonner) que, expandida, chega à altura do menu.
-        for (let edit = 0; edit < 3; edit++) {
-            await page.getByRole("button", { name: /^editar$/i }).click()
-            const dialog = page.getByRole("dialog", { name: /editar propriedade/i })
-            await page.getByRole("button", { name: /salvar alterações/i }).click()
-            await expect(dialog).not.toBeVisible()
-        }
-        const toasts = page.locator('[data-sonner-toast][data-removed="false"]')
-        await expect(toasts).toHaveCount(3)
-
-        // Ponteiro sobre o toast expande a pilha e pausa o descarte — o estado
-        // em que um usuário que mira no menu o encontra. O menu abre pelo
-        // teclado para não tirar o ponteiro de cima dos toasts.
-        await expect(async () => {
-            const front = await toasts.first().boundingBox()
-            expect(front!.y).toBeGreaterThanOrEqual(0)
-            expect(front!.y + front!.height).toBeLessThanOrEqual(page.viewportSize()!.height)
-            await page.mouse.move(front!.x + front!.width / 2, front!.y + front!.height / 2)
-            await expect(toasts.first()).toHaveAttribute("data-expanded", "true", { timeout: 500 })
-        }).toPass()
-        await page.getByRole("button", { name: /opções de casa principal/i }).focus()
-        await page.keyboard.press("Enter")
-
-        // `trial` confere a interceptação de ponteiro sem clicar de verdade.
-        await page.getByRole("menuitem", { name: /excluir/i }).click({ trial: true, timeout: 3000 })
-    })
-
-    test("bloqueia criação de propriedade quando não há distribuidora cadastrada", async ({
+    test("seleciona a propriedade na árvore, edita nome e distribuidora e não oferece excluir", async ({
         page,
     }) => {
-        // A antiga NewPropertyPage bloqueava a criação inteira com um guard
-        // ("catálogo de distribuidoras indisponível") quando o catálogo
-        // estava vazio — esse guard tinha ficado pra trás quando a criação
-        // virou modal, e foi restaurado aqui: PropertyFormDialog agora
-        // mostra o mesmo guard dentro do modal em vez do PropertyForm, no
-        // modo "create".
-        await mockAppShellBackground(page)
-        await setupAuth(page)
-        await page.route(/\/api\/properties(\?.*)?$/, (route) => {
-            if (route.request().method() === "GET") {
-                return fulfillPaginated(route, [])
-            }
-            return route.continue()
-        })
-        // Catálogo vazio
-        await page.route(/\/api\/distributors(\?.*)?$/, (route) => fulfillPaginated(route, []))
+        const state = { property: { ...PROP_1 } }
+        await setupAnalysis(page, { getTree: () => treeOf([state.property]) })
+        await routeProperty(page, state)
 
         await page.goto("/propriedades")
         await hideDevTools(page)
 
-        await page.getByRole("button", { name: /cadastrar primeira propriedade/i }).click()
-        const createDialog = page.getByRole("dialog", {
-            name: /adicionar propriedade/i,
-        })
-        await expect(createDialog).toBeVisible()
+        // ─── 1. Selecionar na árvore abre o detalhe ao lado dela ─────────────
+        await page.getByRole("treeitem", { name: "Casa Principal" }).click()
+        await expect(page).toHaveURL(/\/propriedades\/prop-1$/)
+        await expect(page.getByRole("heading", { level: 2, name: /casa principal/i })).toBeVisible()
+        await expect(page.getByRole("treeitem", { name: "Casa Principal" })).toHaveAttribute(
+            "aria-selected",
+            "true",
+        )
+        await expect(page.getByText(/cemig/i).first()).toBeVisible()
+        await expect(page.getByText(/biphasic|bifásico/i)).toBeVisible()
+        await expect(page.getByText(/b1 — residencial/i)).toBeVisible()
+        await expect(page.getByRole("heading", { level: 2, name: /^medidor$/i })).toBeVisible()
 
-        await expect(
-            createDialog.getByText(/catálogo de distribuidoras indisponível/i),
-        ).toBeVisible()
-        await expect(
-            createDialog.getByRole("link", {
-                name: /ver catálogo de distribuidoras/i,
+        // ─── 2. Editar nome pelo modal, sem sair do detalhe ──────────────────
+        await page.getByRole("button", { name: /^editar$/i }).click()
+        const editDialog = page.getByRole("dialog", { name: /editar propriedade/i })
+        await expect(editDialog).toBeVisible()
+        await page.getByLabel(/nome da propriedade/i).fill("Casa Renovada")
+        await page.getByRole("button", { name: /salvar alterações/i }).click()
+
+        await expect(editDialog).not.toBeVisible()
+        await expect(page).toHaveURL(/\/propriedades\/prop-1$/)
+        await expect(page.getByRole("heading", { level: 2, name: /casa renovada/i })).toBeVisible()
+        // A árvore acompanha a escrita.
+        await expect(page.getByRole("treeitem", { name: "Casa Renovada" })).toBeVisible()
+
+        // ─── 3. Trocar a distribuidora vinculada ─────────────────────────────
+        await page.getByRole("button", { name: /^editar$/i }).click()
+        await expect(editDialog).toBeVisible()
+        await page.getByLabel(/distribuidora vinculada/i).selectOption("dist-enel")
+        await page.getByRole("button", { name: /salvar alterações/i }).click()
+
+        await expect(editDialog).not.toBeVisible()
+        await expect(page.getByText(/enel são paulo/i)).toBeVisible()
+
+        // ─── 4. Excluir não existe aqui ──────────────────────────────────────
+        await expect(page.getByRole("button", { name: /opções de/i })).toHaveCount(0)
+        await expect(page.getByRole("button", { name: /excluir/i })).toHaveCount(0)
+    })
+
+    test("busca na hierarquia filtra a árvore e avisa quando nada casa", async ({ page }) => {
+        await setupAnalysis(page, { properties: [PROP_1, PROP_2] })
+
+        await page.goto("/propriedades")
+        await hideDevTools(page)
+        await expect(page.getByRole("treeitem")).toHaveCount(2)
+
+        await page.getByRole("searchbox", { name: "Buscar na hierarquia" }).fill("loja")
+        await expect(page.getByRole("treeitem")).toHaveCount(1)
+        await expect(page.getByRole("treeitem", { name: "Loja Centro" })).toBeVisible()
+
+        await page.getByRole("searchbox", { name: "Buscar na hierarquia" }).fill("zzz")
+        await expect(page.getByText("Nenhum resultado para a busca.")).toBeVisible()
+    })
+
+    test("avisa quando o teto da árvore corta propriedades", async ({ page }) => {
+        await setupAnalysis(page, { getTree: () => ({ ...treeOf([PROP_1]), total: 130 }) })
+
+        await page.goto("/propriedades")
+        await hideDevTools(page)
+
+        await expect(page.getByText("Mostrando 1 de 130 propriedades.")).toBeVisible()
+    })
+
+    test("sem propriedades, leva ao Cadastro", async ({ page }) => {
+        await setupAnalysis(page, { properties: [] })
+        await page.route(/\/api\/tariff-flag(\?.*)?$/, (route) => route.fulfill({ status: 404 }))
+
+        await page.goto("/propriedades")
+        await hideDevTools(page)
+
+        await expect(page.getByText(/nenhuma propriedade cadastrada/i)).toBeVisible()
+        await page.getByRole("link", { name: "Cadastre em Configurações" }).click()
+        await expect(page).toHaveURL(/\/configuracoes\/cadastro$/)
+    })
+})
+
+test.describe("Análise — comparação de áreas da propriedade", () => {
+    test.beforeEach(async ({ context }) => {
+        await context.clearCookies()
+    })
+
+    const AREA_2: Area = { ...AREA_1, id: "area-2", name: "Sala" }
+
+    test("compara as áreas com medidor em kWh e em R$", async ({ page }) => {
+        await setupAnalysis(page, { areas: [AREA_1, AREA_2] })
+        await page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) =>
+            fulfillJson(route, {
+                items: [summaryItem("area-1", 40, 32), summaryItem("area-2", 20, 16)],
             }),
-        ).toHaveAttribute("href", "/distribuidoras")
-        // O form não renderiza quando o catálogo está vazio
-        await expect(page.getByLabel(/nome da propriedade/i)).not.toBeVisible()
+        )
+        await page.goto("/propriedades/prop-1")
+        await hideDevTools(page)
+
+        const comparison = page.getByTestId("area-comparison")
+        await expect(comparison.getByText("Cozinha")).toBeVisible()
+        await expect(comparison.getByText("Sala")).toBeVisible()
+        await expect(comparison.getByText("40,00 kWh")).toBeVisible()
+
+        await comparison.getByRole("button", { name: "R$" }).click()
+        await expect(comparison.getByText(/R\$\s?32,00/)).toBeVisible()
+    })
+
+    test("deixa de fora a área sem medidor", async ({ page }) => {
+        await setupAnalysis(page, { areas: [AREA_1, AREA_2] })
+        await page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) =>
+            fulfillJson(route, { items: [summaryItem("area-1", 40, 32)] }),
+        )
+        await page.goto("/propriedades/prop-1")
+        await hideDevTools(page)
+
+        const comparison = page.getByTestId("area-comparison")
+        await expect(comparison.getByText("Cozinha")).toBeVisible()
+        await expect(comparison.getByText("Sala")).toHaveCount(0)
+    })
+
+    test("sem custo calculável (Grupo A ou Branca), mostra kWh e desabilita R$ com a explicação", async ({
+        page,
+    }) => {
+        await setupAnalysis(page, { areas: [AREA_1] })
+        await page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) =>
+            fulfillJson(route, { items: [summaryItem("area-1", 40)] }),
+        )
+        await page.goto("/propriedades/prop-1")
+        await hideDevTools(page)
+
+        const comparison = page.getByTestId("area-comparison")
+        await expect(comparison.getByText("40,00 kWh")).toBeVisible()
+        await expect(comparison.getByRole("button", { name: "R$" })).toBeDisabled()
+        await expect(
+            comparison.getByText("Custo em R$ indisponível para esta tarifa."),
+        ).toBeVisible()
+    })
+
+    test("explica quando nenhuma área tem medidor ou quando não há áreas", async ({ page }) => {
+        await setupAnalysis(page, { areas: [AREA_1] })
+        await page.goto("/propriedades/prop-1")
+        await hideDevTools(page)
+        await expect(page.getByText("Nenhuma área desta propriedade tem medidor.")).toBeVisible()
+
+        await page.unroute(/\/api\/properties\/prop-\d+\/areas(\?.*)?$/)
+        await page.route(/\/api\/properties\/prop-\d+\/areas(\?.*)?$/, (route) =>
+            fulfillPaginated(route, []),
+        )
+        await page.reload()
+        await expect(
+            page.getByText("Cadastre áreas para comparar o consumo entre elas."),
+        ).toBeVisible()
     })
 })

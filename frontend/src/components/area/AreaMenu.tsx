@@ -13,15 +13,12 @@ interface AreaMenuProps {
     /**
      * Se true (default), o menu mostra o item "Editar" antes de "Excluir".
      *
-     * - AreaCard (lista) usa true: dá um atalho rápido pra editar sem passar
-     *   pela tela de detalhes.
-     * - AreaDetailsPage usa false: o header da página já tem um botão
-     *   "Editar área" explícito, então repetir no menu seria redundante.
+     * A AreaDetailsPage usa false: o header da página já tem um botão
+     * "Editar área" explícito, então repetir no menu seria redundante.
      */
     showEdit?: boolean
     /**
-     * Callback que abre o modal de edição (AreaFormDialog, no card
-     * chamador). O item "Editar" só é renderizado quando showEdit E onEdit
+     * Callback que abre o modal de edição (AreaFormDialog, no chamador). O item "Editar" só é renderizado quando showEdit E onEdit
      * estão presentes — sem onEdit, o item some (fail-safe) em vez de virar
      * link morto apontando pra uma rota removida.
      */
@@ -31,16 +28,15 @@ interface AreaMenuProps {
      *
      * Quando o menu é usado na AreaDetailsPage, depois do delete a URL
      * aponta pra uma área que não existe mais — o componente precisa ser
-     * informado pra navegar de volta pra propriedade pai. No AreaCard
-     * (lista), a invalidate da query já remove o card naturalmente, então
-     * essa prop não é necessária e fica como undefined.
+     * informado pra navegar de volta pra propriedade pai. Onde a lista
+     * é a única coisa que muda, a invalidate da query já basta e essa prop
+     * fica como undefined.
      */
     onAfterDelete?: () => void
 }
 
 /**
- * Menu de ações por área — fica no canto superior direito do card ou no
- * header da página de detalhes.
+ * Menu de ações por área — fica no header da página de detalhes.
  *
  * Itens:
  *   - Editar (opcional) — chama onEdit (abre AreaFormDialog no chamador)
@@ -48,8 +44,8 @@ interface AreaMenuProps {
  *
  * Sobre o aria-label dinâmico:
  *   Inclui o nome da área (`Opções de ${area.name}`) — mesmo padrão do
- *   PropertyMenu. Quando há múltiplos cards na mesma página, isso permite
- *   distinguir um menu do outro pelo screen reader e em testes E2E sem
+ *   DeviceMenu. Quando há múltiplos menus na mesma página, isso permite
+ *   distinguir um do outro pelo screen reader e em testes E2E sem
  *   precisar de `.first()` / `.nth()`.
  *
  * Sobre o aviso de cascade no ConfirmDialog:

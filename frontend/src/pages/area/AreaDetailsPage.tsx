@@ -15,7 +15,7 @@ import { AreaFormDialog } from "@/components/area/AreaFormDialog"
 import { DeviceFormDialog } from "@/components/device/DeviceFormDialog"
 import { DeviceCard } from "@/components/device/DeviceCard"
 import { AreaConsumptionSection } from "@/components/consumption/ConsumptionSection"
-import { ComparisonBars } from "@/components/consumption/ComparisonBars"
+import { ComparisonCard } from "@/components/consumption/ComparisonCard"
 import { MeterSection } from "@/components/meter/MeterSection"
 import { IconCircle } from "@/components/ui/IconCircle"
 import { LiveKpiCard } from "@/components/dashboard/LiveKpiCard"
@@ -307,7 +307,6 @@ interface DevicesSectionProps {
 const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
     const devicesQuery = useDevices(propertyId, areaId)
     const [isCreateOpen, setIsCreateOpen] = useState(false)
-    const [comparisonUnit, setComparisonUnit] = useState<"kwh" | "reais">("kwh")
     const devices = devicesQuery.data?.items ?? []
 
     const summaryQuery = useConsumptionSummary(
@@ -391,52 +390,11 @@ const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
             </div>
 
             {comparisonRows.length > 0 && (
-                <div className="blueprint">
-                    <i className="corner tl" />
-                    <i className="corner tr" />
-                    <i className="corner bl" />
-                    <i className="corner br" />
-
-                    <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-                        <div>
-                            <span className="font-heading text-17 font-semibold uppercase">
-                                Comparação de dispositivos
-                            </span>
-                            <span className="text-muted text-12-5 mt-[3px] block">
-                                Consumo por dispositivo neste mês (
-                                {comparisonUnit === "kwh" ? "kWh" : "R$"})
-                            </span>
-                        </div>
-                        <div
-                            role="group"
-                            aria-label="Unidade de comparação"
-                            className="flex gap-1.5"
-                        >
-                            <button
-                                type="button"
-                                className="lt-selbtn"
-                                data-on={comparisonUnit === "kwh"}
-                                aria-pressed={comparisonUnit === "kwh"}
-                                onClick={() => setComparisonUnit("kwh")}
-                            >
-                                kWh
-                            </button>
-                            <button
-                                type="button"
-                                className="lt-selbtn"
-                                data-on={comparisonUnit === "reais"}
-                                aria-pressed={comparisonUnit === "reais"}
-                                onClick={() => setComparisonUnit("reais")}
-                            >
-                                R$
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="px-5 pt-2 pb-5">
-                        <ComparisonBars rows={comparisonRows} unit={comparisonUnit} />
-                    </div>
-                </div>
+                <ComparisonCard
+                    title="Comparação de dispositivos"
+                    subtitle="Consumo por dispositivo neste mês"
+                    rows={comparisonRows}
+                />
             )}
 
             <DeviceFormDialog

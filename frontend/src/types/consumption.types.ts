@@ -145,8 +145,14 @@ export interface ConsumptionSummaryParams {
     to?: Date
 }
 
-/** Item de `GET /api/consumption/summary` — o bucket mais recente de 1 alvo. */
-export interface ConsumptionSummaryItem extends ConsumptionBucket {
+/**
+ * Item de `GET /api/consumption/summary` — o bucket mais recente de 1 alvo.
+ * `costBrl` só vem quando o custo é calculável para o alvo e a tarifa (Área e
+ * Dispositivo de Grupo A ou Tarifa Branca não têm custo próprio); o consumo
+ * (`kwhConsumed`) vem sempre.
+ */
+export interface ConsumptionSummaryItem extends Omit<ConsumptionBucket, "costBrl"> {
     id: string
     targetType: TargetType
+    costBrl?: number
 }

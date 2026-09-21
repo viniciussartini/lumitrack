@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test"
 
 import { fulfillError, fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
+import { mockPropertyTree } from "./support/propertyTree"
 import { hideDevTools } from "./support/devtools"
 import { AREA_1, DEVICE_1, DIST_CEMIG, PROP_1 } from "./support/fixtures"
 import type { Device } from "../../src/types/device.types"
@@ -49,6 +50,7 @@ type DeviceSeed = Device
 const setupAuthPropertyAndArea = async (page: Page) => {
     await mockAppShellBackground(page)
     await setupAuth(page)
+    await mockPropertyTree(page)
 
     await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
         fulfillPaginated(route, [DIST_CEMIG]),
@@ -259,8 +261,9 @@ test.describe("Fluxo CRUD de dispositivos", () => {
         ).toBeVisible()
         // Tags da hierarquia (sem testid — DeviceDetailsPage usa Tag simples,
         // mesma convenção do chip de propriedade em AreaDetailsPage)
-        await expect(page.getByText(/casa principal/i)).toBeVisible()
-        await expect(page.getByText(/^cozinha$/i)).toBeVisible()
+        // A árvore também mostra esses nomes — os chips são o que se confere aqui.
+        await expect(page.locator(".tag", { hasText: /casa principal/i })).toBeVisible()
+        await expect(page.locator(".tag", { hasText: /^cozinha$/i })).toBeVisible()
         // Tag de metadados (marca + modelo)
         await expect(page.getByText(/daikin · split 12000 btu/i)).toBeVisible()
 

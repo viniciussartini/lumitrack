@@ -123,7 +123,7 @@ describe("DeviceMenu — abrir/fechar", () => {
         expect(trigger).toHaveAttribute("aria-expanded", "true")
     })
 
-    it("aria-label inclui o nome do dispositivo (consistência com PropertyMenu/AreaMenu)", () => {
+    it("aria-label inclui o nome do dispositivo (consistência com AreaMenu)", () => {
         renderMenu({ device: { ...mockDevice, name: "Geladeira gourmet" } })
 
         expect(

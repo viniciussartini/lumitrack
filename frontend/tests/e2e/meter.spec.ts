@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test"
 
 import { fulfillError, fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
+import { mockPropertyTree } from "./support/propertyTree"
 import { hideDevTools } from "./support/devtools"
 import { DIST_CEMIG, PROP_1 } from "./support/fixtures"
 import type { Meter } from "../../src/types/meter.types"
@@ -34,6 +35,7 @@ import type { Meter } from "../../src/types/meter.types"
 const setupAuthAndProperty = async (page: Page) => {
     await mockAppShellBackground(page)
     await setupAuth(page)
+    await mockPropertyTree(page)
 
     await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
         fulfillPaginated(route, [DIST_CEMIG]),

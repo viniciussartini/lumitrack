@@ -593,6 +593,61 @@ describe("ConsumptionService.summary", () => {
         expect(result.items[0]!.id).toBe(propertyA.id)
     })
 
+    it("devolve kWh e custo de uma Área de propriedade Convencional", async () => {
+        const { user, property } = await setupPropertyMeter()
+        const area = await areaService.create(property.id, user.id, { name: "Sala" })
+        const areaMeter = await prismaTest.meter.create({
+            data: {
+                name: "Medidor Sala",
+                targetType: "AREA",
+                areaId: area.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "sala/medidor",
+            },
+        })
+        await insertReading(areaMeter.id, "2026-01-15T15:00:00Z", 40, 1000)
+
+        const result = await consumptionService.summary(user.id, {
+            targetType: "AREA",
+            ids: area.id,
+            granularity: "month",
+        })
+
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0]!.kwhConsumed).toBeCloseTo(40)
+        expect(result.items[0]!.costBrl).toBeCloseTo(40 * RATE, 6)
+    })
+
+    it("exclui silenciosamente uma Área de outro usuário, mesmo com medidor", async () => {
+        const { user: userA } = await setupPropertyMeter()
+        const { user: userB, property: propertyB } = await setupPropertyMeter(
+            "maria-summary@example.com",
+        )
+        const areaB = await areaService.create(propertyB.id, userB.id, { name: "Sala de B" })
+        const areaMeterB = await prismaTest.meter.create({
+            data: {
+                name: "Medidor Sala B",
+                targetType: "AREA",
+                areaId: areaB.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "b/sala",
+            },
+        })
+        await insertReading(areaMeterB.id, "2026-01-15T15:00:00Z", 40, 1000)
+
+        const result = await consumptionService.summary(userA.id, {
+            targetType: "AREA",
+            ids: areaB.id,
+            granularity: "month",
+        })
+
+        expect(result.items).toEqual([])
+    })
+
     it("exclui silenciosamente id inexistente — não lança", async () => {
         const { user, meter, property } = await setupPropertyMeter()
         await insertReading(meter.id, "2026-01-15T15:00:00Z", 40, 1000)
@@ -1284,7 +1339,7 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
         ).rejects.toThrow(/Grupo A/)
     })
 
-    it("summary() exclui silenciosamente uma Área de propriedade Grupo A, sem derrubar o lote", async () => {
+    it("summary() devolve o kWh de uma Área de propriedade Grupo A sem custo, sem derrubar o lote", async () => {
         const { user, property } = await setupGroupAPropertyMeter()
         const area = await areaService.create(property.id, user.id, { name: "Setor Produtivo" })
         const areaMeter = await prismaTest.meter.create({
@@ -1306,7 +1361,10 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
             granularity: "month",
         })
 
-        expect(result.items).toEqual([])
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0]!.id).toBe(area.id)
+        expect(result.items[0]!.kwhConsumed).toBeCloseTo(10)
+        expect(result.items[0]).not.toHaveProperty("costBrl")
     })
 })
 
@@ -2131,6 +2189,33 @@ describe("ConsumptionService.list — Tarifa Branca (Grupo B)", () => {
 
         findKwhByPostSpy.mockRestore()
         findKwhByPostGroupedByMonthSpy.mockRestore()
+    })
+
+    it("summary() devolve o kWh de uma Área de propriedade Branca sem custo", async () => {
+        const { user, property } = await setupWhitePropertyMeter()
+        const area = await areaService.create(property.id, user.id, { name: "Sala" })
+        const areaMeter = await prismaTest.meter.create({
+            data: {
+                name: "Medidor Sala",
+                targetType: "AREA",
+                areaId: area.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "sala-branca/medidor",
+            },
+        })
+        await insertReading(areaMeter.id, "2026-08-04T13:00:00Z", 25, 10_000)
+
+        const result = await consumptionService.summary(user.id, {
+            targetType: "AREA",
+            ids: area.id,
+            granularity: "month",
+        })
+
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0]!.kwhConsumed).toBeCloseTo(25)
+        expect(result.items[0]).not.toHaveProperty("costBrl")
     })
 })
 

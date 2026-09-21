@@ -104,7 +104,7 @@ describe("AreaMenu — abrir/fechar", () => {
         expect(trigger).toHaveAttribute("aria-expanded", "true")
     })
 
-    it("aria-label inclui o nome da área (consistência com PropertyMenu)", () => {
+    it("aria-label inclui o nome da área (consistência com DeviceMenu)", () => {
         renderMenu({ area: { ...mockArea, name: "Cozinha gourmet" } })
 
         expect(
@@ -243,7 +243,7 @@ describe("AreaMenu — exclusão", () => {
         expect(onAfterDelete).not.toHaveBeenCalled()
     })
 
-    it("funciona sem onAfterDelete (uso no AreaCard)", async () => {
+    it("funciona sem onAfterDelete", async () => {
         vi.mocked(areaService.delete).mockResolvedValue(undefined)
         const user = userEvent.setup()
         renderMenu({ onAfterDelete: undefined })

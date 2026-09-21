@@ -148,9 +148,14 @@ export type ConsumptionListResponse = Paginated<ConsumptionBucketResponse> & {
     granularity: Granularity
 }
 
-export type ConsumptionSummaryItem = ConsumptionBucketResponse & {
+// Item do resumo em lote — o consumo de quem tem medidor sempre volta; o
+// custo só quando o cálculo existe para aquele alvo e tarifa (Área/Aparelho
+// de Grupo A ou Tarifa Branca não têm custo próprio), por isso `costBrl` é
+// opcional aqui e obrigatório em `ConsumptionBucketResponse`.
+export type ConsumptionSummaryItem = Omit<ConsumptionBucketResponse, "costBrl"> & {
     id: string
     targetType: TargetType
+    costBrl?: number
 }
 
 export type ConsumptionSummaryResponse = {
@@ -407,41 +412,40 @@ export class ConsumptionService {
             if (!bucket) continue
 
             const distributor = await this.distributorRepository.findById(property.distributorId)
-            if (!distributor) continue
-
-            const costBrl = await this.resolveSummaryItemCost(
-                id,
-                meter.id,
-                bucket,
-                granularity,
-                targetType,
-                property,
-                distributor,
-                flagPer100Kwh,
-            )
-            if (costBrl === null) continue
+            const costBrl = distributor
+                ? await this.resolveSummaryItemCost(
+                      id,
+                      meter.id,
+                      bucket,
+                      granularity,
+                      targetType,
+                      property,
+                      distributor,
+                      flagPer100Kwh,
+                  )
+                : null
 
             items.push({
                 id,
                 targetType,
                 bucketStart: bucket.bucketStart,
                 kwhConsumed: bucket.kwhConsumed,
-                costBrl,
                 avgPowerW: bucket.avgPowerW,
+                ...(costBrl !== null && { costBrl }),
             })
         }
 
         return { items }
     }
 
-    // Custo de 1 item de `summary()` — `null` quando o cálculo falha (mesma
-    // tolerância já aplicada acima a "sem medidor"/"sem distribuidora": o
-    // item some do resultado, os demais alvos do lote continuam
-    // respondendo). Grupo A só calcula custo em mês/ano + Propriedade —
-    // uma Área/Aparelho de uma propriedade Grupo A lança `ValidationError`
-    // ao tentar qualquer outra combinação (`calculateBucketCost`), o caso
-    // esperado e silencioso; qualquer outro erro é logado antes de excluir
-    // o item, para não mascarar uma falha real (catálogo ausente, timeout).
+    // Custo de 1 item de `summary()` — `null` quando o cálculo não existe ou
+    // falha: o item continua no resultado com o consumo, só sem `costBrl`, e
+    // os demais alvos do lote seguem respondendo. Grupo A e Tarifa Branca só
+    // calculam custo em mês/ano + Propriedade — uma Área/Aparelho dessas
+    // propriedades lança `ValidationError` ao tentar qualquer outra
+    // combinação (`calculateBucketCost`), o caso esperado e silencioso;
+    // qualquer outro erro é logado antes de omitir o custo, para não
+    // mascarar uma falha real (catálogo ausente, timeout).
     private async resolveSummaryItemCost(
         targetId: string,
         meterId: string,
@@ -477,7 +481,7 @@ export class ConsumptionService {
             if (!(err instanceof ValidationError)) {
                 log.warn(
                     { err, targetId },
-                    "Falha inesperada ao calcular custo — item excluído do resumo",
+                    "Falha inesperada ao calcular custo — item devolvido sem custo",
                 )
             }
             return null

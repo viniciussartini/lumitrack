@@ -1,5 +1,4 @@
-import { useState } from "react"
-import { ComparisonBars } from "@/components/consumption/ComparisonBars"
+import { ComparisonCard } from "@/components/consumption/ComparisonCard"
 import { useConsumptionSummary } from "@/hooks/queries/useConsumption"
 import type { ConsumptionSummaryItem } from "@/types/consumption.types"
 import type { Property } from "@/types/property.types"
@@ -23,8 +22,6 @@ interface PropertyComparisonSectionProps {
  * "funciona com 1 propriedade sem quebrar".
  */
 export const PropertyComparisonSection = ({ properties }: PropertyComparisonSectionProps) => {
-    const [unit, setUnit] = useState<"kwh" | "reais">("kwh")
-
     const summaryQuery = useConsumptionSummary(
         "PROPERTY",
         properties.map((p) => p.id),
@@ -46,46 +43,11 @@ export const PropertyComparisonSection = ({ properties }: PropertyComparisonSect
     if (comparisonRows.length === 0) return null
 
     return (
-        <div className="blueprint p-0" data-testid="property-comparison-section">
-            <i className="corner tl" />
-            <i className="corner tr" />
-            <i className="corner bl" />
-            <i className="corner br" />
-
-            <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-                <div>
-                    <span className="font-heading text-17 font-semibold uppercase">
-                        Comparação entre propriedades
-                    </span>
-                    <span className="text-muted text-12-5 mt-[3px] block">
-                        Consumo do mês por unidade ({unit === "kwh" ? "kWh" : "R$"})
-                    </span>
-                </div>
-                <div role="group" aria-label="Unidade de comparação" className="flex gap-1.5">
-                    <button
-                        type="button"
-                        className="lt-selbtn"
-                        data-on={unit === "kwh"}
-                        aria-pressed={unit === "kwh"}
-                        onClick={() => setUnit("kwh")}
-                    >
-                        kWh
-                    </button>
-                    <button
-                        type="button"
-                        className="lt-selbtn"
-                        data-on={unit === "reais"}
-                        aria-pressed={unit === "reais"}
-                        onClick={() => setUnit("reais")}
-                    >
-                        R$
-                    </button>
-                </div>
-            </div>
-
-            <div className="px-5 pt-2 pb-5">
-                <ComparisonBars rows={comparisonRows} unit={unit} />
-            </div>
-        </div>
+        <ComparisonCard
+            title="Comparação entre propriedades"
+            subtitle="Consumo do mês por unidade"
+            rows={comparisonRows}
+            testId="property-comparison-section"
+        />
     )
 }

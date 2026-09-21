@@ -297,18 +297,18 @@ Tela inicial com o panorama geral, filtrada pela propriedade selecionada no sele
 
 **Hoje:** o Painel já entrega bandeira vigente, alertas em disparo, KPIs de consumo/custo e gráfico de potência em tempo real. Faltam a tabela hierarquizada, o peso por medidor, a meta e a demanda.
 
-**FNC005 — Análise** `[planejado — Fase 24 (itens 1–3, aba Consumo e Custos); Fase 25 (itens 4–6, aba Grandezas Elétricas e área de análise)]`
+**FNC005 — Análise** `[parcial — Fase 24: itens 1–3 implementados para a Propriedade, pendentes para Área e Dispositivo; planejado — Fase 25 (itens 4–6, aba Grandezas Elétricas e área de análise)]`
 
 Onde o usuário examina em detalhe consumo, custo e medições de cada item cadastrado.
 
 1. À esquerda, lista hierarquizada (Propriedades → Áreas → Dispositivos) com campo de busca; à direita, a página de detalhes do item selecionado.
 2. A página de detalhes tem duas abas: **Consumo e Custos** e **Grandezas Elétricas**.
-3. Na aba **Consumo e Custos**: dados do item e do seu medidor, gráfico de consumo em tempo real (minuto a minuto) e comparação em barras do consumo no mês, em kWh ou R$ — entre Áreas quando o alvo é uma Propriedade, entre Dispositivos quando o alvo é uma Área, sempre restrita aos que têm medidor vinculado.
+3. Na aba **Consumo e Custos**: dados do item e do seu medidor, gráfico de consumo em tempo real (minuto a minuto) e comparação em barras do consumo no mês, em kWh ou R$ — entre Áreas quando o alvo é uma Propriedade, entre Dispositivos quando o alvo é uma Área, sempre restrita aos que têm medidor vinculado. O R$ só existe quando o custo é calculável (Grupo B Convencional); em Grupo A e Tarifa Branca a comparação de áreas e dispositivos fica em kWh, com o R$ desabilitado e explicado.
 4. Na aba **Grandezas Elétricas**: cards em tempo real (segundo a segundo) de tensão (por fase, fase-neutro média, desequilíbrio), corrente (por fase, neutro e média), potência (ativa total e por fase, reativa, aparente, frequência), fator de potência (média em destaque, por fase) e THD de tensão e corrente por fase. Grandeza não fornecida pelo medidor aparece como "-" (RN34).
 5. Abaixo dos cards, a área de análise: o usuário escolhe janela do gráfico, dia, hora, agregação e grandeza, e aciona "Gerar análise" para plotar gráfico e tabela.
 6. Com janela **Hora**, gráfico e tabela seguem a agregação escolhida. Com janela **Dia**, os dados são exibidos de hora em hora e os campos Hora e Agregação ficam desabilitados.
 
-**Hoje:** existe a rota `/propriedades` com detalhes por nível e gráfico em tempo real, mas sem a árvore de seleção com busca, sem a comparação no formato do design e sem a aba de grandezas elétricas e a área de análise configurável (que dependem de RF37 e são da Fase 25).
+**Hoje:** `/propriedades` mostra a árvore de seleção com busca (`components/analysis/AnalysisTree.tsx`, seleção pela URL) à esquerda e o detalhe do item à direita. O detalhe da **Propriedade** segue o design (dados, Medidor, gráfico em tempo real e "Comparação de áreas" em kWh ou R$ — `pages/property/PropertyDetailsPage.tsx`, `components/property/AreaComparison.tsx`); o custo opcional vem de `GET /api/consumption/summary` (`consumption.service.ts`). **Área** e **Dispositivo** ainda têm as páginas anteriores, sem os KPIs "Consumo hoje" e "Custo do mês" e sem o menu de criar/excluir removido (Fase 24, itens 2 e 3); a aba de grandezas elétricas e a área de análise configurável dependem de RF37 e são da Fase 25.
 
 **FNC006 — Histórico e comparações** `[planejado — Fase 26]`
 
