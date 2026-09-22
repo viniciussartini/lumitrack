@@ -335,6 +335,43 @@ test.describe("Configurações → Cadastro", () => {
         await expect(page.getByText(/nenhuma propriedade cadastrada/i)).toBeVisible()
     })
 
+    test("exclui um dispositivo pela árvore só depois de confirmar", async ({ page }) => {
+        let tree = TREE
+        await setupCadastro(page, [PROP_1], () => tree)
+        let deleted = false
+        await page.route("**/api/properties/prop-1/areas/area-1/devices/device-1", (route) => {
+            if (route.request().method() === "DELETE") {
+                deleted = true
+                tree = {
+                    ...TREE,
+                    items: [
+                        {
+                            ...TREE.items[0]!,
+                            areas: [{ ...TREE.items[0]!.areas[0]!, devices: [] }],
+                        },
+                    ],
+                }
+                return route.fulfill({ status: 204 })
+            }
+            return fulfillJson(route, DEVICE_1)
+        })
+        await page.goto("/configuracoes/cadastro")
+        await hideDevTools(page)
+
+        await expandAndSettle(page.getByRole("button", { name: /^casa/i }))
+        await page.getByRole("button", { name: /^cozinha/i }).click()
+        await page.getByRole("button", { name: "Excluir dispositivo Geladeira" }).click()
+        const dialog = page.getByRole("dialog", { name: /excluir dispositivo/i })
+        await expect(dialog).toContainText(/integração iot/i)
+        expect(deleted).toBe(false)
+
+        await dialog.getByRole("button", { name: /^excluir$/i }).click()
+
+        await expect(dialog).toBeHidden()
+        expect(deleted).toBe(true)
+        await expect(page.getByText("Geladeira", { exact: true })).toBeHidden()
+    })
+
     test("exclui uma área pela árvore só depois de confirmar", async ({ page }) => {
         let tree = TREE
         await setupCadastro(page, [PROP_1], () => tree)

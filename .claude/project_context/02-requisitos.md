@@ -36,7 +36,7 @@
 - RF07 `[implementado]`: o sistema deve permitir que um usuário cadastre Propriedades (endereço, distribuidora, sistema elétrico, classe de faturamento B1/B2/B3), Áreas dentro de uma Propriedade e Aparelhos dentro de uma Área.
 - RF08 `[implementado]`: o sistema deve permitir que um usuário consulte o catálogo de distribuidoras de energia (somente leitura, dados tarifários reais) e a bandeira tarifária vigente.
 - RF24 `[implementado]`: o sistema deve manter a bandeira tarifária vigente sincronizada automaticamente com a fonte oficial da ANEEL (ADR-0007), permitindo override manual por usuário `ADMIN` — a sincronização automática nunca é o único caminho para corrigir um valor errado.
-- RF46 `[implementado]`: o sistema deve concentrar a gestão do cadastro (Propriedade, Área, Dispositivo) numa tela única de Configurações, exibindo a estrutura hierárquica completa com ações de edição e exclusão em cada nível. Implementado em `RegistrationPage.tsx` (criação) e `RegistrationTree.tsx` (estrutura, edição e exclusão), alimentada por `GET /api/properties/tree` (`property-tree.service.ts`), que devolve só id, nome e potência — sem endereço. **Corte de execução, não regra:** os pontos de entrada de criar/editar/excluir dentro de Análise (`/propriedades`) permanecem até a reconstrução dessa tela na Fase 24 — até lá o cadastro tem duas entradas. A partir da Fase 24, criar e excluir vivem só no Cadastro; **editar** continua também nas páginas de detalhe de Análise (botões "Editar", "Editar área" e "Editar dispositivo"), como no design vigente.
+- RF46 `[implementado]`: o sistema deve concentrar a gestão do cadastro (Propriedade, Área, Dispositivo) numa tela única de Configurações, exibindo a estrutura hierárquica completa com ações de edição e exclusão em cada nível. Implementado em `RegistrationPage.tsx` (criação) e `RegistrationTree.tsx` (estrutura, edição e exclusão), alimentada por `GET /api/properties/tree` (`property-tree.service.ts`), que devolve só id, nome e potência — sem endereço. Criar e excluir vivem só no Cadastro; **editar** continua também nas páginas de detalhe de Análise (botões "Editar", "Editar área" e "Editar dispositivo"), como no design vigente.
 
 ### Medição IoT
 
@@ -297,7 +297,7 @@ Tela inicial com o panorama geral, filtrada pela propriedade selecionada no sele
 
 **Hoje:** o Painel já entrega bandeira vigente, alertas em disparo, KPIs de consumo/custo e gráfico de potência em tempo real. Faltam a tabela hierarquizada, o peso por medidor, a meta e a demanda.
 
-**FNC005 — Análise** `[parcial — Fase 24: itens 1–3 implementados para a Propriedade e a Área, pendentes para o Dispositivo; planejado — Fase 25 (itens 4–6, aba Grandezas Elétricas e área de análise)]`
+**FNC005 — Análise** `[parcial — itens 1–3 implementados; planejado — Fase 25 (itens 4–6, aba Grandezas Elétricas e área de análise)]`
 
 Onde o usuário examina em detalhe consumo, custo e medições de cada item cadastrado.
 
@@ -308,7 +308,7 @@ Onde o usuário examina em detalhe consumo, custo e medições de cada item cada
 5. Abaixo dos cards, a área de análise: o usuário escolhe janela do gráfico, dia, hora, agregação e grandeza, e aciona "Gerar análise" para plotar gráfico e tabela.
 6. Com janela **Hora**, gráfico e tabela seguem a agregação escolhida. Com janela **Dia**, os dados são exibidos de hora em hora e os campos Hora e Agregação ficam desabilitados.
 
-**Hoje:** `/propriedades` mostra a árvore de seleção com busca (`components/analysis/AnalysisTree.tsx`, seleção pela URL) à esquerda e o detalhe do item à direita. O detalhe da **Propriedade** (`pages/property/PropertyDetailsPage.tsx`, `components/property/AreaComparison.tsx`) e o da **Área** (`pages/area/AreaDetailsPage.tsx`, `components/device/DeviceComparison.tsx`) seguem o design: dados, Medidor, gráfico em tempo real e comparação em barras em kWh ou R$; o da Área traz ainda os KPIs "Consumo hoje" e "Custo do mês" (`hooks/useTargetConsumptionKpis.ts`), sempre do medidor da própria área. O consumo vem de `GET /api/consumption/summary` (`consumption.service.ts`), com `costBrl` opcional. O **Dispositivo** ainda tem a página anterior, sem os KPIs e com o menu de excluir (Fase 24, item 3); a aba de grandezas elétricas e a área de análise configurável dependem de RF37 e são da Fase 25.
+**Hoje:** `/propriedades` mostra a árvore de seleção com busca (`components/analysis/AnalysisTree.tsx`, seleção pela URL) à esquerda e o detalhe do item à direita. Os detalhes da **Propriedade** (`pages/property/PropertyDetailsPage.tsx`, `components/property/AreaComparison.tsx`), da **Área** (`pages/area/AreaDetailsPage.tsx`, `components/device/DeviceComparison.tsx`) e do **Dispositivo** (`pages/device/DeviceDetailsPage.tsx`) seguem o design: dados, Medidor e gráfico em tempo real; Propriedade e Área trazem a comparação em barras em kWh ou R$, e Área e Dispositivo os KPIs "Consumo hoje" e "Custo do mês" (`hooks/useTargetConsumptionKpis.ts`), sempre do medidor do próprio item. O consumo vem de `GET /api/consumption/summary` (`consumption.service.ts`), com `costBrl` opcional. Criar e excluir Propriedade, Área e Dispositivo só existem em Configurações → Cadastro; nas páginas de Análise só se edita. A aba de grandezas elétricas e a área de análise configurável dependem de RF37 e são da Fase 25.
 
 **FNC006 — Histórico e comparações** `[planejado — Fase 26]`
 

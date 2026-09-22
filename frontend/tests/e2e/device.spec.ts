@@ -4,7 +4,7 @@ import { fulfillError, fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { mockPropertyTree } from "./support/propertyTree"
 import { hideDevTools } from "./support/devtools"
-import { AREA_1, DEVICE_1, DIST_CEMIG, PROP_1 } from "./support/fixtures"
+import { AREA_1, DEVICE_1, DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
 import type { Device } from "../../src/types/device.types"
 
 /**
@@ -15,10 +15,12 @@ import type { Device } from "../../src/types/device.types"
  *   1. Chegar pela árvore de seleção (propriedade → área → dispositivo)
  *   2. Ver detalhes (header com tags área/propriedade + seções Medidor/Consumo)
  *   3. Editar (botão "Editar dispositivo" no header, mesmo modal, sem navegar)
- *   4. Excluir (via menu ⋯ na DeviceDetailsPage)
+ *   4. KPIs "Consumo hoje" e "Custo do mês" com dado real, e custo indisponível
+ *      (Grupo A/Branca) como traço explicado
  *
- * Criar dispositivo vive em Configurações → Cadastro (settings.spec.ts): a
- * página da área não tem mais "Adicionar dispositivo" nem grade de cards.
+ * Criar e excluir dispositivo vivem em Configurações → Cadastro
+ * (settings.spec.ts): as páginas da área e do dispositivo não têm mais
+ * "Adicionar dispositivo", grade de cards nem menu de excluir.
  *
  * O spec parte com 1 propriedade, 1 área e 1 dispositivo já cadastrados.
  */
@@ -210,7 +212,7 @@ test.describe("Dispositivo na Análise", () => {
         await context.clearCookies()
     })
 
-    test("chega pela árvore, vê detalhes, edita e exclui um dispositivo", async ({ page }) => {
+    test("chega pela árvore, vê detalhes e edita um dispositivo", async ({ page }) => {
         await setupAuthPropertyAndArea(page)
         const state: { devices: DeviceSeed[]; nextId: number } = {
             devices: [{ ...DEVICE_1 }],
@@ -236,7 +238,7 @@ test.describe("Dispositivo na Análise", () => {
         )
 
         const main = page.getByRole("main")
-        await expect(main.getByRole("heading", { level: 1, name: /geladeira/i })).toBeVisible()
+        await expect(main.getByRole("heading", { level: 2, name: /geladeira/i })).toBeVisible()
         // A árvore também mostra esses nomes — os chips são o que se confere aqui.
         await expect(main.locator(".tag", { hasText: /casa principal/i })).toBeVisible()
         await expect(main.locator(".tag", { hasText: /^cozinha$/i })).toBeVisible()
@@ -261,29 +263,71 @@ test.describe("Dispositivo na Análise", () => {
         await expect(editDialog).not.toBeVisible()
         await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1\/devices\/device-1$/)
         await expect(
-            main.getByRole("heading", { level: 1, name: /geladeira renovada/i }),
+            main.getByRole("heading", { level: 2, name: /geladeira renovada/i }),
         ).toBeVisible()
         await expect(main.getByText(/180W/i)).toBeVisible()
         await expect(page.getByRole("treeitem", { name: "Geladeira renovada" })).toBeVisible()
 
-        // ─── 4. Excluir via menu ⋯ no header da details ──────────────────────
-        await page.getByRole("button", { name: /opções de Geladeira renovada/i }).click()
-        await page.getByRole("menuitem", { name: /excluir/i }).click()
+        // ─── 4. Excluir não existe aqui ──────────────────────────────────────
+        await expect(page.getByRole("button", { name: /opções de/i })).toHaveCount(0)
+        await expect(page.getByRole("button", { name: /excluir/i })).toHaveCount(0)
+    })
 
-        // ConfirmDialog abre com aviso de cascade explícito
-        await expect(page.getByRole("heading", { name: /excluir dispositivo/i })).toBeVisible()
-        const confirmDialog = page.getByRole("dialog")
-        await expect(confirmDialog.getByText(/registros de consumo/i)).toBeVisible()
-        await expect(confirmDialog.getByText(/alertas/i)).toBeVisible()
-        await expect(confirmDialog.getByText(/integração iot/i)).toBeVisible()
+    test.describe("com medidor no dispositivo", () => {
+        const TODAY = new Date()
+        const pad = (value: number) => String(value).padStart(2, "0")
+        const DAY_START = `${TODAY.getFullYear()}-${pad(TODAY.getMonth() + 1)}-${pad(TODAY.getDate())}T00:00:00.000Z`
+        const MONTH_START = `${TODAY.getFullYear()}-${pad(TODAY.getMonth() + 1)}-01T00:00:00.000Z`
 
-        await page.getByRole("button", { name: "Excluir" }).click()
+        /** Resumo do dispositivo por granularidade, como o backend responde ao lote. */
+        const mockSummary = async (page: Page, options: { withCost: boolean }) =>
+            page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) => {
+                const isDay =
+                    new URL(route.request().url()).searchParams.get("granularity") === "day"
+                const cost = options.withCost ? (isDay ? 2.5 : 48) : undefined
+                return fulfillJson(route, {
+                    items: [
+                        {
+                            id: "device-1",
+                            targetType: "DEVICE",
+                            bucketStart: isDay ? DAY_START : MONTH_START,
+                            kwhConsumed: isDay ? 3.2 : 60,
+                            avgPowerW: 150,
+                            ...(cost !== undefined && { costBrl: cost }),
+                        },
+                    ],
+                })
+            })
 
-        // Volta pra área, agora sem dispositivos
-        await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1$/)
-        await expect(
-            main.getByText("Cadastre dispositivos para comparar o consumo entre eles."),
-        ).toBeVisible()
-        await expect(page.getByRole("treeitem", { name: "Geladeira renovada" })).toHaveCount(0)
+        test.beforeEach(async ({ page }) => {
+            await setupAuthPropertyAndArea(page)
+            await setupDevicesRoutes(page, { devices: [{ ...DEVICE_1 }], nextId: 2 })
+            await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
+                fulfillJson(route, METER_1),
+            )
+        })
+
+        test("mostra consumo de hoje e custo do mês reais", async ({ page }) => {
+            await mockSummary(page, { withCost: true })
+            await page.goto("/propriedades/prop-1/areas/area-1/devices/device-1")
+            await hideDevTools(page)
+
+            const main = page.getByRole("main")
+            await expect(main.getByText("Medidor da Geladeira")).toBeVisible()
+            await expect(main.getByText("3,20")).toBeVisible()
+            await expect(main.getByText(/R\$\s?48,00/)).toBeVisible()
+        })
+
+        test("sem custo calculável (Grupo A ou Branca), o custo do mês é traço explicado", async ({
+            page,
+        }) => {
+            await mockSummary(page, { withCost: false })
+            await page.goto("/propriedades/prop-1/areas/area-1/devices/device-1")
+            await hideDevTools(page)
+
+            const main = page.getByRole("main")
+            await expect(main.getByText("3,20")).toBeVisible()
+            await expect(main.getByText("Custo indisponível para esta tarifa.")).toBeVisible()
+        })
     })
 })

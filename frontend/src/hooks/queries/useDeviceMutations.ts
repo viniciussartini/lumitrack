@@ -20,7 +20,7 @@ import type { Device, CreateDeviceInput, UpdateDeviceInput } from "@/types/devic
  *   O backend remove consumption_records, alerts e iot_config vinculados
  *   via ON DELETE CASCADE no Prisma. O hook não precisa fazer nada
  *   especial — é o usuário que confirma a ação ciente do impacto (vide
- *   DeviceMenu, que mostra esse aviso explicitamente no ConfirmDialog).
+ *   TreeActionDialogs, que mostra esse aviso explicitamente no ConfirmDialog).
  */
 
 interface CreateDeviceVariables {
