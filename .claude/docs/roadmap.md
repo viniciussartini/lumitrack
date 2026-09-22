@@ -2189,7 +2189,7 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
   - Comparação de dispositivos com o consumo **medido** de cada dispositivo (o protótipo divide pela potência nominal); dispositivos sem medidor ficam fora, com aviso; sem dispositivos, "Cadastre dispositivos para comparar o consumo entre eles."
   - Consumo da área é o do medidor da própria área — **não** a soma dos dispositivos (não existe agregação hierárquica; somar divergiria do medidor do nível).
   - "Editar área" abre o `AreaFormDialog` existente; **removidos** `AreaMenu`, "Adicionar dispositivo" e "Excluir". Histórico de consumo preservado (`AreaConsumptionSection`).
-  - Autorização: área de outro usuário → 404, sem vazar existência.
+  - Autorização: área de propriedade de outro usuário segue respondendo 403, a convenção do módulo (coberta por teste no service e nas rotas); o resumo de consumo omite o id em silêncio. *(Corrigido em 2026-09-21: o critério dizia 404, mas o módulo inteiro — e propriedade e dispositivo — responde 403 por convenção; mudar só a área deixaria a API inconsistente.)*
 - **Depende de:** item 1.
 - **Risco/observações:** baixo — reaproveita árvore, card de medidor, gráfico e comparação do item 1.
 

@@ -297,7 +297,7 @@ Tela inicial com o panorama geral, filtrada pela propriedade selecionada no sele
 
 **Hoje:** o Painel já entrega bandeira vigente, alertas em disparo, KPIs de consumo/custo e gráfico de potência em tempo real. Faltam a tabela hierarquizada, o peso por medidor, a meta e a demanda.
 
-**FNC005 — Análise** `[parcial — Fase 24: itens 1–3 implementados para a Propriedade, pendentes para Área e Dispositivo; planejado — Fase 25 (itens 4–6, aba Grandezas Elétricas e área de análise)]`
+**FNC005 — Análise** `[parcial — Fase 24: itens 1–3 implementados para a Propriedade e a Área, pendentes para o Dispositivo; planejado — Fase 25 (itens 4–6, aba Grandezas Elétricas e área de análise)]`
 
 Onde o usuário examina em detalhe consumo, custo e medições de cada item cadastrado.
 
@@ -308,7 +308,7 @@ Onde o usuário examina em detalhe consumo, custo e medições de cada item cada
 5. Abaixo dos cards, a área de análise: o usuário escolhe janela do gráfico, dia, hora, agregação e grandeza, e aciona "Gerar análise" para plotar gráfico e tabela.
 6. Com janela **Hora**, gráfico e tabela seguem a agregação escolhida. Com janela **Dia**, os dados são exibidos de hora em hora e os campos Hora e Agregação ficam desabilitados.
 
-**Hoje:** `/propriedades` mostra a árvore de seleção com busca (`components/analysis/AnalysisTree.tsx`, seleção pela URL) à esquerda e o detalhe do item à direita. O detalhe da **Propriedade** segue o design (dados, Medidor, gráfico em tempo real e "Comparação de áreas" em kWh ou R$ — `pages/property/PropertyDetailsPage.tsx`, `components/property/AreaComparison.tsx`); o custo opcional vem de `GET /api/consumption/summary` (`consumption.service.ts`). **Área** e **Dispositivo** ainda têm as páginas anteriores, sem os KPIs "Consumo hoje" e "Custo do mês" e sem o menu de criar/excluir removido (Fase 24, itens 2 e 3); a aba de grandezas elétricas e a área de análise configurável dependem de RF37 e são da Fase 25.
+**Hoje:** `/propriedades` mostra a árvore de seleção com busca (`components/analysis/AnalysisTree.tsx`, seleção pela URL) à esquerda e o detalhe do item à direita. O detalhe da **Propriedade** (`pages/property/PropertyDetailsPage.tsx`, `components/property/AreaComparison.tsx`) e o da **Área** (`pages/area/AreaDetailsPage.tsx`, `components/device/DeviceComparison.tsx`) seguem o design: dados, Medidor, gráfico em tempo real e comparação em barras em kWh ou R$; o da Área traz ainda os KPIs "Consumo hoje" e "Custo do mês" (`hooks/useTargetConsumptionKpis.ts`), sempre do medidor da própria área. O consumo vem de `GET /api/consumption/summary` (`consumption.service.ts`), com `costBrl` opcional. O **Dispositivo** ainda tem a página anterior, sem os KPIs e com o menu de excluir (Fase 24, item 3); a aba de grandezas elétricas e a área de análise configurável dependem de RF37 e são da Fase 25.
 
 **FNC006 — Histórico e comparações** `[planejado — Fase 26]`
 

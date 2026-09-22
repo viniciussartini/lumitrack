@@ -79,4 +79,15 @@ describe("AreaComparison", () => {
         expect(screen.getByRole("button", { name: "R$" })).toBeDisabled()
         expect(screen.getByText("Custo em R$ indisponível para esta tarifa.")).toBeInTheDocument()
     })
+
+    it("avisa quantas áreas ficaram de fora por falta de medidor", async () => {
+        vi.mocked(consumptionService.summary).mockResolvedValue({
+            items: [summaryItem("a1", 40, 32)],
+        })
+        renderComparison()
+
+        expect(
+            await screen.findByText("1 área sem medidor não aparece na comparação."),
+        ).toBeInTheDocument()
+    })
 })

@@ -1,21 +1,17 @@
 import { useState } from "react"
-import { Link, useNavigate, useParams } from "react-router"
-import { AlertCircle, ArrowLeft, Cpu, LayoutGrid, Pencil, Plus } from "lucide-react"
+import { Link, useParams } from "react-router"
+import { AlertCircle, LayoutGrid, Pencil } from "lucide-react"
 import { useArea } from "@/hooks/queries/useAreas"
 import { useProperty } from "@/hooks/queries/useProperties"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
-import { useConsumption, useConsumptionSummary } from "@/hooks/queries/useConsumption"
-import { useDevices } from "@/hooks/queries/useDevices"
 import { useLiveMeterReading } from "@/hooks/useLiveMeterReading"
+import { useTargetConsumptionKpis } from "@/hooks/useTargetConsumptionKpis"
 import { Button } from "@/components/ui/Button"
-import { EmptyState } from "@/components/ui/EmptyState"
 import { Tag } from "@/components/ui/Tag"
-import { AreaMenu } from "@/components/area/AreaMenu"
 import { AreaFormDialog } from "@/components/area/AreaFormDialog"
-import { DeviceFormDialog } from "@/components/device/DeviceFormDialog"
-import { DeviceCard } from "@/components/device/DeviceCard"
+import { DeviceComparison } from "@/components/device/DeviceComparison"
 import { AreaConsumptionSection } from "@/components/consumption/ConsumptionSection"
-import { ComparisonCard } from "@/components/consumption/ComparisonCard"
+import { TargetKpiCards } from "@/components/consumption/TargetKpiCards"
 import { MeterSection } from "@/components/meter/MeterSection"
 import { IconCircle } from "@/components/ui/IconCircle"
 import { LiveKpiCard } from "@/components/dashboard/LiveKpiCard"
@@ -24,146 +20,101 @@ import { formatPowerKw } from "@/lib/format"
 import { formatKwh } from "@/lib/formatters/consumption"
 import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
-import type { ConsumptionBucket, ConsumptionSummaryItem } from "@/types/consumption.types"
 
 /**
- * Página de detalhes de uma área — LumiTrack Home.dc.html, `areaDetailView`.
+ * Detalhe da área na Análise — LumiTrack Home v2.dc.html, `areaDetailView`.
+ * Vive à direita da árvore de seleção (`AnalysisLayout`).
  *
  * Estrutura:
- *   1. Breadcrumb / voltar pra propriedade pai
- *   2. Header em blueprint: nome + descrição + tags (propriedade pai +
- *      kWh/mês da própria área) + ações (Editar área / ⋯)
- *   3. KPI "Potência agora" (só quando há medidor com leitura real — mesma
- *      decisão de "sem inventar dado": Consumo hoje/Custo projetado ficam de
- *      fora por não terem dado/lógica real)
- *   4. Seção de Medidor
- *   5. Seção de Consumo (histórico real — ocupa o lugar do gráfico "ao vivo"
- *      bespoke do protótipo)
- *   6. Seção de Dispositivos (grid + comparação de consumo do mês)
+ *   1. Card de dados (nome, descrição, propriedade pai, kWh/mês da própria
+ *      área) com "Editar área" e, ao lado, o card do Medidor
+ *   2. Com medidor: consumo em tempo real ao lado dos KPIs "Potência agora",
+ *      "Consumo hoje" e "Custo do mês"
+ *   3. Comparação de dispositivos
+ *   4. Histórico de consumo (fora do protótipo, abaixo dos blocos dele)
  *
- * NOTA: O AreaMenu aqui usa `showEdit={false}` (já temos botão Editar
- * explícito no header) e `onAfterDelete` que navega de volta pra propriedade
- * pai — sem isso, depois de excluir a área a URL apontaria pra recurso
- * inexistente e a página tentaria recarregá-lo num loop visual.
+ * O consumo da área é o do medidor da própria área, nunca a soma dos
+ * dispositivos — não existe agregação hierárquica. Criar e excluir a área
+ * vivem em Configurações → Cadastro; aqui só se edita.
  */
 export const AreaDetailsPage = () => {
     const { propertyId, areaId } = useParams<{
         propertyId: string
         areaId: string
     }>()
-    const navigate = useNavigate()
 
     const areaQuery = useArea(propertyId, areaId)
     const propertyQuery = useProperty(propertyId)
-    // KPI "Potência agora" + tag de kWh/mês — mesma fonte que MeterSection
-    // usa internamente (useMeterByTarget dedupe via cache do TanStack Query)
-    // + useRealtime (SSE) pra leitura ao vivo.
     const meterQuery = useMeterByTarget("AREA", areaId)
-    const hasMeter = Boolean(meterQuery.data)
-    // Grupo A só calcula custo em mês/ano + Propriedade — pedir esse
-    // KPI pra uma Área de propriedade Grupo A é rejeitado pelo backend, então
-    // nem consultamos: a tag de kWh/mês simplesmente não aparece (mesmo
-    // tratamento de "sem medidor").
-    const isGroupA = propertyQuery.data?.tariffGroup === "GROUP_A"
-    const monthlyQuery = useConsumption(
-        "AREA",
-        hasMeter && !isGroupA ? areaId : undefined,
-        "month",
-        1,
-        3,
-    )
-    const { lastKnownPowerW } = useLiveMeterReading("AREA", areaId, meterQuery.data?.id)
+    const meter = meterQuery.data
+    // Sem medidor não há o que consultar: o resumo omitiria o item.
+    const kpis = useTargetConsumptionKpis("AREA", meter ? areaId : undefined)
+    const { lastKnownPowerW } = useLiveMeterReading("AREA", areaId, meter?.id)
 
-    if (areaQuery.isLoading) {
-        return (
-            <div className="flex flex-col gap-6">
-                <BackLink propertyId={propertyId} />
-                <DetailsSkeleton />
-            </div>
-        )
-    }
+    if (areaQuery.isLoading) return <DetailsSkeleton />
 
     if (areaQuery.isError || !areaQuery.data) {
         return (
-            <div className="flex flex-col gap-6">
-                <BackLink propertyId={propertyId} />
-                <ErrorState
-                    propertyId={propertyId}
-                    message={
-                        areaQuery.error instanceof Error
-                            ? areaQuery.error.message
-                            : "Área não encontrada"
-                    }
-                />
-            </div>
+            <ErrorState
+                propertyId={propertyId}
+                message={
+                    areaQuery.error instanceof Error
+                        ? areaQuery.error.message
+                        : "Área não encontrada"
+                }
+            />
         )
     }
 
     const area = areaQuery.data
     const property = propertyQuery.data
-    const meter = meterQuery.data
-    const monthlyBucket = latestBucket(monthlyQuery.data?.items ?? [])
-
-    const handleAfterDelete = () => {
-        // Após excluir, volta pra propriedade pai. replace evita que o
-        // botão "voltar" do navegador traga de volta a página da área que
-        // não existe mais.
-        void navigate(`/propriedades/${propertyId}`, { replace: true })
-    }
 
     return (
-        <div className="flex flex-col gap-6">
-            <BackLink propertyId={propertyId} />
-
-            <AreaHeaderCard
-                area={area}
-                property={property}
-                isPropertyLoading={propertyQuery.isLoading}
-                monthlyBucket={monthlyBucket}
-                onAfterDelete={handleAfterDelete}
-            />
+        <div className="flex flex-col gap-5">
+            <div className="grid grid-cols-1 items-start gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+                <AreaHeaderCard
+                    area={area}
+                    property={property}
+                    isPropertyLoading={propertyQuery.isLoading}
+                    monthKwh={kpis.month?.kwh ?? null}
+                />
+                <MeterSection targetType="AREA" targetId={area.id} />
+            </div>
 
             {meter && (
-                <LiveKpiCard
-                    label="Potência agora"
-                    value={
-                        lastKnownPowerW !== undefined ? (
-                            formatPowerKw(lastKnownPowerW)
-                        ) : (
-                            <span className="text-muted">—</span>
-                        )
-                    }
-                    isLive
-                    className="w-fit min-w-[220px]"
-                />
+                <div className="grid grid-cols-1 items-stretch gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                    <RealtimeChartCard
+                        targetType="AREA"
+                        targetId={area.id}
+                        meterId={meter.id}
+                        title="Consumo em tempo real"
+                        subtitle={area.name}
+                    />
+                    <div className="flex flex-col gap-[clamp(12px,1.4vw,16px)]">
+                        <LiveKpiCard
+                            label="Potência agora"
+                            value={
+                                lastKnownPowerW !== undefined ? (
+                                    formatPowerKw(lastKnownPowerW)
+                                ) : (
+                                    <span className="text-muted">—</span>
+                                )
+                            }
+                            isLive
+                        />
+                        <TargetKpiCards kpis={kpis} />
+                    </div>
+                </div>
             )}
 
-            {meter && (
-                <RealtimeChartCard
-                    targetType="AREA"
-                    targetId={areaId!}
-                    meterId={meter.id}
-                    title="Consumo em tempo real"
-                    subtitle={area.name}
-                />
-            )}
+            <DeviceComparison propertyId={area.propertyId} areaId={area.id} />
 
-            <MeterSection targetType="AREA" targetId={areaId!} />
             <AreaConsumptionSection
-                propertyId={propertyId!}
-                areaId={areaId!}
+                propertyId={area.propertyId}
+                areaId={area.id}
                 {...resolvePropertyTariffFields(property)}
             />
-            <DevicesSection propertyId={propertyId!} areaId={areaId!} />
         </div>
-    )
-}
-
-/** Bucket com `bucketStart` mais recente — mesma lógica de AreasSection. */
-const latestBucket = (items: ConsumptionBucket[]): ConsumptionBucket | null => {
-    if (items.length === 0) return null
-    return items.reduce((latest, bucket) =>
-        new Date(bucket.bucketStart) > new Date(latest.bucketStart) ? bucket : latest,
     )
 }
 
@@ -177,35 +128,15 @@ const resolvePropertyTariffFields = (property: Property | undefined) => ({
     groupBModality: property?.groupBModality,
 })
 
-interface BackLinkProps {
-    propertyId: string | undefined
-}
-
-const BackLink = ({ propertyId }: BackLinkProps) => (
-    <Link
-        to={propertyId ? `/propriedades/${propertyId}` : "/propriedades"}
-        className="text-muted hover:text-text inline-flex w-fit items-center gap-1.5 text-sm"
-    >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Voltar para propriedade
-    </Link>
-)
-
 interface AreaHeaderCardProps {
     area: Area
     property: Property | undefined
     isPropertyLoading: boolean
-    monthlyBucket: ConsumptionBucket | null
-    onAfterDelete: () => void
+    /** Consumo do mês corrente da própria área; `null` sem leitura. */
+    monthKwh: number | null
 }
 
-const AreaHeaderCard = ({
-    area,
-    property,
-    isPropertyLoading,
-    monthlyBucket,
-    onAfterDelete,
-}: AreaHeaderCardProps) => {
+const AreaHeaderCard = ({ area, property, isPropertyLoading, monthKwh }: AreaHeaderCardProps) => {
     const [isEditOpen, setIsEditOpen] = useState(false)
 
     return (
@@ -218,9 +149,9 @@ const AreaHeaderCard = ({
             <div className="gap-15px flex min-w-0 items-start">
                 <IconCircle icon={LayoutGrid} tone="accent" strokeWidth={1.5} />
                 <div className="min-w-0 flex-1">
-                    <h1 className="font-heading truncate text-[clamp(24px,2.6vw,32px)] leading-none font-semibold uppercase">
+                    <h2 className="font-heading truncate text-[clamp(24px,2.6vw,32px)] leading-none font-semibold uppercase">
                         {area.name}
-                    </h1>
+                    </h2>
                     {area.description && (
                         <p className="text-muted mt-2 text-sm">{area.description}</p>
                     )}
@@ -229,9 +160,7 @@ const AreaHeaderCard = ({
 
             <div className="mt-18px gap-9px flex flex-wrap">
                 <PropertyTag property={property} isLoading={isPropertyLoading} />
-                {monthlyBucket && (
-                    <Tag variant="neutral">{formatKwh(monthlyBucket.kwhConsumed)} kWh/mês</Tag>
-                )}
+                {monthKwh !== null && <Tag variant="neutral">{formatKwh(monthKwh)} kWh/mês</Tag>}
             </div>
 
             <div className="mt-22px flex flex-wrap items-center gap-2">
@@ -239,11 +168,6 @@ const AreaHeaderCard = ({
                     <Pencil className="h-4 w-4" aria-hidden="true" />
                     Editar área
                 </Button>
-                {/*
-                    showEdit=false: botão "Editar área" explícito acima,
-                    no menu sobra apenas Excluir.
-                */}
-                <AreaMenu area={area} showEdit={false} onAfterDelete={onAfterDelete} />
             </div>
 
             <AreaFormDialog
@@ -287,136 +211,6 @@ const PropertyTag = ({ property, isLoading }: PropertyTagProps) => {
         </Tag>
     )
 }
-
-interface DevicesSectionProps {
-    propertyId: string
-    areaId: string
-}
-
-/**
- * Seção de Dispositivos — grid de DeviceCards + comparação de consumo do
- * mês entre eles.
- *
- * O consumo mensal por dispositivo (usado tanto no chip de potência de cada
- * DeviceCard — que é a potência nominal, não este dado — quanto nas barras
- * de comparação) é buscado numa única chamada via `useConsumptionSummary`
- * — substitui o `useQueries` de N chamadas, uma por dispositivo.
- * Dispositivo sem medidor/sem leitura simplesmente não aparece no
- * resultado — não é erro, só fica de fora da comparação.
- */
-const DevicesSection = ({ propertyId, areaId }: DevicesSectionProps) => {
-    const devicesQuery = useDevices(propertyId, areaId)
-    const [isCreateOpen, setIsCreateOpen] = useState(false)
-    const devices = devicesQuery.data?.items ?? []
-
-    const summaryQuery = useConsumptionSummary(
-        "DEVICE",
-        devices.map((d) => d.id),
-        "month",
-    )
-    const bucketById = new Map((summaryQuery.data?.items ?? []).map((item) => [item.id, item]))
-
-    const comparisonRows = devices
-        .map((device) => ({
-            id: device.id,
-            label: device.name,
-            bucket: bucketById.get(device.id),
-        }))
-        .filter(
-            (row): row is { id: string; label: string; bucket: ConsumptionSummaryItem } =>
-                row.bucket != null,
-        )
-
-    return (
-        <section className="flex flex-col gap-4">
-            <div className="blueprint">
-                <i className="corner tl" />
-                <i className="corner tr" />
-                <i className="corner bl" />
-                <i className="corner br" />
-
-                <div className="border-divider flex items-center justify-between border-b px-5 py-4">
-                    <h2 className="font-heading text-17 font-semibold uppercase">Dispositivos</h2>
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setIsCreateOpen(true)}
-                        className="text-13 min-h-9"
-                    >
-                        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                        Adicionar dispositivo
-                    </Button>
-                </div>
-
-                <div className="px-5 py-4">
-                    {devicesQuery.isLoading && <DevicesSkeleton />}
-
-                    {devicesQuery.isError && (
-                        <div
-                            role="alert"
-                            className="border-status-danger/40 flex items-start gap-3 border p-4"
-                        >
-                            <AlertCircle
-                                className="text-status-danger h-5 w-5 shrink-0"
-                                aria-hidden="true"
-                            />
-                            <p className="text-status-danger/85 text-sm">
-                                {devicesQuery.error instanceof Error
-                                    ? devicesQuery.error.message
-                                    : "Não foi possível carregar os dispositivos."}
-                            </p>
-                        </div>
-                    )}
-
-                    {devicesQuery.isSuccess && devices.length === 0 && (
-                        <EmptyState
-                            icon={Cpu}
-                            title="Nenhum dispositivo cadastrado"
-                            description="Cadastre os dispositivos desta área para monitorar o consumo individual de cada equipamento."
-                        />
-                    )}
-
-                    {devicesQuery.isSuccess && devices.length > 0 && (
-                        <div
-                            className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3"
-                            data-testid="devices-grid"
-                        >
-                            {devices.map((device) => (
-                                <DeviceCard key={device.id} device={device} />
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {comparisonRows.length > 0 && (
-                <ComparisonCard
-                    title="Comparação de dispositivos"
-                    subtitle="Consumo por dispositivo neste mês"
-                    rows={comparisonRows}
-                />
-            )}
-
-            <DeviceFormDialog
-                isOpen={isCreateOpen}
-                onClose={() => setIsCreateOpen(false)}
-                mode={{ kind: "create", propertyId, areaId }}
-            />
-        </section>
-    )
-}
-
-const DevicesSkeleton = () => (
-    <div
-        className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3"
-        aria-busy="true"
-        aria-label="Carregando dispositivos"
-    >
-        {[0, 1, 2].map((i) => (
-            <div key={i} className="border-divider h-28 animate-pulse border" />
-        ))}
-    </div>
-)
 
 const DetailsSkeleton = () => (
     <div className="blueprint h-72 p-6" aria-busy="true" aria-label="Carregando dados da área">

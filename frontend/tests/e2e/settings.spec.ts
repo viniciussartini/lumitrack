@@ -185,6 +185,26 @@ test.describe("Configurações → Cadastro", () => {
         await expect(dialog.getByText(/descrição muito longa/i)).toBeVisible()
     })
 
+    test("validação bloqueia criar dispositivo com nome vazio e potência inválida", async ({
+        page,
+    }) => {
+        await setupCadastro(page, [PROP_1], () => TREE)
+        await page.goto("/configuracoes/cadastro")
+        await hideDevTools(page)
+
+        await page.getByRole("button", { name: /novo dispositivo/i }).click()
+        const dialog = page.getByRole("dialog", { name: /adicionar dispositivo/i })
+        await dialog.getByRole("button", { name: /criar dispositivo/i }).click()
+
+        await expect(dialog.getByText(/nome é obrigatório/i)).toBeVisible()
+        await expect(dialog).toBeVisible()
+
+        // Sem passar pelo campo "nome": o clique direto no envio já mostra os dois erros.
+        await dialog.getByLabel(/potência/i).fill("0")
+        await dialog.getByRole("button", { name: /criar dispositivo/i }).click()
+        await expect(dialog.getByText(/nome é obrigatório/i)).toBeVisible()
+    })
+
     test("cria uma área na propriedade escolhida no modal", async ({ page }) => {
         await setupCadastro(page, [PROP_1, PROP_2], () => TWO_PROPERTIES_TREE)
         let postedTo = ""

@@ -7,6 +7,8 @@ interface ComparisonCardProps {
     /** Recorte da comparação, sem a unidade — ex.: "Consumo por área neste mês". */
     subtitle: string
     rows: ComparisonRow[]
+    /** Aviso sob as barras — ex.: quantos itens ficaram de fora por falta de medidor. */
+    notice?: string
     testId?: string
 }
 
@@ -16,7 +18,7 @@ interface ComparisonCardProps {
  * Branca o custo de área e dispositivo não é calculável, e o cartão segue
  * útil em kWh com a explicação visível.
  */
-export const ComparisonCard = ({ title, subtitle, rows, testId }: ComparisonCardProps) => {
+export const ComparisonCard = ({ title, subtitle, rows, notice, testId }: ComparisonCardProps) => {
     const [unit, setUnit] = useState<"kwh" | "reais">("kwh")
     const hintId = useId()
     const hasCost = rows.some((row) => row.bucket.costBrl !== undefined)
@@ -62,6 +64,7 @@ export const ComparisonCard = ({ title, subtitle, rows, testId }: ComparisonCard
 
             <div className="px-5 pt-2 pb-5">
                 <ComparisonBars rows={rows} unit={activeUnit} />
+                {notice && <p className="text-muted text-12-5 m-0 mt-3">{notice}</p>}
             </div>
         </Blueprint>
     )
