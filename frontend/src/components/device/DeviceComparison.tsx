@@ -23,6 +23,7 @@ export const DeviceComparison = ({ propertyId, areaId }: DeviceComparisonProps) 
             title="Comparação de dispositivos"
             subtitle="Consumo por dispositivo neste mês"
             targets={devicesQuery.data?.items}
+            total={devicesQuery.data?.total}
             isListError={devicesQuery.isError}
             nouns={{ singular: "dispositivo", plural: "dispositivos" }}
             emptyMessage="Cadastre dispositivos para comparar o consumo entre eles."

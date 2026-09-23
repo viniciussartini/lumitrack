@@ -19,6 +19,7 @@ export const AreaComparison = ({ propertyId }: AreaComparisonProps) => {
             title="Comparação de áreas"
             subtitle="Consumo por área neste mês"
             targets={areasQuery.data?.items}
+            total={areasQuery.data?.total}
             isListError={areasQuery.isError}
             nouns={{ singular: "área", plural: "áreas" }}
             emptyMessage="Cadastre áreas para comparar o consumo entre elas."

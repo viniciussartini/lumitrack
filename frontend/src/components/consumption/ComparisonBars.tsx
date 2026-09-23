@@ -41,7 +41,10 @@ export const ComparisonBars = ({ rows, unit }: ComparisonBarsProps) => {
                             className="h-full"
                             style={{
                                 width: `${(bar.value / max) * 100}%`,
-                                background: unit === "reais" ? "#d98a1e" : "#5980a6",
+                                backgroundColor:
+                                    unit === "reais"
+                                        ? "var(--color-chart-amber)"
+                                        : "var(--color-chart-blue)",
                             }}
                         />
                     </div>

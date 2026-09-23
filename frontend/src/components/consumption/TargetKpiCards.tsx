@@ -7,14 +7,22 @@ interface TargetKpiCardsProps {
     kpis: TargetConsumptionKpis
 }
 
+const LoadingValue = () => (
+    <span
+        role="status"
+        aria-label="Carregando"
+        className="bg-divider inline-block h-7 w-24 animate-pulse"
+    />
+)
+
 /**
  * KPIs "Consumo hoje" e "Custo do mês" do detalhe de Área e Dispositivo —
- * dado real do resumo de consumo. Sem leitura ainda mostram "—"; com o custo
- * não calculável (Grupo A e Tarifa Branca) o custo também é "—", explicado,
- * e nunca zero.
+ * dado real do resumo de consumo. Enquanto o resumo carrega mostram um
+ * placeholder; sem leitura ainda, "—"; com o custo não calculável (Grupo A e
+ * Tarifa Branca) o custo também é "—", explicado, e nunca zero.
  */
 export const TargetKpiCards = ({ kpis }: TargetKpiCardsProps) => {
-    const { todayKwh, month } = kpis
+    const { isLoading, todayKwh, month } = kpis
     const isCostUnavailable = month !== null && month.costBrl === null
 
     return (
@@ -22,7 +30,9 @@ export const TargetKpiCards = ({ kpis }: TargetKpiCardsProps) => {
             <LiveKpiCard
                 label="Consumo hoje"
                 value={
-                    todayKwh === null ? (
+                    isLoading ? (
+                        <LoadingValue />
+                    ) : todayKwh === null ? (
                         "—"
                     ) : (
                         <>
@@ -34,7 +44,15 @@ export const TargetKpiCards = ({ kpis }: TargetKpiCardsProps) => {
             />
             <LiveKpiCard
                 label="Custo do mês"
-                value={month?.costBrl == null ? "—" : formatBrl(month.costBrl)}
+                value={
+                    isLoading ? (
+                        <LoadingValue />
+                    ) : month?.costBrl == null ? (
+                        "—"
+                    ) : (
+                        formatBrl(month.costBrl)
+                    )
+                }
                 {...(isCostUnavailable && { subValue: "Custo indisponível para esta tarifa." })}
             />
         </>

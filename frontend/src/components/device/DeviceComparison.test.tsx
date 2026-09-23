@@ -145,4 +145,20 @@ describe("DeviceComparison", () => {
             await screen.findByText("Não foi possível carregar a comparação de dispositivos."),
         ).toBeInTheDocument()
     })
+
+    it("avisa quando a área tem mais dispositivos do que cabem na comparação", async () => {
+        vi.mocked(deviceService.list).mockResolvedValue({
+            items: [device("d1", "Geladeira")],
+            total: 45,
+            page: 1,
+            pageSize: 31,
+        })
+        vi.mocked(consumptionService.summary).mockResolvedValue({
+            items: [summaryItem("d1", 40, 32)],
+        })
+
+        renderComparison()
+
+        expect(await screen.findByText("Comparando 1 de 45 dispositivos.")).toBeInTheDocument()
+    })
 })

@@ -182,7 +182,7 @@ export const AnalysisTree = () => {
                     />
                 </div>
 
-                <div className="max-h-80 overflow-auto py-2 lg:max-h-[calc(100vh-268px)]">
+                <div className="max-h-80 overflow-auto py-2 lg:max-h-[70vh]">
                     <TreeContent
                         tree={tree}
                         isPending={treeQuery.isPending}

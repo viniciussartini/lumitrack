@@ -42,6 +42,23 @@ const omittedNotice = (omitted: number, nouns: Nouns) =>
         ? `1 ${nouns.singular} sem medidor não aparece na comparação.`
         : `${omitted} ${nouns.plural} sem medidor não aparecem na comparação.`
 
+/** Avisos sob as barras: quantos itens a página cortou e quantos ficaram de fora por falta de medidor. */
+const buildNotices = (
+    listLength: number,
+    total: number | undefined,
+    omitted: number,
+    nouns: Nouns,
+): string | undefined => {
+    const notices = [
+        total !== undefined && total > listLength
+            ? `Comparando ${listLength} de ${total} ${nouns.plural}.`
+            : undefined,
+        omitted > 0 ? omittedNotice(omitted, nouns) : undefined,
+    ].filter((text) => text !== undefined)
+
+    return notices.length > 0 ? notices.join(" ") : undefined
+}
+
 /** Uma linha por item que o resumo devolveu — os sem medidor não têm bucket. */
 const toRows = (
     targets: { id: string; name: string }[],
@@ -61,6 +78,8 @@ interface TargetComparisonProps {
     subtitle: string
     /** Itens do nível abaixo, já listados pelo pai; `undefined` enquanto carrega. */
     targets: { id: string; name: string }[] | undefined
+    /** Quantos itens o nível tem de verdade — maior que `targets` quando a página cortou. */
+    total: number | undefined
     isListError: boolean
     /** Como chamar os itens no aviso de quem ficou de fora. */
     nouns: Nouns
@@ -81,6 +100,7 @@ export const TargetComparison = ({
     title,
     subtitle,
     targets,
+    total,
     isListError,
     nouns,
     emptyMessage,
@@ -120,13 +140,14 @@ export const TargetComparison = ({
     }
 
     const omitted = list.length - rows.length
+    const notice = buildNotices(list.length, total, omitted, nouns)
     return (
         <ComparisonCard
             title={title}
             subtitle={subtitle}
             rows={rows}
             testId={testId}
-            {...(omitted > 0 && { notice: omittedNotice(omitted, nouns) })}
+            {...(notice !== undefined && { notice })}
         />
     )
 }

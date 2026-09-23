@@ -90,4 +90,29 @@ describe("AreaComparison", () => {
             await screen.findByText("1 área sem medidor não aparece na comparação."),
         ).toBeInTheDocument()
     })
+
+    it("avisa quando a propriedade tem mais áreas do que cabem na comparação", async () => {
+        vi.mocked(areaService.list).mockResolvedValue({
+            items: [area("a1", "Sala"), area("a2", "Cozinha")],
+            total: 40,
+            page: 1,
+            pageSize: 31,
+        })
+        vi.mocked(consumptionService.summary).mockResolvedValue({
+            items: [summaryItem("a1", 40, 32), summaryItem("a2", 20, 16)],
+        })
+        renderComparison()
+
+        expect(await screen.findByText("Comparando 2 de 40 áreas.")).toBeInTheDocument()
+    })
+
+    it("com todas as áreas na página, não avisa de corte", async () => {
+        vi.mocked(consumptionService.summary).mockResolvedValue({
+            items: [summaryItem("a1", 40, 32), summaryItem("a2", 20, 16)],
+        })
+        renderComparison()
+
+        await screen.findByText("Sala")
+        expect(screen.queryByText(/Comparando/)).not.toBeInTheDocument()
+    })
 })
