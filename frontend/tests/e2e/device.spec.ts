@@ -2,41 +2,27 @@ import { test, expect, type Page } from "@playwright/test"
 
 import { fulfillError, fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
+import { mockPropertyTree } from "./support/propertyTree"
 import { hideDevTools } from "./support/devtools"
-import { AREA_1, DEVICE_1, DIST_CEMIG, PROP_1 } from "./support/fixtures"
+import { AREA_1, DEVICE_1, DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
 import type { Device } from "../../src/types/device.types"
 
 /**
  * E2E focado em UI: mocka as respostas do backend via page.route().
  * Vantagem: não depende do backend rodando — roda no CI sem coordenação.
  *
- * Este spec cobre o fluxo completo de Device:
- *   1. Listar (vazio inicial — EmptyState dentro de AreaDetailsPage)
- *   2. Criar (via botão "Adicionar dispositivo" no header da seção, abre
- *      DeviceFormDialog — sem navegação)
- *   3. Ver detalhes (click no card → DeviceDetailsPage com header + tags
- *      área/propriedade + seções Medidor/Consumo)
- *   4. Editar (via botão "Editar dispositivo" no header da
- *      DeviceDetailsPage, mesmo modal, sem navegar pra fora dela)
- *   5. Excluir (via menu ⋯ na DeviceDetailsPage)
+ * Este spec cobre o Dispositivo dentro da Análise:
+ *   1. Chegar pela árvore de seleção (propriedade → área → dispositivo)
+ *   2. Ver detalhes (header com tags área/propriedade + seções Medidor/Consumo)
+ *   3. Editar (botão "Editar dispositivo" no header, mesmo modal, sem navegar)
+ *   4. KPIs "Consumo hoje" e "Custo do mês" com dado real, e custo indisponível
+ *      (Grupo A/Branca) como traço explicado
  *
- * Um teste paralelo cobre o fluxo via menu ⋯ no card da lista (editar e
- * excluir) — como DeviceCard nunca navega pro editar/excluir (é tudo modal
- * local, sem onAfterDelete), esse teste não sai de AreaDetailsPage.
+ * Criar e excluir dispositivo vivem em Configurações → Cadastro
+ * (settings.spec.ts): as páginas da área e do dispositivo não têm mais
+ * "Adicionar dispositivo", grade de cards nem menu de excluir.
  *
- * Um terceiro teste cobre validação client-side (potência inválida).
- *
- * O spec parte com 1 propriedade e 1 área já cadastradas e 0 devices.
- * Não testamos o fluxo de criar a propriedade/área aqui (já coberto
- * em properties.spec.ts e area.spec.ts).
- *
- * Este spec foi reescrito — a versão anterior assumia rotas
- * /devices/novo e /devices/:id/editar que não existem mais, o
- * label "Salvar alterações" que na verdade é "Salvar dispositivo" pro
- * DeviceFormDialog, e os testids device-property-chip/device-area-chip
- * que não existem mais: DeviceDetailsPage (reescrita) mostra a
- * hierarquia via Tag simples, sem testid — vira locator de texto, mesma
- * convenção já usada pro chip de propriedade em AreaDetailsPage.
+ * O spec parte com 1 propriedade, 1 área e 1 dispositivo já cadastrados.
  */
 
 type DeviceSeed = Device
@@ -130,6 +116,29 @@ const setupAuthPropertyAndArea = async (page: Page) => {
  *   depois). Os dois NÃO conflitam — registramos a lista primeiro.
  */
 const setupDevicesRoutes = async (page: Page, state: { devices: DeviceSeed[]; nextId: number }) => {
+    // A árvore de Análise reflete o estado dos dispositivos — editar ou
+    // excluir invalida a chave da árvore e ela é lida de novo.
+    await mockPropertyTree(page, () => ({
+        total: 1,
+        items: [
+            {
+                id: PROP_1.id,
+                name: PROP_1.name,
+                areas: [
+                    {
+                        id: AREA_1.id,
+                        name: AREA_1.name,
+                        devices: state.devices.map((device) => ({
+                            id: device.id,
+                            name: device.name,
+                            powerWatts: device.powerWatts,
+                        })),
+                    },
+                ],
+            },
+        ],
+    }))
+
     // Lista e criação. Regex (não glob): useDevices sempre envia
     // ?page=&pageSize= mesmo nos defaults — um glob sem tratar a query
     // string não casa a URL real e a requisição vaza pro backend (502).
@@ -198,226 +207,127 @@ const setupDevicesRoutes = async (page: Page, state: { devices: DeviceSeed[]; ne
     })
 }
 
-test.describe("Fluxo CRUD de dispositivos", () => {
+test.describe("Dispositivo na Análise", () => {
     test.beforeEach(async ({ context }) => {
         await context.clearCookies()
     })
 
-    test("cria, vê detalhes, edita e exclui um dispositivo (fluxo via header da details)", async ({
-        page,
-    }) => {
+    test("chega pela árvore, vê detalhes e edita um dispositivo", async ({ page }) => {
         await setupAuthPropertyAndArea(page)
-        const state: { devices: DeviceSeed[]; nextId: number } = {
-            devices: [],
-            nextId: 1,
-        }
-        await setupDevicesRoutes(page, state)
-
-        // ─── 1. Área carrega com EmptyState de devices ───────────────────────
-        await page.goto("/propriedades/prop-1/areas/area-1")
-        await hideDevTools(page)
-
-        await expect(page.getByRole("heading", { level: 1, name: /^cozinha$/i })).toBeVisible()
-        await expect(page.getByText(/nenhum dispositivo cadastrado/i)).toBeVisible()
-
-        // ─── 2. Criar novo dispositivo (via modal, sem navegação) ────────────
-        await page.getByRole("button", { name: /adicionar dispositivo/i }).click()
-        const createDialog = page.getByRole("dialog", {
-            name: /adicionar dispositivo/i,
-        })
-        await expect(createDialog).toBeVisible()
-
-        // Helper text de potência típica visível dentro do modal
-        await expect(page.getByText(/geladeira/i)).toBeVisible()
-
-        await page.getByLabel(/nome do dispositivo/i).fill("Ar-condicionado")
-        await page.getByLabel(/marca/i).fill("Daikin")
-        await page.getByLabel(/modelo/i).fill("Split 12000 BTU")
-        await page.getByLabel(/potência/i).fill("1200")
-
-        await page.getByRole("button", { name: /criar dispositivo/i }).click()
-
-        // Modal fecha, sem navegação — o card aparece na mesma AreaDetailsPage
-        await expect(createDialog).not.toBeVisible()
-        await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1$/)
-        await expect(page.getByTestId("device-card-device-1")).toBeVisible()
-        await expect(
-            page.getByRole("heading", { level: 3, name: /ar-condicionado/i }),
-        ).toBeVisible()
-        // Chip de potência aparece no card
-        await expect(page.getByText(/1200W/i).first()).toBeVisible()
-        // EmptyState não aparece mais
-        await expect(page.getByText(/nenhum dispositivo cadastrado/i)).not.toBeVisible()
-
-        // ─── 3. Click no card → DeviceDetailsPage ────────────────────────────
-        await page.getByTestId("device-card-device-1").click()
-        await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1\/devices\/device-1$/)
-
-        // Header tem nome + chips
-        await expect(
-            page.getByRole("heading", { level: 1, name: /ar-condicionado/i }),
-        ).toBeVisible()
-        // Tags da hierarquia (sem testid — DeviceDetailsPage usa Tag simples,
-        // mesma convenção do chip de propriedade em AreaDetailsPage)
-        await expect(page.getByText(/casa principal/i)).toBeVisible()
-        await expect(page.getByText(/^cozinha$/i)).toBeVisible()
-        // Tag de metadados (marca + modelo)
-        await expect(page.getByText(/daikin · split 12000 btu/i)).toBeVisible()
-
-        // Seções reais (Medidor + Consumo) — não há mais placeholders de
-        // Alertas/Integração IoT: viraram /alertas e MeterSection de verdade.
-        await expect(page.getByRole("heading", { level: 2, name: /^medidor$/i })).toBeVisible()
-        await expect(
-            page.getByRole("heading", { level: 2, name: /^histórico de consumo$/i }),
-        ).toBeVisible()
-
-        // ─── 4. Editar via botão do header (modal, sem navegar) ──────────────
-        await page.getByRole("button", { name: /editar dispositivo/i }).click()
-        const editDialog = page.getByRole("dialog", {
-            name: /editar dispositivo/i,
-        })
-        await expect(editDialog).toBeVisible()
-
-        // Form pré-preenchido
-        await expect(page.getByLabel(/nome do dispositivo/i)).toHaveValue("Ar-condicionado")
-        await expect(page.getByLabel(/marca/i)).toHaveValue("Daikin")
-        await expect(page.getByLabel(/potência/i)).toHaveValue("1200")
-
-        // Atualiza nome e potência
-        const nameInput = page.getByLabel(/nome do dispositivo/i)
-        await nameInput.fill("Ar-condicionado renovado")
-        await page.getByLabel(/potência/i).fill("1500")
-
-        await page.getByRole("button", { name: /salvar dispositivo/i }).click()
-
-        // Modal fecha, permanece na mesma DeviceDetailsPage com as mudanças
-        await expect(editDialog).not.toBeVisible()
-        await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1\/devices\/device-1$/)
-        await expect(
-            page.getByRole("heading", {
-                level: 1,
-                name: /ar-condicionado renovado/i,
-            }),
-        ).toBeVisible()
-        await expect(page.getByText(/1500W/i)).toBeVisible()
-
-        // ─── 5. Excluir via menu ⋯ no header da details ──────────────────────
-        await page
-            .getByRole("button", {
-                name: /opções de Ar-condicionado renovado/i,
-            })
-            .click()
-        await page.getByRole("menuitem", { name: /excluir/i }).click()
-
-        // ConfirmDialog abre com aviso de cascade explícito
-        await expect(page.getByRole("heading", { name: /excluir dispositivo/i })).toBeVisible()
-
-        // Os 3 elementos do cascade aparecem no aviso — escopo ao dialog
-        // pra evitar strict mode violation (a página tem headings "Medidor"
-        // e "Histórico de consumo" fora do dialog)
-        const confirmDialog = page.getByRole("dialog")
-        await expect(confirmDialog.getByText(/registros de consumo/i)).toBeVisible()
-        await expect(confirmDialog.getByText(/alertas/i)).toBeVisible()
-        await expect(confirmDialog.getByText(/integração iot/i)).toBeVisible()
-
-        await page.getByRole("button", { name: "Excluir" }).click()
-
-        // Volta pra AreaDetailsPage com EmptyState restaurado
-        await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1$/)
-        await expect(page.getByText(/nenhum dispositivo cadastrado/i)).toBeVisible()
-        await expect(page.getByTestId("device-card-device-1")).not.toBeVisible()
-    })
-
-    test("edita e exclui um dispositivo via menu ⋯ do card, sem sair da AreaDetailsPage", async ({
-        page,
-    }) => {
-        await setupAuthPropertyAndArea(page)
-        // Pré-popula com 1 device
         const state: { devices: DeviceSeed[]; nextId: number } = {
             devices: [{ ...DEVICE_1 }],
             nextId: 2,
         }
         await setupDevicesRoutes(page, state)
 
-        await page.goto("/propriedades/prop-1/areas/area-1")
+        // ─── 1. Árvore: propriedade → área → dispositivo ─────────────────────
+        await page.goto("/propriedades")
         await hideDevTools(page)
-
-        // Confirma o card visível
-        await expect(page.getByTestId("device-card-device-1")).toBeVisible()
-        await expect(page.getByRole("heading", { level: 3, name: /geladeira/i })).toBeVisible()
-
-        // ─── 1. Editar via menu ⋯ do card — modal local, nunca navega ────────
-        await page.getByRole("button", { name: /opções de Geladeira/i }).click()
-        await page.getByRole("menuitem", { name: /editar/i }).click()
-
-        const editDialog = page.getByRole("dialog", {
-            name: /editar dispositivo/i,
-        })
-        await expect(editDialog).toBeVisible()
-        await page.getByLabel(/nome do dispositivo/i).fill("Geladeira gourmet")
-        await page.getByRole("button", { name: /salvar dispositivo/i }).click()
-
-        // Modal fecha, card atualizado na mesma grid — sem navegação
-        // (DeviceCard nunca sai de AreaDetailsPage pra editar)
-        await expect(editDialog).not.toBeVisible()
+        await page.getByRole("treeitem", { name: "Casa Principal" }).click()
+        await page.getByRole("treeitem", { name: "Cozinha" }).click()
         await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1$/)
+        // Sem medidor no dispositivo, a comparação da área explica por quê.
+        await expect(page.getByText("Nenhum dispositivo desta área tem medidor.")).toBeVisible()
+
+        // ─── 2. Selecionar o dispositivo abre o detalhe ──────────────────────
+        await page.getByRole("treeitem", { name: "Geladeira" }).click()
+        await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1\/devices\/device-1$/)
+        await expect(page.getByRole("treeitem", { name: "Geladeira" })).toHaveAttribute(
+            "aria-selected",
+            "true",
+        )
+
+        const main = page.getByRole("main")
+        await expect(main.getByRole("heading", { level: 2, name: /geladeira/i })).toBeVisible()
+        // A árvore também mostra esses nomes — os chips são o que se confere aqui.
+        await expect(main.locator(".tag", { hasText: /casa principal/i })).toBeVisible()
+        await expect(main.locator(".tag", { hasText: /^cozinha$/i })).toBeVisible()
+        await expect(main.getByText(/brastemp · brm54/i)).toBeVisible()
+        await expect(main.getByRole("heading", { level: 2, name: /^medidor$/i })).toBeVisible()
         await expect(
-            page.getByRole("heading", {
-                level: 3,
-                name: /geladeira gourmet/i,
-            }),
+            main.getByRole("heading", { level: 2, name: /^histórico de consumo$/i }),
         ).toBeVisible()
 
-        // ─── 2. Excluir via menu ⋯ do card ───────────────────────────────────
-        await page.getByRole("button", { name: /opções de Geladeira gourmet/i }).click()
-        await page.getByRole("menuitem", { name: /excluir/i }).click()
+        // ─── 3. Editar via botão do header (modal, sem navegar) ──────────────
+        await page.getByRole("button", { name: /editar dispositivo/i }).click()
+        const editDialog = page.getByRole("dialog", { name: /editar dispositivo/i })
+        await expect(editDialog).toBeVisible()
+        await expect(page.getByLabel(/nome do dispositivo/i)).toHaveValue("Geladeira")
+        await expect(page.getByLabel(/marca/i)).toHaveValue("Brastemp")
+        await expect(page.getByLabel(/potência/i)).toHaveValue("150")
 
-        // ConfirmDialog abre na própria AreaDetailsPage (não navegamos)
-        await expect(page.getByRole("heading", { name: /excluir dispositivo/i })).toBeVisible()
+        await page.getByLabel(/nome do dispositivo/i).fill("Geladeira renovada")
+        await page.getByLabel(/potência/i).fill("180")
+        await page.getByRole("button", { name: /salvar dispositivo/i }).click()
 
-        await page.getByRole("button", { name: "Excluir" }).click()
+        await expect(editDialog).not.toBeVisible()
+        await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1\/devices\/device-1$/)
+        await expect(
+            main.getByRole("heading", { level: 2, name: /geladeira renovada/i }),
+        ).toBeVisible()
+        await expect(main.getByText(/180W/i)).toBeVisible()
+        await expect(page.getByRole("treeitem", { name: "Geladeira renovada" })).toBeVisible()
 
-        // Permanece na AreaDetailsPage, EmptyState restaurado
-        await expect(page).toHaveURL(/\/propriedades\/prop-1\/areas\/area-1$/)
-        await expect(page.getByText(/nenhum dispositivo cadastrado/i)).toBeVisible()
-        await expect(page.getByTestId("device-card-device-1")).not.toBeVisible()
+        // ─── 4. Excluir não existe aqui ──────────────────────────────────────
+        await expect(page.getByRole("button", { name: /opções de/i })).toHaveCount(0)
+        await expect(page.getByRole("button", { name: /excluir/i })).toHaveCount(0)
     })
 
-    test("validação client-side bloqueia submit com nome vazio e potência inválida", async ({
-        page,
-    }) => {
-        await setupAuthPropertyAndArea(page)
-        const state: { devices: DeviceSeed[]; nextId: number } = {
-            devices: [],
-            nextId: 1,
-        }
-        await setupDevicesRoutes(page, state)
+    test.describe("com medidor no dispositivo", () => {
+        const TODAY = new Date()
+        const pad = (value: number) => String(value).padStart(2, "0")
+        const DAY_START = `${TODAY.getFullYear()}-${pad(TODAY.getMonth() + 1)}-${pad(TODAY.getDate())}T00:00:00.000Z`
+        const MONTH_START = `${TODAY.getFullYear()}-${pad(TODAY.getMonth() + 1)}-01T00:00:00.000Z`
 
-        await page.goto("/propriedades/prop-1/areas/area-1")
-        await hideDevTools(page)
+        /** Resumo do dispositivo por granularidade, como o backend responde ao lote. */
+        const mockSummary = async (page: Page, options: { withCost: boolean }) =>
+            page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) => {
+                const isDay =
+                    new URL(route.request().url()).searchParams.get("granularity") === "day"
+                const cost = options.withCost ? (isDay ? 2.5 : 48) : undefined
+                return fulfillJson(route, {
+                    items: [
+                        {
+                            id: "device-1",
+                            targetType: "DEVICE",
+                            bucketStart: isDay ? DAY_START : MONTH_START,
+                            kwhConsumed: isDay ? 3.2 : 60,
+                            avgPowerW: 150,
+                            ...(cost !== undefined && { costBrl: cost }),
+                        },
+                    ],
+                })
+            })
 
-        await page.getByRole("button", { name: /adicionar dispositivo/i }).click()
-        const createDialog = page.getByRole("dialog", {
-            name: /adicionar dispositivo/i,
+        test.beforeEach(async ({ page }) => {
+            await setupAuthPropertyAndArea(page)
+            await setupDevicesRoutes(page, { devices: [{ ...DEVICE_1 }], nextId: 2 })
+            await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
+                fulfillJson(route, METER_1),
+            )
         })
-        await expect(createDialog).toBeVisible()
 
-        // Click direto no submit sem preencher
-        await page.getByRole("button", { name: /criar dispositivo/i }).click()
+        test("mostra consumo de hoje e custo do mês reais", async ({ page }) => {
+            await mockSummary(page, { withCost: true })
+            await page.goto("/propriedades/prop-1/areas/area-1/devices/device-1")
+            await hideDevTools(page)
 
-        // Mensagem de erro do schema aparece
-        await expect(page.getByText(/nome é obrigatório/i)).toBeVisible()
+            const main = page.getByRole("main")
+            await expect(main.getByText("Medidor da Geladeira")).toBeVisible()
+            await expect(main.getByText("3,20")).toBeVisible()
+            await expect(main.getByText(/R\$\s?48,00/)).toBeVisible()
+        })
 
-        // Continua no modal — não foi possível submeter
-        await expect(createDialog).toBeVisible()
+        test("sem custo calculável (Grupo A ou Branca), o custo do mês é traço explicado", async ({
+            page,
+        }) => {
+            await mockSummary(page, { withCost: false })
+            await page.goto("/propriedades/prop-1/areas/area-1/devices/device-1")
+            await hideDevTools(page)
 
-        // Interage com "potência" (não com "nome") e clica direto no submit
-        // sem blur manual — regressão conhecida: sem esse fluxo, o clique
-        // só validava o campo com autoFocus, escondendo o erro de "nome".
-        await page.getByLabel(/potência/i).fill("0")
-        await page.getByRole("button", { name: /criar dispositivo/i }).click()
-
-        await expect(page.getByText(/nome é obrigatório/i)).toBeVisible()
-        await expect(page.getByText(/maior que zero/i)).toBeVisible()
+            const main = page.getByRole("main")
+            await expect(main.getByText("3,20")).toBeVisible()
+            await expect(main.getByText("Custo indisponível para esta tarifa.")).toBeVisible()
+        })
     })
 })

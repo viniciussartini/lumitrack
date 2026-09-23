@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest"
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, waitFor } from "@testing-library/react"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
@@ -36,6 +36,10 @@ const renderCard = () => {
 
 beforeEach(() => {
     vi.clearAllMocks()
+})
+
+afterEach(() => {
+    vi.useRealTimers()
 })
 
 describe("RealtimeChartCard", () => {
@@ -88,6 +92,15 @@ describe("RealtimeChartCard", () => {
     })
 
     it("com baldes retornados, renderiza o gráfico (não o estado vazio)", async () => {
+        // Fixo no minuto 30 (nunca na virada de hora): perto de XX:00 SP, "1
+        // minuto atrás" cairia na hora anterior e ficaria fora da janela
+        // densa (startOfSaoPauloPeriod), fazendo o teste falhar de forma
+        // intermitente conforme o horário real em que ele roda.
+        // Só `Date` é congelado — `findByTestId` faz polling com
+        // setTimeout/setInterval reais, que precisam seguir correndo.
+        vi.useFakeTimers({ toFake: ["Date"] })
+        vi.setSystemTime(new Date("2026-06-15T15:30:00.000Z"))
+
         const now = new Date()
         const bucketStart = new Date(now)
         bucketStart.setMinutes(now.getMinutes() - 1, 0, 0)

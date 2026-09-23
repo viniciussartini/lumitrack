@@ -20,7 +20,7 @@ import type { Area, CreateAreaInput, UpdateAreaInput } from "@/types/area.types"
  *   O backend remove devices/consumption_records/alerts vinculados via
  *   ON DELETE CASCADE no Prisma. O hook não precisa fazer nada especial
  *   pra isso — é o usuário que confirma a ação ciente do impacto (vide
- *   AreaMenu, que mostra esse aviso explicitamente no ConfirmDialog).
+ *   TreeActionDialogs, que mostra esse aviso explicitamente no ConfirmDialog).
  */
 
 interface CreateAreaVariables {

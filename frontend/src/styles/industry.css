@@ -920,6 +920,13 @@ textarea.input {
 .lt-selbtn:hover {
     border-color: var(--color-accent);
 }
+.lt-selbtn:disabled {
+    opacity: 0.38;
+    cursor: default;
+}
+.lt-selbtn:disabled:hover {
+    border-color: var(--color-divider);
+}
 
 /* Campo de busca com ícone de lupa sobreposto (padding-left reserva o
    espaço do ícone) — LumiTrack Home.dc.html, <style> local do protótipo.
@@ -1087,6 +1094,13 @@ textarea.input {
     border-left-color: var(--color-status-highlight);
     background: color-mix(in srgb, var(--color-accent) 12%, transparent);
     font-weight: 600;
+}
+/* Recuo por nível na árvore de Análise (1 propriedade, 2 área, 3 dispositivo). */
+.lt-tree-row[data-level="2"] {
+    padding-left: 28px;
+}
+.lt-tree-row[data-level="3"] {
+    padding-left: 57px;
 }
 
 /* Painel de dropdown (menu do usuário, notificações) — LumiTrack

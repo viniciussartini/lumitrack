@@ -120,4 +120,21 @@ describe("PropertyComparisonSection", () => {
 
         expect(screen.getByText(/R\$\s?80,00/)).toBeInTheDocument()
     })
+
+    it("desabilita R$ com a explicação quando nenhuma propriedade tem custo calculável", async () => {
+        const semCusto: ConsumptionSummaryItem = {
+            id: "prop-a",
+            targetType: "PROPERTY",
+            bucketStart: new Date().toISOString(),
+            kwhConsumed: 100,
+            avgPowerW: 500,
+        }
+        vi.mocked(consumptionService.summary).mockResolvedValue({ items: [semCusto] })
+
+        renderSection([propA])
+
+        expect(await screen.findByText("100,00 kWh")).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "R$" })).toBeDisabled()
+        expect(screen.getByText("Custo em R$ indisponível para esta tarifa.")).toBeInTheDocument()
+    })
 })

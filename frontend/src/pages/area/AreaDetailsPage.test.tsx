@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter, Routes, Route } from "react-router"
 import userEvent from "@testing-library/user-event"
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import { AreaDetailsPage } from "@/pages/area/AreaDetailsPage"
 import { areaService } from "@/services/area.service"
 import { propertyService } from "@/services/property.service"
@@ -17,6 +17,8 @@ import { meterReadingService } from "@/services/meterReading.service"
 import { useRealtimeReadings } from "@/contexts/RealtimeContext"
 import type { Meter } from "@/types/meter.types"
 import type { ReadingPayload } from "@/lib/sse/appStream"
+import { toLocalDateKey, toLocalMonthKey } from "@/lib/dashboardKpis"
+import type { ConsumptionSummaryItem } from "@/types/consumption.types"
 
 vi.mock("@/services/consumption.service", () => ({
     consumptionService: {
@@ -165,6 +167,37 @@ const mockReading = (powerW: number): ReadingPayload => ({
     receivedAt: new Date().toISOString(),
 })
 
+const summaryItem = (
+    id: string,
+    targetType: "AREA" | "DEVICE",
+    bucketStart: string,
+    kwhConsumed: number,
+    costBrl?: number,
+): ConsumptionSummaryItem => ({
+    id,
+    targetType,
+    bucketStart,
+    kwhConsumed,
+    avgPowerW: 300,
+    ...(costBrl !== undefined && { costBrl }),
+})
+
+const TODAY = `${toLocalDateKey(new Date())}T00:00:00.000Z`
+const THIS_MONTH = `${toLocalMonthKey(new Date())}-01T00:00:00.000Z`
+
+/** Resumo por alvo e granularidade — o que a página pede ao endpoint em lote. */
+const mockSummaryBy = (items: {
+    area?: { day?: ConsumptionSummaryItem; month?: ConsumptionSummaryItem }
+    devices?: ConsumptionSummaryItem[]
+}) =>
+    vi
+        .mocked(consumptionService.summary)
+        .mockImplementation(async ({ targetType, granularity }) => {
+            if (targetType === "DEVICE") return { items: items.devices ?? [] }
+            const item = items.area?.[granularity === "day" ? "day" : "month"]
+            return { items: item ? [item] : [] }
+        })
+
 const renderPage = () => {
     const queryClient = new QueryClient({
         defaultOptions: {
@@ -207,7 +240,7 @@ describe("AreaDetailsPage — loading", () => {
         renderPage()
 
         expect(screen.queryByText(/sala/i)).not.toBeInTheDocument()
-        expect(screen.getByRole("link", { name: /voltar para propriedade/i })).toBeInTheDocument()
+        expect(screen.getByLabelText(/carregando dados da área/i)).toBeInTheDocument()
     })
 })
 
@@ -223,6 +256,10 @@ describe("AreaDetailsPage — erro fatal (área)", () => {
         renderPage()
 
         expect(await screen.findByText(/área não encontrada/i)).toBeInTheDocument()
+        expect(screen.getByRole("link", { name: /voltar para a propriedade/i })).toHaveAttribute(
+            "href",
+            "/propriedades/prop-1",
+        )
     })
 })
 
@@ -236,12 +273,12 @@ describe("AreaDetailsPage — header", () => {
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
     })
 
-    it("renderiza o nome da área como heading principal", async () => {
+    it("renderiza o nome da área como heading do detalhe", async () => {
         renderPage()
 
         expect(
             await screen.findByRole("heading", {
-                level: 1,
+                level: 2,
                 name: /sala/i,
             }),
         ).toBeInTheDocument()
@@ -261,7 +298,7 @@ describe("AreaDetailsPage — header", () => {
 
         renderPage()
 
-        await screen.findByRole("heading", { level: 1, name: /sala/i })
+        await screen.findByRole("heading", { level: 2, name: /sala/i })
         expect(screen.queryByText(/área principal/i)).not.toBeInTheDocument()
     })
 
@@ -296,54 +333,7 @@ describe("AreaDetailsPage — botão Editar área", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Header — menu ⋯
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("AreaDetailsPage — menu ⋯", () => {
-    beforeEach(() => {
-        vi.mocked(areaService.getById).mockResolvedValue(mockArea)
-        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-    })
-
-    it("renderiza o botão de opções (AreaMenu) com o nome da área", async () => {
-        renderPage()
-
-        await screen.findByRole("heading", { level: 1, name: /sala/i })
-
-        expect(screen.getByRole("button", { name: /opções de Sala/i })).toBeInTheDocument()
-    })
-
-    it("menu NÃO mostra item 'Editar' (já existe botão dedicado no header)", async () => {
-        const user = userEvent.setup()
-        renderPage()
-
-        await screen.findByRole("heading", { level: 1, name: /sala/i })
-
-        await user.click(screen.getByRole("button", { name: /opções de Sala/i }))
-
-        expect(screen.queryByRole("menuitem", { name: /editar/i })).not.toBeInTheDocument()
-
-        // Mas mostra o item Excluir
-        expect(screen.getByRole("menuitem", { name: /excluir/i })).toBeInTheDocument()
-    })
-
-    it("após excluir, navega de volta para a propriedade pai", async () => {
-        vi.mocked(areaService.delete).mockResolvedValue(undefined)
-        const user = userEvent.setup()
-        renderPage()
-
-        await screen.findByRole("heading", { level: 1, name: /sala/i })
-
-        await user.click(screen.getByRole("button", { name: /opções de Sala/i }))
-        await user.click(screen.getByRole("menuitem", { name: /excluir/i }))
-        await user.click(screen.getByRole("button", { name: /^excluir$/i }))
-
-        expect(await screen.findByText(/detalhes da propriedade/i)).toBeInTheDocument()
-    })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Chip — fallbacks
+// Chip da propriedade
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("AreaDetailsPage — chip da propriedade", () => {
@@ -356,7 +346,7 @@ describe("AreaDetailsPage — chip da propriedade", () => {
 
         renderPage()
 
-        await screen.findByRole("heading", { level: 1, name: /sala/i })
+        await screen.findByRole("heading", { level: 2, name: /sala/i })
 
         await waitFor(() =>
             expect(screen.getByText(/propriedade não disponível/i)).toBeInTheDocument(),
@@ -365,103 +355,146 @@ describe("AreaDetailsPage — chip da propriedade", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Seção de Dispositivos — comportamento dinâmico
+// Comparação de dispositivos — no lugar da grade de dispositivos e do
+// "Adicionar dispositivo"
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("AreaDetailsPage — seção de dispositivos (vazia)", () => {
+describe("AreaDetailsPage — comparação de dispositivos", () => {
     beforeEach(() => {
         vi.mocked(areaService.getById).mockResolvedValue(mockArea)
         vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+    })
+
+    it("sem dispositivos, orienta a cadastrá-los", async () => {
         vi.mocked(deviceService.list).mockResolvedValue(paginated([]))
-    })
 
-    it("renderiza seção 'Dispositivos' como heading", async () => {
         renderPage()
 
         expect(
-            await screen.findByRole("heading", {
-                level: 2,
-                name: /dispositivos/i,
-            }),
+            await screen.findByText("Cadastre dispositivos para comparar o consumo entre eles."),
         ).toBeInTheDocument()
     })
 
-    it("renderiza EmptyState quando não há dispositivos", async () => {
-        renderPage()
-
-        expect(await screen.findByText(/nenhum dispositivo cadastrado/i)).toBeInTheDocument()
-    })
-
-    it("abre o modal de criação ao clicar em 'Adicionar dispositivo'", async () => {
-        const user = userEvent.setup()
-        renderPage()
-
-        const addButton = await screen.findByRole("button", {
-            name: /adicionar dispositivo/i,
-        })
-        await user.click(addButton)
-
-        expect(
-            await screen.findByRole("dialog", { name: /adicionar dispositivo/i }),
-        ).toBeInTheDocument()
-    })
-
-    // "Em breve" não faz sentido no estado vazio de uma funcionalidade que
-    // já existe (cadastro de dispositivo) — a mensagem ficou órfã de um
-    // estágio anterior da feature.
-    it("não renderiza a marca 'Em breve' no estado vazio", async () => {
-        renderPage()
-
-        await screen.findByText(/nenhum dispositivo cadastrado/i)
-        expect(screen.queryByTestId("devices-coming-soon")).not.toBeInTheDocument()
-    })
-})
-
-describe("AreaDetailsPage — seção de dispositivos (com dados)", () => {
-    beforeEach(() => {
-        vi.mocked(areaService.getById).mockResolvedValue(mockArea)
-        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-    })
-
-    it("renderiza grid de cards quando há dispositivos", async () => {
+    it("compara o consumo medido dos dispositivos com medidor e avisa dos que ficaram de fora", async () => {
         vi.mocked(deviceService.list).mockResolvedValue(
-            paginated([mockDevice, { ...mockDevice, id: "device-2", name: "TV" }]),
+            paginated([mockDevice, { ...mockDevice, id: "device-2", name: "Ventilador" }]),
         )
+        mockSummaryBy({ devices: [summaryItem("device-1", "DEVICE", THIS_MONTH, 60, 48)] })
 
         renderPage()
 
-        expect(await screen.findByTestId("devices-grid")).toBeInTheDocument()
-        expect(screen.getByTestId("device-card-device-1")).toBeInTheDocument()
-        expect(screen.getByTestId("device-card-device-2")).toBeInTheDocument()
-        expect(screen.getByText(/ar-condicionado/i)).toBeInTheDocument()
-        expect(screen.getByText(/^tv$/i)).toBeInTheDocument()
-        expect(screen.queryByText(/nenhum dispositivo cadastrado/i)).not.toBeInTheDocument()
+        const comparison = await screen.findByTestId("device-comparison")
+        expect(within(comparison).getByText("Ar-condicionado")).toBeInTheDocument()
+        expect(within(comparison).getByText(/60,00 kWh/)).toBeInTheDocument()
+        expect(within(comparison).queryByText("Ventilador")).not.toBeInTheDocument()
+        expect(
+            within(comparison).getByText("1 dispositivo sem medidor não aparece na comparação."),
+        ).toBeInTheDocument()
     })
 
-    it("card do dispositivo aponta para a página de detalhes do device", async () => {
+    it("não traz mais a grade de dispositivos nem o botão de adicionar dispositivo", async () => {
         vi.mocked(deviceService.list).mockResolvedValue(paginated([mockDevice]))
+        mockSummaryBy({})
 
         renderPage()
 
-        const card = await screen.findByTestId("device-card-device-1")
-
-        expect(card).toHaveAttribute("href", "/propriedades/prop-1/areas/area-1/devices/device-1")
+        await screen.findByText("Nenhum dispositivo desta área tem medidor.")
+        expect(screen.queryByTestId("devices-grid")).not.toBeInTheDocument()
+        expect(
+            screen.queryByRole("button", { name: /adicionar dispositivo/i }),
+        ).not.toBeInTheDocument()
     })
-})
 
-describe("AreaDetailsPage — seção de dispositivos (erro)", () => {
-    it("renderiza alerta inline quando o fetch dos dispositivos falha", async () => {
-        vi.mocked(areaService.getById).mockResolvedValue(mockArea)
-        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+    it("mantém o detalhe quando o fetch dos dispositivos falha", async () => {
         vi.mocked(deviceService.list).mockRejectedValue(new Error("Falha ao listar dispositivos"))
 
         renderPage()
 
-        // Header da área aparece (erro nos dispositivos não é fatal)
-        await screen.findByRole("heading", { level: 1, name: /sala/i })
+        await screen.findByRole("heading", { level: 2, name: /sala/i })
+        expect(
+            await screen.findByText("Não foi possível carregar a comparação de dispositivos."),
+        ).toBeInTheDocument()
+    })
+})
 
-        // Alerta inline com a mensagem específica
-        expect(await screen.findByText(/falha ao listar dispositivos/i)).toBeInTheDocument()
+// ─────────────────────────────────────────────────────────────────────────────
+// KPIs do medidor da própria área
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("AreaDetailsPage — KPIs e consumo da própria área", () => {
+    beforeEach(() => {
+        vi.mocked(areaService.getById).mockResolvedValue(mockArea)
+        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+        vi.mocked(deviceService.list).mockResolvedValue(paginated([]))
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+    })
+
+    it("mostra o consumo de hoje e o custo do mês reais, com o kWh/mês na tag", async () => {
+        mockSummaryBy({
+            area: {
+                day: summaryItem("area-1", "AREA", TODAY, 12.5, 10),
+                month: summaryItem("area-1", "AREA", THIS_MONTH, 200, 160),
+            },
+        })
+
+        renderPage()
+
+        expect(await screen.findByText("Consumo hoje")).toBeInTheDocument()
+        expect(await screen.findByText("12,50")).toBeInTheDocument()
+        expect(screen.getByText("Custo do mês")).toBeInTheDocument()
+        expect(screen.getByText(/R\$\s?160,00/)).toBeInTheDocument()
+        expect(screen.getByText("200,00 kWh/mês")).toBeInTheDocument()
+    })
+
+    it("usa o consumo do medidor da área, não a soma dos dispositivos", async () => {
+        vi.mocked(deviceService.list).mockResolvedValue(paginated([mockDevice]))
+        mockSummaryBy({
+            area: { month: summaryItem("area-1", "AREA", THIS_MONTH, 200, 160) },
+            devices: [summaryItem("device-1", "DEVICE", THIS_MONTH, 999, 800)],
+        })
+
+        renderPage()
+
+        expect(await screen.findByText("200,00 kWh/mês")).toBeInTheDocument()
+        expect(screen.queryByText("999,00 kWh/mês")).not.toBeInTheDocument()
+    })
+
+    it("em Grupo A ou Branca, o custo do mês é traço explicado, nunca zero", async () => {
+        mockSummaryBy({
+            area: {
+                day: summaryItem("area-1", "AREA", TODAY, 12.5),
+                month: summaryItem("area-1", "AREA", THIS_MONTH, 200),
+            },
+        })
+
+        renderPage()
+
+        expect(await screen.findByText("Custo indisponível para esta tarifa.")).toBeInTheDocument()
+        expect(screen.getByText("12,50")).toBeInTheDocument()
+        expect(screen.getByText("200,00 kWh/mês")).toBeInTheDocument()
+    })
+
+    it("com medidor ainda sem leitura, os valores são traço", async () => {
+        mockSummaryBy({})
+
+        renderPage()
+
+        await screen.findByText("Consumo hoje")
+        await waitFor(() => expect(consumptionService.summary).toHaveBeenCalled())
+        expect(screen.queryByText(/kWh\/mês/)).not.toBeInTheDocument()
+        expect(screen.queryByText("Custo indisponível para esta tarifa.")).not.toBeInTheDocument()
+    })
+
+    it("sem medidor, não mostra os KPIs nem consulta o resumo da área", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(null)
+
+        renderPage()
+
+        await screen.findByRole("heading", { level: 2, name: /sala/i })
+        expect(screen.queryByText("Consumo hoje")).not.toBeInTheDocument()
+        expect(consumptionService.summary).not.toHaveBeenCalledWith(
+            expect.objectContaining({ targetType: "AREA" }),
+        )
     })
 })
 
@@ -526,26 +559,5 @@ describe("AreaDetailsPage — seção de medidor/consumo (integração)", () => 
         await screen.findByRole("heading", { level: 2, name: /^histórico de consumo$/i })
 
         expect(consumptionService.list).not.toHaveBeenCalled()
-    })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Navegação — voltar
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe("AreaDetailsPage — navegação", () => {
-    beforeEach(() => {
-        vi.mocked(areaService.getById).mockResolvedValue(mockArea)
-        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
-    })
-
-    it("link de voltar aponta para a propriedade pai", async () => {
-        renderPage()
-
-        const backLink = await screen.findByRole("link", {
-            name: /voltar para propriedade/i,
-        })
-
-        expect(backLink).toHaveAttribute("href", "/propriedades/prop-1")
     })
 })

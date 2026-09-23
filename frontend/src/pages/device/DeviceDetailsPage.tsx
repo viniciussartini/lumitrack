@@ -1,16 +1,17 @@
 import { useState } from "react"
-import { Link, useNavigate, useParams } from "react-router"
-import { AlertCircle, ArrowLeft, Cpu, Pencil } from "lucide-react"
+import { Link, useParams } from "react-router"
+import { AlertCircle, Cpu, Pencil } from "lucide-react"
 import { useDevice } from "@/hooks/queries/useDevices"
 import { useArea } from "@/hooks/queries/useAreas"
 import { useProperty } from "@/hooks/queries/useProperties"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
 import { useLiveMeterReading } from "@/hooks/useLiveMeterReading"
+import { useTargetConsumptionKpis } from "@/hooks/useTargetConsumptionKpis"
 import { Button } from "@/components/ui/Button"
 import { Tag } from "@/components/ui/Tag"
-import { DeviceMenu } from "@/components/device/DeviceMenu"
 import { DeviceFormDialog } from "@/components/device/DeviceFormDialog"
 import { DeviceConsumptionSection } from "@/components/consumption/ConsumptionSection"
+import { TargetKpiCards } from "@/components/consumption/TargetKpiCards"
 import { MeterSection } from "@/components/meter/MeterSection"
 import { IconCircle } from "@/components/ui/IconCircle"
 import { LiveKpiCard } from "@/components/dashboard/LiveKpiCard"
@@ -21,27 +22,20 @@ import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
 
 /**
- * Página de detalhes de um dispositivo — LumiTrack Home.dc.html,
- * `deviceDetailView`. Nível folha da hierarquia (Property → Area → Device):
- * sem grid de filhos nem comparação, ao contrário das outras duas páginas.
+ * Detalhe do dispositivo na Análise — LumiTrack Home v2.dc.html,
+ * `deviceDetailView`. Vive à direita da árvore de seleção (`AnalysisLayout`).
+ * Nível folha da hierarquia: sem comparação.
  *
  * Estrutura:
- *   1. Breadcrumb (voltar pra área pai)
- *   2. Header em blueprint: nome + tags (propriedade avó, área pai,
- *      marca/modelo, potência) + ações (Editar dispositivo / ⋯)
- *   3. KPI "Potência agora" (só quando há medidor com leitura real — mesma
- *      decisão de "sem inventar dado": Consumo hoje/Custo projetado ficam de
- *      fora por não terem dado/lógica real)
- *   4. Seção de Medidor
- *   5. Seção de Consumo
+ *   1. Card de dados (nome, propriedade, área, marca/modelo, potência) com
+ *      "Editar dispositivo" e, ao lado, o card do Medidor
+ *   2. Com medidor: consumo em tempo real ao lado dos KPIs "Potência agora",
+ *      "Consumo hoje" e "Custo do mês"
+ *   3. Histórico de consumo (fora do protótipo, abaixo dos blocos dele)
  *
- * Carrega TRÊS queries em paralelo: device, area, property.
- * Erro no Device é fatal; erros em Area/Property viram fallback nas tags.
- *
- * NOTA: O DeviceMenu aqui usa `showEdit={false}` (já temos botão Editar
- * explícito no header) e `onAfterDelete` que navega de volta pra área pai —
- * sem isso, depois de excluir o device a URL apontaria pra recurso
- * inexistente e a página tentaria recarregá-lo num loop visual.
+ * Criar e excluir o dispositivo vivem em Configurações → Cadastro; aqui só
+ * se edita. Carrega três queries em paralelo (dispositivo, área, propriedade):
+ * erro no dispositivo é fatal, nas outras vira fallback nas tags.
  */
 export const DeviceDetailsPage = () => {
     const { propertyId, areaId, deviceId } = useParams<{
@@ -49,127 +43,82 @@ export const DeviceDetailsPage = () => {
         areaId: string
         deviceId: string
     }>()
-    const navigate = useNavigate()
 
     const deviceQuery = useDevice(propertyId, areaId, deviceId)
     const areaQuery = useArea(propertyId, areaId)
     const propertyQuery = useProperty(propertyId)
-    // KPI "Potência agora" — mesma fonte que MeterSection usa internamente
-    // (useMeterByTarget dedupe via cache do TanStack Query) + useLiveMeterReading
-    // (SSE, com fallback REST) pra potência mais recente conhecida.
     const meterQuery = useMeterByTarget("DEVICE", deviceId)
-    const { lastKnownPowerW } = useLiveMeterReading("DEVICE", deviceId, meterQuery.data?.id)
+    const meter = meterQuery.data
+    // Sem medidor não há o que consultar: o resumo omitiria o item.
+    const kpis = useTargetConsumptionKpis("DEVICE", meter ? deviceId : undefined)
+    const { lastKnownPowerW } = useLiveMeterReading("DEVICE", deviceId, meter?.id)
 
-    if (deviceQuery.isLoading) {
-        return (
-            <div className="flex flex-col gap-6">
-                <BackLink propertyId={propertyId} areaId={areaId} />
-                <DetailsSkeleton />
-            </div>
-        )
-    }
+    if (deviceQuery.isLoading) return <DetailsSkeleton />
 
     if (deviceQuery.isError || !deviceQuery.data) {
         return (
-            <div className="flex flex-col gap-6">
-                <BackLink propertyId={propertyId} areaId={areaId} />
-                <ErrorState
-                    propertyId={propertyId}
-                    areaId={areaId}
-                    message={
-                        deviceQuery.error instanceof Error
-                            ? deviceQuery.error.message
-                            : "Dispositivo não encontrado"
-                    }
-                />
-            </div>
+            <ErrorState
+                propertyId={propertyId}
+                areaId={areaId}
+                message={
+                    deviceQuery.error instanceof Error
+                        ? deviceQuery.error.message
+                        : "Dispositivo não encontrado"
+                }
+            />
         )
     }
 
     const device = deviceQuery.data
-    const area = areaQuery.data
     const property = propertyQuery.data
-    const meter = meterQuery.data
-
-    const handleAfterDelete = () => {
-        // Após excluir, volta pra área pai. replace evita que o botão
-        // "voltar" do navegador traga de volta a página do device deletado.
-        void navigate(`/propriedades/${propertyId}/areas/${areaId}`, {
-            replace: true,
-        })
-    }
 
     return (
-        <div className="flex flex-col gap-6">
-            <BackLink propertyId={propertyId} areaId={areaId} />
-
-            <DeviceHeaderCard
-                device={device}
-                area={area}
-                property={property}
-                isAreaLoading={areaQuery.isLoading}
-                isPropertyLoading={propertyQuery.isLoading}
-                onAfterDelete={handleAfterDelete}
-            />
+        <div className="flex flex-col gap-5">
+            <div className="grid grid-cols-1 items-start gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+                <DeviceHeaderCard
+                    device={device}
+                    area={areaQuery.data}
+                    property={property}
+                    isAreaLoading={areaQuery.isLoading}
+                    isPropertyLoading={propertyQuery.isLoading}
+                />
+                <MeterSection targetType="DEVICE" targetId={device.id} />
+            </div>
 
             {meter && (
-                <LiveKpiCard
-                    label="Potência agora"
-                    value={
-                        lastKnownPowerW !== undefined ? (
-                            formatPowerKw(lastKnownPowerW)
-                        ) : (
-                            <span className="text-muted">—</span>
-                        )
-                    }
-                    isLive
-                    className="w-fit min-w-[220px]"
-                />
+                <div className="grid grid-cols-1 items-stretch gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                    <RealtimeChartCard
+                        targetType="DEVICE"
+                        targetId={device.id}
+                        meterId={meter.id}
+                        title="Consumo em tempo real"
+                        subtitle={device.name}
+                    />
+                    <div className="flex flex-col gap-[clamp(12px,1.4vw,16px)]">
+                        <LiveKpiCard
+                            label="Potência agora"
+                            value={
+                                lastKnownPowerW !== undefined ? (
+                                    formatPowerKw(lastKnownPowerW)
+                                ) : (
+                                    <span className="text-muted">—</span>
+                                )
+                            }
+                            isLive
+                        />
+                        <TargetKpiCards kpis={kpis} />
+                    </div>
+                </div>
             )}
 
-            {meter && (
-                <RealtimeChartCard
-                    targetType="DEVICE"
-                    targetId={deviceId!}
-                    meterId={meter.id}
-                    title="Consumo em tempo real"
-                    subtitle={device.name}
-                />
-            )}
-
-            <MeterSection targetType="DEVICE" targetId={deviceId!} />
             <DeviceConsumptionSection
                 propertyId={propertyId!}
                 areaId={areaId!}
-                deviceId={deviceId!}
+                deviceId={device.id}
                 tariffGroup={property?.tariffGroup}
                 groupBModality={property?.groupBModality}
             />
         </div>
-    )
-}
-
-interface BackLinkProps {
-    propertyId: string | undefined
-    areaId: string | undefined
-}
-
-const BackLink = ({ propertyId, areaId }: BackLinkProps) => {
-    const href =
-        propertyId && areaId
-            ? `/propriedades/${propertyId}/areas/${areaId}`
-            : propertyId
-              ? `/propriedades/${propertyId}`
-              : "/propriedades"
-
-    return (
-        <Link
-            to={href}
-            className="text-muted hover:text-text inline-flex w-fit items-center gap-1.5 text-sm"
-        >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Voltar para área
-        </Link>
     )
 }
 
@@ -179,7 +128,6 @@ interface DeviceHeaderCardProps {
     property: Property | undefined
     isAreaLoading: boolean
     isPropertyLoading: boolean
-    onAfterDelete: () => void
 }
 
 const DeviceHeaderCard = ({
@@ -188,7 +136,6 @@ const DeviceHeaderCard = ({
     property,
     isAreaLoading,
     isPropertyLoading,
-    onAfterDelete,
 }: DeviceHeaderCardProps) => {
     const { propertyId, areaId } = useParams<{
         propertyId: string
@@ -208,9 +155,9 @@ const DeviceHeaderCard = ({
             <div className="gap-15px flex min-w-0 items-start">
                 <IconCircle icon={Cpu} tone="accent" strokeWidth={1.5} />
                 <div className="min-w-0 flex-1">
-                    <h1 className="font-heading truncate text-[clamp(24px,2.6vw,32px)] leading-none font-semibold uppercase">
+                    <h2 className="font-heading truncate text-[clamp(24px,2.6vw,32px)] leading-none font-semibold uppercase">
                         {device.name}
-                    </h1>
+                    </h2>
                 </div>
             </div>
 
@@ -235,11 +182,6 @@ const DeviceHeaderCard = ({
                     <Pencil className="h-4 w-4" aria-hidden="true" />
                     Editar dispositivo
                 </Button>
-                {/*
-                    showEdit=false: botão "Editar dispositivo" explícito
-                    acima, no menu sobra apenas Excluir.
-                */}
-                <DeviceMenu device={device} showEdit={false} onAfterDelete={onAfterDelete} />
             </div>
 
             {propertyId && areaId && (

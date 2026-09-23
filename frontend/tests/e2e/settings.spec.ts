@@ -117,6 +117,94 @@ test.describe("Configurações → Cadastro", () => {
         await expect(page).toHaveURL(/\/configuracoes\/cadastro$/)
     })
 
+    test("cria uma propriedade pelo cartão e a envia com os dados do formulário", async ({
+        page,
+    }) => {
+        await setupCadastro(page, [])
+        let postedBody: unknown
+        await page.route(/\/api\/properties(\?.*)?$/, (route) => {
+            if (route.request().method() !== "POST") return route.fallback()
+            postedBody = JSON.parse(route.request().postData() ?? "{}")
+            return fulfillJson(route, { ...PROP_1, name: "Casa de Campo" }, 201)
+        })
+        await page.goto("/configuracoes/cadastro")
+        await hideDevTools(page)
+
+        await page.getByRole("button", { name: /nova propriedade/i }).click()
+        const dialog = page.getByRole("dialog", { name: /adicionar propriedade/i })
+        await dialog.getByLabel(/nome da propriedade/i).fill("Casa de Campo")
+        await dialog.getByLabel(/distribuidora vinculada/i).selectOption("dist-cemig")
+        await dialog.getByLabel(/logradouro/i).fill("Estrada Velha, 10")
+        await dialog.getByLabel(/cidade/i).fill("Belo Horizonte")
+        await dialog.getByLabel(/^uf$/i).selectOption("MG")
+        await dialog.getByLabel(/cep/i).fill("30000000")
+        await dialog.getByRole("button", { name: /criar propriedade/i }).click()
+
+        await expect(dialog).toBeHidden()
+        expect(postedBody).toMatchObject({
+            name: "Casa de Campo",
+            distributorId: "dist-cemig",
+            city: "Belo Horizonte",
+            state: "MG",
+        })
+    })
+
+    test("bloqueia criar propriedade quando não há distribuidora cadastrada", async ({ page }) => {
+        await setupCadastro(page, [])
+        // Catálogo vazio — registrado depois do de `setupCadastro`, que ele sobrepõe.
+        await page.route(/\/api\/distributors(\?.*)?$/, (route) => fulfillPaginated(route, []))
+        await page.goto("/configuracoes/cadastro")
+        await hideDevTools(page)
+
+        await page.getByRole("button", { name: /nova propriedade/i }).click()
+        const dialog = page.getByRole("dialog", { name: /adicionar propriedade/i })
+
+        await expect(dialog.getByText(/catálogo de distribuidoras indisponível/i)).toBeVisible()
+        await expect(
+            dialog.getByRole("link", { name: /ver catálogo de distribuidoras/i }),
+        ).toHaveAttribute("href", "/distribuidoras")
+        await expect(page.getByLabel(/nome da propriedade/i)).toBeHidden()
+    })
+
+    test("validação bloqueia criar área com nome vazio", async ({ page }) => {
+        await setupCadastro(page, [PROP_1], () => TREE)
+        await page.goto("/configuracoes/cadastro")
+        await hideDevTools(page)
+
+        await page.getByRole("button", { name: /nova área/i }).click()
+        const dialog = page.getByRole("dialog", { name: /adicionar área/i })
+        await dialog.getByRole("button", { name: /criar área/i }).click()
+
+        await expect(dialog.getByText(/nome é obrigatório/i)).toBeVisible()
+        await expect(dialog).toBeVisible()
+
+        // Sem passar pelo campo "nome": o clique direto no envio já mostra os dois erros.
+        await dialog.getByLabel(/descrição/i).fill("a".repeat(1001))
+        await dialog.getByRole("button", { name: /criar área/i }).click()
+        await expect(dialog.getByText(/nome é obrigatório/i)).toBeVisible()
+        await expect(dialog.getByText(/descrição muito longa/i)).toBeVisible()
+    })
+
+    test("validação bloqueia criar dispositivo com nome vazio e potência inválida", async ({
+        page,
+    }) => {
+        await setupCadastro(page, [PROP_1], () => TREE)
+        await page.goto("/configuracoes/cadastro")
+        await hideDevTools(page)
+
+        await page.getByRole("button", { name: /novo dispositivo/i }).click()
+        const dialog = page.getByRole("dialog", { name: /adicionar dispositivo/i })
+        await dialog.getByRole("button", { name: /criar dispositivo/i }).click()
+
+        await expect(dialog.getByText(/nome é obrigatório/i)).toBeVisible()
+        await expect(dialog).toBeVisible()
+
+        // Sem passar pelo campo "nome": o clique direto no envio já mostra os dois erros.
+        await dialog.getByLabel(/potência/i).fill("0")
+        await dialog.getByRole("button", { name: /criar dispositivo/i }).click()
+        await expect(dialog.getByText(/nome é obrigatório/i)).toBeVisible()
+    })
+
     test("cria uma área na propriedade escolhida no modal", async ({ page }) => {
         await setupCadastro(page, [PROP_1, PROP_2], () => TWO_PROPERTIES_TREE)
         let postedTo = ""
@@ -219,6 +307,69 @@ test.describe("Configurações → Cadastro", () => {
         await expect(dialog).toBeHidden()
         expect(putBody).toMatchObject({ name: "Copa" })
         await expect(page.getByRole("button", { name: /^copa/i })).toBeVisible()
+    })
+
+    test("exclui uma propriedade pela árvore só depois de confirmar", async ({ page }) => {
+        let tree = TREE
+        await setupCadastro(page, [PROP_1], () => tree)
+        let deleted = false
+        await page.route("**/api/properties/prop-1", (route) => {
+            if (route.request().method() === "DELETE") {
+                deleted = true
+                tree = EMPTY_TREE
+                return route.fulfill({ status: 204 })
+            }
+            return fulfillJson(route, PROP_1)
+        })
+        await page.goto("/configuracoes/cadastro")
+        await hideDevTools(page)
+
+        await page.getByRole("button", { name: "Excluir propriedade Casa" }).click()
+        const dialog = page.getByRole("dialog", { name: /excluir propriedade/i })
+        expect(deleted).toBe(false)
+
+        await dialog.getByRole("button", { name: /^excluir$/i }).click()
+
+        await expect(dialog).toBeHidden()
+        expect(deleted).toBe(true)
+        await expect(page.getByText(/nenhuma propriedade cadastrada/i)).toBeVisible()
+    })
+
+    test("exclui um dispositivo pela árvore só depois de confirmar", async ({ page }) => {
+        let tree = TREE
+        await setupCadastro(page, [PROP_1], () => tree)
+        let deleted = false
+        await page.route("**/api/properties/prop-1/areas/area-1/devices/device-1", (route) => {
+            if (route.request().method() === "DELETE") {
+                deleted = true
+                tree = {
+                    ...TREE,
+                    items: [
+                        {
+                            ...TREE.items[0]!,
+                            areas: [{ ...TREE.items[0]!.areas[0]!, devices: [] }],
+                        },
+                    ],
+                }
+                return route.fulfill({ status: 204 })
+            }
+            return fulfillJson(route, DEVICE_1)
+        })
+        await page.goto("/configuracoes/cadastro")
+        await hideDevTools(page)
+
+        await expandAndSettle(page.getByRole("button", { name: /^casa/i }))
+        await page.getByRole("button", { name: /^cozinha/i }).click()
+        await page.getByRole("button", { name: "Excluir dispositivo Geladeira" }).click()
+        const dialog = page.getByRole("dialog", { name: /excluir dispositivo/i })
+        await expect(dialog).toContainText(/integração iot/i)
+        expect(deleted).toBe(false)
+
+        await dialog.getByRole("button", { name: /^excluir$/i }).click()
+
+        await expect(dialog).toBeHidden()
+        expect(deleted).toBe(true)
+        await expect(page.getByText("Geladeira", { exact: true })).toBeHidden()
     })
 
     test("exclui uma área pela árvore só depois de confirmar", async ({ page }) => {

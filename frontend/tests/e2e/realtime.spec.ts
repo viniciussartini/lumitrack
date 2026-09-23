@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test"
 
 import { fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
+import { mockPropertyTree } from "./support/propertyTree"
 import { hideDevTools } from "./support/devtools"
 import { mockSseStream, sseEvent } from "./support/sse"
 import { ALERT_1, DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
@@ -46,6 +47,7 @@ const PROPERTY_METER = {
 const setupAuthAndProperty = async (page: Page) => {
     await mockAppShellBackground(page)
     await setupAuth(page)
+    await mockPropertyTree(page)
 
     await page.route(/\/api\/distributors(\?.*)?$/, (route) =>
         fulfillPaginated(route, [DIST_CEMIG]),
