@@ -249,7 +249,7 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
   ```
 
 - RN33 `[implementado]`: alerta desabilitado ou excluído durante um episódio em curso **encerra e persiste** o episódio no estado em que estava — não o descarta.
-- RN34 `[planejado — Fase 25]`: o sistema aceita medidores que não medem todas as grandezas; grandeza ausente é exibida como "-", nunca como zero — zero é uma medição, ausência não é. *(Quais grandezas o medidor real entrega medidas e quais são calculadas é decisão em aberto — ver `07-decisoes-em-aberto.md`; bloqueia a Fase 25.)*
+- RN34 `[planejado — Fase 25]`: o sistema aceita medidores que não medem todas as grandezas; grandeza ausente é exibida como "-", nunca como zero — zero é uma medição, ausência não é. *(ADR-0022, confirmada contra o datasheet real do medidor-alvo CCK 7200D: quase todas as grandezas de FNC010 são medidas nativamente, sem cálculo no pipeline. Duas exceções: desequilíbrio de tensão é calculado a partir das três tensões de fase medidas — fórmula fechada, não estimativa; corrente de neutro não é medida nem derivável com confiança e fica **sempre** "-" via esta regra, para qualquer medidor da mesma classe.)*
 
 ### Relatórios e metas
 
@@ -348,7 +348,7 @@ Menu à esquerda com as configurações disponíveis e, à direita, a página da
 
 O medidor envia ao sistema: tensão (por fase, fase-neutro média, desequilíbrio); corrente (por fase e de neutro); potência (ativa total, reativa, aparente, ativa por fase, frequência); fator de potência por fase; THD de tensão por fase; THD de corrente por fase.
 
-O sistema opera com qualquer medidor, inclusive os que não medem todas as grandezas — a ausência é exibida conforme RN34. *(Quais dessas grandezas um medidor real mede e quais ele calcula internamente é decisão em aberto — ver `07-decisoes-em-aberto.md`; a resposta define o que o `MeterReading` persiste.)*
+O sistema opera com qualquer medidor, inclusive os que não medem todas as grandezas — a ausência é exibida conforme RN34. *(ADR-0022, verificada contra o datasheet do CCK 7200D: todas as grandezas são medidas nativamente e persistidas como tal, exceto desequilíbrio de tensão — calculado no pipeline a partir das três tensões de fase medidas — e corrente de neutro, que o medidor-alvo não mede nem permite derivar com confiança e por isso fica sempre "-".)*
 
 **FNC011 — Metas** `[planejado — Fase 28]`
 
