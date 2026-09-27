@@ -200,3 +200,118 @@ describe("MeterReadingService.list", () => {
         expect(result.items[0]!.avgPowerW).toBeCloseTo(500)
     })
 })
+
+describe("MeterReadingService.comparePeriods", () => {
+    it("lança ValidationError quando período A e B têm durações diferentes", async () => {
+        const { user, property } = await setupPropertyMeter()
+
+        await expect(
+            meterReadingService.comparePeriods(user.id, {
+                targetType: "PROPERTY",
+                targetId: property.id,
+                metric: "tensao",
+                fromA: "2026-01-15T00:00:00Z",
+                toA: "2026-01-16T00:00:00Z", // 1 dia
+                fromB: "2026-02-01T00:00:00Z",
+                toB: "2026-02-04T00:00:00Z", // 3 dias
+            }),
+        ).rejects.toThrow(ValidationError)
+    })
+
+    it("lança ValidationError quando um período excede o teto de dias", async () => {
+        const { user, property } = await setupPropertyMeter()
+
+        await expect(
+            meterReadingService.comparePeriods(user.id, {
+                targetType: "PROPERTY",
+                targetId: property.id,
+                metric: "tensao",
+                fromA: "2026-01-01T00:00:00Z",
+                toA: "2026-06-01T00:00:00Z", // bem mais que 92 dias
+                fromB: "2026-07-01T00:00:00Z",
+                toB: "2026-12-01T00:00:00Z",
+            }),
+        ).rejects.toThrow(ValidationError)
+    })
+
+    it("lança NotFoundError quando o alvo não tem medidor vinculado", async () => {
+        const user = await userService.createUser({
+            email: "semmedidor2@example.com",
+            password: "Senha@123",
+            userType: "INDIVIDUAL",
+            acceptedTerms: true,
+            firstName: "Sem",
+            lastName: "Medidor",
+            cpf: "310.037.856-38",
+        })
+        const distributor = await createTestDistributor(prismaTest)
+        const property = await propertyService.create(user.id, {
+            name: "Casa",
+            distributorId: distributor.id,
+            electricalSystem: "MONOPHASIC",
+        })
+
+        await expect(
+            meterReadingService.comparePeriods(user.id, {
+                targetType: "PROPERTY",
+                targetId: property.id,
+                metric: "tensao",
+                fromA: "2026-01-15T00:00:00Z",
+                toA: "2026-01-16T00:00:00Z",
+                fromB: "2026-02-01T00:00:00Z",
+                toB: "2026-02-02T00:00:00Z",
+            }),
+        ).rejects.toThrow(NotFoundError)
+    })
+
+    it("lança ForbiddenError quando a propriedade pertence a outro usuário", async () => {
+        const { property } = await setupPropertyMeter()
+        const userB = await userService.createUser({
+            email: "outro2@example.com",
+            password: "Senha@123",
+            userType: "INDIVIDUAL",
+            acceptedTerms: true,
+            firstName: "Outro",
+            lastName: "Usuário",
+            cpf: "310.037.856-38",
+        })
+
+        await expect(
+            meterReadingService.comparePeriods(userB.id, {
+                targetType: "PROPERTY",
+                targetId: property.id,
+                metric: "tensao",
+                fromA: "2026-01-15T00:00:00Z",
+                toA: "2026-01-16T00:00:00Z",
+                fromB: "2026-02-01T00:00:00Z",
+                toB: "2026-02-02T00:00:00Z",
+            }),
+        ).rejects.toThrow(ForbiddenError)
+    })
+
+    it("compara dois períodos de mesma duração, devolvendo baldes completos e a diferença de B sobre A", async () => {
+        const { user, meter, property } = await setupPropertyMeter()
+
+        await insertReading(meter.id, "2026-01-15T10:00:00Z", 1000) // período A
+        await insertReading(meter.id, "2026-02-10T10:00:00Z", 1500) // período B
+
+        const result = await meterReadingService.comparePeriods(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            metric: "pativa",
+            fromA: "2026-01-15T00:00:00Z",
+            toA: "2026-01-16T00:00:00Z",
+            fromB: "2026-02-10T00:00:00Z",
+            toB: "2026-02-11T00:00:00Z",
+        })
+
+        expect(result.metric).toBe("pativa")
+        expect(result.granularity).toBe("hour")
+        expect(result.periodA.items).toHaveLength(24)
+        expect(result.periodB.items).toHaveLength(24)
+        expect(result.periodA.summary.avg).toBeCloseTo(1000)
+        expect(result.periodB.summary.avg).toBeCloseTo(1500)
+        expect(result.diff.absolute).toBeCloseTo(500)
+        expect(result.diff.percent).toBeCloseTo(50)
+    })
+})

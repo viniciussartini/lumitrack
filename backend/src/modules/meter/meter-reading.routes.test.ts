@@ -298,3 +298,120 @@ describe("GET /api/meter-readings/series", () => {
         expect(response.body.data.items).toHaveLength(24)
     })
 })
+
+describe("GET /api/meter-readings/compare-periods", () => {
+    // Período A de 1h cobrindo a leitura fixture (14:10Z); período B de 1h
+    // sem nenhuma leitura — exercita a diferença com um lado ausente.
+    const COMPARE_QS =
+        "metric=tensao&fromA=2026-01-15T14:00:00Z&toA=2026-01-15T15:00:00Z" +
+        "&fromB=2026-01-20T14:00:00Z&toB=2026-01-20T15:00:00Z"
+
+    it("retorna 401 sem token", async () => {
+        const response = await request(app).get(
+            `/api/meter-readings/compare-periods?targetType=PROPERTY&targetId=00000000-0000-0000-0000-000000000000&${COMPARE_QS}`,
+        )
+        expect(response.status).toBe(401)
+    })
+
+    it("retorna 200 com os dois períodos e a diferença", async () => {
+        const { token, propertyId } = await setupPropertyWithMeter()
+
+        const response = await request(app)
+            .get(
+                `/api/meter-readings/compare-periods?targetType=PROPERTY&targetId=${propertyId}&${COMPARE_QS}`,
+            )
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(200)
+        expect(response.body.data.metric).toBe("tensao")
+        expect(response.body.data.granularity).toBe("hour")
+        expect(response.body.data.periodA.items).toHaveLength(1)
+        expect(response.body.data.periodB.items).toHaveLength(1)
+        const populatedA = response.body.data.periodA.items.filter(
+            (item: { avg: number | null }) => item.avg !== null,
+        )
+        expect(populatedA).toHaveLength(1)
+        expect(populatedA[0].avg).toBeCloseTo(220)
+        // Período B não tem leitura nenhuma — grandeza ausente vira null,
+        // nunca 0, e a diferença não é calculável com um lado nulo.
+        expect(response.body.data.periodB.summary.avg).toBeNull()
+        expect(response.body.data.diff.absolute).toBeNull()
+    })
+
+    it("retorna 404 quando o alvo não tem medidor vinculado", async () => {
+        const token = await registerAndLogin()
+        const distributor = await createTestDistributor(prismaHttpTest)
+
+        const propRes = await request(app)
+            .post("/api/properties")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                name: "Sem medidor",
+                distributorId: distributor.id,
+                electricalSystem: "MONOPHASIC",
+            })
+
+        const response = await request(app)
+            .get(
+                `/api/meter-readings/compare-periods?targetType=PROPERTY&targetId=${propRes.body.data.id}&${COMPARE_QS}`,
+            )
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(404)
+    })
+
+    it("retorna 403 para propriedade de outro usuário", async () => {
+        const { propertyId } = await setupPropertyWithMeter(validUser)
+        const tokenB = await registerAndLogin(anotherUser)
+
+        const response = await request(app)
+            .get(
+                `/api/meter-readings/compare-periods?targetType=PROPERTY&targetId=${propertyId}&${COMPARE_QS}`,
+            )
+            .set("Authorization", `Bearer ${tokenB}`)
+
+        expect(response.status).toBe(403)
+    })
+
+    it("retorna 422 quando período A e B têm durações diferentes", async () => {
+        const { token, propertyId } = await setupPropertyWithMeter()
+
+        const response = await request(app)
+            .get(
+                `/api/meter-readings/compare-periods?targetType=PROPERTY&targetId=${propertyId}` +
+                    "&metric=tensao&fromA=2026-01-15T14:00:00Z&toA=2026-01-15T15:00:00Z" +
+                    "&fromB=2026-01-20T14:00:00Z&toB=2026-01-20T17:00:00Z",
+            )
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(422)
+    })
+
+    it("retorna 422 para metric inválida", async () => {
+        const { token, propertyId } = await setupPropertyWithMeter()
+
+        const response = await request(app)
+            .get(
+                `/api/meter-readings/compare-periods?targetType=PROPERTY&targetId=${propertyId}` +
+                    "&metric=inexistente&fromA=2026-01-15T14:00:00Z&toA=2026-01-15T15:00:00Z" +
+                    "&fromB=2026-01-20T14:00:00Z&toB=2026-01-20T15:00:00Z",
+            )
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(422)
+    })
+
+    it("retorna 422 quando toA não é depois de fromA", async () => {
+        const { token, propertyId } = await setupPropertyWithMeter()
+
+        const response = await request(app)
+            .get(
+                `/api/meter-readings/compare-periods?targetType=PROPERTY&targetId=${propertyId}` +
+                    "&metric=tensao&fromA=2026-01-15T15:00:00Z&toA=2026-01-15T14:00:00Z" +
+                    "&fromB=2026-01-20T14:00:00Z&toB=2026-01-20T13:00:00Z",
+            )
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(422)
+    })
+})

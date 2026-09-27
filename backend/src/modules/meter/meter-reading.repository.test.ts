@@ -747,3 +747,158 @@ describe("MeterReadingRepository.findSeries", () => {
         expect(buckets).toEqual([])
     })
 })
+
+describe("MeterReadingRepository.findPeriodSeries", () => {
+    it("balde relativo ao início do período (não à hora cheia): duas leituras no mesmo balde de 1h a partir de 14:30", async () => {
+        const meterId = await setupMeter()
+        // Período começa às 14:30 — o primeiro balde de 1h vai de 14:30 a
+        // 15:30, não de 14:00 a 15:00 (isso seria alinhamento por calendário,
+        // que esta função deliberadamente não faz).
+        await insertReading(meterId, new Date("2026-01-15T14:45:00.000Z"), { avgVoltage: 210 })
+        await insertReading(meterId, new Date("2026-01-15T15:15:00.000Z"), { avgVoltage: 230 })
+
+        const buckets = await meterReadingRepository.findPeriodSeries(
+            meterId,
+            "tensao",
+            new Date("2026-01-15T14:30:00.000Z"),
+            3600,
+            new Date("2026-01-15T14:30:00.000Z"),
+            new Date("2026-01-15T15:30:00.000Z"),
+        )
+
+        expect(buckets).toHaveLength(1)
+        expect(buckets[0]!.bucketStart).toEqual(new Date("2026-01-15T14:30:00.000Z"))
+        expect(buckets[0]!.min).toBeCloseTo(210)
+        expect(buckets[0]!.max).toBeCloseTo(230)
+        expect(buckets[0]!.avg).toBeCloseTo(220)
+    })
+
+    it("balde diário (86400s): agrupa leituras do mesmo dia relativo ao início do período", async () => {
+        const meterId = await setupMeter()
+        await insertReading(meterId, new Date("2026-01-15T10:00:00.000Z"), { avgVoltage: 210 })
+        await insertReading(meterId, new Date("2026-01-15T20:00:00.000Z"), { avgVoltage: 230 })
+        await insertReading(meterId, new Date("2026-01-16T10:00:00.000Z"), { avgVoltage: 240 })
+
+        const buckets = await meterReadingRepository.findPeriodSeries(
+            meterId,
+            "tensao",
+            new Date("2026-01-15T00:00:00.000Z"),
+            86400,
+            new Date("2026-01-15T00:00:00.000Z"),
+            new Date("2026-01-17T00:00:00.000Z"),
+        )
+
+        expect(buckets).toHaveLength(2)
+        const day1 = buckets.find(
+            (b) => b.bucketStart.getTime() === new Date("2026-01-15T00:00:00.000Z").getTime(),
+        )!
+        expect(day1.min).toBeCloseTo(210)
+        expect(day1.max).toBeCloseTo(230)
+        const day2 = buckets.find(
+            (b) => b.bucketStart.getTime() === new Date("2026-01-16T00:00:00.000Z").getTime(),
+        )!
+        expect(day2.avg).toBeCloseTo(240)
+    })
+
+    it("grandeza nunca reportada pelo medidor: devolve null, não 0 (RN34)", async () => {
+        const meterId = await setupMeter()
+        await insertReading(meterId, new Date("2026-01-15T14:45:00.000Z"))
+
+        const buckets = await meterReadingRepository.findPeriodSeries(
+            meterId,
+            "thdv",
+            new Date("2026-01-15T14:30:00.000Z"),
+            3600,
+            new Date("2026-01-15T14:30:00.000Z"),
+            new Date("2026-01-15T15:30:00.000Z"),
+        )
+
+        expect(buckets).toHaveLength(1)
+        expect(buckets[0]!.min).toBeNull()
+        expect(buckets[0]!.avg).toBeNull()
+        expect(buckets[0]!.max).toBeNull()
+    })
+
+    it("sem nenhuma leitura no medidor, devolve array vazio", async () => {
+        const meterId = await setupMeter()
+
+        const buckets = await meterReadingRepository.findPeriodSeries(
+            meterId,
+            "tensao",
+            new Date("2026-01-15T14:30:00.000Z"),
+            3600,
+            new Date("2026-01-15T14:30:00.000Z"),
+            new Date("2026-01-15T15:30:00.000Z"),
+        )
+
+        expect(buckets).toEqual([])
+    })
+})
+
+describe("MeterReadingRepository.findPeriodSummary", () => {
+    it("mínimo/média/máximo do período inteiro, ponderado por secondsCovered", async () => {
+        const meterId = await setupMeter()
+        await insertReading(meterId, new Date("2026-01-15T14:00:00.000Z"), { avgVoltage: 210 })
+        await insertReading(meterId, new Date("2026-01-15T20:00:00.000Z"), { avgVoltage: 230 })
+
+        const summary = await meterReadingRepository.findPeriodSummary(
+            meterId,
+            "tensao",
+            new Date("2026-01-15T00:00:00.000Z"),
+            new Date("2026-01-16T00:00:00.000Z"),
+        )
+
+        expect(summary.min).toBeCloseTo(210)
+        expect(summary.max).toBeCloseTo(230)
+        expect(summary.avg).toBeCloseTo(220) // pesos iguais (60s cada)
+    })
+
+    it("grandeza nunca reportada: devolve null nos três campos (RN34)", async () => {
+        const meterId = await setupMeter()
+        await insertReading(meterId, new Date("2026-01-15T14:00:00.000Z"))
+
+        const summary = await meterReadingRepository.findPeriodSummary(
+            meterId,
+            "thdv",
+            new Date("2026-01-15T00:00:00.000Z"),
+            new Date("2026-01-16T00:00:00.000Z"),
+        )
+
+        expect(summary).toEqual({ min: null, avg: null, max: null })
+    })
+
+    it("sem nenhuma leitura no medidor no período, devolve null nos três campos (não lança, mesmo sem GROUP BY)", async () => {
+        const meterId = await setupMeter()
+
+        const summary = await meterReadingRepository.findPeriodSummary(
+            meterId,
+            "tensao",
+            new Date("2026-01-15T00:00:00.000Z"),
+            new Date("2026-01-16T00:00:00.000Z"),
+        )
+
+        expect(summary).toEqual({ min: null, avg: null, max: null })
+    })
+
+    it("linha com secondsCovered=0 não polui mínimo/máximo do período (mesma regra de findSeries)", async () => {
+        const meterId = await setupMeter()
+        await insertReading(meterId, new Date("2026-01-15T14:00:00.000Z"), {
+            avgVoltage: 0,
+            secondsCovered: 0,
+        })
+        await insertReading(meterId, new Date("2026-01-15T14:02:00.000Z"), {
+            avgVoltage: 220,
+            secondsCovered: 60,
+        })
+
+        const summary = await meterReadingRepository.findPeriodSummary(
+            meterId,
+            "tensao",
+            new Date("2026-01-15T00:00:00.000Z"),
+            new Date("2026-01-16T00:00:00.000Z"),
+        )
+
+        expect(summary.min).toBeCloseTo(220)
+        expect(summary.max).toBeCloseTo(220)
+    })
+})

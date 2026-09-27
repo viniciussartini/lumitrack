@@ -1,6 +1,7 @@
 import {
     listMeterReadingsQuerySchema,
     meterReadingSeriesQuerySchema,
+    meterReadingComparePeriodsQuerySchema,
     type MeterReadingGranularity,
     type MeterReadingSeriesMetric,
     type MeterReadingSeriesWindow,
@@ -14,6 +15,13 @@ import {
     fillMissingBuckets,
     type SeriesBucketValues,
 } from "@/modules/meter/meter-reading-series-window.js"
+import {
+    computeComparePeriodsWindow,
+    computePeriodDiff,
+    type ComparePeriodsGranularity,
+    type PeriodDiff,
+    type PeriodSummary,
+} from "@/modules/meter/meter-reading-compare-periods.js"
 import type { MeterRepository } from "@/modules/meter/meter.repository.js"
 import type { PropertyRepository } from "@/modules/property/property.repository.js"
 import type { AreaRepository } from "@/modules/area/area.repository.js"
@@ -31,6 +39,21 @@ export type MeterReadingSeriesResponse = {
     items: SeriesBucketValues[]
     metric: MeterReadingSeriesMetric
     window: MeterReadingSeriesWindow
+}
+
+export type ComparePeriodResult = {
+    from: Date
+    to: Date
+    items: SeriesBucketValues[]
+    summary: PeriodSummary
+}
+
+export type ComparePeriodsResponse = {
+    metric: MeterReadingSeriesMetric
+    granularity: ComparePeriodsGranularity
+    periodA: ComparePeriodResult
+    periodB: ComparePeriodResult
+    diff: PeriodDiff
 }
 
 /**
@@ -134,5 +157,96 @@ export class MeterReadingService {
         )
 
         return { items: fillMissingBuckets(bucketStarts, found), metric, window }
+    }
+
+    /**
+     * Comparação de dois períodos arbitrários de mesma duração, do alvo
+     * informado, restrita ao titular — a mesma grandeza agregada em cada
+     * período (baldes relativos ao início de cada um, ver
+     * `meter-reading-compare-periods.ts`), mais a diferença da média de B
+     * sobre a de A.
+     *
+     * @param userId - Id do usuário autenticado (dono do alvo).
+     * @param query - Query string bruta (alvo, grandeza, período A e período B), validada aqui.
+     * @returns Os dois períodos completos (sem lacuna) e a diferença entre eles.
+     */
+    async comparePeriods(userId: string, query: unknown): Promise<ComparePeriodsResponse> {
+        const { targetType, targetId, metric, fromA, toA, fromB, toB } = parseOrThrow(
+            meterReadingComparePeriodsQuerySchema,
+            query,
+        )
+
+        const property = await resolveRootProperty(targetType, targetId, {
+            propertyRepository: this.propertyRepository,
+            areaRepository: this.areaRepository,
+            deviceRepository: this.deviceRepository,
+        })
+        if (property.userId !== userId) {
+            throw new ForbiddenError("Acesso negado")
+        }
+
+        const meter = await this.meterRepository.findByTarget(targetType, targetId)
+        if (!meter) {
+            throw new NotFoundError("Este alvo não possui medidor vinculado")
+        }
+
+        const { granularity, bucketSizeMs, periodA, periodB } = computeComparePeriodsWindow(
+            { from: fromA, to: toA },
+            { from: fromB, to: toB },
+        )
+        const bucketSeconds = bucketSizeMs / 1000
+
+        const [resultA, resultB] = await Promise.all([
+            this.fetchPeriodResult(meter.id, metric, periodA, bucketSeconds),
+            this.fetchPeriodResult(meter.id, metric, periodB, bucketSeconds),
+        ])
+
+        return {
+            metric,
+            granularity,
+            periodA: resultA,
+            periodB: resultB,
+            diff: computePeriodDiff(resultA.summary, resultB.summary),
+        }
+    }
+
+    /**
+     * Busca os baldes completos (sem lacuna) e o resumo de um único período
+     * da comparação — extraído para {@link comparePeriods} disparar período
+     * A e período B em paralelo sem repetir a montagem do resultado.
+     *
+     * @param meterId - Id do medidor.
+     * @param metric - Grandeza escolhida.
+     * @param period - Início/fim reais do período e os baldes esperados.
+     * @param period.from - Início real do período, inclusive.
+     * @param period.to - Fim real do período, exclusivo.
+     * @param period.bucketStarts - Início de cada balde esperado do período.
+     * @param bucketSeconds - Tamanho do balde em segundos, já derivado da duração.
+     * @returns O período completo, com baldes e resumo.
+     */
+    private async fetchPeriodResult(
+        meterId: string,
+        metric: MeterReadingSeriesMetric,
+        period: { from: Date; to: Date; bucketStarts: Date[] },
+        bucketSeconds: number,
+    ): Promise<ComparePeriodResult> {
+        const [series, summary] = await Promise.all([
+            this.meterReadingRepository.findPeriodSeries(
+                meterId,
+                metric,
+                period.from,
+                bucketSeconds,
+                period.from,
+                period.to,
+            ),
+            this.meterReadingRepository.findPeriodSummary(meterId, metric, period.from, period.to),
+        ])
+
+        return {
+            from: period.from,
+            to: period.to,
+            items: fillMissingBuckets(period.bucketStarts, series),
+            summary,
+        }
     }
 }
