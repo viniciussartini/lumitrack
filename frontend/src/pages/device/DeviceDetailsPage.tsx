@@ -17,6 +17,7 @@ import { IconCircle } from "@/components/ui/IconCircle"
 import { LiveKpiCard } from "@/components/dashboard/LiveKpiCard"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
 import { AnalysisSectionTabs } from "@/components/analysis/AnalysisSectionTabs"
+import { SeriesAnalysisSection } from "@/components/analysis/SeriesAnalysisSection"
 import { ElectricalQuantitiesGrid } from "@/components/electrical/ElectricalQuantitiesGrid"
 import {
     ANALYSIS_SECTION_PANEL_IDS,
@@ -106,8 +107,16 @@ export const DeviceDetailsPage = () => {
                     role="tabpanel"
                     id={ANALYSIS_SECTION_PANEL_IDS.grandezas}
                     aria-labelledby={ANALYSIS_SECTION_TAB_IDS.grandezas}
+                    className="flex flex-col gap-5"
                 >
                     <ElectricalQuantitiesGrid meterId={meter?.id} />
+                    {meter && (
+                        <SeriesAnalysisSection
+                            targetType="DEVICE"
+                            targetId={device.id}
+                            targetName={device.name}
+                        />
+                    )}
                 </div>
             )}
         </div>

@@ -37,7 +37,7 @@ vi.mock("@/services/meter.service", () => ({
 }))
 
 vi.mock("@/services/meterReading.service", () => ({
-    meterReadingService: { list: vi.fn() },
+    meterReadingService: { list: vi.fn(), series: vi.fn() },
 }))
 
 vi.mock("@/contexts/RealtimeContext", () => ({
@@ -638,5 +638,29 @@ describe("PropertyDetailsPage — aba Grandezas Elétricas", () => {
         await user.click(screen.getByRole("tab", { name: /Grandezas Elétricas/i }))
 
         expect(await screen.findByTestId("electrical-quantity-card-voltage")).toBeInTheDocument()
+    })
+
+    it("com medidor, mostra a área 'Análise das grandezas'; sem medidor, ela não aparece", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+        const user = userEvent.setup()
+        renderPage()
+
+        await screen.findByRole("heading", { level: 2, name: mockProperty.name })
+        await user.click(screen.getByRole("tab", { name: /Grandezas Elétricas/i }))
+
+        expect(await screen.findByText("Análise das grandezas")).toBeInTheDocument()
+        expect(screen.getByTestId("series-analysis-idle")).toBeInTheDocument()
+    })
+
+    it("sem medidor, a área 'Análise das grandezas' não aparece (não há o que consultar)", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(null)
+        const user = userEvent.setup()
+        renderPage()
+
+        await screen.findByRole("heading", { level: 2, name: mockProperty.name })
+        await user.click(screen.getByRole("tab", { name: /Grandezas Elétricas/i }))
+
+        await screen.findByText("Nenhum medidor vinculado")
+        expect(screen.queryByText("Análise das grandezas")).not.toBeInTheDocument()
     })
 })

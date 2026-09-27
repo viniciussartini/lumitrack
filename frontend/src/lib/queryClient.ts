@@ -156,6 +156,12 @@ export const queryKeys = {
         // diferentes).
         latest: (targetType: string, targetId: string) =>
             [...queryKeys.meterReadings.all, "latest", targetType, targetId] as const,
+        // Chaveado pelo `run` inteiro (ao contrário de `history`): cada
+        // submissão do formulário é uma consulta nova e distinta, não um
+        // refetch da mesma janela — trocar a grandeza ou o dia não deve
+        // reaproveitar o cache de uma consulta anterior.
+        series: (targetType: string, targetId: string, run: unknown) =>
+            [...queryKeys.meterReadings.all, "series", targetType, targetId, run] as const,
     },
     alerts: {
         all: ["alerts"] as const,
