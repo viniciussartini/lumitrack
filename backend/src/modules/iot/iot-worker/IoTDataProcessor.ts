@@ -24,10 +24,11 @@
  * A estratégia "log and discard" é a correta para workers de longa duração.
  */
 import type { IoTConnectionManager } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
+import { MinuteBuffer } from "@/modules/iot/iot-worker/MinuteBuffer.js"
 import {
-    MinuteBuffer,
+    OPTIONAL_ELECTRICAL_FIELD_MAP,
     type OptionalElectricalFields,
-} from "@/modules/iot/iot-worker/MinuteBuffer.js"
+} from "@/modules/meter/meter-reading-optional-fields.js"
 import { logger } from "@/shared/logger/logger.js"
 
 const log = logger.child({ module: "IoTProcessor" })
@@ -82,13 +83,20 @@ const MAX_PLAUSIBLE_FREQUENCY_HZ = 65
 // fora frequência e fator de potência, que têm faixa própria).
 const VOLTAGE_LIKE_FIELDS = ["voltagePhaseA", "voltagePhaseB", "voltagePhaseC"] as const
 const CURRENT_LIKE_FIELDS = ["currentPhaseA", "currentPhaseB", "currentPhaseC"] as const
-const POWER_LIKE_FIELDS = [
+// Ativa e aparente são sempre >= 0 (magnitude de potência importada/módulo
+// de S). Reativa fica de fora deste grupo — ao contrário das outras, ela
+// carrega sinal (ver `REACTIVE_POWER_FIELD` abaixo).
+const ACTIVE_POWER_LIKE_FIELDS = [
     "activePowerPhaseA",
     "activePowerPhaseB",
     "activePowerPhaseC",
-    "reactivePowerVar",
     "apparentPowerVa",
 ] as const
+// Potência reativa é convencionalmente reportada COM sinal (positivo =
+// indutivo/atrasado, negativo = capacitivo/adiantado) — uma instalação com
+// banco de capacitores sobrecompensado tem var negativo em regime normal,
+// não é erro de leitura.
+const REACTIVE_POWER_FIELD = "reactivePowerVar"
 const POWER_FACTOR_LIKE_FIELDS = [
     "powerFactorPhaseA",
     "powerFactorPhaseB",
@@ -107,22 +115,35 @@ function isFiniteInRange(value: unknown, max: number): value is number {
     return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= max
 }
 
-// Campo ausente (undefined) é sempre válido — a grandeza opcional
-// simplesmente não é reportada por este medidor, e o sistema aceita
-// medidores que não medem todas as grandezas. Campo presente com valor
-// implausível invalida a amostra inteira, mesmo tratamento já dado às 4
-// grandezas obrigatórias.
+function isFiniteInSignedRange(value: unknown, max: number): value is number {
+    return typeof value === "number" && Number.isFinite(value) && value >= -max && value <= max
+}
+
+// Campo ausente (`undefined`, ou `null` — JSON não tem `undefined`, e é
+// assim que um firmware costuma reportar "grandeza não medida") é sempre
+// válido: a grandeza opcional simplesmente não é reportada por este medidor,
+// e o sistema aceita medidores que não medem todas as grandezas. Campo
+// presente com valor implausível invalida a amostra inteira, mesmo
+// tratamento já dado às 4 grandezas obrigatórias.
+function isAbsent(value: unknown): boolean {
+    return value === undefined || value === null
+}
+
 function isFiniteInRangeOrAbsent(value: unknown, max: number): boolean {
-    return value === undefined || isFiniteInRange(value, max)
+    return isAbsent(value) || isFiniteInRange(value, max)
+}
+
+function isFiniteInSignedRangeOrAbsent(value: unknown, max: number): boolean {
+    return isAbsent(value) || isFiniteInSignedRange(value, max)
 }
 
 function isPowerFactorOrAbsent(value: unknown): boolean {
-    return value === undefined || (typeof value === "number" && value >= 0 && value <= 1)
+    return isAbsent(value) || (typeof value === "number" && value >= 0 && value <= 1)
 }
 
 function isFrequencyOrAbsent(value: unknown): boolean {
     return (
-        value === undefined ||
+        isAbsent(value) ||
         (typeof value === "number" &&
             Number.isFinite(value) &&
             value >= MIN_PLAUSIBLE_FREQUENCY_HZ &&
@@ -134,7 +155,10 @@ function isValidOptionalFields(raw: Record<string, unknown>): boolean {
     return (
         VOLTAGE_LIKE_FIELDS.every((f) => isFiniteInRangeOrAbsent(raw[f], MAX_PLAUSIBLE_VOLTAGE)) &&
         CURRENT_LIKE_FIELDS.every((f) => isFiniteInRangeOrAbsent(raw[f], MAX_PLAUSIBLE_CURRENT)) &&
-        POWER_LIKE_FIELDS.every((f) => isFiniteInRangeOrAbsent(raw[f], MAX_PLAUSIBLE_POWER_W)) &&
+        ACTIVE_POWER_LIKE_FIELDS.every((f) =>
+            isFiniteInRangeOrAbsent(raw[f], MAX_PLAUSIBLE_POWER_W),
+        ) &&
+        isFiniteInSignedRangeOrAbsent(raw[REACTIVE_POWER_FIELD], MAX_PLAUSIBLE_POWER_W) &&
         POWER_FACTOR_LIKE_FIELDS.every((f) => isPowerFactorOrAbsent(raw[f])) &&
         THD_LIKE_FIELDS.every((f) => isFiniteInRangeOrAbsent(raw[f], MAX_PLAUSIBLE_THD_PERCENT)) &&
         isFrequencyOrAbsent(raw.frequencyHz)
@@ -183,6 +207,34 @@ function computeVoltageUnbalance(
     return (maxDeviation / average) * 100
 }
 
+/**
+ * Extrai só as 21 grandezas opcionais conhecidas (ADR-0022) do payload bruto
+ * já validado — nunca um rest-spread do payload inteiro. O payload de um
+ * dispositivo é dado não confiável (JSON livre, qualquer protocolo, sem
+ * schema): um `...rest` copiaria também qualquer outra chave presente —
+ * `meterId`, `energyKwh`, `deltaSeconds` — permitindo a um dispositivo
+ * forjar campos que o servidor calcula (leitura roteada para outro medidor
+ * via `sample.meterId` sobrescrito, ou energia registrada adulterada via
+ * `energyKwh`). `voltageUnbalance` fica de fora por ser sempre calculado
+ * aqui, nunca aceito do medidor. Um valor presente mas não numérico (já
+ * deveria ter sido rejeitado por `isValidPayload`, mas a função é
+ * defensiva) é tratado como ausente, não copiado.
+ *
+ * @param raw Payload já validado por `isValidPayload`.
+ * @returns Só os campos opcionais conhecidos, com valor numérico.
+ */
+function extractOptionalFields(raw: Record<string, unknown>): RawOptionalFields {
+    const result: Record<string, number> = {}
+    for (const [field] of OPTIONAL_ELECTRICAL_FIELD_MAP) {
+        if (field === "voltageUnbalance") continue
+        const value = raw[field]
+        if (typeof value === "number") {
+            result[field] = value
+        }
+    }
+    return result as RawOptionalFields
+}
+
 export class IoTDataProcessor {
     // Buffer compartilhado — singleton por natureza, pois o processor também é
     // instanciado uma única vez no server.ts.
@@ -223,7 +275,8 @@ export class IoTDataProcessor {
             return
         }
 
-        const { voltage, current, powerW, powerFactor, deviceTimestamp, ...optionalRaw } = rawData
+        const { voltage, current, powerW, powerFactor, deviceTimestamp } = rawData
+        const optionalRaw = extractOptionalFields(rawData)
         const receivedAt = new Date()
 
         const lastAt = this.lastSampleAt.get(meterId)

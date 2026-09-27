@@ -13,7 +13,6 @@ import {
     computeSeriesWindow,
     fillMissingBuckets,
     type SeriesBucketValues,
-    type SeriesWindowInput,
 } from "@/modules/meter/meter-reading-series-window.js"
 import type { MeterRepository } from "@/modules/meter/meter.repository.js"
 import type { PropertyRepository } from "@/modules/property/property.repository.js"
@@ -103,7 +102,7 @@ export class MeterReadingService {
      */
     async series(userId: string, query: unknown): Promise<MeterReadingSeriesResponse> {
         const parsed = parseOrThrow(meterReadingSeriesQuerySchema, query)
-        const { targetType, targetId, metric, window, day, hour, aggregationMinutes } = parsed
+        const { targetType, targetId, metric, window } = parsed
 
         const property = await resolveRootProperty(targetType, targetId, {
             propertyRepository: this.propertyRepository,
@@ -119,17 +118,11 @@ export class MeterReadingService {
             throw new NotFoundError("Este alvo não possui medidor vinculado")
         }
 
-        // Garantido em runtime pelo `.refine` do schema (hour/aggregationMinutes
-        // obrigatórios quando window="hora") — o tipo inferido de
-        // `meterReadingSeriesQuerySchema` não estreita com base no `.refine`,
-        // então a asserção aqui documenta uma invariante já validada, não uma
-        // suposição nova.
-        const windowInput: SeriesWindowInput =
-            window === "hora"
-                ? { window, day, hour: hour!, aggregationMinutes: aggregationMinutes! }
-                : { window, day }
-
-        const { rangeFrom, rangeTo, bucketStarts } = computeSeriesWindow(windowInput)
+        // O schema (`z.discriminatedUnion` por `window`) já estreita `parsed`
+        // para a variante certa — `hour`/`aggregationMinutes` só existem no
+        // tipo quando `window="hora"`, sem precisar de asserção `!`.
+        const { rangeFrom, rangeTo, bucketStarts } = computeSeriesWindow(parsed)
+        const aggregationMinutes = parsed.window === "hora" ? parsed.aggregationMinutes : undefined
 
         const found = await this.meterReadingRepository.findSeries(
             meter.id,

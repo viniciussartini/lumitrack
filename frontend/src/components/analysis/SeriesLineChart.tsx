@@ -22,8 +22,7 @@ const isRechartsPayloadEntry = (v: unknown): v is RechartsPayloadEntry =>
 interface ChartTooltipProps {
     active?: boolean
     format: (raw: number) => string
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    payload?: any[]
+    payload?: unknown[]
 }
 
 const ChartTooltip = ({ active, payload, format }: ChartTooltipProps) => {

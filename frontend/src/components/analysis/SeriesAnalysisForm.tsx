@@ -31,17 +31,17 @@ interface SeriesAnalysisFormProps {
  * limpo, não do que estava selecionado antes de desabilitar.
  */
 export const SeriesAnalysisForm = ({ onSubmit, isSubmitting = false }: SeriesAnalysisFormProps) => {
-    const [window, setWindow] = useState<MeterReadingSeriesWindow>("dia")
+    const [chartWindow, setChartWindow] = useState<MeterReadingSeriesWindow>("dia")
     const [day, setDay] = useState("")
     const [hour, setHour] = useState(DEFAULT_HOUR)
     const [aggregationMinutes, setAggregationMinutes] =
         useState<MeterReadingSeriesAggregationMinutes>(DEFAULT_AGGREGATION_MINUTES)
     const [metric, setMetric] = useState<MeterReadingSeriesMetric>(SERIES_METRICS[0]!.value)
 
-    const isHourWindowDisabled = window === "dia"
+    const isHourWindowDisabled = chartWindow === "dia"
 
     const handleWindowChange = (next: MeterReadingSeriesWindow) => {
-        setWindow(next)
+        setChartWindow(next)
         if (next === "dia") {
             setHour(DEFAULT_HOUR)
             setAggregationMinutes(DEFAULT_AGGREGATION_MINUTES)
@@ -52,9 +52,9 @@ export const SeriesAnalysisForm = ({ onSubmit, isSubmitting = false }: SeriesAna
         event.preventDefault()
         if (!day) return
         const run: SeriesRun =
-            window === "dia"
-                ? { window, day, metric }
-                : { window, day, hour, aggregationMinutes, metric }
+            chartWindow === "dia"
+                ? { window: chartWindow, day, metric }
+                : { window: chartWindow, day, hour, aggregationMinutes, metric }
         onSubmit(run)
     }
 
@@ -65,7 +65,7 @@ export const SeriesAnalysisForm = ({ onSubmit, isSubmitting = false }: SeriesAna
         >
             <Select
                 label="Janela do gráfico"
-                value={window}
+                value={chartWindow}
                 onChange={(event) =>
                     handleWindowChange(event.target.value as MeterReadingSeriesWindow)
                 }

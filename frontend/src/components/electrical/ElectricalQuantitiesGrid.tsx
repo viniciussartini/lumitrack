@@ -1,4 +1,4 @@
-import { Activity, Gauge, Plug, Waves, Zap, type LucideIcon } from "lucide-react"
+import { Activity, AlertCircle, Gauge, Plug, Waves, Zap, type LucideIcon } from "lucide-react"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { ElectricalQuantityCardView } from "@/components/electrical/ElectricalQuantityCardView"
 import { useRealtimeReadings } from "@/contexts/RealtimeContext"
@@ -16,23 +16,56 @@ const CARD_ICONS: Record<ElectricalQuantityKey, LucideIcon> = {
 }
 
 interface ElectricalQuantitiesGridProps {
-    /** `undefined` quando o alvo ainda não tem medidor vinculado. */
+    /** `undefined` enquanto carrega ou quando o alvo não tem medidor vinculado — ver `isMeterLoading`/`isMeterError` para distinguir os dois. */
     meterId: string | undefined
+    /** A consulta do medidor do alvo (`useMeterByTarget`) ainda está em andamento. */
+    isMeterLoading: boolean
+    /** A consulta do medidor do alvo falhou. */
+    isMeterError: boolean
 }
 
 /**
  * Conteúdo da aba "Grandezas Elétricas" (LumiTrack Home v2.dc.html, bloco
  * `gzView` — só a grade de 5 cards; o painel de "Análise das grandezas"
- * com janela/agregação configurável é feature à parte). Três estados:
+ * com janela/agregação configurável é feature à parte). Estados, em ordem:
  *
- *   - sem medidor vinculado: `EmptyState` (mesmo padrão de `MeterSection`);
+ *   - medidor ainda carregando: skeleton (mesmo padrão de `MeterSection`);
+ *   - falha ao carregar o medidor: mensagem de erro (idem `MeterSection`) —
+ *     sem isso, `meterId` undefined por erro parecia "sem medidor", uma
+ *     afirmação falsa;
+ *   - sem medidor vinculado: `EmptyState`;
  *   - medidor sem nenhuma leitura SSE ainda: mesmo bloco "Aguardando
  *     leituras..." de `RealtimePowerChart` — nunca mostra os cards com 0;
  *   - leitura presente: os 5 cards de `buildElectricalQuantityCards`, cada
  *     grandeza ausente dentro deles vira "-", não a grade inteira.
  */
-export const ElectricalQuantitiesGrid = ({ meterId }: ElectricalQuantitiesGridProps) => {
+export const ElectricalQuantitiesGrid = ({
+    meterId,
+    isMeterLoading,
+    isMeterError,
+}: ElectricalQuantitiesGridProps) => {
     const { readingsByMeterId } = useRealtimeReadings()
+
+    if (isMeterLoading) {
+        return (
+            <div
+                className="blueprint h-20 animate-pulse"
+                aria-busy="true"
+                aria-label="Carregando medidor"
+            />
+        )
+    }
+
+    if (isMeterError) {
+        return (
+            <div role="alert" className="border-status-danger/40 flex items-start gap-3 border p-4">
+                <AlertCircle className="text-status-danger h-5 w-5 shrink-0" aria-hidden="true" />
+                <p className="text-status-danger/85 text-sm">
+                    Não foi possível carregar o medidor.
+                </p>
+            </div>
+        )
+    }
 
     if (!meterId) {
         return (

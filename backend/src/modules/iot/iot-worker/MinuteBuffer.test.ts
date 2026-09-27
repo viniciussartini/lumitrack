@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest"
-import { MinuteBuffer, emptyOptionalAvgFields } from "@/modules/iot/iot-worker/MinuteBuffer.js"
+import { MinuteBuffer } from "@/modules/iot/iot-worker/MinuteBuffer.js"
+import { emptyOptionalAvgFields } from "@/modules/meter/meter-reading-optional-fields.js"
 
 describe("MinuteBuffer", () => {
     describe("add", () => {
@@ -207,12 +208,14 @@ describe("MinuteBuffer", () => {
             expect(snap.avgVoltagePhaseA).toBeCloseTo((218 * 1 + 224 * 2) / 3)
         })
 
-        it("grandeza reportada só em parte das amostras do balde usa o peso total do balde, não só das amostras que a trouxeram", () => {
+        it("grandeza reportada só em parte das amostras do balde usa o peso só das amostras que a trouxeram, não o peso total do balde", () => {
             const buffer = new MinuteBuffer()
-            // Só a 1ª amostra traz voltagePhaseA — a divisão ainda usa o Δt
-            // combinado das duas (3s), mesma simplificação do merge SQL do
-            // repository, que soma todo o peso do snapshot num único
-            // `secondsCovered` em vez de rastrear um peso por grandeza.
+            // Só a 1ª amostra traz voltagePhaseA (Δt=2s) — a média usa esse
+            // peso próprio (220V, sem diluir), não o Δt combinado do balde
+            // inteiro (5s): um medidor que reporta uma grandeza numa cadência
+            // mais lenta que as 4 obrigatórias não pode ter sua média
+            // artificialmente puxada para baixo pelo peso de amostras que
+            // nem trouxeram aquele campo.
             buffer.add(
                 "meter-1",
                 {
@@ -240,7 +243,31 @@ describe("MinuteBuffer", () => {
             )
 
             const snap = buffer.drainCompletedBuckets(new Date("2026-01-15T14:38:00.000Z"))[0]!
-            expect(snap.avgVoltagePhaseA).toBeCloseTo((220 * 2) / 5)
+            expect(snap.avgVoltagePhaseA).toBeCloseTo(220)
+        })
+
+        it("grandeza opcional reportada só em amostra(s) de peso zero fica ausente (null), nunca 0", () => {
+            const buffer = new MinuteBuffer()
+            // Primeira amostra do medidor (sem amostra anterior, deltaSeconds
+            // sempre 0) traz frequencyHz — sem peso nenhum para calcular
+            // média, a grandeza deve ficar `null`, não virar 0: ausência não
+            // é uma medição.
+            buffer.add(
+                "meter-1",
+                {
+                    energyKwh: 0,
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    deltaSeconds: 0,
+                    frequencyHz: 60,
+                },
+                new Date("2026-01-15T14:37:00.000Z"),
+            )
+
+            const snap = buffer.drainCompletedBuckets(new Date("2026-01-15T14:38:00.000Z"))[0]!
+            expect(snap.avgFrequencyHz).toBeNull()
         })
     })
 

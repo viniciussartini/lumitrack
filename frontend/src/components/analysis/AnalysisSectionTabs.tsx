@@ -20,9 +20,13 @@ interface AnalysisSectionTabsProps {
  * bloco `anTabsVisible`) — primeira aparição de abas de SEÇÃO no produto
  * (troca o conteúdo inteiro da página, não uma granularidade dentro dele
  * como `GranularityTabs`). Mesmo padrão visual/acessível (`role="tablist"`,
- * `lt-selbtn`, `data-on`), com `aria-controls`/`tabpanel` explícitos: o
- * critério de aceite pede o trio `tablist`/`tab`/`tabpanel` completo, que
- * `GranularityTabs` não precisou até aqui.
+ * `lt-selbtn`, `data-on`), com o trio completo `role="tablist"`/`tab`/
+ * `tabpanel`, que `GranularityTabs` não precisou até aqui.
+ *
+ * `aria-controls` só vai na aba ativa: quem renderiza o `tabpanel` monta só
+ * o da seção corrente (a inativa não busca dado nem existe no DOM), então
+ * apontar a aba inativa para um id inexistente violaria o próprio contrato
+ * do atributo.
  */
 export const AnalysisSectionTabs = ({ value, onChange }: AnalysisSectionTabsProps) => (
     <div role="tablist" aria-label="Modo de análise" className="flex flex-wrap gap-2">
@@ -35,7 +39,7 @@ export const AnalysisSectionTabs = ({ value, onChange }: AnalysisSectionTabsProp
                     role="tab"
                     id={ANALYSIS_SECTION_TAB_IDS[key]}
                     aria-selected={isActive}
-                    aria-controls={ANALYSIS_SECTION_PANEL_IDS[key]}
+                    aria-controls={isActive ? ANALYSIS_SECTION_PANEL_IDS[key] : undefined}
                     data-on={isActive}
                     onClick={() => onChange(key)}
                     data-testid={`analysis-section-tab-${key}`}

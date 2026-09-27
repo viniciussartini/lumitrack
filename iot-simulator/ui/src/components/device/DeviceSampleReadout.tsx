@@ -53,10 +53,11 @@ function formatValue(value: number, unit: string): string {
 
 /**
  * Leitura somente-exibição das grandezas por fase (ADR-0022) da amostra mais
- * recente de um device. Não há handoff de design para esta tabela — o
- * `LumiTrack IoT Simulator.dc.html` é anterior à Fase 25 — então segue o
- * mesmo padrão visual já usado no formulário de parâmetros do próprio
- * bundle (rótulo em caixa alta + grade), em vez de inventar um layout novo.
+ * recente de um device. Não há handoff de design para esta tabela — nenhum
+ * export do bundle cobre a exibição de grandezas por fase no simulador —
+ * então segue o mesmo padrão visual já usado no formulário de parâmetros do
+ * próprio bundle (rótulo em caixa alta + grade), em vez de inventar um
+ * layout novo.
  */
 export function DeviceSampleReadout({ sample }: DeviceSampleReadoutProps) {
     const rows = buildPhaseRows(sample)

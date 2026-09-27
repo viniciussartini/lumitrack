@@ -56,6 +56,28 @@ function clampTriplet(values: [number, number, number], min: number): [number, n
     return values.map((v) => Math.max(min, v)) as [number, number, number]
 }
 
+/**
+ * Reescala um trio para que a soma das 3 fases seja exatamente `targetSum`,
+ * preservando a proporção relativa entre elas (o formato do desequilíbrio
+ * gerado pelo ruído gaussiano, só a escala muda). Usado para a potência
+ * ativa por fase nunca divergir da potência ativa agregada do mesmo tick —
+ * sem isso, o card "Ativa total (3 fases)" (soma das fases) e "Potência
+ * agora" (o agregado) mostrariam valores diferentes para a mesma amostra.
+ *
+ * @param values O trio bruto (após clamp).
+ * @param targetSum A soma que o trio deve ter.
+ * @returns O trio reescalado, com a mesma soma de `targetSum`.
+ */
+function normalizeToSum(
+    values: [number, number, number],
+    targetSum: number,
+): [number, number, number] {
+    const sum = values[0] + values[1] + values[2]
+    if (sum === 0) return [targetSum / 3, targetSum / 3, targetSum / 3]
+    const scale = targetSum / sum
+    return values.map((v) => v * scale) as [number, number, number]
+}
+
 function gaussianTriplet(base: number, stdDev: number): [number, number, number] {
     return [
         base + gaussianNoise(stdDev),
@@ -132,7 +154,10 @@ interface PhaseTriplets {
  * usada na grandeza agregada), garantindo coerência física entre as três —
  * amostrar a corrente de forma independente permitiria uma fase com
  * potência alta e corrente baixa ao mesmo tempo, o que não existe na
- * prática.
+ * prática. Potência ativa por fase tem ruído independente por fase, mas é
+ * reescalada (`normalizeToSum`) para a soma das 3 bater exatamente com
+ * `powerW` — o desequilíbrio entre fases é real, a energia total não muda
+ * por causa dele.
  *
  * @param voltage Tensão agregada do tick.
  * @param powerW Potência ativa agregada do tick.
@@ -148,9 +173,15 @@ function generatePhaseTriplets(
         gaussianTriplet(voltage, voltage * PHASE_VOLTAGE_UNBALANCE_STD_DEV_FRACTION),
         MIN_VOLTAGE,
     )
-    const activePowerPhases = clampTriplet(
-        gaussianTriplet(powerW / 3, (powerW / 3) * PHASE_ACTIVE_POWER_UNBALANCE_STD_DEV_FRACTION),
-        0,
+    const activePowerPhases = normalizeToSum(
+        clampTriplet(
+            gaussianTriplet(
+                powerW / 3,
+                (powerW / 3) * PHASE_ACTIVE_POWER_UNBALANCE_STD_DEV_FRACTION,
+            ),
+            0,
+        ),
+        powerW,
     )
     const powerFactorPhases = clampTriplet(
         gaussianTriplet(powerFactor, PHASE_POWER_FACTOR_NOISE_STD_DEV),

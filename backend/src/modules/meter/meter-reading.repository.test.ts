@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest"
 import { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
-import { emptyOptionalAvgFields } from "@/modules/iot/iot-worker/MinuteBuffer.js"
+import { emptyOptionalAvgFields } from "@/modules/meter/meter-reading-optional-fields.js"
 import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
@@ -676,6 +676,39 @@ describe("MeterReadingRepository.findSeries", () => {
         expect(buckets[0]!.min).toBeNull()
         expect(buckets[0]!.avg).toBeNull()
         expect(buckets[0]!.max).toBeNull()
+    })
+
+    it("linha com secondsCovered=0 (primeira amostra do medidor, sem Δt) não polui mínimo/máximo de um balde que também tem dado real", async () => {
+        const meterId = await setupMeter()
+        // Duas linhas de minutos diferentes no MESMO balde de 5 minutos
+        // (17:00-17:04) — a de peso zero grava "tensao" como 0 (a coluna não
+        // é nula), a outra tem peso real. Sem o FILTER, o mínimo do balde
+        // seria 0V, mesmo a instalação nunca tendo medido 0V de verdade;
+        // a média já ficava correta antes (NULLIF já a exclui), então o bug
+        // deixava min/max inconsistentes com a própria média do balde.
+        await insertReading(meterId, new Date("2026-01-15T17:00:00.000Z"), {
+            avgVoltage: 0,
+            secondsCovered: 0,
+        })
+        await insertReading(meterId, new Date("2026-01-15T17:02:00.000Z"), {
+            avgVoltage: 220,
+            secondsCovered: 60,
+        })
+
+        const buckets = await meterReadingRepository.findSeries(
+            meterId,
+            "tensao",
+            "hora",
+            5,
+            new Date("2026-01-15T17:00:00.000Z"),
+            new Date("2026-01-15T18:00:00.000Z"),
+        )
+
+        const populated = buckets.filter((b) => b.avg !== null)
+        expect(populated).toHaveLength(1)
+        expect(populated[0]!.min).toBeCloseTo(220)
+        expect(populated[0]!.max).toBeCloseTo(220)
+        expect(populated[0]!.avg).toBeCloseTo(220)
     })
 
     it("balde com dado parcial nas 3 fases de thd (só 2 de 3) não inventa média com dado incompleto", async () => {

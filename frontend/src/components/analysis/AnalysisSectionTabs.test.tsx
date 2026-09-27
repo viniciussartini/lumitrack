@@ -15,7 +15,7 @@ describe("AnalysisSectionTabs", () => {
         expect(screen.getByRole("tab", { name: /Grandezas Elétricas/i })).toBeInTheDocument()
     })
 
-    it("marca a aba ativa com aria-selected e liga cada aba ao seu tabpanel via aria-controls", () => {
+    it("marca a aba ativa com aria-selected e liga só ela ao seu tabpanel via aria-controls", () => {
         render(<AnalysisSectionTabs value="grandezas" onChange={vi.fn()} />)
 
         const consumoTab = screen.getByRole("tab", { name: /Consumo e Custos/i })
@@ -23,7 +23,9 @@ describe("AnalysisSectionTabs", () => {
 
         expect(consumoTab).toHaveAttribute("aria-selected", "false")
         expect(grandezasTab).toHaveAttribute("aria-selected", "true")
-        expect(consumoTab).toHaveAttribute("aria-controls", ANALYSIS_SECTION_PANEL_IDS.consumo)
+        // Só a aba ativa aponta para um tabpanel — o da inativa não está no
+        // DOM (quem renderiza monta só a seção corrente).
+        expect(consumoTab).not.toHaveAttribute("aria-controls")
         expect(grandezasTab).toHaveAttribute("aria-controls", ANALYSIS_SECTION_PANEL_IDS.grandezas)
         expect(consumoTab.id).toBe(ANALYSIS_SECTION_TAB_IDS.consumo)
     })

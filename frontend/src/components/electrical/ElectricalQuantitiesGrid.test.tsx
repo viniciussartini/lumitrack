@@ -22,8 +22,28 @@ const READING: ReadingPayload = {
 }
 
 describe("ElectricalQuantitiesGrid", () => {
+    it("medidor ainda carregando, mostra o skeleton — nunca 'nenhum medidor' (que seria falso)", () => {
+        render(<ElectricalQuantitiesGrid meterId={undefined} isMeterLoading isMeterError={false} />)
+
+        expect(screen.getByLabelText("Carregando medidor")).toBeInTheDocument()
+        expect(screen.queryByText("Nenhum medidor vinculado")).not.toBeInTheDocument()
+    })
+
+    it("falha ao carregar o medidor, mostra mensagem de erro — nunca 'nenhum medidor' (que seria falso)", () => {
+        render(<ElectricalQuantitiesGrid meterId={undefined} isMeterLoading={false} isMeterError />)
+
+        expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar o medidor.")
+        expect(screen.queryByText("Nenhum medidor vinculado")).not.toBeInTheDocument()
+    })
+
     it("sem medidor vinculado, mostra o estado vazio de 'nenhum medidor'", () => {
-        render(<ElectricalQuantitiesGrid meterId={undefined} />)
+        render(
+            <ElectricalQuantitiesGrid
+                meterId={undefined}
+                isMeterLoading={false}
+                isMeterError={false}
+            />,
+        )
 
         expect(screen.getByText("Nenhum medidor vinculado")).toBeInTheDocument()
     })
@@ -31,7 +51,13 @@ describe("ElectricalQuantitiesGrid", () => {
     it("com medidor mas sem leitura SSE ainda, mostra 'Aguardando leituras...' (nunca 0)", () => {
         vi.mocked(useRealtimeReadings).mockReturnValue({ readingsByMeterId: {} })
 
-        render(<ElectricalQuantitiesGrid meterId="meter-1" />)
+        render(
+            <ElectricalQuantitiesGrid
+                meterId="meter-1"
+                isMeterLoading={false}
+                isMeterError={false}
+            />,
+        )
 
         expect(screen.getByTestId("electrical-quantities-empty")).toBeInTheDocument()
         expect(screen.getByText("Aguardando leituras...")).toBeInTheDocument()
@@ -42,7 +68,13 @@ describe("ElectricalQuantitiesGrid", () => {
             readingsByMeterId: { "meter-1": READING },
         })
 
-        render(<ElectricalQuantitiesGrid meterId="meter-1" />)
+        render(
+            <ElectricalQuantitiesGrid
+                meterId="meter-1"
+                isMeterLoading={false}
+                isMeterError={false}
+            />,
+        )
 
         expect(screen.getByTestId("electrical-quantity-card-voltage")).toBeInTheDocument()
         expect(screen.getByTestId("electrical-quantity-card-current")).toBeInTheDocument()
@@ -57,7 +89,13 @@ describe("ElectricalQuantitiesGrid", () => {
             readingsByMeterId: { "outro-medidor": READING },
         })
 
-        render(<ElectricalQuantitiesGrid meterId="meter-1" />)
+        render(
+            <ElectricalQuantitiesGrid
+                meterId="meter-1"
+                isMeterLoading={false}
+                isMeterError={false}
+            />,
+        )
 
         expect(screen.getByTestId("electrical-quantities-empty")).toBeInTheDocument()
     })

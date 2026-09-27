@@ -12,48 +12,12 @@
  * duas médias ponderadas se combinam somando (média × peso) e dividindo pela
  * soma dos pesos.
  */
-
-// Cada grandeza por fase (ADR-0022) é opcional na amostra — nem todo medidor
-// a reporta, e a ausência precisa ser distinguível de zero — e ganha um nome
-// diferente ao virar média persistida
-// (prefixo "avg", espelhando o par voltage/avgVoltage já existente). Esta
-// tabela é a única fonte de verdade dessa renomeação: usada tanto para
-// acumular o balde quanto para o merge SQL do repository, em vez de repetir
-// os 22 pares manualmente em cada lugar.
-export const OPTIONAL_ELECTRICAL_FIELD_MAP = [
-    ["voltagePhaseA", "avgVoltagePhaseA"],
-    ["voltagePhaseB", "avgVoltagePhaseB"],
-    ["voltagePhaseC", "avgVoltagePhaseC"],
-    ["voltageUnbalance", "avgVoltageUnbalance"],
-    ["currentPhaseA", "avgCurrentPhaseA"],
-    ["currentPhaseB", "avgCurrentPhaseB"],
-    ["currentPhaseC", "avgCurrentPhaseC"],
-    ["activePowerPhaseA", "avgActivePowerPhaseA"],
-    ["activePowerPhaseB", "avgActivePowerPhaseB"],
-    ["activePowerPhaseC", "avgActivePowerPhaseC"],
-    ["reactivePowerVar", "avgReactivePowerVar"],
-    ["apparentPowerVa", "avgApparentPowerVa"],
-    ["frequencyHz", "avgFrequencyHz"],
-    ["powerFactorPhaseA", "avgPowerFactorPhaseA"],
-    ["powerFactorPhaseB", "avgPowerFactorPhaseB"],
-    ["powerFactorPhaseC", "avgPowerFactorPhaseC"],
-    ["thdVoltagePhaseA", "avgThdVoltagePhaseA"],
-    ["thdVoltagePhaseB", "avgThdVoltagePhaseB"],
-    ["thdVoltagePhaseC", "avgThdVoltagePhaseC"],
-    ["thdCurrentPhaseA", "avgThdCurrentPhaseA"],
-    ["thdCurrentPhaseB", "avgThdCurrentPhaseB"],
-    ["thdCurrentPhaseC", "avgThdCurrentPhaseC"],
-] as const
-
-export type OptionalSampleField = (typeof OPTIONAL_ELECTRICAL_FIELD_MAP)[number][0]
-export type OptionalAvgField = (typeof OPTIONAL_ELECTRICAL_FIELD_MAP)[number][1]
-
-// `?: number | undefined` (em vez de `Partial<Record<..., number>>`) porque o
-// projeto compila com `exactOptionalPropertyTypes` — sem o `| undefined`
-// explícito, atribuir `undefined` a um campo ausente (ex.: o resultado de
-// `computeVoltageUnbalance` quando faltam fases) seria erro de tipo, mesmo a
-// propriedade sendo opcional.
-export type OptionalElectricalFields = { [K in OptionalSampleField]?: number | undefined }
+import {
+    OPTIONAL_ELECTRICAL_FIELD_MAP,
+    type OptionalAvgField,
+    type OptionalElectricalFields,
+    type OptionalSampleField,
+} from "@/modules/meter/meter-reading-optional-fields.js"
 
 export interface MinuteSample extends OptionalElectricalFields {
     energyKwh: number
@@ -78,6 +42,13 @@ interface MinuteBucket {
     // o que distingue "nunca reportado" (ausente do objeto) de "reportado,
     // mas ainda com peso zero" (só a 1ª amostra do medidor, deltaSeconds=0).
     optionalSums: Partial<Record<OptionalSampleField, number>>
+    // Peso (soma de Δt) de CADA grandeza opcional, separado do peso total do
+    // balde (`totalDt`): um medidor que reporta THD/frequência numa cadência
+    // mais lenta que as 4 grandezas obrigatórias (ou só os campos que
+    // mudaram) tem um Δt acumulado próprio para essas grandezas, menor que o
+    // do balde inteiro — dividir pelo peso errado (`totalDt`) sub ou
+    // superestimaria a média dessa grandeza especificamente.
+    optionalDt: Partial<Record<OptionalSampleField, number>>
 }
 
 export type MinuteBucketSnapshot = Record<OptionalAvgField, number | null> & {
@@ -90,21 +61,6 @@ export type MinuteBucketSnapshot = Record<OptionalAvgField, number | null> & {
     avgPowerFactor: number
     sampleCount: number
     secondsCovered: number
-}
-
-/**
- * As 22 grandezas por fase, todas `null` — a base para montar um
- * `MeterReading` sem nenhuma delas (medidor legado, ou teste que não é sobre
- * elas). `MinuteBucketSnapshot` exige as 22 chaves mesmo quando ausentes
- * (nulas), então qualquer código que monte um snapshot fora de `toSnapshot`
- * parte daqui em vez de listar as 22 à mão.
- */
-export function emptyOptionalAvgFields(): Record<OptionalAvgField, null> {
-    const result = {} as Record<OptionalAvgField, null>
-    for (const [, avgField] of OPTIONAL_ELECTRICAL_FIELD_MAP) {
-        result[avgField] = null
-    }
-    return result
 }
 
 export interface LatestReading {
@@ -127,6 +83,7 @@ function emptyBucket(minuteStart: Date): MinuteBucket {
         totalDt: 0,
         sampleCount: 0,
         optionalSums: {},
+        optionalDt: {},
     }
 }
 
@@ -134,12 +91,22 @@ function toSnapshot(meterId: string, bucket: MinuteBucket): MinuteBucketSnapshot
     // Se nenhuma amostra teve deltaSeconds > 0 (ex.: balde com uma única
     // amostra, sempre a "primeira" após um gap), não há peso para calcular
     // médias — usamos 0 como fallback neutro em vez de dividir por zero.
+    // Só se aplica às 4 grandezas obrigatórias, que não podem ser nulas na
+    // coluna (schema `Float`, não `Float?`); a linha inteira com peso zero é
+    // filtrada depois na leitura (`MeterReadingRepository.findSeries`), não
+    // aqui.
     const hasWeight = bucket.totalDt > 0
 
+    // Cada grandeza opcional usa o PRÓPRIO peso (`optionalDt`), não o peso
+    // total do balde — um medidor que reporta uma grandeza com peso zero
+    // (ou nunca) não pode ter média calculada; vira ausente (`null`), nunca
+    // uma fração distorcida da soma real.
     const optionalAverages = {} as Record<OptionalAvgField, number | null>
     for (const [sampleField, avgField] of OPTIONAL_ELECTRICAL_FIELD_MAP) {
         const sum = bucket.optionalSums[sampleField]
-        optionalAverages[avgField] = sum === undefined ? null : hasWeight ? sum / bucket.totalDt : 0
+        const dt = bucket.optionalDt[sampleField]
+        optionalAverages[avgField] =
+            sum !== undefined && dt !== undefined && dt > 0 ? sum / dt : null
     }
 
     return {
@@ -194,6 +161,8 @@ export class MinuteBuffer {
             if (value === undefined) continue
             bucket.optionalSums[sampleField] =
                 (bucket.optionalSums[sampleField] ?? 0) + value * sample.deltaSeconds
+            bucket.optionalDt[sampleField] =
+                (bucket.optionalDt[sampleField] ?? 0) + sample.deltaSeconds
         }
 
         this.latest.set(meterId, {
@@ -209,13 +178,13 @@ export class MinuteBuffer {
     /**
      * Reinsere um snapshot completo já agregado (ex.: um balde cujo upsert no
      * banco falhou) sem perder sampleCount/secondsCovered — diferente de
-     * `add`, que trata cada chamada como uma única amostra nova. As
-     * grandezas opcionais usam o mesmo peso agregado (`secondsCovered`) do
-     * snapshot inteiro, não um peso por campo — mesma simplificação do merge
-     * SQL do repository (ver `MeterReadingRepository.upsertMinute`): um
-     * medidor reporta (ou não) uma grandeza de forma consistente entre
-     * flushes, então um peso único por snapshot não introduz distorção
-     * prática.
+     * `add`, que trata cada chamada como uma única amostra nova. Uma
+     * grandeza opcional presente no snapshot usa `secondsCovered` (o peso
+     * total do balde original) como aproximação do seu próprio peso — o
+     * snapshot já chega só com a média, sem o peso por campo que só `add`
+     * tem; como o valor já foi corretamente calculado da primeira vez (com o
+     * peso por campo certo), reponderar pelo total aqui é a melhor
+     * aproximação disponível num caminho de retry, não a rota normal.
      */
     merge(snapshot: MinuteBucketSnapshot): void {
         const key = snapshot.minuteStart.getTime()
@@ -245,6 +214,8 @@ export class MinuteBuffer {
             if (value === null) continue
             bucket.optionalSums[sampleField] =
                 (bucket.optionalSums[sampleField] ?? 0) + value * snapshot.secondsCovered
+            bucket.optionalDt[sampleField] =
+                (bucket.optionalDt[sampleField] ?? 0) + snapshot.secondsCovered
         }
     }
 

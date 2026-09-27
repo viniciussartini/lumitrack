@@ -1,9 +1,7 @@
 import { randomUUID } from "crypto"
 import { Prisma, PrismaClient } from "@/generated/prisma/client.js"
-import {
-    OPTIONAL_ELECTRICAL_FIELD_MAP,
-    type MinuteBucketSnapshot,
-} from "@/modules/iot/iot-worker/MinuteBuffer.js"
+import type { MinuteBucketSnapshot } from "@/modules/iot/iot-worker/MinuteBuffer.js"
+import { OPTIONAL_ELECTRICAL_FIELD_MAP } from "@/modules/meter/meter-reading-optional-fields.js"
 import type {
     MeterReadingGranularity,
     MeterReadingSeriesAggregationMinutes,
@@ -289,11 +287,17 @@ export class MeterReadingRepository {
             Prisma.sql`
                 SELECT
                     ${bucket} AS bucket,
-                    MIN(${value}) AS min,
+                    -- Uma linha com "secondsCovered" = 0 (a primeira amostra
+                    -- do medidor, sem amostra anterior para calcular Δt)
+                    -- grava as 4 grandezas obrigatórias como 0 (a coluna não
+                    -- é nula) — o FILTER a exclui do mínimo/máximo, senão
+                    -- entraria como um "0 V"/"0 Hz" espúrio, inconsistente
+                    -- com a média (que já a ignora via NULLIF/soma acima).
+                    MIN(${value}) FILTER (WHERE "secondsCovered" > 0) AS min,
                     SUM(${value} * "secondsCovered")
                         / NULLIF(SUM(CASE WHEN ${value} IS NULL THEN NULL ELSE "secondsCovered" END), 0)
                         AS avg,
-                    MAX(${value}) AS max
+                    MAX(${value}) FILTER (WHERE "secondsCovered" > 0) AS max
                 FROM "meter_readings"
                 WHERE "meterId" = ${meterId}
                 ${rangeFilter(from, to)}

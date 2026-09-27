@@ -174,6 +174,21 @@ describe("generateSample — grandezas por fase (ADR-0022)", () => {
         expect(relativeError).toBeLessThan(0.005)
     })
 
+    it("a soma da potência ativa por fase bate com powerW agregado (a menos do arredondamento de exibição)", () => {
+        for (let tick = 0; tick < 200; tick++) {
+            const sample = generateSample(baseParams, inactiveAnomaly, tick)
+            const sumPhases =
+                sample.activePowerPhaseA + sample.activePowerPhaseB + sample.activePowerPhaseC
+            // O card "Ativa total (3 fases)" (frontend) soma as 3 fases; se
+            // divergir de `powerW`, o mesmo tick mostraria potências
+            // diferentes entre a aba de grandezas e o KPI "Potência agora".
+            // Tolerância cobre só o arredondamento de exibição (`round(x,2)`
+            // aplicado independentemente às 3 fases e ao agregado, até
+            // ±0,005 cada) — a soma dos valores NÃO arredondados é exata.
+            expect(Math.abs(sumPhases - sample.powerW)).toBeLessThan(0.02)
+        }
+    })
+
     it("desequilíbrio entre fases fica dentro de uma margem plausível (não diverge)", () => {
         for (let tick = 0; tick < 200; tick++) {
             const sample = generateSample(baseParams, inactiveAnomaly, tick)

@@ -15,8 +15,7 @@ import { IconCircle } from "@/components/ui/IconCircle"
 import { LiveKpiCard } from "@/components/dashboard/LiveKpiCard"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
 import { AnalysisSectionTabs } from "@/components/analysis/AnalysisSectionTabs"
-import { SeriesAnalysisSection } from "@/components/analysis/SeriesAnalysisSection"
-import { ElectricalQuantitiesGrid } from "@/components/electrical/ElectricalQuantitiesGrid"
+import { ElectricalQuantitiesTabPanel } from "@/components/electrical/ElectricalQuantitiesTabPanel"
 import {
     ANALYSIS_SECTION_PANEL_IDS,
     ANALYSIS_SECTION_TAB_IDS,
@@ -104,21 +103,14 @@ export const PropertyDetailsPage = () => {
             )}
 
             {section === "grandezas" && (
-                <div
-                    role="tabpanel"
-                    id={ANALYSIS_SECTION_PANEL_IDS.grandezas}
-                    aria-labelledby={ANALYSIS_SECTION_TAB_IDS.grandezas}
-                    className="flex flex-col gap-5"
-                >
-                    <ElectricalQuantitiesGrid meterId={meter?.id} />
-                    {meter && (
-                        <SeriesAnalysisSection
-                            targetType="PROPERTY"
-                            targetId={property.id}
-                            targetName={property.name}
-                        />
-                    )}
-                </div>
+                <ElectricalQuantitiesTabPanel
+                    targetType="PROPERTY"
+                    targetId={property.id}
+                    targetName={property.name}
+                    meterId={meter?.id}
+                    isMeterLoading={meterQuery.isLoading}
+                    isMeterError={meterQuery.isError}
+                />
             )}
         </div>
     )
