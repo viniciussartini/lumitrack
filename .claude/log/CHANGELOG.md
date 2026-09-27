@@ -4136,3 +4136,13 @@
 - **Arquivos principais:** `.claude/docs/roadmap.md` (cabeçalho, tabela de visão geral, nova seção "Replanejamento de 2026-09-27 (fechamento da Fase 25)"), `.claude/project_context/02-requisitos.md` (RF37, RF38, RN34, FNC005, FNC010).
 - **Decisões/ADRs:** nenhuma nova. Nenhum item do `07` foi assumido.
 - **Notas:** a milestone `App v2 — navegação, histórico, relatórios e metas` segue aberta (fecha só na Fase 30). `origin/staging` segue à frente de `origin/main` — nada desde a Fase 19 foi promovido a produção ainda. Por pedido explícito do usuário, a Fase 26 (Histórico e comparações) **não** foi detalhada nesta sessão — segue em nível de objetivo.
+
+## [2026-09-27] docs: roadmap detalha a Fase 26 (Histórico e comparações)
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** `planejar-roadmap` (ciclo de atualização — detalhamento) fatia a Fase 26 (Histórico e comparações, RF39/FNC006) de objetivo para 4 itens completos: (1) endpoint de comparação de dois períodos arbitrários (`GET /api/meter-readings/compare-periods`, novo — o endpoint de série da Fase 25 só aceita `window=dia|hora`, não intervalo livre), (2) navegação + página "Histórico" com seleção de alvo/grandeza/períodos, (3) gráfico comparativo de duas séries sobrepostas (derivado de `SeriesLineChart`), (4) seção de diferenças/veredito (padrão `VerdictCard`/`comparisonTone.ts` das comparações tarifárias, com tolerância relativa em vez de absoluta). Investigação de código (endpoint de série, `NAV_ITEMS`/`AppRouter`, `AnalysisTree`, `AclComparisonPage`/`BrancaComparisonPage`, `SeriesLineChart`, validação de intervalo de datas) precedeu o fatiamento. Duas decisões de escopo sem precedente no design foram levadas ao usuário antes de fatiar (não assumidas): período A e B com a mesma duração; granularidade automática por duração (hora se ≤1 dia, dia caso contrário).
+- **Testes:** documentação, sem código.
+- **Arquivos principais:** `.claude/docs/roadmap.md` (seção "Fase 26 — Histórico e comparações" com os 4 itens, nova seção "Replanejamento de 2026-09-27 (detalhamento da Fase 26)").
+- **Decisões/ADRs:** nenhuma nova — as duas decisões de escopo (duração igual de A/B; granularidade automática) são regra de fatiamento da fase, não decisão arquitetural que exija ADR próprio; nenhum item do `07` foi tocado.
+- **Notas:** próximo passo natural é `criar-issues` para abrir o épico da Fase 26 quando o usuário decidir iniciar a implementação.
