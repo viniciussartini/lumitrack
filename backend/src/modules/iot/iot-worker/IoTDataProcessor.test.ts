@@ -230,6 +230,54 @@ describe("IoTDataProcessor", () => {
 
             expect(listener.mock.calls[0]![0].voltageUnbalance).toBeUndefined()
         })
+
+        it("processa e persiste corretamente um payload com as 21 grandezas por fase simultaneamente (formato publicado pelo iot-simulator)", () => {
+            const listener = vi.fn()
+            processor.addSampleListener(listener)
+
+            const fullPhasePayload = {
+                voltage: 220,
+                current: 2,
+                powerW: 440,
+                powerFactor: 0.95,
+                voltagePhaseA: 218,
+                voltagePhaseB: 220,
+                voltagePhaseC: 222,
+                currentPhaseA: 1.9,
+                currentPhaseB: 2,
+                currentPhaseC: 2.1,
+                activePowerPhaseA: 146,
+                activePowerPhaseB: 147,
+                activePowerPhaseC: 147,
+                reactivePowerVar: 144.6,
+                apparentPowerVa: 463.2,
+                frequencyHz: 60.02,
+                powerFactorPhaseA: 0.94,
+                powerFactorPhaseB: 0.95,
+                powerFactorPhaseC: 0.96,
+                thdVoltagePhaseA: 2.1,
+                thdVoltagePhaseB: 1.9,
+                thdVoltagePhaseC: 2.0,
+                thdCurrentPhaseA: 5.2,
+                thdCurrentPhaseB: 4.8,
+                thdCurrentPhaseC: 5.0,
+            }
+
+            callProcess(processor, "meter-1", fullPhasePayload)
+
+            expect(listener.mock.calls[0]![0]).toMatchObject(fullPhasePayload)
+            expect(listener.mock.calls[0]![0].voltageUnbalance).toBeCloseTo((2 / 220) * 100)
+
+            const snapshots = processor.buffer.drainAll()
+            expect(snapshots).toHaveLength(1)
+            // Primeira amostra do medidor (deltaSeconds=0) — sem peso, então
+            // as médias caem no fallback neutro (0), mesmo padrão já usado
+            // pelas 4 grandezas obrigatórias; o que importa aqui é que a
+            // chave chegou ao balde, não ficando `null` por omissão.
+            expect(snapshots[0]!.avgVoltagePhaseA).not.toBeNull()
+            expect(snapshots[0]!.avgThdCurrentPhaseC).not.toBeNull()
+            expect(snapshots[0]!.avgVoltageUnbalance).not.toBeNull()
+        })
     })
 
     describe("cálculo de energia", () => {
