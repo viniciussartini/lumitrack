@@ -1,11 +1,20 @@
 import {
     listMeterReadingsQuerySchema,
+    meterReadingSeriesQuerySchema,
     type MeterReadingGranularity,
+    type MeterReadingSeriesMetric,
+    type MeterReadingSeriesWindow,
 } from "@/modules/meter/meter-reading.schema.js"
 import type {
     MeterReadingRepository,
     MeterReadingBucket,
 } from "@/modules/meter/meter-reading.repository.js"
+import {
+    computeSeriesWindow,
+    fillMissingBuckets,
+    type SeriesBucketValues,
+    type SeriesWindowInput,
+} from "@/modules/meter/meter-reading-series-window.js"
 import type { MeterRepository } from "@/modules/meter/meter.repository.js"
 import type { PropertyRepository } from "@/modules/property/property.repository.js"
 import type { AreaRepository } from "@/modules/area/area.repository.js"
@@ -17,6 +26,12 @@ import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 export type MeterReadingListResponse = {
     items: MeterReadingBucket[]
     granularity: MeterReadingGranularity
+}
+
+export type MeterReadingSeriesResponse = {
+    items: SeriesBucketValues[]
+    metric: MeterReadingSeriesMetric
+    window: MeterReadingSeriesWindow
 }
 
 /**
@@ -75,5 +90,56 @@ export class MeterReadingService {
         )
 
         return { items, granularity }
+    }
+
+    /**
+     * Série de uma grandeza (mínimo/média/máximo por balde) do alvo
+     * informado, restrita ao titular — a área de análise configurável, não
+     * o gráfico "ao vivo" (isso é {@link list}).
+     *
+     * @param userId - Id do usuário autenticado (dono do alvo).
+     * @param query - Query string bruta (alvo, grandeza, janela, dia/hora/agregação), validada aqui.
+     * @returns Os baldes completos da janela (sem lacuna) e a grandeza/janela efetivamente aplicadas.
+     */
+    async series(userId: string, query: unknown): Promise<MeterReadingSeriesResponse> {
+        const parsed = parseOrThrow(meterReadingSeriesQuerySchema, query)
+        const { targetType, targetId, metric, window, day, hour, aggregationMinutes } = parsed
+
+        const property = await resolveRootProperty(targetType, targetId, {
+            propertyRepository: this.propertyRepository,
+            areaRepository: this.areaRepository,
+            deviceRepository: this.deviceRepository,
+        })
+        if (property.userId !== userId) {
+            throw new ForbiddenError("Acesso negado")
+        }
+
+        const meter = await this.meterRepository.findByTarget(targetType, targetId)
+        if (!meter) {
+            throw new NotFoundError("Este alvo não possui medidor vinculado")
+        }
+
+        // Garantido em runtime pelo `.refine` do schema (hour/aggregationMinutes
+        // obrigatórios quando window="hora") — o tipo inferido de
+        // `meterReadingSeriesQuerySchema` não estreita com base no `.refine`,
+        // então a asserção aqui documenta uma invariante já validada, não uma
+        // suposição nova.
+        const windowInput: SeriesWindowInput =
+            window === "hora"
+                ? { window, day, hour: hour!, aggregationMinutes: aggregationMinutes! }
+                : { window, day }
+
+        const { rangeFrom, rangeTo, bucketStarts } = computeSeriesWindow(windowInput)
+
+        const found = await this.meterReadingRepository.findSeries(
+            meter.id,
+            metric,
+            window,
+            aggregationMinutes,
+            rangeFrom,
+            rangeTo,
+        )
+
+        return { items: fillMissingBuckets(bucketStarts, found), metric, window }
     }
 }

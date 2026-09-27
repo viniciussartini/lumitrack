@@ -25,4 +25,23 @@ export class MeterReadingController {
             next(error)
         }
     }
+
+    /**
+     * `GET /api/meter-readings/series?targetType=&targetId=&metric=&window=&day=&hour=&aggregationMinutes=`
+     * — série de uma grandeza (mínimo/média/máximo por balde) do alvo
+     * informado, escopada ao usuário autenticado.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
+    async series(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id: userId } = (req as AuthenticatedRequest).user
+            const result = await this.meterReadingService.series(userId, req.query)
+            res.status(200).json({ status: "success", data: result })
+        } catch (error) {
+            next(error)
+        }
+    }
 }
