@@ -1,13 +1,38 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest"
 import { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
+import { emptyOptionalAvgFields } from "@/modules/meter/meter-reading-optional-fields.js"
 import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
+import type { Prisma } from "@/generated/prisma/client.js"
 
 const meterReadingRepository = new MeterReadingRepository(prismaTest)
 const userRepository = new UserRepository(prismaTest)
 const userService = new UserService(userRepository)
+
+/** Insere uma linha de `meter_readings` com valores plausíveis, sobrescrevíveis por teste. */
+async function insertReading(
+    meterId: string,
+    minuteStart: Date,
+    overrides: Partial<Prisma.MeterReadingUncheckedCreateInput> = {},
+): Promise<void> {
+    await prismaTest.meterReading.create({
+        data: {
+            meterId,
+            minuteStart,
+            kwhConsumed: 0.01,
+            avgVoltage: 220,
+            avgCurrent: 5,
+            avgPowerW: 1000,
+            avgPowerFactor: 0.9,
+            sampleCount: 60,
+            secondsCovered: 60,
+            ...emptyOptionalAvgFields(),
+            ...overrides,
+        },
+    })
+}
 
 async function setupMeter(): Promise<string> {
     const user = await userService.createUser({
@@ -72,6 +97,7 @@ describe("MeterReadingRepository.upsertMinute", () => {
 
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart,
             energyKwh: 0.01,
             avgVoltage: 220,
@@ -98,6 +124,7 @@ describe("MeterReadingRepository.upsertMinute", () => {
         // Primeira metade do minuto: 30s, 30 amostras, 220V, 0.01 kWh.
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart,
             energyKwh: 0.01,
             avgVoltage: 220,
@@ -111,6 +138,7 @@ describe("MeterReadingRepository.upsertMinute", () => {
         // Servidor reinicia — segunda metade do minuto: 30s, 30 amostras, 240V, 0.012 kWh.
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart,
             energyKwh: 0.012,
             avgVoltage: 240,
@@ -148,6 +176,7 @@ describe("MeterReadingRepository.upsertMinute", () => {
         const [a, b] = await Promise.allSettled([
             meterReadingRepository.upsertMinute({
                 meterId,
+                ...emptyOptionalAvgFields(),
                 minuteStart,
                 energyKwh: 0.01,
                 avgVoltage: 220,
@@ -159,6 +188,7 @@ describe("MeterReadingRepository.upsertMinute", () => {
             }),
             meterReadingRepository.upsertMinute({
                 meterId,
+                ...emptyOptionalAvgFields(),
                 minuteStart,
                 energyKwh: 0.012,
                 avgVoltage: 240,
@@ -193,6 +223,7 @@ describe("MeterReadingRepository.upsertMinute", () => {
 
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart: new Date("2026-01-15T14:37:00.000Z"),
             energyKwh: 0.01,
             avgVoltage: 220,
@@ -204,6 +235,7 @@ describe("MeterReadingRepository.upsertMinute", () => {
         })
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart: new Date("2026-01-15T14:38:00.000Z"),
             energyKwh: 0.02,
             avgVoltage: 220,
@@ -217,6 +249,160 @@ describe("MeterReadingRepository.upsertMinute", () => {
         const count = await prismaTest.meterReading.count({ where: { meterId } })
         expect(count).toBe(2)
     })
+
+    describe("grandezas por fase (ADR-0022)", () => {
+        it("persiste grandezas por fase informadas e mantém as demais nulas", async () => {
+            const meterId = await setupMeter()
+            const minuteStart = new Date("2026-01-15T14:37:00.000Z")
+
+            await meterReadingRepository.upsertMinute({
+                meterId,
+                ...emptyOptionalAvgFields(),
+                minuteStart,
+                energyKwh: 0.01,
+                avgVoltage: 220,
+                avgCurrent: 5,
+                avgPowerW: 1100,
+                avgPowerFactor: 0.9,
+                avgVoltagePhaseA: 219,
+                avgFrequencyHz: 60,
+                sampleCount: 30,
+                secondsCovered: 30,
+            })
+
+            const reading = await prismaTest.meterReading.findUniqueOrThrow({
+                where: { meterId_minuteStart: { meterId, minuteStart } },
+            })
+
+            expect(reading.avgVoltagePhaseA).toBeCloseTo(219)
+            expect(reading.avgFrequencyHz).toBeCloseTo(60)
+            expect(reading.avgVoltagePhaseB).toBeNull()
+            expect(reading.avgVoltageUnbalance).toBeNull()
+        })
+
+        it("merge ponderado de uma grandeza por fase presente nos dois flushes", async () => {
+            const meterId = await setupMeter()
+            const minuteStart = new Date("2026-01-15T14:37:00.000Z")
+
+            await meterReadingRepository.upsertMinute({
+                meterId,
+                ...emptyOptionalAvgFields(),
+                minuteStart,
+                energyKwh: 0.01,
+                avgVoltage: 220,
+                avgCurrent: 5,
+                avgPowerW: 1100,
+                avgPowerFactor: 0.9,
+                avgVoltagePhaseA: 218,
+                sampleCount: 30,
+                secondsCovered: 30,
+            })
+            await meterReadingRepository.upsertMinute({
+                meterId,
+                ...emptyOptionalAvgFields(),
+                minuteStart,
+                energyKwh: 0.01,
+                avgVoltage: 220,
+                avgCurrent: 5,
+                avgPowerW: 1100,
+                avgPowerFactor: 0.9,
+                avgVoltagePhaseA: 222,
+                sampleCount: 30,
+                secondsCovered: 30,
+            })
+
+            const reading = await prismaTest.meterReading.findUniqueOrThrow({
+                where: { meterId_minuteStart: { meterId, minuteStart } },
+            })
+
+            // (218*30 + 222*30) / 60 = 220
+            expect(reading.avgVoltagePhaseA).toBeCloseTo(220)
+        })
+
+        it("mantém o valor já persistido de uma grandeza quando o flush seguinte não a reporta", async () => {
+            const meterId = await setupMeter()
+            const minuteStart = new Date("2026-01-15T14:37:00.000Z")
+
+            await meterReadingRepository.upsertMinute({
+                meterId,
+                ...emptyOptionalAvgFields(),
+                minuteStart,
+                energyKwh: 0.01,
+                avgVoltage: 220,
+                avgCurrent: 5,
+                avgPowerW: 1100,
+                avgPowerFactor: 0.9,
+                avgVoltagePhaseA: 218,
+                sampleCount: 30,
+                secondsCovered: 30,
+            })
+            // Segundo flush não traz avgVoltagePhaseA (fica null no snapshot) —
+            // o merge não deve apagar o valor já conhecido do primeiro flush.
+            await meterReadingRepository.upsertMinute({
+                meterId,
+                ...emptyOptionalAvgFields(),
+                minuteStart,
+                energyKwh: 0.01,
+                avgVoltage: 220,
+                avgCurrent: 5,
+                avgPowerW: 1100,
+                avgPowerFactor: 0.9,
+                sampleCount: 30,
+                secondsCovered: 30,
+            })
+
+            const reading = await prismaTest.meterReading.findUniqueOrThrow({
+                where: { meterId_minuteStart: { meterId, minuteStart } },
+            })
+
+            expect(reading.avgVoltagePhaseA).toBeCloseTo(218)
+        })
+
+        it("duas chamadas concorrentes com a mesma grandeza por fase não perdem dado nem duplicam a linha", async () => {
+            const meterId = await setupMeter()
+            const minuteStart = new Date("2026-01-15T14:37:00.000Z")
+
+            const [a, b] = await Promise.allSettled([
+                meterReadingRepository.upsertMinute({
+                    meterId,
+                    ...emptyOptionalAvgFields(),
+                    minuteStart,
+                    energyKwh: 0.01,
+                    avgVoltage: 220,
+                    avgCurrent: 5,
+                    avgPowerW: 1100,
+                    avgPowerFactor: 0.9,
+                    avgVoltagePhaseA: 218,
+                    sampleCount: 30,
+                    secondsCovered: 30,
+                }),
+                meterReadingRepository.upsertMinute({
+                    meterId,
+                    ...emptyOptionalAvgFields(),
+                    minuteStart,
+                    energyKwh: 0.012,
+                    avgVoltage: 240,
+                    avgCurrent: 5,
+                    avgPowerW: 1200,
+                    avgPowerFactor: 0.9,
+                    avgVoltagePhaseA: 222,
+                    sampleCount: 30,
+                    secondsCovered: 30,
+                }),
+            ])
+
+            expect(a.status).toBe("fulfilled")
+            expect(b.status).toBe("fulfilled")
+
+            const count = await prismaTest.meterReading.count({ where: { meterId, minuteStart } })
+            expect(count).toBe(1)
+
+            const reading = await prismaTest.meterReading.findUniqueOrThrow({
+                where: { meterId_minuteStart: { meterId, minuteStart } },
+            })
+            expect(reading.avgVoltagePhaseA).toBeCloseTo(220) // (218*30 + 222*30) / 60
+        })
+    })
 })
 
 describe("MeterReadingRepository.findAggregated", () => {
@@ -226,6 +412,7 @@ describe("MeterReadingRepository.findAggregated", () => {
 
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart,
             energyKwh: 0.01,
             avgVoltage: 220,
@@ -253,6 +440,7 @@ describe("MeterReadingRepository.findAggregated", () => {
         // Dois minutos dentro de 14h (UTC), pesos iguais (60s cada) — média simples.
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart: new Date("2026-01-15T14:10:00.000Z"),
             energyKwh: 0.01,
             avgVoltage: 220,
@@ -264,6 +452,7 @@ describe("MeterReadingRepository.findAggregated", () => {
         })
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart: new Date("2026-01-15T14:20:00.000Z"),
             energyKwh: 0.01,
             avgVoltage: 220,
@@ -276,6 +465,7 @@ describe("MeterReadingRepository.findAggregated", () => {
         // Minuto de outra hora — não deve entrar no balde das 14h.
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart: new Date("2026-01-15T15:05:00.000Z"),
             energyKwh: 0.05,
             avgVoltage: 220,
@@ -302,6 +492,7 @@ describe("MeterReadingRepository.findAggregated", () => {
 
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart: new Date("2026-01-15T10:00:00.000Z"),
             energyKwh: 0.01,
             avgVoltage: 220,
@@ -330,6 +521,227 @@ describe("MeterReadingRepository.findAggregated", () => {
             "hour",
             new Date("2026-01-15T00:00:00.000Z"),
             new Date("2026-01-16T00:00:00.000Z"),
+        )
+
+        expect(buckets).toEqual([])
+    })
+})
+
+describe("MeterReadingRepository.findSeries", () => {
+    it("minuto único (aggregationMinutes=1): mín=média=máx do próprio minuto", async () => {
+        const meterId = await setupMeter()
+        await insertReading(meterId, new Date("2026-01-15T17:00:00.000Z"), { avgVoltage: 219 })
+
+        const buckets = await meterReadingRepository.findSeries(
+            meterId,
+            "tensao",
+            "hora",
+            1,
+            new Date("2026-01-15T17:00:00.000Z"),
+            new Date("2026-01-15T18:00:00.000Z"),
+        )
+
+        expect(buckets).toHaveLength(1)
+        expect(buckets[0]!.min).toBeCloseTo(219)
+        expect(buckets[0]!.avg).toBeCloseTo(219)
+        expect(buckets[0]!.max).toBeCloseTo(219)
+    })
+
+    it.each([
+        [1, 3],
+        [5, 1],
+        [15, 1],
+        [30, 1],
+    ] as const)(
+        "window=hora, aggregationMinutes=%d: agrega %d balde(s) com min/média/máx corretos",
+        async (aggregationMinutes, expectedBucketCount) => {
+            const meterId = await setupMeter()
+            await insertReading(meterId, new Date("2026-01-15T17:00:00.000Z"), { avgVoltage: 210 })
+            await insertReading(meterId, new Date("2026-01-15T17:01:00.000Z"), { avgVoltage: 220 })
+            await insertReading(meterId, new Date("2026-01-15T17:02:00.000Z"), { avgVoltage: 230 })
+
+            const buckets = await meterReadingRepository.findSeries(
+                meterId,
+                "tensao",
+                "hora",
+                aggregationMinutes,
+                new Date("2026-01-15T17:00:00.000Z"),
+                new Date("2026-01-15T18:00:00.000Z"),
+            )
+
+            expect(buckets).toHaveLength(expectedBucketCount)
+            const totals = buckets.reduce(
+                (acc, b) => ({
+                    min: Math.min(acc.min, b.min!),
+                    max: Math.max(acc.max, b.max!),
+                }),
+                { min: Infinity, max: -Infinity },
+            )
+            expect(totals.min).toBeCloseTo(210)
+            expect(totals.max).toBeCloseTo(230)
+            // Média ponderada por segundos (pesos iguais aqui): (210+220+230)/3 = 220.
+            const weightedAvg =
+                buckets.reduce((sum, b) => sum + b.avg! * 60, 0) / (buckets.length * 60)
+            expect(weightedAvg).toBeCloseTo(220)
+        },
+    )
+
+    it("window=dia: agrupa em baldes de 1h (date_trunc puro)", async () => {
+        const meterId = await setupMeter()
+        await insertReading(meterId, new Date("2026-01-15T17:05:00.000Z"), { avgVoltage: 210 })
+        await insertReading(meterId, new Date("2026-01-15T17:35:00.000Z"), { avgVoltage: 230 })
+        await insertReading(meterId, new Date("2026-01-15T23:10:00.000Z"), { avgVoltage: 240 })
+
+        const buckets = await meterReadingRepository.findSeries(
+            meterId,
+            "tensao",
+            "dia",
+            undefined,
+            new Date("2026-01-15T03:00:00.000Z"),
+            new Date("2026-01-16T03:00:00.000Z"),
+        )
+
+        expect(buckets).toHaveLength(2)
+        const bucket14h = buckets.find(
+            (b) => b.bucketStart.getTime() === new Date("2026-01-15T14:00:00.000Z").getTime(),
+        )!
+        expect(bucket14h.min).toBeCloseTo(210)
+        expect(bucket14h.avg).toBeCloseTo(220)
+        expect(bucket14h.max).toBeCloseTo(230)
+        const bucket20h = buckets.find(
+            (b) => b.bucketStart.getTime() === new Date("2026-01-15T20:00:00.000Z").getTime(),
+        )!
+        expect(bucket20h.min).toBeCloseTo(240)
+        expect(bucket20h.max).toBeCloseTo(240)
+    })
+
+    it("metric=thdv: valor do balde é a média das 3 fases", async () => {
+        const meterId = await setupMeter()
+        await insertReading(meterId, new Date("2026-01-15T17:00:00.000Z"), {
+            avgThdVoltagePhaseA: 2,
+            avgThdVoltagePhaseB: 3,
+            avgThdVoltagePhaseC: 4,
+        })
+
+        const buckets = await meterReadingRepository.findSeries(
+            meterId,
+            "thdv",
+            "hora",
+            1,
+            new Date("2026-01-15T17:00:00.000Z"),
+            new Date("2026-01-15T18:00:00.000Z"),
+        )
+
+        expect(buckets).toHaveLength(1)
+        expect(buckets[0]!.avg).toBeCloseTo(3)
+    })
+
+    it("metric=thdi: valor do balde é a média das 3 fases de corrente", async () => {
+        const meterId = await setupMeter()
+        await insertReading(meterId, new Date("2026-01-15T17:00:00.000Z"), {
+            avgThdCurrentPhaseA: 4,
+            avgThdCurrentPhaseB: 5,
+            avgThdCurrentPhaseC: 6,
+        })
+
+        const buckets = await meterReadingRepository.findSeries(
+            meterId,
+            "thdi",
+            "hora",
+            1,
+            new Date("2026-01-15T17:00:00.000Z"),
+            new Date("2026-01-15T18:00:00.000Z"),
+        )
+
+        expect(buckets).toHaveLength(1)
+        expect(buckets[0]!.avg).toBeCloseTo(5)
+    })
+
+    it("grandeza nunca reportada pelo medidor (coluna NULL em todas as linhas do balde): devolve null, não 0", async () => {
+        const meterId = await setupMeter()
+        // As 3 fases de THD ficam null por padrão (emptyOptionalAvgFields) — o
+        // medidor deste teste nunca reportou essa grandeza.
+        await insertReading(meterId, new Date("2026-01-15T17:00:00.000Z"))
+
+        const buckets = await meterReadingRepository.findSeries(
+            meterId,
+            "thdv",
+            "hora",
+            1,
+            new Date("2026-01-15T17:00:00.000Z"),
+            new Date("2026-01-15T18:00:00.000Z"),
+        )
+
+        expect(buckets).toHaveLength(1)
+        expect(buckets[0]!.min).toBeNull()
+        expect(buckets[0]!.avg).toBeNull()
+        expect(buckets[0]!.max).toBeNull()
+    })
+
+    it("linha com secondsCovered=0 (primeira amostra do medidor, sem Δt) não polui mínimo/máximo de um balde que também tem dado real", async () => {
+        const meterId = await setupMeter()
+        // Duas linhas de minutos diferentes no MESMO balde de 5 minutos
+        // (17:00-17:04) — a de peso zero grava "tensao" como 0 (a coluna não
+        // é nula), a outra tem peso real. Sem o FILTER, o mínimo do balde
+        // seria 0V, mesmo a instalação nunca tendo medido 0V de verdade;
+        // a média já ficava correta antes (NULLIF já a exclui), então o bug
+        // deixava min/max inconsistentes com a própria média do balde.
+        await insertReading(meterId, new Date("2026-01-15T17:00:00.000Z"), {
+            avgVoltage: 0,
+            secondsCovered: 0,
+        })
+        await insertReading(meterId, new Date("2026-01-15T17:02:00.000Z"), {
+            avgVoltage: 220,
+            secondsCovered: 60,
+        })
+
+        const buckets = await meterReadingRepository.findSeries(
+            meterId,
+            "tensao",
+            "hora",
+            5,
+            new Date("2026-01-15T17:00:00.000Z"),
+            new Date("2026-01-15T18:00:00.000Z"),
+        )
+
+        const populated = buckets.filter((b) => b.avg !== null)
+        expect(populated).toHaveLength(1)
+        expect(populated[0]!.min).toBeCloseTo(220)
+        expect(populated[0]!.max).toBeCloseTo(220)
+        expect(populated[0]!.avg).toBeCloseTo(220)
+    })
+
+    it("balde com dado parcial nas 3 fases de thd (só 2 de 3) não inventa média com dado incompleto", async () => {
+        const meterId = await setupMeter()
+        await insertReading(meterId, new Date("2026-01-15T17:00:00.000Z"), {
+            avgThdVoltagePhaseA: 2,
+            avgThdVoltagePhaseB: 3,
+            // avgThdVoltagePhaseC fica null
+        })
+
+        const buckets = await meterReadingRepository.findSeries(
+            meterId,
+            "thdv",
+            "hora",
+            1,
+            new Date("2026-01-15T17:00:00.000Z"),
+            new Date("2026-01-15T18:00:00.000Z"),
+        )
+
+        expect(buckets).toHaveLength(1)
+        expect(buckets[0]!.avg).toBeNull()
+    })
+
+    it("sem nenhuma leitura no medidor no período, devolve array vazio (quem preenche os baldes é fillMissingBuckets)", async () => {
+        const meterId = await setupMeter()
+
+        const buckets = await meterReadingRepository.findSeries(
+            meterId,
+            "tensao",
+            "hora",
+            1,
+            new Date("2026-01-15T17:00:00.000Z"),
+            new Date("2026-01-15T18:00:00.000Z"),
         )
 
         expect(buckets).toEqual([])

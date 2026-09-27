@@ -70,6 +70,27 @@ export const formatPowerW = (value: number): string => `${electricalFormatter.fo
 export const formatPowerKw = (valueInWatts: number): string =>
     `${electricalFormatter.format(valueInWatts / 1000)}kW`
 
+/** Potência reativa em kvar (valor cru vem em var — grandezas por fase, ADR-0022). */
+export const formatReactivePowerKvar = (valueInVar: number): string =>
+    `${electricalFormatter.format(valueInVar / 1000)}kvar`
+
+/** Potência aparente em kVA (valor cru vem em VA — grandezas por fase, ADR-0022). */
+export const formatApparentPowerKva = (valueInVa: number): string =>
+    `${electricalFormatter.format(valueInVa / 1000)}kVA`
+
+export const formatFrequencyHz = (value: number): string => `${electricalFormatter.format(value)}Hz`
+
+/** Fator de potência — adimensional, sem unidade colada. */
+export const formatPowerFactor = (value: number): string => electricalFormatter.format(value)
+
+/**
+ * Percentual de grandeza elétrica (desequilíbrio de tensão, THD) — o valor
+ * cru já vem em pontos percentuais (2.6 → "2,6%"), diferente de
+ * `formatPercent` (fração 0–1, estilo Intl percent).
+ */
+export const formatElectricalPercent = (value: number): string =>
+    `${electricalFormatter.format(value)}%`
+
 /**
  * Trunca uma string adicionando elipse no final.
  * Útil para nomes longos em cards.

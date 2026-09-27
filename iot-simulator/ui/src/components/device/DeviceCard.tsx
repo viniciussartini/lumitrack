@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button"
 import { CopyButton } from "@/components/ui/CopyButton"
 import { DeviceControls } from "@/components/device/DeviceControls"
 import { AnomalyButton } from "@/components/device/AnomalyButton"
+import { DeviceSampleReadout } from "@/components/device/DeviceSampleReadout"
 import type { DeviceParams, VirtualDevice } from "@/types"
 
 interface DeviceCardProps {
@@ -104,6 +105,8 @@ export function DeviceCard({
                 onSave={onSaveParams}
                 isPending={isSavePending}
             />
+
+            {device.lastSample && <DeviceSampleReadout sample={device.lastSample} />}
 
             <AnomalyButton
                 anomaly={device.anomaly}

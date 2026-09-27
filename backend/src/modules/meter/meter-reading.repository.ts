@@ -1,13 +1,123 @@
 import { randomUUID } from "crypto"
 import { Prisma, PrismaClient } from "@/generated/prisma/client.js"
 import type { MinuteBucketSnapshot } from "@/modules/iot/iot-worker/MinuteBuffer.js"
-import type { MeterReadingGranularity } from "@/modules/meter/meter-reading.schema.js"
+import { OPTIONAL_ELECTRICAL_FIELD_MAP } from "@/modules/meter/meter-reading-optional-fields.js"
+import type {
+    MeterReadingGranularity,
+    MeterReadingSeriesAggregationMinutes,
+    MeterReadingSeriesMetric,
+    MeterReadingSeriesWindow,
+} from "@/modules/meter/meter-reading.schema.js"
+import type { SeriesBucketValues } from "@/modules/meter/meter-reading-series-window.js"
 import { localTsExpr, rangeFilter } from "@/shared/database/timeBucket.js"
 import { withPurgeTimeout } from "@/shared/database/withPurgeTimeout.js"
+
+// Nomes das 22 colunas de grandezas por fase (ADR-0022) — usados para gerar
+// as cláusulas SQL do upsert abaixo em vez de escrevê-las 22 vezes à mão.
+const OPTIONAL_AVG_FIELDS = OPTIONAL_ELECTRICAL_FIELD_MAP.map(([, avgField]) => avgField)
+
+function quotedColumn(name: string): Prisma.Sql {
+    return Prisma.raw(`"${name}"`)
+}
+
+/**
+ * Cláusula `SET` do merge ponderado de uma grandeza opcional. Mesma receita
+ * das 4 grandezas obrigatórias (média ponderada por `secondsCovered`), com
+ * dois desvios exigidos pela nulabilidade: se o snapshot novo não trouxe a
+ * grandeza, mantém o valor já persistido (não apaga histórico por causa de
+ * uma leitura que simplesmente não reportou aquele campo); se o valor já
+ * persistido é nulo (linha ainda não tinha essa grandeza), adota o novo
+ * direto, sem fazer conta com nulo.
+ *
+ * @param avgField - Nome da coluna de média (ex.: `avgVoltagePhaseA`).
+ * @returns O fragmento SQL `"coluna" = CASE ... END` pronto para o `ON CONFLICT DO UPDATE SET`.
+ */
+function optionalMergeClause(avgField: string): Prisma.Sql {
+    const column = quotedColumn(avgField)
+    return Prisma.sql`${column} = CASE
+                WHEN EXCLUDED.${column} IS NULL THEN "meter_readings".${column}
+                WHEN "meter_readings".${column} IS NULL THEN EXCLUDED.${column}
+                WHEN "meter_readings"."secondsCovered" + EXCLUDED."secondsCovered" > 0 THEN
+                    ("meter_readings".${column} * "meter_readings"."secondsCovered"
+                        + EXCLUDED.${column} * EXCLUDED."secondsCovered")
+                    / ("meter_readings"."secondsCovered" + EXCLUDED."secondsCovered")
+                ELSE EXCLUDED.${column}
+            END`
+}
 
 const TRUNC_UNIT: Record<MeterReadingGranularity, string> = {
     minute: "minute",
     hour: "hour",
+}
+
+// As 7 grandezas do seletor de série com coluna própria em `meter_readings`
+// — sobra tensão/corrente/potência já existentes desde antes do ADR-0022,
+// mais as 3 novas que não são por fase (reativa, aparente, frequência).
+// `thdv`/`thdi` ficam fora: só existem por fase, então viram uma expressão
+// calculada em `metricValueExpr`, não uma coluna direta.
+const DIRECT_SERIES_METRIC_COLUMNS: Record<
+    Exclude<MeterReadingSeriesMetric, "thdv" | "thdi">,
+    string
+> = {
+    tensao: "avgVoltage",
+    corrente: "avgCurrent",
+    pativa: "avgPowerW",
+    preativa: "avgReactivePowerVar",
+    paparente: "avgApparentPowerVa",
+    fp: "avgPowerFactor",
+    freq: "avgFrequencyHz",
+}
+
+/**
+ * Expressão SQL do valor de uma grandeza numa linha de `meter_readings`.
+ * `thdv`/`thdi` não têm coluna agregada própria (só por fase) — o seletor de
+ * série não distingue fase, então o valor é a média das 3, mesmo tratamento
+ * já dado ao fator de potência (que também expõe uma "Média" em destaque,
+ * apesar de ter colunas por fase). Se qualquer uma das 3 fases for `NULL`
+ * numa linha, a média dessa linha também é `NULL` — aritmética com `NULL`
+ * propaga, então uma leitura com dado parcial não gera uma média inventada
+ * com 2 das 3 fases.
+ *
+ * @param metric - A grandeza escolhida.
+ * @returns O fragmento SQL do valor, pronto para `MIN`/`MAX`/soma ponderada.
+ */
+function metricValueExpr(metric: MeterReadingSeriesMetric): Prisma.Sql {
+    if (metric === "thdv" || metric === "thdi") {
+        const prefix = metric === "thdv" ? "avgThdVoltage" : "avgThdCurrent"
+        const [a, b, c] = [
+            quotedColumn(`${prefix}PhaseA`),
+            quotedColumn(`${prefix}PhaseB`),
+            quotedColumn(`${prefix}PhaseC`),
+        ]
+        return Prisma.sql`((${a} + ${b} + ${c}) / 3.0)`
+    }
+    return quotedColumn(DIRECT_SERIES_METRIC_COLUMNS[metric])
+}
+
+/**
+ * Expressão SQL do início do balde de uma linha, na convenção "dígitos
+ * locais de SP mascarados como UTC" (`localTsExpr()`). `window="dia"` usa
+ * `date_trunc` puro (24 baldes fixos de 1h); `window="hora"` precisa de um
+ * balde por múltiplo de `aggregationMinutes`, que `date_trunc` sozinho não
+ * expressa (só trunca em unidades fixas como minuto/hora) — daí o
+ * `floor(minuto / N) * N`, que arredonda o minuto da linha para baixo até o
+ * múltiplo de N mais próximo antes de somar de volta à hora truncada.
+ *
+ * @param window - Janela escolhida (`hora` ou `dia`).
+ * @param aggregationMinutes - Tamanho do balde em minutos, só relevante para `window="hora"`.
+ * @returns O fragmento SQL do início do balde, usável em `SELECT`/`GROUP BY`.
+ */
+function seriesBucketExpr(
+    window: MeterReadingSeriesWindow,
+    aggregationMinutes: MeterReadingSeriesAggregationMinutes | undefined,
+): Prisma.Sql {
+    const localTs = localTsExpr()
+    if (window === "dia") {
+        return Prisma.sql`date_trunc('hour', ${localTs})`
+    }
+    return Prisma.sql`date_trunc('hour', ${localTs})
+        + (floor(date_part('minute', ${localTs}) / ${aggregationMinutes}) * ${aggregationMinutes})
+            * interval '1 minute'`
 }
 
 export type MeterReadingBucket = {
@@ -47,16 +157,23 @@ export class MeterReadingRepository {
      * @param snapshot - Amostra agregada de um minuto, pronta para persistir.
      */
     async upsertMinute(snapshot: MinuteBucketSnapshot): Promise<void> {
+        const optionalColumns = Prisma.join(OPTIONAL_AVG_FIELDS.map(quotedColumn))
+        const optionalValues = Prisma.join(
+            OPTIONAL_AVG_FIELDS.map((field) => Prisma.sql`${snapshot[field]}`),
+        )
+        const optionalMergeSets = Prisma.join(OPTIONAL_AVG_FIELDS.map(optionalMergeClause))
+
         await this.prisma.$executeRaw`
             INSERT INTO "meter_readings" (
                 "id", "meterId", "minuteStart", "kwhConsumed", "avgVoltage", "avgCurrent",
-                "avgPowerW", "avgPowerFactor", "sampleCount", "secondsCovered", "updatedAt"
+                "avgPowerW", "avgPowerFactor", "sampleCount", "secondsCovered",
+                ${optionalColumns}, "updatedAt"
             )
             VALUES (
                 ${randomUUID()}, ${snapshot.meterId}, ${snapshot.minuteStart},
                 ${snapshot.energyKwh}, ${snapshot.avgVoltage}, ${snapshot.avgCurrent},
                 ${snapshot.avgPowerW}, ${snapshot.avgPowerFactor}, ${snapshot.sampleCount},
-                ${snapshot.secondsCovered}, now()
+                ${snapshot.secondsCovered}, ${optionalValues}, now()
             )
             ON CONFLICT ("meterId", "minuteStart") DO UPDATE SET
                 "kwhConsumed" = "meter_readings"."kwhConsumed" + EXCLUDED."kwhConsumed",
@@ -88,6 +205,7 @@ export class MeterReadingRepository {
                         / ("meter_readings"."secondsCovered" + EXCLUDED."secondsCovered")
                     ELSE EXCLUDED."avgPowerFactor"
                 END,
+                ${optionalMergeSets},
                 "sampleCount" = "meter_readings"."sampleCount" + EXCLUDED."sampleCount",
                 "secondsCovered" = "meter_readings"."secondsCovered" + EXCLUDED."secondsCovered",
                 "updatedAt" = now()
@@ -131,6 +249,67 @@ export class MeterReadingRepository {
         return rows.map((r) => ({
             bucketStart: r.bucket,
             avgPowerW: Number(r.avgpower ?? 0),
+        }))
+    }
+
+    /**
+     * Série de uma grandeza numa janela, com mínimo/média/máximo por balde —
+     * a área de análise configurável, não o gráfico "ao vivo" (isso é
+     * `findAggregated`). Média ponderada por `secondsCovered`, mesma receita
+     * do resto do módulo; mínimo/máximo são os extremos crus das linhas do
+     * balde, sem ponderação (ponderar um extremo não faz sentido). Um balde
+     * sem nenhuma linha simplesmente não aparece no resultado — é
+     * responsabilidade de quem chama completá-lo com `null`
+     * (`fillMissingBuckets`), não desta query.
+     *
+     * @param meterId - Id do medidor.
+     * @param metric - Grandeza escolhida.
+     * @param window - Janela (`hora` ou `dia`).
+     * @param aggregationMinutes - Tamanho do balde em minutos, só para `window="hora"`.
+     * @param from - Início real (UTC) da janela, inclusive.
+     * @param to - Fim real (UTC) da janela, exclusivo.
+     * @returns Os baldes com dado, em qualquer ordem — cada um com mínimo/média/máximo (`null` se a grandeza nunca foi reportada no balde).
+     */
+    async findSeries(
+        meterId: string,
+        metric: MeterReadingSeriesMetric,
+        window: MeterReadingSeriesWindow,
+        aggregationMinutes: MeterReadingSeriesAggregationMinutes | undefined,
+        from: Date,
+        to: Date,
+    ): Promise<SeriesBucketValues[]> {
+        const bucket = seriesBucketExpr(window, aggregationMinutes)
+        const value = metricValueExpr(metric)
+
+        const rows = await this.prisma.$queryRaw<
+            { bucket: Date; min: number | null; avg: number | null; max: number | null }[]
+        >(
+            Prisma.sql`
+                SELECT
+                    ${bucket} AS bucket,
+                    -- Uma linha com "secondsCovered" = 0 (a primeira amostra
+                    -- do medidor, sem amostra anterior para calcular Δt)
+                    -- grava as 4 grandezas obrigatórias como 0 (a coluna não
+                    -- é nula) — o FILTER a exclui do mínimo/máximo, senão
+                    -- entraria como um "0 V"/"0 Hz" espúrio, inconsistente
+                    -- com a média (que já a ignora via NULLIF/soma acima).
+                    MIN(${value}) FILTER (WHERE "secondsCovered" > 0) AS min,
+                    SUM(${value} * "secondsCovered")
+                        / NULLIF(SUM(CASE WHEN ${value} IS NULL THEN NULL ELSE "secondsCovered" END), 0)
+                        AS avg,
+                    MAX(${value}) FILTER (WHERE "secondsCovered" > 0) AS max
+                FROM "meter_readings"
+                WHERE "meterId" = ${meterId}
+                ${rangeFilter(from, to)}
+                GROUP BY bucket
+            `,
+        )
+
+        return rows.map((r) => ({
+            bucketStart: r.bucket,
+            min: r.min === null ? null : Number(r.min),
+            avg: r.avg === null ? null : Number(r.avg),
+            max: r.max === null ? null : Number(r.max),
         }))
     }
 

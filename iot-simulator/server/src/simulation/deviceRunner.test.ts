@@ -2,10 +2,38 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { SimulationStore } from "@/simulation/store.js"
 import { DeviceRunner } from "@/simulation/deviceRunner.js"
 import type { InternalPublisher } from "@/mqtt/internalPublisher.js"
+import type { ElectricalSample } from "@/simulation/types.js"
 
 function isFiniteNonNegative(value: number): boolean {
     return Number.isFinite(value) && value >= 0
 }
+
+// As 21 grandezas por fase do ADR-0022 — todo tick publicado precisa levar
+// as 21, já que um device simulado nunca omite nenhuma (ao contrário de um
+// medidor real).
+const PHASE_FIELD_NAMES: (keyof ElectricalSample)[] = [
+    "voltagePhaseA",
+    "voltagePhaseB",
+    "voltagePhaseC",
+    "currentPhaseA",
+    "currentPhaseB",
+    "currentPhaseC",
+    "activePowerPhaseA",
+    "activePowerPhaseB",
+    "activePowerPhaseC",
+    "reactivePowerVar",
+    "apparentPowerVa",
+    "frequencyHz",
+    "powerFactorPhaseA",
+    "powerFactorPhaseB",
+    "powerFactorPhaseC",
+    "thdVoltagePhaseA",
+    "thdVoltagePhaseB",
+    "thdVoltagePhaseC",
+    "thdCurrentPhaseA",
+    "thdCurrentPhaseB",
+    "thdCurrentPhaseC",
+]
 
 function createFakePublisher(): InternalPublisher & {
     publish: ReturnType<typeof vi.fn<(topic: string, payload: unknown) => void>>
@@ -42,13 +70,7 @@ describe("DeviceRunner", () => {
         expect(publisher.publish).toHaveBeenCalledTimes(3)
         const [topic, payload] = publisher.publish.mock.calls[0]! as [
             string,
-            {
-                voltage: number
-                current: number
-                powerW: number
-                powerFactor: number
-                deviceTimestamp: string
-            },
+            ElectricalSample & { deviceTimestamp: string },
         ]
         expect(topic).toBe("sim/dev1")
         expect(isFiniteNonNegative(payload.voltage)).toBe(true)
@@ -57,6 +79,9 @@ describe("DeviceRunner", () => {
         expect(payload.powerFactor).toBeGreaterThanOrEqual(0)
         expect(payload.powerFactor).toBeLessThanOrEqual(1)
         expect(typeof payload.deviceTimestamp).toBe("string")
+        for (const field of PHASE_FIELD_NAMES) {
+            expect(Number.isFinite(payload[field])).toBe(true)
+        }
 
         expect(store.getDevice(device.id)?.publishCount).toBe(3)
 

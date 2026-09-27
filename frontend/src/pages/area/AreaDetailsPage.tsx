@@ -16,10 +16,19 @@ import { MeterSection } from "@/components/meter/MeterSection"
 import { IconCircle } from "@/components/ui/IconCircle"
 import { LiveKpiCard } from "@/components/dashboard/LiveKpiCard"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
+import { AnalysisSectionTabs } from "@/components/analysis/AnalysisSectionTabs"
+import { ElectricalQuantitiesTabPanel } from "@/components/electrical/ElectricalQuantitiesTabPanel"
+import {
+    ANALYSIS_SECTION_PANEL_IDS,
+    ANALYSIS_SECTION_TAB_IDS,
+    type AnalysisSection,
+} from "@/lib/analysisSection"
 import { formatPowerKw } from "@/lib/format"
 import { formatKwh } from "@/lib/formatters/consumption"
+import type { TargetConsumptionKpis } from "@/hooks/useTargetConsumptionKpis"
 import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
+import type { Meter } from "@/types/meter.types"
 
 /**
  * Detalhe da área na Análise — LumiTrack Home v2.dc.html, `areaDetailView`.
@@ -42,6 +51,7 @@ export const AreaDetailsPage = () => {
         propertyId: string
         areaId: string
     }>()
+    const [section, setSection] = useState<AnalysisSection>("consumo")
 
     const areaQuery = useArea(propertyId, areaId)
     const propertyQuery = useProperty(propertyId)
@@ -71,49 +81,29 @@ export const AreaDetailsPage = () => {
 
     return (
         <div className="flex flex-col gap-5">
-            <div className="grid grid-cols-1 items-start gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-                <AreaHeaderCard
+            <AnalysisSectionTabs value={section} onChange={setSection} />
+
+            {section === "consumo" && (
+                <AreaConsumptionTabPanel
                     area={area}
                     property={property}
                     isPropertyLoading={propertyQuery.isLoading}
-                    monthKwh={kpis.month?.kwh ?? null}
+                    meter={meter}
+                    lastKnownPowerW={lastKnownPowerW}
+                    kpis={kpis}
                 />
-                <MeterSection targetType="AREA" targetId={area.id} />
-            </div>
-
-            {meter && (
-                <div className="grid grid-cols-1 items-stretch gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                    <RealtimeChartCard
-                        targetType="AREA"
-                        targetId={area.id}
-                        meterId={meter.id}
-                        title="Consumo em tempo real"
-                        subtitle={area.name}
-                    />
-                    <div className="flex flex-col gap-[clamp(12px,1.4vw,16px)]">
-                        <LiveKpiCard
-                            label="Potência agora"
-                            value={
-                                lastKnownPowerW !== undefined ? (
-                                    formatPowerKw(lastKnownPowerW)
-                                ) : (
-                                    <span className="text-muted">—</span>
-                                )
-                            }
-                            isLive
-                        />
-                        <TargetKpiCards kpis={kpis} />
-                    </div>
-                </div>
             )}
 
-            <DeviceComparison propertyId={area.propertyId} areaId={area.id} />
-
-            <AreaConsumptionSection
-                propertyId={area.propertyId}
-                areaId={area.id}
-                {...resolvePropertyTariffFields(property)}
-            />
+            {section === "grandezas" && (
+                <ElectricalQuantitiesTabPanel
+                    targetType="AREA"
+                    targetId={area.id}
+                    targetName={area.name}
+                    meterId={meter?.id}
+                    isMeterLoading={meterQuery.isLoading}
+                    isMeterError={meterQuery.isError}
+                />
+            )}
         </div>
     )
 }
@@ -127,6 +117,80 @@ const resolvePropertyTariffFields = (property: Property | undefined) => ({
     tariffGroup: property?.tariffGroup,
     groupBModality: property?.groupBModality,
 })
+
+interface AreaConsumptionTabPanelProps {
+    area: Area
+    property: Property | undefined
+    isPropertyLoading: boolean
+    meter: Meter | null | undefined
+    lastKnownPowerW: number | undefined
+    kpis: TargetConsumptionKpis
+}
+
+/**
+ * Conteúdo da aba "Consumo e Custos" — extraído do corpo principal só para
+ * manter a complexidade da página dentro do teto do lint; nenhuma mudança
+ * de comportamento em relação ao que já existia antes das abas de seção.
+ */
+const AreaConsumptionTabPanel = ({
+    area,
+    property,
+    isPropertyLoading,
+    meter,
+    lastKnownPowerW,
+    kpis,
+}: AreaConsumptionTabPanelProps) => (
+    <div
+        role="tabpanel"
+        id={ANALYSIS_SECTION_PANEL_IDS.consumo}
+        aria-labelledby={ANALYSIS_SECTION_TAB_IDS.consumo}
+        className="flex flex-col gap-5"
+    >
+        <div className="grid grid-cols-1 items-start gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+            <AreaHeaderCard
+                area={area}
+                property={property}
+                isPropertyLoading={isPropertyLoading}
+                monthKwh={kpis.month?.kwh ?? null}
+            />
+            <MeterSection targetType="AREA" targetId={area.id} />
+        </div>
+
+        {meter && (
+            <div className="grid grid-cols-1 items-stretch gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <RealtimeChartCard
+                    targetType="AREA"
+                    targetId={area.id}
+                    meterId={meter.id}
+                    title="Consumo em tempo real"
+                    subtitle={area.name}
+                />
+                <div className="flex flex-col gap-[clamp(12px,1.4vw,16px)]">
+                    <LiveKpiCard
+                        label="Potência agora"
+                        value={
+                            lastKnownPowerW !== undefined ? (
+                                formatPowerKw(lastKnownPowerW)
+                            ) : (
+                                <span className="text-muted">—</span>
+                            )
+                        }
+                        isLive
+                    />
+                    <TargetKpiCards kpis={kpis} />
+                </div>
+            </div>
+        )}
+
+        <DeviceComparison propertyId={area.propertyId} areaId={area.id} />
+
+        <AreaConsumptionSection
+            propertyId={area.propertyId}
+            areaId={area.id}
+            {...resolvePropertyTariffFields(property)}
+        />
+    </div>
+)
 
 interface AreaHeaderCardProps {
     area: Area

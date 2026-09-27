@@ -734,8 +734,38 @@ model MeterReading {
   avgPowerFactor Float
   sampleCount    Int
   secondsCovered Float
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+
+  // Grandezas por fase (ADR-0022) — nullable porque nem todo medidor as
+  // reporta: ausência é NULL, nunca 0. `avgVoltageUnbalance` é a
+  // única calculada no pipeline (as demais vêm medidas do próprio
+  // medidor); `avgCurrentPhaseA/B/C` existem, mas não há coluna de
+  // corrente de neutro — o medidor-alvo não a mede nem permite derivar com
+  // confiança.
+  avgVoltagePhaseA     Float?
+  avgVoltagePhaseB     Float?
+  avgVoltagePhaseC     Float?
+  avgVoltageUnbalance  Float?
+  avgCurrentPhaseA     Float?
+  avgCurrentPhaseB     Float?
+  avgCurrentPhaseC     Float?
+  avgActivePowerPhaseA Float?
+  avgActivePowerPhaseB Float?
+  avgActivePowerPhaseC Float?
+  avgReactivePowerVar  Float?
+  avgApparentPowerVa   Float?
+  avgFrequencyHz       Float?
+  avgPowerFactorPhaseA Float?
+  avgPowerFactorPhaseB Float?
+  avgPowerFactorPhaseC Float?
+  avgThdVoltagePhaseA  Float?
+  avgThdVoltagePhaseB  Float?
+  avgThdVoltagePhaseC  Float?
+  avgThdCurrentPhaseA  Float?
+  avgThdCurrentPhaseB  Float?
+  avgThdCurrentPhaseC  Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   meter Meter @relation(fields: [meterId], references: [id], onDelete: Cascade)
 

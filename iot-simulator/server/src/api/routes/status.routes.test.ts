@@ -5,6 +5,39 @@ import { SimulationStore } from "@/simulation/store.js"
 import { SimulationEngine } from "@/simulation/simulationEngine.js"
 import { createApp } from "@/api/app.js"
 import type { InternalPublisher } from "@/mqtt/internalPublisher.js"
+import type { ElectricalSample } from "@/simulation/types.js"
+
+// `ElectricalSample` cresceu com as grandezas por fase do ADR-0022 — este
+// teste é sobre o SSE de status coalescido, não sobre os valores elétricos,
+// então um objeto completo com valores fixos evita repetir os 21 campos
+// novos.
+const FAKE_SAMPLE: ElectricalSample = {
+    voltage: 220,
+    current: 1,
+    powerW: 220,
+    powerFactor: 1,
+    voltagePhaseA: 220,
+    voltagePhaseB: 220,
+    voltagePhaseC: 220,
+    currentPhaseA: 1,
+    currentPhaseB: 1,
+    currentPhaseC: 1,
+    activePowerPhaseA: 73.3,
+    activePowerPhaseB: 73.3,
+    activePowerPhaseC: 73.3,
+    reactivePowerVar: 0,
+    apparentPowerVa: 220,
+    frequencyHz: 60,
+    powerFactorPhaseA: 1,
+    powerFactorPhaseB: 1,
+    powerFactorPhaseC: 1,
+    thdVoltagePhaseA: 2,
+    thdVoltagePhaseB: 2,
+    thdVoltagePhaseC: 2,
+    thdCurrentPhaseA: 5,
+    thdCurrentPhaseB: 5,
+    thdCurrentPhaseC: 5,
+}
 
 function createFakePublisher(): InternalPublisher {
     return {
@@ -108,11 +141,7 @@ describe("statusRoutes — GET /api/status/stream", () => {
         // await entre elas, simulando 3 DeviceRunner.tick() disparando na
         // mesma volta do event loop (mesmo período de setInterval).
         for (const deviceId of deviceIds) {
-            store.recordSample(
-                deviceId,
-                { voltage: 220, current: 1, powerW: 220, powerFactor: 1 },
-                Date.now(),
-            )
+            store.recordSample(deviceId, FAKE_SAMPLE, Date.now())
         }
 
         // A notificação coalescida só dispara depois de um setImmediate —
