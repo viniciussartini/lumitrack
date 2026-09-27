@@ -16,6 +16,13 @@ import { MeterSection } from "@/components/meter/MeterSection"
 import { IconCircle } from "@/components/ui/IconCircle"
 import { LiveKpiCard } from "@/components/dashboard/LiveKpiCard"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
+import { AnalysisSectionTabs } from "@/components/analysis/AnalysisSectionTabs"
+import { ElectricalQuantitiesGrid } from "@/components/electrical/ElectricalQuantitiesGrid"
+import {
+    ANALYSIS_SECTION_PANEL_IDS,
+    ANALYSIS_SECTION_TAB_IDS,
+    type AnalysisSection,
+} from "@/lib/analysisSection"
 import { formatPowerKw } from "@/lib/format"
 import { formatKwh } from "@/lib/formatters/consumption"
 import type { Area } from "@/types/area.types"
@@ -42,6 +49,7 @@ export const AreaDetailsPage = () => {
         propertyId: string
         areaId: string
     }>()
+    const [section, setSection] = useState<AnalysisSection>("consumo")
 
     const areaQuery = useArea(propertyId, areaId)
     const propertyQuery = useProperty(propertyId)
@@ -71,49 +79,70 @@ export const AreaDetailsPage = () => {
 
     return (
         <div className="flex flex-col gap-5">
-            <div className="grid grid-cols-1 items-start gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-                <AreaHeaderCard
-                    area={area}
-                    property={property}
-                    isPropertyLoading={propertyQuery.isLoading}
-                    monthKwh={kpis.month?.kwh ?? null}
-                />
-                <MeterSection targetType="AREA" targetId={area.id} />
-            </div>
+            <AnalysisSectionTabs value={section} onChange={setSection} />
 
-            {meter && (
-                <div className="grid grid-cols-1 items-stretch gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                    <RealtimeChartCard
-                        targetType="AREA"
-                        targetId={area.id}
-                        meterId={meter.id}
-                        title="Consumo em tempo real"
-                        subtitle={area.name}
-                    />
-                    <div className="flex flex-col gap-[clamp(12px,1.4vw,16px)]">
-                        <LiveKpiCard
-                            label="Potência agora"
-                            value={
-                                lastKnownPowerW !== undefined ? (
-                                    formatPowerKw(lastKnownPowerW)
-                                ) : (
-                                    <span className="text-muted">—</span>
-                                )
-                            }
-                            isLive
+            {section === "consumo" && (
+                <div
+                    role="tabpanel"
+                    id={ANALYSIS_SECTION_PANEL_IDS.consumo}
+                    aria-labelledby={ANALYSIS_SECTION_TAB_IDS.consumo}
+                    className="flex flex-col gap-5"
+                >
+                    <div className="grid grid-cols-1 items-start gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+                        <AreaHeaderCard
+                            area={area}
+                            property={property}
+                            isPropertyLoading={propertyQuery.isLoading}
+                            monthKwh={kpis.month?.kwh ?? null}
                         />
-                        <TargetKpiCards kpis={kpis} />
+                        <MeterSection targetType="AREA" targetId={area.id} />
                     </div>
+
+                    {meter && (
+                        <div className="grid grid-cols-1 items-stretch gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                            <RealtimeChartCard
+                                targetType="AREA"
+                                targetId={area.id}
+                                meterId={meter.id}
+                                title="Consumo em tempo real"
+                                subtitle={area.name}
+                            />
+                            <div className="flex flex-col gap-[clamp(12px,1.4vw,16px)]">
+                                <LiveKpiCard
+                                    label="Potência agora"
+                                    value={
+                                        lastKnownPowerW !== undefined ? (
+                                            formatPowerKw(lastKnownPowerW)
+                                        ) : (
+                                            <span className="text-muted">—</span>
+                                        )
+                                    }
+                                    isLive
+                                />
+                                <TargetKpiCards kpis={kpis} />
+                            </div>
+                        </div>
+                    )}
+
+                    <DeviceComparison propertyId={area.propertyId} areaId={area.id} />
+
+                    <AreaConsumptionSection
+                        propertyId={area.propertyId}
+                        areaId={area.id}
+                        {...resolvePropertyTariffFields(property)}
+                    />
                 </div>
             )}
 
-            <DeviceComparison propertyId={area.propertyId} areaId={area.id} />
-
-            <AreaConsumptionSection
-                propertyId={area.propertyId}
-                areaId={area.id}
-                {...resolvePropertyTariffFields(property)}
-            />
+            {section === "grandezas" && (
+                <div
+                    role="tabpanel"
+                    id={ANALYSIS_SECTION_PANEL_IDS.grandezas}
+                    aria-labelledby={ANALYSIS_SECTION_TAB_IDS.grandezas}
+                >
+                    <ElectricalQuantitiesGrid meterId={meter?.id} />
+                </div>
+            )}
         </div>
     )
 }

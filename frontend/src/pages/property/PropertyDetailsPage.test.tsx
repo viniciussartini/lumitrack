@@ -582,3 +582,61 @@ describe("PropertyDetailsPage — seção de medidor/consumo (integração)", ()
         expect(screen.getAllByText("1,50kW").length).toBeGreaterThan(0)
     })
 })
+
+describe("PropertyDetailsPage — aba Grandezas Elétricas", () => {
+    beforeEach(() => {
+        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+        vi.mocked(distributorService.getById).mockResolvedValue(mockDistributor)
+        vi.mocked(areaService.list).mockResolvedValue(paginated([]))
+    })
+
+    it("começa na aba Consumo e Custos, escondendo a grade de grandezas", async () => {
+        renderPage()
+
+        await screen.findByRole("heading", { level: 2, name: mockProperty.name })
+        expect(screen.getByRole("tab", { name: /Consumo e Custos/i })).toHaveAttribute(
+            "aria-selected",
+            "true",
+        )
+        expect(screen.queryByTestId("electrical-quantities-empty")).not.toBeInTheDocument()
+    })
+
+    it("clicar em Grandezas Elétricas troca o conteúdo da página, sem medidor mostra o estado vazio correspondente", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(null)
+        const user = userEvent.setup()
+        renderPage()
+
+        await screen.findByRole("heading", { level: 2, name: mockProperty.name })
+        await user.click(screen.getByRole("tab", { name: /Grandezas Elétricas/i }))
+
+        expect(screen.getByRole("tab", { name: /Grandezas Elétricas/i })).toHaveAttribute(
+            "aria-selected",
+            "true",
+        )
+        expect(screen.getByText("Nenhum medidor vinculado")).toBeInTheDocument()
+        expect(
+            screen.queryByRole("heading", { level: 2, name: mockProperty.name }),
+        ).not.toBeInTheDocument()
+    })
+
+    it("com medidor e leitura SSE, a aba Grandezas Elétricas mostra os cards", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+        vi.mocked(useRealtimeReadings).mockReturnValue({
+            readingsByMeterId: {
+                "meter-1": {
+                    ...mockReading(1500),
+                    voltagePhaseA: 219,
+                    voltagePhaseB: 221,
+                    voltagePhaseC: 220,
+                },
+            },
+        })
+        const user = userEvent.setup()
+        renderPage()
+
+        await screen.findByRole("heading", { level: 2, name: mockProperty.name })
+        await user.click(screen.getByRole("tab", { name: /Grandezas Elétricas/i }))
+
+        expect(await screen.findByTestId("electrical-quantity-card-voltage")).toBeInTheDocument()
+    })
+})

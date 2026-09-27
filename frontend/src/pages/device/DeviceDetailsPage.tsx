@@ -16,10 +16,19 @@ import { MeterSection } from "@/components/meter/MeterSection"
 import { IconCircle } from "@/components/ui/IconCircle"
 import { LiveKpiCard } from "@/components/dashboard/LiveKpiCard"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
+import { AnalysisSectionTabs } from "@/components/analysis/AnalysisSectionTabs"
+import { ElectricalQuantitiesGrid } from "@/components/electrical/ElectricalQuantitiesGrid"
+import {
+    ANALYSIS_SECTION_PANEL_IDS,
+    ANALYSIS_SECTION_TAB_IDS,
+    type AnalysisSection,
+} from "@/lib/analysisSection"
 import { formatPowerKw } from "@/lib/format"
+import type { TargetConsumptionKpis } from "@/hooks/useTargetConsumptionKpis"
 import type { Device } from "@/types/device.types"
 import type { Area } from "@/types/area.types"
 import type { Property } from "@/types/property.types"
+import type { Meter } from "@/types/meter.types"
 
 /**
  * Detalhe do dispositivo na Análise — LumiTrack Home v2.dc.html,
@@ -43,6 +52,7 @@ export const DeviceDetailsPage = () => {
         areaId: string
         deviceId: string
     }>()
+    const [section, setSection] = useState<AnalysisSection>("consumo")
 
     const deviceQuery = useDevice(propertyId, areaId, deviceId)
     const areaQuery = useArea(propertyId, areaId)
@@ -74,53 +84,118 @@ export const DeviceDetailsPage = () => {
 
     return (
         <div className="flex flex-col gap-5">
-            <div className="grid grid-cols-1 items-start gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-                <DeviceHeaderCard
+            <AnalysisSectionTabs value={section} onChange={setSection} />
+
+            {section === "consumo" && (
+                <DeviceConsumptionTabPanel
+                    propertyId={propertyId}
+                    areaId={areaId}
                     device={device}
                     area={areaQuery.data}
                     property={property}
                     isAreaLoading={areaQuery.isLoading}
                     isPropertyLoading={propertyQuery.isLoading}
+                    meter={meter}
+                    lastKnownPowerW={lastKnownPowerW}
+                    kpis={kpis}
                 />
-                <MeterSection targetType="DEVICE" targetId={device.id} />
-            </div>
-
-            {meter && (
-                <div className="grid grid-cols-1 items-stretch gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                    <RealtimeChartCard
-                        targetType="DEVICE"
-                        targetId={device.id}
-                        meterId={meter.id}
-                        title="Consumo em tempo real"
-                        subtitle={device.name}
-                    />
-                    <div className="flex flex-col gap-[clamp(12px,1.4vw,16px)]">
-                        <LiveKpiCard
-                            label="Potência agora"
-                            value={
-                                lastKnownPowerW !== undefined ? (
-                                    formatPowerKw(lastKnownPowerW)
-                                ) : (
-                                    <span className="text-muted">—</span>
-                                )
-                            }
-                            isLive
-                        />
-                        <TargetKpiCards kpis={kpis} />
-                    </div>
-                </div>
             )}
 
-            <DeviceConsumptionSection
-                propertyId={propertyId!}
-                areaId={areaId!}
-                deviceId={device.id}
-                tariffGroup={property?.tariffGroup}
-                groupBModality={property?.groupBModality}
-            />
+            {section === "grandezas" && (
+                <div
+                    role="tabpanel"
+                    id={ANALYSIS_SECTION_PANEL_IDS.grandezas}
+                    aria-labelledby={ANALYSIS_SECTION_TAB_IDS.grandezas}
+                >
+                    <ElectricalQuantitiesGrid meterId={meter?.id} />
+                </div>
+            )}
         </div>
     )
 }
+
+interface DeviceConsumptionTabPanelProps {
+    propertyId: string | undefined
+    areaId: string | undefined
+    device: Device
+    area: Area | undefined
+    property: Property | undefined
+    isAreaLoading: boolean
+    isPropertyLoading: boolean
+    meter: Meter | null | undefined
+    lastKnownPowerW: number | undefined
+    kpis: TargetConsumptionKpis
+}
+
+/**
+ * Conteúdo da aba "Consumo e Custos" — extraído do corpo principal só para
+ * manter a complexidade da página dentro do teto do lint; nenhuma mudança
+ * de comportamento em relação ao que já existia antes das abas de seção.
+ */
+const DeviceConsumptionTabPanel = ({
+    propertyId,
+    areaId,
+    device,
+    area,
+    property,
+    isAreaLoading,
+    isPropertyLoading,
+    meter,
+    lastKnownPowerW,
+    kpis,
+}: DeviceConsumptionTabPanelProps) => (
+    <div
+        role="tabpanel"
+        id={ANALYSIS_SECTION_PANEL_IDS.consumo}
+        aria-labelledby={ANALYSIS_SECTION_TAB_IDS.consumo}
+        className="flex flex-col gap-5"
+    >
+        <div className="grid grid-cols-1 items-start gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+            <DeviceHeaderCard
+                device={device}
+                area={area}
+                property={property}
+                isAreaLoading={isAreaLoading}
+                isPropertyLoading={isPropertyLoading}
+            />
+            <MeterSection targetType="DEVICE" targetId={device.id} />
+        </div>
+
+        {meter && (
+            <div className="grid grid-cols-1 items-stretch gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <RealtimeChartCard
+                    targetType="DEVICE"
+                    targetId={device.id}
+                    meterId={meter.id}
+                    title="Consumo em tempo real"
+                    subtitle={device.name}
+                />
+                <div className="flex flex-col gap-[clamp(12px,1.4vw,16px)]">
+                    <LiveKpiCard
+                        label="Potência agora"
+                        value={
+                            lastKnownPowerW !== undefined ? (
+                                formatPowerKw(lastKnownPowerW)
+                            ) : (
+                                <span className="text-muted">—</span>
+                            )
+                        }
+                        isLive
+                    />
+                    <TargetKpiCards kpis={kpis} />
+                </div>
+            </div>
+        )}
+
+        <DeviceConsumptionSection
+            propertyId={propertyId!}
+            areaId={areaId!}
+            deviceId={device.id}
+            tariffGroup={property?.tariffGroup}
+            groupBModality={property?.groupBModality}
+        />
+    </div>
+)
 
 interface DeviceHeaderCardProps {
     device: Device

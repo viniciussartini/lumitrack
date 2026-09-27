@@ -14,6 +14,13 @@ import { MeterSection } from "@/components/meter/MeterSection"
 import { IconCircle } from "@/components/ui/IconCircle"
 import { LiveKpiCard } from "@/components/dashboard/LiveKpiCard"
 import { RealtimeChartCard } from "@/components/realtime/RealtimeChartCard"
+import { AnalysisSectionTabs } from "@/components/analysis/AnalysisSectionTabs"
+import { ElectricalQuantitiesGrid } from "@/components/electrical/ElectricalQuantitiesGrid"
+import {
+    ANALYSIS_SECTION_PANEL_IDS,
+    ANALYSIS_SECTION_TAB_IDS,
+    type AnalysisSection,
+} from "@/lib/analysisSection"
 import { formatPowerKw, formatKwhPrice, formatBrl } from "@/lib/format"
 import { formatKw as formatContractedDemandKw } from "@/lib/formatters/consumption"
 import {
@@ -44,6 +51,7 @@ import type { Distributor } from "@/types/distributor.types"
  */
 export const PropertyDetailsPage = () => {
     const { id } = useParams<{ id: string }>()
+    const [section, setSection] = useState<AnalysisSection>("consumo")
 
     const propertyQuery = useProperty(id)
     const distributorQuery = useDistributor(propertyQuery.data?.distributorId)
@@ -80,48 +88,69 @@ export const PropertyDetailsPage = () => {
 
     return (
         <div className="flex flex-col gap-5">
-            <div className="grid grid-cols-1 items-start gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-                <PropertyHeaderCard
-                    property={property}
-                    distributor={distributor}
-                    isDistributorLoading={distributorQuery.isLoading}
-                    distributors={distributorsQuery.data?.items ?? []}
-                />
-                <MeterSection targetType="PROPERTY" targetId={property.id} />
-            </div>
+            <AnalysisSectionTabs value={section} onChange={setSection} />
 
-            {meter && (
-                <LiveKpiCard
-                    label="Potência agora"
-                    value={
-                        lastKnownPowerW !== undefined ? (
-                            formatPowerKw(lastKnownPowerW)
-                        ) : (
-                            <span className="text-muted">—</span>
-                        )
-                    }
-                    isLive
-                    className="w-fit min-w-[220px]"
-                />
+            {section === "consumo" && (
+                <div
+                    role="tabpanel"
+                    id={ANALYSIS_SECTION_PANEL_IDS.consumo}
+                    aria-labelledby={ANALYSIS_SECTION_TAB_IDS.consumo}
+                    className="flex flex-col gap-5"
+                >
+                    <div className="grid grid-cols-1 items-start gap-[clamp(14px,1.6vw,20px)] xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+                        <PropertyHeaderCard
+                            property={property}
+                            distributor={distributor}
+                            isDistributorLoading={distributorQuery.isLoading}
+                            distributors={distributorsQuery.data?.items ?? []}
+                        />
+                        <MeterSection targetType="PROPERTY" targetId={property.id} />
+                    </div>
+
+                    {meter && (
+                        <LiveKpiCard
+                            label="Potência agora"
+                            value={
+                                lastKnownPowerW !== undefined ? (
+                                    formatPowerKw(lastKnownPowerW)
+                                ) : (
+                                    <span className="text-muted">—</span>
+                                )
+                            }
+                            isLive
+                            className="w-fit min-w-[220px]"
+                        />
+                    )}
+
+                    {meter && (
+                        <RealtimeChartCard
+                            targetType="PROPERTY"
+                            targetId={property.id}
+                            meterId={meter.id}
+                            title="Consumo em tempo real"
+                            subtitle={property.name}
+                        />
+                    )}
+
+                    <AreaComparison propertyId={property.id} />
+
+                    <PropertyConsumptionSection
+                        propertyId={property.id}
+                        tariffGroup={property.tariffGroup}
+                        groupBModality={property.groupBModality}
+                    />
+                </div>
             )}
 
-            {meter && (
-                <RealtimeChartCard
-                    targetType="PROPERTY"
-                    targetId={property.id}
-                    meterId={meter.id}
-                    title="Consumo em tempo real"
-                    subtitle={property.name}
-                />
+            {section === "grandezas" && (
+                <div
+                    role="tabpanel"
+                    id={ANALYSIS_SECTION_PANEL_IDS.grandezas}
+                    aria-labelledby={ANALYSIS_SECTION_TAB_IDS.grandezas}
+                >
+                    <ElectricalQuantitiesGrid meterId={meter?.id} />
+                </div>
             )}
-
-            <AreaComparison propertyId={property.id} />
-
-            <PropertyConsumptionSection
-                propertyId={property.id}
-                tariffGroup={property.tariffGroup}
-                groupBModality={property.groupBModality}
-            />
         </div>
     )
 }

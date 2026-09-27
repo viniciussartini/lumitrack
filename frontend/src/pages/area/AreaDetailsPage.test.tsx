@@ -561,3 +561,35 @@ describe("AreaDetailsPage — seção de medidor/consumo (integração)", () => 
         expect(consumptionService.list).not.toHaveBeenCalled()
     })
 })
+
+describe("AreaDetailsPage — aba Grandezas Elétricas", () => {
+    beforeEach(() => {
+        vi.mocked(areaService.getById).mockResolvedValue(mockArea)
+        vi.mocked(propertyService.getById).mockResolvedValue(mockProperty)
+        vi.mocked(deviceService.list).mockResolvedValue(paginated([]))
+    })
+
+    it("clicar em Grandezas Elétricas troca o conteúdo pela grade de cards, com leitura SSE", async () => {
+        vi.mocked(meterService.byTarget).mockResolvedValue(mockMeter)
+        vi.mocked(useRealtimeReadings).mockReturnValue({
+            readingsByMeterId: {
+                "meter-1": {
+                    ...mockReading(1500),
+                    voltagePhaseA: 219,
+                    voltagePhaseB: 221,
+                    voltagePhaseC: 220,
+                },
+            },
+        })
+        const user = userEvent.setup()
+        renderPage()
+
+        await screen.findByRole("heading", { level: 2, name: mockArea.name })
+        await user.click(screen.getByRole("tab", { name: /Grandezas Elétricas/i }))
+
+        expect(await screen.findByTestId("electrical-quantity-card-voltage")).toBeInTheDocument()
+        expect(
+            screen.queryByRole("heading", { level: 2, name: mockArea.name }),
+        ).not.toBeInTheDocument()
+    })
+})
