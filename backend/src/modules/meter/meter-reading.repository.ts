@@ -1,9 +1,45 @@
 import { randomUUID } from "crypto"
 import { Prisma, PrismaClient } from "@/generated/prisma/client.js"
-import type { MinuteBucketSnapshot } from "@/modules/iot/iot-worker/MinuteBuffer.js"
+import {
+    OPTIONAL_ELECTRICAL_FIELD_MAP,
+    type MinuteBucketSnapshot,
+} from "@/modules/iot/iot-worker/MinuteBuffer.js"
 import type { MeterReadingGranularity } from "@/modules/meter/meter-reading.schema.js"
 import { localTsExpr, rangeFilter } from "@/shared/database/timeBucket.js"
 import { withPurgeTimeout } from "@/shared/database/withPurgeTimeout.js"
+
+// Nomes das 22 colunas de grandezas por fase (ADR-0022) — usados para gerar
+// as cláusulas SQL do upsert abaixo em vez de escrevê-las 22 vezes à mão.
+const OPTIONAL_AVG_FIELDS = OPTIONAL_ELECTRICAL_FIELD_MAP.map(([, avgField]) => avgField)
+
+function quotedColumn(name: string): Prisma.Sql {
+    return Prisma.raw(`"${name}"`)
+}
+
+/**
+ * Cláusula `SET` do merge ponderado de uma grandeza opcional. Mesma receita
+ * das 4 grandezas obrigatórias (média ponderada por `secondsCovered`), com
+ * dois desvios exigidos pela nulabilidade: se o snapshot novo não trouxe a
+ * grandeza, mantém o valor já persistido (não apaga histórico por causa de
+ * uma leitura que simplesmente não reportou aquele campo); se o valor já
+ * persistido é nulo (linha ainda não tinha essa grandeza), adota o novo
+ * direto, sem fazer conta com nulo.
+ *
+ * @param avgField - Nome da coluna de média (ex.: `avgVoltagePhaseA`).
+ * @returns O fragmento SQL `"coluna" = CASE ... END` pronto para o `ON CONFLICT DO UPDATE SET`.
+ */
+function optionalMergeClause(avgField: string): Prisma.Sql {
+    const column = quotedColumn(avgField)
+    return Prisma.sql`${column} = CASE
+                WHEN EXCLUDED.${column} IS NULL THEN "meter_readings".${column}
+                WHEN "meter_readings".${column} IS NULL THEN EXCLUDED.${column}
+                WHEN "meter_readings"."secondsCovered" + EXCLUDED."secondsCovered" > 0 THEN
+                    ("meter_readings".${column} * "meter_readings"."secondsCovered"
+                        + EXCLUDED.${column} * EXCLUDED."secondsCovered")
+                    / ("meter_readings"."secondsCovered" + EXCLUDED."secondsCovered")
+                ELSE EXCLUDED.${column}
+            END`
+}
 
 const TRUNC_UNIT: Record<MeterReadingGranularity, string> = {
     minute: "minute",
@@ -47,16 +83,23 @@ export class MeterReadingRepository {
      * @param snapshot - Amostra agregada de um minuto, pronta para persistir.
      */
     async upsertMinute(snapshot: MinuteBucketSnapshot): Promise<void> {
+        const optionalColumns = Prisma.join(OPTIONAL_AVG_FIELDS.map(quotedColumn))
+        const optionalValues = Prisma.join(
+            OPTIONAL_AVG_FIELDS.map((field) => Prisma.sql`${snapshot[field]}`),
+        )
+        const optionalMergeSets = Prisma.join(OPTIONAL_AVG_FIELDS.map(optionalMergeClause))
+
         await this.prisma.$executeRaw`
             INSERT INTO "meter_readings" (
                 "id", "meterId", "minuteStart", "kwhConsumed", "avgVoltage", "avgCurrent",
-                "avgPowerW", "avgPowerFactor", "sampleCount", "secondsCovered", "updatedAt"
+                "avgPowerW", "avgPowerFactor", "sampleCount", "secondsCovered",
+                ${optionalColumns}, "updatedAt"
             )
             VALUES (
                 ${randomUUID()}, ${snapshot.meterId}, ${snapshot.minuteStart},
                 ${snapshot.energyKwh}, ${snapshot.avgVoltage}, ${snapshot.avgCurrent},
                 ${snapshot.avgPowerW}, ${snapshot.avgPowerFactor}, ${snapshot.sampleCount},
-                ${snapshot.secondsCovered}, now()
+                ${snapshot.secondsCovered}, ${optionalValues}, now()
             )
             ON CONFLICT ("meterId", "minuteStart") DO UPDATE SET
                 "kwhConsumed" = "meter_readings"."kwhConsumed" + EXCLUDED."kwhConsumed",
@@ -88,6 +131,7 @@ export class MeterReadingRepository {
                         / ("meter_readings"."secondsCovered" + EXCLUDED."secondsCovered")
                     ELSE EXCLUDED."avgPowerFactor"
                 END,
+                ${optionalMergeSets},
                 "sampleCount" = "meter_readings"."sampleCount" + EXCLUDED."sampleCount",
                 "secondsCovered" = "meter_readings"."secondsCovered" + EXCLUDED."secondsCovered",
                 "updatedAt" = now()

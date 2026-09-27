@@ -115,6 +115,123 @@ describe("IoTDataProcessor", () => {
         })
     })
 
+    describe("grandezas por fase (ADR-0022)", () => {
+        it("aceita payload sem nenhuma grandeza por fase (medidor que só reporta o básico)", () => {
+            const listener = vi.fn()
+            processor.addSampleListener(listener)
+
+            callProcess(processor, "meter-1", {
+                voltage: 220,
+                current: 2,
+                powerW: 440,
+                powerFactor: 0.95,
+            })
+
+            expect(listener).toHaveBeenCalledTimes(1)
+            expect(listener.mock.calls[0]![0].voltagePhaseA).toBeUndefined()
+        })
+
+        it("repassa as grandezas por fase presentes ao listener, sem exigir todas", () => {
+            const listener = vi.fn()
+            processor.addSampleListener(listener)
+
+            callProcess(processor, "meter-1", {
+                voltage: 220,
+                current: 2,
+                powerW: 440,
+                powerFactor: 0.95,
+                voltagePhaseA: 219,
+                voltagePhaseB: 221,
+                currentPhaseA: 1.9,
+                frequencyHz: 60.02,
+            })
+
+            expect(listener.mock.calls[0]![0]).toMatchObject({
+                voltagePhaseA: 219,
+                voltagePhaseB: 221,
+                currentPhaseA: 1.9,
+                frequencyHz: 60.02,
+            })
+            // Só 2 das 3 fases de tensão vieram — sem a 3ª, o desequilíbrio
+            // não é calculado, mesmo com as demais grandezas válidas.
+            expect(listener.mock.calls[0]![0].voltageUnbalance).toBeUndefined()
+        })
+
+        it.each([
+            ["voltagePhaseA", -1],
+            ["voltagePhaseA", 999_999],
+            ["currentPhaseB", -1],
+            ["activePowerPhaseC", -1],
+            ["reactivePowerVar", -1],
+            ["apparentPowerVa", -1],
+            ["powerFactorPhaseA", 1.5],
+            ["powerFactorPhaseA", -0.1],
+            ["thdVoltagePhaseB", -1],
+            ["thdCurrentPhaseC", 150],
+            ["frequencyHz", 44.9],
+            ["frequencyHz", 65.1],
+        ])(
+            "descarta a amostra inteira quando %s = %d está fora da faixa plausível",
+            (field, value) => {
+                callProcess(processor, "meter-1", {
+                    voltage: 220,
+                    current: 2,
+                    powerW: 440,
+                    powerFactor: 0.95,
+                    [field]: value,
+                })
+
+                expect(processor.buffer.getLatest("meter-1")).toBeNull()
+            },
+        )
+
+        it("aceita frequência e THD nos limites plausíveis (45Hz, 65Hz, THD 100%)", () => {
+            callProcess(processor, "meter-1", {
+                voltage: 220,
+                current: 2,
+                powerW: 440,
+                powerFactor: 0.95,
+                frequencyHz: 45,
+                thdVoltagePhaseA: 100,
+            })
+            expect(processor.buffer.getLatest("meter-1")).not.toBeNull()
+        })
+
+        it("calcula o desequilíbrio de tensão quando as 3 fases estão presentes", () => {
+            const listener = vi.fn()
+            processor.addSampleListener(listener)
+
+            // Média = 220; maior desvio = |230-220| = 10 → 10/220*100 ≈ 4,545%
+            callProcess(processor, "meter-1", {
+                voltage: 220,
+                current: 2,
+                powerW: 440,
+                powerFactor: 0.95,
+                voltagePhaseA: 230,
+                voltagePhaseB: 215,
+                voltagePhaseC: 215,
+            })
+
+            expect(listener.mock.calls[0]![0].voltageUnbalance).toBeCloseTo((10 / 220) * 100)
+        })
+
+        it("não calcula desequilíbrio quando falta qualquer uma das 3 fases", () => {
+            const listener = vi.fn()
+            processor.addSampleListener(listener)
+
+            callProcess(processor, "meter-1", {
+                voltage: 220,
+                current: 2,
+                powerW: 440,
+                powerFactor: 0.95,
+                voltagePhaseA: 230,
+                voltagePhaseB: 215,
+            })
+
+            expect(listener.mock.calls[0]![0].voltageUnbalance).toBeUndefined()
+        })
+    })
+
     describe("cálculo de energia", () => {
         it("primeira amostra de um medidor não acumula energia (só inicializa o relógio)", () => {
             const now = new Date("2026-01-15T14:37:00.000Z")

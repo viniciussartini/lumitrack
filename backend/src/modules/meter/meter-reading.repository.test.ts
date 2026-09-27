@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest"
 import { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
+import { emptyOptionalAvgFields } from "@/modules/iot/iot-worker/MinuteBuffer.js"
 import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
@@ -72,6 +73,7 @@ describe("MeterReadingRepository.upsertMinute", () => {
 
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart,
             energyKwh: 0.01,
             avgVoltage: 220,
@@ -98,6 +100,7 @@ describe("MeterReadingRepository.upsertMinute", () => {
         // Primeira metade do minuto: 30s, 30 amostras, 220V, 0.01 kWh.
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart,
             energyKwh: 0.01,
             avgVoltage: 220,
@@ -111,6 +114,7 @@ describe("MeterReadingRepository.upsertMinute", () => {
         // Servidor reinicia — segunda metade do minuto: 30s, 30 amostras, 240V, 0.012 kWh.
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart,
             energyKwh: 0.012,
             avgVoltage: 240,
@@ -148,6 +152,7 @@ describe("MeterReadingRepository.upsertMinute", () => {
         const [a, b] = await Promise.allSettled([
             meterReadingRepository.upsertMinute({
                 meterId,
+                ...emptyOptionalAvgFields(),
                 minuteStart,
                 energyKwh: 0.01,
                 avgVoltage: 220,
@@ -159,6 +164,7 @@ describe("MeterReadingRepository.upsertMinute", () => {
             }),
             meterReadingRepository.upsertMinute({
                 meterId,
+                ...emptyOptionalAvgFields(),
                 minuteStart,
                 energyKwh: 0.012,
                 avgVoltage: 240,
@@ -193,6 +199,7 @@ describe("MeterReadingRepository.upsertMinute", () => {
 
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart: new Date("2026-01-15T14:37:00.000Z"),
             energyKwh: 0.01,
             avgVoltage: 220,
@@ -204,6 +211,7 @@ describe("MeterReadingRepository.upsertMinute", () => {
         })
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart: new Date("2026-01-15T14:38:00.000Z"),
             energyKwh: 0.02,
             avgVoltage: 220,
@@ -217,6 +225,160 @@ describe("MeterReadingRepository.upsertMinute", () => {
         const count = await prismaTest.meterReading.count({ where: { meterId } })
         expect(count).toBe(2)
     })
+
+    describe("grandezas por fase (ADR-0022)", () => {
+        it("persiste grandezas por fase informadas e mantém as demais nulas", async () => {
+            const meterId = await setupMeter()
+            const minuteStart = new Date("2026-01-15T14:37:00.000Z")
+
+            await meterReadingRepository.upsertMinute({
+                meterId,
+                ...emptyOptionalAvgFields(),
+                minuteStart,
+                energyKwh: 0.01,
+                avgVoltage: 220,
+                avgCurrent: 5,
+                avgPowerW: 1100,
+                avgPowerFactor: 0.9,
+                avgVoltagePhaseA: 219,
+                avgFrequencyHz: 60,
+                sampleCount: 30,
+                secondsCovered: 30,
+            })
+
+            const reading = await prismaTest.meterReading.findUniqueOrThrow({
+                where: { meterId_minuteStart: { meterId, minuteStart } },
+            })
+
+            expect(reading.avgVoltagePhaseA).toBeCloseTo(219)
+            expect(reading.avgFrequencyHz).toBeCloseTo(60)
+            expect(reading.avgVoltagePhaseB).toBeNull()
+            expect(reading.avgVoltageUnbalance).toBeNull()
+        })
+
+        it("merge ponderado de uma grandeza por fase presente nos dois flushes", async () => {
+            const meterId = await setupMeter()
+            const minuteStart = new Date("2026-01-15T14:37:00.000Z")
+
+            await meterReadingRepository.upsertMinute({
+                meterId,
+                ...emptyOptionalAvgFields(),
+                minuteStart,
+                energyKwh: 0.01,
+                avgVoltage: 220,
+                avgCurrent: 5,
+                avgPowerW: 1100,
+                avgPowerFactor: 0.9,
+                avgVoltagePhaseA: 218,
+                sampleCount: 30,
+                secondsCovered: 30,
+            })
+            await meterReadingRepository.upsertMinute({
+                meterId,
+                ...emptyOptionalAvgFields(),
+                minuteStart,
+                energyKwh: 0.01,
+                avgVoltage: 220,
+                avgCurrent: 5,
+                avgPowerW: 1100,
+                avgPowerFactor: 0.9,
+                avgVoltagePhaseA: 222,
+                sampleCount: 30,
+                secondsCovered: 30,
+            })
+
+            const reading = await prismaTest.meterReading.findUniqueOrThrow({
+                where: { meterId_minuteStart: { meterId, minuteStart } },
+            })
+
+            // (218*30 + 222*30) / 60 = 220
+            expect(reading.avgVoltagePhaseA).toBeCloseTo(220)
+        })
+
+        it("mantém o valor já persistido de uma grandeza quando o flush seguinte não a reporta", async () => {
+            const meterId = await setupMeter()
+            const minuteStart = new Date("2026-01-15T14:37:00.000Z")
+
+            await meterReadingRepository.upsertMinute({
+                meterId,
+                ...emptyOptionalAvgFields(),
+                minuteStart,
+                energyKwh: 0.01,
+                avgVoltage: 220,
+                avgCurrent: 5,
+                avgPowerW: 1100,
+                avgPowerFactor: 0.9,
+                avgVoltagePhaseA: 218,
+                sampleCount: 30,
+                secondsCovered: 30,
+            })
+            // Segundo flush não traz avgVoltagePhaseA (fica null no snapshot) —
+            // o merge não deve apagar o valor já conhecido do primeiro flush.
+            await meterReadingRepository.upsertMinute({
+                meterId,
+                ...emptyOptionalAvgFields(),
+                minuteStart,
+                energyKwh: 0.01,
+                avgVoltage: 220,
+                avgCurrent: 5,
+                avgPowerW: 1100,
+                avgPowerFactor: 0.9,
+                sampleCount: 30,
+                secondsCovered: 30,
+            })
+
+            const reading = await prismaTest.meterReading.findUniqueOrThrow({
+                where: { meterId_minuteStart: { meterId, minuteStart } },
+            })
+
+            expect(reading.avgVoltagePhaseA).toBeCloseTo(218)
+        })
+
+        it("duas chamadas concorrentes com a mesma grandeza por fase não perdem dado nem duplicam a linha", async () => {
+            const meterId = await setupMeter()
+            const minuteStart = new Date("2026-01-15T14:37:00.000Z")
+
+            const [a, b] = await Promise.allSettled([
+                meterReadingRepository.upsertMinute({
+                    meterId,
+                    ...emptyOptionalAvgFields(),
+                    minuteStart,
+                    energyKwh: 0.01,
+                    avgVoltage: 220,
+                    avgCurrent: 5,
+                    avgPowerW: 1100,
+                    avgPowerFactor: 0.9,
+                    avgVoltagePhaseA: 218,
+                    sampleCount: 30,
+                    secondsCovered: 30,
+                }),
+                meterReadingRepository.upsertMinute({
+                    meterId,
+                    ...emptyOptionalAvgFields(),
+                    minuteStart,
+                    energyKwh: 0.012,
+                    avgVoltage: 240,
+                    avgCurrent: 5,
+                    avgPowerW: 1200,
+                    avgPowerFactor: 0.9,
+                    avgVoltagePhaseA: 222,
+                    sampleCount: 30,
+                    secondsCovered: 30,
+                }),
+            ])
+
+            expect(a.status).toBe("fulfilled")
+            expect(b.status).toBe("fulfilled")
+
+            const count = await prismaTest.meterReading.count({ where: { meterId, minuteStart } })
+            expect(count).toBe(1)
+
+            const reading = await prismaTest.meterReading.findUniqueOrThrow({
+                where: { meterId_minuteStart: { meterId, minuteStart } },
+            })
+            expect(reading.avgVoltagePhaseA).toBeCloseTo(220) // (218*30 + 222*30) / 60
+        })
+    })
 })
 
 describe("MeterReadingRepository.findAggregated", () => {
@@ -226,6 +388,7 @@ describe("MeterReadingRepository.findAggregated", () => {
 
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart,
             energyKwh: 0.01,
             avgVoltage: 220,
@@ -253,6 +416,7 @@ describe("MeterReadingRepository.findAggregated", () => {
         // Dois minutos dentro de 14h (UTC), pesos iguais (60s cada) — média simples.
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart: new Date("2026-01-15T14:10:00.000Z"),
             energyKwh: 0.01,
             avgVoltage: 220,
@@ -264,6 +428,7 @@ describe("MeterReadingRepository.findAggregated", () => {
         })
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart: new Date("2026-01-15T14:20:00.000Z"),
             energyKwh: 0.01,
             avgVoltage: 220,
@@ -276,6 +441,7 @@ describe("MeterReadingRepository.findAggregated", () => {
         // Minuto de outra hora — não deve entrar no balde das 14h.
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart: new Date("2026-01-15T15:05:00.000Z"),
             energyKwh: 0.05,
             avgVoltage: 220,
@@ -302,6 +468,7 @@ describe("MeterReadingRepository.findAggregated", () => {
 
         await meterReadingRepository.upsertMinute({
             meterId,
+            ...emptyOptionalAvgFields(),
             minuteStart: new Date("2026-01-15T10:00:00.000Z"),
             energyKwh: 0.01,
             avgVoltage: 220,
