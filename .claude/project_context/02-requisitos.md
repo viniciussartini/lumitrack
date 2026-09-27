@@ -43,7 +43,7 @@
 - RF09 `[implementado]`: o sistema deve permitir que um usuário vincule um Medidor a exatamente um alvo (Propriedade, Área ou Aparelho), configurando o protocolo de conexão (MQTT, Modbus TCP/RTU, EtherNet/IP, Profibus, PROFINET, RS232, RS485).
 - RF10 `[implementado]`: o sistema deve ingerir amostras elétricas (tensão, corrente, potência, fator de potência) do medidor e agregá-las em leituras por minuto, com médias ponderadas por tempo de vigência de cada amostra.
 - RF11 `[implementado]`: o sistema deve expor as leituras e disparos de alerta em tempo real via SSE, por usuário autenticado.
-- RF37 `[planejado — Fase 25]`: o sistema deve ingerir e persistir o conjunto ampliado de grandezas elétricas por fase — tensão por fase e fase-neutro média, desequilíbrio, corrente por fase e de neutro, potência ativa total e por fase, reativa, aparente, frequência, fator de potência por fase, e THD de tensão e de corrente por fase.
+- RF37 `[implementado]`: o sistema deve ingerir e persistir o conjunto ampliado de grandezas elétricas por fase — tensão por fase e fase-neutro média, desequilíbrio, corrente por fase e de neutro, potência ativa total e por fase, reativa, aparente, frequência, fator de potência por fase, e THD de tensão e de corrente por fase.
 - RF47 `[implementado]`: o simulador IoT deve permitir que o administrador da aplicação gerencie redes e medidores de demonstração, publicando pelo protocolo MQTT, com acesso restrito (não público e não divulgado na documentação). Suporte a Modbus TCP/RTU é `[planejado — Fase 31]` — hoje o simulador só emula MQTT.
 
 ### Consumo, custo e análise
@@ -51,7 +51,7 @@
 - RF12 `[implementado]`: o sistema deve permitir que um usuário consulte consumo (kWh) agregado por minuto, hora, dia, mês ou ano, em qualquer nível da hierarquia (Propriedade/Área/Aparelho).
 - RF13 `[implementado]`: o sistema deve calcular o custo em reais de cada agregação para o Grupo B, devolvendo a decomposição completa (energia, bandeira, tributos, CIP, total) — ver RN10–RN16. O caminho binômio do Grupo A não amplia este requisito: é RF29, porque o cálculo ramifica por grupo em vez de generalizar (RN23).
 - RF22 `[implementado]`: o sistema deve permitir simular o custo de um consumo hipotético, informado em kWh direto ou em watts × horas de uso, sem persistir a simulação.
-- RF38 `[planejado — Fase 25]`: o sistema deve permitir que um usuário analise as grandezas elétricas de um item selecionado — em tempo real e em série histórica, escolhendo grandeza, janela (hora/dia) e agregação. No design, essa análise vive na aba "Grandezas Elétricas" de Análise, que nasce na Fase 25 junto com RF37; a Fase 24 entrega só a aba "Consumo e Custos" (FNC005 itens 1–3).
+- RF38 `[implementado]`: o sistema deve permitir que um usuário analise as grandezas elétricas de um item selecionado — em tempo real e em série histórica, escolhendo grandeza, janela (hora/dia) e agregação. No design, essa análise vive na aba "Grandezas Elétricas" de Análise; a Fase 24 entregou a aba "Consumo e Custos" (FNC005 itens 1–3), a Fase 25 entregou a aba "Grandezas Elétricas" (FNC005 itens 4–6).
 - RF39 `[planejado — Fase 26]`: o sistema deve permitir comparar dois períodos arbitrários (A e B) de um mesmo alvo e grandeza, apresentando o gráfico e as diferenças entre eles.
 
 ### Tarifação — Grupo A e modalidades horárias
@@ -249,7 +249,7 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
   ```
 
 - RN33 `[implementado]`: alerta desabilitado ou excluído durante um episódio em curso **encerra e persiste** o episódio no estado em que estava — não o descarta.
-- RN34 `[planejado — Fase 25]`: o sistema aceita medidores que não medem todas as grandezas; grandeza ausente é exibida como "-", nunca como zero — zero é uma medição, ausência não é. *(ADR-0022, confirmada contra o datasheet real do medidor-alvo CCK 7200D: quase todas as grandezas de FNC010 são medidas nativamente, sem cálculo no pipeline. Duas exceções: desequilíbrio de tensão é calculado a partir das três tensões de fase medidas — fórmula fechada, não estimativa; corrente de neutro não é medida nem derivável com confiança e fica **sempre** "-" via esta regra, para qualquer medidor da mesma classe.)*
+- RN34 `[implementado]`: o sistema aceita medidores que não medem todas as grandezas; grandeza ausente é exibida como "-", nunca como zero — zero é uma medição, ausência não é. *(ADR-0022, confirmada contra o datasheet real do medidor-alvo CCK 7200D: quase todas as grandezas de FNC010 são medidas nativamente, sem cálculo no pipeline. Duas exceções: desequilíbrio de tensão é calculado a partir das três tensões de fase medidas — fórmula fechada, não estimativa; corrente de neutro não é medida nem derivável com confiança e fica **sempre** "-" via esta regra, para qualquer medidor da mesma classe.)*
 
 ### Relatórios e metas
 
@@ -297,7 +297,7 @@ Tela inicial com o panorama geral, filtrada pela propriedade selecionada no sele
 
 **Hoje:** o Painel já entrega bandeira vigente, alertas em disparo, KPIs de consumo/custo e gráfico de potência em tempo real. Faltam a tabela hierarquizada, o peso por medidor, a meta e a demanda.
 
-**FNC005 — Análise** `[parcial — itens 1–3 implementados; planejado — Fase 25 (itens 4–6, aba Grandezas Elétricas e área de análise)]`
+**FNC005 — Análise** `[implementado]`
 
 Onde o usuário examina em detalhe consumo, custo e medições de cada item cadastrado.
 
@@ -308,7 +308,7 @@ Onde o usuário examina em detalhe consumo, custo e medições de cada item cada
 5. Abaixo dos cards, a área de análise: o usuário escolhe janela do gráfico, dia, hora, agregação e grandeza, e aciona "Gerar análise" para plotar gráfico e tabela.
 6. Com janela **Hora**, gráfico e tabela seguem a agregação escolhida. Com janela **Dia**, os dados são exibidos de hora em hora e os campos Hora e Agregação ficam desabilitados.
 
-**Hoje:** `/propriedades` mostra a árvore de seleção com busca (`components/analysis/AnalysisTree.tsx`, seleção pela URL) à esquerda e o detalhe do item à direita. Os detalhes da **Propriedade** (`pages/property/PropertyDetailsPage.tsx`, `components/property/AreaComparison.tsx`), da **Área** (`pages/area/AreaDetailsPage.tsx`, `components/device/DeviceComparison.tsx`) e do **Dispositivo** (`pages/device/DeviceDetailsPage.tsx`) seguem o design: dados, Medidor e gráfico em tempo real; Propriedade e Área trazem a comparação em barras em kWh ou R$, e Área e Dispositivo os KPIs "Consumo hoje" e "Custo do mês" (`hooks/useTargetConsumptionKpis.ts`), sempre do medidor do próprio item. O consumo vem de `GET /api/consumption/summary` (`consumption.service.ts`), com `costBrl` opcional. Criar e excluir Propriedade, Área e Dispositivo só existem em Configurações → Cadastro; nas páginas de Análise só se edita. A aba de grandezas elétricas e a área de análise configurável dependem de RF37 e são da Fase 25.
+**Hoje:** `/propriedades` mostra a árvore de seleção com busca (`components/analysis/AnalysisTree.tsx`, seleção pela URL) à esquerda e o detalhe do item à direita. Os detalhes da **Propriedade** (`pages/property/PropertyDetailsPage.tsx`, `components/property/AreaComparison.tsx`), da **Área** (`pages/area/AreaDetailsPage.tsx`, `components/device/DeviceComparison.tsx`) e do **Dispositivo** (`pages/device/DeviceDetailsPage.tsx`) seguem o design: dados, Medidor e gráfico em tempo real; Propriedade e Área trazem a comparação em barras em kWh ou R$, e Área e Dispositivo os KPIs "Consumo hoje" e "Custo do mês" (`hooks/useTargetConsumptionKpis.ts`), sempre do medidor do próprio item. O consumo vem de `GET /api/consumption/summary` (`consumption.service.ts`), com `costBrl` opcional. Criar e excluir Propriedade, Área e Dispositivo só existem em Configurações → Cadastro; nas páginas de Análise só se edita. A aba **Grandezas Elétricas** (`components/electrical/ElectricalQuantitiesTabPanel.tsx`) e a área de análise configurável (`components/analysis/SeriesAnalysisSection.tsx`, `GET /api/meter-readings/series`) foram entregues na Fase 25.
 
 **FNC006 — Histórico e comparações** `[planejado — Fase 26]`
 
@@ -344,7 +344,7 @@ Menu à esquerda com as configurações disponíveis e, à direita, a página da
 2. A interface permite ao administrador criar redes e adicionar dispositivos (nome, tópico MQTT, parâmetros iniciais), ligar/desligar cada dispositivo com indicação de "publicando há X segundos", injetar parâmetros (tensão, potência, fator de potência, ruído, perfil) e disparar anomalias. `[implementado]`
 3. O acesso é restrito ao administrador da aplicação: o endereço não é público nem aparece em nenhum ponto da documentação. `[implementado]`
 
-**FNC010 — Grandezas fornecidas pelo medidor** `[planejado — Fase 25]`
+**FNC010 — Grandezas fornecidas pelo medidor** `[implementado]`
 
 O medidor envia ao sistema: tensão (por fase, fase-neutro média, desequilíbrio); corrente (por fase e de neutro); potência (ativa total, reativa, aparente, ativa por fase, frequência); fator de potência por fase; THD de tensão por fase; THD de corrente por fase.
 
