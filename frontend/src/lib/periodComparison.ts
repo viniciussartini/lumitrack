@@ -103,7 +103,8 @@ export function buildComparePeriodsParams(
     }
 }
 
-const formatDays = (days: number): string => `${days} ${days === 1 ? "dia" : "dias"}`
+/** `1 dia` / `7 dias`. */
+export const formatDays = (days: number): string => `${days} ${days === 1 ? "dia" : "dias"}`
 
 const hasEmptyDate = (dates: ComparePeriodsDates): boolean =>
     !dates.aStart || !dates.aEnd || !dates.bStart || !dates.bEnd

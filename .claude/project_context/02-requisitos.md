@@ -52,7 +52,7 @@
 - RF13 `[implementado]`: o sistema deve calcular o custo em reais de cada agregação para o Grupo B, devolvendo a decomposição completa (energia, bandeira, tributos, CIP, total) — ver RN10–RN16. O caminho binômio do Grupo A não amplia este requisito: é RF29, porque o cálculo ramifica por grupo em vez de generalizar (RN23).
 - RF22 `[implementado]`: o sistema deve permitir simular o custo de um consumo hipotético, informado em kWh direto ou em watts × horas de uso, sem persistir a simulação.
 - RF38 `[implementado]`: o sistema deve permitir que um usuário analise as grandezas elétricas de um item selecionado — em tempo real e em série histórica, escolhendo grandeza, janela (hora/dia) e agregação. No design, essa análise vive na aba "Grandezas Elétricas" de Análise; a Fase 24 entregou a aba "Consumo e Custos" (FNC005 itens 1–3), a Fase 25 entregou a aba "Grandezas Elétricas" (FNC005 itens 4–6).
-- RF39 `[planejado — Fase 26]`: o sistema deve permitir comparar dois períodos arbitrários (A e B) de um mesmo alvo e grandeza, apresentando o gráfico e as diferenças entre eles.
+- RF39 `[implementado]`: o sistema deve permitir comparar dois períodos arbitrários (A e B) de um mesmo alvo e grandeza, apresentando o gráfico e as diferenças entre eles. *(Os períodos são dias inteiros, de mesma duração e de até 92 dias cada; a grandeza é uma das 9 elétricas de RF38 — consumo, custo e demanda do protótipo não entram. Backend: `GET /api/meter-readings/compare-periods`, com balde por hora para um período de um dia e por dia acima disso, alinhados por posição.)*
 
 ### Tarifação — Grupo A e modalidades horárias
 
@@ -310,13 +310,13 @@ Onde o usuário examina em detalhe consumo, custo e medições de cada item cada
 
 **Hoje:** `/propriedades` mostra a árvore de seleção com busca (`components/analysis/AnalysisTree.tsx`, seleção pela URL) à esquerda e o detalhe do item à direita. Os detalhes da **Propriedade** (`pages/property/PropertyDetailsPage.tsx`, `components/property/AreaComparison.tsx`), da **Área** (`pages/area/AreaDetailsPage.tsx`, `components/device/DeviceComparison.tsx`) e do **Dispositivo** (`pages/device/DeviceDetailsPage.tsx`) seguem o design: dados, Medidor e gráfico em tempo real; Propriedade e Área trazem a comparação em barras em kWh ou R$, e Área e Dispositivo os KPIs "Consumo hoje" e "Custo do mês" (`hooks/useTargetConsumptionKpis.ts`), sempre do medidor do próprio item. O consumo vem de `GET /api/consumption/summary` (`consumption.service.ts`), com `costBrl` opcional. Criar e excluir Propriedade, Área e Dispositivo só existem em Configurações → Cadastro; nas páginas de Análise só se edita. A aba **Grandezas Elétricas** (`components/electrical/ElectricalQuantitiesTabPanel.tsx`) e a área de análise configurável (`components/analysis/SeriesAnalysisSection.tsx`, `GET /api/meter-readings/series`) foram entregues na Fase 25.
 
-**FNC006 — Histórico e comparações** `[parcial — itens 1–2 e o gráfico do item 3 implementados; seção de diferenças planejada — Fase 26]`
+**FNC006 — Histórico e comparações** `[implementado]`
 
-1. O usuário seleciona o alvo (Propriedade, Área ou Dispositivo) e a grandeza medida — uma das 9 grandezas elétricas de FNC005 (consumo, custo e demanda do protótipo ficam fora desta fase).
+1. O usuário seleciona o alvo (Propriedade, Área ou Dispositivo) e a grandeza medida — uma das 9 grandezas elétricas de FNC005 (consumo, custo e demanda do protótipo ficam fora).
 2. Define dois períodos — A (início e fim) e B (início e fim) —, em dias inteiros, de **mesma duração** e de até 92 dias cada; o formulário explica o motivo e bloqueia o envio quando a regra é violada.
-3. O sistema plota o gráfico comparativo — duas linhas sobrepostas (A e B) por posição de balde, hora a hora num período de um dia e dia a dia nos maiores — e uma seção com as diferenças entre os períodos, incluindo a variação de B sobre A. `[seção de diferenças: planejado — Fase 26]`
+3. O sistema plota o gráfico comparativo — duas linhas sobrepostas (A e B) por posição de balde, hora a hora num período de um dia e dia a dia nos maiores — e uma seção com as diferenças entre os períodos: a variação de B sobre A em destaque (percentual, vermelho se B ficou acima, verde se abaixo, neutro dentro de 1%) e os cards de média, diferença absoluta, pico e dias de cada período. Grandeza ausente aparece como "-" (RN34).
 
-**Hoje:** `/historico` (`pages/history/HistoryPage.tsx`, `components/history/PeriodComparisonForm.tsx`, `components/history/PeriodComparisonChartCard.tsx`) entrega o item "Histórico" na navegação, o formulário "Nova comparação" e o gráfico comparativo, alimentado por `GET /api/meter-readings/compare-periods` (`useMeterReadingComparePeriods`). A resposta já traz o resumo de cada período e a diferença de B sobre A, mas nenhuma tela os exibe ainda.
+**Hoje:** `/historico` (`pages/history/HistoryPage.tsx`, `components/history/PeriodComparisonForm.tsx`, `PeriodComparisonDifferences.tsx`, `PeriodComparisonChartCard.tsx`), alimentada por `GET /api/meter-readings/compare-periods` (`useMeterReadingComparePeriods`).
 
 **FNC007 — Relatórios** `[planejado — Fase 27]`
 

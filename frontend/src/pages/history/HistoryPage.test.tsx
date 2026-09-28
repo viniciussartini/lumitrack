@@ -127,6 +127,7 @@ describe("HistoryPage", () => {
             await submitValidComparison(user)
 
             expect(await screen.findByTestId("period-comparison-chart")).toBeInTheDocument()
+            expect(screen.getByTestId("period-comparison-differences")).toBeInTheDocument()
             expect(screen.getByText("A · 01/01/2026 – 07/01/2026")).toBeInTheDocument()
             expect(screen.getByText("B · 01/02/2026 – 07/02/2026")).toBeInTheDocument()
             expect(screen.queryByTestId("history-idle")).not.toBeInTheDocument()
@@ -151,6 +152,7 @@ describe("HistoryPage", () => {
 
             expect(await screen.findByText("Carregando...")).toBeInTheDocument()
             expect(screen.queryByTestId("period-comparison-chart")).not.toBeInTheDocument()
+            expect(screen.queryByTestId("period-comparison-differences")).not.toBeInTheDocument()
         })
 
         it("falha na comparação (ex.: alvo sem medidor): mostra erro, sem gráfico", async () => {
@@ -165,6 +167,7 @@ describe("HistoryPage", () => {
                 "Não foi possível carregar a comparação.",
             )
             expect(screen.queryByTestId("period-comparison-chart")).not.toBeInTheDocument()
+            expect(screen.queryByTestId("period-comparison-differences")).not.toBeInTheDocument()
         })
     })
 })

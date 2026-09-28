@@ -2,6 +2,7 @@ import { useMemo, useState } from "react"
 import { Link } from "react-router"
 import { History } from "lucide-react"
 import { PeriodComparisonChartCard } from "@/components/history/PeriodComparisonChartCard"
+import { PeriodComparisonDifferences } from "@/components/history/PeriodComparisonDifferences"
 import { PeriodComparisonForm } from "@/components/history/PeriodComparisonForm"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { EmptyState } from "@/components/ui/EmptyState"
@@ -109,5 +110,10 @@ const ComparisonResults = ({ run, query }: ComparisonResultsProps) => {
             </p>
         )
     }
-    return <PeriodComparisonChartCard run={run} data={query.data} />
+    return (
+        <>
+            <PeriodComparisonDifferences run={run} data={query.data} />
+            <PeriodComparisonChartCard run={run} data={query.data} />
+        </>
+    )
 }

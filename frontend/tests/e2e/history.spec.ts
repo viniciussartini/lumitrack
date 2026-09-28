@@ -108,6 +108,8 @@ test.describe("Histórico e comparações", () => {
         await expect(page.getByTestId("period-comparison-chart")).toBeVisible()
         // Uma linha por período — o gráfico realmente desenha as duas séries.
         await expect(page.locator(".recharts-line-curve")).toHaveCount(2)
+        await expect(page.getByTestId("period-variation")).toHaveText("−11,1%")
+        await expect(page.getByText("Período B abaixo do período A.")).toBeVisible()
         await expect(page.getByText("A · 01/01/2026 – 07/01/2026")).toBeVisible()
         await expect(page.getByText("B · 01/02/2026 – 07/02/2026")).toBeVisible()
         await expect(page.getByTestId("history-idle")).toHaveCount(0)
