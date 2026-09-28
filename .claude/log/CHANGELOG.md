@@ -4220,3 +4220,14 @@
 - **Arquivos principais:** `.claude/docs/roadmap.md`.
 - **Decisões/ADRs:** nenhuma nova; nenhum item do `07` tocado.
 - **Notas:** a Fase 27 (Relatórios) segue em nível de objetivo, sem bloqueio conhecido; detalhar quando solicitado. A milestone `App v2` só fecha na Fase 30.
+
+## [2026-09-28] docs: roadmap detalha a Fase 27 (Relatórios)
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** `planejar-roadmap` (ciclo de atualização — detalhamento) promove a Fase 27 de objetivo para 5 itens completos (emissão sob demanda, histórico, agendamento com sub-página Configurações → Relatórios, execução automática com envio por e-mail, próximos envios), com a seção "Replanejamento de 2026-09-28 (detalhamento da Fase 27)". Decisões do usuário: armazenamento no PostgreSQL, envio como anexo, 6 periodicidades, `/relatorios` absorvida.
+- **Testes:** documentação, sem código.
+- **Arquivos principais:** `.claude/docs/roadmap.md`, `.claude/docs/adr/0023-relatorios-gerados-armazenados-no-postgres.md`, `.claude/docs/adr/0024-relatorio-agendado-enviado-como-anexo.md`.
+- **Decisões/ADRs:** ADR-0023 e ADR-0024 (novas); nenhum item do `07` tocado (as decisões não estavam listadas lá).
+- **Notas:** próxima etapa é abrir épico + sub-issues da fase via `criar-issues`.
+

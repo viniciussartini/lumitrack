@@ -39,7 +39,7 @@
 | 24 | Análise — consumo e custos (reestruturação de `/propriedades`) | **Concluída** (épico #439: #440–#442, PR #443 → staging) |
 | 25 | Telemetria ampliada — grandezas elétricas por fase | **Concluída** (épico #446: #447–#451, PR #457 → staging) |
 | 26 | Histórico e comparações (Período A × B) | **Concluída** (épico #458: #459–#462, PR #463 → staging) |
-| 27 | Relatórios — emissão, histórico e agendamento automático | Planejada — objetivo abaixo |
+| 27 | Relatórios — emissão, histórico e agendamento automático | **Detalhada** (2026-09-28) — ADR-0023/0024 aceitas; pronta para `criar-issues` |
 | 28 | Metas (+ alerta de meta) | Planejada — objetivo abaixo |
 | 29 | Painel v2 — widgets novos | Planejada — objetivo abaixo |
 | 30 | Sessões ativas | Planejada — objetivo abaixo |
@@ -2359,7 +2359,78 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
 
 ### Fase 27 — Relatórios
 
-Item 1 — **emissão sob demanda** (escopo, tipo, período, formato) + histórico com download/exclusão, seguindo o template `LumiTrack Relatório A4` do handoff e reaproveitando `pdfkit` (já usado no módulo `export` para o DSAR); CSV é formatador novo, sem dependência nova. Item 2 — **agendamento automático** (periodicidade, dia de envio com a regra de RN36 — mês sem o dia 29/30/31 envia no último dia —, destinatários), reaproveitando o padrão de scheduler já estabelecido (`MinuteRollupScheduler`/`RetentionPurgeScheduler`/`TariffFlagSyncScheduler`) e o Nodemailer já em uso. Cobre RF40, RF41, RN35, RN36 e FNC007; a sub-página "Relatórios" de Configurações (FNC008) é o item 2 e entra em `SETTINGS_NAV_ITEMS`. A página atual de `/relatorios` (consulta de consumo por granularidade) segue funcionando até esta fase; decidir aqui o destino dela (absorvida ou removida). **Depende de:** Fase 23. **Risco:** RN36 é a mesma classe de armadilha de calendário que RN25 (feriado móvel) na Fase 19 — mês mais curto que o dia escolhido precisa cair no último dia, não estourar para o mês seguinte.
+**Entrega (milestone):** `App v2 — navegação, histórico, relatórios e metas` (Fases 23–30).
+
+> **Detalhada em 2026-09-28** — ver "Replanejamento de 2026-09-28 (detalhamento da Fase 27)" no fim do documento. Três decisões tomadas com o usuário viraram ADRs: **ADR-0023** (arquivo gerado guardado como bytes no PostgreSQL), **ADR-0024** (relatório agendado enviado como anexo) e as **6 periodicidades** do RF41 (o design desenha só 3; o select ganha as outras). Cobre RF40, RF41, RN35, RN36, FNC007 e FNC008 (sub-página Relatórios). **Destino de `/relatorios`:** a consulta de consumo por granularidade é **absorvida** — a rota passa a ser a tela de FNC007. Design: template `LumiTrack Relatório A4` e telas de Relatórios do `Home v2` (handoff `2026-09-06-lumitrack-completo`) — nada aguarda design.
+>
+> **Ordem interna 1 → 2 → 3 → 4 → 5:** o item 1 é a base que todos consomem; o 2 fecha o RF40 e já é entregável sozinho; o 3 valida o CRUD e a tela de agendamento; o 4 concentra o risco (calendário RN36, idempotência, e-mail); o 5 (P1) reaproveita o cálculo de próxima execução do item 3.
+
+### Relatórios: modelo, geração e emissão sob demanda
+
+- **Comportamento:** o usuário escolhe escopo (propriedade, área ou dispositivo), tipo (mensal, consumo, alertas, qualidade de energia, demanda), período e formato (PDF ou CSV) e clica em "Gerar relatório"; o arquivo é gravado, imutável, e oferecido para download.
+- **Cobre:** RF40 (geração), RN35, FNC007 itens 1–2.
+- **Priority:** P0 · **Size:** L
+- **Critérios de aceite:**
+  - Modelo novo `Report` (dono, escopo, tipo, período, formato, origem manual/agendada, bytes — ADR-0023), com teto de tamanho por arquivo.
+  - Módulo `report` com um gerador por tipo; PDF reaproveita `pdfkit` no template A4, CSV é formatador novo, sem dependência nova.
+  - Tipo "demanda" rejeitado para propriedade que não é do Grupo A.
+  - Grandeza ou dado ausente aparece como "-", nunca 0 (RN34).
+  - Toda consulta passa por `resolveRootProperty` (ownership) e é parametrizada; alvo de outro usuário devolve 404.
+  - Teto de intervalo do período, no padrão de `compare-periods`.
+  - `/relatorios` refeita com o bloco de emissão; consulta antiga removida.
+  - Testes: cada tipo × formato gera arquivo válido; demanda × Grupo B; alvo alheio; dado ausente.
+- **Depende de:** Fase 23 (shell).
+- **Risco/observações:** maior item da fase — os cinco tipos têm conteúdo diferente e o template só especifica o de consumo. Se estourar, quebrar em "consumo + mensal" e "alertas + qualidade + demanda".
+
+### Relatórios: histórico — listar, baixar e excluir
+
+- **Comportamento:** o bloco "Relatórios gerados" lista (paginado), baixa e exclui relatórios, manuais e agendados.
+- **Cobre:** RF40 (histórico), FNC007 item 3.
+- **Priority:** P0 · **Size:** S/M
+- **Critérios de aceite:**
+  - Download e exclusão só do dono; a exclusão remove os bytes.
+  - Retenção do `Report` entra no `RetentionPurgeScheduler` (variável `DATA_RETENTION_*`, nunca hardcoded).
+  - O export do titular (RF17/DSAR) inclui os relatórios.
+- **Depende de:** item 1.
+- **Risco/observações:** baixo; retenção e DSAR são o que costuma ser esquecido.
+
+### Relatórios: agendamento — modelo, CRUD e sub-página Configurações → Relatórios
+
+- **Comportamento:** o usuário cria, edita e exclui configurações de envio (escopo, tipo, formato, periodicidade, dia, destinatários) numa sub-página nova, incluída em `SETTINGS_NAV_ITEMS`; cada configuração mostra a próxima execução.
+- **Cobre:** RF41 (gestão), FNC007 item 4, FNC008.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Modelo novo de configuração; periodicidade com as 6 opções do RF41 (diária, semanal, mensal, trimestral, semestral, anual).
+  - Zod valida destinatários (e-mail válido, teto de quantidade) e dia de 1 a 31; configuração é do dono.
+  - Função pura de "próxima execução", com relógio injetado, é a fonte única para a lista e para o item 5.
+  - Testes: cada periodicidade; dia inexistente no mês (cai no último dia — RN36).
+- **Depende de:** item 1.
+- **Risco/observações:** o design só desenha Mensal/Semanal/Trimestral; as outras três são extensão do select, sem layout novo.
+
+### Relatórios: execução automática e envio por e-mail
+
+- **Comportamento:** um scheduler gera o relatório na data devida, grava no histórico com origem "agendada" e envia aos destinatários como anexo (ADR-0024).
+- **Cobre:** RF41 (execução), RN36, FNC007 item 4.
+- **Priority:** P0 · **Size:** M/L
+- **Critérios de aceite:**
+  - Scheduler no padrão de `TariffFlagSyncScheduler` (roda no boot e periodicamente), iniciado/parado em `server.ts`.
+  - RN36: dia 29, 30 ou 31 em mês curto (fevereiro, bissexto, meses de 30 dias) envia no último dia, testado com relógio injetado; fuso America/Sao_Paulo.
+  - Idempotência: reiniciar o servidor no mesmo dia não duplica o envio.
+  - Falha de SMTP não derruba o processo, é registrada e reprocessada; recupera envios perdidos com o servidor fora do ar.
+  - Limite de tamanho do anexo e de destinatários; endereço de destinatário nunca em log.
+  - ROPA e aviso de privacidade atualizados com o fluxo (destinatários de terceiros).
+- **Depende de:** itens 1 e 3; ADR-0024.
+- **Risco/observações:** mesma classe de armadilha de calendário que RN25 na Fase 19, mais idempotência e fuso. Item mais sensível da fase.
+
+### Relatórios: próximos envios (15 dias)
+
+- **Comportamento:** a tela de Relatórios mostra os envios previstos para os próximos 15 dias.
+- **Cobre:** FNC007 item 1.
+- **Priority:** P1 · **Size:** S
+- **Critérios de aceite:**
+  - Calculado a partir das configurações, reaproveitando a função de próxima execução do item 3; estado vazio explícito.
+- **Depende de:** item 3.
+- **Risco/observações:** baixo; P1 porque não bloqueia emitir nem enviar.
 
 ### Fase 28 — Metas
 
@@ -2649,3 +2720,17 @@ Candidatos conhecidos, ainda sem fase:
 - **Sem replanejamento das fases seguintes:** Fases 27–31 seguem em nível de objetivo, sem novo achado; a Fase 27 (Relatórios) está pronta para ser detalhada quando solicitado.
 
 **Pendências que dependem de você (fora do roadmap):** `/design-sync` para o Claude Design conhecer `PeriodComparisonForm`, `PeriodComparisonChart` e `PeriodComparisonDifferences` (a memória do projeto registra que o `/design-sync` real é pesado; avalie se compensa); contraste visual nos dois temas; desempenho das quatro consultas em paralelo com 92 dias; fuso da sessão do Postgres de produção; `origin/staging` segue à frente de `origin/main`.
+
+### Replanejamento de 2026-09-28 (detalhamento da Fase 27)
+
+**O que mudou:** a Fase 27 (Relatórios) foi detalhada de objetivo para 5 itens completos, na mesma sessão em que a Fase 26 fechou. Nenhuma decisão do `07` bloqueava a fase, mas três escolhas condicionavam o modelo e foram levadas ao usuário antes de fatiar.
+
+- **Armazenamento do arquivo (ADR-0023):** bytes no PostgreSQL. O disco do Render (staging) é efêmero, então volume local perderia o histórico; regerar no download violaria RN35.
+- **Envio agendado (ADR-0024):** anexo. Link autenticado inviabiliza destinatário terceiro. O custo (dado pessoal indo para caixa de terceiros) está coberto pela ADR-0014 enquanto os ambientes forem só demonstração; ROPA e aviso de privacidade entram no item 4.
+- **Periodicidade:** as 6 do RF41, não as 3 do design (Mensal/Semanal/Trimestral). Divergência deliberada a favor do requisito; `02-requisitos.md` não muda.
+- **Destino de `/relatorios`:** a consulta de consumo por granularidade é absorvida pela nova tela; o histórico de consumo segue acessível em Análise.
+- **Sem mudança em `02-requisitos.md`** nesta sessão: RF40, RF41, RN35, RN36, FNC007 e FNC008 já estavam corretos como `[planejado — Fase 27]`.
+
+**Sem replanejamento das fases seguintes:** Fases 28–31 seguem em nível de objetivo.
+
+**Pendências que dependem de você (fora do roadmap):** validar com a `auditoria-conformidade` o fluxo de destinatários de terceiros antes de qualquer abertura de cadastro real (ADR-0014); `/design-sync` para o Claude Design conhecer os componentes novos, se compensar.
