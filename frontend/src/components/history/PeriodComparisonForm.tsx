@@ -16,6 +16,8 @@ interface PeriodComparisonFormProps {
     /** Alvos disponíveis; precisa ter ao menos uma opção. */
     groups: CompareTargetGroup[]
     onSubmit: (run: PeriodComparisonRun) => void
+    /** Mostra o botão em carregamento enquanto a comparação submetida é buscada. */
+    isSubmitting?: boolean
 }
 
 const EMPTY_DATES: ComparePeriodsDates = { aStart: "", aEnd: "", bStart: "", bEnd: "" }
@@ -31,7 +33,11 @@ const EMPTY_DATES: ComparePeriodsDates = { aStart: "", aEnd: "", bStart: "", bEn
  * texto de apoio do rodapé diz isso — vira a mensagem de erro quando as
  * datas preenchidas violam a regra, e o botão fica desabilitado até corrigir.
  */
-export const PeriodComparisonForm = ({ groups, onSubmit }: PeriodComparisonFormProps) => {
+export const PeriodComparisonForm = ({
+    groups,
+    onSubmit,
+    isSubmitting = false,
+}: PeriodComparisonFormProps) => {
     const options = groups.flatMap((group) => group.options)
     const [targetKey, setTargetKey] = useState(options[0]!.key)
     const [metric, setMetric] = useState<MeterReadingSeriesMetric>(SERIES_METRICS[0]!.value)
@@ -79,16 +85,17 @@ export const PeriodComparisonForm = ({ groups, onSubmit }: PeriodComparisonFormP
                 />
             </div>
 
-            <FormFooter validationMessage={validationMessage} />
+            <FormFooter validationMessage={validationMessage} isSubmitting={isSubmitting} />
         </form>
     )
 }
 
 interface FormFooterProps {
     validationMessage: string | null
+    isSubmitting: boolean
 }
 
-const FormFooter = ({ validationMessage }: FormFooterProps) => (
+const FormFooter = ({ validationMessage, isSubmitting }: FormFooterProps) => (
     <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-t pt-4">
         {validationMessage ? (
             <span role="alert" className="text-status-danger text-12-5">
@@ -103,6 +110,7 @@ const FormFooter = ({ validationMessage }: FormFooterProps) => (
             type="submit"
             variant="primary"
             disabled={validationMessage !== null}
+            isLoading={isSubmitting}
             className="gap-2"
         >
             <ChartLine className="h-4 w-4" aria-hidden="true" />

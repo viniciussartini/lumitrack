@@ -5,6 +5,8 @@ import type {
     MeterReadingGranularity,
 } from "@/types/meterReading.types"
 import type {
+    MeterReadingComparePeriodsParams,
+    MeterReadingComparePeriodsResponse,
     MeterReadingSeriesBucket,
     MeterReadingSeriesMetric,
     MeterReadingSeriesParams,
@@ -51,6 +53,22 @@ export const meterReadingService = {
     series: async (params: MeterReadingSeriesParams): Promise<MeterReadingSeriesResponse> => {
         const { data } = await api.get<ApiEnvelope<MeterReadingSeriesResponse>>(
             "/meter-readings/series",
+            { params },
+        )
+        return data.data
+    },
+    /**
+     * `GET /api/meter-readings/compare-periods` — a mesma grandeza agregada em
+     * dois períodos de mesma duração, mais a diferença de B sobre A.
+     *
+     * @param params - Alvo, grandeza e os instantes de início/fim (exclusivo) dos períodos A e B.
+     * @returns Os dois períodos com baldes alinhados por posição, o resumo de cada um e a diferença.
+     */
+    comparePeriods: async (
+        params: MeterReadingComparePeriodsParams,
+    ): Promise<MeterReadingComparePeriodsResponse> => {
+        const { data } = await api.get<ApiEnvelope<MeterReadingComparePeriodsResponse>>(
+            "/meter-readings/compare-periods",
             { params },
         )
         return data.data

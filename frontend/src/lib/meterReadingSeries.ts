@@ -143,7 +143,8 @@ export function buildSeriesChartPoints(
     }))
 }
 
-function formatIsoDateToBr(isoDate: string): string {
+/** `YYYY-MM-DD` → `DD/MM/YYYY`. */
+export function formatIsoDateToBr(isoDate: string): string {
     const [year, month, day] = isoDate.split("-")
     return `${day}/${month}/${year}`
 }

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test"
 
+import { fulfillJson } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
 import { mockPropertyTree } from "./support/propertyTree"
@@ -9,10 +10,32 @@ import { mockPropertyTree } from "./support/propertyTree"
  * períodos). Backend mockado via `page.route()`, como nos demais specs.
  */
 
+const bucket = (avg: number) => ({
+    bucketStart: "2026-01-01T03:00:00.000Z",
+    min: avg,
+    avg,
+    max: avg,
+})
+const period = (base: number) => ({
+    from: "2026-01-01T03:00:00.000Z",
+    to: "2026-01-08T03:00:00.000Z",
+    items: Array.from({ length: 7 }, (_, i) => bucket(base + i)),
+    summary: { min: base, avg: base + 3, max: base + 6 },
+})
+
 const setupApp = async (page: Page) => {
     await mockAppShellBackground(page)
     await setupAuth(page)
     await mockPropertyTree(page)
+    await page.route(/\/api\/meter-readings\/compare-periods(\?.*)?$/, (route) =>
+        fulfillJson(route, {
+            metric: "fp",
+            granularity: "day",
+            periodA: period(0.9),
+            periodB: period(0.8),
+            diff: { absolute: -0.1, percent: -11.1 },
+        }),
+    )
 }
 
 const fillPeriod = async (
@@ -70,7 +93,9 @@ test.describe("Histórico e comparações", () => {
         await expect(page.getByRole("button", { name: "Criar comparação" })).toBeEnabled()
     })
 
-    test("períodos válidos: criar a comparação tira o texto de espera", async ({ page }) => {
+    test("períodos válidos: criar a comparação mostra o gráfico com a legenda A/B", async ({
+        page,
+    }) => {
         await setupApp(page)
         await page.goto("/historico")
         await hideDevTools(page)
@@ -80,6 +105,11 @@ test.describe("Histórico e comparações", () => {
         await fillPeriod(page, "Período B", "2026-02-01", "2026-02-07")
         await page.getByRole("button", { name: "Criar comparação" }).click()
 
+        await expect(page.getByTestId("period-comparison-chart")).toBeVisible()
+        // Uma linha por período — o gráfico realmente desenha as duas séries.
+        await expect(page.locator(".recharts-line-curve")).toHaveCount(2)
+        await expect(page.getByText("A · 01/01/2026 – 07/01/2026")).toBeVisible()
+        await expect(page.getByText("B · 01/02/2026 – 07/02/2026")).toBeVisible()
         await expect(page.getByTestId("history-idle")).toHaveCount(0)
     })
 })

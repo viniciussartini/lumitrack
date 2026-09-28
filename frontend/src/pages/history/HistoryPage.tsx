@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react"
 import { Link } from "react-router"
 import { History } from "lucide-react"
+import { PeriodComparisonChartCard } from "@/components/history/PeriodComparisonChartCard"
 import { PeriodComparisonForm } from "@/components/history/PeriodComparisonForm"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { EmptyState } from "@/components/ui/EmptyState"
+import { useMeterReadingComparePeriods } from "@/hooks/queries/useMeterReadingComparePeriods"
 import { usePropertyTree } from "@/hooks/queries/usePropertyTree"
 import { buildCompareTargetGroups, type PeriodComparisonRun } from "@/lib/periodComparison"
 
@@ -13,11 +15,13 @@ import { buildCompareTargetGroups, type PeriodComparisonRun } from "@/lib/period
  *
  * `run` só existe depois do primeiro "Criar comparação"; antes disso a área
  * de resultados mostra o texto de espera, no mesmo padrão da análise das
- * grandezas.
+ * grandezas. Cada submissão troca o `run` por um objeto novo, o que o
+ * TanStack Query trata como uma consulta distinta.
  */
 export const HistoryPage = () => {
     const treeQuery = usePropertyTree()
     const [run, setRun] = useState<PeriodComparisonRun | undefined>(undefined)
+    const comparisonQuery = useMeterReadingComparePeriods(run)
 
     const groups = useMemo(
         () => (treeQuery.data ? buildCompareTargetGroups(treeQuery.data) : []),
@@ -66,14 +70,44 @@ export const HistoryPage = () => {
                         Escolha o alvo, a grandeza medida e os dois períodos que deseja comparar.
                     </span>
                 </div>
-                <PeriodComparisonForm groups={groups} onSubmit={setRun} />
+                <PeriodComparisonForm
+                    groups={groups}
+                    onSubmit={setRun}
+                    isSubmitting={comparisonQuery.isFetching}
+                />
             </Blueprint>
 
-            {run === undefined && (
-                <p data-testid="history-idle" className="text-muted p-10 text-center text-sm">
-                    Defina os parâmetros e clique em Criar comparação.
-                </p>
-            )}
+            <ComparisonResults run={run} query={comparisonQuery} />
         </div>
     )
+}
+
+interface ComparisonResultsProps {
+    run: PeriodComparisonRun | undefined
+    query: ReturnType<typeof useMeterReadingComparePeriods>
+}
+
+const ComparisonResults = ({ run, query }: ComparisonResultsProps) => {
+    if (run === undefined) {
+        return (
+            <p data-testid="history-idle" className="text-muted p-10 text-center text-sm">
+                Defina os parâmetros e clique em Criar comparação.
+            </p>
+        )
+    }
+    if (query.isPending) {
+        return (
+            <p role="status" className="text-muted p-10 text-center text-sm">
+                Carregando...
+            </p>
+        )
+    }
+    if (query.isError) {
+        return (
+            <p role="alert" className="text-status-danger p-10 text-center text-sm">
+                Não foi possível carregar a comparação.
+            </p>
+        )
+    }
+    return <PeriodComparisonChartCard run={run} data={query.data} />
 }

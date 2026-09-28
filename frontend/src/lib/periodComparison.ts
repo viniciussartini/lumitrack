@@ -1,5 +1,8 @@
 import type { TargetType } from "@/types/meter.types"
-import type { MeterReadingSeriesMetric } from "@/types/meterReadingSeries.types"
+import type {
+    MeterReadingComparePeriodsParams,
+    MeterReadingSeriesMetric,
+} from "@/types/meterReadingSeries.types"
 import type { PropertyTree } from "@/types/property.types"
 
 /** Teto de dias por período — mesmo limite que o backend aplica na comparação. */
@@ -54,6 +57,50 @@ const toUtcMidnight = (isoDate: string): number => {
  */
 export function countInclusiveDays(startIso: string, endIso: string): number {
     return Math.round((toUtcMidnight(endIso) - toUtcMidnight(startIso)) / DAY_MS) + 1
+}
+
+/**
+ * Soma dias a uma data `YYYY-MM-DD` no calendário (em UTC, para o fuso do
+ * navegador não interferir) e devolve o resultado no mesmo formato.
+ *
+ * @param isoDate - Data de partida (`YYYY-MM-DD`).
+ * @param days - Quantidade de dias a somar (pode ser negativa).
+ * @returns A data resultante (`YYYY-MM-DD`).
+ */
+export function addDaysToIsoDate(isoDate: string, days: number): string {
+    return new Date(toUtcMidnight(isoDate) + days * DAY_MS).toISOString().slice(0, 10)
+}
+
+// O Brasil não tem horário de verão desde 2019: São Paulo é UTC-3 fixo, então
+// "meia-noite de SP" é sempre o mesmo instante para uma data, sem depender do
+// fuso do navegador.
+const SAO_PAULO_UTC_OFFSET = "-03:00"
+
+const startOfSaoPauloDay = (isoDate: string): string =>
+    new Date(`${isoDate}T00:00:00${SAO_PAULO_UTC_OFFSET}`).toISOString()
+
+/**
+ * Traduz o run do formulário (dias inteiros) para os parâmetros da API
+ * (instantes): cada período vai da meia-noite de São Paulo do primeiro dia
+ * até a meia-noite do dia seguinte ao último — fim exclusivo, como o filtro
+ * do backend. Dois períodos com o mesmo número de dias resultam em instantes
+ * de mesma duração, que é o que o backend exige.
+ *
+ * @param run - A comparação submetida.
+ * @returns Os parâmetros de `GET /api/meter-readings/compare-periods`.
+ */
+export function buildComparePeriodsParams(
+    run: PeriodComparisonRun,
+): MeterReadingComparePeriodsParams {
+    return {
+        targetType: run.target.targetType,
+        targetId: run.target.targetId,
+        metric: run.metric,
+        fromA: startOfSaoPauloDay(run.aStart),
+        toA: startOfSaoPauloDay(addDaysToIsoDate(run.aEnd, 1)),
+        fromB: startOfSaoPauloDay(run.bStart),
+        toB: startOfSaoPauloDay(addDaysToIsoDate(run.bEnd, 1)),
+    }
 }
 
 const formatDays = (days: number): string => `${days} ${days === 1 ? "dia" : "dias"}`

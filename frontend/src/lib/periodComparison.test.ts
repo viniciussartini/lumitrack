@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest"
 import {
     COMPARE_PERIOD_MAX_DAYS,
+    buildComparePeriodsParams,
     buildCompareTargetGroups,
     countInclusiveDays,
     validateComparePeriods,
 } from "@/lib/periodComparison"
+import type { PeriodComparisonRun } from "@/lib/periodComparison"
 import type { PropertyTree } from "@/types/property.types"
 
 describe("countInclusiveDays", () => {
@@ -160,5 +162,59 @@ describe("buildCompareTargetGroups", () => {
 
     it("árvore vazia não gera grupo nenhum", () => {
         expect(buildCompareTargetGroups({ total: 0, items: [] })).toEqual([])
+    })
+})
+
+describe("buildComparePeriodsParams", () => {
+    const run: PeriodComparisonRun = {
+        target: {
+            key: "AREA:area-1",
+            targetType: "AREA",
+            targetId: "area-1",
+            label: "Casa · Sala",
+        },
+        metric: "fp",
+        aStart: "2026-01-01",
+        aEnd: "2026-01-07",
+        bStart: "2026-02-01",
+        bEnd: "2026-02-07",
+    }
+
+    it("leva alvo e grandeza do run", () => {
+        expect(buildComparePeriodsParams(run)).toMatchObject({
+            targetType: "AREA",
+            targetId: "area-1",
+            metric: "fp",
+        })
+    })
+
+    it("converte dias inteiros em instantes: meia-noite de São Paulo (UTC-3) do primeiro dia até a do dia seguinte ao último", () => {
+        expect(buildComparePeriodsParams(run)).toMatchObject({
+            fromA: "2026-01-01T03:00:00.000Z",
+            toA: "2026-01-08T03:00:00.000Z",
+            fromB: "2026-02-01T03:00:00.000Z",
+            toB: "2026-02-08T03:00:00.000Z",
+        })
+    })
+
+    it("último dia do mês e do ano: o fim exclusivo cai no dia 1 seguinte", () => {
+        const params = buildComparePeriodsParams({
+            ...run,
+            aStart: "2025-12-25",
+            aEnd: "2025-12-31",
+            bStart: "2026-01-25",
+            bEnd: "2026-01-31",
+        })
+
+        expect(params.toA).toBe("2026-01-01T03:00:00.000Z")
+        expect(params.toB).toBe("2026-02-01T03:00:00.000Z")
+    })
+
+    it("dois períodos de mesma quantidade de dias viram instantes de mesma duração", () => {
+        const params = buildComparePeriodsParams(run)
+
+        expect(new Date(params.toA).getTime() - new Date(params.fromA).getTime()).toBe(
+            new Date(params.toB).getTime() - new Date(params.fromB).getTime(),
+        )
     })
 })
