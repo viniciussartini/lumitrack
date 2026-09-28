@@ -43,6 +43,7 @@ const PAGE_TITLE_RULES: readonly PageTitleRule[] = [
         kicker: "Suas unidades",
         title: "Detalhe do dispositivo",
     },
+    { pattern: "/historico", kicker: "Consumo", title: "Histórico e comparações" },
     { pattern: "/relatorios", kicker: "Análises", title: "Relatórios" },
     { pattern: "/alertas", kicker: "Monitoramento", title: "Alertas" },
     { pattern: "/distribuidoras", kicker: "Catálogo", title: "Distribuidoras" },

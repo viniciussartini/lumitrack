@@ -310,11 +310,13 @@ Onde o usuário examina em detalhe consumo, custo e medições de cada item cada
 
 **Hoje:** `/propriedades` mostra a árvore de seleção com busca (`components/analysis/AnalysisTree.tsx`, seleção pela URL) à esquerda e o detalhe do item à direita. Os detalhes da **Propriedade** (`pages/property/PropertyDetailsPage.tsx`, `components/property/AreaComparison.tsx`), da **Área** (`pages/area/AreaDetailsPage.tsx`, `components/device/DeviceComparison.tsx`) e do **Dispositivo** (`pages/device/DeviceDetailsPage.tsx`) seguem o design: dados, Medidor e gráfico em tempo real; Propriedade e Área trazem a comparação em barras em kWh ou R$, e Área e Dispositivo os KPIs "Consumo hoje" e "Custo do mês" (`hooks/useTargetConsumptionKpis.ts`), sempre do medidor do próprio item. O consumo vem de `GET /api/consumption/summary` (`consumption.service.ts`), com `costBrl` opcional. Criar e excluir Propriedade, Área e Dispositivo só existem em Configurações → Cadastro; nas páginas de Análise só se edita. A aba **Grandezas Elétricas** (`components/electrical/ElectricalQuantitiesTabPanel.tsx`) e a área de análise configurável (`components/analysis/SeriesAnalysisSection.tsx`, `GET /api/meter-readings/series`) foram entregues na Fase 25.
 
-**FNC006 — Histórico e comparações** `[planejado — Fase 26]`
+**FNC006 — Histórico e comparações** `[parcial — itens 1–2 implementados; item 3 planejado — Fase 26]`
 
-1. O usuário seleciona o alvo (Propriedade, Área ou Dispositivo) e a grandeza medida.
-2. Define dois períodos — A (início e fim) e B (início e fim).
-3. O sistema plota o gráfico comparativo e uma seção com as diferenças entre os períodos, incluindo a variação de B sobre A.
+1. O usuário seleciona o alvo (Propriedade, Área ou Dispositivo) e a grandeza medida — uma das 9 grandezas elétricas de FNC005 (consumo, custo e demanda do protótipo ficam fora desta fase).
+2. Define dois períodos — A (início e fim) e B (início e fim) —, em dias inteiros, de **mesma duração** e de até 92 dias cada; o formulário explica o motivo e bloqueia o envio quando a regra é violada.
+3. O sistema plota o gráfico comparativo e uma seção com as diferenças entre os períodos, incluindo a variação de B sobre A. `[planejado — Fase 26]`
+
+**Hoje:** `/historico` (`pages/history/HistoryPage.tsx`, `components/history/PeriodComparisonForm.tsx`) entrega o item "Histórico" na navegação e o formulário "Nova comparação"; `GET /api/meter-readings/compare-periods` já devolve os dois períodos e a diferença, mas nenhuma tela o consome ainda.
 
 **FNC007 — Relatórios** `[planejado — Fase 27]`
 
