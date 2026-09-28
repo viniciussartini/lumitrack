@@ -4200,3 +4200,13 @@
 - **Arquivos principais:** `backend/src/modules/meter/{meter-reading-compare-periods,meter-reading.repository,meter-reading.service}.ts` e os testes de `compare-periods`/`repository`/`service`/`routes`; `frontend/src/lib/{periodComparison,periodComparisonDiff}.ts`, `frontend/src/components/history/PeriodComparisonForm.tsx`, `frontend/src/pages/history/HistoryPage.tsx` e os testes correspondentes.
 - **Decisões/ADRs:** nenhuma nova; nenhum item do `07` tocado.
 - **Notas:** o laudo completo está publicado como comentário no PR #463. Ainda fora do que o revisor pôde avaliar (segue dependendo de humano): desempenho das quatro consultas em paralelo com 92 dias e o `DB_POOL_MAX`, contraste visual nos dois temas e o fuso da sessão do Postgres de produção.
+
+## [2026-09-28] fix: e2e do Histórico saindo de página com chamadas não mockadas (Fase 26, épico #458)
+
+- **Branch:** epic/458-historico-e-comparacoes
+- **Tipo:** fix
+- **O quê:** o job `e2e` do PR #463 falhou em Chromium e Firefox no teste "o item Histórico da sidebar abre a página…": `locator.click` estourava 30 s com "element was detached from the DOM, retrying" no link da sidebar. Causa: o teste partia de `/dashboard`, cujas chamadas (propriedades, medidores, leituras, tarifa) o spec do Histórico não mocka; no CI elas vazam para o backend inexistente/real, o 401 devolve o usuário ao login e a sidebar é desmontada no meio do clique — o mesmo padrão descrito em `support/propertyTree.ts`. Agora o teste parte de `/sobre`, página sem chamadas de dados.
+- **Testes:** `history.spec.ts` verde nos 6 casos (Chromium e Firefox). **Limite:** a falha não foi reproduzida localmente antes da correção (o `vite dev` local não a exibiu); a causa vem do log do CI e do padrão já documentado no repositório, então a confirmação definitiva é o próximo run do CI.
+- **Arquivos principais:** `frontend/tests/e2e/history.spec.ts`.
+- **Decisões/ADRs:** nenhuma nova; nenhum item do `07` tocado.
+- **Notas:** o Firefox agora foi rodado localmente; o teste de navegação do `navigation.spec.ts` parte de `/propriedades` com todos os mocks e não foi afetado.

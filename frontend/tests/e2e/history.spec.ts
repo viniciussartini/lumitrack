@@ -58,7 +58,10 @@ test.describe("Histórico e comparações", () => {
         page,
     }) => {
         await setupApp(page)
-        await page.goto("/dashboard")
+        // Parte de uma página sem chamadas de dados: o Painel busca
+        // propriedades, medidores e leituras que este spec não mocka, e o 401
+        // do backend real devolveria o usuário ao login no meio do clique.
+        await page.goto("/sobre")
         await hideDevTools(page)
 
         await page.getByRole("link", { name: "Histórico", exact: true }).click()
