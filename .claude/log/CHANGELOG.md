@@ -4210,3 +4210,13 @@
 - **Arquivos principais:** `frontend/tests/e2e/history.spec.ts`.
 - **Decisões/ADRs:** nenhuma nova; nenhum item do `07` tocado.
 - **Notas:** o Firefox agora foi rodado localmente; o teste de navegação do `navigation.spec.ts` parte de `/propriedades` com todos os mocks e não foi afetado.
+
+## [2026-09-28] docs: roadmap fecha a Fase 26 (PR #463)
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** `planejar-roadmap` (ciclo de atualização — fechamento) marca a Fase 26 (Histórico e comparações) como concluída: tabela de fases, cabeçalho ("Fases 1–26", épico #458, PR #463; fase atual passa a ser a 27), nota de conclusão na seção da fase e nova seção "Replanejamento de 2026-09-28 (fechamento da Fase 26)" com as divergências do plano (seletor `<select>`, componente de diferenças próprio, baldes relativos ao início do período, linhas em vez de barras), o bloqueio do laudo (percentual com média de A negativa), a falha de e2e do CI e as pendências do usuário. PR mesclado em 2026-09-28T22:58:29Z; épico #458 e sub-issues #459–#462 fechados.
+- **Testes:** documentação, sem código.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova; nenhum item do `07` tocado.
+- **Notas:** a Fase 27 (Relatórios) segue em nível de objetivo, sem bloqueio conhecido; detalhar quando solicitado. A milestone `App v2` só fecha na Fase 30.
