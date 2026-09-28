@@ -31,3 +31,47 @@ export interface MeterReadingSeriesParams {
     hour?: number
     aggregationMinutes?: MeterReadingSeriesAggregationMinutes
 }
+
+/** Granularidade do balde na comparação — derivada pelo backend da duração dos períodos. */
+export type ComparePeriodsGranularity = "hour" | "day"
+
+/** Query params de `GET /api/meter-readings/compare-periods` (instantes ISO, fim exclusivo). */
+export interface MeterReadingComparePeriodsParams {
+    targetType: TargetType
+    targetId: string
+    metric: MeterReadingSeriesMetric
+    fromA: string
+    toA: string
+    fromB: string
+    toB: string
+}
+
+/** Mínimo/média/máximo da grandeza no período inteiro — `null` quando nunca reportada. */
+export interface MeterReadingPeriodSummary {
+    min: number | null
+    avg: number | null
+    max: number | null
+}
+
+/** Um dos dois períodos da resposta de `GET /api/meter-readings/compare-periods`. */
+export interface MeterReadingComparePeriod {
+    from: string
+    to: string
+    items: MeterReadingSeriesBucket[]
+    summary: MeterReadingPeriodSummary
+}
+
+/** Diferença de B sobre A — `null` quando algum período não tem dado da grandeza. */
+export interface MeterReadingPeriodDiff {
+    absolute: number | null
+    percent: number | null
+}
+
+/** Resposta de `GET /api/meter-readings/compare-periods`. */
+export interface MeterReadingComparePeriodsResponse {
+    metric: MeterReadingSeriesMetric
+    granularity: ComparePeriodsGranularity
+    periodA: MeterReadingComparePeriod
+    periodB: MeterReadingComparePeriod
+    diff: MeterReadingPeriodDiff
+}

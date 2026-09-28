@@ -2297,7 +2297,63 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
 
 ### Fase 26 — Histórico e comparações
 
-Seleção de alvo (Propriedade/Área/Dispositivo) e grandeza, dois períodos arbitrários (A e B com início/fim), gráfico comparativo e seção de diferenças (incluindo variação de B sobre A). Cobre RF39 e FNC006. **Acrescenta o item "Histórico" à navegação** (a Fase 23 não o cria — sem rota-esqueleto). **Depende de:** Fase 23.
+**Entrega (milestone):** `App v2 — navegação, histórico, relatórios e metas` (Fases 23–30).
+
+> **Detalhada em 2026-09-27** — ver "Replanejamento de 2026-09-27 (detalhamento da Fase 26)" no fim do documento. Nenhuma decisão do `07` bloqueia esta fase. **Acrescenta o item "Histórico" à navegação** (a Fase 23 não o cria — sem rota-esqueleto, `NAV_ITEMS` em `frontend/src/config/navigation.ts` já registra em comentário que ele "entra junto com a tela"). Cobre RF39 e FNC006.
+>
+> **Duas decisões de escopo tomadas na sessão de detalhamento** (evitam ambiguidade de alinhamento sem precedente no design): período A e B devem ter a **mesma duração** (validado em schema, refletido na UI); granularidade de bucket **automática por duração** — período ≤ 1 dia → hora, período > 1 dia → dia — em vez de escolhida pelo usuário.
+>
+> **Ordem interna 1 → 2 → 3 → 4:** o item 1 é o endpoint que os demais consomem; o item 2 (navegação + formulário) e o item 3 (gráfico) podem correr em paralelo depois do item 1; o item 4 (diferenças) depende dos dados que o item 1 já devolve, mas vive na mesma tela do item 3.
+
+### Histórico: endpoint de comparação de dois períodos
+
+- **Comportamento:** dado um alvo (Propriedade/Área/Dispositivo), uma grandeza (mesmo enum de 9 grandezas da Fase 25) e dois períodos A/B de mesma duração, devolve para cada período a série de buckets (mínimo/média/máximo, RN34 para grandeza ausente) mais o total/média agregado do período inteiro e a diferença (absoluta e percentual) de B sobre A.
+- **Cobre:** RF39 (cálculo), FNC006.
+- **Priority:** P0 · **Size:** L
+- **Critérios de aceite:**
+  - Rota nova (ex. `GET /api/meter-readings/compare-periods`), estendendo o módulo da Fase 25 (`meter-reading.routes.ts`, `meter-reading.schema.ts`) — o endpoint de série existente só aceita `window=dia|hora`, não intervalo livre, e não é reaproveitável como está.
+  - Schema valida `periodA{from,to}` e `periodB{from,to}` com a mesma duração (refine) e um teto de tamanho por período, inspirado em `MAX_COMPARISON_MONTHS` (`consumption.schema.ts`) — ex. máx. 92 dias.
+  - Granularidade derivada da duração, não escolhida pelo usuário: ≤1 dia → bucket por hora; >1 dia → bucket por dia — mesmo padrão de bucket mín/média/máx já construído na Fase 25.
+  - Grandeza ausente em algum bucket devolve `null` (RN34), nunca 0.
+  - Autorização: mesma cadeia de resolução de alvo/ownership (`resolveRootProperty`) já usada em `/api/meter-readings`.
+  - Testes: combinação hora/dia conforme duração, teto de intervalo, grandeza ausente, período sem nenhuma leitura.
+- **Depende de:** Fase 25 (schema/pipeline das grandezas por fase).
+- **Risco/observações:** médio — reaproveita a agregação mín/média/máx já construída na Fase 25, mas a granularidade automática por duração é regra nova, sem precedente direto no código atual.
+
+### Histórico: navegação + página (seleção de alvo, grandeza e períodos)
+
+- **Comportamento:** novo item "Histórico" em `NAV_ITEMS`, abrindo página com seleção de alvo (reaproveitando `AnalysisTree`/`useAnalysisTree`, mesmo padrão de Análise), grandeza (mesmo `SERIES_METRICS` da Fase 25) e dois seletores de período (início/fim de A e de B).
+- **Cobre:** FNC006 itens 1–2.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Rota nova adicionada a `APP_SHELL_ROUTES` (`AppRouter.tsx`); `NAV_ITEMS` ganha entrada "Histórico" no mesmo padrão visual dos demais itens.
+  - Formulário valida a mesma duração de A e B no cliente antes de habilitar "Gerar comparação", espelhando a validação do backend.
+  - Estado inicial "Defina os parâmetros e clique em Gerar comparação" — mesmo padrão de texto vazio já usado na área de análise configurável da Fase 25.
+- **Depende de:** Fase 23 (shell), item 1 (endpoint).
+- **Risco/observações:** baixo.
+
+### Histórico: gráfico comparativo (duas séries sobrepostas)
+
+- **Comportamento:** plota as séries A e B no mesmo gráfico de linha, cada uma com cor/legenda própria, eixo X por posição de bucket — não por data absoluta, já que A e B cobrem calendários diferentes por definição.
+- **Cobre:** RF39, FNC006 item 3.
+- **Priority:** P0 · **Size:** S/M
+- **Critérios de aceite:**
+  - Novo componente derivado de `SeriesLineChart`, com duas `<Line dataKey="valueA"/>` e `<Line dataKey="valueB"/>`, reaproveitando `format` por grandeza e `connectNulls={false}`.
+  - Legenda mostra as datas de cada período (ex. "Período A: 01/09–07/09", "Período B: 08/09–14/09").
+  - Bucket sem leitura aparece como lacuna na linha, nunca como 0 (RN34).
+- **Depende de:** item 1 (endpoint).
+- **Risco/observações:** baixo.
+
+### Histórico: seção de diferenças (veredito)
+
+- **Comportamento:** abaixo do gráfico, cards com total/média de cada período, diferença absoluta e percentual de B sobre A, com tom de cor por sinal da diferença.
+- **Cobre:** RF39, FNC006 item 3 (diferenças).
+- **Priority:** P0 · **Size:** S
+- **Critérios de aceite:**
+  - Reaproveita o padrão `VerdictCard` + `resolveDiffToneClass` (`comparisonTone.ts`), já usado em `AclComparisonPage`/`BrancaComparisonPage`, adaptado de "cenário A/B" para "período A/B".
+  - Tolerância de "diferença desprezível" **relativa** (ex. diferença < 1% é neutra) em vez de absoluta em centavos — a grandeza varia entre V/A/kW/Hz, a tolerância em R$ usada hoje só serve às comparações tarifárias.
+- **Depende de:** item 1 (endpoint), item 3 (mesma página).
+- **Risco/observações:** baixo — a tolerância relativa por grandeza é regra nova; validar o valor (1%) na implementação.
 
 ### Fase 27 — Relatórios
 
@@ -2566,3 +2622,14 @@ Candidatos conhecidos, ainda sem fase:
 - **Sem replanejamento da Fase 26 nesta sessão:** o pedido foi só fechar a Fase 25; a Fase 26 (Histórico e comparações) segue em nível de objetivo, sem bloqueio conhecido do `07` — pronta para ser detalhada quando solicitado.
 
 **Pendências que dependem de você (fora do roadmap):** `origin/staging` segue à frente de `origin/main` (o que veio desde a Fase 19, agora incluindo a Fase 25 inteira, ainda não foi promovido a produção); confirmar a convenção de sinal de `reactivePowerVar` contra o datasheet do CCK 7200D quando for prático (não bloqueia nada hoje).
+
+### Replanejamento de 2026-09-27 (detalhamento da Fase 26)
+
+**O que mudou:** a Fase 26 (Histórico e comparações) foi detalhada de objetivo para 4 itens completos, na mesma sessão em que a Fase 25 fechou. Nenhuma decisão do `07` bloqueava esta fase; a investigação de código (endpoint de série da Fase 25, navegação, padrão de comparação existente em `AclComparisonPage`/`BrancaComparisonPage`, `AnalysisTree`, gráfico `SeriesLineChart`, validação de intervalo de datas) precedeu o fatiamento, mesmo padrão já usado na Fase 25.
+
+- **Duas decisões de escopo levadas ao usuário antes de fatiar, não assumidas:** RF39/FNC006 descrevem "dois períodos arbitrários" sem detalhar o que acontece quando A e B têm durações diferentes, nem qual granularidade de bucket usar num período que pode cobrir semanas ou meses — nenhum precedente no design (`Home v2`) resolve isso. Perguntado e confirmado: (1) A e B devem ter a **mesma duração** (validado em schema, mais simples que alinhar por posição com eixo X ambíguo); (2) granularidade **automática por duração** (hora se ≤1 dia, dia caso contrário), em vez de escolha manual do usuário — evita a necessidade de uma trava de nº máximo de pontos que a escolha manual exigiria.
+- **Achado que definiu o item 1 como endpoint novo, não extensão do endpoint de série:** `GET /api/meter-readings/series` (Fase 25) só aceita `window=dia|hora` — uma data (`day`) mais, no máximo, uma hora —, sem `from`/`to` livres. Não é extensível para dois períodos multi-dia sem virar uma variante de shape completamente diferente; o endpoint irmão `GET /api/meter-readings` aceita `from`/`to` livres mas devolve série bruta minuto/hora, sem os buckets de mín/média/máx que RF39 precisa. Dado o pouco reaproveitamento de schema possível, o item 1 é uma rota nova que reaproveita só a camada de agregação (`MeterReadingRepository`) da Fase 25, não a rota em si.
+- **Padrão de "diferenças" emprestado das comparações tarifárias, com uma ressalva registrada:** `AclComparisonPage`/`BrancaComparisonPage` já resolvem "veredito com diferença colorida por tom" (`VerdictCard` + `comparisonTone.ts`), mas a tolerância de "diferença desprezível" delas é absoluta em centavos (R$) — RF39 compara grandezas físicas de unidades diferentes (V, A, kW, Hz, %), então o item 4 troca a tolerância absoluta por uma relativa (ex. 1%), decisão nova sem precedente direto, marcada como risco a validar na implementação.
+- **Sem mudança em `02-requisitos.md`:** RF39 e FNC006 já estavam corretamente marcados `[planejado — Fase 26]`; nenhuma redação precisou de correção nesta sessão.
+
+**Sem replanejamento das fases seguintes:** o pedido cobriu só a Fase 26; Fases 27–31 seguem em nível de objetivo, sem novo achado.

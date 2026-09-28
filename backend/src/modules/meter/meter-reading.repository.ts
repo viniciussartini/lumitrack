@@ -120,6 +120,41 @@ function seriesBucketExpr(
             * interval '1 minute'`
 }
 
+/**
+ * Início de um período de comparação forçado para `timestamp` sem fuso —
+ * mesmo tipo da coluna `minuteStart`, que guarda o instante em UTC sem
+ * marcação de fuso. Sem este cast explícito, um valor vindo como parâmetro
+ * arriscaria ser promovido a `timestamptz` e reinterpretado no fuso da
+ * sessão do banco antes da subtração em {@link periodBucketExpr},
+ * introduzindo um deslocamento silencioso; forçar `timestamp` aqui elimina
+ * essa ambiguidade de tipo.
+ *
+ * @param periodStart - Início do período, como recebido da API (instante UTC).
+ * @returns O fragmento SQL do início do período, já no mesmo tipo de `minuteStart`.
+ */
+function periodStartExpr(periodStart: Date): Prisma.Sql {
+    return Prisma.sql`${periodStart}::timestamp`
+}
+
+/**
+ * Expressão SQL do início do balde de uma linha, relativo ao início do
+ * PRÓPRIO período (não a uma fronteira de calendário — ver
+ * `meter-reading-compare-periods.ts` para o porquê). `extract(epoch from
+ * ...)` mede a distância em segundos até `periodStart`; `floor(.../
+ * bucketSeconds)` arredonda para baixo até o múltiplo do tamanho do balde,
+ * somado de volta ao início do período.
+ *
+ * @param periodStart - Início do período (origem dos baldes relativos).
+ * @param bucketSeconds - Tamanho do balde em segundos (3600 para hora, 86400 para dia).
+ * @returns O fragmento SQL do início do balde, usável em `SELECT`/`GROUP BY`.
+ */
+function periodBucketExpr(periodStart: Date, bucketSeconds: number): Prisma.Sql {
+    const start = periodStartExpr(periodStart)
+    return Prisma.sql`${start}
+        + (floor(extract(epoch from ("minuteStart" - ${start})) / ${bucketSeconds}) * ${bucketSeconds})
+            * interval '1 second'`
+}
+
 export type MeterReadingBucket = {
     bucketStart: Date
     avgPowerW: number
@@ -311,6 +346,104 @@ export class MeterReadingRepository {
             avg: r.avg === null ? null : Number(r.avg),
             max: r.max === null ? null : Number(r.max),
         }))
+    }
+
+    /**
+     * Série de uma grandeza num período arbitrário, com balde relativo ao
+     * início do PRÓPRIO período — ver
+     * {@link periodBucketExpr} para o porquê de não alinhar por calendário.
+     * Mesma receita de mínimo/média/máximo (`FILTER` de peso zero, `NULLIF`)
+     * de {@link findSeries}; um balde sem nenhuma linha não aparece no
+     * resultado, mesma responsabilidade de completar com `null` de quem
+     * chama (`fillMissingBuckets`).
+     *
+     * @param meterId - Id do medidor.
+     * @param metric - Grandeza escolhida.
+     * @param bucketSeconds - Tamanho do balde em segundos (3600 ou 86400, conforme a granularidade derivada da duração).
+     * @param from - Início do período, inclusive — também a origem dos baldes relativos.
+     * @param to - Fim real da janela, exclusivo.
+     * @returns Os baldes com dado, em qualquer ordem — cada um com mínimo/média/máximo (`null` se a grandeza nunca foi reportada no balde).
+     */
+    async findPeriodSeries(
+        meterId: string,
+        metric: MeterReadingSeriesMetric,
+        bucketSeconds: number,
+        from: Date,
+        to: Date,
+    ): Promise<SeriesBucketValues[]> {
+        const bucket = periodBucketExpr(from, bucketSeconds)
+        const value = metricValueExpr(metric)
+
+        const rows = await this.prisma.$queryRaw<
+            { bucket: Date; min: number | null; avg: number | null; max: number | null }[]
+        >(
+            Prisma.sql`
+                SELECT
+                    ${bucket} AS bucket,
+                    MIN(${value}) FILTER (WHERE "secondsCovered" > 0) AS min,
+                    SUM(${value} * "secondsCovered")
+                        / NULLIF(SUM(CASE WHEN ${value} IS NULL THEN NULL ELSE "secondsCovered" END), 0)
+                        AS avg,
+                    MAX(${value}) FILTER (WHERE "secondsCovered" > 0) AS max
+                FROM "meter_readings"
+                WHERE "meterId" = ${meterId}
+                ${rangeFilter(from, to)}
+                GROUP BY bucket
+            `,
+        )
+
+        return rows.map((r) => ({
+            bucketStart: r.bucket,
+            min: r.min === null ? null : Number(r.min),
+            avg: r.avg === null ? null : Number(r.avg),
+            max: r.max === null ? null : Number(r.max),
+        }))
+    }
+
+    /**
+     * Mínimo/média/máximo de uma grandeza no período inteiro, sem baldear —
+     * a base do total/média do período e da diferença de B sobre A na
+     * comparação de dois períodos. Mesma ponderação e exclusão de peso zero de
+     * {@link findSeries}, sem `GROUP BY`: a query sempre devolve uma única
+     * linha, mesmo sem nenhuma leitura no período (agregação sem `GROUP BY`
+     * nunca devolve zero linhas).
+     *
+     * @param meterId - Id do medidor.
+     * @param metric - Grandeza escolhida.
+     * @param from - Início real da janela, inclusive.
+     * @param to - Fim real da janela, exclusivo.
+     * @returns Mínimo/média/máximo do período (`null` se a grandeza nunca foi reportada).
+     */
+    async findPeriodSummary(
+        meterId: string,
+        metric: MeterReadingSeriesMetric,
+        from: Date,
+        to: Date,
+    ): Promise<{ min: number | null; avg: number | null; max: number | null }> {
+        const value = metricValueExpr(metric)
+
+        const rows = await this.prisma.$queryRaw<
+            { min: number | null; avg: number | null; max: number | null }[]
+        >(
+            Prisma.sql`
+                SELECT
+                    MIN(${value}) FILTER (WHERE "secondsCovered" > 0) AS min,
+                    SUM(${value} * "secondsCovered")
+                        / NULLIF(SUM(CASE WHEN ${value} IS NULL THEN NULL ELSE "secondsCovered" END), 0)
+                        AS avg,
+                    MAX(${value}) FILTER (WHERE "secondsCovered" > 0) AS max
+                FROM "meter_readings"
+                WHERE "meterId" = ${meterId}
+                ${rangeFilter(from, to)}
+            `,
+        )
+
+        const row = rows[0]!
+        return {
+            min: row.min === null ? null : Number(row.min),
+            avg: row.avg === null ? null : Number(row.avg),
+            max: row.max === null ? null : Number(row.max),
+        }
     }
 
     /**
