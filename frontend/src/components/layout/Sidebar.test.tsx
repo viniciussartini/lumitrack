@@ -48,7 +48,7 @@ describe("Sidebar — renderização", () => {
         })
     })
 
-    it("mostra Painel · Análise · Relatórios · Alertas · Distribuidoras · Sobre, nessa ordem", () => {
+    it("mostra Painel · Análise · Histórico · Relatórios · Alertas · Distribuidoras · Sobre, nessa ordem", () => {
         renderWithProviders(<Sidebar isOpen={false} onClose={vi.fn()} />)
 
         const labels = within(screen.getByRole("navigation"))
@@ -58,6 +58,7 @@ describe("Sidebar — renderização", () => {
         expect(labels).toEqual([
             "Painel",
             "Análise",
+            "Histórico",
             "Relatórios",
             "Alertas",
             "Distribuidoras",

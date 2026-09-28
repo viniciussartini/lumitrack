@@ -162,6 +162,10 @@ export const queryKeys = {
         // reaproveitar o cache de uma consulta anterior.
         series: (targetType: string, targetId: string, run: unknown) =>
             [...queryKeys.meterReadings.all, "series", targetType, targetId, run] as const,
+        // Mesma razão de `series`: cada comparação submetida é uma consulta
+        // distinta, chaveada pelo run inteiro (alvo, grandeza e os dois períodos).
+        comparePeriods: (run: unknown) =>
+            [...queryKeys.meterReadings.all, "comparePeriods", run] as const,
     },
     alerts: {
         all: ["alerts"] as const,

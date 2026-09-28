@@ -78,3 +78,47 @@ export const meterReadingSeriesQuerySchema = z.discriminatedUnion("window", [
 ])
 
 export type MeterReadingSeriesQuery = z.infer<typeof meterReadingSeriesQuerySchema>
+
+// Teto por período da comparação — mesma razão do
+// MAX_COMPARISON_MONTHS de `consumption.schema.ts`: sem ele, os dois pontos
+// de dado (from/to) na query string bastariam para pedir uma agregação
+// arbitrariamente grande.
+const MAX_COMPARE_PERIOD_DAYS = 92
+const MAX_COMPARE_PERIOD_MS = MAX_COMPARE_PERIOD_DAYS * 24 * 60 * 60 * 1000
+
+// GET /api/meter-readings/compare-periods — dois períodos arbitrários A/B da
+// MESMA duração: A e B com durações diferentes não têm uma forma
+// inambígua de alinhar os baldes no gráfico comparativo (nenhum eixo de data
+// comum), então a mesma duração é regra do schema, não só do formulário.
+export const meterReadingComparePeriodsQuerySchema = z
+    .object({
+        targetType: targetTypeSchema,
+        targetId: z.string().uuid({ message: "targetId inválido" }),
+        metric: meterReadingSeriesMetricSchema,
+        fromA: z.coerce.date({ error: "fromA deve ser uma data válida" }),
+        toA: z.coerce.date({ error: "toA deve ser uma data válida" }),
+        fromB: z.coerce.date({ error: "fromB deve ser uma data válida" }),
+        toB: z.coerce.date({ error: "toB deve ser uma data válida" }),
+    })
+    .refine((data) => data.toA > data.fromA, {
+        message: "Período A: to deve ser depois de from",
+        path: ["toA"],
+    })
+    .refine((data) => data.toB > data.fromB, {
+        message: "Período B: to deve ser depois de from",
+        path: ["toB"],
+    })
+    .refine((data) => data.toA.getTime() - data.fromA.getTime() <= MAX_COMPARE_PERIOD_MS, {
+        message: `Cada período não pode exceder ${MAX_COMPARE_PERIOD_DAYS} dias`,
+        path: ["toA"],
+    })
+    .refine(
+        (data) =>
+            data.toA.getTime() - data.fromA.getTime() === data.toB.getTime() - data.fromB.getTime(),
+        {
+            message: "Período A e período B devem ter a mesma duração",
+            path: ["toB"],
+        },
+    )
+
+export type MeterReadingComparePeriodsQuery = z.infer<typeof meterReadingComparePeriodsQuerySchema>

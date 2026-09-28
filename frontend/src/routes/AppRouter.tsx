@@ -65,6 +65,9 @@ const AreaDetailsPage = lazy(() =>
 const DeviceDetailsPage = lazy(() =>
     import("@/pages/device/DeviceDetailsPage").then((m) => ({ default: m.DeviceDetailsPage })),
 )
+const HistoryPage = lazy(() =>
+    import("@/pages/history/HistoryPage").then((m) => ({ default: m.HistoryPage })),
+)
 const AlertsPage = lazy(() =>
     import("@/pages/alert/AlertsPage").then((m) => ({ default: m.AlertsPage })),
 )
@@ -114,6 +117,9 @@ const APP_SHELL_ROUTES: AppRouteConfig[] = [
 
     // Alertas — inbox global.
     { path: "/alertas", element: <AlertsPage /> },
+
+    // Histórico — comparação de dois períodos de um mesmo alvo e grandeza.
+    { path: "/historico", element: <HistoryPage /> },
 
     // Relatórios — seletor cascata de alvo (propriedade → área → dispositivo)
     // + 4 granularidades (hora/dia/mês/ano).

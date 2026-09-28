@@ -55,7 +55,7 @@ test.describe("Navegação do app autenticado", () => {
         await context.clearCookies()
     })
 
-    test("a sidebar mostra Painel, Análise, Relatórios, Alertas, Distribuidoras e Sobre", async ({
+    test("a sidebar mostra Painel, Análise, Histórico, Relatórios, Alertas, Distribuidoras e Sobre", async ({
         page,
     }) => {
         await setupApp(page)
@@ -69,6 +69,7 @@ test.describe("Navegação do app autenticado", () => {
         await expect(links).toHaveText([
             "Painel",
             "Análise",
+            "Histórico",
             "Relatórios",
             "Alertas",
             "Distribuidoras",

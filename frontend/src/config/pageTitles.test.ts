@@ -24,6 +24,13 @@ describe("getPageTitle", () => {
         })
     })
 
+    it("usa 'Consumo / Histórico e comparações' em /historico", () => {
+        expect(getPageTitle("/historico")).toEqual({
+            kicker: "Consumo",
+            title: "Histórico e comparações",
+        })
+    })
+
     it("usa o kicker 'LumiTrack' em /sobre", () => {
         expect(getPageTitle("/sobre")).toEqual({ kicker: "LumiTrack", title: "Sobre o projeto" })
     })

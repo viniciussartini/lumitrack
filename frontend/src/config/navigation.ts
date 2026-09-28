@@ -2,6 +2,7 @@ import {
     LayoutDashboard,
     FileText,
     ChartLine,
+    History,
     Bell,
     Zap,
     Info,
@@ -20,13 +21,12 @@ export interface NavItem {
 /**
  * Itens da sidebar — fonte única de verdade.
  * A ordem aqui é a ordem de exibição, alinhada ao handoff (LumiTrack
- * Home v2.dc.html, `renderVals()`): Painel · Análise · Relatórios ·
- * Alertas · Distribuidoras. "Sobre o projeto" entra por último — item
- * institucional, fora do conjunto dos itens funcionais do protótipo.
+ * Home v2.dc.html, `renderVals()`): Painel · Análise · Histórico ·
+ * Relatórios · Alertas · Distribuidoras. "Sobre o projeto" entra por último
+ * — item institucional, fora do conjunto dos itens funcionais do protótipo.
  *
  * "Análise" aponta para `/propriedades` e cobre também as rotas filhas
- * (detalhe de propriedade, área e dispositivo). "Histórico" ainda não
- * consta: entra junto com a tela, não como rota vazia.
+ * (detalhe de propriedade, área e dispositivo).
  *
  * "Segurança" e "Configurações" não estão aqui de propósito — vivem só no
  * menu do usuário (`UserMenu.tsx`), não duplicados na navegação principal.
@@ -43,6 +43,11 @@ export const NAV_ITEMS: readonly NavItem[] = [
         to: "/propriedades",
         label: "Análise",
         icon: ChartLine,
+    },
+    {
+        to: "/historico",
+        label: "Histórico",
+        icon: History,
     },
     {
         to: "/relatorios",
