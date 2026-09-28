@@ -5,7 +5,7 @@ import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
-import type { Prisma } from "@/generated/prisma/client.js"
+import type { Prisma, PrismaClient } from "@/generated/prisma/client.js"
 
 const meterReadingRepository = new MeterReadingRepository(prismaTest)
 const userRepository = new UserRepository(prismaTest)
@@ -760,7 +760,6 @@ describe("MeterReadingRepository.findPeriodSeries", () => {
         const buckets = await meterReadingRepository.findPeriodSeries(
             meterId,
             "tensao",
-            new Date("2026-01-15T14:30:00.000Z"),
             3600,
             new Date("2026-01-15T14:30:00.000Z"),
             new Date("2026-01-15T15:30:00.000Z"),
@@ -782,7 +781,6 @@ describe("MeterReadingRepository.findPeriodSeries", () => {
         const buckets = await meterReadingRepository.findPeriodSeries(
             meterId,
             "tensao",
-            new Date("2026-01-15T00:00:00.000Z"),
             86400,
             new Date("2026-01-15T00:00:00.000Z"),
             new Date("2026-01-17T00:00:00.000Z"),
@@ -800,14 +798,35 @@ describe("MeterReadingRepository.findPeriodSeries", () => {
         expect(day2.avg).toBeCloseTo(240)
     })
 
-    it("grandeza nunca reportada pelo medidor: devolve null, não 0 (RN34)", async () => {
+    it("balde independe do fuso da sessão do banco (sessão em America/Sao_Paulo, não UTC)", async () => {
+        const meterId = await setupMeter()
+        await insertReading(meterId, new Date("2026-01-15T10:00:00.000Z"), { avgVoltage: 210 })
+
+        // O Postgres do CI roda em UTC: sem fixar o fuso da sessão, um cast
+        // que reinterpretasse o parâmetro no fuso da sessão (`::timestamptz`)
+        // passaria despercebido. `SET LOCAL` vale só dentro desta transação.
+        const buckets = await prismaTest.$transaction(async (tx) => {
+            await tx.$executeRaw`SET LOCAL TIME ZONE 'America/Sao_Paulo'`
+            return new MeterReadingRepository(tx as unknown as PrismaClient).findPeriodSeries(
+                meterId,
+                "tensao",
+                86400,
+                new Date("2026-01-15T00:00:00.000Z"),
+                new Date("2026-01-16T00:00:00.000Z"),
+            )
+        })
+
+        expect(buckets).toHaveLength(1)
+        expect(buckets[0]!.bucketStart).toEqual(new Date("2026-01-15T00:00:00.000Z"))
+    })
+
+    it("grandeza nunca reportada pelo medidor: devolve null, não 0", async () => {
         const meterId = await setupMeter()
         await insertReading(meterId, new Date("2026-01-15T14:45:00.000Z"))
 
         const buckets = await meterReadingRepository.findPeriodSeries(
             meterId,
             "thdv",
-            new Date("2026-01-15T14:30:00.000Z"),
             3600,
             new Date("2026-01-15T14:30:00.000Z"),
             new Date("2026-01-15T15:30:00.000Z"),
@@ -825,7 +844,6 @@ describe("MeterReadingRepository.findPeriodSeries", () => {
         const buckets = await meterReadingRepository.findPeriodSeries(
             meterId,
             "tensao",
-            new Date("2026-01-15T14:30:00.000Z"),
             3600,
             new Date("2026-01-15T14:30:00.000Z"),
             new Date("2026-01-15T15:30:00.000Z"),
@@ -853,7 +871,7 @@ describe("MeterReadingRepository.findPeriodSummary", () => {
         expect(summary.avg).toBeCloseTo(220) // pesos iguais (60s cada)
     })
 
-    it("grandeza nunca reportada: devolve null nos três campos (RN34)", async () => {
+    it("grandeza nunca reportada: devolve null nos três campos", async () => {
         const meterId = await setupMeter()
         await insertReading(meterId, new Date("2026-01-15T14:00:00.000Z"))
 

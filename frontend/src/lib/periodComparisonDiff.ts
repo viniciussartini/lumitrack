@@ -46,7 +46,11 @@ export function buildComparisonVariation(diff: MeterReadingPeriodDiff): Comparis
         }
     }
 
-    const text = `${percent >= 0 ? "+" : MINUS}${percentFormatter.format(Math.abs(percent))}%`
+    // O sinal sai do valor já arredondado: -0,04% arredondaria para "−0,0%",
+    // um zero com sinal que contradiz a nota de períodos equivalentes.
+    const magnitude = percentFormatter.format(Math.abs(percent))
+    const sign = magnitude === percentFormatter.format(0) ? "" : percent > 0 ? "+" : MINUS
+    const text = `${sign}${magnitude}%`
     if (Math.abs(percent) <= PERIOD_VARIATION_TOLERANCE_PERCENT) {
         return {
             text,

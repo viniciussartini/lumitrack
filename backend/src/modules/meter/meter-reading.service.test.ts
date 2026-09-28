@@ -218,6 +218,64 @@ describe("MeterReadingService.comparePeriods", () => {
         ).rejects.toThrow(ValidationError)
     })
 
+    it.each([
+        [
+            "só o período A invertido",
+            { fromA: "2026-01-16T00:00:00Z", toA: "2026-01-15T00:00:00Z" },
+            "Período A: to deve ser depois de from",
+        ],
+        [
+            "só o período B invertido",
+            { fromB: "2026-02-02T00:00:00Z", toB: "2026-02-01T00:00:00Z" },
+            "Período B: to deve ser depois de from",
+        ],
+    ])("recusa %s, com a mensagem do período certo", async (_name, override, message) => {
+        const { user, property } = await setupPropertyMeter()
+
+        await expect(
+            meterReadingService.comparePeriods(user.id, {
+                targetType: "PROPERTY",
+                targetId: property.id,
+                metric: "tensao",
+                fromA: "2026-01-15T00:00:00Z",
+                toA: "2026-01-16T00:00:00Z",
+                fromB: "2026-02-01T00:00:00Z",
+                toB: "2026-02-02T00:00:00Z",
+                ...override,
+            }),
+        ).rejects.toThrow(message)
+    })
+
+    it("teto de 92 dias: exatamente 92 dias passa; 92 dias e 1 ms é recusado", async () => {
+        const { user, property } = await setupPropertyMeter()
+        const base = {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            metric: "tensao",
+        }
+        const DAY_MS = 24 * 60 * 60 * 1000
+        const from = new Date("2026-01-01T03:00:00Z").getTime()
+
+        const atLimit = await meterReadingService.comparePeriods(user.id, {
+            ...base,
+            fromA: new Date(from).toISOString(),
+            toA: new Date(from + 92 * DAY_MS).toISOString(),
+            fromB: new Date(from + 100 * DAY_MS).toISOString(),
+            toB: new Date(from + 192 * DAY_MS).toISOString(),
+        })
+        expect(atLimit.periodA.items).toHaveLength(92)
+
+        await expect(
+            meterReadingService.comparePeriods(user.id, {
+                ...base,
+                fromA: new Date(from).toISOString(),
+                toA: new Date(from + 92 * DAY_MS + 1).toISOString(),
+                fromB: new Date(from + 100 * DAY_MS).toISOString(),
+                toB: new Date(from + 192 * DAY_MS + 1).toISOString(),
+            }),
+        ).rejects.toThrow("Cada período não pode exceder 92 dias")
+    })
+
     it("lança ValidationError quando um período excede o teto de dias", async () => {
         const { user, property } = await setupPropertyMeter()
 

@@ -408,7 +408,7 @@ describe("GET /api/meter-readings/compare-periods", () => {
             .get(
                 `/api/meter-readings/compare-periods?targetType=PROPERTY&targetId=${propertyId}` +
                     "&metric=tensao&fromA=2026-01-15T15:00:00Z&toA=2026-01-15T14:00:00Z" +
-                    "&fromB=2026-01-20T14:00:00Z&toB=2026-01-20T13:00:00Z",
+                    "&fromB=2026-01-20T14:00:00Z&toB=2026-01-20T15:00:00Z",
             )
             .set("Authorization", `Bearer ${token}`)
 

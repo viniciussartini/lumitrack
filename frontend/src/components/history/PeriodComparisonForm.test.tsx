@@ -113,6 +113,47 @@ describe("PeriodComparisonForm", () => {
         expect(onSubmit).not.toHaveBeenCalled()
     })
 
+    it("durações diferentes ligam os campos de data à mensagem (aria-invalid e aria-describedby)", async () => {
+        const user = userEvent.setup()
+        render(<PeriodComparisonForm groups={GROUPS} onSubmit={vi.fn()} />)
+
+        const endB = within(screen.getByRole("group", { name: "Período B" })).getByLabelText("Fim")
+        expect(endB).toHaveAttribute("aria-invalid", "false")
+
+        await fillPeriods(user, {
+            aStart: "2026-01-01",
+            aEnd: "2026-01-07",
+            bStart: "2026-02-01",
+            bEnd: "2026-02-10",
+        })
+
+        const message = screen.getByRole("alert")
+        expect(endB).toHaveAttribute("aria-invalid", "true")
+        expect(endB).toHaveAttribute("aria-describedby", message.id)
+    })
+
+    it("alvo escolhido que some da lista (árvore recarregada) volta para a primeira opção e ainda submete", async () => {
+        const user = userEvent.setup()
+        const onSubmit = vi.fn()
+        const { rerender } = render(<PeriodComparisonForm groups={GROUPS} onSubmit={onSubmit} />)
+        await user.selectOptions(screen.getByLabelText("Alvo"), "AREA:area-1")
+
+        rerender(<PeriodComparisonForm groups={[GROUPS[0]!]} onSubmit={onSubmit} />)
+        expect(screen.getByLabelText("Alvo")).toHaveValue("PROPERTY:prop-1")
+
+        await fillPeriods(user, {
+            aStart: "2026-01-01",
+            aEnd: "2026-01-07",
+            bStart: "2026-02-01",
+            bEnd: "2026-02-07",
+        })
+        await user.click(screen.getByRole("button", { name: /Criar comparação/i }))
+
+        expect(onSubmit).toHaveBeenCalledWith(
+            expect.objectContaining({ target: GROUPS[0]!.options[0] }),
+        )
+    })
+
     it("corrigir a duração reabilita o botão e some com o alerta", async () => {
         const user = userEvent.setup()
         render(<PeriodComparisonForm groups={GROUPS} onSubmit={vi.fn()} />)

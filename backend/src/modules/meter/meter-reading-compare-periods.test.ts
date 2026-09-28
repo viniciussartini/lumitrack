@@ -100,7 +100,7 @@ describe("computePeriodDiff", () => {
         expect(result.percent).toBeCloseTo(-20)
     })
 
-    it("média de A nula (grandeza nunca reportada no período): diferença toda null, nunca 0 (RN34)", () => {
+    it("média de A nula (grandeza nunca reportada no período): diferença toda null, nunca 0", () => {
         const result = computePeriodDiff(
             { min: null, avg: null, max: null },
             { min: 10, avg: 20, max: 30 },
@@ -108,6 +108,22 @@ describe("computePeriodDiff", () => {
 
         expect(result.absolute).toBeNull()
         expect(result.percent).toBeNull()
+    })
+
+    it("média de A negativa (potência reativa capacitiva): o percentual acompanha o sentido da diferença absoluta", () => {
+        const subiu = computePeriodDiff(
+            { min: -300, avg: -200, max: -100 },
+            { min: -200, avg: -100, max: 0 },
+        )
+        const desceu = computePeriodDiff(
+            { min: -300, avg: -100, max: 0 },
+            { min: -400, avg: -200, max: -100 },
+        )
+
+        expect(subiu.absolute).toBeCloseTo(100)
+        expect(subiu.percent).toBeCloseTo(50)
+        expect(desceu.absolute).toBeCloseTo(-100)
+        expect(desceu.percent).toBeCloseTo(-100)
     })
 
     it("média de A é zero: percentual null (não Infinity/NaN), absoluta ainda calculada", () => {

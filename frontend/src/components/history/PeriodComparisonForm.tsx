@@ -21,6 +21,7 @@ interface PeriodComparisonFormProps {
 }
 
 const EMPTY_DATES: ComparePeriodsDates = { aStart: "", aEnd: "", bStart: "", bEnd: "" }
+const VALIDATION_MESSAGE_ID = "period-comparison-validation"
 
 /**
  * Formulário "Nova comparação" (LumiTrack Home v2.dc.html, bloco Histórico e
@@ -40,6 +41,10 @@ export const PeriodComparisonForm = ({
 }: PeriodComparisonFormProps) => {
     const options = groups.flatMap((group) => group.options)
     const [targetKey, setTargetKey] = useState(options[0]!.key)
+    // A árvore pode ser recarregada (ex.: alvo excluído em outra aba) com o
+    // alvo escolhido já inexistente: cai para a primeira opção válida em vez
+    // de deixar o select sem valor e o envio sem efeito.
+    const selectedTarget = options.find((option) => option.key === targetKey) ?? options[0]!
     const [metric, setMetric] = useState<MeterReadingSeriesMetric>(SERIES_METRICS[0]!.value)
     const [dates, setDates] = useState<ComparePeriodsDates>(EMPTY_DATES)
 
@@ -49,16 +54,15 @@ export const PeriodComparisonForm = ({
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
-        const target = options.find((option) => option.key === targetKey)
-        if (!target || validationMessage) return
-        onSubmit({ target, metric, ...dates })
+        if (validationMessage) return
+        onSubmit({ target: selectedTarget, metric, ...dates })
     }
 
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-5 p-5">
             <TargetAndMetricFields
                 groups={groups}
-                targetKey={targetKey}
+                targetKey={selectedTarget.key}
                 onTargetChange={setTargetKey}
                 metric={metric}
                 onMetricChange={setMetric}
@@ -69,6 +73,7 @@ export const PeriodComparisonForm = ({
                     title="Período A"
                     color="var(--color-chart-blue)"
                     idPrefix="period-a"
+                    invalid={validationMessage !== null}
                     start={dates.aStart}
                     end={dates.aEnd}
                     onStartChange={setDate("aStart")}
@@ -78,6 +83,7 @@ export const PeriodComparisonForm = ({
                     title="Período B"
                     color="var(--color-chart-amber)"
                     idPrefix="period-b"
+                    invalid={validationMessage !== null}
                     start={dates.bStart}
                     end={dates.bEnd}
                     onStartChange={setDate("bStart")}
@@ -98,7 +104,7 @@ interface FormFooterProps {
 const FormFooter = ({ validationMessage, isSubmitting }: FormFooterProps) => (
     <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-t pt-4">
         {validationMessage ? (
-            <span role="alert" className="text-status-danger text-12-5">
+            <span id={VALIDATION_MESSAGE_ID} role="alert" className="text-status-danger text-12-5">
                 {validationMessage}
             </span>
         ) : (
@@ -169,6 +175,8 @@ interface PeriodFieldsetProps {
     /** Cor do marcador — a mesma da série no gráfico, para o usuário associar. */
     color: string
     idPrefix: string
+    /** Datas em conflito com a regra dos períodos — liga os campos à mensagem do rodapé. */
+    invalid: boolean
     start: string
     end: string
     onStartChange: (value: string) => void
@@ -179,6 +187,7 @@ const PeriodFieldset = ({
     title,
     color,
     idPrefix,
+    invalid,
     start,
     end,
     onStartChange,
@@ -204,6 +213,8 @@ const PeriodFieldset = ({
                 value={start}
                 onChange={(event) => onStartChange(event.target.value)}
                 required
+                aria-invalid={invalid}
+                aria-describedby={invalid ? VALIDATION_MESSAGE_ID : undefined}
             />
             <Input
                 id={`${idPrefix}-end`}
@@ -212,6 +223,8 @@ const PeriodFieldset = ({
                 value={end}
                 onChange={(event) => onEndChange(event.target.value)}
                 required
+                aria-invalid={invalid}
+                aria-describedby={invalid ? VALIDATION_MESSAGE_ID : undefined}
             />
         </div>
     </div>

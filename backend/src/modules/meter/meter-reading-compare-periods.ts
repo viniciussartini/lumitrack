@@ -33,7 +33,7 @@ export interface ComparePeriodsWindow {
 /**
  * Baldes de um período são relativos ao PRÓPRIO início do período (`from`),
  * não a fronteiras de calendário (meia-noite, início da hora) — ao contrário
- * de `computeSeriesWindow` (Fase 25), que sempre analisa um único dia
+ * de `computeSeriesWindow`, que sempre analisa um único dia
  * calendário. Aqui A e B têm a mesma duração mas datas de calendário
  * normalmente diferentes; alinhar por calendário faria os dois períodos
  * terem contagens de balde diferentes sempre que um deles não começasse
@@ -84,7 +84,9 @@ export interface PeriodDiff {
 
 /**
  * Diferença de B sobre A: absoluta é `médiaB - médiaA`; percentual é
- * relativa à média de A. `null` nos dois quando qualquer um dos períodos não
+ * relativa ao módulo da média de A, para o sinal do percentual acompanhar o da
+ * diferença absoluta mesmo em grandezas com sinal, como a potência reativa
+ * capacitiva. `null` nos dois quando qualquer um dos períodos não
  * tem dado da grandeza (ausência não vira zero nem diferença inventada);
  * percentual também `null` quando a média de A é exatamente zero, para não
  * devolver `Infinity`/divisão por zero.
@@ -95,6 +97,6 @@ export function computePeriodDiff(summaryA: PeriodSummary, summaryB: PeriodSumma
     }
 
     const absolute = summaryB.avg - summaryA.avg
-    const percent = summaryA.avg === 0 ? null : (absolute / summaryA.avg) * 100
+    const percent = summaryA.avg === 0 ? null : (absolute / Math.abs(summaryA.avg)) * 100
     return { absolute, percent }
 }

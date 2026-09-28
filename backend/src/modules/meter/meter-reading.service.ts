@@ -234,7 +234,6 @@ export class MeterReadingService {
             this.meterReadingRepository.findPeriodSeries(
                 meterId,
                 metric,
-                period.from,
                 bucketSeconds,
                 period.from,
                 period.to,

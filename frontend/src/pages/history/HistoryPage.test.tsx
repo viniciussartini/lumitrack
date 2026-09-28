@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router"
 import { render, screen, within } from "@testing-library/react"
 import { HistoryPage } from "@/pages/history/HistoryPage"
+import { AxiosError } from "axios"
 import { propertyService } from "@/services/property.service"
 import { meterReadingService } from "@/services/meterReading.service"
 import type { PropertyTree } from "@/types/property.types"
@@ -155,7 +156,22 @@ describe("HistoryPage", () => {
             expect(screen.queryByTestId("period-comparison-differences")).not.toBeInTheDocument()
         })
 
-        it("falha na comparação (ex.: alvo sem medidor): mostra erro, sem gráfico", async () => {
+        it("404 (alvo sem medidor vinculado): mensagem específica, não a genérica", async () => {
+            const user = userEvent.setup()
+            vi.mocked(propertyService.getTree).mockResolvedValue(TREE)
+            vi.mocked(meterReadingService.comparePeriods).mockRejectedValue(
+                Object.assign(new AxiosError("Not Found"), { response: { status: 404 } }),
+            )
+            renderPage()
+
+            await submitValidComparison(user)
+
+            expect(await screen.findByRole("alert")).toHaveTextContent(
+                "Este alvo não tem medidor vinculado.",
+            )
+        })
+
+        it("falha na comparação (erro inesperado): mostra erro, sem gráfico", async () => {
             const user = userEvent.setup()
             vi.mocked(propertyService.getTree).mockResolvedValue(TREE)
             vi.mocked(meterReadingService.comparePeriods).mockRejectedValue(new Error("falhou"))

@@ -56,6 +56,12 @@ describe("buildComparisonVariation", () => {
         })
     })
 
+    it("variação que arredonda para zero fica sem sinal, nunca '−0,0%'", () => {
+        expect(buildComparisonVariation({ absolute: -0.09, percent: -0.04 }).text).toBe("0,0%")
+        expect(buildComparisonVariation({ absolute: 0.09, percent: 0.04 }).text).toBe("0,0%")
+        expect(buildComparisonVariation({ absolute: 0, percent: 0 }).text).toBe("0,0%")
+    })
+
     it("um dos períodos sem dado da grandeza: travessão neutro, sem inventar variação", () => {
         expect(buildComparisonVariation({ absolute: null, percent: null })).toEqual({
             text: "-",

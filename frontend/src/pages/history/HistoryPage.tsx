@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import axios from "axios"
 import { Link } from "react-router"
 import { History } from "lucide-react"
 import { PeriodComparisonChartCard } from "@/components/history/PeriodComparisonChartCard"
@@ -106,7 +107,9 @@ const ComparisonResults = ({ run, query }: ComparisonResultsProps) => {
     if (query.isError) {
         return (
             <p role="alert" className="text-status-danger p-10 text-center text-sm">
-                Não foi possível carregar a comparação.
+                {axios.isAxiosError(query.error) && query.error.response?.status === 404
+                    ? "Este alvo não tem medidor vinculado."
+                    : "Não foi possível carregar a comparação."}
             </p>
         )
     }

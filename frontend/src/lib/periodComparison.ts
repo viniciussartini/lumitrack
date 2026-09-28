@@ -73,7 +73,10 @@ export function addDaysToIsoDate(isoDate: string, days: number): string {
 
 // O Brasil não tem horário de verão desde 2019: São Paulo é UTC-3 fixo, então
 // "meia-noite de SP" é sempre o mesmo instante para uma data, sem depender do
-// fuso do navegador.
+// fuso do navegador. Deliberado e válido para datas de 2019 em diante — o
+// backend usa o fuso nomeado America/Sao_Paulo, então um período anterior a
+// 2019, ou a volta do horário de verão, deslocaria os limites em 1h; nesse
+// caso, calcular o offset por data em vez de fixá-lo.
 const SAO_PAULO_UTC_OFFSET = "-03:00"
 
 const startOfSaoPauloDay = (isoDate: string): string =>

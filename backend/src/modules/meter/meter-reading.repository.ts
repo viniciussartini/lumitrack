@@ -359,21 +359,19 @@ export class MeterReadingRepository {
      *
      * @param meterId - Id do medidor.
      * @param metric - Grandeza escolhida.
-     * @param periodStart - Início do período — origem dos baldes relativos.
      * @param bucketSeconds - Tamanho do balde em segundos (3600 ou 86400, conforme a granularidade derivada da duração).
-     * @param from - Início real da janela, inclusive.
+     * @param from - Início do período, inclusive — também a origem dos baldes relativos.
      * @param to - Fim real da janela, exclusivo.
      * @returns Os baldes com dado, em qualquer ordem — cada um com mínimo/média/máximo (`null` se a grandeza nunca foi reportada no balde).
      */
     async findPeriodSeries(
         meterId: string,
         metric: MeterReadingSeriesMetric,
-        periodStart: Date,
         bucketSeconds: number,
         from: Date,
         to: Date,
     ): Promise<SeriesBucketValues[]> {
-        const bucket = periodBucketExpr(periodStart, bucketSeconds)
+        const bucket = periodBucketExpr(from, bucketSeconds)
         const value = metricValueExpr(metric)
 
         const rows = await this.prisma.$queryRaw<
