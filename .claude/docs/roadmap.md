@@ -2756,3 +2756,20 @@ Candidatos conhecidos, ainda sem fase:
 - **Endereço fora do arquivo:** o template mostra o endereço da propriedade; o relatório omite (minimização — o arquivo pode ser enviado a terceiros no agendamento). Divergência deliberada do design.
 - **Mês por seletor, não `<input type="month">`:** o Firefox de desktop não tem seletor de mês. O relatório mensal é pedido por `AAAA-MM` e o intervalo é derivado no servidor.
 - **Sem alertas do período nem observações no PDF:** dependem dos tipos que ficaram para o item seguinte.
+
+### Replanejamento de 2026-09-29 (implementação do item 3)
+
+**O que mudou:** o item 3 (agendamento: modelo, CRUD e sub-página Configurações → Relatórios) foi implementado na branch `epic/464-relatorios`, sem corte de escopo. O design e os requisitos deixavam pontos em aberto que a implementação fechou; **o item 4 (execução e envio) herda todos eles**.
+
+- **Alvo único por configuração:** o design oferece "Todas as propriedades" no escopo; o modelo aceita um alvo (propriedade, área ou dispositivo), como o formulário de emissão. "Todas" exigiria um escopo por usuário — feature à parte, sem demanda declarada.
+- **Dia do envio depende da frequência:** nenhum na diária; **dia da semana 1–7 (segunda a domingo)** na semanal; dia do mês 1–31 nas demais, com o mês mais curto caindo no último dia. O design usa um número livre de 1 a 28.
+- **Trimestral, semestral e anual são de calendário, ancorados em janeiro** (trimestral: jan/abr/jul/out; semestral: jan/jul; anual: janeiro). O design só desenha a trimestral e ancora do mesmo jeito; semestral e anual seguem a mesma lógica. **Pergunta em aberto para o usuário:** se o anual deveria ter mês configurável.
+- **O relatório mensal só combina com frequência mensal** (validado no schema e travado no formulário); os demais usam o tipo consumo.
+- **Envio às 06:00 de São Paulo, fixo** (o histórico do design mostra 06:00). É a função pura `computeNextRun` (`report-schedule/nextRun.ts`) que decide, e o item 4 e o item 5 (próximos envios) devem usá-la, não reimplementar.
+- **Tetos contra abuso:** 10 destinatários por configuração e 20 configurações por usuário — cada envio sai para endereços de terceiros.
+- **Contas de demonstração só leem** (`blockDemoWrite`): a escrita guarda e-mail digitado pelo usuário, possivelmente de terceiros.
+- **Destinatários em texto simples**, como `User.email` — não há cifra de e-mail em nenhuma tabela do projeto; registrado no ROPA (operação 8).
+- **Sem chave estrangeira para o alvo** (coluna polimórfica, como em `Report`): alvo excluído depois deixa a configuração órfã. **O item 4 precisa tratar alvo que sumiu** — pausar a configuração e registrar, sem derrubar o processo.
+- **Atenção ao item 4 — período do relatório agendado:** o relatório mensal cobre o mês anterior; o de consumo deve cobrir o período decorrido desde o último envio (dia, semana, mês, trimestre, semestre, ano). O teto de 92 dias do relatório manual **não cabe** em semestral (~184 dias) e anual (~365): o schema de execução precisa de um teto próprio (sugestão: 366 dias) e o limite de baldes diários da emissão manual (100) acompanhar.
+- **Export do titular:** as configurações (com destinatários) entram no payload e no PDF do export.
+

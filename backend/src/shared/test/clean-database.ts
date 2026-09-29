@@ -34,6 +34,7 @@ export async function cleanDatabase(): Promise<void> {
         // removidos automaticamente pelo delete de User.
         prismaTest.auditLog.deleteMany(),
         prismaTest.report.deleteMany(),
+        prismaTest.reportSchedule.deleteMany(),
         prismaTest.tariffFlagHistory.deleteMany(),
         prismaTest.alertTriggerEvent.deleteMany(),
         prismaTest.alert.deleteMany(),

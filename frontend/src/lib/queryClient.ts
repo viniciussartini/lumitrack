@@ -180,6 +180,11 @@ export const queryKeys = {
         list: (page: number, pageSize: number) =>
             [...queryKeys.reports.all, "list", page, pageSize] as const,
     },
+    reportSchedules: {
+        all: ["reportSchedules"] as const,
+        list: (page: number, pageSize: number) =>
+            [...queryKeys.reportSchedules.all, "list", page, pageSize] as const,
+    },
     alertEvents: {
         all: ["alertEvents"] as const,
         list: (alertId: string, page: number, pageSize: number) =>

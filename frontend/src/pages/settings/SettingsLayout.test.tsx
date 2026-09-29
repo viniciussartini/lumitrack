@@ -9,6 +9,7 @@ const renderAt = (pathname: string) =>
             <Routes>
                 <Route path="/configuracoes" element={<SettingsLayout />}>
                     <Route path="cadastro" element={<p>conteúdo do cadastro</p>} />
+                    <Route path="relatorios" element={<p>conteúdo dos relatórios</p>} />
                 </Route>
             </Routes>
         </MemoryRouter>,
@@ -38,5 +39,14 @@ describe("SettingsLayout", () => {
         renderAt("/configuracoes/cadastro")
 
         expect(screen.getByText("conteúdo do cadastro")).toBeInTheDocument()
+    })
+
+    it("lista Relatórios e o marca como aberto em /configuracoes/relatorios", () => {
+        renderAt("/configuracoes/relatorios")
+
+        const link = screen.getByRole("link", { name: "Relatórios" })
+        expect(link).toHaveAttribute("href", "/configuracoes/relatorios")
+        expect(link).toHaveAttribute("aria-current", "page")
+        expect(screen.getByRole("link", { name: "Cadastro" })).not.toHaveAttribute("aria-current")
     })
 })

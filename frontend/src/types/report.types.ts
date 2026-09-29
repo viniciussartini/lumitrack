@@ -34,3 +34,35 @@ export interface ReportFile {
     fileName: string
     blob: Blob
 }
+
+export type ReportFrequency = "DAILY" | "WEEKLY" | "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL"
+
+/** Configuração de envio automático de relatório. */
+export interface ReportSchedule {
+    id: string
+    targetType: TargetType
+    targetId: string
+    type: ReportType
+    format: ReportFormat
+    frequency: ReportFrequency
+    /** Nulo na frequência diária; 1–7 (segunda a domingo) na semanal; 1–31 nas demais. */
+    sendDay: number | null
+    recipients: string[]
+    active: boolean
+    /** Nulo quando a configuração está pausada. */
+    nextRunAt: string | null
+    createdAt: string
+    updatedAt: string
+}
+
+/** Corpo de `POST`/`PUT /api/report-schedules` — o PUT substitui a configuração inteira. */
+export interface ReportScheduleInput {
+    targetType: TargetType
+    targetId: string
+    type: ReportType
+    format: ReportFormat
+    frequency: ReportFrequency
+    sendDay: number | null
+    recipients: string[]
+    active: boolean
+}

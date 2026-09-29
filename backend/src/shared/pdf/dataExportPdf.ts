@@ -246,6 +246,33 @@ function drawReportsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload)
     }
 }
 
+const FREQUENCY_LABELS = {
+    DAILY: "diária",
+    WEEKLY: "semanal",
+    MONTHLY: "mensal",
+    QUARTERLY: "trimestral",
+    SEMIANNUAL: "semestral",
+    ANNUAL: "anual",
+} as const
+
+function drawReportSchedulesSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
+    sectionTitle(doc, "Envio automático de relatórios")
+
+    if (payload.reportSchedules.length === 0) {
+        emptyNote(doc, "Nenhuma configuração de envio automático cadastrada.")
+        return
+    }
+
+    for (const schedule of payload.reportSchedules) {
+        doc.text(
+            `• ${REPORT_TYPE_LABELS[schedule.type]} (${schedule.format}) — ` +
+                `frequência ${FREQUENCY_LABELS[schedule.frequency]} — ` +
+                (schedule.active ? "ativa" : "pausada") +
+                ` — destinatários: ${schedule.recipients.join(", ")}`,
+        )
+    }
+}
+
 function drawAuditLogSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
     sectionTitle(doc, "Histórico de acesso e segurança (audit log)")
 
@@ -304,6 +331,7 @@ export async function generateDataExportPdf(payload: DataExportPayload): Promise
     drawDemandAlertsSection(doc, payload)
     drawAclContractsSection(doc, payload)
     drawReportsSection(doc, payload)
+    drawReportSchedulesSection(doc, payload)
     drawAuditLogSection(doc, payload)
     drawFooterOnAllPages(doc)
 

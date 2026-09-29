@@ -13,6 +13,7 @@ export async function cleanHttpDatabase(): Promise<void> {
         // automaticamente pelo delete de User.
         prismaHttpTest.auditLog.deleteMany(),
         prismaHttpTest.report.deleteMany(),
+        prismaHttpTest.reportSchedule.deleteMany(),
         prismaHttpTest.tariffFlagHistory.deleteMany(),
         prismaHttpTest.alertTriggerEvent.deleteMany(),
         prismaHttpTest.alert.deleteMany(),

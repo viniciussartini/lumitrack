@@ -7,6 +7,7 @@ import { DemandAlertRepository } from "@/modules/demand-alert/demand-alert.repos
 import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { MeterRepository } from "@/modules/meter/meter.repository.js"
+import { ReportScheduleRepository } from "@/modules/report-schedule/report-schedule.repository.js"
 import { ReportRepository } from "@/modules/report/report.repository.js"
 import { PldQuoteRepository } from "@/modules/pld-quote/pld-quote.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
@@ -230,6 +231,30 @@ const cases: Case[] = [
                 })),
             })
             const repository = new ReportRepository(prismaTest)
+            return (page, pageSize) =>
+                repository.findAllByUserPaginated(user.id, { page, pageSize })
+        },
+    },
+    {
+        name: "report schedules",
+        direction: "asc",
+        rows: ROWS,
+        setup: async () => {
+            const user = await createUser()
+            await prismaTest.reportSchedule.createMany({
+                data: repeat(ROWS, () => ({
+                    userId: user.id,
+                    targetType: "PROPERTY" as const,
+                    targetId: "00000000-0000-4000-8000-000000000001",
+                    type: "CONSUMPTION" as const,
+                    format: "PDF" as const,
+                    frequency: "MONTHLY" as const,
+                    sendDay: 1,
+                    recipients: ["a@example.com"],
+                    createdAt: SAME_INSTANT,
+                })),
+            })
+            const repository = new ReportScheduleRepository(prismaTest)
             return (page, pageSize) =>
                 repository.findAllByUserPaginated(user.id, { page, pageSize })
         },
