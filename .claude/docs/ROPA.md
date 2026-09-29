@@ -140,6 +140,20 @@ Uma linha por operação identificável no schema (`backend/prisma/schema.prisma
 | Transferência internacional | **Produção:** nenhuma. **Staging:** ver item 1 — risco aceito permanentemente pela ADR-0014. |
 | Medidas de segurança | Step-up (senha + código do fator vigente) exigido tanto para desabilitar quanto para reinscrever o MFA (issue #153); purga do lote de backup codes anterior a cada nova inscrição (issue #153); segredo nunca retornado pela API após o setup inicial. |
 
+### 8. Relatórios emitidos
+
+| Campo | Conteúdo |
+|---|---|
+| Tabelas | `reports` |
+| Finalidade | Entregar ao usuário um arquivo (PDF ou CSV) com o consumo de um alvo seu, num período, e mantê-lo disponível para novo download. |
+| Titulares | Usuários. |
+| Categorias de dados | Metadados (alvo, tipo, formato, período, origem manual ou agendada, nome do arquivo, tamanho, data de emissão) e o conteúdo do arquivo em si, guardado como bytes no banco (ADR-0023): nome da propriedade/área/dispositivo, distribuidora, enquadramento tarifário, consumo diário e por ambiente/dispositivo e, no mensal, custo e variação. **O endereço da propriedade não entra no arquivo** (minimização). O conteúdo é derivado de `meter_readings` (item 3), com a mesma sensibilidade de rotina de uso, agregada por dia. |
+| Base legal (Art. 7º) | Execução de contrato (V). |
+| Retenção | `DATA_RETENTION_REPORT_DAYS` (default 365 dias, `RetentionService`) — o mesmo prazo de `meter_readings`, porque o relatório é derivado das leituras e não deve sobreviver à fonte. O usuário pode excluir um relatório a qualquer momento (remove também o arquivo). Exclusão da conta: `onDelete: Cascade`. |
+| Operadores | **Produção:** nenhum. **Staging:** Render + Neon (ver item 1). O envio por e-mail a destinatários indicados pelo usuário (relatório agendado, ADR-0024) ainda não existe; quando entrar, esta linha e a de transferência passam a listar o SMTP e os destinatários de terceiros. |
+| Transferência internacional | **Produção:** nenhuma. **Staging:** ver item 1 — risco aceito permanentemente pela ADR-0014. |
+| Medidas de segurança | Emissão, download e exclusão restritos ao dono (relatório alheio é indistinguível de inexistente); emissão auditada (`REPORT_GENERATE`) sem o conteúdo; nome do arquivo gerado no servidor; CSV com neutralização de injeção de fórmula. O export do titular (Art. 18) lista os metadados dos relatórios, sem os arquivos. |
+
 ### Tabelas sem dado pessoal (fora do escopo deste ROPA)
 
 Verificadas e conscientemente excluídas — não guardam dado pessoal nem

@@ -16,7 +16,7 @@ vi.mock("@/services/property.service", () => ({
 }))
 
 vi.mock("@/services/report.service", () => ({
-    reportService: { create: vi.fn(), download: vi.fn() },
+    reportService: { create: vi.fn(), download: vi.fn(), list: vi.fn(), remove: vi.fn() },
 }))
 
 vi.mock("@/lib/download/downloadFile", () => ({ downloadFile: vi.fn() }))
@@ -74,6 +74,7 @@ const renderPage = () => {
 
 beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(reportService.list).mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 10 })
 })
 
 describe("ReportsPage", () => {
@@ -195,6 +196,28 @@ describe("ReportsPage", () => {
             }),
         )
         expect(screen.queryByTestId("report-generated")).not.toBeInTheDocument()
+    })
+
+    it("mostra o histórico e atualiza a lista depois de gerar", async () => {
+        const user = userEvent.setup()
+        vi.mocked(propertyService.getTree).mockResolvedValue(TREE)
+        vi.mocked(reportService.create).mockResolvedValue(REPORT)
+        renderPage()
+
+        expect(await screen.findByTestId("report-history-empty")).toBeInTheDocument()
+        vi.mocked(reportService.list).mockResolvedValue({
+            items: [REPORT],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+        })
+        await user.click(screen.getByRole("button", { name: /Gerar relatório/i }))
+
+        expect(
+            await within(screen.getByTestId("report-history")).findByText(
+                "Mensal · Casa Principal · julho de 2026",
+            ),
+        ).toBeInTheDocument()
     })
 
     it("avisa quando o download falha", async () => {

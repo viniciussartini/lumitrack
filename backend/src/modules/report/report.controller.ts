@@ -45,6 +45,40 @@ export class ReportController {
     }
 
     /**
+     * `GET /api/reports?page=&pageSize=` — histórico paginado do usuário.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
+    async list(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id: userId } = (req as AuthenticatedRequest).user
+            const result = await this.reportService.list(userId, req.query)
+            res.status(200).json({ status: "success", data: result })
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    /**
+     * `DELETE /api/reports/:id` — exclui um relatório do usuário.
+     *
+     * @param req - Requisição HTTP Express.
+     * @param res - Resposta HTTP Express.
+     * @param next - Encaminha erros ao middleware central de tratamento.
+     */
+    async remove(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { id: userId } = (req as AuthenticatedRequest).user
+            await this.reportService.remove(userId, req.params)
+            res.status(204).send()
+        } catch (error) {
+            next(error)
+        }
+    }
+
+    /**
      * `GET /api/reports/:id/download` — devolve o arquivo em anexo.
      *
      * @param req - Requisição HTTP Express.

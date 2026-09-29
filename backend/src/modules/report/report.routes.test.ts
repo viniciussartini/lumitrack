@@ -433,3 +433,136 @@ describe("GET /api/reports/:id/download", () => {
         expect(response.status).toBe(422)
     })
 })
+
+describe("GET /api/reports", () => {
+    it("retorna 401 sem token", async () => {
+        const response = await request(app).get("/api/reports")
+        expect(response.status).toBe(401)
+    })
+
+    it("lista só os relatórios do usuário, mais recentes primeiro, sem o conteúdo", async () => {
+        const { token, propertyId } = await setupProperty(validUser)
+        const { token: tokenB, propertyId: propertyB } = await setupProperty(anotherUser)
+        const first = await request(app)
+            .post("/api/reports")
+            .set("Authorization", `Bearer ${token}`)
+            .send(monthly(propertyId, "CSV"))
+        const second = await request(app)
+            .post("/api/reports")
+            .set("Authorization", `Bearer ${token}`)
+            .send(monthly(propertyId, "PDF"))
+        await request(app)
+            .post("/api/reports")
+            .set("Authorization", `Bearer ${tokenB}`)
+            .send(monthly(propertyB, "CSV"))
+
+        const response = await request(app)
+            .get("/api/reports")
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(200)
+        expect(response.body.data.total).toBe(2)
+        expect(response.body.data.items.map((r: { id: string }) => r.id)).toEqual([
+            second.body.data.id,
+            first.body.data.id,
+        ])
+        expect(response.body.data.items[0].content).toBeUndefined()
+        expect(response.body.data.items[0].fileName).toBe("lumitrack-relatorio-monthly-2026-07.pdf")
+    })
+
+    it("pagina o histórico", async () => {
+        const { token, propertyId } = await setupProperty()
+        for (let i = 0; i < 3; i++) {
+            await request(app)
+                .post("/api/reports")
+                .set("Authorization", `Bearer ${token}`)
+                .send(monthly(propertyId, "CSV"))
+        }
+
+        const response = await request(app)
+            .get("/api/reports?page=2&pageSize=2")
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.body.data).toMatchObject({ total: 3, page: 2, pageSize: 2 })
+        expect(response.body.data.items).toHaveLength(1)
+    })
+
+    it("retorna 200 com lista vazia quando não há relatórios", async () => {
+        const { token } = await setupProperty()
+
+        const response = await request(app)
+            .get("/api/reports")
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.body.data).toMatchObject({ items: [], total: 0 })
+    })
+
+    it("retorna 422 para paginação inválida", async () => {
+        const { token } = await setupProperty()
+
+        const response = await request(app)
+            .get("/api/reports?pageSize=1000")
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(422)
+    })
+})
+
+describe("DELETE /api/reports/:id", () => {
+    it("retorna 401 sem token", async () => {
+        const response = await request(app).delete(
+            "/api/reports/00000000-0000-4000-8000-000000000000",
+        )
+        expect(response.status).toBe(401)
+    })
+
+    it("exclui o relatório e o arquivo, e o download passa a dar 404", async () => {
+        const { token, propertyId } = await setupProperty()
+        const created = await request(app)
+            .post("/api/reports")
+            .set("Authorization", `Bearer ${token}`)
+            .send(monthly(propertyId, "CSV"))
+        const id = created.body.data.id as string
+
+        const response = await request(app)
+            .delete(`/api/reports/${id}`)
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(204)
+        expect(await prismaHttpTest.report.count({ where: { id } })).toBe(0)
+        const download = await request(app)
+            .get(`/api/reports/${id}/download`)
+            .set("Authorization", `Bearer ${token}`)
+        expect(download.status).toBe(404)
+    })
+
+    it("retorna 404 e não exclui relatório de outro usuário", async () => {
+        const { token, propertyId } = await setupProperty(validUser)
+        const created = await request(app)
+            .post("/api/reports")
+            .set("Authorization", `Bearer ${token}`)
+            .send(monthly(propertyId, "CSV"))
+        const { token: tokenB } = await registerAndLogin(anotherUser)
+
+        const response = await request(app)
+            .delete(`/api/reports/${created.body.data.id}`)
+            .set("Authorization", `Bearer ${tokenB}`)
+
+        expect(response.status).toBe(404)
+        expect(await prismaHttpTest.report.count()).toBe(1)
+    })
+
+    it("retorna 404 para id inexistente e 422 para id malformado", async () => {
+        const { token } = await setupProperty()
+
+        const missing = await request(app)
+            .delete("/api/reports/00000000-0000-4000-8000-000000000000")
+            .set("Authorization", `Bearer ${token}`)
+        const malformed = await request(app)
+            .delete("/api/reports/nao-e-uuid")
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(missing.status).toBe(404)
+        expect(malformed.status).toBe(422)
+    })
+})

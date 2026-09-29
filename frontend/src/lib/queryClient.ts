@@ -50,7 +50,7 @@ export const queryClient = new QueryClient({
  * Chaves de query — centralizadas para evitar typos e facilitar invalidação.
  *
  * Listagens paginadas (properties, areas, devices, meters, distributors,
- * alerts, alertEvents, consumption) incluem page/pageSize na key — páginas
+ * alerts, alertEvents, reports, consumption) incluem page/pageSize na key — páginas
  * diferentes são resultados diferentes que valem cache próprio.
  * `notifications` não é paginado (efêmero, cap de 100 no backend).
  */
@@ -174,6 +174,11 @@ export const queryKeys = {
         firing: () => [...queryKeys.alerts.all, "firing"] as const,
         stats: () => [...queryKeys.alerts.all, "stats"] as const,
         detail: (id: string) => [...queryKeys.alerts.all, "detail", id] as const,
+    },
+    reports: {
+        all: ["reports"] as const,
+        list: (page: number, pageSize: number) =>
+            [...queryKeys.reports.all, "list", page, pageSize] as const,
     },
     alertEvents: {
         all: ["alertEvents"] as const,

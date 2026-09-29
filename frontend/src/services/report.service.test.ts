@@ -4,7 +4,7 @@ import { reportService } from "@/services/report.service"
 import type { CreateReportInput, Report } from "@/types/report.types"
 
 vi.mock("@/services/api", () => ({
-    api: { get: vi.fn(), post: vi.fn() },
+    api: { get: vi.fn(), post: vi.fn(), delete: vi.fn() },
 }))
 
 const REPORT: Report = {
@@ -40,6 +40,24 @@ describe("reportService", () => {
 
         expect(api.post).toHaveBeenCalledWith("/reports", input)
         expect(result).toEqual(REPORT)
+    })
+
+    it("list: GET /reports com a página e devolve o envelope paginado", async () => {
+        const paginated = { items: [REPORT], total: 1, page: 2, pageSize: 10 }
+        vi.mocked(api.get).mockResolvedValue({ data: { status: "success", data: paginated } })
+
+        const result = await reportService.list({ page: 2, pageSize: 10 })
+
+        expect(api.get).toHaveBeenCalledWith("/reports", { params: { page: 2, pageSize: 10 } })
+        expect(result).toEqual(paginated)
+    })
+
+    it("remove: DELETE /reports/:id", async () => {
+        vi.mocked(api.delete).mockResolvedValue({})
+
+        await reportService.remove("rep-1")
+
+        expect(api.delete).toHaveBeenCalledWith("/reports/rep-1")
     })
 
     it("download: GET como blob e devolve o nome do relatório com o conteúdo", async () => {

@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test"
 
-import { fulfillJson } from "./support/api"
+import { fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
 import { mockPropertyTree } from "./support/propertyTree"
@@ -30,9 +30,20 @@ const setupApp = async (page: Page, onCreate?: (body: unknown) => void) => {
     await mockAppShellBackground(page)
     await setupAuth(page)
     await mockPropertyTree(page)
-    await page.route(/\/api\/reports$/, (route) => {
-        onCreate?.(route.request().postDataJSON())
-        return fulfillJson(route, REPORT, 201)
+
+    // O histórico é a lista servida em memória: emitir acrescenta, excluir remove.
+    let history: (typeof REPORT)[] = []
+    await page.route(/\/api\/reports(\?.*)?$/, (route) => {
+        if (route.request().method() === "POST") {
+            onCreate?.(route.request().postDataJSON())
+            history = [REPORT, ...history]
+            return fulfillJson(route, REPORT, 201)
+        }
+        return fulfillPaginated(route, history)
+    })
+    await page.route(/\/api\/reports\/rep-1$/, (route) => {
+        history = []
+        return route.fulfill({ status: 204 })
     })
     await page.route(/\/api\/reports\/rep-1\/download$/, (route) =>
         route.fulfill({
@@ -87,7 +98,7 @@ test.describe("Relatórios (/relatorios)", () => {
         })
 
         const downloadPromise = page.waitForEvent("download")
-        await page.getByRole("button", { name: "Baixar" }).click()
+        await page.getByTestId("report-generated").getByRole("button", { name: "Baixar" }).click()
         const download = await downloadPromise
         expect(download.suggestedFilename()).toBe(REPORT.fileName)
     })
@@ -111,5 +122,27 @@ test.describe("Relatórios (/relatorios)", () => {
         await page.getByLabel("Fim").fill("2026-07-09")
         await expect(page.getByRole("alert")).toHaveCount(0)
         await expect(submit).toBeEnabled()
+    })
+
+    test("o histórico lista o relatório gerado, baixa e exclui com confirmação", async ({
+        page,
+    }) => {
+        await setupApp(page)
+        await page.goto("/relatorios")
+        await hideDevTools(page)
+
+        const history = page.getByTestId("report-history")
+        await expect(history.getByText("Nenhum relatório gerado até agora.")).toBeVisible()
+
+        await page.getByRole("button", { name: /Gerar relatório/i }).click()
+        await expect(history.getByText(/^Mensal · Casa Principal · /)).toBeVisible()
+
+        const downloadPromise = page.waitForEvent("download")
+        await history.getByRole("button", { name: /^Baixar/ }).click()
+        expect((await downloadPromise).suggestedFilename()).toBe(REPORT.fileName)
+
+        await history.getByRole("button", { name: /^Excluir/ }).click()
+        await page.getByRole("dialog").getByRole("button", { name: "Excluir" }).click()
+        await expect(history.getByText("Nenhum relatório gerado até agora.")).toBeVisible()
     })
 })

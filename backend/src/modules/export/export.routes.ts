@@ -10,11 +10,12 @@ import { DemandAlertRepository } from "@/modules/demand-alert/demand-alert.repos
 import { AclContractRepository } from "@/modules/acl-contract/acl-contract.repository.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
+import { ReportRepository } from "@/modules/report/report.repository.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
 
 // Módulo dedicado (não inline em user.routes.ts) — o ExportService orquestra
-// 9 repositórios já existentes, volume bem maior que o resto de
+// 10 repositórios já existentes, volume bem maior que o resto de
 // user.routes.ts (que só depende de UserRepository). Registrado sob o mesmo
 // prefixo /api/users em app.ts.
 export function exportRoutes(
@@ -34,6 +35,7 @@ export function exportRoutes(
         new AreaRepository(prismaClient),
         new DeviceRepository(prismaClient),
         new AuditRepository(prismaClient),
+        new ReportRepository(prismaClient),
     )
     const exportController = new ExportController(exportService, auditService)
 

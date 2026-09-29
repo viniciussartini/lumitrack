@@ -6,6 +6,7 @@ import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
 import { AlertTriggerEventRepository } from "@/modules/alert/alert-trigger-event.repository.js"
 import { TariffFlagHistoryRepository } from "@/modules/tariff-flag/tariff-flag-history.repository.js"
+import { ReportRepository } from "@/modules/report/report.repository.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { UserService } from "@/modules/user/user.service.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
@@ -19,6 +20,7 @@ const auditRepository = new AuditRepository(prismaTest)
 const meterReadingRepository = new MeterReadingRepository(prismaTest)
 const alertTriggerEventRepository = new AlertTriggerEventRepository(prismaTest)
 const tariffFlagHistoryRepository = new TariffFlagHistoryRepository(prismaTest)
+const reportRepository = new ReportRepository(prismaTest)
 const userRepository = new UserRepository(prismaTest)
 const userService = new UserService(userRepository)
 
@@ -30,6 +32,7 @@ const retentionService = new RetentionService(
     meterReadingRepository,
     alertTriggerEventRepository,
     tariffFlagHistoryRepository,
+    reportRepository,
     {
         authToken: 30,
         passwordReset: 30,
@@ -39,6 +42,7 @@ const retentionService = new RetentionService(
         alertTriggerEvent: 90,
         mfaBackupCode: 30,
         tariffFlagHistory: 730,
+        report: 90,
     },
 )
 
@@ -410,6 +414,35 @@ describe("RetentionService.purgeExpiredData", () => {
         expect(remaining).toHaveLength(1)
     })
 
+    it("expurga relatórios emitidos há mais tempo que a retenção, e só eles", async () => {
+        const user = await userService.createUser(validUser)
+        const base = {
+            userId: user.id,
+            targetType: "PROPERTY" as const,
+            targetId: "00000000-0000-4000-8000-000000000001",
+            type: "MONTHLY" as const,
+            format: "CSV" as const,
+            origin: "MANUAL" as const,
+            periodStart: daysAgo(130),
+            periodEnd: daysAgo(100),
+            fileName: "relatorio.csv",
+            content: Buffer.from("a;b"),
+        }
+        const old = await reportRepository.create(base)
+        const recent = await reportRepository.create(base)
+        await prismaTest.report.update({ where: { id: old.id }, data: { createdAt: daysAgo(100) } })
+        await prismaTest.report.update({
+            where: { id: recent.id },
+            data: { createdAt: daysAgo(10) },
+        })
+
+        const summary = await retentionService.purgeExpiredData()
+
+        expect(summary.reportsDeleted).toBe(1)
+        const remaining = await prismaTest.report.findMany()
+        expect(remaining.map((r) => r.id)).toEqual([recent.id])
+    })
+
     it("não expurga nada quando não há dados elegíveis", async () => {
         const summary = await retentionService.purgeExpiredData()
 
@@ -422,6 +455,7 @@ describe("RetentionService.purgeExpiredData", () => {
             alertTriggerEventsDeleted: 0,
             mfaBackupCodesDeleted: 0,
             tariffFlagHistoryDeleted: 0,
+            reportsDeleted: 0,
         })
     })
 })

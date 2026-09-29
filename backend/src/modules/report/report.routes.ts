@@ -12,7 +12,7 @@ import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
 
-// Rota top-level: /api/reports — emissão sob demanda e download. O alvo
+// Rota top-level: /api/reports — emissão sob demanda, histórico, download e exclusão. O alvo
 // (targetType/targetId) vem no corpo do pedido, igual às demais rotas de
 // medição; o `id` só existe no download.
 export function reportRoutes(
@@ -34,7 +34,9 @@ export function reportRoutes(
     )
     const controller = new ReportController(reportService, auditService)
 
+    router.get("/", authenticate, (req, res, next) => controller.list(req, res, next))
     router.post("/", authenticate, (req, res, next) => controller.generate(req, res, next))
+    router.delete("/:id", authenticate, (req, res, next) => controller.remove(req, res, next))
     router.get("/:id/download", authenticate, (req, res, next) =>
         controller.download(req, res, next),
     )

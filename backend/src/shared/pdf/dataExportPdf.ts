@@ -221,6 +221,31 @@ function drawAclContractsSection(doc: PDFKit.PDFDocument, payload: DataExportPay
     }
 }
 
+const REPORT_TYPE_LABELS = {
+    MONTHLY: "Mensal",
+    CONSUMPTION: "Consumo",
+    ALERTS: "Alertas",
+    POWER_QUALITY: "Qualidade de energia",
+    DEMAND: "Demanda",
+} as const
+
+function drawReportsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
+    sectionTitle(doc, "Relatórios emitidos")
+
+    if (payload.reports.length === 0) {
+        emptyNote(doc, "Nenhum relatório emitido.")
+        return
+    }
+
+    for (const report of payload.reports) {
+        doc.text(
+            `• ${REPORT_TYPE_LABELS[report.type]} (${report.format}) — ` +
+                `${report.periodStart.toLocaleDateString("pt-BR")} a ${report.periodEnd.toLocaleDateString("pt-BR")} — ` +
+                `emitido em ${report.createdAt.toLocaleString("pt-BR")}`,
+        )
+    }
+}
+
 function drawAuditLogSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
     sectionTitle(doc, "Histórico de acesso e segurança (audit log)")
 
@@ -278,6 +303,7 @@ export async function generateDataExportPdf(payload: DataExportPayload): Promise
     drawAlertsSection(doc, payload)
     drawDemandAlertsSection(doc, payload)
     drawAclContractsSection(doc, payload)
+    drawReportsSection(doc, payload)
     drawAuditLogSection(doc, payload)
     drawFooterOnAllPages(doc)
 

@@ -3,20 +3,19 @@ import { Link } from "react-router"
 import { FileText } from "lucide-react"
 import { toast } from "sonner"
 import { ReportEmissionForm } from "@/components/report/ReportEmissionForm"
+import { ReportHistory } from "@/components/report/ReportHistory"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { Button } from "@/components/ui/Button"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { useGenerateReport, useDownloadReport } from "@/hooks/queries/useReportMutations"
 import { usePropertyTree } from "@/hooks/queries/usePropertyTree"
-import { downloadFile } from "@/lib/download/downloadFile"
 import { buildCompareTargetGroups } from "@/lib/periodComparison"
 import { extractErrorMessage } from "@/services/api"
-import type { Report } from "@/types/report.types"
 
 /**
  * Relatórios (LumiTrack Home v2.dc.html, view `reports`) — emissão sob
- * demanda de um relatório em PDF ou CSV. Depois de gerar, o arquivo é
- * oferecido para download.
+ * demanda de um relatório em PDF ou CSV, com o histórico dos já gerados. Depois
+ * de gerar, o arquivo é oferecido para download.
  */
 export const ReportsPage = () => {
     const treeQuery = usePropertyTree()
@@ -27,15 +26,6 @@ export const ReportsPage = () => {
         () => (treeQuery.data ? buildCompareTargetGroups(treeQuery.data) : []),
         [treeQuery.data],
     )
-
-    const handleDownload = (report: Pick<Report, "id" | "fileName">) =>
-        download.mutate(report, {
-            onSuccess: ({ fileName, blob }) => downloadFile(fileName, blob.type, blob),
-            onError: (error) =>
-                toast.error("Não foi possível baixar o relatório", {
-                    description: extractErrorMessage(error),
-                }),
-        })
 
     if (treeQuery.isPending) {
         return (
@@ -108,12 +98,14 @@ export const ReportsPage = () => {
                         type="button"
                         variant="secondary"
                         isLoading={download.isPending}
-                        onClick={() => handleDownload(generate.data)}
+                        onClick={() => download.mutate(generate.data)}
                     >
                         Baixar
                     </Button>
                 </Blueprint>
             )}
+
+            <ReportHistory groups={groups} />
         </div>
     )
 }

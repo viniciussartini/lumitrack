@@ -27,6 +27,7 @@ import { generateReportPdf } from "@/modules/report/generators/reportPdf.js"
 import { buildReportFileName } from "@/modules/report/generators/format.js"
 import { resolveRootProperty } from "@/shared/targetResolution.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { paginationQuerySchema, type Paginated } from "@/shared/pagination.js"
 import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -143,6 +144,31 @@ export class ReportService {
             ),
             content,
         })
+    }
+
+    /**
+     * Histórico de relatórios do usuário, paginado.
+     *
+     * @param userId - Id do usuário autenticado.
+     * @param query - Query string bruta (`page`, `pageSize`), validada aqui.
+     * @returns Página de metadados, mais recentes primeiro.
+     */
+    async list(userId: string, query: unknown): Promise<Paginated<ReportResponse>> {
+        const pagination = parseOrThrow(paginationQuerySchema, query)
+        return this.reportRepository.findAllByUserPaginated(userId, pagination)
+    }
+
+    /**
+     * Exclui um relatório do usuário, junto com o arquivo.
+     *
+     * @param userId - Id do usuário autenticado.
+     * @param params - Parâmetros de rota brutos (`id`), validados aqui.
+     * @throws {NotFoundError} Relatório inexistente ou de outro usuário — os dois casos são indistinguíveis de propósito.
+     */
+    async remove(userId: string, params: unknown): Promise<void> {
+        const { id } = parseOrThrow(reportIdParamsSchema, params)
+        const deleted = await this.reportRepository.deleteByIdAndUser(id, userId)
+        if (!deleted) throw new NotFoundError("Relatório não encontrado")
     }
 
     /**

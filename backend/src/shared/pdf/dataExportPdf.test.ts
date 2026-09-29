@@ -29,6 +29,7 @@ function buildFakePayload(overrides: Partial<DataExportPayload> = {}): DataExpor
         alerts: [],
         demandAlerts: [],
         aclContracts: [],
+        reports: [],
         auditLogs: [],
         ...overrides,
     }
@@ -105,6 +106,31 @@ describe("generateDataExportPdf", () => {
                         createdAt: new Date(),
                     },
                 ] as unknown as DataExportPayload["auditLogs"],
+            }),
+        )
+
+        expect(buffer.subarray(0, 4).toString("latin1")).toBe("%PDF")
+    })
+
+    it("gera um PDF válido com a seção de relatórios emitidos preenchida", async () => {
+        const buffer = await generateDataExportPdf(
+            buildFakePayload({
+                reports: [
+                    {
+                        id: "rep-1",
+                        userId: "user-1",
+                        targetType: "PROPERTY",
+                        targetId: "prop-1",
+                        type: "MONTHLY",
+                        format: "PDF",
+                        origin: "MANUAL",
+                        periodStart: new Date("2026-07-01T03:00:00Z"),
+                        periodEnd: new Date("2026-08-01T03:00:00Z"),
+                        fileName: "lumitrack-relatorio-monthly-2026-07.pdf",
+                        sizeBytes: 1200,
+                        createdAt: new Date("2026-08-01T09:00:00Z"),
+                    },
+                ],
             }),
         )
 

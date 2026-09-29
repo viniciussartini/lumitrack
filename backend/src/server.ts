@@ -19,6 +19,7 @@ import { UserEventHub } from "@/shared/sse/user-event-hub.js"
 import { NotificationStore } from "@/shared/notifications/notification-store.js"
 import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
+import { ReportRepository } from "@/modules/report/report.repository.js"
 import { RetentionService } from "@/shared/retention/retention.service.js"
 import { RetentionPurgeScheduler } from "@/shared/retention/RetentionPurgeScheduler.js"
 import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
@@ -122,6 +123,7 @@ const retentionService = new RetentionService(
     new MeterReadingRepository(prisma),
     new AlertTriggerEventRepository(prisma),
     new TariffFlagHistoryRepository(prisma),
+    new ReportRepository(prisma),
     {
         authToken: env.DATA_RETENTION_AUTH_TOKEN_DAYS,
         passwordReset: env.DATA_RETENTION_PASSWORD_RESET_DAYS,
@@ -131,6 +133,7 @@ const retentionService = new RetentionService(
         alertTriggerEvent: env.DATA_RETENTION_ALERT_TRIGGER_EVENT_DAYS,
         mfaBackupCode: env.DATA_RETENTION_MFA_BACKUP_CODE_DAYS,
         tariffFlagHistory: env.DATA_RETENTION_TARIFF_FLAG_HISTORY_DAYS,
+        report: env.DATA_RETENTION_REPORT_DAYS,
     },
 )
 const retentionScheduler = new RetentionPurgeScheduler(retentionService)

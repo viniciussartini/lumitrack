@@ -18,6 +18,7 @@ import type {
 } from "@/modules/acl-contract/acl-contract.repository.js"
 import type { AreaRepository, AreaResponse } from "@/modules/area/area.repository.js"
 import type { DeviceRepository, DeviceResponse } from "@/modules/device/device.repository.js"
+import type { ReportRepository, ReportResponse } from "@/modules/report/report.repository.js"
 import type { AuditRepository, AuditLogResponse } from "@/shared/audit/audit.repository.js"
 import { NotFoundError } from "@/shared/errors/AppError.js"
 
@@ -45,6 +46,9 @@ export type DataExportPayload = {
     alerts: AlertResponse[]
     demandAlerts: DemandAlertResponse[]
     aclContracts: AclContractResponse[]
+    // Só os metadados dos relatórios emitidos — os arquivos (bytes) não vão no
+    // payload; ficam disponíveis para download enquanto durar a retenção.
+    reports: ReportResponse[]
     auditLogs: AuditLogResponse[]
 }
 
@@ -63,6 +67,7 @@ export class ExportService {
      * @param areaRepository - Áreas das propriedades do titular.
      * @param deviceRepository - Dispositivos das áreas do titular.
      * @param auditRepository - Trilha de auditoria de acesso a dados do titular.
+     * @param reportRepository - Relatórios emitidos pelo titular (metadados).
      */
     constructor(
         private readonly userRepository: UserRepository,
@@ -74,6 +79,7 @@ export class ExportService {
         private readonly areaRepository: AreaRepository,
         private readonly deviceRepository: DeviceRepository,
         private readonly auditRepository: AuditRepository,
+        private readonly reportRepository: ReportRepository,
     ) {}
 
     /**
@@ -91,7 +97,7 @@ export class ExportService {
             throw new NotFoundError("Usuário não encontrado")
         }
 
-        const [properties, alerts, demandAlerts, aclContracts, areas, devices, auditLogs] =
+        const [properties, alerts, demandAlerts, aclContracts, areas, devices, auditLogs, reports] =
             await Promise.all([
                 this.propertyRepository.findAllByUser(userId),
                 this.alertRepository.findAllByUser(userId),
@@ -100,6 +106,7 @@ export class ExportService {
                 this.areaRepository.findAllByUser(userId),
                 this.deviceRepository.findAllByUser(userId),
                 this.auditRepository.findByUserId(userId),
+                this.reportRepository.findAllMetadataByUser(userId),
             ])
 
         const distributorIds = [...new Set(properties.map((p) => p.distributorId))]
@@ -115,6 +122,7 @@ export class ExportService {
             alerts,
             demandAlerts,
             aclContracts,
+            reports,
             auditLogs,
         }
     }
