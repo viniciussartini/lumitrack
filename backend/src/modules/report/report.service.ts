@@ -36,9 +36,9 @@ const DAY_MS = 24 * 60 * 60 * 1000
 // relatório fora do esperado precisa falhar em vez de inflar a tabela.
 export const MAX_REPORT_BYTES = 5 * 1024 * 1024
 
-// Um período de até 92 dias tem no máximo 93 baldes diários (contando o
-// balde parcial de uma janela que não começa à meia-noite local).
-const MAX_DAILY_BUCKETS = 100
+// O maior período emitido (o anual agendado, 366 dias) tem no máximo 367
+// baldes diários, contando o parcial de uma janela que não começa à meia-noite local.
+const MAX_DAILY_BUCKETS = 370
 
 const CONTENT_TYPES = { PDF: "application/pdf", CSV: "text/csv; charset=utf-8" } as const
 
@@ -81,6 +81,11 @@ export interface ReportDownload {
     content: Buffer
 }
 
+/** Arquivo gerado e ainda não gravado. */
+export interface RenderedReport extends ReportDownload {
+    period: { from: Date; to: Date }
+}
+
 /**
  * Emissão de relatórios sob demanda: resolve o alvo (com checagem de posse),
  * agrega os dados, gera o arquivo e o grava como imutável.
@@ -110,7 +115,7 @@ export class ReportService {
     ) {}
 
     /**
-     * Emite um relatório e o grava.
+     * Emite um relatório sob demanda e o grava.
      *
      * @param userId - Id do usuário autenticado (dono do alvo).
      * @param body - Corpo bruto do pedido, validado aqui.
@@ -118,6 +123,34 @@ export class ReportService {
      */
     async generate(userId: string, body: unknown): Promise<ReportResponse> {
         const input = parseOrThrow(createReportSchema, body)
+        const rendered = await this.render(userId, input)
+        return this.reportRepository.create({
+            userId,
+            targetType: input.targetType,
+            targetId: input.targetId,
+            type: input.type,
+            format: input.format,
+            origin: "MANUAL",
+            periodStart: rendered.period.from,
+            periodEnd: rendered.period.to,
+            fileName: rendered.fileName,
+            content: rendered.content,
+        })
+    }
+
+    /**
+     * Gera o arquivo de um pedido já validado, sem gravá-lo. A checagem de
+     * posse e de medidor acontece aqui, então serve tanto à emissão manual
+     * quanto à agendada.
+     *
+     * @param userId - Dono do alvo.
+     * @param input - Pedido validado (o teto de período é do chamador).
+     * @returns O arquivo e o período que ele cobre.
+     * @throws {ForbiddenError} Alvo de outro usuário.
+     * @throws {NotFoundError} Alvo ou medidor inexistente.
+     * @throws {ValidationError} Arquivo maior que o teto.
+     */
+    async render(userId: string, input: CreateReportInput): Promise<RenderedReport> {
         const period = resolveReportPeriod(input)
         const { property, meterId } = await this.resolveOwnedTarget(userId, input)
 
@@ -128,22 +161,16 @@ export class ReportService {
             throw new ValidationError("O relatório gerado excede o tamanho máximo permitido")
         }
 
-        return this.reportRepository.create({
-            userId,
-            targetType: input.targetType,
-            targetId: input.targetId,
-            type: input.type,
-            format: input.format,
-            origin: "MANUAL",
-            periodStart: period.from,
-            periodEnd: period.to,
+        return {
+            period,
+            content,
+            contentType: CONTENT_TYPES[input.format],
             fileName: buildReportFileName(
                 input.type,
                 period,
                 input.format === "PDF" ? "pdf" : "csv",
             ),
-            content,
-        })
+        }
     }
 
     /**

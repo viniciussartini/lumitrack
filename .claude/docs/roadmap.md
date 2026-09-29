@@ -2773,3 +2773,16 @@ Candidatos conhecidos, ainda sem fase:
 - **Atenção ao item 4 — período do relatório agendado:** o relatório mensal cobre o mês anterior; o de consumo deve cobrir o período decorrido desde o último envio (dia, semana, mês, trimestre, semestre, ano). O teto de 92 dias do relatório manual **não cabe** em semestral (~184 dias) e anual (~365): o schema de execução precisa de um teto próprio (sugestão: 366 dias) e o limite de baldes diários da emissão manual (100) acompanhar.
 - **Export do titular:** as configurações (com destinatários) entram no payload e no PDF do export.
 
+
+### Replanejamento de 2026-09-29 (implementação do item 4)
+
+**O que mudou:** o item 4 (execução automática e envio por e-mail) foi implementado na branch `epic/464-relatorios`, sem corte de escopo. Decisões tomadas na implementação, que o item 5 e qualquer evolução do envio herdam:
+
+- **`nextRunAt` gravado:** a configuração guarda a próxima execução (nula se pausada), recalculada por `computeNextRun` a cada criação ou edição. Só avança depois do envio concluído, ou de esgotar as tentativas — é isso que dá idempotência e recuperação. Editar ou reativar reancora o calendário a partir de agora. O item 5 pode ler `nextRunAt` e projetar os envios seguintes com `computeNextRun`.
+- **Uma passada a cada 15 minutos**, além do boot: o envio sai até 15 minutos depois das 06:00. Falha de SMTP ou de banco deixa a execução vencida e a passada seguinte tenta de novo, até **4 tentativas** por execução; depois disso ela é descartada (log de erro) e a configuração segue para a próxima.
+- **Servidor fora do ar por vários períodos envia um relatório só**, o do slot mais recente vencido — não um por período perdido.
+- **Período do relatório agendado:** o mensal cobre o mês-calendário anterior ao slot; o de consumo cobre o intervalo desde o envio anterior (1 dia, 7 dias, 1/3/6/12 meses), terminando à meia-noite local do dia do slot. Teto de 366 dias para agendados; o de 92 dias da emissão manual não mudou.
+- **Alvo excluído, de outro dono ou sem medidor pausa a configuração** (`active=false`, `nextRunAt=null`) e registra o motivo no log; as demais configurações seguem.
+- **Envio em cópia oculta**, com o remetente em "Para", para um destinatário não ver o endereço do outro. Só nome e código do erro vão para o log, porque a mensagem de um erro de SMTP costuma repetir o endereço.
+- **Auditoria:** o envio agendado grava `REPORT_GENERATE` com origem `SCHEDULED` e o número de destinatários, sem novo valor no enum.
+- **Política de privacidade passou para a versão 1.6** (envio a terceiros é mudança material), o que dispara o reaceite dos usuários; o ROPA (operação 8) lista o SMTP como operador e os destinatários como terceiros.

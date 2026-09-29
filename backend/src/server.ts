@@ -20,6 +20,12 @@ import { NotificationStore } from "@/shared/notifications/notification-store.js"
 import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { ReportRepository } from "@/modules/report/report.repository.js"
+import { createReportService } from "@/modules/report/report.routes.js"
+import { ReportScheduleRepository } from "@/modules/report-schedule/report-schedule.repository.js"
+import { ReportScheduleRunner } from "@/modules/report-schedule/ReportScheduleRunner.js"
+import { ReportScheduleScheduler } from "@/modules/report-schedule/ReportScheduleScheduler.js"
+import { sendScheduledReportEmail } from "@/modules/auth/email.service.js"
+import { AuditService } from "@/shared/audit/audit.service.js"
 import { RetentionService } from "@/shared/retention/retention.service.js"
 import { RetentionPurgeScheduler } from "@/shared/retention/RetentionPurgeScheduler.js"
 import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
@@ -151,6 +157,20 @@ const tariffFlagSyncService = new TariffFlagSyncService(
 const tariffFlagSyncScheduler = new TariffFlagSyncScheduler(tariffFlagSyncService)
 tariffFlagSyncScheduler.start()
 
+// Envio automático dos relatórios agendados (ADR-0024): roda no boot, o que
+// recupera o que venceu com o servidor fora do ar, e a cada 15 minutos. Falha
+// de SMTP ou de banco nunca derruba o processo — a execução fica vencida e é
+// retomada na passada seguinte.
+const reportScheduleScheduler = new ReportScheduleScheduler(
+    new ReportScheduleRunner(
+        new ReportScheduleRepository(prisma),
+        createReportService(prisma),
+        sendScheduledReportEmail,
+        new AuditService(new AuditRepository(prisma)),
+    ),
+)
+reportScheduleScheduler.start()
+
 /**
  * Criação do app
  *
@@ -255,6 +275,7 @@ async function shutdown(signal: string): Promise<void> {
     demandAlertScheduler.stop()
     retentionScheduler.stop()
     tariffFlagSyncScheduler.stop()
+    reportScheduleScheduler.stop()
 
     // Flush final: persiste qualquer balde pendente no buffer antes de sair,
     // incluindo o minuto em curso (flushAll, não flush).

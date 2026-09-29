@@ -152,6 +152,8 @@ describe("generateDataExportPdf", () => {
                         sendDay: 5,
                         recipients: ["financeiro@example.com", "ceo@example.com"],
                         active: true,
+                        nextRunAt: null,
+                        failedAttempts: 0,
                         createdAt: new Date("2026-08-01T09:00:00Z"),
                         updatedAt: new Date("2026-08-01T09:00:00Z"),
                     },

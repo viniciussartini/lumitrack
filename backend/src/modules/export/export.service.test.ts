@@ -271,11 +271,13 @@ describe("ExportService.generate", () => {
             ...base,
             recipients: ["financeiro@example.com"],
             active: true,
+            nextRunAt: null,
         })
         await reportScheduleRepository.create(userB.id, {
             ...base,
             recipients: ["outro@example.com"],
             active: true,
+            nextRunAt: null,
         })
 
         const payload = await exportService.generate(userA.id)

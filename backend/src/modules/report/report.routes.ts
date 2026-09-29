@@ -12,6 +12,25 @@ import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
 
+/**
+ * Monta o serviço de relatórios com as dependências de persistência. Fica
+ * fora da rota porque o envio agendado usa o mesmo serviço.
+ *
+ * @param prismaClient - Cliente Prisma do processo.
+ */
+export function createReportService(prismaClient: PrismaClient): ReportService {
+    return new ReportService(
+        new ReportRepository(prismaClient),
+        new ConsumptionRepository(prismaClient),
+        createConsumptionService(prismaClient),
+        new MeterRepository(prismaClient),
+        new PropertyRepository(prismaClient),
+        new AreaRepository(prismaClient),
+        new DeviceRepository(prismaClient),
+        new DistributorRepository(prismaClient),
+    )
+}
+
 // Rota top-level: /api/reports — emissão sob demanda, histórico, download e exclusão. O alvo
 // (targetType/targetId) vem no corpo do pedido, igual às demais rotas de
 // medição; o `id` só existe no download.
@@ -22,17 +41,7 @@ export function reportRoutes(
 ): Router {
     const router = Router()
 
-    const reportService = new ReportService(
-        new ReportRepository(prismaClient),
-        new ConsumptionRepository(prismaClient),
-        createConsumptionService(prismaClient),
-        new MeterRepository(prismaClient),
-        new PropertyRepository(prismaClient),
-        new AreaRepository(prismaClient),
-        new DeviceRepository(prismaClient),
-        new DistributorRepository(prismaClient),
-    )
-    const controller = new ReportController(reportService, auditService)
+    const controller = new ReportController(createReportService(prismaClient), auditService)
 
     router.get("/", authenticate, (req, res, next) => controller.list(req, res, next))
     router.post("/", authenticate, (req, res, next) => controller.generate(req, res, next))

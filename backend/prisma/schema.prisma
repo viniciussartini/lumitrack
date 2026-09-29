@@ -1035,18 +1035,22 @@ enum ReportFrequency {
 // (targetType/targetId). A posse e a existência do medidor são validadas na
 // escrita; quem executa o envio trata alvo que sumiu depois.
 model ReportSchedule {
-  id         String          @id @default(uuid())
-  userId     String
-  targetType TargetType
-  targetId   String
-  type       ReportType
-  format     ReportFormat
-  frequency  ReportFrequency
-  sendDay    Int?
+  id             String          @id @default(uuid())
+  userId         String
+  targetType     TargetType
+  targetId       String
+  type           ReportType
+  format         ReportFormat
+  frequency      ReportFrequency
+  sendDay        Int?
   // E-mails de destinatários (podem ser de terceiros), texto simples como
   // `User.email`. Nunca vão para log.
-  recipients String[]
-  active     Boolean         @default(true)
+  recipients     String[]
+  active         Boolean         @default(true)
+  // Próxima execução; `null` enquanto a configuração está pausada. Só avança
+  // depois de um envio bem-sucedido (ou de esgotar as tentativas do slot).
+  nextRunAt      DateTime?
+  failedAttempts Int             @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -6,6 +6,7 @@ import { computeNextRun } from "@/modules/report-schedule/nextRun.js"
 import type {
     ReportScheduleRecord,
     ReportScheduleRepository,
+    ReportScheduleWrite,
 } from "@/modules/report-schedule/report-schedule.repository.js"
 import {
     MAX_SCHEDULES_PER_USER,
@@ -19,8 +20,8 @@ import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/
 import type { Paginated } from "@/shared/pagination.js"
 import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 
-/** Configuração de envio como a API a devolve: sem `userId`, com a próxima execução calculada. */
-export type ReportScheduleResponse = Omit<ReportScheduleRecord, "userId"> & {
+/** Configuração de envio como a API a devolve: sem `userId` nem o contador interno de falhas. */
+export type ReportScheduleResponse = Omit<ReportScheduleRecord, "userId" | "failedAttempts"> & {
     /** `null` quando a configuração está pausada. */
     nextRunAt: Date | null
 }
@@ -66,7 +67,7 @@ export class ReportScheduleService {
             )
         }
 
-        return this.toResponse(await this.scheduleRepository.create(userId, data))
+        return this.toResponse(await this.scheduleRepository.create(userId, this.withNextRun(data)))
     }
 
     /**
@@ -96,7 +97,7 @@ export class ReportScheduleService {
         const data = parseOrThrow(reportScheduleBodySchema, body)
         await this.assertTargetUsable(userId, data)
 
-        const updated = await this.scheduleRepository.update(id, userId, data)
+        const updated = await this.scheduleRepository.update(id, userId, this.withNextRun(data))
         if (!updated) throw new NotFoundError("Configuração não encontrada")
         return this.toResponse(updated)
     }
@@ -130,13 +131,19 @@ export class ReportScheduleService {
         }
     }
 
-    private toResponse(record: ReportScheduleRecord): ReportScheduleResponse {
-        const { userId: _owner, ...rest } = record
+    // Toda escrita recalcula a próxima execução a partir de agora: editar a
+    // frequência ou reativar uma configuração pausada reancora o calendário.
+    private withNextRun(data: ReportScheduleBody): ReportScheduleWrite {
         return {
-            ...rest,
-            nextRunAt: record.active
-                ? computeNextRun(record.frequency, record.sendDay, this.now())
+            ...data,
+            nextRunAt: data.active
+                ? computeNextRun(data.frequency, data.sendDay, this.now())
                 : null,
         }
+    }
+
+    private toResponse(record: ReportScheduleRecord): ReportScheduleResponse {
+        const { userId: _owner, failedAttempts: _failures, ...rest } = record
+        return { ...rest, nextRunAt: record.active ? record.nextRunAt : null }
     }
 }
