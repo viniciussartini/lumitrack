@@ -62,6 +62,7 @@ enum AuditAction {
   MFA_DISABLED
   REFRESH_TOKEN_REUSE_DETECTED
   ADMIN_AUDIT_LOG_VIEW
+  REPORT_GENERATE
 
   @@map("audit_action")
 }
@@ -265,6 +266,7 @@ model User {
   auditLogs         AuditLog[]
   mfaBackupCodes    MfaBackupCode[]
   tariffFlagChanges TariffFlagHistory[]
+  reports           Report[]
 
   @@map("users")
 }
@@ -955,4 +957,60 @@ model PldQuote {
 
   @@unique([submarket, referencePeriod])
   @@map("pld_quotes")
+}
+
+// Tipo de relatório emitido. Só MONTHLY e CONSUMPTION têm gerador hoje; os
+// demais já existem no enum para o histórico e o agendamento não exigirem
+// uma migração a cada tipo novo.
+enum ReportType {
+  MONTHLY
+  CONSUMPTION
+  ALERTS
+  POWER_QUALITY
+  DEMAND
+
+  @@map("report_type")
+}
+
+enum ReportFormat {
+  PDF
+  CSV
+
+  @@map("report_format")
+}
+
+enum ReportOrigin {
+  MANUAL
+  SCHEDULED
+
+  @@map("report_origin")
+}
+
+// Relatório emitido — imutável: nunca é atualizado, só criado e excluído. O
+// conteúdo mora aqui, em bytes, para funcionar igual na VPS e no staging (disco
+// efêmero) e entrar no backup e na retenção do banco (ADR-0023).
+// Sem FK para o alvo: o alvo pode ser excluído depois e o arquivo continua
+// válido (o nome do alvo vai gravado dentro do próprio arquivo).
+model Report {
+  id          String       @id @default(uuid())
+  userId      String
+  targetType  TargetType
+  targetId    String
+  type        ReportType
+  format      ReportFormat
+  origin      ReportOrigin @default(MANUAL)
+  periodStart DateTime
+  periodEnd   DateTime
+  fileName    String
+  content     Bytes
+  sizeBytes   Int
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  // Suporte ao expurgo por retenção, que filtra só por createdAt.
+  @@index([createdAt])
+  @@map("reports")
 }

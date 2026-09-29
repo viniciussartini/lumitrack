@@ -14,6 +14,28 @@ import { DistributorRepository } from "@/modules/distributor/distributor.reposit
 import { TariffCatalogRepository } from "@/modules/distributor/tariff-catalog.repository.js"
 import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
 
+/**
+ * Monta o `ConsumptionService` com todas as suas dependências de repositório —
+ * compartilhado com o módulo de relatórios, que reaproveita o custo mensal.
+ *
+ * @param prismaClient - Cliente Prisma do processo.
+ */
+export function createConsumptionService(prismaClient: PrismaClient): ConsumptionService {
+    return new ConsumptionService(
+        new ConsumptionRepository(prismaClient),
+        new MeterRepository(prismaClient),
+        new PropertyRepository(prismaClient),
+        new AreaRepository(prismaClient),
+        new DeviceRepository(prismaClient),
+        new DistributorRepository(prismaClient),
+        new TariffFlagRepository(prismaClient),
+        new TariffCatalogRepository(prismaClient),
+        new MeterDemandRollupRepository(prismaClient),
+        new AclContractRepository(prismaClient),
+        new PldQuoteRepository(prismaClient),
+    )
+}
+
 // Rota top-level: /api/consumption — consumo agregado via MeterReading,
 // somente leitura. Não aninhada sob property/area/device porque o alvo é
 // escolhido por query param (targetType/targetId), igual a /api/meters.
@@ -23,31 +45,7 @@ export function consumptionRoutes(
 ): Router {
     const router = Router()
 
-    const consumptionRepository = new ConsumptionRepository(prismaClient)
-    const meterRepository = new MeterRepository(prismaClient)
-    const propertyRepository = new PropertyRepository(prismaClient)
-    const areaRepository = new AreaRepository(prismaClient)
-    const deviceRepository = new DeviceRepository(prismaClient)
-    const distributorRepository = new DistributorRepository(prismaClient)
-    const tariffFlagRepository = new TariffFlagRepository(prismaClient)
-    const tariffCatalogRepository = new TariffCatalogRepository(prismaClient)
-    const meterDemandRollupRepository = new MeterDemandRollupRepository(prismaClient)
-    const aclContractRepository = new AclContractRepository(prismaClient)
-    const pldQuoteRepository = new PldQuoteRepository(prismaClient)
-
-    const consumptionService = new ConsumptionService(
-        consumptionRepository,
-        meterRepository,
-        propertyRepository,
-        areaRepository,
-        deviceRepository,
-        distributorRepository,
-        tariffFlagRepository,
-        tariffCatalogRepository,
-        meterDemandRollupRepository,
-        aclContractRepository,
-        pldQuoteRepository,
-    )
+    const consumptionService = createConsumptionService(prismaClient)
     const controller = new ConsumptionController(consumptionService)
 
     // "/summary", "/acl-comparison" e "/branca-comparison" precisam vir

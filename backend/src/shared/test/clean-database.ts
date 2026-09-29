@@ -33,6 +33,7 @@ export async function cleanDatabase(): Promise<void> {
         // Por isso precisam ser limpos explicitamente aqui, não seriam
         // removidos automaticamente pelo delete de User.
         prismaTest.auditLog.deleteMany(),
+        prismaTest.report.deleteMany(),
         prismaTest.tariffFlagHistory.deleteMany(),
         prismaTest.alertTriggerEvent.deleteMany(),
         prismaTest.alert.deleteMany(),

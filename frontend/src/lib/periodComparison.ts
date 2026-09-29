@@ -79,7 +79,7 @@ export function addDaysToIsoDate(isoDate: string, days: number): string {
 // caso, calcular o offset por data em vez de fixá-lo.
 const SAO_PAULO_UTC_OFFSET = "-03:00"
 
-const startOfSaoPauloDay = (isoDate: string): string =>
+export const startOfSaoPauloDay = (isoDate: string): string =>
     new Date(`${isoDate}T00:00:00${SAO_PAULO_UTC_OFFSET}`).toISOString()
 
 /**

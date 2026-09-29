@@ -479,3 +479,40 @@ describe("ConsumptionRepository.findKwhByPostGroupedByMonth", () => {
         expect(result.map((r) => r.post)).toEqual(["PEAK", "INTERMEDIATE", "OFF_PEAK"])
     })
 })
+
+describe("ConsumptionRepository.findKwhTotalsByMeter", () => {
+    it("soma o consumo de cada medidor só dentro da janela [from, to)", async () => {
+        const meterId = await setupMeter()
+        const from = new Date(Date.UTC(2026, 8, 8, 3))
+        const to = new Date(Date.UTC(2026, 8, 9, 3))
+
+        await createReading(meterId, from, 2) // no limite inferior: entra
+        await createReading(meterId, new Date(from.getTime() + 60_000), 3)
+        await createReading(meterId, to, 100) // limite superior é exclusivo
+        await createReading(meterId, new Date(from.getTime() - 60_000), 100) // antes da janela
+
+        const totals = await consumptionRepository.findKwhTotalsByMeter([meterId], from, to)
+
+        expect(totals.get(meterId)).toBe(5)
+    })
+
+    it("deixa de fora o medidor sem leitura na janela", async () => {
+        const meterId = await setupMeter()
+        const from = new Date(Date.UTC(2026, 8, 8, 3))
+        const to = new Date(Date.UTC(2026, 8, 9, 3))
+
+        const totals = await consumptionRepository.findKwhTotalsByMeter([meterId], from, to)
+
+        expect(totals.has(meterId)).toBe(false)
+    })
+
+    it("não consulta o banco com lista vazia", async () => {
+        const totals = await consumptionRepository.findKwhTotalsByMeter(
+            [],
+            new Date(0),
+            new Date(1),
+        )
+
+        expect(totals.size).toBe(0)
+    })
+})

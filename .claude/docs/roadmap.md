@@ -2367,20 +2367,33 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
 
 ### Relatórios: modelo, geração e emissão sob demanda
 
-- **Comportamento:** o usuário escolhe escopo (propriedade, área ou dispositivo), tipo (mensal, consumo, alertas, qualidade de energia, demanda), período e formato (PDF ou CSV) e clica em "Gerar relatório"; o arquivo é gravado, imutável, e oferecido para download.
+- **Comportamento:** o usuário escolhe escopo (propriedade, área ou dispositivo), tipo (**mensal e consumo** nesta entrega; alertas, qualidade de energia e demanda ficam no item seguinte), período e formato (PDF ou CSV) e clica em "Gerar relatório"; o arquivo é gravado, imutável, e oferecido para download.
 - **Cobre:** RF40 (geração), RN35, FNC007 itens 1–2.
 - **Priority:** P0 · **Size:** L
 - **Critérios de aceite:**
   - Modelo novo `Report` (dono, escopo, tipo, período, formato, origem manual/agendada, bytes — ADR-0023), com teto de tamanho por arquivo.
   - Módulo `report` com um gerador por tipo; PDF reaproveita `pdfkit` no template A4, CSV é formatador novo, sem dependência nova.
-  - Tipo "demanda" rejeitado para propriedade que não é do Grupo A.
   - Grandeza ou dado ausente aparece como "-", nunca 0 (RN34).
   - Toda consulta passa por `resolveRootProperty` (ownership) e é parametrizada; alvo de outro usuário devolve 404.
   - Teto de intervalo do período, no padrão de `compare-periods`.
   - `/relatorios` refeita com o bloco de emissão; consulta antiga removida.
-  - Testes: cada tipo × formato gera arquivo válido; demanda × Grupo B; alvo alheio; dado ausente.
+  - Testes: cada tipo × formato gera arquivo válido; alvo alheio; dado ausente.
 - **Depende de:** Fase 23 (shell).
-- **Risco/observações:** maior item da fase — os cinco tipos têm conteúdo diferente e o template só especifica o de consumo. Se estourar, quebrar em "consumo + mensal" e "alertas + qualidade + demanda".
+- **Risco/observações:** o corte previsto aconteceu no início da implementação (ver "Replanejamento de 2026-09-28 (implementação do item 1)"): esta entrega cobre a infraestrutura completa e os tipos mensal e consumo; os outros três tipos viram o item seguinte.
+
+### Relatórios: tipos alertas, qualidade de energia e demanda
+
+- **Comportamento:** o usuário também emite relatórios de alertas do período, de qualidade de energia e de demanda (este último só para propriedade do Grupo A), em PDF ou CSV.
+- **Cobre:** RF40 (tipos restantes), RN35.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Um gerador por tipo, no mesmo formato de dados dos geradores existentes; tipos entram em `reportTypeSchema` e no seletor do formulário.
+  - Alertas: episódios de disparo do período (`AlertTriggerEvent`) do alvo. Qualidade de energia: as grandezas elétricas por fase (tensão, fator de potência, THD, desequilíbrio), com "-" para o que o medidor não fornece.
+  - Demanda: rejeitado para propriedade que não é do Grupo A; demanda medida (`MeterDemandRollup`) contra a contratada.
+  - **Sem layout no design** para os três: as tabelas seguem o padrão visual do template A4, e o conteúdo exato é decidido na implementação — perguntar antes de assumir.
+  - Testes: cada tipo × formato gera arquivo válido; demanda × Grupo B; dado ausente.
+- **Depende de:** item anterior (infraestrutura de emissão).
+- **Risco/observações:** o conteúdo dos três tipos não está especificado no handoff — é decisão de produto, não de engenharia.
 
 ### Relatórios: histórico — listar, baixar e excluir
 
@@ -2734,3 +2747,12 @@ Candidatos conhecidos, ainda sem fase:
 **Sem replanejamento das fases seguintes:** Fases 28–31 seguem em nível de objetivo.
 
 **Pendências que dependem de você (fora do roadmap):** validar com a `auditoria-conformidade` o fluxo de destinatários de terceiros antes de qualquer abertura de cadastro real (ADR-0014); `/design-sync` para o Claude Design conhecer os componentes novos, se compensar.
+
+### Replanejamento de 2026-09-28 (implementação do item 1)
+
+**O que mudou:** a implementação do item 1 (modelo, geração e emissão sob demanda) começou na branch `epic/464-relatorios` e cortou o escopo como o plano já previa como saída: **mensal e consumo** entregues; **alertas, qualidade de energia e demanda** viraram um item próprio ("Relatórios: tipos alertas, qualidade de energia e demanda", P0 · M), porque o handoff só especifica o layout do relatório de consumo. Decisão confirmada com o usuário antes de codificar.
+
+- **Custo só no mensal:** o cálculo de custo do módulo de consumo falha fechado para dia/hora e para sub-nível do Grupo A e da Tarifa Branca (a conta é da propriedade inteira no mês). O relatório de consumo, de período livre, mostra só kWh e potência média; o mensal traz o custo do mês (bucket mensal) e, onde não há custo calculável, "-" em vez de falhar.
+- **Endereço fora do arquivo:** o template mostra o endereço da propriedade; o relatório omite (minimização — o arquivo pode ser enviado a terceiros no agendamento). Divergência deliberada do design.
+- **Mês por seletor, não `<input type="month">`:** o Firefox de desktop não tem seletor de mês. O relatório mensal é pedido por `AAAA-MM` e o intervalo é derivado no servidor.
+- **Sem alertas do período nem observações no PDF:** dependem dos tipos que ficaram para o item seguinte.

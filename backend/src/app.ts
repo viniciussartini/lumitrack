@@ -29,6 +29,7 @@ import {
 } from "@/modules/auth/email.service.js"
 import { userRoutes } from "@/modules/user/user.routes.js"
 import { exportRoutes } from "@/modules/export/export.routes.js"
+import { reportRoutes } from "@/modules/report/report.routes.js"
 import { adminRoutes } from "@/modules/admin/admin.routes.js"
 import { authRoutes } from "@/modules/auth/auth.routes.js"
 import { distributorRoutes } from "./modules/distributor/distributor.routes.js"
@@ -252,6 +253,7 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/meters", meterRoutes(authenticate, prismaClient))
     app.use("/api/meter-readings", meterReadingRoutes(authenticate, prismaClient))
     app.use("/api/consumption", consumptionRoutes(authenticate, prismaClient))
+    app.use("/api/reports", reportRoutes(authenticate, prismaClient, auditService))
 
     if (processor && userEventHub) {
         app.use("/api/iot", iotStreamRoutes(authenticate, prismaClient, processor, userEventHub))
