@@ -7,6 +7,7 @@ import type {
 } from "@/modules/report-schedule/report-schedule.repository.js"
 import { resolveScheduledReportInput } from "@/modules/report-schedule/scheduledPeriod.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
+import { UnsupportedReportTargetError } from "@/modules/report/report.errors.js"
 import { ForbiddenError, NotFoundError } from "@/shared/errors/AppError.js"
 import { logger } from "@/shared/logger/logger.js"
 
@@ -143,7 +144,8 @@ export class ReportScheduleRunner {
         })
     }
 
-    // Alvo excluído, de outro dono ou sem medidor não se resolve sozinho:
+    // Alvo excluído, de outro dono, sem medidor ou que deixou de comportar o tipo
+    // (propriedade que saiu do Grupo A) não se resolve sozinho:
     // pausa a configuração. Qualquer outra falha (SMTP, banco) é tentada de
     // novo na próxima passada, até esgotar as tentativas da execução.
     private async handleFailure(
@@ -154,7 +156,11 @@ export class ReportScheduleRunner {
     ): Promise<void> {
         const context = { scheduleId: schedule.id, ...describeError(error) }
 
-        if (error instanceof NotFoundError || error instanceof ForbiddenError) {
+        if (
+            error instanceof NotFoundError ||
+            error instanceof ForbiddenError ||
+            error instanceof UnsupportedReportTargetError
+        ) {
             await this.scheduleRepository.pause(schedule.id)
             log.warn(context, "Configuração de envio pausada: o alvo não está mais disponível")
             return

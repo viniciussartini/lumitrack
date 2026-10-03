@@ -1,5 +1,11 @@
 import { buildCsv, type CsvCell } from "@/modules/report/csv.js"
-import type { ReportData } from "@/modules/report/report.types.js"
+import {
+    isReportDocument,
+    type ReportCell,
+    type ReportContent,
+    type ReportData,
+    type ReportDocument,
+} from "@/modules/report/report.types.js"
 import {
     formatInstantDateTime,
     formatLocalDay,
@@ -15,7 +21,48 @@ import {
  * @param data - Dados do relatório, já agregados.
  * @returns O arquivo em bytes.
  */
-export function generateReportCsv(data: ReportData): Buffer {
+export function generateReportCsv(data: ReportContent): Buffer {
+    return isReportDocument(data) ? generateDocumentCsv(data) : generateConsumptionCsv(data)
+}
+
+// O CSV leva o número sem formatação, mas arredondado às casas de exibição
+// (um ponto flutuante como 0,9600000000000001 não vai para a planilha); a
+// ausência sai como "-", como nas demais células.
+const toCsvCell = (cell: ReportCell): CsvCell => {
+    if (cell === null || typeof cell !== "object") return cell
+    if (cell.value === null) return null
+    const factor = 10 ** cell.digits
+    return Math.round(cell.value * factor) / factor
+}
+
+function generateDocumentCsv(data: ReportDocument): Buffer {
+    const rows: CsvCell[][] = [
+        [reportTitle(data.type)],
+        [data.target.kind, data.target.name],
+        ["Propriedade", data.property.name],
+        ["Distribuidora", data.property.distributorName],
+        ["Enquadramento", data.property.tariffLabel],
+        ["Período", formatPeriodLabel(data.period.from, data.period.to)],
+        ["Emitido em", formatInstantDateTime(data.generatedAt)],
+        [],
+        ...data.summary.map((line): CsvCell[] => [line.label, toCsvCell(line.value)]),
+    ]
+
+    for (const table of data.tables) {
+        rows.push(
+            [],
+            [table.title],
+            table.columns.map((column) => column.header),
+        )
+        if (table.rows.length === 0) rows.push([table.emptyNote])
+        for (const row of table.rows) rows.push(row.map(toCsvCell))
+    }
+
+    if (data.notes.length > 0) rows.push([], ...data.notes.map((note): CsvCell[] => [note]))
+    return buildCsv(rows)
+}
+
+function generateConsumptionCsv(data: ReportData): Buffer {
     const rows: CsvCell[][] = [
         [reportTitle(data.type)],
         [data.target.kind, data.target.name],

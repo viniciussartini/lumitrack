@@ -50,6 +50,7 @@ const paginated = <T,>(items: T[]): Paginated<T> => ({
 const node = (id: string, name: string, areaNames: string[] = []): PropertyTreeNode => ({
     id,
     name,
+    tariffGroup: "GROUP_B",
     areas: areaNames.map((areaName, index) => ({
         id: `${id}-area-${index + 1}`,
         name: areaName,

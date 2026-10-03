@@ -56,9 +56,10 @@ function previousCalendarMonth(local: Date): string {
  * slot (e não de "agora"), então um envio atrasado por queda do servidor
  * cobre o mesmo intervalo que cobriria no horário.
  *
- * O mensal cobre o mês-calendário anterior ao slot; o de consumo cobre o
- * intervalo desde o envio anterior, terminando à meia-noite local do dia do
- * slot (o fim é exclusivo).
+ * Os de mês inteiro (mensal e demanda) cobrem o mês-calendário anterior ao
+ * slot; os de período livre (consumo, alertas e qualidade de energia) cobrem
+ * o intervalo desde o envio anterior, terminando à meia-noite local do dia
+ * do slot (o fim é exclusivo).
  *
  * @param spec - Alvo, tipo, formato e frequência da configuração.
  * @param slotAt - Instante em que o envio estava marcado.
@@ -71,8 +72,8 @@ export function resolveScheduledReportInput(
     const base = { targetType: spec.targetType, targetId: spec.targetId, format: spec.format }
     const local = toSaoPauloLocal(slotAt)
 
-    if (spec.type === "MONTHLY") {
-        return { ...base, type: "MONTHLY", month: previousCalendarMonth(local) }
+    if (spec.type === "MONTHLY" || spec.type === "DEMAND") {
+        return { ...base, type: spec.type, month: previousCalendarMonth(local) }
     }
 
     const midnight = localMidnight(local)
@@ -85,7 +86,7 @@ export function resolveScheduledReportInput(
 
     return {
         ...base,
-        type: "CONSUMPTION",
+        type: spec.type,
         from: fromSaoPauloLocal(start),
         to: fromSaoPauloLocal(midnight),
     }

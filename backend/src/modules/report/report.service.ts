@@ -8,6 +8,9 @@ import type {
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
 import type { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
+import type { AlertTriggerEventRepository } from "@/modules/alert/alert-trigger-event.repository.js"
+import type { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
+import type { MeterQualityRepository } from "@/modules/meter/meter-quality.repository.js"
 import type { ReportRepository, ReportResponse } from "@/modules/report/report.repository.js"
 import {
     createReportSchema,
@@ -17,11 +20,18 @@ import {
     type CreateReportInput,
 } from "@/modules/report/report.schema.js"
 import type {
+    ReportBase,
     ReportChildRow,
+    ReportContent,
     ReportData,
     ReportKpis,
     ReportMonthlyExtras,
 } from "@/modules/report/report.types.js"
+import { UnsupportedReportTargetError } from "@/modules/report/report.errors.js"
+import { buildAlertsDocument } from "@/modules/report/documents/alertsDocument.js"
+import { buildDemandDocument, type DemandRow } from "@/modules/report/documents/demandDocument.js"
+import { buildPowerQualityDocument } from "@/modules/report/documents/powerQualityDocument.js"
+import { resolveContractedDemands } from "@/shared/tariff/contractedDemand.js"
 import { generateReportCsv } from "@/modules/report/generators/reportCsv.js"
 import { generateReportPdf } from "@/modules/report/generators/reportPdf.js"
 import { buildReportFileName } from "@/modules/report/generators/format.js"
@@ -39,6 +49,18 @@ export const MAX_REPORT_BYTES = 5 * 1024 * 1024
 // O maior período emitido (o anual agendado, 366 dias) tem no máximo 367
 // baldes diários, contando o parcial de uma janela que não começa à meia-noite local.
 const MAX_DAILY_BUCKETS = 370
+
+// Teto de episódios de um relatório de alertas: acima disso o arquivo ficaria
+// ilegível, e o usuário é orientado a reduzir o período.
+const MAX_ALERT_EPISODES = 1000
+
+const POST_LABELS = {
+    PEAK: "Ponta",
+    OFF_PEAK: "Fora de ponta",
+    INTERMEDIATE: "Intermediário",
+} as const
+
+type ConsumptionLikeInput = Extract<CreateReportInput, { type: "MONTHLY" | "CONSUMPTION" }>
 
 const CONTENT_TYPES = { PDF: "application/pdf", CSV: "text/csv; charset=utf-8" } as const
 
@@ -100,6 +122,9 @@ export class ReportService {
      * @param areaRepository - Usado por {@link resolveRootProperty} e para listar as áreas de uma propriedade.
      * @param deviceRepository - Usado por {@link resolveRootProperty} e para listar os dispositivos de uma área.
      * @param distributorRepository - Nome da distribuidora da propriedade.
+     * @param alertTriggerEventRepository - Episódios de disparo, para o relatório de alertas.
+     * @param meterQualityRepository - Estatísticas elétricas por fase, para o relatório de qualidade de energia.
+     * @param meterDemandRollupRepository - Demanda medida do mês, para o relatório de demanda.
      * @param now - Relógio injetável, para os testes fixarem "hoje".
      */
     constructor(
@@ -111,6 +136,9 @@ export class ReportService {
         private readonly areaRepository: AreaRepository,
         private readonly deviceRepository: DeviceRepository,
         private readonly distributorRepository: DistributorRepository,
+        private readonly alertTriggerEventRepository: AlertTriggerEventRepository,
+        private readonly meterQualityRepository: MeterQualityRepository,
+        private readonly meterDemandRollupRepository: MeterDemandRollupRepository,
         private readonly now: () => Date = () => new Date(),
     ) {}
 
@@ -154,7 +182,7 @@ export class ReportService {
         const period = resolveReportPeriod(input)
         const { property, meterId } = await this.resolveOwnedTarget(userId, input)
 
-        const data = await this.buildReportData(userId, input, period, property, meterId)
+        const data = await this.buildContent(userId, input, period, property, meterId)
         const content =
             input.format === "PDF" ? await generateReportPdf(data) : generateReportCsv(data)
         if (content.length > MAX_REPORT_BYTES) {
@@ -232,6 +260,15 @@ export class ReportService {
             throw new ForbiddenError("Acesso negado")
         }
 
+        if (
+            input.type === "DEMAND" &&
+            !(input.targetType === "PROPERTY" && property.tariffGroup === "GROUP_A")
+        ) {
+            throw new UnsupportedReportTargetError(
+                "O relatório de demanda só se aplica a uma propriedade do Grupo A",
+            )
+        }
+
         const meter = await this.meterRepository.findByTarget(input.targetType, input.targetId)
         if (!meter) {
             throw new NotFoundError("Este alvo não possui medidor vinculado")
@@ -239,33 +276,42 @@ export class ReportService {
         return { property, meterId: meter.id }
     }
 
-    private async buildReportData(
+    private async buildContent(
         userId: string,
         input: CreateReportInput,
         period: { from: Date; to: Date },
         property: PropertyResponse,
         meterId: string,
-    ): Promise<ReportData> {
-        const [distributor, targetName, daily] = await Promise.all([
+    ): Promise<ReportContent> {
+        const base = await this.buildBase(input, period, property)
+
+        switch (input.type) {
+            case "ALERTS":
+                return this.buildAlerts(base, meterId)
+            case "POWER_QUALITY":
+                return buildPowerQualityDocument(
+                    base,
+                    await this.meterQualityRepository.findStats(meterId, period.from, period.to),
+                )
+            case "DEMAND":
+                return this.buildDemand(base, property, meterId)
+            default:
+                return this.buildConsumption(userId, base, input, meterId)
+        }
+    }
+
+    private async buildBase(
+        input: CreateReportInput,
+        period: { from: Date; to: Date },
+        property: PropertyResponse,
+    ): Promise<ReportBase> {
+        const [distributor, targetName] = await Promise.all([
             this.distributorRepository.findById(property.distributorId),
             this.resolveTargetName(input, property),
-            this.consumptionRepository.findAggregated({
-                meterId,
-                granularity: "day",
-                from: period.from,
-                to: period.to,
-                order: "asc",
-                skip: 0,
-                take: MAX_DAILY_BUCKETS,
-            }),
         ])
-
-        const generatedAt = this.now()
-        const kpis = this.buildKpis(daily.items, period, generatedAt)
-
         return {
             type: input.type,
-            generatedAt,
+            generatedAt: this.now(),
             target: { kind: TARGET_KIND_BY_TYPE[input.targetType], name: targetName },
             property: {
                 name: property.name,
@@ -273,6 +319,29 @@ export class ReportService {
                 tariffLabel: describeTariff(property),
             },
             period,
+        }
+    }
+
+    private async buildConsumption(
+        userId: string,
+        base: ReportBase,
+        input: ConsumptionLikeInput,
+        meterId: string,
+    ): Promise<ReportData> {
+        const { period } = base
+        const daily = await this.consumptionRepository.findAggregated({
+            meterId,
+            granularity: "day",
+            from: period.from,
+            to: period.to,
+            order: "asc",
+            skip: 0,
+            take: MAX_DAILY_BUCKETS,
+        })
+        const kpis = this.buildKpis(daily.items, period, base.generatedAt)
+
+        return {
+            ...base,
             kpis,
             daily: daily.items.map((row) => ({
                 day: row.bucketStart,
@@ -285,6 +354,71 @@ export class ReportService {
                     ? await this.buildMonthlyExtras(userId, input, meterId, kpis.totalKwh)
                     : null,
         }
+    }
+
+    private async buildAlerts(base: ReportBase, meterId: string): Promise<ReportContent> {
+        const events = await this.alertTriggerEventRepository.findByMeterAndPeriod(
+            meterId,
+            base.period.from,
+            base.period.to,
+            MAX_ALERT_EPISODES + 1,
+        )
+        if (events.length > MAX_ALERT_EPISODES) {
+            throw new ValidationError(
+                `Há mais de ${MAX_ALERT_EPISODES} episódios no período; escolha um período menor`,
+            )
+        }
+        return buildAlertsDocument(
+            base,
+            events.map((event) => ({
+                alertName: event.alert.name,
+                referencePowerKw: event.alert.referencePowerKw,
+                tolerancePercent: event.alert.tolerancePercent,
+                startedAt: event.startedAt,
+                endedAt: event.endedAt,
+                durationSeconds: event.durationSeconds,
+                minPowerW: event.minPowerW,
+                avgPowerW: event.avgPowerW,
+                maxPowerW: event.maxPowerW,
+            })),
+        )
+    }
+
+    // Demanda contratada só existe na propriedade do Grupo A (Verde ou Azul);
+    // a medida do mês vem do rollup, sempre de uma janela completa de 15 min.
+    private async buildDemand(
+        base: ReportBase,
+        property: PropertyResponse,
+        meterId: string,
+    ): Promise<ReportContent> {
+        const modality = property.tariffModality
+        if (modality !== "GREEN" && modality !== "BLUE") {
+            throw new UnsupportedReportTargetError(
+                "O relatório de demanda exige uma propriedade do Grupo A com modalidade Verde ou Azul",
+            )
+        }
+        const contracted = resolveContractedDemands(property, modality)
+        const rollups = await this.meterDemandRollupRepository.findByMeterAndPeriod(
+            meterId,
+            base.period.from,
+        )
+
+        const rows: DemandRow[] = contracted.map((demand) => {
+            // Verde tem uma demanda só, comparada com o maior valor entre os postos.
+            const candidates =
+                demand.post === null ? rollups : rollups.filter((row) => row.post === demand.post)
+            const peak = candidates.reduce<(typeof rollups)[number] | null>(
+                (best, row) => (best === null || row.maxAvgPowerW > best.maxAvgPowerW ? row : best),
+                null,
+            )
+            return {
+                postLabel: demand.post === null ? "Único" : POST_LABELS[demand.post],
+                contractedKw: demand.contractedDemandKw,
+                measuredKw: peak ? peak.maxAvgPowerW / 1000 : null,
+                peakAt: peak?.windowEndAt ?? null,
+            }
+        })
+        return buildDemandDocument(base, modality === "GREEN" ? "Verde" : "Azul", rows)
     }
 
     /**
@@ -336,7 +470,7 @@ export class ReportService {
     // Filhos do alvo: áreas de uma propriedade, dispositivos de uma área.
     // Dispositivo é folha — não tem quebra.
     private async buildChildren(
-        input: CreateReportInput,
+        input: ConsumptionLikeInput,
         period: { from: Date; to: Date },
         parentTotalKwh: number,
     ): Promise<ReportData["children"]> {

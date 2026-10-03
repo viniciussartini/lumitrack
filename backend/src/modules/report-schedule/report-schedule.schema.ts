@@ -64,11 +64,12 @@ export const reportScheduleBodySchema = z
             }
         }
 
-        if (data.type === "MONTHLY" && data.frequency !== "MONTHLY") {
+        if ((data.type === "MONTHLY" || data.type === "DEMAND") && data.frequency !== "MONTHLY") {
             ctx.addIssue({
                 code: "custom",
                 path: ["type"],
-                message: "O relatório mensal só pode ser agendado com frequência mensal",
+                message:
+                    "Os relatórios mensal e de demanda só podem ser agendados com frequência mensal",
             })
         }
     })

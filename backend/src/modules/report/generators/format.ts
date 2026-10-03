@@ -1,13 +1,16 @@
-import type { ReportData } from "@/modules/report/report.types.js"
+import type { ReportType } from "@/modules/report/report.schema.js"
 
 const SP_TZ = "America/Sao_Paulo"
 
-const REPORT_TITLES: Record<ReportData["type"], string> = {
+const REPORT_TITLES: Record<ReportType, string> = {
     MONTHLY: "Relatório mensal de consumo de energia",
     CONSUMPTION: "Relatório de consumo de energia",
+    ALERTS: "Relatório de alertas",
+    POWER_QUALITY: "Relatório de qualidade de energia",
+    DEMAND: "Relatório de demanda",
 }
 
-export function reportTitle(type: ReportData["type"]): string {
+export function reportTitle(type: ReportType): string {
     return REPORT_TITLES[type]
 }
 
@@ -60,10 +63,20 @@ export function formatVariation(percent: number | null): string {
 
 /** Nome de arquivo gerado no servidor — nunca embute texto digitado pelo usuário. */
 export function buildReportFileName(
-    type: ReportData["type"],
+    type: ReportType,
     period: { from: Date },
     extension: "pdf" | "csv",
 ): string {
     const yyyy = period.from.toLocaleDateString("en-CA", { timeZone: SP_TZ }).slice(0, 7)
     return `lumitrack-relatorio-${type.toLowerCase()}-${yyyy}.${extension}`
+}
+
+/** Duração legível, ex.: "45 s", "12 min", "1 h 20 min". */
+export function formatDuration(totalSeconds: number): string {
+    if (totalSeconds < 60) return `${Math.round(totalSeconds)} s`
+    const minutes = Math.round(totalSeconds / 60)
+    if (minutes < 60) return `${minutes} min`
+    const hours = Math.floor(minutes / 60)
+    const rest = minutes % 60
+    return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`
 }

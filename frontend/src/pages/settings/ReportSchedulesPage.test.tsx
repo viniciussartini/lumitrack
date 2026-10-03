@@ -31,6 +31,7 @@ const TREE: PropertyTree = {
         {
             id: "prop-1",
             name: "Casa Principal",
+            tariffGroup: "GROUP_B",
             areas: [{ id: "area-1", name: "Sala", devices: [] }],
         },
     ],
@@ -357,5 +358,37 @@ describe("ReportSchedulesPage — lista", () => {
         await waitFor(() =>
             expect(reportScheduleService.list).toHaveBeenLastCalledWith({ page: 1, pageSize: 10 }),
         )
+    })
+})
+
+describe("ReportSchedulesPage — tipos de relatório", () => {
+    const groupA = (): PropertyTree => ({
+        total: 1,
+        items: [{ ...TREE.items[0]!, tariffGroup: "GROUP_A" }],
+    })
+
+    it("a demanda só é oferecida para propriedade do Grupo A e trava a frequência mensal", async () => {
+        const user = userEvent.setup()
+        vi.mocked(propertyService.getTree).mockResolvedValue(groupA())
+        renderPage()
+
+        const type = await screen.findByLabelText("Tipo de relatório")
+        await user.selectOptions(type, "ALERTS")
+        await user.selectOptions(screen.getByLabelText("Frequência"), "WEEKLY")
+        expect(screen.getByLabelText("Frequência")).toBeEnabled()
+
+        await user.selectOptions(type, "DEMAND")
+        expect(screen.getByLabelText("Frequência")).toBeDisabled()
+        expect(screen.getByLabelText("Frequência")).toHaveValue("MONTHLY")
+    })
+
+    it("propriedade do Grupo B não oferece a demanda", async () => {
+        renderPage()
+
+        const type = await screen.findByLabelText("Tipo de relatório")
+        const options = within(type)
+            .getAllByRole("option")
+            .map((option) => option.textContent)
+        expect(options).toEqual(["Mensal", "Consumo", "Alertas", "Qualidade de energia"])
     })
 })

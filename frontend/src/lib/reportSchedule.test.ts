@@ -246,3 +246,35 @@ describe("selectUpcomingSchedules", () => {
         expect(result.map((item) => item.id)).toEqual(["atrasada"])
     })
 })
+
+describe("tipos novos no agendamento", () => {
+    it("a demanda fixa a frequência mensal, como o mensal", () => {
+        const weekly = applyScheduleFrequency(INITIAL_SCHEDULE_FORM, "WEEKLY")
+
+        expect(applyScheduleType(weekly, "DEMAND")).toMatchObject({
+            type: "DEMAND",
+            frequency: "MONTHLY",
+        })
+    })
+
+    it("alertas e qualidade mantêm a frequência escolhida", () => {
+        const weekly = applyScheduleFrequency(INITIAL_SCHEDULE_FORM, "WEEKLY")
+
+        expect(applyScheduleType(weekly, "ALERTS")).toMatchObject({
+            type: "ALERTS",
+            frequency: "WEEKLY",
+        })
+        expect(applyScheduleType(weekly, "POWER_QUALITY").frequency).toBe("WEEKLY")
+    })
+
+    it("nomeia os tipos novos na lista", () => {
+        const labels = new Map([["PROPERTY:prop-1", "Casa"]])
+
+        expect(describeSchedule({ ...SCHEDULE, type: "POWER_QUALITY" }, labels).title).toBe(
+            "Qualidade de energia · Casa",
+        )
+        expect(describeSchedule({ ...SCHEDULE, type: "DEMAND" }, labels).title).toBe(
+            "Demanda · Casa",
+        )
+    })
+})

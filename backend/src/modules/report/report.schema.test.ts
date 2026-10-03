@@ -66,19 +66,57 @@ describe("createReportSchema", () => {
         },
     )
 
-    it.each(["ALERTS", "POWER_QUALITY", "DEMAND", "OUTRO"])(
-        "rejeita tipo sem gerador: %s",
-        (type) => {
-            const result = createReportSchema.safeParse({
-                type,
-                targetType: "PROPERTY",
-                targetId,
-                format: "PDF",
-                month: "2026-07",
+    it("rejeita tipo desconhecido", () => {
+        const result = createReportSchema.safeParse({
+            type: "OUTRO",
+            targetType: "PROPERTY",
+            targetId,
+            format: "PDF",
+            month: "2026-07",
+        })
+        expect(result.success).toBe(false)
+    })
+
+    it.each(["ALERTS", "POWER_QUALITY"])("%s usa período livre, como o consumo", (type) => {
+        const base = { type, targetType: "PROPERTY", targetId, format: "CSV" }
+
+        expect(
+            createReportSchema.safeParse({
+                ...base,
+                from: "2026-07-01T03:00:00.000Z",
+                to: "2026-08-01T03:00:00.000Z",
+            }).success,
+        ).toBe(true)
+        expect(createReportSchema.safeParse({ ...base, month: "2026-07" }).success).toBe(false)
+        expect(
+            createReportSchema.safeParse({
+                ...base,
+                from: "2026-01-01T03:00:00.000Z",
+                to: "2026-06-01T03:00:00.000Z",
+            }).success,
+        ).toBe(false)
+    })
+
+    it("DEMAND usa o mês, e resolve o mesmo intervalo do mensal", () => {
+        const base = { type: "DEMAND", targetType: "PROPERTY", targetId, format: "PDF" }
+
+        const parsed = createReportSchema.safeParse({ ...base, month: "2026-07" })
+
+        expect(parsed.success).toBe(true)
+        expect(
+            createReportSchema.safeParse({
+                ...base,
+                from: "2026-07-01T03:00:00.000Z",
+                to: "2026-08-01T03:00:00.000Z",
+            }).success,
+        ).toBe(false)
+        if (parsed.success) {
+            expect(resolveReportPeriod(parsed.data)).toEqual({
+                from: new Date("2026-07-01T03:00:00.000Z"),
+                to: new Date("2026-08-01T03:00:00.000Z"),
             })
-            expect(result.success).toBe(false)
-        },
-    )
+        }
+    })
 
     it("rejeita formato desconhecido e alvo inválido", () => {
         expect(

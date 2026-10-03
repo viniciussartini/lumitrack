@@ -1,4 +1,5 @@
 import type { CompareTargetOption } from "@/lib/periodComparison"
+import { REPORT_TYPE_LABELS, usesMonthPeriod } from "@/lib/reportForm"
 import type {
     ReportFormat,
     ReportFrequency,
@@ -33,8 +34,6 @@ export const WEEKDAY_OPTIONS: readonly { value: number; label: string }[] = [
     { value: 7, label: "Domingo" },
 ]
 
-const TYPE_LABELS: Record<ReportType, string> = { MONTHLY: "Mensal", CONSUMPTION: "Consumo" }
-
 // Meses de envio de cada frequência de calendário, como o backend os calcula.
 const MONTHS_HINT: Partial<Record<ReportFrequency, string>> = {
     QUARTERLY: " (jan, abr, jul, out)",
@@ -63,14 +62,14 @@ export const INITIAL_SCHEDULE_FORM: ScheduleFormState = {
 }
 
 /**
- * Muda o tipo mantendo o rascunho coerente: o relatório mensal só existe com
- * frequência mensal, então escolhê-lo já fixa a frequência.
+ * Muda o tipo mantendo o rascunho coerente: os relatórios mensal e de demanda
+ * só existem com frequência mensal, então escolhê-los já fixa a frequência.
  *
  * @param state - Rascunho atual.
  * @param type - Novo tipo.
  */
 export function applyScheduleType(state: ScheduleFormState, type: ReportType): ScheduleFormState {
-    return type === "MONTHLY"
+    return usesMonthPeriod(type)
         ? applyScheduleFrequency({ ...state, type }, "MONTHLY")
         : { ...state, type }
 }
@@ -223,7 +222,7 @@ export function describeSchedule(
     const target =
         targetLabels.get(`${schedule.targetType}:${schedule.targetId}`) ?? "Alvo removido"
     return {
-        title: `${TYPE_LABELS[schedule.type]} · ${target}`,
+        title: `${REPORT_TYPE_LABELS[schedule.type]} · ${target}`,
         meta: `${describePeriodicity(schedule.frequency, schedule.sendDay)} · ${schedule.format} · ${schedule.recipients.join(", ")}`,
         nextRun: schedule.nextRunAt ? formatNextRun(schedule.nextRunAt) : "",
     }

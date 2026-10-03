@@ -11,6 +11,7 @@ export const PROPERTY_TREE_1: PropertyTree = {
         {
             id: PROP_1.id,
             name: PROP_1.name,
+            tariffGroup: "GROUP_B",
             areas: [{ id: AREA_1.id, name: AREA_1.name, devices: [] }],
         },
     ],

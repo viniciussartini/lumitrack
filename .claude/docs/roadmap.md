@@ -2791,3 +2791,13 @@ Candidatos conhecidos, ainda sem fase:
 
 **O que mudou:** o item 5 (próximos envios) foi implementado só no frontend, sem endpoint novo. O bloco lê a lista de configurações e filtra por `nextRunAt`, que o servidor grava a cada criação, edição ou execução. Mostra uma linha por configuração ativa com envio em até 15 dias (uma diária aparece uma vez, não 15), incluindo a que já venceu e ainda não saiu. Com isso o épico #464 só deixa pendente o fechamento da fase: requisitos (RF41 e FNC007 ainda `[planejado — Fase 27]`) e o PR.
 
+### Replanejamento de 2026-10-03 (implementação do item 2 — tipos restantes)
+
+**O que mudou:** o item "tipos alertas, qualidade de energia e demanda" foi implementado na branch `epic/464-relatorios`, e com ele a Fase 27 fecha todos os itens (1 a 5 mais este). O handoff não especificava o conteúdo, então foi decidido com o usuário antes de codificar:
+
+- **Qualidade de energia:** resumo do período (mínimo, média e máximo por grandeza e fase) mais tabela diária de médias.
+- **Demanda:** o usuário escolhe o mês (a demanda é apurada por mês de faturamento); só propriedade do Grupo A; por posto, contratada contra medida.
+- **Alertas:** episódios iniciados no período, já encerrados.
+- **Os três também são agendáveis**, ampliando o escopo original: alertas e qualidade seguem o período livre desde o envio anterior; demanda cobre o mês anterior e só combina com frequência mensal.
+- **`GET /api/properties/tree` devolve `tariffGroup`**, para a tela só oferecer a demanda onde ela existe; a regra é conferida de novo no servidor.
+

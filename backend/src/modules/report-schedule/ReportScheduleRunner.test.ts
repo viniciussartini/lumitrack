@@ -278,4 +278,76 @@ describe("ReportScheduleRunner", () => {
         })
         expect(report.periodStart).toEqual(at("2026-01-01", "03:00"))
     })
+
+    it.each(["ALERTS", "POWER_QUALITY"] as const)(
+        "executa o relatório de %s como os demais",
+        async (type) => {
+            const ids = await setup()
+            await createSchedule(ids, {
+                type,
+                frequency: "DAILY",
+                sendDay: null,
+                nextRunAt: at("2026-03-10"),
+            })
+            const sendEmail = vi.fn().mockResolvedValue(undefined)
+
+            await buildRunner(at("2026-03-10", "09:05"), sendEmail).runDue()
+
+            expect(sendEmail).toHaveBeenCalledTimes(1)
+            expect(sendEmail.mock.calls[0]![0]).toMatchObject({ reportType: type })
+            const report = await prismaHttpTest.report.findFirstOrThrow({
+                where: { userId: ids.userId },
+            })
+            expect(report).toMatchObject({ origin: "SCHEDULED", type })
+            expect(report.periodStart).toEqual(at("2026-03-09", "03:00"))
+        },
+    )
+
+    it("envia a demanda do mês anterior de uma propriedade do Grupo A", async () => {
+        const ids = await setup()
+        await prismaHttpTest.property.update({
+            where: { id: ids.propertyId },
+            data: {
+                tariffGroup: "GROUP_A",
+                tariffSubgroup: "A4",
+                tariffModality: "GREEN",
+                contractedDemandKw: 100,
+                billingClass: null,
+            },
+        })
+        await createSchedule(ids, {
+            type: "DEMAND",
+            nextRunAt: at("2026-03-05"),
+            sendDay: 5,
+        })
+        const sendEmail = vi.fn().mockResolvedValue(undefined)
+
+        await buildRunner(at("2026-03-05", "09:05"), sendEmail).runDue()
+
+        expect(sendEmail).toHaveBeenCalledTimes(1)
+        const report = await prismaHttpTest.report.findFirstOrThrow({
+            where: { userId: ids.userId },
+        })
+        expect(report).toMatchObject({ type: "DEMAND", origin: "SCHEDULED" })
+        expect(report.periodStart).toEqual(at("2026-02-01", "03:00"))
+        expect(report.periodEnd).toEqual(at("2026-03-01", "03:00"))
+    })
+
+    it("pausa a demanda quando a propriedade não é do Grupo A, sem tentar de novo", async () => {
+        const ids = await setup()
+        const schedule = await createSchedule(ids, {
+            type: "DEMAND",
+            nextRunAt: at("2026-03-05"),
+            sendDay: 5,
+        })
+        const sendEmail = vi.fn().mockResolvedValue(undefined)
+
+        await buildRunner(at("2026-03-05", "09:05"), sendEmail).runDue()
+
+        expect(sendEmail).not.toHaveBeenCalled()
+        const paused = await prismaHttpTest.reportSchedule.findUniqueOrThrow({
+            where: { id: schedule.id },
+        })
+        expect(paused).toMatchObject({ active: false, nextRunAt: null, failedAttempts: 0 })
+    })
 })

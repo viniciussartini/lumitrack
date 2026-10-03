@@ -39,6 +39,7 @@ const TREE: PropertyTree = {
         {
             id: "prop-1",
             name: "Casa Principal",
+            tariffGroup: "GROUP_B",
             areas: [
                 {
                     id: "area-1",
@@ -248,5 +249,66 @@ describe("ReportsPage", () => {
             }),
         )
         expect(downloadFile).not.toHaveBeenCalled()
+    })
+
+    describe("tipos de relatório", () => {
+        const groupA = (): PropertyTree => ({
+            total: 1,
+            items: [{ ...TREE.items[0]!, tariffGroup: "GROUP_A" }],
+        })
+        const typeOptions = () =>
+            within(screen.getByLabelText("Tipo de relatório"))
+                .getAllByRole("option")
+                .map((option) => option.textContent)
+
+        it("oferece alertas e qualidade de energia, com período livre", async () => {
+            const user = userEvent.setup()
+            vi.mocked(propertyService.getTree).mockResolvedValue(TREE)
+            renderPage()
+
+            await screen.findByLabelText("Escopo")
+            expect(typeOptions()).toEqual(["Mensal", "Consumo", "Alertas", "Qualidade de energia"])
+
+            await user.selectOptions(screen.getByLabelText("Tipo de relatório"), "POWER_QUALITY")
+            expect(screen.getByLabelText("Início")).toBeInTheDocument()
+            expect(screen.queryByLabelText("Mês")).not.toBeInTheDocument()
+        })
+
+        it("a demanda só aparece para propriedade do Grupo A e pede o mês", async () => {
+            const user = userEvent.setup()
+            vi.mocked(propertyService.getTree).mockResolvedValue(groupA())
+            vi.mocked(reportService.create).mockResolvedValue({ ...REPORT, type: "DEMAND" })
+            renderPage()
+
+            await screen.findByLabelText("Escopo")
+            expect(typeOptions()).toContain("Demanda")
+
+            await user.selectOptions(screen.getByLabelText("Tipo de relatório"), "DEMAND")
+            expect(screen.getByLabelText("Mês")).toBeInTheDocument()
+
+            await user.click(screen.getByRole("button", { name: /Gerar relatório/i }))
+            await waitFor(() =>
+                expect(reportService.create).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        type: "DEMAND",
+                        targetType: "PROPERTY",
+                        targetId: "prop-1",
+                    }),
+                ),
+            )
+        })
+
+        it("trocar para uma área tira a demanda e volta ao mensal", async () => {
+            const user = userEvent.setup()
+            vi.mocked(propertyService.getTree).mockResolvedValue(groupA())
+            renderPage()
+
+            await screen.findByLabelText("Escopo")
+            await user.selectOptions(screen.getByLabelText("Tipo de relatório"), "DEMAND")
+            await user.selectOptions(screen.getByLabelText("Escopo"), "AREA:area-1")
+
+            expect(typeOptions()).not.toContain("Demanda")
+            expect(screen.getByLabelText("Tipo de relatório")).toHaveValue("MONTHLY")
+        })
     })
 })

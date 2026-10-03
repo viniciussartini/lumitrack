@@ -1,6 +1,6 @@
 import type { TargetType } from "@/types/meter.types"
 
-export type ReportType = "MONTHLY" | "CONSUMPTION"
+export type ReportType = "MONTHLY" | "CONSUMPTION" | "ALERTS" | "POWER_QUALITY" | "DEMAND"
 export type ReportFormat = "PDF" | "CSV"
 export type ReportOrigin = "MANUAL" | "SCHEDULED"
 
@@ -25,10 +25,14 @@ interface CreateReportBase {
     format: ReportFormat
 }
 
-/** Corpo de `POST /api/reports`: mensal pede o mês, consumo pede o intervalo. */
+/** Corpo de `POST /api/reports`: mensal e demanda pedem o mês; os demais, o intervalo. */
 export type CreateReportInput =
-    | (CreateReportBase & { type: "MONTHLY"; month: string })
-    | (CreateReportBase & { type: "CONSUMPTION"; from: string; to: string })
+    | (CreateReportBase & { type: "MONTHLY" | "DEMAND"; month: string })
+    | (CreateReportBase & {
+          type: "CONSUMPTION" | "ALERTS" | "POWER_QUALITY"
+          from: string
+          to: string
+      })
 
 export interface ReportFile {
     fileName: string

@@ -78,8 +78,19 @@ describe("reportScheduleBodySchema", () => {
             )
         })
 
-        it("rejeita tipo sem gerador", () => {
-            expect(parse({ type: "DEMAND" }).success).toBe(false)
+        it("o relatório de demanda só combina com a frequência mensal", () => {
+            expect(parse({ type: "DEMAND", frequency: "MONTHLY" }).success).toBe(true)
+            expect(parse({ type: "DEMAND", frequency: "WEEKLY", sendDay: 1 }).success).toBe(false)
+            expect(parse({ type: "DEMAND", frequency: "ANNUAL", sendDay: 1 }).success).toBe(false)
+        })
+
+        it.each(["ALERTS", "POWER_QUALITY"])("%s combina com qualquer frequência", (type) => {
+            expect(parse({ type, frequency: "WEEKLY", sendDay: 1 }).success).toBe(true)
+            expect(parse({ type, frequency: "DAILY", sendDay: null }).success).toBe(true)
+        })
+
+        it("rejeita tipo desconhecido", () => {
+            expect(parse({ type: "OUTRO" }).success).toBe(false)
         })
     })
 

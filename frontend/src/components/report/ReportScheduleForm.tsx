@@ -2,7 +2,7 @@ import { useId, useState, type FormEvent } from "react"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Select } from "@/components/ui/Select"
-import type { CompareTargetGroup } from "@/lib/periodComparison"
+import type { CompareTargetGroup, CompareTargetOption } from "@/lib/periodComparison"
 import {
     FREQUENCY_OPTIONS,
     INITIAL_SCHEDULE_FORM,
@@ -16,7 +16,7 @@ import {
     validateScheduleForm,
     type ScheduleFormState,
 } from "@/lib/reportSchedule"
-import { REPORT_TYPE_OPTIONS } from "@/lib/reportForm"
+import { reportTypeOptionsFor, usesMonthPeriod } from "@/lib/reportForm"
 import type {
     ReportFormat,
     ReportFrequency,
@@ -44,8 +44,9 @@ const FORMATS: readonly ReportFormat[] = ["PDF", "CSV"]
  * Relatórios) — escopo, tipo, frequência, dia, destinatários, formato e se a
  * configuração está ativa. Serve à criação e, dentro do modal, à edição.
  *
- * O relatório mensal só existe com frequência mensal, então escolhê-lo fixa a
- * frequência. O dia muda de natureza conforme a frequência (nenhum, dia da
+ * Os relatórios mensal e de demanda só existem com frequência mensal, então
+ * escolhê-los fixa a frequência. A demanda só é oferecida para propriedade do
+ * Grupo A. O dia muda de natureza conforme a frequência (nenhum, dia da
  * semana ou dia do mês).
  */
 export const ReportScheduleForm = ({
@@ -56,7 +57,7 @@ export const ReportScheduleForm = ({
     submitLabel = "Salvar configuração",
     onCancel,
 }: ReportScheduleFormProps) => {
-    const { target, setTargetKey, state, setState, validationMessage, canSubmit } =
+    const { target, changeTarget, state, setState, validationMessage, canSubmit } =
         useScheduleDraft(groups, initial)
     // Ids únicos por instância: o formulário aparece na página e, ao editar, também no modal.
     const uid = useId()
@@ -72,7 +73,8 @@ export const ReportScheduleForm = ({
             <ScopeAndTypeFields
                 groups={groups}
                 targetKey={target.key}
-                onTargetChange={setTargetKey}
+                onTargetChange={changeTarget}
+                typeOptions={reportTypeOptionsFor(target)}
                 type={state.type}
                 onTypeChange={(type) => setState(applyScheduleType(state, type))}
             />
@@ -125,16 +127,25 @@ function useScheduleDraft(groups: CompareTargetGroup[], initial: ReportSchedule 
     // para a primeira opção válida em vez de deixar o envio sem efeito.
     const target = options.find((option) => option.key === targetKey) ?? options[0]!
 
+    // Trocar para um alvo que não comporta o tipo escolhido (a demanda) volta ao mensal.
+    const changeTarget = (next: CompareTargetOption) => {
+        setTargetKey(next.key)
+        if (!reportTypeOptionsFor(next).some((option) => option.value === state.type)) {
+            setState(applyScheduleType(state, "MONTHLY"))
+        }
+    }
+
     const validationMessage = validateScheduleForm(state)
     const canSubmit = validationMessage === null && isScheduleFormFilled(state)
 
-    return { target, setTargetKey, state, setState, validationMessage, canSubmit }
+    return { target, changeTarget, state, setState, validationMessage, canSubmit }
 }
 
 interface ScopeAndTypeFieldsProps {
     groups: CompareTargetGroup[]
     targetKey: string
-    onTargetChange: (key: string) => void
+    onTargetChange: (target: CompareTargetOption) => void
+    typeOptions: readonly { value: ReportType; label: string }[]
     type: ReportType
     onTypeChange: (type: ReportType) => void
 }
@@ -143,6 +154,7 @@ const ScopeAndTypeFields = ({
     groups,
     targetKey,
     onTargetChange,
+    typeOptions,
     type,
     onTypeChange,
 }: ScopeAndTypeFieldsProps) => (
@@ -150,7 +162,12 @@ const ScopeAndTypeFields = ({
         <Select
             label="Escopo"
             value={targetKey}
-            onChange={(event) => onTargetChange(event.target.value)}
+            onChange={(event) => {
+                const next = groups
+                    .flatMap((group) => group.options)
+                    .find((option) => option.key === event.target.value)
+                if (next) onTargetChange(next)
+            }}
         >
             {groups.map((group) => (
                 <optgroup key={group.label} label={group.label}>
@@ -167,7 +184,7 @@ const ScopeAndTypeFields = ({
             value={type}
             onChange={(event) => onTypeChange(event.target.value as ReportType)}
         >
-            {REPORT_TYPE_OPTIONS.map((option) => (
+            {typeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                     {option.label}
                 </option>
@@ -195,10 +212,8 @@ const FrequencyFields = ({
         <Select
             label="Frequência"
             value={state.frequency}
-            disabled={state.type === "MONTHLY"}
-            helperText={
-                state.type === "MONTHLY" ? "O relatório mensal é sempre mensal." : undefined
-            }
+            disabled={usesMonthPeriod(state.type)}
+            helperText={usesMonthPeriod(state.type) ? "Este relatório é sempre mensal." : undefined}
             onChange={(event) => onFrequencyChange(event.target.value as ReportFrequency)}
         >
             {FREQUENCY_OPTIONS.map((option) => (

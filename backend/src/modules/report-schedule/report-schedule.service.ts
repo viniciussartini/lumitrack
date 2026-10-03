@@ -125,6 +125,15 @@ export class ReportScheduleService {
             throw new ForbiddenError("Acesso negado")
         }
 
+        if (
+            data.type === "DEMAND" &&
+            !(data.targetType === "PROPERTY" && property.tariffGroup === "GROUP_A")
+        ) {
+            throw new ValidationError(
+                "O relatório de demanda só se aplica a uma propriedade do Grupo A",
+            )
+        }
+
         const meter = await this.meterRepository.findByTarget(data.targetType, data.targetId)
         if (!meter) {
             throw new NotFoundError("Este alvo não possui medidor vinculado")

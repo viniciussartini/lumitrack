@@ -1,12 +1,8 @@
+import { REPORT_TYPE_LABELS, usesMonthPeriod } from "@/lib/reportForm"
 import type { CompareTargetGroup } from "@/lib/periodComparison"
-import type { Report, ReportOrigin, ReportType } from "@/types/report.types"
+import type { Report, ReportOrigin } from "@/types/report.types"
 
 const SAO_PAULO_TZ = "America/Sao_Paulo"
-
-const TYPE_LABELS: Record<ReportType, string> = {
-    MONTHLY: "Mensal",
-    CONSUMPTION: "Consumo",
-}
 
 const ORIGIN_LABELS: Record<ReportOrigin, string> = {
     MANUAL: "Geração manual",
@@ -20,13 +16,13 @@ const formatDay = (instant: Date): string =>
     instant.toLocaleDateString("pt-BR", { timeZone: SAO_PAULO_TZ })
 
 /**
- * Período do relatório para exibição: o mensal mostra o mês ("julho de
- * 2026"), o de consumo mostra o intervalo. O fim do banco é exclusivo, então
+ * Período do relatório para exibição: os de mês (mensal e demanda) mostram o
+ * mês ("julho de 2026"), os demais mostram o intervalo. O fim do banco é exclusivo, então
  * o último dia é o instante anterior.
  */
 export function formatReportPeriod(report: Pick<Report, "type" | "periodStart" | "periodEnd">) {
     const start = new Date(report.periodStart)
-    if (report.type === "MONTHLY") {
+    if (usesMonthPeriod(report.type)) {
         return start.toLocaleDateString("pt-BR", {
             month: "long",
             year: "numeric",
@@ -62,7 +58,7 @@ export interface ReportRowView {
 export function describeReport(report: Report, targetLabels: Map<string, string>): ReportRowView {
     const target = targetLabels.get(targetKey(report)) ?? REMOVED_TARGET_LABEL
     return {
-        title: `${TYPE_LABELS[report.type]} · ${target} · ${formatReportPeriod(report)}`,
+        title: `${REPORT_TYPE_LABELS[report.type]} · ${target} · ${formatReportPeriod(report)}`,
         subtitle: `${ORIGIN_LABELS[report.origin]} · ${report.format}`,
         createdAt: new Date(report.createdAt).toLocaleString("pt-BR", { timeZone: SAO_PAULO_TZ }),
     }

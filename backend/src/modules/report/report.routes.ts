@@ -10,6 +10,9 @@ import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { AreaRepository } from "@/modules/area/area.repository.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
+import { AlertTriggerEventRepository } from "@/modules/alert/alert-trigger-event.repository.js"
+import { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
+import { MeterQualityRepository } from "@/modules/meter/meter-quality.repository.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
 
 /**
@@ -28,6 +31,9 @@ export function createReportService(prismaClient: PrismaClient): ReportService {
         new AreaRepository(prismaClient),
         new DeviceRepository(prismaClient),
         new DistributorRepository(prismaClient),
+        new AlertTriggerEventRepository(prismaClient),
+        new MeterQualityRepository(prismaClient),
+        new MeterDemandRollupRepository(prismaClient),
     )
 }
 

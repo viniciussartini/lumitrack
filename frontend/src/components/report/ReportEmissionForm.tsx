@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/Input"
 import { Select } from "@/components/ui/Select"
 import type { CompareTargetGroup } from "@/lib/periodComparison"
 import {
-    REPORT_TYPE_OPTIONS,
     buildCreateReportInput,
     buildMonthOptions,
     isReportPeriodFilled,
+    reportTypeOptionsFor,
+    usesMonthPeriod,
     validateReportForm,
     type MonthOption,
     type ReportFormState,
@@ -30,8 +31,9 @@ const FORMATS: readonly ReportFormat[] = ["PDF", "CSV"]
 /**
  * Formulário "Gerar relatório agora" (LumiTrack Home v2.dc.html, view
  * `reports`) — escopo, tipo, período e formato. O estado é um rascunho local:
- * só "Gerar relatório" monta o pedido. O período depende do tipo: o mensal
- * pede um mês, o de consumo pede início e fim.
+ * só "Gerar relatório" monta o pedido. O período depende do tipo: o mensal e
+ * a demanda pedem um mês, os demais pedem início e fim. A demanda só é
+ * oferecida para propriedade do Grupo A.
  */
 export const ReportEmissionForm = ({
     groups,
@@ -54,6 +56,16 @@ export const ReportEmissionForm = ({
 
     const update = (patch: Partial<ReportFormState>) =>
         setState((current) => ({ ...current, ...patch }))
+    const typeOptions = reportTypeOptionsFor(target)
+
+    // Trocar para um alvo que não comporta o tipo escolhido (a demanda) volta ao mensal.
+    const changeTarget = (key: string) => {
+        setTargetKey(key)
+        const next = options.find((option) => option.key === key)
+        if (next && !reportTypeOptionsFor(next).some((option) => option.value === state.type)) {
+            update({ type: "MONTHLY" })
+        }
+    }
     const validationMessage = validateReportForm(state)
     const canSubmit = validationMessage === null && isReportPeriodFilled(state)
 
@@ -68,7 +80,8 @@ export const ReportEmissionForm = ({
             <TargetAndTypeFields
                 groups={groups}
                 targetKey={target.key}
-                onTargetChange={setTargetKey}
+                onTargetChange={changeTarget}
+                typeOptions={typeOptions}
                 type={state.type}
                 onTypeChange={(type) => update({ type })}
             />
@@ -98,10 +111,10 @@ interface PeriodFieldsProps {
     onChange: (patch: Partial<ReportFormState>) => void
 }
 
-// O período depende do tipo: o mensal escolhe um mês, o de consumo escolhe
+// O período depende do tipo: os de mês escolhem um mês, os demais escolhem
 // início e fim.
 const PeriodFields = ({ state, monthOptions, validationMessage, onChange }: PeriodFieldsProps) => {
-    if (state.type === "MONTHLY") {
+    if (usesMonthPeriod(state.type)) {
         return (
             <Select
                 label="Mês"
@@ -203,6 +216,7 @@ interface TargetAndTypeFieldsProps {
     groups: CompareTargetGroup[]
     targetKey: string
     onTargetChange: (key: string) => void
+    typeOptions: readonly { value: ReportType; label: string }[]
     type: ReportType
     onTypeChange: (type: ReportType) => void
 }
@@ -211,6 +225,7 @@ const TargetAndTypeFields = ({
     groups,
     targetKey,
     onTargetChange,
+    typeOptions,
     type,
     onTypeChange,
 }: TargetAndTypeFieldsProps) => (
@@ -235,7 +250,7 @@ const TargetAndTypeFields = ({
             value={type}
             onChange={(event) => onTypeChange(event.target.value as ReportType)}
         >
-            {REPORT_TYPE_OPTIONS.map((option) => (
+            {typeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                     {option.label}
                 </option>

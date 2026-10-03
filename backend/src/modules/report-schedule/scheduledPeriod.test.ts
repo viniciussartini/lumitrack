@@ -90,4 +90,26 @@ describe("resolveScheduledReportInput", () => {
         )
         expect(input).toMatchObject({ ...TARGET, format: "CSV", month: "2026-04" })
     })
+
+    it.each(["ALERTS", "POWER_QUALITY"] as const)(
+        "%s segue o período livre desde o envio anterior",
+        (type) => {
+            const input = resolveScheduledReportInput(
+                { ...TARGET, type, frequency: "WEEKLY" },
+                slot("2026-03-10"),
+            )
+            expect(input).toMatchObject({ type })
+            if (!("from" in input)) throw new Error("esperado período livre")
+            expect(input.from.toISOString()).toBe("2026-03-03T03:00:00.000Z")
+            expect(input.to.toISOString()).toBe("2026-03-10T03:00:00.000Z")
+        },
+    )
+
+    it("a demanda cobre o mês-calendário anterior, como o mensal", () => {
+        const input = resolveScheduledReportInput(
+            { ...TARGET, type: "DEMAND", frequency: "MONTHLY" },
+            slot("2026-03-05"),
+        )
+        expect(input).toMatchObject({ type: "DEMAND", month: "2026-02" })
+    })
 })

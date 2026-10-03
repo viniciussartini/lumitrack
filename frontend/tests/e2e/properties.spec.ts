@@ -36,6 +36,7 @@ const treeOf = (properties: Property[], areas: Area[] = []): PropertyTree => ({
     items: properties.map((property) => ({
         id: property.id,
         name: property.name,
+        tariffGroup: "GROUP_B",
         areas: areas
             .filter((area) => area.propertyId === property.id)
             .map((area) => ({ id: area.id, name: area.name, devices: [] })),

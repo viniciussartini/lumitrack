@@ -108,7 +108,10 @@ const setupAuthAndProperty = async (page: Page) => {
  * `/areas/area-1` mas NÃO `/areas` (o `*` exige ao menos um segmento).
  * Por isso registramos os dois separadamente.
  */
-const setupAreasRoutes = async (page: Page, state: { areas: AreaSeed[]; nextId: number }) => {
+const setupAreasRoutes = async (
+    page: Page,
+    state: { tariffGroup: "GROUP_B"; areas: AreaSeed[]; nextId: number },
+) => {
     // A árvore de Análise reflete o estado das áreas — editar ou excluir
     // invalida a chave da árvore e ela é lida de novo.
     await mockPropertyTree(page, () => ({
@@ -117,6 +120,7 @@ const setupAreasRoutes = async (page: Page, state: { areas: AreaSeed[]; nextId: 
             {
                 id: PROP_1.id,
                 name: PROP_1.name,
+                tariffGroup: "GROUP_B",
                 areas: state.areas.map((area) => ({ id: area.id, name: area.name, devices: [] })),
             },
         ],
@@ -203,7 +207,8 @@ test.describe("Área na Análise", () => {
 
     test("chega pela árvore, vê detalhes e edita uma área", async ({ page }) => {
         await setupAuthAndProperty(page)
-        const state: { areas: AreaSeed[]; nextId: number } = {
+        const state: { tariffGroup: "GROUP_B"; areas: AreaSeed[]; nextId: number } = {
+            tariffGroup: "GROUP_B",
             areas: [{ ...AREA_1, name: "Sala", description: "Área principal de convivência" }],
             nextId: 2,
         }
@@ -310,7 +315,11 @@ test.describe("Área na Análise", () => {
 
         test.beforeEach(async ({ page }) => {
             await setupAuthAndProperty(page)
-            await setupAreasRoutes(page, { areas: [{ ...AREA_1 }], nextId: 2 })
+            await setupAreasRoutes(page, {
+                tariffGroup: "GROUP_B",
+                areas: [{ ...AREA_1 }],
+                nextId: 2,
+            })
             await page.route(/\/api\/properties\/prop-1\/areas\/area-1\/devices(\?.*)?$/, (route) =>
                 fulfillPaginated(route, [
                     DEVICE_1,

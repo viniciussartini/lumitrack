@@ -157,7 +157,9 @@ describe("POST /api/report-schedules", () => {
         ["sem destinatários", { recipients: [] }],
         ["dia fora da faixa", { sendDay: 32 }],
         ["mensal com frequência semanal", { type: "MONTHLY", frequency: "WEEKLY", sendDay: 1 }],
-        ["tipo sem gerador", { type: "ALERTS" }],
+        ["demanda com frequência semanal", { type: "DEMAND", frequency: "WEEKLY", sendDay: 1 }],
+        ["demanda para propriedade do Grupo B", { type: "DEMAND", frequency: "MONTHLY" }],
+        ["tipo desconhecido", { type: "OUTRO" }],
     ])("retorna 422 para %s", async (_label, override) => {
         const { token, propertyId } = await setupProperty()
 
@@ -168,6 +170,18 @@ describe("POST /api/report-schedules", () => {
 
         expect(response.status).toBe(422)
         expect(await prismaHttpTest.reportSchedule.count()).toBe(0)
+    })
+
+    it.each(["ALERTS", "POWER_QUALITY"])("aceita o tipo %s", async (type) => {
+        const { token, propertyId } = await setupProperty()
+
+        const response = await request(app)
+            .post("/api/report-schedules")
+            .set(authed(token))
+            .send(body(propertyId, { type }))
+
+        expect(response.status).toBe(201)
+        expect(response.body.data.type).toBe(type)
     })
 
     it("retorna 403 para alvo de outro usuário", async () => {

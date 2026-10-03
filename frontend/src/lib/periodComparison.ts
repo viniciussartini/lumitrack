@@ -3,7 +3,7 @@ import type {
     MeterReadingComparePeriodsParams,
     MeterReadingSeriesMetric,
 } from "@/types/meterReadingSeries.types"
-import type { PropertyTree } from "@/types/property.types"
+import type { PropertyTree, TariffGroup } from "@/types/property.types"
 
 /** Teto de dias por período — mesmo limite que o backend aplica na comparação. */
 export const COMPARE_PERIOD_MAX_DAYS = 92
@@ -17,6 +17,8 @@ export interface CompareTargetOption {
     targetType: TargetType
     targetId: string
     label: string
+    /** Só nas propriedades: o grupo tarifário decide, por exemplo, se há relatório de demanda. */
+    tariffGroup?: TariffGroup
 }
 
 export interface CompareTargetGroup {
@@ -159,6 +161,7 @@ export function buildCompareTargetGroups(tree: PropertyTree): CompareTargetGroup
             targetType: "PROPERTY",
             targetId: property.id,
             label: property.name,
+            tariffGroup: property.tariffGroup,
         })
         for (const area of property.areas) {
             areas.push({

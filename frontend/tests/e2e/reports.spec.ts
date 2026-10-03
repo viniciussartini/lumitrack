@@ -3,7 +3,7 @@ import { test, expect, type Page } from "@playwright/test"
 import { fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
-import { mockPropertyTree } from "./support/propertyTree"
+import { PROPERTY_TREE_1, mockPropertyTree } from "./support/propertyTree"
 
 /**
  * E2E de `/relatorios`: emissão sob demanda de um relatório em PDF ou CSV.
@@ -204,5 +204,58 @@ test.describe("Relatórios (/relatorios)", () => {
                 .getByTestId("report-upcoming")
                 .getByText("Nenhum envio ativo nos próximos 15 dias."),
         ).toBeVisible()
+    })
+
+    test("emite o relatório de alertas com período livre", async ({ page }) => {
+        let created: unknown
+        await setupApp(page, (body) => {
+            created = body
+        })
+        await page.goto("/relatorios")
+        await hideDevTools(page)
+
+        await page.getByLabel("Tipo de relatório").selectOption("ALERTS")
+        await page.getByLabel("Início").fill("2026-07-01")
+        await page.getByLabel("Fim").fill("2026-07-31")
+        await page.getByRole("button", { name: /Gerar relatório/i }).click()
+
+        await expect(page.getByTestId("report-generated")).toBeVisible()
+        expect(created).toMatchObject({
+            type: "ALERTS",
+            targetId: "prop-1",
+            from: "2026-07-01T03:00:00.000Z",
+            to: "2026-08-01T03:00:00.000Z",
+        })
+    })
+
+    test("a demanda só aparece para propriedade do Grupo A e pede o mês", async ({ page }) => {
+        let created: unknown
+        await setupApp(page, (body) => {
+            created = body
+        })
+        await page.goto("/relatorios")
+        await hideDevTools(page)
+
+        await expect(page.getByLabel("Tipo de relatório").locator("option")).toHaveText([
+            "Mensal",
+            "Consumo",
+            "Alertas",
+            "Qualidade de energia",
+        ])
+
+        const groupA = {
+            ...PROPERTY_TREE_1,
+            items: [{ ...PROPERTY_TREE_1.items[0]!, tariffGroup: "GROUP_A" as const }],
+        }
+        await mockPropertyTree(page, () => groupA)
+        await page.reload()
+        await hideDevTools(page)
+
+        await page.getByLabel("Tipo de relatório").selectOption("DEMAND")
+        await expect(page.getByLabel("Mês")).toBeVisible()
+        await page.getByRole("button", { name: /Gerar relatório/i }).click()
+
+        await expect(page.getByTestId("report-generated")).toBeVisible()
+        expect(created).toMatchObject({ type: "DEMAND", targetType: "PROPERTY" })
     })
 })
