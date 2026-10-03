@@ -228,3 +228,33 @@ export function describeSchedule(
         nextRun: schedule.nextRunAt ? formatNextRun(schedule.nextRunAt) : "",
     }
 }
+
+/** Janela, em dias, dos envios mostrados na tela de Relatórios. */
+export const UPCOMING_WINDOW_DAYS = 15
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Configurações ativas com envio previsto nos próximos {@link UPCOMING_WINDOW_DAYS}
+ * dias, da mais próxima à mais distante. A próxima execução vem do servidor
+ * (`nextRunAt`), que é a fonte única do calendário; uma já vencida que ainda
+ * não saiu entra, porque o envio acontece na passada seguinte.
+ *
+ * @param schedules - Configurações do usuário.
+ * @param now - Instante de referência.
+ */
+export function selectUpcomingSchedules(schedules: ReportSchedule[], now: Date): ReportSchedule[] {
+    const limit = now.getTime() + UPCOMING_WINDOW_DAYS * DAY_MS
+    return schedules
+        .filter(
+            (schedule) =>
+                schedule.active &&
+                schedule.nextRunAt !== null &&
+                new Date(schedule.nextRunAt).getTime() <= limit,
+        )
+        .sort(
+            (a, b) =>
+                new Date(a.nextRunAt as string).getTime() -
+                new Date(b.nextRunAt as string).getTime(),
+        )
+}

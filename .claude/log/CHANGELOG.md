@@ -4271,3 +4271,13 @@
 - **Decisões/ADRs:** nenhuma nova (ADR-0024 já aceita); nenhum item do `07` tocado. Decisões de implementação no roadmap ("Replanejamento de 2026-09-29 (implementação do item 4)").
 - **Notas:** (1) nenhum provedor SMTP está contratado e contas de demonstração não criam configurações, então nenhum e-mail real sai dos ambientes publicados (ADR-0014); (2) subir a versão da política para 1.6 dispara reaceite dos usuários; (3) o envio não foi exercitado contra um SMTP real, só com a função de envio simulada e o transporte compilado; (4) `02-requisitos.md` não mudou: RF41 e FNC007 seguem `[planejado — Fase 27]` até o item de próximos envios.
 
+## [2026-10-03] feat: Relatórios — próximos envios em 15 dias (Fase 27, épico #464, issue #469)
+
+- **Branch:** epic/464-relatorios
+- **Tipo:** feature
+- **O quê:** quinta e última entrega do épico, só frontend. Novo bloco "Envios agendados" em `/relatorios` (`ReportUpcoming`), entre a emissão e o histórico, como no design: uma linha por configuração ativa com envio previsto nos próximos 15 dias, da mais próxima à mais distante, com título, periodicidade, formato, destinatários e "Próximo envio"; estado vazio explícito ("Nenhum envio ativo nos próximos 15 dias."), estados de carga e erro, e atalho "Gerenciar" para Configurações → Relatórios. A função pura `selectUpcomingSchedules` filtra a lista de configurações pelo `nextRunAt` que o servidor já grava (a fonte única do calendário), sem endpoint novo nem recálculo no cliente.
+- **Testes:** `selectUpcomingSchedules` (janela de 15 dias inclusive, ordenação, pausadas e sem data, vencida que ainda não saiu), `ReportUpcoming` (lista, vazio, erro, atalho), ajuste do teste da página (agora consulta as configurações) e dois casos novos no e2e do Playwright (com e sem envios; Chromium e Firefox, 18 de 18). Frontend completo: 141 arquivos, 1142 testes; lint sem erros; build ok.
+- **Arquivos principais:** `frontend/src/components/report/ReportUpcoming.tsx`, `frontend/src/lib/reportSchedule.ts`, `frontend/src/pages/report/ReportsPage.tsx`, `frontend/tests/e2e/reports.spec.ts`.
+- **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado.
+- **Notas:** (1) uma linha por configuração (a próxima execução), não uma por ocorrência, como o design mostra; uma diária aparece uma vez; (2) a lista traz até 20 configurações numa página, o teto por usuário; (3) `02-requisitos.md`: com a #469 as pendências de RF41 e FNC007 se fecham, então a troca de `[planejado — Fase 27]` por implementado e o texto "Hoje" de FNC007 ficam para o fechamento da fase, junto com o PR; (4) `/design-sync` para o Claude Design conhecer `ReportUpcoming`, `ReportScheduleForm`, `ReportScheduleList` e `ReportEmissionForm`, se compensar.
+

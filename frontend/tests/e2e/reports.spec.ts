@@ -26,10 +26,37 @@ const REPORT = {
     createdAt: "2026-08-01T09:00:00.000Z",
 }
 
-const setupApp = async (page: Page, onCreate?: (body: unknown) => void) => {
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// Configuração de envio com a próxima execução daqui a `days` dias — a janela
+// de "próximos 15 dias" é relativa ao relógio real do navegador.
+const scheduleIn = (id: string, days: number, override: Record<string, unknown> = {}) => ({
+    id,
+    targetType: "PROPERTY",
+    targetId: "prop-1",
+    type: "CONSUMPTION",
+    format: "PDF",
+    frequency: "MONTHLY",
+    sendDay: 5,
+    recipients: ["financeiro@example.com"],
+    active: true,
+    nextRunAt: new Date(Date.now() + days * DAY_MS).toISOString(),
+    createdAt: "2026-07-01T00:00:00.000Z",
+    updatedAt: "2026-07-01T00:00:00.000Z",
+    ...override,
+})
+
+const setupApp = async (
+    page: Page,
+    onCreate?: (body: unknown) => void,
+    schedules: ReturnType<typeof scheduleIn>[] = [],
+) => {
     await mockAppShellBackground(page)
     await setupAuth(page)
     await mockPropertyTree(page)
+    await page.route(/\/api\/report-schedules(\?.*)?$/, (route) =>
+        fulfillPaginated(route, schedules),
+    )
 
     // O histórico é a lista servida em memória: emitir acrescenta, excluir remove.
     let history: (typeof REPORT)[] = []
@@ -144,5 +171,38 @@ test.describe("Relatórios (/relatorios)", () => {
         await history.getByRole("button", { name: /^Excluir/ }).click()
         await page.getByRole("dialog").getByRole("button", { name: "Excluir" }).click()
         await expect(history.getByText("Nenhum relatório gerado até agora.")).toBeVisible()
+    })
+
+    test("envios agendados: mostra os dos próximos 15 dias e o estado vazio", async ({ page }) => {
+        await setupApp(page, undefined, [
+            scheduleIn("sch-perto", 3),
+            scheduleIn("sch-longe", 40),
+            scheduleIn("sch-pausada", 2, { active: false, nextRunAt: null }),
+        ])
+        await page.goto("/relatorios")
+        await hideDevTools(page)
+
+        const upcoming = page.getByTestId("report-upcoming")
+        await expect(upcoming.getByTestId("report-upcoming-row")).toHaveCount(1)
+        await expect(upcoming.getByText("Consumo · Casa Principal")).toBeVisible()
+        await expect(upcoming.getByText(/^Próximo envio: /)).toBeVisible()
+        await expect(upcoming.getByRole("link", { name: "Gerenciar" })).toHaveAttribute(
+            "href",
+            "/configuracoes/relatorios",
+        )
+    })
+
+    test("envios agendados: sem configurações, explica que não há envio previsto", async ({
+        page,
+    }) => {
+        await setupApp(page)
+        await page.goto("/relatorios")
+        await hideDevTools(page)
+
+        await expect(
+            page
+                .getByTestId("report-upcoming")
+                .getByText("Nenhum envio ativo nos próximos 15 dias."),
+        ).toBeVisible()
     })
 })

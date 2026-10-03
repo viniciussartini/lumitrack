@@ -3,6 +3,7 @@ import { Link } from "react-router"
 import { FileText } from "lucide-react"
 import { toast } from "sonner"
 import { ReportEmissionForm } from "@/components/report/ReportEmissionForm"
+import { ReportUpcoming } from "@/components/report/ReportUpcoming"
 import { ReportHistory } from "@/components/report/ReportHistory"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { Button } from "@/components/ui/Button"
@@ -14,8 +15,9 @@ import { extractErrorMessage } from "@/services/api"
 
 /**
  * Relatórios (LumiTrack Home v2.dc.html, view `reports`) — emissão sob
- * demanda de um relatório em PDF ou CSV, com o histórico dos já gerados. Depois
- * de gerar, o arquivo é oferecido para download.
+ * demanda de um relatório em PDF ou CSV, os envios agendados dos próximos dias
+ * e o histórico dos já gerados. Depois de gerar, o arquivo é oferecido para
+ * download.
  */
 export const ReportsPage = () => {
     const treeQuery = usePropertyTree()
@@ -104,6 +106,8 @@ export const ReportsPage = () => {
                     </Button>
                 </Blueprint>
             )}
+
+            <ReportUpcoming groups={groups} />
 
             <ReportHistory groups={groups} />
         </div>

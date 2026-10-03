@@ -2786,3 +2786,8 @@ Candidatos conhecidos, ainda sem fase:
 - **Envio em cópia oculta**, com o remetente em "Para", para um destinatário não ver o endereço do outro. Só nome e código do erro vão para o log, porque a mensagem de um erro de SMTP costuma repetir o endereço.
 - **Auditoria:** o envio agendado grava `REPORT_GENERATE` com origem `SCHEDULED` e o número de destinatários, sem novo valor no enum.
 - **Política de privacidade passou para a versão 1.6** (envio a terceiros é mudança material), o que dispara o reaceite dos usuários; o ROPA (operação 8) lista o SMTP como operador e os destinatários como terceiros.
+
+### Replanejamento de 2026-10-03 (implementação do item 5)
+
+**O que mudou:** o item 5 (próximos envios) foi implementado só no frontend, sem endpoint novo. O bloco lê a lista de configurações e filtra por `nextRunAt`, que o servidor grava a cada criação, edição ou execução. Mostra uma linha por configuração ativa com envio em até 15 dias (uma diária aparece uma vez, não 15), incluindo a que já venceu e ainda não saiu. Com isso o épico #464 só deixa pendente o fechamento da fase: requisitos (RF41 e FNC007 ainda `[planejado — Fase 27]`) e o PR.
+

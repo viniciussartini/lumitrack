@@ -7,6 +7,7 @@ import {
     buildScheduleInput,
     describePeriodicity,
     describeSchedule,
+    selectUpcomingSchedules,
     formatNextRun,
     isScheduleFormFilled,
     parseRecipients,
@@ -204,5 +205,44 @@ describe("formatNextRun / describeSchedule", () => {
         expect(describeSchedule({ ...SCHEDULE, targetId: "sumiu" }, labels).title).toBe(
             "Consumo · Alvo removido",
         )
+    })
+})
+
+describe("selectUpcomingSchedules", () => {
+    const NOW = new Date("2026-07-10T12:00:00.000Z")
+    const at = (id: string, nextRunAt: string | null, active = true): ReportSchedule => ({
+        ...SCHEDULE,
+        id,
+        active,
+        nextRunAt,
+    })
+
+    it("mantém só as ativas com envio em até 15 dias, da mais próxima à mais distante", () => {
+        const result = selectUpcomingSchedules(
+            [
+                at("longe", "2026-07-26T09:00:00.000Z"),
+                at("dia-15", "2026-07-25T12:00:00.000Z"),
+                at("amanha", "2026-07-11T09:00:00.000Z"),
+                at("hoje", "2026-07-10T20:00:00.000Z"),
+            ],
+            NOW,
+        )
+
+        expect(result.map((item) => item.id)).toEqual(["hoje", "amanha", "dia-15"])
+    })
+
+    it("ignora as pausadas e as sem próxima execução", () => {
+        const result = selectUpcomingSchedules(
+            [at("pausada", "2026-07-11T09:00:00.000Z", false), at("sem-data", null)],
+            NOW,
+        )
+
+        expect(result).toEqual([])
+    })
+
+    it("mantém a vencida que ainda não saiu (o servidor a envia na próxima passada)", () => {
+        const result = selectUpcomingSchedules([at("atrasada", "2026-07-10T09:00:00.000Z")], NOW)
+
+        expect(result.map((item) => item.id)).toEqual(["atrasada"])
     })
 })

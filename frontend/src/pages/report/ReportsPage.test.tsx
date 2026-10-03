@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { ReportsPage } from "@/pages/report/ReportsPage"
 import { propertyService } from "@/services/property.service"
 import { reportService } from "@/services/report.service"
+import { reportScheduleService } from "@/services/report-schedule.service"
 import { downloadFile } from "@/lib/download/downloadFile"
 import type { PropertyTree } from "@/types/property.types"
 import type { Report } from "@/types/report.types"
@@ -17,6 +18,10 @@ vi.mock("@/services/property.service", () => ({
 
 vi.mock("@/services/report.service", () => ({
     reportService: { create: vi.fn(), download: vi.fn(), list: vi.fn(), remove: vi.fn() },
+}))
+
+vi.mock("@/services/report-schedule.service", () => ({
+    reportScheduleService: { list: vi.fn() },
 }))
 
 vi.mock("@/lib/download/downloadFile", () => ({ downloadFile: vi.fn() }))
@@ -75,6 +80,12 @@ const renderPage = () => {
 beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(reportService.list).mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 10 })
+    vi.mocked(reportScheduleService.list).mockResolvedValue({
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 20,
+    })
 })
 
 describe("ReportsPage", () => {
