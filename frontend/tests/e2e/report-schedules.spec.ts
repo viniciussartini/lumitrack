@@ -30,6 +30,12 @@ const setupApp = async (page: Page, onWrite?: (body: unknown) => void) => {
     await mockAppShellBackground(page)
     await setupAuth(page)
     await mockPropertyTree(page)
+    // A sub-navegação parte do Cadastro, que lista distribuidoras e propriedades;
+    // sem estes mocks as chamadas vazam para o backend real e o 401 leva ao login.
+    await page.route(/\/api\/distributors(\?.*)?$/, (route) => fulfillPaginated(route, []))
+    await page.route(/\/api\/properties(\?.*)?$/, (route) =>
+        route.request().method() === "GET" ? fulfillPaginated(route, []) : route.fallback(),
+    )
 
     let schedules: Schedule[] = []
     await page.route(/\/api\/report-schedules(\?.*)?$/, (route) => {

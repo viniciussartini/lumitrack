@@ -46,9 +46,14 @@ const DAY_MS = 24 * 60 * 60 * 1000
 // relatório fora do esperado precisa falhar em vez de inflar a tabela.
 export const MAX_REPORT_BYTES = 5 * 1024 * 1024
 
+// Teto de relatórios manuais guardados por usuário: sem ele, um usuário (ou uma
+// conta de demonstração compartilhada) encheria o banco com arquivos de até
+// 5 MB até a retenção expurgá-los.
+export const MAX_MANUAL_REPORTS_PER_USER = 100
+
 // O maior período emitido (o anual agendado, 366 dias) tem no máximo 367
 // baldes diários, contando o parcial de uma janela que não começa à meia-noite local.
-const MAX_DAILY_BUCKETS = 370
+export const MAX_DAILY_BUCKETS = 370
 
 // Teto de episódios de um relatório de alertas: acima disso o arquivo ficaria
 // ilegível, e o usuário é orientado a reduzir o período.
@@ -152,18 +157,27 @@ export class ReportService {
     async generate(userId: string, body: unknown): Promise<ReportResponse> {
         const input = parseOrThrow(createReportSchema, body)
         const rendered = await this.render(userId, input)
-        return this.reportRepository.create({
-            userId,
-            targetType: input.targetType,
-            targetId: input.targetId,
-            type: input.type,
-            format: input.format,
-            origin: "MANUAL",
-            periodStart: rendered.period.from,
-            periodEnd: rendered.period.to,
-            fileName: rendered.fileName,
-            content: rendered.content,
-        })
+        const report = await this.reportRepository.createManualIfBelowLimit(
+            {
+                userId,
+                targetType: input.targetType,
+                targetId: input.targetId,
+                type: input.type,
+                format: input.format,
+                origin: "MANUAL",
+                periodStart: rendered.period.from,
+                periodEnd: rendered.period.to,
+                fileName: rendered.fileName,
+                content: rendered.content,
+            },
+            MAX_MANUAL_REPORTS_PER_USER,
+        )
+        if (!report) {
+            throw new ValidationError(
+                `Limite de ${MAX_MANUAL_REPORTS_PER_USER} relatórios guardados atingido; exclua algum para gerar outro`,
+            )
+        }
+        return report
     }
 
     /**

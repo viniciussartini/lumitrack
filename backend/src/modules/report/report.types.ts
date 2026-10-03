@@ -64,7 +64,7 @@ export interface ReportNumber {
     digits: number
 }
 
-/** Célula: texto já formatado, número ou ausência (`null`, "-" no PDF e vazio no CSV). */
+/** Célula: texto já formatado, número ou ausência (`null`, `-` tanto no PDF quanto no CSV). */
 export type ReportCell = string | number | ReportNumber | null
 
 export interface ReportTable {

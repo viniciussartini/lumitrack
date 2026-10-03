@@ -28,13 +28,26 @@ export class ReportScheduleRepository {
     }
 
     /**
-     * Quantas configurações o usuário tem — insumo do teto por usuário.
+     * Cria uma configuração se o usuário ainda não atingiu o teto. A contagem e
+     * a criação rodam na mesma transação, sob uma trava (advisory lock) por
+     * usuário: sem ela, pedidos simultâneos leriam a mesma contagem e todos
+     * passariam do teto.
      *
-     * @param userId - Dono das configurações.
-     * @returns O número de configurações do usuário.
+     * @param userId - Dono da configuração.
+     * @param data - Corpo já validado, com a próxima execução.
+     * @param limit - Máximo de configurações por usuário.
+     * @returns A configuração criada, ou `null` se o usuário já está no teto.
      */
-    async countByUser(userId: string): Promise<number> {
-        return this.prisma.reportSchedule.count({ where: { userId } })
+    async createIfBelowLimit(
+        userId: string,
+        data: ReportScheduleWrite,
+        limit: number,
+    ): Promise<ReportScheduleRecord | null> {
+        return this.prisma.$transaction(async (tx) => {
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`
+            if ((await tx.reportSchedule.count({ where: { userId } })) >= limit) return null
+            return tx.reportSchedule.create({ data: { ...data, userId } })
+        })
     }
 
     /**
@@ -75,6 +88,18 @@ export class ReportScheduleRepository {
             where: { userId },
             orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         })
+    }
+
+    /**
+     * Uma configuração do usuário. A posse entra na própria condição, então
+     * configuração alheia é indistinguível de inexistente.
+     *
+     * @param id - Id da configuração.
+     * @param userId - Dono da configuração.
+     * @returns A configuração, ou `null` se não existir ou não for do usuário.
+     */
+    async findByIdAndUser(id: string, userId: string): Promise<ReportScheduleRecord | null> {
+        return this.prisma.reportSchedule.findFirst({ where: { id, userId } })
     }
 
     /**
@@ -126,35 +151,10 @@ export class ReportScheduleRepository {
     }
 
     /**
-     * Configurações ativas sem próxima execução (anteriores ao campo).
-     *
-     * @returns As configurações a inicializar.
-     */
-    async findActiveWithoutNextRun(): Promise<ReportScheduleRecord[]> {
-        return this.prisma.reportSchedule.findMany({
-            where: { active: true, nextRunAt: null },
-            take: DUE_BATCH_SIZE,
-        })
-    }
-
-    /**
-     * Define a próxima execução de uma configuração ainda sem ela.
-     *
-     * @param id - Id da configuração.
-     * @param nextRunAt - Próxima execução.
-     */
-    async initializeNextRun(id: string, nextRunAt: Date): Promise<void> {
-        await this.prisma.reportSchedule.updateMany({
-            where: { id, active: true, nextRunAt: null },
-            data: { nextRunAt },
-        })
-    }
-
-    /**
      * Fecha uma execução bem-sucedida: grava o relatório no histórico e avança
      * a próxima execução na mesma transação. A condição sobre `nextRunAt`
-     * garante que a execução só conta uma vez, ainda que duas passadas se
-     * sobreponham; se ela já foi contada, nada é gravado.
+     * garante que o histórico e o avanço só valem uma vez por execução; ela não
+     * impede um segundo envio de e-mail, que já saiu antes desta chamada.
      *
      * @param id - Id da configuração.
      * @param expectedNextRunAt - Execução que foi processada.

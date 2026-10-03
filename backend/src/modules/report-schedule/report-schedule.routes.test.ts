@@ -332,6 +332,66 @@ describe("PUT /api/report-schedules/:id", () => {
         })
     })
 
+    describe("próxima execução ao editar", () => {
+        // Execução já vencida, esperando a passada do scheduler.
+        const OVERDUE = new Date("2026-01-05T09:00:00.000Z")
+
+        async function createOverdue() {
+            const { token, propertyId } = await setupProperty()
+            const created = await request(app)
+                .post("/api/report-schedules")
+                .set(authed(token))
+                .send(body(propertyId))
+            const id = created.body.data.id as string
+            await prismaHttpTest.reportSchedule.update({
+                where: { id },
+                data: { nextRunAt: OVERDUE },
+            })
+            return { token, propertyId, id }
+        }
+
+        it("editar só destinatários ou formato mantém a execução já marcada", async () => {
+            const { token, propertyId, id } = await createOverdue()
+
+            const response = await request(app)
+                .put(`/api/report-schedules/${id}`)
+                .set(authed(token))
+                .send(body(propertyId, { format: "CSV", recipients: ["novo@example.com"] }))
+
+            expect(response.status).toBe(200)
+            expect(new Date(response.body.data.nextRunAt)).toEqual(OVERDUE)
+        })
+
+        it.each([
+            ["a frequência", { frequency: "WEEKLY", sendDay: 5 }],
+            ["o dia do envio", { sendDay: 20 }],
+        ])("mudar %s reancora o calendário a partir de agora", async (_label, override) => {
+            const { token, propertyId, id } = await createOverdue()
+
+            const response = await request(app)
+                .put(`/api/report-schedules/${id}`)
+                .set(authed(token))
+                .send(body(propertyId, override))
+
+            expect(new Date(response.body.data.nextRunAt).getTime()).toBeGreaterThan(Date.now())
+        })
+
+        it("reativar uma configuração pausada reancora o calendário", async () => {
+            const { token, propertyId, id } = await createOverdue()
+            await request(app)
+                .put(`/api/report-schedules/${id}`)
+                .set(authed(token))
+                .send(body(propertyId, { active: false }))
+
+            const response = await request(app)
+                .put(`/api/report-schedules/${id}`)
+                .set(authed(token))
+                .send(body(propertyId, { active: true }))
+
+            expect(new Date(response.body.data.nextRunAt).getTime()).toBeGreaterThan(Date.now())
+        })
+    })
+
     it("retorna 404 e não altera configuração de outro usuário", async () => {
         const { token, propertyId } = await setupProperty(validUser)
         const created = await request(app)

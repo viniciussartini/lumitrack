@@ -245,20 +245,6 @@ describe("ReportScheduleRunner", () => {
         expect(sendEmail).not.toHaveBeenCalled()
     })
 
-    it("inicializa a próxima execução de configuração sem ela, sem enviar nada", async () => {
-        const ids = await setup()
-        const schedule = await createSchedule(ids, { nextRunAt: null })
-        const sendEmail = vi.fn().mockResolvedValue(undefined)
-
-        await buildRunner(at("2026-03-10", "12:00"), sendEmail).runDue()
-
-        expect(sendEmail).not.toHaveBeenCalled()
-        const updated = await prismaHttpTest.reportSchedule.findUniqueOrThrow({
-            where: { id: schedule.id },
-        })
-        expect(updated.nextRunAt).toEqual(at("2026-03-31"))
-    })
-
     it("anual cobre 12 meses de consumo dentro do teto de período", async () => {
         const ids = await setup()
         await createSchedule(ids, {
@@ -349,5 +335,31 @@ describe("ReportScheduleRunner", () => {
             where: { id: schedule.id },
         })
         expect(paused).toMatchObject({ active: false, nextRunAt: null, failedAttempts: 0 })
+    })
+
+    it("pausa a configuração de quem não é dono do alvo, sem enviar nada (posse conferida a cada execução)", async () => {
+        const ids = await setup()
+        await request(app)
+            .post("/api/users")
+            .send({
+                ...user,
+                email: "maria@example.com",
+                cpf: "310.037.856-38",
+                firstName: "Maria",
+            })
+        const intruder = await prismaHttpTest.user.findFirstOrThrow({
+            where: { email: "maria@example.com" },
+        })
+        const schedule = await createSchedule({ ...ids, userId: intruder.id })
+        const sendEmail = vi.fn().mockResolvedValue(undefined)
+
+        await buildRunner(at("2026-03-31", "09:05"), sendEmail).runDue()
+
+        expect(sendEmail).not.toHaveBeenCalled()
+        expect(await prismaHttpTest.report.count()).toBe(0)
+        const paused = await prismaHttpTest.reportSchedule.findUniqueOrThrow({
+            where: { id: schedule.id },
+        })
+        expect(paused).toMatchObject({ active: false, nextRunAt: null })
     })
 })

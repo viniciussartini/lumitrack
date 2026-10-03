@@ -61,13 +61,17 @@ export class ReportScheduleService {
         const data = parseOrThrow(reportScheduleBodySchema, body)
         await this.assertTargetUsable(userId, data)
 
-        if ((await this.scheduleRepository.countByUser(userId)) >= MAX_SCHEDULES_PER_USER) {
+        const created = await this.scheduleRepository.createIfBelowLimit(
+            userId,
+            this.withNextRun(data),
+            MAX_SCHEDULES_PER_USER,
+        )
+        if (!created) {
             throw new ValidationError(
                 `Limite de ${MAX_SCHEDULES_PER_USER} configurações de envio atingido`,
             )
         }
-
-        return this.toResponse(await this.scheduleRepository.create(userId, this.withNextRun(data)))
+        return this.toResponse(created)
     }
 
     /**
@@ -97,7 +101,14 @@ export class ReportScheduleService {
         const data = parseOrThrow(reportScheduleBodySchema, body)
         await this.assertTargetUsable(userId, data)
 
-        const updated = await this.scheduleRepository.update(id, userId, this.withNextRun(data))
+        const existing = await this.scheduleRepository.findByIdAndUser(id, userId)
+        if (!existing) throw new NotFoundError("Configuração não encontrada")
+
+        const updated = await this.scheduleRepository.update(
+            id,
+            userId,
+            this.withNextRun(data, existing),
+        )
         if (!updated) throw new NotFoundError("Configuração não encontrada")
         return this.toResponse(updated)
     }
@@ -140,14 +151,28 @@ export class ReportScheduleService {
         }
     }
 
-    // Toda escrita recalcula a próxima execução a partir de agora: editar a
-    // frequência ou reativar uma configuração pausada reancora o calendário.
-    private withNextRun(data: ReportScheduleBody): ReportScheduleWrite {
+    // A próxima execução é recalculada a partir de agora na criação, ao mudar a
+    // frequência ou o dia e ao reativar uma configuração pausada: o calendário
+    // se reancora. Uma edição que não mexe no calendário (destinatários,
+    // formato, tipo) mantém a execução já marcada — recalcular a partir de
+    // agora pularia o envio das 06:00 de quem editasse nos minutos entre o
+    // horário e a passada do scheduler.
+    private withNextRun(
+        data: ReportScheduleBody,
+        existing?: ReportScheduleRecord,
+    ): ReportScheduleWrite {
+        if (!data.active) return { ...data, nextRunAt: null }
+
+        const keepsCalendar =
+            existing?.active === true &&
+            existing.nextRunAt !== null &&
+            existing.frequency === data.frequency &&
+            existing.sendDay === data.sendDay
         return {
             ...data,
-            nextRunAt: data.active
-                ? computeNextRun(data.frequency, data.sendDay, this.now())
-                : null,
+            nextRunAt: keepsCalendar
+                ? existing.nextRunAt
+                : computeNextRun(data.frequency, data.sendDay, this.now()),
         }
     }
 

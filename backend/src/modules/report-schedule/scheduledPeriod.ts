@@ -4,10 +4,11 @@ import type { ReportFrequency } from "@/modules/report-schedule/nextRun.js"
 import { fromSaoPauloLocal, toSaoPauloLocal } from "@/shared/time/localTime.js"
 
 /**
- * Teto do período de um relatório agendado. O anual é o maior (365 ou 366
- * dias), então o teto do relatório manual (92 dias) não serve aqui.
+ * Maior período que uma execução agendada cobre: o anual, de 365 ou 366 dias.
+ * É por isso que o teto do relatório manual (92 dias) não serve aqui, e o
+ * limite de baldes diários do `ReportService` precisa comportar este valor.
  */
-export const MAX_SCHEDULED_REPORT_PERIOD_DAYS = 366
+export const LONGEST_SCHEDULED_PERIOD_DAYS = 366
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -25,6 +26,8 @@ export interface ScheduledReportSpec {
     type: ReportType
     format: ReportFormat
     frequency: ReportFrequency
+    /** Dia de envio configurado: o dia do mês (ou da semana) antes de qualquer ajuste de mês curto. */
+    sendDay: number | null
 }
 
 const daysInMonth = (year: number, month: number): number =>
@@ -34,16 +37,23 @@ const daysInMonth = (year: number, month: number): number =>
 const localMidnight = (local: Date): Date =>
     new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()))
 
-// Mesmo dia do mês, `monthsBack` meses antes; mês mais curto cai no último dia.
-function monthsBefore(midnight: Date, monthsBack: number): Date {
+// Dia do envio anterior, `monthsBack` meses antes. O dia é o configurado, e
+// não o do slot atual: o slot de 28/02 de quem escolheu o dia 31 ajustou o dia
+// para caber no mês, mas o envio de janeiro saiu no dia 31. Recuar a partir do
+// dia ajustado deixaria dias de janeiro em dois relatórios seguidos.
+function previousMonthBasedSend(midnight: Date, monthsBack: number, sendDay: number): Date {
     const target = new Date(
         Date.UTC(midnight.getUTCFullYear(), midnight.getUTCMonth() - monthsBack, 1),
     )
-    const day = Math.min(
-        midnight.getUTCDate(),
-        daysInMonth(target.getUTCFullYear(), target.getUTCMonth()),
-    )
+    const day = Math.min(sendDay, daysInMonth(target.getUTCFullYear(), target.getUTCMonth()))
     return new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), day))
+}
+
+function requireSendDay(spec: ScheduledReportSpec): number {
+    if (spec.sendDay === null) {
+        throw new Error(`A frequência ${spec.frequency} exige o dia do envio`)
+    }
+    return spec.sendDay
 }
 
 function previousCalendarMonth(local: Date): string {
@@ -82,7 +92,7 @@ export function resolveScheduledReportInput(
             ? new Date(midnight.getTime() - DAY_MS)
             : spec.frequency === "WEEKLY"
               ? new Date(midnight.getTime() - 7 * DAY_MS)
-              : monthsBefore(midnight, MONTHS_BACK[spec.frequency])
+              : previousMonthBasedSend(midnight, MONTHS_BACK[spec.frequency], requireSendDay(spec))
 
     return {
         ...base,

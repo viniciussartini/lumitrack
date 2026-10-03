@@ -8,7 +8,7 @@ import type {
 import { resolveScheduledReportInput } from "@/modules/report-schedule/scheduledPeriod.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
 import { UnsupportedReportTargetError } from "@/modules/report/report.errors.js"
-import { ForbiddenError, NotFoundError } from "@/shared/errors/AppError.js"
+import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import { logger } from "@/shared/logger/logger.js"
 
 const log = logger.child({ module: "ReportScheduleRunner" })
@@ -47,6 +47,11 @@ function describeError(error: unknown): { errorName: string; errorCode?: string 
  * A próxima execução só avança depois do envio. Assim, uma falha de SMTP ou
  * uma queda do servidor deixa a execução vencida, e a passada seguinte a
  * retoma; reiniciar depois de um envio concluído não repete nada.
+ *
+ * A garantia é de "pelo menos uma vez, com uma instância só": o e-mail sai
+ * antes de a execução ser registrada, então uma falha do banco entre os dois
+ * passos, ou duas instâncias vivas ao mesmo tempo, podem repetir um envio. A
+ * trava de passada do scheduler cobre a sobreposição dentro do processo.
  */
 export class ReportScheduleRunner {
     /**
@@ -65,26 +70,13 @@ export class ReportScheduleRunner {
     ) {}
 
     /**
-     * Uma passada: inicializa configurações sem próxima execução e processa
-     * as vencidas, uma de cada vez. A falha de uma não impede as demais.
+     * Uma passada: processa as configurações vencidas, uma de cada vez. A
+     * falha de uma não impede as demais.
      */
     async runDue(): Promise<void> {
         const now = this.now()
-        await this.initializeMissingNextRuns(now)
-
         for (const schedule of await this.scheduleRepository.findDue(now)) {
             await this.runOne(schedule, now)
-        }
-    }
-
-    // Configurações criadas antes de existir `nextRunAt` entram no calendário
-    // sem enviar nada agora.
-    private async initializeMissingNextRuns(now: Date): Promise<void> {
-        for (const schedule of await this.scheduleRepository.findActiveWithoutNextRun()) {
-            await this.scheduleRepository.initializeNextRun(
-                schedule.id,
-                computeNextRun(schedule.frequency, schedule.sendDay, now),
-            )
         }
     }
 
@@ -128,6 +120,14 @@ export class ReportScheduleRunner {
         }
     }
 
+    private async skip(schedule: ReportScheduleRecord, slotAt: Date, now: Date): Promise<void> {
+        await this.scheduleRepository.skipRun(
+            schedule.id,
+            slotAt,
+            computeNextRun(schedule.frequency, schedule.sendDay, now),
+        )
+    }
+
     private async auditSend(schedule: ReportScheduleRecord): Promise<void> {
         await this.auditService.record({
             userId: schedule.userId,
@@ -144,9 +144,12 @@ export class ReportScheduleRunner {
         })
     }
 
-    // Alvo excluído, de outro dono, sem medidor ou que deixou de comportar o tipo
-    // (propriedade que saiu do Grupo A) não se resolve sozinho:
-    // pausa a configuração. Qualquer outra falha (SMTP, banco) é tentada de
+    // Há três tipos de falha. Alvo excluído, de outro dono, sem medidor ou que
+    // deixou de comportar o tipo (propriedade que saiu do Grupo A) não se
+    // resolve sozinho: pausa a configuração. Um relatório que a validação
+    // recusa (episódios demais, arquivo acima do teto) falharia igual em
+    // todas as tentativas: descarta só esta execução, e a seguinte, de outro
+    // período, pode caber. Qualquer outra falha (SMTP, banco) é tentada de
     // novo na próxima passada, até esgotar as tentativas da execução.
     private async handleFailure(
         schedule: ReportScheduleRecord,
@@ -166,13 +169,15 @@ export class ReportScheduleRunner {
             return
         }
 
+        if (error instanceof ValidationError) {
+            await this.skip(schedule, slotAt, now)
+            log.error(context, "Execução descartada: o relatório não passa na validação")
+            return
+        }
+
         const attempts = await this.scheduleRepository.incrementFailedAttempts(schedule.id)
         if (attempts !== null && attempts >= MAX_RUN_ATTEMPTS) {
-            await this.scheduleRepository.skipRun(
-                schedule.id,
-                slotAt,
-                computeNextRun(schedule.frequency, schedule.sendDay, now),
-            )
+            await this.skip(schedule, slotAt, now)
             log.error(context, "Envio descartado após esgotar as tentativas")
             return
         }

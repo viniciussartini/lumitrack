@@ -67,6 +67,35 @@ export class ReportRepository {
     }
 
     /**
+     * Grava um relatório manual se o usuário ainda não atingiu o teto de
+     * relatórios manuais guardados. A contagem e a gravação rodam na mesma
+     * transação, sob uma trava (advisory lock) por usuário, para pedidos
+     * simultâneos não passarem do teto. Os agendados não entram na conta: o
+     * volume deles é limitado pelas configurações de envio.
+     *
+     * @param input - Metadados e conteúdo do arquivo (origem manual).
+     * @param limit - Máximo de relatórios manuais por usuário.
+     * @returns Os metadados gravados, ou `null` se o usuário já está no teto.
+     */
+    async createManualIfBelowLimit(
+        input: CreateReportInput,
+        limit: number,
+    ): Promise<ReportResponse | null> {
+        const { content, ...metadata } = input
+        return this.prisma.$transaction(async (tx) => {
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.userId}))`
+            const stored = await tx.report.count({
+                where: { userId: input.userId, origin: "MANUAL" },
+            })
+            if (stored >= limit) return null
+            return tx.report.create({
+                data: { ...metadata, content: new Uint8Array(content), sizeBytes: content.length },
+                select: METADATA_SELECT,
+            })
+        })
+    }
+
+    /**
      * Arquivo de um relatório, restrito ao dono — a posse entra na própria
      * consulta, então relatório alheio é indistinguível de inexistente.
      *

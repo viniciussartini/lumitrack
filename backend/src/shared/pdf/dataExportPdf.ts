@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit"
 import { BRAND, ZAP_ICON_PATH, ZAP_ICON_VIEWBOX_SIZE } from "@/shared/pdf/brand.js"
+import { formatInstantDateTime, formatPeriodLabel } from "@/modules/report/generators/format.js"
 import type { DataExportPayload } from "@/modules/export/export.service.js"
 import type { UserWithoutPassword } from "@/modules/user/user.repository.js"
 import type { AclSubmarket, AclEnergySource } from "@/generated/prisma/client.js"
@@ -237,13 +238,28 @@ function drawReportsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload)
         return
     }
 
-    for (const report of payload.reports) {
-        doc.text(
-            `• ${REPORT_TYPE_LABELS[report.type]} (${report.format}) — ` +
-                `${report.periodStart.toLocaleDateString("pt-BR")} a ${report.periodEnd.toLocaleDateString("pt-BR")} — ` +
-                `emitido em ${report.createdAt.toLocaleString("pt-BR")}`,
-        )
-    }
+    for (const report of payload.reports) doc.text(describeExportedReport(report))
+}
+
+/**
+ * Linha de um relatório emitido no PDF do titular. O fim do período é
+ * exclusivo (é a meia-noite do dia seguinte) e as datas são lidas no fuso de
+ * São Paulo, para o relatório de fevereiro não aparecer como "01/02 a 01/03" nem
+ * mudar com o fuso do servidor.
+ *
+ * @param report - Metadados do relatório (nunca o arquivo).
+ */
+export function describeExportedReport(
+    report: Pick<
+        DataExportPayload["reports"][number],
+        "type" | "format" | "periodStart" | "periodEnd" | "createdAt"
+    >,
+): string {
+    return (
+        `• ${REPORT_TYPE_LABELS[report.type]} (${report.format}) — ` +
+        `${formatPeriodLabel(report.periodStart, report.periodEnd)} — ` +
+        `emitido em ${formatInstantDateTime(report.createdAt)}`
+    )
 }
 
 const FREQUENCY_LABELS = {

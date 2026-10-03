@@ -960,9 +960,8 @@ model PldQuote {
   @@map("pld_quotes")
 }
 
-// Tipo de relatório emitido. Só MONTHLY e CONSUMPTION têm gerador hoje; os
-// demais já existem no enum para o histórico e o agendamento não exigirem
-// uma migração a cada tipo novo.
+// Tipo de relatório emitido. Os cinco têm gerador; MONTHLY e DEMAND cobrem um
+// mês-calendário inteiro, os demais um período livre.
 enum ReportType {
   MONTHLY
   CONSUMPTION

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest"
 import request from "supertest"
 import { createApp } from "@/app.js"
+import { MAX_MANUAL_REPORTS_PER_USER } from "@/modules/report/report.service.js"
 import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
 import { waitFor } from "@/shared/test/waitFor.js"
@@ -564,5 +565,89 @@ describe("DELETE /api/reports/:id", () => {
 
         expect(missing.status).toBe(404)
         expect(malformed.status).toBe(422)
+    })
+})
+
+describe("teto de relatórios guardados", () => {
+    async function fillHistory(userId: string, propertyId: string, origin: "MANUAL" | "SCHEDULED") {
+        await prismaHttpTest.report.createMany({
+            data: Array.from({ length: MAX_MANUAL_REPORTS_PER_USER }, (_, i) => ({
+                userId,
+                targetType: "PROPERTY" as const,
+                targetId: propertyId,
+                type: "MONTHLY" as const,
+                format: "CSV" as const,
+                origin,
+                periodStart: new Date("2026-06-01T03:00:00.000Z"),
+                periodEnd: new Date("2026-07-01T03:00:00.000Z"),
+                fileName: `r-${i}.csv`,
+                content: new Uint8Array([1]),
+                sizeBytes: 1,
+            })),
+        })
+    }
+
+    it("recusa um novo relatório manual quando o histórico manual está cheio, sem gravar", async () => {
+        const { token, propertyId } = await setupProperty()
+        const owner = await prismaHttpTest.user.findFirstOrThrow({
+            where: { email: validUser.email },
+        })
+        await fillHistory(owner.id, propertyId, "MANUAL")
+
+        const response = await request(app)
+            .post("/api/reports")
+            .set("Authorization", `Bearer ${token}`)
+            .send(monthly(propertyId, "CSV"))
+
+        expect(response.status).toBe(422)
+        expect(await prismaHttpTest.report.count()).toBe(MAX_MANUAL_REPORTS_PER_USER)
+    })
+
+    it("excluir um relatório libera espaço para outro", async () => {
+        const { token, propertyId } = await setupProperty()
+        const owner = await prismaHttpTest.user.findFirstOrThrow({
+            where: { email: validUser.email },
+        })
+        await fillHistory(owner.id, propertyId, "MANUAL")
+        const one = await prismaHttpTest.report.findFirstOrThrow({ where: { userId: owner.id } })
+        await prismaHttpTest.report.delete({ where: { id: one.id } })
+
+        const response = await request(app)
+            .post("/api/reports")
+            .set("Authorization", `Bearer ${token}`)
+            .send(monthly(propertyId, "CSV"))
+
+        expect(response.status).toBe(201)
+    })
+
+    it("os relatórios agendados não entram na conta do teto", async () => {
+        const { token, propertyId } = await setupProperty()
+        const owner = await prismaHttpTest.user.findFirstOrThrow({
+            where: { email: validUser.email },
+        })
+        await fillHistory(owner.id, propertyId, "SCHEDULED")
+
+        const response = await request(app)
+            .post("/api/reports")
+            .set("Authorization", `Bearer ${token}`)
+            .send(monthly(propertyId, "CSV"))
+
+        expect(response.status).toBe(201)
+    })
+
+    it("o teto é de cada usuário", async () => {
+        const first = await setupProperty(validUser)
+        const owner = await prismaHttpTest.user.findFirstOrThrow({
+            where: { email: validUser.email },
+        })
+        await fillHistory(owner.id, first.propertyId, "MANUAL")
+        const second = await setupProperty(anotherUser)
+
+        const response = await request(app)
+            .post("/api/reports")
+            .set("Authorization", `Bearer ${second.token}`)
+            .send(monthly(second.propertyId, "CSV"))
+
+        expect(response.status).toBe(201)
     })
 })

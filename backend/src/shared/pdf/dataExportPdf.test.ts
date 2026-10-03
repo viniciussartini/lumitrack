@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { generateDataExportPdf } from "@/shared/pdf/dataExportPdf.js"
+import { describeExportedReport, generateDataExportPdf } from "@/shared/pdf/dataExportPdf.js"
 import type { DataExportPayload } from "@/modules/export/export.service.js"
 import type { PropertyResponse } from "@/modules/property/property.repository.js"
 
@@ -162,5 +162,21 @@ describe("generateDataExportPdf", () => {
         )
 
         expect(buffer.subarray(0, 4).toString("latin1")).toBe("%PDF")
+    })
+})
+
+describe("describeExportedReport", () => {
+    const report = {
+        type: "MONTHLY" as const,
+        format: "PDF" as const,
+        periodStart: new Date("2026-02-01T03:00:00.000Z"),
+        periodEnd: new Date("2026-03-01T03:00:00.000Z"),
+        createdAt: new Date("2026-03-01T12:30:00.000Z"),
+    }
+
+    it("o fim exclusivo do período aparece como o último dia, no fuso de São Paulo", () => {
+        expect(describeExportedReport(report)).toBe(
+            "• Mensal (PDF) — 01/02/2026 a 28/02/2026 — emitido em 01/03/2026, 09:30:00",
+        )
     })
 })
