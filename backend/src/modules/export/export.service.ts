@@ -18,6 +18,11 @@ import type {
 } from "@/modules/acl-contract/acl-contract.repository.js"
 import type { AreaRepository, AreaResponse } from "@/modules/area/area.repository.js"
 import type { DeviceRepository, DeviceResponse } from "@/modules/device/device.repository.js"
+import type { ReportRepository, ReportResponse } from "@/modules/report/report.repository.js"
+import type {
+    ReportScheduleRecord,
+    ReportScheduleRepository,
+} from "@/modules/report-schedule/report-schedule.repository.js"
 import type { AuditRepository, AuditLogResponse } from "@/shared/audit/audit.repository.js"
 import { NotFoundError } from "@/shared/errors/AppError.js"
 
@@ -45,6 +50,12 @@ export type DataExportPayload = {
     alerts: AlertResponse[]
     demandAlerts: DemandAlertResponse[]
     aclContracts: AclContractResponse[]
+    // Só os metadados dos relatórios emitidos — os arquivos (bytes) não vão no
+    // payload; ficam disponíveis para download enquanto durar a retenção.
+    reports: ReportResponse[]
+    // Configurações de envio automático, com os e-mails de destinatários — dado
+    // pessoal de terceiros que o titular informou.
+    reportSchedules: Omit<ReportScheduleRecord, "userId">[]
     auditLogs: AuditLogResponse[]
 }
 
@@ -63,6 +74,8 @@ export class ExportService {
      * @param areaRepository - Áreas das propriedades do titular.
      * @param deviceRepository - Dispositivos das áreas do titular.
      * @param auditRepository - Trilha de auditoria de acesso a dados do titular.
+     * @param reportRepository - Relatórios emitidos pelo titular (metadados).
+     * @param reportScheduleRepository - Configurações de envio automático de relatório do titular.
      */
     constructor(
         private readonly userRepository: UserRepository,
@@ -74,6 +87,8 @@ export class ExportService {
         private readonly areaRepository: AreaRepository,
         private readonly deviceRepository: DeviceRepository,
         private readonly auditRepository: AuditRepository,
+        private readonly reportRepository: ReportRepository,
+        private readonly reportScheduleRepository: ReportScheduleRepository,
     ) {}
 
     /**
@@ -91,16 +106,27 @@ export class ExportService {
             throw new NotFoundError("Usuário não encontrado")
         }
 
-        const [properties, alerts, demandAlerts, aclContracts, areas, devices, auditLogs] =
-            await Promise.all([
-                this.propertyRepository.findAllByUser(userId),
-                this.alertRepository.findAllByUser(userId),
-                this.demandAlertRepository.findAllByUser(userId),
-                this.aclContractRepository.findAllByUser(userId),
-                this.areaRepository.findAllByUser(userId),
-                this.deviceRepository.findAllByUser(userId),
-                this.auditRepository.findByUserId(userId),
-            ])
+        const [
+            properties,
+            alerts,
+            demandAlerts,
+            aclContracts,
+            areas,
+            devices,
+            auditLogs,
+            reports,
+            reportSchedules,
+        ] = await Promise.all([
+            this.propertyRepository.findAllByUser(userId),
+            this.alertRepository.findAllByUser(userId),
+            this.demandAlertRepository.findAllByUser(userId),
+            this.aclContractRepository.findAllByUser(userId),
+            this.areaRepository.findAllByUser(userId),
+            this.deviceRepository.findAllByUser(userId),
+            this.auditRepository.findByUserId(userId),
+            this.reportRepository.findAllMetadataByUser(userId),
+            this.reportScheduleRepository.findAllByUser(userId),
+        ])
 
         const distributorIds = [...new Set(properties.map((p) => p.distributorId))]
         const distributors = await this.distributorRepository.findAllByIds(distributorIds)
@@ -115,6 +141,8 @@ export class ExportService {
             alerts,
             demandAlerts,
             aclContracts,
+            reports,
+            reportSchedules: reportSchedules.map(({ userId: _owner, ...rest }) => rest),
             auditLogs,
         }
     }

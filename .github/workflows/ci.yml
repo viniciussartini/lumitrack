@@ -185,7 +185,11 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      - run: npm audit --audit-level=high
+      # Bloqueia só por dependência de produção, o que de fato é publicado. A
+      # ferramenta de build (tsc-alias, que traz o braces sem versão corrigida)
+      # roda apenas sobre o nosso código; o relatório completo abaixo continua
+      # listando tudo, sem bloquear.
+      - run: npm audit --omit=dev --audit-level=high
       - name: Relatório completo (não bloqueante)
         if: always()
         run: npm audit || true
@@ -322,7 +326,11 @@ jobs:
           cache: npm
           cache-dependency-path: iot-simulator/package-lock.json
       - run: npm ci
-      - run: npm audit --audit-level=high -w server -w ui
+      # Bloqueia só por dependência de produção, o que de fato é publicado. A
+      # ferramenta de build (tsc-alias, que traz o braces sem versão corrigida)
+      # roda apenas sobre o nosso código; o relatório completo abaixo continua
+      # listando tudo, sem bloquear.
+      - run: npm audit --omit=dev --audit-level=high -w server -w ui
       - name: Relatório completo (não bloqueante)
         if: always()
         run: npm audit -w server -w ui || true

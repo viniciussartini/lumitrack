@@ -2367,20 +2367,33 @@ Tratado como item de spike na Fase 21, validado contra a REN vigente e registrad
 
 ### Relatórios: modelo, geração e emissão sob demanda
 
-- **Comportamento:** o usuário escolhe escopo (propriedade, área ou dispositivo), tipo (mensal, consumo, alertas, qualidade de energia, demanda), período e formato (PDF ou CSV) e clica em "Gerar relatório"; o arquivo é gravado, imutável, e oferecido para download.
+- **Comportamento:** o usuário escolhe escopo (propriedade, área ou dispositivo), tipo (**mensal e consumo** nesta entrega; alertas, qualidade de energia e demanda ficam no item seguinte), período e formato (PDF ou CSV) e clica em "Gerar relatório"; o arquivo é gravado, imutável, e oferecido para download.
 - **Cobre:** RF40 (geração), RN35, FNC007 itens 1–2.
 - **Priority:** P0 · **Size:** L
 - **Critérios de aceite:**
   - Modelo novo `Report` (dono, escopo, tipo, período, formato, origem manual/agendada, bytes — ADR-0023), com teto de tamanho por arquivo.
   - Módulo `report` com um gerador por tipo; PDF reaproveita `pdfkit` no template A4, CSV é formatador novo, sem dependência nova.
-  - Tipo "demanda" rejeitado para propriedade que não é do Grupo A.
   - Grandeza ou dado ausente aparece como "-", nunca 0 (RN34).
   - Toda consulta passa por `resolveRootProperty` (ownership) e é parametrizada; alvo de outro usuário devolve 404.
   - Teto de intervalo do período, no padrão de `compare-periods`.
   - `/relatorios` refeita com o bloco de emissão; consulta antiga removida.
-  - Testes: cada tipo × formato gera arquivo válido; demanda × Grupo B; alvo alheio; dado ausente.
+  - Testes: cada tipo × formato gera arquivo válido; alvo alheio; dado ausente.
 - **Depende de:** Fase 23 (shell).
-- **Risco/observações:** maior item da fase — os cinco tipos têm conteúdo diferente e o template só especifica o de consumo. Se estourar, quebrar em "consumo + mensal" e "alertas + qualidade + demanda".
+- **Risco/observações:** o corte previsto aconteceu no início da implementação (ver "Replanejamento de 2026-09-28 (implementação do item 1)"): esta entrega cobre a infraestrutura completa e os tipos mensal e consumo; os outros três tipos viram o item seguinte.
+
+### Relatórios: tipos alertas, qualidade de energia e demanda
+
+- **Comportamento:** o usuário também emite relatórios de alertas do período, de qualidade de energia e de demanda (este último só para propriedade do Grupo A), em PDF ou CSV.
+- **Cobre:** RF40 (tipos restantes), RN35.
+- **Priority:** P0 · **Size:** M
+- **Critérios de aceite:**
+  - Um gerador por tipo, no mesmo formato de dados dos geradores existentes; tipos entram em `reportTypeSchema` e no seletor do formulário.
+  - Alertas: episódios de disparo do período (`AlertTriggerEvent`) do alvo. Qualidade de energia: as grandezas elétricas por fase (tensão, fator de potência, THD, desequilíbrio), com "-" para o que o medidor não fornece.
+  - Demanda: rejeitado para propriedade que não é do Grupo A; demanda medida (`MeterDemandRollup`) contra a contratada.
+  - **Sem layout no design** para os três: as tabelas seguem o padrão visual do template A4, e o conteúdo exato é decidido na implementação — perguntar antes de assumir.
+  - Testes: cada tipo × formato gera arquivo válido; demanda × Grupo B; dado ausente.
+- **Depende de:** item anterior (infraestrutura de emissão).
+- **Risco/observações:** o conteúdo dos três tipos não está especificado no handoff — é decisão de produto, não de engenharia.
 
 ### Relatórios: histórico — listar, baixar e excluir
 
@@ -2734,3 +2747,57 @@ Candidatos conhecidos, ainda sem fase:
 **Sem replanejamento das fases seguintes:** Fases 28–31 seguem em nível de objetivo.
 
 **Pendências que dependem de você (fora do roadmap):** validar com a `auditoria-conformidade` o fluxo de destinatários de terceiros antes de qualquer abertura de cadastro real (ADR-0014); `/design-sync` para o Claude Design conhecer os componentes novos, se compensar.
+
+### Replanejamento de 2026-09-28 (implementação do item 1)
+
+**O que mudou:** a implementação do item 1 (modelo, geração e emissão sob demanda) começou na branch `epic/464-relatorios` e cortou o escopo como o plano já previa como saída: **mensal e consumo** entregues; **alertas, qualidade de energia e demanda** viraram um item próprio ("Relatórios: tipos alertas, qualidade de energia e demanda", P0 · M), porque o handoff só especifica o layout do relatório de consumo. Decisão confirmada com o usuário antes de codificar.
+
+- **Custo só no mensal:** o cálculo de custo do módulo de consumo falha fechado para dia/hora e para sub-nível do Grupo A e da Tarifa Branca (a conta é da propriedade inteira no mês). O relatório de consumo, de período livre, mostra só kWh e potência média; o mensal traz o custo do mês (bucket mensal) e, onde não há custo calculável, "-" em vez de falhar.
+- **Endereço fora do arquivo:** o template mostra o endereço da propriedade; o relatório omite (minimização — o arquivo pode ser enviado a terceiros no agendamento). Divergência deliberada do design.
+- **Mês por seletor, não `<input type="month">`:** o Firefox de desktop não tem seletor de mês. O relatório mensal é pedido por `AAAA-MM` e o intervalo é derivado no servidor.
+- **Sem alertas do período nem observações no PDF:** dependem dos tipos que ficaram para o item seguinte.
+
+### Replanejamento de 2026-09-29 (implementação do item 3)
+
+**O que mudou:** o item 3 (agendamento: modelo, CRUD e sub-página Configurações → Relatórios) foi implementado na branch `epic/464-relatorios`, sem corte de escopo. O design e os requisitos deixavam pontos em aberto que a implementação fechou; **o item 4 (execução e envio) herda todos eles**.
+
+- **Alvo único por configuração:** o design oferece "Todas as propriedades" no escopo; o modelo aceita um alvo (propriedade, área ou dispositivo), como o formulário de emissão. "Todas" exigiria um escopo por usuário — feature à parte, sem demanda declarada.
+- **Dia do envio depende da frequência:** nenhum na diária; **dia da semana 1–7 (segunda a domingo)** na semanal; dia do mês 1–31 nas demais, com o mês mais curto caindo no último dia. O design usa um número livre de 1 a 28.
+- **Trimestral, semestral e anual são de calendário, ancorados em janeiro** (trimestral: jan/abr/jul/out; semestral: jan/jul; anual: janeiro). O design só desenha a trimestral e ancora do mesmo jeito; semestral e anual seguem a mesma lógica. **Pergunta em aberto para o usuário:** se o anual deveria ter mês configurável.
+- **O relatório mensal só combina com frequência mensal** (validado no schema e travado no formulário); os demais usam o tipo consumo.
+- **Envio às 06:00 de São Paulo, fixo** (o histórico do design mostra 06:00). É a função pura `computeNextRun` (`report-schedule/nextRun.ts`) que decide, e o item 4 e o item 5 (próximos envios) devem usá-la, não reimplementar.
+- **Tetos contra abuso:** 10 destinatários por configuração e 20 configurações por usuário — cada envio sai para endereços de terceiros.
+- **Contas de demonstração só leem** (`blockDemoWrite`): a escrita guarda e-mail digitado pelo usuário, possivelmente de terceiros.
+- **Destinatários em texto simples**, como `User.email` — não há cifra de e-mail em nenhuma tabela do projeto; registrado no ROPA (operação 8).
+- **Sem chave estrangeira para o alvo** (coluna polimórfica, como em `Report`): alvo excluído depois deixa a configuração órfã. **O item 4 precisa tratar alvo que sumiu** — pausar a configuração e registrar, sem derrubar o processo.
+- **Atenção ao item 4 — período do relatório agendado:** o relatório mensal cobre o mês anterior; o de consumo deve cobrir o período decorrido desde o último envio (dia, semana, mês, trimestre, semestre, ano). O teto de 92 dias do relatório manual **não cabe** em semestral (~184 dias) e anual (~365): o schema de execução precisa de um teto próprio (sugestão: 366 dias) e o limite de baldes diários da emissão manual (100) acompanhar.
+- **Export do titular:** as configurações (com destinatários) entram no payload e no PDF do export.
+
+
+### Replanejamento de 2026-09-29 (implementação do item 4)
+
+**O que mudou:** o item 4 (execução automática e envio por e-mail) foi implementado na branch `epic/464-relatorios`, sem corte de escopo. Decisões tomadas na implementação, que o item 5 e qualquer evolução do envio herdam:
+
+- **`nextRunAt` gravado:** a configuração guarda a próxima execução (nula se pausada), recalculada por `computeNextRun` a cada criação ou edição. Só avança depois do envio concluído, ou de esgotar as tentativas — é isso que dá idempotência e recuperação. Editar ou reativar reancora o calendário a partir de agora. O item 5 pode ler `nextRunAt` e projetar os envios seguintes com `computeNextRun`.
+- **Uma passada a cada 15 minutos**, além do boot: o envio sai até 15 minutos depois das 06:00. Falha de SMTP ou de banco deixa a execução vencida e a passada seguinte tenta de novo, até **4 tentativas** por execução; depois disso ela é descartada (log de erro) e a configuração segue para a próxima.
+- **Servidor fora do ar por vários períodos envia um relatório só**, o do slot mais recente vencido — não um por período perdido.
+- **Período do relatório agendado:** o mensal cobre o mês-calendário anterior ao slot; o de consumo cobre o intervalo desde o envio anterior (1 dia, 7 dias, 1/3/6/12 meses), terminando à meia-noite local do dia do slot. Teto de 366 dias para agendados; o de 92 dias da emissão manual não mudou.
+- **Alvo excluído, de outro dono ou sem medidor pausa a configuração** (`active=false`, `nextRunAt=null`) e registra o motivo no log; as demais configurações seguem.
+- **Envio em cópia oculta**, com o remetente em "Para", para um destinatário não ver o endereço do outro. Só nome e código do erro vão para o log, porque a mensagem de um erro de SMTP costuma repetir o endereço.
+- **Auditoria:** o envio agendado grava `REPORT_GENERATE` com origem `SCHEDULED` e o número de destinatários, sem novo valor no enum.
+- **Política de privacidade passou para a versão 1.6** (envio a terceiros é mudança material), o que dispara o reaceite dos usuários; o ROPA (operação 8) lista o SMTP como operador e os destinatários como terceiros.
+
+### Replanejamento de 2026-10-03 (implementação do item 5)
+
+**O que mudou:** o item 5 (próximos envios) foi implementado só no frontend, sem endpoint novo. O bloco lê a lista de configurações e filtra por `nextRunAt`, que o servidor grava a cada criação, edição ou execução. Mostra uma linha por configuração ativa com envio em até 15 dias (uma diária aparece uma vez, não 15), incluindo a que já venceu e ainda não saiu. Com isso o épico #464 só deixa pendente o fechamento da fase: requisitos (RF41 e FNC007 ainda `[planejado — Fase 27]`) e o PR.
+
+### Replanejamento de 2026-10-03 (implementação do item 2 — tipos restantes)
+
+**O que mudou:** o item "tipos alertas, qualidade de energia e demanda" foi implementado na branch `epic/464-relatorios`, e com ele a Fase 27 fecha todos os itens (1 a 5 mais este). O handoff não especificava o conteúdo, então foi decidido com o usuário antes de codificar:
+
+- **Qualidade de energia:** resumo do período (mínimo, média e máximo por grandeza e fase) mais tabela diária de médias.
+- **Demanda:** o usuário escolhe o mês (a demanda é apurada por mês de faturamento); só propriedade do Grupo A; por posto, contratada contra medida.
+- **Alertas:** episódios iniciados no período, já encerrados.
+- **Os três também são agendáveis**, ampliando o escopo original: alertas e qualidade seguem o período livre desde o envio anterior; demanda cobre o mês anterior e só combina com frequência mensal.
+- **`GET /api/properties/tree` devolve `tariffGroup`**, para a tela só oferecer a demanda onde ela existe; a regra é conferida de novo no servidor.
+

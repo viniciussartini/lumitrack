@@ -37,6 +37,7 @@ vi.mock("sonner", () => ({
 const property = (id: string, name: string, areas: [string, string][]): PropertyTreeNode => ({
     id,
     name,
+    tariffGroup: "GROUP_B",
     areas: areas.map(([areaId, areaName]) => ({ id: areaId, name: areaName, devices: [] })),
 })
 

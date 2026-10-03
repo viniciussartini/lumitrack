@@ -111,6 +111,7 @@ describe("buildCompareTargetGroups", () => {
             {
                 id: "prop-1",
                 name: "Casa",
+                tariffGroup: "GROUP_B",
                 areas: [
                     {
                         id: "area-1",
@@ -122,7 +123,7 @@ describe("buildCompareTargetGroups", () => {
                     },
                 ],
             },
-            { id: "prop-2", name: "Loja", areas: [] },
+            { id: "prop-2", name: "Loja", tariffGroup: "GROUP_B", areas: [] },
         ],
     }
 
@@ -154,7 +155,7 @@ describe("buildCompareTargetGroups", () => {
     it("omite grupos vazios (sem áreas nem dispositivos cadastrados)", () => {
         const groups = buildCompareTargetGroups({
             total: 1,
-            items: [{ id: "prop-1", name: "Casa", areas: [] }],
+            items: [{ id: "prop-1", name: "Casa", tariffGroup: "GROUP_B", areas: [] }],
         })
 
         expect(groups.map((group) => group.label)).toEqual(["Propriedades"])
@@ -216,5 +217,25 @@ describe("buildComparePeriodsParams", () => {
         expect(new Date(params.toA).getTime() - new Date(params.fromA).getTime()).toBe(
             new Date(params.toB).getTime() - new Date(params.fromB).getTime(),
         )
+    })
+})
+
+describe("buildCompareTargetGroups — grupo tarifário", () => {
+    it("só as propriedades levam o grupo tarifário", () => {
+        const groups = buildCompareTargetGroups({
+            total: 1,
+            items: [
+                {
+                    id: "prop-1",
+                    name: "Fábrica",
+                    tariffGroup: "GROUP_A",
+                    areas: [{ id: "area-1", name: "Linha", devices: [] }],
+                },
+            ],
+        })
+
+        const [properties, areas] = groups
+        expect(properties?.options[0]?.tariffGroup).toBe("GROUP_A")
+        expect(areas?.options[0]?.tariffGroup).toBeUndefined()
     })
 })

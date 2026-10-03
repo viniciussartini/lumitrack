@@ -17,6 +17,7 @@ const TREE: PropertyTree = {
         {
             id: "p1",
             name: "Casa da Praia",
+            tariffGroup: "GROUP_B",
             areas: [
                 {
                     id: "a1",
@@ -29,7 +30,7 @@ const TREE: PropertyTree = {
                 { id: "a2", name: "Sala", devices: [] },
             ],
         },
-        { id: "p2", name: "Escritório", areas: [] },
+        { id: "p2", name: "Escritório", tariffGroup: "GROUP_B", areas: [] },
     ],
 }
 

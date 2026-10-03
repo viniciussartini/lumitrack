@@ -48,6 +48,7 @@ const PAGE_TITLE_RULES: readonly PageTitleRule[] = [
     { pattern: "/alertas", kicker: "Monitoramento", title: "Alertas" },
     { pattern: "/distribuidoras", kicker: "Catálogo", title: "Distribuidoras" },
     { pattern: "/configuracoes/cadastro", kicker: "Configurações", title: "Cadastro" },
+    { pattern: "/configuracoes/relatorios", kicker: "Configurações", title: "Relatórios" },
     { pattern: "/seguranca", kicker: "Conta", title: "Segurança" },
     { pattern: "/perfil", kicker: "Conta", title: "Perfil" },
     { pattern: "/sobre", kicker: "LumiTrack", title: "Sobre o projeto" },

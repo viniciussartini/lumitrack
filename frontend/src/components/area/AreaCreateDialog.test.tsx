@@ -29,7 +29,12 @@ vi.mock("sonner", () => ({
     },
 }))
 
-const property = (id: string, name: string): PropertyTreeNode => ({ id, name, areas: [] })
+const property = (id: string, name: string): PropertyTreeNode => ({
+    id,
+    name,
+    tariffGroup: "GROUP_B",
+    areas: [],
+})
 
 const PROPERTIES = [property("prop-1", "Casa Principal"), property("prop-2", "Loja Centro")]
 

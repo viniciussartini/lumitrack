@@ -43,6 +43,7 @@ const TREE: PropertyTree = {
         {
             id: PROP_1.id,
             name: "Casa",
+            tariffGroup: "GROUP_B",
             areas: [
                 {
                     id: AREA_1.id,
@@ -62,11 +63,13 @@ const TWO_PROPERTIES_TREE: PropertyTree = {
         {
             id: PROP_1.id,
             name: PROP_1.name,
+            tariffGroup: "GROUP_B",
             areas: [{ id: AREA_1.id, name: AREA_1.name, devices: [] }],
         },
         {
             id: PROP_2.id,
             name: PROP_2.name,
+            tariffGroup: "GROUP_B",
             areas: [{ id: AREA_2.id, name: AREA_2.name, devices: [] }],
         },
     ],
@@ -76,6 +79,7 @@ const renameArea = (tree: PropertyTree, name: string): PropertyTree => ({
     ...tree,
     items: tree.items.map((property) => ({
         ...property,
+        tariffGroup: "GROUP_B",
         areas: property.areas.map((area) => ({ ...area, name })),
     })),
 })
@@ -347,6 +351,7 @@ test.describe("Configurações → Cadastro", () => {
                     items: [
                         {
                             ...TREE.items[0]!,
+                            tariffGroup: "GROUP_B",
                             areas: [{ ...TREE.items[0]!.areas[0]!, devices: [] }],
                         },
                     ],
@@ -379,7 +384,10 @@ test.describe("Configurações → Cadastro", () => {
         await page.route("**/api/properties/prop-1/areas/area-1", (route) => {
             if (route.request().method() === "DELETE") {
                 deleted = true
-                tree = { ...TREE, items: [{ ...TREE.items[0]!, areas: [] }] }
+                tree = {
+                    ...TREE,
+                    items: [{ ...TREE.items[0]!, tariffGroup: "GROUP_B", areas: [] }],
+                }
                 return route.fulfill({ status: 204 })
             }
             return fulfillJson(route, AREA_1)

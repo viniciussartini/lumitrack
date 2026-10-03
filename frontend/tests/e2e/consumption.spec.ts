@@ -21,8 +21,7 @@ import {
  * `ConsumptionSection` — consumo agregado somente leitura, substitui o
  * antigo CRUD manual de `ConsumptionRecord`. Testado através da
  * `PropertyDetailsPage` (`PropertyConsumptionSection`), que usa
- * `DETAILS_GRANULARITIES` (hora|dia) — os 4 níveis de `/relatorios` ficam
- * fora do escopo deste spec.
+ * `DETAILS_GRANULARITIES` (hora|dia).
  *
  * Ordem de checagem da própria seção: primeiro resolve se o alvo tem
  * medidor (`GET /api/meters/by-target`); só dispara `GET /api/consumption`

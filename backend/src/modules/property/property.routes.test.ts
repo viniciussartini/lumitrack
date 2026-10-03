@@ -388,6 +388,7 @@ describe("GET /api/properties/tree", () => {
             {
                 id: property.id,
                 name: "Casa Principal",
+                tariffGroup: "GROUP_B",
                 areas: [
                     {
                         id: areaId,

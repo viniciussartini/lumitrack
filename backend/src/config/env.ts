@@ -120,6 +120,11 @@ export const envSchema = z
         // categoria de coisa (log histórico imutável de um evento do
         // sistema), não um credencial nem dado de alto volume.
         DATA_RETENTION_TARIFF_FLAG_HISTORY_DAYS: z.coerce.number().int().positive().default(730),
+        // Report: mesmo prazo de MeterReading (365 dias). O relatório é um
+        // derivado agregado das leituras, com endereço de destinatário no
+        // agendamento — não deve sobreviver à fonte, e cada arquivo mora no
+        // banco (ADR-0023), então o prazo também limita o crescimento da tabela.
+        DATA_RETENTION_REPORT_DAYS: z.coerce.number().int().positive().default(365),
 
         // MFA opcional via TOTP (A06/A07).
         // Chave própria (separada de CPF_CNPJ_ENCRYPTION_KEY) para cifrar o

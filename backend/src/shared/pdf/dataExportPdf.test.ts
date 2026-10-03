@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { generateDataExportPdf } from "@/shared/pdf/dataExportPdf.js"
+import { describeExportedReport, generateDataExportPdf } from "@/shared/pdf/dataExportPdf.js"
 import type { DataExportPayload } from "@/modules/export/export.service.js"
 import type { PropertyResponse } from "@/modules/property/property.repository.js"
 
@@ -29,6 +29,8 @@ function buildFakePayload(overrides: Partial<DataExportPayload> = {}): DataExpor
         alerts: [],
         demandAlerts: [],
         aclContracts: [],
+        reports: [],
+        reportSchedules: [],
         auditLogs: [],
         ...overrides,
     }
@@ -109,5 +111,72 @@ describe("generateDataExportPdf", () => {
         )
 
         expect(buffer.subarray(0, 4).toString("latin1")).toBe("%PDF")
+    })
+
+    it("gera um PDF válido com a seção de relatórios emitidos preenchida", async () => {
+        const buffer = await generateDataExportPdf(
+            buildFakePayload({
+                reports: [
+                    {
+                        id: "rep-1",
+                        userId: "user-1",
+                        targetType: "PROPERTY",
+                        targetId: "prop-1",
+                        type: "MONTHLY",
+                        format: "PDF",
+                        origin: "MANUAL",
+                        periodStart: new Date("2026-07-01T03:00:00Z"),
+                        periodEnd: new Date("2026-08-01T03:00:00Z"),
+                        fileName: "lumitrack-relatorio-monthly-2026-07.pdf",
+                        sizeBytes: 1200,
+                        createdAt: new Date("2026-08-01T09:00:00Z"),
+                    },
+                ],
+            }),
+        )
+
+        expect(buffer.subarray(0, 4).toString("latin1")).toBe("%PDF")
+    })
+
+    it("gera um PDF válido com a seção de envio automático preenchida", async () => {
+        const buffer = await generateDataExportPdf(
+            buildFakePayload({
+                reportSchedules: [
+                    {
+                        id: "sch-1",
+                        targetType: "PROPERTY",
+                        targetId: "prop-1",
+                        type: "CONSUMPTION",
+                        format: "PDF",
+                        frequency: "MONTHLY",
+                        sendDay: 5,
+                        recipients: ["financeiro@example.com", "ceo@example.com"],
+                        active: true,
+                        nextRunAt: null,
+                        failedAttempts: 0,
+                        createdAt: new Date("2026-08-01T09:00:00Z"),
+                        updatedAt: new Date("2026-08-01T09:00:00Z"),
+                    },
+                ],
+            }),
+        )
+
+        expect(buffer.subarray(0, 4).toString("latin1")).toBe("%PDF")
+    })
+})
+
+describe("describeExportedReport", () => {
+    const report = {
+        type: "MONTHLY" as const,
+        format: "PDF" as const,
+        periodStart: new Date("2026-02-01T03:00:00.000Z"),
+        periodEnd: new Date("2026-03-01T03:00:00.000Z"),
+        createdAt: new Date("2026-03-01T12:30:00.000Z"),
+    }
+
+    it("o fim exclusivo do período aparece como o último dia, no fuso de São Paulo", () => {
+        expect(describeExportedReport(report)).toBe(
+            "• Mensal (PDF) — 01/02/2026 a 28/02/2026 — emitido em 01/03/2026, 09:30:00",
+        )
     })
 })

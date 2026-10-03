@@ -152,6 +152,32 @@ export class ConsumptionRepository {
     }
 
     /**
+     * Consumo total (kWh) de cada medidor numa janela, numa única consulta —
+     * insumo dos relatórios, que precisam do total de cada filho (ambiente ou
+     * dispositivo) sem uma agregação por filho.
+     *
+     * @param meterIds - Medidores a somar.
+     * @param from - Início da janela (inclusive).
+     * @param to - Fim da janela (exclusive).
+     * @returns Mapa medidor → kWh; medidor sem nenhuma leitura na janela fica de fora (ausência, não zero).
+     */
+    async findKwhTotalsByMeter(
+        meterIds: string[],
+        from: Date,
+        to: Date,
+    ): Promise<Map<string, number>> {
+        if (meterIds.length === 0) return new Map()
+
+        const rows = await this.prisma.meterReading.groupBy({
+            by: ["meterId"],
+            where: { meterId: { in: meterIds }, minuteStart: { gte: from, lt: to } },
+            _sum: { kwhConsumed: true },
+        })
+
+        return new Map(rows.map((r) => [r.meterId, r._sum.kwhConsumed ?? 0]))
+    }
+
+    /**
      * Conta o total de baldes de uma janela, numa varredura própria.
      *
      * Privado de propósito: só existe como fallback de `findAggregated` para

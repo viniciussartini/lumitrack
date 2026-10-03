@@ -16,6 +16,7 @@ export type AuditAction =
     | "MFA_DISABLED"
     | "REFRESH_TOKEN_REUSE_DETECTED"
     | "ADMIN_AUDIT_LOG_VIEW"
+    | "REPORT_GENERATE"
 
 export type AuditOutcome = "SUCCESS" | "FAILURE"
 

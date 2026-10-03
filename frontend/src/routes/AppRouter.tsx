@@ -92,6 +92,11 @@ const AboutPage = lazy(() =>
 const SettingsLayout = lazy(() =>
     import("@/pages/settings/SettingsLayout").then((m) => ({ default: m.SettingsLayout })),
 )
+const ReportSchedulesPage = lazy(() =>
+    import("@/pages/settings/ReportSchedulesPage").then((m) => ({
+        default: m.ReportSchedulesPage,
+    })),
+)
 const RegistrationPage = lazy(() =>
     import("@/pages/settings/RegistrationPage").then((m) => ({ default: m.RegistrationPage })),
 )
@@ -153,6 +158,7 @@ const SETTINGS_ROUTES = (
     <Route path="/configuracoes" element={<SettingsLayout />}>
         <Route index element={<Navigate to="cadastro" replace />} />
         <Route path="cadastro" element={<RegistrationPage />} />
+        <Route path="relatorios" element={<ReportSchedulesPage />} />
     </Route>
 )
 

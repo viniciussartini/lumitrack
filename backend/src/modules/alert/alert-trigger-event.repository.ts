@@ -8,6 +8,10 @@ type PrismaAlertTriggerEvent = NonNullable<
 
 export type AlertTriggerEventResponse = PrismaAlertTriggerEvent
 
+export type AlertTriggerEventWithAlert = PrismaAlertTriggerEvent & {
+    alert: { name: string; referencePowerKw: number; tolerancePercent: number }
+}
+
 export type CreateAlertTriggerEventInput = {
     alertId: string
     startedAt: Date
@@ -62,6 +66,32 @@ export class AlertTriggerEventRepository {
         ])
 
         return { items, total, page: pagination.page, pageSize: pagination.pageSize }
+    }
+
+    /**
+     * Episódios iniciados numa janela, entre todos os alertas de um medidor,
+     * do mais antigo ao mais recente — insumo do relatório de alertas.
+     *
+     * @param meterId - Id do medidor dos alertas.
+     * @param from - Início da janela (inclusive).
+     * @param to - Fim da janela (exclusive).
+     * @param limit - Máximo de episódios devolvidos.
+     * @returns Os episódios, cada um com o nome e a faixa do alerta.
+     */
+    async findByMeterAndPeriod(
+        meterId: string,
+        from: Date,
+        to: Date,
+        limit: number,
+    ): Promise<AlertTriggerEventWithAlert[]> {
+        return this.prisma.alertTriggerEvent.findMany({
+            where: { alert: { meterId }, startedAt: { gte: from, lt: to } },
+            include: {
+                alert: { select: { name: true, referencePowerKw: true, tolerancePercent: true } },
+            },
+            orderBy: [{ startedAt: "asc" }, { id: "asc" }],
+            take: limit,
+        })
     }
 
     /**

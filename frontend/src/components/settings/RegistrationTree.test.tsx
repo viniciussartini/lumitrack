@@ -72,6 +72,7 @@ const TREE: PropertyTree = {
         {
             id: "prop-1",
             name: "Casa",
+            tariffGroup: "GROUP_B",
             areas: [
                 {
                     id: "area-1",
@@ -84,7 +85,7 @@ const TREE: PropertyTree = {
                 { id: "area-2", name: "Quarto", devices: [] },
             ],
         },
-        { id: "prop-2", name: "Loja", areas: [] },
+        { id: "prop-2", name: "Loja", tariffGroup: "GROUP_B", areas: [] },
     ],
 }
 
@@ -225,6 +226,7 @@ describe("RegistrationTree — estrutura", () => {
                 {
                     id: "prop-1",
                     name: "Casa",
+                    tariffGroup: "GROUP_B",
                     areas: [
                         {
                             id: "area-1",
