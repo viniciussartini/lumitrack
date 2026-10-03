@@ -4311,3 +4311,13 @@
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** `nextRunAt` segue nulável no banco (nulo = pausada), então não há migração.
 
+## [2026-10-03] fix: CI — auditoria de dependências (backend, frontend e simulador IoT)
+
+- **Branch:** epic/464-relatorios
+- **Tipo:** fix
+- **O quê:** os três jobs `npm audit --audit-level=high` falhavam por avisos publicados depois do último PR verde. **Frontend:** `npm audit fix` (`brace-expansion` e `undici`) zerou as vulnerabilidades. **Backend:** `brace-expansion` corrigido pelo `audit fix`, e `nodemailer` subiu do 9 para o 10 (`^10.0.14`), que corrige as cinco falhas listadas (DNS cache entre transportes, DoS no parser de endereços, destinatário malformado); a API usada (`createTransport`, `sendMail` com `bcc` e anexos) não mudou. **Simulador IoT:** `audit fix` nas dependências com correção. **`braces`:** todas as versões estão afetadas (`<= 3.0.3`, a última publicada) e não há correção; entra só por `tsc-alias`, ferramenta de build do backend e do simulador. Os jobs `backend-audit` e `iot-simulator-audit` passam a bloquear só por dependência de produção (`--omit=dev`), com o relatório completo seguindo visível e não bloqueante. O `frontend-audit` continua auditando tudo.
+- **Testes:** `npm audit` com os mesmos comandos da CI zerado nos três pacotes, `npm ci` consistente com os lockfiles, builds do backend, do frontend e do simulador, lint do backend e do frontend, suíte do frontend (141 arquivos, 1158 testes), do simulador (15 + 3 arquivos) e do módulo de e-mail e agendamento do backend com o `nodemailer` novo.
+- **Arquivos principais:** `.github/workflows/ci.yml`, `backend/package.json`, `backend/package-lock.json`, `frontend/package-lock.json`, `iot-simulator/package-lock.json`.
+- **Decisões/ADRs:** nenhuma ADR. Decisão de política tomada com o usuário: o gate de auditoria do backend e do simulador considera só dependência de produção, porque o único aviso restante não tem correção e está só na ferramenta de build. O Dependabot segue ativo e avisa quando houver versão corrigida do `braces`; nesse dia, vale voltar o gate completo.
+- **Notas:** o `npm install` fundiu os dois blocos `overrides` duplicados do `backend/package.json` num só, com os mesmos valores efetivos (`mysql2 ^3.24.2` e `deepmerge-ts ^8.0.2`); o primeiro bloco já era ignorado pelo JSON.
+
