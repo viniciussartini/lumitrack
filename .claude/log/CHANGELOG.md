@@ -4331,3 +4331,13 @@
 - **Decisões/ADRs:** nenhuma nova; nenhum item do `07` tocado (o item sobre e-mail a terceiros já foi aberto no PR).
 - **Notas:** (1) a Fase 28 (Metas) segue em nível de objetivo, sem bloqueio no `07`; detalhar quando solicitado; (2) a milestone `App v2` só fecha na Fase 30 e o GitHub mostra vencimento em 2026-10-04 com 0 issues abertas, porque as Fases 28–30 ainda não têm issues; (3) `02-requisitos.md` não mudou nesta sessão, já saiu atualizado no PR.
 
+
+## [2026-10-04] docs: roadmap detalha a Fase 28 (Metas)
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** `planejar-roadmap` (ciclo de atualização — detalhamento) promove a Fase 28 de objetivo para 6 itens: metas de consumo em kWh (modelo `Goal`, CRUD, sub-página Configurações → Metas), acompanhamento (realizado, desvio, situação), usar como referência, alerta de meta, e as metas de custo (R$) e de demanda (Grupo A). Cabeçalho, tabela de fases e nota de detalhamento atualizados; nova seção "Replanejamento de 2026-10-04 (detalhamento da Fase 28)".
+- **Testes:** documentação, sem código.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** quatro decisões de produto tomadas com o usuário (só kWh na primeira leva; meta por propriedade; percentual de alerta vale para o mês e para o ano acumulado; ano vigente e futuros editáveis, só passado imutável). Nenhuma ADR nova; nenhum item do `07` tocado.
+- **Notas:** (1) a RN37 do `02-requisitos.md` ainda tem o texto antigo (só o vigente edita) e é reescrita junto do item 1; (2) a seção de alertas de meta na página de Alertas e as metas de R$ e demanda não têm design; (3) o tipo da notificação em memória precisa de ajuste no item 4 (meta não tem medidor).
