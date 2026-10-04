@@ -268,6 +268,7 @@ model User {
   tariffFlagChanges TariffFlagHistory[]
   reports           Report[]
   reportSchedules   ReportSchedule[]
+  goals             Goal[]
 
   @@map("users")
 }
@@ -611,6 +612,7 @@ model Property {
   areas        Area[]
   meter        Meter?
   aclContracts AclContract[]
+  goals        Goal[]
 
   // O Prisma Migrate cria a constraint de FK, mas não o índice no Postgres
   // (diferente do MySQL) — sem isto, toda travessia de posse (User→Property)
@@ -1058,4 +1060,33 @@ model ReportSchedule {
 
   @@index([userId])
   @@map("report_schedules")
+}
+
+// Meta anual de consumo de uma propriedade. Uma por propriedade e ano; a meta
+// do ano é a soma dos 12 valores mensais. Metas de ano passado são imutáveis
+// (regra no serviço, não no banco): o histórico serve de base de referência
+// para metas novas.
+model Goal {
+  id         String @id @default(uuid())
+  userId     String
+  propertyId String
+
+  year          Int
+  // Ano usado como base de comparação ao montar a meta; é só um número, não
+  // exige que exista meta cadastrada para ele.
+  referenceYear Int
+  // Consumo-alvo em kWh de janeiro a dezembro: sempre 12 posições.
+  monthlyKwh    Float[]
+  // % da meta (do mês e do ano acumulado) a partir do qual o usuário é avisado.
+  alertPercent  Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, year])
+  @@index([userId])
+  @@map("goals")
 }

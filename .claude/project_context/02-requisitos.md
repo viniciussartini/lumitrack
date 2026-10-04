@@ -84,7 +84,7 @@
 
 - RF40 `[implementado]`: o sistema deve permitir emitir um relatório sob demanda escolhendo escopo (propriedade, área, dispositivo), tipo (mensal, consumo, alertas, qualidade de energia, demanda), período e formato (PDF ou CSV), registrando-o no histórico.
 - RF41 `[implementado]`: o sistema deve permitir agendar relatórios automáticos (periodicidade, dia de envio, destinatários), listar os envios agendados e gerenciar as configurações criadas.
-- RF42 `[planejado — Fase 28]`: o sistema deve permitir que um usuário cadastre metas anuais de consumo (kWh) e custo (R$) — e de demanda, no Grupo A — com meta mês a mês, ano de referência e acompanhamento de realizado, desvio e situação.
+- RF42 `[implementado (cadastro das metas de consumo em kWh); planejado — Fase 28 (acompanhamento, custo e demanda)]`: o sistema deve permitir que um usuário cadastre, por propriedade, metas anuais de consumo (kWh) e custo (R$) — e de demanda, no Grupo A — com meta mês a mês, ano de referência e acompanhamento de realizado, desvio e situação. Cadastro, edição e exclusão das metas em kWh estão em `modules/goal`.
 
 ### Dados pessoais e administração
 
@@ -255,7 +255,7 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
 
 - RN35 `[implementado]`: relatório gerado é **imutável** — para obter informação diferente, gera-se outro. Todos seguem template padronizado com a identidade visual do projeto.
 - RN36 `[implementado]`: no agendamento, o dia de envio aceita 1 a 31, mas meses mais curtos não têm todos eles — quando o dia escolhido não existe no mês (fevereiro, meses de 30 dias, ano bissexto), o envio ocorre no **último dia do mês**.
-- RN37 `[planejado — Fase 28]`: só a meta do ano vigente pode ser editada. Metas de anos anteriores são imutáveis, não podem ser excluídas e podem ser usadas como base de referência para uma meta nova.
+- RN37 `[implementado]`: a meta do ano vigente e as de anos futuros podem ser editadas e excluídas. Metas de anos anteriores são imutáveis, não podem ser excluídas e podem ser usadas como base de referência para uma meta nova. O ano conta em horário de São Paulo e a regra é imposta no servidor (`goal.service.ts`); criar meta de ano passado é rejeitado, e a edição não muda o ano nem a propriedade da meta.
 
 ## 2.4 Funcionamento
 
@@ -329,7 +329,7 @@ Gestão e agendamento de relatórios em PDF e CSV, com template padronizado (ref
 
 **Hoje:** `/relatorios` (`pages/report/ReportsPage.tsx`) reúne a emissão (`ReportEmissionForm`), os envios previstos para os próximos 15 dias (`ReportUpcoming`) e o histórico (`ReportHistory`); a gestão do agendamento fica em `/configuracoes/relatorios` (`ReportSchedulesPage`). Backend: `modules/report` (emissão, histórico, download, exclusão, geradores de PDF e CSV) e `modules/report-schedule` (CRUD e `ReportScheduleRunner`, que gera o relatório do período e o envia por e-mail como anexo). Os tipos alertas, qualidade de energia e demanda emitem um relatório de resumo e tabelas (`modules/report/documents/`); a demanda é apurada por mês e exige propriedade do Grupo A, e os cinco tipos podem ser agendados (mensal e demanda só com frequência mensal).
 
-**FNC008 — Configurações** `[implementado (estrutura, Cadastro e Relatórios); planejado — Fase 28 (sub-página Metas)]`
+**FNC008 — Configurações** `[implementado (estrutura, Cadastro, Relatórios e Metas)]`
 
 Menu à esquerda com as configurações disponíveis e, à direita, a página da configuração selecionada.
 
@@ -352,12 +352,14 @@ O medidor envia ao sistema: tensão (por fase, fase-neutro média, desequilíbri
 
 O sistema opera com qualquer medidor, inclusive os que não medem todas as grandezas — a ausência é exibida conforme RN34. *(ADR-0022, verificada contra o datasheet do CCK 7200D: todas as grandezas são medidas nativamente e persistidas como tal, exceto desequilíbrio de tensão — calculado no pipeline a partir das três tensões de fase medidas — e corrente de neutro, que o medidor-alvo não mede nem permite derivar com confiança e por isso fica sempre "-".)*
 
-**FNC011 — Metas** `[planejado — Fase 28]`
+**FNC011 — Metas** `[implementado (cadastro, edição e exclusão das metas em kWh); planejado — Fase 28 (acompanhamento, usar como referência, custo e demanda)]`
 
 1. O usuário cadastra metas de consumo (kWh) e custo (R$); propriedades do Grupo A têm também meta de demanda.
 2. A tela mostra: card "Metas de consumo anual" com a meta vigente e botão de nova meta; seção com gráfico de barras de meta versus realizado, acompanhada dos cards Meta do ano, Realizado até o mês corrente, Desvio acumulado em % e Consumo específico alvo em kWh; e o histórico de metas em tabela (ano, meta, realizado, desvio, base de referência e situação).
-3. O histórico oferece as ações: usar como referência, editar (só a meta vigente) e excluir — conforme RN37.
+3. O histórico oferece as ações: usar como referência, editar e excluir (ano vigente e futuros) — conforme RN37.
 4. O formulário de nova meta pede: ano da meta, ano de referência, consumo específico alvo em kWh, meta mês a mês em kWh e o percentual de alerta ao atingir (RF43).
+
+**Hoje:** `/configuracoes/metas` (`pages/settings/GoalsPage.tsx`) mostra o card da meta do ano corrente e o histórico da propriedade escolhida (a mesma seleção do Painel), com criar, editar e excluir; backend em `modules/goal` (`/api/goals`). A meta é de uma propriedade, única por ano; a meta do ano é a soma dos 12 meses, e o consumo específico alvo do formulário é só um atalho que repete o valor nos 12 campos, sem ser guardado. O ano da meta não muda na edição. O histórico mostra ano, meta, base de referência e situação; realizado e desvio, o gráfico de meta versus realizado, a ação de usar como referência e o alerta de meta ainda não existem.
 
 **FNC012 — Sessões ativas** `[planejado — Fase 30]`
 

@@ -19,6 +19,7 @@ import type {
 import type { AreaRepository, AreaResponse } from "@/modules/area/area.repository.js"
 import type { DeviceRepository, DeviceResponse } from "@/modules/device/device.repository.js"
 import type { ReportRepository, ReportResponse } from "@/modules/report/report.repository.js"
+import type { GoalRecord, GoalRepository } from "@/modules/goal/goal.repository.js"
 import type {
     ReportScheduleRecord,
     ReportScheduleRepository,
@@ -56,6 +57,8 @@ export type DataExportPayload = {
     // Configurações de envio automático, com os e-mails de destinatários — dado
     // pessoal de terceiros que o titular informou.
     reportSchedules: Omit<ReportScheduleRecord, "userId">[]
+    // Metas anuais de consumo definidas pelo titular, por propriedade.
+    goals: Omit<GoalRecord, "userId">[]
     auditLogs: AuditLogResponse[]
 }
 
@@ -76,6 +79,7 @@ export class ExportService {
      * @param auditRepository - Trilha de auditoria de acesso a dados do titular.
      * @param reportRepository - Relatórios emitidos pelo titular (metadados).
      * @param reportScheduleRepository - Configurações de envio automático de relatório do titular.
+     * @param goalRepository - Metas anuais de consumo do titular.
      */
     constructor(
         private readonly userRepository: UserRepository,
@@ -89,6 +93,7 @@ export class ExportService {
         private readonly auditRepository: AuditRepository,
         private readonly reportRepository: ReportRepository,
         private readonly reportScheduleRepository: ReportScheduleRepository,
+        private readonly goalRepository: GoalRepository,
     ) {}
 
     /**
@@ -116,6 +121,7 @@ export class ExportService {
             auditLogs,
             reports,
             reportSchedules,
+            goals,
         ] = await Promise.all([
             this.propertyRepository.findAllByUser(userId),
             this.alertRepository.findAllByUser(userId),
@@ -126,6 +132,7 @@ export class ExportService {
             this.auditRepository.findByUserId(userId),
             this.reportRepository.findAllMetadataByUser(userId),
             this.reportScheduleRepository.findAllByUser(userId),
+            this.goalRepository.findAllByUser(userId),
         ])
 
         const distributorIds = [...new Set(properties.map((p) => p.distributorId))]
@@ -143,6 +150,7 @@ export class ExportService {
             aclContracts,
             reports,
             reportSchedules: reportSchedules.map(({ userId: _owner, ...rest }) => rest),
+            goals: goals.map(({ userId: _owner, ...rest }) => rest),
             auditLogs,
         }
     }

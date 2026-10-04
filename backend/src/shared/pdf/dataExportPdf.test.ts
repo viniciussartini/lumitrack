@@ -31,6 +31,7 @@ function buildFakePayload(overrides: Partial<DataExportPayload> = {}): DataExpor
         aclContracts: [],
         reports: [],
         reportSchedules: [],
+        goals: [],
         auditLogs: [],
         ...overrides,
     }
@@ -156,6 +157,29 @@ describe("generateDataExportPdf", () => {
                         failedAttempts: 0,
                         createdAt: new Date("2026-08-01T09:00:00Z"),
                         updatedAt: new Date("2026-08-01T09:00:00Z"),
+                    },
+                ],
+            }),
+        )
+
+        expect(buffer.subarray(0, 4).toString("latin1")).toBe("%PDF")
+    })
+})
+
+describe("generateDataExportPdf — metas", () => {
+    it("gera um PDF válido com a seção de metas preenchida", async () => {
+        const buffer = await generateDataExportPdf(
+            buildFakePayload({
+                goals: [
+                    {
+                        id: "goal-1",
+                        propertyId: "prop-1",
+                        year: 2026,
+                        referenceYear: 2025,
+                        monthlyKwh: Array.from({ length: 12 }, () => 400),
+                        alertPercent: 85,
+                        createdAt: new Date("2026-01-01T00:00:00Z"),
+                        updatedAt: new Date("2026-01-01T00:00:00Z"),
                     },
                 ],
             }),

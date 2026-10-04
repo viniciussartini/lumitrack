@@ -289,6 +289,25 @@ function drawReportSchedulesSection(doc: PDFKit.PDFDocument, payload: DataExport
     }
 }
 
+function drawGoalsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
+    sectionTitle(doc, "Metas de consumo")
+
+    if (payload.goals.length === 0) {
+        emptyNote(doc, "Nenhuma meta de consumo cadastrada.")
+        return
+    }
+
+    for (const goal of payload.goals) {
+        const property = payload.properties.find((p) => p.id === goal.propertyId)
+        const yearlyKwh = Math.round(goal.monthlyKwh.reduce((sum, kwh) => sum + kwh, 0))
+        doc.text(
+            `• ${property ? `${property.name} — ` : ""}${goal.year} — ` +
+                `meta de ${yearlyKwh.toLocaleString("pt-BR")} kWh — ` +
+                `referência ${goal.referenceYear} — alerta ao atingir ${goal.alertPercent}%`,
+        )
+    }
+}
+
 function drawAuditLogSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
     sectionTitle(doc, "Histórico de acesso e segurança (audit log)")
 
@@ -348,6 +367,7 @@ export async function generateDataExportPdf(payload: DataExportPayload): Promise
     drawAclContractsSection(doc, payload)
     drawReportsSection(doc, payload)
     drawReportSchedulesSection(doc, payload)
+    drawGoalsSection(doc, payload)
     drawAuditLogSection(doc, payload)
     drawFooterOnAllPages(doc)
 

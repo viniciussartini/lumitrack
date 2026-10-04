@@ -35,6 +35,7 @@ export async function cleanDatabase(): Promise<void> {
         prismaTest.auditLog.deleteMany(),
         prismaTest.report.deleteMany(),
         prismaTest.reportSchedule.deleteMany(),
+        prismaTest.goal.deleteMany(),
         prismaTest.tariffFlagHistory.deleteMany(),
         prismaTest.alertTriggerEvent.deleteMany(),
         prismaTest.alert.deleteMany(),
