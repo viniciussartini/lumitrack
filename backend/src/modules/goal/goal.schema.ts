@@ -64,6 +64,10 @@ export const goalIdParamsSchema = z.object({
     id: z.uuid({ message: "id inválido" }),
 })
 
+export const goalProgressQuerySchema = z.object({
+    propertyId: z.uuid({ message: "propertyId inválido" }),
+})
+
 export const listGoalsQuerySchema = z
     .object({ propertyId: z.uuid({ message: "propertyId inválido" }) })
     .extend(paginationQuerySchema.shape)

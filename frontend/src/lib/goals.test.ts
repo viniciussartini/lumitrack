@@ -6,7 +6,10 @@ import {
     currentGoalMonthIndex,
     currentGoalYear,
     describeCurrentGoal,
-    describeGoalSituation,
+    describeSituation,
+    deviationTone,
+    formatDeviation,
+    formatRealized,
     goalToFormState,
     goalYearlyKwh,
     initialGoalForm,
@@ -14,7 +17,7 @@ import {
     validateGoalForm,
     type GoalFormState,
 } from "@/lib/goals"
-import type { Goal } from "@/types/goal.types"
+import type { Goal, GoalProgress } from "@/types/goal.types"
 
 const goal = (override: Partial<Goal> = {}): Goal => ({
     id: "g1",
@@ -59,12 +62,6 @@ describe("regras da meta", () => {
         expect(
             goalYearlyKwh(goal({ monthlyKwh: [100, ...Array.from({ length: 11 }, () => 0)] })),
         ).toBe(100)
-    })
-
-    it("situação: em andamento até o ano acabar; depois, ausência até haver realizado", () => {
-        expect(describeGoalSituation(goal({ year: 2026 }), 2026)).toBe("Em andamento")
-        expect(describeGoalSituation(goal({ year: 2027 }), 2026)).toBe("Em andamento")
-        expect(describeGoalSituation(goal({ year: 2025 }), 2026)).toBe("-")
     })
 
     it("descreve a meta vigente com a meta do mês corrente", () => {
@@ -165,5 +162,47 @@ describe("montagem do corpo", () => {
         })
         expect(input).not.toHaveProperty("year")
         expect(input).not.toHaveProperty("propertyId")
+    })
+})
+
+describe("situação e desvio do acompanhamento", () => {
+    it('rotula cada situação e trata ausência como "-"', () => {
+        expect(describeSituation("IN_PROGRESS")).toEqual({ label: "Em andamento", tone: "warning" })
+        expect(describeSituation("MET")).toEqual({ label: "Cumprida", tone: "success" })
+        expect(describeSituation("NOT_MET")).toEqual({ label: "Não cumprida", tone: "danger" })
+        expect(describeSituation(null)).toEqual({ label: "-", tone: "muted" })
+        expect(describeSituation(undefined)).toEqual({ label: "-", tone: "muted" })
+    })
+
+    it("formata o desvio com sinal, vírgula decimal e uma casa", () => {
+        expect(formatDeviation(2.54)).toBe("+2,5%")
+        expect(formatDeviation(-3.1)).toBe("−3,1%")
+        expect(formatDeviation(0)).toBe("+0,0%")
+        expect(formatDeviation(null)).toBe("-")
+        expect(formatDeviation(undefined)).toBe("-")
+    })
+
+    it("acima da meta é perigo; no limite ou abaixo, sucesso; sem desvio, neutro", () => {
+        expect(deviationTone(0.1)).toBe("danger")
+        expect(deviationTone(0)).toBe("success")
+        expect(deviationTone(-5)).toBe("success")
+        expect(deviationTone(null)).toBe("muted")
+    })
+
+    it('realizado ausente é "-", nunca 0 kWh', () => {
+        const progress = (realizedKwh: number | null): GoalProgress => ({
+            goalId: "g1",
+            year: 2026,
+            months: [],
+            yearTargetKwh: 4800,
+            realizedKwh,
+            deviationPercent: null,
+            currentMonthTargetKwh: null,
+            situation: "IN_PROGRESS",
+        })
+        expect(formatRealized(progress(2220))).toBe("2.220 kWh")
+        expect(formatRealized(progress(0))).toBe("0 kWh")
+        expect(formatRealized(progress(null))).toBe("-")
+        expect(formatRealized(undefined)).toBe("-")
     })
 })

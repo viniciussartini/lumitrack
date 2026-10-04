@@ -1,0 +1,94 @@
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from "recharts"
+import { MONTH_LABELS, formatKwh } from "@/lib/goals"
+import type { GoalProgressMonth } from "@/types/goal.types"
+
+export const TARGET_COLOR = "var(--color-chart-amber)"
+export const REALIZED_COLOR = "var(--color-chart-blue)"
+const OVER_TARGET_COLOR = "var(--color-status-danger)"
+
+interface ChartPoint {
+    label: string
+    target: number
+    realized: number | null
+    overTarget: boolean
+}
+
+const toPoints = (months: GoalProgressMonth[]): ChartPoint[] =>
+    months.map((month, index) => ({
+        label: MONTH_LABELS[index] ?? String(month.month),
+        target: month.targetKwh,
+        realized: month.realizedKwh,
+        overTarget: month.realizedKwh !== null && month.realizedKwh > month.targetKwh,
+    }))
+
+const isChartPoint = (value: unknown): value is ChartPoint =>
+    typeof value === "object" && value !== null && "label" in value && "target" in value
+
+interface TooltipProps {
+    active?: boolean
+    payload?: { payload?: unknown }[]
+}
+
+const ChartTooltip = ({ active, payload }: TooltipProps) => {
+    const point = payload?.[0]?.payload
+    if (!active || !isChartPoint(point)) return null
+
+    return (
+        <div className="border-divider bg-surface border px-3 py-2 text-xs">
+            <p className="font-heading font-semibold">{point.label}</p>
+            <p className="text-muted mt-0.5">Meta do mês: {formatKwh(point.target)}</p>
+            <p className="text-muted mt-0.5">
+                Realizado: {point.realized === null ? "-" : formatKwh(point.realized)}
+            </p>
+        </div>
+    )
+}
+
+interface GoalProgressChartProps {
+    months: GoalProgressMonth[]
+}
+
+/**
+ * Barras de meta × realizado por mês (LumiTrack Home v2.dc.html, Configurações
+ * → Metas): a meta do mês em âmbar ao lado do realizado em azul, que fica
+ * vermelho no mês em que passa da meta. Mês sem leitura não tem barra de
+ * realizado — vazio, nunca uma barra em 0.
+ */
+export const GoalProgressChart = ({ months }: GoalProgressChartProps) => (
+    <div data-testid="goal-progress-chart">
+        <ResponsiveContainer width="100%" height={256}>
+            <BarChart
+                data={toPoints(months)}
+                margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+                barGap={4}
+            >
+                <CartesianGrid strokeDasharray="3 3" className="stroke-divider" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                <YAxis
+                    tick={{ fontSize: 12 }}
+                    width={64}
+                    tickFormatter={(value: number) => value.toLocaleString("pt-BR")}
+                />
+                <Tooltip content={<ChartTooltip />} cursor={false} />
+                <Bar dataKey="target" fill={TARGET_COLOR} isAnimationActive={false} />
+                <Bar dataKey="realized" fill={REALIZED_COLOR} isAnimationActive={false}>
+                    {toPoints(months).map((point) => (
+                        <Cell
+                            key={point.label}
+                            fill={point.overTarget ? OVER_TARGET_COLOR : REALIZED_COLOR}
+                        />
+                    ))}
+                </Bar>
+            </BarChart>
+        </ResponsiveContainer>
+    </div>
+)

@@ -16,6 +16,14 @@ export const useGoals = (propertyId: string | null) =>
         enabled: propertyId !== null,
     })
 
+/** Acompanhamento das metas de uma propriedade; invalidado junto da lista a cada mutação. */
+export const useGoalProgress = (propertyId: string | null) =>
+    useQuery({
+        queryKey: queryKeys.goals.progress(propertyId ?? ""),
+        queryFn: () => goalService.progress(propertyId!),
+        enabled: propertyId !== null,
+    })
+
 /**
  * Mutations das metas. Todas invalidam a lista e avisam o sucesso; o erro
  * fica com quem chama, que decide a mensagem.

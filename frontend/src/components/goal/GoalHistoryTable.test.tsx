@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
 import { render, screen } from "@testing-library/react"
 import { GoalHistoryTable } from "@/components/goal/GoalHistoryTable"
-import type { Goal } from "@/types/goal.types"
+import type { Goal, GoalProgress } from "@/types/goal.types"
 
 const makeGoal = (year: number, monthlyKwh?: number[]): Goal => ({
     id: `goal-${year}`,
@@ -15,15 +15,31 @@ const makeGoal = (year: number, monthlyKwh?: number[]): Goal => ({
     updatedAt: "2026-01-01T00:00:00.000Z",
 })
 
+const makeProgress = (year: number, override: Partial<GoalProgress> = {}): GoalProgress => ({
+    goalId: `goal-${year}`,
+    year,
+    months: [],
+    yearTargetKwh: 4800,
+    realizedKwh: null,
+    deviationPercent: null,
+    currentMonthTargetKwh: null,
+    situation: "IN_PROGRESS",
+    ...override,
+})
+
+const progressMap = (...items: GoalProgress[]) => new Map(items.map((item) => [item.goalId, item]))
+
+const noop = { onEdit: vi.fn(), onDelete: vi.fn() }
+
 describe("GoalHistoryTable", () => {
     it("mostra a meta do ano como a soma dos meses e a base de referência", () => {
         const months = Array.from({ length: 12 }, (_, i) => (i + 1) * 100)
         render(
             <GoalHistoryTable
                 goals={[makeGoal(2026, months)]}
+                progressByGoalId={progressMap()}
                 currentYear={2026}
-                onEdit={vi.fn()}
-                onDelete={vi.fn()}
+                {...noop}
             />,
         )
 
@@ -32,9 +48,85 @@ describe("GoalHistoryTable", () => {
         expect(row).toHaveTextContent("Ano 2025")
     })
 
+    it("mostra realizado, desvio e situação do acompanhamento", () => {
+        render(
+            <GoalHistoryTable
+                goals={[makeGoal(2026), makeGoal(2025), makeGoal(2024)]}
+                progressByGoalId={progressMap(
+                    makeProgress(2026, { realizedKwh: 2220, deviationPercent: 0.9 }),
+                    makeProgress(2025, {
+                        realizedKwh: 4680,
+                        deviationPercent: -2.5,
+                        situation: "MET",
+                    }),
+                    makeProgress(2024, {
+                        realizedKwh: 5000,
+                        deviationPercent: 4.2,
+                        situation: "NOT_MET",
+                    }),
+                )}
+                currentYear={2026}
+                {...noop}
+            />,
+        )
+
+        const current = screen.getByTestId("goal-row-2026")
+        expect(current).toHaveTextContent("2.220 kWh")
+        expect(current).toHaveTextContent("+0,9%")
+        expect(current).toHaveTextContent("Em andamento")
+
+        const met = screen.getByTestId("goal-row-2025")
+        expect(met).toHaveTextContent("4.680 kWh")
+        expect(met).toHaveTextContent("−2,5%")
+        expect(met).toHaveTextContent("Cumprida")
+
+        const notMet = screen.getByTestId("goal-row-2024")
+        expect(notMet).toHaveTextContent("+4,2%")
+        expect(notMet).toHaveTextContent("Não cumprida")
+    })
+
+    it('sem leitura, realizado e desvio são "-" e o ano passado fica sem situação', () => {
+        render(
+            <GoalHistoryTable
+                goals={[makeGoal(2025)]}
+                progressByGoalId={progressMap(makeProgress(2025, { situation: null }))}
+                currentYear={2026}
+                {...noop}
+            />,
+        )
+
+        const cells = screen.getByTestId("goal-row-2025").querySelectorAll("td")
+        // Ano, Meta, Realizado, Desvio, Base de referência, Situação, Ações.
+        expect(cells[2]).toHaveTextContent("-")
+        expect(cells[3]).toHaveTextContent("-")
+        expect(cells[5]).toHaveTextContent("-")
+    })
+
+    it('sem o acompanhamento (carregando ou com falha), as colunas ficam "-" e a lista segue', () => {
+        render(
+            <GoalHistoryTable
+                goals={[makeGoal(2026)]}
+                progressByGoalId={progressMap()}
+                currentYear={2026}
+                {...noop}
+            />,
+        )
+
+        const cells = screen.getByTestId("goal-row-2026").querySelectorAll("td")
+        expect(cells[2]).toHaveTextContent("-")
+        expect(cells[3]).toHaveTextContent("-")
+        expect(cells[5]).toHaveTextContent("-")
+        expect(screen.getByRole("button", { name: "Editar meta de 2026" })).toBeInTheDocument()
+    })
+
     it("avisa o histórico vazio", () => {
         render(
-            <GoalHistoryTable goals={[]} currentYear={2026} onEdit={vi.fn()} onDelete={vi.fn()} />,
+            <GoalHistoryTable
+                goals={[]}
+                progressByGoalId={progressMap()}
+                currentYear={2026}
+                {...noop}
+            />,
         )
 
         expect(screen.getByTestId("goal-history-empty")).toHaveTextContent(
@@ -51,6 +143,7 @@ describe("GoalHistoryTable", () => {
         render(
             <GoalHistoryTable
                 goals={[goal]}
+                progressByGoalId={progressMap()}
                 currentYear={2026}
                 onEdit={onEdit}
                 onDelete={onDelete}
@@ -68,13 +161,12 @@ describe("GoalHistoryTable", () => {
         render(
             <GoalHistoryTable
                 goals={[makeGoal(2025)]}
+                progressByGoalId={progressMap()}
                 currentYear={2026}
-                onEdit={vi.fn()}
-                onDelete={vi.fn()}
+                {...noop}
             />,
         )
 
-        expect(screen.getByTestId("goal-row-2025")).toHaveTextContent("-")
         expect(screen.queryByRole("button")).not.toBeInTheDocument()
     })
 })

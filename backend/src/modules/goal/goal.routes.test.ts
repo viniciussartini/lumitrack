@@ -216,6 +216,74 @@ describe("GET /api/goals", () => {
     })
 })
 
+describe("GET /api/goals/progress", () => {
+    it("retorna 401 sem token", async () => {
+        const response = await request(app).get(`/api/goals/progress?propertyId=${unknownId}`)
+        expect(response.status).toBe(401)
+    })
+
+    it("exige a propriedade", async () => {
+        const token = await registerAndLogin()
+
+        const response = await request(app).get("/api/goals/progress").set(authed(token))
+
+        expect(response.status).toBe(422)
+    })
+
+    it("devolve o acompanhamento de cada meta com o realizado do mês", async () => {
+        const { token, propertyId } = await setupProperty()
+        await request(app).post("/api/goals").set(authed(token)).send(body(propertyId))
+        const meter = await prismaHttpTest.meter.create({
+            data: {
+                name: "Medidor",
+                targetType: "PROPERTY",
+                propertyId,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "casa/geral",
+            },
+        })
+        await prismaHttpTest.meterReading.create({
+            data: {
+                meterId: meter.id,
+                minuteStart: new Date(Date.UTC(currentYear, 0, 10, 12)),
+                kwhConsumed: 123,
+                avgVoltage: 127,
+                avgCurrent: 10,
+                avgPowerW: 1000,
+                avgPowerFactor: 0.95,
+                sampleCount: 60,
+                secondsCovered: 60,
+            },
+        })
+
+        const response = await request(app)
+            .get(`/api/goals/progress?propertyId=${propertyId}`)
+            .set(authed(token))
+
+        expect(response.status).toBe(200)
+        const [item] = response.body.data.items
+        expect(item).toMatchObject({ year: currentYear, yearTargetKwh: 4800 })
+        expect(item.months).toHaveLength(12)
+        expect(item.months[0]).toEqual({ month: 1, targetKwh: 400, realizedKwh: 123 })
+        expect(item.userId).toBeUndefined()
+    })
+
+    it("não devolve o acompanhamento de propriedade alheia", async () => {
+        const { token: tokenA, propertyId } = await setupProperty(validUser)
+        await request(app).post("/api/goals").set(authed(tokenA)).send(body(propertyId))
+        const tokenB = await registerAndLogin(anotherUser)
+
+        const response = await request(app)
+            .get(`/api/goals/progress?propertyId=${propertyId}`)
+            .set(authed(tokenB))
+
+        expect(response.status).toBe(200)
+        expect(response.body.data.items).toEqual([])
+    })
+})
+
 describe("PUT /api/goals/:id", () => {
     it("retorna 401 sem token", async () => {
         const response = await request(app).put(`/api/goals/${unknownId}`).send(editable())

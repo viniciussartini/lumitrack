@@ -1,8 +1,12 @@
 import { Router, type RequestHandler } from "express"
 import { PrismaClient } from "@/generated/prisma/client.js"
+import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
 import { GoalController } from "@/modules/goal/goal.controller.js"
+import { GoalProgressController } from "@/modules/goal/goal-progress.controller.js"
+import { GoalProgressService } from "@/modules/goal/goal-progress.service.js"
 import { GoalRepository } from "@/modules/goal/goal.repository.js"
 import { GoalService } from "@/modules/goal/goal.service.js"
+import { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { blockDemoWrite } from "@/shared/middlewares/blockDemoWrite.js"
 
@@ -16,8 +20,18 @@ export function goalRoutes(authenticate: RequestHandler, prismaClient: PrismaCli
         new PropertyRepository(prismaClient),
     )
     const controller = new GoalController(service)
+    const progressController = new GoalProgressController(
+        new GoalProgressService(
+            new GoalRepository(prismaClient),
+            new MeterRepository(prismaClient),
+            new ConsumptionRepository(prismaClient),
+        ),
+    )
 
     router.get("/", authenticate, (req, res, next) => controller.list(req, res, next))
+    router.get("/progress", authenticate, (req, res, next) =>
+        progressController.list(req, res, next),
+    )
     router.post("/", authenticate, blockDemoWrite, (req, res, next) =>
         controller.create(req, res, next),
     )

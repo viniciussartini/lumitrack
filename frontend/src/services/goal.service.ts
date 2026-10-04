@@ -1,5 +1,5 @@
 import { api } from "@/services/api"
-import type { Goal, GoalCreateInput, GoalUpdateInput } from "@/types/goal.types"
+import type { Goal, GoalCreateInput, GoalProgress, GoalUpdateInput } from "@/types/goal.types"
 import type { Paginated, PaginationParams } from "@/types/pagination.types"
 
 interface ApiEnvelope<T> {
@@ -21,6 +21,20 @@ export const goalService = {
             params: { propertyId, ...params },
         })
         return data.data
+    },
+
+    /**
+     * Acompanhamento de todas as metas de uma propriedade: realizado por mês,
+     * desvio acumulado e situação.
+     *
+     * @param propertyId - Propriedade filtrada.
+     * @returns Um item por meta, do ano mais recente ao mais antigo.
+     */
+    progress: async (propertyId: string): Promise<GoalProgress[]> => {
+        const { data } = await api.get<ApiEnvelope<{ items: GoalProgress[] }>>("/goals/progress", {
+            params: { propertyId },
+        })
+        return data.data.items
     },
 
     /**

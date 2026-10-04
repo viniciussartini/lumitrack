@@ -8,7 +8,7 @@ import { GoalsPage } from "@/pages/settings/GoalsPage"
 import { goalService } from "@/services/goal.service"
 import { propertyService } from "@/services/property.service"
 import { storage } from "@/lib/storage"
-import type { Goal } from "@/types/goal.types"
+import type { Goal, GoalProgress } from "@/types/goal.types"
 import type { Paginated } from "@/types/pagination.types"
 import type { Property } from "@/types/property.types"
 
@@ -17,7 +17,13 @@ vi.mock("@/services/property.service", () => ({
 }))
 
 vi.mock("@/services/goal.service", () => ({
-    goalService: { list: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn() },
+    goalService: {
+        list: vi.fn(),
+        progress: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        remove: vi.fn(),
+    },
 }))
 
 vi.mock("@/services/api", () => ({
@@ -71,6 +77,22 @@ const makeGoal = (year: number, override: Partial<Goal> = {}): Goal => ({
     ...override,
 })
 
+const makeProgress = (year: number, override: Partial<GoalProgress> = {}): GoalProgress => ({
+    goalId: `goal-${year}`,
+    year,
+    months: Array.from({ length: 12 }, (_, i) => ({
+        month: i + 1,
+        targetKwh: 400,
+        realizedKwh: year === 2026 && i < 6 ? 380 : null,
+    })),
+    yearTargetKwh: 4800,
+    realizedKwh: null,
+    deviationPercent: null,
+    currentMonthTargetKwh: year === 2026 ? 400 : null,
+    situation: "IN_PROGRESS",
+    ...override,
+})
+
 const renderPage = () => {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
@@ -91,6 +113,7 @@ beforeEach(() => {
     vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-06-15T15:00:00.000Z") })
     vi.mocked(propertyService.list).mockResolvedValue(paged([property("prop-a", "Casa")]))
     vi.mocked(goalService.list).mockResolvedValue(paged([]))
+    vi.mocked(goalService.progress).mockResolvedValue([])
 })
 
 afterEach(() => {
@@ -195,8 +218,13 @@ describe("GoalsPage — metas", () => {
         vi.mocked(goalService.list).mockResolvedValue(
             paged([makeGoal(2027), makeGoal(2026), makeGoal(2025)]),
         )
+        vi.mocked(goalService.progress).mockResolvedValue([
+            makeProgress(2027),
+            makeProgress(2026),
+            makeProgress(2025, { situation: null }),
+        ])
         renderPage()
-        await screen.findByTestId("goal-history")
+        await screen.findByTestId("goal-progress")
 
         for (const year of [2027, 2026]) {
             const row = screen.getByTestId(`goal-row-${year}`)
@@ -211,6 +239,49 @@ describe("GoalsPage — metas", () => {
         const past = screen.getByTestId("goal-row-2025")
         expect(within(past).queryByRole("button")).not.toBeInTheDocument()
         expect(past).toHaveTextContent("-")
+    })
+})
+
+describe("GoalsPage — acompanhamento", () => {
+    it("mostra o gráfico e os cards da meta do ano corrente e o realizado na tabela", async () => {
+        vi.mocked(goalService.list).mockResolvedValue(paged([makeGoal(2026), makeGoal(2025)]))
+        vi.mocked(goalService.progress).mockResolvedValue([
+            makeProgress(2026, { realizedKwh: 2280, deviationPercent: 3.6 }),
+            makeProgress(2025, { realizedKwh: 4680, deviationPercent: -2.5, situation: "MET" }),
+        ])
+        renderPage()
+
+        const section = await screen.findByTestId("goal-progress")
+        expect(within(section).getByText("2026 · meta vs. realizado")).toBeInTheDocument()
+        expect(within(section).getByText("Realizado até junho")).toBeInTheDocument()
+        expect(within(section).getByText("+3,6%")).toBeInTheDocument()
+        expect(goalService.progress).toHaveBeenCalledWith("prop-a")
+
+        expect(screen.getByTestId("goal-row-2026")).toHaveTextContent("2.280 kWh")
+        const past = screen.getByTestId("goal-row-2025")
+        expect(past).toHaveTextContent("4.680 kWh")
+        expect(past).toHaveTextContent("Cumprida")
+    })
+
+    it("sem meta no ano corrente, não mostra o bloco de acompanhamento", async () => {
+        vi.mocked(goalService.list).mockResolvedValue(paged([makeGoal(2027)]))
+        vi.mocked(goalService.progress).mockResolvedValue([makeProgress(2027)])
+        renderPage()
+
+        await screen.findByTestId("goal-history")
+        expect(screen.queryByTestId("goal-progress")).not.toBeInTheDocument()
+    })
+
+    it("se o acompanhamento falhar, avisa só ali e mantém a lista de metas", async () => {
+        vi.mocked(goalService.list).mockResolvedValue(paged([makeGoal(2026)]))
+        vi.mocked(goalService.progress).mockRejectedValue(new Error("falha"))
+        renderPage()
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+            "Não foi possível carregar o acompanhamento das metas.",
+        )
+        expect(screen.getByTestId("goal-row-2026")).toHaveTextContent("4.800 kWh")
+        expect(screen.getByRole("button", { name: "Nova meta" })).toBeInTheDocument()
     })
 })
 

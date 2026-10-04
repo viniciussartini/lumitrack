@@ -1,10 +1,23 @@
 import { Pencil, Trash2 } from "lucide-react"
 import { Blueprint } from "@/components/ui/Blueprint"
-import { describeGoalSituation, formatKwh, goalYearlyKwh, isGoalLocked } from "@/lib/goals"
-import type { Goal } from "@/types/goal.types"
+import {
+    GOAL_TONE_DOT_CLASS,
+    GOAL_TONE_TEXT_CLASS,
+    deviationTone,
+    describeSituation,
+    formatDeviation,
+    formatKwh,
+    formatRealized,
+    goalYearlyKwh,
+    isGoalLocked,
+} from "@/lib/goals"
+import { cn } from "@/lib/cn"
+import type { Goal, GoalProgress } from "@/types/goal.types"
 
 interface GoalHistoryTableProps {
     goals: Goal[]
+    /** Acompanhamento por id da meta; ausente enquanto carrega ou se falhou. */
+    progressByGoalId: ReadonlyMap<string, GoalProgress>
     currentYear: number
     onEdit: (goal: Goal) => void
     onDelete: (goal: Goal) => void
@@ -18,6 +31,7 @@ interface GoalHistoryTableProps {
  */
 export const GoalHistoryTable = ({
     goals,
+    progressByGoalId,
     currentYear,
     onEdit,
     onDelete,
@@ -37,12 +51,18 @@ export const GoalHistoryTable = ({
             </p>
         ) : (
             <div className="overflow-x-auto">
-                <table className="table min-w-165">
+                <table className="table min-w-241">
                     <thead>
                         <tr>
                             <th scope="col">Ano</th>
                             <th scope="col" className="text-right">
                                 Meta
+                            </th>
+                            <th scope="col" className="text-right">
+                                Realizado
+                            </th>
+                            <th scope="col" className="text-right">
+                                Desvio
                             </th>
                             <th scope="col">Base de referência</th>
                             <th scope="col">Situação</th>
@@ -56,6 +76,7 @@ export const GoalHistoryTable = ({
                             <GoalRow
                                 key={goal.id}
                                 goal={goal}
+                                progress={progressByGoalId.get(goal.id)}
                                 currentYear={currentYear}
                                 onEdit={onEdit}
                                 onDelete={onDelete}
@@ -70,29 +91,38 @@ export const GoalHistoryTable = ({
 
 interface GoalRowProps {
     goal: Goal
+    progress: GoalProgress | undefined
     currentYear: number
     onEdit: (goal: Goal) => void
     onDelete: (goal: Goal) => void
 }
 
-const GoalRow = ({ goal, currentYear, onEdit, onDelete }: GoalRowProps) => {
+const GoalRow = ({ goal, progress, currentYear, onEdit, onDelete }: GoalRowProps) => {
     const locked = isGoalLocked(goal, currentYear)
-    const situation = describeGoalSituation(goal, currentYear)
+    const situation = describeSituation(progress?.situation)
+    const deviation = progress?.deviationPercent
 
     return (
         <tr data-testid={`goal-row-${goal.year}`}>
             <td className="font-heading text-base font-semibold">{goal.year}</td>
             <td className="text-right">{formatKwh(goalYearlyKwh(goal))}</td>
+            <td className="text-right">{formatRealized(progress)}</td>
+            <td className={cn("text-right", GOAL_TONE_TEXT_CLASS[deviationTone(deviation)])}>
+                {formatDeviation(deviation)}
+            </td>
             <td>Ano {goal.referenceYear}</td>
             <td>
                 <span className="text-13 inline-flex items-center gap-2">
-                    {!locked && (
+                    {situation.tone !== "muted" && (
                         <span
                             aria-hidden="true"
-                            className="bg-status-warning h-2 w-2 rounded-full"
+                            className={cn(
+                                "h-2 w-2 rounded-full",
+                                GOAL_TONE_DOT_CLASS[situation.tone],
+                            )}
                         />
                     )}
-                    {situation}
+                    {situation.label}
                 </span>
             </td>
             <td>

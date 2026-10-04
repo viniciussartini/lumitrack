@@ -1,4 +1,10 @@
-import type { Goal, GoalCreateInput, GoalUpdateInput } from "@/types/goal.types"
+import type {
+    Goal,
+    GoalCreateInput,
+    GoalProgress,
+    GoalSituation,
+    GoalUpdateInput,
+} from "@/types/goal.types"
 
 const SAO_PAULO_TZ = "America/Sao_Paulo"
 
@@ -47,13 +53,69 @@ export const goalYearlyKwh = (goal: Goal): number =>
 
 export const formatKwh = (kwh: number): string => `${Math.round(kwh).toLocaleString("pt-BR")} kWh`
 
-/**
- * Situação exibida no histórico. Ano corrente e futuros estão em andamento;
- * o veredito de um ano que já passou depende do realizado, que esta lista
- * ainda não traz — até lá, ausência ("-"), nunca um palpite.
- */
-export const describeGoalSituation = (goal: Goal, currentYear: number): string =>
-    isGoalLocked(goal, currentYear) ? "-" : "Em andamento"
+export const MONTH_NAMES: readonly string[] = [
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
+]
+
+export type GoalTone = "success" | "danger" | "warning" | "muted"
+
+/** Classes de cor por tom, para o texto e para o ponto de situação. */
+export const GOAL_TONE_TEXT_CLASS: Record<GoalTone, string> = {
+    success: "text-status-success",
+    danger: "text-status-danger",
+    warning: "text-status-warning",
+    muted: "text-muted",
+}
+
+export const GOAL_TONE_DOT_CLASS: Record<GoalTone, string> = {
+    success: "bg-status-success",
+    danger: "bg-status-danger",
+    warning: "bg-status-warning",
+    muted: "bg-muted",
+}
+
+export interface GoalSituationView {
+    label: string
+    tone: GoalTone
+}
+
+/** Rótulo e tom da situação; ausência ("-") num ano passado sem leitura ou enquanto o acompanhamento não chega. */
+export const describeSituation = (
+    situation: GoalSituation | null | undefined,
+): GoalSituationView => {
+    if (situation === "IN_PROGRESS") return { label: "Em andamento", tone: "warning" }
+    if (situation === "MET") return { label: "Cumprida", tone: "success" }
+    if (situation === "NOT_MET") return { label: "Não cumprida", tone: "danger" }
+    return { label: "-", tone: "muted" }
+}
+
+/** Desvio acumulado como "+2,5%" ou "−3,1%"; ausência é "-". */
+export const formatDeviation = (percent: number | null | undefined): string => {
+    if (percent === null || percent === undefined) return "-"
+    const sign = percent >= 0 ? "+" : "−"
+    return `${sign}${Math.abs(percent).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
+}
+
+/** Acima da meta é perigo; no limite ou abaixo, sucesso; sem desvio, neutro. */
+export const deviationTone = (percent: number | null | undefined): GoalTone => {
+    if (percent === null || percent === undefined) return "muted"
+    return percent > 0 ? "danger" : "success"
+}
+
+/** Realizado de uma meta como texto, com "-" para ausência. */
+export const formatRealized = (progress: GoalProgress | undefined): string =>
+    progress?.realizedKwh == null ? "-" : formatKwh(progress.realizedKwh)
 
 /** Frase do card "Metas de consumo anual" para a meta do ano corrente. */
 export const describeCurrentGoal = (goal: Goal, monthIndex: number): string => {

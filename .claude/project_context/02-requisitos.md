@@ -84,7 +84,7 @@
 
 - RF40 `[implementado]`: o sistema deve permitir emitir um relatório sob demanda escolhendo escopo (propriedade, área, dispositivo), tipo (mensal, consumo, alertas, qualidade de energia, demanda), período e formato (PDF ou CSV), registrando-o no histórico.
 - RF41 `[implementado]`: o sistema deve permitir agendar relatórios automáticos (periodicidade, dia de envio, destinatários), listar os envios agendados e gerenciar as configurações criadas.
-- RF42 `[implementado (cadastro das metas de consumo em kWh); planejado — Fase 28 (acompanhamento, custo e demanda)]`: o sistema deve permitir que um usuário cadastre, por propriedade, metas anuais de consumo (kWh) e custo (R$) — e de demanda, no Grupo A — com meta mês a mês, ano de referência e acompanhamento de realizado, desvio e situação. Cadastro, edição e exclusão das metas em kWh estão em `modules/goal`.
+- RF42 `[implementado (metas de consumo em kWh: cadastro e acompanhamento); planejado — Fase 28 (custo e demanda)]`: o sistema deve permitir que um usuário cadastre, por propriedade, metas anuais de consumo (kWh) e custo (R$) — e de demanda, no Grupo A — com meta mês a mês, ano de referência e acompanhamento de realizado, desvio e situação. Cadastro, edição e exclusão das metas em kWh estão em `modules/goal`; o acompanhamento (realizado, desvio e situação) em `goal-progress.ts` e `goal-progress.service.ts`.
 
 ### Dados pessoais e administração
 
@@ -352,14 +352,14 @@ O medidor envia ao sistema: tensão (por fase, fase-neutro média, desequilíbri
 
 O sistema opera com qualquer medidor, inclusive os que não medem todas as grandezas — a ausência é exibida conforme RN34. *(ADR-0022, verificada contra o datasheet do CCK 7200D: todas as grandezas são medidas nativamente e persistidas como tal, exceto desequilíbrio de tensão — calculado no pipeline a partir das três tensões de fase medidas — e corrente de neutro, que o medidor-alvo não mede nem permite derivar com confiança e por isso fica sempre "-".)*
 
-**FNC011 — Metas** `[implementado (cadastro, edição e exclusão das metas em kWh); planejado — Fase 28 (acompanhamento, usar como referência, custo e demanda)]`
+**FNC011 — Metas** `[implementado (cadastro, edição, exclusão e acompanhamento das metas em kWh); planejado — Fase 28 (usar como referência, custo e demanda)]`
 
 1. O usuário cadastra metas de consumo (kWh) e custo (R$); propriedades do Grupo A têm também meta de demanda.
 2. A tela mostra: card "Metas de consumo anual" com a meta vigente e botão de nova meta; seção com gráfico de barras de meta versus realizado, acompanhada dos cards Meta do ano, Realizado até o mês corrente, Desvio acumulado em % e Consumo específico alvo em kWh; e o histórico de metas em tabela (ano, meta, realizado, desvio, base de referência e situação).
 3. O histórico oferece as ações: usar como referência, editar e excluir (ano vigente e futuros) — conforme RN37.
 4. O formulário de nova meta pede: ano da meta, ano de referência, consumo específico alvo em kWh, meta mês a mês em kWh e o percentual de alerta ao atingir (RF43).
 
-**Hoje:** `/configuracoes/metas` (`pages/settings/GoalsPage.tsx`) mostra o card da meta do ano corrente e o histórico da propriedade escolhida (a mesma seleção do Painel), com criar, editar e excluir; backend em `modules/goal` (`/api/goals`). A meta é de uma propriedade, única por ano; a meta do ano é a soma dos 12 meses, e o consumo específico alvo do formulário é só um atalho que repete o valor nos 12 campos, sem ser guardado. O ano da meta não muda na edição. O histórico mostra ano, meta, base de referência e situação; realizado e desvio, o gráfico de meta versus realizado, a ação de usar como referência e o alerta de meta ainda não existem.
+**Hoje:** `/configuracoes/metas` (`pages/settings/GoalsPage.tsx`) mostra, para a propriedade escolhida (a mesma seleção do Painel), o card da meta do ano corrente, o bloco "{ano} · meta vs. realizado" (gráfico de barras por mês e os cards Meta do ano, Realizado até o mês corrente, Desvio acumulado e a meta do mês) e o histórico (ano, meta, realizado, desvio, base de referência e situação), com criar, editar e excluir; backend em `modules/goal` (`/api/goals`, e `/api/goals/progress` para o acompanhamento). A meta é de uma propriedade, única por ano; a meta do ano é a soma dos 12 meses, e o consumo específico alvo do formulário é só um atalho que repete o valor nos 12 campos, sem ser guardado. O ano da meta não muda na edição. O realizado vem da agregação mensal de leituras do medidor da propriedade; mês sem leitura aparece como "-", nunca como zero, e fica fora do desvio e da meta comparada. O desvio acumulado compara o realizado com a meta dos mesmos meses, com o mês corrente proporcional aos dias decorridos (o design comparava o consumo parcial com a meta cheia do mês). A situação é "Em andamento" no ano corrente e nos futuros; num ano passado, "Cumprida" se o realizado não passa da meta, "Não cumprida" se passa, e "-" se o ano não teve nenhuma leitura. Ainda não existem a ação de usar como referência e o alerta de meta.
 
 **FNC012 — Sessões ativas** `[planejado — Fase 30]`
 

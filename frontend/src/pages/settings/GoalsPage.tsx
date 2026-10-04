@@ -1,19 +1,20 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Link } from "react-router"
 import { Target } from "lucide-react"
 import { toast } from "sonner"
 import { PropertySelector } from "@/components/dashboard/PropertySelector"
 import { GoalFormDialog } from "@/components/goal/GoalFormDialog"
 import { GoalHistoryTable } from "@/components/goal/GoalHistoryTable"
+import { GoalProgressSection } from "@/components/goal/GoalProgressSection"
 import { GoalSummaryCard } from "@/components/goal/GoalSummaryCard"
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog"
 import { EmptyState } from "@/components/ui/EmptyState"
-import { useDeleteGoal, useGoals } from "@/hooks/queries/useGoals"
+import { useDeleteGoal, useGoalProgress, useGoals } from "@/hooks/queries/useGoals"
 import { useProperties } from "@/hooks/queries/useProperties"
 import { usePropertySelection } from "@/hooks/usePropertySelection"
 import { currentGoalMonthIndex, currentGoalYear } from "@/lib/goals"
 import { extractErrorMessage } from "@/services/api"
-import type { Goal } from "@/types/goal.types"
+import type { Goal, GoalProgress } from "@/types/goal.types"
 import { MAX_PAGE_SIZE } from "@/types/pagination.types"
 
 type DialogState = { kind: "create" } | { kind: "edit"; goal: Goal } | null
@@ -75,10 +76,11 @@ export const GoalsPage = () => {
 
 const PropertyGoals = ({ propertyId }: { propertyId: string }) => {
     const goalsQuery = useGoals(propertyId)
-    const [dialog, setDialog] = useState<DialogState>(null)
-    const [deleting, setDeleting] = useState<Goal | null>(null)
-    const now = new Date()
-    const currentYear = currentGoalYear(now)
+    const progressQuery = useGoalProgress(propertyId)
+    const progressByGoalId = useMemo(
+        () => new Map((progressQuery.data ?? []).map((item) => [item.goalId, item])),
+        [progressQuery.data],
+    )
 
     if (goalsQuery.isPending) {
         return (
@@ -96,18 +98,55 @@ const PropertyGoals = ({ propertyId }: { propertyId: string }) => {
         )
     }
 
-    const goals = goalsQuery.data.items
+    return (
+        <GoalsContent
+            propertyId={propertyId}
+            goals={goalsQuery.data.items}
+            progressByGoalId={progressByGoalId}
+            progressStatus={{ isPending: progressQuery.isPending, isError: progressQuery.isError }}
+        />
+    )
+}
+
+interface GoalsContentProps {
+    propertyId: string
+    goals: Goal[]
+    progressByGoalId: ReadonlyMap<string, GoalProgress>
+    progressStatus: { isPending: boolean; isError: boolean }
+}
+
+const GoalsContent = ({
+    propertyId,
+    goals,
+    progressByGoalId,
+    progressStatus,
+}: GoalsContentProps) => {
+    const [dialog, setDialog] = useState<DialogState>(null)
+    const [deleting, setDeleting] = useState<Goal | null>(null)
+    const now = new Date()
+    const currentYear = currentGoalYear(now)
+    const monthIndex = currentGoalMonthIndex(now)
+    const currentGoal = goals.find((goal) => goal.year === currentYear)
 
     return (
         <>
             <GoalSummaryCard
-                currentGoal={goals.find((goal) => goal.year === currentYear)}
+                currentGoal={currentGoal}
                 currentYear={currentYear}
-                monthIndex={currentGoalMonthIndex(now)}
+                monthIndex={monthIndex}
                 onNewGoal={() => setDialog({ kind: "create" })}
             />
+            {currentGoal && (
+                <ProgressBlock
+                    isPending={progressStatus.isPending}
+                    isError={progressStatus.isError}
+                    progress={progressByGoalId.get(currentGoal.id)}
+                    monthIndex={monthIndex}
+                />
+            )}
             <GoalHistoryTable
                 goals={goals}
+                progressByGoalId={progressByGoalId}
                 currentYear={currentYear}
                 onEdit={(goal) => setDialog({ kind: "edit", goal })}
                 onDelete={setDeleting}
@@ -124,6 +163,32 @@ const PropertyGoals = ({ propertyId }: { propertyId: string }) => {
             <DeleteGoalDialog goal={deleting} onClose={() => setDeleting(null)} />
         </>
     )
+}
+
+interface ProgressBlockProps {
+    isPending: boolean
+    isError: boolean
+    progress: GoalProgress | undefined
+    monthIndex: number
+}
+
+// O acompanhamento é um complemento: se falhar, a lista de metas segue usável.
+const ProgressBlock = ({ isPending, isError, progress, monthIndex }: ProgressBlockProps) => {
+    if (isPending) {
+        return (
+            <p role="status" className="text-muted p-5 text-center text-sm">
+                Carregando o acompanhamento...
+            </p>
+        )
+    }
+    if (isError) {
+        return (
+            <p role="alert" className="text-status-danger p-5 text-center text-sm">
+                Não foi possível carregar o acompanhamento das metas.
+            </p>
+        )
+    }
+    return progress ? <GoalProgressSection progress={progress} monthIndex={monthIndex} /> : null
 }
 
 interface DeleteGoalDialogProps {

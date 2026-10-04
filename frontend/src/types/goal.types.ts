@@ -24,3 +24,30 @@ export interface GoalCreateInput extends GoalUpdateInput {
     propertyId: string
     year: number
 }
+
+/** Em curso (ano corrente e futuros) ou o veredito de um ano que já acabou. */
+export type GoalSituation = "IN_PROGRESS" | "MET" | "NOT_MET"
+
+export interface GoalProgressMonth {
+    /** 1 (janeiro) a 12 (dezembro). */
+    month: number
+    targetKwh: number
+    /** Nulo sem leitura no mês, ou mês que ainda não aconteceu: ausência, não zero. */
+    realizedKwh: number | null
+}
+
+/** Acompanhamento de uma meta: realizado por mês, desvio acumulado e situação. */
+export interface GoalProgress {
+    goalId: string
+    year: number
+    months: GoalProgressMonth[]
+    yearTargetKwh: number
+    /** Soma dos meses com leitura até o mês corrente; nulo sem nenhuma leitura. */
+    realizedKwh: number | null
+    /** Nulo sem base de comparação ou com meta zerada. */
+    deviationPercent: number | null
+    /** Só no ano corrente. */
+    currentMonthTargetKwh: number | null
+    /** Nulo num ano passado sem nenhuma leitura. */
+    situation: GoalSituation | null
+}

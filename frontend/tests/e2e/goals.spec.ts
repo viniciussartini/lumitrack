@@ -5,7 +5,7 @@ import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
 import { PROP_1 } from "./support/fixtures"
 import { mockPropertyTree } from "./support/propertyTree"
-import type { Goal } from "../../src/types/goal.types"
+import type { Goal, GoalProgress } from "../../src/types/goal.types"
 
 /**
  * E2E de Configurações → Metas: criar, listar, editar e excluir metas anuais
@@ -19,6 +19,25 @@ const CLOCK_TIME = "2026-06-15T15:00:00.000Z"
 type GoalBody = Omit<Goal, "id" | "createdAt" | "updatedAt">
 
 const monthly = (kwh: number) => Array.from({ length: 12 }, () => kwh)
+
+/** Acompanhamento simulado: janeiro a maio com 380 kWh cada, contra 400 de meta. */
+const progressFor = (goal: Goal): GoalProgress => {
+    const current = goal.year === 2026
+    return {
+        goalId: goal.id,
+        year: goal.year,
+        months: goal.monthlyKwh.map((targetKwh, index) => ({
+            month: index + 1,
+            targetKwh,
+            realizedKwh: current && index < 5 ? 380 : null,
+        })),
+        yearTargetKwh: goal.monthlyKwh.reduce((sum, kwh) => sum + kwh, 0),
+        realizedKwh: current ? 1900 : null,
+        deviationPercent: current ? -5 : null,
+        currentMonthTargetKwh: current ? (goal.monthlyKwh[5] ?? 0) : null,
+        situation: "IN_PROGRESS",
+    }
+}
 
 const setupApp = async (page: Page, onWrite?: (body: unknown) => void) => {
     await page.clock.install({ time: new Date(CLOCK_TIME) })
@@ -48,6 +67,9 @@ const setupApp = async (page: Page, onWrite?: (body: unknown) => void) => {
         }
         return fulfillPaginated(route, goals)
     })
+    await page.route(/\/api\/goals\/progress(\?.*)?$/, (route) =>
+        fulfillJson(route, { items: goals.map(progressFor) }),
+    )
     await page.route(/\/api\/goals\/goal-\d+$/, (route) => {
         const id = route.request().url().split("/").pop()!
         if (route.request().method() === "DELETE") {
@@ -111,6 +133,14 @@ test.describe("Configurações → Metas", () => {
         const row = page.getByTestId("goal-row-2026")
         await expect(row).toContainText("4.800 kWh")
         await expect(row).toContainText("Em andamento")
+
+        const progress = page.getByTestId("goal-progress")
+        await expect(progress).toContainText("2026 · meta vs. realizado")
+        await expect(progress).toContainText("Realizado até junho")
+        await expect(progress).toContainText("1.900 kWh")
+        await expect(progress).toContainText("−5,0%")
+        await expect(progress.getByTestId("goal-progress-chart")).toBeVisible()
+        await expect(row).toContainText("−5,0%")
 
         await row.getByRole("button", { name: "Editar meta de 2026" }).click()
         const editDialog = page.getByRole("dialog", { name: "Editar meta de consumo" })

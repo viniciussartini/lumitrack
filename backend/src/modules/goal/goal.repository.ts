@@ -71,6 +71,22 @@ export class GoalRepository {
     }
 
     /**
+     * Todas as metas de uma propriedade do usuário, do ano mais antigo para o
+     * mais recente. Sem paginação: o ano é único por propriedade, então são
+     * no máximo uma por ano. A posse entra na própria condição.
+     *
+     * @param userId - Dono das metas.
+     * @param propertyId - Propriedade filtrada.
+     * @returns Todas as metas da propriedade; vazia se ela não é do usuário.
+     */
+    async findAllByProperty(userId: string, propertyId: string): Promise<GoalRecord[]> {
+        return this.prisma.goal.findMany({
+            where: { userId, propertyId },
+            orderBy: { year: "asc" },
+        })
+    }
+
+    /**
      * Todas as metas do usuário — insumo da exportação dos dados do titular.
      *
      * @param userId - Dono das metas.
