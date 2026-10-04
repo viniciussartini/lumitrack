@@ -3,7 +3,7 @@ import type {
     MeterReadingComparePeriodsParams,
     MeterReadingSeriesMetric,
 } from "@/types/meterReadingSeries.types"
-import type { PropertyTree } from "@/types/property.types"
+import type { PropertyTree, TariffGroup } from "@/types/property.types"
 
 /** Teto de dias por período — mesmo limite que o backend aplica na comparação. */
 export const COMPARE_PERIOD_MAX_DAYS = 92
@@ -17,6 +17,8 @@ export interface CompareTargetOption {
     targetType: TargetType
     targetId: string
     label: string
+    /** Só nas propriedades: o grupo tarifário decide, por exemplo, se há relatório de demanda. */
+    tariffGroup?: TariffGroup
 }
 
 export interface CompareTargetGroup {
@@ -79,7 +81,7 @@ export function addDaysToIsoDate(isoDate: string, days: number): string {
 // caso, calcular o offset por data em vez de fixá-lo.
 const SAO_PAULO_UTC_OFFSET = "-03:00"
 
-const startOfSaoPauloDay = (isoDate: string): string =>
+export const startOfSaoPauloDay = (isoDate: string): string =>
     new Date(`${isoDate}T00:00:00${SAO_PAULO_UTC_OFFSET}`).toISOString()
 
 /**
@@ -159,6 +161,7 @@ export function buildCompareTargetGroups(tree: PropertyTree): CompareTargetGroup
             targetType: "PROPERTY",
             targetId: property.id,
             label: property.name,
+            tariffGroup: property.tariffGroup,
         })
         for (const area of property.areas) {
             areas.push({

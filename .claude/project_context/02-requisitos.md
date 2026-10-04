@@ -82,8 +82,8 @@
 
 ### Relatórios e metas
 
-- RF40 `[planejado — Fase 27]`: o sistema deve permitir emitir um relatório sob demanda escolhendo escopo (propriedade, área, dispositivo), tipo (mensal, consumo, alertas, qualidade de energia, demanda), período e formato (PDF ou CSV), registrando-o no histórico.
-- RF41 `[planejado — Fase 27]`: o sistema deve permitir agendar relatórios automáticos (periodicidade, dia de envio, destinatários), listar os envios agendados e gerenciar as configurações criadas.
+- RF40 `[implementado]`: o sistema deve permitir emitir um relatório sob demanda escolhendo escopo (propriedade, área, dispositivo), tipo (mensal, consumo, alertas, qualidade de energia, demanda), período e formato (PDF ou CSV), registrando-o no histórico.
+- RF41 `[implementado]`: o sistema deve permitir agendar relatórios automáticos (periodicidade, dia de envio, destinatários), listar os envios agendados e gerenciar as configurações criadas.
 - RF42 `[planejado — Fase 28]`: o sistema deve permitir que um usuário cadastre metas anuais de consumo (kWh) e custo (R$) — e de demanda, no Grupo A — com meta mês a mês, ano de referência e acompanhamento de realizado, desvio e situação.
 
 ### Dados pessoais e administração
@@ -253,8 +253,8 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
 
 ### Relatórios e metas
 
-- RN35 `[planejado — Fase 27]`: relatório gerado é **imutável** — para obter informação diferente, gera-se outro. Todos seguem template padronizado com a identidade visual do projeto.
-- RN36 `[planejado — Fase 27]`: no agendamento, o dia de envio aceita 1 a 31, mas meses mais curtos não têm todos eles — quando o dia escolhido não existe no mês (fevereiro, meses de 30 dias, ano bissexto), o envio ocorre no **último dia do mês**.
+- RN35 `[implementado]`: relatório gerado é **imutável** — para obter informação diferente, gera-se outro. Todos seguem template padronizado com a identidade visual do projeto.
+- RN36 `[implementado]`: no agendamento, o dia de envio aceita 1 a 31, mas meses mais curtos não têm todos eles — quando o dia escolhido não existe no mês (fevereiro, meses de 30 dias, ano bissexto), o envio ocorre no **último dia do mês**.
 - RN37 `[planejado — Fase 28]`: só a meta do ano vigente pode ser editada. Metas de anos anteriores são imutáveis, não podem ser excluídas e podem ser usadas como base de referência para uma meta nova.
 
 ## 2.4 Funcionamento
@@ -318,7 +318,7 @@ Onde o usuário examina em detalhe consumo, custo e medições de cada item cada
 
 **Hoje:** `/historico` (`pages/history/HistoryPage.tsx`, `components/history/PeriodComparisonForm.tsx`, `PeriodComparisonDifferences.tsx`, `PeriodComparisonChartCard.tsx`), alimentada por `GET /api/meter-readings/compare-periods` (`useMeterReadingComparePeriods`).
 
-**FNC007 — Relatórios** `[planejado — Fase 27]`
+**FNC007 — Relatórios** `[implementado]`
 
 Gestão e agendamento de relatórios em PDF e CSV, com template padronizado (referência: tela `LumiTrack Relatório A4` do handoff) e imutabilidade conforme RN35.
 
@@ -327,9 +327,9 @@ Gestão e agendamento de relatórios em PDF e CSV, com template padronizado (ref
 3. No histórico, cada relatório pode ser baixado ou excluído.
 4. O agendamento é configurado em Configurações → Relatórios (FNC008), acrescentando aos campos de emissão: **periodicidade** (diária, semanal, mensal, trimestral, semestral, anual), **dia do envio** (com a regra de RN36) e **destinatários** (e-mails separados por vírgula). A lista de configurações permite editar e excluir.
 
-**Hoje:** a rota `/relatorios` entrega consulta de consumo com seletor em cascata e granularidades — não há emissão de arquivo, template, histórico nem agendamento.
+**Hoje:** `/relatorios` (`pages/report/ReportsPage.tsx`) reúne a emissão (`ReportEmissionForm`), os envios previstos para os próximos 15 dias (`ReportUpcoming`) e o histórico (`ReportHistory`); a gestão do agendamento fica em `/configuracoes/relatorios` (`ReportSchedulesPage`). Backend: `modules/report` (emissão, histórico, download, exclusão, geradores de PDF e CSV) e `modules/report-schedule` (CRUD e `ReportScheduleRunner`, que gera o relatório do período e o envia por e-mail como anexo). Os tipos alertas, qualidade de energia e demanda emitem um relatório de resumo e tabelas (`modules/report/documents/`); a demanda é apurada por mês e exige propriedade do Grupo A, e os cinco tipos podem ser agendados (mensal e demanda só com frequência mensal).
 
-**FNC008 — Configurações** `[implementado (estrutura e Cadastro); planejado — Fase 27 (sub-página Relatórios); Fase 28 (sub-página Metas)]`
+**FNC008 — Configurações** `[implementado (estrutura, Cadastro e Relatórios); planejado — Fase 28 (sub-página Metas)]`
 
 Menu à esquerda com as configurações disponíveis e, à direita, a página da configuração selecionada.
 

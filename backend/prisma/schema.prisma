@@ -62,6 +62,7 @@ enum AuditAction {
   MFA_DISABLED
   REFRESH_TOKEN_REUSE_DETECTED
   ADMIN_AUDIT_LOG_VIEW
+  REPORT_GENERATE
 
   @@map("audit_action")
 }
@@ -265,6 +266,8 @@ model User {
   auditLogs         AuditLog[]
   mfaBackupCodes    MfaBackupCode[]
   tariffFlagChanges TariffFlagHistory[]
+  reports           Report[]
+  reportSchedules   ReportSchedule[]
 
   @@map("users")
 }
@@ -955,4 +958,104 @@ model PldQuote {
 
   @@unique([submarket, referencePeriod])
   @@map("pld_quotes")
+}
+
+// Tipo de relatório emitido. Os cinco têm gerador; MONTHLY e DEMAND cobrem um
+// mês-calendário inteiro, os demais um período livre.
+enum ReportType {
+  MONTHLY
+  CONSUMPTION
+  ALERTS
+  POWER_QUALITY
+  DEMAND
+
+  @@map("report_type")
+}
+
+enum ReportFormat {
+  PDF
+  CSV
+
+  @@map("report_format")
+}
+
+enum ReportOrigin {
+  MANUAL
+  SCHEDULED
+
+  @@map("report_origin")
+}
+
+// Relatório emitido — imutável: nunca é atualizado, só criado e excluído. O
+// conteúdo mora aqui, em bytes, para funcionar igual na VPS e no staging (disco
+// efêmero) e entrar no backup e na retenção do banco (ADR-0023).
+// Sem FK para o alvo: o alvo pode ser excluído depois e o arquivo continua
+// válido (o nome do alvo vai gravado dentro do próprio arquivo).
+model Report {
+  id          String       @id @default(uuid())
+  userId      String
+  targetType  TargetType
+  targetId    String
+  type        ReportType
+  format      ReportFormat
+  origin      ReportOrigin @default(MANUAL)
+  periodStart DateTime
+  periodEnd   DateTime
+  fileName    String
+  content     Bytes
+  sizeBytes   Int
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  // Suporte ao expurgo por retenção, que filtra só por createdAt.
+  @@index([createdAt])
+  @@map("reports")
+}
+
+enum ReportFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  ANNUAL
+
+  @@map("report_frequency")
+}
+
+// Configuração de envio automático de relatório. Diferente de `Report`
+// (imutável, arquivo já gerado), esta é configuração viva do usuário.
+// `sendDay` depende da frequência: nulo na diária, 1–7 na semanal (1 =
+// segunda … 7 = domingo) e 1–31 nas demais (mês mais curto cai no último dia).
+// Sem FK para o alvo, como `Report`: a coluna é polimórfica
+// (targetType/targetId). A posse e a existência do medidor são validadas na
+// escrita; quem executa o envio trata alvo que sumiu depois.
+model ReportSchedule {
+  id             String          @id @default(uuid())
+  userId         String
+  targetType     TargetType
+  targetId       String
+  type           ReportType
+  format         ReportFormat
+  frequency      ReportFrequency
+  sendDay        Int?
+  // E-mails de destinatários (podem ser de terceiros), texto simples como
+  // `User.email`. Nunca vão para log.
+  recipients     String[]
+  active         Boolean         @default(true)
+  // Próxima execução; `null` enquanto a configuração está pausada. Só avança
+  // depois de um envio bem-sucedido (ou de esgotar as tentativas do slot).
+  nextRunAt      DateTime?
+  failedAttempts Int             @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("report_schedules")
 }

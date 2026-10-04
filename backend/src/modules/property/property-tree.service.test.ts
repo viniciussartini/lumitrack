@@ -106,6 +106,7 @@ describe("PropertyTreeService.findTree", () => {
             {
                 id: casa.id,
                 name: "Casa",
+                tariffGroup: "GROUP_B",
                 areas: [
                     {
                         id: cozinha.id,
@@ -121,6 +122,7 @@ describe("PropertyTreeService.findTree", () => {
             {
                 id: loja.id,
                 name: "Loja",
+                tariffGroup: "GROUP_B",
                 areas: [expect.objectContaining({ name: "Balcão", devices: [] })],
             },
         ])
@@ -132,10 +134,12 @@ describe("PropertyTreeService.findTree", () => {
 
         const tree = await treeService.findTree(userId)
 
-        expect(tree.items).toEqual([{ id: property.id, name: "Casa", areas: [] }])
+        expect(tree.items).toEqual([
+            { id: property.id, name: "Casa", tariffGroup: "GROUP_B", areas: [] },
+        ])
     })
 
-    it("não expõe endereço nem campos além de id, nome e potência", async () => {
+    it("não expõe endereço nem campos além de id, nome, grupo tarifário e potência", async () => {
         const { userId, distributorId } = await createUserWithDistributor()
         const property = await createProperty(userId, distributorId, "Casa")
         const area = await createArea(property.id, "Sala")
@@ -148,7 +152,7 @@ describe("PropertyTreeService.findTree", () => {
         expect(serialized).not.toContain("Belo Horizonte")
         expect(serialized).not.toContain("descrição que não vai na árvore")
         expect(serialized).not.toContain("Marca")
-        expect(Object.keys(tree.items[0]!).sort()).toEqual(["areas", "id", "name"])
+        expect(Object.keys(tree.items[0]!).sort()).toEqual(["areas", "id", "name", "tariffGroup"])
         expect(Object.keys(tree.items[0]!.areas[0]!).sort()).toEqual(["devices", "id", "name"])
         expect(Object.keys(tree.items[0]!.areas[0]!.devices[0]!).sort()).toEqual([
             "id",

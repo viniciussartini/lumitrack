@@ -2,6 +2,7 @@ import type { AuthRepository } from "@/modules/auth/auth.repository.js"
 import type { AuditRepository } from "@/shared/audit/audit.repository.js"
 import type { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
 import type { AlertTriggerEventRepository } from "@/modules/alert/alert-trigger-event.repository.js"
+import type { ReportRepository } from "@/modules/report/report.repository.js"
 import type { TariffFlagHistoryRepository } from "@/modules/tariff-flag/tariff-flag-history.repository.js"
 import { logger } from "@/shared/logger/logger.js"
 
@@ -23,6 +24,7 @@ export type RetentionDays = {
     alertTriggerEvent: number
     mfaBackupCode: number
     tariffFlagHistory: number
+    report: number
 }
 
 export type PurgeSummary = {
@@ -34,6 +36,7 @@ export type PurgeSummary = {
     alertTriggerEventsDeleted: number
     mfaBackupCodesDeleted: number
     tariffFlagHistoryDeleted: number
+    reportsDeleted: number
 }
 
 function daysAgo(days: number): Date {
@@ -47,6 +50,7 @@ export class RetentionService {
         private readonly meterReadingRepository: MeterReadingRepository,
         private readonly alertTriggerEventRepository: AlertTriggerEventRepository,
         private readonly tariffFlagHistoryRepository: TariffFlagHistoryRepository,
+        private readonly reportRepository: ReportRepository,
         private readonly retentionDays: RetentionDays,
     ) {}
 
@@ -78,6 +82,9 @@ export class RetentionService {
         const tariffFlagHistoryDeleted = await this.tariffFlagHistoryRepository.deleteOlderThan(
             daysAgo(this.retentionDays.tariffFlagHistory),
         )
+        const reportsDeleted = await this.reportRepository.deleteOlderThan(
+            daysAgo(this.retentionDays.report),
+        )
 
         const summary: PurgeSummary = {
             authTokensDeleted,
@@ -88,6 +95,7 @@ export class RetentionService {
             alertTriggerEventsDeleted,
             mfaBackupCodesDeleted,
             tariffFlagHistoryDeleted,
+            reportsDeleted,
         }
         log.info(summary, "Expurgo de retenção concluído")
         return summary

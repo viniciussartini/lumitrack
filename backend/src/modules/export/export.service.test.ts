@@ -13,6 +13,8 @@ import { AreaService } from "@/modules/area/area.service.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { DeviceService } from "@/modules/device/device.service.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
+import { ReportRepository } from "@/modules/report/report.repository.js"
+import { ReportScheduleRepository } from "@/modules/report-schedule/report-schedule.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 import { createTestDistributor } from "@/shared/test/distributorFixture.js"
@@ -39,6 +41,8 @@ const demandAlertRepository = new DemandAlertRepository(prismaTest)
 const aclContractRepository = new AclContractRepository(prismaTest)
 
 const auditRepository = new AuditRepository(prismaTest)
+const reportRepository = new ReportRepository(prismaTest)
+const reportScheduleRepository = new ReportScheduleRepository(prismaTest)
 
 const exportService = new ExportService(
     userRepository,
@@ -50,6 +54,8 @@ const exportService = new ExportService(
     areaRepository,
     deviceRepository,
     auditRepository,
+    reportRepository,
+    reportScheduleRepository,
 )
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
@@ -220,7 +226,66 @@ describe("ExportService.generate", () => {
         expect(payload.alerts).toEqual([])
         expect(payload.demandAlerts).toEqual([])
         expect(payload.aclContracts).toEqual([])
+        expect(payload.reports).toEqual([])
+        expect(payload.reportSchedules).toEqual([])
         expect(payload.auditLogs).toEqual([])
+    })
+
+    it("inclui só os metadados dos relatórios do próprio titular, nunca os arquivos", async () => {
+        const userA = await userService.createUser(validUserA)
+        const userB = await userService.createUser(validUserB)
+        const base = {
+            targetType: "PROPERTY" as const,
+            targetId: "00000000-0000-4000-8000-000000000001",
+            type: "MONTHLY" as const,
+            format: "CSV" as const,
+            origin: "MANUAL" as const,
+            periodStart: new Date("2026-07-01T03:00:00.000Z"),
+            periodEnd: new Date("2026-08-01T03:00:00.000Z"),
+            fileName: "lumitrack-relatorio-monthly-2026-07.csv",
+            content: Buffer.from("segredo-do-arquivo"),
+        }
+        await reportRepository.create({ ...base, userId: userA.id })
+        await reportRepository.create({ ...base, userId: userB.id })
+
+        const payload = await exportService.generate(userA.id)
+
+        expect(payload.reports).toHaveLength(1)
+        expect(payload.reports[0]).toMatchObject({ userId: userA.id, type: "MONTHLY" })
+        expect(JSON.stringify(payload)).not.toContain("segredo-do-arquivo")
+        expect(payload.reports[0]).not.toHaveProperty("content")
+    })
+
+    it("inclui as configurações de envio automático só do titular, com os destinatários e sem o userId", async () => {
+        const userA = await userService.createUser(validUserA)
+        const userB = await userService.createUser(validUserB)
+        const base = {
+            targetType: "PROPERTY" as const,
+            targetId: "00000000-0000-4000-8000-000000000001",
+            type: "CONSUMPTION" as const,
+            format: "PDF" as const,
+            frequency: "MONTHLY" as const,
+            sendDay: 5,
+        }
+        await reportScheduleRepository.create(userA.id, {
+            ...base,
+            recipients: ["financeiro@example.com"],
+            active: true,
+            nextRunAt: null,
+        })
+        await reportScheduleRepository.create(userB.id, {
+            ...base,
+            recipients: ["outro@example.com"],
+            active: true,
+            nextRunAt: null,
+        })
+
+        const payload = await exportService.generate(userA.id)
+
+        expect(payload.reportSchedules).toHaveLength(1)
+        expect(payload.reportSchedules[0]!.recipients).toEqual(["financeiro@example.com"])
+        expect(payload.reportSchedules[0]).not.toHaveProperty("userId")
+        expect(JSON.stringify(payload)).not.toContain("outro@example.com")
     })
 
     it("lança NotFoundError para userId inexistente", async () => {

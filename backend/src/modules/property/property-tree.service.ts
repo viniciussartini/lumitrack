@@ -1,3 +1,4 @@
+import type { TariffGroup } from "@/generated/prisma/client.js"
 import type { PropertyRepository } from "@/modules/property/property.repository.js"
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
@@ -12,7 +13,12 @@ export type PropertyTreeDevice = { id: string; name: string; powerWatts: number 
 export type PropertyTreeArea = { id: string; name: string; devices: PropertyTreeDevice[] }
 
 /** Imóvel na árvore de cadastro, com suas áreas. */
-export type PropertyTreeProperty = { id: string; name: string; areas: PropertyTreeArea[] }
+export type PropertyTreeProperty = {
+    id: string
+    name: string
+    tariffGroup: TariffGroup
+    areas: PropertyTreeArea[]
+}
 
 /** Árvore de cadastro do usuário. `total` é o número real de imóveis, mesmo quando `items` foi limitado pelo teto. */
 export type PropertyTree = { items: PropertyTreeProperty[]; total: number }
@@ -24,7 +30,7 @@ export type PropertyTree = { items: PropertyTreeProperty[]; total: number }
  *
  * A posse é garantida pela construção: tudo parte dos imóveis do próprio
  * usuário, e áreas e dispositivos cujos pais não estão entre eles são
- * descartados. Devolve só id, nome e potência — nunca endereço.
+ * descartados. Devolve só id, nome, grupo tarifário e potência — nunca endereço.
  */
 export class PropertyTreeService {
     /**
@@ -64,6 +70,7 @@ export class PropertyTreeService {
         const items = roots.items.map((property): PropertyTreeProperty => ({
             id: property.id,
             name: property.name,
+            tariffGroup: property.tariffGroup,
             areas: (areasByProperty.get(property.id) ?? []).map((area): PropertyTreeArea => ({
                 id: area.id,
                 name: area.name,

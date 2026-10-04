@@ -216,6 +216,7 @@ export interface AreaTreeNode {
 export interface PropertyTreeNode {
     id: string
     name: string
+    tariffGroup: TariffGroup
     areas: AreaTreeNode[]
 }
 

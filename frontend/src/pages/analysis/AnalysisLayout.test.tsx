@@ -31,7 +31,7 @@ beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(propertyService.getTree).mockResolvedValue({
         total: 1,
-        items: [{ id: "p1", name: "Casa", areas: [] }],
+        items: [{ id: "p1", name: "Casa", tariffGroup: "GROUP_B", areas: [] }],
     })
 })
 

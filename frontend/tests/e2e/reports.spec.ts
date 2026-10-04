@@ -3,52 +3,83 @@ import { test, expect, type Page } from "@playwright/test"
 import { fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
-import { AREA_1, DEVICE_1, METER_1, PROP_1 } from "./support/fixtures"
+import { PROPERTY_TREE_1, mockPropertyTree } from "./support/propertyTree"
 
 /**
- * E2E focado em UI: mocka as respostas do backend via page.route().
- * Vantagem: não depende do backend rodando — roda no CI sem coordenação.
- *
- * `/relatorios` — seletor cascata de alvo (propriedade → área → dispositivo)
- * reaproveitando a mesma `ConsumptionSection` das details pages, agora com
- * as 4 granularidades (`REPORT_GRANULARITIES`). Sem `useDistributors` — o
- * select de propriedade só precisa do nome, não da distribuidora vinculada.
- *
- * A precedência DEVICE > AREA > PROPERTY na query de `/api/consumption` é o
- * ponto central: `ConsumptionSection` é remontada (`key={targetType-targetId}`)
- * a cada troca de alvo, então a prova real está na query que ela dispara, não
- * só em qual select tem valor.
+ * E2E de `/relatorios`: emissão sob demanda de um relatório em PDF ou CSV.
+ * Backend mockado via `page.route()`, como nos demais specs — o download
+ * usa um corpo fixo, o conteúdo real do arquivo é coberto pelos testes do
+ * backend.
  */
 
-const PROP_2 = { ...PROP_1, id: "prop-2", name: "Casa de Praia" }
+const REPORT = {
+    id: "rep-1",
+    targetType: "PROPERTY",
+    targetId: "prop-1",
+    type: "MONTHLY",
+    format: "PDF",
+    origin: "MANUAL",
+    periodStart: "2026-07-01T03:00:00.000Z",
+    periodEnd: "2026-08-01T03:00:00.000Z",
+    fileName: "lumitrack-relatorio-monthly-2026-07.pdf",
+    sizeBytes: 4,
+    createdAt: "2026-08-01T09:00:00.000Z",
+}
 
-const setupAuthAndProperties = async (page: Page) => {
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// Configuração de envio com a próxima execução daqui a `days` dias — a janela
+// de "próximos 15 dias" é relativa ao relógio real do navegador.
+const scheduleIn = (id: string, days: number, override: Record<string, unknown> = {}) => ({
+    id,
+    targetType: "PROPERTY",
+    targetId: "prop-1",
+    type: "CONSUMPTION",
+    format: "PDF",
+    frequency: "MONTHLY",
+    sendDay: 5,
+    recipients: ["financeiro@example.com"],
+    active: true,
+    nextRunAt: new Date(Date.now() + days * DAY_MS).toISOString(),
+    createdAt: "2026-07-01T00:00:00.000Z",
+    updatedAt: "2026-07-01T00:00:00.000Z",
+    ...override,
+})
+
+const setupApp = async (
+    page: Page,
+    onCreate?: (body: unknown) => void,
+    schedules: ReturnType<typeof scheduleIn>[] = [],
+) => {
     await mockAppShellBackground(page)
     await setupAuth(page)
+    await mockPropertyTree(page)
+    await page.route(/\/api\/report-schedules(\?.*)?$/, (route) =>
+        fulfillPaginated(route, schedules),
+    )
 
-    // pageSize 31 nos três selects — ReportsPage busca o catálogo inteiro do
-    // usuário de uma vez (não pagina os próprios seletores).
-    await page.route(/\/api\/properties(\?.*)?$/, (route) => {
-        if (route.request().method() === "GET") {
-            return fulfillPaginated(route, [PROP_1, PROP_2])
+    // O histórico é a lista servida em memória: emitir acrescenta, excluir remove.
+    let history: (typeof REPORT)[] = []
+    await page.route(/\/api\/reports(\?.*)?$/, (route) => {
+        if (route.request().method() === "POST") {
+            onCreate?.(route.request().postDataJSON())
+            history = [REPORT, ...history]
+            return fulfillJson(route, REPORT, 201)
         }
-        return route.continue()
+        return fulfillPaginated(route, history)
     })
-    await page.route(/\/api\/properties\/prop-1\/areas(\?.*)?$/, (route) =>
-        fulfillPaginated(route, [AREA_1]),
+    await page.route(/\/api\/reports\/rep-1$/, (route) => {
+        history = []
+        return route.fulfill({ status: 204 })
+    })
+    await page.route(/\/api\/reports\/rep-1\/download$/, (route) =>
+        route.fulfill({
+            status: 200,
+            contentType: "application/pdf",
+            headers: { "Content-Disposition": `attachment; filename="${REPORT.fileName}"` },
+            body: "%PDF",
+        }),
     )
-    // prop-2 não tem áreas — usado pelo teste de reset de cascata.
-    await page.route(/\/api\/properties\/prop-2\/areas(\?.*)?$/, (route) =>
-        fulfillPaginated(route, []),
-    )
-    await page.route(/\/api\/properties\/prop-1\/areas\/area-1\/devices(\?.*)?$/, (route) =>
-        fulfillPaginated(route, [DEVICE_1]),
-    )
-
-    // Medidor presente em qualquer alvo — sem isso, ConsumptionSection para
-    // no EmptyState "sem medidor" e nunca chega a chamar /api/consumption,
-    // que é justamente a chamada que este spec precisa inspecionar.
-    await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) => fulfillJson(route, METER_1))
 }
 
 test.describe("Relatórios (/relatorios)", () => {
@@ -56,89 +87,175 @@ test.describe("Relatórios (/relatorios)", () => {
         await context.clearCookies()
     })
 
-    test("estado inicial pede pra selecionar uma propriedade, com os selects dependentes desabilitados", async ({
+    test("abre com o formulário de emissão: escopo, tipo mensal, mês e formato PDF", async ({
         page,
     }) => {
-        await setupAuthAndProperties(page)
-        await page.route(/\/api\/consumption(\?.*)?$/, (route) => fulfillPaginated(route, []))
-
+        await setupApp(page)
         await page.goto("/relatorios")
         await hideDevTools(page)
 
         await expect(page.getByRole("heading", { name: /^relatórios$/i, level: 1 })).toBeVisible()
-        await expect(page.getByText(/selecione uma propriedade para começar/i)).toBeVisible()
-        await expect(page.getByTestId("reports-area-select")).toBeDisabled()
-        await expect(page.getByTestId("reports-device-select")).toBeDisabled()
-        await expect(page.getByTestId("consumption-section")).toHaveCount(0)
-        // O banner de placeholder aparece independente de haver alvo selecionado.
-        await expect(page.getByTestId("reports-placeholder-banner")).toBeVisible()
+        await expect(page.getByLabel("Escopo")).toBeVisible()
+        await expect(page.getByLabel("Tipo de relatório")).toHaveValue("MONTHLY")
+        await expect(page.getByLabel("Mês")).toBeVisible()
+        await expect(page.getByRole("button", { name: "PDF" })).toHaveAttribute(
+            "aria-pressed",
+            "true",
+        )
+        await expect(page.getByTestId("report-generated")).toHaveCount(0)
     })
 
-    test("cascata propriedade → área → dispositivo ajusta o targetType da consulta (DEVICE > AREA > PROPERTY)", async ({
-        page,
-    }) => {
-        await setupAuthAndProperties(page)
+    test("gera o relatório e baixa o arquivo", async ({ page }) => {
+        let created: unknown
+        await setupApp(page, (body) => {
+            created = body
+        })
+        await page.goto("/relatorios")
+        await hideDevTools(page)
 
-        const consumptionRequests: { targetType: string; targetId: string }[] = []
-        await page.route(/\/api\/consumption(\?.*)?$/, (route) => {
-            const url = new URL(route.request().url())
-            consumptionRequests.push({
-                targetType: url.searchParams.get("targetType")!,
-                targetId: url.searchParams.get("targetId")!,
-            })
-            return fulfillPaginated(route, [])
+        await page.getByRole("button", { name: "CSV" }).click()
+        await page.getByRole("button", { name: /Gerar relatório/i }).click()
+
+        await expect(page.getByTestId("report-generated")).toContainText(REPORT.fileName)
+        expect(created).toMatchObject({
+            type: "MONTHLY",
+            targetType: "PROPERTY",
+            targetId: "prop-1",
+            format: "CSV",
         })
 
-        await page.goto("/relatorios")
-        await hideDevTools(page)
-
-        // ─── 1. Seleciona só a propriedade → targetType PROPERTY ─────────────
-        await page.getByTestId("reports-property-select").selectOption(PROP_1.id)
-
-        await expect(page.getByTestId("consumption-section")).toBeVisible()
-        await expect(page.getByTestId("reports-area-select")).toBeEnabled()
-        await expect
-            .poll(() => consumptionRequests.at(-1))
-            .toEqual({ targetType: "PROPERTY", targetId: "prop-1" })
-
-        // ─── 2. Seleciona a área → targetType AREA ────────────────────────────
-        await page.getByTestId("reports-area-select").selectOption(AREA_1.id)
-
-        await expect(page.getByTestId("reports-device-select")).toBeEnabled()
-        await expect
-            .poll(() => consumptionRequests.at(-1))
-            .toEqual({ targetType: "AREA", targetId: "area-1" })
-
-        // ─── 3. Seleciona o dispositivo → targetType DEVICE (vence sobre
-        // área e propriedade, ambas ainda selecionadas nos outros selects) ────
-        await page.getByTestId("reports-device-select").selectOption(DEVICE_1.id)
-
-        await expect
-            .poll(() => consumptionRequests.at(-1))
-            .toEqual({ targetType: "DEVICE", targetId: "device-1" })
+        const downloadPromise = page.waitForEvent("download")
+        await page.getByTestId("report-generated").getByRole("button", { name: "Baixar" }).click()
+        const download = await downloadPromise
+        expect(download.suggestedFilename()).toBe(REPORT.fileName)
     })
 
-    test("trocar de propriedade reseta área e dispositivo selecionados", async ({ page }) => {
-        await setupAuthAndProperties(page)
-        await page.route(/\/api\/consumption(\?.*)?$/, (route) => fulfillPaginated(route, []))
-
+    test("relatório de consumo: período inválido explica o motivo e bloqueia o envio", async ({
+        page,
+    }) => {
+        await setupApp(page)
         await page.goto("/relatorios")
         await hideDevTools(page)
 
-        await page.getByTestId("reports-property-select").selectOption(PROP_1.id)
-        await page.getByTestId("reports-area-select").selectOption(AREA_1.id)
-        await page.getByTestId("reports-device-select").selectOption(DEVICE_1.id)
+        await page.getByLabel("Tipo de relatório").selectOption("CONSUMPTION")
+        const submit = page.getByRole("button", { name: /Gerar relatório/i })
+        await expect(submit).toBeDisabled()
 
-        await expect(page.getByTestId("reports-area-select")).toHaveValue(AREA_1.id)
-        await expect(page.getByTestId("reports-device-select")).toHaveValue(DEVICE_1.id)
+        await page.getByLabel("Início").fill("2026-07-07")
+        await page.getByLabel("Fim").fill("2026-07-01")
+        await expect(page.getByRole("alert")).toContainText("anterior ao início")
+        await expect(submit).toBeDisabled()
 
-        // Troca pra outra propriedade (sem áreas) — reseta área e dispositivo,
-        // e os dois selects voltam a ficar desabilitados.
-        await page.getByTestId("reports-property-select").selectOption(PROP_2.id)
+        await page.getByLabel("Fim").fill("2026-07-09")
+        await expect(page.getByRole("alert")).toHaveCount(0)
+        await expect(submit).toBeEnabled()
+    })
 
-        await expect(page.getByTestId("reports-area-select")).toHaveValue("")
-        await expect(page.getByTestId("reports-device-select")).toHaveValue("")
-        await expect(page.getByTestId("reports-area-select")).toBeDisabled()
-        await expect(page.getByTestId("reports-device-select")).toBeDisabled()
+    test("o histórico lista o relatório gerado, baixa e exclui com confirmação", async ({
+        page,
+    }) => {
+        await setupApp(page)
+        await page.goto("/relatorios")
+        await hideDevTools(page)
+
+        const history = page.getByTestId("report-history")
+        await expect(history.getByText("Nenhum relatório gerado até agora.")).toBeVisible()
+
+        await page.getByRole("button", { name: /Gerar relatório/i }).click()
+        await expect(history.getByText(/^Mensal · Casa Principal · /)).toBeVisible()
+
+        const downloadPromise = page.waitForEvent("download")
+        await history.getByRole("button", { name: /^Baixar/ }).click()
+        expect((await downloadPromise).suggestedFilename()).toBe(REPORT.fileName)
+
+        await history.getByRole("button", { name: /^Excluir/ }).click()
+        await page.getByRole("dialog").getByRole("button", { name: "Excluir" }).click()
+        await expect(history.getByText("Nenhum relatório gerado até agora.")).toBeVisible()
+    })
+
+    test("envios agendados: mostra os dos próximos 15 dias e o estado vazio", async ({ page }) => {
+        await setupApp(page, undefined, [
+            scheduleIn("sch-perto", 3),
+            scheduleIn("sch-longe", 40),
+            scheduleIn("sch-pausada", 2, { active: false, nextRunAt: null }),
+        ])
+        await page.goto("/relatorios")
+        await hideDevTools(page)
+
+        const upcoming = page.getByTestId("report-upcoming")
+        await expect(upcoming.getByTestId("report-upcoming-row")).toHaveCount(1)
+        await expect(upcoming.getByText("Consumo · Casa Principal")).toBeVisible()
+        await expect(upcoming.getByText(/^Próximo envio: /)).toBeVisible()
+        await expect(upcoming.getByRole("link", { name: "Gerenciar" })).toHaveAttribute(
+            "href",
+            "/configuracoes/relatorios",
+        )
+    })
+
+    test("envios agendados: sem configurações, explica que não há envio previsto", async ({
+        page,
+    }) => {
+        await setupApp(page)
+        await page.goto("/relatorios")
+        await hideDevTools(page)
+
+        await expect(
+            page
+                .getByTestId("report-upcoming")
+                .getByText("Nenhum envio ativo nos próximos 15 dias."),
+        ).toBeVisible()
+    })
+
+    test("emite o relatório de alertas com período livre", async ({ page }) => {
+        let created: unknown
+        await setupApp(page, (body) => {
+            created = body
+        })
+        await page.goto("/relatorios")
+        await hideDevTools(page)
+
+        await page.getByLabel("Tipo de relatório").selectOption("ALERTS")
+        await page.getByLabel("Início").fill("2026-07-01")
+        await page.getByLabel("Fim").fill("2026-07-31")
+        await page.getByRole("button", { name: /Gerar relatório/i }).click()
+
+        await expect(page.getByTestId("report-generated")).toBeVisible()
+        expect(created).toMatchObject({
+            type: "ALERTS",
+            targetId: "prop-1",
+            from: "2026-07-01T03:00:00.000Z",
+            to: "2026-08-01T03:00:00.000Z",
+        })
+    })
+
+    test("a demanda só aparece para propriedade do Grupo A e pede o mês", async ({ page }) => {
+        let created: unknown
+        await setupApp(page, (body) => {
+            created = body
+        })
+        await page.goto("/relatorios")
+        await hideDevTools(page)
+
+        await expect(page.getByLabel("Tipo de relatório").locator("option")).toHaveText([
+            "Mensal",
+            "Consumo",
+            "Alertas",
+            "Qualidade de energia",
+        ])
+
+        const groupA = {
+            ...PROPERTY_TREE_1,
+            items: [{ ...PROPERTY_TREE_1.items[0]!, tariffGroup: "GROUP_A" as const }],
+        }
+        await mockPropertyTree(page, () => groupA)
+        await page.reload()
+        await hideDevTools(page)
+
+        await page.getByLabel("Tipo de relatório").selectOption("DEMAND")
+        await expect(page.getByLabel("Mês")).toBeVisible()
+        await page.getByRole("button", { name: /Gerar relatório/i }).click()
+
+        await expect(page.getByTestId("report-generated")).toBeVisible()
+        expect(created).toMatchObject({ type: "DEMAND", targetType: "PROPERTY" })
     })
 })

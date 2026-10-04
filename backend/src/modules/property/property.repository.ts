@@ -95,8 +95,9 @@ export class PropertyRepository {
     }
 
     /**
-     * Raízes da árvore de cadastro: só id e nome dos imóveis do usuário, sem
-     * ler nem decifrar o endereço — a árvore não precisa de dado pessoal.
+     * Raízes da árvore de cadastro: só id, nome e grupo tarifário dos imóveis
+     * do usuário, sem ler nem decifrar o endereço — a árvore não precisa de
+     * dado pessoal.
      *
      * @param userId - Id do usuário dono dos imóveis.
      * @param limit - Teto de imóveis devolvidos.
@@ -105,11 +106,11 @@ export class PropertyRepository {
     async findTreeRootsByUser(
         userId: string,
         limit: number,
-    ): Promise<{ items: { id: string; name: string }[]; total: number }> {
+    ): Promise<{ items: { id: string; name: string; tariffGroup: TariffGroup }[]; total: number }> {
         const [items, total] = await Promise.all([
             this.prisma.property.findMany({
                 where: { userId },
-                select: { id: true, name: true },
+                select: { id: true, name: true, tariffGroup: true },
                 orderBy: { name: "asc" },
                 take: limit,
             }),

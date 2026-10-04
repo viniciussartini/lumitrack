@@ -5,12 +5,16 @@ import type { ReactNode } from "react"
 import { usePropertyTree } from "@/hooks/queries/usePropertyTree"
 import { propertyService } from "@/services/property.service"
 import { queryKeys } from "@/lib/queryClient"
+import type { PropertyTree } from "@/types/property.types"
 
 vi.mock("@/services/property.service", () => ({
     propertyService: { getTree: vi.fn() },
 }))
 
-const TREE = { items: [{ id: "prop-1", name: "Casa", areas: [] }], total: 1 }
+const TREE: PropertyTree = {
+    items: [{ id: "prop-1", name: "Casa", tariffGroup: "GROUP_B", areas: [] }],
+    total: 1,
+}
 
 const createWrapper = () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })

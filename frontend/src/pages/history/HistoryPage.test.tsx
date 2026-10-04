@@ -28,6 +28,7 @@ const TREE: PropertyTree = {
         {
             id: "prop-1",
             name: "Casa Principal",
+            tariffGroup: "GROUP_B",
             areas: [
                 {
                     id: "area-1",

@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit"
 import { BRAND, ZAP_ICON_PATH, ZAP_ICON_VIEWBOX_SIZE } from "@/shared/pdf/brand.js"
+import { formatInstantDateTime, formatPeriodLabel } from "@/modules/report/generators/format.js"
 import type { DataExportPayload } from "@/modules/export/export.service.js"
 import type { UserWithoutPassword } from "@/modules/user/user.repository.js"
 import type { AclSubmarket, AclEnergySource } from "@/generated/prisma/client.js"
@@ -221,6 +222,73 @@ function drawAclContractsSection(doc: PDFKit.PDFDocument, payload: DataExportPay
     }
 }
 
+const REPORT_TYPE_LABELS = {
+    MONTHLY: "Mensal",
+    CONSUMPTION: "Consumo",
+    ALERTS: "Alertas",
+    POWER_QUALITY: "Qualidade de energia",
+    DEMAND: "Demanda",
+} as const
+
+function drawReportsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
+    sectionTitle(doc, "Relatórios emitidos")
+
+    if (payload.reports.length === 0) {
+        emptyNote(doc, "Nenhum relatório emitido.")
+        return
+    }
+
+    for (const report of payload.reports) doc.text(describeExportedReport(report))
+}
+
+/**
+ * Linha de um relatório emitido no PDF do titular. O fim do período é
+ * exclusivo (é a meia-noite do dia seguinte) e as datas são lidas no fuso de
+ * São Paulo, para o relatório de fevereiro não aparecer como "01/02 a 01/03" nem
+ * mudar com o fuso do servidor.
+ *
+ * @param report - Metadados do relatório (nunca o arquivo).
+ */
+export function describeExportedReport(
+    report: Pick<
+        DataExportPayload["reports"][number],
+        "type" | "format" | "periodStart" | "periodEnd" | "createdAt"
+    >,
+): string {
+    return (
+        `• ${REPORT_TYPE_LABELS[report.type]} (${report.format}) — ` +
+        `${formatPeriodLabel(report.periodStart, report.periodEnd)} — ` +
+        `emitido em ${formatInstantDateTime(report.createdAt)}`
+    )
+}
+
+const FREQUENCY_LABELS = {
+    DAILY: "diária",
+    WEEKLY: "semanal",
+    MONTHLY: "mensal",
+    QUARTERLY: "trimestral",
+    SEMIANNUAL: "semestral",
+    ANNUAL: "anual",
+} as const
+
+function drawReportSchedulesSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
+    sectionTitle(doc, "Envio automático de relatórios")
+
+    if (payload.reportSchedules.length === 0) {
+        emptyNote(doc, "Nenhuma configuração de envio automático cadastrada.")
+        return
+    }
+
+    for (const schedule of payload.reportSchedules) {
+        doc.text(
+            `• ${REPORT_TYPE_LABELS[schedule.type]} (${schedule.format}) — ` +
+                `frequência ${FREQUENCY_LABELS[schedule.frequency]} — ` +
+                (schedule.active ? "ativa" : "pausada") +
+                ` — destinatários: ${schedule.recipients.join(", ")}`,
+        )
+    }
+}
+
 function drawAuditLogSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
     sectionTitle(doc, "Histórico de acesso e segurança (audit log)")
 
@@ -278,6 +346,8 @@ export async function generateDataExportPdf(payload: DataExportPayload): Promise
     drawAlertsSection(doc, payload)
     drawDemandAlertsSection(doc, payload)
     drawAclContractsSection(doc, payload)
+    drawReportsSection(doc, payload)
+    drawReportSchedulesSection(doc, payload)
     drawAuditLogSection(doc, payload)
     drawFooterOnAllPages(doc)
 
