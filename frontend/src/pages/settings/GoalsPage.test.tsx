@@ -214,7 +214,7 @@ describe("GoalsPage — metas", () => {
         expect(screen.getByTestId("goal-history-empty")).toBeInTheDocument()
     })
 
-    it("ano corrente e futuro oferecem editar e excluir; ano passado, nenhum dos dois", async () => {
+    it("ano corrente e futuro oferecem editar e excluir; ano passado, só usar como referência", async () => {
         vi.mocked(goalService.list).mockResolvedValue(
             paged([makeGoal(2027), makeGoal(2026), makeGoal(2025)]),
         )
@@ -237,7 +237,12 @@ describe("GoalsPage — metas", () => {
             expect(row).toHaveTextContent("Em andamento")
         }
         const past = screen.getByTestId("goal-row-2025")
-        expect(within(past).queryByRole("button")).not.toBeInTheDocument()
+        expect(
+            within(past).queryByRole("button", { name: /Editar|Excluir/ }),
+        ).not.toBeInTheDocument()
+        expect(
+            within(past).getByRole("button", { name: "Usar a meta de 2025 como referência" }),
+        ).toBeInTheDocument()
         expect(past).toHaveTextContent("-")
     })
 })
@@ -362,6 +367,114 @@ describe("GoalsPage — criar", () => {
             }),
         )
         expect(screen.getByRole("dialog")).toBeInTheDocument()
+    })
+})
+
+describe("GoalsPage — usar como referência", () => {
+    const realizedMonths = (kwh: (number | null)[]) =>
+        Array.from({ length: 12 }, (_, i) => ({
+            month: i + 1,
+            targetKwh: 400,
+            realizedKwh: kwh[i] ?? null,
+        }))
+
+    it("abre a meta nova preenchida com o realizado do ano escolhido e a cria", async () => {
+        vi.mocked(goalService.list).mockResolvedValue(paged([makeGoal(2026), makeGoal(2025)]))
+        vi.mocked(goalService.progress).mockResolvedValue([
+            makeProgress(2026),
+            makeProgress(2025, {
+                situation: "MET",
+                months: realizedMonths([300, null, ...Array.from({ length: 10 }, () => 500)]),
+            }),
+        ])
+        vi.mocked(goalService.create).mockResolvedValue(makeGoal(2027))
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage()
+
+        await user.click(
+            await screen.findByRole("button", { name: "Usar a meta de 2025 como referência" }),
+        )
+        const dialog = await screen.findByRole("dialog", { name: /nova meta de consumo/i })
+        expect(within(dialog).getByLabelText("Ano da meta")).toHaveValue(2027)
+        expect(within(dialog).getByLabelText("Ano de referência")).toHaveValue(2025)
+        expect(within(dialog).getByLabelText("jan")).toHaveValue(300)
+        expect(within(dialog).getByLabelText("fev")).toHaveValue(null)
+        expect(within(dialog).getByLabelText("mar")).toHaveValue(500)
+
+        // O mês sem leitura continua vazio: o usuário precisa preenchê-lo antes de salvar.
+        await user.click(within(dialog).getByRole("button", { name: "Salvar meta" }))
+        expect(await within(dialog).findByRole("alert")).toHaveTextContent(/12 meses/)
+        expect(goalService.create).not.toHaveBeenCalled()
+
+        await user.type(within(dialog).getByLabelText("fev"), "450")
+        await user.click(within(dialog).getByRole("button", { name: "Salvar meta" }))
+
+        await waitFor(() =>
+            expect(goalService.create).toHaveBeenCalledWith({
+                propertyId: "prop-a",
+                year: 2027,
+                referenceYear: 2025,
+                monthlyKwh: [300, 450, ...Array.from({ length: 10 }, () => 500)],
+                alertPercent: 85,
+            }),
+        )
+    })
+
+    it("pula o ano seguinte se a propriedade já tem meta para ele", async () => {
+        vi.mocked(goalService.list).mockResolvedValue(
+            paged([makeGoal(2027), makeGoal(2026), makeGoal(2025)]),
+        )
+        vi.mocked(goalService.progress).mockResolvedValue([
+            makeProgress(2027),
+            makeProgress(2026),
+            makeProgress(2025, { situation: "MET" }),
+        ])
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage()
+
+        await user.click(
+            await screen.findByRole("button", { name: "Usar a meta de 2025 como referência" }),
+        )
+        const dialog = await screen.findByRole("dialog")
+
+        expect(within(dialog).getByLabelText("Ano da meta")).toHaveValue(2028)
+    })
+
+    it("sem o acompanhamento, abre com a referência e os meses vazios", async () => {
+        vi.mocked(goalService.list).mockResolvedValue(paged([makeGoal(2025)]))
+        vi.mocked(goalService.progress).mockRejectedValue(new Error("falha"))
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage()
+
+        await user.click(
+            await screen.findByRole("button", { name: "Usar a meta de 2025 como referência" }),
+        )
+        const dialog = await screen.findByRole("dialog")
+
+        expect(within(dialog).getByLabelText("Ano de referência")).toHaveValue(2025)
+        expect(within(dialog).getByLabelText("jan")).toHaveValue(null)
+    })
+
+    it("o botão de nova meta depois dele volta ao rascunho padrão, sem os dados da referência", async () => {
+        vi.mocked(goalService.list).mockResolvedValue(paged([makeGoal(2025)]))
+        vi.mocked(goalService.progress).mockResolvedValue([
+            makeProgress(2025, { situation: "MET", months: realizedMonths([300]) }),
+        ])
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage()
+
+        await user.click(
+            await screen.findByRole("button", { name: "Usar a meta de 2025 como referência" }),
+        )
+        await user.click(
+            within(await screen.findByRole("dialog")).getByRole("button", { name: "Cancelar" }),
+        )
+        await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+        await user.click(screen.getByRole("button", { name: "Nova meta" }))
+        const dialog = await screen.findByRole("dialog")
+
+        expect(within(dialog).getByLabelText("Ano da meta")).toHaveValue(2026)
+        expect(within(dialog).getByLabelText("jan")).toHaveValue(null)
     })
 })
 

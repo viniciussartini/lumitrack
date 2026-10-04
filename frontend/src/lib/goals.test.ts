@@ -14,6 +14,7 @@ import {
     goalYearlyKwh,
     initialGoalForm,
     isGoalLocked,
+    referenceGoalForm,
     validateGoalForm,
     type GoalFormState,
 } from "@/lib/goals"
@@ -204,5 +205,76 @@ describe("situação e desvio do acompanhamento", () => {
         expect(formatRealized(progress(0))).toBe("0 kWh")
         expect(formatRealized(progress(null))).toBe("-")
         expect(formatRealized(undefined)).toBe("-")
+    })
+})
+
+describe("referenceGoalForm", () => {
+    const progressWith = (realized: (number | null)[]): GoalProgress => ({
+        goalId: "g1",
+        year: 2025,
+        months: Array.from({ length: 12 }, (_, i) => ({
+            month: i + 1,
+            targetKwh: 400,
+            realizedKwh: realized[i] ?? null,
+        })),
+        yearTargetKwh: 4800,
+        realizedKwh: null,
+        deviationPercent: null,
+        currentMonthTargetKwh: null,
+        situation: "MET",
+    })
+
+    it("propõe o ano seguinte ao corrente, com o ano escolhido como referência", () => {
+        const state = referenceGoalForm(goal({ year: 2025 }), progressWith([]), 2026, [])
+
+        expect(state.year).toBe("2027")
+        expect(state.referenceYear).toBe("2025")
+        expect(state.alertPercent).toBe("85")
+    })
+
+    it("pula os anos que a propriedade já tem", () => {
+        const state = referenceGoalForm(goal({ year: 2025 }), progressWith([]), 2026, [2027, 2028])
+
+        expect(state.year).toBe("2029")
+    })
+
+    it("preenche cada mês com o realizado, arredondado, e deixa vazio o mês sem leitura", () => {
+        const realized = [380.4, null, 410.6, 0, ...Array.from({ length: 8 }, () => 300)]
+        const state = referenceGoalForm(goal({ year: 2025 }), progressWith(realized), 2026, [])
+
+        expect(state.months.slice(0, 4)).toEqual(["380", "", "411", "0"])
+        expect(state.months[4]).toBe("300")
+        expect(state.months).toHaveLength(12)
+    })
+
+    it("o consumo específico é a média dos meses com leitura", () => {
+        const state = referenceGoalForm(
+            goal({ year: 2025 }),
+            progressWith([300, null, 500]),
+            2026,
+            [],
+        )
+
+        expect(state.specificKwh).toBe("400")
+    })
+
+    it("sem leitura nenhuma, ou sem acompanhamento, os meses e o específico ficam vazios", () => {
+        for (const progress of [progressWith([]), undefined]) {
+            const state = referenceGoalForm(goal({ year: 2025 }), progress, 2026, [])
+            expect(state.months).toEqual(Array.from({ length: 12 }, () => ""))
+            expect(state.specificKwh).toBe("")
+            expect(state.referenceYear).toBe("2025")
+        }
+    })
+
+    it("o rascunho resultante passa na validação quando os 12 meses têm leitura", () => {
+        const state = referenceGoalForm(
+            goal({ year: 2025 }),
+            progressWith(Array.from({ length: 12 }, () => 350)),
+            2026,
+            [],
+        )
+
+        expect(validateGoalForm(state, [])).toBeNull()
     })
 })

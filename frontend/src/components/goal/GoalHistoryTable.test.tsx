@@ -29,7 +29,7 @@ const makeProgress = (year: number, override: Partial<GoalProgress> = {}): GoalP
 
 const progressMap = (...items: GoalProgress[]) => new Map(items.map((item) => [item.goalId, item]))
 
-const noop = { onEdit: vi.fn(), onDelete: vi.fn() }
+const noop = { onEdit: vi.fn(), onDelete: vi.fn(), onUseAsReference: vi.fn() }
 
 describe("GoalHistoryTable", () => {
     it("mostra a meta do ano como a soma dos meses e a base de referência", () => {
@@ -147,6 +147,7 @@ describe("GoalHistoryTable", () => {
                 currentYear={2026}
                 onEdit={onEdit}
                 onDelete={onDelete}
+                onUseAsReference={vi.fn()}
             />,
         )
 
@@ -157,7 +158,7 @@ describe("GoalHistoryTable", () => {
         expect(onDelete).toHaveBeenCalledWith(goal)
     })
 
-    it("meta de ano passado não tem ações", () => {
+    it("meta de ano passado só oferece usar como referência: não edita nem exclui", () => {
         render(
             <GoalHistoryTable
                 goals={[makeGoal(2025)]}
@@ -167,6 +168,45 @@ describe("GoalHistoryTable", () => {
             />,
         )
 
-        expect(screen.queryByRole("button")).not.toBeInTheDocument()
+        expect(
+            screen.getByRole("button", { name: "Usar a meta de 2025 como referência" }),
+        ).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /Editar/ })).not.toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /Excluir/ })).not.toBeInTheDocument()
+    })
+
+    it("ano corrente e futuro não oferecem usar como referência", () => {
+        render(
+            <GoalHistoryTable
+                goals={[makeGoal(2027), makeGoal(2026)]}
+                progressByGoalId={progressMap()}
+                currentYear={2026}
+                {...noop}
+            />,
+        )
+
+        expect(screen.queryByRole("button", { name: /como referência/ })).not.toBeInTheDocument()
+    })
+
+    it("entrega a meta do ano passado à ação de usar como referência", async () => {
+        const onUseAsReference = vi.fn()
+        const goal = makeGoal(2025)
+        const user = userEvent.setup()
+        render(
+            <GoalHistoryTable
+                goals={[goal]}
+                progressByGoalId={progressMap()}
+                currentYear={2026}
+                onEdit={vi.fn()}
+                onDelete={vi.fn()}
+                onUseAsReference={onUseAsReference}
+            />,
+        )
+
+        await user.click(
+            screen.getByRole("button", { name: "Usar a meta de 2025 como referência" }),
+        )
+
+        expect(onUseAsReference).toHaveBeenCalledWith(goal)
     })
 })

@@ -23,6 +23,22 @@ const monthly = (kwh: number) => Array.from({ length: 12 }, () => kwh)
 /** Acompanhamento simulado: janeiro a maio com 380 kWh cada, contra 400 de meta. */
 const progressFor = (goal: Goal): GoalProgress => {
     const current = goal.year === 2026
+    if (goal.year < 2026) {
+        return {
+            goalId: goal.id,
+            year: goal.year,
+            months: goal.monthlyKwh.map((targetKwh, index) => ({
+                month: index + 1,
+                targetKwh,
+                realizedKwh: 380,
+            })),
+            yearTargetKwh: goal.monthlyKwh.reduce((sum, kwh) => sum + kwh, 0),
+            realizedKwh: 4560,
+            deviationPercent: -5,
+            currentMonthTargetKwh: null,
+            situation: "MET",
+        }
+    }
     return {
         goalId: goal.id,
         year: goal.year,
@@ -39,7 +55,11 @@ const progressFor = (goal: Goal): GoalProgress => {
     }
 }
 
-const setupApp = async (page: Page, onWrite?: (body: unknown) => void) => {
+const setupApp = async (
+    page: Page,
+    onWrite?: (body: unknown) => void,
+    initialGoals: Goal[] = [],
+) => {
     await page.clock.install({ time: new Date(CLOCK_TIME) })
     await mockAppShellBackground(page)
     await setupAuth(page)
@@ -51,7 +71,7 @@ const setupApp = async (page: Page, onWrite?: (body: unknown) => void) => {
         route.request().method() === "GET" ? fulfillPaginated(route, [PROP_1]) : route.fallback(),
     )
 
-    let goals: Goal[] = []
+    let goals: Goal[] = [...initialGoals]
     await page.route(/\/api\/goals(\?.*)?$/, (route) => {
         if (route.request().method() === "POST") {
             const body = route.request().postDataJSON() as GoalBody
@@ -169,5 +189,46 @@ test.describe("Configurações → Metas", () => {
 
         await expect(dialog.getByRole("alert")).toContainText("Informe a meta dos 12 meses")
         expect(writes).toHaveLength(0)
+    })
+
+    test("usa um ano passado como referência: a meta nova nasce com o realizado preenchido", async ({
+        page,
+    }) => {
+        const writes: unknown[] = []
+        const past: Goal = {
+            id: "goal-2025",
+            propertyId: PROP_1.id,
+            year: 2025,
+            referenceYear: 2024,
+            monthlyKwh: monthly(400),
+            alertPercent: 85,
+            createdAt: "2025-01-01T00:00:00.000Z",
+            updatedAt: "2025-01-01T00:00:00.000Z",
+        }
+        await setupApp(page, (body) => writes.push(body), [past])
+        await page.goto("/configuracoes/metas")
+        await hideDevTools(page)
+
+        const row = page.getByTestId("goal-row-2025")
+        await expect(row).toContainText("Cumprida")
+        await expect(row.getByRole("button", { name: /Editar|Excluir/ })).toHaveCount(0)
+        await row.getByRole("button", { name: "Usar a meta de 2025 como referência" }).click()
+
+        const dialog = page.getByRole("dialog", { name: "Nova meta de consumo" })
+        await expect(dialog.getByLabel("Ano da meta")).toHaveValue("2027")
+        await expect(dialog.getByLabel("Ano de referência")).toHaveValue("2025")
+        await expect(dialog.getByLabel("jan")).toHaveValue("380")
+        await expect(dialog.getByLabel("dez")).toHaveValue("380")
+        await dialog.getByRole("button", { name: "Salvar meta" }).click()
+
+        await expect(dialog).toHaveCount(0)
+        expect(writes[0]).toEqual({
+            propertyId: PROP_1.id,
+            year: 2027,
+            referenceYear: 2025,
+            monthlyKwh: monthly(380),
+            alertPercent: 85,
+        })
+        await expect(page.getByTestId("goal-row-2027")).toContainText("4.560 kWh")
     })
 })

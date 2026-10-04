@@ -12,12 +12,13 @@ import { EmptyState } from "@/components/ui/EmptyState"
 import { useDeleteGoal, useGoalProgress, useGoals } from "@/hooks/queries/useGoals"
 import { useProperties } from "@/hooks/queries/useProperties"
 import { usePropertySelection } from "@/hooks/usePropertySelection"
-import { currentGoalMonthIndex, currentGoalYear } from "@/lib/goals"
+import { currentGoalMonthIndex, currentGoalYear, referenceGoalForm } from "@/lib/goals"
 import { extractErrorMessage } from "@/services/api"
 import type { Goal, GoalProgress } from "@/types/goal.types"
 import { MAX_PAGE_SIZE } from "@/types/pagination.types"
 
-type DialogState = { kind: "create" } | { kind: "edit"; goal: Goal } | null
+type DialogState =
+    { kind: "create" } | { kind: "edit"; goal: Goal } | { kind: "reference"; goal: Goal } | null
 
 /**
  * Configurações → Metas (LumiTrack Home v2.dc.html) — metas anuais de consumo
@@ -127,6 +128,7 @@ const GoalsContent = ({
     const currentYear = currentGoalYear(now)
     const monthIndex = currentGoalMonthIndex(now)
     const currentGoal = goals.find((goal) => goal.year === currentYear)
+    const existingYears = goals.map((goal) => goal.year)
 
     return (
         <>
@@ -150,6 +152,7 @@ const GoalsContent = ({
                 currentYear={currentYear}
                 onEdit={(goal) => setDialog({ kind: "edit", goal })}
                 onDelete={setDeleting}
+                onUseAsReference={(goal) => setDialog({ kind: "reference", goal })}
             />
 
             <GoalFormDialog
@@ -157,7 +160,17 @@ const GoalsContent = ({
                 onOpenChange={(open) => !open && setDialog(null)}
                 propertyId={propertyId}
                 goal={dialog?.kind === "edit" ? dialog.goal : null}
-                existingYears={goals.map((goal) => goal.year)}
+                initial={
+                    dialog?.kind === "reference"
+                        ? referenceGoalForm(
+                              dialog.goal,
+                              progressByGoalId.get(dialog.goal.id),
+                              currentYear,
+                              existingYears,
+                          )
+                        : undefined
+                }
+                existingYears={existingYears}
                 currentYear={currentYear}
             />
             <DeleteGoalDialog goal={deleting} onClose={() => setDeleting(null)} />

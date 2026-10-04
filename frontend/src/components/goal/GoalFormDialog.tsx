@@ -27,6 +27,8 @@ interface GoalFormDialogProps {
     propertyId: string
     /** Presente na edição: preenche o rascunho com a meta salva. */
     goal: Goal | null
+    /** Rascunho de partida de uma meta nova (ex.: montada a partir de um ano de referência). */
+    initial?: GoalFormState
     /** Anos em que a propriedade já tem meta; a criação não repete nenhum. */
     existingYears: readonly number[]
     currentYear: number
@@ -42,6 +44,7 @@ export const GoalFormDialog = ({
     onOpenChange,
     propertyId,
     goal,
+    initial,
     existingYears,
     currentYear,
 }: GoalFormDialogProps) => (
@@ -53,9 +56,10 @@ export const GoalFormDialog = ({
     >
         <GoalForm
             // O rascunho é estado local: remonta ao trocar de meta.
-            key={goal?.id ?? "new"}
+            key={goal?.id ?? (initial ? "reference" : "new")}
             propertyId={propertyId}
             goal={goal}
+            initial={initial}
             existingYears={existingYears}
             currentYear={currentYear}
             onClose={() => onOpenChange(false)}
@@ -66,17 +70,25 @@ export const GoalFormDialog = ({
 interface GoalFormProps {
     propertyId: string
     goal: Goal | null
+    initial: GoalFormState | undefined
     existingYears: readonly number[]
     currentYear: number
     onClose: () => void
 }
 
-const GoalForm = ({ propertyId, goal, existingYears, currentYear, onClose }: GoalFormProps) => {
+const GoalForm = ({
+    propertyId,
+    goal,
+    initial,
+    existingYears,
+    currentYear,
+    onClose,
+}: GoalFormProps) => {
     const uid = useId()
     const create = useCreateGoal()
     const update = useUpdateGoal()
     const [state, setState] = useState<GoalFormState>(
-        goal ? goalToFormState(goal) : initialGoalForm(currentYear, existingYears),
+        goal ? goalToFormState(goal) : (initial ?? initialGoalForm(currentYear, existingYears)),
     )
     const [showError, setShowError] = useState(false)
 

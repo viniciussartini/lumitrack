@@ -159,6 +159,45 @@ export const initialGoalForm = (
     }
 }
 
+/**
+ * Rascunho de uma meta nova a partir de um ano que já passou ("usar como
+ * referência"): o ano seguinte ao corrente (o primeiro ainda sem meta), o ano
+ * escolhido como referência e cada mês preenchido com o realizado, arredondado
+ * a kWh inteiro. Mês sem leitura fica vazio — nunca 0 —, e o consumo
+ * específico é a média dos meses com leitura.
+ *
+ * @param reference - Meta do ano passado usada como base.
+ * @param progress - Acompanhamento dessa meta; sem ele, os meses ficam vazios.
+ * @param currentYear - Ano corrente em São Paulo.
+ * @param existingYears - Anos em que a propriedade já tem meta.
+ */
+export const referenceGoalForm = (
+    reference: Goal,
+    progress: GoalProgress | undefined,
+    currentYear: number,
+    existingYears: readonly number[],
+): GoalFormState => {
+    const base = initialGoalForm(currentYear + 1, existingYears)
+    const realized = Array.from({ length: MONTHS_IN_YEAR }, (_, index) => {
+        const kwh = progress?.months[index]?.realizedKwh
+        return kwh === null || kwh === undefined ? null : Math.round(kwh)
+    })
+    const withReading = realized.filter((kwh): kwh is number => kwh !== null)
+    const average =
+        withReading.length === 0
+            ? ""
+            : String(
+                  Math.round(withReading.reduce((sum, kwh) => sum + kwh, 0) / withReading.length),
+              )
+
+    return {
+        ...base,
+        referenceYear: String(reference.year),
+        specificKwh: average,
+        months: realized.map((kwh) => (kwh === null ? "" : String(kwh))),
+    }
+}
+
 /** Rascunho de edição: os campos da meta salva. O atalho mostra a média mensal. */
 export const goalToFormState = (goal: Goal): GoalFormState => ({
     year: String(goal.year),
