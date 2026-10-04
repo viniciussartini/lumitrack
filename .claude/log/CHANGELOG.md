@@ -4321,3 +4321,13 @@
 - **Decisões/ADRs:** nenhuma ADR. Decisão de política tomada com o usuário: o gate de auditoria do backend e do simulador considera só dependência de produção, porque o único aviso restante não tem correção e está só na ferramenta de build. O Dependabot segue ativo e avisa quando houver versão corrigida do `braces`; nesse dia, vale voltar o gate completo.
 - **Notas:** o `npm install` fundiu os dois blocos `overrides` duplicados do `backend/package.json` num só, com os mesmos valores efetivos (`mysql2 ^3.24.2` e `deepmerge-ts ^8.0.2`); o primeiro bloco já era ignorado pelo JSON.
 
+## [2026-10-04] docs: roadmap fecha a Fase 27 (PR #475)
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** `planejar-roadmap` (ciclo de atualização — fechamento) marca a Fase 27 (Relatórios) como concluída: tabela de fases, cabeçalho ("Fases 1–27", épico #464, PR #475; fase atual passa a ser a 28), nota de conclusão na seção da fase e nova seção "Replanejamento de 2026-10-04 (fechamento da Fase 27)". A seção separa as divergências decididas com o usuário das tomadas na implementação sem consulta, registra o laudo da `revisao-codigo` (3 bloqueios + 10 sugestões, com o período agendado sobreposto nos dias 29 a 31 como achado mais sério) e o que foi corrigido ou deixado de propósito, as falhas de CI (e2e sem mocks do Cadastro e os três `npm audit`, com a decisão de auditar só dependência de produção no backend e no simulador), as heranças para as Fases 28 e 29 e as pendências do usuário. PR mesclado em 2026-10-04T20:49:52Z (commit `21323fa`, 15 checks verdes); épico #464 fechado à mão às 20:53:03Z e sub-issues #465–#470 fechadas à mão a cada entrega.
+- **Testes:** documentação, sem código.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma nova; nenhum item do `07` tocado (o item sobre e-mail a terceiros já foi aberto no PR).
+- **Notas:** (1) a Fase 28 (Metas) segue em nível de objetivo, sem bloqueio no `07`; detalhar quando solicitado; (2) a milestone `App v2` só fecha na Fase 30 e o GitHub mostra vencimento em 2026-10-04 com 0 issues abertas, porque as Fases 28–30 ainda não têm issues; (3) `02-requisitos.md` não mudou nesta sessão, já saiu atualizado no PR.
+
