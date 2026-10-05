@@ -2,6 +2,8 @@ import PDFDocument from "pdfkit"
 import { BRAND, ZAP_ICON_PATH, ZAP_ICON_VIEWBOX_SIZE } from "@/shared/pdf/brand.js"
 import { formatInstantDateTime, formatPeriodLabel } from "@/modules/report/generators/format.js"
 import type { DataExportPayload } from "@/modules/export/export.service.js"
+import { yearlyTarget } from "@/modules/goal/goal-progress.js"
+import type { GoalPublicRecord } from "@/modules/goal/goal.repository.js"
 import type { UserWithoutPassword } from "@/modules/user/user.repository.js"
 import type { AclSubmarket, AclEnergySource } from "@/generated/prisma/client.js"
 
@@ -289,6 +291,45 @@ function drawReportSchedulesSection(doc: PDFKit.PDFDocument, payload: DataExport
     }
 }
 
+function describeYearlyTarget(goal: GoalPublicRecord): string {
+    const formatted = Math.round(yearlyTarget(goal.unit, goal.monthlyTargets)).toLocaleString(
+        "pt-BR",
+    )
+    if (goal.unit === "KW") return `meta até ${formatted} kW`
+    return goal.unit === "BRL" ? `meta de R$ ${formatted}` : `meta de ${formatted} kWh`
+}
+
+/**
+ * Linha de uma meta no PDF do titular: propriedade, ano, a meta do ano na
+ * unidade dela (kWh ou reais), a referência e o percentual de alerta.
+ *
+ * @param goal - Meta exportada.
+ * @param propertyName - Nome da propriedade, quando conhecido.
+ * @returns O texto da linha.
+ */
+export function describeExportedGoal(goal: GoalPublicRecord, propertyName?: string): string {
+    const target = describeYearlyTarget(goal)
+    return (
+        `• ${propertyName ? `${propertyName} — ` : ""}${goal.year} — ` +
+        `${target} — ` +
+        `referência ${goal.referenceYear} — alerta ao atingir ${goal.alertPercent}%`
+    )
+}
+
+function drawGoalsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
+    sectionTitle(doc, "Metas de consumo, de custo e de demanda")
+
+    if (payload.goals.length === 0) {
+        emptyNote(doc, "Nenhuma meta cadastrada.")
+        return
+    }
+
+    for (const goal of payload.goals) {
+        const property = payload.properties.find((p) => p.id === goal.propertyId)
+        doc.text(describeExportedGoal(goal, property?.name))
+    }
+}
+
 function drawAuditLogSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
     sectionTitle(doc, "Histórico de acesso e segurança (audit log)")
 
@@ -348,6 +389,7 @@ export async function generateDataExportPdf(payload: DataExportPayload): Promise
     drawAclContractsSection(doc, payload)
     drawReportsSection(doc, payload)
     drawReportSchedulesSection(doc, payload)
+    drawGoalsSection(doc, payload)
     drawAuditLogSection(doc, payload)
     drawFooterOnAllPages(doc)
 

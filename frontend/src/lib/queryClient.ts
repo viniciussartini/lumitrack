@@ -185,6 +185,12 @@ export const queryKeys = {
         list: (page: number, pageSize: number) =>
             [...queryKeys.reportSchedules.all, "list", page, pageSize] as const,
     },
+    goals: {
+        all: ["goals"] as const,
+        list: (propertyId: string) => [...queryKeys.goals.all, "list", propertyId] as const,
+        progress: (propertyId: string) => [...queryKeys.goals.all, "progress", propertyId] as const,
+        alerts: ["goals", "alerts"] as const,
+    },
     alertEvents: {
         all: ["alertEvents"] as const,
         list: (alertId: string, page: number, pageSize: number) =>

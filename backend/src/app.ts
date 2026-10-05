@@ -31,6 +31,7 @@ import { userRoutes } from "@/modules/user/user.routes.js"
 import { exportRoutes } from "@/modules/export/export.routes.js"
 import { reportRoutes } from "@/modules/report/report.routes.js"
 import { reportScheduleRoutes } from "@/modules/report-schedule/report-schedule.routes.js"
+import { goalRoutes } from "@/modules/goal/goal.routes.js"
 import { adminRoutes } from "@/modules/admin/admin.routes.js"
 import { authRoutes } from "@/modules/auth/auth.routes.js"
 import { distributorRoutes } from "./modules/distributor/distributor.routes.js"
@@ -256,6 +257,7 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/consumption", consumptionRoutes(authenticate, prismaClient))
     app.use("/api/reports", reportRoutes(authenticate, prismaClient, auditService))
     app.use("/api/report-schedules", reportScheduleRoutes(authenticate, prismaClient))
+    app.use("/api/goals", goalRoutes(authenticate, prismaClient))
 
     if (processor && userEventHub) {
         app.use("/api/iot", iotStreamRoutes(authenticate, prismaClient, processor, userEventHub))

@@ -14,6 +14,7 @@ export async function cleanHttpDatabase(): Promise<void> {
         prismaHttpTest.auditLog.deleteMany(),
         prismaHttpTest.report.deleteMany(),
         prismaHttpTest.reportSchedule.deleteMany(),
+        prismaHttpTest.goal.deleteMany(),
         prismaHttpTest.tariffFlagHistory.deleteMany(),
         prismaHttpTest.alertTriggerEvent.deleteMany(),
         prismaHttpTest.alert.deleteMany(),

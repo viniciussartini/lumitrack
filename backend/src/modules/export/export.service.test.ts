@@ -15,6 +15,7 @@ import { DeviceService } from "@/modules/device/device.service.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { ReportRepository } from "@/modules/report/report.repository.js"
 import { ReportScheduleRepository } from "@/modules/report-schedule/report-schedule.repository.js"
+import { GoalRepository } from "@/modules/goal/goal.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 import { createTestDistributor } from "@/shared/test/distributorFixture.js"
@@ -43,6 +44,7 @@ const aclContractRepository = new AclContractRepository(prismaTest)
 const auditRepository = new AuditRepository(prismaTest)
 const reportRepository = new ReportRepository(prismaTest)
 const reportScheduleRepository = new ReportScheduleRepository(prismaTest)
+const goalRepository = new GoalRepository(prismaTest)
 
 const exportService = new ExportService(
     userRepository,
@@ -56,6 +58,7 @@ const exportService = new ExportService(
     auditRepository,
     reportRepository,
     reportScheduleRepository,
+    goalRepository,
 )
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
@@ -228,6 +231,7 @@ describe("ExportService.generate", () => {
         expect(payload.aclContracts).toEqual([])
         expect(payload.reports).toEqual([])
         expect(payload.reportSchedules).toEqual([])
+        expect(payload.goals).toEqual([])
         expect(payload.auditLogs).toEqual([])
     })
 
@@ -286,6 +290,37 @@ describe("ExportService.generate", () => {
         expect(payload.reportSchedules[0]!.recipients).toEqual(["financeiro@example.com"])
         expect(payload.reportSchedules[0]).not.toHaveProperty("userId")
         expect(JSON.stringify(payload)).not.toContain("outro@example.com")
+    })
+
+    it("inclui as metas de consumo só do titular, sem o userId", async () => {
+        const userA = await userService.createUser(validUserA)
+        const userB = await userService.createUser(validUserB)
+        const distributor = await createTestDistributor(prismaTest)
+        const propertyA = await propertyService.create(userA.id, {
+            name: "Casa A",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC",
+        })
+        const propertyB = await propertyService.create(userB.id, {
+            name: "Casa B",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC",
+        })
+        const base = {
+            unit: "KWH" as const,
+            year: 2026,
+            referenceYear: 2025,
+            monthlyTargets: Array.from({ length: 12 }, () => 300),
+            alertPercent: 85,
+        }
+        await goalRepository.create(userA.id, { ...base, propertyId: propertyA.id })
+        await goalRepository.create(userB.id, { ...base, propertyId: propertyB.id, year: 2027 })
+
+        const payload = await exportService.generate(userA.id)
+
+        expect(payload.goals).toHaveLength(1)
+        expect(payload.goals[0]).toMatchObject({ propertyId: propertyA.id, year: 2026 })
+        expect(payload.goals[0]).not.toHaveProperty("userId")
     })
 
     it("lança NotFoundError para userId inexistente", async () => {

@@ -12,6 +12,7 @@ import { AreaRepository } from "@/modules/area/area.repository.js"
 import { DeviceRepository } from "@/modules/device/device.repository.js"
 import { ReportRepository } from "@/modules/report/report.repository.js"
 import { ReportScheduleRepository } from "@/modules/report-schedule/report-schedule.repository.js"
+import { GoalRepository } from "@/modules/goal/goal.repository.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import type { AuditService } from "@/shared/audit/audit.service.js"
 
@@ -38,6 +39,7 @@ export function exportRoutes(
         new AuditRepository(prismaClient),
         new ReportRepository(prismaClient),
         new ReportScheduleRepository(prismaClient),
+        new GoalRepository(prismaClient),
     )
     const exportController = new ExportController(exportService, auditService)
 

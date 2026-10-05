@@ -53,6 +53,10 @@ export const mockAppShellBackground = async (page: Page) => {
         route.request().method() === "GET" ? fulfillJson(route, []) : route.fallback(),
     )
 
+    // Alertas de meta: lista vazia de fundo; sem ela, abrir /alertas vazaria
+    // a chamada para o backend real e o 401 levaria ao login.
+    await page.route(/\/api\/goals\/alerts(\?.*)?$/, (route) => fulfillJson(route, { items: [] }))
+
     // O `appStream` usa @microsoft/fetch-event-source, cujo `onopen` exige
     // response.ok E content-type começando com `text/event-stream` — senão
     // lança FatalStreamError e não retenta. Body vazio = conexão aberta que

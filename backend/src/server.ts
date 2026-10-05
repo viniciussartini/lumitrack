@@ -21,6 +21,11 @@ import { AuthRepository } from "@/modules/auth/auth.repository.js"
 import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { ReportRepository } from "@/modules/report/report.repository.js"
 import { createReportService } from "@/modules/report/report.routes.js"
+import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
+import { createConsumptionService } from "@/modules/consumption/consumption.routes.js"
+import { GoalAlertScheduler } from "@/modules/goal/GoalAlertScheduler.js"
+import { GoalConsumptionReader } from "@/modules/goal/goal-consumption.js"
+import { GoalRepository } from "@/modules/goal/goal.repository.js"
 import { ReportScheduleRepository } from "@/modules/report-schedule/report-schedule.repository.js"
 import { ReportScheduleRunner } from "@/modules/report-schedule/ReportScheduleRunner.js"
 import { ReportScheduleScheduler } from "@/modules/report-schedule/ReportScheduleScheduler.js"
@@ -105,12 +110,27 @@ const demandAlertScheduler = new DemandAlertScheduler(
     notificationStore,
 )
 
+// Alerta de meta: a cada 15 minutos avisa quando o consumo do mês ou do ano
+// alcança o percentual configurado da meta.
+const goalAlertScheduler = new GoalAlertScheduler(
+    new GoalRepository(prisma),
+    new GoalConsumptionReader(
+        meterRepository,
+        new ConsumptionRepository(prisma),
+        createConsumptionService(prisma),
+        new MeterDemandRollupRepository(prisma),
+    ),
+    userEventHub,
+    notificationStore,
+)
+
 // Registra o processor no manager ANTES de restaurar as conexões,
 // garantindo que nenhuma leitura seja perdida durante o boot.
 processor.start()
 scheduler.start()
 demandRollupScheduler.start()
 demandAlertScheduler.start()
+goalAlertScheduler.start()
 
 // Registra o AlertEvaluator como mais um listener de amostras processadas —
 // cada leitura elétrica recebida é avaliada contra os alertas habilitados
@@ -273,6 +293,7 @@ async function shutdown(signal: string): Promise<void> {
     scheduler.stop()
     demandRollupScheduler.stop()
     demandAlertScheduler.stop()
+    goalAlertScheduler.stop()
     retentionScheduler.stop()
     tariffFlagSyncScheduler.stop()
     reportScheduleScheduler.stop()

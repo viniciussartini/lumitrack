@@ -1,4 +1,4 @@
-import { FileText, Home, type LucideIcon } from "lucide-react"
+import { FileText, Home, Target, type LucideIcon } from "lucide-react"
 
 export interface SettingsNavItem {
     /** Caminho absoluto da sub-página (ex: "/configuracoes/cadastro") */
@@ -26,5 +26,10 @@ export const SETTINGS_NAV_ITEMS: readonly SettingsNavItem[] = [
         to: "/configuracoes/relatorios",
         label: "Relatórios",
         icon: FileText,
+    },
+    {
+        to: "/configuracoes/metas",
+        label: "Metas",
+        icon: Target,
     },
 ] as const

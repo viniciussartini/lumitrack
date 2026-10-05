@@ -6,6 +6,7 @@ import { render, screen, waitFor, within } from "@testing-library/react"
 import { AlertsPage } from "@/pages/alert/AlertsPage"
 import { alertService } from "@/services/alert.service"
 import { alertEventService } from "@/services/alert-event.service"
+import { goalService } from "@/services/goal.service"
 import { meterService } from "@/services/meter.service"
 import type { AlertWithStatus } from "@/types/alert.types"
 import type { Meter } from "@/types/meter.types"
@@ -26,6 +27,10 @@ vi.mock("@/services/alert.service", () => ({
 
 vi.mock("@/services/alert-event.service", () => ({
     alertEventService: { list: vi.fn() },
+}))
+
+vi.mock("@/services/goal.service", () => ({
+    goalService: { alerts: vi.fn() },
 }))
 
 vi.mock("@/services/meter.service", () => ({
@@ -96,6 +101,7 @@ beforeEach(() => {
     vi.mocked(alertService.stats).mockResolvedValue({ enabledCount: 0 })
     vi.mocked(alertEventService.list).mockResolvedValue(paginated([]))
     vi.mocked(meterService.list).mockResolvedValue(paginated([mockMeter]))
+    vi.mocked(goalService.alerts).mockResolvedValue([])
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -324,5 +330,39 @@ describe("AlertsPage — excluir", () => {
         await user.click(screen.getByRole("button", { name: /^excluir$/i }))
 
         await waitFor(() => expect(alertService.delete).toHaveBeenCalledWith(mockAlert.id))
+    })
+})
+
+describe("AlertsPage — alertas de meta", () => {
+    it("mostra a seção de alertas de meta junto dos alertas configurados", async () => {
+        vi.mocked(alertService.list).mockResolvedValue(paginated([]))
+        vi.mocked(goalService.alerts).mockResolvedValue([
+            {
+                goalId: "goal-1",
+                propertyId: "prop-1",
+                propertyName: "Casa",
+                year: 2026,
+                unit: "KWH",
+                alertPercent: 85,
+                monthly: { percent: 90, reached: true, notified: true },
+                annual: { percent: 40, reached: false, notified: false },
+            },
+        ])
+        renderPage()
+
+        const section = await screen.findByTestId("goal-alerts")
+        expect(within(section).getByText("Alertas de meta")).toBeInTheDocument()
+        expect(await screen.findByTestId("goal-alert-row-goal-1")).toHaveTextContent("Casa · 2026")
+    })
+
+    it("a falha do estado dos alertas de meta não derruba a página", async () => {
+        vi.mocked(alertService.list).mockResolvedValue(paginated([]))
+        vi.mocked(goalService.alerts).mockRejectedValue(new Error("falha"))
+        renderPage()
+
+        expect(
+            await screen.findByText("Não foi possível carregar os alertas de meta."),
+        ).toBeInTheDocument()
+        expect(screen.getByTestId("alerts-page-create-button")).toBeInTheDocument()
     })
 })

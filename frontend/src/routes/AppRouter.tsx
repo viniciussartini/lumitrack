@@ -97,6 +97,9 @@ const ReportSchedulesPage = lazy(() =>
         default: m.ReportSchedulesPage,
     })),
 )
+const GoalsPage = lazy(() =>
+    import("@/pages/settings/GoalsPage").then((m) => ({ default: m.GoalsPage })),
+)
 const RegistrationPage = lazy(() =>
     import("@/pages/settings/RegistrationPage").then((m) => ({ default: m.RegistrationPage })),
 )
@@ -159,6 +162,7 @@ const SETTINGS_ROUTES = (
         <Route index element={<Navigate to="cadastro" replace />} />
         <Route path="cadastro" element={<RegistrationPage />} />
         <Route path="relatorios" element={<ReportSchedulesPage />} />
+        <Route path="metas" element={<GoalsPage />} />
     </Route>
 )
 

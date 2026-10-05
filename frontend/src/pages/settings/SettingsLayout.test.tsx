@@ -10,6 +10,7 @@ const renderAt = (pathname: string) =>
                 <Route path="/configuracoes" element={<SettingsLayout />}>
                     <Route path="cadastro" element={<p>conteúdo do cadastro</p>} />
                     <Route path="relatorios" element={<p>conteúdo dos relatórios</p>} />
+                    <Route path="metas" element={<p>conteúdo das metas</p>} />
                 </Route>
             </Routes>
         </MemoryRouter>,
@@ -48,5 +49,14 @@ describe("SettingsLayout", () => {
         expect(link).toHaveAttribute("href", "/configuracoes/relatorios")
         expect(link).toHaveAttribute("aria-current", "page")
         expect(screen.getByRole("link", { name: "Cadastro" })).not.toHaveAttribute("aria-current")
+    })
+
+    it("lista Metas e a marca como aberta em /configuracoes/metas", () => {
+        renderAt("/configuracoes/metas")
+
+        const link = screen.getByRole("link", { name: "Metas" })
+        expect(link).toHaveAttribute("href", "/configuracoes/metas")
+        expect(link).toHaveAttribute("aria-current", "page")
+        expect(screen.getByText("conteúdo das metas")).toBeInTheDocument()
     })
 })

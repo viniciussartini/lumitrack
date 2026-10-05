@@ -78,13 +78,13 @@
 - RF15 `[implementado]`: o sistema deve avaliar cada amostra recebida contra os alertas habilitados do medidor e abrir/fechar episódios de disparo conforme a histerese de RN32.
 - RF16 `[implementado]`: o sistema deve persistir cada episódio de disparo encerrado (início, fim, duração, potência mín./máx./média, nº de amostras) e notificar o usuário.
 - RF23 `[implementado]`: o sistema deve permitir que um usuário consulte suas notificações e as remova, individualmente ou todas de uma vez.
-- RF43 `[planejado — Fase 28]`: o sistema deve permitir configurar alerta de meta, disparado ao atingir um percentual definido da meta, visível junto dos demais alertas.
+- RF43 `[implementado]`: o sistema deve permitir configurar alerta de meta, disparado ao atingir um percentual definido da meta, visível junto dos demais alertas. O percentual é da meta e vale para o mês corrente (contra a meta do mês) e para o acumulado do ano (contra a meta anual); cada período avisa no máximo uma vez, pelo sino de notificações, e a página de Alertas mostra o estado de cada meta. Avaliador em `modules/goal/GoalAlertScheduler.ts`, estado em `goal-alert.service.ts`.
 
 ### Relatórios e metas
 
 - RF40 `[implementado]`: o sistema deve permitir emitir um relatório sob demanda escolhendo escopo (propriedade, área, dispositivo), tipo (mensal, consumo, alertas, qualidade de energia, demanda), período e formato (PDF ou CSV), registrando-o no histórico.
 - RF41 `[implementado]`: o sistema deve permitir agendar relatórios automáticos (periodicidade, dia de envio, destinatários), listar os envios agendados e gerenciar as configurações criadas.
-- RF42 `[planejado — Fase 28]`: o sistema deve permitir que um usuário cadastre metas anuais de consumo (kWh) e custo (R$) — e de demanda, no Grupo A — com meta mês a mês, ano de referência e acompanhamento de realizado, desvio e situação.
+- RF42 `[implementado]`: o sistema deve permitir que um usuário cadastre, por propriedade, metas anuais de consumo (kWh) e custo (R$) — e de demanda (kW), no Grupo A — com meta mês a mês, ano de referência e acompanhamento de realizado, desvio e situação. Cadastro, edição e exclusão das metas, em kWh, em R$ e em kW, estão em `modules/goal`; o acompanhamento (realizado, desvio e situação) em `goal-progress.ts` e `goal-progress.service.ts`.
 
 ### Dados pessoais e administração
 
@@ -255,7 +255,7 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
 
 - RN35 `[implementado]`: relatório gerado é **imutável** — para obter informação diferente, gera-se outro. Todos seguem template padronizado com a identidade visual do projeto.
 - RN36 `[implementado]`: no agendamento, o dia de envio aceita 1 a 31, mas meses mais curtos não têm todos eles — quando o dia escolhido não existe no mês (fevereiro, meses de 30 dias, ano bissexto), o envio ocorre no **último dia do mês**.
-- RN37 `[planejado — Fase 28]`: só a meta do ano vigente pode ser editada. Metas de anos anteriores são imutáveis, não podem ser excluídas e podem ser usadas como base de referência para uma meta nova.
+- RN37 `[implementado]`: a meta do ano vigente e as de anos futuros podem ser editadas e excluídas. Metas de anos anteriores são imutáveis, não podem ser excluídas e podem ser usadas como base de referência para uma meta nova. O ano conta em horário de São Paulo e a regra é imposta no servidor (`goal.service.ts`); criar meta de ano passado é rejeitado, e a edição não muda o ano nem a propriedade da meta.
 
 ## 2.4 Funcionamento
 
@@ -329,7 +329,7 @@ Gestão e agendamento de relatórios em PDF e CSV, com template padronizado (ref
 
 **Hoje:** `/relatorios` (`pages/report/ReportsPage.tsx`) reúne a emissão (`ReportEmissionForm`), os envios previstos para os próximos 15 dias (`ReportUpcoming`) e o histórico (`ReportHistory`); a gestão do agendamento fica em `/configuracoes/relatorios` (`ReportSchedulesPage`). Backend: `modules/report` (emissão, histórico, download, exclusão, geradores de PDF e CSV) e `modules/report-schedule` (CRUD e `ReportScheduleRunner`, que gera o relatório do período e o envia por e-mail como anexo). Os tipos alertas, qualidade de energia e demanda emitem um relatório de resumo e tabelas (`modules/report/documents/`); a demanda é apurada por mês e exige propriedade do Grupo A, e os cinco tipos podem ser agendados (mensal e demanda só com frequência mensal).
 
-**FNC008 — Configurações** `[implementado (estrutura, Cadastro e Relatórios); planejado — Fase 28 (sub-página Metas)]`
+**FNC008 — Configurações** `[implementado (estrutura, Cadastro, Relatórios e Metas)]`
 
 Menu à esquerda com as configurações disponíveis e, à direita, a página da configuração selecionada.
 
@@ -352,12 +352,14 @@ O medidor envia ao sistema: tensão (por fase, fase-neutro média, desequilíbri
 
 O sistema opera com qualquer medidor, inclusive os que não medem todas as grandezas — a ausência é exibida conforme RN34. *(ADR-0022, verificada contra o datasheet do CCK 7200D: todas as grandezas são medidas nativamente e persistidas como tal, exceto desequilíbrio de tensão — calculado no pipeline a partir das três tensões de fase medidas — e corrente de neutro, que o medidor-alvo não mede nem permite derivar com confiança e por isso fica sempre "-".)*
 
-**FNC011 — Metas** `[planejado — Fase 28]`
+**FNC011 — Metas** `[implementado]`
 
 1. O usuário cadastra metas de consumo (kWh) e custo (R$); propriedades do Grupo A têm também meta de demanda.
 2. A tela mostra: card "Metas de consumo anual" com a meta vigente e botão de nova meta; seção com gráfico de barras de meta versus realizado, acompanhada dos cards Meta do ano, Realizado até o mês corrente, Desvio acumulado em % e Consumo específico alvo em kWh; e o histórico de metas em tabela (ano, meta, realizado, desvio, base de referência e situação).
-3. O histórico oferece as ações: usar como referência, editar (só a meta vigente) e excluir — conforme RN37.
+3. O histórico oferece as ações: usar como referência, editar e excluir (ano vigente e futuros) — conforme RN37.
 4. O formulário de nova meta pede: ano da meta, ano de referência, consumo específico alvo em kWh, meta mês a mês em kWh e o percentual de alerta ao atingir (RF43).
+
+**Hoje:** `/configuracoes/metas` (`pages/settings/GoalsPage.tsx`) mostra, para a propriedade escolhida (a mesma seleção do Painel, ou a propriedade do aviso quando se chega pelo link dele, até o usuário escolher outra), o card da meta do ano corrente, o bloco "{ano} · meta vs. realizado" (gráfico de barras por mês e os cards Meta do ano, Realizado até o mês corrente, Desvio acumulado e a meta do mês) e o histórico (ano, meta, realizado, desvio, base de referência e situação), com criar, editar e excluir; backend em `modules/goal` (`/api/goals`, e `/api/goals/progress` para o acompanhamento). A meta é de uma propriedade, única por ano e unidade; a meta do ano é a soma dos 12 meses em kWh e em R$ e, em kW, a maior meta mensal; e o consumo específico alvo do formulário é só um atalho que repete o valor nos 12 campos, sem ser guardado. O ano da meta não muda na edição. O realizado vem da agregação mensal de leituras do medidor da propriedade; mês sem leitura aparece como "-", nunca como zero, e fica fora do desvio e da meta comparada. O desvio acumulado compara o realizado com a meta dos mesmos meses, com o mês corrente proporcional aos dias decorridos (o design comparava o consumo parcial com a meta cheia do mês). A situação é "Em andamento" no ano corrente e nos futuros; num ano passado, "Cumprida" se o realizado não passa da meta, "Não cumprida" se passa, e "-" se o ano não teve nenhuma leitura. Nas metas de anos passados, a ação "usar como referência" abre o formulário de nova meta já preenchido: o ano seguinte ao corrente (o primeiro ainda sem meta), o ano escolhido como referência e cada mês com o realizado daquele ano, arredondado a kWh inteiro — mês sem leitura fica vazio, nunca zero, e o consumo específico é a média dos meses com leitura. O alerta de meta (RF43) avisa quando o consumo do mês alcança o percentual da meta do mês, ou o acumulado do ano o da meta anual: o avaliador roda a cada 15 minutos, considera só as metas do ano corrente e grava, na própria meta, o último mês e o aviso anual já dados — editar a meta zera essas marcas. O aviso chega ao sino de notificações com link para Configurações → Metas; a página de Alertas ganhou o bloco "Alertas de meta", com o percentual atingido no mês e no ano e a situação de cada período (notificado, atingido ou dentro da meta). Cada meta é de uma **unidade** — consumo em kWh, custo em R$ ou, no Grupo A, demanda em kW —, e uma propriedade pode ter uma de cada no mesmo ano; a página tem o seletor de unidade (kWh | R$, e kW no Grupo A) e card, acompanhamento, histórico, formulário e referência valem para a unidade escolhida (valores em reais aparecem inteiros). O realizado em R$ vem do custo mensal que o cálculo de consumo já faz (grupo tarifário, bandeira, ACL, Tarifa Branca), sem recalcular tarifa; como esse custo já traz desde o dia 1 as cobranças fixas (iluminação pública, piso de disponibilidade, demanda contratada), o mês corrente em R$ conta contra a meta cheia do mês — e não proporcional aos dias, como em kWh —, no desvio e no alerta, e o custo fixo já incorrido conta para atingir o percentual; onde o custo não é calculável (sem medidor, Grupo A em modalidade sem apuração) o mês fica ausente ("-"), como no relatório mensal. O alerta avalia cada meta na sua unidade, com mensagens de consumo ou de custo. A **meta de demanda** (kW) existe só para propriedade do Grupo A — o servidor recusa as demais — e aparece como terceira aba do seletor de unidade. A demanda é um pico, e não um total que se soma: a meta de cada mês é um teto de kW; o realizado do mês é a demanda medida (maior potência média de 15 minutos entre os postos, lida do rollup de demanda), e mês sem janela medida fica ausente ("-"), nunca 0 kW. No ano, a "meta" é a maior meta mensal, o "realizado" é a maior demanda medida e o desvio é o do pior mês (sem proporcional ao mês corrente, já que o pico até agora é um piso do pico do mês); no ano passado, a meta é cumprida se nenhum mês passou do teto. O alerta é só mensal (pico do mês contra o teto do mês): pico não acumula, então não há aviso anual. É independente do alerta de ultrapassagem de demanda contratada (RF28), que segue como está.
 
 **FNC012 — Sessões ativas** `[planejado — Fase 30]`
 
@@ -365,7 +367,7 @@ O sistema opera com qualquer medidor, inclusive os que não medem todas as grand
 2. Pode encerrar qualquer sessão individualmente, ou todas as outras de uma vez.
 3. Em modo de demonstração, a listagem é apenas representativa.
 
-**FNC013 — Alertas (ampliação)** `[planejado — Fase 20 (item 1); Fase 28 (item 2)]`
+**FNC013 — Alertas (ampliação)** `[implementado]`
 
-1. Para verificação de ultrapassagem de demanda contratada, a demanda atual considerada é o agregado de 15 minutos (RN19) — `[planejado — Fase 20]`.
-2. O usuário pode configurar alerta de meta, que aparece na página de alertas junto dos demais — `[planejado — Fase 28]`.
+1. Para verificação de ultrapassagem de demanda contratada, a demanda atual considerada é o agregado de 15 minutos (RN19) — `[implementado]` (`DemandAlertScheduler`, sobre `MeterDemandRollup`).
+2. O usuário pode configurar alerta de meta, que aparece na página de alertas junto dos demais — `[implementado]` (bloco "Alertas de meta" em `GoalAlertsSection`).
