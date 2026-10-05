@@ -11,7 +11,10 @@ import {
     listGoalsQuerySchema,
     updateGoalBodySchema,
 } from "@/modules/goal/goal.schema.js"
-import type { PropertyRepository } from "@/modules/property/property.repository.js"
+import type {
+    PropertyRepository,
+    PropertyResponse,
+} from "@/modules/property/property.repository.js"
 import { ConflictError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import type { Paginated } from "@/shared/pagination.js"
 import { toSaoPauloLocal } from "@/shared/time/localTime.js"
@@ -46,12 +49,16 @@ export class GoalService {
      * @param body - Corpo bruto, validado aqui.
      * @returns A meta criada.
      * @throws {NotFoundError} Propriedade inexistente ou de outro usuário — indistinguíveis de propósito.
-     * @throws {ValidationError} Ano anterior ao corrente.
-     * @throws {ConflictError} A propriedade já tem meta nesse ano.
+     * @throws {ValidationError} Ano anterior ao corrente, ou meta de demanda em propriedade que não é do Grupo A.
+     * @throws {ConflictError} A propriedade já tem meta nesse ano e unidade.
      */
     async create(userId: string, body: unknown): Promise<GoalResponse> {
         const data = parseOrThrow(createGoalBodySchema, body)
-        await this.assertOwnsProperty(userId, data.propertyId)
+        const property = await this.requireOwnedProperty(userId, data.propertyId)
+
+        if (data.unit === "KW" && property.tariffGroup !== "GROUP_A") {
+            throw new ValidationError("A meta de demanda só se aplica a uma propriedade do Grupo A")
+        }
 
         if (data.year < this.currentYear()) {
             throw new ValidationError("Não é possível criar meta para um ano que já passou")
@@ -122,9 +129,13 @@ export class GoalService {
         if (!deleted) throw new NotFoundError("Meta não encontrada")
     }
 
-    private async assertOwnsProperty(userId: string, propertyId: string): Promise<void> {
+    private async requireOwnedProperty(
+        userId: string,
+        propertyId: string,
+    ): Promise<PropertyResponse> {
         const property = await this.propertyRepository.findById(propertyId)
         if (property?.userId !== userId) throw new NotFoundError("Propriedade não encontrada")
+        return property
     }
 
     private async getEditableGoal(id: string, userId: string): Promise<GoalRecord> {

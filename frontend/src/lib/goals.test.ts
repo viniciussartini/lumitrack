@@ -6,6 +6,7 @@ import {
     currentGoalMonthIndex,
     currentGoalYear,
     describeCurrentGoal,
+    availableGoalUnits,
     formatGoalValue,
     goalUnitLabels,
     describeSituation,
@@ -372,5 +373,83 @@ describe("unidade da meta", () => {
 
         expect(state.months[0]).toBe("311")
         expect(state.specificValue).toBe("311")
+    })
+})
+
+describe("unidade de demanda (kW)", () => {
+    it("formata a demanda em kW, em números inteiros", () => {
+        expect(formatGoalValue(180, "KW")).toBe("180 kW")
+        expect(formatGoalValue(1234.6, "KW")).toBe("1.235 kW")
+    })
+
+    it("a meta do ano de uma meta de demanda é a maior meta mensal, não a soma", () => {
+        const monthlyTargets = Array.from({ length: 12 }, (_, i) => (i === 3 ? 220 : 180))
+
+        expect(goalYearlyTotal(goal({ unit: "KW", monthlyTargets }))).toBe(220)
+        expect(goalYearlyTotal(goal({ unit: "KWH", monthlyTargets }))).toBe(2200)
+    })
+
+    it("tem rótulos de demanda, com os cards de pico", () => {
+        const labels = goalUnitLabels("KW")
+
+        expect(labels).toMatchObject({
+            selector: "Demanda (kW)",
+            cardTitle: "Metas de demanda mensal",
+            specific: "Demanda mensal alvo · kW",
+            months: "Meta mês a mês · kW",
+            monthStat: "Demanda alvo · meta do mês",
+            newTitle: "Nova meta de demanda",
+            editTitle: "Editar meta de demanda",
+            deviationStat: "Pior mês",
+        })
+        expect(labels.yearStat(2026)).toBe("Maior meta de 2026")
+        expect(labels.realizedStat("junho")).toBe("Maior demanda até junho")
+        expect(labels.empty(2026)).toBe("Nenhuma meta de demanda cadastrada para 2026.")
+    })
+
+    it("consumo e custo mantêm os rótulos de total acumulado", () => {
+        for (const unit of ["KWH", "BRL"] as const) {
+            const labels = goalUnitLabels(unit)
+            expect(labels.yearStat(2026)).toBe("Meta de 2026")
+            expect(labels.realizedStat("junho")).toBe("Realizado até junho")
+            expect(labels.deviationStat).toBe("Desvio acumulado")
+        }
+    })
+
+    it("a meta de demanda só é oferecida a propriedade do Grupo A", () => {
+        expect(availableGoalUnits("GROUP_A")).toEqual(["KWH", "BRL", "KW"])
+        expect(availableGoalUnits("GROUP_B")).toEqual(["KWH", "BRL"])
+        expect(availableGoalUnits(undefined)).toEqual(["KWH", "BRL"])
+    })
+
+    it("a frase da meta vigente de demanda fala em teto e em kW", () => {
+        const monthlyTargets = Array.from({ length: 12 }, () => 180)
+        const text = describeCurrentGoal(goal({ unit: "KW", monthlyTargets }), 2)
+
+        expect(text).toContain("Teto de 180 kW para 2026")
+        expect(text).toContain("meta do mês 180 kW")
+    })
+
+    it("usar como referência traz o pico realizado de cada mês, arredondado", () => {
+        const progress: GoalProgress = {
+            goalId: "g1",
+            year: 2025,
+            unit: "KW",
+            months: Array.from({ length: 12 }, (_, i) => ({
+                month: i + 1,
+                target: 180,
+                realized: i === 0 ? 170.4 : null,
+            })),
+            yearTarget: 180,
+            realized: 170.4,
+            deviationPercent: null,
+            currentMonthTarget: null,
+            situation: "MET",
+        }
+
+        const state = referenceGoalForm(goal({ year: 2025, unit: "KW" }), progress, 2026, [])
+
+        expect(state.months[0]).toBe("170")
+        expect(state.months[1]).toBe("")
     })
 })

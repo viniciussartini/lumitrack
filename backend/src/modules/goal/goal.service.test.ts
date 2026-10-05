@@ -214,6 +214,76 @@ describe("GoalService — unidade", () => {
     })
 })
 
+describe("GoalService — meta de demanda (kW)", () => {
+    const makeGroupA = (id: string) =>
+        prismaTest.property.update({ where: { id }, data: { tariffGroup: "GROUP_A" } })
+
+    it("aceita a meta de demanda em propriedade do Grupo A", async () => {
+        await makeGroupA(propertyId)
+
+        const goal = await buildService().create(ownerId, body(propertyId, { unit: "KW" }))
+
+        expect(goal.unit).toBe("KW")
+    })
+
+    it("recusa a meta de demanda em propriedade do Grupo B e não grava nada", async () => {
+        await expect(
+            buildService().create(ownerId, body(propertyId, { unit: "KW" })),
+        ).rejects.toThrow(ValidationError)
+        expect(await prismaTest.goal.count()).toBe(0)
+    })
+
+    it("as metas de kWh e de R$ continuam livres em propriedade do Grupo B", async () => {
+        const service = buildService()
+
+        await expect(
+            service.create(ownerId, body(propertyId, { unit: "KWH" })),
+        ).resolves.toMatchObject({ unit: "KWH" })
+        await expect(
+            service.create(ownerId, body(propertyId, { unit: "BRL" })),
+        ).resolves.toMatchObject({ unit: "BRL" })
+    })
+
+    it("convive com as de consumo e de custo do mesmo ano", async () => {
+        await makeGroupA(propertyId)
+        const service = buildService()
+
+        await service.create(ownerId, body(propertyId, { unit: "KWH" }))
+        await service.create(ownerId, body(propertyId, { unit: "BRL" }))
+        await service.create(ownerId, body(propertyId, { unit: "KW" }))
+
+        expect(await prismaTest.goal.count()).toBe(3)
+    })
+
+    it("duas metas de demanda no mesmo ano dão conflito", async () => {
+        await makeGroupA(propertyId)
+        const service = buildService()
+        await service.create(ownerId, body(propertyId, { unit: "KW" }))
+
+        await expect(service.create(ownerId, body(propertyId, { unit: "KW" }))).rejects.toThrow(
+            ConflictError,
+        )
+    })
+
+    it("a meta já criada segue editável se a propriedade deixar de ser do Grupo A", async () => {
+        await makeGroupA(propertyId)
+        const service = buildService()
+        const goal = await service.create(ownerId, body(propertyId, { unit: "KW" }))
+        await prismaTest.property.update({
+            where: { id: propertyId },
+            data: { tariffGroup: "GROUP_B" },
+        })
+
+        await expect(
+            service.update(
+                ownerId,
+                { id: goal.id },
+                { referenceYear: 2024, monthlyTargets: months(150), alertPercent: 90 },
+            ),
+        ).resolves.toMatchObject({ unit: "KW", alertPercent: 90 })
+    })
+})
+
 describe("GoalService.list", () => {
     it("lista do ano mais recente para o mais antigo, só da propriedade pedida", async () => {
         const service = buildService()

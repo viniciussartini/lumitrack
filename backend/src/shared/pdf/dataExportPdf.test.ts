@@ -237,6 +237,14 @@ describe("describeExportedGoal", () => {
         )
     })
 
+    it("a meta de demanda sai pela maior meta mensal, não pela soma", () => {
+        const monthlyTargets = Array.from({ length: 12 }, (_, i) => (i === 3 ? 220 : 180))
+
+        expect(describeExportedGoal(goal({ unit: "KW", monthlyTargets }), "Casa")).toBe(
+            "• Casa — 2026 — meta até 220 kW — referência 2025 — alerta ao atingir 85%",
+        )
+    })
+
     it("sem o nome da propriedade, a linha começa pelo ano", () => {
         expect(describeExportedGoal(goal())).toMatch(/^• 2026 — meta de/)
     })

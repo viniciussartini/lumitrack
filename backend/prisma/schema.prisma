@@ -1066,10 +1066,12 @@ model ReportSchedule {
 // propriedade, ano e unidade; a meta do ano é a soma dos 12 valores mensais. Metas de ano passado são imutáveis
 // (regra no serviço, não no banco): o histórico serve de base de referência
 // para metas novas.
-// Unidade em que uma meta é medida: consumo em kWh ou custo em reais.
+// Unidade em que uma meta é medida: consumo em kWh, custo em reais ou demanda
+// em kW (teto mensal de pico, só Grupo A).
 enum GoalUnit {
   KWH
   BRL
+  KW
 
   @@map("goal_unit")
 }

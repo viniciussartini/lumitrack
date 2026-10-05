@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest"
+import type { GoalUnit } from "@/generated/prisma/client.js"
 import { computeGoalAlertState } from "@/modules/goal/goal-alert.js"
 import { computeGoalProgress } from "@/modules/goal/goal-progress.js"
 
@@ -9,15 +10,26 @@ const MID_JUNE_2026 = new Date("2026-06-15T15:00:00.000Z")
 
 const stateFor = (
     realized: (number | null)[],
-    options: { year?: number; monthlyTargets?: number[]; alertPercent?: number } = {},
+    options: {
+        year?: number
+        monthlyTargets?: number[]
+        alertPercent?: number
+        unit?: GoalUnit
+    } = {},
 ) => {
     const progress = computeGoalProgress({
+        unit: options.unit ?? "KWH",
         year: options.year ?? 2026,
         monthlyTargets: options.monthlyTargets ?? twelve(() => 400),
         realizedByMonth: twelve((i) => realized[i] ?? null),
         now: MID_JUNE_2026,
     })
-    return computeGoalAlertState(progress, options.alertPercent ?? 85, MID_JUNE_2026)
+    return computeGoalAlertState(
+        progress,
+        options.alertPercent ?? 85,
+        MID_JUNE_2026,
+        options.unit ?? "KWH",
+    )
 }
 
 describe("computeGoalAlertState — mês", () => {
@@ -126,5 +138,41 @@ describe("computeGoalAlertState — outros anos", () => {
 
         expect(state.month).toEqual({ percent: null, reached: false })
         expect(state.year).toEqual({ percent: null, reached: false })
+    })
+})
+
+describe("computeGoalAlertState — demanda em kW", () => {
+    it("o mês compara o pico do mês com o teto do mês", () => {
+        const state = stateFor([null, null, null, null, null, 162], {
+            unit: "KW",
+            monthlyTargets: twelve(() => 180),
+        })
+
+        expect(state.month.percent).toBeCloseTo(90)
+        expect(state.month.reached).toBe(true)
+    })
+
+    it("pico abaixo do percentual não dispara", () => {
+        const state = stateFor([null, null, null, null, null, 100], {
+            unit: "KW",
+            monthlyTargets: twelve(() => 180),
+        })
+
+        expect(state.month.reached).toBe(false)
+    })
+
+    it("não há aviso anual: pico não acumula, mesmo com picos altos o ano todo", () => {
+        const state = stateFor(
+            twelve(() => 500),
+            { unit: "KW", monthlyTargets: twelve(() => 180) },
+        )
+
+        expect(state.year).toEqual({ percent: null, reached: false })
+    })
+
+    it("mês sem janela medida não tem percentual", () => {
+        const state = stateFor([180], { unit: "KW", monthlyTargets: twelve(() => 180) })
+
+        expect(state.month).toEqual({ percent: null, reached: false })
     })
 })

@@ -290,6 +290,17 @@ function drawReportSchedulesSection(doc: PDFKit.PDFDocument, payload: DataExport
     }
 }
 
+// kWh e R$ somam o ano; a demanda é um teto mensal de pico, então o ano é a maior meta.
+function describeYearlyTarget(goal: GoalPublicRecord): string {
+    if (goal.unit === "KW") {
+        const peak = Math.round(Math.max(0, ...goal.monthlyTargets))
+        return `meta até ${peak.toLocaleString("pt-BR")} kW`
+    }
+    const total = Math.round(goal.monthlyTargets.reduce((sum, value) => sum + value, 0))
+    const formatted = total.toLocaleString("pt-BR")
+    return goal.unit === "BRL" ? `meta de R$ ${formatted}` : `meta de ${formatted} kWh`
+}
+
 /**
  * Linha de uma meta no PDF do titular: propriedade, ano, a meta do ano na
  * unidade dela (kWh ou reais), a referência e o percentual de alerta.
@@ -299,12 +310,10 @@ function drawReportSchedulesSection(doc: PDFKit.PDFDocument, payload: DataExport
  * @returns O texto da linha.
  */
 export function describeExportedGoal(goal: GoalPublicRecord, propertyName?: string): string {
-    const yearlyTarget = Math.round(goal.monthlyTargets.reduce((sum, value) => sum + value, 0))
-    const formatted = yearlyTarget.toLocaleString("pt-BR")
-    const target = goal.unit === "BRL" ? `R$ ${formatted}` : `${formatted} kWh`
+    const target = describeYearlyTarget(goal)
     return (
         `• ${propertyName ? `${propertyName} — ` : ""}${goal.year} — ` +
-        `meta de ${target} — ` +
+        `${target} — ` +
         `referência ${goal.referenceYear} — alerta ao atingir ${goal.alertPercent}%`
     )
 }

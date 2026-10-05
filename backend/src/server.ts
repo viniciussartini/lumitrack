@@ -118,6 +118,7 @@ const goalAlertScheduler = new GoalAlertScheduler(
         meterRepository,
         new ConsumptionRepository(prisma),
         createConsumptionService(prisma),
+        new MeterDemandRollupRepository(prisma),
     ),
     userEventHub,
     notificationStore,

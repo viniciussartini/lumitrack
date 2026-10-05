@@ -1,6 +1,7 @@
 import type { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
 import type { ConsumptionService } from "@/modules/consumption/consumption.service.js"
 import type { GoalUnit } from "@/generated/prisma/client.js"
+import type { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
 import type { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import { fromSaoPauloLocal, toSaoPauloLocal } from "@/shared/time/localTime.js"
@@ -27,20 +28,23 @@ const EMPTY = (): MonthlyValues => new MonthlyValues(new Map())
 
 /**
  * O realizado mensal de uma propriedade na unidade da meta: consumo em kWh,
- * direto da agregação de leituras, ou custo em reais, do cálculo que o
+ * direto da agregação de leituras; custo em reais, do cálculo que o
  * `ConsumptionService` já faz por mês (grupo tarifário, bandeira, ACL, Tarifa
- * Branca) — sem recalcular tarifa aqui.
+ * Branca), sem recalcular tarifa aqui; ou demanda em kW, do rollup de demanda
+ * medida.
  */
 export class GoalConsumptionReader {
     /**
      * @param meterRepository - Acha o medidor da propriedade (consumo em kWh).
      * @param consumptionRepository - Agregação mensal de leituras (consumo em kWh).
      * @param costSource - Custo mensal já calculado (R$).
+     * @param demandRollups - Demanda medida por mês e posto (kW).
      */
     constructor(
         private readonly meterRepository: MeterRepository,
         private readonly consumptionRepository: ConsumptionRepository,
         private readonly costSource: Pick<ConsumptionService, "list">,
+        private readonly demandRollups: Pick<MeterDemandRollupRepository, "findByMeterAndPeriods">,
     ) {}
 
     /**
@@ -60,9 +64,9 @@ export class GoalConsumptionReader {
         unit: GoalUnit,
         now: Date,
     ): Promise<MonthlyValues> {
-        return unit === "BRL"
-            ? this.monthlyCost(userId, propertyId, firstYear, now)
-            : this.monthlyKwh(propertyId, firstYear, now)
+        if (unit === "BRL") return this.monthlyCost(userId, propertyId, firstYear, now)
+        if (unit === "KW") return this.monthlyDemand(propertyId, firstYear, now)
+        return this.monthlyKwh(propertyId, firstYear, now)
     }
 
     private async monthlyKwh(
@@ -95,6 +99,39 @@ export class GoalConsumptionReader {
                 ]),
             ),
         )
+    }
+
+    // A demanda medida do mês é a maior potência média de 15 minutos entre os
+    // postos, vinda do rollup incremental — nunca de uma varredura das leituras.
+    // Mês sem janela medida não tem linha, e fica ausente em vez de virar 0 kW.
+    private async monthlyDemand(
+        propertyId: string,
+        firstYear: number,
+        now: Date,
+    ): Promise<MonthlyValues> {
+        const meter = await this.meterRepository.findByTarget("PROPERTY", propertyId)
+        if (!meter) return EMPTY()
+
+        const local = toSaoPauloLocal(now)
+        const currentYear = local.getUTCFullYear()
+        if (firstYear > currentYear) return EMPTY()
+
+        const periodStarts: Date[] = []
+        for (let year = firstYear; year <= currentYear; year++) {
+            const lastMonth = year === currentYear ? local.getUTCMonth() : 11
+            for (let month = 0; month <= lastMonth; month++) {
+                periodStarts.push(fromSaoPauloLocal(new Date(Date.UTC(year, month, 1))))
+            }
+        }
+
+        const rows = await this.demandRollups.findByMeterAndPeriods(meter.id, periodStarts)
+        const peakByMonth = new Map<string, number>()
+        for (const row of rows) {
+            const periodLocal = toSaoPauloLocal(row.periodStart)
+            const key = `${periodLocal.getUTCFullYear()}-${periodLocal.getUTCMonth()}`
+            peakByMonth.set(key, Math.max(peakByMonth.get(key) ?? 0, row.maxAvgPowerW / 1000))
+        }
+        return new MonthlyValues(peakByMonth)
     }
 
     // Um pedido por ano, em paralelo. No ano corrente a janela termina no fim do

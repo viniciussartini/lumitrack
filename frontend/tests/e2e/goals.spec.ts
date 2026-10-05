@@ -6,6 +6,7 @@ import { hideDevTools } from "./support/devtools"
 import { PROP_1 } from "./support/fixtures"
 import { mockPropertyTree } from "./support/propertyTree"
 import type { Goal, GoalProgress } from "../../src/types/goal.types"
+import type { Property } from "../../src/types/property.types"
 
 /**
  * E2E de Configurações → Metas: criar, listar, editar e excluir metas anuais
@@ -61,6 +62,7 @@ const setupApp = async (
     page: Page,
     onWrite?: (body: unknown) => void,
     initialGoals: Goal[] = [],
+    properties: Property[] = [PROP_1],
 ) => {
     await page.clock.install({ time: new Date(CLOCK_TIME) })
     await mockAppShellBackground(page)
@@ -70,7 +72,7 @@ const setupApp = async (
     // a mesma lista de propriedades alimenta a página de Metas.
     await page.route(/\/api\/distributors(\?.*)?$/, (route) => fulfillPaginated(route, []))
     await page.route(/\/api\/properties(\?.*)?$/, (route) =>
-        route.request().method() === "GET" ? fulfillPaginated(route, [PROP_1]) : route.fallback(),
+        route.request().method() === "GET" ? fulfillPaginated(route, properties) : route.fallback(),
     )
 
     let goals: Goal[] = [...initialGoals]
@@ -268,5 +270,43 @@ test.describe("Configurações → Metas", () => {
 
         await page.getByRole("tab", { name: "Consumo (kWh)" }).click()
         await expect(page.getByTestId("goal-history-empty")).toBeVisible()
+    })
+
+    test("a meta de demanda (kW) só aparece para propriedade do Grupo A", async ({ page }) => {
+        await setupApp(page)
+        await page.goto("/configuracoes/metas")
+        await hideDevTools(page)
+
+        await expect(page.getByRole("tab", { name: "Custo (R$)" })).toBeVisible()
+        await expect(page.getByRole("tab", { name: "Demanda (kW)" })).toHaveCount(0)
+    })
+
+    test("cria a meta de demanda (kW) de uma propriedade do Grupo A", async ({ page }) => {
+        const writes: unknown[] = []
+        const groupA: Property = { ...PROP_1, tariffGroup: "GROUP_A" }
+        await setupApp(page, (body) => writes.push(body), [], [groupA])
+        await page.goto("/configuracoes/metas")
+        await hideDevTools(page)
+
+        await page.getByRole("tab", { name: "Demanda (kW)" }).click()
+        await expect(page.getByTestId("goal-summary")).toContainText("Metas de demanda mensal")
+
+        await page.getByRole("button", { name: "Nova meta" }).click()
+        const dialog = page.getByRole("dialog", { name: "Nova meta de demanda" })
+        await dialog.getByLabel("Demanda mensal alvo · kW").fill("180")
+        await dialog.getByRole("button", { name: "Salvar meta" }).click()
+
+        await expect(dialog).toHaveCount(0)
+        expect(writes[0]).toEqual({
+            propertyId: PROP_1.id,
+            year: 2026,
+            unit: "KW",
+            referenceYear: 2025,
+            monthlyTargets: monthly(180),
+            alertPercent: 85,
+        })
+        // A demanda é um pico: a meta do ano é a maior meta mensal, não a soma.
+        await expect(page.getByTestId("goal-summary")).toContainText("Teto de 180 kW para 2026")
+        await expect(page.getByTestId("goal-row-2026")).toContainText("180 kW")
     })
 })

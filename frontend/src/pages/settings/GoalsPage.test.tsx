@@ -33,7 +33,11 @@ vi.mock("@/services/api", () => ({
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
-const property = (id: string, name: string): Property => ({
+const property = (
+    id: string,
+    name: string,
+    tariffGroup: Property["tariffGroup"] = "GROUP_B",
+): Property => ({
     id,
     userId: "user-1",
     distributorId: "dist-1",
@@ -46,7 +50,7 @@ const property = (id: string, name: string): Property => ({
     billingClass: "B1",
     groupBModality: "CONVENTIONAL",
     receivesBillingDiscount: false,
-    tariffGroup: "GROUP_B",
+    tariffGroup,
     contractingEnvironment: "ACR",
     tariffSubgroup: null,
     tariffModality: null,
@@ -682,5 +686,122 @@ describe("GoalsPage — metas de custo (R$)", () => {
         const dialog = await screen.findByRole("dialog", { name: /editar meta de custo/i })
         expect(within(dialog).getByLabelText("Custo mensal alvo · R$")).toBeInTheDocument()
         expect(within(dialog).getByLabelText("Ano da meta")).toBeDisabled()
+    })
+})
+
+describe("GoalsPage — metas de demanda (kW)", () => {
+    const kw = (year: number, override: Partial<Goal> = {}) =>
+        makeGoal(year, { id: `goal-kw-${year}`, unit: "KW", ...override })
+    const kwProgress = (year: number, override: Partial<GoalProgress> = {}) =>
+        makeProgress(year, { goalId: `goal-kw-${year}`, unit: "KW", ...override })
+
+    const groupA = () =>
+        vi
+            .mocked(propertyService.list)
+            .mockResolvedValue(paged([property("prop-a", "Fábrica", "GROUP_A")]))
+
+    it("propriedade do Grupo B não oferece a aba de demanda", async () => {
+        renderPage()
+
+        await screen.findByTestId("goal-summary")
+        expect(screen.queryByRole("tab", { name: "Demanda (kW)" })).not.toBeInTheDocument()
+        expect(screen.getByRole("tab", { name: "Custo (R$)" })).toBeInTheDocument()
+    })
+
+    it("propriedade do Grupo A oferece a aba e mostra as metas de demanda em kW", async () => {
+        groupA()
+        vi.mocked(goalService.list).mockResolvedValue(paged([makeGoal(2026), kw(2026)]))
+        vi.mocked(goalService.progress).mockResolvedValue([makeProgress(2026), kwProgress(2026)])
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage()
+
+        await user.click(await screen.findByRole("tab", { name: "Demanda (kW)" }))
+
+        expect(await screen.findByText("Metas de demanda mensal")).toBeInTheDocument()
+        expect(screen.getByTestId("goal-summary")).toHaveTextContent("Teto de 400 kW para 2026")
+        expect(screen.getByTestId("goal-history")).toHaveTextContent("400 kW")
+        expect(screen.getByTestId("goal-progress")).toHaveTextContent("Maior meta de 2026")
+        expect(
+            within(screen.getByTestId("goal-history")).getAllByTestId("goal-row-2026"),
+        ).toHaveLength(1)
+    })
+
+    it("cria a meta de demanda com os rótulos em kW e a unidade KW", async () => {
+        groupA()
+        vi.mocked(goalService.create).mockResolvedValue(kw(2026))
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage()
+
+        await user.click(await screen.findByRole("tab", { name: "Demanda (kW)" }))
+        await user.click(await screen.findByRole("button", { name: "Nova meta" }))
+        const dialog = await screen.findByRole("dialog", { name: /nova meta de demanda/i })
+        expect(within(dialog).getByText("Meta mês a mês · kW")).toBeInTheDocument()
+
+        await user.type(within(dialog).getByLabelText("Demanda mensal alvo · kW"), "180")
+        await user.click(within(dialog).getByRole("button", { name: "Salvar meta" }))
+
+        await waitFor(() =>
+            expect(goalService.create).toHaveBeenCalledWith({
+                propertyId: "prop-a",
+                year: 2026,
+                unit: "KW",
+                referenceYear: 2025,
+                monthlyTargets: Array.from({ length: 12 }, () => 180),
+                alertPercent: 85,
+            }),
+        )
+    })
+
+    it("trocar para uma propriedade do Grupo B volta ao consumo, sem ficar em demanda", async () => {
+        vi.mocked(propertyService.list).mockResolvedValue(
+            paged([
+                property("prop-a", "Fábrica", "GROUP_A"),
+                property("prop-b", "Casa", "GROUP_B"),
+            ]),
+        )
+        vi.mocked(goalService.list).mockResolvedValue(paged([makeGoal(2026), kw(2026)]))
+        vi.mocked(goalService.progress).mockResolvedValue([makeProgress(2026), kwProgress(2026)])
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage()
+
+        await user.click(await screen.findByRole("tab", { name: "Demanda (kW)" }))
+        expect(await screen.findByText("Metas de demanda mensal")).toBeInTheDocument()
+
+        await user.click(screen.getByTestId("property-selector-prop-b"))
+
+        expect(await screen.findByText("Metas de consumo anual")).toBeInTheDocument()
+        expect(screen.queryByRole("tab", { name: "Demanda (kW)" })).not.toBeInTheDocument()
+    })
+
+    it("usar como referência numa meta de demanda traz o pico realizado e mantém kW", async () => {
+        groupA()
+        vi.mocked(goalService.list).mockResolvedValue(paged([kw(2025)]))
+        vi.mocked(goalService.progress).mockResolvedValue([
+            kwProgress(2025, {
+                situation: "MET",
+                months: Array.from({ length: 12 }, (_, i) => ({
+                    month: i + 1,
+                    target: 180,
+                    realized: 170.4,
+                })),
+            }),
+        ])
+        vi.mocked(goalService.create).mockResolvedValue(kw(2027))
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage()
+
+        await user.click(await screen.findByRole("tab", { name: "Demanda (kW)" }))
+        await user.click(
+            await screen.findByRole("button", { name: "Usar a meta de 2025 como referência" }),
+        )
+        const dialog = await screen.findByRole("dialog", { name: /nova meta de demanda/i })
+        expect(within(dialog).getByLabelText("jan")).toHaveValue(170)
+
+        await user.click(within(dialog).getByRole("button", { name: "Salvar meta" }))
+        await waitFor(() =>
+            expect(goalService.create).toHaveBeenCalledWith(
+                expect.objectContaining({ unit: "KW", year: 2027, referenceYear: 2025 }),
+            ),
+        )
     })
 })

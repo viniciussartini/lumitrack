@@ -138,3 +138,27 @@ describe("GoalAlertsSection — unidade", () => {
         expect(screen.getByTestId("goal-alert-row-goal-brl")).toHaveTextContent("R$")
     })
 })
+
+describe("GoalAlertsSection — demanda (kW)", () => {
+    it('etiqueta a meta de demanda com kW e deixa o ano em "-"', async () => {
+        vi.mocked(goalService.alerts).mockResolvedValue([
+            makeAlert({
+                goalId: "goal-kw",
+                unit: "KW",
+                monthly: { percent: 90, reached: true, notified: true },
+                annual: { percent: null, reached: false, notified: false },
+            }),
+        ])
+        renderSection()
+
+        const row = await screen.findByTestId("goal-alert-row-goal-kw")
+        expect(row).toHaveTextContent("kW")
+        const [monthCell, yearCell] = Array.from(row.querySelectorAll("td")).slice(2)
+        expect(monthCell).toHaveTextContent("90,0%")
+        expect(monthCell).toHaveTextContent("Notificado")
+        expect(yearCell).toHaveTextContent("-")
+        expect(
+            within(yearCell as HTMLElement).queryByText(/Notificado|Atingido/),
+        ).not.toBeInTheDocument()
+    })
+})

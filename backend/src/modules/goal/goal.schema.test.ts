@@ -95,6 +95,12 @@ describe("unidade da meta", () => {
         if (result.success) expect(result.data.unit).toBe("BRL")
     })
 
+    it("aceita a meta de demanda em kW", () => {
+        const result = parse({ unit: "KW" })
+        expect(result.success).toBe(true)
+        if (result.success) expect(result.data.unit).toBe("KW")
+    })
+
     it("rejeita unidade desconhecida", () => {
         expect(parse({ unit: "MWH" }).success).toBe(false)
         expect(parse({ unit: "" }).success).toBe(false)

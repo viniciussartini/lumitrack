@@ -90,11 +90,12 @@ export class GoalAlertService {
     ): GoalAlertResponse {
         const progress = computeGoalProgress({
             year: goal.year,
+            unit: goal.unit,
             monthlyTargets: goal.monthlyTargets,
             realizedByMonth,
             now,
         })
-        const state = computeGoalAlertState(progress, goal.alertPercent, now)
+        const state = computeGoalAlertState(progress, goal.alertPercent, now, goal.unit)
         return {
             goalId: goal.id,
             propertyId: goal.propertyId,

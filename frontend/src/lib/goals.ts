@@ -48,14 +48,20 @@ export const currentGoalMonthIndex = (now: Date = new Date()): number =>
 /** Meta de ano passado é imutável: nem edita nem exclui. */
 export const isGoalLocked = (goal: Goal, currentYear: number): boolean => goal.year < currentYear
 
-/** A meta do ano é a soma dos 12 meses. */
+/**
+ * A meta do ano: a soma dos 12 meses em kWh e em R$; na demanda, que é um
+ * teto de pico e não se soma, a maior meta mensal.
+ */
 export const goalYearlyTotal = (goal: Goal): number =>
-    goal.monthlyTargets.reduce((sum, kwh) => sum + kwh, 0)
+    goal.unit === "KW"
+        ? Math.max(0, ...goal.monthlyTargets)
+        : goal.monthlyTargets.reduce((sum, value) => sum + value, 0)
 
-/** Valor de uma meta na unidade dela: "4.800 kWh" ou "R$ 4.800", sempre em números inteiros. */
+/** Valor de uma meta na unidade dela: "4.800 kWh", "R$ 4.800" ou "180 kW", sempre em números inteiros. */
 export const formatGoalValue = (value: number, unit: GoalUnit): string => {
     const rounded = Math.round(value).toLocaleString("pt-BR")
-    return unit === "BRL" ? `R$ ${rounded}` : `${rounded} kWh`
+    if (unit === "BRL") return `R$ ${rounded}`
+    return unit === "KW" ? `${rounded} kW` : `${rounded} kWh`
 }
 
 export interface GoalUnitLabels {
@@ -69,6 +75,12 @@ export interface GoalUnitLabels {
     months: string
     /** Rótulo do card da meta do mês no acompanhamento. */
     monthStat: string
+    /** Rótulo do card da meta do ano: a soma em kWh e R$, a maior meta mensal na demanda. */
+    yearStat: (year: number) => string
+    /** Rótulo do card do realizado até o mês corrente. */
+    realizedStat: (monthName: string) => string
+    /** Rótulo do card do desvio: acumulado em kWh e R$, o pior mês na demanda. */
+    deviationStat: string
     newTitle: string
     editTitle: string
     /** Frase do card quando a propriedade não tem meta no ano corrente. */
@@ -82,6 +94,9 @@ const UNIT_LABELS: Record<GoalUnit, GoalUnitLabels> = {
         specific: "Consumo específico alvo · kWh",
         months: "Meta mês a mês · kWh",
         monthStat: "Consumo específico alvo · meta do mês",
+        yearStat: (year) => `Meta de ${year}`,
+        realizedStat: (monthName) => `Realizado até ${monthName}`,
+        deviationStat: "Desvio acumulado",
         newTitle: "Nova meta de consumo",
         editTitle: "Editar meta de consumo",
         empty: (year) => `Nenhuma meta cadastrada para ${year}.`,
@@ -92,11 +107,31 @@ const UNIT_LABELS: Record<GoalUnit, GoalUnitLabels> = {
         specific: "Custo mensal alvo · R$",
         months: "Meta mês a mês · R$",
         monthStat: "Custo alvo · meta do mês",
+        yearStat: (year) => `Meta de ${year}`,
+        realizedStat: (monthName) => `Realizado até ${monthName}`,
+        deviationStat: "Desvio acumulado",
         newTitle: "Nova meta de custo",
         editTitle: "Editar meta de custo",
         empty: (year) => `Nenhuma meta de custo cadastrada para ${year}.`,
     },
+    KW: {
+        selector: "Demanda (kW)",
+        cardTitle: "Metas de demanda mensal",
+        specific: "Demanda mensal alvo · kW",
+        months: "Meta mês a mês · kW",
+        monthStat: "Demanda alvo · meta do mês",
+        yearStat: (year) => `Maior meta de ${year}`,
+        realizedStat: (monthName) => `Maior demanda até ${monthName}`,
+        deviationStat: "Pior mês",
+        newTitle: "Nova meta de demanda",
+        editTitle: "Editar meta de demanda",
+        empty: (year) => `Nenhuma meta de demanda cadastrada para ${year}.`,
+    },
 }
+
+/** Unidades que uma propriedade pode ter: a demanda (kW) só existe no Grupo A. */
+export const availableGoalUnits = (tariffGroup: string | undefined): readonly GoalUnit[] =>
+    tariffGroup === "GROUP_A" ? ["KWH", "BRL", "KW"] : ["KWH", "BRL"]
 
 /** Rótulos da tela de metas para uma unidade. */
 export const goalUnitLabels = (unit: GoalUnit): GoalUnitLabels => UNIT_LABELS[unit]

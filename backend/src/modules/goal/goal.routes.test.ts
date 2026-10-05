@@ -411,6 +411,51 @@ describe("metas em kWh e em reais", () => {
     })
 })
 
+describe("meta de demanda (kW)", () => {
+    it("propriedade do Grupo A aceita; a do Grupo B recusa com 422", async () => {
+        const { token, propertyId } = await setupProperty()
+
+        const refused = await request(app)
+            .post("/api/goals")
+            .set(authed(token))
+            .send(body(propertyId, { unit: "KW" }))
+        await prismaHttpTest.property.update({
+            where: { id: propertyId },
+            data: { tariffGroup: "GROUP_A" },
+        })
+        const accepted = await request(app)
+            .post("/api/goals")
+            .set(authed(token))
+            .send(body(propertyId, { unit: "KW" }))
+
+        expect(refused.status).toBe(422)
+        expect(accepted.status).toBe(201)
+        expect(accepted.body.data.unit).toBe("KW")
+        expect(await prismaHttpTest.goal.count()).toBe(1)
+    })
+
+    it("o acompanhamento e o estado do alerta trazem a meta de demanda", async () => {
+        const { token, propertyId } = await setupProperty()
+        await prismaHttpTest.property.update({
+            where: { id: propertyId },
+            data: { tariffGroup: "GROUP_A" },
+        })
+        await request(app)
+            .post("/api/goals")
+            .set(authed(token))
+            .send(body(propertyId, { unit: "KW" }))
+
+        const progress = await request(app)
+            .get(`/api/goals/progress?propertyId=${propertyId}`)
+            .set(authed(token))
+        const alerts = await request(app).get("/api/goals/alerts").set(authed(token))
+
+        expect(progress.body.data.items[0].unit).toBe("KW")
+        expect(alerts.body.data.items[0].unit).toBe("KW")
+        expect(alerts.body.data.items[0].annual.percent).toBeNull()
+    })
+})
+
 describe("PUT /api/goals/:id", () => {
     it("retorna 401 sem token", async () => {
         const response = await request(app).put(`/api/goals/${unknownId}`).send(editable())

@@ -1,8 +1,8 @@
 import { z } from "zod"
 import { paginationQuerySchema } from "@/shared/pagination.js"
 
-/** Unidade da meta: consumo em kWh ou custo em reais. */
-export const goalUnitSchema = z.enum(["KWH", "BRL"])
+/** Unidade da meta: consumo em kWh, custo em reais ou demanda em kW. */
+export const goalUnitSchema = z.enum(["KWH", "BRL", "KW"])
 
 export const MIN_GOAL_YEAR = 2020
 export const MAX_GOAL_YEAR = 2100

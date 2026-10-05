@@ -1,4 +1,5 @@
 import { Router, type RequestHandler } from "express"
+import { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
 import { PrismaClient } from "@/generated/prisma/client.js"
 import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
 import { createConsumptionService } from "@/modules/consumption/consumption.routes.js"
@@ -23,6 +24,7 @@ export function goalRoutes(authenticate: RequestHandler, prismaClient: PrismaCli
         new MeterRepository(prismaClient),
         new ConsumptionRepository(prismaClient),
         createConsumptionService(prismaClient),
+        new MeterDemandRollupRepository(prismaClient),
     )
     const service = new GoalService(
         new GoalRepository(prismaClient),

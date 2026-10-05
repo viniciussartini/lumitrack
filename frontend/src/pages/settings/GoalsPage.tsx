@@ -13,7 +13,12 @@ import { EmptyState } from "@/components/ui/EmptyState"
 import { useDeleteGoal, useGoalProgress, useGoals } from "@/hooks/queries/useGoals"
 import { useProperties } from "@/hooks/queries/useProperties"
 import { usePropertySelection } from "@/hooks/usePropertySelection"
-import { currentGoalMonthIndex, currentGoalYear, referenceGoalForm } from "@/lib/goals"
+import {
+    availableGoalUnits,
+    currentGoalMonthIndex,
+    currentGoalYear,
+    referenceGoalForm,
+} from "@/lib/goals"
 import { extractErrorMessage } from "@/services/api"
 import type { Goal, GoalProgress, GoalUnit } from "@/types/goal.types"
 import { MAX_PAGE_SIZE } from "@/types/pagination.types"
@@ -29,8 +34,12 @@ type DialogState =
 export const GoalsPage = () => {
     const propertiesQuery = useProperties(1, MAX_PAGE_SIZE)
     const properties = propertiesQuery.data?.items
-    const { selectedId, selectProperty } = usePropertySelection(properties)
-    const [unit, setUnit] = useState<GoalUnit>("KWH")
+    const { selectedId, selectedProperty, selectProperty } = usePropertySelection(properties)
+    const [chosenUnit, setUnit] = useState<GoalUnit>("KWH")
+    // A demanda só existe no Grupo A: ao trocar para uma propriedade que não a
+    // tem, a página volta ao consumo sem precisar de efeito.
+    const units = availableGoalUnits(selectedProperty?.tariffGroup)
+    const unit = units.includes(chosenUnit) ? chosenUnit : "KWH"
 
     if (propertiesQuery.isPending) {
         return (
@@ -72,7 +81,7 @@ export const GoalsPage = () => {
                     onChange={selectProperty}
                 />
             )}
-            <GoalUnitSelector unit={unit} onChange={setUnit} />
+            <GoalUnitSelector unit={unit} units={units} onChange={setUnit} />
             <PropertyGoals propertyId={selectedId} unit={unit} />
         </div>
     )

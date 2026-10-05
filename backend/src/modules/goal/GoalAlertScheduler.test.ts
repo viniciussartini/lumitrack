@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from "vitest"
+import { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
 import type { GoalUnit } from "@/generated/prisma/client.js"
 import type { ConsumptionService } from "@/modules/consumption/consumption.service.js"
 import { ValidationError } from "@/shared/errors/AppError.js"
@@ -44,6 +45,7 @@ const realReader = new GoalConsumptionReader(
     new MeterRepository(prismaTest),
     new ConsumptionRepository(prismaTest),
     createConsumptionService(prismaTest),
+    new MeterDemandRollupRepository(prismaTest),
 )
 
 // 15/06/2026 12:00 em São Paulo.
@@ -425,6 +427,7 @@ describe("GoalAlertScheduler — meta de custo (R$)", () => {
             new MeterRepository(prismaTest),
             new ConsumptionRepository(prismaTest),
             { list: costList(costBrl) } as unknown as Pick<ConsumptionService, "list">,
+            new MeterDemandRollupRepository(prismaTest),
         )
 
     it("avisa a meta de custo pelo custo, com a mensagem e o nome de custo", async () => {
@@ -474,9 +477,105 @@ describe("GoalAlertScheduler — meta de custo (R$)", () => {
             {
                 list: vi.fn().mockRejectedValue(new ValidationError("Grupo A sem apuração")),
             } as unknown as Pick<ConsumptionService, "list">,
+            new MeterDemandRollupRepository(prismaTest),
         )
 
         await expect(buildScheduler(unsupported).tick(JUNE)).resolves.toBeUndefined()
         expect(store.findAllByUser(ownerId)).toHaveLength(0)
+    })
+})
+
+async function addRollup(
+    propertyId: string,
+    month: number,
+    post: "PEAK" | "OFF_PEAK",
+    maxAvgPowerW: number,
+) {
+    const meter = await prismaTest.meter.findFirstOrThrow({ where: { propertyId } })
+    await prismaTest.meterDemandRollup.create({
+        data: {
+            meterId: meter.id,
+            // Meia-noite de São Paulo do dia 1º, em UTC.
+            periodStart: new Date(Date.UTC(2026, month, 1, 3)),
+            post,
+            maxAvgPowerW,
+            windowEndAt: new Date(Date.UTC(2026, month, 10, 15)),
+        },
+    })
+}
+
+describe("GoalAlertScheduler — meta de demanda (kW)", () => {
+    it("avisa pelo pico do mês, com a mensagem e o nome de demanda", async () => {
+        const propertyId = await createProperty(ownerId, "Casa")
+        await addGoal(ownerId, propertyId, { unit: "KW" })
+        await addRollup(propertyId, 5, "PEAK", 350_000)
+
+        await buildScheduler().tick(JUNE)
+
+        const [notification] = store.findAllByUser(ownerId)
+        expect(store.findAllByUser(ownerId)).toHaveLength(1)
+        expect(notification?.alertName).toBe("Meta 2026 · Casa · kW")
+        expect(notification?.message).toContain("a demanda medida do mês atingiu 87,5%")
+        expect(notification?.message).toContain("meta de demanda do mês")
+        expect(notification).toMatchObject({ meterId: null, targetPath: "/configuracoes/metas" })
+    })
+
+    it("não repete no mesmo mês e avisa de novo no seguinte", async () => {
+        const propertyId = await createProperty(ownerId, "Casa")
+        await addGoal(ownerId, propertyId, { unit: "KW" })
+        await addRollup(propertyId, 5, "PEAK", 350_000)
+        await addRollup(propertyId, 6, "PEAK", 360_000)
+        const scheduler = buildScheduler()
+
+        await scheduler.tick(JUNE)
+        await scheduler.tick(new Date("2026-06-20T15:00:00.000Z"))
+        expect(store.findAllByUser(ownerId)).toHaveLength(1)
+
+        await scheduler.tick(JULY)
+        expect(store.findAllByUser(ownerId)).toHaveLength(2)
+    })
+
+    it("nunca avisa o ano: picos altos o ano todo geram só os avisos mensais", async () => {
+        const propertyId = await createProperty(ownerId, "Casa")
+        await addGoal(ownerId, propertyId, { unit: "KW" })
+        for (const month of [0, 1, 2, 3, 4, 5]) {
+            await addRollup(propertyId, month, "PEAK", 500_000)
+        }
+
+        await buildScheduler().tick(JUNE)
+
+        const messages = store.findAllByUser(ownerId).map((n) => n.message)
+        expect(messages).toHaveLength(1)
+        expect(messages[0]).not.toContain("acumulado")
+        const stored = await prismaTest.goal.findFirstOrThrow({ where: { propertyId } })
+        expect(stored.alertNotifiedYear).toBe(false)
+    })
+
+    it("pico abaixo do percentual ou mês sem janela medida não avisa", async () => {
+        const propertyId = await createProperty(ownerId, "Casa")
+        await addGoal(ownerId, propertyId, { unit: "KW" })
+        await addRollup(propertyId, 4, "PEAK", 500_000)
+        await addRollup(propertyId, 5, "PEAK", 100_000)
+
+        await buildScheduler().tick(JUNE)
+
+        expect(store.findAllByUser(ownerId)).toHaveLength(0)
+    })
+
+    it("a meta de demanda e a de consumo da mesma propriedade avisam de forma independente", async () => {
+        const propertyId = await createProperty(ownerId, "Casa")
+        await addGoal(ownerId, propertyId, { unit: "KWH" })
+        await addGoal(ownerId, propertyId, { unit: "KW" })
+        await addReading(propertyId, "2026-06-10T12:00:00.000Z", 350)
+        await addRollup(propertyId, 5, "PEAK", 350_000)
+
+        await buildScheduler().tick(JUNE)
+
+        expect(
+            store
+                .findAllByUser(ownerId)
+                .map((n) => n.alertName)
+                .sort(),
+        ).toEqual(["Meta 2026 · Casa", "Meta 2026 · Casa · kW"])
     })
 })

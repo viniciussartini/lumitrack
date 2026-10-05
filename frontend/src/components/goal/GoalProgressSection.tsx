@@ -24,8 +24,9 @@ interface GoalProgressSectionProps {
 
 /**
  * Bloco "{ano} · meta vs. realizado" (LumiTrack Home v2.dc.html, Configurações
- * → Metas): o gráfico de barras e os cards Meta do ano, Realizado até o mês
- * corrente, Desvio acumulado e a meta do mês.
+ * → Metas): o gráfico de barras e os cards da meta do ano,
+ * do realizado até o mês corrente, do desvio e da meta do mês — com os
+ * rótulos de pico na demanda (maior meta, maior demanda, pior mês).
  */
 export const GoalProgressSection = ({ progress, monthIndex }: GoalProgressSectionProps) => (
     <Blueprint className="p-0" data-testid="goal-progress">
@@ -44,11 +45,13 @@ export const GoalProgressSection = ({ progress, monthIndex }: GoalProgressSectio
             </div>
             <dl className="border-divider m-0 grid grid-cols-[repeat(auto-fit,minmax(min(190px,100%),1fr))] content-start border-l">
                 <Stat
-                    label={`Meta de ${progress.year}`}
+                    label={goalUnitLabels(progress.unit).yearStat(progress.year)}
                     value={formatGoalValue(progress.yearTarget, progress.unit)}
                 />
                 <Stat
-                    label={`Realizado até ${MONTH_NAMES[monthIndex] ?? ""}`}
+                    label={goalUnitLabels(progress.unit).realizedStat(
+                        MONTH_NAMES[monthIndex] ?? "",
+                    )}
                     value={
                         progress.realized === null
                             ? "-"
@@ -56,7 +59,7 @@ export const GoalProgressSection = ({ progress, monthIndex }: GoalProgressSectio
                     }
                 />
                 <Stat
-                    label="Desvio acumulado"
+                    label={goalUnitLabels(progress.unit).deviationStat}
                     value={formatDeviation(progress.deviationPercent)}
                     tone={deviationTone(progress.deviationPercent)}
                 />

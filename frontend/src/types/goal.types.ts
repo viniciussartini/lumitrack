@@ -1,7 +1,7 @@
-/** Unidade da meta: consumo em kWh ou custo em reais. */
-export type GoalUnit = "KWH" | "BRL"
+/** Unidade da meta: consumo em kWh, custo em reais ou demanda em kW (teto mensal de pico). */
+export type GoalUnit = "KWH" | "BRL" | "KW"
 
-/** Meta anual de uma propriedade, de consumo (kWh) ou de custo (R$). */
+/** Meta anual de uma propriedade, de consumo (kWh), de custo (R$) ou de demanda (kW). */
 export interface Goal {
     id: string
     propertyId: string

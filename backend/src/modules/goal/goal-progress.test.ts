@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest"
+import type { GoalUnit } from "@/generated/prisma/client.js"
 import { computeGoalProgress } from "@/modules/goal/goal-progress.js"
 
 const twelve = <T>(fill: (month: number) => T): T[] => Array.from({ length: 12 }, (_, i) => fill(i))
@@ -9,6 +10,7 @@ const MID_JUNE_2026 = new Date("2026-06-15T15:00:00.000Z")
 
 const input = (override: Partial<Parameters<typeof computeGoalProgress>[0]> = {}) => ({
     year: 2026,
+    unit: "KWH" as GoalUnit,
     monthlyTargets: target(),
     realizedByMonth: twelve<number | null>(() => null),
     now: MID_JUNE_2026,
@@ -190,5 +192,110 @@ describe("computeGoalProgress — ano futuro", () => {
         expect(result.currentMonthTarget).toBeNull()
         expect(result.months.every((m) => m.realized === null)).toBe(true)
         expect(result.yearTarget).toBe(4800)
+    })
+})
+
+describe("computeGoalProgress — demanda em kW (pico)", () => {
+    const peak = (override: Partial<Parameters<typeof computeGoalProgress>[0]> = {}) =>
+        computeGoalProgress(input({ unit: "KW", monthlyTargets: twelve(() => 180), ...override }))
+
+    it("a meta do ano é a maior meta mensal, não a soma", () => {
+        const monthlyTargets = twelve((i) => (i === 3 ? 220 : 180))
+
+        expect(peak({ monthlyTargets }).yearTarget).toBe(220)
+    })
+
+    it("o realizado do ano é a maior demanda medida, não a soma", () => {
+        const result = peak({ realizedByMonth: realized(150, 190, 170) })
+
+        expect(result.realized).toBe(190)
+    })
+
+    it("o desvio é o do pior mês, contra a meta daquele mês", () => {
+        const monthlyTargets = twelve((i) => (i === 1 ? 200 : 180))
+        // jan 162/180 = 0,9; fev 190/200 = 0,95; mar 198/180 = 1,1 (o pior).
+        const result = peak({ monthlyTargets, realizedByMonth: realized(162, 190, 198) })
+
+        expect(result.deviationPercent).toBeCloseTo(10)
+        expect(result.comparedTarget).toBe(180)
+    })
+
+    it("sem mês acima do teto, o desvio é o do mês mais próximo dele, e negativo", () => {
+        const result = peak({ realizedByMonth: realized(90, 144, 108) })
+
+        expect(result.deviationPercent).toBeCloseTo(-20)
+    })
+
+    it("o mês corrente não é proporcional: o pico até agora vale contra o teto inteiro", () => {
+        // Metade de junho, pico já em 90% do teto do mês.
+        const result = peak({ realizedByMonth: realized(null, null, null, null, null, 162) })
+
+        expect(result.deviationPercent).toBeCloseTo(-10)
+        expect(result.comparedTarget).toBe(180)
+    })
+
+    it("mês sem janela medida fica fora, nunca vira 0", () => {
+        const result = peak({ realizedByMonth: realized(null, 190, null) })
+
+        expect(result.months[0]?.realized).toBeNull()
+        expect(result.months[1]?.realized).toBe(190)
+        expect(result.realized).toBe(190)
+    })
+
+    it("sem nenhuma leitura, tudo é ausência e a situação do ano corrente é em andamento", () => {
+        const result = peak()
+
+        expect(result.realized).toBeNull()
+        expect(result.comparedTarget).toBeNull()
+        expect(result.deviationPercent).toBeNull()
+        expect(result.situation).toBe("IN_PROGRESS")
+    })
+
+    it("a meta do mês corrente continua disponível para o card", () => {
+        expect(peak().currentMonthTarget).toBe(180)
+    })
+
+    it("ano passado: cumprida se nenhum mês passou do teto", () => {
+        const result = peak({ year: 2025, realizedByMonth: realized(180, 100, 170) })
+
+        expect(result.situation).toBe("MET")
+    })
+
+    it("ano passado: não cumprida se algum mês passou do teto, mesmo que a média esteja baixa", () => {
+        const result = peak({ year: 2025, realizedByMonth: realized(50, 50, 181, 50) })
+
+        expect(result.situation).toBe("NOT_MET")
+    })
+
+    it("ano passado sem nenhuma leitura fica sem situação", () => {
+        expect(peak({ year: 2025 }).situation).toBeNull()
+    })
+
+    it("meta zerada com demanda medida estoura o teto, mas não tem desvio percentual", () => {
+        const result = peak({
+            year: 2025,
+            monthlyTargets: twelve(() => 0),
+            realizedByMonth: realized(10),
+        })
+
+        expect(result.situation).toBe("NOT_MET")
+        expect(result.deviationPercent).toBeNull()
+    })
+
+    it("ano futuro está em andamento, sem realizado", () => {
+        const result = peak({ year: 2027, realizedByMonth: twelve(() => 999) })
+
+        expect(result.situation).toBe("IN_PROGRESS")
+        expect(result.realized).toBeNull()
+        expect(result.deviationPercent).toBeNull()
+    })
+
+    it("kWh e R$ seguem somando: a mudança é só da demanda", () => {
+        const kwh = computeGoalProgress(input({ unit: "KWH", realizedByMonth: realized(100, 100) }))
+        const brl = computeGoalProgress(input({ unit: "BRL", realizedByMonth: realized(100, 100) }))
+
+        expect(kwh.realized).toBe(200)
+        expect(brl.realized).toBe(200)
+        expect(kwh.yearTarget).toBe(4800)
     })
 })

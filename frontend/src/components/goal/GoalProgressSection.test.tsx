@@ -97,3 +97,26 @@ describe("GoalProgressSection — custo (R$)", () => {
         expect(screen.queryByText("Consumo específico alvo · meta do mês")).not.toBeInTheDocument()
     })
 })
+
+describe("GoalProgressSection — demanda (kW)", () => {
+    it("usa os rótulos de pico e o formato em kW", () => {
+        render(
+            <GoalProgressSection
+                progress={makeProgress({
+                    unit: "KW",
+                    yearTarget: 220,
+                    realized: 205,
+                    deviationPercent: 13.9,
+                    currentMonthTarget: 180,
+                })}
+                monthIndex={5}
+            />,
+        )
+
+        expect(statValue("Maior meta de 2026")).toHaveTextContent("220 kW")
+        expect(statValue("Maior demanda até junho")).toHaveTextContent("205 kW")
+        expect(statValue("Pior mês")).toHaveTextContent("+13,9%")
+        expect(statValue("Demanda alvo · meta do mês")).toHaveTextContent("180 kW")
+        expect(screen.queryByText("Desvio acumulado")).not.toBeInTheDocument()
+    })
+})

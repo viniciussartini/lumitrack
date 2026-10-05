@@ -1,3 +1,4 @@
+import type { GoalUnit } from "@/generated/prisma/client.js"
 import type { GoalProgressSummary } from "@/modules/goal/goal-progress.js"
 import { toSaoPauloLocal } from "@/shared/time/localTime.js"
 
@@ -39,12 +40,14 @@ function periodState(
  * @param progress - Acompanhamento da meta (ver `computeGoalProgress`).
  * @param alertPercent - Percentual de alerta da meta.
  * @param now - Instante de referência, para achar o mês corrente em São Paulo.
+ * @param unit - Unidade da meta: a demanda (kW) é pico e não tem período anual.
  * @returns Percentual e `reached` do mês e do ano.
  */
 export function computeGoalAlertState(
     progress: GoalProgressSummary,
     alertPercent: number,
     now: Date,
+    unit: GoalUnit,
 ): GoalAlertState {
     if (progress.currentMonthTarget === null) {
         return { month: NOT_APPLICABLE, year: NOT_APPLICABLE }
@@ -57,6 +60,10 @@ export function computeGoalAlertState(
             progress.currentMonthTarget,
             alertPercent,
         ),
-        year: periodState(progress.realized, progress.yearTarget, alertPercent),
+        // Pico não acumula: não há "acumulado do ano" de demanda para avisar.
+        year:
+            unit === "KW"
+                ? NOT_APPLICABLE
+                : periodState(progress.realized, progress.yearTarget, alertPercent),
     }
 }

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from "vitest"
+import { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
 import type { GoalUnit } from "@/generated/prisma/client.js"
 import type { ConsumptionService } from "@/modules/consumption/consumption.service.js"
 import { GoalAlertService } from "@/modules/goal/goal-alert.service.js"
@@ -31,6 +32,7 @@ const service = new GoalAlertService(
         new MeterRepository(prismaTest),
         new ConsumptionRepository(prismaTest),
         createConsumptionService(prismaTest),
+        new MeterDemandRollupRepository(prismaTest),
     ),
     () => JUNE,
 )
@@ -227,6 +229,7 @@ describe("GoalAlertService.list — unidade", () => {
                 new MeterRepository(prismaTest),
                 new ConsumptionRepository(prismaTest),
                 costSource,
+                new MeterDemandRollupRepository(prismaTest),
             ),
             () => JUNE,
         )
@@ -256,5 +259,48 @@ describe("GoalAlertService.list — unidade", () => {
 
         expect(items.find((i) => i.unit === "KWH")?.monthly.notified).toBe(true)
         expect(items.find((i) => i.unit === "BRL")?.monthly.notified).toBe(false)
+    })
+})
+
+async function addRollup(
+    propertyId: string,
+    month: number,
+    post: "PEAK" | "OFF_PEAK",
+    maxAvgPowerW: number,
+) {
+    const meter = await prismaTest.meter.findFirstOrThrow({ where: { propertyId } })
+    await prismaTest.meterDemandRollup.create({
+        data: {
+            meterId: meter.id,
+            // Meia-noite de São Paulo do dia 1º, em UTC.
+            periodStart: new Date(Date.UTC(2026, month, 1, 3)),
+            post,
+            maxAvgPowerW,
+            windowEndAt: new Date(Date.UTC(2026, month, 10, 15)),
+        },
+    })
+}
+
+describe("GoalAlertService.list — demanda (kW)", () => {
+    it("o mês compara o pico do mês com o teto, e o ano não se aplica", async () => {
+        const casa = await createProperty(ownerId, "Casa")
+        await addGoal(ownerId, casa, 2026, { unit: "KW" })
+        await addRollup(casa, 5, "PEAK", 350_000)
+
+        const [item] = (await service.list(ownerId)).items
+
+        expect(item?.unit).toBe("KW")
+        expect(item?.monthly.percent).toBeCloseTo(87.5)
+        expect(item?.monthly.reached).toBe(true)
+        expect(item?.annual).toEqual({ percent: null, reached: false, notified: false })
+    })
+
+    it("mês sem janela medida não tem percentual", async () => {
+        const casa = await createProperty(ownerId, "Casa")
+        await addGoal(ownerId, casa, 2026, { unit: "KW" })
+
+        const [item] = (await service.list(ownerId)).items
+
+        expect(item?.monthly).toEqual({ percent: null, reached: false, notified: false })
     })
 })

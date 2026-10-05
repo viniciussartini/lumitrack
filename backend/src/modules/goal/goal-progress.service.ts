@@ -51,6 +51,7 @@ export class GoalProgressService {
                 unit: goal.unit,
                 ...computeGoalProgress({
                     year: goal.year,
+                    unit: goal.unit,
                     monthlyTargets: goal.monthlyTargets,
                     realizedByMonth: realizedByUnit.get(goal.unit)?.forYear(goal.year) ?? [],
                     now,

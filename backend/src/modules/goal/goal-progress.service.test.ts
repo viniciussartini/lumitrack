@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from "vitest"
+import { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
 import { GoalConsumptionReader } from "@/modules/goal/goal-consumption.js"
 import type { GoalUnit } from "@/generated/prisma/client.js"
 import type { ConsumptionService } from "@/modules/consumption/consumption.service.js"
@@ -33,6 +34,7 @@ const service = new GoalProgressService(
         new MeterRepository(prismaTest),
         new ConsumptionRepository(prismaTest),
         createConsumptionService(prismaTest),
+        new MeterDemandRollupRepository(prismaTest),
     ),
     () => MID_2026,
 )
@@ -243,6 +245,7 @@ describe("GoalProgressService.list — custo (R$)", () => {
                 new MeterRepository(prismaTest),
                 new ConsumptionRepository(prismaTest),
                 costSource,
+                new MeterDemandRollupRepository(prismaTest),
             ),
             () => MID_2026,
         )
@@ -287,5 +290,68 @@ describe("GoalProgressService.list — custo (R$)", () => {
         expect(kwh?.months[0]?.realized).toBeNull()
         expect(brl?.months[0]?.realized).toBe(310)
         expect(brl?.months[1]?.realized).toBeNull()
+    })
+})
+
+async function addRollup(
+    propertyId: string,
+    month: number,
+    post: "PEAK" | "OFF_PEAK",
+    maxAvgPowerW: number,
+) {
+    const meter = await prismaTest.meter.findFirstOrThrow({ where: { propertyId } })
+    await prismaTest.meterDemandRollup.create({
+        data: {
+            meterId: meter.id,
+            // Meia-noite de São Paulo do dia 1º, em UTC.
+            periodStart: new Date(Date.UTC(2026, month, 1, 3)),
+            post,
+            maxAvgPowerW,
+            windowEndAt: new Date(Date.UTC(2026, month, 10, 15)),
+        },
+    })
+}
+
+describe("GoalProgressService.list — demanda (kW)", () => {
+    it("o realizado do mês é o maior pico entre os postos, em kW, e o ano agrega por pico", async () => {
+        const propertyId = await createProperty(ownerId, true)
+        await addGoal(ownerId, propertyId, 2026, 180, "KW")
+        await addRollup(propertyId, 0, "PEAK", 150_000)
+        await addRollup(propertyId, 0, "OFF_PEAK", 170_000)
+        await addRollup(propertyId, 2, "OFF_PEAK", 190_000)
+
+        const { items } = await service.list(ownerId, { propertyId })
+
+        const [item] = items
+        expect(item?.unit).toBe("KW")
+        expect(item?.months[0]?.realized).toBe(170)
+        expect(item?.months[1]?.realized).toBeNull()
+        expect(item?.months[2]?.realized).toBe(190)
+        expect(item?.yearTarget).toBe(180)
+        expect(item?.realized).toBe(190)
+        expect(item?.deviationPercent).toBeCloseTo((190 / 180 - 1) * 100)
+    })
+
+    it("a meta de demanda não depende das leituras de consumo", async () => {
+        const propertyId = await createProperty(ownerId, true)
+        await addGoal(ownerId, propertyId, 2026, 180, "KW")
+        await addReading(propertyId, "2026-01-10T12:00:00.000Z", 9999)
+
+        const [item] = (await service.list(ownerId, { propertyId })).items
+
+        expect(item?.realized).toBeNull()
+    })
+
+    it("as três unidades da mesma propriedade leem fontes diferentes", async () => {
+        const propertyId = await createProperty(ownerId, true)
+        await addGoal(ownerId, propertyId, 2026, 400, "KWH")
+        await addGoal(ownerId, propertyId, 2026, 180, "KW")
+        await addReading(propertyId, "2026-01-10T12:00:00.000Z", 123)
+        await addRollup(propertyId, 0, "PEAK", 150_000)
+
+        const { items } = await service.list(ownerId, { propertyId })
+
+        expect(items.find((i) => i.unit === "KWH")?.months[0]?.realized).toBe(123)
+        expect(items.find((i) => i.unit === "KW")?.months[0]?.realized).toBe(150)
     })
 })

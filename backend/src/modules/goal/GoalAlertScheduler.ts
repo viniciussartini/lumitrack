@@ -31,15 +31,28 @@ const GOALS_PATH = "/configuracoes/metas"
 /** O que o aviso diz, por unidade da meta. */
 const WORDING: Record<
     GoalUnit,
-    { month: (percent: string) => string; year: (percent: string) => string }
+    {
+        month: (percent: string) => string
+        /** Demanda é pico e não acumula: não há aviso anual. */
+        year: ((percent: string) => string) | null
+        /** Complemento do nome do aviso, para distinguir as metas da mesma propriedade. */
+        nameSuffix: string
+    }
 > = {
     KWH: {
         month: (percent) => `o consumo do mês atingiu ${percent}% da meta do mês`,
         year: (percent) => `o consumo acumulado do ano atingiu ${percent}% da meta anual`,
+        nameSuffix: "",
     },
     BRL: {
         month: (percent) => `o custo do mês atingiu ${percent}% da meta de custo do mês`,
         year: (percent) => `o custo acumulado do ano atingiu ${percent}% da meta de custo anual`,
+        nameSuffix: " · R$",
+    },
+    KW: {
+        month: (percent) => `a demanda medida do mês atingiu ${percent}% da meta de demanda do mês`,
+        year: null,
+        nameSuffix: " · kW",
     },
 }
 
@@ -169,11 +182,12 @@ export class GoalAlertScheduler {
     ): Promise<void> {
         const progress = computeGoalProgress({
             year: goal.year,
+            unit: goal.unit,
             monthlyTargets: goal.monthlyTargets,
             realizedByMonth: monthly.forYear(goal.year),
             now,
         })
-        const state = computeGoalAlertState(progress, goal.alertPercent, now)
+        const state = computeGoalAlertState(progress, goal.alertPercent, now, goal.unit)
 
         if (
             state.month.reached &&
@@ -184,20 +198,22 @@ export class GoalAlertScheduler {
             this.notify(goal, `${WORDING[goal.unit].month(formatPercent(state.month.percent))}`)
         }
 
+        const yearWording = WORDING[goal.unit].year
         if (
+            yearWording &&
             state.year.reached &&
             state.year.percent !== null &&
             !goal.alertNotifiedYear &&
             (await this.goalRepository.claimYearAlert(goal.id))
         ) {
-            this.notify(goal, `${WORDING[goal.unit].year(formatPercent(state.year.percent))}`)
+            this.notify(goal, yearWording(formatPercent(state.year.percent)))
         }
     }
 
     private notify(goal: GoalWithProperty, what: string): void {
         const notification = this.notificationStore.add(goal.userId, {
             alertId: goal.id,
-            alertName: `Meta ${goal.year} · ${goal.property.name}${goal.unit === "BRL" ? " · R$" : ""}`,
+            alertName: `Meta ${goal.year} · ${goal.property.name}${WORDING[goal.unit].nameSuffix}`,
             meterId: null,
             targetType: "PROPERTY",
             targetPath: GOALS_PATH,

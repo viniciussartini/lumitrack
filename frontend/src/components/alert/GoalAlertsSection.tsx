@@ -4,7 +4,7 @@ import { Blueprint } from "@/components/ui/Blueprint"
 import { Tag } from "@/components/ui/Tag"
 import { useGoalAlerts } from "@/hooks/queries/useGoals"
 import { formatGoalPercent } from "@/lib/goals"
-import type { GoalAlert, GoalAlertPeriod } from "@/types/goal.types"
+import type { GoalAlert, GoalAlertPeriod, GoalUnit } from "@/types/goal.types"
 
 /**
  * Bloco "Alertas de meta" da página de Alertas: uma linha por meta do ano
@@ -29,6 +29,8 @@ export const GoalAlertsSection = () => {
         </Blueprint>
     )
 }
+
+const UNIT_TAGS: Record<GoalUnit, string> = { KWH: "kWh", BRL: "R$", KW: "kW" }
 
 interface BodyProps {
     isPending: boolean
@@ -86,7 +88,7 @@ const GoalAlertsTable = ({ alerts }: { alerts: GoalAlert[] }) => (
                     <tr key={alert.goalId} data-testid={`goal-alert-row-${alert.goalId}`}>
                         <td className="font-semibold">
                             {alert.propertyName} · {alert.year}{" "}
-                            <Tag variant="outline">{alert.unit === "BRL" ? "R$" : "kWh"}</Tag>
+                            <Tag variant="outline">{UNIT_TAGS[alert.unit]}</Tag>
                         </td>
                         <td className="text-right">{alert.alertPercent}%</td>
                         <td>
