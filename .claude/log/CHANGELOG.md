@@ -4467,3 +4467,22 @@
 - **O quê:** a reformatação do Prettier nos textos legais (`privacy-policy.md`, `terms-of-use.md`) que entrou por engano na branch foi revertida ao conteúdo de `staging`, para o diff do PR não ter alteração em documento legal. O corpo do PR foi atualizado: quatro migrações (e não três), linha de rollback, regra do R$ no mês corrente e checklist.
 - **Arquivos principais:** `frontend/src/legal/privacy-policy.md`, `frontend/src/legal/terms-of-use.md`; corpo do PR #488.
 - **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado.
+
+## [2026-10-05] fix: Metas — foco no gráfico oculto e URL do aviso depois da escolha
+
+- **Branch:** epic/481-metas
+- **Tipo:** fix
+- **O quê:** (1) o gráfico de meta × realizado está fora da árvore de acessibilidade (`aria-hidden`), mas o Recharts liga por padrão a camada de acessibilidade, que põe `tabindex="0"` e `role="application"` no `<svg>`: o Tab parava num elemento que o leitor de tela não anuncia. O `BarChart` agora vem com `accessibilityLayer={false}`; a tabela escondida da tela segue como o caminho acessível. (2) Depois de trocar de propriedade no seletor, a URL mantinha o `?propertyId=` do aviso: recarregar voltava à propriedade do link, e um novo clique num aviso da mesma propriedade não remontava a página. Escolher outra propriedade agora tira o parâmetro da URL (`replace`), e a página remonta com a escolha guardada.
+- **Causa:** (1) padrão do Recharts 3 não desligado ao esconder o desenho; (2) o link do aviso era lido da URL durante toda a vida da página, e não só até a primeira escolha do usuário.
+- **Testes:** `GoalProgressChart.test.tsx` (com o contêiner de tamanho fixo, o svg real aparece e não pode ter elemento focável; falhava antes), `GoalsPage.test.tsx` (escolher outra propriedade limpa a URL e mantém a escolha; sem link a URL não muda; o primeiro falhava antes).
+- **Arquivos principais:** `frontend/src/components/goal/GoalProgressChart.tsx`, `frontend/src/pages/settings/GoalsPage.tsx` e os testes.
+- **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado. Efeito colateral aceito: ao escolher outra propriedade a partir de um link de aviso, a unidade mostrada volta a kWh, porque a página remonta.
+
+## [2026-10-05] refactor: Metas — textos que faltavam depois de R$ e kW
+
+- **Branch:** epic/481-metas
+- **Tipo:** refactor
+- **O quê:** só texto, sem mudança de comportamento. Em `goal-alert.ts`, os comentários que falavam em "consumo" passam a falar em realizado (consumo, custo ou demanda, conforme a unidade). No parágrafo "Hoje" do `02-requisitos.md`: a meta é única por ano **e unidade**, a meta do ano é a soma em kWh e R$ e a maior meta mensal em kW, as unidades são três (a de demanda no Grupo A), e a propriedade da página pode vir do link do aviso, até o usuário escolher outra.
+- **Testes:** nenhum novo; as suítes do módulo `goal` seguem verdes (232 testes).
+- **Arquivos principais:** `backend/src/modules/goal/goal-alert.ts`, `.claude/project_context/02-requisitos.md`.
+- **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado.

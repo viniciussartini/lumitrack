@@ -34,19 +34,29 @@ type DialogState =
  * (`?propertyId=`), que vale até o usuário escolher outra.
  */
 export const GoalsPage = () => {
-    const [searchParams] = useSearchParams()
+    const [searchParams, setSearchParams] = useSearchParams()
     const requestedPropertyId = searchParams.get("propertyId")
+
+    // Escolhida outra propriedade, o link do aviso já cumpriu o papel: sair da
+    // URL faz o recarregar manter a escolha e outro aviso remontar a seleção.
+    const forgetRequestedProperty = () => setSearchParams({}, { replace: true })
 
     // O `key` reinicia a seleção quando outro aviso leva à mesma página.
     return (
         <GoalsPageContent
             key={requestedPropertyId ?? ""}
             requestedPropertyId={requestedPropertyId}
+            onPropertyChosen={forgetRequestedProperty}
         />
     )
 }
 
-const GoalsPageContent = ({ requestedPropertyId }: { requestedPropertyId: string | null }) => {
+interface GoalsPageContentProps {
+    requestedPropertyId: string | null
+    onPropertyChosen: () => void
+}
+
+const GoalsPageContent = ({ requestedPropertyId, onPropertyChosen }: GoalsPageContentProps) => {
     const propertiesQuery = useProperties(1, MAX_PAGE_SIZE)
     const properties = propertiesQuery.data?.items
     const { selectedId, selectedProperty, selectProperty } = usePropertySelection(
@@ -96,7 +106,10 @@ const GoalsPageContent = ({ requestedPropertyId }: { requestedPropertyId: string
                 <PropertySelector
                     properties={properties}
                     selectedId={selectedId}
-                    onChange={selectProperty}
+                    onChange={(id) => {
+                        selectProperty(id)
+                        if (requestedPropertyId !== null) onPropertyChosen()
+                    }}
                 />
             )}
             <GoalUnitSelector unit={unit} units={units} onChange={setUnit} />

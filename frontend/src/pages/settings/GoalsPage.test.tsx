@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { MemoryRouter } from "react-router"
+import { MemoryRouter, useLocation } from "react-router"
 import { render, screen, waitFor, within } from "@testing-library/react"
 import { toast } from "sonner"
 import { GoalsPage } from "@/pages/settings/GoalsPage"
@@ -99,6 +99,8 @@ const makeProgress = (year: number, override: Partial<GoalProgress> = {}): GoalP
     ...override,
 })
 
+const LocationProbe = () => <span data-testid="location-search">{useLocation().search}</span>
+
 const renderPage = (url = "/configuracoes/metas") => {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
@@ -107,6 +109,7 @@ const renderPage = (url = "/configuracoes/metas") => {
         <QueryClientProvider client={queryClient}>
             <MemoryRouter initialEntries={[url]}>
                 <GoalsPage />
+                <LocationProbe />
             </MemoryRouter>
         </QueryClientProvider>,
     )
@@ -241,6 +244,36 @@ describe("GoalsPage — propriedade pelo link do aviso", () => {
                 pageSize: 31,
             }),
         )
+    })
+
+    it("escolher outra propriedade tira o parâmetro da URL: recarregar mantém a escolha", async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage("/configuracoes/metas?propertyId=prop-b")
+        await screen.findByTestId("goal-summary")
+        expect(screen.getByTestId("location-search")).toHaveTextContent("?propertyId=prop-b")
+
+        await user.click(screen.getByTestId("property-selector-prop-a"))
+
+        await waitFor(() => expect(screen.getByTestId("location-search")).toBeEmptyDOMElement())
+        await screen.findByTestId("goal-summary")
+        expect(goalService.list).toHaveBeenLastCalledWith("prop-a", { page: 1, pageSize: 31 })
+        expect(storage.get("lumitrack:selected-property")).toBe("prop-a")
+    })
+
+    it("sem link, escolher a propriedade não mexe na URL", async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage("/configuracoes/metas")
+        await screen.findByTestId("goal-summary")
+
+        await user.click(screen.getByTestId("property-selector-prop-b"))
+
+        await waitFor(() =>
+            expect(goalService.list).toHaveBeenLastCalledWith("prop-b", {
+                page: 1,
+                pageSize: 31,
+            }),
+        )
+        expect(screen.getByTestId("location-search")).toBeEmptyDOMElement()
     })
 })
 

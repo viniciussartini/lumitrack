@@ -3,9 +3,9 @@ import type { GoalProgressSummary } from "@/modules/goal/goal-progress.js"
 import { toSaoPauloLocal } from "@/shared/time/localTime.js"
 
 export type GoalAlertPeriodState = {
-    /** Consumo ÷ meta do período, em %; `null` sem leitura ou com meta zerada. */
+    /** Realizado ÷ meta do período, em %; `null` sem leitura ou com meta zerada. */
     percent: number | null
-    /** O consumo já alcançou o percentual de alerta da meta. */
+    /** O realizado já alcançou o percentual de alerta da meta. */
     reached: boolean
 }
 
@@ -33,8 +33,9 @@ function periodState(
 }
 
 /**
- * Estado do alerta de uma meta: o quanto do mês e do ano o consumo já
- * representa e se isso alcança o percentual configurado. Só a meta do ano
+ * Estado do alerta de uma meta: o quanto do mês e do ano o realizado (consumo,
+ * custo ou demanda, conforme a unidade) já representa e se isso alcança o
+ * percentual configurado. Só a meta do ano
  * corrente é avaliada; as de outros anos devolvem ausência nos dois períodos.
  *
  * @param progress - Acompanhamento da meta (ver `computeGoalProgress`).

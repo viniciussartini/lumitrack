@@ -1,7 +1,22 @@
-import { describe, it, expect } from "vitest"
+import { cloneElement, type ReactElement } from "react"
+import { describe, it, expect, vi } from "vitest"
 import { render, screen, within } from "@testing-library/react"
 import { GoalProgressChart } from "@/components/goal/GoalProgressChart"
 import type { GoalProgressMonth } from "@/types/goal.types"
+
+// O jsdom não mede o contêiner e o ResponsiveContainer não desenha nada; com um
+// tamanho fixo o svg real do gráfico aparece e dá para checar o foco dele.
+vi.mock("recharts", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("recharts")>()
+    return {
+        ...actual,
+        ResponsiveContainer: ({
+            children,
+        }: {
+            children: ReactElement<{ width?: number; height?: number }>
+        }) => cloneElement(children, { width: 600, height: 256 }),
+    }
+})
 
 const months = (realized: (number | null)[]): GoalProgressMonth[] =>
     Array.from({ length: 12 }, (_, i) => ({
@@ -64,5 +79,14 @@ describe("GoalProgressChart", () => {
             "aria-hidden",
             "true",
         )
+    })
+
+    it("o desenho oculto não recebe foco do teclado: nenhum elemento focável dentro dele", () => {
+        render(<GoalProgressChart months={months([350])} unit="KWH" />)
+
+        const graphic = screen.getByTestId("goal-progress-chart-graphic")
+
+        expect(graphic.querySelector("svg")).not.toBeNull()
+        expect(graphic.querySelector('[tabindex="0"]')).toBeNull()
     })
 })

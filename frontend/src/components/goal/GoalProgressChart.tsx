@@ -102,6 +102,9 @@ const ChartGraphic = ({ months, unit }: GoalProgressChartProps) => (
     <>
         <ResponsiveContainer width="100%" height={256}>
             <BarChart
+                // O desenho está fora da árvore de acessibilidade (a tabela dá os valores);
+                // a camada de acessibilidade do Recharts o deixaria focável por teclado.
+                accessibilityLayer={false}
                 data={toPoints(months)}
                 margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
                 barGap={4}
