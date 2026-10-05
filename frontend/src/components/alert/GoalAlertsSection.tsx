@@ -85,7 +85,8 @@ const GoalAlertsTable = ({ alerts }: { alerts: GoalAlert[] }) => (
                 {alerts.map((alert) => (
                     <tr key={alert.goalId} data-testid={`goal-alert-row-${alert.goalId}`}>
                         <td className="font-semibold">
-                            {alert.propertyName} · {alert.year}
+                            {alert.propertyName} · {alert.year}{" "}
+                            <Tag variant="outline">{alert.unit === "BRL" ? "R$" : "kWh"}</Tag>
                         </td>
                         <td className="text-right">{alert.alertPercent}%</td>
                         <td>

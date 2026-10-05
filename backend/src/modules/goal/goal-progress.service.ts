@@ -1,11 +1,16 @@
-import type { GoalConsumptionReader } from "@/modules/goal/goal-consumption.js"
+import type { GoalUnit } from "@/generated/prisma/client.js"
+import type { GoalConsumptionReader, MonthlyValues } from "@/modules/goal/goal-consumption.js"
 import { computeGoalProgress, type GoalProgressSummary } from "@/modules/goal/goal-progress.js"
 import { goalProgressQuerySchema } from "@/modules/goal/goal.schema.js"
-import type { GoalRepository } from "@/modules/goal/goal.repository.js"
+import type { GoalRecord, GoalRepository } from "@/modules/goal/goal.repository.js"
 import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 
 /** Acompanhamento de uma meta, com o id para a tela casá-lo com a linha do histórico. */
-export type GoalProgressResponse = GoalProgressSummary & { goalId: string; year: number }
+export type GoalProgressResponse = GoalProgressSummary & {
+    goalId: string
+    year: number
+    unit: GoalUnit
+}
 
 /**
  * Acompanhamento das metas de uma propriedade: o consumo mensal realizado
@@ -34,24 +39,57 @@ export class GoalProgressService {
     async list(userId: string, query: unknown): Promise<{ items: GoalProgressResponse[] }> {
         const { propertyId } = parseOrThrow(goalProgressQuerySchema, query)
         const goals = await this.goalRepository.findAllByProperty(userId, propertyId)
-        const firstGoal = goals[0]
-        if (!firstGoal) return { items: [] }
+        if (goals.length === 0) return { items: [] }
 
         const now = this.now()
-        const monthly = await this.consumptionReader.monthlyKwh(propertyId, firstGoal.year, now)
+        const realizedByUnit = await this.readRealized(userId, propertyId, goals, now)
 
         const items = goals
             .map((goal) => ({
                 goalId: goal.id,
                 year: goal.year,
+                unit: goal.unit,
                 ...computeGoalProgress({
                     year: goal.year,
-                    monthlyKwh: goal.monthlyKwh,
-                    realizedByMonth: monthly.forYear(goal.year),
+                    monthlyTargets: goal.monthlyTargets,
+                    realizedByMonth: realizedByUnit.get(goal.unit)?.forYear(goal.year) ?? [],
                     now,
                 }),
             }))
             .reverse()
         return { items }
+    }
+
+    // Uma leitura por unidade presente nas metas, do primeiro ano com meta
+    // naquela unidade até o ano corrente.
+    private async readRealized(
+        userId: string,
+        propertyId: string,
+        goals: GoalRecord[],
+        now: Date,
+    ): Promise<Map<GoalUnit, MonthlyValues>> {
+        const firstYearByUnit = new Map<GoalUnit, number>()
+        for (const goal of goals) {
+            firstYearByUnit.set(
+                goal.unit,
+                Math.min(goal.year, firstYearByUnit.get(goal.unit) ?? goal.year),
+            )
+        }
+        const readings = await Promise.all(
+            [...firstYearByUnit].map(
+                async ([unit, firstYear]) =>
+                    [
+                        unit,
+                        await this.consumptionReader.monthlyValues(
+                            userId,
+                            propertyId,
+                            firstYear,
+                            unit,
+                            now,
+                        ),
+                    ] as const,
+            ),
+        )
+        return new Map(readings)
     }
 }

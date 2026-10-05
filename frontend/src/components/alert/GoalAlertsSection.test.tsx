@@ -15,6 +15,7 @@ const makeAlert = (override: Partial<GoalAlert> = {}): GoalAlert => ({
     propertyId: "prop-1",
     propertyName: "Casa",
     year: 2026,
+    unit: "KWH",
     alertPercent: 85,
     monthly: { percent: 60, reached: false, notified: false },
     annual: { percent: 42.5, reached: false, notified: false },
@@ -122,5 +123,18 @@ describe("GoalAlertsSection", () => {
 
         expect(await screen.findByTestId("goal-alert-row-goal-1")).toBeInTheDocument()
         expect(screen.getByTestId("goal-alert-row-goal-2")).toHaveTextContent("Sítio · 2026")
+    })
+})
+
+describe("GoalAlertsSection — unidade", () => {
+    it("etiqueta cada meta com a unidade: kWh ou R$", async () => {
+        vi.mocked(goalService.alerts).mockResolvedValue([
+            makeAlert({ goalId: "goal-kwh", unit: "KWH" }),
+            makeAlert({ goalId: "goal-brl", unit: "BRL" }),
+        ])
+        renderSection()
+
+        expect(await screen.findByTestId("goal-alert-row-goal-kwh")).toHaveTextContent("kWh")
+        expect(screen.getByTestId("goal-alert-row-goal-brl")).toHaveTextContent("R$")
     })
 })

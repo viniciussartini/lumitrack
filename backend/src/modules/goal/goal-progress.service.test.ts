@@ -1,8 +1,11 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest"
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest"
 import { GoalConsumptionReader } from "@/modules/goal/goal-consumption.js"
+import type { GoalUnit } from "@/generated/prisma/client.js"
+import type { ConsumptionService } from "@/modules/consumption/consumption.service.js"
 import { GoalProgressService } from "@/modules/goal/goal-progress.service.js"
 import { GoalRepository } from "@/modules/goal/goal.repository.js"
 import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
+import { createConsumptionService } from "@/modules/consumption/consumption.routes.js"
 import { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
@@ -29,6 +32,7 @@ const service = new GoalProgressService(
     new GoalConsumptionReader(
         new MeterRepository(prismaTest),
         new ConsumptionRepository(prismaTest),
+        createConsumptionService(prismaTest),
     ),
     () => MID_2026,
 )
@@ -86,14 +90,21 @@ async function addReading(propertyId: string, minuteStart: string, kwh: number) 
     })
 }
 
-async function addGoal(userId: string, propertyId: string, year: number, monthlyKwh = 400) {
+async function addGoal(
+    userId: string,
+    propertyId: string,
+    year: number,
+    monthlyTargets = 400,
+    unit: GoalUnit = "KWH",
+) {
     await prismaTest.goal.create({
         data: {
             userId,
             propertyId,
             year,
+            unit,
             referenceYear: year - 1,
-            monthlyKwh: Array.from({ length: 12 }, () => monthlyKwh),
+            monthlyTargets: Array.from({ length: 12 }, () => monthlyTargets),
             alertPercent: 85,
         },
     })
@@ -124,10 +135,10 @@ describe("GoalProgressService.list", () => {
         expect(items).toHaveLength(1)
         const [progress] = items
         expect(progress?.year).toBe(2026)
-        expect(progress?.months[0]?.realizedKwh).toBe(175)
-        expect(progress?.months[1]?.realizedKwh).toBe(70)
-        expect(progress?.months[2]?.realizedKwh).toBeNull()
-        expect(progress?.yearTargetKwh).toBe(4800)
+        expect(progress?.months[0]?.realized).toBe(175)
+        expect(progress?.months[1]?.realized).toBe(70)
+        expect(progress?.months[2]?.realized).toBeNull()
+        expect(progress?.yearTarget).toBe(4800)
         expect(progress?.situation).toBe("IN_PROGRESS")
     })
 
@@ -142,10 +153,10 @@ describe("GoalProgressService.list", () => {
         const { items } = await service.list(ownerId, { propertyId })
 
         expect(items.map((i) => i.year)).toEqual([2027, 2026, 2025])
-        expect(items[2]?.months[2]?.realizedKwh).toBe(380)
+        expect(items[2]?.months[2]?.realized).toBe(380)
         expect(items[2]?.situation).toBe("MET")
-        expect(items[1]?.months[2]?.realizedKwh).toBe(420)
-        expect(items[0]?.months.every((m) => m.realizedKwh === null)).toBe(true)
+        expect(items[1]?.months[2]?.realized).toBe(420)
+        expect(items[0]?.months.every((m) => m.realized === null)).toBe(true)
     })
 
     it("cada item carrega o id da meta", async () => {
@@ -164,8 +175,8 @@ describe("GoalProgressService.list", () => {
 
         const { items } = await service.list(ownerId, { propertyId })
 
-        expect(items[0]?.months.every((m) => m.realizedKwh === null)).toBe(true)
-        expect(items[0]?.realizedKwh).toBeNull()
+        expect(items[0]?.months.every((m) => m.realized === null)).toBe(true)
+        expect(items[0]?.realized).toBeNull()
         expect(items[0]?.deviationPercent).toBeNull()
     })
 
@@ -198,5 +209,83 @@ describe("GoalProgressService.list", () => {
     it("exige um propertyId válido", async () => {
         await expect(service.list(ownerId, { propertyId: "casa" })).rejects.toThrow(ValidationError)
         await expect(service.list(ownerId, {})).rejects.toThrow(ValidationError)
+    })
+})
+// Custo mensal simulado (R$): janeiro e março de 2026 têm custo calculado.
+const costSource = {
+    list: vi.fn().mockResolvedValue({
+        items: [
+            {
+                bucketStart: new Date(Date.UTC(2026, 0, 1)),
+                kwhConsumed: 100,
+                costBrl: 310,
+                avgPowerW: 500,
+            },
+            {
+                bucketStart: new Date(Date.UTC(2026, 2, 1)),
+                kwhConsumed: 100,
+                costBrl: 290,
+                avgPowerW: 500,
+            },
+        ],
+        total: 2,
+        page: 1,
+        pageSize: 12,
+        granularity: "month",
+    }),
+} as unknown as Pick<ConsumptionService, "list">
+
+describe("GoalProgressService.list — custo (R$)", () => {
+    const costService = () =>
+        new GoalProgressService(
+            new GoalRepository(prismaTest),
+            new GoalConsumptionReader(
+                new MeterRepository(prismaTest),
+                new ConsumptionRepository(prismaTest),
+                costSource,
+            ),
+            () => MID_2026,
+        )
+
+    it("a meta em reais é acompanhada pelo custo mensal, não pelo consumo", async () => {
+        const propertyId = await createProperty(ownerId, true)
+        await addGoal(ownerId, propertyId, 2026, 400, "BRL")
+        await addReading(propertyId, "2026-01-10T12:00:00.000Z", 9999)
+
+        const { items } = await costService().list(ownerId, { propertyId })
+
+        expect(items).toHaveLength(1)
+        expect(items[0]?.unit).toBe("BRL")
+        expect(items[0]?.months[0]?.realized).toBe(310)
+        expect(items[0]?.months[1]?.realized).toBeNull()
+        expect(items[0]?.months[2]?.realized).toBe(290)
+        expect(items[0]?.realized).toBe(600)
+    })
+
+    it("mês sem custo calculado fica fora do desvio", async () => {
+        const propertyId = await createProperty(ownerId, true)
+        await addGoal(ownerId, propertyId, 2026, 400, "BRL")
+
+        const [item] = (await costService().list(ownerId, { propertyId })).items
+
+        // Só há custo em janeiro e março: a meta comparada é a desses dois meses (800).
+        expect(item?.comparedTarget).toBe(800)
+        expect(item?.deviationPercent).toBeCloseTo((600 / 800 - 1) * 100)
+    })
+
+    it("a meta em kWh e a em reais da mesma propriedade leem fontes diferentes", async () => {
+        const propertyId = await createProperty(ownerId, true)
+        await addGoal(ownerId, propertyId, 2026, 400, "KWH")
+        await addGoal(ownerId, propertyId, 2026, 400, "BRL")
+        await addReading(propertyId, "2026-02-10T12:00:00.000Z", 123)
+
+        const { items } = await costService().list(ownerId, { propertyId })
+
+        const kwh = items.find((i) => i.unit === "KWH")
+        const brl = items.find((i) => i.unit === "BRL")
+        expect(kwh?.months[1]?.realized).toBe(123)
+        expect(kwh?.months[0]?.realized).toBeNull()
+        expect(brl?.months[0]?.realized).toBe(310)
+        expect(brl?.months[1]?.realized).toBeNull()
     })
 })

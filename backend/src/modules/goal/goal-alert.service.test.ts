@@ -1,8 +1,11 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest"
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest"
+import type { GoalUnit } from "@/generated/prisma/client.js"
+import type { ConsumptionService } from "@/modules/consumption/consumption.service.js"
 import { GoalAlertService } from "@/modules/goal/goal-alert.service.js"
 import { GoalConsumptionReader } from "@/modules/goal/goal-consumption.js"
 import { GoalRepository } from "@/modules/goal/goal.repository.js"
 import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
+import { createConsumptionService } from "@/modules/consumption/consumption.routes.js"
 import { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
@@ -27,6 +30,7 @@ const service = new GoalAlertService(
     new GoalConsumptionReader(
         new MeterRepository(prismaTest),
         new ConsumptionRepository(prismaTest),
+        createConsumptionService(prismaTest),
     ),
     () => JUNE,
 )
@@ -88,7 +92,7 @@ async function addGoal(
     userId: string,
     propertyId: string,
     year = 2026,
-    extra: { alertNotifiedMonth?: number; alertNotifiedYear?: boolean } = {},
+    extra: { alertNotifiedMonth?: number; alertNotifiedYear?: boolean; unit?: GoalUnit } = {},
 ) {
     return prismaTest.goal.create({
         data: {
@@ -96,7 +100,7 @@ async function addGoal(
             propertyId,
             year,
             referenceYear: year - 1,
-            monthlyKwh: Array.from({ length: 12 }, () => 400),
+            monthlyTargets: Array.from({ length: 12 }, () => 400),
             alertPercent: 85,
             ...extra,
         },
@@ -195,5 +199,62 @@ describe("GoalAlertService.list", () => {
         expect(item).not.toHaveProperty("userId")
         expect(item).not.toHaveProperty("alertNotifiedMonth")
         expect(item).not.toHaveProperty("alertNotifiedYear")
+    })
+})
+// Custo mensal simulado (R$): junho de 2026 custou R$ 350, contra a meta de R$ 400.
+const costSource = {
+    list: vi.fn().mockResolvedValue({
+        items: [
+            {
+                bucketStart: new Date(Date.UTC(2026, 5, 1)),
+                kwhConsumed: 100,
+                costBrl: 350,
+                avgPowerW: 500,
+            },
+        ],
+        total: 1,
+        page: 1,
+        pageSize: 12,
+        granularity: "month",
+    }),
+} as unknown as Pick<ConsumptionService, "list">
+
+describe("GoalAlertService.list — unidade", () => {
+    const costService = () =>
+        new GoalAlertService(
+            new GoalRepository(prismaTest),
+            new GoalConsumptionReader(
+                new MeterRepository(prismaTest),
+                new ConsumptionRepository(prismaTest),
+                costSource,
+            ),
+            () => JUNE,
+        )
+
+    it("cada meta traz a própria unidade, e a em reais usa o custo", async () => {
+        const casa = await createProperty(ownerId, "Casa")
+        await addGoal(ownerId, casa, 2026, { unit: "KWH" })
+        await addGoal(ownerId, casa, 2026, { unit: "BRL" })
+        await addReading(casa, "2026-06-10T12:00:00.000Z", 100)
+
+        const { items } = await costService().list(ownerId)
+
+        const kwh = items.find((i) => i.unit === "KWH")
+        const brl = items.find((i) => i.unit === "BRL")
+        expect(items).toHaveLength(2)
+        expect(kwh?.monthly.percent).toBeCloseTo(25)
+        expect(brl?.monthly.percent).toBeCloseTo(87.5)
+        expect(brl?.monthly.reached).toBe(true)
+    })
+
+    it("o aviso de uma unidade não conta como aviso da outra", async () => {
+        const casa = await createProperty(ownerId, "Casa")
+        await addGoal(ownerId, casa, 2026, { unit: "KWH", alertNotifiedMonth: 6 })
+        await addGoal(ownerId, casa, 2026, { unit: "BRL" })
+
+        const { items } = await costService().list(ownerId)
+
+        expect(items.find((i) => i.unit === "KWH")?.monthly.notified).toBe(true)
+        expect(items.find((i) => i.unit === "BRL")?.monthly.notified).toBe(false)
     })
 })

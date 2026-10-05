@@ -1,6 +1,7 @@
 import { Router, type RequestHandler } from "express"
 import { PrismaClient } from "@/generated/prisma/client.js"
 import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
+import { createConsumptionService } from "@/modules/consumption/consumption.routes.js"
 import { GoalAlertController } from "@/modules/goal/goal-alert.controller.js"
 import { GoalAlertService } from "@/modules/goal/goal-alert.service.js"
 import { GoalConsumptionReader } from "@/modules/goal/goal-consumption.js"
@@ -21,6 +22,7 @@ export function goalRoutes(authenticate: RequestHandler, prismaClient: PrismaCli
     const consumptionReader = new GoalConsumptionReader(
         new MeterRepository(prismaClient),
         new ConsumptionRepository(prismaClient),
+        createConsumptionService(prismaClient),
     )
     const service = new GoalService(
         new GoalRepository(prismaClient),

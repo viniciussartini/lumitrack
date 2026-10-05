@@ -373,6 +373,7 @@ test.describe("Inbox de alertas (/alertas)", () => {
                         propertyId: "prop-1",
                         propertyName: "Casa Principal",
                         year: 2026,
+                        unit: "BRL",
                         alertPercent: 85,
                         monthly: { percent: 91.3, reached: true, notified: true },
                         annual: { percent: 42.5, reached: false, notified: false },
@@ -388,6 +389,7 @@ test.describe("Inbox de alertas (/alertas)", () => {
         await expect(section.getByText("Alertas de meta")).toBeVisible()
         const row = section.getByTestId("goal-alert-row-goal-1")
         await expect(row).toContainText("Casa Principal · 2026")
+        await expect(row).toContainText("R$")
         await expect(row).toContainText("85%")
         await expect(row).toContainText("91,3%")
         await expect(row).toContainText("Notificado")

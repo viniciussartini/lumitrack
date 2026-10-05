@@ -9,7 +9,8 @@ import {
     MONTH_NAMES,
     deviationTone,
     formatDeviation,
-    formatKwh,
+    formatGoalValue,
+    goalUnitLabels,
     type GoalTone,
 } from "@/lib/goals"
 import { cn } from "@/lib/cn"
@@ -39,16 +40,20 @@ export const GoalProgressSection = ({ progress, monthIndex }: GoalProgressSectio
         </div>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(360px,100%),1fr))] items-stretch">
             <div className="min-w-0 p-5">
-                <GoalProgressChart months={progress.months} />
+                <GoalProgressChart months={progress.months} unit={progress.unit} />
             </div>
             <dl className="border-divider m-0 grid grid-cols-[repeat(auto-fit,minmax(min(190px,100%),1fr))] content-start border-l">
                 <Stat
                     label={`Meta de ${progress.year}`}
-                    value={formatKwh(progress.yearTargetKwh)}
+                    value={formatGoalValue(progress.yearTarget, progress.unit)}
                 />
                 <Stat
                     label={`Realizado até ${MONTH_NAMES[monthIndex] ?? ""}`}
-                    value={progress.realizedKwh === null ? "-" : formatKwh(progress.realizedKwh)}
+                    value={
+                        progress.realized === null
+                            ? "-"
+                            : formatGoalValue(progress.realized, progress.unit)
+                    }
                 />
                 <Stat
                     label="Desvio acumulado"
@@ -56,11 +61,11 @@ export const GoalProgressSection = ({ progress, monthIndex }: GoalProgressSectio
                     tone={deviationTone(progress.deviationPercent)}
                 />
                 <Stat
-                    label="Consumo específico alvo · meta do mês"
+                    label={goalUnitLabels(progress.unit).monthStat}
                     value={
-                        progress.currentMonthTargetKwh === null
+                        progress.currentMonthTarget === null
                             ? "-"
-                            : formatKwh(progress.currentMonthTargetKwh)
+                            : formatGoalValue(progress.currentMonthTarget, progress.unit)
                     }
                 />
             </dl>

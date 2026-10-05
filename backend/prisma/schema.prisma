@@ -1062,28 +1062,39 @@ model ReportSchedule {
   @@map("report_schedules")
 }
 
-// Meta anual de consumo de uma propriedade. Uma por propriedade e ano; a meta
-// do ano é a soma dos 12 valores mensais. Metas de ano passado são imutáveis
+// Meta anual de uma propriedade, de consumo (kWh) ou de custo (R$). Uma por
+// propriedade, ano e unidade; a meta do ano é a soma dos 12 valores mensais. Metas de ano passado são imutáveis
 // (regra no serviço, não no banco): o histórico serve de base de referência
 // para metas novas.
+// Unidade em que uma meta é medida: consumo em kWh ou custo em reais.
+enum GoalUnit {
+  KWH
+  BRL
+
+  @@map("goal_unit")
+}
+
 model Goal {
   id         String @id @default(uuid())
   userId     String
   propertyId String
 
   year               Int
+  // A unidade identifica a meta, como o ano: a mesma propriedade pode ter a
+  // meta de consumo e a de custo no mesmo ano.
+  unit               GoalUnit @default(KWH)
   // Ano usado como base de comparação ao montar a meta; é só um número, não
   // exige que exista meta cadastrada para ele.
   referenceYear      Int
-  // Consumo-alvo em kWh de janeiro a dezembro: sempre 12 posições.
-  monthlyKwh         Float[]
+  // Alvo de cada mês, de janeiro a dezembro, na unidade da meta: sempre 12 posições.
+  monthlyTargets     Float[]
   // % da meta (do mês e do ano acumulado) a partir do qual o usuário é avisado.
   alertPercent       Int
   // Marcas de "já avisado": a meta é de um ano só, então o mês (1–12) do
   // último aviso e um sinalizador para o aviso anual bastam para não repetir
   // o aviso no mesmo período. Editar a meta zera as duas.
   alertNotifiedMonth Int?
-  alertNotifiedYear  Boolean @default(false)
+  alertNotifiedYear  Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1091,7 +1102,7 @@ model Goal {
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
-  @@unique([propertyId, year])
+  @@unique([propertyId, year, unit])
   @@index([userId])
   @@map("goals")
 }

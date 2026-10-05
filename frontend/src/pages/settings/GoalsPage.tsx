@@ -7,6 +7,7 @@ import { GoalFormDialog } from "@/components/goal/GoalFormDialog"
 import { GoalHistoryTable } from "@/components/goal/GoalHistoryTable"
 import { GoalProgressSection } from "@/components/goal/GoalProgressSection"
 import { GoalSummaryCard } from "@/components/goal/GoalSummaryCard"
+import { GoalUnitSelector } from "@/components/goal/GoalUnitSelector"
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { useDeleteGoal, useGoalProgress, useGoals } from "@/hooks/queries/useGoals"
@@ -14,7 +15,7 @@ import { useProperties } from "@/hooks/queries/useProperties"
 import { usePropertySelection } from "@/hooks/usePropertySelection"
 import { currentGoalMonthIndex, currentGoalYear, referenceGoalForm } from "@/lib/goals"
 import { extractErrorMessage } from "@/services/api"
-import type { Goal, GoalProgress } from "@/types/goal.types"
+import type { Goal, GoalProgress, GoalUnit } from "@/types/goal.types"
 import { MAX_PAGE_SIZE } from "@/types/pagination.types"
 
 type DialogState =
@@ -29,6 +30,7 @@ export const GoalsPage = () => {
     const propertiesQuery = useProperties(1, MAX_PAGE_SIZE)
     const properties = propertiesQuery.data?.items
     const { selectedId, selectProperty } = usePropertySelection(properties)
+    const [unit, setUnit] = useState<GoalUnit>("KWH")
 
     if (propertiesQuery.isPending) {
         return (
@@ -51,7 +53,7 @@ export const GoalsPage = () => {
             <EmptyState
                 icon={Target}
                 title="Nenhuma propriedade cadastrada"
-                description="Cadastre uma propriedade para definir metas de consumo."
+                description="Cadastre uma propriedade para definir metas de consumo e de custo."
                 action={
                     <Link to="/configuracoes/cadastro" className="btn btn-primary">
                         Ir para o cadastro
@@ -70,12 +72,13 @@ export const GoalsPage = () => {
                     onChange={selectProperty}
                 />
             )}
-            <PropertyGoals propertyId={selectedId} />
+            <GoalUnitSelector unit={unit} onChange={setUnit} />
+            <PropertyGoals propertyId={selectedId} unit={unit} />
         </div>
     )
 }
 
-const PropertyGoals = ({ propertyId }: { propertyId: string }) => {
+const PropertyGoals = ({ propertyId, unit }: { propertyId: string; unit: GoalUnit }) => {
     const goalsQuery = useGoals(propertyId)
     const progressQuery = useGoalProgress(propertyId)
     const progressByGoalId = useMemo(
@@ -102,6 +105,7 @@ const PropertyGoals = ({ propertyId }: { propertyId: string }) => {
     return (
         <GoalsContent
             propertyId={propertyId}
+            unit={unit}
             goals={goalsQuery.data.items}
             progressByGoalId={progressByGoalId}
             progressStatus={{ isPending: progressQuery.isPending, isError: progressQuery.isError }}
@@ -111,6 +115,8 @@ const PropertyGoals = ({ propertyId }: { propertyId: string }) => {
 
 interface GoalsContentProps {
     propertyId: string
+    /** Unidade mostrada: a lista e as ações valem só para ela. */
+    unit: GoalUnit
     goals: Goal[]
     progressByGoalId: ReadonlyMap<string, GoalProgress>
     progressStatus: { isPending: boolean; isError: boolean }
@@ -118,7 +124,8 @@ interface GoalsContentProps {
 
 const GoalsContent = ({
     propertyId,
-    goals,
+    unit,
+    goals: allGoals,
     progressByGoalId,
     progressStatus,
 }: GoalsContentProps) => {
@@ -127,6 +134,8 @@ const GoalsContent = ({
     const now = new Date()
     const currentYear = currentGoalYear(now)
     const monthIndex = currentGoalMonthIndex(now)
+    // As metas das duas unidades chegam juntas; a tela mostra uma por vez.
+    const goals = allGoals.filter((goal) => goal.unit === unit)
     const currentGoal = goals.find((goal) => goal.year === currentYear)
     const existingYears = goals.map((goal) => goal.year)
 
@@ -136,6 +145,7 @@ const GoalsContent = ({
                 currentGoal={currentGoal}
                 currentYear={currentYear}
                 monthIndex={monthIndex}
+                unit={unit}
                 onNewGoal={() => setDialog({ kind: "create" })}
             />
             {currentGoal && (
@@ -155,21 +165,12 @@ const GoalsContent = ({
                 onUseAsReference={(goal) => setDialog({ kind: "reference", goal })}
             />
 
-            <GoalFormDialog
-                open={dialog !== null}
-                onOpenChange={(open) => !open && setDialog(null)}
+            <GoalFormHost
+                dialog={dialog}
+                onClose={() => setDialog(null)}
                 propertyId={propertyId}
-                goal={dialog?.kind === "edit" ? dialog.goal : null}
-                initial={
-                    dialog?.kind === "reference"
-                        ? referenceGoalForm(
-                              dialog.goal,
-                              progressByGoalId.get(dialog.goal.id),
-                              currentYear,
-                              existingYears,
-                          )
-                        : undefined
-                }
+                unit={unit}
+                progressByGoalId={progressByGoalId}
                 existingYears={existingYears}
                 currentYear={currentYear}
             />
@@ -177,6 +178,48 @@ const GoalsContent = ({
         </>
     )
 }
+
+interface GoalFormHostProps {
+    dialog: DialogState
+    onClose: () => void
+    propertyId: string
+    unit: GoalUnit
+    progressByGoalId: ReadonlyMap<string, GoalProgress>
+    existingYears: readonly number[]
+    currentYear: number
+}
+
+// O modal de meta: nova, edição ou nova a partir de um ano de referência, que
+// já chega preenchida com o realizado daquele ano.
+const GoalFormHost = ({
+    dialog,
+    onClose,
+    propertyId,
+    unit,
+    progressByGoalId,
+    existingYears,
+    currentYear,
+}: GoalFormHostProps) => (
+    <GoalFormDialog
+        open={dialog !== null}
+        onOpenChange={(open) => !open && onClose()}
+        propertyId={propertyId}
+        unit={unit}
+        goal={dialog?.kind === "edit" ? dialog.goal : null}
+        initial={
+            dialog?.kind === "reference"
+                ? referenceGoalForm(
+                      dialog.goal,
+                      progressByGoalId.get(dialog.goal.id),
+                      currentYear,
+                      existingYears,
+                  )
+                : undefined
+        }
+        existingYears={existingYears}
+        currentYear={currentYear}
+    />
+)
 
 interface ProgressBlockProps {
     isPending: boolean

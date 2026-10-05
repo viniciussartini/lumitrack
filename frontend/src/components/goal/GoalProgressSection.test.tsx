@@ -6,15 +6,16 @@ import type { GoalProgress } from "@/types/goal.types"
 const makeProgress = (override: Partial<GoalProgress> = {}): GoalProgress => ({
     goalId: "goal-2026",
     year: 2026,
+    unit: "KWH",
     months: Array.from({ length: 12 }, (_, i) => ({
         month: i + 1,
-        targetKwh: 400,
-        realizedKwh: i < 6 ? 380 : null,
+        target: 400,
+        realized: i < 6 ? 380 : null,
     })),
-    yearTargetKwh: 4800,
-    realizedKwh: 2280,
+    yearTarget: 4800,
+    realized: 2280,
     deviationPercent: 3.6,
-    currentMonthTargetKwh: 400,
+    currentMonthTarget: 400,
     situation: "IN_PROGRESS",
     ...override,
 })
@@ -66,12 +67,33 @@ describe("GoalProgressSection", () => {
     it('sem leitura, realizado e desvio são "-", nunca zero', () => {
         render(
             <GoalProgressSection
-                progress={makeProgress({ realizedKwh: null, deviationPercent: null })}
+                progress={makeProgress({ realized: null, deviationPercent: null })}
                 monthIndex={5}
             />,
         )
 
         expect(statValue("Realizado até junho")).toHaveTextContent("-")
         expect(statValue("Desvio acumulado")).toHaveTextContent("-")
+    })
+})
+
+describe("GoalProgressSection — custo (R$)", () => {
+    it("mostra os valores em reais e o rótulo da meta de custo do mês", () => {
+        render(
+            <GoalProgressSection
+                progress={makeProgress({
+                    unit: "BRL",
+                    yearTarget: 4800,
+                    realized: 2280,
+                    currentMonthTarget: 400,
+                })}
+                monthIndex={5}
+            />,
+        )
+
+        expect(statValue("Meta de 2026")).toHaveTextContent("R$ 4.800")
+        expect(statValue("Realizado até junho")).toHaveTextContent("R$ 2.280")
+        expect(statValue("Custo alvo · meta do mês")).toHaveTextContent("R$ 400")
+        expect(screen.queryByText("Consumo específico alvo · meta do mês")).not.toBeInTheDocument()
     })
 })

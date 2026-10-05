@@ -1,18 +1,20 @@
 import { describe, it, expect } from "vitest"
 import {
-    applySpecificKwh,
+    applySpecificValue,
     buildGoalCreateInput,
     buildGoalUpdateInput,
     currentGoalMonthIndex,
     currentGoalYear,
     describeCurrentGoal,
+    formatGoalValue,
+    goalUnitLabels,
     describeSituation,
     deviationTone,
     formatDeviation,
     formatGoalPercent,
     formatRealized,
     goalToFormState,
-    goalYearlyKwh,
+    goalYearlyTotal,
     initialGoalForm,
     isGoalLocked,
     referenceGoalForm,
@@ -25,8 +27,9 @@ const goal = (override: Partial<Goal> = {}): Goal => ({
     id: "g1",
     propertyId: "p1",
     year: 2026,
+    unit: "KWH",
     referenceYear: 2025,
-    monthlyKwh: Array.from({ length: 12 }, () => 400),
+    monthlyTargets: Array.from({ length: 12 }, () => 400),
     alertPercent: 85,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
@@ -60,15 +63,17 @@ describe("regras da meta", () => {
     })
 
     it("a meta do ano é a soma dos 12 meses", () => {
-        expect(goalYearlyKwh(goal())).toBe(4800)
+        expect(goalYearlyTotal(goal())).toBe(4800)
         expect(
-            goalYearlyKwh(goal({ monthlyKwh: [100, ...Array.from({ length: 11 }, () => 0)] })),
+            goalYearlyTotal(
+                goal({ monthlyTargets: [100, ...Array.from({ length: 11 }, () => 0)] }),
+            ),
         ).toBe(100)
     })
 
     it("descreve a meta vigente com a meta do mês corrente", () => {
         const months = Array.from({ length: 12 }, (_, i) => (i + 1) * 100)
-        const text = describeCurrentGoal(goal({ monthlyKwh: months }), 2)
+        const text = describeCurrentGoal(goal({ monthlyTargets: months }), 2)
 
         expect(text).toContain("Teto de 7.800 kWh para 2026")
         expect(text).toContain("referência 2025")
@@ -89,18 +94,18 @@ describe("initialGoalForm", () => {
     })
 })
 
-describe("applySpecificKwh", () => {
+describe("applySpecificValue", () => {
     it("repete o valor nos 12 meses e mantém o resto do rascunho", () => {
-        const next = applySpecificKwh(filled({ alertPercent: "90" }), "650")
+        const next = applySpecificValue(filled({ alertPercent: "90" }), "650")
         expect(next.months).toEqual(Array.from({ length: 12 }, () => "650"))
-        expect(next.specificKwh).toBe("650")
+        expect(next.specificValue).toBe("650")
         expect(next.alertPercent).toBe("90")
     })
 })
 
 describe("goalToFormState", () => {
     it("o atalho mostra a média mensal", () => {
-        expect(goalToFormState(goal()).specificKwh).toBe("400")
+        expect(goalToFormState(goal()).specificValue).toBe("400")
     })
 })
 
@@ -145,12 +150,13 @@ describe("validateGoalForm", () => {
 
 describe("montagem do corpo", () => {
     it("a criação leva propriedade, ano e valores, sem o atalho de preenchimento", () => {
-        const input = buildGoalCreateInput(filled({ specificKwh: "999" }), "p1")
+        const input = buildGoalCreateInput(filled({ specificValue: "999" }), "p1", "KWH")
         expect(input).toEqual({
             propertyId: "p1",
             year: 2026,
+            unit: "KWH",
             referenceYear: 2025,
-            monthlyKwh: Array.from({ length: 12 }, () => 400),
+            monthlyTargets: Array.from({ length: 12 }, () => 400),
             alertPercent: 85,
         })
     })
@@ -159,7 +165,7 @@ describe("montagem do corpo", () => {
         const input = buildGoalUpdateInput(filled({ alertPercent: "90" }))
         expect(input).toEqual({
             referenceYear: 2025,
-            monthlyKwh: Array.from({ length: 12 }, () => 400),
+            monthlyTargets: Array.from({ length: 12 }, () => 400),
             alertPercent: 90,
         })
         expect(input).not.toHaveProperty("year")
@@ -192,14 +198,15 @@ describe("situação e desvio do acompanhamento", () => {
     })
 
     it('realizado ausente é "-", nunca 0 kWh', () => {
-        const progress = (realizedKwh: number | null): GoalProgress => ({
+        const progress = (realized: number | null): GoalProgress => ({
             goalId: "g1",
             year: 2026,
+            unit: "KWH",
             months: [],
-            yearTargetKwh: 4800,
-            realizedKwh,
+            yearTarget: 4800,
+            realized,
             deviationPercent: null,
-            currentMonthTargetKwh: null,
+            currentMonthTarget: null,
             situation: "IN_PROGRESS",
         })
         expect(formatRealized(progress(2220))).toBe("2.220 kWh")
@@ -213,15 +220,16 @@ describe("referenceGoalForm", () => {
     const progressWith = (realized: (number | null)[]): GoalProgress => ({
         goalId: "g1",
         year: 2025,
+        unit: "KWH",
         months: Array.from({ length: 12 }, (_, i) => ({
             month: i + 1,
-            targetKwh: 400,
-            realizedKwh: realized[i] ?? null,
+            target: 400,
+            realized: realized[i] ?? null,
         })),
-        yearTargetKwh: 4800,
-        realizedKwh: null,
+        yearTarget: 4800,
+        realized: null,
         deviationPercent: null,
-        currentMonthTargetKwh: null,
+        currentMonthTarget: null,
         situation: "MET",
     })
 
@@ -256,14 +264,14 @@ describe("referenceGoalForm", () => {
             [],
         )
 
-        expect(state.specificKwh).toBe("400")
+        expect(state.specificValue).toBe("400")
     })
 
     it("sem leitura nenhuma, ou sem acompanhamento, os meses e o específico ficam vazios", () => {
         for (const progress of [progressWith([]), undefined]) {
             const state = referenceGoalForm(goal({ year: 2025 }), progress, 2026, [])
             expect(state.months).toEqual(Array.from({ length: 12 }, () => ""))
-            expect(state.specificKwh).toBe("")
+            expect(state.specificValue).toBe("")
             expect(state.referenceYear).toBe("2025")
         }
     })
@@ -286,5 +294,83 @@ describe("formatGoalPercent", () => {
         expect(formatGoalPercent(100)).toBe("100,0%")
         expect(formatGoalPercent(0)).toBe("0,0%")
         expect(formatGoalPercent(null)).toBe("-")
+    })
+})
+
+describe("unidade da meta", () => {
+    it("formata kWh e reais em números inteiros, com o separador de milhar brasileiro", () => {
+        expect(formatGoalValue(4800, "KWH")).toBe("4.800 kWh")
+        expect(formatGoalValue(4800.4, "BRL")).toBe("R$ 4.800")
+        expect(formatGoalValue(0, "BRL")).toBe("R$ 0")
+    })
+
+    it("o realizado em reais usa a unidade do acompanhamento", () => {
+        const progress = (unit: "KWH" | "BRL"): GoalProgress => ({
+            goalId: "g1",
+            year: 2026,
+            unit,
+            months: [],
+            yearTarget: 4800,
+            realized: 2220,
+            deviationPercent: null,
+            currentMonthTarget: null,
+            situation: "IN_PROGRESS",
+        })
+        expect(formatRealized(progress("KWH"))).toBe("2.220 kWh")
+        expect(formatRealized(progress("BRL"))).toBe("R$ 2.220")
+    })
+
+    it("cada unidade tem os próprios rótulos", () => {
+        expect(goalUnitLabels("KWH")).toMatchObject({
+            selector: "Consumo (kWh)",
+            cardTitle: "Metas de consumo anual",
+            specific: "Consumo específico alvo · kWh",
+            months: "Meta mês a mês · kWh",
+            monthStat: "Consumo específico alvo · meta do mês",
+            newTitle: "Nova meta de consumo",
+        })
+        expect(goalUnitLabels("BRL")).toMatchObject({
+            selector: "Custo (R$)",
+            cardTitle: "Metas de custo anual",
+            specific: "Custo mensal alvo · R$",
+            months: "Meta mês a mês · R$",
+            monthStat: "Custo alvo · meta do mês",
+            newTitle: "Nova meta de custo",
+        })
+    })
+
+    it("a frase da meta vigente em reais fala em custo e em reais", () => {
+        const months = Array.from({ length: 12 }, (_, i) => (i + 1) * 100)
+        const text = describeCurrentGoal(goal({ unit: "BRL", monthlyTargets: months }), 2)
+
+        expect(text).toContain("Teto de R$ 7.800 para 2026")
+        expect(text).toContain("meta do mês R$ 300")
+    })
+
+    it("a criação leva a unidade escolhida", () => {
+        expect(buildGoalCreateInput(filled(), "p1", "BRL").unit).toBe("BRL")
+    })
+
+    it("usar como referência mantém o valor realizado em reais arredondado", () => {
+        const progress: GoalProgress = {
+            goalId: "g1",
+            year: 2025,
+            unit: "BRL",
+            months: Array.from({ length: 12 }, (_, i) => ({
+                month: i + 1,
+                target: 400,
+                realized: i === 0 ? 310.6 : null,
+            })),
+            yearTarget: 4800,
+            realized: 310.6,
+            deviationPercent: null,
+            currentMonthTarget: null,
+            situation: "MET",
+        }
+
+        const state = referenceGoalForm(goal({ year: 2025, unit: "BRL" }), progress, 2026, [])
+
+        expect(state.months[0]).toBe("311")
+        expect(state.specificValue).toBe("311")
     })
 })

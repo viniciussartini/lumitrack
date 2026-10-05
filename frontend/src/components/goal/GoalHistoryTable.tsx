@@ -6,9 +6,9 @@ import {
     deviationTone,
     describeSituation,
     formatDeviation,
-    formatKwh,
+    formatGoalValue,
     formatRealized,
-    goalYearlyKwh,
+    goalYearlyTotal,
     isGoalLocked,
 } from "@/lib/goals"
 import { cn } from "@/lib/cn"
@@ -118,7 +118,7 @@ const GoalRow = ({
     return (
         <tr data-testid={`goal-row-${goal.year}`}>
             <td className="font-heading text-base font-semibold">{goal.year}</td>
-            <td className="text-right">{formatKwh(goalYearlyKwh(goal))}</td>
+            <td className="text-right">{formatGoalValue(goalYearlyTotal(goal), goal.unit)}</td>
             <td className="text-right">{formatRealized(progress)}</td>
             <td className={cn("text-right", GOAL_TONE_TEXT_CLASS[deviationTone(deviation)])}>
                 {formatDeviation(deviation)}

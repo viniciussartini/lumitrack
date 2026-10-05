@@ -307,9 +307,10 @@ describe("ExportService.generate", () => {
             electricalSystem: "TRIPHASIC",
         })
         const base = {
+            unit: "KWH" as const,
             year: 2026,
             referenceYear: 2025,
-            monthlyKwh: Array.from({ length: 12 }, () => 300),
+            monthlyTargets: Array.from({ length: 12 }, () => 300),
             alertPercent: 85,
         }
         await goalRepository.create(userA.id, { ...base, propertyId: propertyA.id })

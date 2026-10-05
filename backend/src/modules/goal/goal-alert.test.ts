@@ -9,11 +9,11 @@ const MID_JUNE_2026 = new Date("2026-06-15T15:00:00.000Z")
 
 const stateFor = (
     realized: (number | null)[],
-    options: { year?: number; monthlyKwh?: number[]; alertPercent?: number } = {},
+    options: { year?: number; monthlyTargets?: number[]; alertPercent?: number } = {},
 ) => {
     const progress = computeGoalProgress({
         year: options.year ?? 2026,
-        monthlyKwh: options.monthlyKwh ?? twelve(() => 400),
+        monthlyTargets: options.monthlyTargets ?? twelve(() => 400),
         realizedByMonth: twelve((i) => realized[i] ?? null),
         now: MID_JUNE_2026,
     })
@@ -49,8 +49,8 @@ describe("computeGoalAlertState — mês", () => {
     })
 
     it("meta do mês zerada não tem percentual (sem divisão por zero)", () => {
-        const monthlyKwh = twelve((i) => (i === 5 ? 0 : 400))
-        const state = stateFor([null, null, null, null, null, 50], { monthlyKwh })
+        const monthlyTargets = twelve((i) => (i === 5 ? 0 : 400))
+        const state = stateFor([null, null, null, null, null, 50], { monthlyTargets })
 
         expect(state.month).toEqual({ percent: null, reached: false })
     })
@@ -95,7 +95,7 @@ describe("computeGoalAlertState — ano", () => {
     })
 
     it("meta anual zerada não tem percentual", () => {
-        const state = stateFor([10], { monthlyKwh: twelve(() => 0) })
+        const state = stateFor([10], { monthlyTargets: twelve(() => 0) })
 
         expect(state.year).toEqual({ percent: null, reached: false })
     })

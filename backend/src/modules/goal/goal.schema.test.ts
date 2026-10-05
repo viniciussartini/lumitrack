@@ -11,7 +11,7 @@ const valid = {
     propertyId,
     year: 2026,
     referenceYear: 2025,
-    monthlyKwh: Array.from({ length: 12 }, () => 400),
+    monthlyTargets: Array.from({ length: 12 }, () => 400),
     alertPercent: 85,
 }
 
@@ -25,23 +25,27 @@ describe("createGoalBodySchema", () => {
 
     describe("meta mês a mês", () => {
         it("exige exatamente 12 meses", () => {
-            expect(parse({ monthlyKwh: Array.from({ length: 11 }, () => 400) }).success).toBe(false)
-            expect(parse({ monthlyKwh: Array.from({ length: 13 }, () => 400) }).success).toBe(false)
-            expect(parse({ monthlyKwh: [] }).success).toBe(false)
+            expect(parse({ monthlyTargets: Array.from({ length: 11 }, () => 400) }).success).toBe(
+                false,
+            )
+            expect(parse({ monthlyTargets: Array.from({ length: 13 }, () => 400) }).success).toBe(
+                false,
+            )
+            expect(parse({ monthlyTargets: [] }).success).toBe(false)
         })
 
         it("aceita mês zerado e rejeita negativo", () => {
             const withZero = [0, ...Array.from({ length: 11 }, () => 400)]
             const withNegative = [-1, ...Array.from({ length: 11 }, () => 400)]
-            expect(parse({ monthlyKwh: withZero }).success).toBe(true)
-            expect(parse({ monthlyKwh: withNegative }).success).toBe(false)
+            expect(parse({ monthlyTargets: withZero }).success).toBe(true)
+            expect(parse({ monthlyTargets: withNegative }).success).toBe(false)
         })
 
         it("rejeita valor não numérico, infinito ou acima do teto", () => {
             const base = Array.from({ length: 11 }, () => 400)
-            expect(parse({ monthlyKwh: ["400", ...base] }).success).toBe(false)
-            expect(parse({ monthlyKwh: [Infinity, ...base] }).success).toBe(false)
-            expect(parse({ monthlyKwh: [1e12, ...base] }).success).toBe(false)
+            expect(parse({ monthlyTargets: ["400", ...base] }).success).toBe(false)
+            expect(parse({ monthlyTargets: [Infinity, ...base] }).success).toBe(false)
+            expect(parse({ monthlyTargets: [1e12, ...base] }).success).toBe(false)
         })
     })
 
@@ -78,6 +82,32 @@ describe("createGoalBodySchema", () => {
     })
 })
 
+describe("unidade da meta", () => {
+    it("assume consumo em kWh quando a unidade não é informada", () => {
+        const result = parse()
+        expect(result.success).toBe(true)
+        if (result.success) expect(result.data.unit).toBe("KWH")
+    })
+
+    it("aceita a meta de custo em reais", () => {
+        const result = parse({ unit: "BRL" })
+        expect(result.success).toBe(true)
+        if (result.success) expect(result.data.unit).toBe("BRL")
+    })
+
+    it("rejeita unidade desconhecida", () => {
+        expect(parse({ unit: "MWH" }).success).toBe(false)
+        expect(parse({ unit: "" }).success).toBe(false)
+    })
+
+    it("a edição não carrega a unidade: ela identifica a meta", () => {
+        const { propertyId: _property, year: _year, ...editable } = valid
+        const result = updateGoalBodySchema.safeParse({ ...editable, unit: "BRL" })
+        expect(result.success).toBe(true)
+        if (result.success) expect(result.data).not.toHaveProperty("unit")
+    })
+})
+
 describe("updateGoalBodySchema", () => {
     const { propertyId: _property, year: _year, ...editable } = valid
 
@@ -96,7 +126,9 @@ describe("updateGoalBodySchema", () => {
 
     it("aplica os mesmos limites de mês e de percentual", () => {
         expect(updateGoalBodySchema.safeParse({ ...editable, alertPercent: 5 }).success).toBe(false)
-        expect(updateGoalBodySchema.safeParse({ ...editable, monthlyKwh: [1] }).success).toBe(false)
+        expect(updateGoalBodySchema.safeParse({ ...editable, monthlyTargets: [1] }).success).toBe(
+            false,
+        )
     })
 })
 

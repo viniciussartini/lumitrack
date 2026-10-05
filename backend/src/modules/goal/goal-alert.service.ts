@@ -1,3 +1,4 @@
+import type { GoalUnit } from "@/generated/prisma/client.js"
 import { computeGoalAlertState, type GoalAlertPeriodState } from "@/modules/goal/goal-alert.js"
 import type { GoalConsumptionReader } from "@/modules/goal/goal-consumption.js"
 import { computeGoalProgress } from "@/modules/goal/goal-progress.js"
@@ -15,6 +16,7 @@ export type GoalAlertResponse = {
     propertyId: string
     propertyName: string
     year: number
+    unit: GoalUnit
     alertPercent: number
     /** Mês corrente contra a meta do mês. */
     monthly: GoalAlertPeriodResponse
@@ -53,20 +55,28 @@ export class GoalAlertService {
         const month = local.getUTCMonth() + 1
 
         const goals = await this.goalRepository.findByUserAndYear(userId, year)
-        const propertyIds = [...new Set(goals.map((goal) => goal.propertyId))]
+        // Uma leitura por propriedade e unidade: a meta em kWh e a em R$ da mesma
+        // propriedade leem o realizado de fontes diferentes.
+        const sources = new Map(goals.map((goal) => [`${goal.propertyId}:${goal.unit}`, goal]))
         const readings = await Promise.all(
-            propertyIds.map(
-                async (propertyId) =>
+            [...sources].map(
+                async ([key, goal]) =>
                     [
-                        propertyId,
-                        await this.consumptionReader.monthlyKwh(propertyId, year, now),
+                        key,
+                        await this.consumptionReader.monthlyValues(
+                            userId,
+                            goal.propertyId,
+                            year,
+                            goal.unit,
+                            now,
+                        ),
                     ] as const,
             ),
         )
-        const monthlyByProperty = new Map(readings)
+        const monthlyBySource = new Map(readings)
 
         const items = goals.map((goal) => {
-            const monthly = monthlyByProperty.get(goal.propertyId)
+            const monthly = monthlyBySource.get(`${goal.propertyId}:${goal.unit}`)
             return this.toResponse(goal, month, now, monthly?.forYear(year) ?? [])
         })
         return { items }
@@ -80,7 +90,7 @@ export class GoalAlertService {
     ): GoalAlertResponse {
         const progress = computeGoalProgress({
             year: goal.year,
-            monthlyKwh: goal.monthlyKwh,
+            monthlyTargets: goal.monthlyTargets,
             realizedByMonth,
             now,
         })
@@ -90,6 +100,7 @@ export class GoalAlertService {
             propertyId: goal.propertyId,
             propertyName: goal.property.name,
             year: goal.year,
+            unit: goal.unit,
             alertPercent: goal.alertPercent,
             monthly: { ...state.month, notified: goal.alertNotifiedMonth === month },
             annual: { ...state.year, notified: goal.alertNotifiedYear },

@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest"
-import { describeExportedReport, generateDataExportPdf } from "@/shared/pdf/dataExportPdf.js"
+import {
+    describeExportedGoal,
+    describeExportedReport,
+    generateDataExportPdf,
+} from "@/shared/pdf/dataExportPdf.js"
 import type { DataExportPayload } from "@/modules/export/export.service.js"
+import type { GoalPublicRecord } from "@/modules/goal/goal.repository.js"
 import type { PropertyResponse } from "@/modules/property/property.repository.js"
 
 // Payload fake — não toca o banco, testa só a geração do documento em si.
@@ -175,8 +180,9 @@ describe("generateDataExportPdf — metas", () => {
                         id: "goal-1",
                         propertyId: "prop-1",
                         year: 2026,
+                        unit: "KWH",
                         referenceYear: 2025,
-                        monthlyKwh: Array.from({ length: 12 }, () => 400),
+                        monthlyTargets: Array.from({ length: 12 }, () => 400),
                         alertPercent: 85,
                         createdAt: new Date("2026-01-01T00:00:00Z"),
                         updatedAt: new Date("2026-01-01T00:00:00Z"),
@@ -202,5 +208,36 @@ describe("describeExportedReport", () => {
         expect(describeExportedReport(report)).toBe(
             "• Mensal (PDF) — 01/02/2026 a 28/02/2026 — emitido em 01/03/2026, 09:30:00",
         )
+    })
+})
+
+describe("describeExportedGoal", () => {
+    const goal = (override: Partial<GoalPublicRecord> = {}): GoalPublicRecord => ({
+        id: "goal-1",
+        propertyId: "prop-1",
+        year: 2026,
+        unit: "KWH",
+        referenceYear: 2025,
+        monthlyTargets: Array.from({ length: 12 }, () => 400),
+        alertPercent: 85,
+        createdAt: new Date("2026-01-01T00:00:00Z"),
+        updatedAt: new Date("2026-01-01T00:00:00Z"),
+        ...override,
+    })
+
+    it("a meta de consumo sai em kWh", () => {
+        expect(describeExportedGoal(goal(), "Casa")).toBe(
+            "• Casa — 2026 — meta de 4.800 kWh — referência 2025 — alerta ao atingir 85%",
+        )
+    })
+
+    it("a meta de custo sai em reais", () => {
+        expect(describeExportedGoal(goal({ unit: "BRL" }), "Casa")).toBe(
+            "• Casa — 2026 — meta de R$ 4.800 — referência 2025 — alerta ao atingir 85%",
+        )
+    })
+
+    it("sem o nome da propriedade, a linha começa pelo ano", () => {
+        expect(describeExportedGoal(goal())).toMatch(/^• 2026 — meta de/)
     })
 })

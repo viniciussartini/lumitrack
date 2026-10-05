@@ -1,6 +1,9 @@
 import { z } from "zod"
 import { paginationQuerySchema } from "@/shared/pagination.js"
 
+/** Unidade da meta: consumo em kWh ou custo em reais. */
+export const goalUnitSchema = z.enum(["KWH", "BRL"])
+
 export const MIN_GOAL_YEAR = 2020
 export const MAX_GOAL_YEAR = 2100
 export const MONTHS_IN_YEAR = 12
@@ -21,13 +24,13 @@ const yearSchema = (field: string) =>
 // qualquer um dos dois seria outra meta, não a edição desta.
 const goalValuesShape = {
     referenceYear: yearSchema("Ano de referência"),
-    monthlyKwh: z
+    monthlyTargets: z
         .array(
             z
                 .number({ error: "A meta de cada mês deve ser um número" })
                 .min(0, { message: "A meta de cada mês não pode ser negativa" })
                 .max(MAX_MONTHLY_KWH, { message: "A meta de um mês excede o limite permitido" }),
-            { error: "monthlyKwh deve ser uma lista" },
+            { error: "monthlyTargets deve ser uma lista" },
         )
         .length(MONTHS_IN_YEAR, { message: `A meta deve ter os ${MONTHS_IN_YEAR} meses` }),
     alertPercent: z
@@ -48,6 +51,7 @@ export const createGoalBodySchema = z
     .object({
         propertyId: z.uuid({ message: "propertyId inválido" }),
         year: yearSchema("Ano da meta"),
+        unit: goalUnitSchema.default("KWH"),
         ...goalValuesShape,
     })
     .refine((data) => data.referenceYear < data.year, {

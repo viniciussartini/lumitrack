@@ -22,8 +22,9 @@ let propertyId: string
 const goalData = (year: number) => ({
     propertyId,
     year,
+    unit: "KWH" as const,
     referenceYear: year - 1,
-    monthlyKwh: Array.from({ length: 12 }, () => 400),
+    monthlyTargets: Array.from({ length: 12 }, () => 400),
     alertPercent: 85,
 })
 
@@ -50,6 +51,37 @@ beforeEach(async () => {
 })
 afterAll(async () => {
     await prismaTest.$disconnect()
+})
+
+describe("GoalRepository.create — unidade", () => {
+    it("a unidade faz parte da identidade: kWh e R$ do mesmo ano convivem", async () => {
+        const kwh = await repository.create(userId, { ...goalData(2026), unit: "KWH" })
+        const brl = await repository.create(userId, { ...goalData(2026), unit: "BRL" })
+
+        expect(kwh).not.toBeNull()
+        expect(brl).not.toBeNull()
+    })
+
+    it("a mesma unidade no mesmo ano não se repete", async () => {
+        await repository.create(userId, { ...goalData(2026), unit: "BRL" })
+
+        expect(await repository.create(userId, { ...goalData(2026), unit: "BRL" })).toBeNull()
+    })
+
+    it("as metas já existentes antes da unidade ficam em kWh", async () => {
+        const goal = await prismaTest.goal.create({
+            data: {
+                userId,
+                propertyId,
+                year: 2026,
+                referenceYear: 2025,
+                monthlyTargets: Array.from({ length: 12 }, () => 400),
+                alertPercent: 85,
+            },
+        })
+
+        expect(goal.unit).toBe("KWH")
+    })
 })
 
 describe("GoalRepository.claimMonthAlert", () => {
@@ -129,7 +161,7 @@ describe("GoalRepository.update", () => {
 
         await repository.update(goal!.id, userId, {
             referenceYear: 2025,
-            monthlyKwh: Array.from({ length: 12 }, () => 500),
+            monthlyTargets: Array.from({ length: 12 }, () => 500),
             alertPercent: 90,
         })
 

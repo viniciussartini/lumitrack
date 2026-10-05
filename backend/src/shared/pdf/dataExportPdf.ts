@@ -2,6 +2,7 @@ import PDFDocument from "pdfkit"
 import { BRAND, ZAP_ICON_PATH, ZAP_ICON_VIEWBOX_SIZE } from "@/shared/pdf/brand.js"
 import { formatInstantDateTime, formatPeriodLabel } from "@/modules/report/generators/format.js"
 import type { DataExportPayload } from "@/modules/export/export.service.js"
+import type { GoalPublicRecord } from "@/modules/goal/goal.repository.js"
 import type { UserWithoutPassword } from "@/modules/user/user.repository.js"
 import type { AclSubmarket, AclEnergySource } from "@/generated/prisma/client.js"
 
@@ -289,22 +290,36 @@ function drawReportSchedulesSection(doc: PDFKit.PDFDocument, payload: DataExport
     }
 }
 
+/**
+ * Linha de uma meta no PDF do titular: propriedade, ano, a meta do ano na
+ * unidade dela (kWh ou reais), a referência e o percentual de alerta.
+ *
+ * @param goal - Meta exportada.
+ * @param propertyName - Nome da propriedade, quando conhecido.
+ * @returns O texto da linha.
+ */
+export function describeExportedGoal(goal: GoalPublicRecord, propertyName?: string): string {
+    const yearlyTarget = Math.round(goal.monthlyTargets.reduce((sum, value) => sum + value, 0))
+    const formatted = yearlyTarget.toLocaleString("pt-BR")
+    const target = goal.unit === "BRL" ? `R$ ${formatted}` : `${formatted} kWh`
+    return (
+        `• ${propertyName ? `${propertyName} — ` : ""}${goal.year} — ` +
+        `meta de ${target} — ` +
+        `referência ${goal.referenceYear} — alerta ao atingir ${goal.alertPercent}%`
+    )
+}
+
 function drawGoalsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
-    sectionTitle(doc, "Metas de consumo")
+    sectionTitle(doc, "Metas de consumo e de custo")
 
     if (payload.goals.length === 0) {
-        emptyNote(doc, "Nenhuma meta de consumo cadastrada.")
+        emptyNote(doc, "Nenhuma meta cadastrada.")
         return
     }
 
     for (const goal of payload.goals) {
         const property = payload.properties.find((p) => p.id === goal.propertyId)
-        const yearlyKwh = Math.round(goal.monthlyKwh.reduce((sum, kwh) => sum + kwh, 0))
-        doc.text(
-            `• ${property ? `${property.name} — ` : ""}${goal.year} — ` +
-                `meta de ${yearlyKwh.toLocaleString("pt-BR")} kWh — ` +
-                `referência ${goal.referenceYear} — alerta ao atingir ${goal.alertPercent}%`,
-        )
+        doc.text(describeExportedGoal(goal, property?.name))
     }
 }
 

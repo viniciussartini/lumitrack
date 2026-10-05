@@ -3,6 +3,7 @@ import type {
     GoalCreateInput,
     GoalProgress,
     GoalSituation,
+    GoalUnit,
     GoalUpdateInput,
 } from "@/types/goal.types"
 
@@ -48,10 +49,57 @@ export const currentGoalMonthIndex = (now: Date = new Date()): number =>
 export const isGoalLocked = (goal: Goal, currentYear: number): boolean => goal.year < currentYear
 
 /** A meta do ano é a soma dos 12 meses. */
-export const goalYearlyKwh = (goal: Goal): number =>
-    goal.monthlyKwh.reduce((sum, kwh) => sum + kwh, 0)
+export const goalYearlyTotal = (goal: Goal): number =>
+    goal.monthlyTargets.reduce((sum, kwh) => sum + kwh, 0)
 
-export const formatKwh = (kwh: number): string => `${Math.round(kwh).toLocaleString("pt-BR")} kWh`
+/** Valor de uma meta na unidade dela: "4.800 kWh" ou "R$ 4.800", sempre em números inteiros. */
+export const formatGoalValue = (value: number, unit: GoalUnit): string => {
+    const rounded = Math.round(value).toLocaleString("pt-BR")
+    return unit === "BRL" ? `R$ ${rounded}` : `${rounded} kWh`
+}
+
+export interface GoalUnitLabels {
+    /** Texto do seletor de unidade. */
+    selector: string
+    /** Título do card da meta vigente. */
+    cardTitle: string
+    /** Campo do atalho de preenchimento no formulário. */
+    specific: string
+    /** Legenda dos 12 meses no formulário. */
+    months: string
+    /** Rótulo do card da meta do mês no acompanhamento. */
+    monthStat: string
+    newTitle: string
+    editTitle: string
+    /** Frase do card quando a propriedade não tem meta no ano corrente. */
+    empty: (year: number) => string
+}
+
+const UNIT_LABELS: Record<GoalUnit, GoalUnitLabels> = {
+    KWH: {
+        selector: "Consumo (kWh)",
+        cardTitle: "Metas de consumo anual",
+        specific: "Consumo específico alvo · kWh",
+        months: "Meta mês a mês · kWh",
+        monthStat: "Consumo específico alvo · meta do mês",
+        newTitle: "Nova meta de consumo",
+        editTitle: "Editar meta de consumo",
+        empty: (year) => `Nenhuma meta cadastrada para ${year}.`,
+    },
+    BRL: {
+        selector: "Custo (R$)",
+        cardTitle: "Metas de custo anual",
+        specific: "Custo mensal alvo · R$",
+        months: "Meta mês a mês · R$",
+        monthStat: "Custo alvo · meta do mês",
+        newTitle: "Nova meta de custo",
+        editTitle: "Editar meta de custo",
+        empty: (year) => `Nenhuma meta de custo cadastrada para ${year}.`,
+    },
+}
+
+/** Rótulos da tela de metas para uma unidade. */
+export const goalUnitLabels = (unit: GoalUnit): GoalUnitLabels => UNIT_LABELS[unit]
 
 export const MONTH_NAMES: readonly string[] = [
     "janeiro",
@@ -121,14 +169,14 @@ export const formatGoalPercent = (percent: number | null): string =>
 
 /** Realizado de uma meta como texto, com "-" para ausência. */
 export const formatRealized = (progress: GoalProgress | undefined): string =>
-    progress?.realizedKwh == null ? "-" : formatKwh(progress.realizedKwh)
+    progress?.realized == null ? "-" : formatGoalValue(progress.realized, progress.unit)
 
-/** Frase do card "Metas de consumo anual" para a meta do ano corrente. */
+/** Frase do card das metas anuais para a meta do ano corrente, na unidade dela. */
 export const describeCurrentGoal = (goal: Goal, monthIndex: number): string => {
-    const monthKwh = goal.monthlyKwh[monthIndex] ?? 0
+    const monthValue = goal.monthlyTargets[monthIndex] ?? 0
     return (
-        `Teto de ${formatKwh(goalYearlyKwh(goal))} para ${goal.year} · referência ${goal.referenceYear}` +
-        ` · meta do mês ${formatKwh(monthKwh)} · alerta ao atingir ${goal.alertPercent}%` +
+        `Teto de ${formatGoalValue(goalYearlyTotal(goal), goal.unit)} para ${goal.year} · referência ${goal.referenceYear}` +
+        ` · meta do mês ${formatGoalValue(monthValue, goal.unit)} · alerta ao atingir ${goal.alertPercent}%` +
         " · visível também na página de alertas"
     )
 }
@@ -138,7 +186,7 @@ export interface GoalFormState {
     year: string
     referenceYear: string
     /** Atalho de preenchimento: repete o valor nos 12 meses. Não vai no payload. */
-    specificKwh: string
+    specificValue: string
     alertPercent: string
     months: string[]
 }
@@ -159,7 +207,7 @@ export const initialGoalForm = (
     return {
         year: String(year),
         referenceYear: String(Math.max(MIN_GOAL_YEAR, currentYear - 1)),
-        specificKwh: "",
+        specificValue: "",
         alertPercent: String(DEFAULT_ALERT_PERCENT),
         months: blankMonths(),
     }
@@ -185,7 +233,7 @@ export const referenceGoalForm = (
 ): GoalFormState => {
     const base = initialGoalForm(currentYear + 1, existingYears)
     const realized = Array.from({ length: MONTHS_IN_YEAR }, (_, index) => {
-        const kwh = progress?.months[index]?.realizedKwh
+        const kwh = progress?.months[index]?.realized
         return kwh === null || kwh === undefined ? null : Math.round(kwh)
     })
     const withReading = realized.filter((kwh): kwh is number => kwh !== null)
@@ -199,7 +247,7 @@ export const referenceGoalForm = (
     return {
         ...base,
         referenceYear: String(reference.year),
-        specificKwh: average,
+        specificValue: average,
         months: realized.map((kwh) => (kwh === null ? "" : String(kwh))),
     }
 }
@@ -208,16 +256,16 @@ export const referenceGoalForm = (
 export const goalToFormState = (goal: Goal): GoalFormState => ({
     year: String(goal.year),
     referenceYear: String(goal.referenceYear),
-    specificKwh: String(Math.round(goalYearlyKwh(goal) / MONTHS_IN_YEAR)),
+    specificValue: String(Math.round(goalYearlyTotal(goal) / MONTHS_IN_YEAR)),
     alertPercent: String(goal.alertPercent),
-    months: goal.monthlyKwh.map(String),
+    months: goal.monthlyTargets.map(String),
 })
 
 /** Aplica o consumo específico: repete o valor nos 12 meses. */
-export const applySpecificKwh = (state: GoalFormState, specificKwh: string): GoalFormState => ({
+export const applySpecificValue = (state: GoalFormState, specificValue: string): GoalFormState => ({
     ...state,
-    specificKwh,
-    months: Array.from({ length: MONTHS_IN_YEAR }, () => specificKwh),
+    specificValue,
+    months: Array.from({ length: MONTHS_IN_YEAR }, () => specificValue),
 })
 
 const isIntegerIn = (raw: string, min: number, max: number): boolean => {
@@ -262,7 +310,7 @@ export const validateGoalForm = (
 /** Corpo da edição, a partir de um rascunho já validado. */
 export const buildGoalUpdateInput = (state: GoalFormState): GoalUpdateInput => ({
     referenceYear: Number(state.referenceYear),
-    monthlyKwh: state.months.map(Number),
+    monthlyTargets: state.months.map(Number),
     alertPercent: Number(state.alertPercent),
 })
 
@@ -270,8 +318,10 @@ export const buildGoalUpdateInput = (state: GoalFormState): GoalUpdateInput => (
 export const buildGoalCreateInput = (
     state: GoalFormState,
     propertyId: string,
+    unit: GoalUnit,
 ): GoalCreateInput => ({
     ...buildGoalUpdateInput(state),
     propertyId,
+    unit,
     year: Number(state.year),
 })

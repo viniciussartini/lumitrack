@@ -4,12 +4,13 @@ import { render, screen } from "@testing-library/react"
 import { GoalHistoryTable } from "@/components/goal/GoalHistoryTable"
 import type { Goal, GoalProgress } from "@/types/goal.types"
 
-const makeGoal = (year: number, monthlyKwh?: number[]): Goal => ({
+const makeGoal = (year: number, monthlyTargets?: number[]): Goal => ({
     id: `goal-${year}`,
     propertyId: "prop-a",
     year,
+    unit: "KWH",
     referenceYear: year - 1,
-    monthlyKwh: monthlyKwh ?? Array.from({ length: 12 }, () => 400),
+    monthlyTargets: monthlyTargets ?? Array.from({ length: 12 }, () => 400),
     alertPercent: 85,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
@@ -18,11 +19,12 @@ const makeGoal = (year: number, monthlyKwh?: number[]): Goal => ({
 const makeProgress = (year: number, override: Partial<GoalProgress> = {}): GoalProgress => ({
     goalId: `goal-${year}`,
     year,
+    unit: "KWH",
     months: [],
-    yearTargetKwh: 4800,
-    realizedKwh: null,
+    yearTarget: 4800,
+    realized: null,
     deviationPercent: null,
-    currentMonthTargetKwh: null,
+    currentMonthTarget: null,
     situation: "IN_PROGRESS",
     ...override,
 })
@@ -53,14 +55,14 @@ describe("GoalHistoryTable", () => {
             <GoalHistoryTable
                 goals={[makeGoal(2026), makeGoal(2025), makeGoal(2024)]}
                 progressByGoalId={progressMap(
-                    makeProgress(2026, { realizedKwh: 2220, deviationPercent: 0.9 }),
+                    makeProgress(2026, { realized: 2220, deviationPercent: 0.9 }),
                     makeProgress(2025, {
-                        realizedKwh: 4680,
+                        realized: 4680,
                         deviationPercent: -2.5,
                         situation: "MET",
                     }),
                     makeProgress(2024, {
-                        realizedKwh: 5000,
+                        realized: 5000,
                         deviationPercent: 4.2,
                         situation: "NOT_MET",
                     }),
@@ -208,5 +210,25 @@ describe("GoalHistoryTable", () => {
         )
 
         expect(onUseAsReference).toHaveBeenCalledWith(goal)
+    })
+})
+
+describe("GoalHistoryTable — custo (R$)", () => {
+    it("mostra a meta e o realizado em reais", () => {
+        render(
+            <GoalHistoryTable
+                goals={[{ ...makeGoal(2026), unit: "BRL" }]}
+                progressByGoalId={progressMap(
+                    makeProgress(2026, { unit: "BRL", realized: 2280, deviationPercent: 3.6 }),
+                )}
+                currentYear={2026}
+                {...noop}
+            />,
+        )
+
+        const row = screen.getByTestId("goal-row-2026")
+        expect(row).toHaveTextContent("R$ 4.800")
+        expect(row).toHaveTextContent("R$ 2.280")
+        expect(row).toHaveTextContent("+3,6%")
     })
 })

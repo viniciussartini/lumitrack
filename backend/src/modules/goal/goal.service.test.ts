@@ -54,7 +54,7 @@ const body = (propertyId: string, override: Record<string, unknown> = {}) => ({
     propertyId,
     year: 2026,
     referenceYear: 2025,
-    monthlyKwh: months(),
+    monthlyTargets: months(),
     alertPercent: 85,
     ...override,
 })
@@ -81,7 +81,7 @@ describe("GoalService.create", () => {
             referenceYear: 2025,
             alertPercent: 85,
         })
-        expect(goal.monthlyKwh).toEqual(months())
+        expect(goal.monthlyTargets).toEqual(months())
         expect(goal).not.toHaveProperty("userId")
     })
 
@@ -142,8 +142,75 @@ describe("GoalService.create", () => {
 
     it("valida o corpo antes de tocar no banco", async () => {
         await expect(
-            buildService().create(ownerId, body(propertyId, { monthlyKwh: [1, 2, 3] })),
+            buildService().create(ownerId, body(propertyId, { monthlyTargets: [1, 2, 3] })),
         ).rejects.toThrow(ValidationError)
+    })
+})
+
+describe("GoalService — unidade", () => {
+    it("a meta em kWh e a em reais da mesma propriedade e ano convivem", async () => {
+        const service = buildService()
+
+        const kwh = await service.create(ownerId, body(propertyId, { unit: "KWH" }))
+        const brl = await service.create(ownerId, body(propertyId, { unit: "BRL" }))
+
+        expect(kwh.unit).toBe("KWH")
+        expect(brl.unit).toBe("BRL")
+        expect(await prismaTest.goal.count()).toBe(2)
+    })
+
+    it("sem unidade informada, a meta é de consumo", async () => {
+        const goal = await buildService().create(ownerId, body(propertyId))
+        expect(goal.unit).toBe("KWH")
+    })
+
+    it("duas metas da mesma unidade, propriedade e ano dão conflito", async () => {
+        const service = buildService()
+        await service.create(ownerId, body(propertyId, { unit: "BRL" }))
+
+        await expect(service.create(ownerId, body(propertyId, { unit: "BRL" }))).rejects.toThrow(
+            ConflictError,
+        )
+    })
+
+    it("editar mantém a unidade e não mexe na meta da outra unidade", async () => {
+        const service = buildService()
+        const kwh = await service.create(ownerId, body(propertyId, { unit: "KWH" }))
+        const brl = await service.create(ownerId, body(propertyId, { unit: "BRL" }))
+
+        const updated = await service.update(
+            ownerId,
+            { id: brl.id },
+            {
+                referenceYear: 2024,
+                monthlyTargets: months(900),
+                alertPercent: 70,
+                unit: "KWH",
+            },
+        )
+
+        expect(updated.unit).toBe("BRL")
+        expect(updated.monthlyTargets).toEqual(months(900))
+        const other = await prismaTest.goal.findUniqueOrThrow({ where: { id: kwh.id } })
+        expect(other.alertPercent).toBe(85)
+    })
+
+    it("a regra de ano passado vale para as duas unidades", async () => {
+        const brl = await buildService().create(ownerId, body(propertyId, { unit: "BRL" }))
+        const nextYear = buildService(new Date("2027-01-01T03:00:00.000Z"))
+
+        await expect(nextYear.remove(ownerId, { id: brl.id })).rejects.toThrow(ConflictError)
+    })
+
+    it("a listagem traz as metas das duas unidades", async () => {
+        const service = buildService()
+        await service.create(ownerId, body(propertyId, { unit: "KWH" }))
+        await service.create(ownerId, body(propertyId, { unit: "BRL" }))
+
+        const page = await service.list(ownerId, { propertyId })
+
+        expect(page.items.map((g) => g.unit).sort()).toEqual(["BRL", "KWH"])
+        expect(page.total).toBe(2)
     })
 })
 
@@ -178,7 +245,7 @@ describe("GoalService.list", () => {
 describe("GoalService.update", () => {
     const editable = (override: Record<string, unknown> = {}) => ({
         referenceYear: 2024,
-        monthlyKwh: months(500),
+        monthlyTargets: months(500),
         alertPercent: 90,
         ...override,
     })
@@ -196,7 +263,7 @@ describe("GoalService.update", () => {
             referenceYear: 2024,
             alertPercent: 90,
         })
-        expect(updated.monthlyKwh).toEqual(months(500))
+        expect(updated.monthlyTargets).toEqual(months(500))
     })
 
     it("edita meta de ano futuro", async () => {

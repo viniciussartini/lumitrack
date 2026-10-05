@@ -1,8 +1,12 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from "vitest"
+import type { GoalUnit } from "@/generated/prisma/client.js"
+import type { ConsumptionService } from "@/modules/consumption/consumption.service.js"
+import { ValidationError } from "@/shared/errors/AppError.js"
 import { GoalAlertScheduler } from "@/modules/goal/GoalAlertScheduler.js"
 import { GoalConsumptionReader } from "@/modules/goal/goal-consumption.js"
 import { GoalRepository } from "@/modules/goal/goal.repository.js"
 import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
+import { createConsumptionService } from "@/modules/consumption/consumption.routes.js"
 import { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
@@ -39,6 +43,7 @@ const goalRepository = new GoalRepository(prismaTest)
 const realReader = new GoalConsumptionReader(
     new MeterRepository(prismaTest),
     new ConsumptionRepository(prismaTest),
+    createConsumptionService(prismaTest),
 )
 
 // 15/06/2026 12:00 em São Paulo.
@@ -108,7 +113,12 @@ async function addReading(propertyId: string, minuteStart: string, kwh: number) 
 async function addGoal(
     userId: string,
     propertyId: string,
-    options: { year?: number; monthlyKwh?: number; alertPercent?: number } = {},
+    options: {
+        year?: number
+        monthlyTargets?: number
+        alertPercent?: number
+        unit?: GoalUnit
+    } = {},
 ) {
     const year = options.year ?? 2026
     return prismaTest.goal.create({
@@ -116,8 +126,9 @@ async function addGoal(
             userId,
             propertyId,
             year,
+            unit: options.unit ?? "KWH",
             referenceYear: year - 1,
-            monthlyKwh: Array.from({ length: 12 }, () => options.monthlyKwh ?? 400),
+            monthlyTargets: Array.from({ length: 12 }, () => options.monthlyTargets ?? 400),
             alertPercent: options.alertPercent ?? 85,
         },
     })
@@ -190,7 +201,7 @@ describe("GoalAlertScheduler — aviso do mês", () => {
 
     it("avisa de novo no mês seguinte", async () => {
         const propertyId = await createProperty(ownerId, "Casa")
-        await addGoal(ownerId, propertyId, { monthlyKwh: 400 })
+        await addGoal(ownerId, propertyId, { monthlyTargets: 400 })
         await addReading(propertyId, "2026-06-10T12:00:00.000Z", 350)
         await addReading(propertyId, "2026-07-10T12:00:00.000Z", 360)
         const scheduler = buildScheduler()
@@ -312,10 +323,17 @@ describe("GoalAlertScheduler — robustez", () => {
         await addGoal(ownerId, healthy)
         await addReading(healthy, "2026-06-10T12:00:00.000Z", 350)
         const reader = {
-            monthlyKwh: vi.fn((propertyId: string, firstYear: number, now: Date) =>
-                propertyId === broken
-                    ? Promise.reject(new Error("falha de banco"))
-                    : realReader.monthlyKwh(propertyId, firstYear, now),
+            monthlyValues: vi.fn(
+                (
+                    userId: string,
+                    propertyId: string,
+                    firstYear: number,
+                    unit: GoalUnit,
+                    now: Date,
+                ) =>
+                    propertyId === broken
+                        ? Promise.reject(new Error("falha de banco"))
+                        : realReader.monthlyValues(userId, propertyId, firstYear, unit, now),
             ),
         } as unknown as GoalConsumptionReader
 
@@ -359,7 +377,7 @@ describe("GoalAlertScheduler — robustez", () => {
 
         await goalRepository.update(goal.id, ownerId, {
             referenceYear: 2025,
-            monthlyKwh: Array.from({ length: 12 }, () => 400),
+            monthlyTargets: Array.from({ length: 12 }, () => 400),
             alertPercent: 80,
         })
         await scheduler.tick(JUNE)
@@ -372,7 +390,7 @@ describe("GoalAlertScheduler — robustez", () => {
         await addGoal(ownerId, propertyId)
         await addReading(propertyId, "2026-06-10T12:00:00.000Z", 350)
         const reader = {
-            monthlyKwh: vi.fn().mockRejectedValue(new Error("falha")),
+            monthlyValues: vi.fn().mockRejectedValue(new Error("falha")),
         } as unknown as GoalConsumptionReader
 
         await buildScheduler(reader).tick(JUNE)
@@ -381,5 +399,84 @@ describe("GoalAlertScheduler — robustez", () => {
         const logged = JSON.stringify([logMock.error.mock.calls, logMock.warn.mock.calls])
         expect(logged).not.toContain("Maria Silva")
         expect(logged).toContain(propertyId)
+    })
+})
+
+describe("GoalAlertScheduler — meta de custo (R$)", () => {
+    // Custo de junho de 2026: R$ 350 contra a meta de R$ 400 do mês (87,5%).
+    const costList = (costBrl: number) =>
+        vi.fn().mockResolvedValue({
+            items: [
+                {
+                    bucketStart: new Date(Date.UTC(2026, 5, 1)),
+                    kwhConsumed: 100,
+                    costBrl,
+                    avgPowerW: 500,
+                },
+            ],
+            total: 1,
+            page: 1,
+            pageSize: 12,
+            granularity: "month",
+        })
+
+    const costReader = (costBrl: number) =>
+        new GoalConsumptionReader(
+            new MeterRepository(prismaTest),
+            new ConsumptionRepository(prismaTest),
+            { list: costList(costBrl) } as unknown as Pick<ConsumptionService, "list">,
+        )
+
+    it("avisa a meta de custo pelo custo, com a mensagem e o nome de custo", async () => {
+        const propertyId = await createProperty(ownerId, "Casa")
+        await addGoal(ownerId, propertyId, { unit: "BRL" })
+
+        await buildScheduler(costReader(350)).tick(JUNE)
+
+        const [notification] = store.findAllByUser(ownerId)
+        expect(store.findAllByUser(ownerId)).toHaveLength(1)
+        expect(notification?.alertName).toBe("Meta 2026 · Casa · R$")
+        expect(notification?.message).toContain("o custo do mês atingiu 87,5%")
+        expect(notification?.message).toContain("meta de custo do mês")
+        expect(notification).toMatchObject({ meterId: null, targetPath: "/configuracoes/metas" })
+    })
+
+    it("o consumo alto não dispara a meta em reais: ela só olha o custo", async () => {
+        const propertyId = await createProperty(ownerId, "Casa")
+        await addGoal(ownerId, propertyId, { unit: "BRL" })
+        await addReading(propertyId, "2026-06-10T12:00:00.000Z", 9999)
+
+        await buildScheduler(costReader(100)).tick(JUNE)
+
+        expect(store.findAllByUser(ownerId)).toHaveLength(0)
+    })
+
+    it("as metas de kWh e de reais da mesma propriedade avisam uma vez cada, de forma independente", async () => {
+        const propertyId = await createProperty(ownerId, "Casa")
+        await addGoal(ownerId, propertyId, { unit: "KWH" })
+        await addGoal(ownerId, propertyId, { unit: "BRL" })
+        await addReading(propertyId, "2026-06-10T12:00:00.000Z", 350)
+        const scheduler = buildScheduler(costReader(350))
+
+        await scheduler.tick(JUNE)
+        await scheduler.tick(JUNE)
+
+        const names = store.findAllByUser(ownerId).map((n) => n.alertName)
+        expect(names.sort()).toEqual(["Meta 2026 · Casa", "Meta 2026 · Casa · R$"])
+    })
+
+    it("custo não calculável não avisa e não é erro", async () => {
+        const propertyId = await createProperty(ownerId, "Casa")
+        await addGoal(ownerId, propertyId, { unit: "BRL" })
+        const unsupported = new GoalConsumptionReader(
+            new MeterRepository(prismaTest),
+            new ConsumptionRepository(prismaTest),
+            {
+                list: vi.fn().mockRejectedValue(new ValidationError("Grupo A sem apuração")),
+            } as unknown as Pick<ConsumptionService, "list">,
+        )
+
+        await expect(buildScheduler(unsupported).tick(JUNE)).resolves.toBeUndefined()
+        expect(store.findAllByUser(ownerId)).toHaveLength(0)
     })
 })

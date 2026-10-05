@@ -8,8 +8,8 @@ import {
     XAxis,
     YAxis,
 } from "recharts"
-import { MONTH_LABELS, formatKwh } from "@/lib/goals"
-import type { GoalProgressMonth } from "@/types/goal.types"
+import { MONTH_LABELS, formatGoalValue } from "@/lib/goals"
+import type { GoalProgressMonth, GoalUnit } from "@/types/goal.types"
 
 export const TARGET_COLOR = "var(--color-chart-amber)"
 export const REALIZED_COLOR = "var(--color-chart-blue)"
@@ -25,9 +25,9 @@ interface ChartPoint {
 const toPoints = (months: GoalProgressMonth[]): ChartPoint[] =>
     months.map((month, index) => ({
         label: MONTH_LABELS[index] ?? String(month.month),
-        target: month.targetKwh,
-        realized: month.realizedKwh,
-        overTarget: month.realizedKwh !== null && month.realizedKwh > month.targetKwh,
+        target: month.target,
+        realized: month.realized,
+        overTarget: month.realized !== null && month.realized > month.target,
     }))
 
 const isChartPoint = (value: unknown): value is ChartPoint =>
@@ -36,18 +36,19 @@ const isChartPoint = (value: unknown): value is ChartPoint =>
 interface TooltipProps {
     active?: boolean
     payload?: { payload?: unknown }[]
+    unit: GoalUnit
 }
 
-const ChartTooltip = ({ active, payload }: TooltipProps) => {
+const ChartTooltip = ({ active, payload, unit }: TooltipProps) => {
     const point = payload?.[0]?.payload
     if (!active || !isChartPoint(point)) return null
 
     return (
         <div className="border-divider bg-surface border px-3 py-2 text-xs">
             <p className="font-heading font-semibold">{point.label}</p>
-            <p className="text-muted mt-0.5">Meta do mês: {formatKwh(point.target)}</p>
+            <p className="text-muted mt-0.5">Meta do mês: {formatGoalValue(point.target, unit)}</p>
             <p className="text-muted mt-0.5">
-                Realizado: {point.realized === null ? "-" : formatKwh(point.realized)}
+                Realizado: {point.realized === null ? "-" : formatGoalValue(point.realized, unit)}
             </p>
         </div>
     )
@@ -55,6 +56,7 @@ const ChartTooltip = ({ active, payload }: TooltipProps) => {
 
 interface GoalProgressChartProps {
     months: GoalProgressMonth[]
+    unit: GoalUnit
 }
 
 /**
@@ -63,7 +65,7 @@ interface GoalProgressChartProps {
  * vermelho no mês em que passa da meta. Mês sem leitura não tem barra de
  * realizado — vazio, nunca uma barra em 0.
  */
-export const GoalProgressChart = ({ months }: GoalProgressChartProps) => (
+export const GoalProgressChart = ({ months, unit }: GoalProgressChartProps) => (
     <div data-testid="goal-progress-chart">
         <ResponsiveContainer width="100%" height={256}>
             <BarChart
@@ -78,7 +80,7 @@ export const GoalProgressChart = ({ months }: GoalProgressChartProps) => (
                     width={64}
                     tickFormatter={(value: number) => value.toLocaleString("pt-BR")}
                 />
-                <Tooltip content={<ChartTooltip />} cursor={false} />
+                <Tooltip content={<ChartTooltip unit={unit} />} cursor={false} />
                 <Bar dataKey="target" fill={TARGET_COLOR} isAnimationActive={false} />
                 <Bar dataKey="realized" fill={REALIZED_COLOR} isAnimationActive={false}>
                     {toPoints(months).map((point) => (

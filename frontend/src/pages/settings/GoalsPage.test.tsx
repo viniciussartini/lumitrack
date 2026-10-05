@@ -69,8 +69,9 @@ const makeGoal = (year: number, override: Partial<Goal> = {}): Goal => ({
     id: `goal-${year}`,
     propertyId: "prop-a",
     year,
+    unit: "KWH",
     referenceYear: year - 1,
-    monthlyKwh: Array.from({ length: 12 }, () => 400),
+    monthlyTargets: Array.from({ length: 12 }, () => 400),
     alertPercent: 85,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
@@ -80,15 +81,16 @@ const makeGoal = (year: number, override: Partial<Goal> = {}): Goal => ({
 const makeProgress = (year: number, override: Partial<GoalProgress> = {}): GoalProgress => ({
     goalId: `goal-${year}`,
     year,
+    unit: "KWH",
     months: Array.from({ length: 12 }, (_, i) => ({
         month: i + 1,
-        targetKwh: 400,
-        realizedKwh: year === 2026 && i < 6 ? 380 : null,
+        target: 400,
+        realized: year === 2026 && i < 6 ? 380 : null,
     })),
-    yearTargetKwh: 4800,
-    realizedKwh: null,
+    yearTarget: 4800,
+    realized: null,
     deviationPercent: null,
-    currentMonthTargetKwh: year === 2026 ? 400 : null,
+    currentMonthTarget: year === 2026 ? 400 : null,
     situation: "IN_PROGRESS",
     ...override,
 })
@@ -251,8 +253,8 @@ describe("GoalsPage — acompanhamento", () => {
     it("mostra o gráfico e os cards da meta do ano corrente e o realizado na tabela", async () => {
         vi.mocked(goalService.list).mockResolvedValue(paged([makeGoal(2026), makeGoal(2025)]))
         vi.mocked(goalService.progress).mockResolvedValue([
-            makeProgress(2026, { realizedKwh: 2280, deviationPercent: 3.6 }),
-            makeProgress(2025, { realizedKwh: 4680, deviationPercent: -2.5, situation: "MET" }),
+            makeProgress(2026, { realized: 2280, deviationPercent: 3.6 }),
+            makeProgress(2025, { realized: 4680, deviationPercent: -2.5, situation: "MET" }),
         ])
         renderPage()
 
@@ -311,8 +313,9 @@ describe("GoalsPage — criar", () => {
             expect(goalService.create).toHaveBeenCalledWith({
                 propertyId: "prop-a",
                 year: 2027,
+                unit: "KWH",
                 referenceYear: 2025,
-                monthlyKwh: Array.from({ length: 12 }, () => 500),
+                monthlyTargets: Array.from({ length: 12 }, () => 500),
                 alertPercent: 85,
             }),
         )
@@ -374,8 +377,8 @@ describe("GoalsPage — usar como referência", () => {
     const realizedMonths = (kwh: (number | null)[]) =>
         Array.from({ length: 12 }, (_, i) => ({
             month: i + 1,
-            targetKwh: 400,
-            realizedKwh: kwh[i] ?? null,
+            target: 400,
+            realized: kwh[i] ?? null,
         }))
 
     it("abre a meta nova preenchida com o realizado do ano escolhido e a cria", async () => {
@@ -413,8 +416,9 @@ describe("GoalsPage — usar como referência", () => {
             expect(goalService.create).toHaveBeenCalledWith({
                 propertyId: "prop-a",
                 year: 2027,
+                unit: "KWH",
                 referenceYear: 2025,
-                monthlyKwh: [300, 450, ...Array.from({ length: 10 }, () => 500)],
+                monthlyTargets: [300, 450, ...Array.from({ length: 10 }, () => 500)],
                 alertPercent: 85,
             }),
         )
@@ -498,7 +502,7 @@ describe("GoalsPage — editar e excluir", () => {
         await waitFor(() =>
             expect(goalService.update).toHaveBeenCalledWith("goal-2026", {
                 referenceYear: 2025,
-                monthlyKwh: Array.from({ length: 12 }, () => 400),
+                monthlyTargets: Array.from({ length: 12 }, () => 400),
                 alertPercent: 90,
             }),
         )
@@ -535,5 +539,148 @@ describe("GoalsPage — editar e excluir", () => {
                 description: "Metas de anos anteriores",
             }),
         )
+    })
+})
+
+describe("GoalsPage — metas de custo (R$)", () => {
+    const brl = (year: number, override: Partial<Goal> = {}) =>
+        makeGoal(year, { id: `goal-brl-${year}`, unit: "BRL", ...override })
+    const brlProgress = (year: number, override: Partial<GoalProgress> = {}) =>
+        makeProgress(year, { goalId: `goal-brl-${year}`, unit: "BRL", ...override })
+
+    it("começa em consumo e troca a página inteira para custo ao escolher R$", async () => {
+        vi.mocked(goalService.list).mockResolvedValue(paged([makeGoal(2026), brl(2026)]))
+        vi.mocked(goalService.progress).mockResolvedValue([makeProgress(2026), brlProgress(2026)])
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage()
+
+        expect(await screen.findByText("Metas de consumo anual")).toBeInTheDocument()
+        expect(screen.getByTestId("goal-summary")).toHaveTextContent("kWh")
+
+        await user.click(screen.getByRole("tab", { name: "Custo (R$)" }))
+
+        expect(await screen.findByText("Metas de custo anual")).toBeInTheDocument()
+        expect(screen.getByTestId("goal-summary")).toHaveTextContent("R$ 4.800")
+        expect(screen.getByTestId("goal-history")).toHaveTextContent("R$ 4.800")
+        expect(
+            within(screen.getByTestId("goal-history")).getAllByTestId("goal-row-2026"),
+        ).toHaveLength(1)
+    })
+
+    it("cada unidade só mostra as próprias metas no histórico", async () => {
+        vi.mocked(goalService.list).mockResolvedValue(paged([makeGoal(2026), brl(2027)]))
+        vi.mocked(goalService.progress).mockResolvedValue([makeProgress(2026), brlProgress(2027)])
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage()
+
+        await screen.findByTestId("goal-row-2026")
+        expect(screen.queryByTestId("goal-row-2027")).not.toBeInTheDocument()
+
+        await user.click(screen.getByRole("tab", { name: "Custo (R$)" }))
+
+        expect(await screen.findByTestId("goal-row-2027")).toBeInTheDocument()
+        expect(screen.queryByTestId("goal-row-2026")).not.toBeInTheDocument()
+    })
+
+    it("sem meta de custo no ano corrente, avisa pela unidade", async () => {
+        vi.mocked(goalService.list).mockResolvedValue(paged([makeGoal(2026)]))
+        vi.mocked(goalService.progress).mockResolvedValue([makeProgress(2026)])
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage()
+
+        await screen.findByTestId("goal-summary")
+        await user.click(screen.getByRole("tab", { name: "Custo (R$)" }))
+
+        expect(await screen.findByTestId("goal-summary")).toHaveTextContent(
+            "Nenhuma meta de custo cadastrada para 2026.",
+        )
+    })
+
+    it("cria a meta de custo na unidade escolhida, com os rótulos em reais", async () => {
+        vi.mocked(goalService.list).mockResolvedValue(paged([makeGoal(2026)]))
+        vi.mocked(goalService.create).mockResolvedValue(brl(2026))
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage()
+
+        await screen.findByTestId("goal-summary")
+        await user.click(screen.getByRole("tab", { name: "Custo (R$)" }))
+        await user.click(await screen.findByRole("button", { name: "Nova meta" }))
+        const dialog = await screen.findByRole("dialog", { name: /nova meta de custo/i })
+        // O ano 2026 já tem meta em kWh, mas não em reais: ainda é o sugerido.
+        expect(within(dialog).getByLabelText("Ano da meta")).toHaveValue(2026)
+        expect(within(dialog).getByText("Meta mês a mês · R$")).toBeInTheDocument()
+
+        await user.type(within(dialog).getByLabelText("Custo mensal alvo · R$"), "500")
+        await user.click(within(dialog).getByRole("button", { name: "Salvar meta" }))
+
+        await waitFor(() =>
+            expect(goalService.create).toHaveBeenCalledWith({
+                propertyId: "prop-a",
+                year: 2026,
+                unit: "BRL",
+                referenceYear: 2025,
+                monthlyTargets: Array.from({ length: 12 }, () => 500),
+                alertPercent: 85,
+            }),
+        )
+    })
+
+    it("o ano já usado numa unidade não bloqueia a outra", async () => {
+        vi.mocked(goalService.list).mockResolvedValue(paged([makeGoal(2026), brl(2026)]))
+        vi.mocked(goalService.progress).mockResolvedValue([makeProgress(2026), brlProgress(2026)])
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage()
+
+        await user.click(await screen.findByRole("button", { name: "Nova meta" }))
+
+        // Em kWh, 2026 já existe: sugere 2027.
+        expect(await screen.findByLabelText("Ano da meta")).toHaveValue(2027)
+    })
+
+    it("usar como referência mantém a unidade e traz o custo realizado", async () => {
+        vi.mocked(goalService.list).mockResolvedValue(paged([brl(2025)]))
+        vi.mocked(goalService.progress).mockResolvedValue([
+            brlProgress(2025, {
+                situation: "MET",
+                months: Array.from({ length: 12 }, (_, i) => ({
+                    month: i + 1,
+                    target: 400,
+                    realized: 380.4,
+                })),
+            }),
+        ])
+        vi.mocked(goalService.create).mockResolvedValue(brl(2027))
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage()
+
+        await screen.findByTestId("goal-summary")
+        await user.click(screen.getByRole("tab", { name: "Custo (R$)" }))
+        await user.click(
+            await screen.findByRole("button", { name: "Usar a meta de 2025 como referência" }),
+        )
+        const dialog = await screen.findByRole("dialog", { name: /nova meta de custo/i })
+
+        expect(within(dialog).getByLabelText("jan")).toHaveValue(380)
+        await user.click(within(dialog).getByRole("button", { name: "Salvar meta" }))
+        await waitFor(() =>
+            expect(goalService.create).toHaveBeenCalledWith(
+                expect.objectContaining({ unit: "BRL", year: 2027, referenceYear: 2025 }),
+            ),
+        )
+    })
+
+    it("edita a meta de custo com o título e a unidade dela", async () => {
+        vi.mocked(goalService.list).mockResolvedValue(paged([brl(2026)]))
+        vi.mocked(goalService.progress).mockResolvedValue([brlProgress(2026)])
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage()
+
+        await screen.findByTestId("goal-summary")
+        await user.click(screen.getByRole("tab", { name: "Custo (R$)" }))
+        await user.click(await screen.findByRole("button", { name: "Editar meta de 2026" }))
+
+        const dialog = await screen.findByRole("dialog", { name: /editar meta de custo/i })
+        expect(within(dialog).getByLabelText("Custo mensal alvo · R$")).toBeInTheDocument()
+        expect(within(dialog).getByLabelText("Ano da meta")).toBeDisabled()
     })
 })

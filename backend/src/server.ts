@@ -22,6 +22,7 @@ import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { ReportRepository } from "@/modules/report/report.repository.js"
 import { createReportService } from "@/modules/report/report.routes.js"
 import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
+import { createConsumptionService } from "@/modules/consumption/consumption.routes.js"
 import { GoalAlertScheduler } from "@/modules/goal/GoalAlertScheduler.js"
 import { GoalConsumptionReader } from "@/modules/goal/goal-consumption.js"
 import { GoalRepository } from "@/modules/goal/goal.repository.js"
@@ -113,7 +114,11 @@ const demandAlertScheduler = new DemandAlertScheduler(
 // alcança o percentual configurado da meta.
 const goalAlertScheduler = new GoalAlertScheduler(
     new GoalRepository(prisma),
-    new GoalConsumptionReader(meterRepository, new ConsumptionRepository(prisma)),
+    new GoalConsumptionReader(
+        meterRepository,
+        new ConsumptionRepository(prisma),
+        createConsumptionService(prisma),
+    ),
     userEventHub,
     notificationStore,
 )

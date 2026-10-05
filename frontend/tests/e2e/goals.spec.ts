@@ -27,30 +27,32 @@ const progressFor = (goal: Goal): GoalProgress => {
         return {
             goalId: goal.id,
             year: goal.year,
-            months: goal.monthlyKwh.map((targetKwh, index) => ({
+            unit: goal.unit,
+            months: goal.monthlyTargets.map((target, index) => ({
                 month: index + 1,
-                targetKwh,
-                realizedKwh: 380,
+                target,
+                realized: 380,
             })),
-            yearTargetKwh: goal.monthlyKwh.reduce((sum, kwh) => sum + kwh, 0),
-            realizedKwh: 4560,
+            yearTarget: goal.monthlyTargets.reduce((sum, kwh) => sum + kwh, 0),
+            realized: 4560,
             deviationPercent: -5,
-            currentMonthTargetKwh: null,
+            currentMonthTarget: null,
             situation: "MET",
         }
     }
     return {
         goalId: goal.id,
         year: goal.year,
-        months: goal.monthlyKwh.map((targetKwh, index) => ({
+        unit: goal.unit,
+        months: goal.monthlyTargets.map((target, index) => ({
             month: index + 1,
-            targetKwh,
-            realizedKwh: current && index < 5 ? 380 : null,
+            target,
+            realized: current && index < 5 ? 380 : null,
         })),
-        yearTargetKwh: goal.monthlyKwh.reduce((sum, kwh) => sum + kwh, 0),
-        realizedKwh: current ? 1900 : null,
+        yearTarget: goal.monthlyTargets.reduce((sum, kwh) => sum + kwh, 0),
+        realized: current ? 1900 : null,
         deviationPercent: current ? -5 : null,
-        currentMonthTargetKwh: current ? (goal.monthlyKwh[5] ?? 0) : null,
+        currentMonthTarget: current ? (goal.monthlyTargets[5] ?? 0) : null,
         situation: "IN_PROGRESS",
     }
 }
@@ -145,8 +147,9 @@ test.describe("Configurações → Metas", () => {
         expect(writes[0]).toEqual({
             propertyId: PROP_1.id,
             year: 2026,
+            unit: "KWH",
             referenceYear: 2025,
-            monthlyKwh: monthly(400),
+            monthlyTargets: monthly(400),
             alertPercent: 85,
         })
         await expect(page.getByTestId("goal-summary")).toContainText("Teto de 4.800 kWh para 2026")
@@ -169,7 +172,7 @@ test.describe("Configurações → Metas", () => {
         await editDialog.getByRole("button", { name: "Salvar meta" }).click()
 
         await expect(editDialog).toHaveCount(0)
-        expect(writes[1]).toMatchObject({ monthlyKwh: [500, ...monthly(400).slice(1)] })
+        expect(writes[1]).toMatchObject({ monthlyTargets: [500, ...monthly(400).slice(1)] })
         await expect(row).toContainText("4.900 kWh")
 
         await row.getByRole("button", { name: "Excluir meta de 2026" }).click()
@@ -199,8 +202,9 @@ test.describe("Configurações → Metas", () => {
             id: "goal-2025",
             propertyId: PROP_1.id,
             year: 2025,
+            unit: "KWH",
             referenceYear: 2024,
-            monthlyKwh: monthly(400),
+            monthlyTargets: monthly(400),
             alertPercent: 85,
             createdAt: "2025-01-01T00:00:00.000Z",
             updatedAt: "2025-01-01T00:00:00.000Z",
@@ -225,10 +229,44 @@ test.describe("Configurações → Metas", () => {
         expect(writes[0]).toEqual({
             propertyId: PROP_1.id,
             year: 2027,
+            unit: "KWH",
             referenceYear: 2025,
-            monthlyKwh: monthly(380),
+            monthlyTargets: monthly(380),
             alertPercent: 85,
         })
         await expect(page.getByTestId("goal-row-2027")).toContainText("4.560 kWh")
+    })
+
+    test("cria a meta de custo (R$) pelo seletor de unidade, sem mexer na de consumo", async ({
+        page,
+    }) => {
+        const writes: unknown[] = []
+        await setupApp(page, (body) => writes.push(body))
+        await page.goto("/configuracoes/metas")
+        await hideDevTools(page)
+
+        await expect(page.getByTestId("goal-summary")).toContainText("Metas de consumo anual")
+        await page.getByRole("tab", { name: "Custo (R$)" }).click()
+        await expect(page.getByTestId("goal-summary")).toContainText("Metas de custo anual")
+
+        await page.getByRole("button", { name: "Nova meta" }).click()
+        const dialog = page.getByRole("dialog", { name: "Nova meta de custo" })
+        await dialog.getByLabel("Custo mensal alvo · R$").fill("500")
+        await dialog.getByRole("button", { name: "Salvar meta" }).click()
+
+        await expect(dialog).toHaveCount(0)
+        expect(writes[0]).toEqual({
+            propertyId: PROP_1.id,
+            year: 2026,
+            unit: "BRL",
+            referenceYear: 2025,
+            monthlyTargets: monthly(500),
+            alertPercent: 85,
+        })
+        await expect(page.getByTestId("goal-summary")).toContainText("Teto de R$ 6.000 para 2026")
+        await expect(page.getByTestId("goal-row-2026")).toContainText("R$ 6.000")
+
+        await page.getByRole("tab", { name: "Consumo (kWh)" }).click()
+        await expect(page.getByTestId("goal-history-empty")).toBeVisible()
     })
 })

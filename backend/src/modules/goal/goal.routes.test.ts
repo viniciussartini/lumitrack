@@ -61,14 +61,14 @@ const body = (propertyId: string, override: Record<string, unknown> = {}) => ({
     propertyId,
     year: currentYear,
     referenceYear: currentYear - 1,
-    monthlyKwh: Array.from({ length: 12 }, () => 400),
+    monthlyTargets: Array.from({ length: 12 }, () => 400),
     alertPercent: 85,
     ...override,
 })
 
 const editable = (override: Record<string, unknown> = {}) => ({
     referenceYear: currentYear - 1,
-    monthlyKwh: Array.from({ length: 12 }, () => 500),
+    monthlyTargets: Array.from({ length: 12 }, () => 500),
     alertPercent: 90,
     ...override,
 })
@@ -103,13 +103,13 @@ describe("POST /api/goals", () => {
             referenceYear: currentYear - 1,
             alertPercent: 85,
         })
-        expect(response.body.data.monthlyKwh).toHaveLength(12)
+        expect(response.body.data.monthlyTargets).toHaveLength(12)
         expect(response.body.data.userId).toBeUndefined()
     })
 
     it.each([
-        ["11 meses", { monthlyKwh: Array.from({ length: 11 }, () => 400) }],
-        ["mês negativo", { monthlyKwh: [-1, ...Array.from({ length: 11 }, () => 400)] }],
+        ["11 meses", { monthlyTargets: Array.from({ length: 11 }, () => 400) }],
+        ["mês negativo", { monthlyTargets: [-1, ...Array.from({ length: 11 }, () => 400)] }],
         ["alerta abaixo de 10", { alertPercent: 9 }],
         ["alerta acima de 100", { alertPercent: 101 }],
         ["referência igual ao ano da meta", { referenceYear: currentYear }],
@@ -264,9 +264,9 @@ describe("GET /api/goals/progress", () => {
 
         expect(response.status).toBe(200)
         const [item] = response.body.data.items
-        expect(item).toMatchObject({ year: currentYear, yearTargetKwh: 4800 })
+        expect(item).toMatchObject({ year: currentYear, yearTarget: 4800 })
         expect(item.months).toHaveLength(12)
-        expect(item.months[0]).toEqual({ month: 1, targetKwh: 400, realizedKwh: 123 })
+        expect(item.months[0]).toEqual({ month: 1, target: 400, realized: 123 })
         expect(item.userId).toBeUndefined()
     })
 
@@ -338,6 +338,79 @@ describe("GET /api/goals/alerts", () => {
     })
 })
 
+describe("metas em kWh e em reais", () => {
+    it("cria a meta de custo e a de consumo do mesmo ano, e a listagem traz as duas", async () => {
+        const { token, propertyId } = await setupProperty()
+
+        const kwh = await request(app)
+            .post("/api/goals")
+            .set(authed(token))
+            .send(body(propertyId, { unit: "KWH" }))
+        const brl = await request(app)
+            .post("/api/goals")
+            .set(authed(token))
+            .send(body(propertyId, { unit: "BRL" }))
+        const listed = await request(app)
+            .get(`/api/goals?propertyId=${propertyId}`)
+            .set(authed(token))
+
+        expect(kwh.status).toBe(201)
+        expect(brl.status).toBe(201)
+        expect(brl.body.data.unit).toBe("BRL")
+        expect(listed.body.data.items.map((g: { unit: string }) => g.unit).sort()).toEqual([
+            "BRL",
+            "KWH",
+        ])
+    })
+
+    it("sem unidade, a meta é de consumo", async () => {
+        const { token, propertyId } = await setupProperty()
+
+        const response = await request(app)
+            .post("/api/goals")
+            .set(authed(token))
+            .send(body(propertyId))
+
+        expect(response.body.data.unit).toBe("KWH")
+    })
+
+    it("a segunda meta da mesma unidade e ano dá 409; unidade inválida dá 422", async () => {
+        const { token, propertyId } = await setupProperty()
+        await request(app)
+            .post("/api/goals")
+            .set(authed(token))
+            .send(body(propertyId, { unit: "BRL" }))
+
+        const duplicate = await request(app)
+            .post("/api/goals")
+            .set(authed(token))
+            .send(body(propertyId, { unit: "BRL" }))
+        const invalid = await request(app)
+            .post("/api/goals")
+            .set(authed(token))
+            .send(body(propertyId, { unit: "MWH", year: currentYear + 1 }))
+
+        expect(duplicate.status).toBe(409)
+        expect(invalid.status).toBe(422)
+    })
+
+    it("o acompanhamento e o estado do alerta trazem a unidade de cada meta", async () => {
+        const { token, propertyId } = await setupProperty()
+        await request(app)
+            .post("/api/goals")
+            .set(authed(token))
+            .send(body(propertyId, { unit: "BRL" }))
+
+        const progress = await request(app)
+            .get(`/api/goals/progress?propertyId=${propertyId}`)
+            .set(authed(token))
+        const alerts = await request(app).get("/api/goals/alerts").set(authed(token))
+
+        expect(progress.body.data.items[0].unit).toBe("BRL")
+        expect(alerts.body.data.items[0].unit).toBe("BRL")
+    })
+})
+
 describe("PUT /api/goals/:id", () => {
     it("retorna 401 sem token", async () => {
         const response = await request(app).put(`/api/goals/${unknownId}`).send(editable())
@@ -362,7 +435,7 @@ describe("PUT /api/goals/:id", () => {
             propertyId,
             alertPercent: 90,
         })
-        expect(response.body.data.monthlyKwh[0]).toBe(500)
+        expect(response.body.data.monthlyTargets[0]).toBe(500)
     })
 
     it("retorna 409 para meta de ano passado e não altera nada", async () => {
@@ -376,7 +449,7 @@ describe("PUT /api/goals/:id", () => {
                 propertyId,
                 year: currentYear - 1,
                 referenceYear: currentYear - 2,
-                monthlyKwh: Array.from({ length: 12 }, () => 400),
+                monthlyTargets: Array.from({ length: 12 }, () => 400),
                 alertPercent: 85,
             },
         })
@@ -451,7 +524,7 @@ describe("DELETE /api/goals/:id", () => {
                 propertyId,
                 year: currentYear - 1,
                 referenceYear: currentYear - 2,
-                monthlyKwh: Array.from({ length: 12 }, () => 400),
+                monthlyTargets: Array.from({ length: 12 }, () => 400),
                 alertPercent: 85,
             },
         })

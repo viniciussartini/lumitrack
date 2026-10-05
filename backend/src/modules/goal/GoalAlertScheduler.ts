@@ -10,8 +10,9 @@
  * `UPDATE` condicional antes de avisar, então duas instâncias do processo
  * jamais avisam duas vezes.
  */
+import type { GoalUnit } from "@/generated/prisma/client.js"
 import { computeGoalAlertState } from "@/modules/goal/goal-alert.js"
-import type { GoalConsumptionReader, MonthlyKwh } from "@/modules/goal/goal-consumption.js"
+import type { GoalConsumptionReader, MonthlyValues } from "@/modules/goal/goal-consumption.js"
 import { computeGoalProgress } from "@/modules/goal/goal-progress.js"
 import type { GoalRepository, GoalWithProperty } from "@/modules/goal/goal.repository.js"
 import type { NotificationStore } from "@/shared/notifications/notification-store.js"
@@ -26,6 +27,21 @@ const FIRST_TICK_DELAY_MS = 60 * 1000
 
 /** Onde o aviso leva: a página das metas. */
 const GOALS_PATH = "/configuracoes/metas"
+
+/** O que o aviso diz, por unidade da meta. */
+const WORDING: Record<
+    GoalUnit,
+    { month: (percent: string) => string; year: (percent: string) => string }
+> = {
+    KWH: {
+        month: (percent) => `o consumo do mês atingiu ${percent}% da meta do mês`,
+        year: (percent) => `o consumo acumulado do ano atingiu ${percent}% da meta anual`,
+    },
+    BRL: {
+        month: (percent) => `o custo do mês atingiu ${percent}% da meta de custo do mês`,
+        year: (percent) => `o custo acumulado do ano atingiu ${percent}% da meta de custo anual`,
+    },
+}
 
 const formatPercent = (percent: number): string =>
     percent.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
@@ -102,34 +118,44 @@ export class GoalAlertScheduler {
         const month = local.getUTCMonth() + 1
 
         const goals = await this.goalRepository.findPendingAlertGoals(year, month)
-        const byProperty = new Map<string, GoalWithProperty[]>()
+        // Uma leitura por propriedade e unidade: a meta em kWh e a em R$ da mesma
+        // propriedade leem o realizado de fontes diferentes.
+        const bySource = new Map<string, GoalWithProperty[]>()
         for (const goal of goals) {
-            byProperty.set(goal.propertyId, [...(byProperty.get(goal.propertyId) ?? []), goal])
+            const key = `${goal.propertyId}:${goal.unit}`
+            bySource.set(key, [...(bySource.get(key) ?? []), goal])
         }
 
+        const groups = [...bySource.values()]
         const results = await Promise.allSettled(
-            [...byProperty.entries()].map(([propertyId, propertyGoals]) =>
-                this.evaluateProperty(propertyId, propertyGoals, year, month, now),
-            ),
+            groups.map((group) => this.evaluateGroup(group, year, month, now)),
         )
         results.forEach((result, index) => {
             if (result.status === "rejected") {
                 log.error(
-                    { propertyId: [...byProperty.keys()][index], err: result.reason },
+                    { propertyId: groups[index]?.[0]?.propertyId, err: result.reason },
                     "Falha ao avaliar as metas de uma propriedade — seguindo para as demais",
                 )
             }
         })
     }
 
-    private async evaluateProperty(
-        propertyId: string,
+    // Metas da mesma propriedade e unidade: mesmo dono e mesma fonte de realizado.
+    private async evaluateGroup(
         goals: GoalWithProperty[],
         year: number,
         month: number,
         now: Date,
     ): Promise<void> {
-        const monthly = await this.consumptionReader.monthlyKwh(propertyId, year, now)
+        const first = goals[0]
+        if (!first) return
+        const monthly = await this.consumptionReader.monthlyValues(
+            first.userId,
+            first.propertyId,
+            year,
+            first.unit,
+            now,
+        )
         for (const goal of goals) {
             await this.evaluateGoal(goal, monthly, month, now)
         }
@@ -137,13 +163,13 @@ export class GoalAlertScheduler {
 
     private async evaluateGoal(
         goal: GoalWithProperty,
-        monthly: MonthlyKwh,
+        monthly: MonthlyValues,
         month: number,
         now: Date,
     ): Promise<void> {
         const progress = computeGoalProgress({
             year: goal.year,
-            monthlyKwh: goal.monthlyKwh,
+            monthlyTargets: goal.monthlyTargets,
             realizedByMonth: monthly.forYear(goal.year),
             now,
         })
@@ -155,10 +181,7 @@ export class GoalAlertScheduler {
             goal.alertNotifiedMonth !== month &&
             (await this.goalRepository.claimMonthAlert(goal.id, month))
         ) {
-            this.notify(
-                goal,
-                `o consumo do mês atingiu ${formatPercent(state.month.percent)}% da meta do mês`,
-            )
+            this.notify(goal, `${WORDING[goal.unit].month(formatPercent(state.month.percent))}`)
         }
 
         if (
@@ -167,17 +190,14 @@ export class GoalAlertScheduler {
             !goal.alertNotifiedYear &&
             (await this.goalRepository.claimYearAlert(goal.id))
         ) {
-            this.notify(
-                goal,
-                `o consumo acumulado do ano atingiu ${formatPercent(state.year.percent)}% da meta anual`,
-            )
+            this.notify(goal, `${WORDING[goal.unit].year(formatPercent(state.year.percent))}`)
         }
     }
 
     private notify(goal: GoalWithProperty, what: string): void {
         const notification = this.notificationStore.add(goal.userId, {
             alertId: goal.id,
-            alertName: `Meta ${goal.year} · ${goal.property.name}`,
+            alertName: `Meta ${goal.year} · ${goal.property.name}${goal.unit === "BRL" ? " · R$" : ""}`,
             meterId: null,
             targetType: "PROPERTY",
             targetPath: GOALS_PATH,

@@ -342,6 +342,7 @@ describe("AlertsPage — alertas de meta", () => {
                 propertyId: "prop-1",
                 propertyName: "Casa",
                 year: 2026,
+                unit: "KWH",
                 alertPercent: 85,
                 monthly: { percent: 90, reached: true, notified: true },
                 annual: { percent: 40, reached: false, notified: false },

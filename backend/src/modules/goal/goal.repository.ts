@@ -66,7 +66,7 @@ export class GoalRepository {
     /**
      * Metas de uma propriedade do usuário, do ano mais recente para o mais
      * antigo. A posse entra na própria condição, então propriedade alheia dá
-     * lista vazia. O ano é único por propriedade, então a ordem já é total
+     * lista vazia. O ano e a unidade são únicos por propriedade, então a ordem já é total
      * entre páginas.
      *
      * @param userId - Dono das metas.
@@ -85,7 +85,7 @@ export class GoalRepository {
         const [items, total] = await Promise.all([
             this.prisma.goal.findMany({
                 where,
-                orderBy: { year: "desc" },
+                orderBy: [{ year: "desc" }, { unit: "asc" }],
                 skip,
                 take,
             }),
@@ -107,7 +107,7 @@ export class GoalRepository {
     async findAllByProperty(userId: string, propertyId: string): Promise<GoalRecord[]> {
         return this.prisma.goal.findMany({
             where: { userId, propertyId },
-            orderBy: { year: "asc" },
+            orderBy: [{ year: "asc" }, { unit: "asc" }],
         })
     }
 
@@ -120,7 +120,7 @@ export class GoalRepository {
     async findAllByUser(userId: string): Promise<GoalRecord[]> {
         return this.prisma.goal.findMany({
             where: { userId },
-            orderBy: [{ propertyId: "asc" }, { year: "asc" }],
+            orderBy: [{ propertyId: "asc" }, { year: "asc" }, { unit: "asc" }],
         })
     }
 
@@ -169,7 +169,7 @@ export class GoalRepository {
         return this.prisma.goal.findMany({
             where: { userId, year },
             include: { property: { select: { name: true } } },
-            orderBy: [{ property: { name: "asc" } }, { id: "asc" }],
+            orderBy: [{ property: { name: "asc" } }, { unit: "asc" }],
         })
     }
 

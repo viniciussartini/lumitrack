@@ -6,22 +6,22 @@ export type GoalSituation = "IN_PROGRESS" | "MET" | "NOT_MET"
 export type GoalProgressMonth = {
     /** 1 (janeiro) a 12 (dezembro). */
     month: number
-    targetKwh: number
+    target: number
     /** `null` quando o mês não tem leitura (ou ainda não aconteceu): ausência, não zero. */
-    realizedKwh: number | null
+    realized: number | null
 }
 
 export type GoalProgressSummary = {
     months: GoalProgressMonth[]
-    yearTargetKwh: number
+    yearTarget: number
     /** Soma dos meses com leitura até o mês corrente; `null` sem nenhuma leitura. */
-    realizedKwh: number | null
-    /** Meta dos mesmos meses do `realizedKwh`, com o mês corrente proporcional aos dias. */
-    comparedTargetKwh: number | null
+    realized: number | null
+    /** Meta dos mesmos meses do `realized`, com o mês corrente proporcional aos dias. */
+    comparedTarget: number | null
     /** `null` sem base de comparação ou com meta zerada. */
     deviationPercent: number | null
     /** Só no ano corrente. */
-    currentMonthTargetKwh: number | null
+    currentMonthTarget: number | null
     /** `null` num ano passado sem nenhuma leitura. */
     situation: GoalSituation | null
 }
@@ -29,7 +29,7 @@ export type GoalProgressSummary = {
 export type GoalProgressInput = {
     year: number
     /** 12 valores, de janeiro a dezembro. */
-    monthlyKwh: number[]
+    monthlyTargets: number[]
     /** 12 posições; `null` onde o mês não tem leitura. */
     realizedByMonth: (number | null)[]
     now: Date
@@ -71,50 +71,50 @@ function elapsedWeights(year: number, now: Date): number[] {
  * @returns Os 12 meses e os totais para os cards e a tabela.
  */
 export function computeGoalProgress(input: GoalProgressInput): GoalProgressSummary {
-    const { year, monthlyKwh, now } = input
+    const { year, monthlyTargets, now } = input
     const weights = elapsedWeights(year, now)
     const local = toSaoPauloLocal(now)
     const currentYear = local.getUTCFullYear()
 
-    const months = monthlyKwh.map((targetKwh, index): GoalProgressMonth => {
+    const months = monthlyTargets.map((target, index): GoalProgressMonth => {
         const reading = input.realizedByMonth[index] ?? null
         const happened = (weights[index] ?? 0) > 0
-        return { month: index + 1, targetKwh, realizedKwh: happened ? reading : null }
+        return { month: index + 1, target, realized: happened ? reading : null }
     })
-    const withReading = months.filter((m) => m.realizedKwh !== null)
+    const withReading = months.filter((m) => m.realized !== null)
 
-    const realizedKwh =
-        withReading.length === 0 ? null : sum(withReading.map((m) => m.realizedKwh ?? 0))
-    const comparedTargetKwh =
+    const realized = withReading.length === 0 ? null : sum(withReading.map((m) => m.realized ?? 0))
+    const comparedTarget =
         withReading.length === 0
             ? null
-            : sum(withReading.map((m) => m.targetKwh * (weights[m.month - 1] ?? 0)))
+            : sum(withReading.map((m) => m.target * (weights[m.month - 1] ?? 0)))
 
     const deviationPercent =
-        realizedKwh !== null && comparedTargetKwh !== null && comparedTargetKwh > 0
-            ? (realizedKwh / comparedTargetKwh - 1) * 100
+        realized !== null && comparedTarget !== null && comparedTarget > 0
+            ? (realized / comparedTarget - 1) * 100
             : null
 
     return {
         months,
-        yearTargetKwh: sum(monthlyKwh),
-        realizedKwh,
-        comparedTargetKwh,
+        yearTarget: sum(monthlyTargets),
+        realized,
+        comparedTarget,
         deviationPercent,
-        currentMonthTargetKwh: year === currentYear ? (monthlyKwh[local.getUTCMonth()] ?? 0) : null,
-        situation: resolveSituation(year, currentYear, realizedKwh, comparedTargetKwh),
+        currentMonthTarget:
+            year === currentYear ? (monthlyTargets[local.getUTCMonth()] ?? 0) : null,
+        situation: resolveSituation(year, currentYear, realized, comparedTarget),
     }
 }
 
 function resolveSituation(
     year: number,
     currentYear: number,
-    realizedKwh: number | null,
-    comparedTargetKwh: number | null,
+    realized: number | null,
+    comparedTarget: number | null,
 ): GoalSituation | null {
     if (year >= currentYear) return "IN_PROGRESS"
-    if (realizedKwh === null || comparedTargetKwh === null) return null
-    return realizedKwh <= comparedTargetKwh ? "MET" : "NOT_MET"
+    if (realized === null || comparedTarget === null) return null
+    return realized <= comparedTarget ? "MET" : "NOT_MET"
 }
 
 const sum = (values: number[]): number => values.reduce((total, value) => total + value, 0)

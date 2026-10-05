@@ -18,16 +18,16 @@ export type GoalAlertState = {
 const NOT_APPLICABLE: GoalAlertPeriodState = { percent: null, reached: false }
 
 function periodState(
-    realizedKwh: number | null,
-    targetKwh: number,
+    realized: number | null,
+    target: number,
     alertPercent: number,
 ): GoalAlertPeriodState {
-    if (realizedKwh === null || targetKwh <= 0) return NOT_APPLICABLE
+    if (realized === null || target <= 0) return NOT_APPLICABLE
     return {
-        percent: (realizedKwh / targetKwh) * 100,
+        percent: (realized / target) * 100,
         // Produto cruzado em vez de dividir: o limite exato (85% de 400 = 340)
         // não pode escapar por arredondamento de ponto flutuante.
-        reached: realizedKwh * 100 >= alertPercent * targetKwh,
+        reached: realized * 100 >= alertPercent * target,
     }
 }
 
@@ -46,17 +46,17 @@ export function computeGoalAlertState(
     alertPercent: number,
     now: Date,
 ): GoalAlertState {
-    if (progress.currentMonthTargetKwh === null) {
+    if (progress.currentMonthTarget === null) {
         return { month: NOT_APPLICABLE, year: NOT_APPLICABLE }
     }
 
     const currentMonth = progress.months[toSaoPauloLocal(now).getUTCMonth()]
     return {
         month: periodState(
-            currentMonth?.realizedKwh ?? null,
-            progress.currentMonthTargetKwh,
+            currentMonth?.realized ?? null,
+            progress.currentMonthTarget,
             alertPercent,
         ),
-        year: periodState(progress.realizedKwh, progress.yearTargetKwh, alertPercent),
+        year: periodState(progress.realized, progress.yearTarget, alertPercent),
     }
 }
