@@ -353,6 +353,19 @@ describe("ConsumptionService.list", () => {
 
             expect(result.total).toBe(2)
         })
+
+        it("Grupo B Convencional segue com custo no dia: só energia, bandeira e tributos, sem piso", async () => {
+            const { user, meter, property } = await setupPropertyMeter()
+            await insertReading(meter.id, "2026-01-15T13:00:00Z", 10, 3000)
+
+            const result = await consumptionService.list(user.id, {
+                targetType: "PROPERTY",
+                targetId: property.id,
+                granularity: "day",
+            })
+
+            expect(result.items[0]!.costBrl).toBeCloseTo(10 * RATE, 4)
+        })
     })
 
     describe("granularidade month/year — piso de disponibilidade (alvo PROPERTY)", () => {
@@ -1292,7 +1305,7 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
         // ver tariff.service.test.ts) resulta em ~R$ 814, por isso o total
         // fica próximo de R$ 101.496,36, mas não idêntico. Tolerância larga
         // aqui é proposital, documentada, não um teste frouxo por descuido.
-        expect(Math.abs(result.items[0]!.costBrl - 101_496.36)).toBeLessThan(100)
+        expect(Math.abs(result.items[0]!.costBrl! - 101_496.36)).toBeLessThan(100)
     })
 
     it("não carrega groupA no bucket mensal de uma propriedade Grupo B", async () => {
@@ -1326,17 +1339,66 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
         ).rejects.toThrow(/modalidade/i)
     })
 
-    it("falha fechado ao pedir detalhamento por hora de uma propriedade Grupo A", async () => {
+    it("devolve o kWh por hora de uma propriedade Grupo A sem custo — a conta binômia é mensal", async () => {
         const { user, meter, property } = await setupGroupAPropertyMeter()
         await insertReading(meter.id, "2026-08-04T13:00:00Z", 10, 100_000)
 
-        await expect(
-            consumptionService.list(user.id, {
-                targetType: "PROPERTY",
-                targetId: property.id,
-                granularity: "hour",
-            }),
-        ).rejects.toThrow(/Grupo A/)
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "hour",
+        })
+
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0]!.kwhConsumed).toBeCloseTo(10)
+        expect(result.items[0]).not.toHaveProperty("costBrl")
+        expect(result.items[0]).not.toHaveProperty("groupA")
+    })
+
+    it("devolve o kWh por dia de uma propriedade Grupo A sem custo", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+        await insertReading(meter.id, "2026-08-04T13:00:00Z", 10, 100_000)
+        await insertReading(meter.id, "2026-08-05T13:00:00Z", 6, 60_000)
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "day",
+            order: "asc",
+        })
+
+        expect(result.items.map((item) => item.kwhConsumed)).toEqual([
+            expect.closeTo(10),
+            expect.closeTo(6),
+        ])
+        expect(result.items.every((item) => !("costBrl" in item))).toBe(true)
+    })
+
+    it("devolve o kWh mensal de uma Área de propriedade Grupo A sem custo", async () => {
+        const { user, property } = await setupGroupAPropertyMeter()
+        const area = await areaService.create(property.id, user.id, { name: "Setor Produtivo" })
+        const areaMeter = await prismaTest.meter.create({
+            data: {
+                name: "Medidor Setor",
+                targetType: "AREA",
+                areaId: area.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "setor/medidor",
+            },
+        })
+        await insertReading(areaMeter.id, "2026-08-04T13:00:00Z", 10, 100_000)
+
+        const result = await consumptionService.list(user.id, {
+            targetType: "AREA",
+            targetId: area.id,
+            granularity: "month",
+        })
+
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0]!.kwhConsumed).toBeCloseTo(10)
+        expect(result.items[0]).not.toHaveProperty("costBrl")
     })
 
     it("summary() devolve o kWh de uma Área de propriedade Grupo A sem custo, sem derrubar o lote", async () => {
@@ -1817,15 +1879,15 @@ describe("ConsumptionService.compareAclToAcr — comparação ACR × ACL", () =>
         })
 
         expect(comparison.months).toHaveLength(1)
-        expect(comparison.months[0]!.acrBrl).toBeCloseTo(realAcr.items[0]!.costBrl, 2)
-        expect(comparison.months[0]!.aclBrl).toBeCloseTo(realAcl.items[0]!.costBrl, 2)
-        expect(comparison.totalAcrBrl).toBeCloseTo(realAcr.items[0]!.costBrl, 2)
-        expect(comparison.totalAclBrl).toBeCloseTo(realAcl.items[0]!.costBrl, 2)
+        expect(comparison.months[0]!.acrBrl).toBeCloseTo(realAcr.items[0]!.costBrl!, 2)
+        expect(comparison.months[0]!.aclBrl).toBeCloseTo(realAcl.items[0]!.costBrl!, 2)
+        expect(comparison.totalAcrBrl).toBeCloseTo(realAcr.items[0]!.costBrl!, 2)
+        expect(comparison.totalAclBrl).toBeCloseTo(realAcl.items[0]!.costBrl!, 2)
 
-        const expectedDiff = realAcr.items[0]!.costBrl - realAcl.items[0]!.costBrl
+        const expectedDiff = realAcr.items[0]!.costBrl! - realAcl.items[0]!.costBrl!
         expect(comparison.totalDiffBrl).toBeCloseTo(expectedDiff, 2)
         expect(comparison.diffPercent).toBeCloseTo(
-            (expectedDiff / realAcr.items[0]!.costBrl) * 100,
+            (expectedDiff / realAcr.items[0]!.costBrl!) * 100,
             2,
         )
         expect(comparison.verdict).toBe(
@@ -1859,7 +1921,7 @@ describe("ConsumptionService.compareAclToAcr — comparação ACR × ACL", () =>
             to: new Date("2026-08-01"),
         })
 
-        expect(realAcl.items[0]!.costBrl).toBeGreaterThan(realAcr.items[0]!.costBrl)
+        expect(realAcl.items[0]!.costBrl!).toBeGreaterThan(realAcr.items[0]!.costBrl!)
         expect(comparison.verdict).toBe("ACR_CHEAPER")
         expect(comparison.totalDiffBrl).toBeLessThan(0)
     })
@@ -2137,17 +2199,20 @@ describe("ConsumptionService.list — Tarifa Branca (Grupo B)", () => {
         expect(result.items[0]!.costBrl).toBeCloseTo(expectedTotal, 2)
     })
 
-    it("falha fechada ao pedir detalhamento por hora de uma propriedade na Tarifa Branca", async () => {
+    it("devolve o kWh por dia de uma propriedade na Tarifa Branca sem custo — o posto só existe no mês", async () => {
         const { user, meter, property } = await setupWhitePropertyMeter()
         await insertReading(meter.id, "2026-08-04T13:00:00Z", 200, 10_000)
 
-        await expect(
-            consumptionService.list(user.id, {
-                targetType: "PROPERTY",
-                targetId: property.id,
-                granularity: "hour",
-            }),
-        ).rejects.toThrow(ValidationError)
+        const result = await consumptionService.list(user.id, {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "day",
+        })
+
+        expect(result.items).toHaveLength(1)
+        expect(result.items[0]!.kwhConsumed).toBeCloseTo(200)
+        expect(result.items[0]).not.toHaveProperty("costBrl")
+        expect(result.items[0]).not.toHaveProperty("groupBWhite")
     })
 
     // Regressão de N+1: sem o batching, granularidade "year" chamaria

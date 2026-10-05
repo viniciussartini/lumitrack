@@ -110,11 +110,16 @@ export interface GroupBWhiteBreakdown {
     publicLightingFeeBrl: number
 }
 
-/** Um bucket agregado de consumo — item de `GET /api/consumption`. */
+/**
+ * Um bucket agregado de consumo — item de `GET /api/consumption`. O consumo
+ * sempre vem; `costBrl` só quando o custo é calculável para o alvo, a tarifa e
+ * a granularidade (Grupo A e Tarifa Branca só têm custo no mês da Propriedade),
+ * e ausência é "-", nunca zero.
+ */
 export interface ConsumptionBucket {
     bucketStart: string
     kwhConsumed: number
-    costBrl: number
+    costBrl?: number
     avgPowerW: number
     groupA?: GroupABreakdown
     groupBWhite?: GroupBWhiteBreakdown
@@ -145,14 +150,8 @@ export interface ConsumptionSummaryParams {
     to?: Date
 }
 
-/**
- * Item de `GET /api/consumption/summary` — o bucket mais recente de 1 alvo.
- * `costBrl` só vem quando o custo é calculável para o alvo e a tarifa (Área e
- * Dispositivo de Grupo A ou Tarifa Branca não têm custo próprio); o consumo
- * (`kwhConsumed`) vem sempre.
- */
-export interface ConsumptionSummaryItem extends Omit<ConsumptionBucket, "costBrl"> {
+/** Item de `GET /api/consumption/summary` — o bucket mais recente de 1 alvo. */
+export interface ConsumptionSummaryItem extends ConsumptionBucket {
     id: string
     targetType: TargetType
-    costBrl?: number
 }

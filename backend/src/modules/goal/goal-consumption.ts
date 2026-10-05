@@ -181,10 +181,16 @@ export class GoalConsumptionReader {
                 page: 1,
                 pageSize: 12,
             })
-            return result.items.map((bucket) => [
-                `${bucket.bucketStart.getUTCFullYear()}-${bucket.bucketStart.getUTCMonth()}`,
-                bucket.costBrl,
-            ])
+            return result.items.flatMap((bucket): [string, number][] =>
+                bucket.costBrl === undefined
+                    ? []
+                    : [
+                          [
+                              `${bucket.bucketStart.getUTCFullYear()}-${bucket.bucketStart.getUTCMonth()}`,
+                              bucket.costBrl,
+                          ],
+                      ],
+            )
         } catch (error) {
             if (error instanceof ValidationError || error instanceof NotFoundError) return []
             throw error

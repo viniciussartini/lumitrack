@@ -200,3 +200,23 @@ describe("DashboardPage — seletor de propriedade", () => {
         expect(storage.get(STORAGE_KEYS.SELECTED_PROPERTY)).toBe("prop-a")
     })
 })
+
+describe("DashboardPage — ordem dos blocos", () => {
+    it("a meta de consumo vem logo abaixo do seletor, antes dos blocos que o Painel já tinha", async () => {
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([mockPropertyA]))
+
+        renderPage()
+
+        const selector = await screen.findByTestId("property-selector")
+        const goal = await screen.findByTestId("goal-section")
+        const history = await screen.findByTestId("consumption-history-section")
+
+        expect(
+            selector.compareDocumentPosition(goal) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy()
+        expect(
+            goal.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy()
+        expect(screen.getByText("Meta de consumo")).toBeInTheDocument()
+    })
+})

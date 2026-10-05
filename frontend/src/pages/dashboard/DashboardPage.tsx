@@ -3,6 +3,7 @@ import { Link } from "react-router"
 import { useProperties } from "@/hooks/queries/useProperties"
 import { usePropertySelection } from "@/hooks/usePropertySelection"
 import { PropertySelector } from "@/components/dashboard/PropertySelector"
+import { GoalSection } from "@/components/dashboard/GoalSection"
 import { RealtimeSection } from "@/components/dashboard/RealtimeSection"
 import { ConsumptionHistorySection } from "@/components/dashboard/ConsumptionHistorySection"
 import { PropertyComparisonSection } from "@/components/dashboard/PropertyComparisonSection"
@@ -16,6 +17,10 @@ import { Button } from "@/components/ui/Button"
  * seletor no header compartilhado). O kicker/título "Painel geral/
  * Olá, {nome}" saiu daqui para o Header — antes duplicava o mesmo
  * texto que o Header passou a mostrar.
+ *
+ * A meta de consumo (`GoalSection`) abre a lista de blocos, na ordem do
+ * handoff `Home v2`; os blocos que o Painel já tinha descem e seguem abaixo,
+ * divergência deliberada do design v2, que não os desenha.
  *
  * KPIs (Potência agora, Consumo hoje, Custo projetado, Bandeira vigente),
  * gráfico de consumo em tempo real e card de bandeiras
@@ -83,16 +88,10 @@ export const DashboardPage = () => {
                         onChange={selectProperty}
                     />
                     {selectedId && selectedProperty && (
-                        <>
-                            <RealtimeSection
-                                propertyId={selectedId}
-                                propertyName={selectedProperty.name}
-                            />
-                            <ConsumptionHistorySection
-                                propertyId={selectedId}
-                                propertyName={selectedProperty.name}
-                            />
-                        </>
+                        <PropertyBlocks
+                            propertyId={selectedId}
+                            propertyName={selectedProperty.name}
+                        />
                     )}
                     <PropertyComparisonSection properties={properties} />
                 </>
@@ -102,6 +101,20 @@ export const DashboardPage = () => {
 }
 
 // Subcomponentes locais
+
+interface PropertyBlocksProps {
+    propertyId: string
+    propertyName: string
+}
+
+/** Blocos escopados à propriedade selecionada, na ordem em que aparecem no Painel. */
+const PropertyBlocks = ({ propertyId, propertyName }: PropertyBlocksProps) => (
+    <>
+        <GoalSection propertyId={propertyId} propertyName={propertyName} />
+        <RealtimeSection propertyId={propertyId} propertyName={propertyName} />
+        <ConsumptionHistorySection propertyId={propertyId} propertyName={propertyName} />
+    </>
+)
 
 const DashboardSkeleton = () => (
     <div

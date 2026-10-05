@@ -57,6 +57,10 @@ export const mockAppShellBackground = async (page: Page) => {
     // a chamada para o backend real e o 401 levaria ao login.
     await page.route(/\/api\/goals\/alerts(\?.*)?$/, (route) => fulfillJson(route, { items: [] }))
 
+    // Acompanhamento de metas: o bloco "Meta de consumo" do Painel o pede para
+    // qualquer propriedade selecionada. Vazio de fundo = "sem meta no ano".
+    await page.route(/\/api\/goals\/progress(\?.*)?$/, (route) => fulfillJson(route, { items: [] }))
+
     // O `appStream` usa @microsoft/fetch-event-source, cujo `onopen` exige
     // response.ok E content-type começando com `text/event-stream` — senão
     // lança FatalStreamError e não retenta. Body vazio = conexão aberta que

@@ -125,10 +125,13 @@ export type GroupBWhiteBreakdown = {
     publicLightingFeeBrl: number
 }
 
+// `costBrl` é opcional: o consumo de um bucket sempre volta, o custo só quando
+// o cálculo existe para aquele alvo, tarifa e granularidade (ver
+// `calculateBucketCost`) — ausência é "não calculável", nunca zero.
 export type ConsumptionBucketResponse = {
     bucketStart: Date
     kwhConsumed: number
-    costBrl: number
+    costBrl?: number
     avgPowerW: number
     groupA?: GroupABreakdown
     groupBWhite?: GroupBWhiteBreakdown
@@ -137,7 +140,7 @@ export type ConsumptionBucketResponse = {
 // Retorno interno do cálculo de custo de um bucket — carrega a decomposição
 // do Grupo A ou da Tarifa Branca só quando ela existe (mês + Propriedade);
 // os demais caminhos (Grupo B Convencional, ano, Área/Aparelho) só populam
-// `totalBrl`.
+// `totalBrl`. `null` no lugar do resultado é o custo não calculável.
 type MonthCostResult = {
     totalBrl: number
     groupA?: GroupABreakdown
@@ -148,14 +151,11 @@ export type ConsumptionListResponse = Paginated<ConsumptionBucketResponse> & {
     granularity: Granularity
 }
 
-// Item do resumo em lote — o consumo de quem tem medidor sempre volta; o
-// custo só quando o cálculo existe para aquele alvo e tarifa (Área/Aparelho
-// de Grupo A ou Tarifa Branca não têm custo próprio), por isso `costBrl` é
-// opcional aqui e obrigatório em `ConsumptionBucketResponse`.
-export type ConsumptionSummaryItem = Omit<ConsumptionBucketResponse, "costBrl"> & {
+// Item do resumo em lote — mesma regra do bucket da lista: o consumo sempre
+// volta, o custo só quando o cálculo existe para aquele alvo e tarifa.
+export type ConsumptionSummaryItem = ConsumptionBucketResponse & {
     id: string
     targetType: TargetType
-    costBrl?: number
 }
 
 export type ConsumptionSummaryResponse = {
@@ -325,10 +325,10 @@ export class ConsumptionService {
                 return {
                     bucketStart: bucket.bucketStart,
                     kwhConsumed: bucket.kwhConsumed,
-                    costBrl: cost.totalBrl,
+                    ...(cost && { costBrl: cost.totalBrl }),
                     avgPowerW: bucket.avgPowerW,
-                    ...(cost.groupA && { groupA: cost.groupA }),
-                    ...(cost.groupBWhite && { groupBWhite: cost.groupBWhite }),
+                    ...(cost?.groupA && { groupA: cost.groupA }),
+                    ...(cost?.groupBWhite && { groupBWhite: cost.groupBWhite }),
                 }
             }),
         )
@@ -441,11 +441,11 @@ export class ConsumptionService {
     // Custo de 1 item de `summary()` — `null` quando o cálculo não existe ou
     // falha: o item continua no resultado com o consumo, só sem `costBrl`, e
     // os demais alvos do lote seguem respondendo. Grupo A e Tarifa Branca só
-    // calculam custo em mês/ano + Propriedade — uma Área/Aparelho dessas
-    // propriedades lança `ValidationError` ao tentar qualquer outra
-    // combinação (`calculateBucketCost`), o caso esperado e silencioso;
-    // qualquer outro erro é logado antes de omitir o custo, para não
-    // mascarar uma falha real (catálogo ausente, timeout).
+    // calculam custo em mês/ano + Propriedade — numa Área/Aparelho dessas
+    // propriedades `calculateBucketCost` devolve `null`, o caso esperado e
+    // silencioso; um `ValidationError` (modalidade ainda não suportada) também
+    // omite o custo sem log; qualquer outro erro é logado antes de omitir, para
+    // não mascarar uma falha real (catálogo ausente, timeout).
     private async resolveSummaryItemCost(
         targetId: string,
         meterId: string,
@@ -466,17 +466,16 @@ export class ConsumptionService {
                     flagPer100Kwh,
                 )
             }
-            return (
-                await this.calculateBucketCost(
-                    meterId,
-                    bucket,
-                    granularity,
-                    targetType,
-                    property,
-                    distributor,
-                    flagPer100Kwh,
-                )
-            ).totalBrl
+            const cost = await this.calculateBucketCost(
+                meterId,
+                bucket,
+                granularity,
+                targetType,
+                property,
+                distributor,
+                flagPer100Kwh,
+            )
+            return cost?.totalBrl ?? null
         } catch (err) {
             if (!(err instanceof ValidationError)) {
                 log.warn(
@@ -596,7 +595,7 @@ export class ConsumptionService {
         distributor: DistributorResponse,
         flagPer100Kwh: number,
         yearlyPropertyCostByBucketMs: Map<number, number>,
-    ): Promise<MonthCostResult> {
+    ): Promise<MonthCostResult | null> {
         if (granularity === "year" && targetType === "PROPERTY") {
             return { totalBrl: yearlyPropertyCostByBucketMs.get(bucket.bucketStart.getTime()) ?? 0 }
         }
@@ -1324,7 +1323,7 @@ export class ConsumptionService {
         property: PropertyResponse,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
-    ): Promise<MonthCostResult> {
+    ): Promise<MonthCostResult | null> {
         if (granularity === "month" && targetType === "PROPERTY") {
             return this.calculateMonthCost(
                 meterId,
@@ -1338,25 +1337,18 @@ export class ConsumptionService {
 
         // Demanda contratada (conceito mensal) só faz sentido na conta
         // mensal da Propriedade inteira (caminho acima) — minuto/hora/dia e
-        // Área/Aparelho de uma propriedade Grupo A falham fechado aqui em
-        // vez de reaplicar a tarifa plana do Grupo B (que seria a conta
-        // errada, silenciosamente).
-        if (property.tariffGroup === "GROUP_A") {
-            throw new ValidationError(
-                "Detalhamento de sub-nível ou sub-período ainda não suportado para propriedades do Grupo A",
-            )
-        }
+        // Área/Aparelho de uma propriedade Grupo A não têm custo calculável.
+        // Falhar fechado aqui não é lançar: o consumo continua válido e é
+        // devolvido sem custo, em vez de reaplicar a tarifa plana do Grupo B
+        // (que seria a conta errada, silenciosamente).
+        if (property.tariffGroup === "GROUP_A") return null
 
-        // Mesma disciplina de falha fechada da Azul acima: o consumo por
-        // posto da Branca só existe agregado pelo mês inteiro da Propriedade
-        // (caminho acima) — minuto/hora/dia e Área/Aparelho aplicariam a
-        // tarifa plana da Convencional a uma propriedade que não está nela,
-        // uma conta silenciosamente errada.
-        if (property.groupBModality === "WHITE") {
-            throw new ValidationError(
-                "Detalhamento de sub-nível ou sub-período ainda não suportado para propriedades na Tarifa Branca",
-            )
-        }
+        // Mesma disciplina da Azul acima: o consumo por posto da Branca só
+        // existe agregado pelo mês inteiro da Propriedade (caminho acima) —
+        // minuto/hora/dia e Área/Aparelho aplicariam a tarifa plana da
+        // Convencional a uma propriedade que não está nela, uma conta
+        // silenciosamente errada.
+        if (property.groupBModality === "WHITE") return null
 
         // minute/hour/day (qualquer alvo) e month/year (AREA/DEVICE): sem
         // piso nem CIP — apenas energia + bandeira + tributos sobre o

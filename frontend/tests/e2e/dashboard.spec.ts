@@ -436,3 +436,95 @@ test.describe("Painel — histórico e comparação entre propriedades (#119)", 
         ).toBeVisible()
     })
 })
+
+/** Acompanhamento de uma meta de consumo de 2026: 100 kWh/mês, meses fechados na meta. */
+const GOAL_PROGRESS_KWH = {
+    goalId: "goal-kwh",
+    year: 2026,
+    unit: "KWH",
+    months: Array.from({ length: 12 }, (_, i) => ({
+        month: i + 1,
+        target: 100,
+        realized: i < 9 ? 100 : i === 9 ? 50 : null,
+    })),
+    yearTarget: 1200,
+    realized: 950,
+    deviationPercent: 0,
+    currentMonthTarget: 300,
+    situation: "IN_PROGRESS",
+}
+
+test.describe("Painel — meta de consumo", () => {
+    test.beforeEach(async ({ context }) => {
+        await context.clearCookies()
+    })
+
+    test("mostra o acumulado e a projeção do mês e alterna para o ano e para o R$", async ({
+        page,
+    }) => {
+        // 16/10/2026 meio-dia em São Paulo (e no mesmo dia em UTC): 15 dias
+        // fechados num mês de 31, independente do fuso da máquina do CI.
+        await page.clock.install({ time: new Date("2026-10-16T15:00:00.000Z") })
+        await setupDashboard(page)
+        await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
+            fulfillJson(route, PROPERTY_METER),
+        )
+        await page.route(/\/api\/goals\/progress(\?.*)?$/, (route) =>
+            fulfillJson(route, { items: [GOAL_PROGRESS_KWH] }),
+        )
+        // O mês pede o consumo diário; o resto do Painel (KPIs, histórico) vem vazio.
+        await page.route(/\/api\/consumption(\?.*)?$/, (route) => {
+            const url = new URL(route.request().url())
+            if (url.searchParams.get("granularity") !== "day") return fulfillPaginated(route, [])
+            return fulfillPaginated(
+                route,
+                Array.from({ length: 15 }, (_, i) => ({
+                    bucketStart: `2026-10-${String(i + 1).padStart(2, "0")}T00:00:00.000Z`,
+                    kwhConsumed: 10,
+                    costBrl: 8,
+                    avgPowerW: 500,
+                })),
+                { pageSize: 31 },
+            )
+        })
+        await mockSseStream(page, sseEvent("connected", { meterCount: 1 }))
+
+        await page.goto("/dashboard")
+        await hideDevTools(page)
+
+        const goal = page.getByTestId("goal-section")
+        await expect(goal.getByText("Acumulado · até o dia 15")).toBeVisible()
+        await expect(goal.getByTestId("goal-stats")).toContainText("150 kWh")
+        await expect(goal.getByTestId("goal-stats")).toContainText("310 kWh")
+        await expect(goal.getByTestId("goal-stats")).toContainText("+3,3% vs. meta")
+
+        await page.getByTestId("goal-period-year").click()
+        await expect(goal.getByTestId("goal-stats")).toContainText("1.200 kWh")
+        await expect(goal.getByTestId("goal-stats")).toContainText("950 kWh")
+
+        // Só há meta em kWh: o R$ mostra o vazio com o link para criá-la.
+        await page.getByTestId("goal-unit-BRL").click()
+        await expect(goal.getByTestId("goal-empty")).toContainText(
+            "Nenhuma meta de custo cadastrada para 2026.",
+        )
+        await expect(goal.getByRole("link", { name: "Criar meta" })).toHaveAttribute(
+            "href",
+            `/configuracoes/metas?propertyId=${PROP_1.id}`,
+        )
+    })
+
+    test("propriedade sem meta do ano mostra o vazio com o link para criá-la", async ({ page }) => {
+        await setupDashboard(page)
+        await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
+            fulfillJson(route, PROPERTY_METER),
+        )
+        await mockSseStream(page, sseEvent("connected", { meterCount: 1 }))
+
+        await page.goto("/dashboard")
+        await hideDevTools(page)
+
+        const goal = page.getByTestId("goal-section")
+        await expect(goal.getByTestId("goal-empty")).toBeVisible()
+        await expect(goal.getByRole("link", { name: "Criar meta" })).toBeVisible()
+    })
+})
