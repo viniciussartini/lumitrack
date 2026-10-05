@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
 import { GoalProgressChart } from "@/components/goal/GoalProgressChart"
 import type { GoalProgressMonth } from "@/types/goal.types"
 
@@ -21,5 +21,48 @@ describe("GoalProgressChart", () => {
         render(<GoalProgressChart months={months([])} unit="KWH" />)
 
         expect(screen.getByTestId("goal-progress-chart")).toBeInTheDocument()
+    })
+
+    it("a mesma informação do gráfico está numa tabela, para teclado e leitor de tela", () => {
+        render(<GoalProgressChart months={months([350, null, 420])} unit="KWH" />)
+
+        const table = screen.getByRole("table", { name: /meta e realizado por mês/i })
+        const rows = within(table).getAllByRole("row")
+        expect(rows).toHaveLength(13)
+        expect(
+            within(rows[1]!)
+                .getAllByRole("cell")
+                .map((c) => c.textContent),
+        ).toEqual(["400 kWh", "350 kWh"])
+        expect(within(rows[1]!).getByRole("rowheader")).toHaveTextContent("jan")
+    })
+
+    it("mês sem leitura aparece como traço na tabela, nunca como zero", () => {
+        render(<GoalProgressChart months={months([350])} unit="KWH" />)
+
+        const rows = within(screen.getByRole("table")).getAllByRole("row")
+
+        expect(within(rows[2]!).getAllByRole("cell")[1]).toHaveTextContent("-")
+    })
+
+    it("a tabela usa a unidade da meta", () => {
+        render(<GoalProgressChart months={months([190])} unit="KW" />)
+
+        const rows = within(screen.getByRole("table")).getAllByRole("row")
+
+        expect(
+            within(rows[1]!)
+                .getAllByRole("cell")
+                .map((c) => c.textContent),
+        ).toEqual(["400 kW", "190 kW"])
+    })
+
+    it("o desenho do gráfico fica fora da árvore de acessibilidade, para não duplicar a tabela", () => {
+        render(<GoalProgressChart months={months([350])} unit="KWH" />)
+
+        expect(screen.getByTestId("goal-progress-chart-graphic")).toHaveAttribute(
+            "aria-hidden",
+            "true",
+        )
     })
 })

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { Link } from "react-router"
+import { Link, useSearchParams } from "react-router"
 import { Target } from "lucide-react"
 import { toast } from "sonner"
 import { PropertySelector } from "@/components/dashboard/PropertySelector"
@@ -27,14 +27,32 @@ type DialogState =
     { kind: "create" } | { kind: "edit"; goal: Goal } | { kind: "reference"; goal: Goal } | null
 
 /**
- * Configurações → Metas (LumiTrack Home v2.dc.html) — metas anuais de consumo
- * da propriedade selecionada: card da meta do ano corrente e histórico, com
- * criar, editar e excluir. A propriedade é a mesma escolhida no Painel.
+ * Configurações → Metas (LumiTrack Home v2.dc.html) — metas anuais da
+ * propriedade selecionada, em consumo, custo e demanda: card da meta do ano
+ * corrente, acompanhamento e histórico, com criar, editar e excluir. A
+ * propriedade é a mesma escolhida no Painel, ou a do link do aviso
+ * (`?propertyId=`), que vale até o usuário escolher outra.
  */
 export const GoalsPage = () => {
+    const [searchParams] = useSearchParams()
+    const requestedPropertyId = searchParams.get("propertyId")
+
+    // O `key` reinicia a seleção quando outro aviso leva à mesma página.
+    return (
+        <GoalsPageContent
+            key={requestedPropertyId ?? ""}
+            requestedPropertyId={requestedPropertyId}
+        />
+    )
+}
+
+const GoalsPageContent = ({ requestedPropertyId }: { requestedPropertyId: string | null }) => {
     const propertiesQuery = useProperties(1, MAX_PAGE_SIZE)
     const properties = propertiesQuery.data?.items
-    const { selectedId, selectedProperty, selectProperty } = usePropertySelection(properties)
+    const { selectedId, selectedProperty, selectProperty } = usePropertySelection(
+        properties,
+        requestedPropertyId,
+    )
     const [chosenUnit, setUnit] = useState<GoalUnit>("KWH")
     // A demanda só existe no Grupo A: ao trocar para uma propriedade que não a
     // tem, a página volta ao consumo sem precisar de efeito.

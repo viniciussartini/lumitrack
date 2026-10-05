@@ -17,7 +17,7 @@ export type GoalProgressSummary = {
     yearTarget: number
     /** Soma dos meses com leitura até o mês corrente; `null` sem nenhuma leitura. */
     realized: number | null
-    /** Meta dos mesmos meses do `realized`, com o mês corrente proporcional aos dias. */
+    /** Meta dos mesmos meses do `realized`; em kWh o mês corrente é proporcional aos dias, em R$ conta inteiro. */
     comparedTarget: number | null
     /** `null` sem base de comparação ou com meta zerada. */
     deviationPercent: number | null
@@ -46,9 +46,10 @@ const daysInMonth = (year: number, monthIndex: number): number =>
 
 /**
  * Quanto da meta de cada mês já "venceu": 1 para meses encerrados, a fração
- * dos dias decorridos para o mês corrente e 0 para os que ainda virão.
+ * dos dias decorridos para o mês corrente e 0 para os que ainda virão. Sem
+ * `prorateCurrentMonth`, o mês corrente conta inteiro.
  */
-function elapsedWeights(year: number, now: Date): number[] {
+function elapsedWeights(year: number, now: Date, prorateCurrentMonth: boolean): number[] {
     const local = toSaoPauloLocal(now)
     const currentYear = local.getUTCFullYear()
 
@@ -56,11 +57,25 @@ function elapsedWeights(year: number, now: Date): number[] {
     if (year > currentYear) return Array.from({ length: MONTHS_IN_YEAR }, () => 0)
 
     const currentMonth = local.getUTCMonth()
-    const elapsedFraction = local.getUTCDate() / daysInMonth(year, currentMonth)
+    const elapsedFraction = prorateCurrentMonth
+        ? local.getUTCDate() / daysInMonth(year, currentMonth)
+        : 1
     return Array.from({ length: MONTHS_IN_YEAR }, (_, month) => {
         if (month < currentMonth) return 1
         return month === currentMonth ? elapsedFraction : 0
     })
+}
+
+/**
+ * A meta do ano a partir dos 12 valores mensais: a soma em kWh e em R$; na
+ * demanda (kW), que é um teto de pico e não se soma, a maior meta mensal.
+ *
+ * @param unit - Unidade da meta.
+ * @param monthlyTargets - 12 valores, de janeiro a dezembro.
+ * @returns A meta do ano na unidade da meta.
+ */
+export function yearlyTarget(unit: GoalUnit, monthlyTargets: number[]): number {
+    return unit === "KW" ? Math.max(0, ...monthlyTargets) : sum(monthlyTargets)
 }
 
 type YearAggregate = {
@@ -73,13 +88,13 @@ type YearAggregate = {
 }
 
 // kWh e R$ se somam ao longo do ano: o realizado é a soma dos meses com leitura,
-// contra a meta desses mesmos meses (o mês corrente, proporcional aos dias).
+// contra a meta desses mesmos meses (o mês corrente, pelo peso de `weights`).
 function aggregateByTotal(
     monthlyTargets: number[],
     withReading: GoalProgressMonth[],
     weights: number[],
 ): YearAggregate {
-    const yearTarget = sum(monthlyTargets)
+    const yearTarget = yearlyTarget("KWH", monthlyTargets)
     if (withReading.length === 0) {
         return {
             yearTarget,
@@ -108,7 +123,7 @@ function aggregateByPeak(
     monthlyTargets: number[],
     withReading: GoalProgressMonth[],
 ): YearAggregate {
-    const yearTarget = Math.max(0, ...monthlyTargets)
+    const yearTarget = yearlyTarget("KW", monthlyTargets)
     if (withReading.length === 0) {
         return {
             yearTarget,
@@ -140,17 +155,20 @@ function aggregateByPeak(
 /**
  * Acompanhamento de uma meta anual: realizado por mês, desvio e situação. Só
  * os meses com leitura entram — um mês sem leitura fica fora da comparação,
- * para um buraco de leitura não parecer economia. kWh e R$ somam o ano e
- * contam o mês corrente proporcionalmente aos dias decorridos, para o parcial
- * não ser medido contra a meta cheia; a demanda (kW) é um pico e agrega pelo
- * maior valor.
+ * para um buraco de leitura não parecer economia. kWh e R$ somam o ano. O
+ * consumo (kWh) cresce de forma linear, então o mês corrente conta
+ * proporcionalmente aos dias decorridos, para o parcial não ser medido contra
+ * a meta cheia. O custo (R$) já traz desde o primeiro dia as cobranças fixas
+ * (iluminação pública, piso de disponibilidade, demanda contratada), então o
+ * parcial é um piso do custo do mês e conta contra a meta cheia, como o pico
+ * da demanda (kW), que agrega pelo maior valor.
  *
  * @param input - Ano, unidade, meta mensal, realizado por mês e o instante de referência.
  * @returns Os 12 meses e os totais para os cards e a tabela.
  */
 export function computeGoalProgress(input: GoalProgressInput): GoalProgressSummary {
     const { year, unit, monthlyTargets, now } = input
-    const weights = elapsedWeights(year, now)
+    const weights = elapsedWeights(year, now, unit === "KWH")
     const local = toSaoPauloLocal(now)
     const currentYear = local.getUTCFullYear()
 

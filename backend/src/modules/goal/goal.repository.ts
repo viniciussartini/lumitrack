@@ -9,6 +9,9 @@ import {
 
 export type GoalRecord = Goal
 
+/** O que identifica uma meta numa certa versão: o id e o instante da última edição. */
+export type GoalVersion = Pick<GoalRecord, "id" | "updatedAt">
+
 /** Meta como sai da API e do export: sem o dono nem a contabilidade interna dos avisos. */
 export type GoalPublicRecord = Omit<
     GoalRecord,
@@ -37,7 +40,7 @@ export type GoalWithProperty = GoalRecord & { property: { name: string } }
 /** Código do Prisma para violação de índice único. */
 const UNIQUE_VIOLATION = "P2002"
 
-/** Acesso à tabela `goals` — metas anuais de consumo de uma propriedade. */
+/** Acesso à tabela `goals` — metas anuais (consumo, custo e demanda) de uma propriedade. */
 export class GoalRepository {
     /** @param prisma - Cliente Prisma do processo. */
     constructor(private readonly prisma: PrismaClient) {}
@@ -47,7 +50,7 @@ export class GoalRepository {
      *
      * @param userId - Dono da meta.
      * @param data - Corpo já validado.
-     * @returns A meta criada, ou `null` se a propriedade já tem meta nesse ano.
+     * @returns A meta criada, ou `null` se a propriedade já tem meta nesse ano e unidade.
      */
     async create(userId: string, data: CreateGoalBody): Promise<GoalRecord | null> {
         try {
@@ -97,8 +100,8 @@ export class GoalRepository {
 
     /**
      * Todas as metas de uma propriedade do usuário, do ano mais antigo para o
-     * mais recente. Sem paginação: o ano é único por propriedade, então são
-     * no máximo uma por ano. A posse entra na própria condição.
+     * mais recente. Sem paginação: são no máximo três por ano (uma por
+     * unidade) e o ano vai até 2100. A posse entra na própria condição.
      *
      * @param userId - Dono das metas.
      * @param propertyId - Propriedade filtrada.
@@ -138,7 +141,8 @@ export class GoalRepository {
 
     /**
      * Metas do ano que ainda podem ter um aviso a dar neste mês: o aviso do
-     * mês ou o do ano ainda não saiu. Insumo do avaliador periódico.
+     * mês ou o do ano ainda não saiu. A demanda (kW) é pico e não tem aviso
+     * anual, então só o do mês a mantém na lista. Insumo do avaliador periódico.
      *
      * @param year - Ano corrente.
      * @param month - Mês corrente, de 1 a 12.
@@ -149,7 +153,7 @@ export class GoalRepository {
             where: {
                 year,
                 OR: [
-                    { alertNotifiedYear: false },
+                    { alertNotifiedYear: false, unit: { not: "KW" } },
                     { alertNotifiedMonth: null },
                     { alertNotifiedMonth: { not: month } },
                 ],
@@ -174,21 +178,25 @@ export class GoalRepository {
     }
 
     /**
-     * Reivindica o aviso do mês: grava o mês só se ele ainda não foi avisado.
-     * É um `UPDATE` condicional, então de duas chamadas simultâneas só uma
-     * enxerga a linha por avisar — quem recebe `true` é quem notifica.
+     * Reivindica o aviso do mês: grava o mês só se ele ainda não foi avisado e
+     * a meta continua na versão que o avaliador leu. É um `UPDATE` condicional,
+     * então de duas chamadas simultâneas só uma enxerga a linha por avisar —
+     * quem recebe `true` é quem notifica —, e uma edição entre a leitura e a
+     * reivindicação a invalida, para não avisar com os números da meta antiga.
+     * A versão fica como está: reivindicar não é editar.
      *
-     * @param id - Id da meta.
+     * @param goal - Id e versão (`updatedAt`) da meta, como o avaliador a leu.
      * @param month - Mês corrente, de 1 a 12.
      * @returns `true` se este chamador reivindicou o aviso.
      */
-    async claimMonthAlert(id: string, month: number): Promise<boolean> {
+    async claimMonthAlert(goal: GoalVersion, month: number): Promise<boolean> {
         const { count } = await this.prisma.goal.updateMany({
             where: {
-                id,
+                id: goal.id,
+                updatedAt: goal.updatedAt,
                 OR: [{ alertNotifiedMonth: null }, { alertNotifiedMonth: { not: month } }],
             },
-            data: { alertNotifiedMonth: month },
+            data: { alertNotifiedMonth: month, updatedAt: goal.updatedAt },
         })
         return count > 0
     }
@@ -196,13 +204,13 @@ export class GoalRepository {
     /**
      * Reivindica o aviso do ano, com a mesma garantia de {@link claimMonthAlert}.
      *
-     * @param id - Id da meta.
+     * @param goal - Id e versão (`updatedAt`) da meta, como o avaliador a leu.
      * @returns `true` se este chamador reivindicou o aviso.
      */
-    async claimYearAlert(id: string): Promise<boolean> {
+    async claimYearAlert(goal: GoalVersion): Promise<boolean> {
         const { count } = await this.prisma.goal.updateMany({
-            where: { id, alertNotifiedYear: false },
-            data: { alertNotifiedYear: true },
+            where: { id: goal.id, updatedAt: goal.updatedAt, alertNotifiedYear: false },
+            data: { alertNotifiedYear: true, updatedAt: goal.updatedAt },
         })
         return count > 0
     }

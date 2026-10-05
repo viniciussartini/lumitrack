@@ -67,6 +67,39 @@ interface GoalProgressChartProps {
  */
 export const GoalProgressChart = ({ months, unit }: GoalProgressChartProps) => (
     <div data-testid="goal-progress-chart">
+        <div aria-hidden="true" data-testid="goal-progress-chart-graphic">
+            <ChartGraphic months={months} unit={unit} />
+        </div>
+        <MonthlyTable months={months} unit={unit} />
+    </div>
+)
+
+// O desenho só se vê com o mouse; esta tabela, escondida da tela, dá ao
+// teclado e ao leitor de tela os mesmos valores do gráfico e do tooltip.
+const MonthlyTable = ({ months, unit }: GoalProgressChartProps) => (
+    <table className="sr-only">
+        <caption>Meta e realizado por mês</caption>
+        <thead>
+            <tr>
+                <th scope="col">Mês</th>
+                <th scope="col">Meta no mês</th>
+                <th scope="col">Realizado no mês</th>
+            </tr>
+        </thead>
+        <tbody>
+            {months.map((month, index) => (
+                <tr key={month.month}>
+                    <th scope="row">{MONTH_LABELS[index] ?? month.month}</th>
+                    <td>{formatGoalValue(month.target, unit)}</td>
+                    <td>{month.realized === null ? "-" : formatGoalValue(month.realized, unit)}</td>
+                </tr>
+            ))}
+        </tbody>
+    </table>
+)
+
+const ChartGraphic = ({ months, unit }: GoalProgressChartProps) => (
+    <>
         <ResponsiveContainer width="100%" height={256}>
             <BarChart
                 data={toPoints(months)}
@@ -92,5 +125,5 @@ export const GoalProgressChart = ({ months, unit }: GoalProgressChartProps) => (
                 </Bar>
             </BarChart>
         </ResponsiveContainer>
-    </div>
+    </>
 )

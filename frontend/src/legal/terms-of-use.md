@@ -36,7 +36,7 @@ Ao usar o LumiTrack, você concorda em **não**:
 - Utilizar a plataforma para fins ilícitos ou não autorizados;
 - Tentar acessar contas, dados ou propriedades de outros usuários;
 - Tentar burlar mecanismos de segurança, autenticação ou limitação de
-  requisições (_rate limiting_);
+  requisições (*rate limiting*);
 - Realizar engenharia reversa, copiar ou redistribuir partes da plataforma
   sem autorização.
 

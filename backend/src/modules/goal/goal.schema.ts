@@ -10,8 +10,9 @@ export const MONTHS_IN_YEAR = 12
 export const MIN_ALERT_PERCENT = 10
 export const MAX_ALERT_PERCENT = 100
 
-// Teto por mês: barra erro de digitação (zeros a mais) sem limitar consumo real.
-const MAX_MONTHLY_KWH = 100_000_000
+// Teto por mês, na unidade da meta (kWh, R$ ou kW): barra erro de digitação
+// (zeros a mais) sem limitar valor real.
+const MAX_MONTHLY_TARGET = 100_000_000
 
 const yearSchema = (field: string) =>
     z
@@ -29,7 +30,7 @@ const goalValuesShape = {
             z
                 .number({ error: "A meta de cada mês deve ser um número" })
                 .min(0, { message: "A meta de cada mês não pode ser negativa" })
-                .max(MAX_MONTHLY_KWH, { message: "A meta de um mês excede o limite permitido" }),
+                .max(MAX_MONTHLY_TARGET, { message: "A meta de um mês excede o limite permitido" }),
             { error: "monthlyTargets deve ser uma lista" },
         )
         .length(MONTHS_IN_YEAR, { message: `A meta deve ter os ${MONTHS_IN_YEAR} meses` }),

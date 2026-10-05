@@ -25,8 +25,9 @@ const log = logger.child({ module: "GoalAlertScheduler" })
 const INTERVAL_MS = 15 * 60 * 1000
 const FIRST_TICK_DELAY_MS = 60 * 1000
 
-/** Onde o aviso leva: a página das metas. */
-const GOALS_PATH = "/configuracoes/metas"
+/** Onde o aviso leva: a página das metas, já na propriedade da meta avisada. */
+const goalsPath = (propertyId: string): string =>
+    `/configuracoes/metas?propertyId=${encodeURIComponent(propertyId)}`
 
 /** O que o aviso diz, por unidade da meta. */
 const WORDING: Record<
@@ -139,18 +140,18 @@ export class GoalAlertScheduler {
             bySource.set(key, [...(bySource.get(key) ?? []), goal])
         }
 
-        const groups = [...bySource.values()]
-        const results = await Promise.allSettled(
-            groups.map((group) => this.evaluateGroup(group, year, month, now)),
-        )
-        results.forEach((result, index) => {
-            if (result.status === "rejected") {
+        // Um grupo de cada vez: o custo em R$ roda várias consultas por mês, e
+        // o avaliador não tem pressa — não deve disputar o pool com as requisições.
+        for (const group of bySource.values()) {
+            try {
+                await this.evaluateGroup(group, year, month, now)
+            } catch (err) {
                 log.error(
-                    { propertyId: groups[index]?.[0]?.propertyId, err: result.reason },
+                    { propertyId: group[0]?.propertyId, err },
                     "Falha ao avaliar as metas de uma propriedade — seguindo para as demais",
                 )
             }
-        })
+        }
     }
 
     // Metas da mesma propriedade e unidade: mesmo dono e mesma fonte de realizado.
@@ -193,7 +194,7 @@ export class GoalAlertScheduler {
             state.month.reached &&
             state.month.percent !== null &&
             goal.alertNotifiedMonth !== month &&
-            (await this.goalRepository.claimMonthAlert(goal.id, month))
+            (await this.goalRepository.claimMonthAlert(goal, month))
         ) {
             this.notify(goal, `${WORDING[goal.unit].month(formatPercent(state.month.percent))}`)
         }
@@ -204,7 +205,7 @@ export class GoalAlertScheduler {
             state.year.reached &&
             state.year.percent !== null &&
             !goal.alertNotifiedYear &&
-            (await this.goalRepository.claimYearAlert(goal.id))
+            (await this.goalRepository.claimYearAlert(goal))
         ) {
             this.notify(goal, yearWording(formatPercent(state.year.percent)))
         }
@@ -216,7 +217,7 @@ export class GoalAlertScheduler {
             alertName: `Meta ${goal.year} · ${goal.property.name}${WORDING[goal.unit].nameSuffix}`,
             meterId: null,
             targetType: "PROPERTY",
-            targetPath: GOALS_PATH,
+            targetPath: goalsPath(goal.propertyId),
             message: `Meta de ${goal.year} (${goal.property.name}): ${what}.`,
         })
         this.userEventHub.emit(goal.userId, "notification", notification)

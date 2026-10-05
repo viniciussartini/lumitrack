@@ -4401,3 +4401,69 @@
 - **Arquivos principais:** `backend/prisma/schema.prisma` e migração `metas_de_demanda`, `backend/src/modules/goal/goal-progress.ts`, `goal-alert.ts`, `goal-consumption.ts`, `goal.service.ts`, `GoalAlertScheduler.ts`, `backend/src/shared/pdf/dataExportPdf.ts`, `frontend/src/lib/goals.ts`, `frontend/src/components/goal/GoalUnitSelector.tsx`, `GoalProgressSection.tsx`, `frontend/src/pages/settings/GoalsPage.tsx`.
 - **Decisões/ADRs:** nenhuma ADR; nenhum item do `07` tocado. Decisões do usuário: a meta de demanda é acompanhada por pico (e não por soma), com alerta só mensal; e a tela reaproveita o seletor de unidade com uma terceira aba só para o Grupo A, já que o design não desenha a meta de demanda. A herança registrada no roadmap (escolher entre o 0 de `measuredDemandKwFor` e o "-" de `buildDemand` sem criar uma terceira semântica) fica resolvida a favor do "-"; o gráfico de demanda da Fase 29 deve usar a mesma.
 - **Notas:** (1) fecha o épico das metas: com esta etapa todas as sub-issues da Fase 28 estão implementadas; a label `status: bloqueada` da issue de demanda deve ser retirada ao fechá-la; (2) o épico e a milestone seguem a convenção do roadmap (épico fechado à mão após o merge; a milestone `App v2` só fecha na Fase 30); (3) lembrar de sincronizar com o Claude Design a aba de demanda e os textos da meta de demanda; (4) a meta de demanda não é validada contra a demanda contratada — o teto é livre.
+
+## [2026-10-04] fix: Metas — valor de kW no formulário de edição
+
+- **Branch:** epic/481-metas
+- **Tipo:** fix
+- **O quê:** ao editar uma meta de demanda, o campo "Demanda mensal alvo" abria com o teto dividido por 12 (180 kW aparecia como 15), porque o atalho do formulário dividia a "meta do ano" pelos meses, e na demanda essa meta é a maior meta mensal, não uma soma. O campo agora mostra o teto em kW; em kWh e R$ continua a média mensal.
+- **Causa:** `goalToFormState` aplicava a mesma divisão às três unidades. Como o campo repete o valor nos 12 meses ao ser alterado, o usuário que "corrigisse" o 15 sobrescreveria a meta toda.
+- **Testes:** `frontend/src/lib/goals.test.ts` — meta em kW com 12 tetos iguais e com um mês maior (mostra o maior), meta em R$ (média). Os de kW falhavam antes da correção.
+- **Arquivos principais:** `frontend/src/lib/goals.ts`, `frontend/src/lib/goals.test.ts`.
+- **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado. Item da revisão do PR #488.
+
+## [2026-10-05] fix: Metas — mês corrente em R$ contra a meta cheia
+
+- **Branch:** epic/481-metas
+- **Tipo:** fix
+- **O quê:** o desvio acumulado das metas em R$ comparava o custo parcial do mês corrente com a meta proporcional aos dias. O custo já traz, desde o dia 1, as cobranças fixas (iluminação pública, piso de disponibilidade e, no Grupo A, a demanda contratada), então o desvio saía inflado e em vermelho nos primeiros dias do mês (em janeiro, centenas de %). Em R$, o mês corrente passa a contar contra a meta cheia do mês, como o pico da demanda; kWh segue proporcional aos dias. O alerta mensal já comparava com a meta cheia, e o custo fixo já incorrido conta para atingir o percentual (decisão do usuário).
+- **Causa:** `computeGoalProgress` aplicava a mesma ponderação por dias decorridos a kWh e R$, mas só o consumo em kWh cresce de forma linear ao longo do mês.
+- **Testes:** `goal-progress.test.ts` — R$ com custo fixo abaixo da meta cheia (desvio negativo no começo do mês), acima dela (positivo), mês sem leitura fora, ano passado, kWh ainda proporcional (os de R$ falhavam antes); `goal-alert.test.ts` — R$ contra a meta cheia, no limite e no acumulado do ano.
+- **Arquivos principais:** `backend/src/modules/goal/goal-progress.ts`, os dois testes, `.claude/project_context/02-requisitos.md` (regra do R$ registrada).
+- **Decisões/ADRs:** nenhuma ADR; nenhum item do `07` tocado. Decisão do usuário: meta cheia do mês, sem proporcional, em R$.
+
+## [2026-10-05] fix: Metas — edição durante a avaliação não gera aviso da meta antiga
+
+- **Branch:** epic/481-metas
+- **Tipo:** fix
+- **O quê:** o avaliador lê a meta, calcula o percentual e só então reivindica o aviso. Se o usuário editasse a meta nesse intervalo, as marcas de "já avisado" eram zeradas e a reivindicação logo em seguida ainda vencia: o aviso saía com o percentual da meta antiga e o aviso do mês ficava gasto para a meta nova. A reivindicação agora só vale se a meta continua na versão lida (`updatedAt` no `UPDATE` condicional), e reivindicar não altera essa versão.
+- **Causa:** a condição da reivindicação olhava só as marcas de aviso, não a versão da meta; e o `@updatedAt` do Prisma mudaria a versão a cada reivindicação (por isso o `updatedAt` é regravado com o mesmo valor).
+- **Testes:** `goal.repository.test.ts` — edição depois da leitura invalida a reivindicação do mês e a do ano, a reivindicação não muda a versão, mês e ano da mesma leitura são reivindicados em sequência, e as reivindicações simultâneas seguem com um único vencedor.
+- **Arquivos principais:** `backend/src/modules/goal/goal.repository.ts` (`claimMonthAlert`/`claimYearAlert` recebem a meta e passam a ter `GoalVersion`), `GoalAlertScheduler.ts`, `goal.repository.test.ts`.
+- **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado.
+
+## [2026-10-05] fix: Metas — histórico completo além de uma página
+
+- **Branch:** epic/481-metas
+- **Tipo:** fix
+- **O quê:** a página de Metas pedia as metas numa página só (teto de 31 do backend), sob a premissa de que o ano era único por propriedade. Com a unidade, uma propriedade pode ter até três metas por ano, em anos até 2100; passado das 31, as mais antigas sumiam do histórico sem aviso, e a checagem de ano repetido ficava incompleta (só aparecia como 409 do servidor). O hook agora pede as páginas seguintes enquanto faltar meta e devolve a lista inteira.
+- **Causa:** premissa desatualizada de que o histórico cabia numa página.
+- **Testes:** `frontend/src/hooks/queries/useGoals.test.tsx` — uma chamada com poucas metas, três chamadas e a lista completa e ordenada com 70 metas (falhava antes), sem propriedade não consulta.
+- **Arquivos principais:** `frontend/src/hooks/queries/useGoals.ts`, `useGoals.test.tsx`.
+- **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado.
+
+## [2026-10-05] refactor: Metas — avaliador sequencial, regra do ano num lugar só, textos atualizados
+
+- **Branch:** epic/481-metas
+- **Tipo:** refactor
+- **O quê:** (1) o `GoalAlertScheduler` avaliava todos os grupos (propriedade e unidade) em paralelo, sem limite, a cada 15 minutos — o custo em R$ do Grupo A roda várias consultas por mês e disputava o pool do Prisma com as requisições. Passou a avaliar um grupo de cada vez, mantendo que a falha de um não derruba os demais. (2) A meta de demanda saía sempre de `findPendingAlertGoals`, porque o aviso anual dela nunca é dado; a consulta agora a mantém na lista só enquanto o aviso do mês estiver por dar. (3) A regra "meta do ano por unidade" (soma em kWh e R$, maior mês em kW) estava duplicada no PDF do titular e no acompanhamento; virou `yearlyTarget` em `goal-progress.ts`, usado pelos dois. (4) Comentários e textos que ficaram para trás depois de R$ e kW: bloco do `model Goal` no schema (agora acima do modelo, e não do enum), JSDoc do repositório e do schema (`MAX_MONTHLY_TARGET`), título "Metas de consumo, de custo e de demanda" no PDF, texto do bloco "Alertas de meta", JSDoc de `referenceGoalForm` e a mensagem de ano repetido, que agora cita a unidade (backend e frontend).
+- **Testes:** `GoalAlertScheduler.test.ts` — grupos avaliados um por vez (falhava antes); `goal.repository.test.ts` — meta de kW sai da lista pendente com o aviso do mês dado (falhava antes); `goal-progress.test.ts` — `yearlyTarget` por unidade; o PDF e as demais suítes do módulo seguem verdes.
+- **Arquivos principais:** `backend/src/modules/goal/GoalAlertScheduler.ts`, `goal.repository.ts`, `goal-progress.ts`, `goal.schema.ts`, `goal.service.ts`, `backend/src/shared/pdf/dataExportPdf.ts`, `backend/prisma/schema.prisma` (só comentário, sem migração), `frontend/src/lib/goals.ts`, `frontend/src/components/alert/GoalAlertsSection.tsx`.
+- **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado. Mudança de comportamento só nas duas mensagens ao usuário (ano repetido e descrição do bloco de alertas).
+
+## [2026-10-05] feat: Metas — link do aviso na propriedade certa e gráfico acessível
+
+- **Branch:** epic/481-metas
+- **Tipo:** feature
+- **O quê:** (1) o aviso de meta no sino levava sempre a `/configuracoes/metas`, que abre na última propriedade escolhida no Painel — que podia não ser a do aviso. O link agora leva `?propertyId=` e a página abre nessa propriedade: o parâmetro vale até o usuário escolher outra no seletor, não altera a propriedade guardada pelo Painel e é ignorado se a propriedade não está na lista do usuário. `usePropertySelection` ganhou o parâmetro opcional `preferredId`. (2) O gráfico de meta × realizado só mostrava o valor mensal no tooltip do mouse; ganhou uma tabela escondida da tela (`sr-only`, com legenda, 12 meses, meta e realizado, "-" no mês sem leitura, na unidade da meta) e o desenho passou a `aria-hidden`, para teclado e leitor de tela terem os mesmos valores. (3) O teste do `PUT` em meta alheia agora também confere que a meta ficou intacta, como o do `DELETE`.
+- **Testes:** `GoalAlertScheduler.test.ts` (link com a propriedade nas três unidades), `GoalsPage.test.tsx` (link abre na propriedade, não muda a guardada, id desconhecido cai na seleção habitual, o seletor vale sobre o link — o primeiro falhava antes), `GoalProgressChart.test.tsx` (tabela com 12 meses, traço sem leitura, unidade, gráfico oculto), `goal.routes.test.ts`.
+- **Arquivos principais:** `backend/src/modules/goal/GoalAlertScheduler.ts`, `frontend/src/hooks/usePropertySelection.ts`, `frontend/src/pages/settings/GoalsPage.tsx`, `frontend/src/components/goal/GoalProgressChart.tsx` e os testes.
+- **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado. Sem layout novo: a tabela é só leitor de tela. Os textos do bloco de metas seguem pendentes de sincronização com o Claude Design.
+
+## [2026-10-05] docs: Metas — ajustes pós-revisão do PR #488
+
+- **Branch:** epic/481-metas
+- **Tipo:** docs
+- **O quê:** a reformatação do Prettier nos textos legais (`privacy-policy.md`, `terms-of-use.md`) que entrou por engano na branch foi revertida ao conteúdo de `staging`, para o diff do PR não ter alteração em documento legal. O corpo do PR foi atualizado: quatro migrações (e não três), linha de rollback, regra do R$ no mês corrente e checklist.
+- **Arquivos principais:** `frontend/src/legal/privacy-policy.md`, `frontend/src/legal/terms-of-use.md`; corpo do PR #488.
+- **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado.

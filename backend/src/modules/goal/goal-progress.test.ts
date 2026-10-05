@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import type { GoalUnit } from "@/generated/prisma/client.js"
-import { computeGoalProgress } from "@/modules/goal/goal-progress.js"
+import { computeGoalProgress, yearlyTarget } from "@/modules/goal/goal-progress.js"
 
 const twelve = <T>(fill: (month: number) => T): T[] => Array.from({ length: 12 }, (_, i) => fill(i))
 const target = (kwh = 400) => twelve(() => kwh)
@@ -297,5 +297,92 @@ describe("computeGoalProgress — demanda em kW (pico)", () => {
         expect(kwh.realized).toBe(200)
         expect(brl.realized).toBe(200)
         expect(kwh.yearTarget).toBe(4800)
+    })
+})
+
+describe("computeGoalProgress — custo em R$", () => {
+    const cost = (override: Partial<Parameters<typeof computeGoalProgress>[0]> = {}) =>
+        computeGoalProgress(input({ unit: "BRL", ...override }))
+
+    it("o mês corrente conta contra a meta cheia: o custo fixo do dia 1 não é desvio", () => {
+        // Metade de junho, mas o custo já traz CIP, piso e demanda contratada: 150 de uma meta de 400.
+        const result = cost({ realizedByMonth: realized(400, 400, 400, 400, 400, 150) })
+
+        expect(result.comparedTarget).toBe(2400)
+        expect(result.realized).toBe(2150)
+        expect(result.deviationPercent).toBeCloseTo((2150 / 2400 - 1) * 100)
+    })
+
+    it("custo fixo maior que a meta proporcional não vira desvio vermelho no começo do mês", () => {
+        // 1º de janeiro: 1/31 da meta de 400 seriam ~13; o custo fixo de 120 está abaixo da meta cheia.
+        const result = cost({
+            now: new Date("2026-01-01T15:00:00.000Z"),
+            realizedByMonth: realized(120),
+        })
+
+        expect(result.deviationPercent).toBeCloseTo((120 / 400 - 1) * 100)
+        expect(result.deviationPercent).toBeLessThan(0)
+    })
+
+    it("o custo que passa da meta cheia do mês corrente é desvio positivo", () => {
+        const result = cost({ realizedByMonth: realized(400, 400, 400, 400, 400, 500) })
+
+        expect(result.deviationPercent).toBeCloseTo((2500 / 2400 - 1) * 100)
+    })
+
+    it("mês corrente sem leitura continua fora da comparação", () => {
+        const result = cost({ realizedByMonth: realized(400, 400, 400, 400, 400) })
+
+        expect(result.comparedTarget).toBe(2000)
+    })
+
+    it("o consumo em kWh segue proporcional aos dias", () => {
+        const result = computeGoalProgress(
+            input({ unit: "KWH", realizedByMonth: realized(400, 400, 400, 400, 400, 150) }),
+        )
+
+        expect(result.comparedTarget).toBeCloseTo(2200)
+    })
+
+    it("ano passado em R$ compara meses inteiros, como antes", () => {
+        const result = cost({ year: 2025, realizedByMonth: twelve(() => 400) })
+
+        expect(result.comparedTarget).toBe(4800)
+        expect(result.situation).toBe("MET")
+    })
+})
+
+describe("yearlyTarget", () => {
+    it("soma os 12 meses em kWh e em R$", () => {
+        expect(
+            yearlyTarget(
+                "KWH",
+                twelve(() => 400),
+            ),
+        ).toBe(4800)
+        expect(
+            yearlyTarget(
+                "BRL",
+                twelve((i) => i * 100),
+            ),
+        ).toBe(6600)
+    })
+
+    it("na demanda é a maior meta mensal, não a soma", () => {
+        expect(
+            yearlyTarget(
+                "KW",
+                twelve((i) => (i === 3 ? 220 : 180)),
+            ),
+        ).toBe(220)
+    })
+
+    it("sem meta nenhuma é zero", () => {
+        expect(
+            yearlyTarget(
+                "KW",
+                twelve(() => 0),
+            ),
+        ).toBe(0)
     })
 })

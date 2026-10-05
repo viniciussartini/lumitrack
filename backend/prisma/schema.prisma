@@ -1062,10 +1062,6 @@ model ReportSchedule {
   @@map("report_schedules")
 }
 
-// Meta anual de uma propriedade, de consumo (kWh) ou de custo (R$). Uma por
-// propriedade, ano e unidade; a meta do ano é a soma dos 12 valores mensais. Metas de ano passado são imutáveis
-// (regra no serviço, não no banco): o histórico serve de base de referência
-// para metas novas.
 // Unidade em que uma meta é medida: consumo em kWh, custo em reais ou demanda
 // em kW (teto mensal de pico, só Grupo A).
 enum GoalUnit {
@@ -1076,6 +1072,11 @@ enum GoalUnit {
   @@map("goal_unit")
 }
 
+// Meta anual de uma propriedade, em kWh, R$ ou kW. Uma por propriedade, ano e
+// unidade. Em kWh e R$ a meta do ano é a soma dos 12 valores mensais; em kW,
+// que é um teto de pico, é a maior meta mensal. Metas de ano passado são
+// imutáveis (regra no serviço, não no banco): o histórico serve de base de
+// referência para metas novas.
 model Goal {
   id         String @id @default(uuid())
   userId     String
@@ -1083,7 +1084,7 @@ model Goal {
 
   year               Int
   // A unidade identifica a meta, como o ano: a mesma propriedade pode ter a
-  // meta de consumo e a de custo no mesmo ano.
+  // meta de consumo, a de custo e a de demanda no mesmo ano.
   unit               GoalUnit @default(KWH)
   // Ano usado como base de comparação ao montar a meta; é só um número, não
   // exige que exista meta cadastrada para ele.

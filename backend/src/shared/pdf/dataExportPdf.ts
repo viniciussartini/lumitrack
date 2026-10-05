@@ -2,6 +2,7 @@ import PDFDocument from "pdfkit"
 import { BRAND, ZAP_ICON_PATH, ZAP_ICON_VIEWBOX_SIZE } from "@/shared/pdf/brand.js"
 import { formatInstantDateTime, formatPeriodLabel } from "@/modules/report/generators/format.js"
 import type { DataExportPayload } from "@/modules/export/export.service.js"
+import { yearlyTarget } from "@/modules/goal/goal-progress.js"
 import type { GoalPublicRecord } from "@/modules/goal/goal.repository.js"
 import type { UserWithoutPassword } from "@/modules/user/user.repository.js"
 import type { AclSubmarket, AclEnergySource } from "@/generated/prisma/client.js"
@@ -290,14 +291,11 @@ function drawReportSchedulesSection(doc: PDFKit.PDFDocument, payload: DataExport
     }
 }
 
-// kWh e R$ somam o ano; a demanda é um teto mensal de pico, então o ano é a maior meta.
 function describeYearlyTarget(goal: GoalPublicRecord): string {
-    if (goal.unit === "KW") {
-        const peak = Math.round(Math.max(0, ...goal.monthlyTargets))
-        return `meta até ${peak.toLocaleString("pt-BR")} kW`
-    }
-    const total = Math.round(goal.monthlyTargets.reduce((sum, value) => sum + value, 0))
-    const formatted = total.toLocaleString("pt-BR")
+    const formatted = Math.round(yearlyTarget(goal.unit, goal.monthlyTargets)).toLocaleString(
+        "pt-BR",
+    )
+    if (goal.unit === "KW") return `meta até ${formatted} kW`
     return goal.unit === "BRL" ? `meta de R$ ${formatted}` : `meta de ${formatted} kWh`
 }
 
@@ -319,7 +317,7 @@ export function describeExportedGoal(goal: GoalPublicRecord, propertyName?: stri
 }
 
 function drawGoalsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
-    sectionTitle(doc, "Metas de consumo e de custo")
+    sectionTitle(doc, "Metas de consumo, de custo e de demanda")
 
     if (payload.goals.length === 0) {
         emptyNote(doc, "Nenhuma meta cadastrada.")

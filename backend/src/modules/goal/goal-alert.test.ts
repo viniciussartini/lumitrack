@@ -176,3 +176,29 @@ describe("computeGoalAlertState — demanda em kW", () => {
         expect(state.month).toEqual({ percent: null, reached: false })
     })
 })
+
+describe("computeGoalAlertState — custo em R$", () => {
+    const cost = (realized: (number | null)[]) => stateFor(realized, { unit: "BRL" })
+
+    it("o custo do mês conta contra a meta cheia do mês, sem proporcional aos dias", () => {
+        // Metade de junho: 300 de uma meta de 400 é 75% da meta cheia, abaixo do limite de 85%,
+        // embora seja 150% da meta proporcional aos dias.
+        const state = cost([null, null, null, null, null, 300])
+
+        expect(state.month.percent).toBeCloseTo(75)
+        expect(state.month.reached).toBe(false)
+    })
+
+    it("o custo já incorrido, fixo inclusive, que alcança o percentual dispara", () => {
+        const state = cost([null, null, null, null, null, 340])
+
+        expect(state.month.reached).toBe(true)
+    })
+
+    it("o acumulado do ano segue contra a meta anual inteira", () => {
+        const state = cost([400, 400, 400, 400, 400, 340])
+
+        expect(state.year.percent).toBeCloseTo((2340 / 4800) * 100)
+        expect(state.year.reached).toBe(false)
+    })
+})

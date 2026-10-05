@@ -523,6 +523,11 @@ describe("PUT /api/goals/:id", () => {
             .send(editable())
 
         expect(response.status).toBe(404)
+        const stored = await prismaHttpTest.goal.findUniqueOrThrow({
+            where: { id: created.body.data.id },
+        })
+        expect(stored.alertPercent).toBe(85)
+        expect(stored.monthlyTargets).toEqual(Array.from({ length: 12 }, () => 400))
     })
 
     it("bloqueia conta de demonstração", async () => {

@@ -22,7 +22,8 @@ export const GoalAlertsSection = () => {
                     Alertas de meta
                 </span>
                 <span className="text-muted text-12-5 mt-1 block">
-                    Avisos de quando o consumo atinge o percentual da meta do mês ou da meta anual.
+                    Avisos de quando o consumo, o custo ou a demanda atingem o percentual da meta do
+                    mês ou da meta anual.
                 </span>
             </div>
             <Body isPending={query.isPending} isError={query.isError} alerts={query.data ?? []} />

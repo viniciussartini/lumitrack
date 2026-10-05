@@ -166,7 +166,7 @@ describe("GoalAlertScheduler — aviso do mês", () => {
             alertName: "Meta 2026 · Casa",
             meterId: null,
             targetType: "PROPERTY",
-            targetPath: "/configuracoes/metas",
+            targetPath: `/configuracoes/metas?propertyId=${propertyId}`,
         })
         expect(notification?.message).toContain("Casa")
         expect(notification?.message).toContain("87,5%")
@@ -346,6 +346,29 @@ describe("GoalAlertScheduler — robustez", () => {
         expect(notifications[0]?.alertName).toBe("Meta 2026 · Casa")
     })
 
+    it("avalia um grupo de cada vez, para não disputar o pool de conexões com as requisições", async () => {
+        const first = await createProperty(ownerId, "Casa 1")
+        const second = await createProperty(ownerId, "Casa 2")
+        const third = await createProperty(ownerId, "Casa 3")
+        for (const propertyId of [first, second, third]) await addGoal(ownerId, propertyId)
+        let inFlight = 0
+        let maxInFlight = 0
+        const reader = {
+            monthlyValues: vi.fn(async () => {
+                inFlight++
+                maxInFlight = Math.max(maxInFlight, inFlight)
+                await new Promise((resolve) => setTimeout(resolve, 10))
+                inFlight--
+                return realReader.monthlyValues(ownerId, first, 2026, "KWH", JUNE)
+            }),
+        } as unknown as GoalConsumptionReader
+
+        await buildScheduler(reader).tick(JUNE)
+
+        expect(reader.monthlyValues).toHaveBeenCalledTimes(3)
+        expect(maxInFlight).toBe(1)
+    })
+
     it("tick nunca rejeita, mesmo com o banco falhando", async () => {
         const failingRepository = {
             findPendingAlertGoals: vi.fn().mockRejectedValue(new Error("banco fora")),
@@ -441,7 +464,10 @@ describe("GoalAlertScheduler — meta de custo (R$)", () => {
         expect(notification?.alertName).toBe("Meta 2026 · Casa · R$")
         expect(notification?.message).toContain("o custo do mês atingiu 87,5%")
         expect(notification?.message).toContain("meta de custo do mês")
-        expect(notification).toMatchObject({ meterId: null, targetPath: "/configuracoes/metas" })
+        expect(notification).toMatchObject({
+            meterId: null,
+            targetPath: `/configuracoes/metas?propertyId=${propertyId}`,
+        })
     })
 
     it("o consumo alto não dispara a meta em reais: ela só olha o custo", async () => {
@@ -517,7 +543,10 @@ describe("GoalAlertScheduler — meta de demanda (kW)", () => {
         expect(notification?.alertName).toBe("Meta 2026 · Casa · kW")
         expect(notification?.message).toContain("a demanda medida do mês atingiu 87,5%")
         expect(notification?.message).toContain("meta de demanda do mês")
-        expect(notification).toMatchObject({ meterId: null, targetPath: "/configuracoes/metas" })
+        expect(notification).toMatchObject({
+            meterId: null,
+            targetPath: `/configuracoes/metas?propertyId=${propertyId}`,
+        })
     })
 
     it("não repete no mesmo mês e avisa de novo no seguinte", async () => {

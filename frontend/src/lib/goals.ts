@@ -252,8 +252,8 @@ export const initialGoalForm = (
  * Rascunho de uma meta nova a partir de um ano que já passou ("usar como
  * referência"): o ano seguinte ao corrente (o primeiro ainda sem meta), o ano
  * escolhido como referência e cada mês preenchido com o realizado, arredondado
- * a kWh inteiro. Mês sem leitura fica vazio — nunca 0 —, e o consumo
- * específico é a média dos meses com leitura.
+ * ao inteiro na unidade da meta. Mês sem leitura fica vazio — nunca 0 —, e o
+ * valor específico é a média dos meses com leitura.
  *
  * @param reference - Meta do ano passado usada como base.
  * @param progress - Acompanhamento dessa meta; sem ele, os meses ficam vazios.
@@ -287,11 +287,19 @@ export const referenceGoalForm = (
     }
 }
 
-/** Rascunho de edição: os campos da meta salva. O atalho mostra a média mensal. */
+/**
+ * Rascunho de edição: os campos da meta salva. O atalho mostra a média mensal
+ * em kWh e em R$; na demanda, o teto, porque o pico do ano não é uma soma que
+ * se divida pelos meses.
+ */
 export const goalToFormState = (goal: Goal): GoalFormState => ({
     year: String(goal.year),
     referenceYear: String(goal.referenceYear),
-    specificValue: String(Math.round(goalYearlyTotal(goal) / MONTHS_IN_YEAR)),
+    specificValue: String(
+        Math.round(
+            goal.unit === "KW" ? goalYearlyTotal(goal) : goalYearlyTotal(goal) / MONTHS_IN_YEAR,
+        ),
+    ),
     alertPercent: String(goal.alertPercent),
     months: goal.monthlyTargets.map(String),
 })
@@ -324,7 +332,7 @@ export const validateGoalForm = (
         return `O ano da meta deve estar entre ${MIN_GOAL_YEAR} e ${MAX_GOAL_YEAR}`
     }
     if (existingYears.includes(Number(state.year))) {
-        return "Esta propriedade já tem uma meta para esse ano"
+        return "Esta propriedade já tem uma meta desta unidade para esse ano"
     }
     if (!isIntegerIn(state.referenceYear, MIN_GOAL_YEAR, MAX_GOAL_YEAR)) {
         return `O ano de referência deve estar entre ${MIN_GOAL_YEAR} e ${MAX_GOAL_YEAR}`

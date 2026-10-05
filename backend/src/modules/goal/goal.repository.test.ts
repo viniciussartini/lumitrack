@@ -89,7 +89,7 @@ describe("GoalRepository.claimMonthAlert", () => {
         const goal = await repository.create(userId, goalData(2026))
 
         const results = await Promise.all(
-            Array.from({ length: 10 }, () => repository.claimMonthAlert(goal!.id, 6)),
+            Array.from({ length: 10 }, () => repository.claimMonthAlert(goal!, 6)),
         )
 
         expect(results.filter(Boolean)).toHaveLength(1)
@@ -98,17 +98,46 @@ describe("GoalRepository.claimMonthAlert", () => {
     it("o mesmo mês não é reivindicado duas vezes, mas outro mês é", async () => {
         const goal = await repository.create(userId, goalData(2026))
 
-        expect(await repository.claimMonthAlert(goal!.id, 6)).toBe(true)
-        expect(await repository.claimMonthAlert(goal!.id, 6)).toBe(false)
-        expect(await repository.claimMonthAlert(goal!.id, 7)).toBe(true)
+        expect(await repository.claimMonthAlert(goal!, 6)).toBe(true)
+        expect(await repository.claimMonthAlert(goal!, 6)).toBe(false)
+        expect(await repository.claimMonthAlert(goal!, 7)).toBe(true)
         const stored = await prismaTest.goal.findUniqueOrThrow({ where: { id: goal!.id } })
         expect(stored.alertNotifiedMonth).toBe(7)
     })
 
     it("meta inexistente não é reivindicada", async () => {
-        expect(await repository.claimMonthAlert("00000000-0000-4000-8000-000000000000", 6)).toBe(
-            false,
-        )
+        const missing = { id: "00000000-0000-4000-8000-000000000000", updatedAt: new Date() }
+
+        expect(await repository.claimMonthAlert(missing, 6)).toBe(false)
+    })
+
+    it("a edição da meta depois da leitura invalida a reivindicação: o aviso seria da meta antiga", async () => {
+        const goal = await repository.create(userId, goalData(2026))
+        await repository.update(goal!.id, userId, {
+            referenceYear: 2025,
+            monthlyTargets: Array.from({ length: 12 }, () => 500),
+            alertPercent: 90,
+        })
+
+        expect(await repository.claimMonthAlert(goal!, 6)).toBe(false)
+        const stored = await prismaTest.goal.findUniqueOrThrow({ where: { id: goal!.id } })
+        expect(stored.alertNotifiedMonth).toBeNull()
+    })
+
+    it("a reivindicação não é uma edição: a versão da meta fica a mesma", async () => {
+        const goal = await repository.create(userId, goalData(2026))
+
+        await repository.claimMonthAlert(goal!, 6)
+
+        const stored = await prismaTest.goal.findUniqueOrThrow({ where: { id: goal!.id } })
+        expect(stored.updatedAt).toEqual(goal!.updatedAt)
+    })
+
+    it("o aviso do mês e o do ano da mesma leitura da meta são reivindicados em sequência", async () => {
+        const goal = await repository.create(userId, goalData(2026))
+
+        expect(await repository.claimMonthAlert(goal!, 6)).toBe(true)
+        expect(await repository.claimYearAlert(goal!)).toBe(true)
     })
 })
 
@@ -117,11 +146,22 @@ describe("GoalRepository.claimYearAlert", () => {
         const goal = await repository.create(userId, goalData(2026))
 
         const results = await Promise.all(
-            Array.from({ length: 10 }, () => repository.claimYearAlert(goal!.id)),
+            Array.from({ length: 10 }, () => repository.claimYearAlert(goal!)),
         )
 
         expect(results.filter(Boolean)).toHaveLength(1)
-        expect(await repository.claimYearAlert(goal!.id)).toBe(false)
+        expect(await repository.claimYearAlert(goal!)).toBe(false)
+    })
+
+    it("a edição da meta depois da leitura invalida a reivindicação do ano", async () => {
+        const goal = await repository.create(userId, goalData(2026))
+        await repository.update(goal!.id, userId, {
+            referenceYear: 2025,
+            monthlyTargets: Array.from({ length: 12 }, () => 500),
+            alertPercent: 90,
+        })
+
+        expect(await repository.claimYearAlert(goal!)).toBe(false)
     })
 })
 
@@ -138,16 +178,24 @@ describe("GoalRepository.findPendingAlertGoals", () => {
 
     it("a meta com os dois avisos do período dados deixa de aparecer", async () => {
         const goal = await repository.create(userId, goalData(2026))
-        await repository.claimMonthAlert(goal!.id, 6)
-        await repository.claimYearAlert(goal!.id)
+        await repository.claimMonthAlert(goal!, 6)
+        await repository.claimYearAlert(goal!)
 
         expect(await repository.findPendingAlertGoals(2026, 6)).toHaveLength(0)
     })
 
+    it("a meta de demanda não tem aviso anual: com o do mês dado, deixa de aparecer", async () => {
+        const goal = await repository.create(userId, { ...goalData(2026), unit: "KW" })
+        await repository.claimMonthAlert(goal!, 6)
+
+        expect(await repository.findPendingAlertGoals(2026, 6)).toHaveLength(0)
+        expect(await repository.findPendingAlertGoals(2026, 7)).toHaveLength(1)
+    })
+
     it("no mês seguinte a meta volta a ter aviso do mês por dar", async () => {
         const goal = await repository.create(userId, goalData(2026))
-        await repository.claimMonthAlert(goal!.id, 6)
-        await repository.claimYearAlert(goal!.id)
+        await repository.claimMonthAlert(goal!, 6)
+        await repository.claimYearAlert(goal!)
 
         expect(await repository.findPendingAlertGoals(2026, 7)).toHaveLength(1)
     })
@@ -156,8 +204,8 @@ describe("GoalRepository.findPendingAlertGoals", () => {
 describe("GoalRepository.update", () => {
     it("editar a meta zera as marcas de aviso", async () => {
         const goal = await repository.create(userId, goalData(2026))
-        await repository.claimMonthAlert(goal!.id, 6)
-        await repository.claimYearAlert(goal!.id)
+        await repository.claimMonthAlert(goal!, 6)
+        await repository.claimYearAlert(goal!)
 
         await repository.update(goal!.id, userId, {
             referenceYear: 2025,

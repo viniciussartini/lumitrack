@@ -99,13 +99,13 @@ const makeProgress = (year: number, override: Partial<GoalProgress> = {}): GoalP
     ...override,
 })
 
-const renderPage = () => {
+const renderPage = (url = "/configuracoes/metas") => {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
     })
     return render(
         <QueryClientProvider client={queryClient}>
-            <MemoryRouter>
+            <MemoryRouter initialEntries={[url]}>
                 <GoalsPage />
             </MemoryRouter>
         </QueryClientProvider>,
@@ -190,6 +190,57 @@ describe("GoalsPage — estados da página", () => {
             }),
         )
         expect(storage.get("lumitrack:selected-property")).toBe("prop-b")
+    })
+})
+
+describe("GoalsPage — propriedade pelo link do aviso", () => {
+    beforeEach(() => {
+        vi.mocked(propertyService.list).mockResolvedValue(
+            paged([property("prop-a", "Casa"), property("prop-b", "Loja")]),
+        )
+    })
+
+    it("abre na propriedade do link, mesmo com outra guardada no Painel", async () => {
+        storage.set("lumitrack:selected-property", "prop-a")
+        renderPage("/configuracoes/metas?propertyId=prop-b")
+
+        await screen.findByTestId("goal-summary")
+
+        expect(goalService.list).toHaveBeenCalledWith("prop-b", { page: 1, pageSize: 31 })
+        expect(goalService.list).not.toHaveBeenCalledWith("prop-a", expect.anything())
+    })
+
+    it("o link não muda a propriedade que o Painel guardou", async () => {
+        storage.set("lumitrack:selected-property", "prop-a")
+        renderPage("/configuracoes/metas?propertyId=prop-b")
+
+        await screen.findByTestId("goal-summary")
+
+        expect(storage.get("lumitrack:selected-property")).toBe("prop-a")
+    })
+
+    it("propriedade desconhecida no link cai na seleção habitual", async () => {
+        storage.set("lumitrack:selected-property", "prop-b")
+        renderPage("/configuracoes/metas?propertyId=outra-pessoa")
+
+        await screen.findByTestId("goal-summary")
+
+        expect(goalService.list).toHaveBeenCalledWith("prop-b", { page: 1, pageSize: 31 })
+    })
+
+    it("depois de aberta, a escolha no seletor vale sobre o link", async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        renderPage("/configuracoes/metas?propertyId=prop-b")
+        await screen.findByTestId("goal-summary")
+
+        await user.click(screen.getByTestId("property-selector-prop-a"))
+
+        await waitFor(() =>
+            expect(goalService.list).toHaveBeenLastCalledWith("prop-a", {
+                page: 1,
+                pageSize: 31,
+            }),
+        )
     })
 })
 

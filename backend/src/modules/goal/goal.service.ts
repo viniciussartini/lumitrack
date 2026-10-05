@@ -66,7 +66,7 @@ export class GoalService {
 
         const created = await this.goalRepository.create(userId, data)
         if (!created) {
-            throw new ConflictError("Esta propriedade já tem uma meta para esse ano")
+            throw new ConflictError("Esta propriedade já tem uma meta desta unidade para esse ano")
         }
         return this.toResponse(created)
     }

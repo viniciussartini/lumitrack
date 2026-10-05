@@ -108,6 +108,22 @@ describe("goalToFormState", () => {
     it("o atalho mostra a média mensal", () => {
         expect(goalToFormState(goal()).specificValue).toBe("400")
     })
+
+    it("a meta em R$ também mostra a média mensal", () => {
+        expect(goalToFormState(goal({ unit: "BRL" })).specificValue).toBe("400")
+    })
+
+    it("a meta em kW mostra o teto, não a média: o pico não se soma nem se divide", () => {
+        const monthlyTargets = Array.from({ length: 12 }, () => 180)
+
+        expect(goalToFormState(goal({ unit: "KW", monthlyTargets })).specificValue).toBe("180")
+    })
+
+    it("a meta em kW com tetos diferentes mostra o maior", () => {
+        const monthlyTargets = Array.from({ length: 12 }, (_, i) => (i === 3 ? 220 : 180))
+
+        expect(goalToFormState(goal({ unit: "KW", monthlyTargets })).specificValue).toBe("220")
+    })
 })
 
 describe("validateGoalForm", () => {
