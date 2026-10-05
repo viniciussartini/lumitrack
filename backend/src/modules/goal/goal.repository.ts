@@ -9,6 +9,31 @@ import {
 
 export type GoalRecord = Goal
 
+/** Meta como sai da API e do export: sem o dono nem a contabilidade interna dos avisos. */
+export type GoalPublicRecord = Omit<
+    GoalRecord,
+    "userId" | "alertNotifiedMonth" | "alertNotifiedYear"
+>
+
+/**
+ * Tira do registro o que é interno: o dono e as marcas de "já avisado".
+ *
+ * @param record - Meta como o banco a devolve.
+ * @returns A meta como a API e o export a mostram.
+ */
+export function toPublicGoal(record: GoalRecord): GoalPublicRecord {
+    const {
+        userId: _owner,
+        alertNotifiedMonth: _notifiedMonth,
+        alertNotifiedYear: _notifiedYear,
+        ...rest
+    } = record
+    return rest
+}
+
+/** Meta com o nome da propriedade, para as mensagens dos avisos. */
+export type GoalWithProperty = GoalRecord & { property: { name: string } }
+
 /** Código do Prisma para violação de índice único. */
 const UNIQUE_VIOLATION = "P2002"
 
@@ -112,6 +137,77 @@ export class GoalRepository {
     }
 
     /**
+     * Metas do ano que ainda podem ter um aviso a dar neste mês: o aviso do
+     * mês ou o do ano ainda não saiu. Insumo do avaliador periódico.
+     *
+     * @param year - Ano corrente.
+     * @param month - Mês corrente, de 1 a 12.
+     * @returns As metas pendentes, com o nome da propriedade.
+     */
+    async findPendingAlertGoals(year: number, month: number): Promise<GoalWithProperty[]> {
+        return this.prisma.goal.findMany({
+            where: {
+                year,
+                OR: [
+                    { alertNotifiedYear: false },
+                    { alertNotifiedMonth: null },
+                    { alertNotifiedMonth: { not: month } },
+                ],
+            },
+            include: { property: { select: { name: true } } },
+        })
+    }
+
+    /**
+     * Metas de um ano de um usuário, com o nome da propriedade, por ordem de nome.
+     *
+     * @param userId - Dono das metas.
+     * @param year - Ano filtrado.
+     * @returns As metas do ano em todas as propriedades do usuário.
+     */
+    async findByUserAndYear(userId: string, year: number): Promise<GoalWithProperty[]> {
+        return this.prisma.goal.findMany({
+            where: { userId, year },
+            include: { property: { select: { name: true } } },
+            orderBy: [{ property: { name: "asc" } }, { id: "asc" }],
+        })
+    }
+
+    /**
+     * Reivindica o aviso do mês: grava o mês só se ele ainda não foi avisado.
+     * É um `UPDATE` condicional, então de duas chamadas simultâneas só uma
+     * enxerga a linha por avisar — quem recebe `true` é quem notifica.
+     *
+     * @param id - Id da meta.
+     * @param month - Mês corrente, de 1 a 12.
+     * @returns `true` se este chamador reivindicou o aviso.
+     */
+    async claimMonthAlert(id: string, month: number): Promise<boolean> {
+        const { count } = await this.prisma.goal.updateMany({
+            where: {
+                id,
+                OR: [{ alertNotifiedMonth: null }, { alertNotifiedMonth: { not: month } }],
+            },
+            data: { alertNotifiedMonth: month },
+        })
+        return count > 0
+    }
+
+    /**
+     * Reivindica o aviso do ano, com a mesma garantia de {@link claimMonthAlert}.
+     *
+     * @param id - Id da meta.
+     * @returns `true` se este chamador reivindicou o aviso.
+     */
+    async claimYearAlert(id: string): Promise<boolean> {
+        const { count } = await this.prisma.goal.updateMany({
+            where: { id, alertNotifiedYear: false },
+            data: { alertNotifiedYear: true },
+        })
+        return count > 0
+    }
+
+    /**
      * Substitui os valores editáveis de uma meta do usuário.
      *
      * @param id - Id da meta.
@@ -120,7 +216,11 @@ export class GoalRepository {
      * @returns A meta atualizada, ou `null` se não existir ou não for do usuário.
      */
     async update(id: string, userId: string, data: UpdateGoalBody): Promise<GoalRecord | null> {
-        const { count } = await this.prisma.goal.updateMany({ where: { id, userId }, data })
+        // Novo limite, nova chance de aviso: as marcas de "já avisado" voltam ao zero.
+        const { count } = await this.prisma.goal.updateMany({
+            where: { id, userId },
+            data: { ...data, alertNotifiedMonth: null, alertNotifiedYear: false },
+        })
         if (count === 0) return null
         return this.prisma.goal.findFirst({ where: { id, userId } })
     }

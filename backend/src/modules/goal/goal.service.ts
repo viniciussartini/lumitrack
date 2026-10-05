@@ -1,4 +1,9 @@
-import type { GoalRecord, GoalRepository } from "@/modules/goal/goal.repository.js"
+import {
+    toPublicGoal,
+    type GoalPublicRecord,
+    type GoalRecord,
+    type GoalRepository,
+} from "@/modules/goal/goal.repository.js"
 import {
     REFERENCE_BEFORE_YEAR_MESSAGE,
     createGoalBodySchema,
@@ -12,8 +17,8 @@ import type { Paginated } from "@/shared/pagination.js"
 import { toSaoPauloLocal } from "@/shared/time/localTime.js"
 import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 
-/** Meta como a API a devolve: sem o `userId` do dono. */
-export type GoalResponse = Omit<GoalRecord, "userId">
+/** Meta como a API a devolve: sem o `userId` do dono nem as marcas internas dos avisos. */
+export type GoalResponse = GoalPublicRecord
 
 const PAST_GOAL_MESSAGE = "Metas de anos anteriores não podem ser alteradas nem excluídas"
 
@@ -136,7 +141,6 @@ export class GoalService {
     }
 
     private toResponse(record: GoalRecord): GoalResponse {
-        const { userId: _owner, ...rest } = record
-        return rest
+        return toPublicGoal(record)
     }
 }

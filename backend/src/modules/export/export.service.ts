@@ -19,7 +19,11 @@ import type {
 import type { AreaRepository, AreaResponse } from "@/modules/area/area.repository.js"
 import type { DeviceRepository, DeviceResponse } from "@/modules/device/device.repository.js"
 import type { ReportRepository, ReportResponse } from "@/modules/report/report.repository.js"
-import type { GoalRecord, GoalRepository } from "@/modules/goal/goal.repository.js"
+import {
+    toPublicGoal,
+    type GoalPublicRecord,
+    type GoalRepository,
+} from "@/modules/goal/goal.repository.js"
 import type {
     ReportScheduleRecord,
     ReportScheduleRepository,
@@ -58,7 +62,7 @@ export type DataExportPayload = {
     // pessoal de terceiros que o titular informou.
     reportSchedules: Omit<ReportScheduleRecord, "userId">[]
     // Metas anuais de consumo definidas pelo titular, por propriedade.
-    goals: Omit<GoalRecord, "userId">[]
+    goals: GoalPublicRecord[]
     auditLogs: AuditLogResponse[]
 }
 
@@ -150,7 +154,7 @@ export class ExportService {
             aclContracts,
             reports,
             reportSchedules: reportSchedules.map(({ userId: _owner, ...rest }) => rest),
-            goals: goals.map(({ userId: _owner, ...rest }) => rest),
+            goals: goals.map(toPublicGoal),
             auditLogs,
         }
     }

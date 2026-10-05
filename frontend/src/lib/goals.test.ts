@@ -9,6 +9,7 @@ import {
     describeSituation,
     deviationTone,
     formatDeviation,
+    formatGoalPercent,
     formatRealized,
     goalToFormState,
     goalYearlyKwh,
@@ -276,5 +277,14 @@ describe("referenceGoalForm", () => {
         )
 
         expect(validateGoalForm(state, [])).toBeNull()
+    })
+})
+
+describe("formatGoalPercent", () => {
+    it('usa vírgula e uma casa decimal; ausência é "-"', () => {
+        expect(formatGoalPercent(87.5)).toBe("87,5%")
+        expect(formatGoalPercent(100)).toBe("100,0%")
+        expect(formatGoalPercent(0)).toBe("0,0%")
+        expect(formatGoalPercent(null)).toBe("-")
     })
 })

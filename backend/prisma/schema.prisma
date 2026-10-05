@@ -1071,14 +1071,19 @@ model Goal {
   userId     String
   propertyId String
 
-  year          Int
+  year               Int
   // Ano usado como base de comparação ao montar a meta; é só um número, não
   // exige que exista meta cadastrada para ele.
-  referenceYear Int
+  referenceYear      Int
   // Consumo-alvo em kWh de janeiro a dezembro: sempre 12 posições.
-  monthlyKwh    Float[]
+  monthlyKwh         Float[]
   // % da meta (do mês e do ano acumulado) a partir do qual o usuário é avisado.
-  alertPercent  Int
+  alertPercent       Int
+  // Marcas de "já avisado": a meta é de um ano só, então o mês (1–12) do
+  // último aviso e um sinalizador para o aviso anual bastam para não repetir
+  // o aviso no mesmo período. Editar a meta zera as duas.
+  alertNotifiedMonth Int?
+  alertNotifiedYear  Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -284,6 +284,60 @@ describe("GET /api/goals/progress", () => {
     })
 })
 
+describe("GET /api/goals/alerts", () => {
+    it("retorna 401 sem token", async () => {
+        const response = await request(app).get("/api/goals/alerts")
+        expect(response.status).toBe(401)
+    })
+
+    it("devolve o estado do alerta de cada meta do ano corrente do usuário", async () => {
+        const { token, propertyId } = await setupProperty()
+        await request(app).post("/api/goals").set(authed(token)).send(body(propertyId))
+
+        const response = await request(app).get("/api/goals/alerts").set(authed(token))
+
+        expect(response.status).toBe(200)
+        const [item] = response.body.data.items
+        expect(item).toMatchObject({
+            propertyId,
+            propertyName: "Casa",
+            year: currentYear,
+            alertPercent: 85,
+        })
+        expect(item.monthly).toEqual({ percent: null, reached: false, notified: false })
+        expect(item.annual).toEqual({ percent: null, reached: false, notified: false })
+        expect(item.userId).toBeUndefined()
+    })
+
+    it("não mostra as metas de outro usuário", async () => {
+        const { token: tokenA, propertyId } = await setupProperty(validUser)
+        await request(app).post("/api/goals").set(authed(tokenA)).send(body(propertyId))
+        const tokenB = await registerAndLogin(anotherUser)
+
+        const response = await request(app).get("/api/goals/alerts").set(authed(tokenB))
+
+        expect(response.status).toBe(200)
+        expect(response.body.data.items).toEqual([])
+    })
+
+    it("a resposta de criar e listar metas não expõe as marcas internas dos avisos", async () => {
+        const { token, propertyId } = await setupProperty()
+        const created = await request(app)
+            .post("/api/goals")
+            .set(authed(token))
+            .send(body(propertyId))
+
+        const listed = await request(app)
+            .get(`/api/goals?propertyId=${propertyId}`)
+            .set(authed(token))
+
+        for (const goal of [created.body.data, listed.body.data.items[0]]) {
+            expect(goal.alertNotifiedMonth).toBeUndefined()
+            expect(goal.alertNotifiedYear).toBeUndefined()
+        }
+    })
+})
+
 describe("PUT /api/goals/:id", () => {
     it("retorna 401 sem token", async () => {
         const response = await request(app).put(`/api/goals/${unknownId}`).send(editable())

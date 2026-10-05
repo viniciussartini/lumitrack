@@ -9,7 +9,8 @@ export interface Notification {
     id: string
     alertId: string
     alertName: string
-    meterId: string
+    /** Nulo quando a origem não é um medidor (alerta de meta, que é da propriedade). */
+    meterId: string | null
     targetType: TargetType
     /** Rota do frontend pronta para navegar (details page do alvo). */
     targetPath: string

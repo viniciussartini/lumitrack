@@ -1,5 +1,11 @@
 import { api } from "@/services/api"
-import type { Goal, GoalCreateInput, GoalProgress, GoalUpdateInput } from "@/types/goal.types"
+import type {
+    Goal,
+    GoalAlert,
+    GoalCreateInput,
+    GoalProgress,
+    GoalUpdateInput,
+} from "@/types/goal.types"
 import type { Paginated, PaginationParams } from "@/types/pagination.types"
 
 interface ApiEnvelope<T> {
@@ -34,6 +40,16 @@ export const goalService = {
         const { data } = await api.get<ApiEnvelope<{ items: GoalProgress[] }>>("/goals/progress", {
             params: { propertyId },
         })
+        return data.data.items
+    },
+
+    /**
+     * Estado do alerta de cada meta do ano corrente do usuário, em todas as propriedades.
+     *
+     * @returns Uma linha por meta, por nome de propriedade.
+     */
+    alerts: async (): Promise<GoalAlert[]> => {
+        const { data } = await api.get<ApiEnvelope<{ items: GoalAlert[] }>>("/goals/alerts")
         return data.data.items
     },
 

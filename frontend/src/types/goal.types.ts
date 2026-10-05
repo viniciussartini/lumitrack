@@ -51,3 +51,26 @@ export interface GoalProgress {
     /** Nulo num ano passado sem nenhuma leitura. */
     situation: GoalSituation | null
 }
+
+/** Um período (mês corrente ou ano acumulado) do alerta de uma meta. */
+export interface GoalAlertPeriod {
+    /** Consumo ÷ meta do período, em %; nulo sem leitura ou com meta zerada. */
+    percent: number | null
+    /** O consumo já alcançou o percentual de alerta da meta. */
+    reached: boolean
+    /** O aviso deste período já saiu. */
+    notified: boolean
+}
+
+/** Estado do alerta de uma meta do ano corrente. */
+export interface GoalAlert {
+    goalId: string
+    propertyId: string
+    propertyName: string
+    year: number
+    alertPercent: number
+    /** Mês corrente contra a meta do mês. */
+    monthly: GoalAlertPeriod
+    /** Acumulado do ano contra a meta anual. */
+    annual: GoalAlertPeriod
+}

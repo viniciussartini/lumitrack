@@ -362,4 +362,50 @@ test.describe("Inbox de alertas (/alertas)", () => {
         const gap = buttonBox.x - (descriptionBox.x + descriptionBox.width)
         expect(gap).toBeLessThan(60)
     })
+
+    test("mostra os alertas de meta do ano corrente na página de Alertas", async ({ page }) => {
+        await setupAuthAndMeters(page)
+        await page.route(/\/api\/goals\/alerts(\?.*)?$/, (route) =>
+            fulfillJson(route, {
+                items: [
+                    {
+                        goalId: "goal-1",
+                        propertyId: "prop-1",
+                        propertyName: "Casa Principal",
+                        year: 2026,
+                        alertPercent: 85,
+                        monthly: { percent: 91.3, reached: true, notified: true },
+                        annual: { percent: 42.5, reached: false, notified: false },
+                    },
+                ],
+            }),
+        )
+
+        await page.goto("/alertas")
+        await hideDevTools(page)
+
+        const section = page.getByTestId("goal-alerts")
+        await expect(section.getByText("Alertas de meta")).toBeVisible()
+        const row = section.getByTestId("goal-alert-row-goal-1")
+        await expect(row).toContainText("Casa Principal · 2026")
+        await expect(row).toContainText("85%")
+        await expect(row).toContainText("91,3%")
+        await expect(row).toContainText("Notificado")
+        await expect(row).toContainText("42,5%")
+        await expect(row).toContainText("Dentro da meta")
+    })
+
+    test("sem metas no ano corrente, a seção leva às metas", async ({ page }) => {
+        await setupAuthAndMeters(page)
+        // A página de metas, aberta pelo link, lista as propriedades.
+        await page.route(/\/api\/properties(\?.*)?$/, (route) => fulfillPaginated(route, []))
+
+        await page.goto("/alertas")
+        await hideDevTools(page)
+
+        const empty = page.getByTestId("goal-alerts-empty")
+        await expect(empty).toBeVisible()
+        await empty.getByRole("link", { name: "Ir para as metas" }).click()
+        await expect(page).toHaveURL(/\/configuracoes\/metas$/)
+    })
 })

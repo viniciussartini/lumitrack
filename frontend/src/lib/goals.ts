@@ -113,6 +113,12 @@ export const deviationTone = (percent: number | null | undefined): GoalTone => {
     return percent > 0 ? "danger" : "success"
 }
 
+/** Percentual do alerta como "87,5%"; ausência é "-". */
+export const formatGoalPercent = (percent: number | null): string =>
+    percent === null
+        ? "-"
+        : `${percent.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
+
 /** Realizado de uma meta como texto, com "-" para ausência. */
 export const formatRealized = (progress: GoalProgress | undefined): string =>
     progress?.realizedKwh == null ? "-" : formatKwh(progress.realizedKwh)

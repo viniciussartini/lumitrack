@@ -71,6 +71,18 @@ const NOTIFICATION_2: Notification = {
     createdAt: "2026-08-21T19:05:00.000Z",
 }
 
+// Aviso de meta: a origem é a propriedade, não um medidor.
+const GOAL_NOTIFICATION: Notification = {
+    id: "notif-goal",
+    alertId: "goal-1",
+    alertName: "Meta 2026 · Casa",
+    meterId: null,
+    targetType: "PROPERTY",
+    targetPath: "/configuracoes/metas",
+    message: "Meta de 2026 (Casa): o consumo do mês atingiu 87,5% da meta do mês.",
+    createdAt: "2026-08-21T19:10:00.000Z",
+}
+
 beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser)
@@ -175,5 +187,15 @@ describe("NotificationDropdown — marcar todas como lidas", () => {
         })
         // A lista continua visível — a mutation falhou, não invalidou o cache.
         expect(screen.getByText(NOTIFICATION_1.message)).toBeInTheDocument()
+    })
+})
+
+describe("NotificationDropdown — aviso sem medidor", () => {
+    it("mostra o aviso de meta, que não tem medidor, junto dos demais", async () => {
+        await openDropdown([NOTIFICATION_1, GOAL_NOTIFICATION])
+
+        expect(screen.getByText(GOAL_NOTIFICATION.message)).toBeInTheDocument()
+        expect(screen.getByText(NOTIFICATION_1.message)).toBeInTheDocument()
+        expect(screen.getByTestId("notification-bell")).toHaveAttribute("data-count", "2")
     })
 })

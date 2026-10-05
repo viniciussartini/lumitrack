@@ -16,6 +16,13 @@ export const useGoals = (propertyId: string | null) =>
         enabled: propertyId !== null,
     })
 
+/** Estado do alerta de cada meta do ano corrente; invalidado junto da lista a cada mutação. */
+export const useGoalAlerts = () =>
+    useQuery({
+        queryKey: queryKeys.goals.alerts,
+        queryFn: () => goalService.alerts(),
+    })
+
 /** Acompanhamento das metas de uma propriedade; invalidado junto da lista a cada mutação. */
 export const useGoalProgress = (propertyId: string | null) =>
     useQuery({

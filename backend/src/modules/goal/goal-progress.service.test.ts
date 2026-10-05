@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest"
+import { GoalConsumptionReader } from "@/modules/goal/goal-consumption.js"
 import { GoalProgressService } from "@/modules/goal/goal-progress.service.js"
 import { GoalRepository } from "@/modules/goal/goal.repository.js"
 import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
@@ -25,8 +26,10 @@ const MID_2026 = new Date("2026-06-15T15:00:00.000Z")
 
 const service = new GoalProgressService(
     new GoalRepository(prismaTest),
-    new MeterRepository(prismaTest),
-    new ConsumptionRepository(prismaTest),
+    new GoalConsumptionReader(
+        new MeterRepository(prismaTest),
+        new ConsumptionRepository(prismaTest),
+    ),
     () => MID_2026,
 )
 

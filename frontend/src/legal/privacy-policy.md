@@ -28,16 +28,16 @@ canal de privacidade: **{{PRIVACY_CONTACT_EMAIL}}**.
 
 ## 2. Quais dados coletamos
 
-| Categoria | Dados | Finalidade |
-|---|---|---|
-| Identificação | Nome, sobrenome ou razão social/nome fantasia, e-mail | Criar e gerenciar sua conta, autenticação |
-| Documentos | CPF (pessoa física) ou CNPJ (pessoa jurídica) | Identificação única do titular, prevenção a fraude |
-| Senha | Hash da senha (nunca em texto claro) | Autenticação segura |
-| Localização | Endereço, cidade, estado e CEP das propriedades cadastradas | Vincular o consumo de energia ao imóvel monitorado |
-| Consumo de energia | Histórico de consumo (kWh) e custo estimado (R$) por propriedade, área ou dispositivo | Geração de relatórios, simulações e alertas de consumo |
-| Dispositivos e IoT | Nome, marca, modelo e potência de aparelhos; configuração técnica de conectividade (protocolo, host, porta, endereço) | Monitoramento de consumo em tempo real |
-| Sessão | Tokens de autenticação, data de login/logout | Manter sua sessão segura e permitir revogação de acesso |
-| Consentimento | Data do aceite e versão da Política aceita | Comprovar a base legal do tratamento (Art. 7º/8º da LGPD) |
+| Categoria          | Dados                                                                                                                 | Finalidade                                                |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Identificação      | Nome, sobrenome ou razão social/nome fantasia, e-mail                                                                 | Criar e gerenciar sua conta, autenticação                 |
+| Documentos         | CPF (pessoa física) ou CNPJ (pessoa jurídica)                                                                         | Identificação única do titular, prevenção a fraude        |
+| Senha              | Hash da senha (nunca em texto claro)                                                                                  | Autenticação segura                                       |
+| Localização        | Endereço, cidade, estado e CEP das propriedades cadastradas                                                           | Vincular o consumo de energia ao imóvel monitorado        |
+| Consumo de energia | Histórico de consumo (kWh) e custo estimado (R$) por propriedade, área ou dispositivo                                 | Geração de relatórios, simulações e alertas de consumo    |
+| Dispositivos e IoT | Nome, marca, modelo e potência de aparelhos; configuração técnica de conectividade (protocolo, host, porta, endereço) | Monitoramento de consumo em tempo real                    |
+| Sessão             | Tokens de autenticação, data de login/logout                                                                          | Manter sua sessão segura e permitir revogação de acesso   |
+| Consentimento      | Data do aceite e versão da Política aceita                                                                            | Comprovar a base legal do tratamento (Art. 7º/8º da LGPD) |
 
 Não coletamos dados sensíveis (saúde, biometria, origem racial, convicção
 religiosa ou política, etc.).
@@ -62,10 +62,10 @@ religiosa ou política, etc.).
 
 O LumiTrack roda em **dois ambientes**, com infraestrutura diferente:
 
-| Ambiente | Onde | Infraestrutura | Transferência internacional |
-|---|---|---|---|
-| **Produção** (`lumitrack.app.br`) | Brasil (São Paulo) | Servidor dedicado próprio — aplicação, banco de dados e simulador na mesma máquina. O único terceiro envolvido é o **provedor de infraestrutura** (a empresa que aluga o servidor), que processa exclusivamente em São Paulo | **Não há.** Nenhum dado sai do país. |
-| **Staging/validação** (ambiente de testes em `*.onrender.com`, usado durante o desenvolvimento, antes de cada mudança chegar à produção) | Estados Unidos | Render (API e interface) + Neon (banco de dados) | **Há, limitada aos registros de acesso** (IP, data/hora, rota) de quem visita esse ambiente — ver abaixo. |
+| Ambiente                                                                                                                                 | Onde               | Infraestrutura                                                                                                                                                                                                               | Transferência internacional                                                                               |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Produção** (`lumitrack.app.br`)                                                                                                        | Brasil (São Paulo) | Servidor dedicado próprio — aplicação, banco de dados e simulador na mesma máquina. O único terceiro envolvido é o **provedor de infraestrutura** (a empresa que aluga o servidor), que processa exclusivamente em São Paulo | **Não há.** Nenhum dado sai do país.                                                                      |
+| **Staging/validação** (ambiente de testes em `*.onrender.com`, usado durante o desenvolvimento, antes de cada mudança chegar à produção) | Estados Unidos     | Render (API e interface) + Neon (banco de dados)                                                                                                                                                                             | **Há, limitada aos registros de acesso** (IP, data/hora, rota) de quem visita esse ambiente — ver abaixo. |
 
 - **Na produção, não há transferência internacional de dado pessoal** — a
   infraestrutura inteira roda no Brasil. O provedor de infraestrutura é
@@ -110,7 +110,7 @@ O LumiTrack roda em **dois ambientes**, com infraestrutura diferente:
 - Conexões protegidas por cabeçalhos de segurança HTTP e TLS/HTTPS em produção.
 - Controle de acesso: cada usuário só acessa os próprios dados — verificado
   em toda requisição.
-- Limitação de tentativas (*rate limiting*) em endpoints de autenticação,
+- Limitação de tentativas (_rate limiting_) em endpoints de autenticação,
   para reduzir o risco de ataques de força bruta.
 - Tokens de sessão podem ser revogados a qualquer momento (logout).
 - CPF/CNPJ, endereço e o segredo de autenticação em duas etapas são
