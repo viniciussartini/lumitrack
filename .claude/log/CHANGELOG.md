@@ -4486,3 +4486,13 @@
 - **Testes:** nenhum novo; as suítes do módulo `goal` seguem verdes (232 testes).
 - **Arquivos principais:** `backend/src/modules/goal/goal-alert.ts`, `.claude/project_context/02-requisitos.md`.
 - **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado.
+
+## [2026-10-05] docs: roadmap fecha a Fase 28 (PR #488) e detalha a Fase 29
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** `planejar-roadmap` (ciclo de atualização) marca a Fase 28 (Metas) como concluída — épico #481, sub-issues #482–#487, PR #488 mesclado em `staging` em 2026-10-05 — e registra, no "Replanejamento de 2026-10-05", o que mudou em relação ao plano: R$ e demanda entregues com decisões de produto no lugar do design que faltava, kWh, R$ e kW coexistindo no mesmo ano, a demanda por pico, o mês corrente em R$ contra a meta cheia, a API renomeada, as quatro migrações, o link do aviso com a propriedade, os achados das duas revisões e a lição de abrir um PR por sub-issue em épicos longos. A Fase 29 (Painel v2) sai do nível de objetivo para 5 itens: meta de consumo no Painel (P0, M), consumo de hoje em tabela hierárquica (P0, M), peso de cada medidor (P1, S), demanda atual × contratada do Grupo A (P1, M, o único com backend novo certo) e faixa de horário de ponta (P2, S).
+- **Decisões do usuário:** os blocos atuais do Painel (KPIs, tempo real, histórico e comparação) ficam, e os widgets novos entram na ordem do design; o peso de cada medidor considera só as áreas com medidor da propriedade; a faixa de ponta é item próprio, P2. Nenhuma decisão do `07` bloqueia a fase.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma ADR; nenhum item do `07` tocado.
+- **Notas:** a projeção de fechamento em R$ do Painel herda o problema do custo fixo da Fase 28 e fica como risco aberto do primeiro item; pendências do usuário registradas no roadmap (labels `status: bloqueada` de #486 e #487, sincronização com o Claude Design, vencimento da milestone `App v2`).
