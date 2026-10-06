@@ -8,6 +8,7 @@ import { DashboardPage } from "@/pages/dashboard/DashboardPage"
 import { propertyService } from "@/services/property.service"
 import { authService } from "@/services/auth.service"
 import { demandService } from "@/services/demand.service"
+import { distributorService } from "@/services/distributor.service"
 import { storage, STORAGE_KEYS } from "@/lib/storage"
 import type { Property } from "@/types/property.types"
 import type { Paginated } from "@/types/pagination.types"
@@ -21,6 +22,10 @@ vi.mock("@/services/property.service", () => ({
         update: vi.fn(),
         remove: vi.fn(),
     },
+}))
+
+vi.mock("@/services/distributor.service", () => ({
+    distributorService: { getById: vi.fn(), list: vi.fn() },
 }))
 
 vi.mock("@/services/demand.service", () => ({
@@ -263,5 +268,46 @@ describe("DashboardPage — demanda do Grupo A", () => {
         await userEvent.setup().click(screen.getByTestId("property-selector-prop-b"))
 
         expect(screen.queryByTestId("demand-section")).not.toBeInTheDocument()
+    })
+})
+
+describe("DashboardPage — faixa de horário de ponta", () => {
+    const groupA: Property = { ...mockPropertyA, id: "prop-ga", tariffGroup: "GROUP_A" }
+    const copel = {
+        id: "dist-1",
+        name: "Copel",
+        cnpj: "76.483.817/0001-20",
+        state: "PR",
+        tusdPerKwh: 0.3,
+        tePerKwh: 0.3,
+        icmsRate: 0.18,
+        pisRate: 0.0165,
+        cofinsRate: 0.076,
+        peakWindowStartHour: 18,
+        peakWindowEndHour: 21,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+    }
+
+    it("o Grupo A mostra a faixa dentro do bloco de meta, com a distribuidora da propriedade", async () => {
+        vi.mocked(demandService.overview).mockReturnValue(new Promise(() => {}))
+        vi.mocked(distributorService.getById).mockResolvedValue(copel)
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([groupA]))
+
+        renderPage()
+
+        const band = await screen.findByTestId("peak-hours-band")
+        expect(screen.getByTestId("goal-section")).toContainElement(band)
+        expect(distributorService.getById).toHaveBeenCalledWith(groupA.distributorId)
+    })
+
+    it("o Grupo B não mostra a faixa nem consulta a distribuidora", async () => {
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([mockPropertyA]))
+
+        renderPage()
+
+        await screen.findByTestId("goal-section")
+        expect(screen.queryByTestId("peak-hours-band")).not.toBeInTheDocument()
+        expect(distributorService.getById).not.toHaveBeenCalled()
     })
 })

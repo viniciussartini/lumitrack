@@ -23,6 +23,8 @@ const mockDistributor: Distributor = {
     icmsRate: 0.18,
     pisRate: 0.0165,
     cofinsRate: 0.076,
+    peakWindowStartHour: null,
+    peakWindowEndHour: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
 }

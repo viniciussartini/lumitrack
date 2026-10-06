@@ -713,6 +713,12 @@ test.describe("Painel — peso de cada medidor", () => {
     })
 })
 
+const DIST_WITH_PEAK_WINDOW = {
+    ...DIST_CEMIG,
+    peakWindowStartHour: 18,
+    peakWindowEndHour: 21,
+}
+
 const GROUP_A_PROPERTY = {
     ...PROP_1,
     id: "prop-ga",
@@ -766,6 +772,10 @@ const setupGroupADashboard = async (page: Page, modality: "GREEN" | "BLUE" = "GR
     })
     await page.route(/\/api\/demand\/overview(\?.*)?$/, (route) =>
         fulfillJson(route, demandOverview(modality)),
+    )
+    // A faixa de ponta do bloco de meta lê a janela de ponta da distribuidora.
+    await page.route(/\/api\/distributors\/[^/?]+$/, (route) =>
+        fulfillJson(route, DIST_WITH_PEAK_WINDOW),
     )
     await mockSseStream(page, sseEvent("connected", { meterCount: 0 }))
 }
@@ -821,5 +831,83 @@ test.describe("Painel — demanda atual vs. contratada", () => {
         await expect(page.getByTestId("today-consumption-section")).toBeVisible()
         await expect(page.getByTestId("demand-section")).toHaveCount(0)
         expect(demandCalls).toEqual([])
+    })
+})
+
+test.describe("Painel — faixa de horário de ponta", () => {
+    test.beforeEach(async ({ context }) => {
+        await context.clearCookies()
+    })
+
+    test("Grupo A mostra a janela da distribuidora e a participação da ponta no mês", async ({
+        page,
+    }) => {
+        await setupGroupADashboard(page)
+        await page.route(/\/api\/consumption(\?.*)?$/, (route) => {
+            const url = new URL(route.request().url())
+            if (url.searchParams.get("granularity") !== "month") {
+                return fulfillPaginated(route, [])
+            }
+            return fulfillPaginated(route, [
+                {
+                    bucketStart: "2026-10-01T00:00:00.000Z",
+                    kwhConsumed: 1000,
+                    costBrl: 800,
+                    avgPowerW: 500,
+                    groupA: {
+                        contractedDemandKw: 200,
+                        demandByPost: [],
+                        demandBrl: 0,
+                        ultrapassagemBrl: 0,
+                        energyByPost: [
+                            { post: "PEAK", kwhConsumed: 310, brl: 400 },
+                            { post: "OFF_PEAK", kwhConsumed: 690, brl: 300 },
+                        ],
+                        ereByWindow: [],
+                        ereBrl: 0,
+                        flagBrl: 0,
+                        taxesBrl: 0,
+                        publicLightingFeeBrl: 0,
+                    },
+                },
+            ])
+        })
+
+        await page.goto("/dashboard")
+        await hideDevTools(page)
+
+        const band = page.getByTestId("goal-section").getByTestId("peak-hours-band")
+        await expect(band).toContainText(
+            "Seg a sex, 18h–21h · excluídos sábados, domingos e feriados",
+        )
+        await expect(band).toContainText("Consumo na ponta responde por 31% do acumulado do mês")
+    })
+
+    test("sem consumo no mês a participação é '-', nunca 0%", async ({ page }) => {
+        await setupGroupADashboard(page)
+
+        await page.goto("/dashboard")
+        await hideDevTools(page)
+
+        const band = page.getByTestId("peak-hours-band")
+        await expect(band).toContainText("Consumo na ponta no mês: -")
+        await expect(band).not.toContainText("0%")
+    })
+
+    test("Grupo B não mostra a faixa nem consulta a distribuidora", async ({ page }) => {
+        const distributorCalls: string[] = []
+        await setupDashboard(page)
+        await page.route(/\/api\/distributors\/[^/?]+$/, (route) => {
+            distributorCalls.push(route.request().url())
+            return fulfillJson(route, DIST_WITH_PEAK_WINDOW)
+        })
+        await mockSseStream(page, sseEvent("connected", { meterCount: 0 }))
+
+        await page.goto("/dashboard")
+        await hideDevTools(page)
+
+        await expect(page.getByTestId("goal-section")).toBeVisible()
+        await expect(page.getByTestId("peak-hours-band")).toHaveCount(0)
+        expect(distributorCalls).toEqual([])
     })
 })

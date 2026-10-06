@@ -35,6 +35,8 @@ import type { GoalProgress } from "@/types/goal.types"
 interface GoalSectionProps {
     propertyId: string
     propertyName: string
+    /** Faixa no rodapé do bloco (a do horário de ponta no Grupo A), com ou sem meta cadastrada. */
+    footer?: ReactNode
 }
 
 /** Teto do backend (`paginationQuerySchema`): cobre todos os dias de um mês de 31 dias. */
@@ -66,7 +68,7 @@ const UNIT_OPTIONS: readonly { value: PaceUnit; label: string }[] = [
  *
  * Dia ou mês sem leitura aparece como "-" e fica fora do acumulado.
  */
-export const GoalSection = ({ propertyId, propertyName }: GoalSectionProps) => {
+export const GoalSection = ({ propertyId, propertyName, footer }: GoalSectionProps) => {
     const [period, setPeriod] = useState<PacePeriod>("month")
     const [unit, setUnit] = useState<PaceUnit>("KWH")
 
@@ -81,6 +83,7 @@ export const GoalSection = ({ propertyId, propertyName }: GoalSectionProps) => {
                 onUnitChange={setUnit}
             />
             <GoalBody propertyId={propertyId} period={period} unit={unit} />
+            {footer}
         </Blueprint>
     )
 }

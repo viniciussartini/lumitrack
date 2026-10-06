@@ -6,12 +6,14 @@ import { PropertySelector } from "@/components/dashboard/PropertySelector"
 import { AreaWeightSection } from "@/components/dashboard/AreaWeightSection"
 import { DemandSection } from "@/components/dashboard/DemandSection"
 import { GoalSection } from "@/components/dashboard/GoalSection"
+import { PeakHoursBand } from "@/components/dashboard/PeakHoursBand"
 import { TodayConsumptionSection } from "@/components/dashboard/TodayConsumptionSection"
 import { RealtimeSection } from "@/components/dashboard/RealtimeSection"
 import { ConsumptionHistorySection } from "@/components/dashboard/ConsumptionHistorySection"
 import { PropertyComparisonSection } from "@/components/dashboard/PropertyComparisonSection"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Button } from "@/components/ui/Button"
+import type { Property } from "@/types/property.types"
 
 /**
  * Painel (`/dashboard`) — bloco `isDashboard` do
@@ -95,11 +97,7 @@ export const DashboardPage = () => {
                         onChange={selectProperty}
                     />
                     {selectedId && selectedProperty && (
-                        <PropertyBlocks
-                            propertyId={selectedId}
-                            propertyName={selectedProperty.name}
-                            isGroupA={selectedProperty.tariffGroup === "GROUP_A"}
-                        />
+                        <PropertyBlocks property={selectedProperty} />
                     )}
                     <PropertyComparisonSection properties={properties} />
                 </>
@@ -111,32 +109,46 @@ export const DashboardPage = () => {
 // Subcomponentes locais
 
 interface PropertyBlocksProps {
-    propertyId: string
-    propertyName: string
-    isGroupA: boolean
+    property: Property
 }
 
 /** Blocos escopados à propriedade selecionada, na ordem em que aparecem no Painel. */
-const PropertyBlocks = ({ propertyId, propertyName, isGroupA }: PropertyBlocksProps) => (
-    <>
-        {isGroupA && (
+const PropertyBlocks = ({ property }: PropertyBlocksProps) => {
+    const { id: propertyId, name: propertyName } = property
+    const isGroupA = property.tariffGroup === "GROUP_A"
+
+    return (
+        <>
+            {isGroupA && (
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))] items-start gap-4">
+                    <DemandSection propertyId={propertyId} propertyName={propertyName} />
+                </div>
+            )}
             <div className="grid grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))] items-start gap-4">
-                <DemandSection propertyId={propertyId} propertyName={propertyName} />
+                <TodayConsumptionSection propertyId={propertyId} propertyName={propertyName} />
+                <AreaWeightSection
+                    key={propertyId}
+                    propertyId={propertyId}
+                    propertyName={propertyName}
+                />
             </div>
-        )}
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))] items-start gap-4">
-            <TodayConsumptionSection propertyId={propertyId} propertyName={propertyName} />
-            <AreaWeightSection
-                key={propertyId}
+            <GoalSection
                 propertyId={propertyId}
                 propertyName={propertyName}
+                footer={
+                    isGroupA && (
+                        <PeakHoursBand
+                            propertyId={propertyId}
+                            distributorId={property.distributorId}
+                        />
+                    )
+                }
             />
-        </div>
-        <GoalSection propertyId={propertyId} propertyName={propertyName} />
-        <RealtimeSection propertyId={propertyId} propertyName={propertyName} />
-        <ConsumptionHistorySection propertyId={propertyId} propertyName={propertyName} />
-    </>
-)
+            <RealtimeSection propertyId={propertyId} propertyName={propertyName} />
+            <ConsumptionHistorySection propertyId={propertyId} propertyName={propertyName} />
+        </>
+    )
+}
 
 const DashboardSkeleton = () => (
     <div

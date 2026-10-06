@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
@@ -62,14 +63,14 @@ const mockConsumption = (items: ConsumptionBucket[]) =>
         granularity: "day",
     })
 
-const renderSection = () => {
+const renderSection = (footer?: ReactNode) => {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, gcTime: 0 } },
     })
     return render(
         <MemoryRouter>
             <QueryClientProvider client={queryClient}>
-                <GoalSection propertyId="prop-1" propertyName="Casa" />
+                <GoalSection propertyId="prop-1" propertyName="Casa" footer={footer} />
             </QueryClientProvider>
         </MemoryRouter>,
     )
@@ -307,5 +308,31 @@ describe("GoalSection — gráfico acessível", () => {
         expect(within(rows[1]!).getAllByRole("cell", { hidden: true })[0]).toHaveTextContent(
             "10 kWh",
         )
+    })
+})
+
+describe("GoalSection — rodapé", () => {
+    it("mostra o rodapé que o Painel passa, no fim do bloco", async () => {
+        renderSection(<div data-testid="rodape">Horário de ponta</div>)
+        await screen.findByText("Acumulado · até o dia 15")
+
+        const section = screen.getByTestId("goal-section")
+        expect(within(section).getByTestId("rodape")).toBeInTheDocument()
+        expect(section.lastElementChild).toBe(screen.getByTestId("rodape"))
+    })
+
+    it("o rodapé aparece também quando a propriedade não tem meta", async () => {
+        vi.mocked(goalService.progress).mockResolvedValue([])
+        renderSection(<div data-testid="rodape">Horário de ponta</div>)
+
+        expect(await screen.findByTestId("goal-empty")).toBeInTheDocument()
+        expect(screen.getByTestId("rodape")).toBeInTheDocument()
+    })
+
+    it("sem rodapé o bloco termina no corpo", async () => {
+        renderSection()
+        await screen.findByText("Acumulado · até o dia 15")
+
+        expect(screen.queryByTestId("rodape")).not.toBeInTheDocument()
     })
 })

@@ -28,6 +28,10 @@ export interface Distributor {
     pisRate: number
     /** Alíquota de COFINS (0–1) */
     cofinsRate: number
+    /** Início da janela de ponta do Grupo A (hora cheia, 0–23); nulo até a distribuidora configurar. */
+    peakWindowStartHour: number | null
+    /** Fim da janela de ponta (hora cheia, exclusiva); nulo até a distribuidora configurar. */
+    peakWindowEndHour: number | null
     createdAt: string
     updatedAt: string
 }
