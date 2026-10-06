@@ -58,21 +58,45 @@ export const useConsumption = (
         enabled: Boolean(targetId),
     })
 
+/** Janela do resumo: só os buckets que começam em `[from, to)` entram. */
+export interface SummaryRange {
+    from: Date
+    to: Date
+}
+
+/**
+ * Opções da consulta do resumo, compartilhadas por quem consulta um lote
+ * (`useConsumptionSummary`) e por quem consulta vários (`useQueries`).
+ * `enabled: ids.length > 0` evita disparar a query com lote vazio (a lista de
+ * propriedades/áreas/dispositivos ainda pode não ter carregado). A janela
+ * entra na chave, para trocar de dia ser outra consulta.
+ */
+export const summaryQueryOptions = (
+    targetType: TargetType,
+    ids: string[],
+    granularity: BucketSize,
+    range?: SummaryRange,
+) => ({
+    queryKey: queryKeys.consumption.summary(
+        targetType,
+        ids,
+        granularity,
+        range ? `${range.from.toISOString()}|${range.to.toISOString()}` : undefined,
+    ),
+    queryFn: () => consumptionService.summary({ targetType, ids, granularity, ...range }),
+    enabled: ids.length > 0,
+})
+
 /**
  * Endpoint batch — o último bucket de N alvos do mesmo `targetType`,
  * substituindo o padrão `useQueries` (1 chamada por alvo) que
  * `PropertyComparisonSection`, `AreasSection` e `DevicesSection` usavam.
- *
- * `enabled: ids.length > 0` evita disparar a query com lote vazio (a lista
- * de propriedades/áreas/dispositivos ainda pode não ter carregado).
+ * Com `range`, o último bucket dentro da janela: quem não tem leitura nela
+ * fica fora do resultado.
  */
 export const useConsumptionSummary = (
     targetType: TargetType,
     ids: string[],
     granularity: BucketSize,
-) =>
-    useQuery({
-        queryKey: queryKeys.consumption.summary(targetType, ids, granularity),
-        queryFn: () => consumptionService.summary({ targetType, ids, granularity }),
-        enabled: ids.length > 0,
-    })
+    range?: SummaryRange,
+) => useQuery(summaryQueryOptions(targetType, ids, granularity, range))

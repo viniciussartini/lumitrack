@@ -202,21 +202,20 @@ describe("DashboardPage — seletor de propriedade", () => {
 })
 
 describe("DashboardPage — ordem dos blocos", () => {
-    it("a meta de consumo vem logo abaixo do seletor, antes dos blocos que o Painel já tinha", async () => {
+    it("os blocos novos vêm logo abaixo do seletor, na ordem do design, antes dos que o Painel já tinha", async () => {
         vi.mocked(propertyService.list).mockResolvedValue(paginated([mockPropertyA]))
 
         renderPage()
 
         const selector = await screen.findByTestId("property-selector")
+        const today = await screen.findByTestId("today-consumption-section")
         const goal = await screen.findByTestId("goal-section")
         const history = await screen.findByTestId("consumption-history-section")
 
-        expect(
-            selector.compareDocumentPosition(goal) & Node.DOCUMENT_POSITION_FOLLOWING,
-        ).toBeTruthy()
-        expect(
-            goal.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING,
-        ).toBeTruthy()
-        expect(screen.getByText("Meta de consumo")).toBeInTheDocument()
+        const follows = (before: HTMLElement, after: HTMLElement) =>
+            Boolean(before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING)
+        expect(follows(selector, today)).toBe(true)
+        expect(follows(today, goal)).toBe(true)
+        expect(follows(goal, history)).toBe(true)
     })
 })

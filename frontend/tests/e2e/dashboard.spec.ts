@@ -4,7 +4,8 @@ import { fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
 import { mockSseStream, sseEvent } from "./support/sse"
-import { DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
+import { AREA_1, DIST_CEMIG, METER_1, PROP_1 } from "./support/fixtures"
+import { mockPropertyTree } from "./support/propertyTree"
 
 /**
  * E2E do Painel — igual a `realtime.spec.ts`: mocka o backend via
@@ -68,6 +69,7 @@ const setupDashboard = async (page: Page) => {
         fulfillJson(route, { items: [], granularity: "minute" }),
     )
     await page.route(/\/api\/tariff-flag(\?.*)?$/, (route) => fulfillJson(route, TARIFF_FLAG))
+    await mockPropertyTree(page)
 }
 
 test.describe("Painel — visão em tempo real (#116)", () => {
@@ -526,5 +528,113 @@ test.describe("Painel — meta de consumo", () => {
         const goal = page.getByTestId("goal-section")
         await expect(goal.getByTestId("goal-empty")).toBeVisible()
         await expect(goal.getByRole("link", { name: "Criar meta" })).toBeVisible()
+    })
+})
+
+const DEVICE_ID = "device-geladeira"
+
+/** Propriedade, a área e um dispositivo das fixtures — a hierarquia do "Consumo de hoje". */
+const TODAY_TREE = {
+    total: 1,
+    items: [
+        {
+            id: PROP_1.id,
+            name: PROP_1.name,
+            tariffGroup: "GROUP_B" as const,
+            areas: [
+                {
+                    id: AREA_1.id,
+                    name: AREA_1.name,
+                    devices: [{ id: DEVICE_ID, name: "Geladeira", powerWatts: 150 }],
+                },
+            ],
+        },
+    ],
+}
+
+const todayItem = (id: string, targetType: string, kwhConsumed: number, costBrl?: number) => ({
+    id,
+    targetType,
+    bucketStart: "2026-10-16T00:00:00.000Z",
+    kwhConsumed,
+    avgPowerW: 500,
+    ...(costBrl !== undefined && { costBrl }),
+})
+
+test.describe("Painel — consumo de hoje", () => {
+    test.beforeEach(async ({ context }) => {
+        await context.clearCookies()
+    })
+
+    test("expande a propriedade até o dispositivo e mostra '-' onde falta dado", async ({
+        page,
+    }) => {
+        await page.clock.install({ time: new Date("2026-10-16T15:00:00.000Z") })
+        await setupDashboard(page)
+        await mockPropertyTree(page, () => TODAY_TREE)
+        const summaryTargets: string[] = []
+        // Um pedido por tipo de alvo; a área vem sem custo e o dispositivo sem medidor.
+        await page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) => {
+            const url = new URL(route.request().url())
+            const targetType = url.searchParams.get("targetType") ?? ""
+            // A comparação entre propriedades também pede o resumo, em granularidade mês.
+            if (url.searchParams.get("granularity") === "day") summaryTargets.push(targetType)
+            const itemsByType: Record<string, unknown[]> = {
+                PROPERTY: [todayItem(PROP_1.id, "PROPERTY", 12.5, 9.9)],
+                AREA: [todayItem(AREA_1.id, "AREA", 7)],
+                DEVICE: [],
+            }
+            return fulfillJson(route, { items: itemsByType[targetType] ?? [] })
+        })
+        await mockSseStream(page, sseEvent("connected", { meterCount: 0 }))
+
+        await page.goto("/dashboard")
+        await hideDevTools(page)
+
+        const section = page.getByTestId("today-consumption-section")
+        const casa = section.getByRole("treeitem", { name: new RegExp(`^${PROP_1.name}:`) })
+        await expect(casa).toContainText("12,50 kWh")
+        await expect(casa).toContainText("R$")
+        await expect(casa).toHaveAttribute("aria-expanded", "false")
+        await expect(section.getByRole("treeitem")).toHaveCount(1)
+
+        await casa.click()
+        const area = section.getByRole("treeitem", { name: new RegExp(`^${AREA_1.name}:`) })
+        await expect(area).toContainText("7,00 kWh")
+        await expect(area.locator(".lt-today-cost")).toHaveText("-")
+
+        await area.click()
+        const device = section.getByRole("treeitem", { name: /^Geladeira:/ })
+        await expect(device.locator(".lt-today-kwh")).toHaveText("-")
+        await expect(device.locator(".lt-today-cost")).toHaveText("-")
+
+        expect([...summaryTargets].sort()).toEqual(["AREA", "DEVICE", "PROPERTY"])
+    })
+
+    test("navega a hierarquia pelo teclado", async ({ page }) => {
+        await page.clock.install({ time: new Date("2026-10-16T15:00:00.000Z") })
+        await setupDashboard(page)
+        await mockPropertyTree(page, () => TODAY_TREE)
+        await page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) =>
+            fulfillJson(route, { items: [] }),
+        )
+        await mockSseStream(page, sseEvent("connected", { meterCount: 0 }))
+
+        await page.goto("/dashboard")
+        await hideDevTools(page)
+
+        const section = page.getByTestId("today-consumption-section")
+        const casa = section.getByRole("treeitem", { name: new RegExp(`^${PROP_1.name}:`) })
+        await casa.focus()
+        await page.keyboard.press("ArrowRight")
+        await expect(casa).toHaveAttribute("aria-expanded", "true")
+
+        await page.keyboard.press("ArrowDown")
+        const area = section.getByRole("treeitem", { name: new RegExp(`^${AREA_1.name}:`) })
+        await expect(area).toBeFocused()
+
+        await page.keyboard.press("Enter")
+        await expect(area).toHaveAttribute("aria-expanded", "true")
+        await expect(section.getByRole("treeitem", { name: /^Geladeira:/ })).toBeVisible()
     })
 })

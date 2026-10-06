@@ -1104,6 +1104,71 @@ textarea.input {
     padding-left: 57px;
 }
 
+/* Linha da tabela hierárquica "Consumo de hoje" do Painel — LumiTrack Home
+   v2.dc.html. Nome, kWh e R$ em colunas; o recuo e o peso do texto seguem o
+   nível (1 propriedade, 2 área, 3 dispositivo). */
+.lt-today-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 20px;
+    border-top: 1px solid var(--color-divider);
+    color: var(--color-text);
+    font-size: 13.5px;
+    font-feature-settings: "tnum" 1;
+    text-align: left;
+}
+.lt-today-row[aria-expanded] {
+    cursor: pointer;
+}
+.lt-today-row[data-level="1"] {
+    background: color-mix(in srgb, var(--color-accent) 5%, transparent);
+    font-size: 14px;
+    font-weight: 600;
+}
+.lt-today-row[data-level="2"] {
+    padding-left: 40px;
+}
+.lt-today-row[data-level="3"] {
+    padding: 9px 20px 9px 79px;
+    font-size: 13px;
+}
+.lt-today-row:hover[aria-expanded] {
+    background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+.lt-today-name {
+    flex: 1 1 auto;
+    min-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.lt-today-row[data-level="2"] .lt-today-name {
+    color: color-mix(in srgb, var(--color-text) 80%, transparent);
+}
+.lt-today-row[data-level="3"] .lt-today-name {
+    color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+.lt-today-kwh,
+.lt-today-cost {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+.lt-today-row[data-level="1"] .lt-today-kwh,
+.lt-today-row[data-level="1"] .lt-today-cost {
+    font-family: var(--font-heading);
+    font-size: 16px;
+}
+.lt-today-cost {
+    width: 82px;
+    text-align: right;
+    color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+.lt-today-row[data-level="1"] .lt-today-cost {
+    color: var(--color-status-warning);
+}
+
 /* Painel de dropdown (menu do usuário, notificações) — LumiTrack
    Home.dc.html, <style> local do protótipo. Sem width/position fixos aqui:
    o protótipo só abre esses menus para baixo, mas o rodapé da Sidebar
