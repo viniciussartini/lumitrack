@@ -712,3 +712,114 @@ test.describe("Painel — peso de cada medidor", () => {
         await expect(section.getByTestId("area-weight-chart")).toBeVisible()
     })
 })
+
+const GROUP_A_PROPERTY = {
+    ...PROP_1,
+    id: "prop-ga",
+    name: "Galpão",
+    tariffGroup: "GROUP_A" as const,
+    tariffSubgroup: "A4" as const,
+    tariffModality: "GREEN" as const,
+    contractedDemandKw: 200,
+}
+
+// Meia-noite de São Paulo (UTC-3) de 16/10/2026.
+const DEMAND_DAY_START = Date.UTC(2026, 9, 16, 3, 0)
+
+/** Visão de demanda do dia: medição até as 12:30, ponta das 18h às 21h. */
+const demandOverview = (modality: "GREEN" | "BLUE") => ({
+    propertyId: GROUP_A_PROPERTY.id,
+    modality,
+    windowMinutes: 15,
+    contracted:
+        modality === "GREEN"
+            ? [{ post: null, kw: 200 }]
+            : [
+                  { post: "PEAK", kw: 150 },
+                  { post: "OFF_PEAK", kw: 250 },
+              ],
+    current: { kw: 150, windowEnd: "2026-10-16T15:29:00.000Z" },
+    monthMax: { kw: 230, windowEnd: "2026-10-09T21:14:00.000Z" },
+    exceedancePercent: 15,
+    day: {
+        date: "2026-10-16",
+        points: Array.from({ length: 96 }, (_, block) => {
+            const peak = block >= 72 && block < 84
+            return {
+                windowEnd: new Date(DEMAND_DAY_START + (block * 15 + 14) * 60_000).toISOString(),
+                kw: block < 50 ? 120 + 40 * Math.sin(block / 6) : null,
+                post: peak ? "PEAK" : "OFF_PEAK",
+                contractedKw: modality === "BLUE" ? (peak ? 150 : 250) : 200,
+            }
+        }),
+    },
+})
+
+const setupGroupADashboard = async (page: Page, modality: "GREEN" | "BLUE" = "GREEN") => {
+    await page.clock.install({ time: new Date("2026-10-16T15:30:00.000Z") })
+    await setupDashboard(page)
+    await page.route(/\/api\/properties(\?.*)?$/, (route) => {
+        if (route.request().method() === "GET") {
+            return fulfillPaginated(route, [GROUP_A_PROPERTY])
+        }
+        return route.continue()
+    })
+    await page.route(/\/api\/demand\/overview(\?.*)?$/, (route) =>
+        fulfillJson(route, demandOverview(modality)),
+    )
+    await mockSseStream(page, sseEvent("connected", { meterCount: 0 }))
+}
+
+test.describe("Painel — demanda atual vs. contratada", () => {
+    test.beforeEach(async ({ context }) => {
+        await context.clearCookies()
+    })
+
+    test("propriedade do Grupo A mostra os cards, a nota da modalidade e o gráfico acessível", async ({
+        page,
+    }) => {
+        await setupGroupADashboard(page)
+
+        await page.goto("/dashboard")
+        await hideDevTools(page)
+
+        const demand = page.getByTestId("demand-section")
+        await expect(demand).toContainText("modalidade Verde · medição a cada 15 min")
+        const stats = demand.getByTestId("demand-stats")
+        await expect(stats).toContainText("150 kW")
+        await expect(stats).toContainText("230 kW")
+        await expect(stats).toContainText("200 kW")
+        await expect(stats).toContainText("+15,0%")
+        // O desenho não pode entrar na ordem de tabulação; os valores estão na tabela.
+        await expect(demand.locator('svg [tabindex="0"]')).toHaveCount(0)
+        await expect(demand.locator("table.sr-only tbody tr")).toHaveCount(96)
+    })
+
+    test("Azul mostra as duas contratadas", async ({ page }) => {
+        await setupGroupADashboard(page, "BLUE")
+
+        await page.goto("/dashboard")
+        await hideDevTools(page)
+
+        const demand = page.getByTestId("demand-section")
+        await expect(demand).toContainText("modalidade Azul")
+        await expect(demand.getByTestId("demand-stats")).toContainText("Ponta 150 · Fora 250 kW")
+    })
+
+    test("propriedade do Grupo B não mostra o bloco nem chama o endpoint", async ({ page }) => {
+        const demandCalls: string[] = []
+        await setupDashboard(page)
+        await page.route(/\/api\/demand\/overview(\?.*)?$/, (route) => {
+            demandCalls.push(route.request().url())
+            return fulfillJson(route, demandOverview("GREEN"))
+        })
+        await mockSseStream(page, sseEvent("connected", { meterCount: 0 }))
+
+        await page.goto("/dashboard")
+        await hideDevTools(page)
+
+        await expect(page.getByTestId("today-consumption-section")).toBeVisible()
+        await expect(page.getByTestId("demand-section")).toHaveCount(0)
+        expect(demandCalls).toEqual([])
+    })
+})

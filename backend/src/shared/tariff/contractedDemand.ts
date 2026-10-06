@@ -35,29 +35,42 @@ export function resolveContractedDemands(
     ]
 }
 
-// Maior potência média (W) entre os postos do mês, convertida para kW — mês
-// sem nenhuma janela completa observada mede 0 kW, nunca gera ultrapassagem
-// por ausência de dado (mesma cautela contra janela incompleta aplicada ao
-// apurar a demanda medida).
-function measuredDemandKwForMonth(rows: MeterDemandRollupResponse[]): number {
-    if (rows.length === 0) return 0
+// Maior potência média (W) entre os postos do mês, convertida para kW; `null`
+// quando o mês não tem nenhuma janela completa observada.
+function measuredDemandKwForMonthOrNull(rows: MeterDemandRollupResponse[]): number | null {
+    if (rows.length === 0) return null
     return Math.max(...rows.map((r) => r.maxAvgPowerW)) / 1000
 }
 
 /**
- * Demanda medida (kW) para uma entrada de `resolveContractedDemands`: `null`
- * (Verde) usa o maior valor entre os postos do mês; um posto concreto (Azul)
- * usa só o rollup daquele posto — cada demanda contratada da Azul só é
- * comparada com a medição do mesmo posto, nunca com a do outro. Compartilhada
- * pelo mesmo motivo de `resolveContractedDemands`.
+ * Demanda medida (kW) para uma entrada de `resolveContractedDemands`, ou
+ * `null` quando não há janela medida: `null` (Verde) usa o maior valor entre
+ * os postos do mês; um posto concreto (Azul) usa só o rollup daquele posto —
+ * cada demanda contratada da Azul só é comparada com a medição do mesmo posto,
+ * nunca com a do outro. É a semântica de ausência (nunca 0 kW) que a meta de
+ * demanda, o relatório de demanda e o Painel compartilham.
+ */
+export function measuredDemandKwOrNull(
+    post: TariffPost | null,
+    rows: MeterDemandRollupResponse[],
+): number | null {
+    if (post === null) {
+        return measuredDemandKwForMonthOrNull(rows)
+    }
+    const row = rows.find((r) => r.post === post)
+    return row ? row.maxAvgPowerW / 1000 : null
+}
+
+/**
+ * Mesma demanda de {@link measuredDemandKwOrNull}, com 0 kW no lugar da
+ * ausência — de propósito, para o cálculo de custo e o alerta de
+ * ultrapassagem: mês sem nenhuma janela completa observada nunca gera
+ * ultrapassagem por ausência de dado (mesma cautela contra janela incompleta
+ * aplicada ao apurar a demanda medida).
  */
 export function measuredDemandKwFor(
     post: TariffPost | null,
     rows: MeterDemandRollupResponse[],
 ): number {
-    if (post === null) {
-        return measuredDemandKwForMonth(rows)
-    }
-    const row = rows.find((r) => r.post === post)
-    return row ? row.maxAvgPowerW / 1000 : 0
+    return measuredDemandKwOrNull(post, rows) ?? 0
 }

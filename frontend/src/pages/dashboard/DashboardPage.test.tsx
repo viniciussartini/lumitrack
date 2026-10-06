@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext"
 import { DashboardPage } from "@/pages/dashboard/DashboardPage"
 import { propertyService } from "@/services/property.service"
 import { authService } from "@/services/auth.service"
+import { demandService } from "@/services/demand.service"
 import { storage, STORAGE_KEYS } from "@/lib/storage"
 import type { Property } from "@/types/property.types"
 import type { Paginated } from "@/types/pagination.types"
@@ -20,6 +21,10 @@ vi.mock("@/services/property.service", () => ({
         update: vi.fn(),
         remove: vi.fn(),
     },
+}))
+
+vi.mock("@/services/demand.service", () => ({
+    demandService: { overview: vi.fn() },
 }))
 
 vi.mock("@/services/auth.service", () => ({
@@ -219,5 +224,44 @@ describe("DashboardPage — ordem dos blocos", () => {
         expect(follows(today, weight)).toBe(true)
         expect(follows(weight, goal)).toBe(true)
         expect(follows(goal, history)).toBe(true)
+    })
+})
+
+describe("DashboardPage — demanda do Grupo A", () => {
+    const groupA: Property = { ...mockPropertyA, id: "prop-ga", tariffGroup: "GROUP_A" }
+
+    it("o bloco de demanda só aparece para propriedade do Grupo A, acima dos demais", async () => {
+        vi.mocked(demandService.overview).mockReturnValue(new Promise(() => {}))
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([groupA]))
+
+        renderPage()
+
+        const demand = await screen.findByTestId("demand-section")
+        const today = await screen.findByTestId("today-consumption-section")
+        expect(demandService.overview).toHaveBeenCalledWith("prop-ga")
+        expect(
+            Boolean(demand.compareDocumentPosition(today) & Node.DOCUMENT_POSITION_FOLLOWING),
+        ).toBe(true)
+    })
+
+    it("propriedade do Grupo B não mostra o bloco nem chama o endpoint", async () => {
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([mockPropertyA]))
+
+        renderPage()
+
+        await screen.findByTestId("today-consumption-section")
+        expect(screen.queryByTestId("demand-section")).not.toBeInTheDocument()
+        expect(demandService.overview).not.toHaveBeenCalled()
+    })
+
+    it("trocar de Grupo A para Grupo B tira o bloco", async () => {
+        vi.mocked(demandService.overview).mockReturnValue(new Promise(() => {}))
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([groupA, mockPropertyB]))
+
+        renderPage()
+        await screen.findByTestId("demand-section")
+        await userEvent.setup().click(screen.getByTestId("property-selector-prop-b"))
+
+        expect(screen.queryByTestId("demand-section")).not.toBeInTheDocument()
     })
 })

@@ -4,6 +4,7 @@ import { useProperties } from "@/hooks/queries/useProperties"
 import { usePropertySelection } from "@/hooks/usePropertySelection"
 import { PropertySelector } from "@/components/dashboard/PropertySelector"
 import { AreaWeightSection } from "@/components/dashboard/AreaWeightSection"
+import { DemandSection } from "@/components/dashboard/DemandSection"
 import { GoalSection } from "@/components/dashboard/GoalSection"
 import { TodayConsumptionSection } from "@/components/dashboard/TodayConsumptionSection"
 import { RealtimeSection } from "@/components/dashboard/RealtimeSection"
@@ -20,7 +21,8 @@ import { Button } from "@/components/ui/Button"
  * Olá, {nome}" saiu daqui para o Header — antes duplicava o mesmo
  * texto que o Header passou a mostrar.
  *
- * Os blocos novos vêm primeiro, na ordem do handoff `Home v2`: o consumo de
+ * Os blocos novos vêm primeiro, na ordem do handoff `Home v2`: a demanda
+ * atual contra a contratada (`DemandSection`, só no Grupo A), o consumo de
  * hoje (`TodayConsumptionSection`) e o peso de cada medidor
  * (`AreaWeightSection`), lado a lado numa grade, e a meta de consumo
  * (`GoalSection`). Os blocos que o Painel já
@@ -96,6 +98,7 @@ export const DashboardPage = () => {
                         <PropertyBlocks
                             propertyId={selectedId}
                             propertyName={selectedProperty.name}
+                            isGroupA={selectedProperty.tariffGroup === "GROUP_A"}
                         />
                     )}
                     <PropertyComparisonSection properties={properties} />
@@ -110,11 +113,17 @@ export const DashboardPage = () => {
 interface PropertyBlocksProps {
     propertyId: string
     propertyName: string
+    isGroupA: boolean
 }
 
 /** Blocos escopados à propriedade selecionada, na ordem em que aparecem no Painel. */
-const PropertyBlocks = ({ propertyId, propertyName }: PropertyBlocksProps) => (
+const PropertyBlocks = ({ propertyId, propertyName, isGroupA }: PropertyBlocksProps) => (
     <>
+        {isGroupA && (
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))] items-start gap-4">
+                <DemandSection propertyId={propertyId} propertyName={propertyName} />
+            </div>
+        )}
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))] items-start gap-4">
             <TodayConsumptionSection propertyId={propertyId} propertyName={propertyName} />
             <AreaWeightSection

@@ -192,6 +192,11 @@ export const queryKeys = {
         progress: (propertyId: string) => [...queryKeys.goals.all, "progress", propertyId] as const,
         alerts: ["goals", "alerts"] as const,
     },
+    demand: {
+        all: ["demand"] as const,
+        overview: (propertyId: string) =>
+            [...queryKeys.demand.all, "overview", propertyId] as const,
+    },
     alertEvents: {
         all: ["alertEvents"] as const,
         list: (alertId: string, page: number, pageSize: number) =>

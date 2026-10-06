@@ -509,4 +509,26 @@ export class MeterReadingRepository {
             take: count,
         })
     }
+
+    /**
+     * Leituras por minuto de um intervalo, da mais antiga para a mais recente
+     * — o insumo da curva de demanda do dia (no máximo 1440 linhas por dia e
+     * medidor).
+     *
+     * @param meterId - Id do medidor.
+     * @param from - Início do intervalo (inclusive), instante UTC real.
+     * @param to - Fim do intervalo (exclusivo), instante UTC real.
+     * @returns Minuto, potência média e cobertura de cada leitura do intervalo.
+     */
+    async findMinuteReadings(
+        meterId: string,
+        from: Date,
+        to: Date,
+    ): Promise<{ minuteStart: Date; avgPowerW: number; secondsCovered: number }[]> {
+        return this.prisma.meterReading.findMany({
+            where: { meterId, minuteStart: { gte: from, lt: to } },
+            select: { minuteStart: true, avgPowerW: true, secondsCovered: true },
+            orderBy: { minuteStart: "asc" },
+        })
+    }
 }
