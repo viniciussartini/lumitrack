@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest"
-import {
-    contractedKwForPost,
-    resolveMonthMax,
-    worstExceedancePercent,
-} from "@/modules/demand/demand-overview.js"
+import { contractedKwForPost, worstExceedancePercent } from "@/modules/demand/demand-overview.js"
 import type { MeterDemandRollupResponse } from "@/modules/meter/meter-demand-rollup.repository.js"
 
 const rollup = (
@@ -16,23 +12,6 @@ const rollup = (
     post,
     maxAvgPowerW,
     windowEndAt,
-})
-
-describe("resolveMonthMax", () => {
-    it("é a maior demanda do mês entre os postos, em kW, com o fim da janela vencedora", () => {
-        const winner = new Date("2026-10-12T21:15:00Z")
-
-        const result = resolveMonthMax([
-            rollup("OFF_PEAK", 95_000),
-            rollup("PEAK", 120_000, winner),
-        ])
-
-        expect(result).toEqual({ kw: 120, windowEnd: winner })
-    })
-
-    it("mês sem janela medida é ausência, nunca 0 kW", () => {
-        expect(resolveMonthMax([])).toEqual({ kw: null, windowEnd: null })
-    })
 })
 
 describe("worstExceedancePercent", () => {

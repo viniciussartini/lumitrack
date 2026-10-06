@@ -74,3 +74,30 @@ export function measuredDemandKwFor(
 ): number {
     return measuredDemandKwOrNull(post, rows) ?? 0
 }
+
+export type MonthMax = {
+    /** Maior demanda do mês entre os postos; `null` sem nenhuma janela medida. */
+    kw: number | null
+    /** Fim da janela vencedora; `null` sem janela medida. */
+    windowEnd: Date | null
+    /**
+     * Posto da janela vencedora; `null` sem janela medida. A tela precisa dele na
+     * Azul: a maior demanda pode ser a do posto folgado, e só a contratada do
+     * próprio posto diz se esse valor passou.
+     */
+    post: TariffPost | null
+}
+
+/**
+ * Máxima do mês: a maior potência média de 15 minutos entre os postos, em kW,
+ * e quando a janela vencedora terminou. Mês sem janela medida é ausência, nunca 0 kW.
+ */
+export function resolveMonthMax(rows: MeterDemandRollupResponse[]): MonthMax {
+    const winner = rows.reduce<MeterDemandRollupResponse | null>(
+        (best, row) => (best === null || row.maxAvgPowerW > best.maxAvgPowerW ? row : best),
+        null,
+    )
+    return winner
+        ? { kw: winner.maxAvgPowerW / 1000, windowEnd: winner.windowEndAt, post: winner.post }
+        : { kw: null, windowEnd: null, post: null }
+}

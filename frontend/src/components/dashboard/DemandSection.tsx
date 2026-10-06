@@ -1,12 +1,14 @@
 import axios from "axios"
-import { AlertCircle } from "lucide-react"
 import { DemandChart, CONTRACTED_COLOR, MEASURED_COLOR } from "@/components/dashboard/DemandChart"
+import { SectionError, SectionSkeleton, SectionStat } from "@/components/dashboard/SectionParts"
 import { Blueprint } from "@/components/ui/Blueprint"
-import { Button } from "@/components/ui/Button"
 import { useDemandOverview } from "@/hooks/queries/useDemandOverview"
-import { cn } from "@/lib/cn"
-import { describeContracted, describeExceedance, formatDemandKw } from "@/lib/demandOverview"
-import { GOAL_TONE_TEXT_CLASS, type GoalTone } from "@/lib/goals"
+import {
+    describeContracted,
+    describeExceedance,
+    formatDemandKw,
+    maxExceedsContracted,
+} from "@/lib/demandOverview"
 import type { DemandOverview } from "@/types/demand.types"
 
 const MODALITY_LABELS = { GREEN: "Verde", BLUE: "Azul" } as const
@@ -31,8 +33,10 @@ export const DemandSection = ({ propertyId, propertyName }: DemandSectionProps) 
     return (
         <Blueprint className="p-0" data-testid="demand-section">
             <DemandHeader propertyName={propertyName} modality={query.data?.modality} />
-            {query.isLoading && <DemandSkeleton />}
-            {query.isError && (
+            {query.isLoading && (
+                <SectionSkeleton label="Carregando demanda" testId="demand-skeleton" />
+            )}
+            {query.isError && !query.data && (
                 <DemandProblem error={query.error} onRetry={() => void query.refetch()} />
             )}
             {query.data && <DemandBody overview={query.data} />}
@@ -72,14 +76,32 @@ const DemandBody = ({ overview }: { overview: DemandOverview }) => {
                 className="border-divider m-0 grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] border-b"
                 data-testid="demand-stats"
             >
-                <Stat label="Demanda atual" value={formatDemandKw(overview.current.kw)} />
-                <Stat
+                <SectionStat
+                    size="md"
+                    label="Demanda atual"
+                    value={formatDemandKw(overview.current.kw)}
+                />
+                <SectionStat
+                    size="md"
                     label="Máxima do mês"
                     value={formatDemandKw(overview.monthMax.kw)}
-                    tone={exceedance.tone === "danger" ? "danger" : undefined}
+                    tone={
+                        maxExceedsContracted(overview.monthMax, overview.contracted)
+                            ? "danger"
+                            : undefined
+                    }
                 />
-                <Stat label="Contratada" value={describeContracted(overview.contracted)} />
-                <Stat label="Ultrapassagem" value={exceedance.label} tone={exceedance.tone} />
+                <SectionStat
+                    size="md"
+                    label="Contratada"
+                    value={describeContracted(overview.contracted)}
+                />
+                <SectionStat
+                    size="md"
+                    label="Ultrapassagem"
+                    value={exceedance.label}
+                    tone={exceedance.tone}
+                />
             </dl>
             <div className="p-5">
                 <DemandChart points={overview.day.points} />
@@ -88,46 +110,11 @@ const DemandBody = ({ overview }: { overview: DemandOverview }) => {
     )
 }
 
-interface StatProps {
-    label: string
-    value: string
-    tone?: GoalTone
-}
-
-const Stat = ({ label, value, tone }: StatProps) => (
-    <div className="border-divider border-l px-5 py-4">
-        <dt className="font-heading text-muted text-10 font-semibold tracking-[.07em] uppercase">
-            {label}
-        </dt>
-        <dd
-            className={cn(
-                "font-heading text-24 m-0 mt-2 leading-none font-semibold tabular-nums",
-                tone && GOAL_TONE_TEXT_CLASS[tone],
-            )}
-        >
-            {value}
-        </dd>
-    </div>
-)
-
 const LegendItem = ({ color, label }: { color: string; label: string }) => (
     <li className="text-12 inline-flex items-center gap-2">
         <span aria-hidden="true" className="h-0.5 w-3.5" style={{ backgroundColor: color }} />
         {label}
     </li>
-)
-
-const DemandSkeleton = () => (
-    <div
-        className="flex flex-col gap-2 p-5"
-        aria-busy="true"
-        aria-label="Carregando demanda"
-        data-testid="demand-skeleton"
-    >
-        {[0, 1, 2].map((i) => (
-            <div key={i} className="bg-divider h-10 animate-pulse" />
-        ))}
-    </div>
 )
 
 /** Mensagem que o servidor mandou num erro de validação, para o usuário saber o que falta. */
@@ -164,18 +151,5 @@ const DemandProblem = ({ error, onRetry }: DemandProblemProps) => {
             </p>
         )
     }
-    return (
-        <div
-            role="alert"
-            className="border-status-danger/40 m-5 flex flex-wrap items-center gap-3 border p-4"
-        >
-            <AlertCircle className="text-status-danger h-5 w-5 shrink-0" aria-hidden="true" />
-            <p className="text-status-danger/85 m-0 flex-1 text-sm">
-                Não foi possível carregar a demanda.
-            </p>
-            <Button onClick={onRetry} variant="secondary">
-                Tentar novamente
-            </Button>
-        </div>
-    )
+    return <SectionError message="Não foi possível carregar a demanda." onRetry={onRetry} />
 }

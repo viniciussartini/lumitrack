@@ -29,7 +29,7 @@ const verde = (override: Partial<DemandOverview> = {}): DemandOverview => ({
     windowMinutes: 15,
     contracted: [{ post: null, kw: 200 }],
     current: { kw: 150, windowEnd: "2026-10-16T15:29:00.000Z" },
-    monthMax: { kw: 180, windowEnd: "2026-10-09T21:14:00.000Z" },
+    monthMax: { kw: 180, windowEnd: "2026-10-09T21:14:00.000Z", post: "OFF_PEAK" },
     exceedancePercent: 0,
     day: { date: "2026-10-16", points: points() },
     ...override,
@@ -89,7 +89,10 @@ describe("DemandSection — cards", () => {
 
     it("ultrapassagem mostra o percentual sobre a contratada, e a máxima fica em vermelho", async () => {
         vi.mocked(demandService.overview).mockResolvedValue(
-            verde({ monthMax: { kw: 230, windowEnd: null }, exceedancePercent: 15 }),
+            verde({
+                monthMax: { kw: 230, windowEnd: null, post: "OFF_PEAK" },
+                exceedancePercent: 15,
+            }),
         )
         renderSection()
 
@@ -100,11 +103,32 @@ describe("DemandSection — cards", () => {
         expect(stat("Máxima do mês")).toHaveClass("text-status-danger")
     })
 
+    it("Azul: a máxima do posto folgado não fica vermelha, mesmo com a ponta estourada", async () => {
+        vi.mocked(demandService.overview).mockResolvedValue(
+            verde({
+                modality: "BLUE",
+                contracted: [
+                    { post: "PEAK", kw: 150 },
+                    { post: "OFF_PEAK", kw: 250 },
+                ],
+                monthMax: { kw: 200, windowEnd: null, post: "OFF_PEAK" },
+                exceedancePercent: 20,
+            }),
+        )
+        renderSection()
+
+        expect(await screen.findByText("Ultrapassagem")).toBeInTheDocument()
+        expect(stat("Ultrapassagem")).toHaveTextContent("+20,0%")
+        expect(stat("Ultrapassagem")).toHaveClass("text-status-danger")
+        expect(stat("Máxima do mês")).toHaveTextContent("200 kW")
+        expect(stat("Máxima do mês")).not.toHaveClass("text-status-danger")
+    })
+
     it("sem janela medida tudo é '-', nunca 0 kW", async () => {
         vi.mocked(demandService.overview).mockResolvedValue(
             verde({
                 current: { kw: null, windowEnd: "2026-10-16T15:29:00.000Z" },
-                monthMax: { kw: null, windowEnd: null },
+                monthMax: { kw: null, windowEnd: null, post: null },
                 exceedancePercent: null,
                 day: { date: "2026-10-16", points: points(() => ({ kw: null })) },
             }),
@@ -198,11 +222,30 @@ describe("DemandSection — estados", () => {
         ).toBeInTheDocument()
     })
 
+    it("a leitura da propriedade segue na tela quando um refetch em segundo plano falha", async () => {
+        const queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: false, gcTime: 0 } },
+        })
+        render(
+            <QueryClientProvider client={queryClient}>
+                <DemandSection propertyId="prop-1" propertyName="Galpão" />
+            </QueryClientProvider>,
+        )
+        await screen.findByText("Demanda atual")
+
+        vi.mocked(demandService.overview).mockRejectedValue(httpError(500))
+        await queryClient.refetchQueries({ queryKey: ["demand"] })
+
+        expect(stat("Demanda atual")).toHaveTextContent("150 kW")
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+    })
+
     it("falha de rede mostra o alerta e tenta de novo", async () => {
         vi.mocked(demandService.overview).mockRejectedValue(httpError(500))
         renderSection()
 
-        const alert = await screen.findByRole("alert")
+        // erro de servidor é repetido uma vez (1 s) antes de virar alerta
+        const alert = await screen.findByRole("alert", {}, { timeout: 4000 })
         expect(alert).toHaveTextContent("Não foi possível carregar a demanda.")
 
         vi.mocked(demandService.overview).mockResolvedValue(verde())

@@ -1,12 +1,7 @@
 import type { TariffPost } from "@/generated/prisma/client.js"
 import type { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import { demandOverviewQuerySchema } from "@/modules/demand/demand.schema.js"
-import {
-    contractedKwForPost,
-    resolveMonthMax,
-    worstExceedancePercent,
-    type MonthMax,
-} from "@/modules/demand/demand-overview.js"
+import { contractedKwForPost, worstExceedancePercent } from "@/modules/demand/demand-overview.js"
 import type { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
 import type { MeterReadingRepository } from "@/modules/meter/meter-reading.repository.js"
 import type { MeterRepository } from "@/modules/meter/meter.repository.js"
@@ -17,7 +12,9 @@ import type {
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import {
     resolveContractedDemands,
+    resolveMonthMax,
     type ContractedDemand,
+    type MonthMax,
 } from "@/shared/tariff/contractedDemand.js"
 import {
     computeDemandDayPoints,
@@ -38,7 +35,7 @@ export type DemandOverviewPoint = {
     /** Demanda da janela, em kW; `null` se ainda não fechou ou está incompleta. */
     kw: number | null
     /** Posto da janela; `null` quando a distribuidora não tem janela de ponta (só Verde). */
-    post: TariffPost | null
+    post: TariffPost
     /** Demanda contratada que vale para a janela: a do posto dela. */
     contractedKw: number
 }
@@ -81,20 +78,17 @@ function periodBounds(now: Date): PeriodBounds {
     }
 }
 
-// Cada janela leva o posto do seu minuto final e a contratada desse posto; sem
-// janela de ponta (só a Verde chega aqui) o posto fica indefinido.
+// Cada janela leva o posto do seu minuto final e a contratada desse posto.
 function buildDayPoints(
     readings: { minuteStart: Date; avgPowerW: number; secondsCovered: number }[],
     bounds: PeriodBounds,
     contracted: ContractedDemand[],
-    peakWindow: PeakWindowConfig | null,
+    peakWindow: PeakWindowConfig,
 ): DemandOverviewPoint[] {
     const holidays = getNationalHolidays(Number(bounds.date.slice(0, 4)))
     return computeDemandDayPoints(readings, bounds.dayStart, bounds.lastClosedMinute).map(
         (point) => {
-            const post = peakWindow
-                ? classifyPost(toSaoPauloLocal(point.windowEnd), peakWindow, holidays)
-                : null
+            const post = classifyPost(toSaoPauloLocal(point.windowEnd), peakWindow, holidays)
             return {
                 windowEnd: point.windowEnd,
                 kw: point.avgPowerW === null ? null : point.avgPowerW / 1000,
@@ -138,13 +132,12 @@ export class DemandOverviewService {
      */
     async overview(userId: string, query: unknown): Promise<DemandOverviewResponse> {
         const { propertyId } = parseOrThrow(demandOverviewQuerySchema, query)
-        const property = await this.getSupportedProperty(userId, propertyId)
-        const modality = property.tariffModality as "GREEN" | "BLUE"
+        const { property, modality } = await this.getSupportedProperty(userId, propertyId)
         const contracted = resolveContractedDemands(property, modality)
 
         const meter = await this.meterRepository.findByTarget("PROPERTY", propertyId)
         if (!meter) throw new NotFoundError("Esta propriedade não possui medidor vinculado")
-        const peakWindow = await this.resolvePeakWindow(property, modality)
+        const peakWindow = await this.resolvePeakWindow(property)
 
         const bounds = periodBounds(this.now())
 
@@ -188,28 +181,27 @@ export class DemandOverviewService {
     private async getSupportedProperty(
         userId: string,
         propertyId: string,
-    ): Promise<PropertyResponse> {
+    ): Promise<{ property: PropertyResponse; modality: "GREEN" | "BLUE" }> {
         const property = await this.propertyRepository.findById(propertyId)
         if (!property) throw new NotFoundError("Propriedade não encontrada")
         if (property.userId !== userId) throw new ForbiddenError("Acesso negado")
         if (property.tariffGroup !== "GROUP_A") {
             throw new ValidationError("A demanda contratada só se aplica a propriedades do Grupo A")
         }
-        if (property.tariffModality !== "GREEN" && property.tariffModality !== "BLUE") {
+        const modality = property.tariffModality
+        if (modality !== "GREEN" && modality !== "BLUE") {
             throw new ValidationError(
                 "Cálculo de conta do Grupo A ainda não suportado para esta modalidade tarifária",
             )
         }
-        return property
+        return { property, modality }
     }
 
-    // Sem janela de ponta a Azul não tem como saber qual contratada vale em cada
-    // janela e falha fechada, sem adivinhar 18h-21h; a Verde, que tem uma
-    // demanda só, segue sem classificar o posto.
-    private async resolvePeakWindow(
-        property: PropertyResponse,
-        modality: "GREEN" | "BLUE",
-    ): Promise<PeakWindowConfig | null> {
+    // Sem janela de ponta falha fechada nas duas modalidades, sem adivinhar
+    // 18h-21h: a Azul não sabe qual contratada vale em cada janela, e o rollup de
+    // demanda só roda com janela configurada, então na Verde a máxima do mês e a
+    // ultrapassagem nunca existiriam e a tela diria "sem medição" sem ser verdade.
+    private async resolvePeakWindow(property: PropertyResponse): Promise<PeakWindowConfig> {
         const distributor = await this.distributorRepository.findById(property.distributorId)
         if (!distributor) throw new NotFoundError("Distribuidora vinculada não encontrada")
 
@@ -217,9 +209,6 @@ export class DemandOverviewService {
         if (peakWindowStartHour !== null && peakWindowEndHour !== null) {
             return { peakWindowStartHour, peakWindowEndHour }
         }
-        if (modality === "BLUE") {
-            throw new ValidationError("Distribuidora sem janela de ponta configurada")
-        }
-        return null
+        throw new ValidationError("Distribuidora sem janela de ponta configurada")
     }
 }

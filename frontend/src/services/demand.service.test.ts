@@ -11,7 +11,7 @@ const overview: DemandOverview = {
     windowMinutes: 15,
     contracted: [{ post: null, kw: 200 }],
     current: { kw: 150, windowEnd: "2026-10-16T15:29:00.000Z" },
-    monthMax: { kw: 180, windowEnd: "2026-10-09T21:14:00.000Z" },
+    monthMax: { kw: 180, windowEnd: "2026-10-09T21:14:00.000Z", post: "OFF_PEAK" },
     exceedancePercent: 0,
     day: { date: "2026-10-16", points: [] },
 }

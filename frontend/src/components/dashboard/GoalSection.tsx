@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react"
-import { AlertCircle } from "lucide-react"
 import { Link } from "react-router"
+import { SectionError, SectionSkeleton, SectionStat } from "@/components/dashboard/SectionParts"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { Button } from "@/components/ui/Button"
 import { GoalPaceChart, type PacePeriod } from "@/components/dashboard/GoalPaceChart"
@@ -8,7 +8,6 @@ import { REALIZED_COLOR, TARGET_COLOR } from "@/components/goal/GoalProgressChar
 import { useConsumption } from "@/hooks/queries/useConsumption"
 import { useGoalProgress } from "@/hooks/queries/useGoals"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
-import { cn } from "@/lib/cn"
 import { daysInMonth } from "@/lib/dashboardKpis"
 import { resolveMonthlyHistoryWindow } from "@/lib/consumptionWindow"
 import {
@@ -19,7 +18,6 @@ import {
     type PaceUnit,
 } from "@/lib/goalPace"
 import {
-    GOAL_TONE_TEXT_CLASS,
     MONTH_LABELS,
     currentGoalMonthIndex,
     currentGoalYear,
@@ -157,11 +155,12 @@ const GoalBody = ({ propertyId, period, unit }: GoalBodyProps) => {
     const year = currentGoalYear(now)
     const progressQuery = useGoalProgress(propertyId)
 
-    if (progressQuery.isLoading) return <GoalSkeleton />
+    if (progressQuery.isLoading)
+        return <SectionSkeleton label="Carregando meta de consumo" testId="goal-skeleton" />
 
     if (progressQuery.isError) {
         return (
-            <GoalError
+            <SectionError
                 message={
                     progressQuery.error instanceof Error
                         ? progressQuery.error.message
@@ -240,7 +239,8 @@ const MonthBody = ({ propertyId, goal, unit, now }: MonthBodyProps) => {
         { from: monthWindow.from, to: monthWindow.to, order: "asc" },
     )
 
-    if (meterQuery.isLoading || (hasMeter && dailyQuery.isLoading)) return <GoalSkeleton />
+    if (meterQuery.isLoading || (hasMeter && dailyQuery.isLoading))
+        return <SectionSkeleton label="Carregando meta de consumo" testId="goal-skeleton" />
 
     if (!hasMeter) {
         return (
@@ -250,7 +250,7 @@ const MonthBody = ({ propertyId, goal, unit, now }: MonthBodyProps) => {
 
     if (dailyQuery.isError) {
         return (
-            <GoalError
+            <SectionError
                 message={
                     dailyQuery.error instanceof Error
                         ? dailyQuery.error.message
@@ -287,6 +287,9 @@ const MonthPace = ({ goal, unit, now, buckets }: MonthPaceProps) => {
             targetLabel="Meta do mês"
             accumulatedLabel={closedDays > 0 ? `Acumulado · até o dia ${closedDays}` : "Acumulado"}
             note={monthNote(unit, costUnavailable)}
+            // Em R$ a projeção é só da parte variável e a meta é a cheia: a situação
+            // erraria sempre a favor, então não se mostra.
+            showSituation={unit !== "BRL"}
         />
     )
 }
@@ -296,7 +299,7 @@ const monthNote = (unit: PaceUnit, costUnavailable: boolean): string | undefined
         return "O custo diário não é calculado para a tarifa desta propriedade (Grupo A e Tarifa Branca só têm custo no mês fechado). Use o Ano ou o consumo em kWh."
     }
     if (unit === "BRL") {
-        return "Custo diário sem cobranças fixas (piso, iluminação pública e demanda): a projeção vale só para a parte variável, e a página Metas conta o mês cheio."
+        return "Custo diário sem cobranças fixas (piso, iluminação pública e demanda): a projeção vale só para a parte variável, e a página Metas conta o mês cheio. Por isso não há situação contra a meta."
     }
     return undefined
 }
@@ -309,6 +312,8 @@ interface PaceBodyProps {
     targetLabel: string
     accumulatedLabel: string
     note?: string
+    /** Falso esconde a Situação e tira da projeção a cor de veredito. */
+    showSituation?: boolean
 }
 
 const PaceBody = ({
@@ -319,8 +324,11 @@ const PaceBody = ({
     targetLabel,
     accumulatedLabel,
     note,
+    showSituation = true,
 }: PaceBodyProps) => {
     const situationTone: GoalTone = deviationTone(pace.situationPercent)
+    const projectionTone =
+        showSituation && pace.situationPercent !== null ? situationTone : undefined
 
     return (
         <>
@@ -328,27 +336,29 @@ const PaceBody = ({
                 className="border-divider m-0 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] border-b"
                 data-testid="goal-stats"
             >
-                <Stat label={targetLabel} value={formatGoalValue(target, unit)} />
-                <Stat
+                <SectionStat label={targetLabel} value={formatGoalValue(target, unit)} />
+                <SectionStat
                     label={accumulatedLabel}
                     value={
                         pace.accumulated === null ? "-" : formatGoalValue(pace.accumulated, unit)
                     }
                 />
-                <Stat
+                <SectionStat
                     label="Projeção de fechamento"
                     value={pace.projected === null ? "-" : formatGoalValue(pace.projected, unit)}
-                    tone={pace.situationPercent === null ? undefined : situationTone}
+                    tone={projectionTone}
                 />
-                <Stat
-                    label="Situação"
-                    value={
-                        pace.situationPercent === null
-                            ? "-"
-                            : `${formatDeviation(pace.situationPercent)} vs. meta`
-                    }
-                    tone={pace.situationPercent === null ? undefined : situationTone}
-                />
+                {showSituation && (
+                    <SectionStat
+                        label="Situação"
+                        value={
+                            pace.situationPercent === null
+                                ? "-"
+                                : `${formatDeviation(pace.situationPercent)} vs. meta`
+                        }
+                        tone={pace.situationPercent === null ? undefined : situationTone}
+                    />
+                )}
             </dl>
             {note && (
                 <p className="text-muted text-12-5 m-0 px-5 pt-4" data-testid="goal-note">
@@ -411,41 +421,6 @@ const LegendItem = ({ color, label, dashed = false }: LegendItemProps) => (
     </li>
 )
 
-interface StatProps {
-    label: string
-    value: string
-    tone?: GoalTone
-}
-
-const Stat = ({ label, value, tone }: StatProps) => (
-    <div className="border-divider border-l px-5 py-4">
-        <dt className="font-heading text-muted text-10 font-semibold tracking-[.07em] uppercase">
-            {label}
-        </dt>
-        <dd
-            className={cn(
-                "font-heading text-26 m-0 mt-2 leading-none font-semibold",
-                tone && GOAL_TONE_TEXT_CLASS[tone],
-            )}
-        >
-            {value}
-        </dd>
-    </div>
-)
-
-const GoalSkeleton = () => (
-    <div
-        className="flex flex-col gap-2 p-5"
-        aria-busy="true"
-        aria-label="Carregando meta de consumo"
-        data-testid="goal-skeleton"
-    >
-        {[0, 1, 2].map((i) => (
-            <div key={i} className="bg-divider h-10 animate-pulse" />
-        ))}
-    </div>
-)
-
 interface GoalEmptyProps {
     message: string
     action?: ReactNode
@@ -458,23 +433,5 @@ const GoalEmpty = ({ message, action }: GoalEmptyProps) => (
     >
         <p className="text-muted m-0 text-sm">{message}</p>
         {action}
-    </div>
-)
-
-interface GoalErrorProps {
-    message: string
-    onRetry: () => void
-}
-
-const GoalError = ({ message, onRetry }: GoalErrorProps) => (
-    <div
-        role="alert"
-        className="border-status-danger/40 m-5 flex flex-wrap items-center gap-3 border p-4"
-    >
-        <AlertCircle className="text-status-danger h-5 w-5 shrink-0" aria-hidden="true" />
-        <p className="text-status-danger/85 m-0 flex-1 text-sm">{message}</p>
-        <Button onClick={onRetry} variant="secondary">
-            Tentar novamente
-        </Button>
     </div>
 )

@@ -183,6 +183,16 @@ describe("DemandOverviewService — acesso", () => {
 
         await expect(service.overview(setup.user.id, query(setup))).rejects.toThrow(/ponta/i)
     })
+
+    // O rollup de demanda só roda com janela de ponta configurada: sem ela a máxima
+    // do mês e a ultrapassagem nunca existiriam, e a tela diria "sem medição".
+    it("Verde sem janela de ponta também falha fechada, em vez de um '-' permanente", async () => {
+        const setup = await setupGroupA("GREEN", { peakWindow: false })
+
+        await expect(service.overview(setup.user.id, query(setup))).rejects.toThrow(
+            /janela de ponta/i,
+        )
+    })
 })
 
 describe("DemandOverviewService — dia sem janela medida", () => {
@@ -192,7 +202,7 @@ describe("DemandOverviewService — dia sem janela medida", () => {
         const result = await service.overview(setup.user.id, query(setup))
 
         expect(result.current.kw).toBeNull()
-        expect(result.monthMax).toEqual({ kw: null, windowEnd: null })
+        expect(result.monthMax).toEqual({ kw: null, windowEnd: null, post: null })
         expect(result.exceedancePercent).toBeNull()
         expect(result.day.points).toHaveLength(96)
         expect(result.day.points.every((point) => point.kw === null)).toBe(true)
@@ -270,7 +280,7 @@ describe("DemandOverviewService — Verde", () => {
 
         const result = await service.overview(setup.user.id, query(setup))
 
-        expect(result.monthMax).toEqual({ kw: 230, windowEnd })
+        expect(result.monthMax).toEqual({ kw: 230, windowEnd, post: "PEAK" })
         expect(result.exceedancePercent).toBeCloseTo(15)
     })
 
@@ -332,6 +342,23 @@ describe("DemandOverviewService — Azul", () => {
         expect(at(12)).toBe(250)
         expect(at(19)).toBe(150)
         expect(at(22)).toBe(250)
+    })
+
+    it("a máxima do mês diz de qual posto é, para a tela não pintar o posto folgado", async () => {
+        const setup = await setupGroupA("BLUE")
+        const end = new Date("2026-10-09T15:14:00Z")
+        await rollupRepository.upsertIfGreater(setup.meter!.id, MONTH_START, "PEAK", 180_000, end)
+        await rollupRepository.upsertIfGreater(
+            setup.meter!.id,
+            MONTH_START,
+            "OFF_PEAK",
+            200_000,
+            end,
+        )
+
+        const result = await service.overview(setup.user.id, query(setup))
+
+        expect(result.monthMax).toMatchObject({ kw: 200, post: "OFF_PEAK" })
     })
 
     it("a ultrapassagem é o pior estouro entre os postos", async () => {

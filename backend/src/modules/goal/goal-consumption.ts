@@ -1,9 +1,13 @@
 import type { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
 import type { ConsumptionService } from "@/modules/consumption/consumption.service.js"
 import type { GoalUnit } from "@/generated/prisma/client.js"
-import type { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
+import type {
+    MeterDemandRollupRepository,
+    MeterDemandRollupResponse,
+} from "@/modules/meter/meter-demand-rollup.repository.js"
 import type { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
+import { measuredDemandKwOrNull } from "@/shared/tariff/contractedDemand.js"
 import { fromSaoPauloLocal, toSaoPauloLocal } from "@/shared/time/localTime.js"
 
 /** Valor por mês de uma propriedade (kWh ou R$), indexado por ano e mês; mês sem dado fica fora. */
@@ -125,11 +129,16 @@ export class GoalConsumptionReader {
         }
 
         const rows = await this.demandRollups.findByMeterAndPeriods(meter.id, periodStarts)
-        const peakByMonth = new Map<string, number>()
+        const rowsByMonth = new Map<string, MeterDemandRollupResponse[]>()
         for (const row of rows) {
             const periodLocal = toSaoPauloLocal(row.periodStart)
             const key = `${periodLocal.getUTCFullYear()}-${periodLocal.getUTCMonth()}`
-            peakByMonth.set(key, Math.max(peakByMonth.get(key) ?? 0, row.maxAvgPowerW / 1000))
+            rowsByMonth.set(key, [...(rowsByMonth.get(key) ?? []), row])
+        }
+        const peakByMonth = new Map<string, number>()
+        for (const [key, monthRows] of rowsByMonth) {
+            const peak = measuredDemandKwOrNull(null, monthRows)
+            if (peak !== null) peakByMonth.set(key, peak)
         }
         return new MonthlyValues(peakByMonth)
     }

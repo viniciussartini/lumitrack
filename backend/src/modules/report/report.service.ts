@@ -31,7 +31,7 @@ import { UnsupportedReportTargetError } from "@/modules/report/report.errors.js"
 import { buildAlertsDocument } from "@/modules/report/documents/alertsDocument.js"
 import { buildDemandDocument, type DemandRow } from "@/modules/report/documents/demandDocument.js"
 import { buildPowerQualityDocument } from "@/modules/report/documents/powerQualityDocument.js"
-import { resolveContractedDemands } from "@/shared/tariff/contractedDemand.js"
+import { resolveContractedDemands, resolveMonthMax } from "@/shared/tariff/contractedDemand.js"
 import { generateReportCsv } from "@/modules/report/generators/reportCsv.js"
 import { generateReportPdf } from "@/modules/report/generators/reportPdf.js"
 import { buildReportFileName } from "@/modules/report/generators/format.js"
@@ -421,15 +421,12 @@ export class ReportService {
             // Verde tem uma demanda só, comparada com o maior valor entre os postos.
             const candidates =
                 demand.post === null ? rollups : rollups.filter((row) => row.post === demand.post)
-            const peak = candidates.reduce<(typeof rollups)[number] | null>(
-                (best, row) => (best === null || row.maxAvgPowerW > best.maxAvgPowerW ? row : best),
-                null,
-            )
+            const peak = resolveMonthMax(candidates)
             return {
                 postLabel: demand.post === null ? "Único" : POST_LABELS[demand.post],
                 contractedKw: demand.contractedDemandKw,
-                measuredKw: peak ? peak.maxAvgPowerW / 1000 : null,
-                peakAt: peak?.windowEndAt ?? null,
+                measuredKw: peak.kw,
+                peakAt: peak.windowEnd,
             }
         })
         return buildDemandDocument(base, modality === "GREEN" ? "Verde" : "Azul", rows)
@@ -549,8 +546,9 @@ export class ReportService {
 
     // O custo mensal reaproveita o cálculo do módulo de consumo. Sub-níveis do
     // Grupo A e da Tarifa Branca não têm custo calculável (a conta é da
-    // propriedade inteira) e lá falham com ValidationError — aqui isso vira
-    // "sem custo", não relatório quebrado.
+    // propriedade inteira): o consumo volta sem `costBrl` e aqui isso vira "sem
+    // custo", não relatório quebrado. O `catch` de ValidationError cobre o que
+    // sobra, como a modalidade do Grupo A ainda sem cálculo.
     private async resolveMonthCost(
         userId: string,
         input: Extract<CreateReportInput, { type: "MONTHLY" }>,

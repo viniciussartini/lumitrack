@@ -4,6 +4,7 @@ import {
     describeContracted,
     describeExceedance,
     formatDemandKw,
+    maxExceedsContracted,
     peakBand,
 } from "@/lib/demandOverview"
 import type { DemandPoint } from "@/types/demand.types"
@@ -90,11 +91,33 @@ describe("peakBand", () => {
         expect(peakBand(buildDemandSeries(points))).toEqual({ from: 1080, to: 1260 })
     })
 
-    it("sem janela de ponta (fim de semana, feriado, sem posto) não há faixa", () => {
+    it("sem janela de ponta no dia (fim de semana, feriado) não há faixa", () => {
         const offPeak = Array.from({ length: 96 }, (_, block) => point(block))
-        const noPost = Array.from({ length: 96 }, (_, block) => point(block, { post: null }))
 
         expect(peakBand(buildDemandSeries(offPeak))).toBeNull()
-        expect(peakBand(buildDemandSeries(noPost))).toBeNull()
+    })
+})
+
+describe("maxExceedsContracted", () => {
+    const azul = [
+        { post: "PEAK" as const, kw: 150 },
+        { post: "OFF_PEAK" as const, kw: 250 },
+    ]
+
+    it("Verde: a máxima passou da contratada única", () => {
+        const verde = [{ post: null, kw: 200 }]
+
+        expect(maxExceedsContracted({ kw: 230, post: "PEAK" }, verde)).toBe(true)
+        expect(maxExceedsContracted({ kw: 180, post: "OFF_PEAK" }, verde)).toBe(false)
+    })
+
+    it("Azul: a máxima só passou se passou da contratada do próprio posto", () => {
+        // 200 kW fora de ponta, com 250 contratados: dentro, mesmo que a ponta tenha estourado
+        expect(maxExceedsContracted({ kw: 200, post: "OFF_PEAK" }, azul)).toBe(false)
+        expect(maxExceedsContracted({ kw: 180, post: "PEAK" }, azul)).toBe(true)
+    })
+
+    it("sem medição não há estouro", () => {
+        expect(maxExceedsContracted({ kw: null, post: null }, azul)).toBe(false)
     })
 })

@@ -1,9 +1,8 @@
 import { useState, type ReactNode } from "react"
-import { AlertCircle } from "lucide-react"
 import { AreaWeightChart } from "@/components/dashboard/AreaWeightChart"
 import { AreaWeightMenu } from "@/components/dashboard/AreaWeightMenu"
+import { SectionError, SectionSkeleton } from "@/components/dashboard/SectionParts"
 import { Blueprint } from "@/components/ui/Blueprint"
-import { Button } from "@/components/ui/Button"
 import { usePropertyTree } from "@/hooks/queries/usePropertyTree"
 import { useSummaryItems } from "@/hooks/useSummaryItems"
 import { buildAreaWeightEntries, computeAreaWeights } from "@/lib/areaWeight"
@@ -37,9 +36,14 @@ export const AreaWeightSection = ({ propertyId, propertyName }: AreaWeightSectio
             ) : (
                 <>
                     <AreaWeightHeader propertyName={propertyName} />
-                    {treeQuery.isPending && <WeightSkeleton />}
+                    {treeQuery.isPending && (
+                        <SectionSkeleton
+                            label="Carregando peso de cada medidor"
+                            testId="area-weight-skeleton"
+                        />
+                    )}
                     {treeQuery.isError && (
-                        <WeightError
+                        <SectionError
                             message="Não foi possível carregar a hierarquia."
                             onRetry={() => void treeQuery.refetch()}
                         />
@@ -140,10 +144,16 @@ const WeightContent = ({
     entries,
     deselectedIds,
 }: WeightContentProps) => {
-    if (isLoading) return <WeightSkeleton />
+    if (isLoading)
+        return (
+            <SectionSkeleton
+                label="Carregando peso de cada medidor"
+                testId="area-weight-skeleton"
+            />
+        )
     if (isError) {
         return (
-            <WeightError message="Não foi possível carregar o consumo do mês." onRetry={onRetry} />
+            <SectionError message="Não foi possível carregar o consumo do mês." onRetry={onRetry} />
         )
     }
     if (entries.length === 0) {
@@ -169,35 +179,4 @@ const WeightMessage = ({ children }: { children: ReactNode }) => (
     <p role="status" className="text-muted text-13 m-0 px-5 py-8 text-center">
         {children}
     </p>
-)
-
-const WeightSkeleton = () => (
-    <div
-        className="flex flex-col gap-2 p-5"
-        aria-busy="true"
-        aria-label="Carregando peso de cada medidor"
-        data-testid="area-weight-skeleton"
-    >
-        {[0, 1, 2].map((i) => (
-            <div key={i} className="bg-divider h-10 animate-pulse" />
-        ))}
-    </div>
-)
-
-interface WeightErrorProps {
-    message: string
-    onRetry: () => void
-}
-
-const WeightError = ({ message, onRetry }: WeightErrorProps) => (
-    <div
-        role="alert"
-        className="border-status-danger/40 m-5 flex flex-wrap items-center gap-3 border p-4"
-    >
-        <AlertCircle className="text-status-danger h-5 w-5 shrink-0" aria-hidden="true" />
-        <p className="text-status-danger/85 m-0 flex-1 text-sm">{message}</p>
-        <Button onClick={onRetry} variant="secondary">
-            Tentar novamente
-        </Button>
-    </div>
 )

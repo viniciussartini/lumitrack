@@ -6,8 +6,8 @@ export interface DemandPoint {
     windowEnd: string
     /** Demanda da janela em kW; nulo se ainda não fechou ou está incompleta: ausência, não zero. */
     kw: number | null
-    /** Posto da janela; nulo quando a distribuidora não tem janela de ponta (só Verde). */
-    post: TariffPost | null
+    /** Posto da janela. */
+    post: TariffPost
     /** Demanda contratada que vale para a janela: a do posto dela. */
     contractedKw: number
 }
@@ -27,7 +27,7 @@ export interface DemandOverview {
     /** Janela de 15 minutos que termina no último minuto fechado. */
     current: { kw: number | null; windowEnd: string }
     /** Maior demanda do mês entre os postos; nulo sem janela medida. */
-    monthMax: { kw: number | null; windowEnd: string | null }
+    monthMax: { kw: number | null; windowEnd: string | null; post: TariffPost | null }
     /** Pior estouro sobre a contratada, em %; 0 sem estouro; nulo sem janela medida. */
     exceedancePercent: number | null
     day: { date: string; points: DemandPoint[] }

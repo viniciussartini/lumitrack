@@ -190,6 +190,32 @@ describe("GoalSection — Mês em R$", () => {
         expect(screen.getByTestId("goal-note")).toHaveTextContent(/sem cobranças fixas/i)
     })
 
+    it("não mostra a Situação: a projeção só-variável contra a meta cheia erraria sempre a favor", async () => {
+        mockConsumption(firstFifteenDays(10, 8))
+        renderSection()
+
+        await screen.findByText("Acumulado · até o dia 15")
+        await userEvent.setup().click(screen.getByTestId("goal-unit-BRL"))
+
+        expect(screen.queryByText("Situação", { selector: "dt" })).not.toBeInTheDocument()
+        expect(stat("Projeção de fechamento")).toHaveTextContent("R$ 248")
+        // sem situação a projeção não ganha cor de veredito
+        expect(stat("Projeção de fechamento")).not.toHaveClass("text-status-success")
+        expect(stat("Projeção de fechamento")).not.toHaveClass("text-status-danger")
+    })
+
+    it("a Situação continua no Mês em kWh e no Ano em R$", async () => {
+        renderSection()
+        await screen.findByText("Acumulado · até o dia 15")
+        expect(screen.getByText("Situação", { selector: "dt" })).toBeInTheDocument()
+
+        const user = userEvent.setup()
+        await user.click(screen.getByTestId("goal-unit-BRL"))
+        await user.click(screen.getByTestId("goal-period-year"))
+
+        expect(screen.getByText("Situação", { selector: "dt" })).toBeInTheDocument()
+    })
+
     it("sem custo diário (Grupo A e Tarifa Branca) explica e mostra '-', sem 0", async () => {
         mockConsumption(firstFifteenDays(10))
         renderSection()

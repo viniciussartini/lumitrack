@@ -1,5 +1,5 @@
 import { formatDeviation, type GoalTone } from "@/lib/goals"
-import type { ContractedDemand, DemandPoint } from "@/types/demand.types"
+import type { ContractedDemand, DemandOverview, DemandPoint } from "@/types/demand.types"
 
 const SAO_PAULO_TZ = "America/Sao_Paulo"
 const WINDOW_MINUTES = 15
@@ -33,6 +33,20 @@ export const describeExceedance = (percent: number | null): { label: string; ton
     if (percent === null) return { label: "-", tone: "muted" }
     if (percent <= 0) return { label: "sem ultrapassagem", tone: "success" }
     return { label: formatDeviation(percent), tone: "danger" }
+}
+
+/**
+ * A máxima do mês passou da demanda contratada do posto dela? Na Azul a maior
+ * demanda pode ser a do posto folgado, então só a contratada do próprio posto
+ * diz se o valor mostrado estourou (Verde tem uma contratada só).
+ */
+export const maxExceedsContracted = (
+    monthMax: Pick<DemandOverview["monthMax"], "kw" | "post">,
+    contracted: readonly ContractedDemand[],
+): boolean => {
+    if (monthMax.kw === null) return false
+    const limit = contracted.find((demand) => demand.post === monthMax.post) ?? contracted[0]
+    return limit !== undefined && monthMax.kw > limit.kw
 }
 
 /** Uma janela posicionada no eixo do dia. */

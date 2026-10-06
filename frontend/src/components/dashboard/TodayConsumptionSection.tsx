@@ -1,7 +1,7 @@
 import { useId } from "react"
-import { AlertCircle, ChevronDown, ChevronRight, Cpu, Home, LayoutGrid } from "lucide-react"
+import { ChevronDown, ChevronRight, Cpu, Home, LayoutGrid } from "lucide-react"
+import { SectionError, SectionSkeleton } from "@/components/dashboard/SectionParts"
 import { Blueprint } from "@/components/ui/Blueprint"
-import { Button } from "@/components/ui/Button"
 import { usePropertyTree } from "@/hooks/queries/usePropertyTree"
 import { useTodayConsumption } from "@/hooks/useTodayConsumption"
 import { useTodayTree, type TodayTreeContext } from "@/hooks/useTodayTree"
@@ -45,9 +45,14 @@ export const TodayConsumptionSection = ({
                     {propertyName} · abra a hierarquia para ver áreas e dispositivos
                 </span>
             </div>
-            {treeQuery.isPending && <TodaySkeleton />}
+            {treeQuery.isPending && (
+                <SectionSkeleton
+                    label="Carregando consumo de hoje"
+                    testId="today-consumption-skeleton"
+                />
+            )}
             {treeQuery.isError && (
-                <TodayError
+                <SectionError
                     message="Não foi possível carregar a hierarquia."
                     onRetry={() => void treeQuery.refetch()}
                 />
@@ -65,10 +70,16 @@ export const TodayConsumptionSection = ({
 const TodayBody = ({ property }: { property: PropertyTreeNode }) => {
     const today = useTodayConsumption(property)
 
-    if (today.isLoading) return <TodaySkeleton />
+    if (today.isLoading)
+        return (
+            <SectionSkeleton
+                label="Carregando consumo de hoje"
+                testId="today-consumption-skeleton"
+            />
+        )
     if (today.isError) {
         return (
-            <TodayError
+            <SectionError
                 message="Não foi possível carregar o consumo de hoje."
                 onRetry={today.refetch}
             />
@@ -219,34 +230,3 @@ const TodayRow = ({ node, level, context, item, groupId }: TodayRowProps) => {
         </div>
     )
 }
-
-const TodaySkeleton = () => (
-    <div
-        className="flex flex-col gap-2 p-5"
-        aria-busy="true"
-        aria-label="Carregando consumo de hoje"
-        data-testid="today-consumption-skeleton"
-    >
-        {[0, 1, 2].map((i) => (
-            <div key={i} className="bg-divider h-10 animate-pulse" />
-        ))}
-    </div>
-)
-
-interface TodayErrorProps {
-    message: string
-    onRetry: () => void
-}
-
-const TodayError = ({ message, onRetry }: TodayErrorProps) => (
-    <div
-        role="alert"
-        className="border-status-danger/40 m-5 flex flex-wrap items-center gap-3 border p-4"
-    >
-        <AlertCircle className="text-status-danger h-5 w-5 shrink-0" aria-hidden="true" />
-        <p className="text-status-danger/85 m-0 flex-1 text-sm">{message}</p>
-        <Button onClick={onRetry} variant="secondary">
-            Tentar novamente
-        </Button>
-    </div>
-)
