@@ -3,6 +3,7 @@ import { Link } from "react-router"
 import { useProperties } from "@/hooks/queries/useProperties"
 import { usePropertySelection } from "@/hooks/usePropertySelection"
 import { PropertySelector } from "@/components/dashboard/PropertySelector"
+import { AreaWeightSection } from "@/components/dashboard/AreaWeightSection"
 import { GoalSection } from "@/components/dashboard/GoalSection"
 import { TodayConsumptionSection } from "@/components/dashboard/TodayConsumptionSection"
 import { RealtimeSection } from "@/components/dashboard/RealtimeSection"
@@ -20,8 +21,9 @@ import { Button } from "@/components/ui/Button"
  * texto que o Header passou a mostrar.
  *
  * Os blocos novos vêm primeiro, na ordem do handoff `Home v2`: o consumo de
- * hoje (`TodayConsumptionSection`, numa grade onde o peso de cada medidor se
- * junta a ele) e a meta de consumo (`GoalSection`). Os blocos que o Painel já
+ * hoje (`TodayConsumptionSection`) e o peso de cada medidor
+ * (`AreaWeightSection`), lado a lado numa grade, e a meta de consumo
+ * (`GoalSection`). Os blocos que o Painel já
  * tinha descem e seguem abaixo, divergência deliberada do design v2, que não
  * os desenha.
  *
@@ -115,6 +117,11 @@ const PropertyBlocks = ({ propertyId, propertyName }: PropertyBlocksProps) => (
     <>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))] items-start gap-4">
             <TodayConsumptionSection propertyId={propertyId} propertyName={propertyName} />
+            <AreaWeightSection
+                key={propertyId}
+                propertyId={propertyId}
+                propertyName={propertyName}
+            />
         </div>
         <GoalSection propertyId={propertyId} propertyName={propertyName} />
         <RealtimeSection propertyId={propertyId} propertyName={propertyName} />

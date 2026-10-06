@@ -638,3 +638,77 @@ test.describe("Painel — consumo de hoje", () => {
         await expect(section.getByRole("treeitem", { name: /^Geladeira:/ })).toBeVisible()
     })
 })
+
+const WEIGHT_TREE = {
+    total: 1,
+    items: [
+        {
+            id: PROP_1.id,
+            name: PROP_1.name,
+            tariffGroup: "GROUP_B" as const,
+            areas: [
+                { id: "area-cozinha", name: "Cozinha", devices: [] },
+                { id: "area-sala", name: "Sala", devices: [] },
+                { id: "area-quintal", name: "Quintal", devices: [] },
+            ],
+        },
+    ],
+}
+
+test.describe("Painel — peso de cada medidor", () => {
+    test.beforeEach(async ({ context }) => {
+        await context.clearCookies()
+    })
+
+    test("mostra a participação das áreas com medidor e recalcula ao desmarcar", async ({
+        page,
+    }) => {
+        await page.clock.install({ time: new Date("2026-10-16T15:00:00.000Z") })
+        await setupDashboard(page)
+        await mockPropertyTree(page, () => WEIGHT_TREE)
+        const monthRequests: string[] = []
+        // Só as áreas com leitura no mês voltam; o Quintal fica de fora.
+        await page.route(/\/api\/consumption\/summary(\?.*)?$/, (route) => {
+            const url = new URL(route.request().url())
+            const isAreaMonth =
+                url.searchParams.get("targetType") === "AREA" &&
+                url.searchParams.get("granularity") === "month"
+            if (isAreaMonth) monthRequests.push(url.searchParams.get("ids") ?? "")
+            return fulfillJson(route, {
+                items: isAreaMonth
+                    ? [todayItem("area-cozinha", "AREA", 75), todayItem("area-sala", "AREA", 25)]
+                    : [],
+            })
+        })
+        await mockSseStream(page, sseEvent("connected", { meterCount: 0 }))
+
+        await page.goto("/dashboard")
+        await hideDevTools(page)
+
+        const section = page.getByTestId("area-weight-section")
+        const trigger = section.getByTestId("area-weight-menu-trigger")
+        await expect(trigger).toHaveText(/2 de 2 medidores/)
+        await expect(section.getByTestId("area-weight-chart").locator("li")).toHaveText([
+            /Cozinha\s*75%/,
+            /Sala\s*25%/,
+        ])
+        await expect(section.getByTestId("area-weight-chart-graphic")).toContainText("100")
+        // O desenho não pode entrar na ordem de tabulação (tabindex -1 só tira do Tab).
+        await expect(section.locator('svg [tabindex="0"]')).toHaveCount(0)
+        expect(monthRequests).toEqual(["area-cozinha,area-sala,area-quintal"])
+
+        await trigger.click()
+        await section.getByRole("checkbox", { name: "Cozinha" }).uncheck()
+        await expect(trigger).toHaveText(/1 de 2 medidores/)
+        await expect(section.getByTestId("area-weight-chart").locator("li")).toHaveText([
+            /Sala\s*100%/,
+        ])
+
+        await section.getByRole("checkbox", { name: "Sala" }).uncheck()
+        await expect(section.getByText("Selecione ao menos um medidor.")).toBeVisible()
+
+        await section.getByRole("button", { name: "Selecionar todos" }).click()
+        await expect(trigger).toHaveText(/2 de 2 medidores/)
+        await expect(section.getByTestId("area-weight-chart")).toBeVisible()
+    })
+})
