@@ -4604,3 +4604,13 @@
 - **Testes:** `goal.repository.test.ts` (16 casos) rodou 6 vezes seguidas sem falha.
 - **Arquivos principais:** `backend/src/modules/goal/goal.repository.test.ts`.
 - **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado.
+
+## [2026-10-08] docs: roadmap fecha a Fase 29 (PR #495) e detalha a Fase 30
+
+- **Branch:** epic/489-painel-v2
+- **Tipo:** docs
+- **O quê:** `planejar-roadmap` (ciclo de atualização) marca a Fase 29 (Painel v2) como concluída — épico #489, sub-issues #490–#494, PR #495 mesclado em `staging` em 2026-10-08 — e registra, no "Replanejamento de 2026-10-08", o que mudou em relação ao plano: o kWh sub-mensal aberto no backend para o Grupo A e a Branca (`costBrl` opcional), o R$ do Mês só da parte variável e sem Situação, os tokens novos da paleta categórica, a demanda do dia vinda das leituras e não do rollup (endpoint `GET /api/demand/overview`, degrau da contratada na Azul, semântica de ausência unificada, 422 para Verde sem janela de ponta), a faixa de ponta sem backend, as correções da revisão e do CI e as lições de processo (PR grande de novo; o e2e roda contra backend real). A Fase 30 (Sessões ativas) sai do nível de objetivo para 2 itens: ver as sessões (com a decisão de captura de dispositivo e origem, LGPD e migração) e encerrá-las. O `02-requisitos.md` passa FNC004 para `[implementado]` e descreve o Painel de hoje.
+- **Decisões do usuário (já tomadas na fase):** abrir o kWh diário no backend; projetar só a parte variável em R$; 16 tokens de paleta; contratada em degrau na Azul; aplicar as 9 sugestões do laudo.
+- **Arquivos principais:** `.claude/docs/roadmap.md`, `.claude/project_context/02-requisitos.md`.
+- **Decisões/ADRs:** nenhuma ADR; nenhum item do `07` tocado. A decisão de captura de dispositivo e origem da Fase 30 deve virar item do `07` e ADR na chegada.
+- **Notas:** a Fase 30 é a última da milestone `App v2`; ao concluí-la, fechar a milestone no GitHub (o vencimento de 2026-10-04 já passou). Pendências do usuário no fim do replanejamento: sincronizar o Claude Design, reajustar a milestone, acompanhar o `braces`.

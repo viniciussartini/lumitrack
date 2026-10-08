@@ -284,7 +284,7 @@ Origem: `.claude/docs/O-Sistema-Eletrico-Brasileiro.md`. Oráculos de teste: Exe
 
 > As telas descritas de FNC004 a FNC013 nascem do handoff `2026-09-06-lumitrack-completo` (tela `LumiTrack Home v2`), que **substitui a `Home` anterior como design-alvo do app logado**. A navegação passa a ser Painel · Análise · Histórico · Relatórios · Alertas · Distribuidoras · Sobre, mais Configurações. Cada FNC registra o que já existe hoje, para o planejamento não confundir "redesenhar" com "construir do zero".
 
-**FNC004 — Painel** `[planejado — Fase 29]` *(estrutura de navegação: Fase 23)*
+**FNC004 — Painel** `[implementado]` *(estrutura de navegação: Fase 23)*
 
 Tela inicial com o panorama geral, filtrada pela propriedade selecionada no seletor da topbar. Seções:
 
@@ -295,7 +295,7 @@ Tela inicial com o panorama geral, filtrada pela propriedade selecionada no sele
 5. Gráfico de meta versus realizado (depende de FNC011).
 6. Gráfico de demanda contratada versus demanda atual, exclusivo do Grupo A (depende de RF28).
 
-**Hoje:** o Painel já entrega bandeira vigente, alertas em disparo, KPIs de consumo/custo e gráfico de potência em tempo real. Faltam a tabela hierarquizada, o peso por medidor, a meta e a demanda.
+**Hoje:** `/dashboard` (`pages/dashboard/DashboardPage.tsx`) mostra, para a propriedade escolhida no seletor da página: a demanda atual contra a contratada (só no Grupo A; `DemandSection`, com os cards Demanda atual, Máxima do mês, Contratada e Ultrapassagem e o gráfico do dia, e a contratada em degrau por posto na Azul), a tabela "Consumo de hoje" (propriedade, áreas e dispositivos, com kWh e R$ do dia; `TodayConsumptionSection`), a pizza "Peso de cada medidor" (as áreas com medidor no mês, com menu de seleção; `AreaWeightSection`) e o bloco "Meta de consumo" (Mês | Ano e kWh | R$, com acumulado, projeção e situação, e no Grupo A a faixa "Horário de ponta"; `GoalSection` e `PeakHoursBand`). Abaixo ficam os blocos que o Painel já tinha, que o design v2 não desenha e permanecem por decisão: bandeira vigente, KPIs de consumo e custo, potência em tempo real, histórico e comparação entre propriedades. Dado ausente aparece como "-", nunca como 0. A demanda tem backend próprio (`modules/demand`, `GET /api/demand/overview`: máxima do mês e ultrapassagem do rollup, demanda atual e curva do dia das leituras por minuto, pela mesma regra de janela do rollup); a meta usa `/api/goals/progress` e, no Mês, o consumo diário de `/api/consumption`, que devolve o kWh de hora, dia e minuto do Grupo A e da Tarifa Branca sem `costBrl`. O R$ do Mês é só a parte variável do custo diário (sem piso, iluminação pública nem demanda), e por isso o Mês em R$ não mostra a Situação.
 
 **FNC005 — Análise** `[implementado]`
 
