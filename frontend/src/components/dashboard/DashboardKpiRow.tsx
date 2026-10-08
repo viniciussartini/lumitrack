@@ -150,8 +150,10 @@ const computeEstimatedCostPerHour = (
 ): number | null => {
     if (currentPowerKw === null || !items) return null
 
-    const bucketWithConsumption = items.find((item) => item.kwhConsumed > 0)
-    if (!bucketWithConsumption) return null
+    const bucketWithConsumption = items.find(
+        (item) => item.kwhConsumed > 0 && item.costBrl !== undefined,
+    )
+    if (bucketWithConsumption?.costBrl === undefined) return null
 
     const effectiveTariff = bucketWithConsumption.costBrl / bucketWithConsumption.kwhConsumed
     return effectiveTariff * currentPowerKw

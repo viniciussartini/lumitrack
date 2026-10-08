@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest"
-import { resolveContractedDemands } from "@/shared/tariff/contractedDemand.js"
+import {
+    measuredDemandKwFor,
+    measuredDemandKwOrNull,
+    resolveMonthMax,
+    resolveContractedDemands,
+} from "@/shared/tariff/contractedDemand.js"
+import type { MeterDemandRollupResponse } from "@/modules/meter/meter-demand-rollup.repository.js"
 import type { PropertyResponse } from "@/modules/property/property.repository.js"
 
 const basePropertyFields = {
@@ -84,5 +90,65 @@ describe("resolveContractedDemands", () => {
                 /Azul sem as duas demandas contratadas/i,
             )
         })
+    })
+})
+
+const rollup = (
+    post: MeterDemandRollupResponse["post"],
+    maxAvgPowerW: number,
+    windowEndAt = new Date("2026-10-10T20:00:00Z"),
+): MeterDemandRollupResponse => ({
+    meterId: "meter-1",
+    periodStart: new Date("2026-10-01T03:00:00Z"),
+    post,
+    maxAvgPowerW,
+    windowEndAt,
+})
+
+describe("measuredDemandKwOrNull", () => {
+    it("Verde (post null) usa o maior valor entre os postos, em kW", () => {
+        const rows = [rollup("PEAK", 120_000), rollup("OFF_PEAK", 95_000)]
+
+        expect(measuredDemandKwOrNull(null, rows)).toBe(120)
+    })
+
+    it("Azul compara cada posto só com a medição do mesmo posto", () => {
+        const rows = [rollup("PEAK", 120_000), rollup("OFF_PEAK", 95_000)]
+
+        expect(measuredDemandKwOrNull("PEAK", rows)).toBe(120)
+        expect(measuredDemandKwOrNull("OFF_PEAK", rows)).toBe(95)
+    })
+
+    it("sem janela medida é ausência, nunca 0 kW", () => {
+        expect(measuredDemandKwOrNull(null, [])).toBeNull()
+        expect(measuredDemandKwOrNull("PEAK", [rollup("OFF_PEAK", 95_000)])).toBeNull()
+    })
+})
+
+describe("measuredDemandKwFor", () => {
+    it("segue devolvendo 0 sem janela medida: o custo e o alerta não geram ultrapassagem por ausência", () => {
+        expect(measuredDemandKwFor(null, [])).toBe(0)
+        expect(measuredDemandKwFor("PEAK", [rollup("OFF_PEAK", 95_000)])).toBe(0)
+    })
+
+    it("com janela medida devolve o mesmo valor da base", () => {
+        expect(measuredDemandKwFor("OFF_PEAK", [rollup("OFF_PEAK", 95_000)])).toBe(95)
+    })
+})
+
+describe("resolveMonthMax", () => {
+    it("é a maior demanda do mês entre os postos, em kW, com o fim da janela vencedora", () => {
+        const winner = new Date("2026-10-12T21:15:00Z")
+
+        const result = resolveMonthMax([
+            rollup("OFF_PEAK", 95_000),
+            rollup("PEAK", 120_000, winner),
+        ])
+
+        expect(result).toEqual({ kw: 120, windowEnd: winner, post: "PEAK" })
+    })
+
+    it("mês sem janela medida é ausência, nunca 0 kW", () => {
+        expect(resolveMonthMax([])).toEqual({ kw: null, windowEnd: null, post: null })
     })
 })

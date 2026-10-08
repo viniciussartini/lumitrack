@@ -53,6 +53,11 @@ afterAll(async () => {
     await prismaTest.$disconnect()
 })
 
+// A versão da meta é o `updatedAt`, com precisão de milissegundo: criar e editar
+// no mesmo milissegundo deixaria a versão igual e a edição passaria despercebida.
+// Uma edição de verdade nunca é tão rápida; o teste espera o relógio andar.
+const nextMillisecond = () => new Promise<void>((resolve) => setTimeout(resolve, 5))
+
 describe("GoalRepository.create — unidade", () => {
     it("a unidade faz parte da identidade: kWh e R$ do mesmo ano convivem", async () => {
         const kwh = await repository.create(userId, { ...goalData(2026), unit: "KWH" })
@@ -113,6 +118,7 @@ describe("GoalRepository.claimMonthAlert", () => {
 
     it("a edição da meta depois da leitura invalida a reivindicação: o aviso seria da meta antiga", async () => {
         const goal = await repository.create(userId, goalData(2026))
+        await nextMillisecond()
         await repository.update(goal!.id, userId, {
             referenceYear: 2025,
             monthlyTargets: Array.from({ length: 12 }, () => 500),
@@ -155,6 +161,7 @@ describe("GoalRepository.claimYearAlert", () => {
 
     it("a edição da meta depois da leitura invalida a reivindicação do ano", async () => {
         const goal = await repository.create(userId, goalData(2026))
+        await nextMillisecond()
         await repository.update(goal!.id, userId, {
             referenceYear: 2025,
             monthlyTargets: Array.from({ length: 12 }, () => 500),

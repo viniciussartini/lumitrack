@@ -14,7 +14,8 @@ interface ConsumptionChartProps {
 interface ChartDatum {
     label: string
     kwh: number
-    cost: number
+    /** Ausente quando o custo não é calculável para o alvo e a tarifa. */
+    cost: number | undefined
 }
 
 /**

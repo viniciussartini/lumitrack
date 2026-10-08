@@ -7,6 +7,8 @@ import { AuthProvider } from "@/contexts/AuthContext"
 import { DashboardPage } from "@/pages/dashboard/DashboardPage"
 import { propertyService } from "@/services/property.service"
 import { authService } from "@/services/auth.service"
+import { demandService } from "@/services/demand.service"
+import { distributorService } from "@/services/distributor.service"
 import { storage, STORAGE_KEYS } from "@/lib/storage"
 import type { Property } from "@/types/property.types"
 import type { Paginated } from "@/types/pagination.types"
@@ -20,6 +22,14 @@ vi.mock("@/services/property.service", () => ({
         update: vi.fn(),
         remove: vi.fn(),
     },
+}))
+
+vi.mock("@/services/distributor.service", () => ({
+    distributorService: { getById: vi.fn(), list: vi.fn() },
+}))
+
+vi.mock("@/services/demand.service", () => ({
+    demandService: { overview: vi.fn() },
 }))
 
 vi.mock("@/services/auth.service", () => ({
@@ -198,5 +208,106 @@ describe("DashboardPage — seletor de propriedade", () => {
             expect(btnA).toHaveAttribute("aria-selected", "true")
         })
         expect(storage.get(STORAGE_KEYS.SELECTED_PROPERTY)).toBe("prop-a")
+    })
+})
+
+describe("DashboardPage — ordem dos blocos", () => {
+    it("os blocos novos vêm logo abaixo do seletor, na ordem do design, antes dos que o Painel já tinha", async () => {
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([mockPropertyA]))
+
+        renderPage()
+
+        const selector = await screen.findByTestId("property-selector")
+        const today = await screen.findByTestId("today-consumption-section")
+        const weight = await screen.findByTestId("area-weight-section")
+        const goal = await screen.findByTestId("goal-section")
+        const history = await screen.findByTestId("consumption-history-section")
+
+        const follows = (before: HTMLElement, after: HTMLElement) =>
+            Boolean(before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING)
+        expect(follows(selector, today)).toBe(true)
+        expect(follows(today, weight)).toBe(true)
+        expect(follows(weight, goal)).toBe(true)
+        expect(follows(goal, history)).toBe(true)
+    })
+})
+
+describe("DashboardPage — demanda do Grupo A", () => {
+    const groupA: Property = { ...mockPropertyA, id: "prop-ga", tariffGroup: "GROUP_A" }
+
+    it("o bloco de demanda só aparece para propriedade do Grupo A, acima dos demais", async () => {
+        vi.mocked(demandService.overview).mockReturnValue(new Promise(() => {}))
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([groupA]))
+
+        renderPage()
+
+        const demand = await screen.findByTestId("demand-section")
+        const today = await screen.findByTestId("today-consumption-section")
+        expect(demandService.overview).toHaveBeenCalledWith("prop-ga")
+        expect(
+            Boolean(demand.compareDocumentPosition(today) & Node.DOCUMENT_POSITION_FOLLOWING),
+        ).toBe(true)
+    })
+
+    it("propriedade do Grupo B não mostra o bloco nem chama o endpoint", async () => {
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([mockPropertyA]))
+
+        renderPage()
+
+        await screen.findByTestId("today-consumption-section")
+        expect(screen.queryByTestId("demand-section")).not.toBeInTheDocument()
+        expect(demandService.overview).not.toHaveBeenCalled()
+    })
+
+    it("trocar de Grupo A para Grupo B tira o bloco", async () => {
+        vi.mocked(demandService.overview).mockReturnValue(new Promise(() => {}))
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([groupA, mockPropertyB]))
+
+        renderPage()
+        await screen.findByTestId("demand-section")
+        await userEvent.setup().click(screen.getByTestId("property-selector-prop-b"))
+
+        expect(screen.queryByTestId("demand-section")).not.toBeInTheDocument()
+    })
+})
+
+describe("DashboardPage — faixa de horário de ponta", () => {
+    const groupA: Property = { ...mockPropertyA, id: "prop-ga", tariffGroup: "GROUP_A" }
+    const copel = {
+        id: "dist-1",
+        name: "Copel",
+        cnpj: "76.483.817/0001-20",
+        state: "PR",
+        tusdPerKwh: 0.3,
+        tePerKwh: 0.3,
+        icmsRate: 0.18,
+        pisRate: 0.0165,
+        cofinsRate: 0.076,
+        peakWindowStartHour: 18,
+        peakWindowEndHour: 21,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+    }
+
+    it("o Grupo A mostra a faixa dentro do bloco de meta, com a distribuidora da propriedade", async () => {
+        vi.mocked(demandService.overview).mockReturnValue(new Promise(() => {}))
+        vi.mocked(distributorService.getById).mockResolvedValue(copel)
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([groupA]))
+
+        renderPage()
+
+        const band = await screen.findByTestId("peak-hours-band")
+        expect(screen.getByTestId("goal-section")).toContainElement(band)
+        expect(distributorService.getById).toHaveBeenCalledWith(groupA.distributorId)
+    })
+
+    it("o Grupo B não mostra a faixa nem consulta a distribuidora", async () => {
+        vi.mocked(propertyService.list).mockResolvedValue(paginated([mockPropertyA]))
+
+        renderPage()
+
+        await screen.findByTestId("goal-section")
+        expect(screen.queryByTestId("peak-hours-band")).not.toBeInTheDocument()
+        expect(distributorService.getById).not.toHaveBeenCalled()
     })
 })

@@ -612,6 +612,27 @@ textarea.input {
        (LumiTrack Home v2.dc.html), clareado aqui pra manter contraste no
        tema escuro (mesmo raciocínio de --color-chart-amber). */
     --color-chart-blue: #8ab4d9;
+
+    /* Paleta categórica de gráficos (uma cor por série, ex.: peso de cada
+       área): os 16 tons do protótipo de pizza do Painel (LumiTrack Home
+       v2.dc.html), clareados aqui com branco para manter contraste contra
+       o fundo escuro (mesmo raciocínio de --color-chart-blue). */
+    --color-chart-cat-1: color-mix(in srgb, #5980a6 62%, white);
+    --color-chart-cat-2: color-mix(in srgb, #d98a1e 62%, white);
+    --color-chart-cat-3: color-mix(in srgb, #3f8f52 62%, white);
+    --color-chart-cat-4: color-mix(in srgb, #8a6fa8 62%, white);
+    --color-chart-cat-5: color-mix(in srgb, #c14a38 62%, white);
+    --color-chart-cat-6: color-mix(in srgb, #728fab 62%, white);
+    --color-chart-cat-7: color-mix(in srgb, #9a5f14 62%, white);
+    --color-chart-cat-8: color-mix(in srgb, #4f7f6a 62%, white);
+    --color-chart-cat-9: color-mix(in srgb, #a53b2c 62%, white);
+    --color-chart-cat-10: color-mix(in srgb, #6b7785 62%, white);
+    --color-chart-cat-11: color-mix(in srgb, #2f5f80 62%, white);
+    --color-chart-cat-12: color-mix(in srgb, #b9a04a 62%, white);
+    --color-chart-cat-13: color-mix(in srgb, #5c8f7a 62%, white);
+    --color-chart-cat-14: color-mix(in srgb, #7a4f6e 62%, white);
+    --color-chart-cat-15: color-mix(in srgb, #c9871f 62%, white);
+    --color-chart-cat-16: color-mix(in srgb, #3b6ea5 62%, white);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -641,6 +662,26 @@ textarea.input {
        --color-chart-amber, tom de origem do bundle escurecido pra 3:1 de
        contraste contra fundo claro. */
     --color-chart-blue: #4d7ca3;
+
+    /* Paleta categórica de gráficos — tons do protótipo, no tema claro como
+       vieram do bundle. Variante escura em :root[data-theme="dark"] acima.
+       Mais de 16 séries repetem a paleta (ver lib/areaWeight.ts). */
+    --color-chart-cat-1: #5980a6;
+    --color-chart-cat-2: #d98a1e;
+    --color-chart-cat-3: #3f8f52;
+    --color-chart-cat-4: #8a6fa8;
+    --color-chart-cat-5: #c14a38;
+    --color-chart-cat-6: #728fab;
+    --color-chart-cat-7: #9a5f14;
+    --color-chart-cat-8: #4f7f6a;
+    --color-chart-cat-9: #a53b2c;
+    --color-chart-cat-10: #6b7785;
+    --color-chart-cat-11: #2f5f80;
+    --color-chart-cat-12: #b9a04a;
+    --color-chart-cat-13: #5c8f7a;
+    --color-chart-cat-14: #7a4f6e;
+    --color-chart-cat-15: #c9871f;
+    --color-chart-cat-16: #3b6ea5;
 
     /* Indicador "dado ao vivo" — cor própria, não reaproveita
        --color-status-success apesar do tom próximo: papel semântico
@@ -1102,6 +1143,71 @@ textarea.input {
 }
 .lt-tree-row[data-level="3"] {
     padding-left: 57px;
+}
+
+/* Linha da tabela hierárquica "Consumo de hoje" do Painel — LumiTrack Home
+   v2.dc.html. Nome, kWh e R$ em colunas; o recuo e o peso do texto seguem o
+   nível (1 propriedade, 2 área, 3 dispositivo). */
+.lt-today-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 20px;
+    border-top: 1px solid var(--color-divider);
+    color: var(--color-text);
+    font-size: 13.5px;
+    font-feature-settings: "tnum" 1;
+    text-align: left;
+}
+.lt-today-row[aria-expanded] {
+    cursor: pointer;
+}
+.lt-today-row[data-level="1"] {
+    background: color-mix(in srgb, var(--color-accent) 5%, transparent);
+    font-size: 14px;
+    font-weight: 600;
+}
+.lt-today-row[data-level="2"] {
+    padding-left: 40px;
+}
+.lt-today-row[data-level="3"] {
+    padding: 9px 20px 9px 79px;
+    font-size: 13px;
+}
+.lt-today-row:hover[aria-expanded] {
+    background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+.lt-today-name {
+    flex: 1 1 auto;
+    min-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.lt-today-row[data-level="2"] .lt-today-name {
+    color: color-mix(in srgb, var(--color-text) 80%, transparent);
+}
+.lt-today-row[data-level="3"] .lt-today-name {
+    color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+.lt-today-kwh,
+.lt-today-cost {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+.lt-today-row[data-level="1"] .lt-today-kwh,
+.lt-today-row[data-level="1"] .lt-today-cost {
+    font-family: var(--font-heading);
+    font-size: 16px;
+}
+.lt-today-cost {
+    width: 82px;
+    text-align: right;
+    color: color-mix(in srgb, var(--color-text) 62%, transparent);
+}
+.lt-today-row[data-level="1"] .lt-today-cost {
+    color: var(--color-status-warning);
 }
 
 /* Painel de dropdown (menu do usuário, notificações) — LumiTrack

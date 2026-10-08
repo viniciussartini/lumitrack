@@ -56,3 +56,47 @@ export function computeTrailingWindowAverage(
 
     return weightedSum / totalWeight
 }
+
+const BLOCK_MINUTES = 15
+const BLOCKS_PER_DAY = 96
+
+export type DemandDayPoint = {
+    /** Minuto em que a janela termina (inclusive): :14, :29, :44 ou :59. */
+    windowEnd: Date
+    /** Potência média (W) da janela; `null` se ainda não fechou ou está incompleta. */
+    avgPowerW: number | null
+}
+
+/**
+ * As 96 janelas de 15 minutos alinhadas ao quarto de hora de um dia, cada uma
+ * calculada pela mesma regra do rollup (`computeTrailingWindowAverage`): 15
+ * leituras consecutivas, buraco é ausência, nunca zero. Janela que termina
+ * depois do último minuto fechado também é ausência — o dia de hoje ainda não
+ * terminou.
+ *
+ * @param readings - Leituras por minuto do dia, em qualquer ordem.
+ * @param dayStart - Instante UTC real da meia-noite local do dia.
+ * @param lastClosedMinute - Último minuto já fechado (inclusive).
+ * @returns Um ponto por janela, de 00:00 a 23:59 locais.
+ */
+export function computeDemandDayPoints(
+    readings: TrailingReading[],
+    dayStart: Date,
+    lastClosedMinute: Date,
+): DemandDayPoint[] {
+    const byMinute = new Map(readings.map((reading) => [reading.minuteStart.getTime(), reading]))
+
+    return Array.from({ length: BLOCKS_PER_DAY }, (_, block): DemandDayPoint => {
+        const endMs = dayStart.getTime() + ((block + 1) * BLOCK_MINUTES - 1) * MINUTE_MS
+        const windowEnd = new Date(endMs)
+        if (endMs > lastClosedMinute.getTime()) return { windowEnd, avgPowerW: null }
+
+        const window: TrailingReading[] = []
+        for (let i = 0; i < BLOCK_MINUTES; i++) {
+            const reading = byMinute.get(endMs - i * MINUTE_MS)
+            if (!reading) return { windowEnd, avgPowerW: null }
+            window.push(reading)
+        }
+        return { windowEnd, avgPowerW: computeTrailingWindowAverage(window, windowEnd) }
+    })
+}

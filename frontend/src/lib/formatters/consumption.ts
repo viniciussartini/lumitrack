@@ -104,8 +104,9 @@ export const formatBucketLabel = (bucketStart: string, bucketSize: BucketSize): 
  */
 export const formatKwh = (kwh: number): string => kwhFormatter.format(kwh)
 
-/** Formata valor em BRL. */
-export const formatCostBrl = (cost: number): string => brlFormatter.format(cost)
+/** Formata valor em BRL; custo não calculável (ausente) aparece como "-", nunca como R$ 0,00. */
+export const formatCostBrl = (cost: number | undefined): string =>
+    cost === undefined ? "-" : brlFormatter.format(cost)
 
 /** Formata potência média do bucket, em W. */
 export const formatAvgPowerW = (powerW: number): string => `${powerFormatter.format(powerW)} W`

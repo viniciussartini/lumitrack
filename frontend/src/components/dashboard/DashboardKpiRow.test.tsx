@@ -166,6 +166,19 @@ describe("DashboardKpiRow — Potência agora / custo estimado", () => {
     })
 })
 
+describe("DashboardKpiRow — sem custo no bucket (Grupo A e Tarifa Branca)", () => {
+    it("mostra a potência e deixa o custo estimado de fora, sem inventar uma tarifa", async () => {
+        mockConsumptionByGranularity({
+            hour: [{ bucketStart: now.toISOString(), kwhConsumed: 2, avgPowerW: 500 }],
+        })
+
+        renderRow({ reading: mockReading(1000), isStale: false, lastKnownPowerW: 1000 })
+
+        expect(await screen.findByText("1,00kW")).toBeInTheDocument()
+        expect(screen.queryByText(/estimado/)).not.toBeInTheDocument()
+    })
+})
+
 describe("DashboardKpiRow — Consumo hoje", () => {
     it("mostra o delta vs. ontem quando os dois buckets existem", async () => {
         mockConsumptionByGranularity({

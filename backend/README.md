@@ -784,6 +784,22 @@ Vinculado a exatamente um alvo (`targetType: PROPERTY|AREA|DEVICE` + o respectiv
 
 `granularity` é o **tamanho do bucket**, não a janela consultada — quem recorta a janela é `from`/`to`. A UI monta o par: a aba "Hora" pede `granularity=minute` dentro da hora corrente, a aba "Dia" pede `granularity=hour` dentro do dia. `order=asc` pagina do começo da janela para o fim; `desc` (default) serve as consultas do tipo "os últimos N buckets".
 
+`costBrl` é **opcional** em cada bucket: o consumo (`kwhConsumed`) sempre volta, o custo só quando é calculável para o alvo, a tarifa e a granularidade. Propriedade do Grupo A e da Tarifa Branca só têm custo no bucket **mensal** da propriedade (e no anual); em hora, dia e minuto, e em área e dispositivo, o bucket volta sem `costBrl` — ausência quer dizer "não calculável", nunca zero.
+
+### Demanda — `/api/demand` (somente leitura, Grupo A)
+
+| Método | Rota | Query |
+| --- | --- | --- |
+| GET | `/overview` | `propertyId` (obrigatório, uuid) |
+
+Demanda medida contra a contratada de uma propriedade do Grupo A, para o Painel: a contratada (uma na Verde, ponta e fora de ponta na Azul), a janela atual de 15 minutos, a máxima do mês (do rollup, com o posto), a ultrapassagem (pior estouro sobre a contratada, em %) e as 96 janelas do dia com demanda, posto e a contratada de cada uma. Janela incompleta ou sem medição é `null`, nunca 0 kW.
+
+| Status | Quando |
+| --- | --- |
+| 403 | A propriedade não é do usuário |
+| 404 | Propriedade inexistente ou sem medidor vinculado |
+| 422 | `propertyId` inválido; propriedade do Grupo B; modalidade sem cálculo (Convencional Binômia); distribuidora sem janela de ponta configurada; contratada não cadastrada |
+
 ### Alertas — `/api/alerts` e histórico — `/api/alert-events`
 
 | Método | Rota | Descrição |

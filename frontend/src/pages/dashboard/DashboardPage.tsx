@@ -3,11 +3,17 @@ import { Link } from "react-router"
 import { useProperties } from "@/hooks/queries/useProperties"
 import { usePropertySelection } from "@/hooks/usePropertySelection"
 import { PropertySelector } from "@/components/dashboard/PropertySelector"
+import { AreaWeightSection } from "@/components/dashboard/AreaWeightSection"
+import { DemandSection } from "@/components/dashboard/DemandSection"
+import { GoalSection } from "@/components/dashboard/GoalSection"
+import { PeakHoursBand } from "@/components/dashboard/PeakHoursBand"
+import { TodayConsumptionSection } from "@/components/dashboard/TodayConsumptionSection"
 import { RealtimeSection } from "@/components/dashboard/RealtimeSection"
 import { ConsumptionHistorySection } from "@/components/dashboard/ConsumptionHistorySection"
 import { PropertyComparisonSection } from "@/components/dashboard/PropertyComparisonSection"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { Button } from "@/components/ui/Button"
+import type { Property } from "@/types/property.types"
 
 /**
  * Painel (`/dashboard`) — bloco `isDashboard` do
@@ -16,6 +22,14 @@ import { Button } from "@/components/ui/Button"
  * seletor no header compartilhado). O kicker/título "Painel geral/
  * Olá, {nome}" saiu daqui para o Header — antes duplicava o mesmo
  * texto que o Header passou a mostrar.
+ *
+ * Os blocos novos vêm primeiro, na ordem do handoff `Home v2`: a demanda
+ * atual contra a contratada (`DemandSection`, só no Grupo A), o consumo de
+ * hoje (`TodayConsumptionSection`) e o peso de cada medidor
+ * (`AreaWeightSection`), lado a lado numa grade, e a meta de consumo
+ * (`GoalSection`). Os blocos que o Painel já
+ * tinha descem e seguem abaixo, divergência deliberada do design v2, que não
+ * os desenha.
  *
  * KPIs (Potência agora, Consumo hoje, Custo projetado, Bandeira vigente),
  * gráfico de consumo em tempo real e card de bandeiras
@@ -83,16 +97,7 @@ export const DashboardPage = () => {
                         onChange={selectProperty}
                     />
                     {selectedId && selectedProperty && (
-                        <>
-                            <RealtimeSection
-                                propertyId={selectedId}
-                                propertyName={selectedProperty.name}
-                            />
-                            <ConsumptionHistorySection
-                                propertyId={selectedId}
-                                propertyName={selectedProperty.name}
-                            />
-                        </>
+                        <PropertyBlocks property={selectedProperty} />
                     )}
                     <PropertyComparisonSection properties={properties} />
                 </>
@@ -102,6 +107,48 @@ export const DashboardPage = () => {
 }
 
 // Subcomponentes locais
+
+interface PropertyBlocksProps {
+    property: Property
+}
+
+/** Blocos escopados à propriedade selecionada, na ordem em que aparecem no Painel. */
+const PropertyBlocks = ({ property }: PropertyBlocksProps) => {
+    const { id: propertyId, name: propertyName } = property
+    const isGroupA = property.tariffGroup === "GROUP_A"
+
+    return (
+        <>
+            {isGroupA && (
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))] items-start gap-4">
+                    <DemandSection propertyId={propertyId} propertyName={propertyName} />
+                </div>
+            )}
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))] items-start gap-4">
+                <TodayConsumptionSection propertyId={propertyId} propertyName={propertyName} />
+                <AreaWeightSection
+                    key={propertyId}
+                    propertyId={propertyId}
+                    propertyName={propertyName}
+                />
+            </div>
+            <GoalSection
+                propertyId={propertyId}
+                propertyName={propertyName}
+                footer={
+                    isGroupA && (
+                        <PeakHoursBand
+                            propertyId={propertyId}
+                            distributorId={property.distributorId}
+                        />
+                    )
+                }
+            />
+            <RealtimeSection propertyId={propertyId} propertyName={propertyName} />
+            <ConsumptionHistorySection propertyId={propertyId} propertyName={propertyName} />
+        </>
+    )
+}
 
 const DashboardSkeleton = () => (
     <div

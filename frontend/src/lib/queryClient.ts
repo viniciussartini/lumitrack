@@ -134,13 +134,14 @@ export const queryKeys = {
             ] as const,
         // Endpoint batch — "último bucket de N alvos do mesmo tipo", não
         // paginado. Chave própria pra não colidir com `list`.
-        summary: (targetType: string, ids: string[], granularity: string) =>
+        summary: (targetType: string, ids: string[], granularity: string, range = "") =>
             [
                 ...queryKeys.consumption.all,
                 "summary",
                 targetType,
                 [...ids].sort(),
                 granularity,
+                range,
             ] as const,
     },
     meterReadings: {
@@ -190,6 +191,11 @@ export const queryKeys = {
         list: (propertyId: string) => [...queryKeys.goals.all, "list", propertyId] as const,
         progress: (propertyId: string) => [...queryKeys.goals.all, "progress", propertyId] as const,
         alerts: ["goals", "alerts"] as const,
+    },
+    demand: {
+        all: ["demand"] as const,
+        overview: (propertyId: string) =>
+            [...queryKeys.demand.all, "overview", propertyId] as const,
     },
     alertEvents: {
         all: ["alertEvents"] as const,
