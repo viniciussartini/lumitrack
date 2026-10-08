@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test"
 
-import { fulfillJson, fulfillPaginated } from "./support/api"
+import { fulfillError, fulfillJson, fulfillPaginated } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
 import { hideDevTools } from "./support/devtools"
 import { mockSseStream, sseEvent } from "./support/sse"
@@ -70,6 +70,12 @@ const setupDashboard = async (page: Page) => {
     )
     await page.route(/\/api\/tariff-flag(\?.*)?$/, (route) => fulfillJson(route, TARIFF_FLAG))
     await mockPropertyTree(page)
+    // Sem medidor por padrão: o bloco de meta e o de tempo real o consultam para
+    // qualquer propriedade, e sem mock o backend real do CI responde 401 e o app
+    // volta ao login. Os testes que precisam de medidor sobrescrevem esta rota.
+    await page.route(/\/api\/meters\/by-target(\?.*)?$/, (route) =>
+        fulfillError(route, "Alvo sem medidor vinculado", 404),
+    )
 }
 
 test.describe("Painel — visão em tempo real (#116)", () => {

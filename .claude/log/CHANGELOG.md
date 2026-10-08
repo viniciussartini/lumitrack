@@ -4583,3 +4583,14 @@
 - **Testes:** os existentes de relatório, meta, demanda, consumo e das quatro seções seguiram verdes sem mudança de asserção; os de `resolveMonthMax` e de `chunkIds` só mudaram de arquivo, junto do código movido. `dependency-cruiser` limpo nos dois lados.
 - **Arquivos principais:** `backend/src/shared/tariff/contractedDemand.ts`, `backend/src/modules/report/report.service.ts`, `backend/src/modules/goal/goal-consumption.ts`, `backend/README.md`, `frontend/src/lib/summaryBatch.ts`, `frontend/src/components/dashboard/SectionParts.tsx` e as quatro seções.
 - **Decisões/ADRs:** nenhuma ADR; nenhum item do `07` tocado.
+
+## [2026-10-08] fix: CI do PR #495 — e2e do Painel sem mock de medidor e três jobs de npm audit
+
+- **Branch:** epic/489-painel-v2
+- **Tipo:** fix
+- **O quê:** quatro jobs do CI falhavam. (1) **e2e:** os testes novos do Painel (consumo de hoje, peso de cada medidor, demanda, faixa de ponta) não mockavam `GET /api/meters/by-target`, que o bloco de meta e o de tempo real consultam para qualquer propriedade. No CI o backend é real: a chamada sem mock volta 401 e o app redireciona ao login no meio do teste (localmente só aparece como erro de proxy, por isso passava). `setupDashboard` agora mocka a rota por padrão como "sem medidor" (404), e os testes que precisam de medidor a sobrescrevem. (2) **`frontend-audit`, `backend-audit`, `iot-simulator-audit`:** advisories novos em dependências transitivas (`source-map-js` alta, `compression` alta, `proxy-addr` crítica, `fast-copy` moderada); `npm audit fix` atualizou só os `package-lock.json` dos três projetos.
+- **Causa:** (1) o e2e roda contra o backend real no CI e qualquer chamada fora dos `page.route` derruba a sessão; os mocks da fase cobriram o que cada bloco pede, mas não o que o bloco de meta pede por baixo (medidor da propriedade). (2) advisories publicados depois do último lockfile.
+- **Verificação:** os três audits, com os comandos exatos do workflow (`npm audit --audit-level=high` no frontend e `--omit=dev` no backend e no simulador), dão 0 vulnerabilidades; e2e 218 passam; frontend 1456 e backend (demanda e tarifa) 161 testes; build do frontend e do backend ok. O `braces` (alta, sem versão corrigida) só aparece no `npm audit` completo e vem de `tsc-alias`, devDependency: o gate de produção não o vê e nada de política mudou. O simulador não tem scripts de build e teste rodáveis localmente; ficam para o CI.
+- **Arquivos principais:** `frontend/tests/e2e/dashboard.spec.ts`, `frontend/package-lock.json`, `backend/package-lock.json`, `iot-simulator/package-lock.json`.
+- **Decisões/ADRs:** nenhuma ADR; nenhum item do `07` tocado.
+- **Notas:** o `braces` fica como pendência de acompanhamento: quando o `tsc-alias` ou o `braces` publicar correção, o relatório completo (`npm audit || true`) deixa de listá-lo.
