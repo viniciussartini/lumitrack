@@ -4594,3 +4594,13 @@
 - **Arquivos principais:** `frontend/tests/e2e/dashboard.spec.ts`, `frontend/package-lock.json`, `backend/package-lock.json`, `iot-simulator/package-lock.json`.
 - **Decisões/ADRs:** nenhuma ADR; nenhum item do `07` tocado.
 - **Notas:** o `braces` fica como pendência de acompanhamento: quando o `tsc-alias` ou o `braces` publicar correção, o relatório completo (`npm audit || true`) deixa de listá-lo.
+
+## [2026-10-08] fix: teste frágil de reivindicação do aviso de meta derrubava o backend-test do CI
+
+- **Branch:** epic/489-painel-v2
+- **Tipo:** fix
+- **O quê:** `GoalRepository.claimYearAlert` e `claimMonthAlert` só reivindicam o aviso se a meta continua na versão lida (`updatedAt`, precisão de milissegundo). Os testes "a edição da meta depois da leitura invalida a reivindicação" criavam a meta e a editavam em seguida: no runner do CI, mais rápido que uma máquina de desenvolvimento, criar e editar podiam cair no mesmo milissegundo, a versão não mudava e a reivindicação vencia, falhando `expected true to be false`. Os dois testes agora esperam o relógio andar 5 ms antes da edição.
+- **Causa:** corrida de tempo no teste, não no código de produção: uma edição humana nunca acontece no mesmo milissegundo da leitura. O código dessa fase não foi tocado por este PR; o teste só passou a falhar neste run.
+- **Testes:** `goal.repository.test.ts` (16 casos) rodou 6 vezes seguidas sem falha.
+- **Arquivos principais:** `backend/src/modules/goal/goal.repository.test.ts`.
+- **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado.
