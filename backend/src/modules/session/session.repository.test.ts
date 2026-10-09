@@ -58,7 +58,9 @@ describe("SessionRepository — encerramento", () => {
         const stranger = await createUser("outro@example.com", "310.037.856-38")
         await createTokens(owner.id, sessionA, "a")
 
-        await repository.revokeSession(stranger.id, sessionA)
+        const revoked = await repository.revokeSession(stranger.id, sessionA, new Date())
+
+        expect(revoked).toBe(0)
 
         expect(await liveCount(owner.id)).toBe(2)
     })
@@ -77,7 +79,11 @@ describe("SessionRepository — encerramento", () => {
         })
         await createTokens(user.id, sessionB, "b")
 
-        await repository.revokeSession(user.id, sessionA)
+        const first = await repository.revokeSession(user.id, sessionA, new Date())
+        const again = await repository.revokeSession(user.id, sessionA, new Date())
+
+        expect(first).toBe(3)
+        expect(again).toBe(0)
 
         expect(
             await prismaTest.authToken.count({ where: { sessionId: sessionA, revokedAt: null } }),

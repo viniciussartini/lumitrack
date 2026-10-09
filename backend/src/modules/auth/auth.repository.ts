@@ -534,6 +534,27 @@ export class AuthRepository {
     }
 
     /**
+     * Se a sessão ainda tem algum refresh token vigente (não revogado e não
+     * expirado). Sem nenhum, a sessão terminou: logout, encerramento ou reset
+     * de senha.
+     *
+     * @param userId - Dono da sessão.
+     * @param sessionId - Sessão consultada.
+     * @param now - Instante de referência para a expiração.
+     * @returns `true` se há pelo menos um refresh token vigente.
+     */
+    async hasLiveRefreshTokenInSession(
+        userId: string,
+        sessionId: string,
+        now: Date,
+    ): Promise<boolean> {
+        const live = await this.prisma.refreshToken.count({
+            where: { userId, sessionId, revokedAt: null, expiresAt: { gt: now } },
+        })
+        return live > 0
+    }
+
+    /**
      * Revoga todos os refresh tokens ativos de um usuário — usado quando um
      * reuso de token indica possível comprometimento da conta.
      *

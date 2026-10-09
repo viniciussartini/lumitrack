@@ -18,6 +18,7 @@ export type AuditAction =
     | "ADMIN_AUDIT_LOG_VIEW"
     | "REPORT_GENERATE"
     | "SESSION_REVOKE"
+    | "REVOKED_TOKEN_USE"
 
 export type AuditOutcome = "SUCCESS" | "FAILURE"
 

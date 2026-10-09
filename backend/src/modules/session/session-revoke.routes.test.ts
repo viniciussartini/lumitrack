@@ -67,6 +67,7 @@ interface WebSession {
     agent: ReturnType<typeof request.agent>
     csrf: string
     refreshCsrf: string
+    refreshToken: string
     jwt: string
     sessionId: string
 }
@@ -81,6 +82,7 @@ async function loginWeb(user = validUser): Promise<WebSession> {
         agent,
         csrf: cookieValue(response, env.CSRF_COOKIE_NAME),
         refreshCsrf: cookieValue(response, env.REFRESH_CSRF_COOKIE_NAME),
+        refreshToken: cookieValue(response, env.REFRESH_COOKIE_NAME),
         jwt: cookieValue(response, env.AUTH_COOKIE_NAME),
         sessionId: items.find((item) => item.isCurrent)!.id,
     }
@@ -90,6 +92,17 @@ async function sessions(token: string): Promise<SessionItem[]> {
     const response = await request(app).get("/api/sessions").set(authed(token))
     return response.body.data.items as SessionItem[]
 }
+
+// Apresenta um refresh token específico, como faria quem o guardou: sem o
+// cookie jar do agente, que só tem o mais recente.
+const refreshWith = (refreshToken: string, refreshCsrf: string) =>
+    request(app)
+        .post("/api/auth/refresh")
+        .set("Cookie", [
+            `${env.REFRESH_COOKIE_NAME}=${refreshToken}`,
+            `${env.REFRESH_CSRF_COOKIE_NAME}=${refreshCsrf}`,
+        ])
+        .set(env.REFRESH_CSRF_HEADER_NAME, refreshCsrf)
 
 const revoke = (token: string, id: string) =>
     request(app).delete(`/api/sessions/${id}`).set(authed(token))
@@ -223,6 +236,69 @@ describe("DELETE /api/sessions/:id", () => {
         ).toBe(0)
     })
 
+    it("o refresh token rotacionado há instantes não reativa a sessão encerrada (janela de graça)", async () => {
+        await register()
+        const mine = await loginMobile()
+        const web = await loginWeb()
+        const renewed = await web.agent
+            .post("/api/auth/refresh")
+            .set(env.REFRESH_CSRF_HEADER_NAME, web.refreshCsrf)
+        expect(renewed.status).toBe(200)
+        await revoke(mine.token, web.sessionId)
+
+        // O token anterior foi rotacionado há menos que a janela de graça.
+        const stolen = await refreshWith(web.refreshToken, web.refreshCsrf)
+
+        expect(stolen.status).toBe(401)
+        expect(
+            await prismaHttpTest.refreshToken.count({
+                where: { sessionId: web.sessionId, revokedAt: null },
+            }),
+        ).toBe(0)
+        expect(
+            await prismaHttpTest.authToken.count({
+                where: { sessionId: web.sessionId, revokedAt: null },
+            }),
+        ).toBe(0)
+        expect(
+            await prismaHttpTest.auditLog.count({
+                where: { action: "REFRESH_TOKEN_REUSE_DETECTED" },
+            }),
+        ).toBe(0)
+        expect((await request(app).get("/api/sessions").set(authed(mine.token))).status).toBe(200)
+    })
+
+    it("dois pedidos simultâneos para encerrar a mesma sessão: um encerra, o outro recebe 404", async () => {
+        await register()
+        const mine = await loginMobile()
+        const other = await loginMobile()
+
+        const responses = await Promise.all([
+            revoke(mine.token, other.sessionId),
+            revoke(mine.token, other.sessionId),
+        ])
+
+        expect(responses.map((response) => response.status).sort()).toEqual([200, 404])
+        expect(await auditRows()).toHaveLength(1)
+    })
+
+    it("registra uma falha de auditoria, sem token, quando o refresh token cortado é usado", async () => {
+        await register()
+        const mine = await loginMobile()
+        const web = await loginWeb()
+        await revoke(mine.token, web.sessionId)
+
+        const response = await refreshWith(web.refreshToken, web.refreshCsrf)
+
+        expect(response.status).toBe(401)
+        const rows = await prismaHttpTest.auditLog.findMany({
+            where: { action: "REVOKED_TOKEN_USE" },
+        })
+        expect(rows).toHaveLength(1)
+        expect(rows[0]).toMatchObject({ outcome: "FAILURE", resourceType: "User" })
+        expect(JSON.stringify(rows)).not.toContain(web.refreshToken)
+    })
+
     it("sessão já encerrada responde 404", async () => {
         await register()
         const mine = await loginMobile()
@@ -326,6 +402,23 @@ describe("POST /api/sessions/revoke-others", () => {
             .set(env.REFRESH_CSRF_HEADER_NAME, web.refreshCsrf)
         expect(refresh.status).toBe(200)
         expect((await request(app).get("/api/sessions").set(authed(mobile.token))).status).toBe(401)
+    })
+
+    it("o refresh token rotacionado há instantes não reativa uma sessão encerrada em lote (janela de graça)", async () => {
+        await register()
+        const mine = await loginMobile()
+        const web = await loginWeb()
+        await web.agent.post("/api/auth/refresh").set(env.REFRESH_CSRF_HEADER_NAME, web.refreshCsrf)
+        await revokeOthers(mine.token)
+
+        const stolen = await refreshWith(web.refreshToken, web.refreshCsrf)
+
+        expect(stolen.status).toBe(401)
+        expect(
+            await prismaHttpTest.refreshToken.count({
+                where: { sessionId: web.sessionId, revokedAt: null },
+            }),
+        ).toBe(0)
     })
 
     it("não encerra sessões de outro usuário", async () => {

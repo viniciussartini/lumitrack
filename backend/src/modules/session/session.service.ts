@@ -65,11 +65,9 @@ export class SessionService {
         assertViewerSession(viewer)
         const { id } = parseOrThrow(sessionParamsSchema, params)
 
-        if (!(await this.repository.hasLiveSession(viewer.userId, id, this.now()))) {
-            throw new NotFoundError("Sessão não encontrada")
-        }
+        const revoked = await this.repository.revokeSession(viewer.userId, id, this.now())
+        if (revoked === 0) throw new NotFoundError("Sessão não encontrada")
 
-        await this.repository.revokeSession(viewer.userId, id)
         return { endedCurrent: id === viewer.sessionId }
     }
 

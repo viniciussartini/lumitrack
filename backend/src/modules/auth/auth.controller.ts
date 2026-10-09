@@ -254,10 +254,11 @@ export class AuthController {
 
             const { token, refreshToken, channel, userId } = await this.authService.refresh(
                 rawRefreshToken,
-                async (affectedUserId) => {
+                async (affectedUserId, kind) => {
                     await this.auditService.record({
                         userId: affectedUserId,
-                        action: "REFRESH_TOKEN_REUSE_DETECTED",
+                        action:
+                            kind === "REUSE" ? "REFRESH_TOKEN_REUSE_DETECTED" : "REVOKED_TOKEN_USE",
                         outcome: "FAILURE",
                         resourceType: "User",
                         resourceId: affectedUserId,

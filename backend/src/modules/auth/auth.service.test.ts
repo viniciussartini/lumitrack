@@ -1038,11 +1038,31 @@ describe("AuthService", () => {
                 UnauthorizedError,
             )
 
-            expect(auditSpy).not.toHaveBeenCalled()
+            expect(auditSpy).toHaveBeenCalledOnce()
+            expect(auditSpy).toHaveBeenCalledWith(expect.any(String), "REVOKED")
             const otherRefresh = await prismaTest.refreshToken.findUniqueOrThrow({
                 where: { token: hashToken(other.refreshToken!) },
             })
             expect(otherRefresh.revokedAt).toBeNull()
+        })
+
+        it("depois do logout, o token rotacionado há instantes não reabre a sessão (janela de graça)", async () => {
+            const { rawRefreshToken } = await createUserAndLogin()
+            const renewed = await authService.refresh(rawRefreshToken)
+            await authService.logout(renewed.token, renewed.refreshToken!)
+
+            const auditSpy = vi.fn()
+            await expect(authService.refresh(rawRefreshToken, auditSpy)).rejects.toThrow(
+                UnauthorizedError,
+            )
+
+            expect(
+                await prismaTest.refreshToken.count({
+                    where: { revokedAt: null, expiresAt: { gt: new Date() } },
+                }),
+            ).toBe(0)
+            expect(auditSpy).toHaveBeenCalledOnce()
+            expect(auditSpy).toHaveBeenCalledWith(expect.any(String), "REVOKED")
         })
 
         it("lança UnauthorizedError para token inexistente", async () => {

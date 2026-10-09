@@ -66,6 +66,14 @@ type SessionIssue = {
 
 const NO_CONTEXT: RequestContext = { ipAddress: null, userAgent: null }
 
+/** O que o refresh encontrou: reuso de token rotacionado, ou uso de um token já cortado. */
+export type RefreshAuditKind = "REUSE" | "REVOKED"
+
+/** Callback de auditoria do refresh; recebe o dono do token e o tipo da ocorrência. */
+export type RefreshAuditFn = (userId: string, kind: RefreshAuditKind) => Promise<void>
+
+type StoredRefreshToken = NonNullable<Awaited<ReturnType<AuthRepository["findRefreshToken"]>>>
+
 /**
  * Autenticação, sessão, MFA e recuperação de conta — login, refresh
  * rotacionado, TOTP com backup codes e o ciclo de esqueci-minha-senha.
@@ -419,17 +427,18 @@ export class AuthService {
 
     /**
      * Renova a sessão WEB: valida o refresh token, rotaciona-o e emite um
-     * novo JWT + novo refresh token. Detecta reuso de tokens já revogados
-     * (sinal de roubo) e revoga todas as sessões do usuário nesse caso.
+     * novo JWT + novo refresh token. Detecta reuso de tokens já rotacionados
+     * (sinal de roubo) e revoga todas as sessões do usuário nesse caso; token
+     * cortado sem rotação (logout, sessão encerrada) só é recusado.
      *
      * @param rawRefreshToken - Refresh token em claro, recebido do cookie.
-     * @param auditFn - Callback opcional acionado quando um reuso de token é detectado.
+     * @param auditFn - Callback opcional acionado quando um token já revogado é apresentado.
      * @param context - IP e user-agent da requisição; a sessão passa a mostrar a origem do último acesso.
      * @returns A nova sessão emitida.
      */
     async refresh(
         rawRefreshToken: string,
-        auditFn?: (userId: string) => Promise<void>,
+        auditFn?: RefreshAuditFn,
         context: RequestContext = NO_CONTEXT,
     ): Promise<SessionResult> {
         const hashedToken = hashToken(rawRefreshToken)
@@ -440,35 +449,7 @@ export class AuthService {
         }
 
         if (stored.revokedAt !== null) {
-            const gracePeriodMs = env.REFRESH_TOKEN_GRACE_PERIOD_MS
-            const withinGrace =
-                stored.replacedByTokenId !== null &&
-                Date.now() - stored.revokedAt.getTime() <= gracePeriodMs
-
-            if (withinGrace) {
-                // Corrida entre abas: token já foi rotacionado, mas dentro da
-                // janela de graça — emite nova sessão sem segunda rotação.
-                const user = await this.authRepository.findUserById(stored.userId)
-                if (!user) throw new UnauthorizedError("Refresh token inválido")
-                return this.issueSessionToken(user.id, user.email, user.userType, "WEB", {
-                    sessionId: stored.sessionId,
-                    context,
-                })
-            }
-
-            // Revogado sem substituto: logout, sessão encerrada ou reset de senha.
-            // Não é reuso de token rotacionado, então só recusa — tratá-lo como
-            // roubo derrubaria também as outras sessões, e o aparelho encerrado
-            // por outra sessão ainda tem este token no cookie.
-            if (stored.replacedByTokenId === null) {
-                throw new UnauthorizedError("Refresh token inválido")
-            }
-
-            // Reuso real (token rotacionado usado fora da janela de graça) —
-            // compromisso potencial: revogar tudo e forçar re-login.
-            await this.authRepository.revokeAllRefreshTokensForUser(stored.userId)
-            if (auditFn) await auditFn(stored.userId)
-            throw new UnauthorizedError("Refresh token inválido")
+            return this.refreshWithRevokedToken(stored, stored.revokedAt, auditFn, context)
         }
 
         if (stored.expiresAt < new Date()) {
@@ -483,6 +464,56 @@ export class AuthService {
             context,
             replacesRefreshTokenId: stored.id,
         })
+    }
+
+    // Token já revogado: ou foi rotacionado (dentro da graça é uma corrida entre
+    // abas; fora dela é reuso, possível roubo), ou foi cortado sem substituto
+    // (logout, sessão encerrada, reset de senha).
+    private async refreshWithRevokedToken(
+        stored: StoredRefreshToken,
+        revokedAt: Date,
+        auditFn: RefreshAuditFn | undefined,
+        context: RequestContext,
+    ): Promise<SessionResult> {
+        const rotated = stored.replacedByTokenId !== null
+
+        // Só recusa: tratar como roubo derrubaria as outras sessões, e o
+        // aparelho encerrado por outra sessão ainda tem este token no cookie.
+        // O registro deixa rastro de um token cortado que segue em uso.
+        if (!rotated) {
+            if (auditFn) await auditFn(stored.userId, "REVOKED")
+            throw new UnauthorizedError("Refresh token inválido")
+        }
+
+        const withinGrace = Date.now() - revokedAt.getTime() <= env.REFRESH_TOKEN_GRACE_PERIOD_MS
+        if (withinGrace) {
+            // Corrida entre abas: o token foi rotacionado há instantes, mas a
+            // sessão só é reemitida se ainda estiver de pé. Se foi encerrada
+            // depois da rotação (o sucessor também foi revogado), a graça
+            // devolveria a sessão a quem guardou o token anterior.
+            const alive = await this.authRepository.hasLiveRefreshTokenInSession(
+                stored.userId,
+                stored.sessionId,
+                new Date(),
+            )
+            if (!alive) {
+                if (auditFn) await auditFn(stored.userId, "REVOKED")
+                throw new UnauthorizedError("Refresh token inválido")
+            }
+
+            const user = await this.authRepository.findUserById(stored.userId)
+            if (!user) throw new UnauthorizedError("Refresh token inválido")
+            return this.issueSessionToken(user.id, user.email, user.userType, "WEB", {
+                sessionId: stored.sessionId,
+                context,
+            })
+        }
+
+        // Reuso real (token rotacionado usado fora da janela de graça) —
+        // compromisso potencial: revogar tudo e forçar re-login.
+        await this.authRepository.revokeAllRefreshTokensForUser(stored.userId)
+        if (auditFn) await auditFn(stored.userId, "REUSE")
+        throw new UnauthorizedError("Refresh token inválido")
     }
 
     // ─── Helpers privados ───────────────────────────────────────────────────
