@@ -4654,3 +4654,13 @@
 - **Arquivos principais:** `backend/src/modules/auth/auth.service.ts`, `backend/src/modules/auth/auth.repository.ts`, `backend/src/modules/auth/auth.controller.ts`, `backend/src/modules/session/session.repository.ts`, `backend/src/modules/session/session.service.ts`, `backend/prisma/migrations/20261009220000_auditoria_token_revogado/`.
 - **Decisões/ADRs:** ADR-0025 ganha a regra da graça e a auditoria `REVOKED_TOKEN_USE`; nenhum item do `07` tocado.
 - **Notas:** o reset de senha tinha a mesma brecha da graça (revoga sem rotacionar) e também fica coberto. O mobile, que não tem refresh, não depende deste caminho.
+
+## [2026-10-09] docs: roadmap fecha a Fase 30 (PRs #502 e #503) e detalha a Fase 31
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** `planejar-roadmap` (ciclo de atualização) marca a Fase 30 (Sessões ativas) como concluída — issues #500 e #501, PRs #502 e #503 mesclados em `staging` em 2026-10-09, milestone `App v2` com 0 issues abertas — e registra, no "Replanejamento de 2026-10-09", o que mudou em relação ao plano: a decisão de captura virou ADR-0025 (rótulo reduzido e IP mascarado, `sessionId` nas duas tabelas, sem tabela `Session`), a "visão sem tabela nova" não bastava, o item 2 (S) foi bem maior que o plano (cascata de reuso do refresh, janela de graça, auditoria `SESSION_REVOKE` e `REVOKED_TOKEN_USE`), a sessão atual ficou sem botão por decisão do usuário, e os dois laudos de revisão (1 bloqueio cada) foram aplicados. Lições: um PR por item rendeu revisão mas ainda passou de 1,2 mil linhas; migração que remove o default depois de adicionar coluna `NOT NULL` quebra o backend anterior; e o incidente do staging (banco do Neon sem as migrações das Fases 25 a 30, porque o Render não as aplica). A Fase 31 (Simulador — Modbus) sai do nível de objetivo para 2 itens (decisão do `07` e servidor TCP embutido).
+- **Decisões do usuário (já tomadas na fase):** captura reduzida com `sessionId` nas duas tabelas; atual sem botão; aplicar todos os achados das duas revisões ("opção b").
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma ADR nova; nenhum item do `07` tocado (a decisão do Modbus segue aberta).
+- **Notas:** pendências do usuário no fim do replanejamento, a mais urgente aplicar as migrações no Neon para o login de demonstração do staging voltar; fechar a milestone `App v2` no GitHub.
