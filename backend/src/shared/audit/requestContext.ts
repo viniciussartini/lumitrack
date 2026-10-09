@@ -1,9 +1,12 @@
 import type { Request } from "express"
 
-export function getRequestContext(req: Request): {
+/** IP e user-agent da requisição, como o Express os entrega. */
+export interface RequestContext {
     ipAddress: string | null
     userAgent: string | null
-} {
+}
+
+export function getRequestContext(req: Request): RequestContext {
     const userAgent = req.headers["user-agent"]
 
     return {

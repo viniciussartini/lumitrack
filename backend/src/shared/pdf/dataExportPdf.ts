@@ -330,6 +330,37 @@ function drawGoalsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): 
     }
 }
 
+const SESSION_CHANNEL_LABELS = { WEB: "Web", MOBILE: "Mobile" } as const
+
+/**
+ * Linha de uma sessão no PDF do titular: canal, dispositivo reduzido, origem
+ * mascarada e quando começou (e foi encerrada, se for o caso). Dispositivo ou
+ * origem ausentes em sessão aberta antes do registro nunca são preenchidos.
+ *
+ * @param session - Sessão exportada (nunca token, hash nem IP bruto).
+ * @returns O texto da linha.
+ */
+export function describeExportedSession(session: DataExportPayload["sessions"][number]): string {
+    return (
+        `• ${SESSION_CHANNEL_LABELS[session.channel]} — ` +
+        `${session.deviceLabel ?? "dispositivo não registrado"} — ` +
+        `${session.origin ?? "origem não registrada"} — ` +
+        `iniciada em ${formatInstantDateTime(session.createdAt)}` +
+        (session.revokedAt ? ` — encerrada em ${formatInstantDateTime(session.revokedAt)}` : "")
+    )
+}
+
+function drawSessionsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
+    sectionTitle(doc, "Sessões (dispositivo e origem)")
+
+    if (payload.sessions.length === 0) {
+        emptyNote(doc, "Nenhuma sessão registrada.")
+        return
+    }
+
+    for (const session of payload.sessions) doc.text(describeExportedSession(session))
+}
+
 function drawAuditLogSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
     sectionTitle(doc, "Histórico de acesso e segurança (audit log)")
 
@@ -390,6 +421,7 @@ export async function generateDataExportPdf(payload: DataExportPayload): Promise
     drawReportsSection(doc, payload)
     drawReportSchedulesSection(doc, payload)
     drawGoalsSection(doc, payload)
+    drawSessionsSection(doc, payload)
     drawAuditLogSection(doc, payload)
     drawFooterOnAllPages(doc)
 

@@ -44,7 +44,7 @@ export class AuthController {
      */
     async login(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const result = await this.authService.login(req.body)
+            const result = await this.authService.login(req.body, getRequestContext(req))
 
             if (result.mfaRequired) {
                 // Senha já validada, mas a sessão real ainda não existe —
@@ -108,7 +108,7 @@ export class AuthController {
      */
     async demoLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const result = await this.authService.demoLogin(req.body)
+            const result = await this.authService.demoLogin(req.body, getRequestContext(req))
 
             if (result.mfaRequired) {
                 res.status(200).json({
@@ -147,7 +147,7 @@ export class AuthController {
     async verifyMfaLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { token, refreshToken, channel, userId } =
-                await this.authService.completeMfaLogin(req.body)
+                await this.authService.completeMfaLogin(req.body, getRequestContext(req))
 
             await this.auditService.record({
                 userId,
@@ -273,6 +273,7 @@ export class AuthController {
                         ...getRequestContext(req),
                     })
                 },
+                getRequestContext(req),
             )
 
             await this.auditService.record({

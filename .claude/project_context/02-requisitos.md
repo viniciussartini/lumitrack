@@ -29,7 +29,7 @@
 - RF06 `[implementado]`: a sessão WEB deve renovar-se via refresh token opaco rotacionado, detectando e reagindo ao reuso de um token já trocado.
 - RF20 `[implementado]`: o sistema deve exigir a senha atual para iniciar uma troca de e-mail e só efetivá-la após confirmação pelo novo endereço (token hasheado, com expiração), revogando todas as sessões da conta na confirmação.
 - RF21 `[implementado]`: o sistema deve permitir entrar em contas de demonstração (residencial e comercial) sem e-mail nem senha, com o backend resolvendo a conta internamente, quando `DEMO_LOGIN_ENABLED` estiver ligado — independente de `REGISTRATION_ENABLED`.
-- RF44 `[planejado — Fase 30]`: o sistema deve permitir que um usuário veja suas sessões ativas (dispositivo, origem, último acesso) e encerre qualquer uma delas, individualmente ou todas as outras de uma vez. `AuthToken`/`RefreshToken` hoje não guardam device/IP/user-agent — só canal e datas; a granularidade real de "dispositivo, origem" depende de decisão na execução da Fase 30.
+- RF44 `[planejado — Fase 30]`: o sistema deve permitir que um usuário veja suas sessões ativas (dispositivo, origem, último acesso) e encerre qualquer uma delas, individualmente ou todas as outras de uma vez. O login grava, em `AuthToken`/`RefreshToken`, só o rótulo reduzido do dispositivo (navegador e sistema) e o IP mascarado, ligados por um `sessionId` (ADR-0025); a lista de sessões ativas (`GET /api/sessions`, bloco "Sessões ativas" da página Segurança) está implementada, falta o encerramento.
 
 ### Hierarquia do consumidor
 

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest"
 import {
     describeExportedGoal,
     describeExportedReport,
+    describeExportedSession,
     generateDataExportPdf,
 } from "@/shared/pdf/dataExportPdf.js"
 import type { DataExportPayload } from "@/modules/export/export.service.js"
@@ -37,6 +38,7 @@ function buildFakePayload(overrides: Partial<DataExportPayload> = {}): DataExpor
         reports: [],
         reportSchedules: [],
         goals: [],
+        sessions: [],
         auditLogs: [],
         ...overrides,
     }
@@ -186,6 +188,63 @@ describe("generateDataExportPdf — metas", () => {
                         alertPercent: 85,
                         createdAt: new Date("2026-01-01T00:00:00Z"),
                         updatedAt: new Date("2026-01-01T00:00:00Z"),
+                    },
+                ],
+            }),
+        )
+
+        expect(buffer.subarray(0, 4).toString("latin1")).toBe("%PDF")
+    })
+})
+
+describe("describeExportedSession", () => {
+    const base = {
+        channel: "WEB" as const,
+        deviceLabel: "Chrome · Windows",
+        origin: "189.45.xx.xx",
+        createdAt: new Date("2026-03-01T12:30:00.000Z"),
+        expiresAt: new Date("2026-03-08T12:30:00.000Z"),
+        revokedAt: null,
+    }
+
+    it("mostra canal, dispositivo, origem mascarada e a data, no fuso de São Paulo", () => {
+        expect(describeExportedSession(base)).toBe(
+            "• Web — Chrome · Windows — 189.45.xx.xx — iniciada em 01/03/2026, 09:30:00",
+        )
+    })
+
+    it("sessão antiga, sem dispositivo nem origem, não inventa dado", () => {
+        expect(
+            describeExportedSession({
+                ...base,
+                channel: "MOBILE",
+                deviceLabel: null,
+                origin: null,
+            }),
+        ).toBe(
+            "• Mobile — dispositivo não registrado — origem não registrada — iniciada em 01/03/2026, 09:30:00",
+        )
+    })
+
+    it("sessão revogada informa o encerramento", () => {
+        expect(
+            describeExportedSession({ ...base, revokedAt: new Date("2026-03-02T15:00:00.000Z") }),
+        ).toContain("encerrada em 02/03/2026, 12:00:00")
+    })
+})
+
+describe("generateDataExportPdf — sessões", () => {
+    it("gera um PDF válido com a seção de sessões preenchida", async () => {
+        const buffer = await generateDataExportPdf(
+            buildFakePayload({
+                sessions: [
+                    {
+                        channel: "WEB",
+                        deviceLabel: "Chrome · Windows",
+                        origin: "189.45.xx.xx",
+                        createdAt: new Date("2026-03-01T12:30:00.000Z"),
+                        expiresAt: null,
+                        revokedAt: null,
                     },
                 ],
             }),

@@ -33,6 +33,7 @@ import { reportRoutes } from "@/modules/report/report.routes.js"
 import { reportScheduleRoutes } from "@/modules/report-schedule/report-schedule.routes.js"
 import { demandRoutes } from "@/modules/demand/demand.routes.js"
 import { goalRoutes } from "@/modules/goal/goal.routes.js"
+import { sessionRoutes } from "@/modules/session/session.routes.js"
 import { adminRoutes } from "@/modules/admin/admin.routes.js"
 import { authRoutes } from "@/modules/auth/auth.routes.js"
 import { distributorRoutes } from "./modules/distributor/distributor.routes.js"
@@ -259,6 +260,7 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/reports", reportRoutes(authenticate, prismaClient, auditService))
     app.use("/api/report-schedules", reportScheduleRoutes(authenticate, prismaClient))
     app.use("/api/goals", goalRoutes(authenticate, prismaClient))
+    app.use("/api/sessions", sessionRoutes(authenticate, prismaClient))
     app.use("/api/demand", demandRoutes(authenticate, prismaClient))
 
     if (processor && userEventHub) {

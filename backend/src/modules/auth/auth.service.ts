@@ -24,6 +24,8 @@ import {
 } from "@/modules/auth/auth.schema.js"
 import { UnauthorizedError, BadRequestError, ForbiddenError } from "@/shared/errors/AppError.js"
 import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
+import type { RequestContext } from "@/shared/audit/requestContext.js"
+import { describeDevice, maskIp } from "@/shared/session/sessionOrigin.js"
 import type { StringValue } from "ms"
 
 // Tipo do EmailService
@@ -53,6 +55,17 @@ type SessionResult = {
 type LoginResult =
     (SessionResult & { mfaRequired: false }) | { mfaRequired: true; mfaToken: string }
 
+// Sessão de um token que está sendo emitido: o id (novo no login, herdado no
+// refresh), a requisição de onde veio e, na rotação, o refresh token que ele
+// substitui.
+type SessionIssue = {
+    sessionId: string
+    context: RequestContext
+    replacesRefreshTokenId?: string
+}
+
+const NO_CONTEXT: RequestContext = { ipAddress: null, userAgent: null }
+
 /**
  * Autenticação, sessão, MFA e recuperação de conta — login, refresh
  * rotacionado, TOTP com backup codes e o ciclo de esqueci-minha-senha.
@@ -80,9 +93,10 @@ export class AuthService {
      * {@link completeMfaLogin}).
      *
      * @param input - Corpo bruto da requisição (`email`, `password`, `channel`), validado aqui.
+     * @param context - IP e user-agent da requisição; só o rótulo do dispositivo e o IP mascarado são guardados.
      * @returns A sessão emitida, ou um `mfaToken` pendente quando MFA está habilitado.
      */
-    async login(input: unknown): Promise<LoginResult> {
+    async login(input: unknown, context: RequestContext = NO_CONTEXT): Promise<LoginResult> {
         const { email, password, channel } = parseOrThrow(loginSchema, input)
 
         const user = await this.authRepository.findUserByEmailWithPassword(email)
@@ -97,7 +111,10 @@ export class AuthService {
             return { mfaRequired: true, mfaToken: this.issueMfaToken(user.id, channel) }
         }
 
-        const session = await this.issueSessionToken(user.id, user.email, user.userType, channel)
+        const session = await this.issueSessionToken(user.id, user.email, user.userType, channel, {
+            sessionId: randomUUID(),
+            context,
+        })
         return { ...session, mfaRequired: false }
     }
 
@@ -109,9 +126,10 @@ export class AuthService {
      * ambientes que não optaram por expor login de demonstração.
      *
      * @param input - Corpo bruto da requisição (`profile`, `channel`), validado aqui.
+     * @param context - IP e user-agent da requisição; só o rótulo do dispositivo e o IP mascarado são guardados.
      * @returns A sessão emitida, ou um `mfaToken` pendente quando MFA está habilitado.
      */
-    async demoLogin(input: unknown): Promise<LoginResult> {
+    async demoLogin(input: unknown, context: RequestContext = NO_CONTEXT): Promise<LoginResult> {
         if (!this.demoLoginEnabled) {
             throw new ForbiddenError("Login de demonstração desabilitado neste ambiente")
         }
@@ -132,7 +150,10 @@ export class AuthService {
             return { mfaRequired: true, mfaToken: this.issueMfaToken(user.id, channel) }
         }
 
-        const session = await this.issueSessionToken(user.id, user.email, user.userType, channel)
+        const session = await this.issueSessionToken(user.id, user.email, user.userType, channel, {
+            sessionId: randomUUID(),
+            context,
+        })
         return { ...session, mfaRequired: false }
     }
 
@@ -148,9 +169,13 @@ export class AuthService {
      * mais um código válido (TOTP ou backup code).
      *
      * @param input - Corpo bruto da requisição (`mfaToken`, `code`), validado aqui.
+     * @param context - IP e user-agent da requisição que conclui o login (a do segundo passo).
      * @returns A sessão emitida.
      */
-    async completeMfaLogin(input: unknown): Promise<SessionResult> {
+    async completeMfaLogin(
+        input: unknown,
+        context: RequestContext = NO_CONTEXT,
+    ): Promise<SessionResult> {
         const { mfaToken, code } = parseOrThrow(mfaLoginVerifySchema, input)
 
         let payload: { purpose: string; userId: string; channel: "WEB" | "MOBILE" }
@@ -176,7 +201,10 @@ export class AuthService {
             throw new UnauthorizedError("Código inválido")
         }
 
-        return this.issueSessionToken(user.id, user.email, user.userType, payload.channel)
+        return this.issueSessionToken(user.id, user.email, user.userType, payload.channel, {
+            sessionId: randomUUID(),
+            context,
+        })
     }
 
     /**
@@ -395,11 +423,13 @@ export class AuthService {
      *
      * @param rawRefreshToken - Refresh token em claro, recebido do cookie.
      * @param auditFn - Callback opcional acionado quando um reuso de token é detectado.
+     * @param context - IP e user-agent da requisição; a sessão passa a mostrar a origem do último acesso.
      * @returns A nova sessão emitida.
      */
     async refresh(
         rawRefreshToken: string,
         auditFn?: (userId: string) => Promise<void>,
+        context: RequestContext = NO_CONTEXT,
     ): Promise<SessionResult> {
         const hashedToken = hashToken(rawRefreshToken)
         const stored = await this.authRepository.findRefreshToken(hashedToken)
@@ -419,7 +449,10 @@ export class AuthService {
                 // janela de graça — emite nova sessão sem segunda rotação.
                 const user = await this.authRepository.findUserById(stored.userId)
                 if (!user) throw new UnauthorizedError("Refresh token inválido")
-                return this.issueSessionToken(user.id, user.email, user.userType, "WEB")
+                return this.issueSessionToken(user.id, user.email, user.userType, "WEB", {
+                    sessionId: stored.sessionId,
+                    context,
+                })
             }
 
             // Reuso real (token revogado fora da janela de graça) — compromisso
@@ -436,7 +469,11 @@ export class AuthService {
         const user = await this.authRepository.findUserById(stored.userId)
         if (!user) throw new UnauthorizedError("Refresh token inválido")
 
-        return this.issueSessionToken(user.id, user.email, user.userType, "WEB", stored.id)
+        return this.issueSessionToken(user.id, user.email, user.userType, "WEB", {
+            sessionId: stored.sessionId,
+            context,
+            replacesRefreshTokenId: stored.id,
+        })
     }
 
     // ─── Helpers privados ───────────────────────────────────────────────────
@@ -449,7 +486,7 @@ export class AuthService {
         email: string,
         userType: string,
         channel: "WEB" | "MOBILE",
-        replacesRefreshTokenId?: string,
+        session: SessionIssue,
     ): Promise<SessionResult> {
         // jti (JWT ID) é um UUID aleatório que garante unicidade mesmo quando
         // dois tokens são emitidos no mesmo segundo para o mesmo usuário —
@@ -473,21 +510,37 @@ export class AuthService {
         // O JWT em si nunca é persistido — apenas seu hash (SHA-256). Em caso
         // de vazamento do dump do banco, o hash não permite reconstruir um
         // token de sessão válido.
+        // Só o rótulo reduzido e o IP mascarado são guardados, nunca o
+        // user-agent nem o IP. A sessão web os mostra pelo refresh token; o
+        // mobile não tem refresh, então os guarda no próprio AuthToken.
+        const deviceLabel = describeDevice(session.context.userAgent, channel)
+        const origin = maskIp(session.context.ipAddress)
+        const isMobile = channel === "MOBILE"
+
         await this.authRepository.createAuthToken({
             userId,
             token: hashToken(token),
             channel,
             expiresAt,
+            sessionId: session.sessionId,
+            deviceLabel: isMobile ? deviceLabel : null,
+            origin: isMobile ? origin : null,
         })
 
         const refreshToken =
-            channel === "WEB" ? await this.issueRefreshToken(userId, replacesRefreshTokenId) : null
+            channel === "WEB"
+                ? await this.issueRefreshToken(userId, session, { deviceLabel, origin })
+                : null
 
         return { token, refreshToken, channel, userId }
     }
 
     // Gera um token opaco de alta entropia, persiste apenas o hash.
-    private async issueRefreshToken(userId: string, replacesTokenId?: string): Promise<string> {
+    private async issueRefreshToken(
+        userId: string,
+        session: SessionIssue,
+        origin: { deviceLabel: string; origin: string | null },
+    ): Promise<string> {
         const raw = randomBytes(32).toString("hex")
         const expiresAt = new Date(
             Date.now() + parseJwtExpiry(env.JWT_REFRESH_EXPIRES_IN as StringValue),
@@ -496,7 +549,12 @@ export class AuthService {
             userId,
             token: hashToken(raw),
             expiresAt,
-            ...(replacesTokenId !== undefined && { replacesTokenId }),
+            sessionId: session.sessionId,
+            deviceLabel: origin.deviceLabel,
+            origin: origin.origin,
+            ...(session.replacesRefreshTokenId !== undefined && {
+                replacesTokenId: session.replacesRefreshTokenId,
+            }),
         })
         return raw
     }

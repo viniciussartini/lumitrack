@@ -1,6 +1,6 @@
 import { useId } from "react"
 import { ChevronDown, ChevronRight, Cpu, Home, LayoutGrid } from "lucide-react"
-import { SectionError, SectionSkeleton } from "@/components/dashboard/SectionParts"
+import { SectionError, SectionSkeleton } from "@/components/ui/SectionState"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { usePropertyTree } from "@/hooks/queries/usePropertyTree"
 import { useTodayConsumption } from "@/hooks/useTodayConsumption"

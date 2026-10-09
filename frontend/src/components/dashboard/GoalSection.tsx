@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react"
 import { Link } from "react-router"
-import { SectionError, SectionSkeleton, SectionStat } from "@/components/dashboard/SectionParts"
+import { SectionStat } from "@/components/dashboard/SectionParts"
+import { SectionError, SectionSkeleton } from "@/components/ui/SectionState"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { Button } from "@/components/ui/Button"
 import { GoalPaceChart, type PacePeriod } from "@/components/dashboard/GoalPaceChart"

@@ -10,6 +10,7 @@ import { withPurgeTimeout } from "@/shared/database/withPurgeTimeout.js"
 export type ActiveToken = {
     id: string
     userId: string
+    sessionId: string
     revokedAt: Date | null
     expiresAt: Date | null
     user: { role: Role }
@@ -29,12 +30,18 @@ export class AuthRepository {
      * @param data.token - Hash do JWT emitido (nunca o token em claro).
      * @param data.channel - Canal de origem da sessão.
      * @param data.expiresAt - Expiração da sessão (null para MOBILE).
+     * @param data.sessionId - Sessão a que o token pertence.
+     * @param data.deviceLabel - Rótulo reduzido do dispositivo (só o mobile o guarda aqui).
+     * @param data.origin - IP mascarado (só o mobile o guarda aqui).
      */
     async createAuthToken(data: {
         userId: string
         token: string
         channel: "WEB" | "MOBILE"
         expiresAt: Date | null
+        sessionId: string
+        deviceLabel: string | null
+        origin: string | null
     }): Promise<void> {
         await this.prisma.authToken.create({ data })
     }
@@ -52,6 +59,7 @@ export class AuthRepository {
             select: {
                 id: true,
                 userId: true,
+                sessionId: true,
                 revokedAt: true,
                 expiresAt: true,
                 user: { select: { role: true } },
@@ -424,6 +432,9 @@ export class AuthRepository {
      * @param data.token - Hash do refresh token (nunca o valor em claro).
      * @param data.expiresAt - Expiração do refresh token.
      * @param data.replacesTokenId - Id do refresh token que este substitui, quando é uma rotação.
+     * @param data.sessionId - Sessão a que o refresh token pertence, mantida na rotação.
+     * @param data.deviceLabel - Rótulo reduzido do dispositivo do último acesso.
+     * @param data.origin - IP mascarado do último acesso.
      * @returns Id do refresh token criado.
      */
     async createRefreshToken(data: {
@@ -431,6 +442,9 @@ export class AuthRepository {
         token: string
         expiresAt: Date
         replacesTokenId?: string
+        sessionId: string
+        deviceLabel: string | null
+        origin: string | null
     }): Promise<{ id: string }> {
         const now = new Date()
         return this.prisma.$transaction(async (tx) => {
@@ -439,6 +453,9 @@ export class AuthRepository {
                     userId: data.userId,
                     token: data.token,
                     expiresAt: data.expiresAt,
+                    sessionId: data.sessionId,
+                    deviceLabel: data.deviceLabel,
+                    origin: data.origin,
                 },
                 select: { id: true },
             })
@@ -461,6 +478,7 @@ export class AuthRepository {
     async findRefreshToken(token: string): Promise<{
         id: string
         userId: string
+        sessionId: string
         revokedAt: Date | null
         expiresAt: Date
         replacedByTokenId: string | null
@@ -471,6 +489,7 @@ export class AuthRepository {
             select: {
                 id: true,
                 userId: true,
+                sessionId: true,
                 revokedAt: true,
                 expiresAt: true,
                 replacedByTokenId: true,

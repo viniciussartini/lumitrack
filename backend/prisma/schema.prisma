@@ -279,13 +279,21 @@ model User {
 
 // Armazena tokens emitidos para permitir revogação (logout e expiração).
 model AuthToken {
-  id        String       @id @default(uuid())
-  userId    String
-  token     String       @unique
-  channel   TokenChannel
-  expiresAt DateTime? // null = mobile (não expira por tempo)
-  revokedAt DateTime? // null = ainda válido
-  createdAt DateTime     @default(now())
+  id          String       @id @default(uuid())
+  userId      String
+  token       String       @unique
+  channel     TokenChannel
+  expiresAt   DateTime? // sempre preenchido na emissão, web e mobile
+  revokedAt   DateTime? // null = ainda válido
+  createdAt   DateTime     @default(now())
+  // Sessão a que o token pertence: gerada no login e herdada a cada novo token
+  // da mesma sessão (refresh). Liga o JWT de acesso ao refresh token.
+  sessionId   String       @default(uuid())
+  // Só o mobile usa estes dois (a web os guarda no RefreshToken). Rótulo
+  // reduzido ("Chrome · Windows") e IP mascarado — nunca o user-agent nem o IP
+  // brutos.
+  deviceLabel String?
+  origin      String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -306,6 +314,12 @@ model RefreshToken {
   revokedAt         DateTime? // null = ainda válido
   replacedByTokenId String?   @unique
   createdAt         DateTime  @default(now())
+  // Mesma sessão do JWT de acesso; mantido na rotação (ver AuthToken.sessionId).
+  sessionId         String    @default(uuid())
+  // Rótulo reduzido ("Chrome · Windows") e IP mascarado do último acesso da
+  // sessão — nunca o user-agent nem o IP brutos.
+  deviceLabel       String?
+  origin            String?
 
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   replacedByToken RefreshToken? @relation("RefreshTokenRotation", fields: [replacedByTokenId], references: [id], onDelete: SetNull)

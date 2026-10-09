@@ -16,6 +16,7 @@ import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { ReportRepository } from "@/modules/report/report.repository.js"
 import { ReportScheduleRepository } from "@/modules/report-schedule/report-schedule.repository.js"
 import { GoalRepository } from "@/modules/goal/goal.repository.js"
+import { SessionRepository } from "@/modules/session/session.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 import { createTestDistributor } from "@/shared/test/distributorFixture.js"
@@ -45,6 +46,7 @@ const auditRepository = new AuditRepository(prismaTest)
 const reportRepository = new ReportRepository(prismaTest)
 const reportScheduleRepository = new ReportScheduleRepository(prismaTest)
 const goalRepository = new GoalRepository(prismaTest)
+const sessionRepository = new SessionRepository(prismaTest)
 
 const exportService = new ExportService(
     userRepository,
@@ -59,6 +61,7 @@ const exportService = new ExportService(
     reportRepository,
     reportScheduleRepository,
     goalRepository,
+    sessionRepository,
 )
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
@@ -321,6 +324,74 @@ describe("ExportService.generate", () => {
         expect(payload.goals).toHaveLength(1)
         expect(payload.goals[0]).toMatchObject({ propertyId: propertyA.id, year: 2026 })
         expect(payload.goals[0]).not.toHaveProperty("userId")
+    })
+
+    it("exporta só as sessões do titular, com dispositivo e origem mascarados e sem token", async () => {
+        const userA = await userService.createUser(validUserA)
+        const userB = await userService.createUser(validUserB)
+        const expiresAt = new Date(Date.now() + 3_600_000)
+        await prismaTest.refreshToken.create({
+            data: {
+                userId: userA.id,
+                token: "hash-refresh-a",
+                expiresAt,
+                revokedAt: new Date(),
+                deviceLabel: "Chrome · Windows",
+                origin: "189.45.xx.xx",
+            },
+        })
+        await prismaTest.authToken.create({
+            data: {
+                userId: userA.id,
+                token: "hash-auth-a",
+                channel: "MOBILE",
+                expiresAt,
+                deviceLabel: "App móvel",
+                origin: null,
+            },
+        })
+        await prismaTest.authToken.create({
+            data: { userId: userA.id, token: "hash-auth-web-a", channel: "WEB", expiresAt },
+        })
+        await prismaTest.refreshToken.create({
+            data: {
+                userId: userB.id,
+                token: "hash-refresh-b",
+                expiresAt,
+                deviceLabel: "Safari · iOS",
+                origin: "201.17.xx.xx",
+            },
+        })
+
+        const payload = await exportService.generate(userA.id)
+
+        expect(payload.sessions).toHaveLength(2)
+        expect(payload.sessions).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    channel: "WEB",
+                    deviceLabel: "Chrome · Windows",
+                    origin: "189.45.xx.xx",
+                }),
+                expect.objectContaining({
+                    channel: "MOBILE",
+                    deviceLabel: "App móvel",
+                    origin: null,
+                }),
+            ]),
+        )
+        const serialized = JSON.stringify(payload.sessions)
+        expect(serialized).not.toContain("hash-")
+        expect(serialized).not.toContain("201.17")
+        expect(serialized).not.toContain(userA.id)
+    })
+
+    it("sem sessões guardadas, exporta uma lista vazia", async () => {
+        const user = await userService.createUser(validUserA)
+
+        const payload = await exportService.generate(user.id)
+
+        expect(payload.sessions).toEqual([])
     })
 
     it("lança NotFoundError para userId inexistente", async () => {

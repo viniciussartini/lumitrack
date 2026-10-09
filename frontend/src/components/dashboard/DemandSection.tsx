@@ -1,6 +1,7 @@
 import axios from "axios"
 import { DemandChart, CONTRACTED_COLOR, MEASURED_COLOR } from "@/components/dashboard/DemandChart"
-import { SectionError, SectionSkeleton, SectionStat } from "@/components/dashboard/SectionParts"
+import { SectionStat } from "@/components/dashboard/SectionParts"
+import { SectionError, SectionSkeleton } from "@/components/ui/SectionState"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { useDemandOverview } from "@/hooks/queries/useDemandOverview"
 import {
