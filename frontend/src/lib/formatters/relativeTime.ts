@@ -1,8 +1,13 @@
-import { formatDate } from "@/lib/format"
-
 const SAO_PAULO_TZ = "America/Sao_Paulo"
 const MINUTE_MS = 60_000
 const HOUR_MS = 60 * MINUTE_MS
+
+// A data por extenso também é a de São Paulo: o `formatDate` do app usa o fuso
+// do navegador, que perto da meia-noite discordaria do dia calculado abaixo.
+const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: SAO_PAULO_TZ,
+    dateStyle: "short",
+})
 
 const dayFormatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: SAO_PAULO_TZ,
@@ -37,5 +42,5 @@ export const formatRelativeTime = (value: string, now: Date = new Date()): strin
     const daysAgo = dayNumber(now) - dayNumber(date)
     if (daysAgo === 0) return `há ${Math.floor(elapsed / HOUR_MS)} h`
     if (daysAgo === 1) return "ontem"
-    return formatDate(value)
+    return dateFormatter.format(date)
 }

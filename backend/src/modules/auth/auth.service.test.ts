@@ -1204,5 +1204,78 @@ describe("AuthService", () => {
 
             expect(parallel.sessionId).toBe(original.sessionId)
         })
+
+        it("o token substituído na rotação deixa de guardar dispositivo e origem", async () => {
+            await createUser()
+            const login = await authService.login(credentials("WEB"), contextA)
+            if (login.mfaRequired || !login.refreshToken) throw new Error("sessão esperada")
+
+            await authService.refresh(login.refreshToken, undefined, contextB)
+
+            const replaced = await prismaTest.refreshToken.findUniqueOrThrow({
+                where: { token: hashToken(login.refreshToken) },
+            })
+            const current = await prismaTest.refreshToken.findFirstOrThrow({
+                where: { revokedAt: null },
+            })
+            expect(replaced.deviceLabel).toBeNull()
+            expect(replaced.origin).toBeNull()
+            expect(current.deviceLabel).toBe("Firefox · macOS")
+            expect(current.origin).toBe("201.17.xx.xx")
+        })
+
+        it("o logout revoga todos os refresh tokens vigentes da sessão, inclusive o da janela de graça", async () => {
+            await createUser()
+            const login = await authService.login(credentials("WEB"), contextA)
+            if (login.mfaRequired || !login.refreshToken) throw new Error("sessão esperada")
+            const first = await authService.refresh(login.refreshToken)
+            // Segunda renovação com o mesmo token, dentro da graça: cria um refresh paralelo.
+            await authService.refresh(login.refreshToken)
+            if (!first.refreshToken) throw new Error("refreshToken ausente")
+
+            await authService.logout(first.token, first.refreshToken)
+
+            expect(
+                await prismaTest.refreshToken.count({
+                    where: { revokedAt: null, expiresAt: { gt: new Date() } },
+                }),
+            ).toBe(0)
+        })
+
+        it("o logout não revoga refresh tokens de outra sessão do mesmo usuário", async () => {
+            await createUser()
+            const mine = await authService.login(credentials("WEB"), contextA)
+            const other = await authService.login(credentials("WEB"), contextB)
+            if (mine.mfaRequired || other.mfaRequired || !mine.refreshToken || !other.refreshToken)
+                throw new Error("sessões esperadas")
+
+            await authService.logout(mine.token, mine.refreshToken)
+
+            const otherRefresh = await prismaTest.refreshToken.findUniqueOrThrow({
+                where: { token: hashToken(other.refreshToken) },
+            })
+            expect(otherRefresh.revokedAt).toBeNull()
+        })
+
+        it("o banco gera o sessionId quando o insert não o informa (backend da versão anterior)", async () => {
+            await createUser()
+            const user = await prismaTest.user.findFirstOrThrow()
+
+            await prismaTest.$executeRaw`INSERT INTO "auth_tokens" ("id", "userId", "token", "channel", "expiresAt")
+                VALUES ('legacy-auth', ${user.id}, 'legacy-auth-hash', 'WEB', NOW() + interval '1 hour')`
+            await prismaTest.$executeRaw`INSERT INTO "refresh_tokens" ("id", "userId", "token", "expiresAt")
+                VALUES ('legacy-refresh', ${user.id}, 'legacy-refresh-hash', NOW() + interval '1 day')`
+
+            const auth = await prismaTest.authToken.findUniqueOrThrow({
+                where: { id: "legacy-auth" },
+            })
+            const refresh = await prismaTest.refreshToken.findUniqueOrThrow({
+                where: { id: "legacy-refresh" },
+            })
+            expect(auth.sessionId).toMatch(/^[0-9a-f-]{36}$/)
+            expect(refresh.sessionId).toMatch(/^[0-9a-f-]{36}$/)
+            expect(auth.deviceLabel).toBeNull()
+            expect(refresh.origin).toBeNull()
+        })
     })
 })

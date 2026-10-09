@@ -78,7 +78,7 @@ export function createAuthenticateMiddleware(prisma: PrismaClient) {
 
             const payload = jwt.verify(token, env.JWT_SECRET) as Omit<
                 AuthenticatedRequest["user"],
-                "role" | "isDemo"
+                "role" | "isDemo" | "sessionId"
             >
             const storedToken = await authRepository.findActiveToken(hashToken(token))
 

@@ -45,6 +45,11 @@ describe("formatRelativeTime", () => {
         expect(formatRelativeTime("2026-10-10T18:30:00.000Z", NOW)).toBe("10/10/2026")
     })
 
+    it("a data de antes de ontem também é a de São Paulo, não a do fuso do navegador", () => {
+        // 02:00 UTC de 10/10 ainda é 23:00 de 09/10 em São Paulo.
+        expect(formatRelativeTime("2026-10-10T02:00:00.000Z", NOW)).toBe("09/10/2026")
+    })
+
     it("data inválida não inventa um tempo", () => {
         expect(formatRelativeTime("não é data", NOW)).toBe("-")
     })

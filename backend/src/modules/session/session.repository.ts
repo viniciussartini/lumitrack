@@ -1,4 +1,9 @@
 import { PrismaClient } from "@/generated/prisma/client.js"
+import type { ExportedSession } from "@/modules/session/session.types.js"
+import {
+    groupSessionsForExport,
+    type StoredSessionToken,
+} from "@/modules/session/session-export.js"
 
 /** Um token vigente como a listagem de sessões o enxerga, sem o valor nem o hash. */
 export interface ActiveSessionToken {
@@ -12,16 +17,6 @@ export interface ActiveSessionToken {
 // Teto de linhas lidas por canal: uma conta com mais sessões vivas que isso
 // não é uso normal, e a lista não precisa mostrá-las todas.
 const MAX_ROWS_PER_CHANNEL = 100
-
-/** Registro de sessão para a exportação do titular, vigente ou não, sem token, hash nem ids. */
-export interface ExportedSession {
-    channel: "WEB" | "MOBILE"
-    deviceLabel: string | null
-    origin: string | null
-    createdAt: Date
-    expiresAt: Date | null
-    revokedAt: Date | null
-}
 
 /** Acesso aos tokens vigentes de um usuário, base da lista de sessões ativas. */
 export class SessionRepository {
@@ -78,16 +73,18 @@ export class SessionRepository {
     }
 
     /**
-     * Todos os registros de sessão que o titular tem guardados, vigentes ou
-     * não (ainda não expurgados) — a parte de sessões da exportação dos dados
-     * pessoais. Web vem do refresh token, mobile do token de acesso. Mais
-     * recentes primeiro.
+     * As sessões que o titular tem guardadas, vigentes ou não (ainda não
+     * expurgadas) — a parte de sessões da exportação dos dados pessoais. Web
+     * vem do refresh token, mobile do token de acesso; os tokens da mesma
+     * sessão viram uma entrada só. Mais recentes primeiro.
      *
      * @param userId - Titular dos dados.
-     * @returns Os registros, sem token, hash nem ids.
+     * @param now - Instante de referência para a expiração.
+     * @returns Uma entrada por sessão, sem token, hash nem ids.
      */
-    async findAllForExport(userId: string): Promise<ExportedSession[]> {
+    async findAllForExport(userId: string, now: Date = new Date()): Promise<ExportedSession[]> {
         const select = {
+            sessionId: true,
             deviceLabel: true,
             origin: true,
             createdAt: true,
@@ -100,9 +97,10 @@ export class SessionRepository {
         ])
         const withChannel =
             (channel: ExportedSession["channel"]) =>
-            (row: Omit<ExportedSession, "channel">): ExportedSession => ({ ...row, channel })
-        return [...web.map(withChannel("WEB")), ...mobile.map(withChannel("MOBILE"))].sort(
-            (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+            (row: Omit<StoredSessionToken, "channel">): StoredSessionToken => ({ ...row, channel })
+        return groupSessionsForExport(
+            [...web.map(withChannel("WEB")), ...mobile.map(withChannel("MOBILE"))],
+            now,
         )
     }
 }

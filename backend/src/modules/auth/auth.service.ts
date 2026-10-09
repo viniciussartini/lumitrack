@@ -406,6 +406,7 @@ export class AuthService {
         }
 
         await this.authRepository.revokeToken(hashedToken)
+        await this.authRepository.revokeSessionRefreshTokens(stored.userId, stored.sessionId)
 
         if (rawRefreshToken) {
             const hashedRefresh = hashToken(rawRefreshToken)

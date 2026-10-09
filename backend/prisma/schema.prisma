@@ -288,7 +288,7 @@ model AuthToken {
   createdAt   DateTime     @default(now())
   // Sessão a que o token pertence: gerada no login e herdada a cada novo token
   // da mesma sessão (refresh). Liga o JWT de acesso ao refresh token.
-  sessionId   String       @default(uuid())
+  sessionId   String       @default(dbgenerated("(gen_random_uuid())::text"))
   // Só o mobile usa estes dois (a web os guarda no RefreshToken). Rótulo
   // reduzido ("Chrome · Windows") e IP mascarado — nunca o user-agent nem o IP
   // brutos.
@@ -315,7 +315,7 @@ model RefreshToken {
   replacedByTokenId String?   @unique
   createdAt         DateTime  @default(now())
   // Mesma sessão do JWT de acesso; mantido na rotação (ver AuthToken.sessionId).
-  sessionId         String    @default(uuid())
+  sessionId         String    @default(dbgenerated("(gen_random_uuid())::text"))
   // Rótulo reduzido ("Chrome · Windows") e IP mascarado do último acesso da
   // sessão — nunca o user-agent nem o IP brutos.
   deviceLabel       String?

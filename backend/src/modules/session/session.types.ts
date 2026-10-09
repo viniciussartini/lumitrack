@@ -11,3 +11,13 @@ export interface SessionItem {
     lastAccessAt: string
     isCurrent: boolean
 }
+
+/** Sessão na exportação do titular, vigente ou não, sem token, hash nem ids. */
+export interface ExportedSession {
+    channel: "WEB" | "MOBILE"
+    deviceLabel: string | null
+    origin: string | null
+    createdAt: Date
+    expiresAt: Date | null
+    revokedAt: Date | null
+}

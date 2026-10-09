@@ -28,7 +28,8 @@ import type {
     ReportScheduleRecord,
     ReportScheduleRepository,
 } from "@/modules/report-schedule/report-schedule.repository.js"
-import type { ExportedSession, SessionRepository } from "@/modules/session/session.repository.js"
+import type { SessionRepository } from "@/modules/session/session.repository.js"
+import type { ExportedSession } from "@/modules/session/session.types.js"
 import type { AuditRepository, AuditLogResponse } from "@/shared/audit/audit.repository.js"
 import { NotFoundError } from "@/shared/errors/AppError.js"
 

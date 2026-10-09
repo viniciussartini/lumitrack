@@ -186,6 +186,29 @@ describe("GET /api/sessions", () => {
         expect(items).toHaveLength(1)
     })
 
+    it("deixa de fora a sessão web revogada e a expirada", async () => {
+        await register()
+        const current = await loginWeb()
+        await loginWeb()
+        await loginWeb()
+        await loginWeb()
+        const rows = await prismaHttpTest.refreshToken.findMany({ orderBy: { createdAt: "asc" } })
+        await prismaHttpTest.refreshToken.update({
+            where: { id: rows[1]!.id },
+            data: { revokedAt: new Date() },
+        })
+        await prismaHttpTest.refreshToken.update({
+            where: { id: rows[2]!.id },
+            data: { expiresAt: new Date(Date.now() - 1000) },
+        })
+
+        const items = (await current.agent.get("/api/sessions")).body.data.items as SessionItem[]
+
+        expect(items.map((item) => item.id).sort()).toEqual(
+            [rows[0]!.sessionId, rows[3]!.sessionId].sort(),
+        )
+    })
+
     it("uma sessão web rotacionada várias vezes aparece uma só vez, com o último acesso", async () => {
         await register()
         const { agent, refreshCsrf } = await loginWeb()

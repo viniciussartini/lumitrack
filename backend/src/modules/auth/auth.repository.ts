@@ -460,9 +460,17 @@ export class AuthRepository {
                 select: { id: true },
             })
             if (data.replacesTokenId) {
+                // O token substituído deixa de guardar dispositivo e origem: a
+                // sessão só mostra os do token vigente, e mantê-los nos
+                // anteriores deixaria uma trilha de IPs além da vida da sessão.
                 await tx.refreshToken.update({
                     where: { id: data.replacesTokenId },
-                    data: { revokedAt: now, replacedByTokenId: created.id },
+                    data: {
+                        revokedAt: now,
+                        replacedByTokenId: created.id,
+                        deviceLabel: null,
+                        origin: null,
+                    },
                 })
             }
             return created
@@ -506,6 +514,21 @@ export class AuthRepository {
     async revokeRefreshToken(id: string): Promise<void> {
         await this.prisma.refreshToken.update({
             where: { id },
+            data: { revokedAt: new Date() },
+        })
+    }
+
+    /**
+     * Revoga todos os refresh tokens ainda vigentes de uma sessão. A rotação e
+     * a janela de graça podem deixar mais de um vigente na mesma sessão, e
+     * revogar só o do cookie a manteria viva.
+     *
+     * @param userId - Dono da sessão.
+     * @param sessionId - Sessão cujos refresh tokens devem ser revogados.
+     */
+    async revokeSessionRefreshTokens(userId: string, sessionId: string): Promise<void> {
+        await this.prisma.refreshToken.updateMany({
+            where: { userId, sessionId, revokedAt: null },
             data: { revokedAt: new Date() },
         })
     }

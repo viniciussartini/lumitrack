@@ -386,6 +386,94 @@ describe("ExportService.generate", () => {
         expect(serialized).not.toContain(userA.id)
     })
 
+    describe("sessões com rotação do refresh token", () => {
+        const hour = 3_600_000
+        const at = (hoursAgo: number) => new Date(Date.now() - hoursAgo * hour)
+
+        // Uma sessão web com três refresh tokens (duas rotações). `lastRevoked`
+        // diz se o último foi revogado (sessão encerrada) ou segue vigente.
+        async function createRotatedSession(userId: string, lastRevoked: boolean) {
+            const sessionId = "11111111-1111-4111-8111-111111111111"
+            const base = { userId, sessionId }
+            await prismaTest.refreshToken.create({
+                data: {
+                    ...base,
+                    token: "chain-1",
+                    createdAt: at(3),
+                    expiresAt: new Date(Date.now() + 24 * hour),
+                    revokedAt: at(2),
+                },
+            })
+            await prismaTest.refreshToken.create({
+                data: {
+                    ...base,
+                    token: "chain-2",
+                    createdAt: at(2),
+                    expiresAt: new Date(Date.now() + 24 * hour),
+                    revokedAt: at(1),
+                },
+            })
+            await prismaTest.refreshToken.create({
+                data: {
+                    ...base,
+                    token: "chain-3",
+                    createdAt: at(1),
+                    expiresAt: new Date(Date.now() + 24 * hour),
+                    revokedAt: lastRevoked ? at(0.5) : null,
+                    deviceLabel: "Firefox · macOS",
+                    origin: "201.17.xx.xx",
+                },
+            })
+        }
+
+        it("exporta a sessão uma só vez, do primeiro token ao mais recente", async () => {
+            const user = await userService.createUser(validUserA)
+            await createRotatedSession(user.id, false)
+
+            const payload = await exportService.generate(user.id)
+
+            expect(payload.sessions).toHaveLength(1)
+            expect(payload.sessions[0]).toMatchObject({
+                channel: "WEB",
+                deviceLabel: "Firefox · macOS",
+                origin: "201.17.xx.xx",
+                revokedAt: null,
+            })
+            expect(payload.sessions[0]!.createdAt.getTime()).toBe(
+                (
+                    await prismaTest.refreshToken.findUniqueOrThrow({ where: { token: "chain-1" } })
+                ).createdAt.getTime(),
+            )
+        })
+
+        it("só marca a sessão como encerrada quando o último token foi revogado", async () => {
+            const user = await userService.createUser(validUserA)
+            await createRotatedSession(user.id, true)
+
+            const payload = await exportService.generate(user.id)
+
+            expect(payload.sessions).toHaveLength(1)
+            expect(payload.sessions[0]!.revokedAt).not.toBeNull()
+        })
+
+        it("dois logins são duas sessões, cada uma com os seus tokens", async () => {
+            const user = await userService.createUser(validUserA)
+            await createRotatedSession(user.id, false)
+            await prismaTest.refreshToken.create({
+                data: {
+                    userId: user.id,
+                    token: "other-session",
+                    sessionId: "22222222-2222-4222-8222-222222222222",
+                    expiresAt: new Date(Date.now() + 24 * hour),
+                },
+            })
+
+            const payload = await exportService.generate(user.id)
+
+            expect(payload.sessions).toHaveLength(2)
+        })
+    })
+
     it("sem sessões guardadas, exporta uma lista vazia", async () => {
         const user = await userService.createUser(validUserA)
 
