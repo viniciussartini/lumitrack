@@ -1073,4 +1073,209 @@ describe("AuthService", () => {
             expect(mobileResult.refreshToken).toBeNull()
         })
     })
+
+    // ─── sessão: id, dispositivo e origem ─────────────────────────────────────
+    describe("sessão (sessionId, dispositivo e origem)", () => {
+        const chromeWindows =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        const firefoxMac =
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0"
+        const contextA = { ipAddress: "189.45.12.34", userAgent: chromeWindows }
+        const contextB = { ipAddress: "201.17.88.9", userAgent: firefoxMac }
+
+        async function createUser() {
+            const { UserService } = await import("@/modules/user/user.service.js")
+            await new UserService(userRepository).createUser(validUser)
+        }
+
+        const credentials = (channel: "WEB" | "MOBILE") => ({
+            email: validUser.email,
+            password: validUser.password,
+            channel,
+        })
+
+        it("login WEB liga o JWT de acesso e o refresh token pelo mesmo sessionId", async () => {
+            await createUser()
+            const result = await loginAsSession(credentials("WEB"))
+            if (!result.refreshToken) throw new Error("refreshToken ausente")
+
+            const auth = await prismaTest.authToken.findUniqueOrThrow({
+                where: { token: hashToken(result.token) },
+            })
+            const refresh = await prismaTest.refreshToken.findUniqueOrThrow({
+                where: { token: hashToken(result.refreshToken) },
+            })
+
+            expect(auth.sessionId).toBe(refresh.sessionId)
+            expect(auth.sessionId).toMatch(/^[0-9a-f-]{36}$/)
+        })
+
+        it("guarda só o rótulo reduzido e o IP mascarado, nunca o user-agent nem o IP brutos", async () => {
+            await createUser()
+            const result = await authService.login(credentials("WEB"), contextA)
+            if (result.mfaRequired || !result.refreshToken) throw new Error("sessão esperada")
+
+            const refresh = await prismaTest.refreshToken.findUniqueOrThrow({
+                where: { token: hashToken(result.refreshToken) },
+            })
+
+            expect(refresh.deviceLabel).toBe("Chrome · Windows")
+            expect(refresh.origin).toBe("189.45.xx.xx")
+            const stored = JSON.stringify(refresh)
+            expect(stored).not.toContain("189.45.12.34")
+            expect(stored).not.toContain("AppleWebKit")
+        })
+
+        it("login MOBILE guarda dispositivo e origem no AuthToken", async () => {
+            await createUser()
+            const result = await authService.login(credentials("MOBILE"), contextB)
+            if (result.mfaRequired) throw new Error("sessão esperada")
+
+            const auth = await prismaTest.authToken.findUniqueOrThrow({
+                where: { token: hashToken(result.token) },
+            })
+
+            expect(auth.deviceLabel).toBe("Firefox · macOS")
+            expect(auth.origin).toBe("201.17.xx.xx")
+        })
+
+        it("sem contexto da requisição, dispositivo e origem ficam nulos (nunca inventados)", async () => {
+            await createUser()
+            const result = await loginAsSession(credentials("WEB"))
+            if (!result.refreshToken) throw new Error("refreshToken ausente")
+
+            const refresh = await prismaTest.refreshToken.findUniqueOrThrow({
+                where: { token: hashToken(result.refreshToken) },
+            })
+
+            expect(refresh.deviceLabel).toBe("Navegador")
+            expect(refresh.origin).toBeNull()
+        })
+
+        it("cada login abre uma sessão diferente", async () => {
+            await createUser()
+            await loginAsSession(credentials("WEB"))
+            await loginAsSession(credentials("WEB"))
+
+            const sessionIds = (await prismaTest.refreshToken.findMany()).map((t) => t.sessionId)
+
+            expect(new Set(sessionIds).size).toBe(2)
+        })
+
+        it("o refresh mantém o sessionId e atualiza dispositivo e origem para os do último acesso", async () => {
+            await createUser()
+            const login = await authService.login(credentials("WEB"), contextA)
+            if (login.mfaRequired || !login.refreshToken) throw new Error("sessão esperada")
+
+            const renewed = await authService.refresh(login.refreshToken, undefined, contextB)
+            if (!renewed.refreshToken) throw new Error("refreshToken ausente")
+
+            const before = await prismaTest.refreshToken.findUniqueOrThrow({
+                where: { token: hashToken(login.refreshToken) },
+            })
+            const after = await prismaTest.refreshToken.findUniqueOrThrow({
+                where: { token: hashToken(renewed.refreshToken) },
+            })
+            const newAuth = await prismaTest.authToken.findUniqueOrThrow({
+                where: { token: hashToken(renewed.token) },
+            })
+
+            expect(after.sessionId).toBe(before.sessionId)
+            expect(newAuth.sessionId).toBe(before.sessionId)
+            expect(after.deviceLabel).toBe("Firefox · macOS")
+            expect(after.origin).toBe("201.17.xx.xx")
+        })
+
+        it("dentro da janela de graça, o token emitido continua na mesma sessão", async () => {
+            await createUser()
+            const login = await authService.login(credentials("WEB"), contextA)
+            if (login.mfaRequired || !login.refreshToken) throw new Error("sessão esperada")
+
+            await authService.refresh(login.refreshToken)
+            const graced = await authService.refresh(login.refreshToken)
+            if (!graced.refreshToken) throw new Error("refreshToken ausente")
+
+            const original = await prismaTest.refreshToken.findUniqueOrThrow({
+                where: { token: hashToken(login.refreshToken) },
+            })
+            const parallel = await prismaTest.refreshToken.findUniqueOrThrow({
+                where: { token: hashToken(graced.refreshToken) },
+            })
+
+            expect(parallel.sessionId).toBe(original.sessionId)
+        })
+
+        it("o token substituído na rotação deixa de guardar dispositivo e origem", async () => {
+            await createUser()
+            const login = await authService.login(credentials("WEB"), contextA)
+            if (login.mfaRequired || !login.refreshToken) throw new Error("sessão esperada")
+
+            await authService.refresh(login.refreshToken, undefined, contextB)
+
+            const replaced = await prismaTest.refreshToken.findUniqueOrThrow({
+                where: { token: hashToken(login.refreshToken) },
+            })
+            const current = await prismaTest.refreshToken.findFirstOrThrow({
+                where: { revokedAt: null },
+            })
+            expect(replaced.deviceLabel).toBeNull()
+            expect(replaced.origin).toBeNull()
+            expect(current.deviceLabel).toBe("Firefox · macOS")
+            expect(current.origin).toBe("201.17.xx.xx")
+        })
+
+        it("o logout revoga todos os refresh tokens vigentes da sessão, inclusive o da janela de graça", async () => {
+            await createUser()
+            const login = await authService.login(credentials("WEB"), contextA)
+            if (login.mfaRequired || !login.refreshToken) throw new Error("sessão esperada")
+            const first = await authService.refresh(login.refreshToken)
+            // Segunda renovação com o mesmo token, dentro da graça: cria um refresh paralelo.
+            await authService.refresh(login.refreshToken)
+            if (!first.refreshToken) throw new Error("refreshToken ausente")
+
+            await authService.logout(first.token, first.refreshToken)
+
+            expect(
+                await prismaTest.refreshToken.count({
+                    where: { revokedAt: null, expiresAt: { gt: new Date() } },
+                }),
+            ).toBe(0)
+        })
+
+        it("o logout não revoga refresh tokens de outra sessão do mesmo usuário", async () => {
+            await createUser()
+            const mine = await authService.login(credentials("WEB"), contextA)
+            const other = await authService.login(credentials("WEB"), contextB)
+            if (mine.mfaRequired || other.mfaRequired || !mine.refreshToken || !other.refreshToken)
+                throw new Error("sessões esperadas")
+
+            await authService.logout(mine.token, mine.refreshToken)
+
+            const otherRefresh = await prismaTest.refreshToken.findUniqueOrThrow({
+                where: { token: hashToken(other.refreshToken) },
+            })
+            expect(otherRefresh.revokedAt).toBeNull()
+        })
+
+        it("o banco gera o sessionId quando o insert não o informa (backend da versão anterior)", async () => {
+            await createUser()
+            const user = await prismaTest.user.findFirstOrThrow()
+
+            await prismaTest.$executeRaw`INSERT INTO "auth_tokens" ("id", "userId", "token", "channel", "expiresAt")
+                VALUES ('legacy-auth', ${user.id}, 'legacy-auth-hash', 'WEB', NOW() + interval '1 hour')`
+            await prismaTest.$executeRaw`INSERT INTO "refresh_tokens" ("id", "userId", "token", "expiresAt")
+                VALUES ('legacy-refresh', ${user.id}, 'legacy-refresh-hash', NOW() + interval '1 day')`
+
+            const auth = await prismaTest.authToken.findUniqueOrThrow({
+                where: { id: "legacy-auth" },
+            })
+            const refresh = await prismaTest.refreshToken.findUniqueOrThrow({
+                where: { id: "legacy-refresh" },
+            })
+            expect(auth.sessionId).toMatch(/^[0-9a-f-]{36}$/)
+            expect(refresh.sessionId).toMatch(/^[0-9a-f-]{36}$/)
+            expect(auth.deviceLabel).toBeNull()
+            expect(refresh.origin).toBeNull()
+        })
+    })
 })

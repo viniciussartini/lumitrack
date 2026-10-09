@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react"
 import { AreaWeightChart } from "@/components/dashboard/AreaWeightChart"
 import { AreaWeightMenu } from "@/components/dashboard/AreaWeightMenu"
-import { SectionError, SectionSkeleton } from "@/components/dashboard/SectionParts"
+import { SectionError, SectionSkeleton } from "@/components/ui/SectionState"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { usePropertyTree } from "@/hooks/queries/usePropertyTree"
 import { useSummaryItems } from "@/hooks/useSummaryItems"

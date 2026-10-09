@@ -717,6 +717,12 @@ Rate limit estrito (`AUTH_RATE_LIMIT_*`, default 10 req/15min por IP) se aplica 
 | POST | `/mfa/verify-setup` | `authenticate` | `{secret, code}` — confirma e habilita; recusa se MFA já está ativo (step-up: precisa desabilitar antes de reconfigurar) |
 | POST | `/mfa/disable` | `authenticate` | `{password, code}` — exige senha **e** código válido |
 
+### Sessões — `/api/sessions`
+
+| Método | Rota | Auth | Descrição |
+| --- | --- | --- | --- |
+| GET | `/` | `authenticate` | Sessões ativas do próprio usuário (web e mobile): `{id, channel, deviceLabel, origin, lastAccessAt, isCurrent}`, a atual primeiro. `deviceLabel` é só navegador e sistema (`Chrome · Windows`) e `origin` o IP mascarado (`189.45.xx.xx`), ambos `null` em sessão aberta antes do registro. Nunca devolve token nem hash. Conta de demonstração recebe uma lista fixa representativa |
+
 ### Usuários — `/api/users`
 
 | Método | Rota | Auth | Descrição |
@@ -725,7 +731,7 @@ Rate limit estrito (`AUTH_RATE_LIMIT_*`, default 10 req/15min por IP) se aplica 
 | GET | `/:id` | dono | — |
 | PUT | `/:id` | dono | Campos opcionais; se `email` mudar, exige `currentPassword` e dispara confirmação por link em vez de aplicar na hora |
 | DELETE | `/:id` | dono | 204 |
-| GET | `/me/data-export?format=json\|pdf` | `authenticate` | Export DSAR — agrega Propriedades/Distribuidoras/Alertas/Áreas/Aparelhos/Audit log; `pdf` baixa um arquivo gerado |
+| GET | `/me/data-export?format=json\|pdf` | `authenticate` | Export DSAR — agrega Propriedades/Distribuidoras/Alertas/Áreas/Aparelhos/Sessões/Audit log; `pdf` baixa um arquivo gerado |
 
 ### Admin — `/api/admin`
 

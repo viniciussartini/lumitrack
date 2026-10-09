@@ -28,6 +28,8 @@ import type {
     ReportScheduleRecord,
     ReportScheduleRepository,
 } from "@/modules/report-schedule/report-schedule.repository.js"
+import type { SessionRepository } from "@/modules/session/session.repository.js"
+import type { ExportedSession } from "@/modules/session/session.types.js"
 import type { AuditRepository, AuditLogResponse } from "@/shared/audit/audit.repository.js"
 import { NotFoundError } from "@/shared/errors/AppError.js"
 
@@ -63,6 +65,9 @@ export type DataExportPayload = {
     reportSchedules: Omit<ReportScheduleRecord, "userId">[]
     // Metas anuais de consumo definidas pelo titular, por propriedade.
     goals: GoalPublicRecord[]
+    // Sessões guardadas (vigentes ou não expurgadas): canal, dispositivo
+    // reduzido e IP mascarado — nunca o token, o hash, o user-agent nem o IP.
+    sessions: ExportedSession[]
     auditLogs: AuditLogResponse[]
 }
 
@@ -84,6 +89,7 @@ export class ExportService {
      * @param reportRepository - Relatórios emitidos pelo titular (metadados).
      * @param reportScheduleRepository - Configurações de envio automático de relatório do titular.
      * @param goalRepository - Metas anuais de consumo do titular.
+     * @param sessionRepository - Sessões (dispositivo e origem) guardadas para o titular.
      */
     constructor(
         private readonly userRepository: UserRepository,
@@ -98,6 +104,7 @@ export class ExportService {
         private readonly reportRepository: ReportRepository,
         private readonly reportScheduleRepository: ReportScheduleRepository,
         private readonly goalRepository: GoalRepository,
+        private readonly sessionRepository: SessionRepository,
     ) {}
 
     /**
@@ -126,6 +133,7 @@ export class ExportService {
             reports,
             reportSchedules,
             goals,
+            sessions,
         ] = await Promise.all([
             this.propertyRepository.findAllByUser(userId),
             this.alertRepository.findAllByUser(userId),
@@ -137,6 +145,7 @@ export class ExportService {
             this.reportRepository.findAllMetadataByUser(userId),
             this.reportScheduleRepository.findAllByUser(userId),
             this.goalRepository.findAllByUser(userId),
+            this.sessionRepository.findAllForExport(userId),
         ])
 
         const distributorIds = [...new Set(properties.map((p) => p.distributorId))]
@@ -155,6 +164,7 @@ export class ExportService {
             reports,
             reportSchedules: reportSchedules.map(({ userId: _owner, ...rest }) => rest),
             goals: goals.map(toPublicGoal),
+            sessions,
             auditLogs,
         }
     }

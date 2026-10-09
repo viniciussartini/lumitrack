@@ -16,6 +16,7 @@ import { AuditRepository } from "@/shared/audit/audit.repository.js"
 import { ReportRepository } from "@/modules/report/report.repository.js"
 import { ReportScheduleRepository } from "@/modules/report-schedule/report-schedule.repository.js"
 import { GoalRepository } from "@/modules/goal/goal.repository.js"
+import { SessionRepository } from "@/modules/session/session.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 import { createTestDistributor } from "@/shared/test/distributorFixture.js"
@@ -45,6 +46,7 @@ const auditRepository = new AuditRepository(prismaTest)
 const reportRepository = new ReportRepository(prismaTest)
 const reportScheduleRepository = new ReportScheduleRepository(prismaTest)
 const goalRepository = new GoalRepository(prismaTest)
+const sessionRepository = new SessionRepository(prismaTest)
 
 const exportService = new ExportService(
     userRepository,
@@ -59,6 +61,7 @@ const exportService = new ExportService(
     reportRepository,
     reportScheduleRepository,
     goalRepository,
+    sessionRepository,
 )
 
 // ─── Dados de apoio ───────────────────────────────────────────────────────────
@@ -321,6 +324,162 @@ describe("ExportService.generate", () => {
         expect(payload.goals).toHaveLength(1)
         expect(payload.goals[0]).toMatchObject({ propertyId: propertyA.id, year: 2026 })
         expect(payload.goals[0]).not.toHaveProperty("userId")
+    })
+
+    it("exporta só as sessões do titular, com dispositivo e origem mascarados e sem token", async () => {
+        const userA = await userService.createUser(validUserA)
+        const userB = await userService.createUser(validUserB)
+        const expiresAt = new Date(Date.now() + 3_600_000)
+        await prismaTest.refreshToken.create({
+            data: {
+                userId: userA.id,
+                token: "hash-refresh-a",
+                expiresAt,
+                revokedAt: new Date(),
+                deviceLabel: "Chrome · Windows",
+                origin: "189.45.xx.xx",
+            },
+        })
+        await prismaTest.authToken.create({
+            data: {
+                userId: userA.id,
+                token: "hash-auth-a",
+                channel: "MOBILE",
+                expiresAt,
+                deviceLabel: "App móvel",
+                origin: null,
+            },
+        })
+        await prismaTest.authToken.create({
+            data: { userId: userA.id, token: "hash-auth-web-a", channel: "WEB", expiresAt },
+        })
+        await prismaTest.refreshToken.create({
+            data: {
+                userId: userB.id,
+                token: "hash-refresh-b",
+                expiresAt,
+                deviceLabel: "Safari · iOS",
+                origin: "201.17.xx.xx",
+            },
+        })
+
+        const payload = await exportService.generate(userA.id)
+
+        expect(payload.sessions).toHaveLength(2)
+        expect(payload.sessions).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    channel: "WEB",
+                    deviceLabel: "Chrome · Windows",
+                    origin: "189.45.xx.xx",
+                }),
+                expect.objectContaining({
+                    channel: "MOBILE",
+                    deviceLabel: "App móvel",
+                    origin: null,
+                }),
+            ]),
+        )
+        const serialized = JSON.stringify(payload.sessions)
+        expect(serialized).not.toContain("hash-")
+        expect(serialized).not.toContain("201.17")
+        expect(serialized).not.toContain(userA.id)
+    })
+
+    describe("sessões com rotação do refresh token", () => {
+        const hour = 3_600_000
+        const at = (hoursAgo: number) => new Date(Date.now() - hoursAgo * hour)
+
+        // Uma sessão web com três refresh tokens (duas rotações). `lastRevoked`
+        // diz se o último foi revogado (sessão encerrada) ou segue vigente.
+        async function createRotatedSession(userId: string, lastRevoked: boolean) {
+            const sessionId = "11111111-1111-4111-8111-111111111111"
+            const base = { userId, sessionId }
+            await prismaTest.refreshToken.create({
+                data: {
+                    ...base,
+                    token: "chain-1",
+                    createdAt: at(3),
+                    expiresAt: new Date(Date.now() + 24 * hour),
+                    revokedAt: at(2),
+                },
+            })
+            await prismaTest.refreshToken.create({
+                data: {
+                    ...base,
+                    token: "chain-2",
+                    createdAt: at(2),
+                    expiresAt: new Date(Date.now() + 24 * hour),
+                    revokedAt: at(1),
+                },
+            })
+            await prismaTest.refreshToken.create({
+                data: {
+                    ...base,
+                    token: "chain-3",
+                    createdAt: at(1),
+                    expiresAt: new Date(Date.now() + 24 * hour),
+                    revokedAt: lastRevoked ? at(0.5) : null,
+                    deviceLabel: "Firefox · macOS",
+                    origin: "201.17.xx.xx",
+                },
+            })
+        }
+
+        it("exporta a sessão uma só vez, do primeiro token ao mais recente", async () => {
+            const user = await userService.createUser(validUserA)
+            await createRotatedSession(user.id, false)
+
+            const payload = await exportService.generate(user.id)
+
+            expect(payload.sessions).toHaveLength(1)
+            expect(payload.sessions[0]).toMatchObject({
+                channel: "WEB",
+                deviceLabel: "Firefox · macOS",
+                origin: "201.17.xx.xx",
+                revokedAt: null,
+            })
+            expect(payload.sessions[0]!.createdAt.getTime()).toBe(
+                (
+                    await prismaTest.refreshToken.findUniqueOrThrow({ where: { token: "chain-1" } })
+                ).createdAt.getTime(),
+            )
+        })
+
+        it("só marca a sessão como encerrada quando o último token foi revogado", async () => {
+            const user = await userService.createUser(validUserA)
+            await createRotatedSession(user.id, true)
+
+            const payload = await exportService.generate(user.id)
+
+            expect(payload.sessions).toHaveLength(1)
+            expect(payload.sessions[0]!.revokedAt).not.toBeNull()
+        })
+
+        it("dois logins são duas sessões, cada uma com os seus tokens", async () => {
+            const user = await userService.createUser(validUserA)
+            await createRotatedSession(user.id, false)
+            await prismaTest.refreshToken.create({
+                data: {
+                    userId: user.id,
+                    token: "other-session",
+                    sessionId: "22222222-2222-4222-8222-222222222222",
+                    expiresAt: new Date(Date.now() + 24 * hour),
+                },
+            })
+
+            const payload = await exportService.generate(user.id)
+
+            expect(payload.sessions).toHaveLength(2)
+        })
+    })
+
+    it("sem sessões guardadas, exporta uma lista vazia", async () => {
+        const user = await userService.createUser(validUserA)
+
+        const payload = await exportService.generate(user.id)
+
+        expect(payload.sessions).toEqual([])
     })
 
     it("lança NotFoundError para userId inexistente", async () => {

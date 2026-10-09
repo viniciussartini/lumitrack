@@ -73,6 +73,10 @@ export const queryKeys = {
     propertyTree: {
         all: ["property-tree"] as const,
     },
+    sessions: {
+        all: ["sessions"] as const,
+        list: () => [...queryKeys.sessions.all, "list"] as const,
+    },
     areas: {
         all: ["areas"] as const,
         list: (propertyId: string, page: number, pageSize: number) =>
