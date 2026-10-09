@@ -456,8 +456,16 @@ export class AuthService {
                 })
             }
 
-            // Reuso real (token revogado fora da janela de graça) — compromisso
-            // potencial: revogar tudo e forçar re-login.
+            // Revogado sem substituto: logout, sessão encerrada ou reset de senha.
+            // Não é reuso de token rotacionado, então só recusa — tratá-lo como
+            // roubo derrubaria também as outras sessões, e o aparelho encerrado
+            // por outra sessão ainda tem este token no cookie.
+            if (stored.replacedByTokenId === null) {
+                throw new UnauthorizedError("Refresh token inválido")
+            }
+
+            // Reuso real (token rotacionado usado fora da janela de graça) —
+            // compromisso potencial: revogar tudo e forçar re-login.
             await this.authRepository.revokeAllRefreshTokensForUser(stored.userId)
             if (auditFn) await auditFn(stored.userId)
             throw new UnauthorizedError("Refresh token inválido")

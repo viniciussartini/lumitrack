@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test"
+import { test, expect, type Page } from "@playwright/test"
 
 import { fulfillError, fulfillJson } from "./support/api"
 import { mockAppShellBackground, setupAuth } from "./support/appShell"
@@ -95,5 +95,102 @@ test.describe("Segurança — sessões ativas", () => {
         await page.getByRole("button", { name: "Tentar novamente" }).click()
 
         await expect(page.getByRole("list", { name: "Sessões ativas da conta" })).toBeVisible()
+    })
+
+    test.describe("encerrar sessões", () => {
+        // A lista do servidor fica em memória para o teste ver a recarga depois de encerrar.
+        const setupSessions = async (page: Page) => {
+            let items = [...SESSIONS]
+            const calls: string[] = []
+            await page.route(/\/api\/sessions(\?.*)?$/, (route) => fulfillJson(route, { items }))
+            // O último registrado vence: o específico vem depois do genérico.
+            await page.route(/\/api\/sessions\/[^/]+$/, (route) => {
+                const id = route.request().url().split("/").pop()!
+                calls.push(`${route.request().method()} ${id}`)
+                items = items.filter((item) => item.id !== id)
+                return fulfillJson(route, { endedCurrent: false })
+            })
+            await page.route(/\/api\/sessions\/revoke-others$/, (route) => {
+                calls.push(`${route.request().method()} revoke-others`)
+                items = items.filter((item) => item.isCurrent)
+                return fulfillJson(route, { revoked: 2 })
+            })
+            return calls
+        }
+
+        test("encerra uma sessão só depois de confirmar e recarrega a lista", async ({ page }) => {
+            const calls = await setupSessions(page)
+            await page.goto("/seguranca")
+            await hideDevTools(page)
+
+            await page.getByRole("button", { name: "Encerrar sessão Safari · iOS" }).click()
+            const dialog = page.getByRole("dialog")
+            await expect(dialog).toContainText("Safari · iOS perderá o acesso na hora")
+            expect(calls).toEqual([])
+
+            await dialog.getByRole("button", { name: "Encerrar" }).click()
+
+            await expect(page.getByText("Sessão encerrada")).toBeVisible()
+            await expect(page.getByText("Safari · iOS")).toHaveCount(0)
+            await expect(page.getByRole("listitem")).toHaveCount(2)
+            expect(calls).toEqual(["DELETE s-phone"])
+        })
+
+        test("cancelar a confirmação não encerra nada", async ({ page }) => {
+            const calls = await setupSessions(page)
+            await page.goto("/seguranca")
+            await hideDevTools(page)
+
+            await page.getByRole("button", { name: "Encerrar sessão Safari · iOS" }).click()
+            await page.getByRole("button", { name: "Cancelar" }).click()
+
+            await expect(page.getByRole("dialog")).toHaveCount(0)
+            await expect(page.getByRole("listitem")).toHaveCount(3)
+            expect(calls).toEqual([])
+        })
+
+        test("encerra todas as outras e deixa só a atual", async ({ page }) => {
+            const calls = await setupSessions(page)
+            await page.goto("/seguranca")
+            await hideDevTools(page)
+
+            await page.getByRole("button", { name: "Encerrar todas as outras" }).click()
+            await page.getByRole("dialog").getByRole("button", { name: "Encerrar" }).click()
+
+            await expect(page.getByText("Nenhuma outra sessão ativa.")).toBeVisible()
+            await expect(page.getByRole("listitem")).toHaveCount(1)
+            await expect(
+                page.getByRole("button", { name: "Encerrar todas as outras" }),
+            ).toHaveCount(0)
+            expect(calls).toEqual(["POST revoke-others"])
+        })
+
+        test("a sessão atual não tem botão de encerrar", async ({ page }) => {
+            await setupSessions(page)
+            await page.goto("/seguranca")
+            await hideDevTools(page)
+
+            await expect(page.getByRole("listitem")).toHaveCount(3)
+            await expect(
+                page.getByRole("button", { name: "Encerrar sessão Chrome · Windows" }),
+            ).toHaveCount(0)
+        })
+
+        test("a recusa do servidor aparece como aviso e a lista não muda", async ({ page }) => {
+            await page.route(/\/api\/sessions(\?.*)?$/, (route) =>
+                fulfillJson(route, { items: SESSIONS }),
+            )
+            await page.route(/\/api\/sessions\/[^/]+$/, (route) =>
+                fulfillError(route, "Conta de demonstração é somente leitura", 403),
+            )
+            await page.goto("/seguranca")
+            await hideDevTools(page)
+
+            await page.getByRole("button", { name: "Encerrar sessão Safari · iOS" }).click()
+            await page.getByRole("dialog").getByRole("button", { name: "Encerrar" }).click()
+
+            await expect(page.getByText("Não foi possível encerrar a sessão")).toBeVisible()
+            await expect(page.getByRole("listitem")).toHaveCount(3)
+        })
     })
 })

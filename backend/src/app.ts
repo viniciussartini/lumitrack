@@ -260,7 +260,7 @@ export function createApp(deps: AppDependencies = {}) {
     app.use("/api/reports", reportRoutes(authenticate, prismaClient, auditService))
     app.use("/api/report-schedules", reportScheduleRoutes(authenticate, prismaClient))
     app.use("/api/goals", goalRoutes(authenticate, prismaClient))
-    app.use("/api/sessions", sessionRoutes(authenticate, prismaClient))
+    app.use("/api/sessions", sessionRoutes(authenticate, prismaClient, auditService))
     app.use("/api/demand", demandRoutes(authenticate, prismaClient))
 
     if (processor && userEventHub) {

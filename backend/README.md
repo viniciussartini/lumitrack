@@ -722,6 +722,8 @@ Rate limit estrito (`AUTH_RATE_LIMIT_*`, default 10 req/15min por IP) se aplica 
 | Método | Rota | Auth | Descrição |
 | --- | --- | --- | --- |
 | GET | `/` | `authenticate` | Sessões ativas do próprio usuário (web e mobile): `{id, channel, deviceLabel, origin, lastAccessAt, isCurrent}`, a atual primeiro. `deviceLabel` é só navegador e sistema (`Chrome · Windows`) e `origin` o IP mascarado (`189.45.xx.xx`), ambos `null` em sessão aberta antes do registro. Nunca devolve token nem hash. Conta de demonstração recebe uma lista fixa representativa |
+| DELETE | `/:id` | `authenticate` + `blockDemoWrite` | Encerra uma sessão do usuário: revoga o refresh token e os JWTs de acesso dela na hora. `{endedCurrent}`; com o id da própria sessão funciona como logout (limpa os cookies). 404 para sessão inexistente, de outro usuário ou já encerrada; 422 para id que não é uuid; 403 na conta de demonstração. Grava `SESSION_REVOKE` |
+| POST | `/revoke-others` | `authenticate` + `blockDemoWrite` | Encerra todas as outras sessões do usuário, poupando a atual. `{revoked}`; 403 na conta de demonstração. Grava `SESSION_REVOKE` |
 
 ### Usuários — `/api/users`
 

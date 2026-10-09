@@ -1021,6 +1021,30 @@ describe("AuthService", () => {
             expect(auditSpy).not.toHaveBeenCalled()
         })
 
+        it("token revogado sem substituto (logout, encerramento de sessão) dá 401 sem derrubar as outras sessões", async () => {
+            const { rawRefreshToken } = await createUserAndLogin()
+            const other = await loginAsSession({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "WEB",
+            })
+            await prismaTest.refreshToken.updateMany({
+                where: { token: hashToken(rawRefreshToken) },
+                data: { revokedAt: new Date(Date.now() - 60_000) },
+            })
+
+            const auditSpy = vi.fn()
+            await expect(authService.refresh(rawRefreshToken, auditSpy)).rejects.toThrow(
+                UnauthorizedError,
+            )
+
+            expect(auditSpy).not.toHaveBeenCalled()
+            const otherRefresh = await prismaTest.refreshToken.findUniqueOrThrow({
+                where: { token: hashToken(other.refreshToken!) },
+            })
+            expect(otherRefresh.revokedAt).toBeNull()
+        })
+
         it("lança UnauthorizedError para token inexistente", async () => {
             await expect(authService.refresh("token-invalido")).rejects.toThrow(UnauthorizedError)
         })

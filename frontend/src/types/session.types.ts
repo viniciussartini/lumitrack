@@ -14,3 +14,15 @@ export interface Session {
     /** A sessão de quem está vendo a lista. */
     isCurrent: boolean
 }
+
+/** Resposta de `DELETE /api/sessions/:id`. */
+export interface RevokeSessionResult {
+    /** A sessão encerrada era a de quem pediu. */
+    endedCurrent: boolean
+}
+
+/** Resposta de `POST /api/sessions/revoke-others`. */
+export interface RevokeOtherSessionsResult {
+    /** Quantas sessões foram encerradas. */
+    revoked: number
+}

@@ -1,4 +1,7 @@
+import { useState } from "react"
 import { Laptop, Smartphone } from "lucide-react"
+import { SessionRevokeDialog, type PendingRevoke } from "@/components/security/SessionRevokeDialog"
+import { Button } from "@/components/ui/Button"
 import { Blueprint } from "@/components/ui/Blueprint"
 import { SectionError, SectionSkeleton } from "@/components/ui/SectionState"
 import { Tag } from "@/components/ui/Tag"
@@ -20,11 +23,18 @@ const CHANNEL_FALLBACK = { WEB: "Navegador", MOBILE: "App móvel" } as const
  */
 export const SessionsSection = () => {
     const sessionsQuery = useSessions()
+    const [pending, setPending] = useState<PendingRevoke | null>(null)
+    const hasOthers = sessionsQuery.data?.some((session) => !session.isCurrent) === true
 
     return (
         <Blueprint className="p-0" data-testid="sessions-section">
-            <div className="border-divider border-b px-5 py-4">
+            <div className="border-divider flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
                 <h2 className="font-heading text-17 m-0 font-semibold uppercase">Sessões ativas</h2>
+                {hasOthers && (
+                    <RevokeButton onClick={() => setPending({ kind: "others" })}>
+                        Encerrar todas as outras
+                    </RevokeButton>
+                )}
             </div>
             {sessionsQuery.isPending && (
                 <SectionSkeleton label="Carregando sessões ativas" testId="sessions-skeleton" />
@@ -35,12 +45,44 @@ export const SessionsSection = () => {
                     onRetry={() => void sessionsQuery.refetch()}
                 />
             )}
-            {sessionsQuery.isSuccess && <SessionsBody sessions={sessionsQuery.data} />}
+            {sessionsQuery.isSuccess && (
+                <SessionsBody sessions={sessionsQuery.data} onRevoke={setPending} />
+            )}
+            <SessionRevokeDialog pending={pending} onClose={() => setPending(null)} />
         </Blueprint>
     )
 }
 
-const SessionsBody = ({ sessions }: { sessions: Session[] }) => {
+const sessionLabel = (session: Session): string =>
+    session.deviceLabel ?? CHANNEL_FALLBACK[session.channel]
+
+/** Botão de ação destrutiva do bloco, discreto como no desenho (ghost em vermelho). */
+const RevokeButton = ({
+    onClick,
+    label,
+    children,
+}: {
+    onClick: () => void
+    label?: string
+    children: string
+}) => (
+    <Button
+        variant="ghost"
+        size="sm"
+        className="text-status-danger"
+        aria-label={label}
+        onClick={onClick}
+    >
+        {children}
+    </Button>
+)
+
+interface SessionsBodyProps {
+    sessions: Session[]
+    onRevoke: (pending: PendingRevoke) => void
+}
+
+const SessionsBody = ({ sessions, onRevoke }: SessionsBodyProps) => {
     if (sessions.length === 0) {
         return <Note>Nenhuma sessão ativa encontrada.</Note>
     }
@@ -51,7 +93,7 @@ const SessionsBody = ({ sessions }: { sessions: Session[] }) => {
         <>
             <ul aria-label="Sessões ativas da conta" className="m-0 list-none p-0">
                 {sessions.map((session) => (
-                    <SessionRow key={session.id} session={session} />
+                    <SessionRow key={session.id} session={session} onRevoke={onRevoke} />
                 ))}
             </ul>
             {onlyCurrent && <Note>Nenhuma outra sessão ativa.</Note>}
@@ -65,8 +107,14 @@ const Note = ({ children }: { children: string }) => (
     </p>
 )
 
-const SessionRow = ({ session }: { session: Session }) => {
+interface SessionRowProps {
+    session: Session
+    onRevoke: (pending: PendingRevoke) => void
+}
+
+const SessionRow = ({ session, onRevoke }: SessionRowProps) => {
     const Icon = CHANNEL_ICON[session.channel]
+    const label = sessionLabel(session)
 
     return (
         <li className="border-divider flex flex-wrap items-center gap-3.5 border-b px-5 py-4 last:border-b-0">
@@ -78,7 +126,7 @@ const SessionRow = ({ session }: { session: Session }) => {
             </span>
             <div className="min-w-0 flex-1">
                 <div className="text-14 flex items-center gap-2 font-semibold">
-                    <span>{session.deviceLabel ?? CHANNEL_FALLBACK[session.channel]}</span>
+                    <span>{label}</span>
                     {session.isCurrent && (
                         <Tag variant="accent" className="text-10 font-semibold">
                             Esta sessão
@@ -92,6 +140,16 @@ const SessionRow = ({ session }: { session: Session }) => {
             <time dateTime={session.lastAccessAt} className="text-muted text-12-5 tabular-nums">
                 {formatRelativeTime(session.lastAccessAt)}
             </time>
+            {session.isCurrent ? (
+                <span className="w-px" aria-hidden="true" />
+            ) : (
+                <RevokeButton
+                    label={`Encerrar sessão ${label}`}
+                    onClick={() => onRevoke({ kind: "one", session, label })}
+                >
+                    Encerrar
+                </RevokeButton>
+            )}
         </li>
     )
 }
