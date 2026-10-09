@@ -18,6 +18,12 @@ export interface ActiveSessionToken {
 // não é uso normal, e a lista não precisa mostrá-las todas.
 const MAX_ROWS_PER_CHANNEL = 100
 
+// Token de acesso vigente: não revogado e sem expiração ou com expiração futura.
+const LIVE_ACCESS_TOKEN = (now: Date) => ({
+    revokedAt: null,
+    OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+})
+
 /** Acesso aos tokens vigentes de um usuário, base da lista de sessões ativas. */
 export class SessionRepository {
     /** @param prisma - Cliente Prisma usado para todas as queries do módulo. */
@@ -102,5 +108,64 @@ export class SessionRepository {
             [...web.map(withChannel("WEB")), ...mobile.map(withChannel("MOBILE"))],
             now,
         )
+    }
+
+    /**
+     * Revoga todos os tokens vigentes de uma sessão — o refresh token e os JWTs
+     * de acesso, inclusive os anteriores às renovações, que valeriam até 1 h —,
+     * para ela falhar já na próxima chamada. Só toca em token do dono e ainda
+     * vigente, então o resultado diz o que de fato foi revogado: zero é sessão
+     * inexistente, de outro usuário ou já encerrada, e dois pedidos
+     * simultâneos não revogam duas vezes.
+     *
+     * @param userId - Dono da sessão; sempre o usuário autenticado.
+     * @param sessionId - Sessão a encerrar.
+     * @param now - Instante de referência para a expiração.
+     * @returns Quantos tokens foram revogados.
+     */
+    async revokeSession(userId: string, sessionId: string, now: Date): Promise<number> {
+        return this.revokeSessions(userId, [sessionId], now)
+    }
+
+    /**
+     * Encerra todas as sessões vigentes do usuário, menos a informada.
+     *
+     * @param userId - Dono das sessões; sempre o usuário autenticado.
+     * @param currentSessionId - Sessão que permanece.
+     * @param now - Instante de referência para a expiração.
+     * @returns Quantas sessões foram encerradas.
+     */
+    async revokeOthers(userId: string, currentSessionId: string, now: Date): Promise<number> {
+        const others = { userId, sessionId: { not: currentSessionId } }
+        const [web, mobile] = await Promise.all([
+            this.prisma.refreshToken.findMany({
+                where: { ...others, revokedAt: null, expiresAt: { gt: now } },
+                select: { sessionId: true },
+            }),
+            this.prisma.authToken.findMany({
+                where: { ...others, channel: "MOBILE", ...LIVE_ACCESS_TOKEN(now) },
+                select: { sessionId: true },
+            }),
+        ])
+        const sessionIds = [...new Set([...web, ...mobile].map((row) => row.sessionId))]
+        await this.revokeSessions(userId, sessionIds, now)
+        return sessionIds.length
+    }
+
+    private async revokeSessions(userId: string, sessionIds: string[], now: Date): Promise<number> {
+        if (sessionIds.length === 0) return 0
+        const owned = { userId, sessionId: { in: sessionIds }, revokedAt: null }
+        const data = { revokedAt: new Date() }
+        const [refresh, access] = await this.prisma.$transaction([
+            this.prisma.refreshToken.updateMany({
+                where: { ...owned, expiresAt: { gt: now } },
+                data,
+            }),
+            this.prisma.authToken.updateMany({
+                where: { ...owned, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+                data,
+            }),
+        ])
+        return refresh.count + access.count
     }
 }

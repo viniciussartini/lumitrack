@@ -1,5 +1,8 @@
 import type { ActiveSessionToken, SessionRepository } from "@/modules/session/session.repository.js"
 import { buildDemoSessions } from "@/modules/session/session-demo.js"
+import { sessionParamsSchema } from "@/modules/session/session.schema.js"
+import { NotFoundError, UnauthorizedError } from "@/shared/errors/AppError.js"
+import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 import type { SessionItem } from "@/modules/session/session.types.js"
 
 /** Quem pede a lista: o usuário, a sessão do token dele e se a conta é de demonstração. */
@@ -9,7 +12,12 @@ export interface SessionViewer {
     isDemo: boolean
 }
 
-/** Lista as sessões ativas do próprio usuário (web e mobile). */
+/** Resultado de encerrar uma sessão: se era a do próprio token de quem pediu. */
+export interface RevokeResult {
+    endedCurrent: boolean
+}
+
+/** Lista e encerra as sessões ativas do próprio usuário (web e mobile). */
 export class SessionService {
     /**
      * @param repository - Acesso aos tokens vigentes.
@@ -42,6 +50,48 @@ export class SessionService {
             .map((token) => toItem(token, viewer.sessionId))
             .sort(byCurrentThenRecent)
     }
+
+    /**
+     * Encerra uma sessão do usuário: os tokens dela deixam de valer na hora.
+     * Sessão que não existe, é de outro usuário ou já terminou responde 404
+     * igual, sem revelar a existência de sessão alheia. O id da própria sessão
+     * é aceito e a encerra como um logout.
+     *
+     * @param viewer - O usuário autenticado e a sessão do token dele.
+     * @param params - Parâmetros de rota brutos (`id`), validados aqui.
+     * @returns Se a sessão encerrada era a atual.
+     */
+    async revoke(viewer: SessionViewer, params: unknown): Promise<RevokeResult> {
+        assertViewerSession(viewer)
+        const { id } = parseOrThrow(sessionParamsSchema, params)
+
+        const revoked = await this.repository.revokeSession(viewer.userId, id, this.now())
+        if (revoked === 0) throw new NotFoundError("Sessão não encontrada")
+
+        return { endedCurrent: id === viewer.sessionId }
+    }
+
+    /**
+     * Encerra todas as sessões do usuário, menos a atual.
+     *
+     * @param viewer - O usuário autenticado e a sessão do token dele.
+     * @returns Quantas sessões foram encerradas.
+     */
+    async revokeOthers(viewer: SessionViewer): Promise<{ revoked: number }> {
+        assertViewerSession(viewer)
+        const revoked = await this.repository.revokeOthers(
+            viewer.userId,
+            viewer.sessionId,
+            this.now(),
+        )
+        return { revoked }
+    }
+}
+
+// Falha fechada: sem a sessão do token, "todas as outras" não saberia o que
+// poupar e uma consulta com valor ausente poderia não filtrar nada.
+const assertViewerSession = (viewer: SessionViewer): void => {
+    if (!viewer.sessionId) throw new UnauthorizedError("Sessão não identificada")
 }
 
 // Um refresh paralelo (janela de graça) e a rotação deixam mais de um token

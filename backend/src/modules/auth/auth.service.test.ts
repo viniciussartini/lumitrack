@@ -1021,6 +1021,50 @@ describe("AuthService", () => {
             expect(auditSpy).not.toHaveBeenCalled()
         })
 
+        it("token revogado sem substituto (logout, encerramento de sessão) dá 401 sem derrubar as outras sessões", async () => {
+            const { rawRefreshToken } = await createUserAndLogin()
+            const other = await loginAsSession({
+                email: validUser.email,
+                password: validUser.password,
+                channel: "WEB",
+            })
+            await prismaTest.refreshToken.updateMany({
+                where: { token: hashToken(rawRefreshToken) },
+                data: { revokedAt: new Date(Date.now() - 60_000) },
+            })
+
+            const auditSpy = vi.fn()
+            await expect(authService.refresh(rawRefreshToken, auditSpy)).rejects.toThrow(
+                UnauthorizedError,
+            )
+
+            expect(auditSpy).toHaveBeenCalledOnce()
+            expect(auditSpy).toHaveBeenCalledWith(expect.any(String), "REVOKED")
+            const otherRefresh = await prismaTest.refreshToken.findUniqueOrThrow({
+                where: { token: hashToken(other.refreshToken!) },
+            })
+            expect(otherRefresh.revokedAt).toBeNull()
+        })
+
+        it("depois do logout, o token rotacionado há instantes não reabre a sessão (janela de graça)", async () => {
+            const { rawRefreshToken } = await createUserAndLogin()
+            const renewed = await authService.refresh(rawRefreshToken)
+            await authService.logout(renewed.token, renewed.refreshToken!)
+
+            const auditSpy = vi.fn()
+            await expect(authService.refresh(rawRefreshToken, auditSpy)).rejects.toThrow(
+                UnauthorizedError,
+            )
+
+            expect(
+                await prismaTest.refreshToken.count({
+                    where: { revokedAt: null, expiresAt: { gt: new Date() } },
+                }),
+            ).toBe(0)
+            expect(auditSpy).toHaveBeenCalledOnce()
+            expect(auditSpy).toHaveBeenCalledWith(expect.any(String), "REVOKED")
+        })
+
         it("lança UnauthorizedError para token inexistente", async () => {
             await expect(authService.refresh("token-invalido")).rejects.toThrow(UnauthorizedError)
         })

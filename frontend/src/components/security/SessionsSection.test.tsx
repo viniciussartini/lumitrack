@@ -1,14 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import userEvent from "@testing-library/user-event"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, within } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
+import { toast } from "sonner"
 import { SessionsSection } from "@/components/security/SessionsSection"
 import { sessionService } from "@/services/session.service"
 import type { Session } from "@/types/session.types"
 
 vi.mock("@/services/session.service", () => ({
-    sessionService: { list: vi.fn() },
+    sessionService: { list: vi.fn(), revoke: vi.fn(), revokeOthers: vi.fn() },
 }))
+
+vi.mock("@/services/api", () => ({
+    extractErrorMessage: (error: unknown) => (error instanceof Error ? error.message : "Erro"),
+}))
+
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 // 16/10/2026, 15:30 em São Paulo.
 const NOW = new Date("2026-10-16T18:30:00.000Z")
@@ -161,12 +168,134 @@ describe("SessionsSection", () => {
         expect(sessionService.list).toHaveBeenCalledTimes(2)
     })
 
-    it("não tem botão de encerrar nesta etapa", async () => {
-        vi.mocked(sessionService.list).mockResolvedValue([current, phone])
+    describe("encerrar sessões", () => {
+        const user = () => userEvent.setup({ advanceTimers: () => undefined })
 
-        renderSection()
+        it("cada sessão, menos a atual, tem Encerrar com o dispositivo no nome", async () => {
+            vi.mocked(sessionService.list).mockResolvedValue([current, phone, legacy])
 
-        await screen.findAllByRole("listitem")
-        expect(screen.queryByRole("button")).not.toBeInTheDocument()
+            renderSection()
+
+            await screen.findAllByRole("listitem")
+            expect(
+                screen.getByRole("button", { name: "Encerrar sessão Safari · iOS" }),
+            ).toBeInTheDocument()
+            expect(
+                screen.getByRole("button", { name: "Encerrar sessão Navegador" }),
+            ).toBeInTheDocument()
+            expect(
+                screen.queryByRole("button", { name: "Encerrar sessão Chrome · Windows" }),
+            ).not.toBeInTheDocument()
+        })
+
+        it("pede confirmação e só encerra depois de confirmar", async () => {
+            const u = user()
+            vi.mocked(sessionService.list).mockResolvedValue([current, phone])
+            vi.mocked(sessionService.revoke).mockResolvedValue({ endedCurrent: false })
+            renderSection()
+
+            await u.click(
+                await screen.findByRole("button", { name: "Encerrar sessão Safari · iOS" }),
+            )
+
+            const dialog = await screen.findByRole("dialog")
+            expect(within(dialog).getByText("Encerrar sessão")).toBeInTheDocument()
+            expect(dialog).toHaveTextContent("Safari · iOS perderá o acesso na hora")
+            expect(sessionService.revoke).not.toHaveBeenCalled()
+
+            await u.click(within(dialog).getByRole("button", { name: "Encerrar" }))
+
+            await waitFor(() => expect(sessionService.revoke).toHaveBeenCalledWith("s-phone"))
+            await waitFor(() => expect(sessionService.list).toHaveBeenCalledTimes(2))
+            expect(toast.success).toHaveBeenCalledWith("Sessão encerrada")
+            await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+        })
+
+        it("cancelar não encerra nada", async () => {
+            const u = user()
+            vi.mocked(sessionService.list).mockResolvedValue([current, phone])
+            renderSection()
+
+            await u.click(
+                await screen.findByRole("button", { name: "Encerrar sessão Safari · iOS" }),
+            )
+            await u.click(await screen.findByRole("button", { name: "Cancelar" }))
+
+            expect(sessionService.revoke).not.toHaveBeenCalled()
+            await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+        })
+
+        it("'Encerrar todas as outras' só aparece quando há outra sessão", async () => {
+            vi.mocked(sessionService.list).mockResolvedValue([current])
+
+            renderSection()
+
+            await screen.findByRole("list")
+            expect(
+                screen.queryByRole("button", { name: "Encerrar todas as outras" }),
+            ).not.toBeInTheDocument()
+        })
+
+        it("encerra todas as outras depois de confirmar, avisando que a atual continua", async () => {
+            const u = user()
+            vi.mocked(sessionService.list).mockResolvedValue([current, phone, legacy])
+            vi.mocked(sessionService.revokeOthers).mockResolvedValue({ revoked: 2 })
+            renderSection()
+
+            await u.click(await screen.findByRole("button", { name: "Encerrar todas as outras" }))
+
+            const dialog = await screen.findByRole("dialog")
+            expect(dialog).toHaveTextContent("Esta sessão continua ativa")
+            expect(sessionService.revokeOthers).not.toHaveBeenCalled()
+            await u.click(within(dialog).getByRole("button", { name: "Encerrar" }))
+
+            await waitFor(() => expect(sessionService.revokeOthers).toHaveBeenCalledOnce())
+            await waitFor(() => expect(sessionService.list).toHaveBeenCalledTimes(2))
+            expect(toast.success).toHaveBeenCalledWith("Sessões encerradas")
+        })
+
+        it("falha ao encerrar mostra o erro e fecha o diálogo, sem recarregar a lista", async () => {
+            const u = user()
+            vi.mocked(sessionService.list).mockResolvedValue([current, phone])
+            vi.mocked(sessionService.revoke).mockRejectedValue(
+                new Error("Conta de demonstração é somente leitura"),
+            )
+            renderSection()
+
+            await u.click(
+                await screen.findByRole("button", { name: "Encerrar sessão Safari · iOS" }),
+            )
+            await u.click(
+                within(await screen.findByRole("dialog")).getByRole("button", { name: "Encerrar" }),
+            )
+
+            await waitFor(() =>
+                expect(toast.error).toHaveBeenCalledWith("Não foi possível encerrar a sessão", {
+                    description: "Conta de demonstração é somente leitura",
+                }),
+            )
+            await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+            expect(sessionService.list).toHaveBeenCalledTimes(1)
+        })
+
+        it("enquanto encerra, o botão de confirmar fica desabilitado", async () => {
+            const u = user()
+            vi.mocked(sessionService.list).mockResolvedValue([current, phone])
+            vi.mocked(sessionService.revoke).mockReturnValue(new Promise(() => undefined))
+            renderSection()
+
+            await u.click(
+                await screen.findByRole("button", { name: "Encerrar sessão Safari · iOS" }),
+            )
+            const dialog = await screen.findByRole("dialog")
+            await u.click(within(dialog).getByRole("button", { name: "Encerrar" }))
+
+            // Em andamento, o botão vira um spinner e o cancelar também trava.
+            await waitFor(() => {
+                const buttons = within(dialog).getAllByRole("button")
+                expect(buttons.length).toBeGreaterThan(0)
+                for (const button of buttons) expect(button).toBeDisabled()
+            })
+        })
     })
 })
