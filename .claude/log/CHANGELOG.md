@@ -4673,3 +4673,11 @@
 - **Arquivos principais:** `.claude/docs/DEPLOY.md`.
 - **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado.
 - **Notas:** a automação do aviso ("este PR traz migração" no `preparar-pr`, ou checagem de `migrate status` no CI de `staging`) segue como proposta, sem decisão.
+
+## [2026-10-10] audit-seguranca: auditoria de segurança pós-Fase 30 (projeto inteiro)
+
+- **Branch:** staging
+- **Tipo:** audit-seguranca
+- **O quê:** varredura completa contra `05`, `11` e as seções do `12` do stack (OWASP 2025, ASVS 5.0 L2), com atenção às Fases 29–30 (sessões ativas). 30 achados (0 Crítica, 1 Alta, 9 Média, 20 Baixa). O achado Alto é que a exportação do titular da conta de demonstração devolve IP, user-agent e sessões reais de todos os visitantes: a ADR-0025 só fechou a listagem de sessões. Entre as Médias: o reuso de refresh token e o logout não revogam os JWTs de acesso, não há timeout absoluto de sessão, o TOTP é reutilizável e o backup code não é consumido de forma atômica, erro de parse do corpo vira 500 e loga o corpo cru (inclusive senha), regex de `describeDevice` com backtracking quadrático sobre o User-Agent, cookies sem `__Host-`, site estático do staging sem cabeçalhos de segurança e MQTT em texto claro. Controles das sessões ativas (ownership, 404 uniforme, revogação transacional, janela de graça) verificados OK.
+- **Relatório:** `.claude/docs/2026-10-10-seguranca-audit.md`.
+- **Notas:** laudo entregue, nenhuma correção aplicada; o que entra fica a critério do usuário. O lockout de conta segue como decisão aberta no `07` (não assumida). Vários achados são persistentes do laudo de 2026-08-22 e estão marcados como tal.
