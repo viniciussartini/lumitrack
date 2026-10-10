@@ -163,7 +163,15 @@ O `db:seed` é idempotente (usa `upsert`), então repetir não duplica nada. O `
 
 **Ordem.** Aplique a migração **antes** de mesclar em `staging`, ou antes de o redeploy terminar. Uma migração aditiva (coluna, tabela, índice) mantém o código antigo funcionando, então migrar primeiro é seguro; o contrário não é: código novo contra um banco sem a migração falha em toda consulta que usa a estrutura nova. Migração destrutiva (remove ou renomeia coluna) inverte a ordem — só depois de o código novo estar no ar.
 
-**Como reconhecer a falta.** Nos logs do Render, `PrismaClientKnownRequestError` com código `P2022` e a mensagem `The column ... does not exist in the current database`. Se o serviço já caiu (container encerrado), aplique a migração e faça um **Manual Deploy**.
+**Como reconhecer a falta.** Nos logs do Render, `PrismaClientKnownRequestError` com código `P2022` e a mensagem `The column ... does not exist in the current database` (ou `P2021`, `The table ... does not exist`). O primeiro sinal para o usuário costuma ser o login de demonstração devolvendo 500. Se o serviço já caiu (container encerrado), aplique a migração e faça um **Manual Deploy**.
+
+**Armadilhas ao aplicar (já custaram um incidente: o login de demonstração do staging ficou em 500 por horas).**
+
+- **Aspas simples em volta da URL, sempre.** A connection string do Neon traz `&` (`?sslmode=require&channel_binding=require`). Sem aspas, o shell corta a URL no `&`, manda o comando para segundo plano e o `prisma` roda **sem** a variável, caindo no `DATABASE_URL` do `backend/.env` (o banco local). O sintoma é uma saída que parece normal ("Database schema is up to date!") e dois sinais que denunciam: o `[1] 12345` do job em segundo plano e o `Datasource ... at "localhost:5432"`. Para ficar a salvo, exporte uma vez e limpe depois: `export DATABASE_URL='postgresql://...'` ... `unset DATABASE_URL`.
+- **Confira o alvo antes de aplicar.** Rode `npx prisma migrate status` e leia a linha `Datasource "db": PostgreSQL database "<banco>" ... at "<host>"`: tem de ser o banco e o host do `DATABASE_URL` do serviço no Render (painel → Environment). Só aplique depois disso.
+- **Host direto, sem `-pooler`, para migração.** O Prisma usa travas (advisory locks) que o pgbouncer do pooler do Neon pode quebrar; se o `migrate deploy` travar ou der `P1002`, troque `ep-xxxx-pooler.` por `ep-xxxx.` e repita. O runtime do backend segue no pooler.
+- **Depois, confirme.** `migrate status` deve dizer "Database schema is up to date!" e o login de demonstração deve funcionar sem novo deploy. Se não funcionar, consulte `select migration_name, finished_at from _prisma_migrations order by finished_at desc limit 3;` no SQL Editor **do banco que o Render usa**: uma migração que falhou no meio fica sem `finished_at` e aparece primeiro.
+- **A senha da connection string administrativa não vai para chat, issue nem log.** Se vazar, troque no Neon (Roles → Reset password).
 
 **Permissões das tabelas novas.** Não reexecute o `create-app-role.sql`: ele configura `ALTER DEFAULT PRIVILEGES`, então toda tabela e sequência criada depois pela migração já nasce com as permissões de DML do `lumitrack_app`. Isso vale enquanto a migração rodar com o mesmo papel administrativo que executou o script no passo 2 — default privileges são por papel criador.
 

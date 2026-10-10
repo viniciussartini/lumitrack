@@ -4664,3 +4664,12 @@
 - **Arquivos principais:** `.claude/docs/roadmap.md`.
 - **Decisões/ADRs:** nenhuma ADR nova; nenhum item do `07` tocado (a decisão do Modbus segue aberta).
 - **Notas:** pendências do usuário no fim do replanejamento, a mais urgente aplicar as migrações no Neon para o login de demonstração do staging voltar; fechar a milestone `App v2` no GitHub.
+
+## [2026-10-10] docs: DEPLOY.md registra as armadilhas ao aplicar migração no Neon
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** a seção "Atualizar o staging depois de um merge" do `DEPLOY.md` ganha "Armadilhas ao aplicar", vinda do incidente em que o login de demonstração do staging ficou em 500 porque o banco do Neon estava sem as migrações das Fases 25 a 30: (1) a connection string vai entre aspas simples, porque o `&` sem aspas manda o comando para segundo plano e o `prisma` roda contra o `DATABASE_URL` local, com uma saída que parece normal; (2) conferir o banco e o host na linha `Datasource` do `migrate status` antes de aplicar; (3) host direto, sem `-pooler`, para migração; (4) como confirmar depois, inclusive pela tabela `_prisma_migrations`; (5) a senha administrativa não vai para chat, issue nem log. O "Como reconhecer a falta" passa a citar também `P2021` e o 500 no login de demonstração.
+- **Arquivos principais:** `.claude/docs/DEPLOY.md`.
+- **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado.
+- **Notas:** a automação do aviso ("este PR traz migração" no `preparar-pr`, ou checagem de `migrate status` no CI de `staging`) segue como proposta, sem decisão.
