@@ -11,8 +11,8 @@
 | Crítica | 0 |
 | Alta | 1 |
 | Média | 9 |
-| Baixa | 20 |
-| **Total** | **30** |
+| Baixa | 21 |
+| **Total** | **31** |
 
 Os pontos que pesam mais nas Fases 29–30 (sessões ativas):
 1. O "dado de terceiros na conta demo" foi resolvido só na listagem de sessões. A exportação do titular (DSAR) ainda devolve as sessões reais e o audit log completo da conta demo.
