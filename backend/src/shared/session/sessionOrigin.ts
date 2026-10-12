@@ -9,7 +9,8 @@ const FALLBACK_BY_CHANNEL: Record<SessionChannel, string> = {
 
 // A ordem importa: os navegadores derivados do Chrome também dizem "Chrome/" e
 // "Safari/", e o Chrome e o Firefox no iOS dizem "iPhone ... Safari".
-const BROWSERS: readonly [RegExp, string][] = [
+/** Padrões de navegador, na ordem de precedência; exportados para o teste de custo de cada um. */
+export const BROWSERS: readonly [RegExp, string][] = [
     [/Edg(?:e|A|iOS)?\//, "Edge"],
     [/OPR\/|Opera/, "Opera"],
     [/FxiOS\/|Firefox\//, "Firefox"],
@@ -19,8 +20,10 @@ const BROWSERS: readonly [RegExp, string][] = [
     [/Version\/[\d.]+ (?:Mobile(?:\/\w+)? )?Safari\//, "Safari"],
 ]
 
-// Os tokens de navegador e sistema aparecem no início do user-agent; o resto
-// só serve para alongar a entrada que o cliente controla.
+// Um user-agent real tem de 130 a 200 caracteres, então os tokens de navegador
+// e sistema cabem com folga; o resto só serve para alongar a entrada que o
+// cliente controla. Um token além do corte não é visto: o Edge e o Opera, cujo
+// token vem depois de "Chrome/", apareceriam como Chrome.
 const MAX_USER_AGENT_LENGTH = 512
 
 // O iPhone também diz "like Mac OS X", então o iOS vem antes do macOS.
