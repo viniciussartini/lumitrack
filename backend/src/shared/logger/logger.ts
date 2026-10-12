@@ -36,7 +36,8 @@ const transport = resolveTransport(env.NODE_ENV)
 // `entry.*` cobrem chamadas que logam uma entrada de auditoria como
 // binding (`logger.info({ audit: entry }, ...)`); os wildcards `*.campo`
 // cobrem qualquer objeto logado com esses campos, independente da chave
-// raiz usada.
+// raiz usada. `err.body` cobre o corpo que o body-parser anexa ao erro de
+// leitura (pode ter senha), caso algum caminho ainda logue esse erro.
 export const logRedactPaths = [
     "req.headers.cookie",
     "req.headers.authorization",
@@ -45,6 +46,7 @@ export const logRedactPaths = [
     'req.headers["x-refresh-csrf-token"]',
     "audit.metadata.attemptedEmail",
     "entry.metadata.attemptedEmail",
+    "err.body",
     "*.password",
     "*.newPassword",
     "*.token",

@@ -97,4 +97,106 @@ describe("createErrorHandler", () => {
 
         errorSpy.mockRestore()
     })
+
+    describe("erros de leitura do corpo (body-parser)", () => {
+        const SECRET = "Segredo@123"
+
+        // O body-parser anexa o corpo recebido ao erro (`err.body`), e é nele que
+        // a senha de um login malformado viajaria para o log.
+        function bodyParserError(type: string, status: number): Error {
+            return Object.assign(new Error("body-parser"), {
+                type,
+                status,
+                statusCode: status,
+                expose: true,
+                body: `{"email":"a@b.com","password":"${SECRET}"`,
+            })
+        }
+
+        function loggedText(...spies: { mock: { calls: unknown[][] } }[]): string {
+            return JSON.stringify(spies.flatMap((spy) => spy.mock.calls))
+        }
+
+        it("JSON malformado responde 400 genérico, sem logar o corpo", async () => {
+            const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => undefined as never)
+            const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => undefined as never)
+            const res = makeRes()
+
+            await errorHandler(bodyParserError("entity.parse.failed", 400), makeReq(), res, vi.fn())
+
+            expect(res.status).toHaveBeenCalledWith(400)
+            expect(res.json).toHaveBeenCalledWith({
+                status: "error",
+                message: "Corpo da requisição inválido",
+            })
+            expect(loggedText(errorSpy, warnSpy)).not.toContain(SECRET)
+            expect(auditService.record).not.toHaveBeenCalled()
+
+            errorSpy.mockRestore()
+            warnSpy.mockRestore()
+        })
+
+        it("corpo grande demais responde 413 genérico, sem logar o corpo", async () => {
+            const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => undefined as never)
+            const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => undefined as never)
+            const res = makeRes()
+
+            await errorHandler(bodyParserError("entity.too.large", 413), makeReq(), res, vi.fn())
+
+            expect(res.status).toHaveBeenCalledWith(413)
+            expect(res.json).toHaveBeenCalledWith({
+                status: "error",
+                message: "Corpo da requisição grande demais",
+            })
+            expect(loggedText(errorSpy, warnSpy)).not.toContain(SECRET)
+
+            errorSpy.mockRestore()
+            warnSpy.mockRestore()
+        })
+
+        it.each([
+            ["encoding.unsupported", 415, "Tipo de conteúdo não suportado"],
+            ["entity.verify.failed", 403, "Corpo da requisição inválido"],
+            ["querystring.parse.rangeError", 400, "Corpo da requisição inválido"],
+            ["parameters.too.many", 413, "Corpo da requisição grande demais"],
+        ])(
+            "erro %s do body-parser mantém o status %i e não vira 500 nem entra no log",
+            async (type, status, message) => {
+                const errorSpy = vi
+                    .spyOn(logger, "error")
+                    .mockImplementation(() => undefined as never)
+                const res = makeRes()
+
+                await errorHandler(bodyParserError(type, status), makeReq(), res, vi.fn())
+
+                expect(res.status).toHaveBeenCalledWith(status)
+                expect(res.json).toHaveBeenCalledWith({ status: "error", message })
+                expect(errorSpy).not.toHaveBeenCalled()
+
+                errorSpy.mockRestore()
+            },
+        )
+
+        it("erro 4xx sem expose não é tratado como erro de cliente: segue como inesperado", async () => {
+            const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => undefined as never)
+            const res = makeRes()
+            const internal = Object.assign(new Error("bug"), { status: 400, expose: false })
+
+            await errorHandler(internal, makeReq(), res, vi.fn())
+
+            expect(res.status).toHaveBeenCalledWith(500)
+            expect(errorSpy).toHaveBeenCalled()
+
+            errorSpy.mockRestore()
+        })
+
+        it("o erro inesperado sai pelo logger recebido, não pelo singleton", async () => {
+            const injected = { error: vi.fn() }
+            const handler = createErrorHandler(auditService, injected)
+
+            await handler(new Error("bug"), makeReq(), makeRes(), vi.fn())
+
+            expect(injected.error).toHaveBeenCalled()
+        })
+    })
 })

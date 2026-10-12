@@ -267,7 +267,7 @@ export function createApp(deps: AppDependencies = {}) {
         app.use("/api/iot", iotStreamRoutes(authenticate, prismaClient, processor, userEventHub))
     }
 
-    app.use(createErrorHandler(auditService))
+    app.use(createErrorHandler(auditService, appLogger))
 
     return app
 }
