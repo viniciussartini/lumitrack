@@ -44,11 +44,16 @@ export class AuditRepository {
     }
 
     // Usado pela exportação de dados do titular (Art. 18 LGPD): o
-    // próprio audit log é dado pessoal do titular, sobre ele.
-    async findByUserId(userId: string): Promise<AuditLogResponse[]> {
+    // próprio audit log é dado pessoal do titular, sobre ele. Janela e teto
+    // evitam carregar o histórico inteiro de uma conta com muito uso.
+    async findByUserId(
+        userId: string,
+        options: { since: Date; limit: number },
+    ): Promise<AuditLogResponse[]> {
         return this.prisma.auditLog.findMany({
-            where: { userId },
+            where: { userId, createdAt: { gte: options.since } },
             orderBy: { createdAt: "desc" },
+            take: options.limit,
         })
     }
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest"
-import { ExportService } from "@/modules/export/export.service.js"
+import { AUDIT_LOG_MAX_ROWS, ExportService } from "@/modules/export/export.service.js"
+import { DEMO_RESIDENTIAL_EMAIL } from "@/shared/config/demoAccounts.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { UserService } from "@/modules/user/user.service.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
@@ -200,6 +201,80 @@ describe("ExportService.generate", () => {
 
         expect(payload.auditLogs).toHaveLength(1)
         expect(payload.auditLogs[0]!.action).toBe("LOGIN")
+    })
+
+    it("não exporta registros de auditoria mais antigos que a janela", async () => {
+        const user = await userService.createUser(validUserA)
+        const monthsAgo = (months: number) => {
+            const date = new Date()
+            date.setMonth(date.getMonth() - months)
+            return date
+        }
+        await prismaTest.auditLog.createMany({
+            data: [
+                { userId: user.id, action: "LOGIN", outcome: "SUCCESS", createdAt: monthsAgo(1) },
+                { userId: user.id, action: "LOGOUT", outcome: "SUCCESS", createdAt: monthsAgo(13) },
+            ],
+        })
+
+        const payload = await exportService.generate(user.id)
+
+        expect(payload.auditLogs.map((entry) => entry.action)).toEqual(["LOGIN"])
+        expect(payload.auditLogsSince.getTime()).toBeLessThan(monthsAgo(11).getTime())
+        expect(payload.auditLogsSince.getTime()).toBeGreaterThan(monthsAgo(13).getTime())
+    })
+
+    it("limita o log de auditoria ao teto, mantendo os mais recentes", async () => {
+        const user = await userService.createUser(validUserA)
+        const base = Date.now() - 3_600_000
+        await prismaTest.auditLog.createMany({
+            data: Array.from({ length: AUDIT_LOG_MAX_ROWS + 1 }, (_, index) => ({
+                userId: user.id,
+                action: "LOGIN" as const,
+                outcome: "SUCCESS" as const,
+                createdAt: new Date(base + index * 1000),
+            })),
+        })
+
+        const payload = await exportService.generate(user.id)
+
+        expect(payload.auditLogs).toHaveLength(AUDIT_LOG_MAX_ROWS)
+        expect(payload.auditLogs[0]!.createdAt.getTime()).toBe(base + AUDIT_LOG_MAX_ROWS * 1000)
+    })
+
+    it("conta de demonstração recebe conteúdo fixo, sem consultar o log nem os tokens reais", async () => {
+        const demo = await userService.createUser({
+            ...validUserA,
+            email: DEMO_RESIDENTIAL_EMAIL,
+        })
+        await auditRepository.create({
+            userId: demo.id,
+            action: "LOGIN",
+            outcome: "SUCCESS",
+            ipAddress: "198.51.100.23",
+            userAgent: "VisitanteReal/9.9",
+        })
+        await prismaTest.refreshToken.create({
+            data: {
+                userId: demo.id,
+                token: "hash-visitante",
+                expiresAt: new Date(Date.now() + 3_600_000),
+                deviceLabel: "Navegador do Visitante",
+                origin: "198.51.xx.xx",
+            },
+        })
+
+        const payload = await exportService.generate(demo.id)
+
+        const serialized = JSON.stringify(payload)
+        expect(serialized).not.toContain("198.51")
+        expect(serialized).not.toContain("VisitanteReal")
+        expect(serialized).not.toContain("Navegador do Visitante")
+        expect(payload.sessions.length).toBeGreaterThan(0)
+        for (const entry of payload.auditLogs) {
+            expect(entry.ipAddress).toBeNull()
+            expect(entry.userAgent).toBeNull()
+        }
     })
 
     it("isola completamente os dados entre usuários diferentes", async () => {

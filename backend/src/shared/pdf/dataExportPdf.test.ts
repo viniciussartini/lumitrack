@@ -39,6 +39,7 @@ function buildFakePayload(overrides: Partial<DataExportPayload> = {}): DataExpor
         reportSchedules: [],
         goals: [],
         sessions: [],
+        auditLogsSince: new Date("2025-06-28T12:00:00Z"),
         auditLogs: [],
         ...overrides,
     }

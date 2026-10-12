@@ -1,7 +1,11 @@
 import PDFDocument from "pdfkit"
 import { BRAND, ZAP_ICON_PATH, ZAP_ICON_VIEWBOX_SIZE } from "@/shared/pdf/brand.js"
 import { formatInstantDateTime, formatPeriodLabel } from "@/modules/report/generators/format.js"
-import type { DataExportPayload } from "@/modules/export/export.service.js"
+import {
+    AUDIT_LOG_MAX_ROWS,
+    AUDIT_LOG_WINDOW_MONTHS,
+    type DataExportPayload,
+} from "@/modules/export/export.service.js"
 import { yearlyTarget } from "@/modules/goal/goal-progress.js"
 import type { GoalPublicRecord } from "@/modules/goal/goal.repository.js"
 import type { UserWithoutPassword } from "@/modules/user/user.repository.js"
@@ -363,6 +367,11 @@ function drawSessionsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload
 
 function drawAuditLogSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
     sectionTitle(doc, "Histórico de acesso e segurança (audit log)")
+    emptyNote(
+        doc,
+        `Registros desde ${formatInstantDateTime(payload.auditLogsSince)} (janela de ${AUDIT_LOG_WINDOW_MONTHS} meses, ` +
+            `até ${AUDIT_LOG_MAX_ROWS.toLocaleString("pt-BR")} registros, os mais recentes).`,
+    )
 
     if (payload.auditLogs.length === 0) {
         emptyNote(doc, "Nenhum registro de auditoria encontrado.")

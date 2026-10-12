@@ -4706,3 +4706,13 @@
 - **Arquivos principais:** `.claude/docs/roadmap.md`, `.claude/docs/2026-10-10-seguranca-audit.md`.
 - **Decisões/ADRs:** nenhuma ADR nova; nenhum item do `07` tocado. As decisões que as fases exigem (ADR dos caches, armazenamento de `meter_readings`, política 403 × 404, `LOGIN` auditado a cada refresh) viram item do `07` e ADR na chegada do item.
 - **Notas:** a #315 (escala Modbus/Profinet) foi movida da milestone `Endurecimento pós-Fase 30` para `Simulador IoT`. Issues já existem no GitHub; esta atualização não criou nenhuma. Os pacotes de baixa prioridade que sobrarem ao fim da Fase 36 saem da milestone para o backlog.
+
+## [2026-10-12] fix: exportação da conta de demonstração sem dado de terceiros e com teto
+
+- **Branch:** fix/534-export-demo-sem-dado-de-terceiros
+- **Tipo:** fix
+- **O quê:** a exportação do titular, quando feita por uma conta de demonstração, deixou de consultar `audit_logs` e os tokens da conta compartilhada: devolve sessões e registros de auditoria fixos (IP e user-agent sempre nulos). Para as contas reais, o log de auditoria ganhou janela de 12 meses e teto de 5.000 registros, os tokens ganharam teto por canal, e o payload passou a trazer `auditLogsSince` (também impresso no PDF). As consultas do export saem em duas levas, em vez de onze de uma vez, para não ocupar o pool de 10 conexões.
+- **Arquivos principais:** `backend/src/modules/export/export.service.ts`, `backend/src/modules/export/export-demo.ts`, `backend/src/shared/audit/audit.repository.ts`, `backend/src/modules/session/session.repository.ts`, `backend/src/shared/pdf/dataExportPdf.ts`.
+- **Decisões/ADRs:** conteúdo fixo representativo em vez de recusa (decisão do usuário); nenhuma ADR nova nem item do `07` tocado. A conta demo é identificada pelo e-mail (`DEMO_ACCOUNT_EMAILS`) dentro do service, que já carrega o usuário, e não por parâmetro vindo do controller.
+- **Testes:** rota (a exportação da demo não contém IP, user-agent nem sessão semeados por outro visitante) e service (demo com conteúdo fixo, janela e teto do log). Suíte completa do backend: 2147 testes verdes; `tsc`, ESLint e dependency-cruiser limpos.
+- **Notas:** o passo "medir antes" do item (`count(*)` de `audit_logs` e de tokens do usuário demo na VPS) depende de acesso à VPS e segue pendente: o número decide o índice `(userId, createdAt)` em `audit_logs` e o expurgo do acumulado, que cruza com o `09` e fica para a próxima auditoria de conformidade. O download do export é um link simples no frontend, sem `page.route` a ajustar no e2e.

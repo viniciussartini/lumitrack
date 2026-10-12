@@ -18,6 +18,11 @@ export interface ActiveSessionToken {
 // não é uso normal, e a lista não precisa mostrá-las todas.
 const MAX_ROWS_PER_CHANNEL = 100
 
+// Teto de tokens lidos por canal na exportação. Bem acima da lista de sessões
+// porque a rotação do refresh token gera uma linha por renovação e a
+// exportação agrupa por sessão; abaixo disso a exportação ficaria sem teto.
+const MAX_EXPORT_ROWS_PER_CHANNEL = 2000
+
 // Token de acesso vigente: não revogado e sem expiração ou com expiração futura.
 const LIVE_ACCESS_TOKEN = (now: Date) => ({
     revokedAt: null,
@@ -98,8 +103,18 @@ export class SessionRepository {
             revokedAt: true,
         } as const
         const [web, mobile] = await Promise.all([
-            this.prisma.refreshToken.findMany({ where: { userId }, select }),
-            this.prisma.authToken.findMany({ where: { userId, channel: "MOBILE" }, select }),
+            this.prisma.refreshToken.findMany({
+                where: { userId },
+                select,
+                orderBy: { createdAt: "desc" },
+                take: MAX_EXPORT_ROWS_PER_CHANNEL,
+            }),
+            this.prisma.authToken.findMany({
+                where: { userId, channel: "MOBILE" },
+                select,
+                orderBy: { createdAt: "desc" },
+                take: MAX_EXPORT_ROWS_PER_CHANNEL,
+            }),
         ])
         const withChannel =
             (channel: ExportedSession["channel"]) =>

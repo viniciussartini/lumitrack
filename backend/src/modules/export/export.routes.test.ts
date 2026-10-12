@@ -5,6 +5,7 @@ import { prismaHttpTest } from "@/shared/test/prisma-http-test.js"
 import { cleanHttpDatabase } from "@/shared/test/clean-http-database.js"
 import { createTestDistributor } from "@/shared/test/distributorFixture.js"
 import { waitFor } from "@/shared/test/waitFor.js"
+import { DEMO_RESIDENTIAL_EMAIL } from "@/shared/config/demoAccounts.js"
 
 const app = createApp({ prismaClient: prismaHttpTest })
 
@@ -147,6 +148,51 @@ describe("GET /api/users/me/data-export", () => {
         expect(response.status).toBe(200)
         const propertyIds = response.body.data.properties.map((p: { id: string }) => p.id)
         expect(propertyIds).not.toContain(propertyIdA)
+    })
+
+    it("conta de demonstração não recebe IP, user-agent nem sessão de outros visitantes", async () => {
+        const demo = { ...validUser, email: DEMO_RESIDENTIAL_EMAIL }
+        const token = await registerAndLogin(demo)
+        const { id: demoId } = await prismaHttpTest.user.findUniqueOrThrow({
+            where: { email: DEMO_RESIDENTIAL_EMAIL },
+        })
+        // Linhas que outro visitante da conta compartilhada deixou no banco.
+        await prismaHttpTest.auditLog.create({
+            data: {
+                userId: demoId,
+                action: "LOGIN",
+                outcome: "SUCCESS",
+                ipAddress: "198.51.100.23",
+                userAgent: "VisitanteReal/9.9",
+            },
+        })
+        await prismaHttpTest.refreshToken.create({
+            data: {
+                userId: demoId,
+                token: "hash-visitante",
+                expiresAt: new Date(Date.now() + 3_600_000),
+                deviceLabel: "Navegador do Visitante",
+                origin: "198.51.xx.xx",
+            },
+        })
+
+        const response = await request(app)
+            .get("/api/users/me/data-export")
+            .set("Authorization", `Bearer ${token}`)
+
+        expect(response.status).toBe(200)
+        const serialized = JSON.stringify(response.body.data)
+        expect(serialized).not.toContain("198.51")
+        expect(serialized).not.toContain("VisitanteReal")
+        expect(serialized).not.toContain("Navegador do Visitante")
+        for (const entry of response.body.data.auditLogs as {
+            ipAddress: string | null
+            userAgent: string | null
+        }[]) {
+            expect(entry.ipAddress).toBeNull()
+            expect(entry.userAgent).toBeNull()
+        }
+        expect(response.body.data.sessions.length).toBeGreaterThan(0)
     })
 
     it("registra um audit log DATA_EXPORT após a exportação", async () => {
