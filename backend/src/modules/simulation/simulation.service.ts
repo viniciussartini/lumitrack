@@ -22,6 +22,13 @@ import { TariffService } from "@/shared/tariff/tariff.service.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 
+const UNSUPPORTED_MODALITY_LABELS: Record<
+    Exclude<NonNullable<PropertyResponse["groupBModality"]>, "CONVENTIONAL">,
+    string
+> = {
+    WHITE: "propriedades na Tarifa Branca",
+}
+
 const PROJECTED_DAYS: Record<"DAILY" | "MONTHLY" | "ANNUAL", number> = {
     DAILY: 1,
     MONTHLY: 30,
@@ -65,6 +72,7 @@ export class SimulationService {
         const data = parseOrThrow(simulationInputSchema, input)
 
         const property = await this.validatePropertyOwnership(propertyId, userId)
+        this.assertTariffModelSupported(property)
         await this.validateTarget(data, propertyId)
         const effectivePowerWatts = await this.resolveEffectivePowerWatts(data)
 
@@ -100,6 +108,33 @@ export class SimulationService {
             costBrl,
             projectedDays,
         }
+    }
+
+    // A simulação só implementa a fórmula do Grupo B Convencional no ACR (energia
+    // + bandeira + tributos, piso e CIP). Aplicá-la ao Grupo A (demanda, ponta e
+    // fora de ponta), à Tarifa Branca (postos horários) ou ao ACL (sem bandeira)
+    // devolveria um custo plausível e errado, então esses modelos são recusados.
+    // `groupBModality` nulo é o Grupo B anterior à modalidade, tratado como
+    // Convencional em todo o sistema.
+    private assertTariffModelSupported(property: PropertyResponse): void {
+        const unsupportedModel = this.describeUnsupportedTariffModel(property)
+        if (unsupportedModel) {
+            throw new ValidationError(
+                `A simulação de custo não está disponível para ${unsupportedModel}: ` +
+                    "o cálculo só existe para o Grupo B na modalidade Convencional.",
+            )
+        }
+    }
+
+    // Lista de permissão: só Convencional (ou nulo) calcula. Uma modalidade nova
+    // do Grupo B exige uma entrada em `UNSUPPORTED_MODALITY_LABELS` (o tipo
+    // `Record` não compila sem ela), em vez de cair na fórmula Convencional.
+    private describeUnsupportedTariffModel(property: PropertyResponse): string | null {
+        if (property.contractingEnvironment !== "ACR") return "propriedades no Mercado Livre (ACL)"
+        if (property.tariffGroup !== "GROUP_B") return "propriedades do Grupo A"
+        const modality = property.groupBModality
+        if (modality && modality !== "CONVENTIONAL") return UNSUPPORTED_MODALITY_LABELS[modality]
+        return null
     }
 
     private async validatePropertyOwnership(

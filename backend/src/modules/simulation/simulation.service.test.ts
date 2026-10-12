@@ -316,6 +316,125 @@ describe("SimulationService — target: PROPERTY", () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SUITE: SimulationService — modelo tarifário sem cálculo
+// ─────────────────────────────────────────────────────────────────────────────
+// A simulação só implementa o Grupo B Convencional no ACR. Fora dele, devolver
+// o custo dessa fórmula seria um valor plausível e errado.
+
+describe("SimulationService — modelo tarifário sem cálculo de simulação", () => {
+    const groupA = {
+        tariffGroup: "GROUP_A" as const,
+        tariffSubgroup: "A4" as const,
+        tariffModality: "GREEN" as const,
+        contractedDemandKw: 200,
+    }
+
+    async function setupProperty(overrides: Record<string, unknown>) {
+        const user = await userService.createUser(validUserA)
+        const distributor = await createTestDistributor(prismaTest)
+        await createTestTariffFlagConfig(prismaTest)
+        const property = await propertyService.create(user.id, {
+            name: "Unidade",
+            distributorId: distributor.id,
+            electricalSystem: "TRIPHASIC",
+            ...overrides,
+        })
+        const area = await areaService.create(property.id, user.id, { name: "Sala" })
+        return { user, property, area }
+    }
+
+    const propertyInput = {
+        period: "MONTHLY",
+        target: { type: "PROPERTY" },
+        inputMode: "KWH_DIRECT",
+        kwhConsumed: 300,
+    }
+
+    it.each([
+        ["Grupo A", groupA, /Grupo A/],
+        ["Grupo A no ACL", { ...groupA, contractingEnvironment: "ACL" }, /Mercado Livre/],
+        [
+            "Grupo B na Tarifa Branca",
+            { billingClass: "B1", groupBModality: "WHITE" },
+            /Tarifa Branca/,
+        ],
+    ])("recusa simular uma propriedade %s", async (_name, overrides, expectedMessage) => {
+        const { user, property } = await setupProperty(overrides)
+
+        const attempt = simulationService.simulate(property.id, user.id, propertyInput)
+
+        await expect(attempt).rejects.toThrow(ValidationError)
+        await expect(attempt).rejects.toThrow(expectedMessage)
+    })
+
+    // O ramo do ACL é defesa em profundidade: o cadastro só aceita ACL no Grupo A,
+    // então o único jeito de exercitá-lo sozinho é gravar a combinação direto.
+    it("recusa o ACL mesmo numa propriedade do Grupo B (combinação que o cadastro não aceita)", async () => {
+        const { user, property } = await setupProperty({})
+        await prismaTest.property.update({
+            where: { id: property.id },
+            data: { contractingEnvironment: "ACL" },
+        })
+
+        await expect(
+            simulationService.simulate(property.id, user.id, propertyInput),
+        ).rejects.toThrow(/Mercado Livre/)
+    })
+
+    it("Grupo B sem modalidade gravada (anterior à modalidade) segue calculando como Convencional", async () => {
+        const { user, property } = await setupProperty({})
+        await prismaTest.property.update({
+            where: { id: property.id },
+            data: { groupBModality: null },
+        })
+
+        const result = await simulationService.simulate(property.id, user.id, propertyInput)
+
+        expect(result.costBrl).toBeGreaterThan(0)
+    })
+
+    it("recusa também quando o alvo é uma área da propriedade fora do Grupo B Convencional", async () => {
+        const { user, property, area } = await setupProperty(groupA)
+
+        await expect(
+            simulationService.simulate(property.id, user.id, {
+                ...propertyInput,
+                target: { type: "AREA", areaId: area.id },
+            }),
+        ).rejects.toThrow(ValidationError)
+    })
+
+    it("a mensagem diz que o cálculo não existe para o modelo tarifário", async () => {
+        const { user, property } = await setupProperty(groupA)
+
+        await expect(
+            simulationService.simulate(property.id, user.id, propertyInput),
+        ).rejects.toThrow(/não está disponível/)
+    })
+
+    it("Grupo B Convencional explícito segue calculando", async () => {
+        const { user, property } = await setupProperty({
+            billingClass: "B1",
+            groupBModality: "CONVENTIONAL",
+        })
+
+        const result = await simulationService.simulate(property.id, user.id, propertyInput)
+
+        expect(result.kwhConsumed).toBe(300)
+        expect(result.costBrl).toBeGreaterThan(0)
+    })
+
+    it("a posse da propriedade é validada antes do modelo tarifário", async () => {
+        const { property } = await setupProperty(groupA)
+        const stranger = await userService.createUser(validUserB)
+
+        await expect(
+            simulationService.simulate(property.id, stranger.id, propertyInput),
+        ).rejects.toThrow(ForbiddenError)
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SUITE: SimulationService — target: AREA
 // ─────────────────────────────────────────────────────────────────────────────
 

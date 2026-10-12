@@ -264,6 +264,44 @@ describe("POST /api/properties/:propertyId/simulation — target: PROPERTY", () 
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST — modelo tarifário sem cálculo de simulação
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("POST /api/properties/:propertyId/simulation — modelo tarifário sem cálculo", () => {
+    it("retorna 422 para uma propriedade do Grupo A, em vez de um custo plausível e errado", async () => {
+        const token = await registerAndLogin()
+        const distributor = await createTestDistributor(prismaHttpTest)
+        await createTestTariffFlagConfig(prismaHttpTest)
+        const propRes = await request(app)
+            .post("/api/properties")
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                name: "Fábrica",
+                distributorId: distributor.id,
+                electricalSystem: "TRIPHASIC",
+                tariffGroup: "GROUP_A",
+                tariffSubgroup: "A4",
+                tariffModality: "GREEN",
+                contractedDemandKw: 200,
+            })
+        expect(propRes.status).toBe(201)
+
+        const response = await request(app)
+            .post(simulationUrl(propRes.body.data.id))
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+                period: "MONTHLY",
+                target: { type: "PROPERTY" },
+                inputMode: "KWH_DIRECT",
+                kwhConsumed: 300,
+            })
+
+        expect(response.status).toBe(422)
+        expect(response.body.data).toBeUndefined()
+    })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
 // POST — target: AREA
 // ─────────────────────────────────────────────────────────────────────────────
 
