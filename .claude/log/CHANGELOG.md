@@ -32,3 +32,12 @@ fix/537-corpo-malformado-sem-500-nem-log-de-senha
 - **Arquivos principais:** `.claude/docs/README.md`, `.claude/project_context/03-arquitetura.md`, `.claude/project_context/04-tech-stack.md`, `.claude/project_context/07-decisoes-em-aberto.md`, `CLAUDE.md`, `.claude/skills/*/SKILL.md`.
 - **Decisões/ADRs:** nenhuma ADR nova. Fora do escopo: o script de CI que compara `ls .claude/docs/adr/` com o índice (YAGNI; o protocolo nas skills ataca a causa). A ADR retroativa dos caches em processo fica para a sub-issue do `03`.
 - **Notas:** primeira de cinco sub-issues do épico; as demais (`03`, `10`, `04`/`06` e comentários) seguem na mesma branch, com um PR no fim.
+
+## [2026-10-12] docs: 03-arquitetura.md descreve a arquitetura de hoje; ADR-0026 dos caches em processo
+
+- **Branch:** epic/511-documentacao-viva
+- **Tipo:** docs
+- **O quê:** a seção "Específico do projeto" do `03` foi reconferida contra o código e corrigida: 24 módulos (entraram `acl-contract`, `demand`, `demand-alert`, `goal`, `pld-quote`, `report`, `report-schedule` e `session`); os sete schedulers no mesmo processo (`server.ts`), no lugar de "o único caminho assíncrono"; o SMTP com as quatro finalidades, inclusive o relatório enviado a terceiros; os dados pessoais novos e não cifrados (e-mails de destinatários e rótulo de dispositivo/IP mascarado das sessões); `shared/session/` e `shared/config/` no inventário; e os três caches em processo no lugar de "nenhum cache". A ADR-0026 (retroativa) registra esses caches com o requisito medido na Fase 15 (6 → 4 queries por requisição de consumo), o TTL de 5 minutos, o estado em nível de módulo e o custo aceito, e entrou no índice canônico.
+- **Arquivos principais:** `.claude/project_context/03-arquitetura.md`, `.claude/docs/adr/0026-caches-em-processo-com-ttl.md`, `.claude/docs/README.md`.
+- **Decisões/ADRs:** ADR-0026, aprovada pelo usuário como retroativa curta; nenhum item do `07` a remover. Cada número do laudo foi reconferido no código (24 módulos, sete schedulers, três repositórios com cache) antes de escrever.
+- **Notas:** a seção de dados sensíveis tem interseção com o `09` e deve ser revisada junto da próxima `auditoria-conformidade`. Segunda de cinco sub-issues do épico.
