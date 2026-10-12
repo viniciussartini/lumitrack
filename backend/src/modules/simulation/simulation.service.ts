@@ -65,6 +65,7 @@ export class SimulationService {
         const data = parseOrThrow(simulationInputSchema, input)
 
         const property = await this.validatePropertyOwnership(propertyId, userId)
+        this.assertTariffModelSupported(property)
         await this.validateTarget(data, propertyId)
         const effectivePowerWatts = await this.resolveEffectivePowerWatts(data)
 
@@ -100,6 +101,29 @@ export class SimulationService {
             costBrl,
             projectedDays,
         }
+    }
+
+    // A simulação só implementa a fórmula do Grupo B Convencional no ACR (energia
+    // + bandeira + tributos, piso e CIP). Aplicá-la ao Grupo A (demanda, ponta e
+    // fora de ponta), à Tarifa Branca (postos horários) ou ao ACL (sem bandeira)
+    // devolveria um custo plausível e errado, então esses modelos são recusados.
+    // `groupBModality` nulo é o Grupo B anterior à modalidade, tratado como
+    // Convencional em todo o sistema.
+    private assertTariffModelSupported(property: PropertyResponse): void {
+        const unsupportedModel = this.describeUnsupportedTariffModel(property)
+        if (unsupportedModel) {
+            throw new ValidationError(
+                `A simulação de custo não está disponível para ${unsupportedModel}: ` +
+                    "o cálculo só existe para o Grupo B na modalidade Convencional.",
+            )
+        }
+    }
+
+    private describeUnsupportedTariffModel(property: PropertyResponse): string | null {
+        if (property.contractingEnvironment !== "ACR") return "propriedades no Mercado Livre (ACL)"
+        if (property.tariffGroup !== "GROUP_B") return "propriedades do Grupo A"
+        if (property.groupBModality === "WHITE") return "propriedades na Tarifa Branca"
+        return null
     }
 
     private async validatePropertyOwnership(
