@@ -22,6 +22,13 @@ import { TariffService } from "@/shared/tariff/tariff.service.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
 
+const UNSUPPORTED_MODALITY_LABELS: Record<
+    Exclude<NonNullable<PropertyResponse["groupBModality"]>, "CONVENTIONAL">,
+    string
+> = {
+    WHITE: "propriedades na Tarifa Branca",
+}
+
 const PROJECTED_DAYS: Record<"DAILY" | "MONTHLY" | "ANNUAL", number> = {
     DAILY: 1,
     MONTHLY: 30,
@@ -119,10 +126,14 @@ export class SimulationService {
         }
     }
 
+    // Lista de permissão: só Convencional (ou nulo) calcula. Uma modalidade nova
+    // do Grupo B exige uma entrada em `UNSUPPORTED_MODALITY_LABELS` (o tipo
+    // `Record` não compila sem ela), em vez de cair na fórmula Convencional.
     private describeUnsupportedTariffModel(property: PropertyResponse): string | null {
         if (property.contractingEnvironment !== "ACR") return "propriedades no Mercado Livre (ACL)"
         if (property.tariffGroup !== "GROUP_B") return "propriedades do Grupo A"
-        if (property.groupBModality === "WHITE") return "propriedades na Tarifa Branca"
+        const modality = property.groupBModality
+        if (modality && modality !== "CONVENTIONAL") return UNSUPPORTED_MODALITY_LABELS[modality]
         return null
     }
 

@@ -351,15 +351,46 @@ describe("SimulationService — modelo tarifário sem cálculo de simulação", 
     }
 
     it.each([
-        ["Grupo A", groupA],
-        ["Grupo A no ACL", { ...groupA, contractingEnvironment: "ACL" }],
-        ["Grupo B na Tarifa Branca", { billingClass: "B1", groupBModality: "WHITE" }],
-    ])("recusa simular uma propriedade %s", async (_name, overrides) => {
+        ["Grupo A", groupA, /Grupo A/],
+        ["Grupo A no ACL", { ...groupA, contractingEnvironment: "ACL" }, /Mercado Livre/],
+        [
+            "Grupo B na Tarifa Branca",
+            { billingClass: "B1", groupBModality: "WHITE" },
+            /Tarifa Branca/,
+        ],
+    ])("recusa simular uma propriedade %s", async (_name, overrides, expectedMessage) => {
         const { user, property } = await setupProperty(overrides)
+
+        const attempt = simulationService.simulate(property.id, user.id, propertyInput)
+
+        await expect(attempt).rejects.toThrow(ValidationError)
+        await expect(attempt).rejects.toThrow(expectedMessage)
+    })
+
+    // O ramo do ACL é defesa em profundidade: o cadastro só aceita ACL no Grupo A,
+    // então o único jeito de exercitá-lo sozinho é gravar a combinação direto.
+    it("recusa o ACL mesmo numa propriedade do Grupo B (combinação que o cadastro não aceita)", async () => {
+        const { user, property } = await setupProperty({})
+        await prismaTest.property.update({
+            where: { id: property.id },
+            data: { contractingEnvironment: "ACL" },
+        })
 
         await expect(
             simulationService.simulate(property.id, user.id, propertyInput),
-        ).rejects.toThrow(ValidationError)
+        ).rejects.toThrow(/Mercado Livre/)
+    })
+
+    it("Grupo B sem modalidade gravada (anterior à modalidade) segue calculando como Convencional", async () => {
+        const { user, property } = await setupProperty({})
+        await prismaTest.property.update({
+            where: { id: property.id },
+            data: { groupBModality: null },
+        })
+
+        const result = await simulationService.simulate(property.id, user.id, propertyInput)
+
+        expect(result.costBrl).toBeGreaterThan(0)
     })
 
     it("recusa também quando o alvo é uma área da propriedade fora do Grupo B Convencional", async () => {
