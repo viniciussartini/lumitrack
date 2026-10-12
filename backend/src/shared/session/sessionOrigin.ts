@@ -9,13 +9,22 @@ const FALLBACK_BY_CHANNEL: Record<SessionChannel, string> = {
 
 // A ordem importa: os navegadores derivados do Chrome também dizem "Chrome/" e
 // "Safari/", e o Chrome e o Firefox no iOS dizem "iPhone ... Safari".
-const BROWSERS: readonly [RegExp, string][] = [
+/** Padrões de navegador, na ordem de precedência; exportados para o teste de custo de cada um. */
+export const BROWSERS: readonly [RegExp, string][] = [
     [/Edg(?:e|A|iOS)?\//, "Edge"],
     [/OPR\/|Opera/, "Opera"],
     [/FxiOS\/|Firefox\//, "Firefox"],
     [/CriOS\/|Chrome\//, "Chrome"],
-    [/Version\/[\d.]+.*Safari\//, "Safari"],
+    // Sem `.*` entre `Version/` e `Safari/`: com ele o custo é quadrático no
+    // tamanho do user-agent, que chega sem autenticação.
+    [/Version\/[\d.]+ (?:Mobile(?:\/\w+)? )?Safari\//, "Safari"],
 ]
+
+// Um user-agent real tem de 130 a 200 caracteres, então os tokens de navegador
+// e sistema cabem com folga; o resto só serve para alongar a entrada que o
+// cliente controla. Um token além do corte não é visto: o Edge e o Opera, cujo
+// token vem depois de "Chrome/", apareceriam como Chrome.
+const MAX_USER_AGENT_LENGTH = 512
 
 // O iPhone também diz "like Mac OS X", então o iOS vem antes do macOS.
 const SYSTEMS: readonly [RegExp, string][] = [
@@ -35,17 +44,20 @@ const firstMatch = (table: readonly [RegExp, string][], userAgent: string): stri
  * mais precisão do que a pessoa precisa para reconhecer a própria sessão.
  *
  * Sem user-agent ou sem navegador reconhecível devolve o rótulo genérico do
- * canal; com navegador mas sem sistema reconhecido, só o navegador.
+ * canal; com navegador mas sem sistema reconhecido, só o navegador. Só os
+ * primeiros caracteres do user-agent são examinados, para o custo não depender
+ * do tamanho do cabeçalho.
  *
  * @param userAgent - Cabeçalho `User-Agent` da requisição de login ou de refresh.
  * @param channel - Canal da sessão, que define o rótulo genérico.
  * @returns O rótulo reduzido do dispositivo.
  */
 export const describeDevice = (userAgent: string | null, channel: SessionChannel): string => {
-    const browser = userAgent ? firstMatch(BROWSERS, userAgent) : null
-    if (!userAgent || !browser) return FALLBACK_BY_CHANNEL[channel]
+    const bounded = userAgent?.slice(0, MAX_USER_AGENT_LENGTH) ?? null
+    const browser = bounded ? firstMatch(BROWSERS, bounded) : null
+    if (!bounded || !browser) return FALLBACK_BY_CHANNEL[channel]
 
-    const system = firstMatch(SYSTEMS, userAgent)
+    const system = firstMatch(SYSTEMS, bounded)
     return system ? `${browser} · ${system}` : browser
 }
 

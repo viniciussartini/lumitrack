@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { describeDevice, maskIp } from "@/shared/session/sessionOrigin.js"
+import { BROWSERS, describeDevice, maskIp } from "@/shared/session/sessionOrigin.js"
 
 const CHROME_WINDOWS =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -50,6 +50,59 @@ describe("describeDevice", () => {
 
     it("navegador conhecido em sistema desconhecido mostra só o navegador", () => {
         expect(describeDevice("Mozilla/5.0 (PlayStation 5) Firefox/121.0", "WEB")).toBe("Firefox")
+    })
+
+    it("reconhece o Safari com e sem o token Mobile, com e sem build", () => {
+        const androidStock =
+            "Mozilla/5.0 (Linux; U; Android 4.4; en-us) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30"
+        expect(describeDevice(androidStock, "WEB")).toBe("Safari · Android")
+        expect(describeDevice(SAFARI_MAC, "WEB")).toBe("Safari · macOS")
+        expect(describeDevice(SAFARI_IPHONE, "WEB")).toBe("Safari · iOS")
+    })
+
+    it("só olha o início do user-agent: navegador depois do corte não é reconhecido", () => {
+        const padding = "x".repeat(600)
+        expect(describeDevice(`${padding} Firefox/121.0`, "WEB")).toBe("Navegador")
+        expect(describeDevice(`${CHROME_WINDOWS} ${padding}`, "WEB")).toBe("Chrome · Windows")
+    })
+})
+
+// O header User-Agent chega a ~16 KB (limite de cabeçalhos do Node) sem
+// autenticação, e o login demo é público: o custo precisa ser limitado. Em vez
+// de um teto absoluto, compara-se o custo de uma entrada com o de outra quatro
+// vezes maior: linear dá ~4x, quadrático ~16x. Pega-se o menor de três
+// medições para não depender de uma pausa de GC ou de um CI sob carga.
+const SMALL = 16_000
+const LARGE = 64_000
+const ADVERSARIAL: [string, (size: number) => string][] = [
+    ["dígitos após Version/", (size) => `Version/${"1".repeat(size)}`],
+    ["Version/ repetido", (size) => "Version/1.".repeat(size / 10)],
+    ["espaços e Safari incompleto", (size) => `Version/1 ${" ".repeat(size)} Safari`],
+]
+
+const cost = (run: () => void): number => {
+    const samples = Array.from({ length: 3 }, () => {
+        const start = performance.now()
+        run()
+        return performance.now() - start
+    })
+    return Math.min(...samples)
+}
+
+const growsLinearly = (run: (size: number) => void): boolean =>
+    cost(() => run(LARGE)) < 6 * cost(() => run(SMALL)) + 10
+
+describe("custo da classificação do user-agent", () => {
+    describe.each(ADVERSARIAL)("entrada adversarial (%s)", (_name, build) => {
+        it("describeDevice não cresce mais que linearmente com o tamanho", () => {
+            expect(growsLinearly((size) => describeDevice(build(size), "WEB"))).toBe(true)
+        })
+
+        // Sem o truncamento: cada padrão precisa ser linear por si só, para a
+        // defesa do corte não esconder uma regex que volte a ter backtracking.
+        it.each(BROWSERS)("o padrão %s não depende do truncamento", (pattern) => {
+            expect(growsLinearly((size) => pattern.test(build(size)))).toBe(true)
+        })
     })
 })
 
