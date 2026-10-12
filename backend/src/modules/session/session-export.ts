@@ -1,5 +1,13 @@
 import type { ExportedSession } from "@/modules/session/session.types.js"
 
+/**
+ * Teto de tokens lidos por canal na exportação. Bem acima da lista de sessões
+ * porque a rotação do refresh token gera uma linha por renovação e a
+ * exportação agrupa por sessão; o corte pode cair no meio da sessão mais
+ * antiga do recorte, que então aparece com início mais recente que o real.
+ */
+export const MAX_EXPORT_ROWS_PER_CHANNEL = 2000
+
 /** Um token guardado (refresh web ou acesso mobile) com o id da sessão a que pertence. */
 export interface StoredSessionToken extends ExportedSession {
     sessionId: string

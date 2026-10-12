@@ -40,6 +40,8 @@
 
 > **Retenção por titular (`MeterReading`/`AlertTriggerEvent`/etc.) e DSAR completo: deferido — ver ADR-0014.** Sem titular real, não há prazo de retenção a cumprir nem urgência de export. A questão de `meter_readings` crescer indefinidamente passa a ser tratada como armazenamento/performance (Fase 15 do roadmap), não conformidade.
 
+> **Janela do export × retenção do `audit_logs`:** a exportação do titular traz os últimos 12 meses do log de auditoria (até 5.000 registros) e as sessões a partir dos 2.000 tokens mais recentes por canal, com nota no documento, enquanto o `audit_logs` é retido por 730 dias. A exportação cobre menos do que o sistema guarda; aceito sob a ADR-0014 (sem titular real). **Revisitar antes de abrir cadastro real:** a janela deve alcançar a retenção ou a diferença precisa de base legal escrita.
+
 - [ ] Coletar só o necessário; documentar quais dados e por quê.
 - [ ] **Prazo de retenção definido**; eliminação após cumprida a finalidade.
 

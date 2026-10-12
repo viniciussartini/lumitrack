@@ -32,6 +32,14 @@ import type { SessionRepository } from "@/modules/session/session.repository.js"
 import type { ExportedSession } from "@/modules/session/session.types.js"
 import type { AuditRepository, AuditLogResponse } from "@/shared/audit/audit.repository.js"
 import { NotFoundError } from "@/shared/errors/AppError.js"
+import { DEMO_ACCOUNT_EMAILS } from "@/shared/config/demoAccounts.js"
+import { buildDemoAuditLogs, buildDemoExportedSessions } from "@/modules/export/export-demo.js"
+
+/** Janela do log de auditoria exportado, em meses a contar de agora. */
+export const AUDIT_LOG_WINDOW_MONTHS = 12
+
+/** Teto de registros de auditoria exportados; sobram os mais recentes. */
+export const AUDIT_LOG_MAX_ROWS = 5000
 
 // Payload agregado com todos os dados pessoais que o LumiTrack guarda sobre
 // o titular (Art. 18 LGPD).
@@ -68,6 +76,9 @@ export type DataExportPayload = {
     // Sessões guardadas (vigentes ou não expurgadas): canal, dispositivo
     // reduzido e IP mascarado — nunca o token, o hash, o user-agent nem o IP.
     sessions: ExportedSession[]
+    // O log de auditoria cobre só `AUDIT_LOG_WINDOW_MONTHS` meses (a partir de
+    // `auditLogsSince`) e, no máximo, `AUDIT_LOG_MAX_ROWS` registros.
+    auditLogsSince: Date
     auditLogs: AuditLogResponse[]
 }
 
@@ -122,37 +133,45 @@ export class ExportService {
             throw new NotFoundError("Usuário não encontrado")
         }
 
-        const [
-            properties,
-            alerts,
-            demandAlerts,
-            aclContracts,
-            areas,
-            devices,
-            auditLogs,
-            reports,
-            reportSchedules,
-            goals,
-            sessions,
-        ] = await Promise.all([
+        const now = new Date()
+        const auditLogsSince = new Date(now)
+        auditLogsSince.setMonth(auditLogsSince.getMonth() - AUDIT_LOG_WINDOW_MONTHS)
+
+        // Em levas de no máximo seis consultas, e não tudo num `Promise.all`:
+        // uma única requisição não deve ocupar o pool de conexões inteiro
+        // (`DB_POOL_MAX`).
+        const [properties, alerts, demandAlerts, aclContracts, areas, devices] = await Promise.all([
             this.propertyRepository.findAllByUser(userId),
             this.alertRepository.findAllByUser(userId),
             this.demandAlertRepository.findAllByUser(userId),
             this.aclContractRepository.findAllByUser(userId),
             this.areaRepository.findAllByUser(userId),
             this.deviceRepository.findAllByUser(userId),
-            this.auditRepository.findByUserId(userId),
+        ])
+        const [reports, reportSchedules, goals] = await Promise.all([
             this.reportRepository.findAllMetadataByUser(userId),
             this.reportScheduleRepository.findAllByUser(userId),
             this.goalRepository.findAllByUser(userId),
-            this.sessionRepository.findAllForExport(userId),
         ])
+
+        // A conta de demonstração é compartilhada entre visitantes: o log de
+        // auditoria e os tokens dela guardam IP e dispositivo de terceiros, então
+        // recebe conteúdo fixo e nunca os consulta.
+        const [sessions, auditLogs] = DEMO_ACCOUNT_EMAILS.has(user.email)
+            ? [buildDemoExportedSessions(now), buildDemoAuditLogs(userId, now)]
+            : await Promise.all([
+                  this.sessionRepository.findAllForExport(userId, now),
+                  this.auditRepository.findByUserId(userId, {
+                      since: auditLogsSince,
+                      limit: AUDIT_LOG_MAX_ROWS,
+                  }),
+              ])
 
         const distributorIds = [...new Set(properties.map((p) => p.distributorId))]
         const distributors = await this.distributorRepository.findAllByIds(distributorIds)
 
         return {
-            generatedAt: new Date(),
+            generatedAt: now,
             user,
             properties,
             distributors,
@@ -165,6 +184,7 @@ export class ExportService {
             reportSchedules: reportSchedules.map(({ userId: _owner, ...rest }) => rest),
             goals: goals.map(toPublicGoal),
             sessions,
+            auditLogsSince,
             auditLogs,
         }
     }

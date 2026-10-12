@@ -1,7 +1,12 @@
 import PDFDocument from "pdfkit"
 import { BRAND, ZAP_ICON_PATH, ZAP_ICON_VIEWBOX_SIZE } from "@/shared/pdf/brand.js"
+import { MAX_EXPORT_ROWS_PER_CHANNEL } from "@/modules/session/session-export.js"
 import { formatInstantDateTime, formatPeriodLabel } from "@/modules/report/generators/format.js"
-import type { DataExportPayload } from "@/modules/export/export.service.js"
+import {
+    AUDIT_LOG_MAX_ROWS,
+    AUDIT_LOG_WINDOW_MONTHS,
+    type DataExportPayload,
+} from "@/modules/export/export.service.js"
 import { yearlyTarget } from "@/modules/goal/goal-progress.js"
 import type { GoalPublicRecord } from "@/modules/goal/goal.repository.js"
 import type { UserWithoutPassword } from "@/modules/user/user.repository.js"
@@ -350,8 +355,35 @@ export function describeExportedSession(session: DataExportPayload["sessions"][n
     )
 }
 
+/**
+ * Nota da seção de sessões: a exportação lê no máximo um número fixo de tokens
+ * por canal, então um histórico muito longo pode vir cortado nas mais antigas.
+ *
+ * @returns O texto da nota.
+ */
+export function describeSessionsCap(): string {
+    return (
+        `Sessões a partir dos ${MAX_EXPORT_ROWS_PER_CHANNEL.toLocaleString("pt-BR")} tokens mais ` +
+        "recentes de cada canal; histórico mais antigo que isso pode não constar."
+    )
+}
+
+/**
+ * Nota da seção de auditoria: o período e o teto do que foi exportado.
+ *
+ * @param since - Início da janela do log de auditoria.
+ * @returns O texto da nota.
+ */
+export function describeAuditLogWindow(since: Date): string {
+    return (
+        `Registros desde ${formatInstantDateTime(since)} (janela de ${AUDIT_LOG_WINDOW_MONTHS} meses, ` +
+        `até ${AUDIT_LOG_MAX_ROWS.toLocaleString("pt-BR")} registros, os mais recentes).`
+    )
+}
+
 function drawSessionsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
     sectionTitle(doc, "Sessões (dispositivo e origem)")
+    emptyNote(doc, describeSessionsCap())
 
     if (payload.sessions.length === 0) {
         emptyNote(doc, "Nenhuma sessão registrada.")
@@ -363,6 +395,7 @@ function drawSessionsSection(doc: PDFKit.PDFDocument, payload: DataExportPayload
 
 function drawAuditLogSection(doc: PDFKit.PDFDocument, payload: DataExportPayload): void {
     sectionTitle(doc, "Histórico de acesso e segurança (audit log)")
+    emptyNote(doc, describeAuditLogWindow(payload.auditLogsSince))
 
     if (payload.auditLogs.length === 0) {
         emptyNote(doc, "Nenhum registro de auditoria encontrado.")

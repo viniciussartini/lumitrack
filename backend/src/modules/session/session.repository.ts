@@ -2,6 +2,7 @@ import { PrismaClient } from "@/generated/prisma/client.js"
 import type { ExportedSession } from "@/modules/session/session.types.js"
 import {
     groupSessionsForExport,
+    MAX_EXPORT_ROWS_PER_CHANNEL,
     type StoredSessionToken,
 } from "@/modules/session/session-export.js"
 
@@ -98,8 +99,18 @@ export class SessionRepository {
             revokedAt: true,
         } as const
         const [web, mobile] = await Promise.all([
-            this.prisma.refreshToken.findMany({ where: { userId }, select }),
-            this.prisma.authToken.findMany({ where: { userId, channel: "MOBILE" }, select }),
+            this.prisma.refreshToken.findMany({
+                where: { userId },
+                select,
+                orderBy: { createdAt: "desc" },
+                take: MAX_EXPORT_ROWS_PER_CHANNEL,
+            }),
+            this.prisma.authToken.findMany({
+                where: { userId, channel: "MOBILE" },
+                select,
+                orderBy: { createdAt: "desc" },
+                take: MAX_EXPORT_ROWS_PER_CHANNEL,
+            }),
         ])
         const withChannel =
             (channel: ExportedSession["channel"]) =>

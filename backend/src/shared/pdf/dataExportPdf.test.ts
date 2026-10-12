@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest"
 import {
     describeExportedGoal,
     describeExportedReport,
+    describeAuditLogWindow,
     describeExportedSession,
+    describeSessionsCap,
     generateDataExportPdf,
 } from "@/shared/pdf/dataExportPdf.js"
 import type { DataExportPayload } from "@/modules/export/export.service.js"
@@ -39,6 +41,7 @@ function buildFakePayload(overrides: Partial<DataExportPayload> = {}): DataExpor
         reportSchedules: [],
         goals: [],
         sessions: [],
+        auditLogsSince: new Date("2025-06-28T12:00:00Z"),
         auditLogs: [],
         ...overrides,
     }
@@ -251,6 +254,20 @@ describe("generateDataExportPdf — sessões", () => {
         )
 
         expect(buffer.subarray(0, 4).toString("latin1")).toBe("%PDF")
+    })
+})
+
+describe("notas de janela e teto", () => {
+    it("a nota do log de auditoria traz o início, a janela e o teto", () => {
+        const note = describeAuditLogWindow(new Date("2025-06-28T12:00:00Z"))
+
+        expect(note).toContain("12 meses")
+        expect(note).toContain("5.000")
+        expect(note).toMatch(/2025/)
+    })
+
+    it("a nota das sessões traz o teto de tokens por canal", () => {
+        expect(describeSessionsCap()).toContain("2.000")
     })
 })
 
