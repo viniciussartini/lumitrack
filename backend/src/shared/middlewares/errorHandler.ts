@@ -7,24 +7,45 @@ import type { AuditService } from "@/shared/audit/audit.service.js"
 import { getRequestContext, inferResource } from "@/shared/audit/requestContext.js"
 import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
 
-const ENTITY_ERROR_PREFIX = "entity."
+const CLIENT_ERROR_MIN = 400
+const CLIENT_ERROR_MAX = 499
 
-// O body-parser (`express.json`/`urlencoded`) rejeita o corpo com erros `entity.*`
-// (JSON inválido, corpo acima do limite) e anexa a eles o corpo recebido em
-// `err.body`, que pode conter senha. Por isso estes erros nunca vão para o log.
-function isBodyEntityError(err: unknown): err is Error & { type: string } {
+// Mensagem genérica por status. O texto do erro original não é devolvido: o do
+// `entity.parse.failed`, por exemplo, ecoa um trecho do JSON recebido.
+const CLIENT_ERROR_MESSAGES: Readonly<Record<number, string>> = {
+    413: "Corpo da requisição grande demais",
+    415: "Tipo de conteúdo não suportado",
+}
+const DEFAULT_CLIENT_ERROR_MESSAGE = "Corpo da requisição inválido"
+
+// Erro de cliente que o body-parser (`express.json`/`urlencoded`) e o resto da
+// cadeia lançam via http-errors: JSON inválido, corpo acima do limite, charset
+// ou encoding não suportado. Trazem `status` 4xx e `expose: true`. Os `entity.*`
+// anexam o corpo recebido em `err.body`, que pode conter senha, e todos são
+// provocáveis à vontade pelo cliente; por isso não viram 500 nem entram no log.
+function isClientRequestError(err: unknown): err is Error & { status: number } {
     return (
         err instanceof Error &&
-        "type" in err &&
-        typeof err.type === "string" &&
-        err.type.startsWith(ENTITY_ERROR_PREFIX)
+        "status" in err &&
+        typeof err.status === "number" &&
+        err.status >= CLIENT_ERROR_MIN &&
+        err.status <= CLIENT_ERROR_MAX &&
+        "expose" in err &&
+        err.expose === true
     )
 }
+
+type ErrorLogger = Pick<typeof logger, "error">
 
 // Factory (mesmo padrão de `createAuthenticateMiddleware`) — precisa de
 // `auditService` para registrar acessos negados (403) sem instrumentar cada
 // um dos ~17 pontos do código que lançam `ForbiddenError` individualmente.
-export function createErrorHandler(auditService: AuditService): ErrorRequestHandler {
+// `log` é o logger da aplicação, para o erro inesperado sair pelo mesmo destino
+// do log de requisição.
+export function createErrorHandler(
+    auditService: AuditService,
+    log: ErrorLogger = logger,
+): ErrorRequestHandler {
     return async function errorHandler(
         err: unknown,
         req: Request,
@@ -72,23 +93,17 @@ export function createErrorHandler(auditService: AuditService): ErrorRequestHand
             return
         }
 
-        // Corpo ilegível ou grande demais: erro do cliente, resposta genérica e
-        // nada do corpo no log.
-        if (isBodyEntityError(err)) {
-            const tooLarge = err.type === "entity.too.large"
-
-            res.status(tooLarge ? 413 : 400).json({
+        if (isClientRequestError(err)) {
+            res.status(err.status).json({
                 status: "error",
-                message: tooLarge
-                    ? "Corpo da requisição grande demais"
-                    : "Corpo da requisição inválido",
+                message: CLIENT_ERROR_MESSAGES[err.status] ?? DEFAULT_CLIENT_ERROR_MESSAGE,
             })
             return
         }
 
         // Erro inesperado (bug)
         // Em produção, nunca expõe detalhes internos. Em desenvolvimento, ajuda o debug.
-        logger.error({ err, path: req.originalUrl, method: req.method }, "Erro inesperado")
+        log.error({ err, path: req.originalUrl, method: req.method }, "Erro inesperado")
 
         res.status(500).json({
             status: "error",
