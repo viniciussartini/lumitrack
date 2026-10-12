@@ -59,3 +59,12 @@ fix/537-corpo-malformado-sem-500-nem-log-de-senha
 - **Arquivos principais:** `.claude/project_context/04-tech-stack.md`, `.claude/project_context/06-code-quality-standards.md`.
 - **Decisões/ADRs:** nenhuma. Cada afirmação foi conferida em `ci.yml`, `package.json` e `eslint.config.js` de cada pacote.
 - **Notas:** a ampliação da trava de JSDoc é de outra fase; o `06` volta a ser atualizado quando ela mudar. Quarta de cinco sub-issues do épico.
+
+## [2026-10-12] refactor: comentários desatualizados reescritos (fecha o épico de documentação viva)
+
+- **Branch:** epic/511-documentacao-viva
+- **Tipo:** refactor
+- **O quê:** os sete comentários que declaravam inexistente algo que já existe foram reescritos descrevendo o estado atual, sem número de fase nem atribuição: a conta binômia do Grupo A em `consumption.service.ts` (Verde e Azul calculam; Convencional Binômia falha fechado), a modalidade tarifária em `property.schema.ts`, `property.types.ts` (o formulário oferece as duas modalidades com cálculo) e `schema.prisma`, a comparação com o scheduler de rollup no `RetentionPurgeScheduler.ts` (o `HourlyRollupScheduler` não existe mais; agora cita o `MinuteRollupScheduler`), o `TODO(design)` da `AboutPage` (bundle vigente, sem "única rota" nem "decisão do usuário") e o da `AclComparisonPage` (sem a afirmação falsa sobre o `10`). A skill `nova-feature` ganhou o item "ao estender uma regra, procure comentários que a declaram inexistente".
+- **Arquivos principais:** os sete arquivos acima e `.claude/skills/nova-feature/SKILL.md`.
+- **Decisões/ADRs:** nenhuma. Verificado que o diff de código só tem linhas de comentário; nenhum comportamento muda.
+- **Notas:** `tsc` (backend e `tsc -b` do frontend), lint do backend e testes das áreas tocadas passam; o lint do frontend tem 0 erros e 10 avisos que já existiam sem esta mudança. A varredura de rastreabilidade (cerca de 45 pontos, inclusive "Fase N" em comentários como o da `BrancaComparisonPage`) segue na Fase 36. Quinta e última sub-issue do épico.

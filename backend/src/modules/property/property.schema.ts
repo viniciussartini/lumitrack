@@ -78,8 +78,9 @@ const tariffSubgroupSchema = z.enum(["A1", "A2", "A3", "A3A", "A4", "AS"], {
     error: "Subgrupo deve ser A1, A2, A3, A3A, A4 ou AS",
 })
 
-// Modalidade tarifária do Grupo A — só Horária Verde tem cálculo implementado
-// na Fase 19; Azul/Convencional Binômia chegam na Fase 20.
+// Modalidade tarifária do Grupo A. Horária Verde e Horária Azul têm cálculo de
+// conta; Convencional Binômia é aceita no cadastro, mas o cálculo ainda não
+// existe e falha fechado.
 const tariffModalitySchema = z.enum(["CONVENTIONAL_BINOMIAL", "GREEN", "BLUE"], {
     error: "Modalidade deve ser CONVENTIONAL_BINOMIAL, GREEN ou BLUE",
 })

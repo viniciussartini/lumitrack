@@ -7,10 +7,10 @@ import { industryMarkdownComponents } from "@/lib/markdown/industryMarkdownCompo
 import { GITHUB_REPO_URL, GitHubIcon } from "@/components/ui/GitHubIcon"
 import { PRIVACY_CONTACT_EMAIL } from "@/config/privacy"
 
-// TODO(design): aguardando handoff — Sobre o projeto. Não existe tela
-// equivalente em `.claude/design/2026-07-31-lumitrack-completo/` (única
-// rota do roadmap sem handoff, decisão do usuário) — versão
-// provisória reaproveitando o vocabulário Industry já estabelecido
+// TODO(design): aguardando handoff — Sobre o projeto. A seção do bundle
+// vigente (`LumiTrack Home v2.dc.html`) é um espaço vazio, sem conteúdo
+// desenhado — versão provisória reaproveitando o vocabulário Industry
+// já estabelecido
 // (mesmo tratamento de `LegalDocumentPage`/LGPD: markdown canônico +
 // `.blueprint` pra destaque), sem inventar nada fora dele.
 //

@@ -9,7 +9,7 @@ const log = logger.child({ module: "RetentionScheduler" })
  * Roda o expurgo uma vez imediatamente no boot (cobre o caso de o servidor
  * ter ficado fora do ar por mais de 24h, garantindo que o atraso não vire
  * acúmulo indefinido) e depois a cada 24h. Diferente do
- * HourlyRollupScheduler (que se alinha exatamente à virada da hora porque
+ * MinuteRollupScheduler (que se alinha exatamente à virada do minuto porque
  * agrupa dados por período), o expurgo não precisa de alinhamento de
  * horário — ele só remove o que já passou do prazo de retenção, então o
  * momento exato em que roda no dia é irrelevante. Por isso, sem dependência

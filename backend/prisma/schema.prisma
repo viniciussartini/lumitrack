@@ -119,10 +119,10 @@ enum TariffSubgroup {
   @@map("tariff_subgroup")
 }
 
-// Modalidade tarifária do Grupo A. Verde é a única implementada na Fase 19
-// (fatiamento por modalidade); Azul chega na Fase 20; Convencional Binômia
-// está em extinção gradual (avaliada na Fase 20). As 3 já são vocabulário
-// fixado em 02-requisitos.md — não é especulação incluir o enum completo.
+// Modalidade tarifária do Grupo A. Verde e Azul têm cálculo de conta;
+// Convencional Binômia, em extinção gradual, é aceita no cadastro, mas o
+// cálculo falha fechado. As 3 são vocabulário fixado em 02-requisitos.md —
+// não é especulação manter o enum completo.
 enum TariffModality {
   CONVENTIONAL_BINOMIAL
   GREEN

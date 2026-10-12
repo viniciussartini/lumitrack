@@ -13,9 +13,9 @@ import { resolveDiffToneClass } from "@/lib/comparisonTone"
 import { ACL_SUBMARKET_LABELS } from "@/types/acl-contract.types"
 import type { AclComparisonVerdict } from "@/types/acl-comparison.types"
 
-// TODO(design): aguardando handoff — Comparação ACR × ACL. O
-// `10-design-system.md` confirma que não há mockup específico para esta
-// tela (só o form de contrato ACL, embutido em PropertyForm, tem handoff).
+// TODO(design): aguardando handoff — Comparação ACR × ACL. Nenhum mockup do
+// bundle vigente cobre esta tela (só o form de contrato ACL, embutido em
+// PropertyForm, tem handoff).
 // Layout provisório: segue a linguagem visual já usada em telas sem mockup
 // próprio dentro do mesmo bloco de Grupo A/ACL (ver GroupABillCard.tsx —
 // `.blueprint` + grid de estatísticas + tabela), sem inventar uma estética
