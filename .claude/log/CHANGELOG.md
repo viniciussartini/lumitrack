@@ -50,3 +50,12 @@ fix/537-corpo-malformado-sem-500-nem-log-de-senha
 - **Arquivos principais:** `.claude/project_context/10-design-system.md`.
 - **Decisões/ADRs:** nenhuma. Nenhuma tela foi alterada.
 - **Notas:** a seção "Sobre o projeto" da v2 existe, mas é um espaço vazio (`min-height:52vh`), então a `AboutPage` continua sem layout a seguir; o comentário dela ainda cita o bundle `2026-07-31` e é corrigido na sub-issue dos comentários. A `ConfirmEmailChangePage` reaproveita o layout de autenticação sem handoff próprio e não tem marcador `TODO(design)`; está registrada na tabela, sem marcador novo. Terceira de cinco sub-issues do épico.
+
+## [2026-10-12] docs: 04-tech-stack.md e 06-code-quality-standards.md alinhados ao código
+
+- **Branch:** epic/511-documentacao-viva
+- **Tipo:** docs
+- **O quê:** `04`: os jobs de CI passam a ser nomeados por grupo em vez de contados (o `ci.yml` tem 15, com o `root-format` que faltava; o número saiu para não envelhecer), o Modbus aparece já dividido (um arquivo por adaptador, oito adaptadores para sete protocolos), entraram `react-markdown` + `remark-gfm` (Sobre e documentos legais) e o React Compiler, o nodemailer e o pdfkit passam a cobrir também troca de e-mail, relatório agendado e relatórios em PDF (o CSV é próprio), e as versões de TypeScript (5.9 no backend e no simulador-servidor, 6.0 no frontend e na UI do simulador). `06`: o escopo real do JSDoc enforçado, por pacote (e o que fica sem trava), e a lista real de termos do `no-warning-comments`, que é a mesma nos quatro pacotes e não inclui "auditoria" sozinha.
+- **Arquivos principais:** `.claude/project_context/04-tech-stack.md`, `.claude/project_context/06-code-quality-standards.md`.
+- **Decisões/ADRs:** nenhuma. Cada afirmação foi conferida em `ci.yml`, `package.json` e `eslint.config.js` de cada pacote.
+- **Notas:** a ampliação da trava de JSDoc é de outra fase; o `06` volta a ser atualizado quando ela mudar. Quarta de cinco sub-issues do épico.
