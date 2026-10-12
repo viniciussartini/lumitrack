@@ -51,6 +51,32 @@ describe("describeDevice", () => {
     it("navegador conhecido em sistema desconhecido mostra só o navegador", () => {
         expect(describeDevice("Mozilla/5.0 (PlayStation 5) Firefox/121.0", "WEB")).toBe("Firefox")
     })
+
+    it("reconhece o Safari com e sem o token Mobile", () => {
+        const androidStock =
+            "Mozilla/5.0 (Linux; U; Android 4.4; en-us) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30"
+        expect(describeDevice(androidStock, "WEB")).toBe("Safari · Android")
+    })
+
+    // O header User-Agent chega a ~16 KB (limite de cabeçalhos do Node) sem
+    // autenticação, e o login demo é público: o custo precisa ser limitado.
+    describe.each([
+        ["dígitos após Version/", `Version/${"1".repeat(16_000)}`],
+        ["Version/ repetido", "Version/1.".repeat(1_600)],
+        ["espaços e Safari incompleto", `Version/1 ${" ".repeat(15_000)} Safari`],
+    ])("user-agent adversarial de 16 KB (%s)", (_name, userAgent) => {
+        it("classifica abaixo do teto de tempo", () => {
+            const start = performance.now()
+            describeDevice(userAgent, "WEB")
+            expect(performance.now() - start).toBeLessThan(25)
+        })
+    })
+
+    it("só olha o início do user-agent: navegador depois do corte não é reconhecido", () => {
+        const padding = "x".repeat(600)
+        expect(describeDevice(`${padding} Firefox/121.0`, "WEB")).toBe("Navegador")
+        expect(describeDevice(`${CHROME_WINDOWS} ${padding}`, "WEB")).toBe("Chrome · Windows")
+    })
 })
 
 describe("maskIp", () => {

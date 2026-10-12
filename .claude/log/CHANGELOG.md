@@ -4725,3 +4725,12 @@
 - **Arquivos principais:** `backend/src/modules/session/session-export.ts`, `backend/src/shared/pdf/dataExportPdf.ts`, `backend/src/modules/export/export.service.ts`, `.claude/project_context/09-conformidade-legal.md`.
 - **Decisões/ADRs:** nenhuma ADR nova; o registro no `09` documenta uma decisão já coberta pela ADR-0014.
 - **Notas:** `npm run lint` completo, `tsc`, dependency-cruiser e os testes de sessão, export e PDF passam.
+
+## [2026-10-12] fix: describeDevice sem backtracking sobre o User-Agent
+
+- **Branch:** fix/538-describe-device-sem-backtracking
+- **Tipo:** fix
+- **O quê:** a regex de Safari de `describeDevice` (`Version/[\d.]+.*Safari/`) tinha custo quadrático no tamanho do `User-Agent`, enviado sem autenticação (o login demo é público). Medido localmente antes da correção: ~105 ms para um UA de 16 KB (`Version/` seguido de dígitos); depois, ~0,1 ms. A regex agora casa `Version/N`, o `Mobile` opcional e `Safari/` sem `.*`, e o UA é truncado em 512 caracteres antes de classificar.
+- **Arquivos principais:** `backend/src/shared/session/sessionOrigin.ts`, `backend/src/shared/session/sessionOrigin.test.ts`.
+- **Decisões/ADRs:** nenhuma. Efeito colateral aceito: navegador cujo token só aparece depois dos 512 primeiros caracteres cai no rótulo genérico do canal.
+- **Testes:** UA adversarial de 16 KB em três formas abaixo de 25 ms (falhava com ~80 ms), truncamento, Safari com e sem `Mobile`. Suíte completa do backend (2155 testes), `tsc`, `npm run lint` e dependency-cruiser passam.
