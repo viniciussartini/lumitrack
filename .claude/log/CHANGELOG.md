@@ -4734,3 +4734,12 @@
 - **Arquivos principais:** `backend/src/shared/session/sessionOrigin.ts`, `backend/src/shared/session/sessionOrigin.test.ts`.
 - **Decisões/ADRs:** nenhuma. Efeito colateral aceito: um token além dos 512 primeiros caracteres não é visto. Um navegador que só aparece depois do corte cai no rótulo genérico do canal, e o Edge e o Opera (cujo token vem depois de `Chrome/`) apareceriam como Chrome; um UA real tem de 130 a 200 caracteres, então não ocorre na prática.
 - **Testes:** UA adversarial em três formas, comparando o custo de 16 KB com o de 64 KB (linear ~4x, quadrático ~16x, menor de três medições) tanto em `describeDevice` quanto em cada padrão de `BROWSERS` sem o truncamento, de modo que reverter só a regex ou só o corte derruba um teste; truncamento; Safari com e sem `Mobile`. Suíte completa do backend (2155 testes antes dos ajustes da revisão), `tsc`, `npm run lint` e dependency-cruiser passam.
+
+## [2026-10-12] fix: corpo malformado não vira 500 nem loga a senha
+
+- **Branch:** fix/537-corpo-malformado-sem-500-nem-log-de-senha
+- **Tipo:** fix
+- **O quê:** JSON malformado ou corpo acima do limite chegava ao `errorHandler` como erro inesperado: respondia 500 e `logger.error({ err })` gravava o `err.body` que o body-parser anexa ao erro, com a senha de um login. Agora os erros `entity.*` respondem 400 ("Corpo da requisição inválido") ou 413 ("Corpo da requisição grande demais"), com mensagem genérica e sem log do corpo; `err.body` entrou nos `logRedactPaths` como defesa extra.
+- **Arquivos principais:** `backend/src/shared/middlewares/errorHandler.ts`, `backend/src/shared/logger/logger.ts`.
+- **Decisões/ADRs:** nenhuma. Fora do escopo, registrado: outros erros do body-parser sem prefixo `entity.` (ex.: `charset.unsupported`, 415) ainda caem no ramo de erro inesperado e respondem 500; não foram tratados aqui.
+- **Testes:** unitários no `errorHandler.test.ts` (400 e 413 genéricos, sem a senha em `logger.error`/`warn`) e de integração no `app.log-redaction.test.ts` (login com corpo malformado e com corpo de 200 KB: status e senha ausente do stream do logger; redação de `err.body`, que falha se o caminho sair da lista). Suíte completa do backend (2175 testes), `tsc`, `npm run lint` e dependency-cruiser passam.

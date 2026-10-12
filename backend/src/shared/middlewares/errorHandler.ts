@@ -7,6 +7,20 @@ import type { AuditService } from "@/shared/audit/audit.service.js"
 import { getRequestContext, inferResource } from "@/shared/audit/requestContext.js"
 import type { AuthenticatedRequest } from "@/shared/middlewares/authenticate.js"
 
+const ENTITY_ERROR_PREFIX = "entity."
+
+// O body-parser (`express.json`/`urlencoded`) rejeita o corpo com erros `entity.*`
+// (JSON inválido, corpo acima do limite) e anexa a eles o corpo recebido em
+// `err.body`, que pode conter senha. Por isso estes erros nunca vão para o log.
+function isBodyEntityError(err: unknown): err is Error & { type: string } {
+    return (
+        err instanceof Error &&
+        "type" in err &&
+        typeof err.type === "string" &&
+        err.type.startsWith(ENTITY_ERROR_PREFIX)
+    )
+}
+
 // Factory (mesmo padrão de `createAuthenticateMiddleware`) — precisa de
 // `auditService` para registrar acessos negados (403) sem instrumentar cada
 // um dos ~17 pontos do código que lançam `ForbiddenError` individualmente.
@@ -54,6 +68,20 @@ export function createErrorHandler(auditService: AuditService): ErrorRequestHand
             res.status(err.statusCode).json({
                 status: "error",
                 message: err.message,
+            })
+            return
+        }
+
+        // Corpo ilegível ou grande demais: erro do cliente, resposta genérica e
+        // nada do corpo no log.
+        if (isBodyEntityError(err)) {
+            const tooLarge = err.type === "entity.too.large"
+
+            res.status(tooLarge ? 413 : 400).json({
+                status: "error",
+                message: tooLarge
+                    ? "Corpo da requisição grande demais"
+                    : "Corpo da requisição inválido",
             })
             return
         }
