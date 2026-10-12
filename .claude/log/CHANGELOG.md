@@ -41,3 +41,12 @@ fix/537-corpo-malformado-sem-500-nem-log-de-senha
 - **Arquivos principais:** `.claude/project_context/03-arquitetura.md`, `.claude/docs/adr/0026-caches-em-processo-com-ttl.md`, `.claude/docs/README.md`.
 - **Decisões/ADRs:** ADR-0026, aprovada pelo usuário como retroativa curta; nenhum item do `07` a remover. Cada número do laudo foi reconferido no código (24 módulos, sete schedulers, três repositórios com cache) antes de escrever.
 - **Notas:** a seção de dados sensíveis tem interseção com o `09` e deve ser revisada junto da próxima `auditoria-conformidade`. Segunda de cinco sub-issues do épico.
+
+## [2026-10-12] docs: 10-design-system.md com o inventário de telas e bundles de hoje
+
+- **Branch:** epic/511-documentacao-viva
+- **Tipo:** docs
+- **O quê:** a tabela "tela → bundle → código" e as notas que a seguem foram reescritas como estado atual, conferidas contra `frontend/src/pages/`, `AppRouter.tsx`, os `TODO(design)` do código e o bundle `2026-09-06`. A linha única do app logado virou uma por seção (Painel, Análise com grandezas elétricas, Histórico, Relatórios, Alertas, Distribuidoras, Configurações, Perfil/Segurança); o template A4 passou a apontar para os geradores de relatório do backend; a Home anterior consta como histórica. A lista de telas sem handoff passou de uma para quatro, cada uma com o motivo (Sobre o projeto, comparação ACR × ACL, comparação Convencional × Branca e os campos de endereço por grandeza do `MeterForm`), e o parágrafo "a v2 ainda não tem implementação" foi trocado por "a maior parte foi entregue nas Fases 23–28".
+- **Arquivos principais:** `.claude/project_context/10-design-system.md`.
+- **Decisões/ADRs:** nenhuma. Nenhuma tela foi alterada.
+- **Notas:** a seção "Sobre o projeto" da v2 existe, mas é um espaço vazio (`min-height:52vh`), então a `AboutPage` continua sem layout a seguir; o comentário dela ainda cita o bundle `2026-07-31` e é corrigido na sub-issue dos comentários. A `ConfirmEmailChangePage` reaproveita o layout de autenticação sem handoff próprio e não tem marcador `TODO(design)`; está registrada na tabela, sem marcador novo. Terceira de cinco sub-issues do épico.
