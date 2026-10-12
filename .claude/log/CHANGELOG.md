@@ -68,3 +68,12 @@ fix/537-corpo-malformado-sem-500-nem-log-de-senha
 - **Arquivos principais:** os sete arquivos acima e `.claude/skills/nova-feature/SKILL.md`.
 - **Decisões/ADRs:** nenhuma. Verificado que o diff de código só tem linhas de comentário; nenhum comportamento muda.
 - **Notas:** `tsc` (backend e `tsc -b` do frontend), lint do backend e testes das áreas tocadas passam; o lint do frontend tem 0 erros e 10 avisos que já existiam sem esta mudança. A varredura de rastreabilidade (cerca de 45 pontos, inclusive "Fase N" em comentários como o da `BrancaComparisonPage`) segue na Fase 36. Quinta e última sub-issue do épico.
+
+## [2026-10-12] docs: ajustes da revisão do PR do épico de documentação viva
+
+- **Branch:** epic/511-documentacao-viva
+- **Tipo:** docs
+- **O quê:** dois erros factuais meus corrigidos e quatro sugestões aplicadas. `04`: o e2e não roda "contra backend real": o job sobe o backend, mas os 19 specs mockam a API com `page.route()`, então o e2e não pega quebra de contrato (agora dito na linha de CI e na de testes); o caminho do PDF do export do titular (`shared/pdf/dataExportPdf.ts`) separado do dos relatórios; a versão do TypeScript deixou a linha do Backend e ficou só na linha dedicada. ADR-0026: os quatro mapas do catálogo descritos com a chave certa de cada um (o da Tarifa Branca não tem subgrupo) e o Contexto passa a dizer que só bandeira e distribuidoras foram medidas na Fase 15; o catálogo do Grupo A (Fase 19) e o do Grupo B (Fase 22) seguiram o padrão sem medição própria, custo aceito. O índice passa a chamar a ADR de "retroativa". `10`: a aba Configurações → Cálculos e tarifas consta como desenhada na v2 e ainda sem código (com handoff, fora da regra de ausência), e a `ConfirmEmailChangePage` entra na lista de telas sem handoff.
+- **Arquivos principais:** `.claude/project_context/04-tech-stack.md`, `.claude/project_context/10-design-system.md`, `.claude/docs/adr/0026-caches-em-processo-com-ttl.md`, `.claude/docs/README.md`.
+- **Decisões/ADRs:** nenhuma nova; a ADR-0026 ainda não foi mesclada, então foi corrigida em vez de substituída.
+- **Notas:** cada correção foi reconferida no código antes de escrever (19 specs com `page.route`, os quatro mapas e a função `groupBCacheKey`, o commit de cada cache, a aba de tarifas no bundle e a ausência dela em `pages/settings/`).

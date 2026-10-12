@@ -79,9 +79,11 @@ Este bundle é o export de 2026-07-31 **mais duas telas novas** — as 8 telas a
 > - **Comparação Convencional × Branca** (`pages/property/BrancaComparisonPage.tsx`) — sem mockup; a única cobertura é indireta, pelos postos horários configuráveis.
 > - **Campos de endereço por grandeza elétrica** (`components/meter/MeterForm.tsx`) — sem bundle cobrindo estes campos; versão utilitária.
 >
+> A `ConfirmEmailChangePage` também não tem handoff próprio, mas não carrega `TODO(design)`: reaproveita o layout de Recuperar senha (ver tabela).
+>
 > Simulações também não tem handoff, mas deixou de ter tela: a página placeholder foi apagada na Fase 23.
 >
-> **A v2 é o design-alvo e o app implementa a maior parte dela.** O shell v2, a Análise, as grandezas elétricas por fase, o Histórico, os Relatórios (com os agendados em Configurações) e as Metas foram entregues nas Fases 23–28; o `02-requisitos.md` marca o status de cada requisito. Trabalho de UI numa tela **já implementada** segue a v2 direto; tela nova a partir dela é feature nova, com o rito normal de roadmap/issue.
+> **A v2 é o design-alvo e o app implementa a maior parte dela.** O shell v2, a Análise, as grandezas elétricas por fase, o Histórico, os Relatórios (com os agendados em Configurações) e as Metas foram entregues nas Fases 23–28; o `02-requisitos.md` marca o status de cada requisito. **Desenhado na v2 e ainda sem código:** a aba Configurações → Cálculos e tarifas (histórico de tarifas vigentes, com os modais de editar e duplicar); ela **tem handoff**, então não cai na regra de ausência, e o `02-requisitos.md` mantém o catálogo tarifário com vigência como planejado. Trabalho de UI numa tela **já implementada** segue a v2 direto; tela nova a partir dela é feature nova, com o rito normal de roadmap/issue.
 
 - O `README.md` do bundle (em `design_handoff_lumitrack/`) é a especificação: mapa de telas, tokens, vocabulário de classes (`.lt-*`), estado mínimo e comportamento esperado. **Ele descreve o export anterior** — não cobre `Home v2` nem `Relatório A4`; para essas duas, a especificação é o próprio `.dc.html`.
 - `design-system/styles.css` é a **fonte única** de tokens e classes do Industry. O bundle traz também `_ds/modernist-*` e `_ds/classical-*`, que **não** são usados pelo projeto — o design system do produto é o Industry (ADR-0005).

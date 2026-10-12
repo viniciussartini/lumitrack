@@ -76,7 +76,7 @@ Decisões arquiteturais relevantes, numeradas sequencialmente a partir do templa
 | `0023-relatorios-gerados-armazenados-no-postgres.md` | Relatórios gerados armazenados como bytes no PostgreSQL | aceita |
 | `0024-relatorio-agendado-enviado-como-anexo.md` | Relatório agendado enviado por e-mail como anexo | aceita |
 | `0025-sessoes-ativas-dispositivo-reduzido-e-ip-mascarado.md` | Sessões ativas: dispositivo reduzido e IP mascarado, ligados por `sessionId` | aceita |
-| `0026-caches-em-processo-com-ttl.md` | Caches em processo com TTL de 5 min para bandeira tarifária e catálogos de tarifa (registrada depois da Fase 15) | aceita |
+| `0026-caches-em-processo-com-ttl.md` | Caches em processo com TTL de 5 min para bandeira tarifária e catálogos de tarifa (ADR retroativa) | aceita |
 
 Um ADR nunca é apagado — se a decisão mudar, crie um novo e marque o antigo como "substituída por" (aqui e no próprio arquivo).
 
