@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll } from "vitest"
+import { MAX_EXPORT_ROWS_PER_CHANNEL } from "@/modules/session/session-export.js"
 import { SessionRepository } from "@/modules/session/session.repository.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
@@ -112,5 +113,27 @@ describe("SessionRepository — encerramento", () => {
             }),
         ).toBe(1)
         expect(await liveCount(stranger.id)).toBe(2)
+    })
+})
+
+describe("SessionRepository — exportação", () => {
+    it("lê no máximo o teto de tokens por canal, mantendo os mais recentes", async () => {
+        const user = await createUser("export@example.com", "529.982.247-25")
+        const base = Date.now() - 86_400_000
+        await prismaTest.refreshToken.createMany({
+            data: Array.from({ length: MAX_EXPORT_ROWS_PER_CHANNEL + 1 }, (_, index) => ({
+                userId: user.id,
+                token: `refresh-${index}`,
+                sessionId: crypto.randomUUID(),
+                expiresAt: inOneHour(),
+                createdAt: new Date(base + index * 1000),
+            })),
+        })
+
+        const sessions = await repository.findAllForExport(user.id)
+
+        expect(sessions).toHaveLength(MAX_EXPORT_ROWS_PER_CHANNEL)
+        const oldest = Math.min(...sessions.map((session) => session.createdAt.getTime()))
+        expect(oldest).toBe(base + 1000)
     })
 })

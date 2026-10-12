@@ -137,8 +137,9 @@ export class ExportService {
         const auditLogsSince = new Date(now)
         auditLogsSince.setMonth(auditLogsSince.getMonth() - AUDIT_LOG_WINDOW_MONTHS)
 
-        // Duas levas em vez de um `Promise.all` único: onze consultas de uma vez
-        // ocupariam o pool inteiro (10 conexões) para uma única requisição.
+        // Em levas de no máximo seis consultas, e não tudo num `Promise.all`:
+        // uma única requisição não deve ocupar o pool de conexões inteiro
+        // (`DB_POOL_MAX`).
         const [properties, alerts, demandAlerts, aclContracts, areas, devices] = await Promise.all([
             this.propertyRepository.findAllByUser(userId),
             this.alertRepository.findAllByUser(userId),

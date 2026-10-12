@@ -2,6 +2,7 @@ import { PrismaClient } from "@/generated/prisma/client.js"
 import type { ExportedSession } from "@/modules/session/session.types.js"
 import {
     groupSessionsForExport,
+    MAX_EXPORT_ROWS_PER_CHANNEL,
     type StoredSessionToken,
 } from "@/modules/session/session-export.js"
 
@@ -17,11 +18,6 @@ export interface ActiveSessionToken {
 // Teto de linhas lidas por canal: uma conta com mais sessões vivas que isso
 // não é uso normal, e a lista não precisa mostrá-las todas.
 const MAX_ROWS_PER_CHANNEL = 100
-
-// Teto de tokens lidos por canal na exportação. Bem acima da lista de sessões
-// porque a rotação do refresh token gera uma linha por renovação e a
-// exportação agrupa por sessão; abaixo disso a exportação ficaria sem teto.
-const MAX_EXPORT_ROWS_PER_CHANNEL = 2000
 
 // Token de acesso vigente: não revogado e sem expiração ou com expiração futura.
 const LIVE_ACCESS_TOKEN = (now: Date) => ({

@@ -4716,3 +4716,12 @@
 - **Decisões/ADRs:** conteúdo fixo representativo em vez de recusa (decisão do usuário); nenhuma ADR nova nem item do `07` tocado. A conta demo é identificada pelo e-mail (`DEMO_ACCOUNT_EMAILS`) dentro do service, que já carrega o usuário, e não por parâmetro vindo do controller.
 - **Testes:** rota (a exportação da demo não contém IP, user-agent nem sessão semeados por outro visitante) e service (demo com conteúdo fixo, janela e teto do log). Suíte completa do backend: 2147 testes verdes; `tsc`, ESLint e dependency-cruiser limpos.
 - **Notas:** o passo "medir antes" do item (`count(*)` de `audit_logs` e de tokens do usuário demo na VPS) depende de acesso à VPS e segue pendente: o número decide o índice `(userId, createdAt)` em `audit_logs` e o expurgo do acumulado, que cruza com o `09` e fica para a próxima auditoria de conformidade. O download do export é um link simples no frontend, sem `page.route` a ajustar no e2e.
+
+## [2026-10-12] fix: ajustes da revisão do PR da exportação da conta de demonstração
+
+- **Branch:** fix/534-export-demo-sem-dado-de-terceiros
+- **Tipo:** fix
+- **O quê:** aplicadas as cinco sugestões da `revisao-codigo` (sem bloqueios): teste de repositório do teto de tokens por canal na exportação (constante movida para `session-export.ts`); nota no PDF avisando que as sessões vêm dos tokens mais recentes (`describeSessionsCap`) e que a janela do log tem início e teto (`describeAuditLogWindow`), ambas testadas; comentário das levas de consulta corrigido; registro no `09` de que a janela do export (12 meses) é menor que a retenção do `audit_logs` (730 dias), aceito sob a ADR-0014 e a revisitar antes de abrir cadastro real.
+- **Arquivos principais:** `backend/src/modules/session/session-export.ts`, `backend/src/shared/pdf/dataExportPdf.ts`, `backend/src/modules/export/export.service.ts`, `.claude/project_context/09-conformidade-legal.md`.
+- **Decisões/ADRs:** nenhuma ADR nova; o registro no `09` documenta uma decisão já coberta pela ADR-0014.
+- **Notas:** `npm run lint` completo, `tsc`, dependency-cruiser e os testes de sessão, export e PDF passam.
