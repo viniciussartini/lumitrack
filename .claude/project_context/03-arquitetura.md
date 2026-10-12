@@ -121,21 +121,6 @@ Todo módulo em `backend/src/modules/<nome>/` segue a mesma cadeia de camadas:
 
 Toda autorização é por posse de recurso, resolvida bottom-up: `MeterReading/Alert → Meter → (Property | Area | Device) → Property → User`. RBAC (`Role.ADMIN`) é lido do banco a cada requisição — nunca um claim do JWT — para que promoção/rebaixamento tenha efeito imediato sem exigir novo login (ver ADR-0004 e `docs/RBAC_DESIGN.md` para uma evolução futura do modelo).
 
-### ADRs já tomadas
+### ADRs
 
-- `adr/0001-claude-design-fonte-de-verdade-ui.md` — Claude Design como fonte de verdade de UI/UX.
-- `adr/0002-token-storage-cookie-httponly.md` — cookie `HttpOnly` (WEB) / Bearer (MOBILE).
-- `adr/0003-mfa-totp-opcional.md` — MFA opcional via TOTP + backup codes.
-- `adr/0004-monolito-modular-por-dominio.md` — monólito modular por domínio, DI via `createApp(deps)`.
-- `adr/0005-industry-como-design-system.md` — Industry como design system do produto.
-- `adr/0006-migracao-incremental-por-fase.md` — migração incremental para o Industry, por fase do roadmap.
-- `adr/0007-bandeira-tarifaria-fonte-oficial-aneel.md` — bandeira tarifária sincronizada da fonte oficial da ANEEL.
-- `adr/0008-hospedagem-brasil-oracle-always-free.md` — hospedagem numa máquina única no Brasil, sem operador estrangeiro. Tomada como decisão de **conformidade**, não só técnica. **Provedor e conclusão de conformidade substituídos pela ADR-0010**; continuam vigentes as restrições técnicas (por que serverless/scale-to-zero são inviáveis), a **condição de validade** (cadastro público fechado) e os **gates de go-live**.
-- `adr/0009-observabilidade-uptime-kuma-autohospedado.md` — monitor de uptime auto-hospedado, para o caminho self-hosted.
-- `adr/0010-demo-publica-free-tier-render-neon.md` — a demo pública roda em **Render + Neon**, fora do Brasil, com **escopo restrito a demonstração** (cadastro fechado, só contas sintéticas). Registra a transferência internacional que passou a existir (registros de acesso, sem SCC), o risco assumido e o **compromisso de migrar para o Brasil** antes de qualquer operação com usuário real.
-- `adr/0011-keep-alive-monitor-externo-uptimerobot.md` — keep-alive da demo via UptimeRobot (monitor externo). **Substituída pela ADR-0013**; permanece como registro do raciocínio de que um ping externo em `/health` não configura transferência internacional — precedente ainda utilizável.
-- `adr/0012-separacao-producao-vps-staging-render-neon.md` — produção migra para VPS Hostinger em São Paulo (branch `main`, retoma a conclusão de conformidade da ADR-0008); Render+Neon é rebaixado a staging/integração (branch `staging`, ADR-0010 continua vigente para esse ambiente).
-- `adr/0013-fim-do-keep-alive-staging-hiberna-por-desenho.md` — os dois mecanismos de keep-alive são removidos e o staging hiberna por desenho, consequência do papel que a ADR-0012 lhe deu: ambiente de validação não tem visitante inesperado a proteger de cold start.
-- `adr/0014-ambientes-permanentemente-demonstracao.md` — os dois ambientes publicados (produção VPS + staging Render/Neon) são declarados permanentemente demonstração, sem titular real; `REGISTRATION_ENABLED` ganha default `false` no código (fail-closed); trabalho de conformidade que só se justifica com titular real fica deferido enquanto a ADR vigorar.
-- `adr/0015-monitor-externo-producao-vps.md` — reaproveita o raciocínio da ADR-0011 (ping não-autenticado em `/health` não configura transferência internacional) para a produção; `deploy/Caddyfile` passa a expor `/health`.
-- `adr/0016-service-le-repository-de-outro-modulo.md` — `*.service.ts` pode importar o `*.repository.ts` de outro módulo diretamente (padrão já em uso em 9 services); formaliza o que os helpers de `shared/targetResolution.ts` já pressupõem.
+O índice canônico, com a decisão e o status de cada ADR (inclusive as substituídas), está em [`../docs/README.md`](../docs/README.md). Esta seção não repete a lista. Quando uma decisão muda o que este documento descreve, atualize o texto acima além do índice.

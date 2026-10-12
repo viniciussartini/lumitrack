@@ -28,4 +28,4 @@ Corrige comportamento **incorreto**. Distinção importante: `refatoracao` prese
 Siga `.claude/project_context/08-convencoes-git.md`:
 1. Acrescente entrada em `.claude/log/CHANGELOG.md` (tipo `fix`, com a branch atual).
 2. Gere um **texto de commit** (`fix: ...`) para o usuário commitar manualmente.
-3. Se alguma decisão de `.claude/project_context/07-decisoes-em-aberto.md` foi tomada nesta execução: registre o **ADR** em `.claude/docs/adr/` e atualize o `07`.
+3. Se alguma decisão de `.claude/project_context/07-decisoes-em-aberto.md` foi tomada nesta execução: registre o **ADR** em `.claude/docs/adr/`, acrescente a linha no índice canônico `.claude/docs/README.md` e atualize o `07`.

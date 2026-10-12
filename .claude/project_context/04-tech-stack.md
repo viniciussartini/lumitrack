@@ -26,19 +26,4 @@
 
 ## Decisões registradas
 
-ADRs que fixam escolhas de stack e infraestrutura (contexto completo em `.claude/docs/adr/`):
-
-| ADR | Camada | Decisão |
-|---|---|---|
-| `0002` | Auth | Cookie `HttpOnly` no canal WEB, Bearer no MOBILE |
-| `0003` | Auth | MFA opcional via TOTP + backup codes |
-| `0004` | Backend | Monólito modular por domínio, DI via `createApp(deps)` |
-| `0005` | Frontend | Industry como design system do produto |
-| `0006` | Frontend | Migração para o Industry incremental, por fase do roadmap |
-| `0007` | Domínio | Bandeira tarifária sincronizada da fonte oficial da ANEEL |
-| `0008` | Infra | Hospedagem no Brasil, máquina única, sem operador estrangeiro (Caminho B) |
-| `0009` | Observabilidade | Uptime Kuma auto-hospedado (Caminho B) |
-| `0010` | Infra | Demo pública em Render + Neon, escopo restrito a demonstração (Caminho A) |
-| `0011` | Observabilidade | Keep-alive da demo via UptimeRobot (monitor externo) — **substituída pela `0013`** |
-| `0012` | Infra | Separação de ambientes — produção na VPS Hostinger (`main`), Render+Neon rebaixado a staging (`staging`) |
-| `0013` | Observabilidade | Fim do keep-alive — o staging hiberna por desenho |
+As ADRs que fixam escolhas de stack e infraestrutura (token, MFA, monólito modular, design system, ambientes, observabilidade e as demais) estão no índice canônico em [`../docs/README.md`](../docs/README.md), com o status de cada uma. Esta seção não repete a lista; o texto acima descreve o que está em uso hoje.

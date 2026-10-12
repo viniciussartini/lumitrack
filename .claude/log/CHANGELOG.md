@@ -23,3 +23,12 @@ fix/537-corpo-malformado-sem-500-nem-log-de-senha
 - **Arquivos principais:** `backend/src/modules/simulation/simulation.service.ts`.
 - **Decisões/ADRs:** o endpoint segue sem tela no frontend (decisão do usuário); nenhuma ADR nova. O bloco repetido de 10 linhas do cálculo de custo não foi tocado; o `02` não muda (RF22 segue implementado só pela API).
 - **Testes:** service (Grupo A, Grupo A no ACL e Tarifa Branca recusados, cada um com a mensagem do seu ramo; ACL num Grupo B gravado direto no banco; alvo AREA recusado; Convencional explícito e `groupBModality` nulo seguem calculando; 403 antes do 422) e rota (Grupo A responde 422), todos escritos antes da correção e falhando (6 falhas). Suíte completa do backend (2191 testes), `tsc`, `npm run lint` e dependency-cruiser passam.
+
+## [2026-10-12] docs: índice único de ADRs (sub-issue do épico de documentação viva)
+
+- **Branch:** epic/511-documentacao-viva
+- **Tipo:** docs
+- **O quê:** o `.claude/docs/README.md` virou o índice canônico das ADRs, com as 25 (0001–0025), a decisão e o status de cada uma (a 0011 substituída pela 0013 e a 0008 parcialmente substituída pela 0010 constam como tal). A seção "ADRs já tomadas" do `03`, a tabela "Decisões registradas" do `04` e o texto "Resolvidas" do `07` (uma narrativa que duplicava as ADRs e contrariava a regra do próprio arquivo de listar só o que está em aberto) viraram remissão ao índice. O protocolo de ADR do `CLAUDE.md` e o passo de ADR das skills `nova-feature`, `correcao-bugs`, `refatoracao` e `scaffold-projeto` agora mandam acrescentar a linha no índice. Os quatro índices antigos estavam desatualizados (parados na 0013, 0016, 0018 e sem as resolvidas 0016, 0017, 0019–0021, 0023–0024).
+- **Arquivos principais:** `.claude/docs/README.md`, `.claude/project_context/03-arquitetura.md`, `.claude/project_context/04-tech-stack.md`, `.claude/project_context/07-decisoes-em-aberto.md`, `CLAUDE.md`, `.claude/skills/*/SKILL.md`.
+- **Decisões/ADRs:** nenhuma ADR nova. Fora do escopo: o script de CI que compara `ls .claude/docs/adr/` com o índice (YAGNI; o protocolo nas skills ataca a causa). A ADR retroativa dos caches em processo fica para a sub-issue do `03`.
+- **Notas:** primeira de cinco sub-issues do épico; as demais (`03`, `10`, `04`/`06` e comentários) seguem na mesma branch, com um PR no fim.
