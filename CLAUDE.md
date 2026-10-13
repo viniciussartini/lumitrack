@@ -5,7 +5,7 @@
 ## Como trabalhar aqui (sempre)
 
 - **Plan mode para mudanças cross-cutting** (arquitetura, segurança, novos módulos): apresente um plano e **aguarde aprovação** antes de escrever ou editar arquivos.
-- **Pergunte antes de assumir** qualquer item de `.claude/project_context/07-decisoes-em-aberto.md`. Decisão tomada → registre **ADR** em `.claude/docs/adr/` (template `0000-template.md`) e atualize o `07`.
+- **Pergunte antes de assumir** qualquer item de `.claude/project_context/07-decisoes-em-aberto.md`. Decisão tomada → registre **ADR** em `.claude/docs/adr/` (template `0000-template.md`) e, no mesmo trabalho, atualize: a linha da tabela em `.claude/docs/README.md` (**índice canônico de ADRs**), o `07` (remover o item resolvido) e o `03`/`04` se a decisão muda o que eles descrevem.
 - **Ao final de toda criação/alteração:** registre em `.claude/log/CHANGELOG.md` (append-only, com a **branch atual**) e **gere um texto de commit** (Conventional Commits) para o usuário commitar manualmente. Ver `.claude/project_context/08-convencoes-git.md`.
 
 ## Princípios inegociáveis (valem para todo código)

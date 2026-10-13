@@ -83,12 +83,19 @@ RF/RNF/RN/FNC são um caso à parte dos demais: não são artefato de processo d
 
 **Enforcement (obrigatório — esta regra é ignorada com frequência quando fica só na prosa):**
 
-- `eslint-plugin-jsdoc` valida presença e forma dos blocos em exports públicos (`jsdoc/require-jsdoc`, `jsdoc/require-param`, `jsdoc/require-returns`).
-- **`no-warning-comments` bloqueia comentário de rastreabilidade** — regra nativa do ESLint, casa o termo em qualquer posição do comentário:
+- `eslint-plugin-jsdoc` valida presença e forma dos blocos em exports públicos (`jsdoc/require-jsdoc`, `jsdoc/require-param`, `jsdoc/require-returns`), **só nas camadas que a configuração de cada pacote lista**:
+  - `backend`: `src/modules/*/*.service.ts`, `*.repository.ts` e `*.controller.ts`.
+  - `frontend`: `src/services/*.ts`.
+  - `iot-simulator/server`: `src/simulation/`, `src/broker/` e `src/mqtt/`.
+  - `iot-simulator/ui`: `src/services/` e `src/hooks/`.
+
+  Fora desses caminhos a regra do JSDoc continua valendo para quem escreve, mas **nada a impõe** (`shared/`, `*.routes.ts`, `*.schema.ts`, arquivos de domínio sem esses sufixos e os componentes do frontend); a revisão de código é o único controle ali.
+- **`no-warning-comments` bloqueia comentário de rastreabilidade** — regra nativa do ESLint, casa o termo em qualquer posição do comentário, com a mesma lista nos quatro pacotes. A palavra "auditoria" sozinha **não** é termo (só "laudo de auditoria", "achado de auditoria", "relatório de auditoria" e "achado"), porque o projeto tem trilha de auditoria legítima no código:
 
 ```js
 "no-warning-comments": ["error", {
-  terms: ["issue #", "closes #", "fixes #", "pr #", "auditoria", "achado",
+  terms: ["issue #", "closes #", "fixes #", "pr #", "laudo de auditoria",
+          "achado de auditoria", "relatório de auditoria", "achado",
           "conforme revisão", "solicitado na revisão", "ver issue", "ref #"],
   location: "anywhere"
 }]

@@ -31,6 +31,7 @@ Para features que cruzam módulos ou tocam auth/dados sensíveis, use **plan mod
 - **PII (A09 + LGPD):** nada sensível em log; minimização.
 - **Qualidade:** TS strict, sem `any`; funções pequenas; nomes reveladores.
 - **Comentários:** funcionais — Javadoc/JSDoc em classes, funções públicas e lógica não óbvia, explicando o **porquê**. **Nunca** referencie issue, PR, auditoria, achado, data, autor ou número de RF/RNF/RN/FNC no comentário (`06`): rastreabilidade vive no git, nos ADRs, no CHANGELOG e nas issues; RF/RNF/RN/FNC vivem no `02-requisitos.md`. O lint barra os dois casos (`no-warning-comments` para issue/PR/auditoria; a regra local `local/no-comment-req-refs` para RF/RN/RNF/FNC seguido de número — achado real: essa segunda regra não existia antes da Fase 20/PR #401, e ~25 comentários citando RN/RF entraram numa branch inteira sem o lint acusar nada até então) — mas **não confie só nisso**: releia o que você escreveu antes de finalizar, o lint pega o padrão exato, não paráfrase.
+- **Regra estendida:** ao estender uma regra (nova modalidade, novo caso, nova opção), procure no código comentários que a declaram inexistente ou "ainda não suportada" (busque pelo nome da regra e por trechos como "ainda não" e "só ... está implementada") e atualize-os na mesma mudança. Comentário desatualizado é pior que comentário ausente (`06`).
 - **Testes (test-first no domínio):** comece pelos testes da regra de negócio, derivados dos **critérios de aceite** da issue (ATDD-lite); integração do contrato; E2E só se for fluxo crítico. UI/cola podem ser teste-depois.
 
 ## Definition of Done
@@ -43,4 +44,4 @@ Para features que cruzam módulos ou tocam auth/dados sensíveis, use **plan mod
 Siga `.claude/project_context/08-convencoes-git.md`:
 1. Acrescente uma entrada em `.claude/log/CHANGELOG.md` (tipo `feature`, com a branch atual).
 2. Gere um **texto de commit** (`feat: ...`) para o usuário commitar manualmente.
-3. Se alguma decisão de `.claude/project_context/07-decisoes-em-aberto.md` foi tomada nesta execução: registre o **ADR** em `.claude/docs/adr/` e atualize o `07`.
+3. Se alguma decisão de `.claude/project_context/07-decisoes-em-aberto.md` foi tomada nesta execução: registre o **ADR** em `.claude/docs/adr/`, acrescente a linha no índice canônico `.claude/docs/README.md` e atualize o `07`.

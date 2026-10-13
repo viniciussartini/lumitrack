@@ -824,8 +824,8 @@ export class ConsumptionService {
         return resultByMonthMs
     }
 
-    // Conta binômia do Grupo A, modalidade Horária Verde — só ela está
-    // implementada; Azul/Convencional falham fechado (Fase 20).
+    // Conta binômia do Grupo A nas modalidades Horária Verde e Horária Azul;
+    // Convencional Binômia ainda não tem cálculo e falha fechado.
     // Falha fechada também sem janela de ponta configurada ou sem demanda
     // contratada, em vez de silenciosamente aplicar a fórmula errada.
     // Wrapper de 1 mês só sobre `calculateGroupAMonthlyCosts` — usado pelo

@@ -98,10 +98,10 @@ export const TARIFF_SUBGROUP_LABELS: Record<TariffSubgroup, string> = {
 }
 
 /**
- * Modalidade tarifária do Grupo A. Só GREEN tem cálculo de conta implementado
- * no backend (ConsumptionService lança erro claro para as outras) — o mapa de
- * labels cobre as 3 para exibição, mas o formulário só oferece GREEN até a
- * Fase 20 trazer Azul/Convencional.
+ * Modalidade tarifária do Grupo A. GREEN e BLUE têm cálculo de conta no
+ * backend (ConsumptionService lança erro claro para CONVENTIONAL_BINOMIAL) — o
+ * mapa de labels cobre as 3 para exibição, e o formulário oferece só as duas
+ * que têm cálculo.
  */
 export type TariffModality = "CONVENTIONAL_BINOMIAL" | "GREEN" | "BLUE"
 

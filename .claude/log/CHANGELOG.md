@@ -23,3 +23,57 @@ fix/537-corpo-malformado-sem-500-nem-log-de-senha
 - **Arquivos principais:** `backend/src/modules/simulation/simulation.service.ts`.
 - **Decisões/ADRs:** o endpoint segue sem tela no frontend (decisão do usuário); nenhuma ADR nova. O bloco repetido de 10 linhas do cálculo de custo não foi tocado; o `02` não muda (RF22 segue implementado só pela API).
 - **Testes:** service (Grupo A, Grupo A no ACL e Tarifa Branca recusados, cada um com a mensagem do seu ramo; ACL num Grupo B gravado direto no banco; alvo AREA recusado; Convencional explícito e `groupBModality` nulo seguem calculando; 403 antes do 422) e rota (Grupo A responde 422), todos escritos antes da correção e falhando (6 falhas). Suíte completa do backend (2191 testes), `tsc`, `npm run lint` e dependency-cruiser passam.
+
+## [2026-10-12] docs: índice único de ADRs (sub-issue do épico de documentação viva)
+
+- **Branch:** epic/511-documentacao-viva
+- **Tipo:** docs
+- **O quê:** o `.claude/docs/README.md` virou o índice canônico das ADRs, com as 25 (0001–0025), a decisão e o status de cada uma (a 0011 substituída pela 0013 e a 0008 parcialmente substituída pela 0010 constam como tal). A seção "ADRs já tomadas" do `03`, a tabela "Decisões registradas" do `04` e o texto "Resolvidas" do `07` (uma narrativa que duplicava as ADRs e contrariava a regra do próprio arquivo de listar só o que está em aberto) viraram remissão ao índice. O protocolo de ADR do `CLAUDE.md` e o passo de ADR das skills `nova-feature`, `correcao-bugs`, `refatoracao` e `scaffold-projeto` agora mandam acrescentar a linha no índice. Os quatro índices antigos estavam desatualizados (parados na 0013, 0016, 0018 e sem as resolvidas 0016, 0017, 0019–0021, 0023–0024).
+- **Arquivos principais:** `.claude/docs/README.md`, `.claude/project_context/03-arquitetura.md`, `.claude/project_context/04-tech-stack.md`, `.claude/project_context/07-decisoes-em-aberto.md`, `CLAUDE.md`, `.claude/skills/*/SKILL.md`.
+- **Decisões/ADRs:** nenhuma ADR nova. Fora do escopo: o script de CI que compara `ls .claude/docs/adr/` com o índice (YAGNI; o protocolo nas skills ataca a causa). A ADR retroativa dos caches em processo fica para a sub-issue do `03`.
+- **Notas:** primeira de cinco sub-issues do épico; as demais (`03`, `10`, `04`/`06` e comentários) seguem na mesma branch, com um PR no fim.
+
+## [2026-10-12] docs: 03-arquitetura.md descreve a arquitetura de hoje; ADR-0026 dos caches em processo
+
+- **Branch:** epic/511-documentacao-viva
+- **Tipo:** docs
+- **O quê:** a seção "Específico do projeto" do `03` foi reconferida contra o código e corrigida: 24 módulos (entraram `acl-contract`, `demand`, `demand-alert`, `goal`, `pld-quote`, `report`, `report-schedule` e `session`); os sete schedulers no mesmo processo (`server.ts`), no lugar de "o único caminho assíncrono"; o SMTP com as quatro finalidades, inclusive o relatório enviado a terceiros; os dados pessoais novos e não cifrados (e-mails de destinatários e rótulo de dispositivo/IP mascarado das sessões); `shared/session/` e `shared/config/` no inventário; e os três caches em processo no lugar de "nenhum cache". A ADR-0026 (retroativa) registra esses caches com o requisito medido na Fase 15 (6 → 4 queries por requisição de consumo), o TTL de 5 minutos, o estado em nível de módulo e o custo aceito, e entrou no índice canônico.
+- **Arquivos principais:** `.claude/project_context/03-arquitetura.md`, `.claude/docs/adr/0026-caches-em-processo-com-ttl.md`, `.claude/docs/README.md`.
+- **Decisões/ADRs:** ADR-0026, aprovada pelo usuário como retroativa curta; nenhum item do `07` a remover. Cada número do laudo foi reconferido no código (24 módulos, sete schedulers, três repositórios com cache) antes de escrever.
+- **Notas:** a seção de dados sensíveis tem interseção com o `09` e deve ser revisada junto da próxima `auditoria-conformidade`. Segunda de cinco sub-issues do épico.
+
+## [2026-10-12] docs: 10-design-system.md com o inventário de telas e bundles de hoje
+
+- **Branch:** epic/511-documentacao-viva
+- **Tipo:** docs
+- **O quê:** a tabela "tela → bundle → código" e as notas que a seguem foram reescritas como estado atual, conferidas contra `frontend/src/pages/`, `AppRouter.tsx`, os `TODO(design)` do código e o bundle `2026-09-06`. A linha única do app logado virou uma por seção (Painel, Análise com grandezas elétricas, Histórico, Relatórios, Alertas, Distribuidoras, Configurações, Perfil/Segurança); o template A4 passou a apontar para os geradores de relatório do backend; a Home anterior consta como histórica. A lista de telas sem handoff passou de uma para quatro, cada uma com o motivo (Sobre o projeto, comparação ACR × ACL, comparação Convencional × Branca e os campos de endereço por grandeza do `MeterForm`), e o parágrafo "a v2 ainda não tem implementação" foi trocado por "a maior parte foi entregue nas Fases 23–28".
+- **Arquivos principais:** `.claude/project_context/10-design-system.md`.
+- **Decisões/ADRs:** nenhuma. Nenhuma tela foi alterada.
+- **Notas:** a seção "Sobre o projeto" da v2 existe, mas é um espaço vazio (`min-height:52vh`), então a `AboutPage` continua sem layout a seguir; o comentário dela ainda cita o bundle `2026-07-31` e é corrigido na sub-issue dos comentários. A `ConfirmEmailChangePage` reaproveita o layout de autenticação sem handoff próprio e não tem marcador `TODO(design)`; está registrada na tabela, sem marcador novo. Terceira de cinco sub-issues do épico.
+
+## [2026-10-12] docs: 04-tech-stack.md e 06-code-quality-standards.md alinhados ao código
+
+- **Branch:** epic/511-documentacao-viva
+- **Tipo:** docs
+- **O quê:** `04`: os jobs de CI passam a ser nomeados por grupo em vez de contados (o `ci.yml` tem 15, com o `root-format` que faltava; o número saiu para não envelhecer), o Modbus aparece já dividido (um arquivo por adaptador, oito adaptadores para sete protocolos), entraram `react-markdown` + `remark-gfm` (Sobre e documentos legais) e o React Compiler, o nodemailer e o pdfkit passam a cobrir também troca de e-mail, relatório agendado e relatórios em PDF (o CSV é próprio), e as versões de TypeScript (5.9 no backend e no simulador-servidor, 6.0 no frontend e na UI do simulador). `06`: o escopo real do JSDoc enforçado, por pacote (e o que fica sem trava), e a lista real de termos do `no-warning-comments`, que é a mesma nos quatro pacotes e não inclui "auditoria" sozinha.
+- **Arquivos principais:** `.claude/project_context/04-tech-stack.md`, `.claude/project_context/06-code-quality-standards.md`.
+- **Decisões/ADRs:** nenhuma. Cada afirmação foi conferida em `ci.yml`, `package.json` e `eslint.config.js` de cada pacote.
+- **Notas:** a ampliação da trava de JSDoc é de outra fase; o `06` volta a ser atualizado quando ela mudar. Quarta de cinco sub-issues do épico.
+
+## [2026-10-12] refactor: comentários desatualizados reescritos (fecha o épico de documentação viva)
+
+- **Branch:** epic/511-documentacao-viva
+- **Tipo:** refactor
+- **O quê:** os sete comentários que declaravam inexistente algo que já existe foram reescritos descrevendo o estado atual, sem número de fase nem atribuição: a conta binômia do Grupo A em `consumption.service.ts` (Verde e Azul calculam; Convencional Binômia falha fechado), a modalidade tarifária em `property.schema.ts`, `property.types.ts` (o formulário oferece as duas modalidades com cálculo) e `schema.prisma`, a comparação com o scheduler de rollup no `RetentionPurgeScheduler.ts` (o `HourlyRollupScheduler` não existe mais; agora cita o `MinuteRollupScheduler`), o `TODO(design)` da `AboutPage` (bundle vigente, sem "única rota" nem "decisão do usuário") e o da `AclComparisonPage` (sem a afirmação falsa sobre o `10`). A skill `nova-feature` ganhou o item "ao estender uma regra, procure comentários que a declaram inexistente".
+- **Arquivos principais:** os sete arquivos acima e `.claude/skills/nova-feature/SKILL.md`.
+- **Decisões/ADRs:** nenhuma. Verificado que o diff de código só tem linhas de comentário; nenhum comportamento muda.
+- **Notas:** `tsc` (backend e `tsc -b` do frontend), lint do backend e testes das áreas tocadas passam; o lint do frontend tem 0 erros e 10 avisos que já existiam sem esta mudança. A varredura de rastreabilidade (cerca de 45 pontos, inclusive "Fase N" em comentários como o da `BrancaComparisonPage`) segue na Fase 36. Quinta e última sub-issue do épico.
+
+## [2026-10-12] docs: ajustes da revisão do PR do épico de documentação viva
+
+- **Branch:** epic/511-documentacao-viva
+- **Tipo:** docs
+- **O quê:** dois erros factuais meus corrigidos e quatro sugestões aplicadas. `04`: o e2e não roda "contra backend real": o job sobe o backend, mas os 19 specs mockam a API com `page.route()`, então o e2e não pega quebra de contrato (agora dito na linha de CI e na de testes); o caminho do PDF do export do titular (`shared/pdf/dataExportPdf.ts`) separado do dos relatórios; a versão do TypeScript deixou a linha do Backend e ficou só na linha dedicada. ADR-0026: os quatro mapas do catálogo descritos com a chave certa de cada um (o da Tarifa Branca não tem subgrupo) e o Contexto passa a dizer que só bandeira e distribuidoras foram medidas na Fase 15; o catálogo do Grupo A (Fase 19) e o do Grupo B (Fase 22) seguiram o padrão sem medição própria, custo aceito. O índice passa a chamar a ADR de "retroativa". `10`: a aba Configurações → Cálculos e tarifas consta como desenhada na v2 e ainda sem código (com handoff, fora da regra de ausência), e a `ConfirmEmailChangePage` entra na lista de telas sem handoff.
+- **Arquivos principais:** `.claude/project_context/04-tech-stack.md`, `.claude/project_context/10-design-system.md`, `.claude/docs/adr/0026-caches-em-processo-com-ttl.md`, `.claude/docs/README.md`.
+- **Decisões/ADRs:** nenhuma nova; a ADR-0026 ainda não foi mesclada, então foi corrigida em vez de substituída.
+- **Notas:** cada correção foi reconferida no código antes de escrever (19 specs com `page.route`, os quatro mapas e a função `groupBCacheKey`, o commit de cada cache, a aba de tarifas no bundle e a ausência dela em `pages/settings/`).

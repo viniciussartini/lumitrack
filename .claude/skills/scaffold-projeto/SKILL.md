@@ -52,7 +52,7 @@ Só depois do Bloco A aprovado. Para cada camada, apresente **a recomendação d
 ### Saída da entrevista
 
 1. Preencha `03-arquitetura.md` (seção "Específico do projeto"), `04-tech-stack.md` e a seção "Fonte de design do projeto" do `10-design-system.md` com as decisões.
-2. Registre **um ADR por decisão estruturante** (estilo arquitetural, forma da aplicação, banco, estratégia de credencial, ferramenta de design, qualquer componente de infra além do default) em `.claude/docs/adr/`, com alternativas consideradas.
+2. Registre **um ADR por decisão estruturante** (estilo arquitetural, forma da aplicação, banco, estratégia de credencial, ferramenta de design, qualquer componente de infra além do default) em `.claude/docs/adr/`, com alternativas consideradas, e acrescente cada um ao índice canônico `.claude/docs/README.md`.
 3. Jogue o que ficou indefinido em `07-decisoes-em-aberto.md`, no formato declarado lá (opções · impacto · o que falta para decidir).
 4. **Só então** siga para o plano de scaffold.
 
@@ -84,6 +84,6 @@ Em **plan mode**, apresente um PLANO e aguarde aprovação. O plano deve conter:
 Siga `.claude/project_context/08-convencoes-git.md`:
 1. Acrescente uma entrada em `.claude/log/CHANGELOG.md` (tipo `scaffold`, com a branch atual).
 2. Gere um **texto de commit** (Conventional Commits, ex.: `chore: scaffold inicial do projeto`) para o usuário commitar manualmente.
-3. Se alguma decisão de `.claude/project_context/07-decisoes-em-aberto.md` foi tomada nesta execução: registre o **ADR** em `.claude/docs/adr/` e atualize o `07`.
+3. Se alguma decisão de `.claude/project_context/07-decisoes-em-aberto.md` foi tomada nesta execução: registre o **ADR** em `.claude/docs/adr/`, acrescente a linha no índice canônico `.claude/docs/README.md` e atualize o `07`.
 4. **Onboarding:** sugira rodar a skill `onboarding` para gerar `.claude/docs/onboarding.md` — útil em equipe e também em solo (retomada futura do projeto).
 5. **Fechar o ciclo com a ferramenta de design:** sugira sincronizar o design system do codebase recém-criado com a ferramenta declarada (no Claude Design, `/design-sync`) — os próximos designs nascem usando os componentes e tokens reais (ver `10-design-system.md`).

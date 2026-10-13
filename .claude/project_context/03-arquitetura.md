@@ -66,15 +66,15 @@ ADR registra **decisão pontual**; ninguém entende o sistema lendo doze ADRs em
 > Os princípios acima são do kit e permanecem; esta seção é do LumiTrack. Diferente de um projeto greenfield, aqui as decisões **já estão tomadas** e registradas em ADRs — não há entrevista de fundação pendente.
 
 - **Estilo arquitetural:** **monólito modular** por domínio (ADR-0004).
-- **Módulos de domínio:** 16 módulos em `backend/src/modules/` (lista abaixo, em "Padrão de módulo").
-- **Comunicação entre módulos:** síncrona por interface (service → service), com o repositório como único ponto de acesso ao banco de cada módulo. O único caminho assíncrono é a ingestão IoT (amostra → buffer → rollup) e a entrega ao navegador via SSE (`UserEventHub`).
+- **Módulos de domínio:** 24 módulos em `backend/src/modules/` (lista abaixo, em "Padrão de módulo").
+- **Comunicação entre módulos:** síncrona por interface (service → service), com o repositório como único ponto de acesso ao banco de cada módulo. Não há fila. O trabalho fora da requisição é a ingestão IoT (amostra → buffer → rollup), a entrega ao navegador via SSE (`UserEventHub`) e sete schedulers que sobem no mesmo processo em `backend/src/server.ts`: rollup por minuto, rollup de demanda, alerta de demanda, alerta de meta, expurgo de retenção, sincronização da bandeira tarifária e envio de relatório agendado.
 - **Cross-cutting:** tudo em `backend/src/shared/` (detalhado abaixo) — auth/authz em `middlewares`, erro no error handler central, log em `logger` (pino), config por ambiente com fail-fast no boot, auditoria em `audit`. Sem i18n. Quatro feature flags, sem fonte de verdade compartilhada entre elas: `REGISTRATION_ENABLED` e `DEMO_LOGIN_ENABLED` (`backend/src/config/env.ts`), `DEMO_BOOTSTRAP_ENABLED` (`iot-simulator/server/src/config/env.ts`) e `VITE_DEMO_MODE` (build do frontend, `LoginPage.tsx`) — esta última é independente de `DEMO_LOGIN_ENABLED` (`render.yaml` documenta a armadilha: as duas precisam ser ligadas juntas manualmente).
 - **Fronteira transacional:** atômico dentro de um agregado (usuário + consentimento, medidor + alvo); eventual entre amostra ingerida e leitura por minuto persistida (`MinuteRollupScheduler`) e entre episódio de alerta e notificação.
-- **Forma da aplicação:** SPA (`frontend/`) + API separada (`backend/`), mais o worker de ingestão IoT no mesmo processo do backend.
-- **Integrações externas:** SMTP (nodemailer) e os sete protocolos IoT (ver abaixo).
+- **Forma da aplicação:** SPA (`frontend/`) + API separada (`backend/`), mais o worker de ingestão IoT e os sete schedulers no mesmo processo do backend.
+- **Integrações externas:** SMTP (nodemailer), a API de Dados Abertos da ANEEL e os sete protocolos IoT (ver abaixo).
 - **Atores e autorização:** usuário comum e `ADMIN` (RBAC lido do banco a cada requisição); não é multi-tenant — o isolamento é por posse de recurso (ver "Posse e autorização").
-- **Dados sensíveis (cruzar com `09`):** CPF, CNPJ, endereço, segredo MFA e credencial MQTT do medidor, todos cifrados em repouso com AES-256-GCM e chaves segregadas por finalidade; retenção e expurgo em `shared/retention`.
-- **Componentes de infra além do default:** nenhum cache, fila ou réplica — a trava acima se mantém.
+- **Dados sensíveis (cruzar com `09`):** CPF, CNPJ, endereço, segredo MFA e credencial MQTT do medidor, todos cifrados em repouso com AES-256-GCM e chaves segregadas por finalidade; retenção e expurgo em `shared/retention`. Há ainda dado pessoal que não é cifrado: os **e-mails de destinatários** dos relatórios agendados (`report_schedules.recipients`), que são de **terceiros** que o titular informou, e o **rótulo de dispositivo e o IP mascarado** das sessões (`deviceLabel` e `origin` nas tabelas de token, ADR-0025). A classificação e a base legal desses campos são do `09`.
+- **Componentes de infra além do default:** nenhuma fila nem réplica; a trava acima se mantém. Há três caches **em processo** com TTL de 5 minutos (bandeira tarifária, distribuidoras e catálogo de tarifas), que não são componente de infra mas têm a ADR que a trava exige: ADR-0026. Não há cache compartilhado.
 
 ### Monorepo
 
@@ -99,7 +99,7 @@ Todo módulo em `backend/src/modules/<nome>/` segue a mesma cadeia de camadas:
 - Módulos sem estado próprio persistido (ex.: `simulation`) omitem `*.repository.ts`.
 - **Acesso cross-módulo:** um `*.service.ts` **pode** importar e chamar o `*.repository.ts` de outro módulo diretamente — é o padrão sancionado para consultas agregadas ou de resolução de posse que precisam ler mais de um domínio (ex.: `ConsumptionService` lendo `MeterRepository`/`PropertyRepository`/`AreaRepository`/`DeviceRepository`; os helpers `resolveRootProperty`/`resolveMeterTarget` de `shared/targetResolution.ts` existem exatamente para isso). O que continua proibido: importar framework/infra de outro módulo (`no-express-in-domain`) ou pular a camada de repository acessando Prisma direto fora do módulo dono. Ver ADR-0016.
 
-16 módulos ativos: `admin`, `alert`, `alert-event`, `area`, `auth`, `consumption`, `device`, `distributor`, `export`, `iot` (worker de ingestão, sem rota própria além do stream SSE), `meter`, `notification`, `property`, `simulation`, `tariff-flag`, `user`.
+24 módulos ativos: `acl-contract`, `admin`, `alert`, `alert-event`, `area`, `auth`, `consumption`, `demand`, `demand-alert`, `device`, `distributor`, `export`, `goal`, `iot` (worker de ingestão, sem rota própria além do stream SSE), `meter`, `notification`, `pld-quote`, `property`, `report`, `report-schedule`, `session`, `simulation`, `tariff-flag`, `user`.
 
 ### Injeção de dependência
 
@@ -107,11 +107,11 @@ Todo módulo em `backend/src/modules/<nome>/` segue a mesma cadeia de camadas:
 
 ### `shared/` — infraestrutura transversal
 
-`backend/src/shared/` concentra o que não pertence a nenhum módulo de domínio: `crypto` (AES-256-GCM para endereço, PII, segredo MFA e credencial de medidor; blind index, TOTP, hash de token, QR code), `audit` (trilha OWASP A09/Art. 46), `sse` (`UserEventHub`), `notifications`, `tariff` (`TariffService`), `retention` (expurgo agendado), `middlewares` (`authenticate`, `requireRole`, `blockDemoWrite`, rate limiters, error handler), `security` (CSRF, guard de SSRF em conexões de saída via `outboundHost`, redirect HTTPS com host canônico via `httpsRedirect`), `logger` (pino), `database` (client Prisma singleton, `timeBucket.ts` — decodificação de bucket agregado, mesma classe de bug já corrigida duas vezes em consumo/dashboard), `errors` (`AppError.ts` — base de todo tratamento de erro, capturado centralmente no error handler), `targetResolution.ts` (resolução de posse — o ponto central de autorização por recurso, ver "Posse e autorização" abaixo), `pdf` (export DSAR), `legal` (versão de consentimento), `time`, `validation`, `pagination` e `test` (fixtures e clientes Prisma dedicados aos testes de integração).
+`backend/src/shared/` concentra o que não pertence a nenhum módulo de domínio: `crypto` (AES-256-GCM para endereço, PII, segredo MFA e credencial de medidor; blind index, TOTP, hash de token, QR code), `audit` (trilha OWASP A09/Art. 46), `config` (e-mails das contas de demonstração), `session` (rótulo de dispositivo e IP mascarado das sessões), `sse` (`UserEventHub`), `notifications`, `tariff` (`TariffService`), `retention` (expurgo agendado), `middlewares` (`authenticate`, `requireRole`, `blockDemoWrite`, rate limiters, error handler), `security` (CSRF, guard de SSRF em conexões de saída via `outboundHost`, redirect HTTPS com host canônico via `httpsRedirect`), `logger` (pino), `database` (client Prisma singleton, `timeBucket.ts` — decodificação de bucket agregado, mesma classe de bug já corrigida duas vezes em consumo/dashboard), `errors` (`AppError.ts` — base de todo tratamento de erro, capturado centralmente no error handler), `targetResolution.ts` (resolução de posse — o ponto central de autorização por recurso, ver "Posse e autorização" abaixo), `pdf` (export DSAR), `legal` (versão de consentimento), `time`, `validation`, `pagination` e `test` (fixtures e clientes Prisma dedicados aos testes de integração).
 
 ### Integrações externas
 
-- **SMTP** (nodemailer) — recuperação de senha.
+- **SMTP** (nodemailer, `modules/auth/email.service.ts`) — quatro finalidades: recuperação de senha, confirmação de troca de e-mail (enviada ao endereço novo), aviso de troca (enviado ao endereço antigo) e relatório agendado com anexo (ADR-0024), este último enviado a **destinatários que o titular informou, não ao titular**. Nenhum provedor SMTP está contratado nos ambientes publicados.
 - **Protocolos IoT** — MQTT, Modbus TCP/RTU, EtherNet/IP, Profibus, PROFINET, RS232, RS485 (adaptadores em `modules/iot/iot-worker/protocols/`).
 - **API de Dados Abertos da ANEEL** (`AneelTariffFlagSource.ts`) — a única chamada de saída não-IoT do backend: `fetch` para `https://dadosabertos.aneel.gov.br` no boot e a cada 24h, com schema de anti-corrupção próprio (ADR-0007). Relevante para quem mexer em SSRF/allowlist de saída.
 - O UptimeRobot que fazia polling do `/health` no staging foi removido pela ADR-0013. A ADR-0015 decidiu (re)expor `/health` na produção via Caddy para um futuro monitor externo (ex.: UptimeRobot) — a exposição já está versionada (`deploy/Caddyfile`); criar o monitor em si é ação pendente do usuário fora do repositório. A produção também tem monitoramento **interno** (Uptime Kuma auto-hospedado, ADR-0009), que não é integração externa.
@@ -121,21 +121,6 @@ Todo módulo em `backend/src/modules/<nome>/` segue a mesma cadeia de camadas:
 
 Toda autorização é por posse de recurso, resolvida bottom-up: `MeterReading/Alert → Meter → (Property | Area | Device) → Property → User`. RBAC (`Role.ADMIN`) é lido do banco a cada requisição — nunca um claim do JWT — para que promoção/rebaixamento tenha efeito imediato sem exigir novo login (ver ADR-0004 e `docs/RBAC_DESIGN.md` para uma evolução futura do modelo).
 
-### ADRs já tomadas
+### ADRs
 
-- `adr/0001-claude-design-fonte-de-verdade-ui.md` — Claude Design como fonte de verdade de UI/UX.
-- `adr/0002-token-storage-cookie-httponly.md` — cookie `HttpOnly` (WEB) / Bearer (MOBILE).
-- `adr/0003-mfa-totp-opcional.md` — MFA opcional via TOTP + backup codes.
-- `adr/0004-monolito-modular-por-dominio.md` — monólito modular por domínio, DI via `createApp(deps)`.
-- `adr/0005-industry-como-design-system.md` — Industry como design system do produto.
-- `adr/0006-migracao-incremental-por-fase.md` — migração incremental para o Industry, por fase do roadmap.
-- `adr/0007-bandeira-tarifaria-fonte-oficial-aneel.md` — bandeira tarifária sincronizada da fonte oficial da ANEEL.
-- `adr/0008-hospedagem-brasil-oracle-always-free.md` — hospedagem numa máquina única no Brasil, sem operador estrangeiro. Tomada como decisão de **conformidade**, não só técnica. **Provedor e conclusão de conformidade substituídos pela ADR-0010**; continuam vigentes as restrições técnicas (por que serverless/scale-to-zero são inviáveis), a **condição de validade** (cadastro público fechado) e os **gates de go-live**.
-- `adr/0009-observabilidade-uptime-kuma-autohospedado.md` — monitor de uptime auto-hospedado, para o caminho self-hosted.
-- `adr/0010-demo-publica-free-tier-render-neon.md` — a demo pública roda em **Render + Neon**, fora do Brasil, com **escopo restrito a demonstração** (cadastro fechado, só contas sintéticas). Registra a transferência internacional que passou a existir (registros de acesso, sem SCC), o risco assumido e o **compromisso de migrar para o Brasil** antes de qualquer operação com usuário real.
-- `adr/0011-keep-alive-monitor-externo-uptimerobot.md` — keep-alive da demo via UptimeRobot (monitor externo). **Substituída pela ADR-0013**; permanece como registro do raciocínio de que um ping externo em `/health` não configura transferência internacional — precedente ainda utilizável.
-- `adr/0012-separacao-producao-vps-staging-render-neon.md` — produção migra para VPS Hostinger em São Paulo (branch `main`, retoma a conclusão de conformidade da ADR-0008); Render+Neon é rebaixado a staging/integração (branch `staging`, ADR-0010 continua vigente para esse ambiente).
-- `adr/0013-fim-do-keep-alive-staging-hiberna-por-desenho.md` — os dois mecanismos de keep-alive são removidos e o staging hiberna por desenho, consequência do papel que a ADR-0012 lhe deu: ambiente de validação não tem visitante inesperado a proteger de cold start.
-- `adr/0014-ambientes-permanentemente-demonstracao.md` — os dois ambientes publicados (produção VPS + staging Render/Neon) são declarados permanentemente demonstração, sem titular real; `REGISTRATION_ENABLED` ganha default `false` no código (fail-closed); trabalho de conformidade que só se justifica com titular real fica deferido enquanto a ADR vigorar.
-- `adr/0015-monitor-externo-producao-vps.md` — reaproveita o raciocínio da ADR-0011 (ping não-autenticado em `/health` não configura transferência internacional) para a produção; `deploy/Caddyfile` passa a expor `/health`.
-- `adr/0016-service-le-repository-de-outro-modulo.md` — `*.service.ts` pode importar o `*.repository.ts` de outro módulo diretamente (padrão já em uso em 9 services); formaliza o que os helpers de `shared/targetResolution.ts` já pressupõem.
+O índice canônico, com a decisão e o status de cada ADR (inclusive as substituídas), está em [`../docs/README.md`](../docs/README.md). Esta seção não repete a lista. Quando uma decisão muda o que este documento descreve, atualize o texto acima além do índice.

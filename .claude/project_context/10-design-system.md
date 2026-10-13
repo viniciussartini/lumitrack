@@ -56,18 +56,34 @@ Este bundle é o export de 2026-07-31 **mais duas telas novas** — as 8 telas a
 | Landing pública | `LumiTrack Landing.dc.html` | `pages/landing/LandingPage.tsx` |
 | Login | `LumiTrack Login.dc.html` | `pages/auth/LoginPage.tsx` |
 | Registro | `LumiTrack Registro.dc.html` | `pages/auth/RegisterPage.tsx` |
-| Recuperar senha | `LumiTrack Recuperar Senha.dc.html` | `pages/auth/ForgotPasswordPage.tsx`, `pages/auth/ResetPasswordPage.tsx` |
+| Recuperar senha | `LumiTrack Recuperar Senha.dc.html` | `pages/auth/ForgotPasswordPage.tsx`, `pages/auth/ResetPasswordPage.tsx`; `pages/auth/ConfirmEmailChangePage.tsx` reaproveita o layout dessas telas sem handoff próprio |
 | LGPD / privacidade | `LumiTrack LGPD.dc.html` | `pages/legal/` |
-| **App logado — alvo** (Painel, Análise, Histórico, Relatórios, Alertas, Distribuidoras, Sobre, Configurações, Perfil, Segurança/MFA, modais) | **`LumiTrack Home v2.dc.html`** | `pages/dashboard/`, `pages/property/`, `pages/alert/`, `pages/distributor/`, `pages/report/`, `pages/profile/`, `pages/settings/` |
-| Chrome do app logado (sidebar, topbar) | `LumiTrack Home v2.dc.html` | `components/layout/` |
-| App logado — versão anterior, **histórico** | `LumiTrack Home.dc.html` | o que está implementado hoje (migrado nas Fases 1–7) |
-| Relatório exportado (template A4) | `LumiTrack Relatório A4.dc.html` | — (não existe ainda; RF40/FNC007 do `02`) |
-| Login do simulador IoT | `LumiTrack IoT Login.dc.html` | — (não existe ainda; desde a Fase 13/#180 o perímetro do simulador é protegido por token estático, então uma tela de login é decisão de UX, não lacuna de segurança) |
+| **App logado — alvo.** Chrome (sidebar, topbar, menu do usuário) | **`LumiTrack Home v2.dc.html`** | `components/layout/` |
+| Painel | `Home v2` (view do painel) | `pages/dashboard/` |
+| Análise (propriedade, área, dispositivo e a aba de grandezas elétricas) | `Home v2` | `pages/analysis/` (layout e estado vazio), `pages/property/PropertyDetailsPage.tsx`, `pages/area/`, `pages/device/`, `components/electrical/` |
+| Histórico e comparações | `Home v2` (view `hist`) | `pages/history/` |
+| Relatórios | `Home v2` (view `reports`) e `LumiTrack Relatório A4.dc.html` | `pages/report/` |
+| Alertas | `Home v2` | `pages/alert/` |
+| Distribuidoras | `Home v2` | `pages/distributor/` |
+| Configurações: Cadastro, Relatórios, Metas | `Home v2` | `pages/settings/` (`RegistrationPage`, `ReportSchedulesPage`, `GoalsPage`, com `SettingsLayout`) |
+| Perfil e Segurança (MFA) | `Home v2` | `pages/profile/`, `pages/settings/SecurityPage.tsx` |
+| Relatório exportado (template A4) | `LumiTrack Relatório A4.dc.html` | `backend/src/modules/report/generators/` (`reportPdf.ts`, `documentPdf.ts`, `pdfLayout.ts`) |
+| App logado — versão anterior, **histórico** | `LumiTrack Home.dc.html` | substituída pela v2; não rege nenhuma tela |
+| Login do simulador IoT | `LumiTrack IoT Login.dc.html` | — (não existe; o perímetro do simulador é protegido por token estático, então uma tela de login é decisão de UX, não lacuna de segurança) |
 | Dashboard do simulador IoT | `LumiTrack IoT Simulator.dc.html` | `iot-simulator/ui/` |
 
-> Telas do código **sem** handoff no bundle: "Sobre o projeto" (`/sobre`, entregue na Fase 6 como versão provisória com `TODO(design)`) — ela cai na **regra de ausência** abaixo. Simulações (que também não tem handoff) deixou de ter tela: a página placeholder foi apagada na Fase 23. Relatórios saiu desta lista: passou a ter handoff (a view `reports` da v2 e o template A4).
+> **Telas do código sem handoff no bundle** (cada uma carrega um `TODO(design)` e cai na **regra de ausência** abaixo):
 >
-> **A v2 é design-alvo, não descrição do que existe.** Boa parte dela ainda não tem implementação nenhuma (Histórico, Metas, Configurações, aba de grandezas elétricas, relatórios agendados) e ainda não foi sequenciada em fase — o `02-requisitos.md` marca cada item com o status correspondente. Trabalho de UI numa tela **já implementada** segue a v2 direto; construir tela nova a partir dela é feature nova, com o rito normal de roadmap/issue.
+> - **Sobre o projeto** (`pages/about/AboutPage.tsx`, rota `/sobre`) — a v2 traz o item na navegação e uma seção "Sobre o projeto", mas ela é um espaço vazio, sem conteúdo desenhado; versão provisória no vocabulário Industry, no mesmo tratamento das páginas legais.
+> - **Comparação ACR × ACL** (`pages/property/AclComparisonPage.tsx`) — só o formulário de contrato ACL, embutido no formulário da propriedade, tem handoff.
+> - **Comparação Convencional × Branca** (`pages/property/BrancaComparisonPage.tsx`) — sem mockup; a única cobertura é indireta, pelos postos horários configuráveis.
+> - **Campos de endereço por grandeza elétrica** (`components/meter/MeterForm.tsx`) — sem bundle cobrindo estes campos; versão utilitária.
+>
+> A `ConfirmEmailChangePage` também não tem handoff próprio, mas não carrega `TODO(design)`: reaproveita o layout de Recuperar senha (ver tabela).
+>
+> Simulações também não tem handoff, mas deixou de ter tela: a página placeholder foi apagada na Fase 23.
+>
+> **A v2 é o design-alvo e o app implementa a maior parte dela.** O shell v2, a Análise, as grandezas elétricas por fase, o Histórico, os Relatórios (com os agendados em Configurações) e as Metas foram entregues nas Fases 23–28; o `02-requisitos.md` marca o status de cada requisito. **Desenhado na v2 e ainda sem código:** a aba Configurações → Cálculos e tarifas (histórico de tarifas vigentes, com os modais de editar e duplicar); ela **tem handoff**, então não cai na regra de ausência, e o `02-requisitos.md` mantém o catálogo tarifário com vigência como planejado. Trabalho de UI numa tela **já implementada** segue a v2 direto; tela nova a partir dela é feature nova, com o rito normal de roadmap/issue.
 
 - O `README.md` do bundle (em `design_handoff_lumitrack/`) é a especificação: mapa de telas, tokens, vocabulário de classes (`.lt-*`), estado mínimo e comportamento esperado. **Ele descreve o export anterior** — não cobre `Home v2` nem `Relatório A4`; para essas duas, a especificação é o próprio `.dc.html`.
 - `design-system/styles.css` é a **fonte única** de tokens e classes do Industry. O bundle traz também `_ds/modernist-*` e `_ds/classical-*`, que **não** são usados pelo projeto — o design system do produto é o Industry (ADR-0005).
