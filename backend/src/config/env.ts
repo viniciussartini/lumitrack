@@ -102,9 +102,9 @@ export const envSchema = z
         // LGPD a cumprir) e passou a ser armazenamento/performance: as 4
         // tabelas abaixo cresciam sem nenhum expurgo.
         //
-        // MeterReading: 365 dias, com o crescimento real medido (~2 GiB/ano
-        // para os 11 medidores da demo, teto conhecido e estável pela
-        // ADR-0014). Ver RIPD.md §3.3.
+        // MeterReading: 365 dias, com o crescimento real medido para os 11
+        // medidores da demo (~3,1 GiB/ano com as grandezas por fase, ~2 GiB/ano
+        // antes delas; teto conhecido e estável pela ADR-0014). Ver RIPD.md §3.3.
         DATA_RETENTION_METER_READING_DAYS: z.coerce.number().int().positive().default(365),
         // AlertTriggerEvent: mesmo prazo de MeterReading — histórico de
         // episódios de alerta, volume ínfimo perto de MeterReading (só cresce

@@ -1,12 +1,15 @@
 import "dotenv/config"
 import { Pool } from "pg"
 import { PrismaPg } from "@prisma/adapter-pg"
-import { PrismaClient } from "@/generated/prisma/client.js"
+import { Prisma, PrismaClient } from "@/generated/prisma/client.js"
 
 // Gera massa sintética de meter_readings no mesmo perfil da demonstração
 // (iot-simulator/server/src/simulation/demoBootstrap.ts): 1 amostra/minuto
 // por medidor, mesma cardinalidade usada para projetar o crescimento do
-// banco (11 medidores x 1.440 linhas/dia).
+// banco (11 medidores x 1.440 linhas/dia). Cada linha traz as 9 colunas
+// originais e as 22 grandezas por fase, todas preenchidas: é a largura de
+// linha de um medidor trifásico que reporta tudo, o caso que dimensiona o
+// crescimento da tabela.
 //
 // Existe para dar volume realista a EXPLAIN (ANALYZE, BUFFERS) — sem massa,
 // o planner do Postgres escolhe seq scan para tudo com poucas centenas de
@@ -111,7 +114,7 @@ async function ensureSyntheticMeter(prisma: PrismaClient, index: number) {
             userId: user.id,
             distributorId: distributor.id,
             name: `Propriedade Sintética ${index}`,
-            electricalSystem: "MONOPHASIC",
+            electricalSystem: "TRIPHASIC",
             billingClass: "B1",
         },
     })
@@ -129,6 +132,73 @@ async function ensureSyntheticMeter(prisma: PrismaClient, index: number) {
     })
 }
 
+type ReadingData = Prisma.MeterReadingCreateManyInput
+
+/** Mesma fórmula do `IoTDataProcessor`, aplicada às tensões médias do minuto: maior desvio em relação à média, em %. */
+function voltageUnbalance(a: number, b: number, c: number): number {
+    const average = (a + b + c) / 3
+    const maxDeviation = Math.max(
+        Math.abs(a - average),
+        Math.abs(b - average),
+        Math.abs(c - average),
+    )
+    return (maxDeviation / average) * 100
+}
+
+/**
+ * Monta uma leitura de um minuto com as 9 colunas originais e as 22 grandezas
+ * por fase preenchidas (ADR-0022), em faixas plausíveis para o Grupo B
+ * trifásico. Os valores só precisam ter a largura e a variabilidade de dado
+ * real; nenhuma medição lê o conteúdo.
+ */
+function buildReading(meterId: string, minuteStart: Date): ReadingData {
+    const voltageA = 220 + randomInRange(-3, 3)
+    const voltageB = 220 + randomInRange(-3, 3)
+    const voltageC = 220 + randomInRange(-3, 3)
+    const currentA = randomInRange(1, 15)
+    const currentB = randomInRange(1, 15)
+    const currentC = randomInRange(1, 15)
+    const powerFactor = randomInRange(0.85, 0.98)
+    const activeA = randomInRange(70, 1200)
+    const activeB = randomInRange(70, 1200)
+    const activeC = randomInRange(70, 1200)
+    const activeTotal = activeA + activeB + activeC
+
+    return {
+        meterId,
+        minuteStart,
+        kwhConsumed: randomInRange(0.01, 0.08),
+        avgVoltage: (voltageA + voltageB + voltageC) / 3,
+        avgCurrent: (currentA + currentB + currentC) / 3,
+        avgPowerW: activeTotal,
+        avgPowerFactor: powerFactor,
+        sampleCount: 60,
+        secondsCovered: 60,
+        avgVoltagePhaseA: voltageA,
+        avgVoltagePhaseB: voltageB,
+        avgVoltagePhaseC: voltageC,
+        avgVoltageUnbalance: voltageUnbalance(voltageA, voltageB, voltageC),
+        avgCurrentPhaseA: currentA,
+        avgCurrentPhaseB: currentB,
+        avgCurrentPhaseC: currentC,
+        avgActivePowerPhaseA: activeA,
+        avgActivePowerPhaseB: activeB,
+        avgActivePowerPhaseC: activeC,
+        avgReactivePowerVar: randomInRange(20, 800),
+        avgApparentPowerVa: activeTotal / powerFactor,
+        avgFrequencyHz: 60 + randomInRange(-0.1, 0.1),
+        avgPowerFactorPhaseA: randomInRange(0.85, 0.98),
+        avgPowerFactorPhaseB: randomInRange(0.85, 0.98),
+        avgPowerFactorPhaseC: randomInRange(0.85, 0.98),
+        avgThdVoltagePhaseA: randomInRange(0.5, 4),
+        avgThdVoltagePhaseB: randomInRange(0.5, 4),
+        avgThdVoltagePhaseC: randomInRange(0.5, 4),
+        avgThdCurrentPhaseA: randomInRange(2, 20),
+        avgThdCurrentPhaseB: randomInRange(2, 20),
+        avgThdCurrentPhaseC: randomInRange(2, 20),
+    }
+}
+
 /**
  * Gera e insere, em lotes, uma leitura por minuto entre `start` (inclusive) e
  * `end` (exclusive) para um medidor. `skipDuplicates` torna reexecuções
@@ -142,22 +212,12 @@ async function generateReadingsForMeter(
     totalMinutes: number,
 ): Promise<number> {
     let inserted = 0
-    let batch: Parameters<typeof prisma.meterReading.createMany>[0]["data"] = []
+    let batch: ReadingData[] = []
 
     for (let i = 0; i < totalMinutes; i++) {
         const minuteStart = new Date(start.getTime() + i * 60_000)
 
-        batch.push({
-            meterId,
-            minuteStart,
-            kwhConsumed: randomInRange(0.01, 0.08),
-            avgVoltage: 220 + randomInRange(-3, 3),
-            avgCurrent: randomInRange(1, 15),
-            avgPowerW: randomInRange(200, 3500),
-            avgPowerFactor: randomInRange(0.85, 0.98),
-            sampleCount: 60,
-            secondsCovered: 60,
-        })
+        batch.push(buildReading(meterId, minuteStart))
 
         if (batch.length >= INSERT_BATCH_SIZE) {
             const result = await prisma.meterReading.createMany({
