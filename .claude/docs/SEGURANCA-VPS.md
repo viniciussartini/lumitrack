@@ -414,7 +414,9 @@ ls /boot/vmlinuz-* | sort -V | tail -1  # o kernel mais novo instalado
 
 Se forem diferentes, há uma atualização pendente de reinício.
 
-> **Armadilha: o `apt upgrade` pode reter o kernel novo.** Quando a atualização do kernel traz um pacote novo (o kernel de número seguinte), o `apt upgrade` a segura e a lista como mantida. O sintoma é `apt list --upgradable` mostrando `linux-image-virtual` (ou `linux-image-generic`) dia após dia. Instale explicitamente antes de reiniciar: `sudo apt install --only-upgrade linux-image-virtual`. O sistema também costuma avisar no login. Reiniciar é seguro e rápido nesta topologia — os containers estão configurados com `restart: unless-stopped`, ou seja, o Docker os religa sozinho assim que o sistema volta:
+> **Armadilha: o `apt upgrade` pode reter o kernel novo.** Quando a atualização do kernel traz um pacote novo (o kernel de número seguinte), o `apt upgrade` a segura e a lista como mantida. O sintoma é `apt list --upgradable` mostrando `linux-image-virtual` (ou `linux-image-generic`) dia após dia. Instale explicitamente antes de reiniciar: `sudo apt install --only-upgrade linux-image-virtual`.
+
+O sistema também costuma avisar no login. Reiniciar é rápido nesta topologia — os containers estão configurados com `restart: unless-stopped`, ou seja, o Docker os religa sozinho assim que o sistema volta:
 
 ```bash
 sudo reboot
@@ -426,6 +428,22 @@ A indisponibilidade é de menos de um minuto. Depois que voltar, confirme que tu
 uname -r                    # deve mostrar a versão nova
 docker compose ps           # todos os serviços de volta e saudáveis
 ```
+
+> **Armadilha real desta VPS: "saudável" não quer dizer "com dados".** O simulador IoT guarda os medidores virtuais só em memória, de propósito. Qualquer reinício dele (inclusive o da máquina inteira) apaga a lista de medidores: o container volta saudável, o backend continua conectado ao broker, e **nenhuma leitura chega**. Num reinício de manutenção isso passou despercebido e deixou um buraco de ~20 minutos nos gráficos, porque a conferência olhou os containers e não os dados.
+>
+> Depois de reiniciar a máquina (ou só o `simulator`), recrie os medidores e confira que as leituras voltaram:
+>
+> ```bash
+> ./deploy/seed-simulator-devices.sh
+> # depois de ~1 minuto, deve mostrar a quantidade de medidores da demo:
+> docker compose --env-file deploy/.env exec -T postgres \
+>   sh -c 'psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+> SELECT count(DISTINCT "meterId") FROM meter_readings
+> WHERE "minuteStart" > (now() AT TIME ZONE 'UTC') - interval '3 minutes';
+> SQL
+> ```
+>
+> O `deploy/update-production.sh` já recria os medidores quando ele mesmo reconstrói o simulador; o reinício manual não tem esse automatismo.
 
 ## 4.3 Backup cifrado — e por que a chave privada nunca vai para o servidor
 
@@ -520,6 +538,14 @@ sysctl net.ipv4.conf.all.send_redirects net.ipv4.conf.all.log_martians
 
 echo "=== 13. Containers sem ganho de privilégio ==="
 sudo docker inspect $(sudo docker ps -q) --format "{{.Name}}: {{.HostConfig.SecurityOpt}} {{.HostConfig.CapDrop}}"
+
+echo "=== 14. Dados chegando (container saudável não basta) ==="
+cd /opt/<projeto>   # o compose precisa da pasta do projeto
+docker compose --env-file deploy/.env exec -T postgres \
+  sh -c 'psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+SELECT count(DISTINCT "meterId") FROM meter_readings
+WHERE "minuteStart" > (now() AT TIME ZONE 'UTC') - interval '3 minutes';
+SQL
 ```
 
 **Como ler o resultado** — cada item tem uma resposta certa:
@@ -540,6 +566,7 @@ sudo docker inspect $(sudo docker ps -q) --format "{{.Name}}: {{.HostConfig.Secu
 | 11 | Reincidentes | `File list: /var/log/fail2ban.log` (não `No file is currently monitored`) |
 | 12 | Rede do kernel | `send_redirects = 0` e `log_martians = 1`, inclusive depois de reiniciar |
 | 13 | Containers | `no-new-privileges:true` em backend, simulador e proxy; `ALL` em `CapDrop` no simulador e no proxy |
+| 14 | Dados | A quantidade de medidores da demo; se vier menor (ou `0`), rodar `./deploy/seed-simulator-devices.sh` (item 4.2) |
 
 E, do lado de fora da máquina, três confirmações que só fazem sentido pela internet:
 

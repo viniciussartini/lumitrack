@@ -4843,3 +4843,12 @@
 - **Arquivos principais:** `docker-compose.yml`, `deploy/Caddyfile`, `deploy/backup-postgres.sh`, `.claude/docs/DEPLOY.md`, `.claude/docs/SEGURANCA-VPS.md`.
 - **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado.
 - **Notas:** Caddyfile validado (`caddy validate`) e testado num contêiner local com as restrições novas (cap_drop ALL + NET_BIND_SERVICE + no-new-privileges): SPA e assets 200, caminhos ocultos 404, `/.well-known/` liberado, cabeçalhos presentes. Um Node como `node` com `cap_drop: ALL` escuta nas portas do simulador; `docker compose config` válido. Chega à produção na próxima promoção `staging` → `main`. Nenhum dado de infraestrutura no diff.
+
+## [2026-10-13] docs: reinício da VPS exige recriar os medidores do simulador
+
+- **Branch:** chore/endurecimento-conteineres-e-proxy
+- **Tipo:** docs
+- **O quê:** o `SEGURANCA-VPS.md` (item 4.2) passa a dizer que reiniciar a máquina, ou só o `simulator`, apaga os medidores virtuais, que vivem só em memória: o container volta saudável, o backend continua conectado ao broker e nenhuma leitura chega. Depois do reinício, rodar `./deploy/seed-simulator-devices.sh` e conferir no banco que as leituras voltaram (comando testado). O bloco de auditoria ganha o item 14, "dados chegando". A nota do kernel retido, inserida no meio de um parágrafo pela entrada anterior, foi separada dele.
+- **Arquivos principais:** `.claude/docs/SEGURANCA-VPS.md`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** a lacuna veio de uma manutenção: a conferência pós-reinício olhou a saúde dos containers e não o fluxo de dados, e as leituras ficaram ~20 min paradas até os medidores serem recriados.
