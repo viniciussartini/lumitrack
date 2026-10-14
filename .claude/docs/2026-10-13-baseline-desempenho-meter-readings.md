@@ -9,7 +9,7 @@
 - **Consultas:** o SQL de `ConsumptionRepository.findAggregated` e de `findLatestAggregatedForMeters` (ver `backend/src/modules/consumption/consumption.repository.ts`), com `EXPLAIN (ANALYZE, BUFFERS)`, os últimos 3 baldes em ordem decrescente e `localTsExpr()` igual ao de produção. A janela parte do **último instante da massa**, não de `now()`, para o número não depender de quanto tempo passou desde a geração.
 - **Duas execuções por consulta** (1ª e 2ª) e **duas rodadas completas do script** (a 2ª rodada serve de repetição e mostra a variação). Os valores abaixo são da execução quente, nas duas rodadas.
 - **Ambiente local:** `shared_buffers = 128 MiB`, `work_mem = 4 MiB`, `effective_cache_size = 4 GiB`, `max_parallel_workers_per_gather = 2`, `jit = on`. A tabela (~2 GiB) cabe no cache do sistema operacional, então a "execução fria" local **não é fria de verdade**: em disco frio os números sem janela pioram (ver a VPS).
-- **VPS (produção):** PostgreSQL 16.15 em contêiner, mesmos ajustes de `shared_buffers`, `work_mem` e `jit`. Medição só de leitura (`SET default_transaction_read_only = on`), sem `DELETE`, nem em transação revertida. A VPS tem **590.699 linhas e 11 medidores (40 dias)**, ainda com o esquema de 12 colunas (19 migrações aplicadas, a última `20260825212852_add_retention_purge_support_indexes`), por causa da promoção `staging` → `main` das Fases 25 a 32 ainda pendente. Os números da VPS são portanto de **linha estreita e volume pequeno**.
+- **VPS (produção):** PostgreSQL 16.x em contêiner, mesmos ajustes de `shared_buffers`, `work_mem` e `jit`. Medição só de leitura (`SET default_transaction_read_only = on`), sem `DELETE`, nem em transação revertida. A VPS tem **590.699 linhas e 11 medidores (40 dias)**, ainda com o esquema de 12 colunas (19 migrações aplicadas, a última `20260825212852_add_retention_purge_support_indexes`), por causa da promoção `staging` → `main` das Fases 25 a 32 ainda pendente. Os números da VPS são portanto de **linha estreita e volume pequeno**.
 - **Unidades:** tamanhos em MiB e GiB (base 1024), como o `pg_size_pretty` os imprime; taxas de crescimento derivadas de bytes (`pg_total_relation_size`) divididas pelos dias.
 - **Neon (staging):** não medido, por decisão do usuário (o plano gratuito não comporta esse volume).
 
@@ -45,7 +45,7 @@ Tempo de execução em ms, execução quente. Duas rodadas.
 - **Sem janela, toda consulta faz `Parallel Seq Scan` da tabela inteira**: 259.200 blocos lidos (a tabela inteira, ~2 GiB) para devolver 3 linhas (`findAggregated`) ou 11 (`findLatestAggregatedForMeters`). Com janela de 3 h ou 5 dias, o plano vira `Bitmap Index Scan` em `meter_readings_meterId_minuteStart_key` (tanto com 1 medidor quanto com os 11, no local; na VPS o planner usa `meter_readings_minuteStart_idx`) e lê de 15 blocos (hora, 1 medidor) a 178 (hora, 11 medidores) e 392 (dia). A janela de 1 mês lê 2.326 blocos para 1 medidor, mas para os 11 medidores o plano continua sendo `Seq Scan` (ver abaixo).
 - **Hora ganha ~3 ordens de grandeza (≈2.000×) e dia ~2 (≈90×).** O mês com janela de 1 mês ganha ~13× em um medidor, mas **o `findLatestAggregatedForMeters` de mês nos 11 medidores ainda faz `Seq Scan`**: 1 mês de 11 medidores são 475.211 linhas, 8,3% da tabela (para um medidor só, 1 mês é 8,3% do histórico dele, ou 0,76% da tabela), e o planner prefere varrer. O ganho dessa conta depende de quantos medidores entram na consulta.
 - **A variação entre rodadas é grande nos casos de varredura de vários medidores** (702 → 1.048 ms, 635 → 1.217 ms, 223 → 560 ms), e o planner mudou as estimativas entre rodadas. Nota do B4 mês com janela: 223 ms é a execução quente da 1ª rodada (222,5 ms) e 560 ms a quente da 2ª; por coincidência, a execução fria da 2ª rodada também mediu 223,6 ms. Os valores de uma rodada só não sustentam um "antes/depois" fino; para o #519 e o #520, medir com a contagem de consultas e repetir.
-- **JIT:** na 1ª rodada, 568 dos 827 ms do `findLatestAggregatedForMeters` hora sem janela foram de compilação JIT (inlining e otimização), disparada pelo custo estimado alto da varredura. Com janela de 3 h ou 5 dias o custo cai abaixo do limiar e o JIT não entra; com janela de 1 mês ele entra (A6 e B4). A VPS também roda com `jit = on`.
+- **JIT:** na 1ª execução (fria) do `findLatestAggregatedForMeters` hora sem janela, 568 dos 827 ms da 1ª rodada foram de compilação JIT (inlining e otimização; a quente da mesma rodada mediu 702 ms). Na 2ª rodada, o par é conferível: 911,6 de 1.291 ms na fria e 208,4 de 1.048 ms na quente. A compilação é disparada pelo custo estimado alto da varredura. Com janela de 3 h ou 5 dias o custo cai abaixo do limiar e o JIT não entra; com janela de 1 mês ele entra (A6 e B4). A VPS também roda com `jit = on`.
 - **`findMonthlyKwhForYears` (B-10):** `date_trunc('year', ...) = ANY(...)` não é sargável; a consulta lê as 518.400 linhas do medidor (172.800 por processo, em 2 workers mais o líder) e só então filtra pelo ano.
 
 ## 3. A VPS, 40 dias, linha estreita
@@ -62,8 +62,9 @@ Tempo de execução em ms (1ª execução / execução quente), 53.705 linhas po
 | `findMonthlyKwhForYears` | 125,8 / 125,0 | — |
 
 - **A 1ª execução sem janela custou 1,36 s** (cache frio de verdade); a quente, 85 ms. O Painel paga a frio sempre que o Postgres não tem a tabela em memória.
-- Com 40 dias a tabela é pequena e o plano sem janela usa `Bitmap Index Scan` do medidor (não varre a tabela). **O custo cresce com o histórico do medidor**: extrapolando linearmente de 40 para 365 dias (×9, estimativa, não medida), o `findAggregated` hora sem janela iria para ~0,8 s quente e a varredura de vários medidores para ~5 s. A janela corta isso para menos de 1 ms em qualquer tamanho.
+- Com 40 dias a tabela é pequena e o `findAggregated` sem janela usa `Bitmap Index Scan` do medidor (não varre a tabela), mas o `findLatestAggregatedForMeters` sem janela já faz `Parallel Seq Scan`. **O custo cresce com o histórico do medidor**: extrapolando linearmente de 40 para 365 dias (×9, estimativa, não medida), o `findAggregated` hora sem janela iria para ~0,8 s quente e a varredura de vários medidores para ~5 s. A janela de 3 h corta isso para menos de 1 ms em 1 medidor, em qualquer tamanho de tabela (1,8–3,2 ms na VPS para os 11 medidores).
 - O plano com janela de 3 h usa `meter_readings_minuteStart_idx` na VPS, e o `Bitmap Index Scan` por medidor no local; nos dois, o custo é constante em relação ao tamanho da tabela.
+- **O ganho da janela de dia depende do índice que o planner escolhe.** Na VPS, a janela de 5 dias (A4) não usa o índice composto por medidor: faz `Index Scan` em `meter_readings_minuteStart_idx` e filtra por `meterId`, descartando 72.010 linhas de outros medidores e tocando 34.356 buffers, mais do que as ~14 mil páginas da tabela inteira (111 MiB). Por isso o ganho é de só ~2,5× (81 → 32 ms); no local, com `meter_readings_meterId_minuteStart_key`, o mesmo caso mede 2,2 ms. Com 40 dias o planner escolheu o pior índice; com a tabela cheia, a escolha pode mudar, e o #518 deve medir de novo.
 
 ## 4. Expurgo de retenção (`DELETE ... WHERE "minuteStart" < limite`, dentro de transação com `ROLLBACK`)
 
@@ -103,7 +104,7 @@ Medidos na VPS, só contagens:
 
 ## 7. Conclusões para os próximos itens
 
-- **#518:** a janela ataca o maior custo medido (de ~200 ms e ~2 GiB lidos para menos de 1 ms em hora e dia). Na conta do Grupo A e da Branca (mês corrente e anterior, 1 medidor), a janela de 1 mês mediu 196 → 16 ms; a de 2 meses deve ficar na ordem do dobro (não medida).
+- **#518:** a janela ataca o maior custo medido (de ~200 ms e ~2 GiB lidos para menos de 1 ms na hora, 0,1 ms, e ~2 ms no dia; na VPS, com 40 dias, o dia mediu 32–41 ms, ver §3). Na conta do Grupo A e da Branca (mês corrente e anterior, 1 medidor), a janela de 1 mês mediu 196 → 16 ms; a de 2 meses deve ficar na ordem do dobro (não medida).
 - **#519:** o `findMonthlyKwhForYears` (B-10) varre as 518.400 linhas do medidor hoje (~250 ms), o que o predicado sargável deve reduzir. O `findLatestAggregatedForMeters` mês com vários medidores continua a varrer a tabela mesmo com janela, o que importa para o #520.
 - **#520:** o resumo com 50 alvos usa `findLatestAggregatedForMeters`; a janela de hora resolve (702–1.048 → ~0,8 ms), e a de mês reduziu 54–65% nas duas rodadas, porque a janela ainda cobre uma fração grande da tabela.
 - **ADR-0027:** os números que decidem estão aqui (570 B/linha, 3,07 GiB/ano no esquema novo, índices a 35% do total, expurgo de pior caso a 80–87% do teto). A opção é decisão do usuário.
@@ -113,7 +114,7 @@ Medidos na VPS, só contagens:
 Somente leitura; devolve contagens, tamanhos e datas, nunca dado de usuário. Pelo host, via contêiner:
 
 ```bash
-ssh <usuario>@<host-da-vps> 'df -h /var/lib/docker'
+ssh <usuario>@<host-da-vps> 'df -h <volume-do-postgres>'
 
 ssh <usuario>@<host-da-vps> \
   'sudo docker exec -i <contêiner-do-postgres> sh -c "psql -X -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\""' <<'SQL'

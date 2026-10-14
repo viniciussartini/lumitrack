@@ -4852,3 +4852,12 @@
 - **Arquivos principais:** `.claude/docs/2026-10-13-baseline-desempenho-meter-readings.md`, `.claude/docs/adr/0027-meter-readings-manter-com-ajustes-baratos.md`, `backend/.env.example`, `backend/scripts/generate-performance-baseline-data.ts`.
 - **Decisões/ADRs:** nenhuma nova; a ADR-0027 ainda não foi mesclada, então foi corrigida em vez de substituída.
 - **Notas:** o #565 foi ajustado às novas unidades (8,6 MiB/dia, ~260 MiB em 30 dias). O erro de tipo da linha 39 do gerador (`match as [...]`) já existia em `staging`; `scripts/` fica fora da cobertura do `tsc` do projeto e só o ESLint o verifica. Os números da 1ª rodada local foram conferidos contra a saída lida antes de ela ser sobrescrita.
+
+## [2026-10-13] docs: ajustes da revisão do PR do baseline de meter_readings (2ª passada)
+
+- **Branch:** perf/535-meter-readings-medida
+- **Tipo:** docs
+- **O quê:** um bloqueio e seis sugestões da `revisao-codigo` sobre o PR que substituiu o primeiro, todas aplicadas por decisão do usuário. Baseline §7 e §3: a janela leva a hora a menos de 1 ms e o dia a ~2 ms no local (32–41 ms na VPS), e não "menos de 1 ms em hora e dia"; a frase do plano sem janela vale só para o `findAggregated` (o `findLatestAggregatedForMeters` já varre a tabela na VPS); novo achado: na VPS a janela de 5 dias usou `meter_readings_minuteStart_idx` com filtro por medidor, e não o índice composto, por isso o ganho foi de só ~2,5×; o JIT passa a vir com o par conferível da 2ª rodada (911,6 de 1.291 ms na fria; 208,4 de 1.048 ms na quente) e a 1ª rodada identifica a execução fria. Versão do Postgres de produção e caminho do volume viraram "16.x" e `<volume-do-postgres>`. ADR-0027: o número de 47 s do expurgo local é otimista para o Neon. `env.ts` e `.env.example`: o comentário do teto do expurgo deixa de afirmar a margem de ~2,5× e cita os 97–104 s e a folga de ~1,15–1,24×.
+- **Arquivos principais:** `.claude/docs/2026-10-13-baseline-desempenho-meter-readings.md`, `.claude/docs/adr/0027-meter-readings-manter-com-ajustes-baratos.md`, `backend/src/config/env.ts`, `backend/.env.example`.
+- **Decisões/ADRs:** nenhuma nova; a ADR-0027 ainda não foi mesclada, então foi corrigida em vez de substituída.
+- **Notas:** as entradas anteriores do CHANGELOG não foram alteradas (o arquivo só recebe acréscimo), então a menção genérica ao Postgres 16 nelas permanece. Cada número novo foi conferido contra as saídas brutas antes de escrever.
