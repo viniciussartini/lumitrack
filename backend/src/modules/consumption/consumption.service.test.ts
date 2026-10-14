@@ -27,6 +27,7 @@ import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { fromSaoPauloLocal } from "@/shared/time/localTime.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
+import { countQueries } from "@/shared/database/queryCounter.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 import {
     createTestDistributor,
@@ -167,6 +168,7 @@ function callResolveBucketCost(
     distributor: DistributorResponse,
     flagPer100Kwh: number,
     yearlyPropertyCostByBucketMs: Map<number, number>,
+    monthlyPropertyCostByBucketMs: Map<number, { totalBrl: number }> = new Map(),
 ): Promise<{ totalBrl: number }> {
     return (
         service as unknown as {
@@ -179,6 +181,7 @@ function callResolveBucketCost(
                 distributor: DistributorResponse,
                 flagPer100Kwh: number,
                 yearlyPropertyCostByBucketMs: Map<number, number>,
+                monthlyPropertyCostByBucketMs: Map<number, { totalBrl: number }>,
             ) => Promise<{ totalBrl: number }>
         }
     ).resolveBucketCost(
@@ -190,6 +193,7 @@ function callResolveBucketCost(
         distributor,
         flagPer100Kwh,
         yearlyPropertyCostByBucketMs,
+        monthlyPropertyCostByBucketMs,
     )
 }
 
@@ -199,6 +203,24 @@ beforeEach(async () => {
 afterAll(async () => {
     await prismaTest.$disconnect()
 })
+
+const MONTHS_2026 = ["2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08"]
+
+/** Janela [primeiro dia do mês, primeiro dia do seguinte) em hora de São Paulo (UTC-3). */
+function monthWindow(month: string): { from: string; to: string } {
+    const [year, mm] = month.split("-").map(Number) as [number, number]
+    const next = new Date(Date.UTC(year, mm, 1, 3))
+    return { from: `${month}-01T03:00:00Z`, to: next.toISOString() }
+}
+
+/** Uma leitura de ponta e uma fora de ponta em cada mês, com consumos que diferem por mês. */
+async function insertReadingsForMonths(meterId: string, months: string[]) {
+    for (const [i, month] of months.entries()) {
+        await insertReading(meterId, `${month}-11T22:00:00Z`, 20 + i, 10_000) // 19h SP
+        await insertReading(meterId, `${month}-11T20:00:00Z`, 30 + i, 10_000) // 17h SP
+        await insertReading(meterId, `${month}-11T13:00:00Z`, 200 + i * 10, 10_000) // 10h SP
+    }
+}
 
 describe("ConsumptionService.list", () => {
     describe("validação de acesso", () => {
@@ -824,6 +846,35 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
 
         return { user, property, meter }
     }
+
+    it("granularidade month: vários meses saem iguais ao cálculo mês a mês, num lote de queries de teto fixo", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+        await insertReadingsForMonths(meter.id, MONTHS_2026)
+        const query = {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+            order: "asc",
+        }
+
+        const { result: batched, queryCount } = await countQueries(() =>
+            consumptionService.list(user.id, { ...query, pageSize: 12 }),
+        )
+        const oneByOne = []
+        for (const month of MONTHS_2026) {
+            const single = await consumptionService.list(user.id, {
+                ...query,
+                ...monthWindow(month),
+            })
+            oneByOne.push(...single.items)
+        }
+
+        expect(batched.items).toHaveLength(MONTHS_2026.length)
+        expect(batched.items).toEqual(oneByOne)
+        // Teto medido para 6 meses: as queries do lote não dependem do número de meses
+        // (eram 35 quando cada mês consultava sozinho).
+        expect(queryCount).toBeLessThanOrEqual(10)
+    })
 
     it("reproduz o Exemplo 6 do documento de referência ponta-a-ponta", async () => {
         const { user, meter, property } = await setupGroupAPropertyMeter()
@@ -2177,6 +2228,35 @@ describe("ConsumptionService.list — Tarifa Branca (Grupo B)", () => {
         expect(groupBWhite!.publicLightingFeeBrl).toBe(18)
     })
 
+    it("granularidade month: vários meses saem iguais ao cálculo mês a mês, num lote de queries de teto fixo", async () => {
+        const { user, meter, property } = await setupWhitePropertyMeter()
+        await insertReadingsForMonths(meter.id, MONTHS_2026)
+        const query = {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+            order: "asc",
+        }
+
+        const { result: batched, queryCount } = await countQueries(() =>
+            consumptionService.list(user.id, { ...query, pageSize: 12 }),
+        )
+        const oneByOne = []
+        for (const month of MONTHS_2026) {
+            const single = await consumptionService.list(user.id, {
+                ...query,
+                ...monthWindow(month),
+            })
+            oneByOne.push(...single.items)
+        }
+
+        expect(batched.items).toHaveLength(MONTHS_2026.length)
+        expect(batched.items).toEqual(oneByOne)
+        // Teto medido para 6 meses: as queries do lote não dependem do número de meses
+        // (eram 17 quando cada mês consultava sozinho).
+        expect(queryCount).toBeLessThanOrEqual(7)
+    })
+
     it("abaixo do piso de disponibilidade, cobra pela tarifa Convencional em vez da Branca", async () => {
         const { user, meter, property } = await setupWhitePropertyMeter()
 
@@ -2444,6 +2524,34 @@ describe("ConsumptionService.compareBrancaToConvencional — comparação Conven
         expect(comparison.totalConvencionalBrl).toBeCloseTo(sumConvencional, 6)
         expect(comparison.totalBrancaBrl).toBeCloseTo(sumBranca, 6)
         expect(comparison.totalDiffBrl).toBeCloseTo(sumConvencional - sumBranca, 6)
+    })
+
+    it("a comparação de vários meses é igual à de cada mês isolado, num lote de queries de teto fixo", async () => {
+        const { user, meter, property } = await setupBrancaComparisonFixture()
+        await insertReadingsForMonths(meter.id, MONTHS_2026)
+
+        const { result: whole, queryCount } = await countQueries(() =>
+            consumptionService.compareBrancaToConvencional(user.id, {
+                propertyId: property.id,
+                from: new Date("2026-03-01"),
+                to: new Date("2026-08-01"),
+            }),
+        )
+        const oneByOne = []
+        for (const month of MONTHS_2026) {
+            const single = await consumptionService.compareBrancaToConvencional(user.id, {
+                propertyId: property.id,
+                from: new Date(`${month}-01`),
+                to: new Date(`${month}-01`),
+            })
+            oneByOne.push(...single.months)
+        }
+
+        expect(whole.months).toHaveLength(MONTHS_2026.length)
+        expect(whole.months).toEqual(oneByOne)
+        // Teto medido para 6 meses: as queries do lote não dependem do número de meses
+        // (eram 11 quando cada mês consultava sozinho).
+        expect(queryCount).toBeLessThanOrEqual(6)
     })
 
     it("lança ForbiddenError para propriedade de outro usuário", async () => {

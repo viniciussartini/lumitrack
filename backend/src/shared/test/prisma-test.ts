@@ -3,6 +3,7 @@
 // lumitrack_test — nunca tocando no banco de desenvolvimento.
 import { PrismaPg } from "@prisma/adapter-pg"
 import { PrismaClient } from "@/generated/prisma/client.js"
+import { incrementQueryCount } from "@/shared/database/queryCounter.js"
 import "dotenv/config"
 
 const testDatabaseUrl = process.env["DATABASE_TEST_URL"]
@@ -22,7 +23,13 @@ const adapter = new PrismaPg({
     connectionString: testDatabaseUrl,
 })
 
+// `query` sai como evento (nunca no stdout) só para `countQueries` poder contar
+// as queries de uma operação; o output dos testes segue silencioso.
 export const prismaTest = new PrismaClient({
     adapter,
-    log: [], // silencioso durante os testes para não poluir o output
+    log: [{ level: "query", emit: "event" }],
+})
+
+prismaTest.$on("query", () => {
+    incrementQueryCount()
 })

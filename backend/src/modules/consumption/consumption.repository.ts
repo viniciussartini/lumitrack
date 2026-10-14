@@ -3,6 +3,7 @@ import type { BucketOrder, Granularity } from "@/modules/consumption/consumption
 import { localTsExpr, rangeFilter } from "@/shared/database/timeBucket.js"
 import { getIntermediateHours, type PeakWindowConfig } from "@/shared/tariff/tariffPost.js"
 import { REFERENCE_REACTIVE_RATIO } from "@/shared/tariff/tariff.service.js"
+import { fromSaoPauloLocal } from "@/shared/time/localTime.js"
 
 // Whitelist explícita do argumento de date_trunc — o valor já vem validado
 // pelo zod (enum fechado), mas mapear em vez de interpolar a string do
@@ -224,6 +225,16 @@ export class ConsumptionRepository {
     ): Promise<MonthlyKwhForYear[]> {
         if (yearBucketStarts.length === 0) return []
 
+        // O filtro por `date_trunc` sobre a coluna convertida não usa índice e
+        // leria o histórico inteiro do medidor. A faixa em `minuteStart`, do
+        // primeiro ao último ano pedido, delimita a leitura; o `date_trunc`
+        // continua para excluir os anos de fora quando a lista não é contígua.
+        const yearStarts = yearBucketStarts.map((d) => d.getTime())
+        const from = fromSaoPauloLocal(new Date(Math.min(...yearStarts)))
+        const to = fromSaoPauloLocal(
+            new Date(Date.UTC(new Date(Math.max(...yearStarts)).getUTCFullYear() + 1, 0, 1)),
+        )
+
         const rows = await this.prisma.$queryRaw<
             { yearbucket: Date; monthbucket: Date; kwh: number }[]
         >(
@@ -234,6 +245,7 @@ export class ConsumptionRepository {
                     SUM("kwhConsumed") AS kwh
                 FROM "meter_readings"
                 WHERE "meterId" = ${meterId}
+                    ${rangeFilter(from, to)}
                     AND date_trunc('year', ${localTsExpr()}) = ANY(${yearBucketStarts}::timestamp[])
                 GROUP BY yearbucket, monthbucket
             `,

@@ -310,6 +310,16 @@ export class ConsumptionService {
             flagPer100Kwh,
         )
 
+        const monthlyPropertyCostByBucketMs = await this.computeMonthlyPropertyCosts(
+            meter.id,
+            buckets,
+            granularity,
+            targetType,
+            property,
+            distributor,
+            flagPer100Kwh,
+        )
+
         const items: ConsumptionBucketResponse[] = await Promise.all(
             buckets.map(async (bucket) => {
                 const cost = await this.resolveBucketCost(
@@ -321,6 +331,7 @@ export class ConsumptionService {
                     distributor,
                     flagPer100Kwh,
                     yearlyPropertyCostByBucketMs,
+                    monthlyPropertyCostByBucketMs,
                 )
                 return {
                     bucketStart: bucket.bucketStart,
@@ -582,9 +593,55 @@ export class ConsumptionService {
         return yearlyPropertyCostByBucketMs
     }
 
+    // Granularidade "month" + alvo PROPERTY nos grupos que consultam o consumo
+    // por posto (Grupo A e Tarifa Branca): 1 cálculo em lote para todos os
+    // meses da página, em vez de 1 por balde — cada mês custa várias queries
+    // (consumo por posto, demanda, reativa) e eram disparados todos em
+    // paralelo. Mesmo lote do caminho anual; o Grupo B Convencional é conta
+    // pura, sem query, e segue por `calculateBucketCost`.
+    private async computeMonthlyPropertyCosts(
+        meterId: string,
+        buckets: ConsumptionBucket[],
+        granularity: Granularity,
+        targetType: TargetType,
+        property: PropertyResponse,
+        distributor: DistributorResponse,
+        flagPer100Kwh: number,
+    ): Promise<Map<number, MonthCostResult>> {
+        if (granularity !== "month" || targetType !== "PROPERTY" || buckets.length === 0) {
+            return new Map()
+        }
+
+        const monthStarts = buckets.map((b) => b.bucketStart)
+
+        if (property.tariffGroup === "GROUP_A") {
+            return this.calculateGroupAMonthlyCosts(
+                meterId,
+                monthStarts,
+                property,
+                distributor,
+                flagPer100Kwh,
+                property.contractingEnvironment,
+            )
+        }
+
+        if (property.groupBModality === "WHITE") {
+            return this.calculateGroupBWhiteMonthlyCosts(
+                meterId,
+                monthStarts,
+                property,
+                distributor,
+                flagPer100Kwh,
+            )
+        }
+
+        return new Map()
+    }
+
     // Custo de um bucket dentro do map() de `list()` — extraído: year+PROPERTY
     // usa o pré-cálculo em lote de `computeYearlyPropertyCosts`
-    // (o piso mensal já foi somado ali), os demais casos delegam a
+    // (o piso mensal já foi somado ali), month+PROPERTY do Grupo A/Branca usa
+    // o de `computeMonthlyPropertyCosts`, os demais casos delegam a
     // `calculateBucketCost`, compartilhado com `summary()`.
     private async resolveBucketCost(
         meterId: string,
@@ -595,9 +652,15 @@ export class ConsumptionService {
         distributor: DistributorResponse,
         flagPer100Kwh: number,
         yearlyPropertyCostByBucketMs: Map<number, number>,
+        monthlyPropertyCostByBucketMs: Map<number, MonthCostResult>,
     ): Promise<MonthCostResult | null> {
         if (granularity === "year" && targetType === "PROPERTY") {
             return { totalBrl: yearlyPropertyCostByBucketMs.get(bucket.bucketStart.getTime()) ?? 0 }
+        }
+
+        const monthlyCost = monthlyPropertyCostByBucketMs.get(bucket.bucketStart.getTime())
+        if (granularity === "month" && targetType === "PROPERTY" && monthlyCost) {
+            return monthlyCost
         }
 
         return this.calculateBucketCost(
@@ -771,9 +834,8 @@ export class ConsumptionService {
     // Equivalente de `calculateGroupAMonthlyCosts` para a Branca: 1 única
     // consulta batching todos os meses da janela (`findKwhByPostGroupedByMonth`
     // com `includeIntermediate: true`), em vez de 1 `findKwhByPost` por mês —
-    // até 12 por bucket de ano, ~372 numa página cheia (31 anos). Usada pelo
-    // caminho anual de `list()`/`summary()`, que hoje é o único a pedir mais
-    // de 1 mês da Branca de uma vez.
+    // até 12 por bucket de ano, ~372 numa página cheia (31 anos). Usada pelos
+    // caminhos anual e mensal de `list()`, que pedem vários meses de uma vez.
     private async calculateGroupBWhiteMonthlyCosts(
         meterId: string,
         monthStarts: Date[],
@@ -829,9 +891,8 @@ export class ConsumptionService {
     // Falha fechada também sem janela de ponta configurada ou sem demanda
     // contratada, em vez de silenciosamente aplicar a fórmula errada.
     // Wrapper de 1 mês só sobre `calculateGroupAMonthlyCosts` — usado pelo
-    // caminho de granularidade "month" (list()/summary() de um único mês),
-    // que não tem o problema de N+1 que o caminho "year" tinha (era 1
-    // `findKwhByPost` por mês, até 12 por ano por alvo).
+    // `summary()`, que tem 1 bucket por alvo; `list()` chama o lote direto
+    // para a página inteira (`computeMonthlyPropertyCosts`).
     private async calculateGroupAMonthCost(
         meterId: string,
         monthStartLocal: Date,
@@ -1462,31 +1523,14 @@ export class ConsumptionService {
     // mesmo total de kWh. Abaixo do piso, os dois cenários convergem para a
     // mesma conta (a Branca já delega à Convencional nesse caso) — `diffBrl`
     // fica exatamente zero, não uma aproximação.
-    private async calculateBrancaComparisonMonth(
-        meterId: string,
+    private calculateBrancaComparisonMonth(
         monthStart: Date,
+        kwhByPost: { post: TariffPost; kwhConsumed: number }[],
         property: PropertyResponse,
         distributor: DistributorResponse,
-        peakWindow: PeakWindowConfig,
         rateByPost: Map<TariffPost, TariffEnergyRateResponse>,
         flagPer100Kwh: number,
-    ): Promise<BrancaComparisonMonthResult> {
-        const monthEndLocal = new Date(
-            Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 1),
-        )
-        const from = fromSaoPauloLocal(monthStart)
-        const to = fromSaoPauloLocal(monthEndLocal)
-        const holidays = getNationalHolidaysInRange(from, to)
-
-        const kwhByPost = await this.consumptionRepository.findKwhByPost(
-            meterId,
-            from,
-            to,
-            peakWindow,
-            holidays,
-            true,
-        )
-
+    ): BrancaComparisonMonthResult {
         const energyByPost = kwhByPost.map((row) => {
             const rate = rateByPost.get(row.post)
             if (!rate) {
@@ -1743,18 +1787,29 @@ export class ConsumptionService {
         }
         const rateByPost = new Map(energyRates.map((rate) => [rate.post, rate]))
 
+        // 1 consulta para todos os meses da janela; mês sem leitura não tem
+        // linha e entra como consumo zero em todos os postos.
         const monthStarts = this.monthStartsInRange(from, to)
-        const months = await Promise.all(
-            monthStarts.map((monthStart) =>
-                this.calculateBrancaComparisonMonth(
-                    meter.id,
-                    monthStart,
-                    property,
-                    distributor,
-                    peakWindow,
-                    rateByPost,
-                    flagPer100Kwh,
-                ),
+        const window = this.resolveMonthWindow(monthStarts)
+        const kwhByPostRows = await this.consumptionRepository.findKwhByPostGroupedByMonth(
+            meter.id,
+            window.from,
+            window.to,
+            peakWindow,
+            window.holidays,
+            true,
+        )
+        const kwhByPostByMonthMs = this.groupRowsByMs(kwhByPostRows, (row) =>
+            row.monthBucket.getTime(),
+        )
+        const months = monthStarts.map((monthStart) =>
+            this.calculateBrancaComparisonMonth(
+                monthStart,
+                kwhByPostByMonthMs.get(monthStart.getTime()) ?? [],
+                property,
+                distributor,
+                rateByPost,
+                flagPer100Kwh,
             ),
         )
 
