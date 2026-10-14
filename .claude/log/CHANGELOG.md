@@ -4834,3 +4834,12 @@
 - **Arquivos principais:** `.claude/docs/roadmap.md`.
 - **Decisões/ADRs:** nenhuma ADR nova e nenhum item do `07` tocado. Decisões do usuário nesta sessão: redistribuir os pacotes por arquivo e não criar trava de CI para o CHANGELOG.
 - **Notas:** o #518 muda o que a tela mostra em três casos de borda (janela no frontend × ancorar a janela na última leitura no backend; pergunta na chegada do item). Nenhuma issue foi criada nem alterada, porque todas já existem; a milestone segue com 39 abertas.
+
+## [2026-10-13] chore: endurecimento dos contêineres, do proxy e do backup
+
+- **Branch:** chore/endurecimento-conteineres-e-proxy
+- **Tipo:** chore
+- **O quê:** defesa em profundidade na entrega de produção. `docker-compose.yml`: `no-new-privileges` no backend, no simulador e no Caddy; `cap_drop: ALL` no simulador e no Caddy (este só com `NET_BIND_SERVICE`). O backend fica sem `cap_drop` porque o deploy roda a migração do Prisma como `root` na mesma imagem. `deploy/Caddyfile`: caminho com segmento oculto (`/.env`, `/.git/config`) responde 404 em vez de cair no fallback da SPA com 200, exceto `/.well-known/`; `Referrer-Policy` e `Permissions-Policy` só quando a resposta ainda não traz o cabeçalho (a API mantém o `no-referrer` do helmet). `deploy/backup-postgres.sh`: `umask 077` (backups 600, pasta 700). `DEPLOY.md`: o download do backup passa a copiar com `sudo` para `/tmp` antes do `scp`. `SEGURANCA-VPS.md`: ajustes extras do SSH com corda de segurança (reversão agendada), regra `recidive` do fail2ban com a armadilha do `backend`, `sysctl` de rede com a armadilha do `ufw` que desfaz o `log_martians` no boot, kernel retido pelo `apt upgrade`, capabilities dos contêineres, cabeçalhos novos e o porquê do 200 em `/.env`; três itens novos no bloco de auditoria e no resumo executivo.
+- **Arquivos principais:** `docker-compose.yml`, `deploy/Caddyfile`, `deploy/backup-postgres.sh`, `.claude/docs/DEPLOY.md`, `.claude/docs/SEGURANCA-VPS.md`.
+- **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado.
+- **Notas:** Caddyfile validado (`caddy validate`) e testado num contêiner local com as restrições novas (cap_drop ALL + NET_BIND_SERVICE + no-new-privileges): SPA e assets 200, caminhos ocultos 404, `/.well-known/` liberado, cabeçalhos presentes. Um Node como `node` com `cap_drop: ALL` escuta nas portas do simulador; `docker compose config` válido. Chega à produção na próxima promoção `staging` → `main`. Nenhum dado de infraestrutura no diff.

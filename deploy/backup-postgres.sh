@@ -15,6 +15,10 @@
 
 set -euo pipefail
 
+# Backup e pasta de backups só legíveis pelo usuário de serviço (600 e 700),
+# mesmo cifrados: um dump não é dado para outros usuários da máquina listarem.
+umask 077
+
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_DIR"
 

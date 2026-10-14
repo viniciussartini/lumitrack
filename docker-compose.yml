@@ -52,6 +52,12 @@ services:
       context: ./backend
     restart: unless-stopped
     stop_grace_period: 30s # folga para o graceful shutdown (flush do MinuteBuffer) em server.ts
+    # Nenhum processo do container ganha privilégio depois de iniciado (bloqueia
+    # binário setuid). Sem `cap_drop`: o deploy roda a migração do Prisma com
+    # `--user root` nesta mesma imagem (deploy/update-production.sh), e o
+    # processo normal já roda como `node`, sem capability efetiva.
+    security_opt:
+      - no-new-privileges:true
     env_file:
       - backend/.env
     depends_on:
@@ -73,6 +79,12 @@ services:
     restart: unless-stopped
     env_file:
       - iot-simulator/server/.env
+    # Roda sempre como `node` e escuta só em portas acima de 1024 (1883 e
+    # 4100): não precisa de nenhuma capability nem de ganhar privilégio.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     # Rede própria (a mesma `lumitrack_default` dos demais serviços, por
     # padrão do compose) — não mais `network_mode: "service:backend"` (ver
     # ADR-0017, que revisa a decisão de co-localização de rede da ADR-0008).
@@ -89,6 +101,14 @@ services:
   caddy:
     image: caddy:2
     restart: unless-stopped
+    # Só a capability de abrir as portas 80 e 443; os volumes que ele grava
+    # (/data, /config) pertencem ao próprio usuário do container.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
     ports:
       - "80:80"
       - "443:443"

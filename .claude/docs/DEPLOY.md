@@ -721,8 +721,13 @@ sudo systemctl enable --now lumitrack-backup.timer
 **Restauração testada (obrigatória ao menos uma vez — um backup nunca restaurado não é um backup — registrar em `deploy/BACKUP-RESTORE-LOG.md` a cada execução, nunca apagar entradas antigas). Roda inteira na SUA máquina, nunca na VM — a chave privada não pode chegar perto do host que ela protege:**
 
 ```bash
-# 1. Trazer o dump cifrado da VM para a sua máquina (só o .age — nada de chave)
-scp usuario@<ip-da-vm>:/opt/lumitrack/backups/lumitrack-<timestamp>.sql.gz.age .
+# 1. Trazer o dump cifrado da VM para a sua máquina (só o .age — nada de chave).
+#    A pasta de backups é 700 e os arquivos 600, do usuário de serviço: o
+#    usuário administrativo copia com sudo para uma área temporária própria,
+#    baixa e apaga a cópia.
+ssh -t <usuario>@<ip-da-vm> 'sudo install -m 600 -o "$USER" /opt/lumitrack/backups/lumitrack-<timestamp>.sql.gz.age /tmp/'
+scp <usuario>@<ip-da-vm>:/tmp/lumitrack-<timestamp>.sql.gz.age .
+ssh <usuario>@<ip-da-vm> 'rm /tmp/lumitrack-<timestamp>.sql.gz.age'
 
 # 2. Banco descartável, isolado do de produção — na sua máquina
 docker run --rm -d --name lumitrack-restore-test \
