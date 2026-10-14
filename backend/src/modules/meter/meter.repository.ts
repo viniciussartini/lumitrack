@@ -6,7 +6,11 @@ import {
     decryptMeterCredential,
 } from "@/shared/crypto/meterCredentialEncryption.js"
 import type { MeterConnectionConfig } from "@/modules/iot/iot-worker/IoTConnectionManager.js"
-import type { PropertyWithoutAddress } from "@/modules/property/property.repository.js"
+import {
+    PROPERTY_WITHOUT_ADDRESS,
+    toPropertyWithoutAddress,
+    type PropertyWithoutAddress,
+} from "@/modules/property/property.repository.js"
 import type { AreaResponse } from "@/modules/area/area.repository.js"
 import type { DeviceResponse } from "@/modules/device/device.repository.js"
 import { logger } from "@/shared/logger/logger.js"
@@ -58,10 +62,6 @@ export type MeterWithTargetRow = {
 // A propriedade vem sem os campos de endereço: quem resolve o alvo de um
 // medidor precisa de posse, tarifa e demanda, e ler (e decifrar) endereço a
 // cada linha é custo e exposição de dado pessoal à toa.
-const PROPERTY_WITHOUT_ADDRESS = {
-    omit: { address: true, city: true, state: true, zipCode: true },
-} as const
-
 const METER_TARGET_INCLUDE = {
     property: PROPERTY_WITHOUT_ADDRESS,
     area: { include: { property: PROPERTY_WITHOUT_ADDRESS } },
@@ -83,14 +83,6 @@ function stripAreaProperty(area: NonNullable<RawMeterWithTarget["area"]>): AreaR
 function stripDeviceArea(device: NonNullable<RawMeterWithTarget["device"]>): DeviceResponse {
     const { area: _area, ...rest } = device
     return rest
-}
-
-// `Decimal` do Prisma vira number na borda, como em `toPropertyResponse`, mas
-// sem decifrar nada: o endereço nem foi lido.
-function toPropertyWithoutAddress(
-    raw: NonNullable<RawMeterWithTarget["property"]>,
-): PropertyWithoutAddress {
-    return { ...raw, publicLightingFeeBrl: raw.publicLightingFeeBrl?.toNumber() ?? null }
 }
 
 function toMeterWithTargetRow(raw: RawMeterWithTarget): MeterWithTargetRow {

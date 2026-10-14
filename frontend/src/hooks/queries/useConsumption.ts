@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { consumptionService } from "@/services/consumption.service"
 import { queryKeys } from "@/lib/queryClient"
-import { DEFAULT_PAGE_SIZE } from "@/types/pagination.types"
 import type { BucketOrder, BucketSize } from "@/types/consumption.types"
+import { resolveLatestWindow, type LatestRange } from "@/lib/consumptionWindow"
 import type { TargetType } from "@/types/meter.types"
 
 /** Janela consultada — vem de `resolveConsumptionWindow` (lib/consumptionWindow). */
@@ -14,11 +14,12 @@ export interface ConsumptionRange {
 }
 
 /**
- * Janela fixa (entra na chave: outra janela é outra consulta) ou calculada na
- * hora do pedido, por `latestRange` (fica fora da chave: a virada de hora ou de
- * dia refaz o pedido da mesma consulta, sem esvaziar a tela).
+ * Janela fixa (as datas entram na chave: outra janela é outra consulta) ou
+ * "últimos N baldes" por `latestRange` (a chave leva o tamanho da janela, não
+ * as datas, que só são calculadas no pedido: a virada de hora ou de dia refaz
+ * o pedido da mesma consulta, sem esvaziar a tela).
  */
-export type ConsumptionRangeInput = ConsumptionRange | (() => ConsumptionRange)
+export type ConsumptionRangeInput = ConsumptionRange | LatestRange
 
 /**
  * Consumo agregado de um alvo.
@@ -28,7 +29,7 @@ export type ConsumptionRangeInput = ConsumptionRange | (() => ConsumptionRange)
  * tradução entra aqui como `range`. Toda chamada manda janela: sem ela o
  * backend agregaria o histórico inteiro do medidor para devolver só os últimos
  * buckets. "Os últimos N buckets" (KPIs e comparação do painel) são
- * `latestRange(bucketSize, N)` com `pageSize` N e a ordem `desc` do backend —
+ * `latestRange(bucketSize, N)` com a ordem `desc` do backend —
  * chaveados em `queryKeys.consumption.latest`, não `list`, mesmo que
  * targetType/granularity/pageSize coincidam com uma consulta de janela.
  *
@@ -40,14 +41,20 @@ export const useConsumption = (
     targetType: TargetType,
     targetId: string | undefined,
     bucketSize: BucketSize,
-    page: number = 1,
-    pageSize: number = DEFAULT_PAGE_SIZE,
+    page: number,
+    pageSize: number,
     range: ConsumptionRangeInput,
 ) =>
     useQuery({
         queryKey:
-            typeof range === "function"
-                ? queryKeys.consumption.latest(targetType, targetId ?? "", bucketSize, pageSize)
+            "kind" in range
+                ? queryKeys.consumption.latest(
+                      targetType,
+                      targetId ?? "",
+                      bucketSize,
+                      pageSize,
+                      `${range.bucketSize}:${range.count}`,
+                  )
                 : queryKeys.consumption.list(
                       targetType,
                       targetId ?? "",
@@ -63,7 +70,7 @@ export const useConsumption = (
                 granularity: bucketSize,
                 page,
                 pageSize,
-                ...(typeof range === "function" ? range() : range),
+                ...("kind" in range ? resolveLatestWindow(range.bucketSize, range.count) : range),
             }),
         enabled: Boolean(targetId),
     })
@@ -74,16 +81,16 @@ export interface SummaryRange {
     to: Date
 }
 
-/** Mesma escolha de `ConsumptionRangeInput`: janela fixa na chave, ou calculada no pedido. */
-export type SummaryRangeInput = SummaryRange | (() => SummaryRange)
+/** Mesma escolha de `ConsumptionRangeInput`: janela fixa na chave, ou "últimos N baldes". */
+export type SummaryRangeInput = SummaryRange | LatestRange
 
 /**
  * Opções da consulta do resumo, compartilhadas por quem consulta um lote
  * (`useConsumptionSummary`) e por quem consulta vários (`useQueries`).
  * `enabled: ids.length > 0` evita disparar a query com lote vazio (a lista de
  * propriedades/áreas/dispositivos ainda pode não ter carregado). A janela
- * entra na chave, para trocar de dia ser outra consulta; a calculada no pedido
- * (`latestRange`) fica fora dela.
+ * fixa entra na chave, para trocar de dia ser outra consulta; a de
+ * `latestRange` entra só com o tamanho (balde e N), e as datas saem no pedido.
  */
 export const summaryQueryOptions = (
     targetType: TargetType,
@@ -95,8 +102,8 @@ export const summaryQueryOptions = (
         targetType,
         ids,
         granularity,
-        typeof range === "function"
-            ? undefined
+        "kind" in range
+            ? `latest:${range.bucketSize}:${range.count}`
             : `${range.from.toISOString()}|${range.to.toISOString()}`,
     ),
     queryFn: () =>
@@ -104,7 +111,7 @@ export const summaryQueryOptions = (
             targetType,
             ids,
             granularity,
-            ...(typeof range === "function" ? range() : range),
+            ...("kind" in range ? resolveLatestWindow(range.bucketSize, range.count) : range),
         }),
     enabled: ids.length > 0,
 })

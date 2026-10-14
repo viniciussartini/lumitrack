@@ -35,6 +35,24 @@ export type PropertyWithoutAddress = Omit<
     "address" | "city" | "state" | "zipCode"
 >
 
+/** Argumento `omit` do Prisma que deixa os quatro campos de endereço fora da leitura. */
+export const PROPERTY_WITHOUT_ADDRESS = {
+    omit: { address: true, city: true, state: true, zipCode: true },
+} as const
+
+/**
+ * Converte o imóvel lido com {@link PROPERTY_WITHOUT_ADDRESS}: só o `Decimal`
+ * da CIP vira number, sem decifrar nada porque o endereço nem foi lido.
+ *
+ * @param raw - Imóvel como vem do Prisma, sem os campos de endereço.
+ * @returns O imóvel no formato de {@link PropertyWithoutAddress}.
+ */
+export function toPropertyWithoutAddress(
+    raw: Omit<PrismaProperty, "address" | "city" | "state" | "zipCode">,
+): PropertyWithoutAddress {
+    return { ...raw, publicLightingFeeBrl: raw.publicLightingFeeBrl?.toNumber() ?? null }
+}
+
 // Campos de grupo tarifário já resolvidos e validados pelo PropertyService
 // (regra cruzada de grupo tarifário, ADR-0019) — `null` explícito, nunca `undefined`,
 // porque para GROUP_A/GROUP_B o valor de cada campo é sempre determinado
@@ -97,14 +115,15 @@ export class PropertyRepository {
      *
      * @param ids - Ids dos imóveis.
      * @param userId - Id do usuário dono.
-     * @returns Os imóveis do usuário entre os ids pedidos, decifrados.
+     * @returns Os imóveis do usuário entre os ids pedidos, sem os campos de endereço.
      */
-    async findManyOwnedByIds(ids: string[], userId: string): Promise<PropertyResponse[]> {
+    async findManyOwnedByIds(ids: string[], userId: string): Promise<PropertyWithoutAddress[]> {
         if (ids.length === 0) return []
         const properties = await this.prisma.property.findMany({
             where: { id: { in: ids }, userId },
+            ...PROPERTY_WITHOUT_ADDRESS,
         })
-        return properties.map(toPropertyResponse)
+        return properties.map(toPropertyWithoutAddress)
     }
 
     /**

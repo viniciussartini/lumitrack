@@ -33,17 +33,22 @@ describe("mapWithConcurrency", () => {
         expect(await mapWithConcurrency([], 4, async () => 1)).toEqual([])
     })
 
-    it("a primeira falha rejeita e os itens que não começaram não rodam", async () => {
-        const started: number[] = []
+    it("a primeira falha rejeita e os itens que não começaram não rodam, sequencial ou não", async () => {
+        for (const limit of [1, 3]) {
+            const started: number[] = []
 
-        await expect(
-            mapWithConcurrency([0, 1, 2, 3, 4, 5], 1, async (n) => {
-                started.push(n)
-                if (n === 2) throw new Error("falha")
-                return n
-            }),
-        ).rejects.toThrow("falha")
+            await expect(
+                mapWithConcurrency([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], limit, async (n) => {
+                    started.push(n)
+                    await new Promise((resolve) => setTimeout(resolve, 2))
+                    if (n === 1) throw new Error("falha")
+                    return n
+                }),
+            ).rejects.toThrow("falha")
+            // Dá tempo de qualquer worker que ainda estivesse vivo pegar mais itens.
+            await new Promise((resolve) => setTimeout(resolve, 30))
 
-        expect(started).toEqual([0, 1, 2])
+            expect(Math.max(...started)).toBeLessThan(limit + 2)
+        }
     })
 })

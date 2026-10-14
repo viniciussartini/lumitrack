@@ -14,7 +14,7 @@ import type {
 import type { MeterRepository } from "@/modules/meter/meter.repository.js"
 import type {
     PropertyRepository,
-    PropertyResponse,
+    PropertyWithoutAddress,
 } from "@/modules/property/property.repository.js"
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
@@ -82,9 +82,12 @@ const MWH_TO_KWH = 1000
 const VERDICT_EQUIVALENCE_TOLERANCE_BRL = 0.005
 
 // Itens do resumo calculados ao mesmo tempo. O custo do Grupo A dispara umas
-// seis consultas por item; com o pool de conexões pequeno, três itens por vez
-// mantêm a fila curta sem voltar ao cálculo um por um.
-const SUMMARY_COST_CONCURRENCY = 3
+// seis consultas por item, em paralelo, e o pool tem 10 conexões por padrão
+// (`DB_POOL_MAX`) com espera de 5 s para obter uma: o Grupo A vai um item por
+// vez, para o pico de uma requisição ficar em seis conexões. Os demais grupos
+// (Convencional sem consulta, Branca com duas) aguentam três.
+const SUMMARY_COST_CONCURRENCY_GROUP_A = 1
+const SUMMARY_COST_CONCURRENCY_OTHER = 3
 
 /**
  * Sinal da diferença entre os dois cenários de uma comparação de
@@ -381,9 +384,10 @@ export class ConsumptionService {
             areaRepository: this.areaRepository,
             deviceRepository: this.deviceRepository,
         })
-        const owned = ids
-            .filter((id) => propertyByTargetId.has(id))
-            .map((id) => ({ id, property: propertyByTargetId.get(id)! }))
+        const owned = ids.flatMap((id) => {
+            const property = propertyByTargetId.get(id)
+            return property ? [{ id, property }] : []
+        })
         if (owned.length === 0) {
             return { items: [] }
         }
@@ -430,9 +434,14 @@ export class ConsumptionService {
 
         // Itens do lote em paralelo, mas em número limitado: o custo do Grupo A
         // abre várias consultas por item, e todos de uma vez esgotariam o pool.
+        const costConcurrency = withBucket.some(
+            ({ property }) => property.tariffGroup === "GROUP_A",
+        )
+            ? SUMMARY_COST_CONCURRENCY_GROUP_A
+            : SUMMARY_COST_CONCURRENCY_OTHER
         const items: ConsumptionSummaryItem[] = await mapWithConcurrency(
             withBucket,
-            SUMMARY_COST_CONCURRENCY,
+            costConcurrency,
             async ({ id, property, meterId, bucket }) => {
                 const distributor = distributorById.get(property.distributorId)
                 const costBrl = distributor
@@ -476,7 +485,7 @@ export class ConsumptionService {
         bucket: { bucketStart: Date; kwhConsumed: number },
         granularity: Granularity,
         targetType: TargetType,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<number | null> {
@@ -544,7 +553,7 @@ export class ConsumptionService {
         buckets: ConsumptionBucket[],
         granularity: Granularity,
         targetType: TargetType,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<Map<number, number>> {
@@ -617,7 +626,7 @@ export class ConsumptionService {
         buckets: ConsumptionBucket[],
         granularity: Granularity,
         targetType: TargetType,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<Map<number, MonthCostResult>> {
@@ -661,7 +670,7 @@ export class ConsumptionService {
         bucket: ConsumptionBucket,
         granularity: Granularity,
         targetType: TargetType,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
         yearlyPropertyCostByBucketMs: Map<number, number>,
@@ -701,7 +710,7 @@ export class ConsumptionService {
         meterId: string,
         monthStartLocal: Date,
         kwhConsumed: number,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<MonthCostResult> {
@@ -762,7 +771,7 @@ export class ConsumptionService {
     // para `MonthCostResult`, mesmo padrão de `buildGroupAMonthResult`.
     private buildGroupBWhiteMonthResult(
         energyByPost: GroupBEnergyPostInput[],
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): MonthCostResult {
@@ -819,7 +828,7 @@ export class ConsumptionService {
     private async calculateGroupBWhiteMonthCost(
         meterId: string,
         monthStartLocal: Date,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<MonthCostResult> {
@@ -852,7 +861,7 @@ export class ConsumptionService {
     private async calculateGroupBWhiteMonthlyCosts(
         meterId: string,
         monthStarts: Date[],
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<Map<number, MonthCostResult>> {
@@ -909,7 +918,7 @@ export class ConsumptionService {
     private async calculateGroupAMonthCost(
         meterId: string,
         monthStartLocal: Date,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<MonthCostResult> {
@@ -928,7 +937,7 @@ export class ConsumptionService {
     }
 
     private assertGroupACalculable(
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
     ): {
         peakWindow: PeakWindowConfig
@@ -1212,7 +1221,7 @@ export class ConsumptionService {
     private async calculateGroupAMonthlyCosts(
         meterId: string,
         monthStarts: Date[],
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
         environment: ContractingEnvironment,
@@ -1394,7 +1403,7 @@ export class ConsumptionService {
         bucket: { bucketStart: Date; kwhConsumed: number },
         granularity: Granularity,
         targetType: TargetType,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<MonthCostResult | null> {
@@ -1439,7 +1448,7 @@ export class ConsumptionService {
     private async calculateYearlyPropertyCost(
         meterId: string,
         yearBucketStart: Date,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<number> {
@@ -1539,7 +1548,7 @@ export class ConsumptionService {
     private calculateBrancaComparisonMonth(
         monthStart: Date,
         kwhByPost: { post: TariffPost; kwhConsumed: number }[],
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         rateByPost: Map<TariffPost, TariffEnergyRateResponse>,
         flagPer100Kwh: number,

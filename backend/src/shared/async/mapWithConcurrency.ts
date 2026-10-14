@@ -3,7 +3,8 @@
  * a ordem do resultado. Serve a lotes em que cada item abre várias conexões
  * ao banco: disparar todos de uma vez estoura o pool e os itens do fim da fila
  * falham por espera de conexão, e fazer um de cada vez deixa o lote lento.
- * A primeira falha rejeita a chamada; itens que ainda não começaram não rodam.
+ * A primeira falha rejeita a chamada e nenhum worker pega item novo depois dela;
+ * as chamadas que já estavam em andamento terminam sozinhas.
  *
  * @param items - Itens a processar.
  * @param limit - Máximo de chamadas simultâneas (mínimo 1).
@@ -17,11 +18,17 @@ export async function mapWithConcurrency<T, R>(
 ): Promise<R[]> {
     const results = new Array<R>(items.length)
     let next = 0
+    let failed = false
 
     const worker = async (): Promise<void> => {
-        while (next < items.length) {
+        while (!failed && next < items.length) {
             const index = next++
-            results[index] = await fn(items[index]!, index)
+            try {
+                results[index] = await fn(items[index]!, index)
+            } catch (err) {
+                failed = true
+                throw err
+            }
         }
     }
 

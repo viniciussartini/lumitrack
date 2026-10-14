@@ -137,8 +137,10 @@ export type LatestBucketSize = "hour" | "day" | "month"
  * Janela mínima de um pedido "últimos N baldes": do início do balde de `now`
  * recuado N−1 baldes até o fim do balde de `now` (exclusivo). Sem ela o
  * backend agrega o histórico inteiro do medidor antes de cortar nos N mais
- * recentes. Meses e dias seguem o calendário local, como
- * `resolveConsumptionWindow`.
+ * recentes. Meses e dias seguem o calendário local do navegador, como
+ * `resolveConsumptionWindow`; o backend agrupa os baldes no horário de São
+ * Paulo, então para quem está em outro fuso as bordas ficam deslocadas pela
+ * diferença de horário (o produto é brasileiro, e local e São Paulo coincidem na prática).
  */
 export const resolveLatestWindow = (
     bucketSize: LatestBucketSize,
@@ -168,12 +170,26 @@ export const resolveLatestWindow = (
 }
 
 /**
- * Janela dos pedidos "últimos N baldes", calculada quando o pedido sai, e não
- * quando a tela monta: uma sessão aberta pela virada da hora, do dia ou do mês
- * consulta o período novo sem trocar a chave da consulta. Passe a função, não
- * o resultado, a `useConsumption`/`useConsumptionSummary`; `count` deve ser o
- * `pageSize` do pedido.
+ * Pedido "últimos N baldes": descreve a janela (tamanho do balde e N), e as
+ * datas só são calculadas quando o pedido sai. Assim uma sessão aberta pela
+ * virada da hora, do dia ou do mês consulta o período novo sem trocar a chave
+ * da consulta, e a chave carrega o tamanho da janela, não as datas.
  */
-export const latestRange =
-    (bucketSize: LatestBucketSize, count: number) => (): { from: Date; to: Date } =>
-        resolveLatestWindow(bucketSize, count)
+export interface LatestRange {
+    kind: "latest"
+    bucketSize: LatestBucketSize
+    count: number
+}
+
+/**
+ * Cria o pedido "últimos N baldes" para `useConsumption` e
+ * `useConsumptionSummary`.
+ *
+ * @param bucketSize - Tamanho do balde da janela.
+ * @param count - Quantos baldes, terminando no corrente.
+ */
+export const latestRange = (bucketSize: LatestBucketSize, count: number): LatestRange => ({
+    kind: "latest",
+    bucketSize,
+    count,
+})

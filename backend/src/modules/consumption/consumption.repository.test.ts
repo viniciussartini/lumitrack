@@ -525,7 +525,7 @@ describe("ConsumptionRepository.findMonthlyKwhForYears", () => {
     it("soma por mês só dos anos pedidos, com as bordas do ano em hora local", async () => {
         const meterId = await setupMeter()
 
-        await createReading(meterId, new Date(Date.UTC(2025, 11, 31, 20, 59)), 100) // 31/12 23:59 local: fora
+        await createReading(meterId, new Date(Date.UTC(2026, 0, 1, 2, 59)), 100) // 31/12/2025 23:59 local: fora
         await createReading(meterId, new Date(Date.UTC(2026, 0, 1, 3, 0)), 1) // 01/01 00:00 local: entra
         await createReading(meterId, new Date(Date.UTC(2026, 0, 20, 12)), 2)
         await createReading(meterId, new Date(Date.UTC(2026, 5, 10, 12)), 4)

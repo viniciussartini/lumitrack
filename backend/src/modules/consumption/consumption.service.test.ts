@@ -618,7 +618,7 @@ describe("ConsumptionService.summary", () => {
         expect(result.items).toHaveLength(50)
         const kwhById = new Map(result.items.map((item) => [item.id, item.kwhConsumed]))
         areaIds.forEach((id, i) => expect(kwhById.get(id)).toBeCloseTo(1 + i))
-        // Eram 54 com a posse e o medidor resolvidos id a id.
+        // Posse, medidores e distribuidora em lote: o teto não cresce com o número de ids.
         expect(queryCount).toBeLessThanOrEqual(5)
     })
 
@@ -628,18 +628,24 @@ describe("ConsumptionService.summary", () => {
         const { user: userB, property: propertyB } =
             await setupPropertyMeter("outro-area@example.com")
         const areaB = await areaService.create(propertyB.id, userB.id, { name: "Sala B" })
+        const deviceA = await prismaTest.device.create({
+            data: { areaId: areaA.id, name: "Ventilador" },
+        })
         const deviceB = await prismaTest.device.create({
             data: { areaId: areaB.id, name: "Ar-condicionado" },
         })
-        for (const [areaId, topic] of [
-            [areaA.id, "a/sala"],
-            [areaB.id, "b/sala"],
+        // Todo alvo tem medidor e leitura: se o filtro de posse sair da consulta,
+        // o alvo de B chega ao fim do resumo e aparece no resultado.
+        for (const [target, topic] of [
+            [{ targetType: "AREA", areaId: areaA.id }, "a/sala"],
+            [{ targetType: "AREA", areaId: areaB.id }, "b/sala"],
+            [{ targetType: "DEVICE", deviceId: deviceA.id }, "a/ventilador"],
+            [{ targetType: "DEVICE", deviceId: deviceB.id }, "b/ar"],
         ] as const) {
             const meter = await prismaTest.meter.create({
                 data: {
                     name: `Medidor ${topic}`,
-                    targetType: "AREA",
-                    areaId,
+                    ...target,
                     protocol: "MQTT",
                     host: "localhost",
                     port: 1883,
@@ -656,12 +662,12 @@ describe("ConsumptionService.summary", () => {
         })
         const devices = await consumptionService.summary(userA.id, {
             targetType: "DEVICE",
-            ids: deviceB.id,
+            ids: `${deviceA.id},${deviceB.id}`,
             granularity: "month",
         })
 
         expect(areas.items.map((item) => item.id)).toEqual([areaA.id])
-        expect(devices.items).toEqual([])
+        expect(devices.items.map((item) => item.id)).toEqual([deviceA.id])
     })
 
     it("erro de banco na posse propaga — não some do resultado como 'sem medidor'", async () => {
@@ -985,8 +991,7 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
 
         expect(batched.items).toHaveLength(MONTHS_2026.length)
         expect(batched.items).toEqual(oneByOne)
-        // Teto medido para 6 meses: as queries do lote não dependem do número de meses
-        // (eram 35 quando cada mês consultava sozinho).
+        // Teto medido para 6 meses: as queries do lote não dependem do número de meses.
         expect(queryCount).toBeLessThanOrEqual(10)
     })
 
@@ -2366,8 +2371,7 @@ describe("ConsumptionService.list — Tarifa Branca (Grupo B)", () => {
 
         expect(batched.items).toHaveLength(MONTHS_2026.length)
         expect(batched.items).toEqual(oneByOne)
-        // Teto medido para 6 meses: as queries do lote não dependem do número de meses
-        // (eram 17 quando cada mês consultava sozinho).
+        // Teto medido para 6 meses: as queries do lote não dependem do número de meses.
         expect(queryCount).toBeLessThanOrEqual(7)
     })
 
@@ -2663,8 +2667,7 @@ describe("ConsumptionService.compareBrancaToConvencional — comparação Conven
 
         expect(whole.months).toHaveLength(MONTHS_2026.length)
         expect(whole.months).toEqual(oneByOne)
-        // Teto medido para 6 meses: as queries do lote não dependem do número de meses
-        // (eram 11 quando cada mês consultava sozinho).
+        // Teto medido para 6 meses: as queries do lote não dependem do número de meses.
         expect(queryCount).toBeLessThanOrEqual(6)
     })
 

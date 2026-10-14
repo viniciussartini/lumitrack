@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { renderHook, waitFor } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { useConsumption } from "@/hooks/queries/useConsumption"
+import { latestRange } from "@/lib/consumptionWindow"
 import { consumptionService } from "@/services/consumption.service"
 import type { ConsumptionBucket } from "@/types/consumption.types"
 
@@ -145,7 +146,7 @@ describe("useConsumption", () => {
         )
 
         const { result: latestResult } = renderHook(
-            () => useConsumption("PROPERTY", "prop-1", "hour", 1, 3, () => range),
+            () => useConsumption("PROPERTY", "prop-1", "hour", 1, 3, latestRange("hour", 3)),
             { wrapper },
         )
         const { result: windowResult } = renderHook(
@@ -159,7 +160,7 @@ describe("useConsumption", () => {
         expect(consumptionService.list).toHaveBeenCalledTimes(2)
     })
 
-    it("janela calculada no pedido: vai na requisição e não entra na chave", async () => {
+    it("últimos N baldes: a janela sai calculada no pedido e a chave leva só o tamanho dela", async () => {
         vi.mocked(consumptionService.list).mockResolvedValue({
             items: [],
             total: 0,
@@ -167,24 +168,65 @@ describe("useConsumption", () => {
             pageSize: 3,
             granularity: "hour",
         })
-        const nextHour = { from: to, to: new Date(2026, 7, 21, 21, 0) }
+        vi.useFakeTimers({ toFake: ["Date"] })
+        vi.setSystemTime(new Date(2026, 7, 21, 19, 30))
 
-        const { result, rerender } = renderHook(
-            ({ window }: { window: { from: Date; to: Date } }) =>
-                useConsumption("PROPERTY", "prop-1", "hour", 1, 3, () => window),
-            { wrapper: createWrapper(), initialProps: { window: range } },
+        try {
+            const { result } = renderHook(
+                () => useConsumption("PROPERTY", "prop-1", "hour", 1, 3, latestRange("hour", 3)),
+                { wrapper: createWrapper() },
+            )
+            await waitFor(() => expect(result.current.isSuccess).toBe(true))
+            expect(consumptionService.list).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    from: new Date(2026, 7, 21, 17),
+                    to: new Date(2026, 7, 21, 20),
+                }),
+            )
+
+            // Passou a hora: a mesma consulta (mesma chave, sem esqueleto) pede a janela nova.
+            vi.setSystemTime(new Date(2026, 7, 21, 20, 5))
+            await result.current.refetch()
+
+            expect(result.current.isSuccess).toBe(true)
+            expect(consumptionService.list).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    from: new Date(2026, 7, 21, 18),
+                    to: new Date(2026, 7, 21, 21),
+                }),
+            )
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
+    it("janelas 'últimos N' de tamanhos diferentes não compartilham cache", async () => {
+        vi.mocked(consumptionService.list).mockResolvedValue({
+            items: [],
+            total: 0,
+            page: 1,
+            pageSize: 1,
+            granularity: "day",
+        })
+        const queryClient = new QueryClient({
+            defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+        })
+        const wrapper = ({ children }: { children: ReactNode }) => (
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
         )
-        await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-        // A virada da hora troca a janela, mas a consulta é a mesma: sem nova
-        // chave, a tela não volta ao esqueleto.
-        rerender({ window: nextHour })
-        expect(result.current.isSuccess).toBe(true)
-        expect(consumptionService.list).toHaveBeenCalledTimes(1)
-        expect(consumptionService.list).toHaveBeenCalledWith(expect.objectContaining(range))
+        const { result: one } = renderHook(
+            () => useConsumption("PROPERTY", "prop-1", "day", 1, 1, latestRange("day", 1)),
+            { wrapper },
+        )
+        const { result: seven } = renderHook(
+            () => useConsumption("PROPERTY", "prop-1", "day", 1, 1, latestRange("day", 7)),
+            { wrapper },
+        )
+        await waitFor(() => expect(one.current.isSuccess).toBe(true))
+        await waitFor(() => expect(seven.current.isSuccess).toBe(true))
 
-        await result.current.refetch()
-        expect(consumptionService.list).toHaveBeenLastCalledWith(expect.objectContaining(nextHour))
+        expect(consumptionService.list).toHaveBeenCalledTimes(2)
     })
 
     it("não dispara a query quando targetId é undefined", () => {
