@@ -54,6 +54,32 @@ export class DeviceRepository {
     }
 
     /**
+     * Versão em lote de {@link findByIdWithProperty} restrita ao dono: uma
+     * query para vários dispositivos, filtrando a posse da propriedade na
+     * própria consulta — dispositivo inexistente e de outro usuário ficam de
+     * fora do mesmo jeito.
+     *
+     * @param ids - Ids dos dispositivos.
+     * @param userId - Id do usuário dono da propriedade.
+     * @returns Cada dispositivo do usuário entre os ids pedidos, com a cadeia até a propriedade.
+     */
+    async findManyOwnedByIdsWithProperty(
+        ids: string[],
+        userId: string,
+    ): Promise<{ device: DeviceResponse; area: AreaResponse; property: PropertyResponse }[]> {
+        if (ids.length === 0) return []
+        const rows = await this.prisma.device.findMany({
+            where: { id: { in: ids }, area: { property: { userId } } },
+            include: { area: { include: { property: true } } },
+            relationLoadStrategy: "join",
+        })
+        return rows.map(({ area: rawArea, ...device }) => {
+            const { property, ...area } = rawArea
+            return { device, area, property: toPropertyResponse(property) }
+        })
+    }
+
+    /**
      * Lista completa (sem paginação) dos dispositivos de uma área.
      *
      * @param areaId - Id da área dona dos dispositivos.

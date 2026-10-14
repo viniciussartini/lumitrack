@@ -46,3 +46,28 @@ export async function resolveRootProperty(
     if (!result) throw new NotFoundError("Dispositivo não encontrado")
     return result.property
 }
+
+// Versão em lote de `resolveRootProperty` já restrita ao dono: uma query por
+// tipo de alvo, com a posse filtrada no banco. Id inexistente ou de outro
+// usuário simplesmente não aparece no mapa (mesma resposta para os dois, sem
+// vazar se o id existe). Erro de banco propaga — "não achei" e "não consegui
+// consultar" nunca se confundem.
+export async function resolveOwnedRootProperties(
+    targetType: TargetType,
+    targetIds: string[],
+    userId: string,
+    { propertyRepository, areaRepository, deviceRepository }: TargetResolutionRepositories,
+): Promise<Map<string, PropertyResponse>> {
+    if (targetType === "PROPERTY") {
+        const properties = await propertyRepository.findManyOwnedByIds(targetIds, userId)
+        return new Map(properties.map((property) => [property.id, property]))
+    }
+
+    if (targetType === "AREA") {
+        const rows = await areaRepository.findManyOwnedByIdsWithProperty(targetIds, userId)
+        return new Map(rows.map((row) => [row.area.id, row.property]))
+    }
+
+    const rows = await deviceRepository.findManyOwnedByIdsWithProperty(targetIds, userId)
+    return new Map(rows.map((row) => [row.device.id, row.property]))
+}

@@ -23,7 +23,7 @@ import type { MeterReadingRepository } from "@/modules/meter/meter-reading.repos
 import type { MeterRepository } from "@/modules/meter/meter.repository.js"
 import type { DistributorRepository } from "@/modules/distributor/distributor.repository.js"
 import type { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
-import type { PropertyResponse } from "@/modules/property/property.repository.js"
+import type { PropertyWithoutAddress } from "@/modules/property/property.repository.js"
 import { computeTrailingWindowAverage } from "@/shared/tariff/demandRollup.js"
 import { classifyPost } from "@/shared/tariff/tariffPost.js"
 import { getNationalHolidays } from "@/shared/time/holidays.js"
@@ -147,7 +147,7 @@ export class DemandRollupScheduler {
     private async processOne(
         meterId: string,
         targetMinute: Date,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
     ): Promise<void> {
         const distributor = await this.distributorRepository.findById(property.distributorId)
         if (!distributor) {

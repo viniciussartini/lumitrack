@@ -52,6 +52,32 @@ export class AreaRepository {
     }
 
     /**
+     * Versão em lote de {@link findByIdWithProperty} restrita ao dono: uma
+     * query para várias áreas, filtrando a posse da propriedade na própria
+     * consulta — área inexistente e área de outro usuário ficam de fora do
+     * mesmo jeito.
+     *
+     * @param ids - Ids das áreas.
+     * @param userId - Id do usuário dono da propriedade.
+     * @returns Cada área do usuário entre os ids pedidos, com a propriedade dona.
+     */
+    async findManyOwnedByIdsWithProperty(
+        ids: string[],
+        userId: string,
+    ): Promise<{ area: AreaResponse; property: PropertyResponse }[]> {
+        if (ids.length === 0) return []
+        const rows = await this.prisma.area.findMany({
+            where: { id: { in: ids }, property: { userId } },
+            include: { property: true },
+            relationLoadStrategy: "join",
+        })
+        return rows.map(({ property, ...area }) => ({
+            area,
+            property: toPropertyResponse(property),
+        }))
+    }
+
+    /**
      * Todas as áreas de uma propriedade, sem paginação.
      *
      * @param propertyId - Id da propriedade dona.

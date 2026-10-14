@@ -25,6 +25,16 @@ export type PropertyResponse = Omit<PrismaProperty, "publicLightingFeeBrl"> & {
     publicLightingFeeBrl: number | null
 }
 
+/**
+ * Imóvel sem os quatro campos de endereço (cifrados em repouso): o que o
+ * chamador que só precisa de posse, tarifa e demanda recebe, sem ler nem
+ * decifrar dado pessoal. Um `PropertyResponse` completo também serve.
+ */
+export type PropertyWithoutAddress = Omit<
+    PropertyResponse,
+    "address" | "city" | "state" | "zipCode"
+>
+
 // Campos de grupo tarifário já resolvidos e validados pelo PropertyService
 // (regra cruzada de grupo tarifário, ADR-0019) — `null` explícito, nunca `undefined`,
 // porque para GROUP_A/GROUP_B o valor de cada campo é sempre determinado
@@ -78,6 +88,23 @@ export class PropertyRepository {
     async findById(id: string): Promise<PropertyResponse | null> {
         const property = await this.prisma.property.findUnique({ where: { id } })
         return property && toPropertyResponse(property)
+    }
+
+    /**
+     * Busca vários imóveis de uma vez, só os que pertencem ao usuário — a
+     * posse é filtrada na própria query, então id inexistente e id de outro
+     * usuário são indistinguíveis (ambos ficam de fora).
+     *
+     * @param ids - Ids dos imóveis.
+     * @param userId - Id do usuário dono.
+     * @returns Os imóveis do usuário entre os ids pedidos, decifrados.
+     */
+    async findManyOwnedByIds(ids: string[], userId: string): Promise<PropertyResponse[]> {
+        if (ids.length === 0) return []
+        const properties = await this.prisma.property.findMany({
+            where: { id: { in: ids }, userId },
+        })
+        return properties.map(toPropertyResponse)
     }
 
     /**

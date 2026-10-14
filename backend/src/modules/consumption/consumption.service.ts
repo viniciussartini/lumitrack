@@ -56,8 +56,9 @@ import { fromSaoPauloLocal } from "@/shared/time/localTime.js"
 import { toSkipTake, type Paginated } from "@/shared/pagination.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
-import { resolveRootProperty } from "@/shared/targetResolution.js"
+import { resolveOwnedRootProperties, resolveRootProperty } from "@/shared/targetResolution.js"
 import { logger } from "@/shared/logger/logger.js"
+import { mapWithConcurrency } from "@/shared/async/mapWithConcurrency.js"
 import type {
     AclSubmarket,
     ContractingEnvironment,
@@ -79,6 +80,11 @@ const MWH_TO_KWH = 1000
 // consegue ver na tela. Usada pelos dois comparativos de propriedade
 // (ACR × ACL e Convencional × Branca).
 const VERDICT_EQUIVALENCE_TOLERANCE_BRL = 0.005
+
+// Itens do resumo calculados ao mesmo tempo. O custo do Grupo A dispara umas
+// seis consultas por item; com o pool de conexões pequeno, três itens por vez
+// mantêm a fila curta sem voltar ao cálculo um por um.
+const SUMMARY_COST_CONCURRENCY = 3
 
 /**
  * Sinal da diferença entre os dois cenários de uma comparação de
@@ -365,42 +371,29 @@ export class ConsumptionService {
             query,
         )
 
-        // Autorização verificada por id da lista, não só do primeiro — id
-        // inexistente ou de outro usuário é excluído silenciosamente do
-        // resultado, não derruba o lote inteiro. Nega por padrão sem vazar
-        // se o id existe ou não (mesmo tratamento pra "não é seu" e "não
-        // existe").
-        const resolved = await Promise.all(
-            ids.map(async (id) => {
-                try {
-                    const property = await resolveRootProperty(targetType, id, {
-                        propertyRepository: this.propertyRepository,
-                        areaRepository: this.areaRepository,
-                        deviceRepository: this.deviceRepository,
-                    })
-                    if (property.userId !== userId) return null
-                    return { id, property }
-                } catch {
-                    return null
-                }
-            }),
-        )
-        const owned = resolved.filter(
-            (r): r is { id: string; property: PropertyResponse } => r !== null,
-        )
+        // Posse verificada por id da lista, não só do primeiro, e filtrada no
+        // banco: id inexistente ou de outro usuário é excluído silenciosamente
+        // do resultado, não derruba o lote inteiro, e ninguém descobre se o id
+        // existe (mesmo tratamento pra "não é seu" e "não existe"). Erro de
+        // banco não entra nessa regra: propaga, em vez de virar "sem medidor".
+        const propertyByTargetId = await resolveOwnedRootProperties(targetType, ids, userId, {
+            propertyRepository: this.propertyRepository,
+            areaRepository: this.areaRepository,
+            deviceRepository: this.deviceRepository,
+        })
+        const owned = ids
+            .filter((id) => propertyByTargetId.has(id))
+            .map((id) => ({ id, property: propertyByTargetId.get(id)! }))
         if (owned.length === 0) {
             return { items: [] }
         }
 
-        const meterByTargetId = new Map<string, { id: string }>()
-        await Promise.all(
-            owned.map(async ({ id }) => {
-                const meter = await this.meterRepository.findByTarget(targetType, id)
-                if (meter) meterByTargetId.set(id, meter)
-            }),
+        const meterIdByTargetId = await this.meterRepository.findMeterIdsByTargets(
+            targetType,
+            owned.map(({ id }) => id),
         )
 
-        const meterIds = [...new Set([...meterByTargetId.values()].map((m) => m.id))]
+        const meterIds = [...new Set(meterIdByTargetId.values())]
         const latestBuckets = await this.consumptionRepository.findLatestAggregatedForMeters(
             meterIds,
             granularity,
@@ -415,36 +408,56 @@ export class ConsumptionService {
         }
         const flagPer100Kwh = resolveFlagPer100Kwh(tariffFlagConfig)
 
-        const items: ConsumptionSummaryItem[] = []
-        for (const { id, property } of owned) {
-            const meter = meterByTargetId.get(id)
-            if (!meter) continue
-            const bucket = bucketByMeterId.get(meter.id)
-            if (!bucket) continue
+        const withBucket = owned.flatMap(({ id, property }) => {
+            const meterId = meterIdByTargetId.get(id)
+            const bucket = meterId ? bucketByMeterId.get(meterId) : undefined
+            return meterId && bucket ? [{ id, property, meterId, bucket }] : []
+        })
 
-            const distributor = await this.distributorRepository.findById(property.distributorId)
-            const costBrl = distributor
-                ? await this.resolveSummaryItemCost(
-                      id,
-                      meter.id,
-                      bucket,
-                      granularity,
-                      targetType,
-                      property,
-                      distributor,
-                      flagPer100Kwh,
-                  )
-                : null
+        // Uma busca por distribuidora, não por item: os alvos de um lote
+        // costumam dividir poucas distribuidoras.
+        const distributorById = new Map(
+            await Promise.all(
+                [...new Set(withBucket.map(({ property }) => property.distributorId))].map(
+                    async (distributorId) =>
+                        [
+                            distributorId,
+                            await this.distributorRepository.findById(distributorId),
+                        ] as const,
+                ),
+            ),
+        )
 
-            items.push({
-                id,
-                targetType,
-                bucketStart: bucket.bucketStart,
-                kwhConsumed: bucket.kwhConsumed,
-                avgPowerW: bucket.avgPowerW,
-                ...(costBrl !== null && { costBrl }),
-            })
-        }
+        // Itens do lote em paralelo, mas em número limitado: o custo do Grupo A
+        // abre várias consultas por item, e todos de uma vez esgotariam o pool.
+        const items: ConsumptionSummaryItem[] = await mapWithConcurrency(
+            withBucket,
+            SUMMARY_COST_CONCURRENCY,
+            async ({ id, property, meterId, bucket }) => {
+                const distributor = distributorById.get(property.distributorId)
+                const costBrl = distributor
+                    ? await this.resolveSummaryItemCost(
+                          id,
+                          meterId,
+                          bucket,
+                          granularity,
+                          targetType,
+                          property,
+                          distributor,
+                          flagPer100Kwh,
+                      )
+                    : null
+
+                return {
+                    id,
+                    targetType,
+                    bucketStart: bucket.bucketStart,
+                    kwhConsumed: bucket.kwhConsumed,
+                    avgPowerW: bucket.avgPowerW,
+                    ...(costBrl !== null && { costBrl }),
+                }
+            },
+        )
 
         return { items }
     }

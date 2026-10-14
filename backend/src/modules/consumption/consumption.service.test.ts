@@ -587,6 +587,120 @@ describe("ConsumptionService.summary", () => {
         expect(byId.get(propertyB.id)?.kwhConsumed).toBeCloseTo(10)
     })
 
+    it("50 áreas num lote: resolve posse, medidores e custo sem uma query por id", async () => {
+        const { user, property } = await setupPropertyMeter()
+        const areaIds: string[] = []
+        for (let i = 0; i < 50; i++) {
+            const area = await areaService.create(property.id, user.id, { name: `Sala ${i}` })
+            const meter = await prismaTest.meter.create({
+                data: {
+                    name: `Medidor ${i}`,
+                    targetType: "AREA",
+                    areaId: area.id,
+                    protocol: "MQTT",
+                    host: "localhost",
+                    port: 1883,
+                    topic: `casa/sala-${i}`,
+                },
+            })
+            await insertReading(meter.id, "2026-01-15T15:00:00Z", 1 + i, 1000)
+            areaIds.push(area.id)
+        }
+
+        const { result, queryCount } = await countQueries(() =>
+            consumptionService.summary(user.id, {
+                targetType: "AREA",
+                ids: areaIds.join(","),
+                granularity: "month",
+            }),
+        )
+
+        expect(result.items).toHaveLength(50)
+        const kwhById = new Map(result.items.map((item) => [item.id, item.kwhConsumed]))
+        areaIds.forEach((id, i) => expect(kwhById.get(id)).toBeCloseTo(1 + i))
+        // Eram 54 com a posse e o medidor resolvidos id a id.
+        expect(queryCount).toBeLessThanOrEqual(5)
+    })
+
+    it("exclui silenciosamente Áreas e Dispositivos de outro usuário e ids inexistentes", async () => {
+        const { user: userA, property: propertyA } = await setupPropertyMeter()
+        const areaA = await areaService.create(propertyA.id, userA.id, { name: "Sala A" })
+        const { user: userB, property: propertyB } =
+            await setupPropertyMeter("outro-area@example.com")
+        const areaB = await areaService.create(propertyB.id, userB.id, { name: "Sala B" })
+        const deviceB = await prismaTest.device.create({
+            data: { areaId: areaB.id, name: "Ar-condicionado" },
+        })
+        for (const [areaId, topic] of [
+            [areaA.id, "a/sala"],
+            [areaB.id, "b/sala"],
+        ] as const) {
+            const meter = await prismaTest.meter.create({
+                data: {
+                    name: `Medidor ${topic}`,
+                    targetType: "AREA",
+                    areaId,
+                    protocol: "MQTT",
+                    host: "localhost",
+                    port: 1883,
+                    topic,
+                },
+            })
+            await insertReading(meter.id, "2026-01-15T15:00:00Z", 5, 1000)
+        }
+
+        const areas = await consumptionService.summary(userA.id, {
+            targetType: "AREA",
+            ids: `${areaA.id},${areaB.id},00000000-0000-0000-0000-000000000000`,
+            granularity: "month",
+        })
+        const devices = await consumptionService.summary(userA.id, {
+            targetType: "DEVICE",
+            ids: deviceB.id,
+            granularity: "month",
+        })
+
+        expect(areas.items.map((item) => item.id)).toEqual([areaA.id])
+        expect(devices.items).toEqual([])
+    })
+
+    it("erro de banco na posse propaga — não some do resultado como 'sem medidor'", async () => {
+        const { user, property } = await setupPropertyMeter()
+        const poolError = new Error("Timed out fetching a new connection from the connection pool")
+        const spy = vi.spyOn(propertyRepository, "findManyOwnedByIds").mockRejectedValue(poolError)
+
+        try {
+            await expect(
+                consumptionService.summary(user.id, {
+                    targetType: "PROPERTY",
+                    ids: property.id,
+                    granularity: "month",
+                }),
+            ).rejects.toThrow(poolError)
+        } finally {
+            spy.mockRestore()
+        }
+    })
+
+    it("erro de banco ao buscar os medidores propaga", async () => {
+        const { user, property } = await setupPropertyMeter()
+        const spy = vi
+            .spyOn(meterRepository, "findMeterIdsByTargets")
+            .mockRejectedValue(new Error("pool"))
+
+        try {
+            await expect(
+                consumptionService.summary(user.id, {
+                    targetType: "PROPERTY",
+                    ids: property.id,
+                    granularity: "month",
+                }),
+            ).rejects.toThrow("pool")
+        } finally {
+            spy.mockRestore()
+        }
+    })
+
     it("exclui silenciosamente ids de outro usuário — não derruba o lote", async () => {
         const { user: userA, property: propertyA, meter: meterA } = await setupPropertyMeter()
         const userB = await userService.createUser({
