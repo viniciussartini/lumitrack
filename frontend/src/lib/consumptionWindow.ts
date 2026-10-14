@@ -129,3 +129,67 @@ export const resolveMonthlyHistoryWindow = (now: Date = new Date()): MonthlyHist
     from: new Date(now.getFullYear(), now.getMonth(), 1),
     to: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
 })
+
+/** Tamanhos de balde que os pedidos "últimos N baldes" usam. */
+export type LatestBucketSize = "hour" | "day" | "month"
+
+/**
+ * Janela mínima de um pedido "últimos N baldes": do início do balde de `now`
+ * recuado N−1 baldes até o fim do balde de `now` (exclusivo). Sem ela o
+ * backend agrega o histórico inteiro do medidor antes de cortar nos N mais
+ * recentes. Meses e dias seguem o calendário local do navegador, como
+ * `resolveConsumptionWindow`; o backend agrupa os baldes no horário de São
+ * Paulo, então para quem está em outro fuso as bordas ficam deslocadas pela
+ * diferença de horário (o produto é brasileiro, e local e São Paulo coincidem na prática).
+ */
+export const resolveLatestWindow = (
+    bucketSize: LatestBucketSize,
+    count: number,
+    now: Date = new Date(),
+): { from: Date; to: Date } => {
+    const year = now.getFullYear()
+    const month = now.getMonth()
+    const day = now.getDate()
+    switch (bucketSize) {
+        case "hour":
+            return {
+                from: new Date(year, month, day, now.getHours() - (count - 1)),
+                to: new Date(year, month, day, now.getHours() + 1),
+            }
+        case "day":
+            return {
+                from: new Date(year, month, day - (count - 1)),
+                to: new Date(year, month, day + 1),
+            }
+        case "month":
+            return {
+                from: new Date(year, month - (count - 1), 1),
+                to: new Date(year, month + 1, 1),
+            }
+    }
+}
+
+/**
+ * Pedido "últimos N baldes": descreve a janela (tamanho do balde e N), e as
+ * datas só são calculadas quando o pedido sai. Assim uma sessão aberta pela
+ * virada da hora, do dia ou do mês consulta o período novo sem trocar a chave
+ * da consulta, e a chave carrega o tamanho da janela, não as datas.
+ */
+export interface LatestRange {
+    kind: "latest"
+    bucketSize: LatestBucketSize
+    count: number
+}
+
+/**
+ * Cria o pedido "últimos N baldes" para `useConsumption` e
+ * `useConsumptionSummary`.
+ *
+ * @param bucketSize - Tamanho do balde da janela.
+ * @param count - Quantos baldes, terminando no corrente.
+ */
+export const latestRange = (bucketSize: LatestBucketSize, count: number): LatestRange => ({
+    kind: "latest",
+    bucketSize,
+    count,
+})

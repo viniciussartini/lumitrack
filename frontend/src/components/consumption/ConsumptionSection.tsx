@@ -10,7 +10,11 @@ import { GroupABillCard } from "@/components/consumption/GroupABillCard"
 import { GroupBWhiteBillCard } from "@/components/consumption/GroupBWhiteBillCard"
 import { useConsumption } from "@/hooks/queries/useConsumption"
 import { useMeterByTarget } from "@/hooks/queries/useMeters"
-import { describeConsumptionWindow, resolveConsumptionWindow } from "@/lib/consumptionWindow"
+import {
+    describeConsumptionWindow,
+    latestRange,
+    resolveConsumptionWindow,
+} from "@/lib/consumptionWindow"
 import {
     CONSUMPTION_PAGE_SIZE,
     DETAILS_GRANULARITIES,
@@ -328,15 +332,22 @@ interface GroupABillSectionProps {
 /**
  * Conta binômia do Grupo A — só existe no nível Propriedade (o
  * dispatcher acima garante isso). Sem seletor de mês/histórico ainda: mostra
- * sempre o mês mais recente com leitura (`page=1, pageSize=1`, sem `range` —
- * mesmo idioma de "últimos N buckets" já usado pelos KPIs do painel), não
- * necessariamente o mês corrente do calendário se ainda não há consumo nele.
+ * o mês corrente (`page=1, pageSize=1` com `latestRange` — mesmo idioma de
+ * "últimos N buckets" já usado pelos KPIs do painel); sem leitura no mês, cai
+ * no estado vazio.
  */
 const GroupABillSection = ({ targetType, targetId }: GroupABillSectionProps) => {
     const meterQuery = useMeterByTarget(targetType, targetId)
     const hasMeter = Boolean(meterQuery.data)
 
-    const query = useConsumption(targetType, hasMeter ? targetId : undefined, "month", 1, 1)
+    const query = useConsumption(
+        targetType,
+        hasMeter ? targetId : undefined,
+        "month",
+        1,
+        1,
+        latestRange("month", 1),
+    )
     const bucket = query.data?.items[0]
 
     return (
@@ -409,13 +420,20 @@ interface GroupBWhiteBillSectionProps {
 /**
  * Conta da Tarifa Branca (Grupo B) — só existe no nível Propriedade (o
  * dispatcher acima garante isso), mesmo padrão de `GroupABillSection`: mostra
- * sempre o mês mais recente com leitura, sem seletor de histórico ainda.
+ * o mês corrente, sem seletor de histórico ainda.
  */
 const GroupBWhiteBillSection = ({ targetType, targetId }: GroupBWhiteBillSectionProps) => {
     const meterQuery = useMeterByTarget(targetType, targetId)
     const hasMeter = Boolean(meterQuery.data)
 
-    const query = useConsumption(targetType, hasMeter ? targetId : undefined, "month", 1, 1)
+    const query = useConsumption(
+        targetType,
+        hasMeter ? targetId : undefined,
+        "month",
+        1,
+        1,
+        latestRange("month", 1),
+    )
     const bucket = query.data?.items[0]
 
     return (

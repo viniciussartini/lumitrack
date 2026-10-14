@@ -14,7 +14,7 @@ import type {
 import type { MeterRepository } from "@/modules/meter/meter.repository.js"
 import type {
     PropertyRepository,
-    PropertyResponse,
+    PropertyWithoutAddress,
 } from "@/modules/property/property.repository.js"
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
@@ -56,8 +56,9 @@ import { fromSaoPauloLocal } from "@/shared/time/localTime.js"
 import { toSkipTake, type Paginated } from "@/shared/pagination.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
-import { resolveRootProperty } from "@/shared/targetResolution.js"
+import { resolveOwnedRootProperties, resolveRootProperty } from "@/shared/targetResolution.js"
 import { logger } from "@/shared/logger/logger.js"
+import { mapWithConcurrency } from "@/shared/async/mapWithConcurrency.js"
 import type {
     AclSubmarket,
     ContractingEnvironment,
@@ -79,6 +80,14 @@ const MWH_TO_KWH = 1000
 // consegue ver na tela. Usada pelos dois comparativos de propriedade
 // (ACR × ACL e Convencional × Branca).
 const VERDICT_EQUIVALENCE_TOLERANCE_BRL = 0.005
+
+// Itens do resumo calculados ao mesmo tempo. O custo do Grupo A dispara umas
+// seis consultas por item, em paralelo, e o pool tem 10 conexões por padrão
+// (`DB_POOL_MAX`) com espera de 5 s para obter uma: o Grupo A vai um item por
+// vez, para o pico de uma requisição ficar em seis conexões. Os demais grupos
+// (Convencional sem consulta, Branca com duas) aguentam três.
+const SUMMARY_COST_CONCURRENCY_GROUP_A = 1
+const SUMMARY_COST_CONCURRENCY_OTHER = 3
 
 /**
  * Sinal da diferença entre os dois cenários de uma comparação de
@@ -310,6 +319,16 @@ export class ConsumptionService {
             flagPer100Kwh,
         )
 
+        const monthlyPropertyCostByBucketMs = await this.computeMonthlyPropertyCosts(
+            meter.id,
+            buckets,
+            granularity,
+            targetType,
+            property,
+            distributor,
+            flagPer100Kwh,
+        )
+
         const items: ConsumptionBucketResponse[] = await Promise.all(
             buckets.map(async (bucket) => {
                 const cost = await this.resolveBucketCost(
@@ -321,6 +340,7 @@ export class ConsumptionService {
                     distributor,
                     flagPer100Kwh,
                     yearlyPropertyCostByBucketMs,
+                    monthlyPropertyCostByBucketMs,
                 )
                 return {
                     bucketStart: bucket.bucketStart,
@@ -354,42 +374,30 @@ export class ConsumptionService {
             query,
         )
 
-        // Autorização verificada por id da lista, não só do primeiro — id
-        // inexistente ou de outro usuário é excluído silenciosamente do
-        // resultado, não derruba o lote inteiro. Nega por padrão sem vazar
-        // se o id existe ou não (mesmo tratamento pra "não é seu" e "não
-        // existe").
-        const resolved = await Promise.all(
-            ids.map(async (id) => {
-                try {
-                    const property = await resolveRootProperty(targetType, id, {
-                        propertyRepository: this.propertyRepository,
-                        areaRepository: this.areaRepository,
-                        deviceRepository: this.deviceRepository,
-                    })
-                    if (property.userId !== userId) return null
-                    return { id, property }
-                } catch {
-                    return null
-                }
-            }),
-        )
-        const owned = resolved.filter(
-            (r): r is { id: string; property: PropertyResponse } => r !== null,
-        )
+        // Posse verificada por id da lista, não só do primeiro, e filtrada no
+        // banco: id inexistente ou de outro usuário é excluído silenciosamente
+        // do resultado, não derruba o lote inteiro, e ninguém descobre se o id
+        // existe (mesmo tratamento pra "não é seu" e "não existe"). Erro de
+        // banco não entra nessa regra: propaga, em vez de virar "sem medidor".
+        const propertyByTargetId = await resolveOwnedRootProperties(targetType, ids, userId, {
+            propertyRepository: this.propertyRepository,
+            areaRepository: this.areaRepository,
+            deviceRepository: this.deviceRepository,
+        })
+        const owned = ids.flatMap((id) => {
+            const property = propertyByTargetId.get(id)
+            return property ? [{ id, property }] : []
+        })
         if (owned.length === 0) {
             return { items: [] }
         }
 
-        const meterByTargetId = new Map<string, { id: string }>()
-        await Promise.all(
-            owned.map(async ({ id }) => {
-                const meter = await this.meterRepository.findByTarget(targetType, id)
-                if (meter) meterByTargetId.set(id, meter)
-            }),
+        const meterIdByTargetId = await this.meterRepository.findMeterIdsByTargets(
+            targetType,
+            owned.map(({ id }) => id),
         )
 
-        const meterIds = [...new Set([...meterByTargetId.values()].map((m) => m.id))]
+        const meterIds = [...new Set(meterIdByTargetId.values())]
         const latestBuckets = await this.consumptionRepository.findLatestAggregatedForMeters(
             meterIds,
             granularity,
@@ -404,36 +412,61 @@ export class ConsumptionService {
         }
         const flagPer100Kwh = resolveFlagPer100Kwh(tariffFlagConfig)
 
-        const items: ConsumptionSummaryItem[] = []
-        for (const { id, property } of owned) {
-            const meter = meterByTargetId.get(id)
-            if (!meter) continue
-            const bucket = bucketByMeterId.get(meter.id)
-            if (!bucket) continue
+        const withBucket = owned.flatMap(({ id, property }) => {
+            const meterId = meterIdByTargetId.get(id)
+            const bucket = meterId ? bucketByMeterId.get(meterId) : undefined
+            return meterId && bucket ? [{ id, property, meterId, bucket }] : []
+        })
 
-            const distributor = await this.distributorRepository.findById(property.distributorId)
-            const costBrl = distributor
-                ? await this.resolveSummaryItemCost(
-                      id,
-                      meter.id,
-                      bucket,
-                      granularity,
-                      targetType,
-                      property,
-                      distributor,
-                      flagPer100Kwh,
-                  )
-                : null
+        // Uma busca por distribuidora, não por item: os alvos de um lote
+        // costumam dividir poucas distribuidoras.
+        const distributorById = new Map(
+            await Promise.all(
+                [...new Set(withBucket.map(({ property }) => property.distributorId))].map(
+                    async (distributorId) =>
+                        [
+                            distributorId,
+                            await this.distributorRepository.findById(distributorId),
+                        ] as const,
+                ),
+            ),
+        )
 
-            items.push({
-                id,
-                targetType,
-                bucketStart: bucket.bucketStart,
-                kwhConsumed: bucket.kwhConsumed,
-                avgPowerW: bucket.avgPowerW,
-                ...(costBrl !== null && { costBrl }),
-            })
-        }
+        // Itens do lote em paralelo, mas em número limitado: o custo do Grupo A
+        // abre várias consultas por item, e todos de uma vez esgotariam o pool.
+        const costConcurrency = withBucket.some(
+            ({ property }) => property.tariffGroup === "GROUP_A",
+        )
+            ? SUMMARY_COST_CONCURRENCY_GROUP_A
+            : SUMMARY_COST_CONCURRENCY_OTHER
+        const items: ConsumptionSummaryItem[] = await mapWithConcurrency(
+            withBucket,
+            costConcurrency,
+            async ({ id, property, meterId, bucket }) => {
+                const distributor = distributorById.get(property.distributorId)
+                const costBrl = distributor
+                    ? await this.resolveSummaryItemCost(
+                          id,
+                          meterId,
+                          bucket,
+                          granularity,
+                          targetType,
+                          property,
+                          distributor,
+                          flagPer100Kwh,
+                      )
+                    : null
+
+                return {
+                    id,
+                    targetType,
+                    bucketStart: bucket.bucketStart,
+                    kwhConsumed: bucket.kwhConsumed,
+                    avgPowerW: bucket.avgPowerW,
+                    ...(costBrl !== null && { costBrl }),
+                }
+            },
+        )
 
         return { items }
     }
@@ -452,7 +485,7 @@ export class ConsumptionService {
         bucket: { bucketStart: Date; kwhConsumed: number },
         granularity: Granularity,
         targetType: TargetType,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<number | null> {
@@ -520,7 +553,7 @@ export class ConsumptionService {
         buckets: ConsumptionBucket[],
         granularity: Granularity,
         targetType: TargetType,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<Map<number, number>> {
@@ -582,22 +615,74 @@ export class ConsumptionService {
         return yearlyPropertyCostByBucketMs
     }
 
+    // Granularidade "month" + alvo PROPERTY nos grupos que consultam o consumo
+    // por posto (Grupo A e Tarifa Branca): 1 cálculo em lote para todos os
+    // meses da página, em vez de 1 por balde — cada mês custa várias queries
+    // (consumo por posto, demanda, reativa) e eram disparados todos em
+    // paralelo. Mesmo lote do caminho anual; o Grupo B Convencional é conta
+    // pura, sem query, e segue por `calculateBucketCost`.
+    private async computeMonthlyPropertyCosts(
+        meterId: string,
+        buckets: ConsumptionBucket[],
+        granularity: Granularity,
+        targetType: TargetType,
+        property: PropertyWithoutAddress,
+        distributor: DistributorResponse,
+        flagPer100Kwh: number,
+    ): Promise<Map<number, MonthCostResult>> {
+        if (granularity !== "month" || targetType !== "PROPERTY" || buckets.length === 0) {
+            return new Map()
+        }
+
+        const monthStarts = buckets.map((b) => b.bucketStart)
+
+        if (property.tariffGroup === "GROUP_A") {
+            return this.calculateGroupAMonthlyCosts(
+                meterId,
+                monthStarts,
+                property,
+                distributor,
+                flagPer100Kwh,
+                property.contractingEnvironment,
+            )
+        }
+
+        if (property.groupBModality === "WHITE") {
+            return this.calculateGroupBWhiteMonthlyCosts(
+                meterId,
+                monthStarts,
+                property,
+                distributor,
+                flagPer100Kwh,
+            )
+        }
+
+        return new Map()
+    }
+
     // Custo de um bucket dentro do map() de `list()` — extraído: year+PROPERTY
     // usa o pré-cálculo em lote de `computeYearlyPropertyCosts`
-    // (o piso mensal já foi somado ali), os demais casos delegam a
+    // (o piso mensal já foi somado ali), month+PROPERTY do Grupo A/Branca usa
+    // o de `computeMonthlyPropertyCosts`, os demais casos delegam a
     // `calculateBucketCost`, compartilhado com `summary()`.
     private async resolveBucketCost(
         meterId: string,
         bucket: ConsumptionBucket,
         granularity: Granularity,
         targetType: TargetType,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
         yearlyPropertyCostByBucketMs: Map<number, number>,
+        monthlyPropertyCostByBucketMs: Map<number, MonthCostResult>,
     ): Promise<MonthCostResult | null> {
         if (granularity === "year" && targetType === "PROPERTY") {
             return { totalBrl: yearlyPropertyCostByBucketMs.get(bucket.bucketStart.getTime()) ?? 0 }
+        }
+
+        const monthlyCost = monthlyPropertyCostByBucketMs.get(bucket.bucketStart.getTime())
+        if (granularity === "month" && targetType === "PROPERTY" && monthlyCost) {
+            return monthlyCost
         }
 
         return this.calculateBucketCost(
@@ -625,7 +710,7 @@ export class ConsumptionService {
         meterId: string,
         monthStartLocal: Date,
         kwhConsumed: number,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<MonthCostResult> {
@@ -686,7 +771,7 @@ export class ConsumptionService {
     // para `MonthCostResult`, mesmo padrão de `buildGroupAMonthResult`.
     private buildGroupBWhiteMonthResult(
         energyByPost: GroupBEnergyPostInput[],
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): MonthCostResult {
@@ -743,7 +828,7 @@ export class ConsumptionService {
     private async calculateGroupBWhiteMonthCost(
         meterId: string,
         monthStartLocal: Date,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<MonthCostResult> {
@@ -771,13 +856,12 @@ export class ConsumptionService {
     // Equivalente de `calculateGroupAMonthlyCosts` para a Branca: 1 única
     // consulta batching todos os meses da janela (`findKwhByPostGroupedByMonth`
     // com `includeIntermediate: true`), em vez de 1 `findKwhByPost` por mês —
-    // até 12 por bucket de ano, ~372 numa página cheia (31 anos). Usada pelo
-    // caminho anual de `list()`/`summary()`, que hoje é o único a pedir mais
-    // de 1 mês da Branca de uma vez.
+    // até 12 por bucket de ano, ~372 numa página cheia (31 anos). Usada pelos
+    // caminhos anual e mensal de `list()`, que pedem vários meses de uma vez.
     private async calculateGroupBWhiteMonthlyCosts(
         meterId: string,
         monthStarts: Date[],
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<Map<number, MonthCostResult>> {
@@ -829,13 +913,12 @@ export class ConsumptionService {
     // Falha fechada também sem janela de ponta configurada ou sem demanda
     // contratada, em vez de silenciosamente aplicar a fórmula errada.
     // Wrapper de 1 mês só sobre `calculateGroupAMonthlyCosts` — usado pelo
-    // caminho de granularidade "month" (list()/summary() de um único mês),
-    // que não tem o problema de N+1 que o caminho "year" tinha (era 1
-    // `findKwhByPost` por mês, até 12 por ano por alvo).
+    // `summary()`, que tem 1 bucket por alvo; `list()` chama o lote direto
+    // para a página inteira (`computeMonthlyPropertyCosts`).
     private async calculateGroupAMonthCost(
         meterId: string,
         monthStartLocal: Date,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<MonthCostResult> {
@@ -854,7 +937,7 @@ export class ConsumptionService {
     }
 
     private assertGroupACalculable(
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
     ): {
         peakWindow: PeakWindowConfig
@@ -1138,7 +1221,7 @@ export class ConsumptionService {
     private async calculateGroupAMonthlyCosts(
         meterId: string,
         monthStarts: Date[],
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
         environment: ContractingEnvironment,
@@ -1320,7 +1403,7 @@ export class ConsumptionService {
         bucket: { bucketStart: Date; kwhConsumed: number },
         granularity: Granularity,
         targetType: TargetType,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<MonthCostResult | null> {
@@ -1365,7 +1448,7 @@ export class ConsumptionService {
     private async calculateYearlyPropertyCost(
         meterId: string,
         yearBucketStart: Date,
-        property: PropertyResponse,
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<number> {
@@ -1462,31 +1545,14 @@ export class ConsumptionService {
     // mesmo total de kWh. Abaixo do piso, os dois cenários convergem para a
     // mesma conta (a Branca já delega à Convencional nesse caso) — `diffBrl`
     // fica exatamente zero, não uma aproximação.
-    private async calculateBrancaComparisonMonth(
-        meterId: string,
+    private calculateBrancaComparisonMonth(
         monthStart: Date,
-        property: PropertyResponse,
+        kwhByPost: { post: TariffPost; kwhConsumed: number }[],
+        property: PropertyWithoutAddress,
         distributor: DistributorResponse,
-        peakWindow: PeakWindowConfig,
         rateByPost: Map<TariffPost, TariffEnergyRateResponse>,
         flagPer100Kwh: number,
-    ): Promise<BrancaComparisonMonthResult> {
-        const monthEndLocal = new Date(
-            Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 1),
-        )
-        const from = fromSaoPauloLocal(monthStart)
-        const to = fromSaoPauloLocal(monthEndLocal)
-        const holidays = getNationalHolidaysInRange(from, to)
-
-        const kwhByPost = await this.consumptionRepository.findKwhByPost(
-            meterId,
-            from,
-            to,
-            peakWindow,
-            holidays,
-            true,
-        )
-
+    ): BrancaComparisonMonthResult {
         const energyByPost = kwhByPost.map((row) => {
             const rate = rateByPost.get(row.post)
             if (!rate) {
@@ -1743,18 +1809,29 @@ export class ConsumptionService {
         }
         const rateByPost = new Map(energyRates.map((rate) => [rate.post, rate]))
 
+        // 1 consulta para todos os meses da janela; mês sem leitura não tem
+        // linha e entra como consumo zero em todos os postos.
         const monthStarts = this.monthStartsInRange(from, to)
-        const months = await Promise.all(
-            monthStarts.map((monthStart) =>
-                this.calculateBrancaComparisonMonth(
-                    meter.id,
-                    monthStart,
-                    property,
-                    distributor,
-                    peakWindow,
-                    rateByPost,
-                    flagPer100Kwh,
-                ),
+        const window = this.resolveMonthWindow(monthStarts)
+        const kwhByPostRows = await this.consumptionRepository.findKwhByPostGroupedByMonth(
+            meter.id,
+            window.from,
+            window.to,
+            peakWindow,
+            window.holidays,
+            true,
+        )
+        const kwhByPostByMonthMs = this.groupRowsByMs(kwhByPostRows, (row) =>
+            row.monthBucket.getTime(),
+        )
+        const months = monthStarts.map((monthStart) =>
+            this.calculateBrancaComparisonMonth(
+                monthStart,
+                kwhByPostByMonthMs.get(monthStart.getTime()) ?? [],
+                property,
+                distributor,
+                rateByPost,
+                flagPer100Kwh,
             ),
         )
 

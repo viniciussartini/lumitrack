@@ -124,10 +124,17 @@ export const queryKeys = {
                 window,
             ] as const,
         // "Últimos N buckets" (KPIs do painel, comparação mensal de área) —
-        // não paginado; `count` é quantos buckets mais recentes, não um
-        // `pageSize` de verdade. Chave própria: nunca compartilha cache com
-        // `list`, mesmo que targetType/granularity/pageSize coincidam.
-        latest: (targetType: string, targetId: string, granularity: string, count: number) =>
+        // `count` é o `pageSize` pedido e `window` o tamanho da janela (balde e
+        // N), não as datas: o hook as recalcula a cada pedido. Chave própria:
+        // nunca compartilha cache com `list`, mesmo que
+        // targetType/granularity/pageSize coincidam.
+        latest: (
+            targetType: string,
+            targetId: string,
+            granularity: string,
+            count: number,
+            window: string,
+        ) =>
             [
                 ...queryKeys.consumption.all,
                 "latest",
@@ -135,6 +142,7 @@ export const queryKeys = {
                 targetId,
                 granularity,
                 count,
+                window,
             ] as const,
         // Endpoint batch — "último bucket de N alvos do mesmo tipo", não
         // paginado. Chave própria pra não colidir com `list`.

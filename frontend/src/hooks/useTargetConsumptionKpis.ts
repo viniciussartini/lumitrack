@@ -2,6 +2,7 @@ import { useConsumptionSummary } from "@/hooks/queries/useConsumption"
 import { resolveMonthFigures, resolveTodayKwh, type MonthFigures } from "@/lib/targetKpis"
 import type { ConsumptionSummaryItem } from "@/types/consumption.types"
 import type { TargetType } from "@/types/meter.types"
+import { latestRange } from "@/lib/consumptionWindow"
 
 export interface TargetConsumptionKpis {
     /** `true` enquanto o resumo do dia ou do mês ainda não chegou. */
@@ -28,8 +29,8 @@ export const useTargetConsumptionKpis = (
     targetId: string | undefined,
 ): TargetConsumptionKpis => {
     const ids = targetId ? [targetId] : []
-    const dayQuery = useConsumptionSummary(targetType, ids, "day")
-    const monthQuery = useConsumptionSummary(targetType, ids, "month")
+    const dayQuery = useConsumptionSummary(targetType, ids, "day", latestRange("day", 1))
+    const monthQuery = useConsumptionSummary(targetType, ids, "month", latestRange("month", 1))
 
     const forTarget = (items: ConsumptionSummaryItem[] | undefined) =>
         items?.find((item) => item.id === targetId)

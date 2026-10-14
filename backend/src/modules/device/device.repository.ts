@@ -2,8 +2,11 @@ import { PrismaClient } from "@/generated/prisma/client.js"
 import type { CreateDeviceInput, UpdateDeviceInput } from "@/modules/device/device.schema.js"
 import { toSkipTake, type Paginated, type PaginationQuery } from "@/shared/pagination.js"
 import {
+    PROPERTY_WITHOUT_ADDRESS,
     toPropertyResponse,
+    toPropertyWithoutAddress,
     type PropertyResponse,
+    type PropertyWithoutAddress,
 } from "@/modules/property/property.repository.js"
 import type { AreaResponse } from "@/modules/area/area.repository.js"
 
@@ -51,6 +54,32 @@ export class DeviceRepository {
         const { area: rawArea, ...device } = raw
         const { property, ...area } = rawArea
         return { device, area, property: toPropertyResponse(property) }
+    }
+
+    /**
+     * Versão em lote de {@link findByIdWithProperty} restrita ao dono: uma
+     * query para vários dispositivos, filtrando a posse da propriedade na
+     * própria consulta — dispositivo inexistente e de outro usuário ficam de
+     * fora do mesmo jeito.
+     *
+     * @param ids - Ids dos dispositivos.
+     * @param userId - Id do usuário dono da propriedade.
+     * @returns Cada dispositivo do usuário entre os ids pedidos, com a cadeia até a propriedade (sem os campos de endereço).
+     */
+    async findManyOwnedByIdsWithProperty(
+        ids: string[],
+        userId: string,
+    ): Promise<{ device: DeviceResponse; area: AreaResponse; property: PropertyWithoutAddress }[]> {
+        if (ids.length === 0) return []
+        const rows = await this.prisma.device.findMany({
+            where: { id: { in: ids }, area: { property: { userId } } },
+            include: { area: { include: { property: PROPERTY_WITHOUT_ADDRESS } } },
+            relationLoadStrategy: "join",
+        })
+        return rows.map(({ area: rawArea, ...device }) => {
+            const { property, ...area } = rawArea
+            return { device, area, property: toPropertyWithoutAddress(property) }
+        })
     }
 
     /**

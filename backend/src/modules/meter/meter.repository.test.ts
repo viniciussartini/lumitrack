@@ -398,3 +398,83 @@ describe("MeterRepository — cifra da credencial MQTT", () => {
         expect((config?.extra as Record<string, unknown>).password).toBe(plaintext)
     })
 })
+
+describe("MeterRepository.findMeterIdsByTargets", () => {
+    it("devolve alvo → medidor para vários alvos numa chamada, deixando de fora o alvo sem medidor", async () => {
+        const { property } = await setupUserAndProperty()
+        const areaWithMeter = await prismaTest.area.create({
+            data: { propertyId: property.id, name: "Sala" },
+        })
+        const areaWithoutMeter = await prismaTest.area.create({
+            data: { propertyId: property.id, name: "Quarto" },
+        })
+        const meter = await prismaTest.meter.create({
+            data: {
+                name: "Medidor Sala",
+                targetType: "AREA",
+                areaId: areaWithMeter.id,
+                protocol: "MQTT",
+                host: "localhost",
+                port: 1883,
+                topic: "casa/sala",
+            },
+        })
+
+        const result = await meterRepository.findMeterIdsByTargets("AREA", [
+            areaWithMeter.id,
+            areaWithoutMeter.id,
+        ])
+
+        expect(result).toEqual(new Map([[areaWithMeter.id, meter.id]]))
+    })
+
+    it("não consulta o banco com lista vazia", async () => {
+        expect((await meterRepository.findMeterIdsByTargets("PROPERTY", [])).size).toBe(0)
+    })
+})
+
+describe("MeterRepository.findByIdWithTarget / findManyByIdsWithTarget — propriedade sem endereço", () => {
+    it("traz a propriedade com os campos de tarifa e sem os quatro de endereço, em qualquer tipo de alvo", async () => {
+        const { property } = await setupUserAndProperty()
+        const area = await prismaTest.area.create({
+            data: { propertyId: property.id, name: "Sala" },
+        })
+        const device = await prismaTest.device.create({ data: { areaId: area.id, name: "TV" } })
+        const meters = await Promise.all(
+            (
+                [
+                    ["PROPERTY", { propertyId: property.id }],
+                    ["AREA", { areaId: area.id }],
+                    ["DEVICE", { deviceId: device.id }],
+                ] as const
+            ).map(([targetType, target]) =>
+                prismaTest.meter.create({
+                    data: {
+                        name: `Medidor ${targetType}`,
+                        targetType,
+                        ...target,
+                        protocol: "MQTT",
+                        host: "localhost",
+                        port: 1883,
+                        topic: `casa/${targetType}`,
+                    },
+                }),
+            ),
+        )
+
+        const byId = await meterRepository.findManyByIdsWithTarget(meters.map((m) => m.id))
+        const single = await meterRepository.findByIdWithTarget(meters[2]!.id)
+
+        expect(byId.size).toBe(3)
+        for (const row of [...byId.values(), single!]) {
+            expect(row.property).toMatchObject({
+                id: property.id,
+                userId: property.userId,
+                tariffGroup: "GROUP_B",
+            })
+            for (const field of ["address", "city", "state", "zipCode"]) {
+                expect(row.property).not.toHaveProperty(field)
+            }
+        }
+    })
+})

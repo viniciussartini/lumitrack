@@ -3,6 +3,7 @@ import { useDistributor } from "@/hooks/queries/useDistributors"
 import { findBucketForMonth } from "@/lib/dashboardKpis"
 import { formatWeightPercent } from "@/lib/areaWeight"
 import { describePeakWindow, peakShareOfMonth } from "@/lib/peakHours"
+import { latestRange } from "@/lib/consumptionWindow"
 
 interface PeakHoursBandProps {
     propertyId: string
@@ -22,7 +23,14 @@ interface PeakHoursBandProps {
  */
 export const PeakHoursBand = ({ propertyId, distributorId }: PeakHoursBandProps) => {
     const distributor = useDistributor(distributorId)
-    const monthQuery = useConsumption("PROPERTY", propertyId, "month", 1, 1)
+    const monthQuery = useConsumption(
+        "PROPERTY",
+        propertyId,
+        "month",
+        1,
+        1,
+        latestRange("month", 1),
+    )
 
     const windowText = describePeakWindow(
         distributor.data?.peakWindowStartHour ?? null,

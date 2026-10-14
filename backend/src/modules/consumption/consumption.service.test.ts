@@ -27,6 +27,7 @@ import { UserService } from "@/modules/user/user.service.js"
 import { UserRepository } from "@/modules/user/user.repository.js"
 import { fromSaoPauloLocal } from "@/shared/time/localTime.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
+import { countQueries } from "@/shared/database/queryCounter.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 import {
     createTestDistributor,
@@ -167,6 +168,7 @@ function callResolveBucketCost(
     distributor: DistributorResponse,
     flagPer100Kwh: number,
     yearlyPropertyCostByBucketMs: Map<number, number>,
+    monthlyPropertyCostByBucketMs: Map<number, { totalBrl: number }> = new Map(),
 ): Promise<{ totalBrl: number }> {
     return (
         service as unknown as {
@@ -179,6 +181,7 @@ function callResolveBucketCost(
                 distributor: DistributorResponse,
                 flagPer100Kwh: number,
                 yearlyPropertyCostByBucketMs: Map<number, number>,
+                monthlyPropertyCostByBucketMs: Map<number, { totalBrl: number }>,
             ) => Promise<{ totalBrl: number }>
         }
     ).resolveBucketCost(
@@ -190,6 +193,7 @@ function callResolveBucketCost(
         distributor,
         flagPer100Kwh,
         yearlyPropertyCostByBucketMs,
+        monthlyPropertyCostByBucketMs,
     )
 }
 
@@ -199,6 +203,24 @@ beforeEach(async () => {
 afterAll(async () => {
     await prismaTest.$disconnect()
 })
+
+const MONTHS_2026 = ["2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08"]
+
+/** Janela [primeiro dia do mês, primeiro dia do seguinte) em hora de São Paulo (UTC-3). */
+function monthWindow(month: string): { from: string; to: string } {
+    const [year, mm] = month.split("-").map(Number) as [number, number]
+    const next = new Date(Date.UTC(year, mm, 1, 3))
+    return { from: `${month}-01T03:00:00Z`, to: next.toISOString() }
+}
+
+/** Uma leitura de ponta e uma fora de ponta em cada mês, com consumos que diferem por mês. */
+async function insertReadingsForMonths(meterId: string, months: string[]) {
+    for (const [i, month] of months.entries()) {
+        await insertReading(meterId, `${month}-11T22:00:00Z`, 20 + i, 10_000) // 19h SP
+        await insertReading(meterId, `${month}-11T20:00:00Z`, 30 + i, 10_000) // 17h SP
+        await insertReading(meterId, `${month}-11T13:00:00Z`, 200 + i * 10, 10_000) // 10h SP
+    }
+}
 
 describe("ConsumptionService.list", () => {
     describe("validação de acesso", () => {
@@ -565,6 +587,126 @@ describe("ConsumptionService.summary", () => {
         expect(byId.get(propertyB.id)?.kwhConsumed).toBeCloseTo(10)
     })
 
+    it("50 áreas num lote: resolve posse, medidores e custo sem uma query por id", async () => {
+        const { user, property } = await setupPropertyMeter()
+        const areaIds: string[] = []
+        for (let i = 0; i < 50; i++) {
+            const area = await areaService.create(property.id, user.id, { name: `Sala ${i}` })
+            const meter = await prismaTest.meter.create({
+                data: {
+                    name: `Medidor ${i}`,
+                    targetType: "AREA",
+                    areaId: area.id,
+                    protocol: "MQTT",
+                    host: "localhost",
+                    port: 1883,
+                    topic: `casa/sala-${i}`,
+                },
+            })
+            await insertReading(meter.id, "2026-01-15T15:00:00Z", 1 + i, 1000)
+            areaIds.push(area.id)
+        }
+
+        const { result, queryCount } = await countQueries(() =>
+            consumptionService.summary(user.id, {
+                targetType: "AREA",
+                ids: areaIds.join(","),
+                granularity: "month",
+            }),
+        )
+
+        expect(result.items).toHaveLength(50)
+        const kwhById = new Map(result.items.map((item) => [item.id, item.kwhConsumed]))
+        areaIds.forEach((id, i) => expect(kwhById.get(id)).toBeCloseTo(1 + i))
+        // Posse, medidores e distribuidora em lote: o teto não cresce com o número de ids.
+        expect(queryCount).toBeLessThanOrEqual(5)
+    })
+
+    it("exclui silenciosamente Áreas e Dispositivos de outro usuário e ids inexistentes", async () => {
+        const { user: userA, property: propertyA } = await setupPropertyMeter()
+        const areaA = await areaService.create(propertyA.id, userA.id, { name: "Sala A" })
+        const { user: userB, property: propertyB } =
+            await setupPropertyMeter("outro-area@example.com")
+        const areaB = await areaService.create(propertyB.id, userB.id, { name: "Sala B" })
+        const deviceA = await prismaTest.device.create({
+            data: { areaId: areaA.id, name: "Ventilador" },
+        })
+        const deviceB = await prismaTest.device.create({
+            data: { areaId: areaB.id, name: "Ar-condicionado" },
+        })
+        // Todo alvo tem medidor e leitura: se o filtro de posse sair da consulta,
+        // o alvo de B chega ao fim do resumo e aparece no resultado.
+        for (const [target, topic] of [
+            [{ targetType: "AREA", areaId: areaA.id }, "a/sala"],
+            [{ targetType: "AREA", areaId: areaB.id }, "b/sala"],
+            [{ targetType: "DEVICE", deviceId: deviceA.id }, "a/ventilador"],
+            [{ targetType: "DEVICE", deviceId: deviceB.id }, "b/ar"],
+        ] as const) {
+            const meter = await prismaTest.meter.create({
+                data: {
+                    name: `Medidor ${topic}`,
+                    ...target,
+                    protocol: "MQTT",
+                    host: "localhost",
+                    port: 1883,
+                    topic,
+                },
+            })
+            await insertReading(meter.id, "2026-01-15T15:00:00Z", 5, 1000)
+        }
+
+        const areas = await consumptionService.summary(userA.id, {
+            targetType: "AREA",
+            ids: `${areaA.id},${areaB.id},00000000-0000-0000-0000-000000000000`,
+            granularity: "month",
+        })
+        const devices = await consumptionService.summary(userA.id, {
+            targetType: "DEVICE",
+            ids: `${deviceA.id},${deviceB.id}`,
+            granularity: "month",
+        })
+
+        expect(areas.items.map((item) => item.id)).toEqual([areaA.id])
+        expect(devices.items.map((item) => item.id)).toEqual([deviceA.id])
+    })
+
+    it("erro de banco na posse propaga — não some do resultado como 'sem medidor'", async () => {
+        const { user, property } = await setupPropertyMeter()
+        const poolError = new Error("Timed out fetching a new connection from the connection pool")
+        const spy = vi.spyOn(propertyRepository, "findManyOwnedByIds").mockRejectedValue(poolError)
+
+        try {
+            await expect(
+                consumptionService.summary(user.id, {
+                    targetType: "PROPERTY",
+                    ids: property.id,
+                    granularity: "month",
+                }),
+            ).rejects.toThrow(poolError)
+        } finally {
+            spy.mockRestore()
+        }
+    })
+
+    it("erro de banco ao buscar os medidores propaga", async () => {
+        const { user, property } = await setupPropertyMeter()
+        const spy = vi
+            .spyOn(meterRepository, "findMeterIdsByTargets")
+            .mockRejectedValue(new Error("pool"))
+
+        try {
+            await expect(
+                consumptionService.summary(user.id, {
+                    targetType: "PROPERTY",
+                    ids: property.id,
+                    granularity: "month",
+                }),
+            ).rejects.toThrow("pool")
+        } finally {
+            spy.mockRestore()
+        }
+    })
+
     it("exclui silenciosamente ids de outro usuário — não derruba o lote", async () => {
         const { user: userA, property: propertyA, meter: meterA } = await setupPropertyMeter()
         const userB = await userService.createUser({
@@ -824,6 +966,34 @@ describe("ConsumptionService.list — Grupo A binômio", () => {
 
         return { user, property, meter }
     }
+
+    it("granularidade month: vários meses saem iguais ao cálculo mês a mês, num lote de queries de teto fixo", async () => {
+        const { user, meter, property } = await setupGroupAPropertyMeter()
+        await insertReadingsForMonths(meter.id, MONTHS_2026)
+        const query = {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+            order: "asc",
+        }
+
+        const { result: batched, queryCount } = await countQueries(() =>
+            consumptionService.list(user.id, { ...query, pageSize: 12 }),
+        )
+        const oneByOne = []
+        for (const month of MONTHS_2026) {
+            const single = await consumptionService.list(user.id, {
+                ...query,
+                ...monthWindow(month),
+            })
+            oneByOne.push(...single.items)
+        }
+
+        expect(batched.items).toHaveLength(MONTHS_2026.length)
+        expect(batched.items).toEqual(oneByOne)
+        // Teto medido para 6 meses: as queries do lote não dependem do número de meses.
+        expect(queryCount).toBeLessThanOrEqual(10)
+    })
 
     it("reproduz o Exemplo 6 do documento de referência ponta-a-ponta", async () => {
         const { user, meter, property } = await setupGroupAPropertyMeter()
@@ -2177,6 +2347,34 @@ describe("ConsumptionService.list — Tarifa Branca (Grupo B)", () => {
         expect(groupBWhite!.publicLightingFeeBrl).toBe(18)
     })
 
+    it("granularidade month: vários meses saem iguais ao cálculo mês a mês, num lote de queries de teto fixo", async () => {
+        const { user, meter, property } = await setupWhitePropertyMeter()
+        await insertReadingsForMonths(meter.id, MONTHS_2026)
+        const query = {
+            targetType: "PROPERTY",
+            targetId: property.id,
+            granularity: "month",
+            order: "asc",
+        }
+
+        const { result: batched, queryCount } = await countQueries(() =>
+            consumptionService.list(user.id, { ...query, pageSize: 12 }),
+        )
+        const oneByOne = []
+        for (const month of MONTHS_2026) {
+            const single = await consumptionService.list(user.id, {
+                ...query,
+                ...monthWindow(month),
+            })
+            oneByOne.push(...single.items)
+        }
+
+        expect(batched.items).toHaveLength(MONTHS_2026.length)
+        expect(batched.items).toEqual(oneByOne)
+        // Teto medido para 6 meses: as queries do lote não dependem do número de meses.
+        expect(queryCount).toBeLessThanOrEqual(7)
+    })
+
     it("abaixo do piso de disponibilidade, cobra pela tarifa Convencional em vez da Branca", async () => {
         const { user, meter, property } = await setupWhitePropertyMeter()
 
@@ -2444,6 +2642,33 @@ describe("ConsumptionService.compareBrancaToConvencional — comparação Conven
         expect(comparison.totalConvencionalBrl).toBeCloseTo(sumConvencional, 6)
         expect(comparison.totalBrancaBrl).toBeCloseTo(sumBranca, 6)
         expect(comparison.totalDiffBrl).toBeCloseTo(sumConvencional - sumBranca, 6)
+    })
+
+    it("a comparação de vários meses é igual à de cada mês isolado, num lote de queries de teto fixo", async () => {
+        const { user, meter, property } = await setupBrancaComparisonFixture()
+        await insertReadingsForMonths(meter.id, MONTHS_2026)
+
+        const { result: whole, queryCount } = await countQueries(() =>
+            consumptionService.compareBrancaToConvencional(user.id, {
+                propertyId: property.id,
+                from: new Date("2026-03-01"),
+                to: new Date("2026-08-01"),
+            }),
+        )
+        const oneByOne = []
+        for (const month of MONTHS_2026) {
+            const single = await consumptionService.compareBrancaToConvencional(user.id, {
+                propertyId: property.id,
+                from: new Date(`${month}-01`),
+                to: new Date(`${month}-01`),
+            })
+            oneByOne.push(...single.months)
+        }
+
+        expect(whole.months).toHaveLength(MONTHS_2026.length)
+        expect(whole.months).toEqual(oneByOne)
+        // Teto medido para 6 meses: as queries do lote não dependem do número de meses.
+        expect(queryCount).toBeLessThanOrEqual(6)
     })
 
     it("lança ForbiddenError para propriedade de outro usuário", async () => {

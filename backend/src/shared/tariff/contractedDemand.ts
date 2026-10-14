@@ -1,4 +1,4 @@
-import type { PropertyResponse } from "@/modules/property/property.repository.js"
+import type { PropertyWithoutAddress } from "@/modules/property/property.repository.js"
 import type { MeterDemandRollupResponse } from "@/modules/meter/meter-demand-rollup.repository.js"
 import { ValidationError } from "@/shared/errors/AppError.js"
 import type { TariffPost } from "@/generated/prisma/client.js"
@@ -14,7 +14,7 @@ export type ContractedDemand = { post: TariffPost | null; contractedDemandKw: nu
  * então extraído para não arriscar os dois divergirem.
  */
 export function resolveContractedDemands(
-    property: PropertyResponse,
+    property: PropertyWithoutAddress,
     modality: "GREEN" | "BLUE",
 ): ContractedDemand[] {
     if (modality === "GREEN") {

@@ -2,6 +2,7 @@ import type { TargetType } from "@/generated/prisma/client.js"
 import type {
     PropertyRepository,
     PropertyResponse,
+    PropertyWithoutAddress,
 } from "@/modules/property/property.repository.js"
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
@@ -45,4 +46,38 @@ export async function resolveRootProperty(
     const result = await deviceRepository.findByIdWithProperty(targetId)
     if (!result) throw new NotFoundError("Dispositivo não encontrado")
     return result.property
+}
+
+/**
+ * Versão em lote de {@link resolveRootProperty} já restrita ao dono: uma query
+ * por tipo de alvo, com a posse filtrada no banco. Id inexistente ou de outro
+ * usuário simplesmente não aparece no mapa (mesma resposta para os dois, sem
+ * vazar se o id existe). Erro de banco propaga — "não achei" e "não consegui
+ * consultar" nunca se confundem. A propriedade vem sem os campos de endereço,
+ * que quem só precisa de posse, tarifa e distribuidora não deve ler.
+ *
+ * @param targetType - Tipo dos alvos.
+ * @param targetIds - Ids dos alvos.
+ * @param userId - Id do usuário dono.
+ * @param repositories - Repositórios de propriedade, área e dispositivo.
+ * @returns Mapa alvo → propriedade raiz, só com os alvos do usuário.
+ */
+export async function resolveOwnedRootProperties(
+    targetType: TargetType,
+    targetIds: string[],
+    userId: string,
+    { propertyRepository, areaRepository, deviceRepository }: TargetResolutionRepositories,
+): Promise<Map<string, PropertyWithoutAddress>> {
+    if (targetType === "PROPERTY") {
+        const properties = await propertyRepository.findManyOwnedByIds(targetIds, userId)
+        return new Map(properties.map((property) => [property.id, property]))
+    }
+
+    if (targetType === "AREA") {
+        const rows = await areaRepository.findManyOwnedByIdsWithProperty(targetIds, userId)
+        return new Map(rows.map((row) => [row.area.id, row.property]))
+    }
+
+    const rows = await deviceRepository.findManyOwnedByIdsWithProperty(targetIds, userId)
+    return new Map(rows.map((row) => [row.device.id, row.property]))
 }

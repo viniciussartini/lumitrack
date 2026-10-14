@@ -2,8 +2,11 @@ import { PrismaClient } from "@/generated/prisma/client.js"
 import type { CreateAreaInput, UpdateAreaInput } from "@/modules/area/area.schema.js"
 import { toSkipTake, type Paginated, type PaginationQuery } from "@/shared/pagination.js"
 import {
+    PROPERTY_WITHOUT_ADDRESS,
     toPropertyResponse,
+    toPropertyWithoutAddress,
     type PropertyResponse,
+    type PropertyWithoutAddress,
 } from "@/modules/property/property.repository.js"
 
 // Tipo inferido diretamente do Prisma
@@ -49,6 +52,32 @@ export class AreaRepository {
 
         const { property, ...area } = raw
         return { area, property: toPropertyResponse(property) }
+    }
+
+    /**
+     * Versão em lote de {@link findByIdWithProperty} restrita ao dono: uma
+     * query para várias áreas, filtrando a posse da propriedade na própria
+     * consulta — área inexistente e área de outro usuário ficam de fora do
+     * mesmo jeito.
+     *
+     * @param ids - Ids das áreas.
+     * @param userId - Id do usuário dono da propriedade.
+     * @returns Cada área do usuário entre os ids pedidos, com a propriedade dona sem os campos de endereço.
+     */
+    async findManyOwnedByIdsWithProperty(
+        ids: string[],
+        userId: string,
+    ): Promise<{ area: AreaResponse; property: PropertyWithoutAddress }[]> {
+        if (ids.length === 0) return []
+        const rows = await this.prisma.area.findMany({
+            where: { id: { in: ids }, property: { userId } },
+            include: { property: PROPERTY_WITHOUT_ADDRESS },
+            relationLoadStrategy: "join",
+        })
+        return rows.map(({ property, ...area }) => ({
+            area,
+            property: toPropertyWithoutAddress(property),
+        }))
     }
 
     /**

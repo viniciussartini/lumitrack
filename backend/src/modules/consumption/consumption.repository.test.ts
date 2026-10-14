@@ -516,3 +516,47 @@ describe("ConsumptionRepository.findKwhTotalsByMeter", () => {
         expect(totals.size).toBe(0)
     })
 })
+
+describe("ConsumptionRepository.findMonthlyKwhForYears", () => {
+    // Bucket de ano como o `findAggregated` o devolve: meia-noite local do dia 1º,
+    // com os dígitos locais nos getters UTC.
+    const yearBucket = (year: number) => new Date(Date.UTC(year, 0, 1))
+
+    it("soma por mês só dos anos pedidos, com as bordas do ano em hora local", async () => {
+        const meterId = await setupMeter()
+
+        await createReading(meterId, new Date(Date.UTC(2026, 0, 1, 2, 59)), 100) // 31/12/2025 23:59 local: fora
+        await createReading(meterId, new Date(Date.UTC(2026, 0, 1, 3, 0)), 1) // 01/01 00:00 local: entra
+        await createReading(meterId, new Date(Date.UTC(2026, 0, 20, 12)), 2)
+        await createReading(meterId, new Date(Date.UTC(2026, 5, 10, 12)), 4)
+        await createReading(meterId, new Date(Date.UTC(2027, 0, 1, 2, 59)), 8) // 31/12 23:59 local: entra
+        await createReading(meterId, new Date(Date.UTC(2027, 0, 1, 3, 0)), 100) // 01/01/2027 local: fora
+
+        const rows = await consumptionRepository.findMonthlyKwhForYears(meterId, [yearBucket(2026)])
+
+        const kwhByMonth = new Map(rows.map((r) => [r.monthBucket.getTime(), r.kwhConsumed]))
+        expect(kwhByMonth.size).toBe(3)
+        expect(kwhByMonth.get(Date.UTC(2026, 0, 1))).toBe(3)
+        expect(kwhByMonth.get(Date.UTC(2026, 5, 1))).toBe(4)
+        expect(kwhByMonth.get(Date.UTC(2026, 11, 1))).toBe(8)
+    })
+
+    it("com anos não contíguos, o ano do meio fica de fora", async () => {
+        const meterId = await setupMeter()
+
+        await createReading(meterId, new Date(Date.UTC(2024, 3, 10, 12)), 1)
+        await createReading(meterId, new Date(Date.UTC(2025, 3, 10, 12)), 100)
+        await createReading(meterId, new Date(Date.UTC(2026, 3, 10, 12)), 2)
+
+        const rows = await consumptionRepository.findMonthlyKwhForYears(meterId, [
+            yearBucket(2024),
+            yearBucket(2026),
+        ])
+
+        expect(rows.map((r) => r.kwhConsumed).sort()).toEqual([1, 2])
+    })
+
+    it("não consulta o banco com lista vazia", async () => {
+        expect(await consumptionRepository.findMonthlyKwhForYears("qualquer", [])).toEqual([])
+    })
+})
