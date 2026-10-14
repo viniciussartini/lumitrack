@@ -146,6 +146,14 @@ necessidade funcional.
 > para contestação de fatura/suporte técnico, não uma necessidade imposta
 > pelo orçamento de disco.
 >
+> **Revisão do número (2026-10-13):** o "~2 GiB/ano" foi medido com a linha
+> de 12 colunas. Com as 22 grandezas por fase (ADR-0022) a linha tem 570 B
+> com índices (era ~401 B) e a retenção de 365 dias chega a **~3,1 GiB** para
+> os 11 medidores da demo. O teto continua conhecido e estável, e a decisão
+> dos 365 dias não muda por isso; o argumento de custo de armazenamento
+> segue fraco no servidor próprio, mas pesa nos planos gratuitos de banco.
+> Medição em `.claude/docs/2026-10-13-baseline-desempenho-meter-readings.md`.
+>
 > **Correção de escopo:** uma versão anterior desta nota também justificava
 > os 365 dias como "mantém a opção de comparação minuto a minuto ano contra
 > ano no futuro". Isso não se sustenta com o desenho implementado: a janela
@@ -172,8 +180,8 @@ decisão de desenho de armazenamento tomada com número medido, não estimado:
   (`DATA_RETENTION_METER_READING_DAYS`) — cobre com folga a janela de
   contestação de fatura e investigação de suporte técnico que motivou a
   faixa original de 60–90 dias, e mantém um ano completo de detalhe fino a
-  um custo medido e trivial (~2 GiB/ano, ver
-  `.claude/docs/2026-08-24-baseline-desempenho.md` §4).
+  um custo medido e trivial (~3,1 GiB/ano com as grandezas por fase, ~2 GiB/ano
+  antes delas; ver `.claude/docs/2026-10-13-baseline-desempenho-meter-readings.md` §1).
 - **O que foi de fato implementado é expurgo definitivo (`DELETE`), sem
   nenhuma compactação.** Não existe hoje um agregado por hora/dia
   persistido — `MeterReading` é a única tabela de consumo do schema; o
