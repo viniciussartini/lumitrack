@@ -70,12 +70,16 @@
         # continuam cobertos só pela <meta> — não duplicados aqui.
         Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
         X-Content-Type-Options "nosniff"
-        # `?` só define quando a resposta ainda não traz o cabeçalho: a API
-        # já envia o próprio Referrer-Policy (helmet, no-referrer) e ele vence.
-        ?Referrer-Policy "strict-origin-when-cross-origin"
-        # A aplicação não usa câmera, microfone, localização, pagamento nem
-        # periféricos; a área de transferência continua liberada (códigos de MFA).
-        ?Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), hid=()"
         -Server
     }
+
+    # Cada cabeçalho com `?` fica na sua própria diretiva `header`: num mesmo
+    # bloco, os campos com `?` viram uma condição conjunta e nenhum é aplicado
+    # se qualquer um já existir. `?` só define quando a resposta ainda não traz
+    # o cabeçalho: a API envia o próprio Referrer-Policy (helmet, no-referrer)
+    # e ele vence, sem impedir o Permissions-Policy.
+    header ?Referrer-Policy "strict-origin-when-cross-origin"
+    # A aplicação não usa câmera, microfone, localização, pagamento nem
+    # periféricos; a área de transferência continua liberada (códigos de MFA).
+    header ?Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), hid=()"
 }

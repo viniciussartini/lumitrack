@@ -130,7 +130,24 @@ ClientAliveCountMax 2
 - `AllowTcpForwarding local` — mantém o túnel `ssh -L` do painel de monitoramento (item 2.2) e fecha o túnel reverso.
 - `ClientAlive*` — derruba conexões mortas (rede caída) em ~10 minutos, em vez de deixá-las penduradas.
 
-> **Armadilha do `MaxAuthTries`:** cada chave que o seu cliente oferece e o servidor recusa conta como uma tentativa. Com várias chaves no agente, a certa pode nem chegar a ser oferecida. Se acessar de uma máquina com muitas chaves, use `ssh -o IdentitiesOnly=yes -i <chave> <usuario>@<ip-da-vm>` (ou `IdentitiesOnly yes` no `~/.ssh/config`).
+Depois de editar, confira o valor **efetivo**, não o que está escrito (o primeiro valor vence entre os arquivos, como no item 1.3):
+
+```bash
+sudo sshd -T | grep -E "^(allowusers|maxauthtries|logingracetime|x11forwarding|allowagentforwarding|allowtcpforwarding|clientalive)"
+```
+
+> **Armadilha do `MaxAuthTries` — configure ANTES de aplicar, não depois.** Cada chave que o seu cliente oferece e o servidor recusa conta como uma tentativa. Com várias chaves no agente, a certa pode nem chegar a ser oferecida, e o servidor registra `maximum authentication attempts exceeded` **com o seu próprio endereço**. O filtro do fail2ban (item 1.4) conta essa linha como falha: três banimentos de 1 hora no mesmo dia acionam a `recidive` (item 1.4.1), e o seu endereço fica bloqueado por **uma semana, em todas as portas, inclusive a 22**. A volta passa pelo console do provedor.
+>
+> Por isso, antes de aplicar `MaxAuthTries 3` e a `recidive`, diga ao cliente qual chave usar, no `~/.ssh/config` da sua máquina:
+>
+> ```
+> Host <ip-da-vm>
+>     User <usuario>
+>     IdentityFile ~/.ssh/<chave>
+>     IdentitiesOnly yes
+> ```
+>
+> ou, avulso, `ssh -o IdentitiesOnly=yes -i <chave> <usuario>@<ip-da-vm>`.
 
 > **Corda de segurança para mudar o SSH de um servidor remoto:** além de manter uma sessão aberta, agende a volta da configuração antiga **antes** de recarregar, e só cancele depois de entrar por uma conexão nova:
 >
@@ -218,6 +235,8 @@ sudo fail2ban-client -t && sudo fail2ban-client reload
 sudo fail2ban-client status recidive    # deve mostrar "File list: /var/log/fail2ban.log"
 ```
 
+> **Como se recuperar de um bloqueio (e como evitá-lo).** Se o seu endereço for banido, entre pelo console web do provedor e rode `sudo fail2ban-client set recidive unbanip <seu-ip>` (e o mesmo com `sshd`). Se o seu endereço de casa é **fixo**, ponha `ignoreip = <seu-ip-fixo>` na seção `[DEFAULT]` do `jail.local`, e ele nunca é banido. Com endereço dinâmico (o caso comum, ver "Decisões conscientes"), o `ignoreip` não serve, e a prevenção é o `IdentitiesOnly` do item 1.3.1.
+
 > **A mesma armadilha do item anterior, ao contrário.** O Ubuntu define `backend = systemd` como padrão para todas as regras. A `sshd` precisa disso, mas a `recidive` não: os banimentos vão para o **arquivo** `/var/log/fail2ban.log`, não para o journal. Sem `backend = auto`, a regra aparece ativa, mostra `No file is currently monitored` e nunca bane ninguém. Confira a linha `File list`, não o "ativo".
 
 ---
@@ -277,6 +296,8 @@ No resultado do `ss`, olhe a coluna de endereço local de cada linha:
 
 Qualquer serviço inesperado escutando em `0.0.0.0` merece investigação imediata.
 
+> **Atenção com Docker e firewall.** O Docker manipula as regras de rede do sistema por conta própria e, ao publicar uma porta, pode contornar o `ufw` — uma porta publicada no `docker-compose.yml` como `"3001:3001"` fica acessível ao mundo **mesmo com o `ufw` configurado para negá-la**. A proteção real é publicar explicitamente amarrado ao endereço interno (`"127.0.0.1:3001:3001"`), como este projeto faz. Nunca confie apenas no firewall para conter uma porta de container.
+
 ## 2.4 Ajustes de rede do kernel
 
 A máquina não é roteador de ninguém, então não deve sugerir rotas a outros computadores (*ICMP redirect*), e pacotes com origem impossível valem um registro no log. Num arquivo `/etc/sysctl.d/99-hardening.conf`:
@@ -290,11 +311,11 @@ net.ipv4.conf.default.log_martians = 1
 
 Aplique com `sudo sysctl -p /etc/sysctl.d/99-hardening.conf`.
 
+> **`send_redirects` vale por interface.** O kernel envia o redirect se `all` **ou** a própria interface estiver ligada, e uma interface que já existia antes de o `default` mudar mantém o valor dela. Escrever em `all` costuma propagar, mas confira todas: `sysctl -a 2>/dev/null | grep '\.send_redirects'`. Se a interface pública (a que não é `lo`, nem de Docker) mostrar `1`, fixe `net.ipv4.conf.<interface>.send_redirects = 0` no mesmo arquivo. Com `log_martians` não há esse cuidado: o "ou" trabalha a favor, e `all = 1` basta.
+
 > **Armadilha real desta VPS: o `ufw` desfaz isso no boot.** Ele aplica um `sysctl` próprio (`/etc/ufw/sysctl.conf`) **depois** do sistema, e esse arquivo traz `log_martians=0`. O valor fica certo até o primeiro reinício e depois volta sozinho. Corrija no arquivo do `ufw` também (`net/ipv4/conf/all/log_martians=1` e a linha `default`) e confira **depois de um reinício**: `sysctl net.ipv4.conf.all.log_martians`.
 >
 > Não mexa em `net.ipv4.ip_forward`: ele precisa ficar em `1` para o Docker encaminhar o tráfego dos containers.
-
-> **Atenção com Docker e firewall.** O Docker manipula as regras de rede do sistema por conta própria e, ao publicar uma porta, pode contornar o `ufw` — uma porta publicada no `docker-compose.yml` como `"3001:3001"` fica acessível ao mundo **mesmo com o `ufw` configurado para negá-la**. A proteção real é publicar explicitamente amarrado ao endereço interno (`"127.0.0.1:3001:3001"`), como este projeto faz. Nunca confie apenas no firewall para conter uma porta de container.
 
 ---
 
@@ -414,7 +435,7 @@ ls /boot/vmlinuz-* | sort -V | tail -1  # o kernel mais novo instalado
 
 Se forem diferentes, há uma atualização pendente de reinício.
 
-> **Armadilha: o `apt upgrade` pode reter o kernel novo.** Quando a atualização do kernel traz um pacote novo (o kernel de número seguinte), o `apt upgrade` a segura e a lista como mantida. O sintoma é `apt list --upgradable` mostrando `linux-image-virtual` (ou `linux-image-generic`) dia após dia. Instale explicitamente antes de reiniciar: `sudo apt install --only-upgrade linux-image-virtual`.
+> **Armadilha: um `upgrade` pode deixar o kernel novo para trás.** O kernel de número seguinte é um **pacote novo**, e o `apt-get upgrade` (o comando dos scripts de provisionamento e de muita automação) nunca instala pacote novo; além disso, o Ubuntu escalona algumas atualizações (*phased updates*). O sintoma é `apt list --upgradable` mostrando o meta-pacote do kernel (`linux-image-virtual` ou `linux-image-generic`, conforme a imagem) dia após dia. Instale explicitamente antes de reiniciar, com o nome que a lista mostrar: `sudo apt-get install --only-upgrade linux-image-virtual`.
 
 O sistema também costuma avisar no login. Reiniciar é rápido nesta topologia — os containers estão configurados com `restart: unless-stopped`, ou seja, o Docker os religa sozinho assim que o sistema volta:
 
@@ -431,17 +452,20 @@ docker compose ps           # todos os serviços de volta e saudáveis
 
 > **Armadilha real desta VPS: "saudável" não quer dizer "com dados".** O simulador IoT guarda os medidores virtuais só em memória, de propósito. Qualquer reinício dele (inclusive o da máquina inteira) apaga a lista de medidores: o container volta saudável, o backend continua conectado ao broker, e **nenhuma leitura chega**. Num reinício de manutenção isso passou despercebido e deixou um buraco de ~20 minutos nos gráficos, porque a conferência olhou os containers e não os dados.
 >
-> Depois de reiniciar a máquina (ou só o `simulator`), recrie os medidores e confira que as leituras voltaram:
+> Depois de reiniciar a máquina (ou só o `simulator`), recrie os medidores e confira que as leituras voltaram. Rode como o usuário de serviço, dentro da pasta do projeto: os arquivos `.env` são `600` dele, e o usuário administrativo não os lê.
 >
 > ```bash
-> ./deploy/seed-simulator-devices.sh
-> # depois de ~1 minuto, deve mostrar a quantidade de medidores da demo:
-> docker compose --env-file deploy/.env exec -T postgres \
+> cd /opt/<projeto>
+> sudo -u <usuario-de-servico> ./deploy/seed-simulator-devices.sh
+> # depois de pelo menos 1 minuto completo, deve mostrar a quantidade de medidores da demo:
+> sudo -u <usuario-de-servico> docker compose --env-file deploy/.env exec -T postgres \
 >   sh -c 'psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
 > SELECT count(DISTINCT "meterId") FROM meter_readings
 > WHERE "minuteStart" > (now() AT TIME ZONE 'UTC') - interval '3 minutes';
 > SQL
 > ```
+>
+> **O seed não é idempotente.** Cada execução cria uma rede e todos os medidores de novo, e o simulador não recusa tópico repetido. Rodá-lo com os medidores ainda presentes põe dois emissores em cada tópico, e o backend soma a energia de ambos: o consumo gravado dobra e estraga gráficos, relatórios e metas da demo. Rode-o só logo depois de um reinício (a memória do simulador está vazia). Se a contagem vier baixa, **não repita o seed**: reinicie o simulador primeiro (`sudo -u <usuario-de-servico> docker compose --env-file deploy/.env restart simulator`) e aí rode o seed, uma vez. A contagem só vale depois de pelo menos 1 minuto completo; antes disso, um valor baixo é normal.
 >
 > O `deploy/update-production.sh` já recria os medidores quando ele mesmo reconstrói o simulador; o reinício manual não tem esse automatismo.
 
@@ -498,7 +522,7 @@ Configurar uma vez não basta — configurações se perdem em atualizações, m
 
 ```bash
 echo "=== 1. Acesso (SSH) — valores EFETIVOS ==="
-sudo sshd -T | grep -E "^(permitrootlogin|passwordauthentication|pubkeyauthentication|permitemptypasswords)"
+sudo sshd -T | grep -E "^(permitrootlogin|passwordauthentication|pubkeyauthentication|permitemptypasswords|allowusers|maxauthtries|x11forwarding|allowagentforwarding|allowtcpforwarding|clientaliveinterval)"
 
 echo "=== 2. Fail2ban — está enxergando o serviço certo? ==="
 sudo fail2ban-client status sshd
@@ -534,25 +558,29 @@ echo "=== 11. Fail2ban — reincidentes lendo o arquivo certo ==="
 sudo fail2ban-client status recidive | grep "File list"
 
 echo "=== 12. Rede do kernel (conferir depois de reiniciar) ==="
-sysctl net.ipv4.conf.all.send_redirects net.ipv4.conf.all.log_martians
+sysctl -a 2>/dev/null | grep -E '\.(send_redirects|log_martians)'
 
 echo "=== 13. Containers sem ganho de privilégio ==="
 sudo docker inspect $(sudo docker ps -q) --format "{{.Name}}: {{.HostConfig.SecurityOpt}} {{.HostConfig.CapDrop}}"
 
 echo "=== 14. Dados chegando (container saudável não basta) ==="
 cd /opt/<projeto>   # o compose precisa da pasta do projeto
-docker compose --env-file deploy/.env exec -T postgres \
+sudo -u <usuario-de-servico> docker compose --env-file deploy/.env exec -T postgres \
   sh -c 'psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
 SELECT count(DISTINCT "meterId") FROM meter_readings
 WHERE "minuteStart" > (now() AT TIME ZONE 'UTC') - interval '3 minutes';
 SQL
+
+echo "=== 15. Backups só legíveis pelo dono ==="
+sudo stat -c '%a %U' /opt/<projeto>/backups
+sudo find /opt/<projeto>/backups -type f ! -perm 600 -print   # não deve listar nada
 ```
 
 **Como ler o resultado** — cada item tem uma resposta certa:
 
 | # | Verificação | Resposta correta |
 |---|---|---|
-| 1 | SSH | `permitrootlogin no`, `passwordauthentication no`, `permitemptypasswords no` |
+| 1 | SSH | `permitrootlogin no`, `passwordauthentication no`, `permitemptypasswords no`, `allowusers <usuario>`, `maxauthtries 3`, `x11forwarding no`, `allowagentforwarding no`, `allowtcpforwarding local` |
 | 2 | Fail2ban | `Journal matches` apontando para o serviço que existe na máquina |
 | 3 | Firewall | `Status: active`, `deny (incoming)`, só 22/80/443 liberadas |
 | 4 | Portas | Nada em `0.0.0.0`/`[::]` além de 22, 80 e 443 |
@@ -564,9 +592,10 @@ SQL
 | 9 | Kernel | As duas versões iguais (senão, reiniciar) |
 | 10 | Disco | Uso confortável, com folga para logs e backups |
 | 11 | Reincidentes | `File list: /var/log/fail2ban.log` (não `No file is currently monitored`) |
-| 12 | Rede do kernel | `send_redirects = 0` e `log_martians = 1`, inclusive depois de reiniciar |
+| 12 | Rede do kernel | `send_redirects = 0` em `all`, `default` e na interface pública (só `lo` pode ficar em `1`); `log_martians = 1`; tudo conferido também depois de reiniciar |
 | 13 | Containers | `no-new-privileges:true` em backend, simulador e proxy; `ALL` em `CapDrop` no simulador e no proxy |
-| 14 | Dados | A quantidade de medidores da demo; se vier menor (ou `0`), rodar `./deploy/seed-simulator-devices.sh` (item 4.2) |
+| 14 | Dados | A quantidade de medidores da demo, depois de pelo menos 1 minuto completo. Se vier menor ou `0`, **não rode o seed às cegas**: ele duplica os medidores existentes. Reinicie o `simulator` e rode o seed uma vez (item 4.2) |
+| 15 | Backups | Pasta `700` e a segunda linha vazia (nenhum arquivo fora de `600`) |
 
 E, do lado de fora da máquina, três confirmações que só fazem sentido pela internet:
 

@@ -722,7 +722,8 @@ sudo systemctl enable --now lumitrack-backup.timer
 
 ```bash
 # 1. Trazer o dump cifrado da VM para a sua máquina (só o .age — nada de chave).
-#    A pasta de backups é 700 e os arquivos 600, do usuário de serviço: o
+#    A pasta de backups é 700 e os arquivos 600, do usuário de serviço (o
+#    script garante isso a cada execução): o
 #    usuário administrativo copia com sudo para uma área temporária própria,
 #    baixa e apaga a cópia.
 ssh -t <usuario>@<ip-da-vm> 'sudo install -m 600 -o "$USER" /opt/lumitrack/backups/lumitrack-<timestamp>.sql.gz.age /tmp/'
