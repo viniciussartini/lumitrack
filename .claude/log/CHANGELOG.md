@@ -4835,6 +4835,33 @@
 - **Decisões/ADRs:** nenhuma ADR nova e nenhum item do `07` tocado. Decisões do usuário nesta sessão: redistribuir os pacotes por arquivo e não criar trava de CI para o CHANGELOG.
 - **Notas:** o #518 muda o que a tela mostra em três casos de borda (janela no frontend × ancorar a janela na última leitura no backend; pergunta na chegada do item). Nenhuma issue foi criada nem alterada, porque todas já existem; a milestone segue com 39 abertas.
 
+## [2026-10-13] chore: endurecimento dos contêineres, do proxy e do backup
+
+- **Branch:** chore/endurecimento-conteineres-e-proxy
+- **Tipo:** chore
+- **O quê:** defesa em profundidade na entrega de produção. `docker-compose.yml`: `no-new-privileges` no backend, no simulador e no Caddy; `cap_drop: ALL` no simulador e no Caddy (este só com `NET_BIND_SERVICE`). O backend fica sem `cap_drop` porque o deploy roda a migração do Prisma como `root` na mesma imagem. `deploy/Caddyfile`: caminho com segmento oculto (`/.env`, `/.git/config`) responde 404 em vez de cair no fallback da SPA com 200, exceto `/.well-known/`; `Referrer-Policy` e `Permissions-Policy` só quando a resposta ainda não traz o cabeçalho (a API mantém o `no-referrer` do helmet). `deploy/backup-postgres.sh`: `umask 077` (backups 600, pasta 700). `DEPLOY.md`: o download do backup passa a copiar com `sudo` para `/tmp` antes do `scp`. `SEGURANCA-VPS.md`: ajustes extras do SSH com corda de segurança (reversão agendada), regra `recidive` do fail2ban com a armadilha do `backend`, `sysctl` de rede com a armadilha do `ufw` que desfaz o `log_martians` no boot, kernel retido pelo `apt upgrade`, capabilities dos contêineres, cabeçalhos novos e o porquê do 200 em `/.env`; três itens novos no bloco de auditoria e no resumo executivo.
+- **Arquivos principais:** `docker-compose.yml`, `deploy/Caddyfile`, `deploy/backup-postgres.sh`, `.claude/docs/DEPLOY.md`, `.claude/docs/SEGURANCA-VPS.md`.
+- **Decisões/ADRs:** nenhuma; nenhum item do `07` tocado.
+- **Notas:** Caddyfile validado (`caddy validate`) e testado num contêiner local com as restrições novas (cap_drop ALL + NET_BIND_SERVICE + no-new-privileges): SPA e assets 200, caminhos ocultos 404, `/.well-known/` liberado, cabeçalhos presentes. Um Node como `node` com `cap_drop: ALL` escuta nas portas do simulador; `docker compose config` válido. Chega à produção na próxima promoção `staging` → `main`. Nenhum dado de infraestrutura no diff.
+
+## [2026-10-13] docs: reinício da VPS exige recriar os medidores do simulador
+
+- **Branch:** chore/endurecimento-conteineres-e-proxy
+- **Tipo:** docs
+- **O quê:** o `SEGURANCA-VPS.md` (item 4.2) passa a dizer que reiniciar a máquina, ou só o `simulator`, apaga os medidores virtuais, que vivem só em memória: o container volta saudável, o backend continua conectado ao broker e nenhuma leitura chega. Depois do reinício, rodar `./deploy/seed-simulator-devices.sh` e conferir no banco que as leituras voltaram (comando testado). O bloco de auditoria ganha o item 14, "dados chegando". A nota do kernel retido, inserida no meio de um parágrafo pela entrada anterior, foi separada dele.
+- **Arquivos principais:** `.claude/docs/SEGURANCA-VPS.md`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** a lacuna veio de uma manutenção: a conferência pós-reinício olhou a saúde dos containers e não o fluxo de dados, e as leituras ficaram ~20 min paradas até os medidores serem recriados.
+
+## [2026-10-13] chore: ajustes da revisão do endurecimento de produção
+
+- **Branch:** chore/endurecimento-ajustes-revisao
+- **Tipo:** chore
+- **O quê:** dois bloqueios e oito sugestões da `revisao-codigo` sobre os commits de endurecimento que já estavam em `staging`, todas aplicadas por decisão do usuário. `SEGURANCA-VPS.md`: o seed dos medidores do simulador não é idempotente (cada execução cria rede e medidores de novo e o simulador aceita tópico repetido; dois emissores no mesmo tópico dobram o consumo gravado), então o guia e a linha 14 da auditoria mandam reiniciar o `simulator` antes de repetir o seed e só contar depois de 1 minuto completo; os comandos ganham `sudo -u <usuario-de-servico>`, porque os `.env` são 600 do usuário de serviço; o `MaxAuthTries` baixo mais a `recidive` podem bloquear o próprio operador por uma semana (a linha `maximum authentication attempts exceeded` conta como falha no fail2ban, conferido com `fail2ban-regex`), então `IdentitiesOnly` passa a ser pré-requisito e o guia descreve a recuperação e o `ignoreip`; a causa do kernel retido é o `apt-get upgrade` não instalar pacote novo (e os *phased updates*), não o `apt upgrade`; a seção 2.4 sai de dentro da 2.3 e o `send_redirects` passa a ser conferido por interface; a auditoria lê as diretivas novas do SSH e ganha o item 15, backups. `backup-postgres.sh`: `chmod 700` na pasta e `chmod 600` nos dumps antigos a cada execução, para a afirmação "700 e 600" valer em qualquer servidor, não só nos novos. `Caddyfile`: cada cabeçalho com `?` passa para a sua própria diretiva `header` (num mesmo bloco viram uma condição conjunta). `docker-compose.yml`: o comentário do Caddy registra que o processo roda como root sem `DAC_OVERRIDE` (Caddyfile e build precisam de leitura para "outros") e que o `cap_add` é obrigatório porque o binário traz a capability no arquivo.
+- **Arquivos principais:** `deploy/backup-postgres.sh`, `deploy/Caddyfile`, `docker-compose.yml`, `.claude/docs/SEGURANCA-VPS.md`, `.claude/docs/DEPLOY.md`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** verificado antes de escrever: o Caddy com um upstream que já manda `Referrer-Policy` mantém o `no-referrer` e acrescenta o `Permissions-Policy`; sem `NET_BIND_SERVICE` o Caddy não inicia (`operation not permitted`). No servidor, o único dump que estava em 644 (criado pelo script antigo) foi corrigido para 600; o script em produção só ganha o `umask` e os `chmod` na próxima promoção, então os dumps novos saem 644 dentro da pasta 700 até lá. Nenhum dado de infraestrutura no diff.
+
 ## [2026-10-13] perf: meter_readings medida e decidida (baseline, gerador com 22 colunas, ADR-0027)
 
 - **Branch:** perf/535-meter-readings-medida
