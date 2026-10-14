@@ -19,6 +19,10 @@ const mockBucket: ConsumptionBucket = {
     avgPowerW: 520.4,
 }
 
+const from = new Date(2026, 7, 21, 19, 0)
+const to = new Date(2026, 7, 21, 20, 0)
+const range = { from, to }
+
 const createWrapper = () => {
     // gcTime: 0 evita cache cruzando entre testes (regra do projeto pra suite)
     const queryClient = new QueryClient({
@@ -46,9 +50,12 @@ describe("useConsumption", () => {
             granularity: "day",
         })
 
-        const { result } = renderHook(() => useConsumption("PROPERTY", "prop-1", "day"), {
-            wrapper: createWrapper(),
-        })
+        const { result } = renderHook(
+            () => useConsumption("PROPERTY", "prop-1", "day", 1, 10, range),
+            {
+                wrapper: createWrapper(),
+            },
+        )
 
         await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
@@ -58,6 +65,8 @@ describe("useConsumption", () => {
             granularity: "day",
             page: 1,
             pageSize: 10,
+            from,
+            to,
         })
         expect(result.current.data?.items).toEqual([mockBucket])
     })
@@ -71,7 +80,7 @@ describe("useConsumption", () => {
             granularity: "hour",
         })
 
-        renderHook(() => useConsumption("DEVICE", "dev-1", "hour", 2, 5), {
+        renderHook(() => useConsumption("DEVICE", "dev-1", "hour", 2, 5, range), {
             wrapper: createWrapper(),
         })
 
@@ -82,6 +91,8 @@ describe("useConsumption", () => {
                 granularity: "hour",
                 page: 2,
                 pageSize: 5,
+                from,
+                to,
             }),
         )
     })
@@ -94,9 +105,6 @@ describe("useConsumption", () => {
             pageSize: 10,
             granularity: "minute",
         })
-
-        const from = new Date(2026, 7, 21, 19, 0)
-        const to = new Date(2026, 7, 21, 20, 0)
 
         renderHook(
             () => useConsumption("PROPERTY", "prop-1", "minute", 1, 10, { from, to, order: "asc" }),
@@ -136,11 +144,8 @@ describe("useConsumption", () => {
             <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
         )
 
-        const from = new Date(2026, 7, 21, 19, 0)
-        const to = new Date(2026, 7, 21, 20, 0)
-
         const { result: latestResult } = renderHook(
-            () => useConsumption("PROPERTY", "prop-1", "hour", 1, 3),
+            () => useConsumption("PROPERTY", "prop-1", "hour", 1, 3, () => range),
             { wrapper },
         )
         const { result: windowResult } = renderHook(
@@ -154,8 +159,36 @@ describe("useConsumption", () => {
         expect(consumptionService.list).toHaveBeenCalledTimes(2)
     })
 
+    it("janela calculada no pedido: vai na requisição e não entra na chave", async () => {
+        vi.mocked(consumptionService.list).mockResolvedValue({
+            items: [],
+            total: 0,
+            page: 1,
+            pageSize: 3,
+            granularity: "hour",
+        })
+        const nextHour = { from: to, to: new Date(2026, 7, 21, 21, 0) }
+
+        const { result, rerender } = renderHook(
+            ({ window }: { window: { from: Date; to: Date } }) =>
+                useConsumption("PROPERTY", "prop-1", "hour", 1, 3, () => window),
+            { wrapper: createWrapper(), initialProps: { window: range } },
+        )
+        await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+        // A virada da hora troca a janela, mas a consulta é a mesma: sem nova
+        // chave, a tela não volta ao esqueleto.
+        rerender({ window: nextHour })
+        expect(result.current.isSuccess).toBe(true)
+        expect(consumptionService.list).toHaveBeenCalledTimes(1)
+        expect(consumptionService.list).toHaveBeenCalledWith(expect.objectContaining(range))
+
+        await result.current.refetch()
+        expect(consumptionService.list).toHaveBeenLastCalledWith(expect.objectContaining(nextHour))
+    })
+
     it("não dispara a query quando targetId é undefined", () => {
-        renderHook(() => useConsumption("AREA", undefined, "day"), {
+        renderHook(() => useConsumption("AREA", undefined, "day", 1, 10, range), {
             wrapper: createWrapper(),
         })
 
@@ -165,9 +198,12 @@ describe("useConsumption", () => {
     it("propaga erro (ex: 404 alvo sem medidor)", async () => {
         vi.mocked(consumptionService.list).mockRejectedValue(new Error("404"))
 
-        const { result } = renderHook(() => useConsumption("PROPERTY", "prop-1", "day"), {
-            wrapper: createWrapper(),
-        })
+        const { result } = renderHook(
+            () => useConsumption("PROPERTY", "prop-1", "day", 1, 10, range),
+            {
+                wrapper: createWrapper(),
+            },
+        )
 
         await waitFor(() => expect(result.current.isError).toBe(true))
     })

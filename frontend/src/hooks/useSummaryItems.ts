@@ -1,5 +1,5 @@
 import { useQueries } from "@tanstack/react-query"
-import { summaryQueryOptions, type SummaryRange } from "@/hooks/queries/useConsumption"
+import { summaryQueryOptions, type SummaryRangeInput } from "@/hooks/queries/useConsumption"
 import { SUMMARY_MAX_IDS, chunkIds, type TargetIds } from "@/lib/summaryBatch"
 import type { BucketSize, ConsumptionSummaryItem } from "@/types/consumption.types"
 import type { TargetType } from "@/types/meter.types"
@@ -28,7 +28,7 @@ export interface SummaryItems {
 export const useSummaryItems = (
     targetIds: Partial<TargetIds> | undefined,
     granularity: BucketSize,
-    range: SummaryRange,
+    range: SummaryRangeInput,
 ): SummaryItems => {
     const requests = TARGET_TYPES.flatMap((targetType) =>
         chunkIds(targetIds?.[targetType] ?? [], SUMMARY_MAX_IDS).map((ids) => ({

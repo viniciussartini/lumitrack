@@ -129,3 +129,51 @@ export const resolveMonthlyHistoryWindow = (now: Date = new Date()): MonthlyHist
     from: new Date(now.getFullYear(), now.getMonth(), 1),
     to: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
 })
+
+/** Tamanhos de balde que os pedidos "últimos N baldes" usam. */
+export type LatestBucketSize = "hour" | "day" | "month"
+
+/**
+ * Janela mínima de um pedido "últimos N baldes": do início do balde de `now`
+ * recuado N−1 baldes até o fim do balde de `now` (exclusivo). Sem ela o
+ * backend agrega o histórico inteiro do medidor antes de cortar nos N mais
+ * recentes. Meses e dias seguem o calendário local, como
+ * `resolveConsumptionWindow`.
+ */
+export const resolveLatestWindow = (
+    bucketSize: LatestBucketSize,
+    count: number,
+    now: Date = new Date(),
+): { from: Date; to: Date } => {
+    const year = now.getFullYear()
+    const month = now.getMonth()
+    const day = now.getDate()
+    switch (bucketSize) {
+        case "hour":
+            return {
+                from: new Date(year, month, day, now.getHours() - (count - 1)),
+                to: new Date(year, month, day, now.getHours() + 1),
+            }
+        case "day":
+            return {
+                from: new Date(year, month, day - (count - 1)),
+                to: new Date(year, month, day + 1),
+            }
+        case "month":
+            return {
+                from: new Date(year, month - (count - 1), 1),
+                to: new Date(year, month + 1, 1),
+            }
+    }
+}
+
+/**
+ * Janela dos pedidos "últimos N baldes", calculada quando o pedido sai, e não
+ * quando a tela monta: uma sessão aberta pela virada da hora, do dia ou do mês
+ * consulta o período novo sem trocar a chave da consulta. Passe a função, não
+ * o resultado, a `useConsumption`/`useConsumptionSummary`; `count` deve ser o
+ * `pageSize` do pedido.
+ */
+export const latestRange =
+    (bucketSize: LatestBucketSize, count: number) => (): { from: Date; to: Date } =>
+        resolveLatestWindow(bucketSize, count)

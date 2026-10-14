@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest"
 import {
     describeConsumptionWindow,
     resolveConsumptionWindow,
+    resolveLatestWindow,
     resolveMonthlyHistoryWindow,
 } from "@/lib/consumptionWindow"
 
@@ -127,5 +128,42 @@ describe("resolveMonthlyHistoryWindow", () => {
 
         expect(from).toEqual(new Date(2027, 0, 1, 0, 0, 0, 0))
         expect(to).toEqual(new Date(2027, 0, 15, 0, 0, 0, 0))
+    })
+})
+
+describe("resolveLatestWindow", () => {
+    it("hora: as N horas terminando na hora corrente", () => {
+        const { from, to } = resolveLatestWindow("hour", 3, NOW)
+
+        expect(from).toEqual(new Date(2026, 7, 21, 17))
+        expect(to).toEqual(new Date(2026, 7, 21, 20))
+    })
+
+    it("hora: recua para o dia anterior na madrugada", () => {
+        const { from, to } = resolveLatestWindow("hour", 3, new Date(2026, 7, 21, 1, 10))
+
+        expect(from).toEqual(new Date(2026, 7, 20, 23))
+        expect(to).toEqual(new Date(2026, 7, 21, 2))
+    })
+
+    it("dia: os N dias terminando hoje, atravessando a virada de mês", () => {
+        const { from, to } = resolveLatestWindow("day", 5, new Date(2026, 7, 2, 10))
+
+        expect(from).toEqual(new Date(2026, 6, 29))
+        expect(to).toEqual(new Date(2026, 7, 3))
+    })
+
+    it("mês: os N meses terminando no corrente, atravessando a virada de ano", () => {
+        const { from, to } = resolveLatestWindow("month", 6, new Date(2026, 1, 10))
+
+        expect(from).toEqual(new Date(2025, 8, 1))
+        expect(to).toEqual(new Date(2026, 2, 1))
+    })
+
+    it("mês com N = 1: só o mês corrente", () => {
+        const { from, to } = resolveLatestWindow("month", 1, NOW)
+
+        expect(from).toEqual(new Date(2026, 7, 1))
+        expect(to).toEqual(new Date(2026, 8, 1))
     })
 })

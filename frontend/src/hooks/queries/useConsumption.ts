@@ -14,13 +14,22 @@ export interface ConsumptionRange {
 }
 
 /**
+ * Janela fixa (entra na chave: outra janela é outra consulta) ou calculada na
+ * hora do pedido, por `latestRange` (fica fora da chave: a virada de hora ou de
+ * dia refaz o pedido da mesma consulta, sem esvaziar a tela).
+ */
+export type ConsumptionRangeInput = ConsumptionRange | (() => ConsumptionRange)
+
+/**
  * Consumo agregado de um alvo.
  *
  * `bucketSize` é o tamanho do bucket, não a granularidade escolhida na UI:
  * quem traduz uma na outra é `resolveConsumptionWindow`, e o resultado dessa
- * tradução entra aqui como `range`. Sem `range`, a chamada é "os últimos N
- * buckets" (KPIs e comparação do painel), com a ordem `desc` do backend —
- * chaveada em `queryKeys.consumption.latest`, não `list`, mesmo que
+ * tradução entra aqui como `range`. Toda chamada manda janela: sem ela o
+ * backend agregaria o histórico inteiro do medidor para devolver só os últimos
+ * buckets. "Os últimos N buckets" (KPIs e comparação do painel) são
+ * `latestRange(bucketSize, N)` com `pageSize` N e a ordem `desc` do backend —
+ * chaveados em `queryKeys.consumption.latest`, não `list`, mesmo que
  * targetType/granularity/pageSize coincidam com uma consulta de janela.
  *
  * `enabled: Boolean(targetId)` evita disparar a query quando o param de rota
@@ -33,19 +42,20 @@ export const useConsumption = (
     bucketSize: BucketSize,
     page: number = 1,
     pageSize: number = DEFAULT_PAGE_SIZE,
-    range?: ConsumptionRange,
+    range: ConsumptionRangeInput,
 ) =>
     useQuery({
-        queryKey: range
-            ? queryKeys.consumption.list(
-                  targetType,
-                  targetId ?? "",
-                  bucketSize,
-                  page,
-                  pageSize,
-                  `${range.from.toISOString()}|${range.to.toISOString()}|${range.order ?? "desc"}`,
-              )
-            : queryKeys.consumption.latest(targetType, targetId ?? "", bucketSize, pageSize),
+        queryKey:
+            typeof range === "function"
+                ? queryKeys.consumption.latest(targetType, targetId ?? "", bucketSize, pageSize)
+                : queryKeys.consumption.list(
+                      targetType,
+                      targetId ?? "",
+                      bucketSize,
+                      page,
+                      pageSize,
+                      `${range.from.toISOString()}|${range.to.toISOString()}|${range.order ?? "desc"}`,
+                  ),
         queryFn: () =>
             consumptionService.list({
                 targetType,
@@ -53,7 +63,7 @@ export const useConsumption = (
                 granularity: bucketSize,
                 page,
                 pageSize,
-                ...range,
+                ...(typeof range === "function" ? range() : range),
             }),
         enabled: Boolean(targetId),
     })
@@ -64,26 +74,38 @@ export interface SummaryRange {
     to: Date
 }
 
+/** Mesma escolha de `ConsumptionRangeInput`: janela fixa na chave, ou calculada no pedido. */
+export type SummaryRangeInput = SummaryRange | (() => SummaryRange)
+
 /**
  * Opções da consulta do resumo, compartilhadas por quem consulta um lote
  * (`useConsumptionSummary`) e por quem consulta vários (`useQueries`).
  * `enabled: ids.length > 0` evita disparar a query com lote vazio (a lista de
  * propriedades/áreas/dispositivos ainda pode não ter carregado). A janela
- * entra na chave, para trocar de dia ser outra consulta.
+ * entra na chave, para trocar de dia ser outra consulta; a calculada no pedido
+ * (`latestRange`) fica fora dela.
  */
 export const summaryQueryOptions = (
     targetType: TargetType,
     ids: string[],
     granularity: BucketSize,
-    range?: SummaryRange,
+    range: SummaryRangeInput,
 ) => ({
     queryKey: queryKeys.consumption.summary(
         targetType,
         ids,
         granularity,
-        range ? `${range.from.toISOString()}|${range.to.toISOString()}` : undefined,
+        typeof range === "function"
+            ? undefined
+            : `${range.from.toISOString()}|${range.to.toISOString()}`,
     ),
-    queryFn: () => consumptionService.summary({ targetType, ids, granularity, ...range }),
+    queryFn: () =>
+        consumptionService.summary({
+            targetType,
+            ids,
+            granularity,
+            ...(typeof range === "function" ? range() : range),
+        }),
     enabled: ids.length > 0,
 })
 
@@ -91,12 +113,12 @@ export const summaryQueryOptions = (
  * Endpoint batch — o último bucket de N alvos do mesmo `targetType`,
  * substituindo o padrão `useQueries` (1 chamada por alvo) que
  * `PropertyComparisonSection`, `AreasSection` e `DevicesSection` usavam.
- * Com `range`, o último bucket dentro da janela: quem não tem leitura nela
- * fica fora do resultado.
+ * O último bucket dentro da janela: quem não tem leitura nela fica fora do
+ * resultado.
  */
 export const useConsumptionSummary = (
     targetType: TargetType,
     ids: string[],
     granularity: BucketSize,
-    range?: SummaryRange,
+    range: SummaryRangeInput,
 ) => useQuery(summaryQueryOptions(targetType, ids, granularity, range))

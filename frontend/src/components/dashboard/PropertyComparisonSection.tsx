@@ -2,6 +2,7 @@ import { ComparisonCard } from "@/components/consumption/ComparisonCard"
 import { useConsumptionSummary } from "@/hooks/queries/useConsumption"
 import type { ConsumptionSummaryItem } from "@/types/consumption.types"
 import type { Property } from "@/types/property.types"
+import { latestRange } from "@/lib/consumptionWindow"
 
 interface PropertyComparisonSectionProps {
     properties: Property[]
@@ -26,6 +27,7 @@ export const PropertyComparisonSection = ({ properties }: PropertyComparisonSect
         "PROPERTY",
         properties.map((p) => p.id),
         "month",
+        latestRange("month", 1),
     )
     const bucketById = new Map((summaryQuery.data?.items ?? []).map((item) => [item.id, item]))
 

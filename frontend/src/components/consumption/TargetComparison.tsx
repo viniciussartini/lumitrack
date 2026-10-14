@@ -6,6 +6,7 @@ import type { ComparisonRow } from "@/components/consumption/ComparisonBars"
 import { useConsumptionSummary } from "@/hooks/queries/useConsumption"
 import type { ConsumptionSummaryItem } from "@/types/consumption.types"
 import type { TargetType } from "@/types/meter.types"
+import { latestRange } from "@/lib/consumptionWindow"
 
 interface ComparisonMessageProps {
     title: string
@@ -113,6 +114,7 @@ export const TargetComparison = ({
         targetType,
         list.map((target) => target.id),
         "month",
+        latestRange("month", 1),
     )
 
     if (isListError || summaryQuery.isError) {

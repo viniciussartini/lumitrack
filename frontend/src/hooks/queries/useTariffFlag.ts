@@ -7,4 +7,6 @@ export const useTariffFlag = () =>
     useQuery({
         queryKey: queryKeys.tariffFlag.current(),
         queryFn: tariffFlagService.get,
+        // A bandeira muda uma vez por mês.
+        staleTime: 60 * 60 * 1000,
     })
