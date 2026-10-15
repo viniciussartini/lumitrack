@@ -14,13 +14,15 @@ import type {
 } from "@/modules/distributor/distributor.repository.js"
 import type { AreaRepository } from "@/modules/area/area.repository.js"
 import type { DeviceRepository } from "@/modules/device/device.repository.js"
-import {
-    resolveFlagPer100Kwh,
-    type TariffFlagRepository,
-} from "@/modules/tariff-flag/tariff-flag.repository.js"
+import type { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.repository.js"
 import { TariffService } from "@/shared/tariff/tariff.service.js"
 import { ForbiddenError, NotFoundError, ValidationError } from "@/shared/errors/AppError.js"
 import { parseOrThrow } from "@/shared/validation/parseOrThrow.js"
+import {
+    loadOwnedProperty,
+    requireDistributor,
+    requireFlagPer100Kwh,
+} from "@/shared/propertyBillingContext.js"
 
 const UNSUPPORTED_MODALITY_LABELS: Record<
     Exclude<NonNullable<PropertyResponse["groupBModality"]>, "CONVENTIONAL">,
@@ -71,7 +73,7 @@ export class SimulationService {
     async simulate(propertyId: string, userId: string, input: unknown): Promise<SimulationResult> {
         const data = parseOrThrow(simulationInputSchema, input)
 
-        const property = await this.validatePropertyOwnership(propertyId, userId)
+        const property = await loadOwnedProperty(this.propertyRepository, propertyId, userId)
         this.assertTariffModelSupported(property)
         await this.validateTarget(data, propertyId)
         const effectivePowerWatts = await this.resolveEffectivePowerWatts(data)
@@ -79,15 +81,11 @@ export class SimulationService {
         const projectedDays = PROJECTED_DAYS[data.period]
         const kwhConsumed = this.calculateKwh(data, effectivePowerWatts, projectedDays)
 
-        const distributor = await this.distributorRepository.findById(property.distributorId)
-        if (!distributor) {
-            throw new NotFoundError("Distribuidora vinculada não encontrada")
-        }
-
-        const flagConfig = await this.tariffFlagRepository.get()
-        if (!flagConfig) {
-            throw new NotFoundError("Configuração de bandeira tarifária não encontrada")
-        }
+        const distributor = await requireDistributor(
+            this.distributorRepository,
+            property.distributorId,
+        )
+        const flagPer100Kwh = await requireFlagPer100Kwh(this.tariffFlagRepository)
 
         const costBrl = this.calculateCost(
             data.target,
@@ -95,7 +93,7 @@ export class SimulationService {
             kwhConsumed,
             property,
             distributor,
-            resolveFlagPer100Kwh(flagConfig),
+            flagPer100Kwh,
         )
 
         return {
@@ -135,23 +133,6 @@ export class SimulationService {
         const modality = property.groupBModality
         if (modality && modality !== "CONVENTIONAL") return UNSUPPORTED_MODALITY_LABELS[modality]
         return null
-    }
-
-    private async validatePropertyOwnership(
-        propertyId: string,
-        userId: string,
-    ): Promise<PropertyResponse> {
-        const property = await this.propertyRepository.findById(propertyId)
-
-        if (!property) {
-            throw new NotFoundError("Propriedade não encontrada")
-        }
-
-        if (property.userId !== userId) {
-            throw new ForbiddenError("Acesso negado")
-        }
-
-        return property
     }
 
     // Custo da simulação via TariffService — mesmo racional do

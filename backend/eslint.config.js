@@ -120,24 +120,6 @@ export default tseslint.config(
         },
     },
     {
-        // `summary()` (82 linhas) — `list()` saiu desta exceção depois de
-        // `computeYearlyPropertyCosts`/`resolveBucketCost` serem extraídos
-        // pra métodos próprios, agora dentro do teto global sem override.
-        // `summary()` não foi tocado por aquela extração — já tem seu
-        // próprio equivalente em `calculateYearlyPropertyCost`, um método à
-        // parte — e seu tamanho vem de orquestrar autorização em lote
-        // (resolver posse de cada id, montar os mapas de medidor/bucket),
-        // não de lógica de custo repetida. Teto acima do valor medido;
-        // revisitar se o arquivo crescer.
-        files: ["src/modules/consumption/consumption.service.ts"],
-        rules: {
-            "max-lines-per-function": [
-                "error",
-                { max: 90, skipBlankLines: true, skipComments: true },
-            ],
-        },
-    },
-    {
         // Código de autenticação — teto (não extração) por cautela: mudar a
         // estrutura deste arquivo exige o cuidado dedicado de uma mudança
         // própria, não um efeito colateral de configuração. Teto acima do
@@ -190,7 +172,11 @@ export default tseslint.config(
             "src/modules/*/*.service.ts",
             "src/modules/*/*.repository.ts",
             "src/modules/*/*.controller.ts",
+            "src/modules/consumption/billing/*.ts",
+            "src/modules/consumption/comparison/*.ts",
+            "src/shared/propertyBillingContext.ts",
         ],
+        ignores: ["**/*.test.ts"],
         plugins: { jsdoc },
         rules: {
             "jsdoc/require-jsdoc": [
