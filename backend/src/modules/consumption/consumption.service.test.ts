@@ -28,6 +28,8 @@ import { UserRepository } from "@/modules/user/user.repository.js"
 import { fromSaoPauloLocal } from "@/shared/time/localTime.js"
 import { prismaTest } from "@/shared/test/prisma-test.js"
 import { countQueries } from "@/shared/database/queryCounter.js"
+import { createBillCalculators } from "@/modules/consumption/billing/createBillCalculators.js"
+import { TariffService } from "@/shared/tariff/tariff.service.js"
 import { cleanDatabase } from "@/shared/test/clean-database.js"
 import {
     createTestDistributor,
@@ -52,6 +54,15 @@ const pldQuoteRepository = new PldQuoteRepository(prismaTest)
 const userRepository = new UserRepository(prismaTest)
 const userService = new UserService(userRepository)
 
+const tariffService = new TariffService()
+const billCalculators = createBillCalculators(
+    consumptionRepository,
+    tariffCatalogRepository,
+    meterDemandRollupRepository,
+    aclContractRepository,
+    tariffService,
+)
+
 const consumptionService = new ConsumptionService(
     consumptionRepository,
     meterRepository,
@@ -61,9 +72,10 @@ const consumptionService = new ConsumptionService(
     distributorRepository,
     tariffFlagRepository,
     tariffCatalogRepository,
-    meterDemandRollupRepository,
     aclContractRepository,
     pldQuoteRepository,
+    billCalculators,
+    tariffService,
 )
 
 // tusdPerKwh=0.3 + tePerKwh=0.3 = 0.6 R$/kWh; tributos 27,25%; bandeira
@@ -122,42 +134,9 @@ async function insertReading(
     })
 }
 
-// `computeYearlyPropertyCosts`/`resolveBucketCost` (extraídos de `list()`)
-// são privados — mesmo padrão de acesso já usado em
-// IoTDataProcessor.test.ts: cast para uma interface mínima em vez de `any`.
-function callComputeYearlyPropertyCosts(
-    service: ConsumptionService,
-    meterId: string,
-    buckets: ConsumptionBucket[],
-    granularity: Granularity,
-    targetType: TargetType,
-    property: PropertyResponse,
-    distributor: DistributorResponse,
-    flagPer100Kwh: number,
-): Promise<Map<number, number>> {
-    return (
-        service as unknown as {
-            computeYearlyPropertyCosts: (
-                meterId: string,
-                buckets: ConsumptionBucket[],
-                granularity: Granularity,
-                targetType: TargetType,
-                property: PropertyResponse,
-                distributor: DistributorResponse,
-                flagPer100Kwh: number,
-            ) => Promise<Map<number, number>>
-        }
-    ).computeYearlyPropertyCosts(
-        meterId,
-        buckets,
-        granularity,
-        targetType,
-        property,
-        distributor,
-        flagPer100Kwh,
-    )
-}
-
+// `resolveBucketCost` (extraído de `list()`) é privado — mesmo padrão de acesso
+// já usado em IoTDataProcessor.test.ts: cast para uma interface mínima em
+// vez de `any`.
 function callResolveBucketCost(
     service: ConsumptionService,
     meterId: string,
@@ -2733,7 +2712,7 @@ describe("ConsumptionService.compareBrancaToConvencional — comparação Conven
 // e o fallback defensivo de uma entrada ausente no Map (não reproduzível
 // via API pública sem fabricar um estado de banco artificial que nunca
 // ocorre no fluxo real, já que o Map e os buckets vêm da mesma consulta).
-describe("ConsumptionService — computeYearlyPropertyCosts (privado, extraído de list())", () => {
+describe("YearlyPropertyCostCalculator.computeForBuckets", () => {
     it("granularidade diferente de 'year' retorna Map vazio sem consultar o repositório", async () => {
         const { property } = await setupPropertyMeter()
         const distributor = (await distributorRepository.findById(property.distributorId))!
@@ -2743,8 +2722,7 @@ describe("ConsumptionService — computeYearlyPropertyCosts (privado, extraído 
             avgPowerW: 0,
         }
 
-        const result = await callComputeYearlyPropertyCosts(
-            consumptionService,
+        const result = await billCalculators.yearlyCost.computeForBuckets(
             "medidor-inexistente", // guard sai antes de tocar o repositório
             [bucket],
             "month",
@@ -2766,8 +2744,7 @@ describe("ConsumptionService — computeYearlyPropertyCosts (privado, extraído 
             avgPowerW: 0,
         }
 
-        const result = await callComputeYearlyPropertyCosts(
-            consumptionService,
+        const result = await billCalculators.yearlyCost.computeForBuckets(
             "medidor-inexistente",
             [bucket],
             "year",
@@ -2784,8 +2761,7 @@ describe("ConsumptionService — computeYearlyPropertyCosts (privado, extraído 
         const { property } = await setupPropertyMeter()
         const distributor = (await distributorRepository.findById(property.distributorId))!
 
-        const result = await callComputeYearlyPropertyCosts(
-            consumptionService,
+        const result = await billCalculators.yearlyCost.computeForBuckets(
             "medidor-inexistente",
             [],
             "year",

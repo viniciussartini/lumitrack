@@ -2,7 +2,9 @@ import { Router, type RequestHandler } from "express"
 import { PrismaClient } from "@/generated/prisma/client.js"
 import { ConsumptionController } from "@/modules/consumption/consumption.controller.js"
 import { ConsumptionRepository } from "@/modules/consumption/consumption.repository.js"
+import { createBillCalculators } from "@/modules/consumption/billing/createBillCalculators.js"
 import { ConsumptionService } from "@/modules/consumption/consumption.service.js"
+import { TariffService } from "@/shared/tariff/tariff.service.js"
 import { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { MeterDemandRollupRepository } from "@/modules/meter/meter-demand-rollup.repository.js"
 import { AclContractRepository } from "@/modules/acl-contract/acl-contract.repository.js"
@@ -21,18 +23,30 @@ import { TariffFlagRepository } from "@/modules/tariff-flag/tariff-flag.reposito
  * @param prismaClient - Cliente Prisma do processo.
  */
 export function createConsumptionService(prismaClient: PrismaClient): ConsumptionService {
+    const consumptionRepository = new ConsumptionRepository(prismaClient)
+    const tariffCatalogRepository = new TariffCatalogRepository(prismaClient)
+    const aclContractRepository = new AclContractRepository(prismaClient)
+    const tariffService = new TariffService()
+
     return new ConsumptionService(
-        new ConsumptionRepository(prismaClient),
+        consumptionRepository,
         new MeterRepository(prismaClient),
         new PropertyRepository(prismaClient),
         new AreaRepository(prismaClient),
         new DeviceRepository(prismaClient),
         new DistributorRepository(prismaClient),
         new TariffFlagRepository(prismaClient),
-        new TariffCatalogRepository(prismaClient),
-        new MeterDemandRollupRepository(prismaClient),
-        new AclContractRepository(prismaClient),
+        tariffCatalogRepository,
+        aclContractRepository,
         new PldQuoteRepository(prismaClient),
+        createBillCalculators(
+            consumptionRepository,
+            tariffCatalogRepository,
+            new MeterDemandRollupRepository(prismaClient),
+            aclContractRepository,
+            tariffService,
+        ),
+        tariffService,
     )
 }
 
