@@ -4969,3 +4969,12 @@
 - **Arquivos principais:** `.claude/docs/roadmap.md`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** os números finais do `ConsumptionService` são **402 linhas e 9 dependências** (7 repositórios e 2 calculadoras); a entrada do CHANGELOG da etapa 3 registrou 409 e 8, antes dos ajustes da revisão do PR, que passaram a injetar as duas calculadoras direto. O destino das issues #564 e #565 no roadmap é **proposta**, ainda não decidida (Fase 35, junto do #553 B-14, ou à frente da Fase 34 se o Neon encher antes); a Fase 34 não foi detalhada. Cada afirmação nova foi conferida na fonte: datas e tamanhos dos PRs e das issues no GitHub, 15 checks do CI verdes nos três PRs, as suítes rodadas em `staging` no fechamento (backend 2.226 testes em 152 arquivos e frontend 1.492 em 166, todos passando), linhas e dependências do serviço no código de `staging`, ausência de migração em `backend/prisma`, contagem de ADRs e os ponteiros do `02` e do `03`. As listas de B-xx nas issues #551 e #552 não foram alteradas no GitHub. O texto não cita host, IP, usuário, contêiner ou caminho de deploy.
+
+## [2026-10-15] docs: roadmap — detalhamento da Fase 34
+
+- **Branch:** staging
+- **Tipo:** docs
+- **O quê:** o `roadmap.md` detalha a Fase 34 (Segurança: sessão, MFA e perímetro): seção da fase com gate, ordem interna e estratégia de PR; um bloco por item (#539 + B-15, #513 + B-11, #514 + B-04, #515, #516, #517, #545) com critérios de aceite, dependências e riscos; os pacotes de baixa prioridade que entram; linha da fase na visão geral e o cabeçalho; e a seção "Replanejamento de 2026-10-15 (detalhamento da Fase 34)" no fim.
+- **Arquivos principais:** `.claude/docs/roadmap.md`.
+- **Decisões/ADRs:** nenhuma ADR criada. Previstas a 0028 (ciclo de vida da sessão WEB) e a 0029 (recurso alheio, 403 × 404), na chegada dos itens.
+- **Notas:** decisões do usuário: #539 em PR próprio e o épico #508 num PR com um commit por sub-issue (a regra de ~1,2 mil linhas vira referência); #564 e #565 ficam na Fase 35; dos pacotes #549 e #550 entram só `DATABASE_URL` com TLS no boot e o `.dockerignore` da raiz. Achados do código que mudam o plano: o Caddy já tinha `Referrer-Policy`/`Permissions-Policy`; o início da sessão exige coluna própria por causa do expurgo; o escopo do reuso afeta as contas demo compartilhadas; o #545 só é XS se mantiver o 403. Não medidos: o `EXPLAIN` do expurgo de tokens e a sintaxe de `headers:` do Render.
