@@ -45,7 +45,6 @@ export function createConsumptionService(prismaClient: PrismaClient): Consumptio
             aclContractRepository,
             tariffService,
         ),
-        tariffService,
     )
 }
 

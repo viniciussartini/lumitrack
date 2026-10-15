@@ -4,10 +4,6 @@ import {
     ConsumptionRepository,
     type ConsumptionBucket,
 } from "@/modules/consumption/consumption.repository.js"
-import type { PropertyResponse } from "@/modules/property/property.repository.js"
-import type { DistributorResponse } from "@/modules/distributor/distributor.repository.js"
-import type { Granularity } from "@/modules/consumption/consumption.schema.js"
-import type { TargetType } from "@/generated/prisma/client.js"
 import { MeterRepository } from "@/modules/meter/meter.repository.js"
 import { PropertyRepository } from "@/modules/property/property.repository.js"
 import { PropertyService } from "@/modules/property/property.service.js"
@@ -67,7 +63,6 @@ const consumptionService = new ConsumptionService(
     distributorRepository,
     tariffFlagRepository,
     billCalculators,
-    tariffService,
 )
 
 // tusdPerKwh=0.3 + tePerKwh=0.3 = 0.6 R$/kWh; tributos 27,25%; bandeira
@@ -124,48 +119,6 @@ async function insertReading(
             secondsCovered: 60,
         },
     })
-}
-
-// `resolveBucketCost` (extraído de `list()`) é privado — mesmo padrão de acesso
-// já usado em IoTDataProcessor.test.ts: cast para uma interface mínima em
-// vez de `any`.
-function callResolveBucketCost(
-    service: ConsumptionService,
-    meterId: string,
-    bucket: ConsumptionBucket,
-    granularity: Granularity,
-    targetType: TargetType,
-    property: PropertyResponse,
-    distributor: DistributorResponse,
-    flagPer100Kwh: number,
-    yearlyPropertyCostByBucketMs: Map<number, number>,
-    monthlyPropertyCostByBucketMs: Map<number, { totalBrl: number }> = new Map(),
-): Promise<{ totalBrl: number }> {
-    return (
-        service as unknown as {
-            resolveBucketCost: (
-                meterId: string,
-                bucket: ConsumptionBucket,
-                granularity: Granularity,
-                targetType: TargetType,
-                property: PropertyResponse,
-                distributor: DistributorResponse,
-                flagPer100Kwh: number,
-                yearlyPropertyCostByBucketMs: Map<number, number>,
-                monthlyPropertyCostByBucketMs: Map<number, { totalBrl: number }>,
-            ) => Promise<{ totalBrl: number }>
-        }
-    ).resolveBucketCost(
-        meterId,
-        bucket,
-        granularity,
-        targetType,
-        property,
-        distributor,
-        flagPer100Kwh,
-        yearlyPropertyCostByBucketMs,
-        monthlyPropertyCostByBucketMs,
-    )
 }
 
 beforeEach(async () => {
@@ -2162,7 +2115,7 @@ describe("YearlyPropertyCostCalculator.computeForBuckets", () => {
 // estão cobertos (respectivamente) pelos testes "granularidade year soma os
 // custos mensais...", "aplica o piso por mês..." e "também não aplica piso
 // na granularidade year..." acima.
-describe("ConsumptionService — resolveBucketCost (privado, extraído de list())", () => {
+describe("BucketCostCalculator.resolveBucketCost", () => {
     it("year+PROPERTY sem entrada correspondente no Map retorna 0 (não lança)", async () => {
         const { property } = await setupPropertyMeter()
         const distributor = (await distributorRepository.findById(property.distributorId))!
@@ -2172,8 +2125,7 @@ describe("ConsumptionService — resolveBucketCost (privado, extraído de list()
             avgPowerW: 0,
         }
 
-        const cost = await callResolveBucketCost(
-            consumptionService,
+        const cost = await billCalculators.bucketCost.resolveBucketCost(
             "medidor-inexistente", // guard sai antes de tocar o repositório
             bucket,
             "year",
@@ -2182,8 +2134,9 @@ describe("ConsumptionService — resolveBucketCost (privado, extraído de list()
             distributor,
             0,
             new Map(),
+            new Map(),
         )
 
-        expect(cost.totalBrl).toBe(0)
+        expect(cost?.totalBrl).toBe(0)
     })
 })

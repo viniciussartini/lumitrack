@@ -72,7 +72,6 @@ const consumptionService = new ConsumptionService(
     distributorRepository,
     tariffFlagRepository,
     billCalculators,
-    tariffService,
 )
 
 async function insertReading(

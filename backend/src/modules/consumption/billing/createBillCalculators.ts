@@ -1,4 +1,5 @@
 import type { AclContractRepository } from "@/modules/acl-contract/acl-contract.repository.js"
+import { BucketCostCalculator } from "@/modules/consumption/billing/BucketCostCalculator.js"
 import { GroupABillCalculator } from "@/modules/consumption/billing/GroupABillCalculator.js"
 import { GroupBWhiteBillCalculator } from "@/modules/consumption/billing/GroupBWhiteBillCalculator.js"
 import { PropertyMonthCostCalculator } from "@/modules/consumption/billing/PropertyMonthCostCalculator.js"
@@ -14,6 +15,7 @@ export type BillCalculators = {
     groupBWhite: GroupBWhiteBillCalculator
     monthCost: PropertyMonthCostCalculator
     yearlyCost: YearlyPropertyCostCalculator
+    bucketCost: BucketCostCalculator
 }
 
 /**
@@ -53,5 +55,6 @@ export function createBillCalculators(
         groupBWhite,
         monthCost,
     )
-    return { groupA, groupBWhite, monthCost, yearlyCost }
+    const bucketCost = new BucketCostCalculator(groupA, groupBWhite, monthCost, tariffService)
+    return { groupA, groupBWhite, monthCost, yearlyCost, bucketCost }
 }
