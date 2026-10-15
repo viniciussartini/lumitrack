@@ -139,6 +139,8 @@ export class BucketCostCalculator {
      *
      * @param meterId - Medidor do alvo.
      * @param bucket - Bucket a precificar.
+     * @param bucket.bucketStart - Início do bucket.
+     * @param bucket.kwhConsumed - Consumo do bucket, em kWh.
      * @param granularity - Granularidade pedida.
      * @param targetType - Tipo do alvo.
      * @param property - Propriedade raiz do alvo.

@@ -62,7 +62,8 @@ const consumptionService = new ConsumptionService(
     deviceRepository,
     distributorRepository,
     tariffFlagRepository,
-    billCalculators,
+    billCalculators.bucketCost,
+    billCalculators.yearlyCost,
 )
 
 // tusdPerKwh=0.3 + tePerKwh=0.3 = 0.6 R$/kWh; tributos 27,25%; bandeira
@@ -1970,7 +1971,7 @@ describe("ConsumptionService.list — Tarifa Branca (Grupo B)", () => {
 
     // Regressão de N+1: sem o batching, granularidade "year" chamaria
     // findKwhByPost 1 vez por mês do ano — o mesmo custo que o Grupo A já
-    // evita há duas fases (ver calculateGroupAMonthlyCosts). O findKwhByPost
+    // evita há duas fases (ver GroupABillCalculator.calculateMonthlyCosts). O findKwhByPost
     // "solto" (1 chamada) continua existindo pra granularidade month/day, só
     // não pode aparecer aqui.
     it("granularidade year soma os meses da Branca com 1 única consulta em lote, não 1 por mês", async () => {
@@ -2037,12 +2038,11 @@ describe("ConsumptionService.list — Tarifa Branca (Grupo B)", () => {
     })
 })
 
-// Os dois métodos extraídos de `list()` — a maior parte dos casos já sai
-// coberta indiretamente pelos testes de `ConsumptionService.list` acima
-// (year+PROPERTY em "granularidade month/year", year+AREA em "alvo
-// AREA/DEVICE"): exercitar via `list()` prova o comportamento real, sem
-// acoplar o teste ao nome/assinatura de um método privado. O que sobra aqui
-// são só os ramos que `list()` não consegue alcançar de forma natural —
+// Os calculadores de custo anual e de bucket — a maior parte dos casos já sai
+// coberta pelos testes de `ConsumptionService.list` acima (year+PROPERTY em
+// "granularidade month/year", year+AREA em "alvo AREA/DEVICE"): exercitar via
+// `list()` prova o comportamento de ponta a ponta. O que sobra aqui são só os
+// ramos que `list()` não consegue alcançar de forma natural —
 // guards de short-circuit (a query de meses nem roda fora de year+PROPERTY)
 // e o fallback defensivo de uma entrada ausente no Map (não reproduzível
 // via API pública sem fabricar um estado de banco artificial que nunca

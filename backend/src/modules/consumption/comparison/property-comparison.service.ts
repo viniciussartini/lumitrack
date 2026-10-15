@@ -268,22 +268,28 @@ export class PropertyComparisonService {
         distributor: DistributorResponse,
         flagPer100Kwh: number,
     ): Promise<AclComparisonMonthResult[]> {
-        const [acrByMonth, aclByMonth] = await Promise.all(
-            (["ACR", "ACL"] as const).map((environment) =>
-                this.groupABillCalculator.calculateMonthlyCosts(
-                    meterId,
-                    monthStarts,
-                    property,
-                    distributor,
-                    flagPer100Kwh,
-                    environment,
-                ),
+        const [acrByMonth, aclByMonth] = await Promise.all([
+            this.groupABillCalculator.calculateMonthlyCosts(
+                meterId,
+                monthStarts,
+                property,
+                distributor,
+                flagPer100Kwh,
+                "ACR",
             ),
-        )
+            this.groupABillCalculator.calculateMonthlyCosts(
+                meterId,
+                monthStarts,
+                property,
+                distributor,
+                flagPer100Kwh,
+                "ACL",
+            ),
+        ])
 
         return monthStarts.map((monthStart) => {
-            const acrBrl = acrByMonth!.get(monthStart.getTime())!.totalBrl
-            const aclBrl = aclByMonth!.get(monthStart.getTime())!.totalBrl
+            const acrBrl = acrByMonth.get(monthStart.getTime())!.totalBrl
+            const aclBrl = aclByMonth.get(monthStart.getTime())!.totalBrl
             return { monthStart, acrBrl, aclBrl, diffBrl: acrBrl - aclBrl }
         })
     }
@@ -313,6 +319,8 @@ export class PropertyComparisonService {
                 this.billingContextRepositories,
                 {
                     property: assertWhiteTariff,
+                    // Valida a janela de ponta logo depois de achar a distribuidora,
+                    // para esse erro vir antes do de bandeira; o valor é lido abaixo.
                     distributor: (found) => void resolveWhitePeakWindow(found),
                 },
             )

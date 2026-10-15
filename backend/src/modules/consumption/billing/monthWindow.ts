@@ -2,14 +2,19 @@ import type { AclContractResponse } from "@/modules/acl-contract/acl-contract.re
 import { getNationalHolidaysInRange } from "@/shared/time/holidays.js"
 import { fromSaoPauloLocal } from "@/shared/time/localTime.js"
 
-// `monthStarts` vêm de date_trunc('month', localTsExpr()) — os campos de
-// calendário (ano/mês) já são os locais corretos, só rotulados como UTC
-// (mesmo truque de consumption.repository.ts). `fromSaoPauloLocal`
-// converte para o instante UTC real que findKwhByPostGroupedByMonth
-// espera (mesmo idioma do DemandRollupScheduler). Compartilhado pelo
-// batching mensal do Grupo A e da Branca (Grupo B) — `periodStarts` só
-// interessa ao Grupo A (demanda contratada), mas calculá-lo aqui é mais
-// barato que duplicar a função por um campo que o outro chamador ignora.
+/**
+ * Janela de consulta de uma lista de meses. `monthStarts` vêm de
+ * `date_trunc('month', localTsExpr())`: os campos de calendário (ano/mês) já
+ * são os locais corretos, só rotulados como UTC (mesmo truque de
+ * `consumption.repository.ts`); `fromSaoPauloLocal` converte para o instante
+ * UTC real que `findKwhByPostGroupedByMonth` espera. Compartilhada pelo lote
+ * mensal do Grupo A e da Branca; `periodStarts` só interessa ao Grupo A
+ * (demanda contratada), mas calculá-lo aqui é mais barato que duplicar a
+ * função por um campo que o outro chamador ignora.
+ *
+ * @param monthStarts - Inícios dos meses, na convenção "hora local nos getters UTC".
+ * @returns O primeiro mês, o fim do último, a janela em instantes UTC reais, os feriados dela e o início de cada mês como instante UTC real.
+ */
 export function resolveMonthWindow(monthStarts: Date[]): {
     minMonthStart: Date
     maxMonthEnd: Date
@@ -37,10 +42,15 @@ export function resolveMonthWindow(monthStarts: Date[]): {
     return { minMonthStart, maxMonthEnd, from, to, holidays, periodStarts }
 }
 
-// Agrupa uma lista de linhas por um instante (em ms) — mesmo formato de
-// lookup usado para o kWh por posto×mês, extraído para não repetir o
-// laço a cada nova fonte de dado agregada por mês (demanda medida,
-// energia reativa).
+/**
+ * Agrupa uma lista de linhas por um instante (em ms) — o mesmo formato de
+ * consulta usado para o kWh por posto × mês, para não repetir o laço a cada
+ * fonte de dado agregada por mês (demanda medida, energia reativa).
+ *
+ * @param rows - Linhas a agrupar.
+ * @param getMs - Instante da linha, em ms.
+ * @returns As linhas de cada instante, na ordem recebida.
+ */
 export function groupRowsByMs<T>(rows: T[], getMs: (row: T) => number): Map<number, T[]> {
     const map = new Map<number, T[]>()
     for (const row of rows) {
@@ -52,20 +62,22 @@ export function groupRowsByMs<T>(rows: T[], getMs: (row: T) => number): Map<numb
     return map
 }
 
-// Entre os contratos sobrepostos da propriedade (ver
-// AclContractRepository.findOverlappingForProperty, já ordenados por
-// validFrom decrescente), o primeiro cuja vigência cobre o mês é o
-// vigente — havendo sobreposição de vigências (não impedida no
-// cadastro), o contrato mais recente prevalece.
-//
-// `undefined`, não exceção: um mês sem contrato vigente não é um erro do
-// pedido inteiro — é um mês em que a propriedade (hoje ACL) ainda não
-// tinha o contrato (ex.: histórico anterior a `validFrom`, ou um buraco
-// entre dois contratos). `resolveGroupAMonthEntry` decide o que fazer
-// com a ausência: degradar aquele mês para o tratamento do catálogo
-// regulado, não derrubar `calculateMonthlyCosts` inteiro — antes
-// disso, marcar uma propriedade Grupo A existente como ACL quebrava com
-// 404 a consulta de consumo de qualquer mês anterior ao contrato.
+/**
+ * Contrato ACL vigente num mês: entre os contratos sobrepostos da propriedade
+ * (já ordenados por `validFrom` decrescente, ver
+ * `AclContractRepository.findOverlappingForProperty`), o primeiro cuja vigência
+ * cobre o mês; havendo sobreposição (não impedida no cadastro), o contrato mais
+ * recente prevalece.
+ *
+ * Devolve `undefined`, e não lança: um mês sem contrato vigente (histórico
+ * anterior a `validFrom`, ou um buraco entre dois contratos) não é erro do
+ * pedido inteiro. Quem chama decide: o Grupo A degrada aquele mês para o
+ * catálogo regulado, e a comparação ACR × ACL o deixa de fora.
+ *
+ * @param contracts - Contratos sobrepostos da propriedade.
+ * @param monthStart - Início do mês, na convenção "hora local nos getters UTC".
+ * @returns O contrato vigente no mês, ou `undefined`.
+ */
 export function resolveAclContractForMonth(
     contracts: AclContractResponse[],
     monthStart: Date,

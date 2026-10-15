@@ -35,6 +35,8 @@ import type {
     TariffSubgroup,
 } from "@/generated/prisma/client.js"
 
+// AclContract.energyPricePerMwh é negociado em R$/MWh (mesma unidade do
+// handoff de design); TariffService opera em R$/kWh.
 const MWH_TO_KWH = 1000
 
 // Consumo por posto indexado pelo instante do mês (ms).
@@ -377,6 +379,7 @@ export class GroupABillCalculator {
         }
         const tusdPerKvarh = this.resolveReactiveTusdPerKvarh(energyRates)
 
+        const kwhByPostByMonthKey = indexKwhByPostByMonth(kwhByPostByMonth)
         const demandRollupsByPeriodMs = groupRowsByMs(demandRollups, (r) => r.periodStart.getTime())
         const reactiveByMonthMs = groupRowsByMs(reactiveByMonth, (r) => r.monthBucket.getTime())
 
@@ -384,7 +387,7 @@ export class GroupABillCalculator {
             resultByMonthMs.set(
                 monthStart.getTime(),
                 this.resolveGroupAMonthEntry(monthStart, {
-                    kwhByPostByMonthKey: indexKwhByPostByMonth(kwhByPostByMonth),
+                    kwhByPostByMonthKey,
                     demandRollupsByPeriodMs,
                     reactiveByMonthMs,
                     aclContracts,

@@ -71,7 +71,8 @@ const consumptionService = new ConsumptionService(
     deviceRepository,
     distributorRepository,
     tariffFlagRepository,
-    billCalculators,
+    billCalculators.bucketCost,
+    billCalculators.yearlyCost,
 )
 
 async function insertReading(
@@ -145,7 +146,7 @@ describe("resolveComparisonSign", () => {
     })
 })
 
-describe("ConsumptionService.compareAclToAcr — comparação ACR × ACL", () => {
+describe("PropertyComparisonService.compareAclToAcr — comparação ACR × ACL", () => {
     // Duas propriedades do mesmo usuário/distribuidora/catálogo — uma ACR
     // (sem contrato) e uma ACL (com contrato) — recebendo o MESMO consumo
     // real. `list()` de cada uma é o caminho já coberto acima; comparar o
@@ -482,7 +483,7 @@ describe("ConsumptionService.compareAclToAcr — comparação ACR × ACL", () =>
     })
 })
 
-describe("ConsumptionService.compareBrancaToConvencional — comparação Convencional × Branca", () => {
+describe("PropertyComparisonService.compareBrancaToConvencional — comparação Convencional × Branca", () => {
     // Mesma distribuidora/catálogo do Exemplo 3 (ver "ConsumptionService.list
     // — Tarifa Branca" acima): Ponta R$1,20/kWh, Intermediário R$0,75/kWh,
     // Fora de Ponta R$0,45/kWh, Convencional R$0,60/kWh (tusd+te 0,30 cada),

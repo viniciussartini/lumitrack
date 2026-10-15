@@ -172,7 +172,11 @@ export default tseslint.config(
             "src/modules/*/*.service.ts",
             "src/modules/*/*.repository.ts",
             "src/modules/*/*.controller.ts",
+            "src/modules/consumption/billing/*.ts",
+            "src/modules/consumption/comparison/*.ts",
+            "src/shared/propertyBillingContext.ts",
         ],
+        ignores: ["**/*.test.ts"],
         plugins: { jsdoc },
         rules: {
             "jsdoc/require-jsdoc": [

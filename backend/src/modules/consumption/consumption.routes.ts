@@ -30,6 +30,14 @@ export function createConsumptionService(prismaClient: PrismaClient): Consumptio
     const aclContractRepository = new AclContractRepository(prismaClient)
     const tariffService = new TariffService()
 
+    const { bucketCost, yearlyCost } = createBillCalculators(
+        consumptionRepository,
+        tariffCatalogRepository,
+        new MeterDemandRollupRepository(prismaClient),
+        aclContractRepository,
+        tariffService,
+    )
+
     return new ConsumptionService(
         consumptionRepository,
         new MeterRepository(prismaClient),
@@ -38,13 +46,8 @@ export function createConsumptionService(prismaClient: PrismaClient): Consumptio
         new DeviceRepository(prismaClient),
         new DistributorRepository(prismaClient),
         new TariffFlagRepository(prismaClient),
-        createBillCalculators(
-            consumptionRepository,
-            tariffCatalogRepository,
-            new MeterDemandRollupRepository(prismaClient),
-            aclContractRepository,
-            tariffService,
-        ),
+        bucketCost,
+        yearlyCost,
     )
 }
 

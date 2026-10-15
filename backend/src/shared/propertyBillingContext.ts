@@ -95,7 +95,9 @@ export async function requireFlagPer100Kwh(
  * @param userId - Id do usuário autenticado.
  * @param propertyId - Id da propriedade.
  * @param repositories - Repositórios de propriedade, medidor, distribuidora e bandeira.
- * @param checks - Verificações do chamador: `property` roda logo depois da posse e `distributor` logo depois de achar a distribuidora.
+ * @param checks - Verificações do chamador, que lançam para recusar.
+ * @param checks.property - Roda logo depois da posse, antes de buscar o medidor.
+ * @param checks.distributor - Roda logo depois de achar a distribuidora, antes de ler a bandeira.
  * @returns A propriedade, o medidor, a distribuidora e a bandeira.
  */
 export async function loadOwnedPropertyBillingContext(

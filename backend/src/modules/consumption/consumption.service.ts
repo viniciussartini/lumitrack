@@ -8,7 +8,6 @@ import type {
     ConsumptionRepository,
     LatestBucketForMeter,
 } from "@/modules/consumption/consumption.repository.js"
-import type { BillCalculators } from "@/modules/consumption/billing/createBillCalculators.js"
 import type { BucketCostCalculator } from "@/modules/consumption/billing/BucketCostCalculator.js"
 import type { YearlyPropertyCostCalculator } from "@/modules/consumption/billing/YearlyPropertyCostCalculator.js"
 import type {
@@ -47,8 +46,6 @@ type SummaryRow = {
 
 const log = logger.child({ module: "ConsumptionService" })
 
-// AclContract.energyPricePerMwh é negociado em R$/MWh (mesma unidade do
-// handoff de design); TariffService opera em R$/kWh.
 // Itens do resumo calculados ao mesmo tempo. O custo do Grupo A dispara umas
 // seis consultas por item, em paralelo, e o pool tem 10 conexões por padrão
 // (`DB_POOL_MAX`) com espera de 5 s para obter uma: o Grupo A vai um item por
@@ -59,7 +56,7 @@ const SUMMARY_COST_CONCURRENCY_OTHER = 3
 
 // `costBrl` é opcional: o consumo de um bucket sempre volta, o custo só quando
 // o cálculo existe para aquele alvo, tarifa e granularidade (ver
-// `calculateBucketCost`) — ausência é "não calculável", nunca zero.
+// {@link BucketCostCalculator.calculateBucketCost}) — ausência é "não calculável", nunca zero.
 export type ConsumptionBucketResponse = {
     bucketStart: Date
     kwhConsumed: number
@@ -91,9 +88,6 @@ export type ConsumptionSummaryResponse = {
  * quando tanto a propriedade quanto um device dela têm medidor próprio.
  */
 export class ConsumptionService {
-    private readonly bucketCostCalculator: BucketCostCalculator
-    private readonly yearlyCostCalculator: YearlyPropertyCostCalculator
-
     /**
      * @param consumptionRepository - Acesso às leituras de medidor agregadas em baldes.
      * @param meterRepository - Resolve o medidor vinculado a um alvo.
@@ -102,7 +96,8 @@ export class ConsumptionService {
      * @param deviceRepository - Usado por {@link resolveRootProperty} para subir a árvore até a propriedade.
      * @param distributorRepository - Resolve a distribuidora vinculada à propriedade, com suas tarifas.
      * @param tariffFlagRepository - Resolve a configuração vigente da bandeira tarifária.
-     * @param billCalculators - Calculadoras de conta; o serviço usa a de bucket e a anual.
+     * @param bucketCostCalculator - Custo de cada bucket (mês de Propriedade, Área, Dispositivo).
+     * @param yearlyCostCalculator - Custo anual de uma Propriedade.
      */
     constructor(
         private readonly consumptionRepository: ConsumptionRepository,
@@ -112,11 +107,9 @@ export class ConsumptionService {
         private readonly deviceRepository: DeviceRepository,
         private readonly distributorRepository: DistributorRepository,
         private readonly tariffFlagRepository: TariffFlagRepository,
-        billCalculators: BillCalculators,
-    ) {
-        this.bucketCostCalculator = billCalculators.bucketCost
-        this.yearlyCostCalculator = billCalculators.yearlyCost
-    }
+        private readonly bucketCostCalculator: BucketCostCalculator,
+        private readonly yearlyCostCalculator: YearlyPropertyCostCalculator,
+    ) {}
 
     /**
      * Consumo agregado e paginado de um único alvo, já com o custo em reais
