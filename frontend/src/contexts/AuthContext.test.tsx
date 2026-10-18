@@ -4,6 +4,8 @@ import { MemoryRouter } from "react-router"
 import { AuthProvider, useAuth } from "@/contexts/AuthContext"
 import { authService } from "@/services/auth.service"
 import { scheduleProactiveRefresh, cancelProactiveRefresh } from "@/lib/sessionRefresh"
+import { queryClient } from "@/lib/queryClient"
+import { storage, STORAGE_KEYS } from "@/lib/storage"
 import type { User } from "@/types/auth.types"
 
 // useNavigate precisa de um Router no contexto — MemoryRouter resolve isso.
@@ -55,6 +57,8 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 
 beforeEach(() => {
     vi.clearAllMocks()
+    queryClient.clear()
+    localStorage.clear()
 })
 
 describe("AuthProvider — boot", () => {
@@ -317,6 +321,106 @@ describe("AuthProvider — refresh proativo", () => {
         })
 
         expect(vi.mocked(cancelProactiveRefresh)).toHaveBeenCalled()
+    })
+})
+
+describe("AuthProvider — isolamento entre sessões", () => {
+    const PROPERTIES_KEY = ["properties", "list", 1, 10] as const
+    const otherUser: User = { ...mockUser, id: "user-456", email: "outro@example.com" }
+
+    // Simula o que a conta anterior deixou no navegador: dados em cache do
+    // TanStack Query (compartilhado pela aba inteira) e a propriedade escolhida.
+    const leaveResiduesOfPreviousUser = (): void => {
+        queryClient.setQueryData(PROPERTIES_KEY, [{ id: "propriedade-da-conta-anterior" }])
+        storage.set(STORAGE_KEYS.SELECTED_PROPERTY, "propriedade-da-conta-anterior")
+    }
+
+    const expectNoResidues = (): void => {
+        expect(queryClient.getQueryData(PROPERTIES_KEY)).toBeUndefined()
+        expect(storage.get(STORAGE_KEYS.SELECTED_PROPERTY)).toBeNull()
+    }
+
+    const renderUnauthenticated = async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(null)
+        const rendered = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(rendered.result.current.isLoading).toBe(false))
+        return rendered
+    }
+
+    it("logout descarta o cache e a propriedade selecionada", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser)
+        vi.mocked(authService.logout).mockResolvedValue(undefined)
+        const { result } = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(result.current.isAuthenticated).toBe(true))
+        leaveResiduesOfPreviousUser()
+
+        await act(async () => {
+            await result.current.logout()
+        })
+
+        expectNoResidues()
+    })
+
+    it("sessão encerrada pelo servidor (lumitrack:unauthorized) descarta o cache", async () => {
+        vi.mocked(authService.getCurrentUser).mockResolvedValue(mockUser)
+        const { result } = renderHook(() => useAuth(), { wrapper })
+        await waitFor(() => expect(result.current.isAuthenticated).toBe(true))
+        leaveResiduesOfPreviousUser()
+
+        await act(async () => {
+            window.dispatchEvent(new CustomEvent("lumitrack:unauthorized"))
+        })
+
+        expectNoResidues()
+    })
+
+    it("login não herda o cache de uma sessão anterior que não passou pelo logout", async () => {
+        const { result } = await renderUnauthenticated()
+        leaveResiduesOfPreviousUser()
+        vi.mocked(authService.login).mockResolvedValue({ user: otherUser })
+
+        await act(async () => {
+            await result.current.login({ email: otherUser.email, password: "Senha@123" })
+        })
+
+        expectNoResidues()
+        expect(result.current.user?.id).toBe("user-456")
+    })
+
+    it("login de demonstração não herda o cache da conta anterior", async () => {
+        const { result } = await renderUnauthenticated()
+        leaveResiduesOfPreviousUser()
+        vi.mocked(authService.demoLogin).mockResolvedValue({ user: otherUser })
+
+        await act(async () => {
+            await result.current.demoLogin("commercial")
+        })
+
+        expectNoResidues()
+    })
+
+    it("login com MFA não herda o cache da conta anterior", async () => {
+        const { result } = await renderUnauthenticated()
+        leaveResiduesOfPreviousUser()
+        vi.mocked(authService.verifyMfaLogin).mockResolvedValue(otherUser)
+
+        await act(async () => {
+            await result.current.completeMfaLogin({ mfaToken: "token", code: "123456" })
+        })
+
+        expectNoResidues()
+    })
+
+    it("login que exige MFA ainda não troca de usuário, então preserva o cache", async () => {
+        const { result } = await renderUnauthenticated()
+        leaveResiduesOfPreviousUser()
+        vi.mocked(authService.login).mockResolvedValue({ mfaRequired: true, mfaToken: "t" })
+
+        await act(async () => {
+            await result.current.login({ email: otherUser.email, password: "Senha@123" })
+        })
+
+        expect(queryClient.getQueryData(PROPERTIES_KEY)).toBeDefined()
     })
 })
 

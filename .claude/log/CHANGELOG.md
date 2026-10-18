@@ -4987,3 +4987,12 @@
 - **Arquivos principais:** `deploy/update-production.sh`, `backend/prisma/schema.prisma`, `backend/src/modules/auth/auth.service.test.ts`, `backend/src/shared/session/sessionOrigin.test.ts`, `.claude/docs/DEPLOY.md`, `.claude/project_context/08-convencoes-git.md`.
 - **Decisões/ADRs:** nenhuma.
 - **Notas:** os dois testes alterados passam (101 testes), com prettier, eslint e `prisma validate` limpos; o script passa em `bash -n` e não foi executado em produção. A exceção do `npm audit --omit=dev` no CI ficou sem registro de condição de saída: precisa de uma issue (depende de aprovação). O back-merge de `main` em `staging`, que resolve o conflito do PR, é do usuário e vai em commit separado depois deste.
+
+## [2026-10-18] fix: cache de queries e propriedade selecionada não sobrevivem à troca de sessão (hotfix)
+
+- **Branch:** fix/577-limpa-cache-ao-trocar-de-sessao
+- **Tipo:** fix
+- **O quê:** quem saía de uma conta e entrava em outra (por exemplo, da demo residencial para a comercial) via na primeira tela os dados da conta anterior, até alguma query remontar já vencida. O `queryClient` é único para a aba, o cache vale 30 s como fresco e 5 min como retido, e as chaves de query não carregam o usuário. O `AuthContext` não descartava nada na saída nem na entrada. Passa a chamar `discardSessionData` (`queryClient.clear()` e remoção da propriedade selecionada do `localStorage`) no logout, no evento `lumitrack:unauthorized` e antes de gravar um usuário novo em `login`, `demoLogin`, `completeMfaLogin` e no login automático do cadastro. O login que ainda exige MFA não troca de usuário e preserva o cache.
+- **Arquivos principais:** `frontend/src/contexts/AuthContext.tsx` e `frontend/src/contexts/AuthContext.test.tsx`.
+- **Decisões/ADRs:** nenhuma.
+- **Notas:** hotfix a partir de `main`, com PR de base `main` e back-merge posterior em `staging`. Seis testes novos de regressão (cinco falhavam antes da correção). Frontend: 166 arquivos e 1.498 testes passando, lint sem erro (o aviso de fast refresh em `useAuth` já existia), `tsc -b` e dependency-cruiser limpos. O e2e não foi rodado localmente (mocka a API; roda no CI). Não reproduzido em navegador: a causa vem de leitura do código e do comportamento descrito. O estado em tempo real já era zerado por usuário e não mudou.
